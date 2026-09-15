@@ -54,24 +54,28 @@ func TestContentResolvesPastAnItemThatClaimsOnlyComments(t *testing.T) {
 		// want is the content's point; empty means the project's default point.
 		want       string
 		collection string
-		// claimsOnly is ClaimsOnlyComments: the first item that matches the path
-		// claims only its comments.
+		// claimed is CollectionForPath, which knows no reader: the collection of
+		// the item that claims the file's values, or its comments when no item
+		// claims the values.
+		claimed string
+		// claimsOnly is ClaimsOnlyComments: an item claims the file's comments
+		// and none claims its values.
 		claimsOnly bool
 	}{
 		"an only item and no other claim": {
-			path: "config/app.yaml", want: "", collection: "", claimsOnly: true,
+			path: "config/app.yaml", want: "", collection: "", claimed: "source-comments", claimsOnly: true,
 		},
 		"an only item before an item that claims the file": {
-			later: laterClaims, path: "config/app.yaml", want: "site/web", collection: "site", claimsOnly: true,
+			later: laterClaims, path: "config/app.yaml", want: "site/web", collection: "site", claimed: "site", claimsOnly: false,
 		},
 		"comments on a file no reader parses": {
-			path: "code/parse.go", noReader: true, want: "", collection: "", claimsOnly: true,
+			path: "code/parse.go", noReader: true, want: "", collection: "", claimed: "source-comments", claimsOnly: true,
 		},
 		"comments on a file no reader parses, before an item that claims it": {
-			later: laterClaims, path: "code/parse.go", noReader: true, want: "site/web", collection: "site", claimsOnly: true,
+			later: laterClaims, path: "code/parse.go", noReader: true, want: "site/web", collection: "site", claimed: "source-comments", claimsOnly: false,
 		},
 		"comments on a file a reader parses stay a claim on its content": {
-			path: "code/parse.go", want: "source/comments", collection: "source-comments", claimsOnly: false,
+			path: "code/parse.go", want: "source/comments", collection: "source-comments", claimed: "source-comments", claimsOnly: false,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -92,7 +96,7 @@ func TestContentResolvesPastAnItemThatClaimsOnlyComments(t *testing.T) {
 			comments, err := proj.ResolveGovernanceFor(project.GovernancePoint{Path: tc.path, Comments: true, NoReader: tc.noReader})
 			require.NoError(t, err)
 			assert.Equal(t, "source/comments", comments.Ref().String(), "the comments stay at the item's point")
-			assert.Equal(t, "source-comments", proj.CollectionForPath(tc.path), "the file is still claimed by the first item")
+			assert.Equal(t, tc.claimed, proj.CollectionForPath(tc.path), "the file is named by the item that claims its values")
 			assert.Equal(t, tc.claimsOnly, proj.ClaimsOnlyComments(tc.path, tc.noReader))
 		})
 	}

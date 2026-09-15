@@ -411,7 +411,10 @@ collections:
 
 kapi then checks each comment in those files under the voice and terms of its
 point, as it checks Go comments, and a check of the project reads none of the
-values. The item governs only the comments. A check that names a file, such as
+values. The item governs only the comments. When another item also matches
+those files, that item claims their values wherever either item is listed, so
+`kapi up` converges the values and the comments stay at the comments-only
+item's point. A check that names a file, such as
 `kapi check .github/workflows/release.yaml`, checks its values too, at the next
 item that claims the file or at the project's default point, and
 `kapi voice guide` and `kapi context` answer for that point. `kapi up`,

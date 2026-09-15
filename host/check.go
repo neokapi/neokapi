@@ -1160,9 +1160,9 @@ func (f *checkFormats) bind(proj *project.KapiProject, resolved []project.Resolv
 		f.byPath[rf.Path] = resolvedFormat{
 			name:         rf.Format,
 			cfg:          mergedFormatConfig(proj, rf.Format, rf.Item),
-			comments:     rf.Item != nil && rf.Item.Comments.Declared,
+			comments:     rf.CommentItem != nil,
 			commentsOnly: narrowedToComments(rf),
-			directives:   commentDirectives(proj, rf.Item),
+			directives:   commentDirectives(proj, rf.CommentItem),
 		}
 	}
 }
@@ -1233,8 +1233,8 @@ func (f *checkFormats) lookup(file string) (resolvedFormat, bool) {
 	return rf, ok
 }
 
-// commentDirectives returns the comment directives in force for a file an item
-// claims, or the project's own when no item does.
+// commentDirectives returns the comment directives in force for a file whose
+// comments an item claims, or the project's own when no item declares them.
 func commentDirectives(proj *project.KapiProject, item *project.ContentItem) []string {
 	if item == nil {
 		return proj.Defaults.Comments.Directives

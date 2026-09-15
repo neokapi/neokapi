@@ -162,8 +162,9 @@ func (ctx *ProjectContext) formatPriorityOverrides() map[string]int {
 
 // --- Content resolution ---
 
-// ResolvedFile represents a file claimed by a project content item: the first
-// item, in recipe order across every collection, whose pattern matches it.
+// ResolvedFile represents a file claimed by project content items. Item is the
+// item that claims the file's values (KapiProject.ItemForPath), or the one that
+// claims its comments when no item claims its values.
 type ResolvedFile struct {
 	Path       string       // absolute file path
 	Relative   string       // path relative to project dir
@@ -182,13 +183,18 @@ type ResolvedFile struct {
 	// second implementation of JoinBase and drifts from the first.
 	CollectionIndex int
 	ItemIndex       int
+	// CommentItem is the item that claims the file's comments, which sit at its
+	// point (KapiProject.CommentItemForPath): the first item declared for the
+	// comments alone, or Item when it declares them and comes first. nil when no
+	// item declares the file's comments.
+	CommentItem *ContentItem
 }
 
-// CommentsOnly reports a file claimed for its comments alone: its item sets
-// `comments: {only: true}`, or sets `comments: true` and no format reads the
-// file. Its comments are checked, and nothing reads its values: extraction,
-// drift detection, a convergence run, a flow run, merge, coverage, the ship
-// gates and a push each leave them alone.
+// CommentsOnly reports a file claimed for its comments alone: no item claims its
+// values, and its item sets `comments: {only: true}`, or sets `comments: true`
+// and no format reads the file. Its comments are checked, and nothing reads its
+// values: extraction, drift detection, a convergence run, a flow run, merge,
+// coverage, the ship gates and a push each leave them alone.
 func (rf ResolvedFile) CommentsOnly() bool {
 	return rf.Item != nil && rf.Item.Comments.Declared && (rf.Item.Comments.Only || rf.Format == "")
 }
@@ -197,12 +203,15 @@ func (rf ResolvedFile) CommentsOnly() bool {
 // returns the resolved file list with detected formats. Ignore rules from
 // .kapiignore are applied. Patterns that escape the project root are rejected.
 //
-// A file resolves to exactly one item. Items are walked in recipe order, across
-// collections, and the first item whose pattern matches a file claims it; later
-// items never see it, however specific their pattern. A recipe therefore lists
-// the item that names a file before the glob that would also cover it, which is
-// the order ItemForPath, and through it every path-to-item lookup in the
-// hosts, walks as well.
+// A file resolves once. Items are walked in recipe order, across collections,
+// and the claims on each layer of a file follow the rule ItemForPath applies to
+// every path-to-item lookup in the hosts (fileClaims). The first item whose
+// pattern matches a file and that claims more than its comments claims its
+// values and names the file. A later item of that kind never sees the file,
+// however specific its pattern, so a recipe lists the item that names a file
+// before the glob that would also cover it. An item declared for comments alone
+// claims no value wherever it is listed, and claims the comments unless the
+// values' item declares them first (ResolvedFile.CommentItem).
 //
 // It fails rather than resolve a partial content set: a pattern that cannot be
 // expanded means the recipe declares content this call cannot account for, and
@@ -217,9 +226,10 @@ func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]Resol
 
 	ig := ignore.ForProjectDir(ctx.ProjectDir)
 
-	// Slash-relative paths already claimed by an earlier item.
-	claimed := map[string]bool{}
-	var files []ResolvedFile
+	// The files the items match, by slash-relative path, and the order in which
+	// an item first matched each.
+	matched := map[string]*resolvingFile{}
+	var order []string
 	for ci, coll := range ctx.Project.Collections {
 		collName := coll.Name
 		// EffectiveItems preserves the recipe's own order, so the index here
@@ -305,14 +315,21 @@ func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]Resol
 					continue
 				}
 
-				// First match wins: an earlier item already claimed this file.
-				if claimed[relSlash] {
-					continue
+				f := matched[relSlash]
+				if f == nil {
+					f = &resolvingFile{ctx: ctx, reg: reg, rel: relSlash}
+					matched[relSlash] = f
+					order = append(order, relSlash)
 				}
-				claimed[relSlash] = true
-				files = append(files, ctx.resolvedFile(reg, ci, ii, item, relSlash, nil))
+				if !f.claims.decided() {
+					f.claims.offer(item, ci, ii, f.noReader)
+				}
 			}
 		}
+	}
+	files := make([]ResolvedFile, 0, len(order))
+	for _, rel := range order {
+		files = append(files, matched[rel].resolved())
 	}
 	return files, nil
 }
@@ -320,9 +337,10 @@ func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]Resol
 // ResolvePaths resolves the files among rels, paths relative to the project
 // directory, that the recipe declares as content. Each path goes through the
 // rule ResolveContent applies to a file it finds: the project's excludes and
-// ignore rules, then the first item whose pattern matches it (ItemForPath), and
-// the item's format or the one detected. It looks for no file, so it resolves
-// a path that only a git index or tree holds.
+// ignore rules, then the claims of the items whose patterns match it
+// (fileClaims), and the format of the item that names it or the one detected.
+// It looks for no file, so it resolves a path that only a git index or tree
+// holds.
 //
 // content supplies a file's bytes when several formats claim its extension and
 // the content decides between them. With nil content the extension and
@@ -339,42 +357,74 @@ func (ctx *ProjectContext) ResolvePaths(reg *registry.FormatRegistry, rels []str
 		if !filepath.IsLocal(filepath.FromSlash(rel)) || claimed[relSlash] || ig.Match(relSlash, false) {
 			continue
 		}
-		item, ci, ii, ok := ctx.Project.itemForPath(relSlash)
-		if !ok {
+		f := &resolvingFile{ctx: ctx, reg: reg, rel: relSlash, open: func() (io.ReadSeeker, error) { return nil, os.ErrNotExist }}
+		if content != nil {
+			f.open = func() (io.ReadSeeker, error) { return content(relSlash) }
+		}
+		f.claims = ctx.Project.claimsForPath(relSlash, f.noReader)
+		if !f.claims.item().ok {
 			continue
 		}
 		claimed[relSlash] = true
-		open := func() (io.ReadSeeker, error) { return nil, os.ErrNotExist }
-		if content != nil {
-			open = func() (io.ReadSeeker, error) { return content(relSlash) }
-		}
-		files = append(files, ctx.resolvedFile(reg, ci, ii, item, relSlash, open))
+		files = append(files, f.resolved())
 	}
 	return files
 }
 
-// resolvedFile is the file at rel as item, the ii-th item of collection ci,
-// claims it. Its format is the item's, or the one detected with the content
-// open supplies, or with the file on disk when open is nil.
-func (ctx *ProjectContext) resolvedFile(reg *registry.FormatRegistry, ci, ii int, item ContentItem, rel string, open func() (io.ReadSeeker, error)) ResolvedFile {
-	abs := filepath.Join(ctx.ProjectDir, filepath.FromSlash(rel))
+// resolvingFile is one file while the recipe's items are offered to it: the
+// claims so far, and the format detected for it, which is detected at most
+// once.
+type resolvingFile struct {
+	ctx *ProjectContext
+	reg *registry.FormatRegistry
+	rel string
+	// open supplies the content the format is detected from. With nil open the
+	// file on disk is read.
+	open     func() (io.ReadSeeker, error)
+	claims   fileClaims
+	detected *string
+}
+
+// detect returns the format detected for the file.
+func (f *resolvingFile) detect() string {
+	if f.detected == nil {
+		name := f.ctx.detectFormat(f.reg, filepath.Join(f.ctx.ProjectDir, filepath.FromSlash(f.rel)), f.open)
+		f.detected = &name
+	}
+	return *f.detected
+}
+
+// noReader reports that no reader parses the file.
+func (f *resolvingFile) noReader() bool {
+	return f.detect() == ""
+}
+
+// resolved is the file as its claims resolve it. Its format is the one the item
+// that names it declares, or the one detected.
+func (f *resolvingFile) resolved() ResolvedFile {
+	c := f.claims.item()
 	fmtName := ""
-	if item.Format != nil {
-		fmtName = item.Format.Name
+	if c.item.Format != nil {
+		fmtName = c.item.Format.Name
 	}
 	if fmtName == "" {
-		fmtName = ctx.detectFormat(reg, abs, open)
+		fmtName = f.detect()
 	}
-	return ResolvedFile{
-		Path:            abs,
-		Relative:        filepath.FromSlash(rel),
+	rf := ResolvedFile{
+		Path:            filepath.Join(f.ctx.ProjectDir, filepath.FromSlash(f.rel)),
+		Relative:        filepath.FromSlash(f.rel),
 		Format:          fmtName,
-		Collection:      ctx.Project.Collections[ci].Name,
-		Pattern:         item.Path,
-		Item:            &item,
-		CollectionIndex: ci,
-		ItemIndex:       ii,
+		Collection:      f.ctx.Project.Collections[c.coll].Name,
+		Pattern:         c.item.Path,
+		Item:            &c.item,
+		CollectionIndex: c.coll,
+		ItemIndex:       c.index,
 	}
+	if f.claims.comments.ok {
+		comments := f.claims.comments.item
+		rf.CommentItem = &comments
+	}
+	return rf
 }
 
 // --- Format configuration ---

@@ -567,7 +567,11 @@ A check reads such a file through `checkFormats.commentsOnly` and a source
 unit narrowed by `VerifyUnit.OnlyComments`, for which `readSource` reads no
 value. A check of files named on the command line or through MCP `check_file`
 reads their values too, at the point the content resolves to past the item
-(`KapiProject.ContentItemForPath`). Loading rejects `only` beside a target, target languages, a redaction, or
+(`KapiProject.ContentItemForPath`). An item declared for comments alone claims
+the values of no file, wherever the recipe lists it: the first other item that
+matches a file claims and reads its values, and `ResolvedFile.CommentItem` names
+the item at whose point the comments sit, so a check reads both layers of that
+file. Loading rejects `only` beside a target, target languages, a redaction, or
 a reader's config or preset. A declared format that supplies no comments leaves the comment check
 not run, and a format with no comment formatter reports the formatter as
 unsupported.

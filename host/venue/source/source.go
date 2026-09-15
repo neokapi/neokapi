@@ -1574,8 +1574,7 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 }
 
 // detectFormat determines the format for a file: the format the claiming
-// content item declares (itemFor, the recipe's first-match order), or the
-// registry when it declares none.
+// content item declares (itemFor), or the registry when it declares none.
 func (c *BowrainSourceConnector) detectFormat(absPath string) string {
 	if item := c.itemFor(absPath); item != nil {
 		if formatName := coreproj.ResolveFormat(formatNameOf(item.Format)); formatName != "" {
@@ -1599,9 +1598,11 @@ func (c *BowrainSourceConnector) projectContext() *coreproj.ProjectContext {
 	return coreproj.NewProjectContext(&c.project.Recipe.KapiProject, recipePath)
 }
 
-// itemFor returns the recipe content item whose glob claims absPath, in the
-// recipe's own first-match order — the same walk detectFormat uses. nil when
-// nothing claims it.
+// itemFor returns the recipe content item that claims absPath, by the rule
+// core/project.ItemForPath applies: the first item in recipe order whose glob
+// matches it and that is not declared for comments alone, or the first
+// comments-only item when no other matches. detectFormat and the reader and
+// writer configuration ask here. nil when nothing claims it.
 func (c *BowrainSourceConnector) itemFor(absPath string) *coreproj.ContentItem {
 	relPath, err := c.project.RelativePath(absPath)
 	if err != nil {
@@ -1609,15 +1610,22 @@ func (c *BowrainSourceConnector) itemFor(absPath string) *coreproj.ContentItem {
 	}
 	relPath = filepath.ToSlash(relPath)
 	recipe := c.project.Recipe
+	var commentsOnly *coreproj.ContentItem
 	for _, it := range recipe.IterateContent() {
 		lang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
 		pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
-		if matched, merr := doublestar.Match(pattern, relPath); merr == nil && matched {
-			item := it.Item.ContentItem
+		if matched, merr := doublestar.Match(pattern, relPath); merr != nil || !matched {
+			continue
+		}
+		item := it.Item.ContentItem
+		if !item.Comments.Only {
 			return &item
 		}
+		if commentsOnly == nil {
+			commentsOnly = &item
+		}
 	}
-	return nil
+	return commentsOnly
 }
 
 // configureReaderFor applies the recipe's format configuration for the item that
