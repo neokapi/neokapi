@@ -579,9 +579,12 @@ type CommentRewriteCanary struct {
 type CommentFormatter struct {
 	// Name names the formatter, such as "prettier".
 	Name string `json:"name"`
-	// Detect lists the files that mark a project as formatted by it. The host
-	// looks for them in the file's directory and each directory above it, and
-	// the nearest directory holding one decides.
+	// Detect lists the files that mark a project as formatted by it, which are
+	// the configuration files it loads, in the order it prefers them within one
+	// directory. The host looks for them in the file's directory and each
+	// directory above it, and the nearest directory holding one decides. Every
+	// one of them from the file's directory up to that directory is part of what
+	// a person trusts when they allow the formatter to run.
 	Detect []CommentFormatterMarker `json:"detect"`
 	// Command formats one file's bytes read from standard input and prints the
 	// result. Its first element is found in node_modules/.bin in the marker's
@@ -591,10 +594,16 @@ type CommentFormatter struct {
 }
 
 // CommentFormatterMarker is a file that marks a project as formatted by one
-// formatter. With Contains set, only a file holding that text marks it.
+// formatter, and that the formatter loads as configuration. With Contains set,
+// only a file holding that text marks the project, and the formatter loads the
+// file whatever it holds. With Key set, the file is a JSON document, or YAML
+// when its name ends in .yaml or .yml, and it marks the project, and is loaded,
+// only when it holds that key at its top level with a value other than null,
+// false, zero or an empty string.
 type CommentFormatterMarker struct {
 	File     string `json:"file"`
 	Contains string `json:"contains,omitempty"`
+	Key      string `json:"key,omitempty"`
 }
 
 // CommentCanary is a comment language's canary file (core/comment.Canary).
@@ -691,6 +700,9 @@ func (r CommentRewrite) validate(delimited bool) error {
 		}
 		if len(f.Detect) == 0 || slices.ContainsFunc(f.Detect, func(m CommentFormatterMarker) bool { return m.File == "" || strings.ContainsAny(m.File, `/\`) }) {
 			return fmt.Errorf("formatters[%d]: detect lists at least one file name, without a directory", i)
+		}
+		if slices.ContainsFunc(f.Detect, func(m CommentFormatterMarker) bool { return m.Contains != "" && m.Key != "" }) {
+			return fmt.Errorf("formatters[%d]: a detect marker sets contains or key, not both", i)
 		}
 	}
 	return nil

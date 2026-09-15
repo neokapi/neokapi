@@ -4,14 +4,20 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
@@ -85,7 +91,8 @@ var _ comment.Formatter = (*commentFormatter)(nil)
 // each declared formatter lists, and the nearest directory holding one decides.
 // The formatter's executable is looked for in node_modules/.bin in that
 // directory and above it, and then on PATH, and the formatter runs only when
-// trust allows the command the marker selects.
+// trust allows the command the marker selects, together with every
+// configuration file it can load for file.
 func resolveCommentFormatter(p comment.Provider, file string, decl *manifest.CommentRewrite, trust *formatterTrust) *commentFormatter {
 	f := &commentFormatter{
 		provider:  p,
@@ -102,6 +109,10 @@ func resolveCommentFormatter(p comment.Provider, file string, decl *manifest.Com
 		for _, candidate := range decl.Formatters {
 			if marker, ok := formatterMarkerIn(dir, candidate.Detect); ok {
 				f.decl, f.dir = candidate, dir
+				if reason := trust.refusal(marker, candidate.Name); reason != "" {
+					f.notRun = reason
+					return f
+				}
 				bin, skipped, found := findFormatterBinary(dir, candidate.Command[0])
 				if !found {
 					f.notRun = fmt.Sprintf("%s formats the files under %s, as %s says, and %s is not installed in node_modules/.bin there or above it, or on PATH",
@@ -112,7 +123,8 @@ func resolveCommentFormatter(p comment.Provider, file string, decl *manifest.Com
 					return f
 				}
 				command := append([]string{bin}, candidate.Command[1:]...)
-				if err := trust.allow(marker, candidate.Name, command); err != nil {
+				configs := formatterConfigFiles(filepath.Dir(abs), dir, candidate.Detect)
+				if err := trust.allow(marker, candidate.Name, command, configs); err != nil {
 					f.notRun = err.Error()
 					return f
 				}
@@ -162,11 +174,78 @@ func formatterMarkerIn(dir string, markers []manifest.CommentFormatterMarker) (s
 		if err != nil {
 			continue
 		}
-		if m.Contains == "" || bytes.Contains(data, []byte(m.Contains)) {
+		switch {
+		case m.Key != "":
+			if hasTopLevelKey(path, data, m.Key) {
+				return path, true
+			}
+		case m.Contains == "" || bytes.Contains(data, []byte(m.Contains)):
 			return path, true
 		}
 	}
 	return "", false
+}
+
+// formatterConfigFiles lists the configuration files a formatter can load for a
+// file in from: every file its markers name, in from and each directory above it
+// up to to, the directory of the marker that selected it. A marker with a Key
+// names a file the formatter loads only when it holds that key. A marker's
+// Contains is not consulted, since the formatter loads such a file whatever it
+// holds.
+func formatterConfigFiles(from, to string, markers []manifest.CommentFormatterMarker) []string {
+	var files []string
+	for dir := from; ; dir = filepath.Dir(dir) {
+		for _, m := range markers {
+			path := filepath.Join(dir, m.File)
+			info, err := os.Stat(path)
+			if err != nil || info.IsDir() {
+				continue
+			}
+			if m.Key != "" {
+				data, err := os.ReadFile(path)
+				if err != nil || !hasTopLevelKey(path, data, m.Key) {
+					continue
+				}
+			}
+			files = append(files, path)
+		}
+		if parent := filepath.Dir(dir); dir == to || parent == dir {
+			break
+		}
+	}
+	return files
+}
+
+// hasTopLevelKey reports whether data, the document at path, holds key at its
+// top level with a value other than null, false, zero or an empty string. A
+// file ending in .yaml or .yml is read as YAML and any other file as JSON, and a
+// document that does not parse holds no key.
+func hasTopLevelKey(path string, data []byte, key string) bool {
+	var doc map[string]any
+	var err error
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".yaml", ".yml":
+		err = yaml.Unmarshal(data, &doc)
+	default:
+		err = json.Unmarshal(data, &doc)
+	}
+	if err != nil {
+		return false
+	}
+	switch v := doc[key].(type) {
+	case nil:
+		return false
+	case bool:
+		return v
+	case string:
+		return v != ""
+	case float64:
+		return v != 0
+	case int:
+		return v != 0
+	default:
+		return true
+	}
 }
 
 // findFormatterBinary resolves a formatter's executable: an absolute path as it
@@ -188,17 +267,136 @@ func findFormatterBinary(dir, name string) (string, []string, bool) {
 			break
 		}
 	}
-	var skipped []string
-	for _, entry := range filepath.SplitList(os.Getenv("PATH")) {
-		if !filepath.IsAbs(entry) {
-			skipped = append(skipped, strconv.Quote(entry))
-			continue
-		}
+	absolute, skipped := splitPathEntries(os.Getenv("PATH"))
+	for _, entry := range absolute {
 		if bin, err := exec.LookPath(filepath.Join(entry, name)); err == nil {
 			return bin, skipped, true
 		}
 	}
 	return "", skipped, false
+}
+
+// splitPathEntries splits a PATH value into its entries that are absolute paths
+// and the entries that are not, quoted. An empty entry names the working
+// directory and is not absolute.
+func splitPathEntries(value string) (absolute, skipped []string) {
+	for _, entry := range filepath.SplitList(value) {
+		if filepath.IsAbs(entry) {
+			absolute = append(absolute, entry)
+			continue
+		}
+		skipped = append(skipped, strconv.Quote(entry))
+	}
+	return absolute, skipped
+}
+
+// lookPathAbsolute finds the program name in the PATH entries that are absolute
+// paths, which are the entries a formatter's environment holds (formatterEnv).
+func lookPathAbsolute(name string) (string, bool) {
+	absolute, _ := splitPathEntries(os.Getenv("PATH"))
+	for _, entry := range absolute {
+		if bin, err := exec.LookPath(filepath.Join(entry, name)); err == nil {
+			return bin, true
+		}
+	}
+	return "", false
+}
+
+// formatterEnv is the environment a formatter runs with: environ with every
+// PATH entry that is not an absolute path removed. Such an entry names a
+// directory relative to the formatter's working directory, which is the
+// project's, so a program the formatter or its interpreter looked up there
+// would be the project's.
+func formatterEnv(environ []string) []string {
+	out := make([]string, 0, len(environ))
+	for _, kv := range environ {
+		name, value, ok := strings.Cut(kv, "=")
+		if ok && (name == "PATH" || runtime.GOOS == "windows" && strings.EqualFold(name, "PATH")) {
+			absolute, _ := splitPathEntries(value)
+			kv = name + "=" + strings.Join(absolute, string(os.PathListSeparator))
+		}
+		out = append(out, kv)
+	}
+	return out
+}
+
+// formatterRuntime is what a formatter's executable runs besides itself.
+type formatterRuntime struct {
+	// interpreter is the program that runs the executable: the one a script's
+	// first line names, or the node a node_modules/.bin shim runs.
+	interpreter string
+	// script is the file a node_modules/.bin shim hands to node.
+	script string
+}
+
+// cmdShimNode matches the line a node_modules/.bin shim written by npm's and
+// pnpm's cmd-shim uses to run node on its target, and captures the target.
+var cmdShimNode = regexp.MustCompile(`exec "\$basedir/node"\s+(?:"([^"]+)"|'([^']+)')`)
+
+// formatterShebangBytes bounds how much of an executable is read to find what
+// it runs.
+const formatterShebangBytes = 64 << 10
+
+// formatterRuntimeOf resolves what the executable at path runs, as the
+// formatter's environment (formatterEnv) resolves it. A node_modules/.bin shim
+// runs node from its own directory when that directory holds an executable
+// node, and otherwise the node on PATH, on the target it names. A script whose
+// first line is `#!/usr/bin/env name` runs name from PATH, and one naming an
+// interpreter's path runs that interpreter. An executable without a first
+// `#!` line runs nothing kapi can name.
+func formatterRuntimeOf(path string) formatterRuntime {
+	f, err := os.Open(path)
+	if err != nil {
+		return formatterRuntime{}
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, formatterShebangBytes))
+	if err != nil || !bytes.HasPrefix(data, []byte("#!")) {
+		return formatterRuntime{}
+	}
+	dir := filepath.Dir(path)
+	if m := cmdShimNode.FindSubmatch(data); m != nil {
+		var rt formatterRuntime
+		if node := filepath.Join(dir, "node"); isExecutableFile(node) {
+			rt.interpreter = node
+		} else if node, ok := lookPathAbsolute("node"); ok {
+			rt.interpreter = node
+		}
+		target := string(m[1])
+		if target == "" {
+			target = string(m[2])
+		}
+		target = strings.ReplaceAll(target, "$basedir", dir)
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(dir, target)
+		}
+		rt.script = filepath.Clean(target)
+		return rt
+	}
+	line, _, _ := bytes.Cut(data[2:], []byte("\n"))
+	fields := strings.Fields(string(line))
+	if len(fields) == 0 {
+		return formatterRuntime{}
+	}
+	if filepath.Base(fields[0]) != "env" {
+		return formatterRuntime{interpreter: fields[0]}
+	}
+	for _, name := range fields[1:] {
+		if strings.HasPrefix(name, "-") || strings.Contains(name, "=") {
+			continue
+		}
+		if interpreter, ok := lookPathAbsolute(name); ok {
+			return formatterRuntime{interpreter: interpreter}
+		}
+		break
+	}
+	return formatterRuntime{}
+}
+
+// isExecutableFile reports whether path is a regular file some user may execute.
+func isExecutableFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0
 }
 
 // FormatterName implements comment.Formatter.
@@ -275,6 +473,7 @@ func (f *commentFormatter) run(name string, src []byte) ([]byte, error) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, f.command[0], args...)
 	cmd.Dir = f.dir
+	cmd.Env = formatterEnv(os.Environ())
 	cmd.Stdin = bytes.NewReader(src)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr

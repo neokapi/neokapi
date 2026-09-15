@@ -348,8 +348,12 @@ rewritten bytes through `LocateComments`. The block holds:
   which must be refused as `terminator`.
 - `formatters`: the formatters a project in the language may use, in the order
   the host tries them within one directory. Each has a `name`, `detect` marker
-  files (a `file` name, and `contains` when only a file holding that text marks
-  the project), and a `command` that reads a file's bytes on standard input and
+  files, and a `command`. The markers are the configuration files the formatter
+  loads, in the order it searches for them, and the host digests every one it
+  finds between the edited file and the marker that selected the formatter. A
+  marker has a `file` name, and either `contains`, when only a file holding that
+  text marks the project, or `key`, when the file is a JSON or YAML document the
+  formatter reads only for that top-level key. The `command` reads a file's bytes on standard input and
   prints the formatted bytes, with `{file}` replaced by the file's resolved
   path. The command's first element is found in `node_modules/.bin` from the
   marker's directory upward, then on `PATH`.

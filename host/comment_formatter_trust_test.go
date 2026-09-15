@@ -144,7 +144,7 @@ func assertFormatterRan(t *testing.T, comments []commentFileResult, file, marker
 // it only under execution trust (host/exectrust.go): the KAPI_TRUST_EXEC grant
 // for kapi apply, a decision recorded for the configuration file that selects
 // the formatter, or an answer given at kapi apply's prompt. MCP apply_edits
-// runs it only on a recorded allow. Otherwise the edit did not run.
+// never runs it. Otherwise the edit did not run.
 //
 // The subtests named "must fail" hold a formatter no one allowed, or an allow
 // that no longer matches what would run, and assert that it never runs.
@@ -174,7 +174,7 @@ func TestCommentFormatterTrust(t *testing.T) {
 		file, marker, _ := installedFormatterProject(t)
 		out := applyEditsMCPWith(t, a, repairEntry(t, a, file))
 		assert.False(t, out.OK)
-		assertFormatterNotRun(t, out.Comments, file, marker, "apply_edits never asks", "kapi apply")
+		assertFormatterNotRun(t, out.Comments, file, marker, "apply_edits never runs a project's formatter", "kapi apply")
 	})
 
 	t.Run("must fail: apply_edits does not take KAPI_TRUST_EXEC as an allow", func(t *testing.T) {
@@ -182,7 +182,7 @@ func TestCommentFormatterTrust(t *testing.T) {
 		t.Setenv(execTrustEnvVar, "1")
 		file, marker, _ := installedFormatterProject(t)
 		out := applyEditsMCPWith(t, a, repairEntry(t, a, file))
-		assertFormatterNotRun(t, out.Comments, file, marker, "apply_edits never asks")
+		assertFormatterNotRun(t, out.Comments, file, marker, "apply_edits never runs a project's formatter")
 	})
 
 	t.Run("kapi apply runs the formatter under KAPI_TRUST_EXEC and records nothing", func(t *testing.T) {
@@ -195,7 +195,7 @@ func TestCommentFormatterTrust(t *testing.T) {
 		assert.Empty(t, loadExecTrust().Projects, "the environment grant is not recorded")
 	})
 
-	t.Run("an allow answered at kapi apply's prompt is recorded, and apply_edits then runs the formatter", func(t *testing.T) {
+	t.Run("an allow answered at kapi apply's prompt is recorded, and kapi apply then runs the formatter without asking", func(t *testing.T) {
 		a := declaredFormatterApp(t)
 		a.isTTY = func() bool { return true }
 		file, marker, bin := installedFormatterProject(t)
@@ -206,8 +206,10 @@ func TestCommentFormatterTrust(t *testing.T) {
 		assert.Contains(t, prompt, "Allow this formatter to run? [y/N]")
 		assertFormatterRan(t, out.Comments, file, marker)
 
-		mcp := applyEditsMCPWith(t, a, repairEntry(t, a, file))
-		assertFormatterRan(t, mcp.Comments, file, marker)
+		a.isTTY = func() bool { return false }
+		again, _, err := applyWithInput(t, a, "", repairEntry(t, a, file))
+		require.NoError(t, err)
+		assertFormatterRan(t, again.Comments, file, marker)
 	})
 
 	t.Run("must fail: a decline answered at the prompt is recorded and holds", func(t *testing.T) {
@@ -222,7 +224,7 @@ func TestCommentFormatterTrust(t *testing.T) {
 		out, _, _ = applyWithInput(t, a, "", repairEntry(t, a, file))
 		assertFormatterNotRun(t, out.Comments, file, marker, "was declined", ExecTrustPath())
 		mcp := applyEditsMCPWith(t, a, repairEntry(t, a, file))
-		assertFormatterNotRun(t, mcp.Comments, file, marker, "was declined")
+		assertFormatterNotRun(t, mcp.Comments, file, marker, "apply_edits never runs a project's formatter")
 	})
 
 	t.Run("must fail: a change to the configuration file that selects the formatter voids the allow", func(t *testing.T) {
@@ -234,8 +236,9 @@ func TestCommentFormatterTrust(t *testing.T) {
 		assertFormatterRan(t, out.Comments, file, marker)
 
 		require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(file), ".oxfmtrc.json"), []byte("{ }\n"), 0o644))
-		mcp := applyEditsMCPWith(t, a, repairEntry(t, a, file))
-		assertFormatterNotRun(t, mcp.Comments, file, marker, "no one has allowed it to run")
+		a.isTTY = func() bool { return false }
+		changed, _, _ := applyWithInput(t, a, "", repairEntry(t, a, file))
+		assertFormatterNotRun(t, changed.Comments, file, marker, "no one has allowed it to run")
 	})
 
 	t.Run("must fail: a change to the formatter executable voids the allow", func(t *testing.T) {
@@ -249,8 +252,9 @@ func TestCommentFormatterTrust(t *testing.T) {
 		script, err := os.ReadFile(bin)
 		require.NoError(t, err)
 		require.NoError(t, os.WriteFile(bin, append(script, "# changed\n"...), 0o755))
-		mcp := applyEditsMCPWith(t, a, repairEntry(t, a, file))
-		assertFormatterNotRun(t, mcp.Comments, file, marker, "no one has allowed it to run")
+		a.isTTY = func() bool { return false }
+		changed, _, _ := applyWithInput(t, a, "", repairEntry(t, a, file))
+		assertFormatterNotRun(t, changed.Comments, file, marker, "no one has allowed it to run")
 	})
 
 	t.Run("must fail: a change-set read from standard input leaves no one to ask", func(t *testing.T) {
@@ -259,7 +263,7 @@ func TestCommentFormatterTrust(t *testing.T) {
 		cmd := NewEnvCommand(t.Context(), "apply")
 		assert.Nil(t, a.applyFormatterTrust(cmd, true).ask, "the answer would be read from the change-set")
 		assert.NotNil(t, a.applyFormatterTrust(cmd, false).ask)
-		assert.Nil(t, mcpFormatterTrust().ask, "apply_edits never asks")
+		assert.Nil(t, mcpFormatterTrust().ask, "apply_edits never runs a project's formatter")
 	})
 
 	t.Run("must fail: a PATH entry that is not an absolute path is skipped and named", func(t *testing.T) {

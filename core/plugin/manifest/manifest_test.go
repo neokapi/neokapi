@@ -138,6 +138,7 @@ func TestValidate_RequiredFields(t *testing.T) {
 		{"rewrite needs a formatter canary", commentRewriteManifest(`{"canary": `+testRewriteCanary+`, "formatters": [`+testFormatter+`]}`, false), "formatter_canary is required"},
 		{"rewrite formatter needs a command", commentRewriteManifest(`{"canary": `+testRewriteCanary+`, "formatters": [{"name": "prettier", "detect": [{"file": ".prettierrc"}], "command": []}], "formatter_canary": "x"}`, false), "name and command are required"},
 		{"rewrite formatter marker is a file name", commentRewriteManifest(`{"canary": `+testRewriteCanary+`, "formatters": [{"name": "prettier", "detect": [{"file": "config/.prettierrc"}], "command": ["prettier"]}], "formatter_canary": "x"}`, false), "without a directory"},
+		{"rewrite formatter marker sets contains or key", commentRewriteManifest(`{"canary": `+testRewriteCanary+`, "formatters": [{"name": "prettier", "detect": [{"file": "package.json", "contains": "prettier", "key": "prettier"}], "command": ["prettier"]}], "formatter_canary": "x"}`, false), "contains or key, not both"},
 		{"rewrite of delimited comments needs a terminator case", commentRewriteManifest(`{"canary": `+testRewriteCanary+`, "formatters": [`+testFormatter+`], "formatter_canary": "x"}`, true), "declares delimited and terminator"},
 		{"rewrite declares delimited and terminator together", commentRewriteManifest(`{"canary": {"name": "c.ts", "source": "// a", "block": "comment", "refused": "x", "delimited": "func/f"}, "formatters": [`+testFormatter+`], "formatter_canary": "x"}`, true), "declared together"},
 	}
@@ -195,7 +196,7 @@ func TestRoundTrip(t *testing.T) {
 // the validation table varies around.
 const (
 	testRewriteCanary = `{"name": "c.ts", "source": "// a", "block": "comment", "refused": "eslint-disable"}`
-	testFormatter     = `{"name": "prettier", "detect": [{"file": ".prettierrc"}], "command": ["prettier", "--stdin-filepath", "{file}"]}`
+	testFormatter     = `{"name": "prettier", "detect": [{"file": ".prettierrc"}, {"file": "package.json", "key": "prettier"}], "command": ["prettier", "--stdin-filepath", "{file}"]}`
 )
 
 // commentRewriteManifest is a manifest declaring one comment language with the
@@ -220,6 +221,7 @@ func TestParseCommentRewrite(t *testing.T) {
 	require.Len(t, r.Formatters, 1)
 	assert.Equal(t, []string{"prettier", "--stdin-filepath", "{file}"}, r.Formatters[0].Command)
 	assert.Equal(t, ".prettierrc", r.Formatters[0].Detect[0].File)
+	assert.Equal(t, manifest.CommentFormatterMarker{File: "package.json", Key: "prettier"}, r.Formatters[0].Detect[1])
 
 	plain, err := manifest.Parse([]byte(`{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [` + commentLanguage(`"typescript"`, `[".ts"]`, `{"source": "// a", "block": "comment"}`) + `]}}`))
 	require.NoError(t, err)

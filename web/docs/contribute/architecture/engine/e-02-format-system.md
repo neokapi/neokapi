@@ -699,12 +699,14 @@ the plugins a `.prettierrc` names, and the vite-plus `oxfmt` evaluates
 ([E-06](e-06-execution-trust.md)), decided when an edit would run it. Its record
 is keyed by the configuration file that selected it, and its digest holds the
 formatter's name and command, the resolved executable's bytes and that file's
-bytes, so a new executable or an edited configuration asks again. Modules either
-one imports are outside the digest. `kapi apply` runs the formatter under
-`KAPI_TRUST_EXEC`, on a recorded allow, or after asking a person at a terminal,
-whose answer it records, and a change-set read from standard input leaves no one
-to ask. MCP `apply_edits` runs it only on a recorded allow, since a project's own
-MCP client configuration can set the server's environment. Without trust the edit
+bytes, so a new executable or an edited configuration asks again. The digest also
+holds the interpreter that runs the executable and every configuration file the
+formatter can load between the edited file and that file; what that code imports
+is outside it. `kapi apply` runs the formatter under `KAPI_TRUST_EXEC`, on a
+recorded allow, or after asking a person at a terminal, whose answer it records,
+and a change-set read from standard input leaves no one to ask. MCP
+`apply_edits` never runs a project's formatter, since an agent that may write
+files can write the configuration it loads. Without trust the edit
 did not run, with the reason `formatter`, and no formatter process starts. When
 the host looks for the executable on `PATH`, it skips an entry that is not an
 absolute path, since such an entry names a directory relative to the working

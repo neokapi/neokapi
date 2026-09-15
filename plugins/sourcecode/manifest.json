@@ -222,7 +222,19 @@
                   "file": ".oxfmtrc.jsonc"
                 },
                 {
+                  "file": "vite.config.js",
+                  "contains": "vite-plus"
+                },
+                {
+                  "file": "vite.config.mjs",
+                  "contains": "vite-plus"
+                },
+                {
                   "file": "vite.config.ts",
+                  "contains": "vite-plus"
+                },
+                {
+                  "file": "vite.config.cjs",
                   "contains": "vite-plus"
                 },
                 {
@@ -230,7 +242,7 @@
                   "contains": "vite-plus"
                 },
                 {
-                  "file": "vite.config.js",
+                  "file": "vite.config.cts",
                   "contains": "vite-plus"
                 }
               ],
@@ -243,44 +255,66 @@
               "name": "prettier",
               "detect": [
                 {
+                  "file": "package.json",
+                  "key": "prettier"
+                },
+                {
+                  "file": "package.yaml",
+                  "key": "prettier"
+                },
+                {
                   "file": ".prettierrc"
                 },
                 {
                   "file": ".prettierrc.json"
                 },
                 {
-                  "file": ".prettierrc.json5"
+                  "file": ".prettierrc.yml"
                 },
                 {
                   "file": ".prettierrc.yaml"
                 },
                 {
-                  "file": ".prettierrc.yml"
-                },
-                {
-                  "file": ".prettierrc.toml"
+                  "file": ".prettierrc.json5"
                 },
                 {
                   "file": ".prettierrc.js"
                 },
                 {
-                  "file": ".prettierrc.cjs"
+                  "file": "prettier.config.js"
+                },
+                {
+                  "file": ".prettierrc.ts"
+                },
+                {
+                  "file": "prettier.config.ts"
                 },
                 {
                   "file": ".prettierrc.mjs"
                 },
                 {
-                  "file": "prettier.config.js"
+                  "file": "prettier.config.mjs"
+                },
+                {
+                  "file": ".prettierrc.mts"
+                },
+                {
+                  "file": "prettier.config.mts"
+                },
+                {
+                  "file": ".prettierrc.cjs"
                 },
                 {
                   "file": "prettier.config.cjs"
                 },
                 {
-                  "file": "prettier.config.mjs"
+                  "file": ".prettierrc.cts"
                 },
                 {
-                  "file": "package.json",
-                  "contains": "\"prettier\":"
+                  "file": "prettier.config.cts"
+                },
+                {
+                  "file": ".prettierrc.toml"
                 }
               ],
               "command": [
@@ -405,7 +439,19 @@
                   "file": ".oxfmtrc.jsonc"
                 },
                 {
+                  "file": "vite.config.js",
+                  "contains": "vite-plus"
+                },
+                {
+                  "file": "vite.config.mjs",
+                  "contains": "vite-plus"
+                },
+                {
                   "file": "vite.config.ts",
+                  "contains": "vite-plus"
+                },
+                {
+                  "file": "vite.config.cjs",
                   "contains": "vite-plus"
                 },
                 {
@@ -413,7 +459,7 @@
                   "contains": "vite-plus"
                 },
                 {
-                  "file": "vite.config.js",
+                  "file": "vite.config.cts",
                   "contains": "vite-plus"
                 }
               ],
@@ -426,44 +472,66 @@
               "name": "prettier",
               "detect": [
                 {
+                  "file": "package.json",
+                  "key": "prettier"
+                },
+                {
+                  "file": "package.yaml",
+                  "key": "prettier"
+                },
+                {
                   "file": ".prettierrc"
                 },
                 {
                   "file": ".prettierrc.json"
                 },
                 {
-                  "file": ".prettierrc.json5"
+                  "file": ".prettierrc.yml"
                 },
                 {
                   "file": ".prettierrc.yaml"
                 },
                 {
-                  "file": ".prettierrc.yml"
-                },
-                {
-                  "file": ".prettierrc.toml"
+                  "file": ".prettierrc.json5"
                 },
                 {
                   "file": ".prettierrc.js"
                 },
                 {
-                  "file": ".prettierrc.cjs"
+                  "file": "prettier.config.js"
+                },
+                {
+                  "file": ".prettierrc.ts"
+                },
+                {
+                  "file": "prettier.config.ts"
                 },
                 {
                   "file": ".prettierrc.mjs"
                 },
                 {
-                  "file": "prettier.config.js"
+                  "file": "prettier.config.mjs"
+                },
+                {
+                  "file": ".prettierrc.mts"
+                },
+                {
+                  "file": "prettier.config.mts"
+                },
+                {
+                  "file": ".prettierrc.cjs"
                 },
                 {
                   "file": "prettier.config.cjs"
                 },
                 {
-                  "file": "prettier.config.mjs"
+                  "file": ".prettierrc.cts"
                 },
                 {
-                  "file": "package.json",
-                  "contains": "\"prettier\":"
+                  "file": "prettier.config.cts"
+                },
+                {
+                  "file": ".prettierrc.toml"
                 }
               ],
               "command": [
@@ -521,7 +589,19 @@
                   "file": ".oxfmtrc.jsonc"
                 },
                 {
+                  "file": "vite.config.js",
+                  "contains": "vite-plus"
+                },
+                {
+                  "file": "vite.config.mjs",
+                  "contains": "vite-plus"
+                },
+                {
                   "file": "vite.config.ts",
+                  "contains": "vite-plus"
+                },
+                {
+                  "file": "vite.config.cjs",
                   "contains": "vite-plus"
                 },
                 {
@@ -529,7 +609,7 @@
                   "contains": "vite-plus"
                 },
                 {
-                  "file": "vite.config.js",
+                  "file": "vite.config.cts",
                   "contains": "vite-plus"
                 }
               ],
@@ -542,44 +622,66 @@
               "name": "prettier",
               "detect": [
                 {
+                  "file": "package.json",
+                  "key": "prettier"
+                },
+                {
+                  "file": "package.yaml",
+                  "key": "prettier"
+                },
+                {
                   "file": ".prettierrc"
                 },
                 {
                   "file": ".prettierrc.json"
                 },
                 {
-                  "file": ".prettierrc.json5"
+                  "file": ".prettierrc.yml"
                 },
                 {
                   "file": ".prettierrc.yaml"
                 },
                 {
-                  "file": ".prettierrc.yml"
-                },
-                {
-                  "file": ".prettierrc.toml"
+                  "file": ".prettierrc.json5"
                 },
                 {
                   "file": ".prettierrc.js"
                 },
                 {
-                  "file": ".prettierrc.cjs"
+                  "file": "prettier.config.js"
+                },
+                {
+                  "file": ".prettierrc.ts"
+                },
+                {
+                  "file": "prettier.config.ts"
                 },
                 {
                   "file": ".prettierrc.mjs"
                 },
                 {
-                  "file": "prettier.config.js"
+                  "file": "prettier.config.mjs"
+                },
+                {
+                  "file": ".prettierrc.mts"
+                },
+                {
+                  "file": "prettier.config.mts"
+                },
+                {
+                  "file": ".prettierrc.cjs"
                 },
                 {
                   "file": "prettier.config.cjs"
                 },
                 {
-                  "file": "prettier.config.mjs"
+                  "file": ".prettierrc.cts"
                 },
                 {
-                  "file": "package.json",
-                  "contains": "\"prettier\":"
+                  "file": "prettier.config.cts"
+                },
+                {
+                  "file": ".prettierrc.toml"
                 }
               ],
               "command": [
