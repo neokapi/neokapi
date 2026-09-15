@@ -293,6 +293,20 @@ func (a *App) runShipCheck(cmd Command, args []string) error {
 // the canonical Report. It is shared by the CLI and the MCP check tools so a CI
 // gate and an assistant loop read the same findings and gate; timings vary.
 func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
+	return a.computeCheck(cmd, args, false)
+}
+
+// ComputeDeclaredCheck is ComputeCheck over files the project declares, each
+// read as a check of the whole project reads it: a file declared for its
+// comments alone has only its comments checked. A check of the same files by
+// name reads their values too.
+func (a *App) ComputeDeclaredCheck(cmd Command, files []string) (check.Report, error) {
+	return a.computeCheck(cmd, files, true)
+}
+
+// computeCheck is ComputeCheck, with declared set when the files named are the
+// project's declared content rather than files a caller named.
+func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Report, error) {
 	execution := newCheckExecution()
 	a.InitRegistries()
 	ctx := CmdContext(cmd)
@@ -476,6 +490,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		// operational error.
 		prog := a.NewProgress(cmd, "checking", len(args))
 		defer prog.Done()
+		opts.named = unread == nil && !declared
 		var checked []string
 		for _, file := range args {
 			prog.Step(DisplayName(file))
@@ -538,7 +553,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	if p, ok := a.commentLayerFor(file, fmtName); ok {
 		return a.checkCommentFile(ctx, file, p, validateMode, opts)
 	}
-	if opts.formats.commentsOnly(file) {
+	if opts.formats.commentsOnly(file) && !opts.named {
 		return a.checkCommentsOnlyFile(ctx, file, fmtName, validateMode, opts)
 	}
 	extractionStart := time.Now()
@@ -680,6 +695,10 @@ type checkRunOptions struct {
 	// formats binds each file to the format and reader config the project
 	// declared for it; nil outside a project.
 	formats *checkFormats
+	// named reports a check of files the caller named rather than of the
+	// project's declared content. A named file declared for its comments alone
+	// has its own content checked too, at the point that content resolves to.
+	named bool
 	// documentBlocks, when set, are the whole document's blocks for the rules
 	// that hold over a document, where the blocks checked are only some of them
 	// (a diff-scoped check).
@@ -1340,6 +1359,15 @@ func (a *App) ProjectTermsForFile(ctx context.Context, cmd Command, file string)
 	return resolver.forFile(ctx, file)
 }
 
+// projectTermsAt is ProjectTermsForFile at a point the caller resolved for file.
+func (a *App) projectTermsAt(ctx context.Context, cmd Command, point project.GovernancePoint, file string) (terms.Terminology, error) {
+	resolver, err := a.newCheckTerms(cmd)
+	if err != nil || resolver == nil || resolver.proj == nil {
+		return nil, err
+	}
+	return resolver.forPoint(ctx, point, file)
+}
+
 // rulesFor returns the term rules a translation of file into target is held to:
 // the rules the terms bound at the file's point give for that language. Outside
 // a project there are none.
@@ -1410,7 +1438,9 @@ func (a *App) governancePointForFile(root, file string) project.GovernancePoint 
 		}
 	}
 	if rel, ok := projectRelPath(root, abs); ok {
-		return a.GovernancePointFor("", rel)
+		point := a.GovernancePointFor("", rel)
+		point.NoReader = a.NoReaderFor(abs)
+		return point
 	}
 	return a.GovernancePointFor("", "")
 }

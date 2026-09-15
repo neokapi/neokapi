@@ -73,15 +73,13 @@ func (a *App) commentLayerFor(file, fmtName string) (comment.Provider, bool) {
 	return p, true
 }
 
-// commentsOnlyFile reports a file whose only content a check reads is its
-// comments: no format reader claims its extension, and a comment provider
-// reads it, or would once the plugin that reads its language is installed.
-func (a *App) commentsOnlyFile(path string) bool {
+// NoReaderFor reports that no format reader claims the file's extension, so a
+// point for the file's own content passes over an item that declares only its
+// comments (project.GovernancePoint.NoReader).
+func (a *App) NoReaderFor(path string) bool {
 	a.InitRegistries()
-	if _, ok := a.commentLayerFor(path, ""); ok {
-		return true
-	}
-	return a.missingCommentReader(path) != nil
+	_, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
+	return err != nil
 }
 
 // commentLayer is one file's comments, read for checking.

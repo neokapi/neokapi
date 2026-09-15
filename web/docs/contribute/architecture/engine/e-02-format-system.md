@@ -565,7 +565,9 @@ the source and target units behind coverage, the plan and the ship gates, the
 implicit inputs of `kapi stats` and `kapi inspect`, and the scan a push reads.
 A check reads such a file through `checkFormats.commentsOnly` and a source
 unit narrowed by `VerifyUnit.OnlyComments`, for which `readSource` reads no
-value. Loading rejects `only` beside a target, target languages, a redaction, or
+value. A check of files named on the command line or through MCP `check_file`
+reads their values too, at the point the content resolves to past the item
+(`KapiProject.ContentItemForPath`). Loading rejects `only` beside a target, target languages, a redaction, or
 a reader's config or preset. A declared format that supplies no comments leaves the comment check
 not run, and a format with no comment formatter reports the formatter as
 unsupported.

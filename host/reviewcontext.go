@@ -182,12 +182,20 @@ func (r *ReviewPointResolver) resolve(ctx context.Context, collection, rel, loca
 		return e
 	}
 
+	// The point the unit's blocks sit at. Every block the project reads from a
+	// file an item declares for its comments alone is a comment, so a unit there
+	// is reviewed at the point its comments sit at.
+	point := r.app.GovernancePointFor(collection, rel)
 	if rel != "" {
 		abs := filepath.Join(r.root, filepath.FromSlash(rel))
-		req := ContextPointRequest{Path: abs, Locale: model.LocaleID(locale)}
+		req := ContextPointRequest{Path: abs, Locale: model.LocaleID(locale), Declared: true}
 
 		src, cleanup := r.app.ContextSourcesAt(r.cmd, req)
 		defer cleanup()
+		if src.Recipe != nil && src.Path != "" {
+			point = contextPathPoint(src.Recipe, req, src.Path, r.app.NoReaderFor(abs), point.At)
+			point.Collection = collection
+		}
 		e.voice = src.Voice
 		if answer, err := ResolveContextAt(ctx, src, req); err == nil {
 			e.point.Profile = answer.Point.Profile
@@ -204,7 +212,7 @@ func (r *ReviewPointResolver) resolve(ctx context.Context, collection, rel, loca
 			e.point.Notes = append(e.point.Notes, err.Error())
 		}
 
-		if tb, terr := r.app.ProjectTermsForFile(ctx, r.cmd, abs); terr != nil {
+		if tb, terr := r.app.projectTermsAt(ctx, r.cmd, point, abs); terr != nil {
 			e.point.Notes = append(e.point.Notes, "the vocabulary bound here could not be read: "+terr.Error())
 		} else {
 			e.terms = tb
@@ -219,7 +227,7 @@ func (r *ReviewPointResolver) resolve(ctx context.Context, collection, rel, loca
 			proj.Defaults.Coordinates, ref.Coordinates(), collectionCoordinates(proj, e.point.Collection))
 	}
 
-	rules, err := r.app.ResolveTermRulesFor(r.cmd, locale, r.app.GovernancePointFor(collection, rel))
+	rules, err := r.app.ResolveTermRulesFor(r.cmd, locale, point)
 	if err != nil {
 		e.point.Notes = append(e.point.Notes, "the terms bound here could not be read: "+err.Error())
 	} else {

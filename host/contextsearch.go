@@ -709,7 +709,9 @@ func (r *pointResolver) pointOf(document string) string {
 	if p, ok := r.cache[document]; ok {
 		return p
 	}
-	rc, err := r.proj.ResolveGovernanceFor(project.GovernancePoint{Path: document, At: r.at})
+	// Every block the project reads from a file an item declares for its comments
+	// alone is a comment, so a use there sits at the point its comments sit at.
+	rc, err := r.proj.ResolveGovernanceFor(project.GovernancePoint{Path: document, Comments: r.proj.ClaimsOnlyComments(document, false), At: r.at})
 	if err != nil {
 		r.cache[document] = ""
 		return ""

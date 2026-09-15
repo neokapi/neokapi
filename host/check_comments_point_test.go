@@ -212,10 +212,19 @@ var (
 	commentsPoint = check.Point{Profile: "source", Channel: "comments", Comments: true}
 )
 
+// goCommentsPoint is where a Go file's comments sit when no point of their own
+// is declared: at their item's point, site/web. No reader parses a Go file, so
+// its own content resolves past that item to the project's default point, and
+// the comments sit apart from it.
+var goCommentsPoint = check.Point{Profile: "site", Channel: "web", Comments: true}
+
 // wantPoint is the point a block of the fixture is checked at.
 func wantPoint(block string, apart bool) check.Point {
-	if apart && blockKind(block) != "value" {
+	switch {
+	case apart && blockKind(block) != "value":
 		return commentsPoint
+	case strings.HasPrefix(block, "func/"):
+		return goCommentsPoint
 	}
 	return sitePoint
 }
@@ -237,13 +246,14 @@ func assertPoints(t *testing.T, findings []check.Diagnostic, apart bool) {
 }
 
 // assertContextPoints holds each recorded context's point to the channel its
-// voice was resolved at.
+// voice was resolved at. A Go file's comments sit apart from its content
+// wherever they are placed (goCommentsPoint).
 func assertContextPoints(t *testing.T, contexts []check.CheckContext) {
 	t.Helper()
 	for _, c := range contexts {
 		if assert.NotNil(t, c.Point, c.File) {
 			assert.Equal(t, c.Voice.Channel, c.Point.Channel, c.File)
-			assert.Equal(t, c.Voice.Channel == "comments", c.Point.Comments, c.File)
+			assert.Equal(t, c.Voice.Channel == "comments" || filepath.Ext(c.File) == ".go", c.Point.Comments, c.File)
 		}
 	}
 }
@@ -306,7 +316,8 @@ func TestCheckGovernsCommentsAtTheirOwnPoint(t *testing.T) {
 		assert.Equal(t, map[string][]string{"app.yaml": {"web"}, "parse.go": {"web"}}, contextChannels(report.Execution.Contexts))
 		assertContextPoints(t, report.Execution.Contexts)
 		assertPoints(t, report.Findings, false)
-		assert.Equal(t, map[string][]string{"app.yaml": {"file"}, "parse.go": {"file"}}, ruleRuns(report.Execution.Analyzers))
+		assert.Equal(t, map[string][]string{"app.yaml": {"file"}, "parse.go": {"site/web"}}, ruleRuns(report.Execution.Analyzers),
+			"a Go file's comments sit apart from its content, so the checker's run names their point")
 	})
 }
 

@@ -270,6 +270,18 @@ func TestGroupInputsByBinding(t *testing.T) {
 			},
 		},
 		{
+			name: "an item declared for its comments alone governs none of an input's content",
+			proj: newProj(
+				project.Collection{
+					Name:    "platform-comments",
+					Channel: "platform/docs",
+					Content: []project.ContentItem{{Path: "ci/*.yaml", Comments: project.ContentComments{Declared: true, Only: true}}},
+				},
+			),
+			inputs: abs("ci/build.yaml"),
+			want:   []wantGroup{{point: "", inputs: abs("ci/build.yaml")}},
+		},
+		{
 			name:   "no project is one group",
 			proj:   nil,
 			inputs: abs("docs/a.md"),

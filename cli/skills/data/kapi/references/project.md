@@ -161,10 +161,13 @@ collections:
   conditional comments, code and tool suppressions are never read as prose.
   `comments: {only: true}` declares an item's files for their comments alone,
   for a file whose values another tool owns (a CI workflow, a build config):
-  the comments are checked and no command reads the values, so `kapi up`,
-  merge, extract, flow runs, `kapi stats`, coverage and the ship gates skip
-  them. Such an item cannot also set `target`, `target_languages`, `redaction`,
-  `format.config` or `format.preset`.
+  a check of the project reads the comments and none of the values, and
+  `kapi up`, merge, extract, flow runs, `kapi stats`, coverage and the ship
+  gates skip the values. The item governs only the comments: `kapi check
+  <file>` naming the file checks its values too, and `kapi voice guide <file>`
+  and `kapi context <file>` answer for them, at the next item that claims the
+  file or the project's default point. Such an item cannot also set `target`,
+  `target_languages`, `redaction`, `format.config` or `format.preset`.
   Markers your own tools read in
   comments, such as `okapi-skip:`, go under `defaults.comments.directives` for
   the whole project or `comments: {directives: [...]}` on an item: a comment

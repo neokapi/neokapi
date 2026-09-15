@@ -410,7 +410,11 @@ collections:
 ```
 
 kapi then checks each comment in those files under the voice and terms of its
-point, as it checks Go comments, and reads none of the values. `kapi up`,
+point, as it checks Go comments, and a check of the project reads none of the
+values. The item governs only the comments. A check that names a file, such as
+`kapi check .github/workflows/release.yaml`, checks its values too, at the next
+item that claims the file or at the project's default point, and
+`kapi voice guide` and `kapi context` answer for that point. `kapi up`,
 `kapi merge`, `kapi extract`, flow runs, `kapi stats`, `kapi status` coverage
 and the `--ship` gates leave the values alone. `only` works for every format
 that supplies comments: YAML, the XML-based formats, HTML, Markdown, MDX, PO and
@@ -472,10 +476,10 @@ style:
 `not_after` keeps "is used to" and "an id, used to flag" out of the rule, which
 a regular expression alone cannot say.
 
-`kapi voice guide <file>` prints the limits in force for a file whose only
-content is its comments, such as a Go file, so an assistant about to write a
-comment there reads them first. `--comments` asks for the comments' point of
-any file.
+`kapi voice guide --comments <file>` prints the voice and the limits in force
+for the comments of a file, such as a Go file, so an assistant about to write a
+comment there reads them first. Without `--comments`, the guide answers for the
+file's own content.
 
 ### Repair a comment finding
 

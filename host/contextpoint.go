@@ -56,6 +56,11 @@ type ContextPointRequest struct {
 	// Limit caps the terms rendered. The answer reports the total either way, so
 	// a capped list reads as a briefing rather than as the whole vocabulary.
 	Limit int
+	// Declared answers for the blocks the project reads from the file at Path
+	// rather than for the file's own content. The two differ for a file an item
+	// declares for its comments alone: every block read from it is a comment, so
+	// the answer is for the point its comments sit at.
+	Declared bool
 }
 
 // DefaultContextTermsLimit caps the terms a by-location answer renders when the
@@ -181,15 +186,26 @@ type ContextPointSources struct {
 // A named profile is resolved AS DECLARED (no instant), because "what does this
 // profile hold" has an answer before it comes into force and after it lapses;
 // the answer reports the window's state alongside. A path is resolved at the
-// instant, the view a run takes.
-func ResolveContextGovernance(proj *project.KapiProject, req ContextPointRequest, relPath string, at time.Time) (*project.ResolvedGovernance, error) {
+// instant, the view a run takes: point is the location's point at that
+// instant, or the project's default point at it for a request that names no
+// location.
+func ResolveContextGovernance(proj *project.KapiProject, req ContextPointRequest, point project.GovernancePoint) (*project.ResolvedGovernance, error) {
 	if proj == nil {
 		return nil, nil
 	}
 	if req.Profile != "" {
 		return proj.ResolveGovernanceFor(project.GovernancePoint{Profile: req.Profile})
 	}
-	return proj.ResolveGovernanceFor(project.GovernancePoint{Path: relPath, At: at})
+	return proj.ResolveGovernanceFor(point)
+}
+
+// contextPathPoint is the point a by-location request resolves for the file at
+// rel, relative to the project root, at the instant at: the point of the file's
+// own content, or of its comments for a Declared request about a file an item
+// declares for its comments alone. noReader is project.GovernancePoint.NoReader
+// for the file.
+func contextPathPoint(proj *project.KapiProject, req ContextPointRequest, rel string, noReader bool, at time.Time) project.GovernancePoint {
+	return project.GovernancePoint{Path: rel, NoReader: noReader, Comments: req.Declared && proj.ClaimsOnlyComments(rel, noReader), At: at}
 }
 
 // ContextSourcesAt assembles what a by-location answer reads — the one path for
@@ -236,7 +252,7 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	// the project matches nothing, and answering it from the project's default
 	// point would state a governance the caller never asked about — in the same
 	// confident wording a real point gets — so it is refused instead.
-	var rel string
+	point := project.GovernancePoint{At: src.At}
 	if req.Path != "" {
 		matched, inside := projectRelative(root, req.Path)
 		if !inside {
@@ -246,11 +262,14 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 				req.Path, root)
 			return src, noop
 		}
-		rel = matched
-		src.Path, src.Collection = matched, proj.CollectionForPath(matched)
+		point = contextPathPoint(proj, req, matched, a.NoReaderFor(filepath.Join(root, filepath.FromSlash(matched))), src.At)
+		src.Path, src.Collection = matched, proj.ContentCollectionForPath(matched, point.NoReader)
+		if point.Comments {
+			src.Collection = proj.CollectionForPath(matched)
+		}
 	}
 
-	rc, rerr := ResolveContextGovernance(proj, req, rel, src.At)
+	rc, rerr := ResolveContextGovernance(proj, req, point)
 	if rerr != nil {
 		src.Notes = append(src.Notes, "this point could not be resolved: "+rerr.Error())
 		return src, noop
@@ -278,7 +297,7 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	// the profile's own store when it binds one, else the project's committed
 	// terms. Reporting terms a check would not enforce is the failure AD-037
 	// records in `voice_guide`, one store further along.
-	point := project.GovernancePoint{Profile: req.Profile, Path: src.Path, At: src.At}
+	point.Profile = req.Profile
 	if req.Profile != "" {
 		point.At = time.Time{}
 	}

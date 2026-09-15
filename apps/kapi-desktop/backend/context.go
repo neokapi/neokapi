@@ -168,6 +168,15 @@ func (a *App) contextExplorerSources(
 	return src, cleanup, nil
 }
 
+// noReaderAt reports that no format reader parses the file at relPath in the
+// tab's project (project.GovernancePoint.NoReader), and false with no file.
+func (a *App) noReaderAt(op *openProject, relPath string) bool {
+	if relPath == "" || op.Path == "" {
+		return false
+	}
+	return a.hostEngine().NoReaderFor(filepath.Join(filepath.Dir(op.Path), filepath.FromSlash(relPath)))
+}
+
 // contextCommand carries the tab's own recipe path on the project flag, so the
 // flag-free openers resolve to the project this tab has open rather than to
 // whatever an upward walk from the process's working directory would find.
@@ -185,13 +194,15 @@ func (a *App) contextCommand(ctx context.Context, op *openProject) (host.Command
 }
 
 // contextPoint resolves the governance in force at (collection, path) and
-// renders it as the point the panes name.
+// renders it as the point the panes name. noReader is
+// project.GovernancePoint.NoReader for the file at relPath.
 func contextPoint(
 	proj *project.KapiProject,
 	collection, relPath string,
+	noReader bool,
 	at time.Time,
 ) (ContextPointDTO, *project.ResolvedGovernance, error) {
-	pt := project.GovernancePoint{Collection: collection, Path: relPath, At: at}
+	pt := project.GovernancePoint{Collection: collection, Path: relPath, NoReader: noReader, At: at}
 	rc, err := proj.ResolveGovernanceFor(pt)
 	if err != nil {
 		return ContextPointDTO{}, nil, err
@@ -263,7 +274,7 @@ func (a *App) ContextGoverns(tabID, collection, relPath string, limit int) (*Con
 	}
 	defer cleanup()
 
-	point, rc, err := contextPoint(op.Project, collection, relPath, src.At)
+	point, rc, err := contextPoint(op.Project, collection, relPath, a.noReaderAt(op, relPath), src.At)
 	if err != nil {
 		return nil, fmt.Errorf("resolve governance: %w", err)
 	}
@@ -338,7 +349,7 @@ func (a *App) ContextLives(tabID, collection, relPath string, limit int) (*Conte
 	defer cancel()
 
 	at := a.hostEngine().GovernanceInstant()
-	point, _, err := contextPoint(op.Project, collection, relPath, at)
+	point, _, err := contextPoint(op.Project, collection, relPath, a.noReaderAt(op, relPath), at)
 	if err != nil {
 		return nil, fmt.Errorf("resolve governance: %w", err)
 	}
