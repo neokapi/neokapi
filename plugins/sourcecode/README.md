@@ -73,7 +73,8 @@ The plugin never writes a file. For a language whose manifest entry declares
 `rewrite`, which TypeScript, TSX and JavaScript do, `kapi apply` writes a comment
 back: kapi renders the text into the comment's layout, has this plugin locate the
 rewritten file, and writes it only when the project's formatter, oxfmt or
-prettier, runs and agrees.
+prettier, runs and agrees. Each comment form in those languages is written except
+a legacy HTML-like `<!--` comment in a script, which is refused.
 
 What the provider decides:
 
