@@ -75,9 +75,8 @@ func (e *noCommentReaderError) Unwrap() error { return registry.ErrUnknownFormat
 // installed provider reads it, and a plugin declares its language. Any other
 // file returns nil.
 func (a *App) missingCommentReader(path string) error {
-	ext := strings.ToLower(filepath.Ext(path))
-	i := slices.IndexFunc(commentPluginHints, func(h commentPluginHint) bool { return slices.Contains(h.Extensions, ext) })
-	if i < 0 {
+	hint, ok := commentPluginHintFor(path)
+	if !ok {
 		return nil
 	}
 	if _, ok := a.commentProviderFor(path); ok {
@@ -86,5 +85,16 @@ func (a *App) missingCommentReader(path string) error {
 	if _, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true}); err == nil {
 		return nil
 	}
-	return &noCommentReaderError{file: path, hint: commentPluginHints[i]}
+	return &noCommentReaderError{file: path, hint: hint}
+}
+
+// commentPluginHintFor returns the hint for the language whose comments a
+// plugin reads in files with path's extension.
+func commentPluginHintFor(path string) (commentPluginHint, bool) {
+	ext := strings.ToLower(filepath.Ext(path))
+	i := slices.IndexFunc(commentPluginHints, func(h commentPluginHint) bool { return slices.Contains(h.Extensions, ext) })
+	if i < 0 {
+		return commentPluginHint{}, false
+	}
+	return commentPluginHints[i], true
 }

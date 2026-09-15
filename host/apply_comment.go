@@ -43,6 +43,9 @@ const (
 	reasonDuplicate = "duplicate"
 	// reasonIO is a file that could not be read or written.
 	reasonIO = "io"
+	// reasonNoReader is a file whose comments only a plugin reads, when no
+	// installed plugin reads them.
+	reasonNoReader = "no-reader"
 )
 
 // commentEdit is what became of one comment entry.
@@ -166,6 +169,10 @@ func (w *commentFileWrite) apply(ctx context.Context, formats *checkFormats, can
 	}
 	p, ok := w.app.commentProviderForEdit(w.file, formats)
 	if !ok {
+		if hint, plugin := commentPluginHintFor(w.file); plugin {
+			w.notRun(reasonNoReader, (&noCommentReaderError{file: w.file, hint: hint}).Error()+"; nothing was written")
+			return
+		}
 		for i := range w.entries {
 			w.refuse(i, string(comment.RefusedUnsupported), "no comment layer reads "+DisplayName(w.file))
 		}

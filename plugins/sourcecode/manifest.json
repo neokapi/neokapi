@@ -201,6 +201,96 @@
           "name": "a JavaScript doc comment with a doubled word, below a shebang and above a template literal holding a comment marker",
           "source": "#!/usr/bin/env node\n/** Reads the the config. */\nexport function read() {\n  return `// not a comment`;\n}\n",
           "block": "func/read"
+        },
+        "rewrite": {
+          "canary": {
+            "name": "canary.js",
+            "source": "// eslint-disable-next-line no-console\n// Reads the config.\nexport function read() {\n  return 1;\n}\n\n/**\n * Writes the config.\n */\nexport function write() {}\n",
+            "block": "func/read",
+            "refused": "eslint-disable-next-line no-console",
+            "delimited": "func/write",
+            "terminator": "Writes the config */ and returns."
+          },
+          "formatters": [
+            {
+              "name": "oxfmt",
+              "detect": [
+                {
+                  "file": ".oxfmtrc.json"
+                },
+                {
+                  "file": ".oxfmtrc.jsonc"
+                },
+                {
+                  "file": "vite.config.ts",
+                  "contains": "vite-plus"
+                },
+                {
+                  "file": "vite.config.mts",
+                  "contains": "vite-plus"
+                },
+                {
+                  "file": "vite.config.js",
+                  "contains": "vite-plus"
+                }
+              ],
+              "command": [
+                "oxfmt",
+                "--stdin-filepath={file}"
+              ]
+            },
+            {
+              "name": "prettier",
+              "detect": [
+                {
+                  "file": ".prettierrc"
+                },
+                {
+                  "file": ".prettierrc.json"
+                },
+                {
+                  "file": ".prettierrc.json5"
+                },
+                {
+                  "file": ".prettierrc.yaml"
+                },
+                {
+                  "file": ".prettierrc.yml"
+                },
+                {
+                  "file": ".prettierrc.toml"
+                },
+                {
+                  "file": ".prettierrc.js"
+                },
+                {
+                  "file": ".prettierrc.cjs"
+                },
+                {
+                  "file": ".prettierrc.mjs"
+                },
+                {
+                  "file": "prettier.config.js"
+                },
+                {
+                  "file": "prettier.config.cjs"
+                },
+                {
+                  "file": "prettier.config.mjs"
+                },
+                {
+                  "file": "package.json",
+                  "contains": "\"prettier\":"
+                }
+              ],
+              "command": [
+                "prettier",
+                "--stdin-filepath",
+                "{file}"
+              ]
+            }
+          ],
+          "formatter_canary": "export function read() {\n        // Indented too far.\n  return 1;\n}\n"
         }
       },
       {
@@ -294,6 +384,96 @@
           "name": "a TSX doc comment with a doubled word, above JSX text holding a comment marker",
           "source": "/** Renders the the greeting. */\nexport function Greeting() {\n  return <p>// not a comment {/* inline */}</p>;\n}\n",
           "block": "func/Greeting"
+        },
+        "rewrite": {
+          "canary": {
+            "name": "canary.tsx",
+            "source": "// eslint-disable-next-line no-console\n// Renders the greeting.\nexport function Greeting() {\n  return <p>Hello</p>;\n}\n\n/**\n * Renders the farewell.\n */\nexport function Farewell() {\n  return <p>Bye</p>;\n}\n",
+            "block": "func/Greeting",
+            "refused": "eslint-disable-next-line no-console",
+            "delimited": "func/Farewell",
+            "terminator": "Renders the farewell */ and returns."
+          },
+          "formatters": [
+            {
+              "name": "oxfmt",
+              "detect": [
+                {
+                  "file": ".oxfmtrc.json"
+                },
+                {
+                  "file": ".oxfmtrc.jsonc"
+                },
+                {
+                  "file": "vite.config.ts",
+                  "contains": "vite-plus"
+                },
+                {
+                  "file": "vite.config.mts",
+                  "contains": "vite-plus"
+                },
+                {
+                  "file": "vite.config.js",
+                  "contains": "vite-plus"
+                }
+              ],
+              "command": [
+                "oxfmt",
+                "--stdin-filepath={file}"
+              ]
+            },
+            {
+              "name": "prettier",
+              "detect": [
+                {
+                  "file": ".prettierrc"
+                },
+                {
+                  "file": ".prettierrc.json"
+                },
+                {
+                  "file": ".prettierrc.json5"
+                },
+                {
+                  "file": ".prettierrc.yaml"
+                },
+                {
+                  "file": ".prettierrc.yml"
+                },
+                {
+                  "file": ".prettierrc.toml"
+                },
+                {
+                  "file": ".prettierrc.js"
+                },
+                {
+                  "file": ".prettierrc.cjs"
+                },
+                {
+                  "file": ".prettierrc.mjs"
+                },
+                {
+                  "file": "prettier.config.js"
+                },
+                {
+                  "file": "prettier.config.cjs"
+                },
+                {
+                  "file": "prettier.config.mjs"
+                },
+                {
+                  "file": "package.json",
+                  "contains": "\"prettier\":"
+                }
+              ],
+              "command": [
+                "prettier",
+                "--stdin-filepath",
+                "{file}"
+              ]
+            }
+          ],
+          "formatter_canary": "export function Greeting() {\n        // Indented too far.\n  return <p>Hello</p>;\n}\n"
         }
       },
       {

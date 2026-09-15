@@ -685,6 +685,15 @@ the entry reports did-not-run with the reason `formatter` and writes nothing. A
 check of a file in such a language does not run the formatter, which it reports
 as unsupported.
 
+TypeScript, TSX and JavaScript are declared writable. A JSDoc block's tags,
+their types and names, and its `{@link}` references are placeholders, so a
+rewrite that drops or adds one is refused as `structure`. An entry naming a file
+whose comments only a plugin reads, when no such plugin is installed, did not
+run, with the reason `no-reader` and the command that installs the plugin.
+`TestProseP3_typescript`, `TestProseP3_tsx` and `TestProseP3_javascript` rewrite
+every comment of their language in the repository with its own prose, through
+the plugin, and require each file to stay byte-identical.
+
 `kapi apply` and MCP `apply_edits` reach the rewrite through a `comment` entry,
 addressed by file and the id a check reports. A check gives each finding on a
 comment `location.comment_sha256`, the SHA-256 of the comment's bytes
