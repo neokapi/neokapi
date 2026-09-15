@@ -147,8 +147,8 @@
       "by_prose": {
         "P0": 0,
         "P1": 0,
-        "P2": 12,
-        "P3": 0,
+        "P2": 9,
+        "P3": 3,
         "P4": 1
       }
     }
@@ -616,7 +616,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -825,7 +825,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -1032,7 +1032,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [],
@@ -1244,7 +1244,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-26",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -1449,7 +1449,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-19",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [],
@@ -1662,7 +1662,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-19",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -1870,7 +1870,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [],
@@ -2077,7 +2077,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -2284,7 +2284,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-14",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -2491,7 +2491,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-14",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -2702,7 +2702,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -2907,7 +2907,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -3118,7 +3118,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -3332,7 +3332,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-18",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -3541,7 +3541,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -3742,7 +3742,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [],
@@ -3947,7 +3947,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -4158,7 +4158,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -4369,7 +4369,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -4575,7 +4575,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [],
@@ -4776,7 +4776,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [],
@@ -4989,7 +4989,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-19",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -5202,7 +5202,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -5412,7 +5412,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -5623,7 +5623,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -5830,7 +5830,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [],
@@ -6056,7 +6056,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-08-23",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -6270,7 +6270,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -6482,7 +6482,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -6692,7 +6692,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -6907,7 +6907,7 @@
       "tier": {
         "declared": "available",
         "since": "2026-06-19",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -7119,7 +7119,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -7326,7 +7326,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [],
@@ -7531,7 +7531,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -7741,7 +7741,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -7951,7 +7951,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -8163,7 +8163,7 @@
       "tier": {
         "declared": "maintained",
         "since": "2026-06-12",
-        "last_certified": "2026-09-14",
+        "last_certified": "2026-09-15",
         "gates": []
       },
       "blocking_gaps": [
@@ -8411,12 +8411,12 @@
       "provider": "sourcecode",
       "presence": "present",
       "presence_reason": "TestProseP0_javascript passed",
-      "level": "P2",
-      "next": "P3",
+      "level": "P3",
+      "next": "P4",
       "dims": {
         "located": "complete",
         "governed": "complete",
-        "editable": "none",
+        "editable": "complete",
         "allforms": "none"
       },
       "rungs": {
@@ -8429,8 +8429,8 @@
           "reason": "passed"
         },
         "P3": {
-          "outcome": "not-met",
-          "reason": "no test"
+          "outcome": "met",
+          "reason": "passed"
         },
         "P4": {
           "outcome": "not-met",
@@ -8543,12 +8543,12 @@
       "provider": "sourcecode",
       "presence": "present",
       "presence_reason": "TestProseP0_tsx passed",
-      "level": "P2",
-      "next": "P3",
+      "level": "P3",
+      "next": "P4",
       "dims": {
         "located": "complete",
         "governed": "complete",
-        "editable": "none",
+        "editable": "complete",
         "allforms": "none"
       },
       "rungs": {
@@ -8561,8 +8561,8 @@
           "reason": "passed"
         },
         "P3": {
-          "outcome": "not-met",
-          "reason": "no test"
+          "outcome": "met",
+          "reason": "passed"
         },
         "P4": {
           "outcome": "not-met",
@@ -8576,12 +8576,12 @@
       "provider": "sourcecode",
       "presence": "present",
       "presence_reason": "TestProseP0_typescript passed",
-      "level": "P2",
-      "next": "P3",
+      "level": "P3",
+      "next": "P4",
       "dims": {
         "located": "complete",
         "governed": "complete",
-        "editable": "none",
+        "editable": "complete",
         "allforms": "none"
       },
       "rungs": {
@@ -8594,8 +8594,8 @@
           "reason": "passed"
         },
         "P3": {
-          "outcome": "not-met",
-          "reason": "no test"
+          "outcome": "met",
+          "reason": "passed"
         },
         "P4": {
           "outcome": "not-met",
