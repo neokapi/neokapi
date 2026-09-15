@@ -400,11 +400,11 @@ func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *c
 	return append(blocks, layer.blocks...), diags, nil
 }
 
-// applyFormatterGate fails a report in which a formatter would rewrite a checked
+// ApplyFormatterGate fails a report in which a formatter would rewrite a checked
 // comment. An edit the project's formatter reflows churns the next commit, so it
 // does not pass whatever the severity thresholds allow. --lenient turns every
 // limit off, and this one with them.
-func applyFormatterGate(report *check.Report) {
+func ApplyFormatterGate(report *check.Report) {
 	seen := map[string]bool{}
 	for _, f := range report.Findings {
 		if f.Check != formatterCheck {

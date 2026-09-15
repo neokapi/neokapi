@@ -432,16 +432,16 @@ func TestCheckRunVerdict(t *testing.T) {
 	proven := []check.AnalyzerExecution{{ID: "placeholder", Status: check.AnalyzerPassed, Required: true, Canary: &caught}}
 	critical := []check.Finding{{Category: "placeholder", Severity: check.SeverityCritical}}
 
-	assert.Equal(t, "passed", checkRunVerdict(nil, 2, proven, 100, nil, nil).Verdict)
-	failed := checkRunVerdict(critical, 2, proven, 75, nil, nil)
+	assert.Equal(t, "passed", checkRunVerdict(nil, nil, 2, proven, 100, nil, nil).Verdict)
+	failed := checkRunVerdict(critical, nil, 2, proven, 75, nil, nil)
 	assert.Equal(t, "failed", failed.Verdict)
 	assert.False(t, failed.Pass)
 
-	broken := checkRunVerdict(critical, 2, []check.AnalyzerExecution{{ID: "placeholder", Status: check.AnalyzerInvalid, Required: true, Canary: &missed}}, 75, nil, nil)
+	broken := checkRunVerdict(critical, nil, 2, []check.AnalyzerExecution{{ID: "placeholder", Status: check.AnalyzerInvalid, Required: true, Canary: &missed}}, 75, nil, nil)
 	assert.Equal(t, "did_not_run", broken.Verdict, "a missed canary outranks the failure")
 	assert.Equal(t, "checker_invalid", broken.DidNotRunCause)
 
-	empty := checkRunVerdict(nil, 0, proven, 100, nil, nil)
+	empty := checkRunVerdict(nil, nil, 0, proven, 100, nil, nil)
 	assert.Equal(t, "did_not_run", empty.Verdict)
 	assert.Equal(t, "nothing_to_check", empty.DidNotRunCause)
 	assert.NotEqual(t, broken.DidNotRunCause, empty.DidNotRunCause)

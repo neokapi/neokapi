@@ -56,7 +56,8 @@ vocabulary:
 	return tab.ID, root
 }
 
-// The Checks panel reads a project's values, and a comments-only item has none.
+// The Checks panel checks a comments-only item's comments and none of its
+// values: the file is listed, and the value's "utilize" is not a finding.
 func TestRunChecksReadsNoValueOfACommentsOnlyItem(t *testing.T) {
 	checked := func(t *testing.T, spelled string) map[string]int {
 		t.Helper()
@@ -72,7 +73,7 @@ func TestRunChecksReadsNoValueOfACommentsOnlyItem(t *testing.T) {
 		return findings
 	}
 
-	assert.Equal(t, map[string]int{"en.json": 1}, checked(t, "{only: true}"))
+	assert.Equal(t, map[string]int{"en.json": 1, "app.yaml": 0}, checked(t, "{only: true}"), "the comment is checked and the value is not")
 	assert.Equal(t, map[string]int{"en.json": 1, "app.yaml": 1}, checked(t, "true"), "must fail: comments: true checks the value")
 }
 

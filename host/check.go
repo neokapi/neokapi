@@ -521,7 +521,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		applyStrictValidationGate(&report)
 	}
 	if lenient, _ := cmd.Flags().GetBool("lenient"); !lenient {
-		applyFormatterGate(&report)
+		ApplyFormatterGate(&report)
 	}
 	unread.Report(&report)
 	unread.warn(a, cmd)
