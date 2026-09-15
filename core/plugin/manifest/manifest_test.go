@@ -133,6 +133,13 @@ func TestValidate_RequiredFields(t *testing.T) {
 		{"comment language needs markers", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [{"language": "typescript", "extensions": [".ts"], "canary": {"source": "// a", "block": "comment"}}]}}`, "declares no comment markers"},
 		{"comment marker is not empty", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [{"language": "typescript", "extensions": [".ts"], "markers": {"block": [{"open": "/*", "close": ""}]}, "canary": {"source": "// a", "block": "comment"}}]}}`, "empty comment marker"},
 		{"comment language needs a canary", `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [` + commentLanguage(`"typescript"`, `[".ts"]`, `{"source": "// a"}`) + `]}}`, "canary source and block are required"},
+		{"rewrite needs a whole canary", commentRewriteManifest(`{"canary": {"name": "c.ts", "source": "// a", "block": "comment"}, "formatters": [`+testFormatter+`], "formatter_canary": "x"}`, false), "canary name, source, block and refused are required"},
+		{"rewrite needs a formatter", commentRewriteManifest(`{"canary": `+testRewriteCanary+`, "formatters": [], "formatter_canary": "x"}`, false), "at least one formatter is required"},
+		{"rewrite needs a formatter canary", commentRewriteManifest(`{"canary": `+testRewriteCanary+`, "formatters": [`+testFormatter+`]}`, false), "formatter_canary is required"},
+		{"rewrite formatter needs a command", commentRewriteManifest(`{"canary": `+testRewriteCanary+`, "formatters": [{"name": "prettier", "detect": [{"file": ".prettierrc"}], "command": []}], "formatter_canary": "x"}`, false), "name and command are required"},
+		{"rewrite formatter marker is a file name", commentRewriteManifest(`{"canary": `+testRewriteCanary+`, "formatters": [{"name": "prettier", "detect": [{"file": "config/.prettierrc"}], "command": ["prettier"]}], "formatter_canary": "x"}`, false), "without a directory"},
+		{"rewrite of delimited comments needs a terminator case", commentRewriteManifest(`{"canary": `+testRewriteCanary+`, "formatters": [`+testFormatter+`], "formatter_canary": "x"}`, true), "declares delimited and terminator"},
+		{"rewrite declares delimited and terminator together", commentRewriteManifest(`{"canary": {"name": "c.ts", "source": "// a", "block": "comment", "refused": "x", "delimited": "func/f"}, "formatters": [`+testFormatter+`], "formatter_canary": "x"}`, true), "declared together"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -182,6 +189,41 @@ func TestRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, m.Plugin, parsed.Plugin)
 	assert.Equal(t, m.Capabilities.Commands[0].Name, parsed.Capabilities.Commands[0].Name)
+}
+
+// testRewriteCanary and testFormatter are parts of a rewrite declaration that
+// the validation table varies around.
+const (
+	testRewriteCanary = `{"name": "c.ts", "source": "// a", "block": "comment", "refused": "eslint-disable"}`
+	testFormatter     = `{"name": "prettier", "detect": [{"file": ".prettierrc"}], "command": ["prettier", "--stdin-filepath", "{file}"]}`
+)
+
+// commentRewriteManifest is a manifest declaring one comment language with the
+// rewrite declaration rewrite, and delimited comments when delimited is set.
+func commentRewriteManifest(rewrite string, delimited bool) string {
+	markers := `{"line": ["//"]}`
+	if delimited {
+		markers = `{"line": ["//"], "block": [{"open": "/*", "close": "*/"}]}`
+	}
+	return `{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [{"language": "typescript", "extensions": [".ts"], "markers": ` + markers + `, "canary": {"source": "// a", "block": "comment"}, "rewrite": ` + rewrite + `}]}}`
+}
+
+// A whole rewrite declaration parses, and a language without one reads its
+// comments and never writes them.
+func TestParseCommentRewrite(t *testing.T) {
+	raw := commentRewriteManifest(`{"canary": {"name": "c.ts", "source": "// a\n/* b */\n", "block": "comment", "refused": "eslint-disable", "delimited": "comment#2", "terminator": "b */ c"}, "formatters": [`+testFormatter+`], "formatter_canary": "function f() {\n        // x\n}\n"}`, true)
+	m, err := manifest.Parse([]byte(raw))
+	require.NoError(t, err)
+	r := m.Capabilities.Comments[0].Rewrite
+	require.NotNil(t, r)
+	assert.Equal(t, "comment#2", r.Canary.Delimited)
+	require.Len(t, r.Formatters, 1)
+	assert.Equal(t, []string{"prettier", "--stdin-filepath", "{file}"}, r.Formatters[0].Command)
+	assert.Equal(t, ".prettierrc", r.Formatters[0].Detect[0].File)
+
+	plain, err := manifest.Parse([]byte(`{"manifest_version": "1", "plugin": "x", "version": "1", "binary": "x", "daemon": {}, "capabilities": {"comments": [` + commentLanguage(`"typescript"`, `[".ts"]`, `{"source": "// a", "block": "comment"}`) + `]}}`))
+	require.NoError(t, err)
+	assert.Nil(t, plain.Capabilities.Comments[0].Rewrite)
 }
 
 // commentLanguage is one capabilities.comments entry for the validation table.

@@ -417,7 +417,8 @@ func describe(e Excluded) string {
 //     nor any comment it agreed with before, and would change no line of the
 //     file it leaves as it is before.
 //
-// A rewrite that fails any of them is a *Refusal.
+// A rewrite that fails any of them is a *Refusal. A formatter that did not run
+// is an error wrapping ErrFormatterNotRun, and no rewrite is made.
 func Contain(p Provider, name string, before, after []byte, declared Directives, located *File, index int) (*Rewritten, error) {
 	c := located.Comments[index]
 	if bytes.Equal(before, after) {
@@ -526,11 +527,11 @@ func Contain(p Provider, name string, before, after []byte, declared Directives,
 func formatterAgrees(f Formatter, name string, before, after []byte, located, relocated *File, index int, ids []string) error {
 	was, err := f.Disagreements(name, before, located)
 	if err != nil {
-		return refuse(RefusedFormatter, "%s could not compare the file before the rewrite: %v", f.FormatterName(), err)
+		return formatterFailed(f, err, "%s could not compare the file before the rewrite", f.FormatterName())
 	}
 	now, err := f.Disagreements(name, after, relocated)
 	if err != nil {
-		return refuse(RefusedFormatter, "%s could not compare the rewritten file: %v", f.FormatterName(), err)
+		return formatterFailed(f, err, "%s could not compare the rewritten file", f.FormatterName())
 	}
 	disagreed := map[int]bool{}
 	for _, d := range was {
@@ -555,12 +556,12 @@ func formatterAgrees(f Formatter, name string, before, after []byte, located, re
 func formatterLeaves(f Formatter, name string, before, after []byte, c, rc Comment) error {
 	formatted, err := f.Format(name, before)
 	if err != nil {
-		return refuse(RefusedFormatter, "%s could not format the file before the rewrite: %v", f.FormatterName(), err)
+		return formatterFailed(f, err, "%s could not format the file before the rewrite", f.FormatterName())
 	}
 	was := formatterChurn(before, formatted)
 	formatted, err = f.Format(name, after)
 	if err != nil {
-		return refuse(RefusedFormatter, "%s could not format the rewritten file: %v", f.FormatterName(), err)
+		return formatterFailed(f, err, "%s could not format the rewritten file", f.FormatterName())
 	}
 	now := formatterChurn(after, formatted)
 	if len(now) == 0 {

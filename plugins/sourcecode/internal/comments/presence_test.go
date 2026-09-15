@@ -72,6 +72,12 @@ func TestManifestDeclaresEveryCommentLanguage(t *testing.T) {
 		})
 	}
 	got := slices.Clone(m.Capabilities.Comments)
+	for i := range got {
+		// A rewrite declaration is the host's to act on: the plugin never
+		// writes, so no field of it has a counterpart in this package.
+		// TestManifestRewriteCanariesAreLocated holds its canary to the code.
+		got[i].Rewrite = nil
+	}
 	slices.SortFunc(got, func(a, b manifest.CommentLanguage) int {
 		if a.Language < b.Language {
 			return -1
@@ -79,6 +85,31 @@ func TestManifestDeclaresEveryCommentLanguage(t *testing.T) {
 		return 1
 	})
 	assert.Equal(t, declared, got)
+}
+
+// A language the manifest declares writable carries a write canary this package
+// reads as the host needs it read: the comment the canary rewrites, and its
+// delimited comment, are located under the ids the declaration names.
+func TestManifestRewriteCanariesAreLocated(t *testing.T) {
+	writable := 0
+	for _, l := range readManifest(t).Capabilities.Comments {
+		if l.Rewrite == nil {
+			continue
+		}
+		writable++
+		c := l.Rewrite.Canary
+		f, err := comments.Locate(l.Language, c.Name, []byte(c.Source))
+		require.NoError(t, err, l.Language)
+		var ids []string
+		for _, b := range f.Blocks() {
+			ids = append(ids, b.ID)
+		}
+		assert.Contains(t, ids, c.Block, "%s: the comment the rewrite canary rewrites", l.Language)
+		if c.Delimited != "" {
+			assert.Contains(t, ids, c.Delimited, "%s: the rewrite canary's delimited comment", l.Language)
+		}
+	}
+	require.Positive(t, writable, "the manifest declares no comment language writable")
 }
 
 func markersOf(m comment.Markers) manifest.CommentMarkers {

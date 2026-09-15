@@ -319,8 +319,10 @@ carries the comment's prose in `text`. kapi keeps every byte outside the
 comment, and writes a `/* */` comment in the layout it already has. It refuses
 the edit with a reason when the comment has changed since the check, the text
 drops or adds a code block or reference, the text holds `*/` inside a `/* */`
-comment, the result would not parse, or the formatter would rewrite it. Each
-written file's result carries a check scoped to what was written.
+comment, the result would not parse, or the formatter would rewrite it. A
+comment in a language whose formatter is not installed, or does not format the
+file, is not written, and the edit reports that it did not run. Each written
+file's result carries a check scoped to what was written.
 
 | `kind`    | What the entry changes                       |
 | --------- | -------------------------------------------- |

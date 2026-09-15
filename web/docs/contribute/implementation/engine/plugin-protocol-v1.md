@@ -333,6 +333,28 @@ a doubled word. The host sends it through `LocateComments` beside every real fil
 and runs the hygiene check over the comment that comes back, so a plugin that
 misses the comment, or answers with other text, leaves the check invalid.
 
+An entry's optional `rewrite` lets kapi write the language's comments back. No
+RPC carries a write: the host renders and splices the text, and locates the
+rewritten bytes through `LocateComments`. The block holds:
+
+- `canary`: the write canary the host runs before the first comment of the
+  language is written in a run. `name` is the file name it is located under,
+  `source` its text, and `block` a comment that must rewrite to its own bytes.
+  `refused` is text a rewrite of `block` must refuse, such as text that turns
+  the comment into a directive. A language with delimited comments also names a
+  delimited comment in `delimited`, and in `terminator` text holding its closer,
+  which must be refused as `terminator`.
+- `formatters`: the formatters a project in the language may use, in the order
+  the host tries them within one directory. Each has a `name`, `detect` marker
+  files (a `file` name, and `contains` when only a file holding that text marks
+  the project), and a `command` that reads a file's bytes on standard input and
+  prints the formatted bytes, with `{file}` replaced by the file's resolved
+  path. The command's first element is found in `node_modules/.bin` from the
+  marker's directory upward, then on `PATH`.
+- `formatter_canary`: a file in the language holding a comment every listed
+  formatter rewrites. A formatter that returns it unchanged at a file's path, as
+  one set to ignore the file does, did not run for that file.
+
 ### Process lifecycle
 
 One `Process` stream handles a full document:

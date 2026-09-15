@@ -530,6 +530,71 @@ type CommentLanguage struct {
 	// through the same RPC beside every real file, and a plugin that misses its
 	// comment leaves the check invalid.
 	Canary CommentCanary `json:"canary"`
+
+	// Rewrite, when set, lets kapi write the language's comments back. The host
+	// renders the text into the comment's layout and splices it into the file,
+	// and the plugin locates the result through LocateComments, so the plugin
+	// itself never writes. Without it, the language's comments are read and
+	// never written.
+	Rewrite *CommentRewrite `json:"rewrite,omitempty"`
+}
+
+// CommentRewrite declares how kapi writes a comment language's comments back.
+type CommentRewrite struct {
+	// Canary is the write canary (core/comment.RewriteCanary) the host runs
+	// before the first comment of the language is written in a run.
+	Canary CommentRewriteCanary `json:"canary"`
+
+	// Formatters are the formatters a project in the language may use. A
+	// rewrite is written only when the formatter the file's project uses agrees
+	// with it, and did not run when none is found.
+	Formatters []CommentFormatter `json:"formatters"`
+
+	// FormatterCanary is a file in the language holding a comment every one of
+	// the formatters rewrites. Before a formatter is trusted with a file, it
+	// must rewrite this file at that file's path, so a formatter that leaves
+	// the path as it is, as one set to ignore it does, never agrees.
+	FormatterCanary string `json:"formatter_canary"`
+}
+
+// CommentRewriteCanary is a comment language's write canary.
+type CommentRewriteCanary struct {
+	// Name is the file name the canary is located under, such as "canary.ts".
+	Name string `json:"name"`
+	// Source is the file's text.
+	Source string `json:"source"`
+	// Block is the id of the comment the canary rewrites with its own prose.
+	Block string `json:"block"`
+	// Refused is text a rewrite of Block must refuse, such as text that turns a
+	// line of the comment into a directive.
+	Refused string `json:"refused"`
+	// Delimited is the id of a delimited comment in Source, and Terminator is
+	// text holding its closer, which a rewrite must refuse. A language with
+	// delimited comments declares both.
+	Delimited  string `json:"delimited,omitempty"`
+	Terminator string `json:"terminator,omitempty"`
+}
+
+// CommentFormatter is one formatter a project in a comment language may use.
+type CommentFormatter struct {
+	// Name names the formatter, such as "prettier".
+	Name string `json:"name"`
+	// Detect lists the files that mark a project as formatted by it. The host
+	// looks for them in the file's directory and each directory above it, and
+	// the nearest directory holding one decides.
+	Detect []CommentFormatterMarker `json:"detect"`
+	// Command formats one file's bytes read from standard input and prints the
+	// result. Its first element is found in node_modules/.bin in the marker's
+	// directory or above it, then on PATH. "{file}" in any element is replaced
+	// by the file's path.
+	Command []string `json:"command"`
+}
+
+// CommentFormatterMarker is a file that marks a project as formatted by one
+// formatter. With Contains set, only a file holding that text marks it.
+type CommentFormatterMarker struct {
+	File     string `json:"file"`
+	Contains string `json:"contains,omitempty"`
 }
 
 // CommentCanary is a comment language's canary file (core/comment.Canary).
@@ -591,6 +656,42 @@ func (c CommentLanguage) validate() error {
 	}
 	if c.Canary.Source == "" || c.Canary.Block == "" {
 		return fmt.Errorf("language %q: canary source and block are required", c.Language)
+	}
+	if c.Rewrite != nil {
+		if err := c.Rewrite.validate(len(c.Markers.Block) > 0); err != nil {
+			return fmt.Errorf("language %q: rewrite: %w", c.Language, err)
+		}
+	}
+	return nil
+}
+
+// validate checks a rewrite declaration: a whole write canary, with a
+// delimited comment and its terminator for a language that has delimited
+// comments, and at least one formatter, each with a marker and a command.
+func (r CommentRewrite) validate(delimited bool) error {
+	c := r.Canary
+	if c.Name == "" || c.Source == "" || c.Block == "" || c.Refused == "" {
+		return errors.New("canary name, source, block and refused are required")
+	}
+	if (c.Delimited == "") != (c.Terminator == "") {
+		return errors.New("canary delimited and terminator are declared together")
+	}
+	if delimited && c.Delimited == "" {
+		return errors.New("the language has delimited comments, so the canary declares delimited and terminator")
+	}
+	if len(r.Formatters) == 0 {
+		return errors.New("at least one formatter is required: a rewrite is written only when the project's formatter agrees with it")
+	}
+	if r.FormatterCanary == "" {
+		return errors.New("formatter_canary is required")
+	}
+	for i, f := range r.Formatters {
+		if f.Name == "" || len(f.Command) == 0 || f.Command[0] == "" {
+			return fmt.Errorf("formatters[%d]: name and command are required", i)
+		}
+		if len(f.Detect) == 0 || slices.ContainsFunc(f.Detect, func(m CommentFormatterMarker) bool { return m.File == "" || strings.ContainsAny(m.File, `/\`) }) {
+			return fmt.Errorf("formatters[%d]: detect lists at least one file name, without a directory", i)
+		}
 	}
 	return nil
 }
