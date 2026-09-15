@@ -117,6 +117,48 @@ describe("ChecksPanel", () => {
     expect(screen.getByText('Use "use" instead')).toBeInTheDocument();
   });
 
+  it("places a comment finding on its block and lines", () => {
+    const COMMENT_FINDINGS: CheckRunResult = {
+      pass: false,
+      verdict: "failed",
+      score: 94,
+      files: [
+        {
+          path: "code/parse.go",
+          findings: [
+            {
+              category: "hygiene",
+              severity: "minor",
+              message: 'Content contains a doubled word: "the"',
+              block_id: "func/Parse",
+              field: "source",
+              rule: "hygiene.doubled-word",
+              lines: { first: 3, last: 4 },
+              fixable: false,
+            },
+            {
+              category: "voice",
+              severity: "major",
+              message: "Prohibited pattern: Do not leave a FIXME without an owner.",
+              block_id: "func/Retry",
+              field: "source",
+              rule: "voice.style",
+              lines: { first: 7, last: 7 },
+              fixable: false,
+            },
+          ],
+        },
+      ],
+    };
+    renderPanel({ result: COMMENT_FINDINGS });
+    const locations = screen.getAllByTestId("finding-location");
+    expect(locations).toHaveLength(2);
+    expect(locations[0]).toHaveTextContent("func/Parse");
+    expect(locations[0]).toHaveTextContent("lines 3–4");
+    expect(locations[1]).toHaveTextContent("func/Retry");
+    expect(locations[1]).toHaveTextContent("line 7");
+  });
+
   it("renders a finding's offending text in its own locale's direction", () => {
     const RTL_FINDING: CheckRunResult = {
       pass: false,

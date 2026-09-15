@@ -62,6 +62,9 @@ type DesktopFinding struct {
 	// offending words instead of describing them, and what a reviewer needs to
 	// see which placeholder in a sentence of four the checker means.
 	Position model.Anchor `json:"position,omitzero"`
+	// Lines are the lines of the file the finding's block spans, when its place
+	// in the file is known, as it is for a comment.
+	Lines *format.LineRange `json:"lines,omitempty"`
 	// SourceRuns are the block's source runs, so a surface can show the finding
 	// in the text it was raised on with Position marked over it, rather than
 	// quoting OriginalText alone.
@@ -178,14 +181,20 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	// format a plugin supplies. The run checks the rest and names these in its
 	// result, as `kapi check` does.
 	unread := host.NewUnreadSet()
+	// The files whose items declare their comments, and the findings on those
+	// comments, which the run checks after the files' values.
+	var commentFiles []project.ResolvedFile
+	var commentDiags []check.Diagnostic
 
 	runErr := capp.WithDocumentCache(root, func() error {
 		for _, rf := range resolved {
 			if filter.FilesNarrowed() && !filter.MatchesFile(rf.Collection, rf.Relative) {
 				continue
 			}
-			// A file declared for its comments alone holds no value the panel reads.
+			// A file declared for its comments alone holds no value the panel reads,
+			// and only its comments are checked.
 			if rf.CommentsOnly() {
+				commentFiles = append(commentFiles, rf)
 				continue
 			}
 
@@ -211,6 +220,9 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 				return fmt.Errorf("read check source %s: %w", rf.Relative, rerr)
 			}
 			blocksChecked += len(sourceBlocks)
+			if rf.Item != nil && rf.Item.Comments.Declared {
+				commentFiles = append(commentFiles, rf)
+			}
 
 			var fileFindings []DesktopFinding
 			// checkErr records a checker that could not RUN, as distinct from one
@@ -352,6 +364,19 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			sortDesktopFindings(fileFindings)
 			files = append(files, CheckFileResult{Path: rf.Path, Findings: fileFindings})
 		}
+
+		// The comments go through `kapi check` itself, so the panel reports the
+		// comment findings the command line reports for the same project.
+		comments, cerr := checkComments(ctx, capp, op.Path, commentFiles, sourceLang)
+		if cerr != nil {
+			return fmt.Errorf("check comments: %w", cerr)
+		}
+		blocksChecked += comments.blocks
+		analyzers = append(analyzers, comments.analyzers...)
+		commentDiags = comments.diagnostics
+		for _, file := range comments.files {
+			files = mergeFileFindings(files, file)
+		}
 		return nil
 	})
 	if runErr != nil {
@@ -369,26 +394,35 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 		warnings = append(warnings, found...)
 	}
 
-	score := check.CalculateScore(allFindings).Overall
-	result := checkRunVerdict(allFindings, blocksChecked, analyzers, score, files, unread)
+	// A finding on a comment weighs in the score by its rule and severity, as
+	// check.BuildReport weighs it for `kapi check`.
+	scored := slices.Clone(allFindings)
+	for _, d := range commentDiags {
+		scored = append(scored, check.Finding{Category: d.Rule, Severity: d.Severity})
+	}
+	score := check.CalculateScore(scored).Overall
+	result := checkRunVerdict(allFindings, commentDiags, blocksChecked, analyzers, score, files, unread)
 	result.Warnings = check.MergeWarnings(warnings, result.Warnings)
 	return result, nil
 }
 
 // checkRunVerdict decides a checks run the way `kapi check` decides a report:
-// the default gate fails on any critical finding, and check.Report.Decide turns
-// a run over no blocks, or one whose checkers missed or lacked their canaries,
-// into did_not_run. The files unread names become warnings, and a run that read
-// none of the content in its scope did not run because that content went
-// unchecked.
-func checkRunVerdict(findings []check.Finding, blocks int, analyzers []check.AnalyzerExecution, score int, files []CheckFileResult, unread *host.UnreadSet) *CheckRunResult {
-	diags := make([]check.Diagnostic, 0, len(findings))
+// the default gate fails on any critical finding, a comment the project's
+// formatter would rewrite fails it too, and check.Report.Decide turns a run over
+// no blocks, or one whose checkers missed or lacked their canaries, into
+// did_not_run. comments are the findings on comments, as `kapi check` reported
+// them. The files unread names become warnings, and a run that read none of the
+// content in its scope did not run because that content went unchecked.
+func checkRunVerdict(findings []check.Finding, comments []check.Diagnostic, blocks int, analyzers []check.AnalyzerExecution, score int, files []CheckFileResult, unread *host.UnreadSet) *CheckRunResult {
+	diags := make([]check.Diagnostic, 0, len(findings)+len(comments))
 	for _, f := range findings {
 		diags = append(diags, check.DiagnosticFrom(f, "", check.Location{}))
 	}
+	diags = append(diags, comments...)
 	report := check.BuildReport(check.Target{Kind: "project", Blocks: blocks}, diags, check.DefaultGate())
 	report.Execution = &check.Execution{Analyzers: analyzers}
 	report.Decide()
+	host.ApplyFormatterGate(&report)
 	unread.Report(&report)
 	return &CheckRunResult{
 		Pass:           report.Pass,
@@ -399,6 +433,113 @@ func checkRunVerdict(findings []check.Finding, blocks int, analyzers []check.Ana
 		Files:          files,
 		Warnings:       report.Warnings,
 	}
+}
+
+// commentChecks is what `kapi check` reports about the comments of the files a
+// checks run hands it.
+type commentChecks struct {
+	// blocks counts the blocks the check read in those files.
+	blocks    int
+	analyzers []check.AnalyzerExecution
+	// diagnostics are the findings on comments, for the verdict.
+	diagnostics []check.Diagnostic
+	// files are those files with the findings on their comments, in the order
+	// they were handed over.
+	files []CheckFileResult
+}
+
+// checkComments runs `kapi check` over files, the files whose items declare
+// their comments, and keeps what it reports about their comments: each finding
+// on a comment, located by the comment's block and lines, with the analyzers
+// that read them and the blocks the check read. The check resolves the recipe
+// at projectPath the way the command line does, so each comment is checked at
+// its own point, with the directives the recipe declares set aside and against
+// the comment limits in force there.
+func checkComments(ctx context.Context, capp *host.App, projectPath string, files []project.ResolvedFile, sourceLang string) (commentChecks, error) {
+	var out commentChecks
+	if len(files) == 0 {
+		return out, nil
+	}
+	cmd := host.NewEnvCommand(ctx, "check")
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	cmd.Flags().String("project", projectPath, "")
+	// The gate `kapi check` applies with no flags given.
+	cmd.Flags().Int("max-critical", 0, "")
+	cmd.Flags().Int("max-major", -1, "")
+	cmd.Flags().Int("max-minor", -1, "")
+
+	paths := make([]string, 0, len(files))
+	for _, rf := range files {
+		paths = append(paths, rf.Path)
+	}
+	report, err := capp.ComputeCheck(cmd, paths) //nolint:contextcheck // ctx travels on cmd (host.NewEnvCommand), which ComputeCheck reads through CmdContext
+	if err != nil {
+		return out, err
+	}
+	out.blocks = report.Target.Blocks
+	if report.Execution != nil {
+		out.analyzers = report.Execution.Analyzers
+	}
+
+	byPath := make(map[string][]DesktopFinding, len(files))
+	for _, d := range report.Findings {
+		// A finding on a comment carries the fingerprint of the comment it sits
+		// on. The others are on the values the panel checks itself.
+		if d.Location.CommentSHA256 == "" {
+			continue
+		}
+		i := slices.IndexFunc(files, func(rf project.ResolvedFile) bool { return rf.Path == d.Location.File })
+		if i < 0 {
+			return out, fmt.Errorf("kapi check reported a comment in %s, which the run did not hand it", d.Location.File)
+		}
+		out.diagnostics = append(out.diagnostics, d)
+		byPath[files[i].Path] = append(byPath[files[i].Path], commentFinding(d, files[i], sourceLang))
+	}
+	for _, rf := range files {
+		found := byPath[rf.Path]
+		sortDesktopFindings(found)
+		out.files = append(out.files, CheckFileResult{Path: rf.Path, Findings: found})
+	}
+	return out, nil
+}
+
+// commentFinding flattens a finding on a comment for the panel. The comment's
+// block and lines locate it, and its point is the one the comment was checked
+// at, which the recipe may place apart from its file's.
+func commentFinding(d check.Diagnostic, rf project.ResolvedFile, locale string) DesktopFinding {
+	f := DesktopFinding{
+		Category:     d.Check,
+		Severity:     string(d.Severity),
+		Message:      d.Message,
+		Suggestion:   d.Suggestion,
+		OriginalText: d.Location.Snippet,
+		BlockID:      d.Location.Block,
+		Field:        "source",
+		Locale:       locale,
+		Rule:         d.Rule,
+		Collection:   rf.Collection,
+		Lines:        d.Location.Lines,
+	}
+	if d.Point != nil {
+		f.Point = project.ChannelRef{Profile: d.Point.Profile, Channel: d.Point.Channel}.String()
+	}
+	if d.Location.Anchor != nil {
+		f.Position = *d.Location.Anchor
+	}
+	return f
+}
+
+// mergeFileFindings adds file's findings to the result for the same path, or
+// adds file as a result of its own when the run holds none for that path.
+func mergeFileFindings(files []CheckFileResult, file CheckFileResult) []CheckFileResult {
+	i := slices.IndexFunc(files, func(f CheckFileResult) bool { return f.Path == file.Path })
+	if i < 0 {
+		return append(files, file)
+	}
+	files[i].Findings = append(files[i].Findings, file.Findings...)
+	sortDesktopFindings(files[i].Findings)
+	return files
 }
 
 // checksCLI lazily builds the host.App behind RunChecks, sharing the desktop's

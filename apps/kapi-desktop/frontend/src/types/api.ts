@@ -270,6 +270,15 @@ export interface DesktopFinding {
   /** The block's runs in the target locale a target-side finding names, when
    *  the block carries them. */
   target_runs?: Run[];
+  /** The lines of the file the finding's block spans, when its place in the
+   *  file is known, as it is for a comment. */
+  lines?: LineRange;
+}
+
+/** A range of lines in a file, both ends included. Mirrors format.LineRange. */
+export interface LineRange {
+  first: number;
+  last: number;
 }
 
 /** Where in a block's runs something sits. Mirrors model.Anchor. */

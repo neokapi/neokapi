@@ -278,7 +278,7 @@ func (a *App) runDiffCheck(ctx context.Context, run diffCheckRun) (check.Report,
 	// A formatter that would rewrite a touched comment fails the check as it does
 	// in a whole-file check, and --lenient lifts it the same way.
 	if lenient, _ := run.cmd.Flags().GetBool("lenient"); !lenient {
-		applyFormatterGate(&report)
+		ApplyFormatterGate(&report)
 	}
 	run.unread.Report(&report)
 	run.unread.warn(a, run.cmd)

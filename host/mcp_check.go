@@ -292,7 +292,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		if validateMode == format.ValidationStrict {
 			applyStrictValidationGate(&report)
 		}
-		applyFormatterGate(&report)
+		ApplyFormatterGate(&report)
 		return nil, report, nil
 	}
 	return nil, execution.report(target, diags, check.DefaultGate()), nil

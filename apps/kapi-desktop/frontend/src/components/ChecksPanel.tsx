@@ -519,6 +519,25 @@ export function ChecksPanel({
                                     {finding.rule}
                                   </Badge>
                                 )}
+                                {/* A finding on a comment names the comment's
+                                    block and the lines it spans in the file. */}
+                                {finding.lines && (
+                                  <Badge
+                                    variant="outline"
+                                    className="font-mono text-[10px] font-normal text-muted-foreground"
+                                    data-testid="finding-location"
+                                  >
+                                    {finding.block_id && (
+                                      <span translate="no">{finding.block_id} · </span>
+                                    )}
+                                    {finding.lines.first === finding.lines.last
+                                      ? t("line {line}", { line: finding.lines.first })
+                                      : t("lines {first}–{last}", {
+                                          first: finding.lines.first,
+                                          last: finding.lines.last,
+                                        })}
+                                  </Badge>
+                                )}
                                 {onOpenContext && (
                                   <button
                                     type="button"
