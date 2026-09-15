@@ -17,9 +17,15 @@ func MatchGlob(pattern, path string) bool {
 // ExpandGlob returns relative paths under root that match the given glob
 // pattern. Supports `**` for recursive directory matching via doublestar.
 // Any matches matching one of the exclude patterns are filtered out.
+//
+// `**` does not follow a symbolic link into another directory, as git ls-files
+// does, so the linked packages a package manager keeps under node_modules stay
+// out of a match and a link loop is read once. A link that matches the pattern
+// itself is returned, and a linked directory the pattern names before its first
+// wildcard is read through.
 func ExpandGlob(root, pattern string, excludes ...string) ([]string, error) {
 	fsys := os.DirFS(root)
-	matches, err := doublestar.Glob(fsys, pattern)
+	matches, err := doublestar.Glob(fsys, pattern, doublestar.WithNoFollow())
 	if err != nil {
 		return nil, err
 	}
