@@ -232,8 +232,15 @@ so "Two new alerts" uses `alert`. A derivation is a word of its own:
 "translation" uses `translation`, and a hyphenated compound such as
 "pseudo-translate" is one word. A source in any other language finds a term as
 written or as a form the term declares. Placeholders are syntax on both sides
-(`check.TermText`), so `{vessel}` holds no term. Where the terms of two rules
-cover the same words, only the longer one is demanded.
+(`check.PlaceholderText`), so `{vessel}` holds no term. The source side also
+reads program syntax as syntax (`check.TermText`): inline code and fenced
+blocks, a kapi command in quotes such as 'kapi check --staged', an indented
+example command line up to its shell comment, and a flag name such as
+`--diff-range`. A command a translation keeps as written therefore demands no
+rendering, and the same word in the prose beside it still does. A
+do-not-translate rule reads the source with only its placeholders as syntax, so
+a product name inside a command is still held to being kept. Where the terms of two rules cover the same
+words, only the longer one is demanded.
 
 On the target side a demanded rule is satisfied when the text contains the
 preferred rendering, any admitted or approved term of the concept, or a declared

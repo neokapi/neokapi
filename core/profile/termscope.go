@@ -70,7 +70,8 @@ func ScopedTermRuleMap(rules []TermRule, texts ...string) map[string]string {
 }
 
 // wordSet is every word in the texts as term matching reads them
-// (check.TermText, so a placeholder's name is not a word here), in the
+// (check.TermText, so neither a placeholder's name nor the words of inline
+// code, a quoted kapi command or a flag name are words here), in the
 // classifier's comparable form, so this agrees with edit.ContainsWords about
 // what a word is.
 func wordSet(texts []string) map[string]struct{} {

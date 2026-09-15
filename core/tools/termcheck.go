@@ -97,9 +97,14 @@ func NewTermCheckFromConfig(config map[string]any, targetLang string) (tool.Tool
 // NewTermCheckTool creates a tool that holds a translation to the renderings
 // its term rules require.
 //
-// A rule is demanded when the source uses its term. Both sides are read as
-// terms are matched (check.TermText), so a placeholder's name neither uses a
-// term nor satisfies a rule. The source is matched per word: an English source
+// A rule is demanded when the source uses its term. The source is read as terms
+// are matched (check.TermText), so a placeholder's name, inline code, a quoted
+// kapi command and a flag name do not use a term. A do-not-translate rule reads
+// the source with only its placeholders overwritten, so a term inside a command
+// still has to be kept. The target is read with its
+// placeholders overwritten (check.PlaceholderText), so a placeholder's name
+// does not satisfy a rule and a rendering the target writes anywhere else does.
+// The source is matched per word: an English source
 // finds a term with its regular inflections unless the rule declares forms of
 // its own, and any other source finds the term and its declared forms as whole
 // words. Where the terms of two rules cover the same words, only the longer is
@@ -152,9 +157,8 @@ func NewTermCheckTool(cfg *TermCheckConfig) *tool.BaseTool {
 // content to term rules outside a pipeline calls it, so it decides exactly
 // what the tool decides.
 func TermCheckViolations(cfg *TermCheckConfig, source, target string) (errs, warns []string) {
-	sourceText := check.TermText(source)
-	targetText := check.TermText(target)
-	for _, use := range sourceUses(sourceText, cfg) {
+	targetText := check.PlaceholderText(target)
+	for _, use := range sourceUses(source, cfg) {
 		rule := cfg.TermRules[use.index]
 		var msg string
 		if rule.DoNotTranslate {
@@ -188,15 +192,30 @@ type sourceUse struct {
 // term the source uses: a rule that names a replacement, and a do-not-translate
 // rule.
 //
+// A rule that names a replacement reads the source as terms are matched
+// (check.TermText), so a command the target keeps as written demands no
+// rendering. A do-not-translate rule reads it with only its placeholders
+// overwritten (check.PlaceholderText): a target that keeps the command keeps
+// the term inside it, and one that drops the command has dropped the term.
+//
 // Every rule that names a term takes part in the longest-declared-match rule,
-// because each is a declaration about which words belong to which term.
+// because each is a declaration about which words belong to which term. Both
+// readings keep every offset, so their spans compare.
 func sourceUses(source string, conf *TermCheckConfig) []sourceUse {
-	p := check.PrepareText(source)
+	prose := check.PrepareText(check.TermText(source))
+	var kept *check.PreparedText
 	english := terms.BaseLanguage(conf.SourceLocale) == "en"
 	var spans []check.DeclaredSpan
 	for i, rule := range conf.TermRules {
 		if strings.TrimSpace(rule.Term) == "" {
 			continue
+		}
+		p := prose
+		if rule.DoNotTranslate {
+			if kept == nil {
+				kept = check.PrepareText(check.PlaceholderText(source))
+			}
+			p = kept
 		}
 		cased := conf.CaseSensitive || rule.CaseSensitive
 		var hits [][2]int

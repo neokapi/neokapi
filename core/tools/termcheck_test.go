@@ -1,6 +1,7 @@
 package tools_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -94,6 +95,81 @@ func TestTermCheckTool_PlaceholderNamesAreNotTerms(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			tl := tools.NewTermCheckTool(&tools.TermCheckConfig{TermRules: rules, TargetLocale: "nb"})
+			block := model.NewBlock("tu1", tt.source)
+			block.SetTargetText("nb", tt.target)
+			result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+
+			got := result.Resource.(*model.Block)
+			assert.Equal(t, tt.wantPassed, got.Properties[tools.PropTermCheckPassed],
+				"errors: %s", got.Properties[tools.PropTermCheckErrors])
+		})
+	}
+}
+
+// A command name, a flag and inline code are program syntax the target keeps
+// as written. Norwegian CLI help that keeps `kapi check` verbatim must not be
+// told to write "kontroll", while "check" in the prose beside it still must be
+// rendered.
+func TestTermCheckTool_CommandSpansAreNotTerms(t *testing.T) {
+	t.Parallel()
+	rules := []coreprofile.TermRule{
+		{Term: "check", Replacement: "kontroll"},
+		{Term: "range", Replacement: "område"},
+	}
+	tests := []struct {
+		name       string
+		source     string
+		target     string
+		wantPassed string
+	}{
+		{
+			name:       "a command in backticks does not fire a rule",
+			source:     "Run `kapi check` before you commit.",
+			target:     "Kjør `kapi check` før du committer.",
+			wantPassed: "true",
+		},
+		{
+			name:       "a quoted command does not fire a rule",
+			source:     "A pre-commit hook runs 'kapi check --staged'.",
+			target:     "En pre-commit-krok kjører 'kapi check --staged'.",
+			wantPassed: "true",
+		},
+		{
+			name:       "a flag name does not fire a rule",
+			source:     "Pass --diff-range to limit the run.",
+			target:     "Bruk --diff-range for å avgrense kjøringen.",
+			wantPassed: "true",
+		},
+		{
+			name:       "the word in prose fires",
+			source:     "Run the check before you commit.",
+			target:     "Kjør sjekken før du committer.",
+			wantPassed: "false",
+		},
+		{
+			name:       "the word in prose beside a command span fires",
+			source:     "Run `kapi check` and fix each check it reports.",
+			target:     "Kjør `kapi check` og rett hver sjekk den rapporterer.",
+			wantPassed: "false",
+		},
+		{
+			name:       "a do-not-translate term inside a command is kept",
+			source:     "Run 'kapi status' first.",
+			target:     "Kjør 'kapi status' først.",
+			wantPassed: "true",
+		},
+		{
+			name:       "a do-not-translate term inside a command still has to be kept",
+			source:     "Run 'kapi status' first.",
+			target:     "Kjør statuskommandoen først.",
+			wantPassed: "false",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			rules := append(slices.Clone(rules), coreprofile.TermRule{Term: "kapi", DoNotTranslate: true, CaseSensitive: true})
 			tl := tools.NewTermCheckTool(&tools.TermCheckConfig{TermRules: rules, TargetLocale: "nb"})
 			block := model.NewBlock("tu1", tt.source)
 			block.SetTargetText("nb", tt.target)
