@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // registerContentTools registers project and content management MCP tools.
@@ -199,6 +200,9 @@ type getBlockOutput struct {
 	ItemName string            `json:"item_name"`
 	Source   string            `json:"source"`
 	Targets  map[string]string `json:"targets"`
+	// Revisions names each target's revision as read here. update_block takes
+	// one as base_revision and refuses an update when the target moved since.
+	Revisions map[string]string `json:"revisions"`
 }
 
 func (s *MCPServer) handleGetBlock(ctx context.Context, req *mcp.CallToolRequest, input getBlockInput) (*mcp.CallToolResult, getBlockOutput, error) {
@@ -215,16 +219,28 @@ func (s *MCPServer) handleGetBlock(ctx context.Context, req *mcp.CallToolRequest
 		src = b.Block.SourceText()
 	}
 	targets := make(map[string]string)
+	revisions := make(map[string]string)
 	if b.Block != nil {
 		for _, locale := range b.Block.TargetLocales() {
 			targets[string(locale)] = model.RunsText(b.Block.TargetRuns(locale))
+			revisions[string(locale)] = store.TargetRevision(b, locale)
+		}
+		// A language the project translates into has a revision before it has a
+		// target, so a first translation can name what it read too.
+		if proj, perr := s.contentStore.GetProject(ctx, projectID); perr == nil && proj != nil {
+			for _, locale := range proj.TargetLanguages {
+				if _, ok := revisions[string(locale)]; !ok {
+					revisions[string(locale)] = store.TargetRevision(b, locale)
+				}
+			}
 		}
 	}
 	return nil, getBlockOutput{
-		ID:       b.Block.ID,
-		ItemName: b.ItemName,
-		Source:   src,
-		Targets:  targets,
+		ID:        b.Block.ID,
+		ItemName:  b.ItemName,
+		Source:    src,
+		Targets:   targets,
+		Revisions: revisions,
 	}, nil
 }
 
@@ -425,6 +441,7 @@ type updateBlockInput struct {
 	Stream       string `json:"stream,omitempty" jsonschema:"stream name (defaults to main)"`
 	TargetLocale string `json:"target_locale" jsonschema:"locale code for the translation"`
 	TargetText   string `json:"target_text" jsonschema:"the translated text"`
+	BaseRevision string `json:"base_revision,omitempty" jsonschema:"the target revision get_block returned; the update is refused when the target changed since"`
 }
 type updateBlockOutput struct {
 	ID           string `json:"id"`
@@ -448,15 +465,22 @@ func (s *MCPServer) handleUpdateBlock(ctx context.Context, req *mcp.CallToolRequ
 		stream = "main"
 	}
 
-	sb, err := s.contentStore.GetBlock(ctx, projectID, stream, input.BlockID)
+	loc := model.LocaleID(input.TargetLocale)
+	_, err = s.contentStore.UpdateBlock(ctx, projectID, stream, input.BlockID, func(sb *venue.StoredBlock) error {
+		if input.BaseRevision != "" {
+			if current := store.TargetRevision(sb, loc); current != input.BaseRevision {
+				return fmt.Errorf("%w: the %s target of block %s is now %q (revision %s); read it again with get_block and decide on that wording",
+					store.ErrBlockChanged, input.TargetLocale, input.BlockID, model.RunsText(sb.Block.TargetRuns(loc)), current)
+			}
+		}
+		sb.Block.SetTargetText(loc, input.TargetText)
+		return nil
+	})
 	if err != nil {
-		return nil, updateBlockOutput{}, fmt.Errorf("get block: %w", err)
-	}
-
-	sb.Block.SetTargetText(model.LocaleID(input.TargetLocale), input.TargetText)
-
-	if err := s.contentStore.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block}); err != nil {
-		return nil, updateBlockOutput{}, fmt.Errorf("store block: %w", err)
+		if errors.Is(err, store.ErrBlockChanged) {
+			return nil, updateBlockOutput{}, err
+		}
+		return nil, updateBlockOutput{}, fmt.Errorf("update block: %w", err)
 	}
 
 	return nil, updateBlockOutput{
