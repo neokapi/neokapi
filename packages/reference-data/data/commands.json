@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T09:57:50Z",
+  "generatedAt": "2026-09-15T10:23:27Z",
   "commands": [
     {
       "id": "add",
@@ -8290,7 +8290,7 @@
       ],
       "use": "guide [path]",
       "short": "Print the voice guide (inject into your assistant's context)",
-      "long": "Print the voice guide in force.\n\nInside a project, a path selects the voice at the point that file sits at. For a\nfile whose only content is its comments, such as a Go source file, that is the\npoint its comments sit at, and the guide lists the comment limits in force\nthere. --comments asks for the comments' point for any file.",
+      "long": "Print the voice guide in force.\n\nInside a project, a path selects the voice for that file's own content. An item\nthat declares a file for its comments alone governs only those comments, so the\ncontent resolves to the next item that claims the file, or to the project's\ndefault point. --comments asks for the point the file's comments sit at instead,\nand lists the comment limits in force there. Ask with --comments before writing\na comment, in a Go source file or any other.",
       "flags": [
         {
           "name": "channel",
