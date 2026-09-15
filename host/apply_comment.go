@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/comment"
 	"github.com/neokapi/neokapi/core/diffscope"
@@ -304,8 +305,9 @@ func (w *commentFileWrite) locateEdits(p comment.Provider, out []byte, directive
 type writeError struct{ reason, detail string }
 
 // write replaces the file's bytes with out, once the file is found to hold src
-// still. It writes a temporary file beside it and renames it into place, so a
-// failed write leaves the file as it was, and reads the result back.
+// still. The replacement is atomic and lands on the file itself, so a failed
+// write leaves it as it was and a path that is a symlink stays one. The bytes
+// are read back from the file they landed on.
 func (w *commentFileWrite) write(src, out []byte) *writeError {
 	now, err := os.ReadFile(w.file)
 	if err != nil {
@@ -324,35 +326,16 @@ func (w *commentFileWrite) write(src, out []byte) *writeError {
 			return &writeError{reasonIO, "write backup: " + err.Error()}
 		}
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(w.file), "."+filepath.Base(w.file)+".kapi-*")
+	file, err := atomicfile.ReplaceBytes(w.file, out)
 	if err != nil {
 		return &writeError{reasonIO, err.Error()}
 	}
-	_, werr := tmp.Write(out)
-	cerr := tmp.Close()
-	if err := firstErr(werr, cerr, os.Chmod(tmp.Name(), mode)); err != nil {
-		_ = os.Remove(tmp.Name())
-		return &writeError{reasonIO, err.Error()}
-	}
-	if err := os.Rename(tmp.Name(), w.file); err != nil {
-		_ = os.Remove(tmp.Name())
-		return &writeError{reasonIO, err.Error()}
-	}
-	written, err := os.ReadFile(w.file)
+	written, err := os.ReadFile(file)
 	if err != nil {
 		return &writeError{reasonIO, err.Error()}
 	}
 	if !bytes.Equal(written, out) {
 		return &writeError{reasonIO, "the bytes read back from the file differ from the rewrite"}
-	}
-	return nil
-}
-
-func firstErr(errs ...error) error {
-	for _, err := range errs {
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }

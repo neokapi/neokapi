@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T10:23:27Z",
+  "generatedAt": "2026-09-15T23:16:29Z",
   "commands": [
     {
       "id": "add",
@@ -83,7 +83,7 @@
       "flags": [
         {
           "name": "diff",
-          "usage": "preview content changes as a unified diff and write nothing",
+          "usage": "preview content and comment changes as a unified diff and write nothing",
           "default": "false",
           "type": "bool"
         },
