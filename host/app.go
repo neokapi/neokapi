@@ -239,6 +239,24 @@ type App struct {
 	mcpPluginSessions []*pluginMCPSession
 }
 
+// pluginsDirList returns the first plugin discovery root: --plugin-dir when
+// set, so a developer can point at a custom directory without touching env,
+// otherwise $KAPI_PLUGINS_DIR.
+func (a *App) pluginsDirList() string {
+	if a.PluginDir != "" {
+		return a.PluginDir
+	}
+	return os.Getenv("KAPI_PLUGINS_DIR")
+}
+
+// PluginInstallTarget returns the directory a plugin install from this App
+// writes to. Under $KAPI_PLUGINS_DIR_ONLY it is the root discovery reads, and
+// an empty one is pluginhost.ErrEmptyPluginsDir; otherwise it is the per-user
+// data dir.
+func (a *App) PluginInstallTarget() (string, error) {
+	return pluginhost.InstallTargetFor(a.pluginsDirList())
+}
+
 // ensurePluginRuntime lazily builds the shared plugin Runtime from the current
 // flags/env. It performs no discovery itself — callers Rescan when they need
 // the host. Safe to call from InitPluginHost or DaemonPool.
@@ -254,14 +272,8 @@ func (a *App) ensurePluginRuntime() *pluginhost.Runtime {
 				fmt.Fprintln(os.Stderr, "Warning: "+s)
 			}
 		}
-		// Honor --plugin-dir: when set it takes precedence over KAPI_PLUGINS_DIR
-		// so a developer can point at a custom directory without touching env.
-		envPluginsDir := os.Getenv("KAPI_PLUGINS_DIR")
-		if a.PluginDir != "" {
-			envPluginsDir = a.PluginDir
-		}
 		a.pluginRuntime = pluginhost.NewRuntime(pluginhost.RuntimeOptions{
-			Discover:           pluginhost.DiscoverOptions{EnvPluginsDir: envPluginsDir, OnWarn: warn},
+			Discover:           pluginhost.DiscoverOptions{EnvPluginsDir: a.pluginsDirList(), OnWarn: warn},
 			FormatReg:          a.FormatReg,
 			OnWarn:             warn,
 			RegisterConnectors: true,

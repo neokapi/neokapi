@@ -176,7 +176,9 @@ func TestPluginUpdate_SecondInstallReplacesFirst(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "1.0.0", first.Version)
 
-	meta, err := pluginhost.ReadInstalledMetadata(filepath.Join(pluginhost.InstallTarget(), "demo"))
+	target, err := pluginhost.InstallTarget()
+	require.NoError(t, err)
+	meta, err := pluginhost.ReadInstalledMetadata(filepath.Join(target, "demo"))
 	require.NoError(t, err)
 	assert.Equal(t, "stable", meta.Channel)
 	assert.Equal(t, "1.0.0", meta.Constraint)
@@ -193,7 +195,7 @@ func TestPluginUpdate_SecondInstallReplacesFirst(t *testing.T) {
 	require.NoErrorf(t, err, "update failed; stderr=%s", stderr.String())
 	assert.Contains(t, stdout.String(), "Updated demo 1.0.0 → 1.1.0")
 
-	meta2, err := pluginhost.ReadInstalledMetadata(filepath.Join(pluginhost.InstallTarget(), "demo"))
+	meta2, err := pluginhost.ReadInstalledMetadata(filepath.Join(target, "demo"))
 	require.NoError(t, err)
 	assert.Equal(t, "1.1.0", meta2.Version)
 }

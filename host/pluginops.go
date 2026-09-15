@@ -105,7 +105,11 @@ type PluginUpdateOverrides struct {
 func UpdatePlugin(ctx context.Context, name string, o PluginUpdateOverrides) (*pluginhost.InstallResult, string, error) {
 	base := o.TargetDir
 	if base == "" {
-		base = pluginhost.InstallTarget()
+		t, err := pluginhost.InstallTarget()
+		if err != nil {
+			return nil, "", fmt.Errorf("update: %w", err)
+		}
+		base = t
 	}
 	meta, err := pluginhost.ReadInstalledMetadata(filepath.Join(base, name))
 	if err != nil && !os.IsNotExist(err) {
@@ -121,7 +125,7 @@ func UpdatePlugin(ctx context.Context, name string, o PluginUpdateOverrides) (*p
 		Channel:     firstNonEmpty(o.Channel, meta.Channel),
 		KapiVersion: KapiVersion(),
 		Unsafe:      o.Unsafe,
-		TargetDir:   o.TargetDir,
+		TargetDir:   base,
 		LogF:        o.LogF,
 		ProgressF:   o.ProgressF,
 	})

@@ -121,6 +121,13 @@ func (a *App) LoadProjectInteractive(ctx context.Context, recipePath string, opt
 				req.Plugin, req.Constraint, req.Plugin)
 		}
 
+		// Resolve the install directory before asking, so an install discovery
+		// would never see is refused rather than offered.
+		target, err := a.PluginInstallTarget()
+		if err != nil {
+			return nil, fmt.Errorf("auto-install %s: %w", req.Plugin, err)
+		}
+
 		// Show metadata pulled from the registry index, then prompt.
 		info := lookupPluginInfo(ctx, indexURL, req.Plugin, req.Constraint, channel, KapiVersion())
 		printPluginPromptHeader(out, req, info)
@@ -142,6 +149,7 @@ func (a *App) LoadProjectInteractive(ctx context.Context, recipePath string, opt
 			Constraint:  req.Constraint,
 			Channel:     channel,
 			KapiVersion: KapiVersion(),
+			TargetDir:   target,
 			LogF: func(msg string) {
 				fmt.Fprintln(out, msg)
 			},

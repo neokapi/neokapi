@@ -20,9 +20,37 @@ import (
 	"github.com/neokapi/neokapi/host/pluginhost/registry"
 )
 
-// InstallTarget returns the absolute path where `kapi plugin install`
-// drops new plugins. Defaults to $XDG_DATA_HOME/kapi/plugins/.
-func InstallTarget() string {
+// ErrEmptyPluginsDir is returned for an install under $KAPI_PLUGINS_DIR_ONLY
+// when $KAPI_PLUGINS_DIR names no directory: discovery then reads no root, so
+// a plugin installed anywhere would never be discovered.
+var ErrEmptyPluginsDir = errors.New("KAPI_PLUGINS_DIR_ONLY confines plugin discovery to $KAPI_PLUGINS_DIR, but KAPI_PLUGINS_DIR is empty, so an installed plugin would never be discovered: set KAPI_PLUGINS_DIR to the directory to install into")
+
+// InstallTarget returns the directory `kapi plugin install` unpacks plugins
+// into, for discovery that reads $KAPI_PLUGINS_DIR. See InstallTargetFor.
+func InstallTarget() (string, error) {
+	return InstallTargetFor(os.Getenv("KAPI_PLUGINS_DIR"))
+}
+
+// InstallTargetFor returns the install directory for a front-end whose first
+// discovery root is pluginsDir ($KAPI_PLUGINS_DIR, or the CLI's --plugin-dir
+// in its place). By default it is $XDG_DATA_HOME/kapi/plugins, whatever
+// pluginsDir holds. With $KAPI_PLUGINS_DIR_ONLY set, discovery reads pluginsDir
+// alone, so the install goes to its first entry, and a pluginsDir that names
+// no directory is ErrEmptyPluginsDir.
+func InstallTargetFor(pluginsDir string) (string, error) {
+	if !onlyEnvDirFromEnv() {
+		return dataInstallTarget(), nil
+	}
+	paths := splitPathList(pluginsDir)
+	if len(paths) == 0 {
+		return "", ErrEmptyPluginsDir
+	}
+	return filepath.Clean(paths[0]), nil
+}
+
+// dataInstallTarget returns $XDG_DATA_HOME/kapi/plugins, the per-user install
+// root that discovery scans second.
+func dataInstallTarget() string {
 	xdg := os.Getenv("XDG_DATA_HOME")
 	if xdg == "" {
 		if home, err := os.UserHomeDir(); err == nil {
@@ -95,7 +123,11 @@ func InstallFromRegistry(ctx context.Context, opts InstallOptions) (*InstallResu
 	}
 	target := opts.TargetDir
 	if target == "" {
-		target = InstallTarget()
+		t, err := InstallTarget()
+		if err != nil {
+			return nil, fmt.Errorf("install: %w", err)
+		}
+		target = t
 	}
 	logf := opts.LogF
 	if logf == nil {
