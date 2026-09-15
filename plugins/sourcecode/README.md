@@ -74,8 +74,8 @@ The plugin never writes a file. For a language whose manifest entry declares
 back: kapi renders the text into the comment's layout, has this plugin locate the
 rewritten file, and writes it only when the project's formatter, oxfmt or
 prettier, runs and agrees. That formatter runs code the project controls, so kapi
-runs it only for a project the user trusts, with `--trust-project-formatters` or
-`formatters.trusted_dirs` in kapi's own configuration. Each comment form in those
+runs it only under execution trust: an allow the user gives once at `kapi apply`'s
+prompt, or `KAPI_TRUST_EXEC` for `kapi apply`. Each comment form in those
 languages is written except a legacy HTML-like `<!--` comment in a script, which
 is refused.
 

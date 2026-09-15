@@ -83,7 +83,6 @@ writes nothing. No AI provider is required.`,
 	a.AddSourceLangFlag(f)
 	a.AddEncodingFlag(f, "", "input/output encoding")
 	inPlaceFlag = RegisterInPlace(f, "keep a backup of edited content files with --in-place=.bak")
-	f.BoolVar(&a.TrustProjectFormatters, "trust-project-formatters", false, "run the formatter a comment edit's project configures, which runs code the project controls")
 	// Asset entries are written into the project's committed sources, so apply
 	// is a project verb and names its project the way every other one does.
 	// Resolving only by walking up from the cwd made it unusable from anywhere

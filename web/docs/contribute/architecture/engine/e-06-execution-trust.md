@@ -2,7 +2,7 @@
 id: e-06-execution-trust
 sidebar_position: 6
 title: "E-06: Execution trust"
-description: "Two tools and one format run code the configuration names; every surface that can reach them answers whether a person chose it, and only the recipe surface asks."
+description: "Two tools and one format run code the configuration names, and a comment edit runs a project's formatter; every surface that can reach them answers whether a person chose it, and only the recipe surface and kapi apply ask."
 keywords: [neokapi, architecture decision, execution trust, exec class, external-command, script, consent, sandbox, supply chain]
 ---
 
@@ -29,6 +29,10 @@ of the tool:
 
 Only the recipe row can ask, because it is the only one with a person present and
 a legitimate reason to say yes. The rest have a fixed answer, so they do not ask.
+
+A comment edit's project formatter is decided the same way, at the edit that
+would run it: `kapi apply` asks once per formatter configuration and remembers,
+and MCP `apply_edits` runs it only on an allow already recorded.
 
 ## Context
 
@@ -142,6 +146,30 @@ record instead, so a project already approved keeps working on those paths.
 `kapi exec <tool>` is untouched. It builds from the registry with an argv the
 user typed, which is the user's own intent rather than a file's.
 
+### A project's formatter is an exec site at the edit that runs it
+
+A comment edit in a language a plugin writes is held to the formatter the edited
+file's project configures ([E-02](e-02-format-system.md)). That formatter runs
+code the project controls: an executable the project can install, and a
+configuration that for prettier and vite-plus is code. `core/project.FormatterExecSite`
+makes it an exec site, and `host/exectrust_formatter.go` decides it with the
+recipe arm's record, prompt and environment grant.
+
+It is decided at the edit rather than at load. No other command runs a formatter,
+and a site in the recipe's surface would make every command in a project with a
+formatter configuration ask or refuse. The record is keyed by the configuration
+file that selected the formatter, since a formatter's project often has no
+recipe, and the digest holds the formatter's command, the executable's bytes and
+that file's bytes. An edit to either asks again, and a module either one imports
+is outside the digest.
+
+`kapi apply` resolves the question in the recipe arm's order, and asks only when
+the change-set did not arrive on standard input. MCP `apply_edits` runs a
+formatter only on a recorded allow. It has nobody to ask, and it does not read
+`KAPI_TRUST_EXEC`, because a project's own MCP client configuration can set the
+server's environment. A decision is recorded only by answering the prompt, so a
+person allows a formatter once through `kapi apply` in a terminal.
+
 ## Consequences
 
 - **Nothing in this repository prompts.** No recipe here, no sample, and no
@@ -165,7 +193,7 @@ user typed, which is the user's own intent rather than a file's.
 ## Related
 
 - [E-03: The tool system](e-03-tool-system.md): `external-command` and `script` as ordinary tools
-- [E-02: The format system](e-02-format-system.md): the `exec` format that reads by shelling out, and the project formatter a comment edit runs only for a trusted project
+- [E-02: The format system](e-02-format-system.md): the `exec` format that reads by shelling out, and the project formatter a comment edit runs under execution trust
 - [C-01: The project model](../context/c-01-project-model.md): recipe discovery by upward walk, and the `.kapi/` state directory
 - [M-06: Content packages](../multilingual/m-06-content-packages.md): `.kpz` ingest sanitisation
 - [S-03: Agent surfaces](../surfaces/s-03-agent-surfaces.md): why the MCP surface refuses, and why `--all-tools` does not change that

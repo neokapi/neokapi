@@ -195,7 +195,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
 	}
 	if len(comments) > 0 {
-		out.Comments = a.applyComments(ctx, cmd, comments, diff, backupSuffix)
+		out.Comments = a.applyComments(ctx, cmd, comments, diff, backupSuffix, a.applyFormatterTrust(cmd, path == "" || path == StdinName))
 		if diff {
 			for _, f := range out.Comments {
 				fmt.Fprint(cmd.OutOrStdout(), f.Diff)

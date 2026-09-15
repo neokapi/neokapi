@@ -62,21 +62,20 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		FallbackRunE:     a.FallbackRunE,
 		ExtraFlows:       a.ExtraFlows,
 
-		ProjectContext:         a.ProjectContext,
-		MCPSurface:             a.MCPSurface,
-		TrustProjectFormatters: a.TrustProjectFormatters,
-		mcpRecipePath:          a.mcpRecipePath,
-		execTrustGranted:       a.execTrustGranted,
-		ProjectBindings:        a.ProjectBindings,
-		convergeWriteFiles:     a.convergeWriteFiles,
-		convergeDraftDir:       a.convergeDraftDir,
-		convergeDraftRoot:      a.convergeDraftRoot,
-		docCache:               a.docCache,
-		translator:             a.translator,
-		AISetupIOOverride:      a.AISetupIOOverride,
-		AISetupPrompter:        a.AISetupPrompter,
-		isTTY:                  a.isTTY,
-		convergeProgressTap:    tap,
+		ProjectContext:      a.ProjectContext,
+		MCPSurface:          a.MCPSurface,
+		mcpRecipePath:       a.mcpRecipePath,
+		execTrustGranted:    a.execTrustGranted,
+		ProjectBindings:     a.ProjectBindings,
+		convergeWriteFiles:  a.convergeWriteFiles,
+		convergeDraftDir:    a.convergeDraftDir,
+		convergeDraftRoot:   a.convergeDraftRoot,
+		docCache:            a.docCache,
+		translator:          a.translator,
+		AISetupIOOverride:   a.AISetupIOOverride,
+		AISetupPrompter:     a.AISetupPrompter,
+		isTTY:               a.isTTY,
+		convergeProgressTap: tap,
 
 		// Pre-seed the parent's runtime (building it on the parent if needed —
 		// concurrent callers serialize on the parent's Once). The worker's own
@@ -157,13 +156,10 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// server is running. A converge worker never serves MCP, so sharing the
 	// parent's value is correct and inert — it is carried rather than reset so
 	// the clone stays a faithful copy.
-	"MCPSurface": fieldShared,
-	// Trusting project formatters is the user's decision for the run, as
-	// execution trust is, so every worker inherits it.
-	"TrustProjectFormatters": fieldShared,
-	"mcpRecipePath":          fieldShared, // immutable identity of the server's bound project
-	"ProjectBindings":        fieldShared,
-	"convergeWriteFiles":     fieldShared,
+	"MCPSurface":         fieldShared,
+	"mcpRecipePath":      fieldShared, // immutable identity of the server's bound project
+	"ProjectBindings":    fieldShared,
+	"convergeWriteFiles": fieldShared,
 	// One draft tree for the whole run: the locales of a pass draft side by
 	// side and finishConverge delivers from the store, so a per-worker tree
 	// would be a per-locale answer to a question the run asks once.

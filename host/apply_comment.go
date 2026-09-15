@@ -93,7 +93,7 @@ func (r commentFileResult) ok() bool {
 // A language's write canary runs before the first comment of that language is
 // written in the run, and when it fails no entry in the language runs. Entries
 // in a plugin language are held to the project's formatter, and run only when
-// it does, which it does only for a project the user trusts (formatterTrust).
+// it does, which it does only when execution trust allows it (formatterTrust).
 // A file's entries are applied from its last comment to its first, so
 // an edit never moves the lines of a comment still to come, and each rewrite is
 // held to comment.Contain. The file is read again before it is written, and a file
@@ -103,7 +103,7 @@ func (r commentFileResult) ok() bool {
 //
 // With preview set, nothing is written or checked, and each file's diff is
 // reported.
-func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEntry, preview bool, backupSuffix string) []commentFileResult {
+func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEntry, preview bool, backupSuffix string, trust *formatterTrust) []commentFileResult {
 	a.InitRegistries()
 	byFile := map[string][]changeEntry{}
 	var order []string
@@ -115,7 +115,6 @@ func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEn
 	}
 	formats, formatsErr := a.newCheckFormats(cmd)
 	canaries := map[string]error{}
-	trust := a.commentFormatterTrust()
 	results := make([]commentFileResult, 0, len(order))
 	for _, file := range order {
 		w := &commentFileWrite{app: a, cmd: cmd, file: file, entries: byFile[file], preview: preview, backupSuffix: backupSuffix, trust: trust}
@@ -144,7 +143,7 @@ type commentFileWrite struct {
 	entries      []changeEntry
 	preview      bool
 	backupSuffix string
-	trust        formatterTrust
+	trust        *formatterTrust
 	result       commentFileResult
 }
 

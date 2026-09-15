@@ -65,6 +65,5 @@ surface nobody chose is how it grew to fifty-one tools.
 	cmd.Flags().Bool("all-tools", false, "expose every CLI-visible registry tool, not the curated set")
 	cmd.Flags().Bool("all-flows", false, "expose the flow-running verbs")
 	cmd.Flags().Bool("all", false, "shorthand for --all-tools --all-flows")
-	cmd.Flags().BoolVar(&a.TrustProjectFormatters, "trust-project-formatters", false, "let apply_edits run the formatter a comment edit's project configures, which runs code the project controls")
 	return cmd
 }
