@@ -105,7 +105,12 @@ locale (`target_revisions`), and `get_block` returns the same values as
 refused when that target has moved since: the editor routes answer `409` with
 `code: "block_changed"` and the block as it now stands in `current`, and
 `update_block` returns an error naming the current wording. Nothing is written,
-so the writer decides again on the wording that stands.
+so the writer decides again on the wording that stands. A rollback takes the same
+`base_revision`. Approving a source proposal is refused the same way when the
+block's source no longer matches the source the proposal was made against, and
+the proposal stays open. Entity marks land on the block in the stream the route
+names, and a block removed in the meantime stays removed, as it does for a
+rollback, a batch revert or a flow run over the project's blocks.
 
 The same routes exist under `/api/v1/projects/:id/sync/:ref/...` for a project
 that has not yet been claimed into a workspace, authenticated by its claim token.

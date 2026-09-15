@@ -542,21 +542,23 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 			}
 
 			resp.Blocks = make([]apiclient.SyncBlock, 0, len(stored))
-			unaddressed := 0
+			var unaddressed []string
 			for _, sb := range stored {
 				// The stream serves blocks by the item they belong to. A row
 				// with no item is content no client can write, so it is left
 				// out and the cursor still moves past its change.
 				if sb.ItemName == "" {
-					unaddressed++
+					if sb.Block != nil {
+						unaddressed = append(unaddressed, sb.Block.ID)
+					}
 					continue
 				}
 				resp.Blocks = append(resp.Blocks, apiclient.StoredBlockToSyncBlock(sb))
 				itemSet[sb.ItemName] = struct{}{}
 			}
-			if unaddressed > 0 {
+			if len(unaddressed) > 0 {
 				slog.WarnContext(ctx, "sync pull: left out block rows that belong to no item",
-					"project_id", projectID, "stream", stream, "count", unaddressed)
+					"project_id", projectID, "stream", stream, "count", len(unaddressed), "block_ids", unaddressed)
 			}
 		}
 

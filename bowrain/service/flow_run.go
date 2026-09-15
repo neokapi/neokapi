@@ -153,7 +153,7 @@ func (s *FlowService) RunFlow(ctx context.Context, run FlowRun) (FlowRunResult, 
 			s.trackDefinitionRun(run, res.Blocks, time.Since(start), "failed")
 			return res, err
 		}
-		written, err := s.runItemPasses(ctx, def, nodes, aiRun, run.ProjectID, stream, item, current, locales)
+		written, err := s.runItemPasses(ctx, def, nodes, aiRun, run.ProjectID, stream, blocks, current, locales)
 		release()
 		if err != nil {
 			s.trackDefinitionRun(run, res.Blocks, time.Since(start), "failed")
@@ -226,7 +226,7 @@ func (s *FlowService) storeFlowToolNodes(def *flow.FlowDefinition) ([]flow.FlowN
 // pass; each pass builds a fresh tool chain because a tool holds its target
 // locale in its config. It returns the number of blocks in the item's final
 // state, or zero when no pass produced output.
-func (s *FlowService) runItemPasses(ctx context.Context, def *flow.FlowDefinition, nodes []flow.FlowNode, aiRun *AIRun, projectID, stream, item string, blocks []*model.Block, locales []string) (int, error) {
+func (s *FlowService) runItemPasses(ctx context.Context, def *flow.FlowDefinition, nodes []flow.FlowNode, aiRun *AIRun, projectID, stream string, reads []*venue.StoredBlock, blocks []*model.Block, locales []string) (int, error) {
 	current := blocks
 	written := 0
 	for _, locale := range locales {
@@ -241,13 +241,36 @@ func (s *FlowService) runItemPasses(ctx context.Context, def *flow.FlowDefinitio
 		if len(out) == 0 {
 			continue
 		}
-		if err := s.store.StoreBlocksForItem(ctx, projectID, stream, item, out); err != nil {
-			return 0, fmt.Errorf("persist flow output: %w", err)
+		written, err = s.writeBackPass(ctx, projectID, stream, reads, out)
+		if err != nil {
+			return 0, err
 		}
 		current = out
-		written = len(out)
 	}
 	return written, nil
+}
+
+// writeBackPass writes a pass's output back to the rows the item was read
+// from. A block a push removed or rewrote since the read keeps what the push
+// left, so a removed item is not stored again. It reports the blocks written.
+func (s *FlowService) writeBackPass(ctx context.Context, projectID, stream string, reads []*venue.StoredBlock, out []*model.Block) (int, error) {
+	base := make(map[string]string, len(reads))
+	for _, sb := range reads {
+		if sb != nil && sb.Block != nil {
+			base[sb.Block.ID] = sb.ContentHash
+		}
+	}
+	back := make([]*venue.StoredBlock, 0, len(out))
+	for _, b := range out {
+		if hash, ok := base[b.ID]; ok {
+			back = append(back, &venue.StoredBlock{Block: b, ContentHash: hash})
+		}
+	}
+	res, err := s.store.WriteBackBlocks(ctx, projectID, stream, back)
+	if err != nil {
+		return 0, fmt.Errorf("persist flow output: %w", err)
+	}
+	return res.Written, nil
 }
 
 // buildFlowTools constructs the tool chain for one pass. Each node's own

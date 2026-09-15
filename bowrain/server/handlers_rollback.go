@@ -12,6 +12,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // applyReverts loads each affected block, applies the target reverts (restoring
@@ -27,7 +28,7 @@ func (s *Server) applyReverts(ctx context.Context, pid, stream, reason string, r
 		}
 		byBlock[r.BlockID] = append(byBlock[r.BlockID], r)
 	}
-	blocks := make([]*model.Block, 0, len(order))
+	reads := make([]*venue.StoredBlock, 0, len(order))
 	for _, bid := range order {
 		sb, err := s.ContentStore.GetBlock(ctx, pid, stream, bid)
 		if err != nil {
@@ -49,13 +50,29 @@ func (s *Server) applyReverts(ctx context.Context, pid, stream, reason string, r
 				sb.Block.SetTargetText(locale, r.Text)
 			}
 		}
-		blocks = append(blocks, sb.Block)
+		reads = append(reads, sb)
 	}
+	if len(reads) == 0 {
+		return 0, nil
+	}
+	// Written back to the rows read above: a block a push removed or rewrote since
+	// then keeps what the push left, and its reverts are not counted.
 	ctx = bstore.WithChangeContext(ctx, bstore.ChangeContext{Reason: reason})
-	if err := s.ContentStore.StoreBlocks(ctx, pid, stream, blocks); err != nil {
+	res, err := s.ContentStore.WriteBackBlocks(ctx, pid, stream, reads)
+	if err != nil {
 		return 0, err
 	}
-	return len(reverts), nil
+	skipped := make(map[string]bool, len(res.Skipped))
+	for _, id := range res.Skipped {
+		skipped[id] = true
+	}
+	n := 0
+	for _, sb := range reads {
+		if !skipped[sb.Block.ID] {
+			n += len(byBlock[sb.Block.ID])
+		}
+	}
+	return n, nil
 }
 
 // RollbackBlockRequest restores a block's target for a locale to a prior
@@ -63,6 +80,9 @@ func (s *Server) applyReverts(ctx context.Context, pid, stream, reason string, r
 type RollbackBlockRequest struct {
 	Locale string `json:"locale"`
 	ToSeq  int64  `json:"to_seq"` // block_history entry id to restore to
+	// BaseRevision is the target revision the caller read. A rollback that names
+	// one is refused with the current block when the target has moved since.
+	BaseRevision string `json:"base_revision,omitempty"`
 }
 
 // HandleRollbackBlock restores a block's target (for one locale) to a prior
@@ -119,29 +139,35 @@ func (s *Server) HandleRollbackBlock(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "history entry not found for this block/locale"})
 	}
 
-	sb, err := s.ContentStore.GetBlock(ctx, pid, stream, bid)
-	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
-	}
-
 	locale := model.LocaleID(req.Locale)
-	// Prefer restoring the full Run sequence (preserves inline markup); fall
-	// back to plain text.
-	if entry.Coded != "" {
-		var runs []model.Run
-		if json.Unmarshal([]byte(entry.Coded), &runs) == nil && len(runs) > 0 {
-			sb.Block.SetTargetRuns(locale, runs)
-		} else {
-			sb.Block.SetTargetText(locale, entry.Text)
-		}
-	} else {
-		sb.Block.SetTargetText(locale, entry.Text)
-	}
-
-	// Label the restoring write so its history entry reads as a rollback.
+	// Label the restoring write so its history entry reads as a rollback. The
+	// restore lands on the block as the write holds it, so a block removed since
+	// the history was read stays removed.
 	ctx = bstore.WithChangeContext(ctx, bstore.ChangeContext{Reason: "rollback:" + strconv.FormatInt(req.ToSeq, 10)})
-	if err := s.ContentStore.StoreBlocks(ctx, pid, stream, []*model.Block{sb.Block}); err != nil {
-		return serverErr(c, err)
+	updated, uerr := s.ContentStore.UpdateBlock(ctx, pid, stream, bid, func(sb *venue.StoredBlock) error {
+		if err := checkBaseRevision(sb, locale, req.BaseRevision); err != nil {
+			return err
+		}
+		// Prefer restoring the full Run sequence (preserves inline markup); fall
+		// back to plain text.
+		if entry.Coded != "" {
+			var runs []model.Run
+			if json.Unmarshal([]byte(entry.Coded), &runs) == nil && len(runs) > 0 {
+				sb.Block.SetTargetRuns(locale, runs)
+				return nil
+			}
+		}
+		sb.Block.SetTargetText(locale, entry.Text)
+		return nil
+	})
+	if uerr != nil {
+		if changed, ok := asBlockChanged(uerr); ok {
+			return s.answerBlockChanged(c, pid, changed, req.Locale)
+		}
+		if updated == nil {
+			return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
+		}
+		return serverErr(c, uerr)
 	}
 
 	s.emitAudit(c, auditEvent{
