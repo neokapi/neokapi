@@ -22,7 +22,10 @@ import (
 // prevent.
 
 // DecisionsComponent folds a decision ledger into the ref's decisions
-// component: one identity per (item, unit, variant), folded by ref.Fold.
+// component: one identity per (item, unit, variant) for each record that
+// decides something (UnitDecision.IsDecision), folded by ref.Fold. Records
+// that say only what was produced are left out, so a run that drafts moves
+// nothing a client asserts.
 //
 // Order-independent by construction, because the fold sorts its keys. That
 // matters here: the committed record arrives in shard order and the server's
@@ -32,6 +35,27 @@ func DecisionsComponent(decisions []UnitDecision) string {
 	if len(decisions) == 0 {
 		return ""
 	}
+	parts := make(map[string]string, len(decisions))
+	for _, d := range decisions {
+		// Only decisions are folded. A record that says only what was produced
+		// for a unit moves as drafting runs, and a client that read the
+		// component before a run has missed no decision.
+		if d.Unit == "" || d.Variant == "" || !d.IsDecision() {
+			continue
+		}
+		parts[decisionKey(d)] = DecisionIdentity(d)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return ref.Fold(parts)
+}
+
+// DecisionRecordsHash folds every keyed record, decisions and records of what
+// was produced alike. A producer compares it with the fold it last sent to
+// tell whether its committed record has changed since; the decisions component
+// cannot answer that, because it leaves records of what was produced out.
+func DecisionRecordsHash(decisions []UnitDecision) string {
 	parts := make(map[string]string, len(decisions))
 	for _, d := range decisions {
 		if d.Unit == "" || d.Variant == "" {

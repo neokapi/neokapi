@@ -136,6 +136,25 @@ func (d UnitDecision) CarriesVerdict() bool {
 	return model.TargetStatus(d.Status).Rank() > model.TargetStatusTranslated.Rank()
 }
 
+// IsDecision reports whether a record decides something about its unit: a
+// review state, a rung at reviewed or above, a parked unit, an assignee or a
+// note. A record that says only what was produced (its target, the source it
+// was written for and a rung below reviewed) is a basis, which a producer
+// writes for every unit it drafts.
+func (d UnitDecision) IsDecision() bool {
+	return d.ReviewState != "" || d.CarriesVerdict() || d.Parked || d.Assignee != "" || d.Note != ""
+}
+
+// CarriesDecision reports whether any record decides something.
+func CarriesDecision(decisions []UnitDecision) bool {
+	for _, d := range decisions {
+		if d.IsDecision() {
+			return true
+		}
+	}
+	return false
+}
+
 // VerdictKind names what a decision record claims, for the refusal it may earn.
 func (d UnitDecision) VerdictKind() string {
 	if d.ReviewState == ReviewStateSignedOff || model.TargetStatus(d.Status) == model.TargetStatusSignedOff {

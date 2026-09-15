@@ -69,6 +69,18 @@ settlement stamp, are stored without changing the block's stored context hash,
 so the producer's next push compares against the hashes its own push stored and
 uploads only what changed.
 
+A push asserts the ref it last observed only for the governance it writes. It
+asserts the decisions component when its records include a decision (a review
+state, a reviewed or signed-off rung, a parked unit, an assignee or a note), and
+the server refuses it with `409 governance_moved` when another decision has
+landed since. Records that say only what was produced for a unit assert nothing
+and merge by record time. The decisions component folds decisions alone, so the
+records a server run writes while it drafts leave it where a client read it. The
+worker makes the same assertion again inside the push's transaction, against the
+ledger as it stood before the push wrote anything, so rows the push itself
+removes, such as the decisions of an item its declared tree no longer holds,
+never count against it.
+
 The same routes exist under `/api/v1/projects/:id/sync/:ref/...` for a project
 that has not yet been claimed into a workspace, authenticated by its claim token.
 See [`kapi push`](/cli/commands/push) for the protocol as a client sees it.

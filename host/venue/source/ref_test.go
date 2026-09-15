@@ -34,6 +34,8 @@ type refServer struct {
 	published    ref.Ref
 	commitAssert ref.Ref
 	commits      int
+	// decisionsSent totals the decision records every commit carried.
+	decisionsSent int
 	// statusUnavailable makes the push-status route fail, so the ingest is
 	// unconfirmable — a server with no worker, or one too old for the endpoint.
 	statusUnavailable bool
@@ -107,6 +109,7 @@ func newRefServer(t *testing.T, projectID string, published ref.Ref) *refServer 
 		_ = json.NewDecoder(r.Body).Decode(&manifest)
 		rs.commitAssert = manifest.ExpectedRef
 		rs.commits++
+		rs.decisionsSent += len(manifest.Decisions)
 		w.WriteHeader(http.StatusAccepted)
 		_ = json.NewEncoder(w).Encode(map[string]any{"push_id": "p1", "status": "queued"})
 	})

@@ -227,7 +227,7 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 	// ref has components rather than one number.
 	if err := s.assertGovernance(c.Request().Context(), manifest.ProjectID, manifest.Stream,
 		manifest.ExpectedRef,
-		writtenComponents(carriesRecords(manifest.Contexts), carriesRecords(manifest.Decisions))...); err != nil {
+		writtenComponents(carriesRecords(manifest.Contexts), carriesDecisions(manifest.Decisions))...); err != nil {
 		if resp, ok := governanceConflict(c, err); ok {
 			return resp
 		}
@@ -661,6 +661,19 @@ func carriesRecords(raw json.RawMessage) bool {
 		return false
 	}
 	return len(records) > 0
+}
+
+// carriesDecisions reports whether a manifest's decision records include one
+// that decides something (venue.UnitDecision.IsDecision). Records that only say
+// what was produced for a unit write no decision, so they assert nothing about
+// the decisions component: they merge by record time, and a server run writes
+// its own between any client's pull and push.
+func carriesDecisions(raw json.RawMessage) bool {
+	var records []venue.UnitDecision
+	if err := json.Unmarshal(raw, &records); err != nil {
+		return false
+	}
+	return venue.CarriesDecision(records)
 }
 
 // writtenComponents names the governance components a push commit writes, and
