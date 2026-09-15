@@ -3,9 +3,9 @@
   "rituals": {
     "triage-score": {
       "cadence_days": 14,
-      "last_run": "2026-09-14",
+      "last_run": "2026-09-15",
       "watermarks": {
-        "core_formats_sha": "cbd9169227c5351be11221dbb894b947b2dff776",
+        "core_formats_sha": "95e6f7a06d6675ed946a79125c070ec11663dcac",
         "scorer_version": 5,
         "audit_sha": "38cd495049f95feebfb5bc842abbe50fe9cfaae6fca21f49e20678df38e2a532",
         "model_id": "",
@@ -205,6 +205,24 @@
     },
     {
       "date": "2026-09-14",
+      "ritual": "triage-score",
+      "commit": "pending",
+      "model_id": "deterministic",
+      "outcome": "deterministic floor publish (no LLM scoring): engine L0:7 L1:10 L2:13 L3:7 L4:0; 37 formats",
+      "evidence": [
+        {
+          "check": "audit-format.py --all --json",
+          "exit": 0,
+          "output_sha": "38cd495049f95feebfb5bc842abbe50fe9cfaae6fca21f49e20678df38e2a532"
+        }
+      ],
+      "followups": [
+        "vocabulary.yaml backfill (#859)",
+        "corpus C2 fetch wiring (#859 D)"
+      ]
+    },
+    {
+      "date": "2026-09-15",
       "ritual": "triage-score",
       "commit": "pending",
       "model_id": "deterministic",
