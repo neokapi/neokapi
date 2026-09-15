@@ -137,6 +137,7 @@ Conflicting capabilities between two different plugins are an error: kapi prints
 both manifests and refuses to dispatch the conflicting capability.
 `KAPI_PLUGINS_DIR_ONLY` restricts discovery to the first root, which is how an
 in-repo kapi stays isolated from the developer's installed plugins.
+`kapi plugin install` then writes into that root, and refuses when it is empty.
 
 **Precedence over built-ins.** A plugin capability that collides with a
 *built-in* one (a plugin reader for a format the framework also ships natively)

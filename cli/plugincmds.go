@@ -127,12 +127,17 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name, constraint := ParsePluginRef(args[0])
+			target, err := a.PluginInstallTarget()
+			if err != nil {
+				return fmt.Errorf("install: %w", err)
+			}
 			opts := pluginhost.InstallOptions{
 				IndexURL:    indexURL,
 				PluginName:  name,
 				Constraint:  constraint,
 				Channel:     channel,
 				KapiVersion: KapiVersion(),
+				TargetDir:   target,
 				Unsafe:      unsafe,
 				LogF: func(msg string) {
 					fmt.Fprintln(cmd.ErrOrStderr(), msg)
@@ -183,10 +188,14 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			pluginDir := filepath.Join(pluginhost.InstallTarget(), name)
+			base, err := a.PluginInstallTarget()
+			if err != nil {
+				return fmt.Errorf("update: %w", err)
+			}
+			pluginDir := filepath.Join(base, name)
 			if _, err := os.Stat(pluginDir); err != nil {
 				if os.IsNotExist(err) {
-					return fmt.Errorf("plugin %q is not installed under %s. Install it with `kapi plugin install %s`", name, pluginhost.InstallTarget(), name)
+					return fmt.Errorf("plugin %q is not installed under %s. Install it with `kapi plugin install %s`", name, base, name)
 				}
 				return err
 			}
@@ -196,6 +205,7 @@ Examples:
 				Constraint: constraintOverride,
 				IndexURL:   indexOverride,
 				Unsafe:     unsafe,
+				TargetDir:  base,
 				LogF: func(msg string) {
 					fmt.Fprintln(cmd.ErrOrStderr(), msg)
 				},

@@ -175,6 +175,13 @@ func (a *App) ResolveMissingPluginCommand(cmd Command, verb string, args []strin
 		return true, WithExitCode(ExitUsage, missingPluginError(hint, verb))
 	}
 
+	// Resolve the install directory before offering, so an install discovery
+	// would never see is refused rather than offered.
+	target, err := a.PluginInstallTarget()
+	if err != nil {
+		return true, fmt.Errorf("install %s: %w", hint.Plugin, err)
+	}
+
 	if !quiet {
 		fmt.Fprint(out, missingPluginOffer(hint, verb))
 	}
@@ -210,6 +217,7 @@ func (a *App) ResolveMissingPluginCommand(cmd Command, verb string, args []strin
 		PluginName:  hint.Plugin,
 		Channel:     channel,
 		KapiVersion: KapiVersion(),
+		TargetDir:   target,
 		LogF:        logF,
 	}); err != nil {
 		return true, fmt.Errorf("install %s: %w", hint.Plugin, err)

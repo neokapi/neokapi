@@ -155,7 +155,7 @@ func assembleRoots(opts DiscoverOptions) []Source {
 	// Dogfood / dev isolation: with OnlyEnvDir (or a non-empty
 	// $KAPI_PLUGINS_DIR_ONLY) the user and system roots are skipped entirely,
 	// so an in-repo kapi can't pick up globally-installed plugins.
-	if opts.OnlyEnvDir || os.Getenv("KAPI_PLUGINS_DIR_ONLY") != "" {
+	if opts.OnlyEnvDir || onlyEnvDirFromEnv() {
 		return roots
 	}
 
@@ -196,6 +196,12 @@ func assembleRoots(opts DiscoverOptions) []Source {
 		})
 	}
 	return roots
+}
+
+// onlyEnvDirFromEnv reports whether $KAPI_PLUGINS_DIR_ONLY is set. Discovery
+// and the install target both read it here, so they agree on the one root.
+func onlyEnvDirFromEnv() bool {
+	return os.Getenv("KAPI_PLUGINS_DIR_ONLY") != ""
 }
 
 func splitPathList(s string) []string {

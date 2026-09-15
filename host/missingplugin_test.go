@@ -25,11 +25,12 @@ func venueRecipe() map[string]any {
 // the machine's real plugin roots and caches: the resolver re-discovers plugins
 // after an install, so without this a plugin actually installed here (via
 // Homebrew, say) would answer for the fixture and the discovery cache in the
-// developer's XDG dirs would be rewritten.
+// developer's XDG dirs would be rewritten. The plugins dir is an empty temp
+// dir, since an install under KAPI_PLUGINS_DIR_ONLY needs one to write to.
 func newMissingPluginCmd(t *testing.T) *host.EnvCommand {
 	t.Helper()
 	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
-	t.Setenv("KAPI_PLUGINS_DIR", "")
+	t.Setenv("KAPI_PLUGINS_DIR", t.TempDir())
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 

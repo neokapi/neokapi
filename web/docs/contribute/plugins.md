@@ -69,7 +69,9 @@ Plugins are discovered structurally by location, in precedence order:
 
 Set `KAPI_PLUGINS_DIR_ONLY=1` to search `$KAPI_PLUGINS_DIR` alone (an empty
 value then means no plugins at all). An isolated test or CI run uses it to keep
-user-installed and Homebrew-installed plugins out of the picture.
+user-installed and Homebrew-installed plugins out of the picture. With it set,
+`kapi plugin install` and `kapi plugin update` write to the first
+`$KAPI_PLUGINS_DIR` entry, and refuse to run when `$KAPI_PLUGINS_DIR` is empty.
 
 Within each location, every direct entry that resolves to a directory containing
 a `manifest.json` is a plugin; a symlink counts, which is what makes the system

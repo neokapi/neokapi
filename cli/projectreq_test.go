@@ -35,11 +35,12 @@ func writeRecipe(t *testing.T, content string) string {
 // registers their schema extensions, so without this a bowrain plugin actually
 // installed on the machine — via Homebrew, say — satisfies `requires: bowrain`
 // and the tests assert against the wrong world. Same isolation switch the
-// in-repo dogfood contract uses.
+// in-repo dogfood contract uses, with an empty temp plugins dir for an
+// install to write to.
 func isolatePluginRoots(t *testing.T) {
 	t.Helper()
 	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
-	t.Setenv("KAPI_PLUGINS_DIR", "")
+	t.Setenv("KAPI_PLUGINS_DIR", t.TempDir())
 }
 
 func TestLoadProjectInteractive_NoRequires_Loads(t *testing.T) {

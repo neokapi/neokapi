@@ -143,7 +143,9 @@ conflict):
 
 `$KAPI_PLUGINS_DIR_ONLY=1` restricts discovery to root 1, which is how this
 repository's own tests and scripts stay isolated from a developer's installed
-plugins. kapi never consults `$PATH`.
+plugins. Under it, an install without an explicit target directory
+(`pluginhost.InstallTarget`) writes to the first root 1 entry and fails with
+`ErrEmptyPluginsDir` when root 1 is empty. kapi never consults `$PATH`.
 
 Results are cached as JSON at `$KAPI_PLUGIN_CACHE`, else
 `$XDG_CACHE_HOME/kapi/plugins-cache.json`. The cache records each root's

@@ -135,6 +135,8 @@ the kapi process environment:
 - `KAPI_PLUGINS_DIR_ONLY=1` — discover plugins only from `$KAPI_PLUGINS_DIR`
   (empty → none). `XDG_DATA_HOME` alone isolates the *user* plugin root only;
   without this, an in-repo kapi still picks up Homebrew-installed plugins.
+  `kapi plugin install` and `update` then write to the first `$KAPI_PLUGINS_DIR`
+  entry, and refuse to run when it is empty.
 
 Already wired: the Makefile's shared `$(KAPI_ISO_ENV)` prefix, `kapi/e2e`'s
 `isoEnv` in `TestMain`, and `harness/` (sandboxes in `os.tmpdir()` via
