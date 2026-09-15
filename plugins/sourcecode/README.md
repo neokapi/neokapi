@@ -75,7 +75,7 @@ back: kapi renders the text into the comment's layout, has this plugin locate th
 rewritten file, and writes it only when the project's formatter, oxfmt or
 prettier, runs and agrees. That formatter runs code the project controls, so kapi
 runs it only under execution trust: an allow the user gives once at `kapi apply`'s
-prompt, or `KAPI_TRUST_EXEC` for `kapi apply`. Each comment form in those
+prompt, or `KAPI_TRUST_EXEC` for `kapi apply`. MCP `apply_edits` never runs it. Each comment form in those
 languages is written except a legacy HTML-like `<!--` comment in a script, which
 is refused.
 

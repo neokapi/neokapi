@@ -32,7 +32,7 @@ a legitimate reason to say yes. The rest have a fixed answer, so they do not ask
 
 A comment edit's project formatter is decided the same way, at the edit that
 would run it: `kapi apply` asks once per formatter configuration and remembers,
-and MCP `apply_edits` runs it only on an allow already recorded.
+and MCP `apply_edits` never runs it.
 
 ## Context
 
@@ -159,16 +159,33 @@ It is decided at the edit rather than at load. No other command runs a formatter
 and a site in the recipe's surface would make every command in a project with a
 formatter configuration ask or refuse. The record is keyed by the configuration
 file that selected the formatter, since a formatter's project often has no
-recipe, and the digest holds the formatter's command, the executable's bytes and
-that file's bytes. An edit to either asks again, and a module either one imports
-is outside the digest.
+recipe. The plugin lists each formatter's configuration files as the formatter
+searches for them, so the nearest one kapi finds is the one the formatter loads,
+and a `package.json` or `package.yaml` counts only when it holds a top-level
+`prettier` key. The digest holds the SHA-256 of:
+
+- the formatter's command and its executable;
+- the interpreter that runs the executable: the program its first line names,
+  or, for a `node_modules/.bin` shim, the node the shim runs and the script it
+  hands that node;
+- every configuration file in the formatter's list, from the edited file's
+  directory up to the directory of the one that selected it.
+
+A change to any of them asks again. What that code loads in turn is outside the
+digest: the modules the script, the interpreter or a configuration file imports,
+the plugins a configuration names, and the programs a shell script runs. So a
+recorded allow trusts the project's dependencies as installed, not only the
+files it names. The formatter runs with kapi's environment, with every `PATH`
+entry that is not an absolute path removed, so a program the formatter looks up
+is never found relative to the project.
 
 `kapi apply` resolves the question in the recipe arm's order, and asks only when
-the change-set did not arrive on standard input. MCP `apply_edits` runs a
-formatter only on a recorded allow. It has nobody to ask, and it does not read
-`KAPI_TRUST_EXEC`, because a project's own MCP client configuration can set the
-server's environment. A decision is recorded only by answering the prompt, so a
-person allows a formatter once through `kapi apply` in a terminal.
+the change-set did not arrive on standard input. MCP `apply_edits` never runs a
+project's formatter, whatever is recorded, so its row in the table above holds
+for formatters too. An agent that may write files can write the configuration
+a formatter loads, and nobody is present to ask. The edit reports did-not-run
+with the reason `formatter`, and a person applies it with `kapi apply` in a
+terminal. A decision is recorded only by answering that prompt.
 
 ## Consequences
 

@@ -134,7 +134,9 @@ kapi apply edits.jsonl
   formatter that runs on the file, or without that trust, the reason is
   `formatter`. None of these writes anything. The trust is execution trust: the
   user answers the prompt `kapi apply` shows in a terminal, once per formatter
-  configuration, and MCP `apply_edits` runs a formatter only after that. Report
+  configuration. MCP `apply_edits` never runs a project's formatter, so a
+  TypeScript, TSX or JavaScript comment edit sent through it reports
+  `formatter`: give the change-set to the user to apply with `kapi apply`. Report
   a `formatter` result to the user rather than setting `KAPI_TRUST_EXEC` or
   answering the prompt yourself. Keep JSDoc tags such as `@param` and every `{@link}`: dropping one
   refuses the edit.

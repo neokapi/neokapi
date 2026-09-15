@@ -60,8 +60,8 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"parse and the language's formatter must agree; a directive, a generated file's comment, a changed comment, " +
 			"text holding */ in a /* */ comment and text that drops a code block or reference are refused with a reason and write nothing. " +
 			"A comment in a language whose plugin or formatter is not installed, or whose formatter does not format the file, did not run and is not written. " +
-			"A project's formatter runs code that project controls, so apply_edits runs it only when execution trust for it is already recorded, " +
-			"which a person records by answering kapi apply's prompt in a terminal; otherwise the comment did not run, with the reason formatter. " +
+			"A project's formatter runs code that project controls, and an agent that can write files can write the configuration it loads, so apply_edits never runs it: " +
+			"such a comment did not run, with the reason formatter, and a person applies it with kapi apply in a terminal. " +
 			"Each written file's result carries a check scoped to the change.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
 		return a.applyEditsMCP(ctx, in)

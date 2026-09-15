@@ -243,7 +243,8 @@
                             "additionalProperties": false,
                             "properties": {
                               "file": { "type": "string", "pattern": "^[^/\\\\]+$" },
-                              "contains": { "type": "string", "minLength": 1 }
+                              "contains": { "type": "string", "minLength": 1 },
+                              "key": { "type": "string", "minLength": 1 }
                             }
                           }
                         },
