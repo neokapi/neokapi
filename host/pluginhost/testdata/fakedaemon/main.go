@@ -27,6 +27,11 @@
 //	FAKE_DAEMON_STARTUP_DELAY  Duration string (e.g. "200ms"); sleep
 //	                       before printing the handshake. Used to widen
 //	                       the race window for concurrent-spawn tests.
+//	FAKE_DAEMON_CONNECTOR_LOG  Path to a file. The daemon registers a
+//	                       SourceConnectorService that appends one JSON
+//	                       line per call (the RPC, the project root and
+//	                       the arguments) and answers with an empty
+//	                       response.
 package main
 
 import (
@@ -39,9 +44,11 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
+	connectorpb "github.com/neokapi/neokapi/core/plugin/proto/v1"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
 	"google.golang.org/grpc"
 )
@@ -83,6 +90,9 @@ func main() {
 	server := grpc.NewServer()
 	if os.Getenv("FAKE_DAEMON_BRIDGE") == "1" {
 		pb.RegisterBridgeServiceServer(server, &fakeBridge{})
+	}
+	if path := os.Getenv("FAKE_DAEMON_CONNECTOR_LOG"); path != "" {
+		connectorpb.RegisterSourceConnectorServiceServer(server, &fakeConnector{log: path})
 	}
 	go func() {
 		if err := server.Serve(lis); err != nil {
@@ -139,6 +149,62 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// fakeConnector is a SourceConnectorService that records each call it
+// receives as one JSON line in log and answers with an empty response.
+// Dispatch tests read the log to see whether a route reached the daemon, and
+// with which project and arguments.
+type fakeConnector struct {
+	connectorpb.UnimplementedSourceConnectorServiceServer
+	log string
+	mu  sync.Mutex
+}
+
+// connectorCall is one line of the fake connector's log.
+type connectorCall struct {
+	RPC     string   `json:"rpc"`
+	Root    string   `json:"root"`
+	Paths   []string `json:"paths,omitempty"`
+	Force   bool     `json:"force,omitempty"`
+	DryRun  bool     `json:"dry_run,omitempty"`
+	Locales []string `json:"locales,omitempty"`
+}
+
+func (f *fakeConnector) record(c connectorCall) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	line, err := json.Marshal(c)
+	if err != nil {
+		return err
+	}
+	file, err := os.OpenFile(f.log, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = file.Write(append(line, '\n'))
+	return err
+}
+
+func (f *fakeConnector) Status(_ context.Context, req *connectorpb.StatusRequest) (*connectorpb.StatusResponse, error) {
+	return &connectorpb.StatusResponse{}, f.record(connectorCall{RPC: "Status", Root: req.GetProject().GetRoot()})
+}
+
+func (f *fakeConnector) ListFiles(_ context.Context, req *connectorpb.ListFilesRequest) (*connectorpb.ListFilesResponse, error) {
+	return &connectorpb.ListFilesResponse{}, f.record(connectorCall{RPC: "ListFiles", Root: req.GetProject().GetRoot(), Paths: req.GetPaths()})
+}
+
+func (f *fakeConnector) Push(_ context.Context, req *connectorpb.PushRequest) (*connectorpb.PushResponse, error) {
+	return &connectorpb.PushResponse{}, f.record(connectorCall{
+		RPC: "Push", Root: req.GetProject().GetRoot(), Paths: req.GetPaths(), Force: req.GetForce(), DryRun: req.GetDryRun(),
+	})
+}
+
+func (f *fakeConnector) Pull(_ context.Context, req *connectorpb.PullRequest) (*connectorpb.PullResponse, error) {
+	return &connectorpb.PullResponse{}, f.record(connectorCall{
+		RPC: "Pull", Root: req.GetProject().GetRoot(), Locales: req.GetLocales(), Force: req.GetForce(), DryRun: req.GetDryRun(),
+	})
 }
 
 // fakeBridge is a minimal BridgeService implementation used by the

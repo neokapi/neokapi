@@ -5,6 +5,7 @@
 package pluginattach
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -154,6 +155,10 @@ func AttachCommandsWithOptions(parent *cobra.Command, host *pluginhost.Host, opt
 // over the daemon's gRPC connection instead of spawning a fresh Mode-A
 // subprocess. When pool is nil (or no dispatcher is registered), the
 // command falls through to the legacy Mode-A subprocess path.
+//
+// A daemon-dispatched route reads its arguments before any daemon starts:
+// --help prints the route's help, and a flag the route does not take refuses
+// the command.
 func buildCobraCommandWithDispatch(route *pluginhost.CommandRoute, pool *pluginhost.DaemonPool) *cobra.Command {
 	c := route.Command
 	cmd := &cobra.Command{
@@ -168,7 +173,11 @@ func buildCobraCommandWithDispatch(route *pluginhost.CommandRoute, pool *pluginh
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if pool != nil && pluginhost.SupportsModeCDispatch(route.Plugin.Name(), c.Name) &&
 				route.Plugin.Manifest.Daemon != nil {
-				return pluginhost.DispatchViaDaemon(cmd.Context(), pool, route.Plugin, c.Name, args)
+				err := pluginhost.DispatchViaDaemon(cmd.Context(), pool, route.Plugin, c.Name, args)
+				if help, ok := errors.AsType[*pluginhost.RouteHelp](err); ok {
+					return printRouteHelp(cmd, help)
+				}
+				return err
 			}
 			return pluginhost.ExecPluginCommand(cmd.Context(), route, args)
 		},
@@ -182,6 +191,18 @@ func buildCobraCommandWithDispatch(route *pluginhost.CommandRoute, pool *pluginh
 		cmd.AddCommand(buildSubcommandTree(route, []string{c.Name}, sub))
 	}
 	return cmd
+}
+
+// printRouteHelp prints the help for a route dispatched to a daemon: the
+// manifest's description, the arguments the route takes and its flags. Cobra
+// never parsed those flags, so they join the command's flag set here for the
+// usage template only.
+func printRouteHelp(cmd *cobra.Command, help *pluginhost.RouteHelp) error {
+	if help.Usage != "" {
+		cmd.Use = cmd.Name() + " " + help.Usage
+	}
+	cmd.Flags().AddFlagSet(help.Flags)
+	return cmd.Help()
 }
 
 // buildSubcommandTree synthesizes a cobra subcommand (and, recursively, its

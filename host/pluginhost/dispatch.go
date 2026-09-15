@@ -16,20 +16,25 @@ import (
 // This indirection keeps the cli/pluginhost package free of a direct
 // dependency on the bowrain proto (or any other plugin-specific proto).
 //
-// The dispatcher receives a live DaemonClient. Its Conn field is a
+// The host calls Prepare before it acquires a daemon, and Dispatch with a
+// live DaemonClient only when Prepare succeeds. Its Conn field is a
 // ready-to-use *grpc.ClientConn. The dispatcher MUST NOT close the
 // client — the pool owns its lifetime.
 type SourceConnectorDispatcher interface {
 	// Plugin returns the plugin name this dispatcher belongs to.
 	Plugin() string
 
-	// Dispatch runs the named source-connector op (e.g., "push", "pull",
-	// "status", "ls") against the daemon. args are the user-provided
-	// argv tail (positional + flags) the plugin's CLI knew about.
-	//
-	// The implementation typically creates a gRPC client stub from
-	// client.Conn and issues the appropriate RPC.
-	Dispatch(ctx context.Context, client *DaemonClient, op string, args []string) error
+	// Prepare reads the user-provided argv tail (positional + flags) for the
+	// named op (e.g., "push", "pull", "status", "ls"). It returns a
+	// *RouteHelp when the arguments ask for help, and an error when they
+	// hold a flag the op does not take or resolve no project, so none of
+	// these starts a daemon or reaches one.
+	Prepare(op string, args []string) (SourceConnectorCall, error)
+
+	// Dispatch runs a prepared call against the daemon. The implementation
+	// typically creates a gRPC client stub from client.Conn and issues the
+	// appropriate RPC.
+	Dispatch(ctx context.Context, client *DaemonClient, call SourceConnectorCall) error
 }
 
 var (
@@ -80,9 +85,11 @@ func SupportsModeCDispatch(plugin, op string) bool {
 	return ops[op]
 }
 
-// DispatchViaDaemon acquires a daemon for the plugin and routes the op
-// through its registered dispatcher. Returns an error if the plugin has
-// no daemon block, no dispatcher, or the dispatcher doesn't claim the op.
+// DispatchViaDaemon prepares the op's arguments through the plugin's
+// registered dispatcher, then acquires a daemon for the plugin and runs the
+// prepared call on it. A request for help (a *RouteHelp) or a refused argument
+// returns before any daemon is acquired. Returns an error if the plugin has no
+// daemon block, no dispatcher, or the dispatcher doesn't claim the op.
 func DispatchViaDaemon(ctx context.Context, pool *DaemonPool, plugin *Plugin, op string, args []string) error {
 	if pool == nil {
 		return errors.New("daemon pool not initialized")
@@ -100,9 +107,13 @@ func DispatchViaDaemon(ctx context.Context, pool *DaemonPool, plugin *Plugin, op
 	if !SupportsModeCDispatch(plugin.Name(), op) {
 		return fmt.Errorf("plugin %q dispatcher does not handle op %q", plugin.Name(), op)
 	}
+	call, err := d.Prepare(op, args)
+	if err != nil {
+		return err
+	}
 	client, err := pool.Acquire(ctx, plugin)
 	if err != nil {
 		return fmt.Errorf("acquire daemon for %q: %w", plugin.Name(), err)
 	}
-	return d.Dispatch(ctx, client, op, args)
+	return d.Dispatch(ctx, client, call)
 }

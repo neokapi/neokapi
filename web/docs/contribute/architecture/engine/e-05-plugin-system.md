@@ -218,6 +218,15 @@ default 5 minutes). Concurrent daemons are capped via `KAPI_MAX_DAEMONS`
 kapi as a gRPC client over `unix`, and is POSIX-only today. Each plugin supplies
 its own socket server.
 
+The source-connector routes (`push`, `pull`, `status`, `ls`) read their
+arguments in kapi before a daemon is acquired. `--help` prints the route's help,
+and a flag or a path the route does not take refuses the command, so neither
+starts a daemon. kapi's persistent flags parse there and go no further. The
+project resolves as it does for every kapi command: `-p`, then
+`KAPI_NO_PROJECT`, `KAPI_PROJECT` and the upward walk from the working
+directory. The daemon receives the project's absolute root in `ProjectRef`, and
+with `KAPI_NO_PROJECT` set and no `-p` the route refuses to run.
+
 ### Lifecycle commands
 
 ```
