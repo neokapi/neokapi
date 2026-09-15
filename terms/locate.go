@@ -195,11 +195,12 @@ func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, err
 	}
 	seen := map[hit]bool{}
 	var out []Occurrence
-	// The store is asked about the text as terms are matched (check.TermText),
-	// so neither a placeholder's name nor a word inside inline code, a quoted
-	// kapi command or a flag name is an occurrence. Positions are unchanged by
+	// An occurrence is where a reader sees a term written, so the store is asked
+	// about the text with only its placeholders overwritten
+	// (check.PlaceholderText): a placeholder's name is not an occurrence, and a
+	// term inside inline code or a quoted command is. Positions are unchanged by
 	// the projection and still index req.Text.
-	text := check.TermText(req.Text)
+	text := check.PlaceholderText(req.Text)
 	for _, loc := range LookupLocales(req.Locale) {
 		found, err := req.Store.LookupAll(ctx, text, LookupOptions{
 			SourceLocale: loc,

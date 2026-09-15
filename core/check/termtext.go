@@ -33,14 +33,20 @@ const termTextFill = '\x1f'
 // reader sees in prose left where it was, so an offset into the result is an
 // offset into s.
 //
-// It is the projection term matching reads a source through. term-check reads
-// the source through it to decide which rules a translation is held to; the
-// terms store lookup in terms.Locate reads the content through it; and
-// profile.ScopeTermRules reads through it to decide which rules a translate
-// prompt carries. A placeholder's name is program syntax, so
-// "{vessel} is alongside" does not use the term "vessel". A command a target
-// keeps as written is program syntax too, so "Run `kapi check`" does not use
-// the term "check", and "check" in the prose beside it does.
+// It is the projection a source is read through to decide what its translation
+// owes the terms. term-check reads the source through it to decide which rules
+// a translation is held to, and profile.ScopeTermRules reads through it to
+// decide which rules a translate prompt carries. Code keeps its words in a
+// translation, so a term written in the source's code owes no rendering,
+// whatever the rule's scope. A reader who is shown where a term is written
+// sees it in code as well: profile.MatchTermRules and terms.Locate read
+// through PlaceholderText, and a voice term rule leaves code out with its
+// scope.
+//
+// A placeholder's name is program syntax, so "{vessel} is alongside" does not
+// use the term "vessel". A command a target keeps as written is program syntax
+// too, so "Run `kapi check`" does not use the term "check", and "check" in the
+// prose beside it does.
 //
 // The placeholders are the spans PlaceholderText overwrites. The program
 // syntax is:
@@ -66,10 +72,12 @@ func TermText(s string) string {
 // PlaceholderText is s with every placeholder overwritten byte for byte, as
 // TermText overwrites it, and code, commands and flags left as they are.
 //
-// profile.MatchTermRules, the declared-term matcher behind the voice
-// vocabulary gate and the source terminology gate, reads through it: a rule
-// that names no scope matches inside code, so a name written wrongly in a code
-// sample is still found, and a rule scoped to prose leaves code out itself.
+// The readers that show where a term is written read through it:
+// profile.MatchTermRules, the declared-term matcher behind the voice vocabulary
+// gate and the source terminology gate, and the terms store lookup in
+// terms.Locate. A rule that names no scope matches inside code, so a name
+// written wrongly in a code sample is still found, and a rule scoped to prose
+// leaves code out itself.
 //
 // Which spans are placeholders follows the split the placeholder check makes. A
 // text that parses as ICU MessageFormat and chooses between sub-messages is
