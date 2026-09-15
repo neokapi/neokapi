@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: neokapi/setup-kapi@v1
         with:
-          version: "1.2.0-rc32"
+          version: "1.2.0"
           plugins: ""
       - uses: neokapi/kapi-action@v1
         with:
@@ -58,7 +58,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: neokapi/setup-kapi@v1
         with:
-          version: "1.2.0-rc32"
+          version: "1.2.0"
           plugins: ""
       - uses: neokapi/kapi-action@v1
         id: kapi
@@ -91,7 +91,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: neokapi/setup-kapi@v1
         with:
-          version: "1.2.0-rc32"
+          version: "1.2.0"
           plugins: ""
       - run: kapi up --materialize
       - run: npm ci && npm run build
