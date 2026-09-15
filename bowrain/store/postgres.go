@@ -527,6 +527,11 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemN
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	// Held exclusively, as a push holds it, so block writes on the stream
+	// finish before the removal or wait for it (see lockStream).
+	if err := lockStream(ctx, tx, projectID, stream, true); err != nil {
+		return err
+	}
 	if err := deleteItemTx(ctx, tx, projectID, stream, itemName); err != nil {
 		return err
 	}
@@ -836,6 +841,11 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	// Shared with other block writes, and taken before any row, so a push
+	// applying to the stream commits first or waits for this write to.
+	if err := lockStream(ctx, tx, projectID, stream, false); err != nil {
+		return err
+	}
 	if err := storeBlocksTx(ctx, tx, projectID, stream, itemName, blocks, wb); err != nil {
 		return err
 	}

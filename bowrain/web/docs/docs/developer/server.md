@@ -87,6 +87,13 @@ confirms a push for a few seconds before it may start a run, and a large push
 applies for longer, so settlement reads what the push wrote rather than the
 blocks the push is about to change or remove.
 
+A push applies under a write lock on its project stream, and so does removing a
+file from the editor. The server's block writes on that stream, write-backs
+among them, share the lock with one another. A block write waits for an
+applying push to commit and a push waits for the block writes already in
+progress, and both complete. A write-back that waited skips the blocks the push
+removed or changed.
+
 The same routes exist under `/api/v1/projects/:id/sync/:ref/...` for a project
 that has not yet been claimed into a workspace, authenticated by its claim token.
 See [`kapi push`](/cli/commands/push) for the protocol as a client sees it.
