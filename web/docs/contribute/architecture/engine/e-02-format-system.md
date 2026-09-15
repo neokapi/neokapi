@@ -685,6 +685,25 @@ the entry reports did-not-run with the reason `formatter` and writes nothing. A
 check of a file in such a language does not run the formatter, which it reports
 as unsupported.
 
+Running that formatter runs code the project controls. The project can install
+the executable in `node_modules/.bin`, and a formatter installed anywhere loads
+the project's configuration: prettier imports a JavaScript configuration file and
+the plugins a `.prettierrc` names, and the vite-plus `oxfmt` evaluates
+`vite.config.ts`. So the host runs a project's formatter only for a project a
+person trusts from outside it. A `kapi apply` or `kapi mcp` started with
+`--trust-project-formatters` trusts every project it edits, and
+`formatters.trusted_dirs` in kapi's own configuration lists absolute directories
+whose projects are trusted. `kapi config set formatters.trusted_dirs` stores them
+joined by the path list separator. No recipe key grants trust, because the recipe
+belongs to the project, and kapi reads its own configuration from the user's
+configuration directory rather than the working directory. An edit in a project
+nobody trusted did not run, with the reason `formatter` and a detail naming both
+ways to trust it. When the host looks for the executable on `PATH`, it skips an
+entry that is not an absolute path, since such an entry names a directory
+relative to the working directory, and a not-installed detail lists the entries
+it skipped. A Go comment is held to `go/format`, the library gofmt is built on,
+inside the kapi binary, so a Go edit runs no formatter executable.
+
 TypeScript, TSX and JavaScript are declared writable. A JSDoc block's tags,
 their types and names, and its `{@link}` references are placeholders, so a
 rewrite that drops or adds one is refused as `structure`. An entry naming a file

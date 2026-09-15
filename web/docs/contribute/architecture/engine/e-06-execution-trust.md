@@ -165,7 +165,7 @@ user typed, which is the user's own intent rather than a file's.
 ## Related
 
 - [E-03: The tool system](e-03-tool-system.md): `external-command` and `script` as ordinary tools
-- [E-02: The format system](e-02-format-system.md): the `exec` format that reads by shelling out
+- [E-02: The format system](e-02-format-system.md): the `exec` format that reads by shelling out, and the project formatter a comment edit runs only for a trusted project
 - [C-01: The project model](../context/c-01-project-model.md): recipe discovery by upward walk, and the `.kapi/` state directory
 - [M-06: Content packages](../multilingual/m-06-content-packages.md): `.kpz` ingest sanitisation
 - [S-03: Agent surfaces](../surfaces/s-03-agent-surfaces.md): why the MCP surface refuses, and why `--all-tools` does not change that
