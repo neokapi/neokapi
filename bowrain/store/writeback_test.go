@@ -154,3 +154,30 @@ func TestWriteBackBlocks_ARemovalCommittingMidWriteIsNotUndone(t *testing.T) {
 	assert.Zero(t, countRows(t, s, "blocks", `project_id=$1`, p.ID), "the removal stands")
 	assert.Zero(t, countRows(t, s, "translations", `project_id=$1`, p.ID))
 }
+
+// A write-back records what a server step adds to a block, such as the source
+// settlement stamp, and leaves the stored context hash as the push stored it.
+// The producer's next push compares against that hash; recomputing it over the
+// server's own bookkeeping made every settled block read as changed.
+func TestWriteBackBlocks_KeepsTheStoredContextHash(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+	seedWriteBackItem(t, s, p.ID, "en.json", model.NewBlock("k", "Hello"))
+	sb := readItemByKey(t, s, p.ID, "en.json")["k"]
+	require.NotNil(t, sb)
+	pushed := sb.ContextHash
+
+	if sb.Block.Properties == nil {
+		sb.Block.Properties = map[string]string{}
+	}
+	sb.Block.Properties["__source_settled_hash"] = sb.ContentHash
+	res, err := s.WriteBackBlocks(ctx, p.ID, "main", []*venue.StoredBlock{sb})
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Written)
+
+	after := readItemByKey(t, s, p.ID, "en.json")["k"]
+	require.NotNil(t, after)
+	assert.Equal(t, sb.ContentHash, after.Block.Properties["__source_settled_hash"], "the recorded property is stored")
+	assert.Equal(t, pushed, after.ContextHash, "the stored context hash is the one the push stored")
+}

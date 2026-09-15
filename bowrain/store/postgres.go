@@ -849,6 +849,9 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 // the caller read, by an UPDATE that checks that hash itself, so a push that
 // commits between this call's own read and its write is caught too. Every
 // other block is recorded on wb as skipped, and nothing else is written for it.
+// A write-back keeps the row's stored context hash: the properties a server step
+// records are its own bookkeeping, and the producer's next push compares against
+// the context hash its own push stored.
 func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName string, blocks []*model.Block, wb *storeutil.WriteBack) error {
 	stream = storeutil.DefaultStream(stream)
 
@@ -960,9 +963,9 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 	var guarded *sql.Stmt
 	if wb != nil {
 		guarded, err = tx.PrepareContext(ctx,
-			`UPDATE blocks SET name=$1, type=$2, mime_type=$3, translatable=$4, content_hash=$5, context_hash=$6,
-				source_json=$7, properties=$8, overlays=$9, word_count=$10, updated_at=$11
-			 WHERE project_id=$12 AND stream=$13 AND id=$14 AND content_hash=$15`)
+			`UPDATE blocks SET name=$1, type=$2, mime_type=$3, translatable=$4, content_hash=$5,
+				source_json=$6, properties=$7, overlays=$8, word_count=$9, updated_at=$10
+			 WHERE project_id=$11 AND stream=$12 AND id=$13 AND content_hash=$14`)
 		if err != nil {
 			return fmt.Errorf("prepare write-back stmt: %w", err)
 		}
@@ -1133,7 +1136,7 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 		if wb != nil {
 			res, err := guarded.ExecContext(ctx,
 				b.Name, b.Type, b.MimeType, b.Translatable,
-				identity.ContentHash, identity.ContextHash,
+				identity.ContentHash,
 				string(sourceJSON), string(propsJSON), string(overlaysJSON),
 				model.CountWordsInRunsJSON(string(sourceJSON)), now,
 				projectID, stream, internalID, wb.Base(internalID))

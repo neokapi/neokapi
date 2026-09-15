@@ -2,6 +2,9 @@ package server
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -98,4 +101,62 @@ func TestPseudoTranslate_AnItemRemovedDuringTheRunStaysRemoved(t *testing.T) {
 	_, err = editorPseudoTranslate(t.Context(), racing, projectID, "main", "en.json", "fr")
 	require.NoError(t, err)
 	requireNothingStored(t, cs, projectID)
+}
+
+// Source settlement stamps each block it checks and writes the stamp back. The
+// producer's next push decides what to upload by comparing its record hashes
+// with the ones the venue's tree holds, so the settlement must leave those
+// standing: when it moved them, every settled block read as missing and each
+// push after a server run uploaded the whole corpus again.
+func TestSettleSource_LeavesThePushedRecordHashesStanding(t *testing.T) {
+	srv, token := newTestServer(t)
+	e := srv.GetEcho()
+	authHeader := "Bearer " + token
+	pid := createProject(t, srv, token)
+	items := []pushBlockItem{
+		{ID: "b1", Text: "A well-formed sentence.", ItemName: "en.json"},
+		{ID: "b2", Text: "Another well-formed sentence.", ItemName: "en.json"},
+	}
+	pushBlocks(t, srv, e, authHeader, pid, items)
+
+	// missing counts the blocks a producer holding items would upload.
+	missing := func() int {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/main/tree", nil)
+		req.Header.Set("Authorization", authHeader)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code)
+		var tree struct {
+			Items []struct {
+				Record []string `json:"record"`
+			} `json:"items"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &tree))
+		held := map[string]bool{}
+		for _, item := range tree.Items {
+			for _, r := range item.Record {
+				held[r] = true
+			}
+		}
+		n := 0
+		for _, item := range items {
+			b := &model.Block{ID: item.ID, Translatable: true}
+			b.SetSourceText(item.Text)
+			if !held[model.ComputeIdentity(b).RecordHash()] {
+				n++
+			}
+		}
+		return n
+	}
+	require.Zero(t, missing(), "the venue holds the pushed content as it was pushed")
+
+	o := srv.convergence
+	if o == nil {
+		o = newConvergenceOrchestrator(srv)
+	}
+	res, err := o.settleSource(t.Context(), pid)
+	require.NoError(t, err)
+	require.Equal(t, len(items), res.Total, "settlement checked every pushed block")
+	assert.Zero(t, missing(), "after settlement the next push has nothing to upload")
 }
