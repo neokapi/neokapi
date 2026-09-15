@@ -1252,6 +1252,13 @@ jobs:
       - name: Guard — a final tag publishes stable on both release tracks
         run: ./scripts/release-channel.sh --self-test
 
+      # The sourcecode release takes its version from the tag and copies the
+      # manifest from the tagged commit, and only the tag push compares them.
+      # The self-test runs that comparison on matching and mismatched pairs, and
+      # checks that the release workflow still calls it.
+      - name: "Guard: a plugin release tag matches its manifest version"
+        run: ./scripts/check-release-manifest-version.sh --self-test
+
       # The desktop update feeds are published by a script that runs only on a
       # release tag, and a release candidate exercises only its beta half. Its
       # self-test runs it for a final and a candidate on both tracks and checks
