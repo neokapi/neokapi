@@ -480,8 +480,10 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 		}
 	}
 
-	// Get change log entries to determine what changed.
-	cs, err := s.Services.Project.GetChanges(ctx, projectID, stream, cursor, locales, limit)
+	// One entry per changed block, at its latest change since the cursor. A page
+	// serves each block's current state, so each block is served once, and a
+	// block that changes after its page is served again past that page's cursor.
+	cs, err := s.Services.Project.GetLatestChanges(ctx, projectID, stream, cursor, locales, limit)
 	if err != nil {
 		return serverErr(c, err)
 	}

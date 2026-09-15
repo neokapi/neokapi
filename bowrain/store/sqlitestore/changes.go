@@ -54,6 +54,46 @@ func (s *SQLiteStore) GetChanges(ctx context.Context, projectID, stream string, 
 		args = []any{projectID, stream, sinceCursor, limit + 1}
 	}
 
+	return s.queryChangeSet(ctx, query, args, limit, sinceCursor)
+}
+
+// GetLatestChanges returns one entry per block changed since the cursor: its
+// latest change within the locale scope, ordered and paged by that change's seq.
+func (s *SQLiteStore) GetLatestChanges(ctx context.Context, projectID, stream string, sinceCursor int64, locales []string, limit int) (*platstore.ChangeSet, error) {
+	stream = storeutil.DefaultStream(stream)
+	if limit <= 0 || limit > MaxChangesPerRequest {
+		limit = MaxChangesPerRequest
+	}
+
+	args := []any{projectID, stream, sinceCursor}
+	scope := ""
+	if len(locales) > 0 {
+		placeholders := make([]string, len(locales))
+		for i, loc := range locales {
+			placeholders[i] = "?"
+			args = append(args, loc)
+		}
+		scope = ` AND (locale IS NULL OR locale IN (` + strings.Join(placeholders, ", ") + `))`
+	}
+	args = append(args, limit+1)
+	// The page is cut inside the aggregate, over the project stream's own rows,
+	// so the join looks up at most one page of rows by seq however many other
+	// projects share the log.
+	query := `SELECT c.seq, c.block_id, c.change_type, COALESCE(c.locale, ''), COALESCE(c.content_hash, ''), c.logged_at
+			 FROM (SELECT MAX(seq) AS latest_seq FROM change_log
+			       WHERE project_id = ? AND stream = ? AND seq > ?` + scope + `
+			       GROUP BY block_id
+			       ORDER BY latest_seq
+			       LIMIT ?) latest
+			 JOIN change_log c ON c.seq = latest.latest_seq
+			 ORDER BY c.seq ASC`
+	return s.queryChangeSet(ctx, query, args, limit, sinceCursor)
+}
+
+// queryChangeSet runs a change log query that asks for one row past limit, and
+// pages its result: HasMore when that row came back, and the cursor at the last
+// entry returned.
+func (s *SQLiteStore) queryChangeSet(ctx context.Context, query string, args []any, limit int, sinceCursor int64) (*platstore.ChangeSet, error) {
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query change log: %w", err)
