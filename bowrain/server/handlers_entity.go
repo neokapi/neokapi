@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -46,36 +48,36 @@ func (s *Server) HandleCreateEntity(c echo.Context) error {
 
 	projectID := projectParam(c)
 	blockID := c.Param("bid")
-	itemName := c.QueryParam("item")
 
 	var req CreateEntityRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	ctx := c.Request().Context()
-	block, err := getBlock(ctx, s.ContentStore, projectID, itemName, blockID)
-	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
-	}
-
-	// Find next entity index and add a positional entity overlay span.
-	idx := nextOverlaySpanIndex(block, model.OverlayEntity, "entity:")
-	key := fmt.Sprintf("entity:%d", idx)
-	block.AddOverlaySpan(model.OverlayEntity, model.Span{
-		ID:    key,
-		Range: model.RangeAnchorForBytes(block.Source, req.Start, req.End),
-		Value: &model.EntityAnnotation{
-			Text:   req.Text,
-			Type:   model.EntityType(req.Type),
-			DNT:    req.DNT,
-			Source: model.ExtractionSourceManual,
-			Locale: model.LocaleID(req.Locale),
-		},
+	// The span is added to the block as the write holds it, on the route's
+	// stream: two marks made at once get distinct keys, and a block removed in
+	// the meantime is not stored again.
+	var key string
+	updated, err := s.ContentStore.UpdateBlock(c.Request().Context(), projectID, streamParam(c), blockID, func(sb *venue.StoredBlock) error {
+		block := sb.Block
+		// Find next entity index and add a positional entity overlay span.
+		idx := nextOverlaySpanIndex(block, model.OverlayEntity, "entity:")
+		key = fmt.Sprintf("entity:%d", idx)
+		block.AddOverlaySpan(model.OverlayEntity, model.Span{
+			ID:    key,
+			Range: model.RangeAnchorForBytes(block.Source, req.Start, req.End),
+			Value: &model.EntityAnnotation{
+				Text:   req.Text,
+				Type:   model.EntityType(req.Type),
+				DNT:    req.DNT,
+				Source: model.ExtractionSourceManual,
+				Locale: model.LocaleID(req.Locale),
+			},
+		})
+		return nil
 	})
-
-	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
-		return serverErr(c, err)
+	if err != nil {
+		return entityWriteErr(c, updated, err)
 	}
 
 	return c.JSON(http.StatusCreated, EntityInfoResponse{
@@ -103,39 +105,29 @@ func (s *Server) HandleUpdateEntity(c echo.Context) error {
 	projectID := projectParam(c)
 	blockID := c.Param("bid")
 	entityKey := "entity:" + c.Param("idx")
-	itemName := c.QueryParam("item")
 
 	var req UpdateEntityRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	ctx := c.Request().Context()
-	block, err := getBlock(ctx, s.ContentStore, projectID, itemName, blockID)
+	updated, err := s.ContentStore.UpdateBlock(c.Request().Context(), projectID, streamParam(c), blockID, func(sb *venue.StoredBlock) error {
+		entity, err := entityAt(sb.Block, entityKey)
+		if err != nil {
+			return err
+		}
+		// entity points into the block's overlay, so these edits change the span
+		// in place.
+		if req.Type != "" {
+			entity.Type = model.EntityType(req.Type)
+		}
+		if req.DNT != nil {
+			entity.DNT = *req.DNT
+		}
+		return nil
+	})
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
-	}
-
-	span := block.OverlaySpan(model.OverlayEntity, entityKey)
-	if span == nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
-	}
-	entity, ok := span.Value.(*model.EntityAnnotation)
-	if !ok {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "not an entity annotation"})
-	}
-
-	// span.Value is a pointer into the block's overlay, so these edits mutate it
-	// in place — no re-store of the span needed.
-	if req.Type != "" {
-		entity.Type = model.EntityType(req.Type)
-	}
-	if req.DNT != nil {
-		entity.DNT = *req.DNT
-	}
-
-	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
-		return serverErr(c, err)
+		return entityWriteErr(c, updated, err)
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -154,19 +146,15 @@ func (s *Server) HandleDeleteEntity(c echo.Context) error {
 	projectID := projectParam(c)
 	blockID := c.Param("bid")
 	entityKey := "entity:" + c.Param("idx")
-	itemName := c.QueryParam("item")
 
-	ctx := c.Request().Context()
-	block, err := getBlock(ctx, s.ContentStore, projectID, itemName, blockID)
+	updated, err := s.ContentStore.UpdateBlock(c.Request().Context(), projectID, streamParam(c), blockID, func(sb *venue.StoredBlock) error {
+		if !sb.Block.RemoveOverlaySpan(model.OverlayEntity, entityKey) {
+			return errEntityNotFound
+		}
+		return nil
+	})
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
-	}
-
-	if !block.RemoveOverlaySpan(model.OverlayEntity, entityKey) {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
-	}
-	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
-		return serverErr(c, err)
+		return entityWriteErr(c, updated, err)
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -185,49 +173,42 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 	projectID := projectParam(c)
 	blockID := c.Param("bid")
 	entityKey := "entity:" + c.Param("idx")
-	itemName := c.QueryParam("item")
 
-	ctx := c.Request().Context()
-	block, err := getBlock(ctx, s.ContentStore, projectID, itemName, blockID)
-	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
-	}
+	var tcKey string
+	updated, err := s.ContentStore.UpdateBlock(c.Request().Context(), projectID, streamParam(c), blockID, func(sb *venue.StoredBlock) error {
+		block := sb.Block
+		entity, err := entityAt(block, entityKey)
+		if err != nil {
+			return err
+		}
+		span := block.OverlaySpan(model.OverlayEntity, entityKey)
 
-	span := block.OverlaySpan(model.OverlayEntity, entityKey)
-	if span == nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
-	}
-	entity, ok := span.Value.(*model.EntityAnnotation)
-	if !ok {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "not an entity annotation"})
-	}
+		// Create a term candidate from the entity, at the same position.
+		candidate := &model.TermCandidateAnnotation{
+			Text:            entity.Text,
+			Category:        model.TermCategoryGeneral,
+			Translatability: model.TranslatabilityConsistent,
+			Confidence:      1.0, // manual promotion = high confidence
+			Locale:          entity.Locale,
+			Source:          model.ExtractionSourceManual,
+			Status:          model.CandidateStatusPending,
+		}
+		if entity.DNT {
+			candidate.Translatability = model.TranslatabilityDNT
+		}
 
-	// Create a term candidate from the entity, at the same position.
-	candidate := &model.TermCandidateAnnotation{
-		Text:            entity.Text,
-		Category:        model.TermCategoryGeneral,
-		Translatability: model.TranslatabilityConsistent,
-		Confidence:      1.0, // manual promotion = high confidence
-		Locale:          entity.Locale,
-		Source:          model.ExtractionSourceManual,
-		Status:          model.CandidateStatusPending,
-	}
-
-	if entity.DNT {
-		candidate.Translatability = model.TranslatabilityDNT
-	}
-
-	// Add the term-candidate overlay span at the entity's position.
-	tcIdx := nextOverlaySpanIndex(block, model.OverlayTermCandidate, "term-candidate:")
-	tcKey := fmt.Sprintf("term-candidate:%d", tcIdx)
-	block.AddOverlaySpan(model.OverlayTermCandidate, model.Span{
-		ID:    tcKey,
-		Range: span.Range,
-		Value: candidate,
+		// Add the term-candidate overlay span at the entity's position.
+		tcIdx := nextOverlaySpanIndex(block, model.OverlayTermCandidate, "term-candidate:")
+		tcKey = fmt.Sprintf("term-candidate:%d", tcIdx)
+		block.AddOverlaySpan(model.OverlayTermCandidate, model.Span{
+			ID:    tcKey,
+			Range: span.Range,
+			Value: candidate,
+		})
+		return nil
 	})
-
-	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
-		return serverErr(c, err)
+	if err != nil {
+		return entityWriteErr(c, updated, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true, "term_candidate_key": tcKey})
@@ -259,7 +240,7 @@ func (s *Server) HandlePromoteEntityToConcept(c echo.Context) error {
 	itemName := c.QueryParam("item")
 
 	ctx := c.Request().Context()
-	block, err := getBlock(ctx, s.ContentStore, projectID, itemName, blockID)
+	block, err := getBlock(ctx, s.ContentStore, projectID, streamParam(c), itemName, blockID)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
 	}
@@ -354,11 +335,46 @@ func (s *Server) promoteEntityToConcept(ctx context.Context, wsSlug, wsID, actor
 	return concept, nil
 }
 
-// getBlock loads a single block by project, item, and block ID.
-func getBlock(ctx context.Context, cs store.ContentStore, projectID, itemName, blockID string) (*model.Block, error) {
+// errEntityNotFound and errNotEntityAnnotation end an entity write that has
+// nothing to act on; entityWriteErr answers them.
+var (
+	errEntityNotFound      = errors.New("entity not found")
+	errNotEntityAnnotation = errors.New("not an entity annotation")
+)
+
+// entityAt is the entity annotation a block holds under key.
+func entityAt(block *model.Block, key string) (*model.EntityAnnotation, error) {
+	span := block.OverlaySpan(model.OverlayEntity, key)
+	if span == nil {
+		return nil, errEntityNotFound
+	}
+	entity, ok := span.Value.(*model.EntityAnnotation)
+	if !ok {
+		return nil, errNotEntityAnnotation
+	}
+	return entity, nil
+}
+
+// entityWriteErr answers an entity write that did not land: a block that is not
+// stored, an entity that is not there, or a store error.
+func entityWriteErr(c echo.Context, updated *venue.StoredBlock, err error) error {
+	switch {
+	case updated == nil:
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
+	case errors.Is(err, errEntityNotFound):
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
+	case errors.Is(err, errNotEntityAnnotation):
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "not an entity annotation"})
+	default:
+		return serverErr(c, err)
+	}
+}
+
+// getBlock loads a single block by project, stream, item, and block ID.
+func getBlock(ctx context.Context, cs store.ContentStore, projectID, stream, itemName, blockID string) (*model.Block, error) {
 	blocks, err := cs.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: projectID,
-		Stream:    "main",
+		Stream:    stream,
 		ItemName:  itemName,
 	})
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // This file adds the back-to-source lane (RV-F), the one direction the review
@@ -208,6 +209,9 @@ func (s *Server) HandleDecideSourceProposal(c echo.Context) error {
 	// the decision.
 	runStarted, err := s.applySourceProposal(ctx, proposal, decider)
 	if err != nil {
+		if changed, ok := asBlockChanged(err); ok {
+			return s.answerBlockChanged(c, pid, changed, proposal.FoundInLocale)
+		}
 		return c.JSON(http.StatusUnprocessableEntity, ErrorResponse{Error: "apply source change: " + err.Error()})
 	}
 	if err := s.SourceProposalStore.Resolve(ctx, proposalID, bstore.SourceProposalApproved, decider, req.Reason); err != nil {
@@ -239,25 +243,29 @@ func (s *Server) applySourceProposal(ctx context.Context, p *bstore.ProposedSour
 	if stream == "" {
 		stream = "main"
 	}
-	sb, err := s.ContentStore.GetBlock(ctx, p.ProjectID, stream, p.BlockID)
+	// The change is decided on the block as the write holds it. A proposal made
+	// against source that has since been rewritten is refused with the current
+	// block, and nothing is applied over the newer wording.
+	sb, err := s.ContentStore.UpdateBlock(ctx, p.ProjectID, stream, p.BlockID, func(sb *venue.StoredBlock) error {
+		if p.OriginalSource != "" && sb.Block.SourceText() != p.OriginalSource {
+			return &blockChangedError{current: sb}
+		}
+		// Apply the source transform. A single TextRun is the faithful shape for a
+		// plain-text source fix; inline markup, if any, is not carried by this lane.
+		sb.Block.SetSourceText(p.ProposedSource)
+		// The source changed, so its authoring status is re-settled: it goes back
+		// to the New baseline so the next run's source-first phase re-checks it.
+		sb.Block.SourceStatus = model.SourceStatusNew
+		// The new source is persisted with the translations intact. The content
+		// hash moves, which is what makes the write re-derive every target's
+		// projection against the ledger, and what makes each target's recorded
+		// basis name wording the block no longer holds.
+		return nil
+	})
 	if err != nil {
 		return false, err
 	}
 	block := sb.Block
-
-	// Apply the source transform. A single TextRun is the faithful shape for a
-	// plain-text source fix; inline markup, if any, is not carried by this lane.
-	block.SetSourceText(p.ProposedSource)
-	// The source changed, so its authoring status must be re-settled — reset it to
-	// the New baseline so the next run's source-first phase re-checks it.
-	block.SourceStatus = model.SourceStatusNew
-	// Persist the new source with the translations intact. The content hash moves,
-	// which is what makes storeBlocks re-derive every target's projection against
-	// the ledger, and what makes each target's recorded basis name wording the
-	// block no longer holds.
-	if err := s.ContentStore.StoreBlocks(ctx, p.ProjectID, stream, []*model.Block{block}); err != nil {
-		return false, err
-	}
 
 	s.invalidateDashboardCache(p.WorkspaceID, p.ProjectID)
 	s.publishEditorBlockChange(p.ProjectID, block.ID, p.ItemName, stream, "updated", actor, "")
