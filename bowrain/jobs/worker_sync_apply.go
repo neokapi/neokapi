@@ -319,8 +319,13 @@ func applyStagedPush(
 				return nil, fmt.Errorf("read the decision ledger: %w", herr)
 			}
 		}
-		if err := assertDecisionsHeld(expected, held); err != nil {
-			return nil, err
+		// Only records that decide something assert the decisions component.
+		// Records of what was produced merge by record time, and a server run
+		// writes its own between any client's pull and push.
+		if venue.CarriesDecision(decisions) {
+			if err := assertDecisionsHeld(expected, held); err != nil {
+				return nil, err
+			}
 		}
 		// A verdict the pusher may not make is kept as the basis it carries
 		// and nothing more, so the venue records that the translation exists

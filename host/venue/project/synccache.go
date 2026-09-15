@@ -35,6 +35,11 @@ type SyncCache struct {
 	// ActiveStream is the last stream name used for sync.
 	ActiveStream string `json:"active_stream,omitempty"`
 
+	// DecisionsSynced is the fold of the committed decision record this client
+	// last sent and saw applied (venue.DecisionRecordsHash). A push sends the
+	// record again only when its fold differs from this one.
+	DecisionsSynced string `json:"decisions_synced,omitempty"`
+
 	// ClaimToken stores the claim token for anonymous projects. Kept in the
 	// cache (not the recipe) to avoid committing credentials to git.
 	ClaimToken string `json:"claim_token,omitempty"`

@@ -64,7 +64,13 @@ type Ref struct {
 - **`context`** identifies the governing context: which collections exist, the
   point each occupies, and the voice profile governing it.
 - **`terms`** identifies the governed terminology in force.
-- **`decisions`** identifies the committed decision record.
+- **`decisions`** identifies the decisions in the committed record: every
+  record that carries a review state, a reviewed or signed-off rung, a parked
+  unit, an assignee or a note. A record that says only what was produced for a
+  unit, its target and the source it was written for, is left out. A producer
+  writes one for every unit it drafts, and a run on the venue writes thousands
+  between a client's pull and its push, none of them a decision that client
+  missed.
 
 Comparison is `ref.Compare(local, remote) → ref.Divergence`, one
 `ComponentDiff` per component:
@@ -119,7 +125,10 @@ func Assert(component Component, expected, actual string) error // → *ref.Conf
 ```
 
 Ordinary content traffic, which moves nothing but the position, therefore cannot
-manufacture a governance conflict for a writer that is nowhere near it. The
+manufacture a governance conflict for a writer that is nowhere near it. The same
+holds inside the decisions component: a push asserts it only when the records it
+carries include a decision, and records that say only what was produced merge by
+record time. The
 conflict renders as the instruction it implies: the component that moved, the
 value expected, the value found, and the fact that no retry of the same write
 will resolve it.

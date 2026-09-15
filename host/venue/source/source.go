@@ -720,10 +720,10 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	if derr != nil {
 		return nil, derr
 	}
-	decisionsHash := venue.DecisionsComponent(decisions)
-	decisionsChanged := decisionsHash != c.refs.Ref(c.stream).Decisions
+	decisionsHash := venue.DecisionRecordsHash(decisions)
+	decisionsChanged := decisionsHash != c.cache.DecisionsSynced
 	if !decisionsChanged {
-		decisions = nil // unchanged: the server already holds this record
+		decisions = nil // unchanged: this client already sent this record
 	}
 
 	if opts.DryRun {
@@ -831,6 +831,17 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	retired, rerr := c.retireRefusedVerdicts(ctx, governance)
 	if rerr != nil {
 		return nil, rerr
+	}
+
+	// The record counts as sent only once the venue applied the push that
+	// carried it. An unconfirmed ingest clears the fold, so the next push sends
+	// the record again rather than trusting a write that may not have landed.
+	if decisionsChanged {
+		if ingest == bowrainconn.IngestApplied {
+			c.cache.DecisionsSynced = decisionsHash
+		} else {
+			c.cache.DecisionsSynced = ""
+		}
 	}
 
 	// Update cache with per-file hashes.
