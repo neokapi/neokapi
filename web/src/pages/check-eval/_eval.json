@@ -1,6 +1,6 @@
 {
   "generated_note": "Run `go run ./scripts/checkeval` to regenerate.",
-  "generated": "2026-08-26T22:55:38Z",
+  "generated": "2026-09-15T09:00:00Z",
   "commit": "a2639dd41",
   "total": {
     "check": "all",
