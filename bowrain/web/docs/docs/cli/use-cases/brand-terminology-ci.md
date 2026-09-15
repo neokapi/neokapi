@@ -77,6 +77,8 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
+          version: "1.2.0-rc32"
+          plugins: bowrain@1.2.0-rc32
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
