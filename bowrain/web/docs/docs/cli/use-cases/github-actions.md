@@ -72,6 +72,8 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
+          version: "1.2.0-rc32"
+          plugins: bowrain@1.2.0-rc32
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -207,6 +209,9 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: neokapi/setup-kapi@v1
+        with:
+          version: "1.2.0-rc32"
+          plugins: bowrain@1.2.0-rc32
 
       - name: Enforce the ship gates
         run: kapi check --ship
@@ -272,6 +277,8 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
+          version: "1.2.0-rc32"
+          plugins: bowrain@1.2.0-rc32
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -388,7 +395,7 @@ Pin the CLI version to avoid surprises from new releases:
     version: "1.1.0"
 ```
 
-Use `latest` (the default) for workflows where you always want the newest release.
+`latest` (the default) installs the newest stable release. A release candidate is reachable only through a pin, so a workflow that runs a command a stable release does not have yet, such as `kapi up` or `kapi check --ship`, pins a 1.2.0 release candidate.
 
 ## Related
 
