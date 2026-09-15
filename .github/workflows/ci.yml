@@ -52,6 +52,7 @@ jobs:
       faces: ${{ github.event_name == 'push' || steps.filter.outputs.faces }}
       ts_boundary: ${{ github.event_name == 'push' || steps.filter.outputs.ts_boundary }}
       harness: ${{ github.event_name == 'push' || steps.filter.outputs.harness }}
+      eval_index: ${{ github.event_name == 'push' || steps.filter.outputs.eval_index }}
       # Every operand is compared to 'true' on purpose. GitHub's `||` returns
       # the first TRUTHY operand rather than a boolean, and a non-empty string
       # is truthy — so a bare `steps.filter.outputs.cli` yields the *string*
@@ -164,6 +165,14 @@ jobs:
           # it: a pull request editing this job's own steps would otherwise
           # match nothing, skip the job, and merge the edit unrun.
           check_paths harness '^harness/' '^\.github/workflows/ci\.yml$'
+
+          # The /evals index copies each eval dataset's date and headline, so a
+          # pull request that republishes only a dataset leaves the committed
+          # index stale. The datasets sit under web/static/data/ and beside their
+          # pages as web/src/pages/<page>/_<name>.json, where the framework filter
+          # does not look, and the index tests also resolve the make targets the
+          # cards name.
+          check_paths eval_index '^web/static/data/' '^web/src/pages/[^/]+/_[^/]+\.json$' '^scripts/evalindex/' '^Makefile$' '^\.github/workflows/ci\.yml$'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
   frontend:
@@ -928,6 +937,25 @@ jobs:
       - name: The schema the baselines build matches the golden
         run: go test -tags "fts5,integration" ./migrations/ -run 'TestBaselineSchemaMatchesGolden|TestBaselineVersionsSitAboveRetiredOnes' -v
         working-directory: bowrain
+
+  # ── The /evals index matches its datasets ─────────────────────────────────
+  # TestCommittedIndexIsCurrent also runs in Test (framework), which a pull
+  # request that changes only an eval dataset never reaches. This job runs the
+  # index tests for exactly those changes.
+  eval-index:
+    name: Eval index
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.eval_index == 'true'
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-go-modules
+        with:
+          cache-flavor: plain
+          modules: "."
+      - name: The committed index matches the eval datasets
+        run: go test ./scripts/evalindex/
 
   # ── Race pass over changed packages (PR only) ─────────────────────────────
   # The PR test wall deliberately drops -race (Makefile fast profile) and main
