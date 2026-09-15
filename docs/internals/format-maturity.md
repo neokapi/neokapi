@@ -932,12 +932,12 @@ republishes the dashboard: do not edit by hand. The dashboard
 | `css` | present | P2 | met | met | not-met | not-met | TestProseP0_css passed |
 | `go` | present | P4 | met | met | met | met | TestProseP0_go passed |
 | `java` | present | P2 | met | met | not-met | not-met | TestProseP0_java passed |
-| `javascript` | present | P3 | met | met | met | not-met | TestProseP0_javascript passed |
+| `javascript` | present | P4 | met | met | met | met | TestProseP0_javascript passed |
 | `python` | present | P2 | met | met | not-met | not-met | TestProseP0_python passed |
 | `ruby` | present | P2 | met | met | not-met | not-met | TestProseP0_ruby passed |
 | `rust` | present | P2 | met | met | not-met | not-met | TestProseP0_rust passed |
-| `tsx` | present | P3 | met | met | met | not-met | TestProseP0_tsx passed |
-| `typescript` | present | P3 | met | met | met | not-met | TestProseP0_typescript passed |
+| `tsx` | present | P4 | met | met | met | met | TestProseP0_tsx passed |
+| `typescript` | present | P4 | met | met | met | met | TestProseP0_typescript passed |
 <!-- END: gap-analysis report -->
 
 ## 6. Open questions

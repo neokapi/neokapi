@@ -694,6 +694,17 @@ run, with the reason `no-reader` and the command that installs the plugin.
 every comment of their language in the repository with its own prose, through
 the plugin, and require each file to stay byte-identical.
 
+Each comment form their code uses is rewritten in the layout it is written in:
+groups of line comments and comments after code, `/* */` comments on one line
+or several, JSDoc blocks including those whose text starts on the opener's line,
+and comments inside JSX (`{/* */}`). Text holding `*/` is refused in each
+delimited form and written in a line comment, where it closes nothing. A legacy
+HTML-like comment (`<!--`) in a script opens with no delimiter the manifest
+declares, so it has no layout to keep and is refused as `layout`; no code in
+this repository writes one. `TestProseP4_typescript`, `TestProseP4_tsx` and
+`TestProseP4_javascript` rewrite each form with exact bytes, with the plugin
+reading the result and oxfmt agreeing with the file.
+
 `kapi apply` and MCP `apply_edits` reach the rewrite through a `comment` entry,
 addressed by file and the id a check reports. A check gives each finding on a
 comment `location.comment_sha256`, the SHA-256 of the comment's bytes
