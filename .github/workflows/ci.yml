@@ -954,6 +954,9 @@ jobs:
           # "pr" on pull_request (see the action), poisoning that cache with
           # instrumented objects — so key it separately.
           cache-flavor: race-changed
+      # host's tests hold a TypeScript comment rewrite to the oxfmt this
+      # workspace installs, and a changed host package races them here.
+      - uses: ./.github/actions/setup-node-ui
 
       - name: Race-test changed packages
         env:
