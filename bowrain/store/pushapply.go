@@ -67,11 +67,11 @@ func (a pushApply) StoreItem(ctx context.Context, projectID, stream string, item
 }
 
 func (a pushApply) StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error {
-	return storeBlocksTx(ctx, a.tx, projectID, stream, "", blocks)
+	return storeBlocksTx(ctx, a.tx, projectID, stream, "", blocks, nil)
 }
 
 func (a pushApply) StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
-	return storeBlocksTx(ctx, a.tx, projectID, stream, itemName, blocks)
+	return storeBlocksTx(ctx, a.tx, projectID, stream, itemName, blocks, nil)
 }
 
 func (a pushApply) SetBlockOrder(ctx context.Context, projectID, stream, itemName string, keys []string) error {

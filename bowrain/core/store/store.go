@@ -97,6 +97,14 @@ type ItemStore interface {
 type BlockStore interface {
 	StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error
 	StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error
+	// WriteBackBlocks stores blocks a caller read from this store and then
+	// changed: drafted targets, a settled status, added annotations. Each
+	// StoredBlock carries the block to write and, as ContentHash, the content
+	// hash the caller read. A block lands only on the row it was read from, and
+	// only while that row still holds that content hash, so a push that removed
+	// the row or changed its source after the read is never undone. Blocks that
+	// do not land are reported in the result. It creates no row and no item.
+	WriteBackBlocks(ctx context.Context, projectID, stream string, reads []*venue.StoredBlock) (WriteBackResult, error)
 	// SetBlockOrder records an item's document order: the position of each of
 	// its blocks, named by the durable block key the store holds as source_id
 	// (core/venue.TreeItem.Keys, which a push declares in document order).
@@ -147,6 +155,14 @@ type BlockStore interface {
 	DeleteBlockNote(ctx context.Context, projectID, stream, noteID string) error
 
 	GetBlockHistory(ctx context.Context, projectID, stream, blockID string, locale string, limit int) ([]BlockHistoryEntry, error)
+}
+
+// WriteBackResult reports a WriteBackBlocks call: how many blocks landed, and
+// the ids of the blocks that did not because their row is gone or its content
+// hash moved after the caller read it.
+type WriteBackResult struct {
+	Written int
+	Skipped []string
 }
 
 // VersionStore manages named versions (stream-scoped).

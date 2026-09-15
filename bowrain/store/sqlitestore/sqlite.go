@@ -519,11 +519,24 @@ func scanItem(row scanner) (*platstore.Item, error) {
 // ---------------------------------------------------------------------------
 
 func (s *SQLiteStore) StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error {
-	return s.storeBlocks(ctx, projectID, stream, "", blocks)
+	return s.storeBlocks(ctx, projectID, stream, "", blocks, nil)
 }
 
 func (s *SQLiteStore) StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
-	return s.storeBlocks(ctx, projectID, stream, itemName, blocks)
+	return s.storeBlocks(ctx, projectID, stream, itemName, blocks, nil)
+}
+
+// WriteBackBlocks writes blocks back to the rows they were read from. See
+// store.BlockStore for the contract.
+func (s *SQLiteStore) WriteBackBlocks(ctx context.Context, projectID, stream string, reads []*venue.StoredBlock) (platstore.WriteBackResult, error) {
+	wb, blocks := storeutil.NewWriteBack(reads)
+	if len(blocks) == 0 {
+		return platstore.WriteBackResult{}, nil
+	}
+	if err := s.storeBlocks(ctx, projectID, stream, "", blocks, wb); err != nil {
+		return platstore.WriteBackResult{}, err
+	}
+	return platstore.WriteBackResult{Written: len(blocks) - len(wb.Skipped()), Skipped: wb.Skipped()}, nil
 }
 
 // PruneItemBlocks removes the blocks of one item the producer no longer
@@ -681,7 +694,11 @@ func (s *SQLiteStore) SetBlockOrder(ctx context.Context, projectID, stream, item
 	return nil
 }
 
-func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
+// storeBlocks writes blocks in one transaction. A non-nil wb makes it a
+// write-back of item-less blocks read from this store: a block is written only
+// to an existing row that still holds the content hash the caller read, and
+// every other block is recorded on wb as skipped with nothing written for it.
+func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block, wb *storeutil.WriteBack) error {
 	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -793,6 +810,18 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		return fmt.Errorf("prepare stmt: %w", err)
 	}
 	defer stmt.Close()
+
+	var guarded *sql.Stmt
+	if wb != nil {
+		guarded, err = tx.PrepareContext(ctx,
+			`UPDATE blocks SET name=?, type=?, mime_type=?, translatable=?, content_hash=?, context_hash=?,
+				source_json=?, properties=?, overlays=?, word_count=?, updated_at=?
+			 WHERE project_id=? AND stream=? AND id=? AND content_hash=?`)
+		if err != nil {
+			return fmt.Errorf("prepare write-back stmt: %w", err)
+		}
+		defer guarded.Close()
+	}
 
 	// Batch-load existing block hashes + existing target locales so
 	// we can diff against the new write for change-log purposes.
@@ -913,6 +942,9 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		existingHash, isExisting := existingHashes[internalID]
 		isNew := !isExisting
 		_ = existingHash // used in change detection below
+		if wb != nil && !wb.Admits(internalID, isExisting, existingHash) {
+			continue
+		}
 
 		// Record target history before overwriting.
 		if !isNew && len(b.Targets) > 0 {
@@ -949,13 +981,29 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 			translatable = 1
 		}
 
-		_, err = stmt.ExecContext(ctx,
-			internalID, projectID, stream, itemName, itemID, sourceID, b.Name, b.Type, b.MimeType, translatable,
-			identity.ContentHash, identity.ContextHash,
-			string(sourceJSON), string(propsJSON), string(overlaysJSON),
-			model.CountWordsInRunsJSON(string(sourceJSON)), now, now)
-		if err != nil {
-			return fmt.Errorf("store block %s: %w", internalID, err)
+		if wb != nil {
+			res, err := guarded.ExecContext(ctx,
+				b.Name, b.Type, b.MimeType, translatable,
+				identity.ContentHash, identity.ContextHash,
+				string(sourceJSON), string(propsJSON), string(overlaysJSON),
+				model.CountWordsInRunsJSON(string(sourceJSON)), now,
+				projectID, stream, internalID, wb.Base(internalID))
+			if err != nil {
+				return fmt.Errorf("write back block %s: %w", internalID, err)
+			}
+			if n, _ := res.RowsAffected(); n == 0 {
+				wb.Skip(internalID)
+				continue
+			}
+		} else {
+			_, err = stmt.ExecContext(ctx,
+				internalID, projectID, stream, itemName, itemID, sourceID, b.Name, b.Type, b.MimeType, translatable,
+				identity.ContentHash, identity.ContextHash,
+				string(sourceJSON), string(propsJSON), string(overlaysJSON),
+				model.CountWordsInRunsJSON(string(sourceJSON)), now, now)
+			if err != nil {
+				return fmt.Errorf("store block %s: %w", internalID, err)
+			}
 		}
 
 		// Write targets + annotations into the kind-specific tables.

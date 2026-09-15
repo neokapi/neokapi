@@ -387,9 +387,11 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 		return errLeaseLost
 	}
 
-	// Store the blocks the chunk loop annotated.
+	// Write the annotated blocks back to the rows they were read from. A block
+	// whose item a push removed, or whose source it changed, since the read
+	// keeps what the push left.
 	if len(annotated) > 0 {
-		if storeErr := deps.ContentStore.StoreBlocksForItem(ctx, job.ProjectID, "main", job.ItemName, annotated); storeErr != nil {
+		if _, storeErr := writeBackDrafts(ctx, deps.ContentStore, job.ProjectID, "main", storedByID(storedBlocks), annotated); storeErr != nil {
 			slog.Warn("store annotated blocks failed", "error", storeErr)
 		}
 	}

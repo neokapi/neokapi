@@ -335,11 +335,11 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 		return nil
 	}
 
-	toStore := make([]*model.Block, 0, len(changed))
+	toStore := make([]*venue.StoredBlock, 0, len(changed))
 	for _, sb := range changed {
-		toStore = append(toStore, sb.Block)
+		toStore = append(toStore, sb)
 	}
-	if err := s.ContentStore.StoreBlocks(ctx, proj.ID, "main", toStore); err != nil {
+	if _, err := s.ContentStore.WriteBackBlocks(ctx, proj.ID, "main", toStore); err != nil {
 		slog.WarnContext(ctx, "review recheck: store demoted blocks failed", "project", proj.ID, "error", err)
 		return fmt.Errorf("store demoted blocks for %s: %w", proj.ID, err)
 	}

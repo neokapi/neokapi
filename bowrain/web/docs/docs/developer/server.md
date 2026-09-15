@@ -58,6 +58,14 @@ belongs to no item is left out of the response, and the cursor the response
 returns still moves past its change, so every client continues from the same
 place. The server logs how many such rows a pull left out.
 
+Server work that reads blocks and later writes them back, such as source
+settlement, translation and extraction jobs, pseudo-translation and the
+editor's bulk actions, writes each block only to the row it read, and only
+while that row still holds the content hash it read. A block that a push
+removed or rewrote in the meantime keeps what the push left: a removed item
+stays removed, and a pushed source is never replaced by the wording the job
+read.
+
 The same routes exist under `/api/v1/projects/:id/sync/:ref/...` for a project
 that has not yet been claimed into a workspace, authenticated by its claim token.
 See [`kapi push`](/cli/commands/push) for the protocol as a client sees it.

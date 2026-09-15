@@ -843,15 +843,35 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 		return nil, fmt.Errorf("pseudo-translate: %w", err)
 	}
 
-	// Store updated blocks back — they already have internal IDs from GetBlocks.
+	// Write the updated blocks back to the rows GetBlocks read them from.
 	blocks := partsToBlocks(outParts)
 	if len(blocks) > 0 {
-		if err := cs.StoreBlocks(ctx, projectID, stream, blocks); err != nil {
+		if err := writeBackEdited(ctx, cs, projectID, stream, storedBlocks, blocks); err != nil {
 			return nil, fmt.Errorf("store blocks: %w", err)
 		}
 	}
 
 	return editorComputeStats(outParts, targetLocale), nil
+}
+
+// writeBackEdited writes blocks an editor action read and changed back to the
+// rows it read them from. A block whose row a push removed, or whose source it
+// changed, since the read is left as the push left it.
+func writeBackEdited(ctx context.Context, cs store.ContentStore, projectID, stream string, read []*venue.StoredBlock, blocks []*model.Block) error {
+	base := make(map[string]string, len(read))
+	for _, sb := range read {
+		if sb != nil && sb.Block != nil {
+			base[sb.Block.ID] = sb.ContentHash
+		}
+	}
+	reads := make([]*venue.StoredBlock, 0, len(blocks))
+	for _, b := range blocks {
+		if hash, ok := base[b.ID]; ok {
+			reads = append(reads, &venue.StoredBlock{Block: b, ContentHash: hash})
+		}
+	}
+	_, err := cs.WriteBackBlocks(ctx, projectID, stream, reads)
+	return err
 }
 
 // editorVoiceContext bundles the optional stores the synchronous editor
@@ -1086,7 +1106,7 @@ func editorAITranslate(
 
 	blocks := partsToBlocks(outParts)
 	if len(blocks) > 0 {
-		if err := cs.StoreBlocks(ctx, projectID, stream, blocks); err != nil {
+		if err := writeBackEdited(ctx, cs, projectID, stream, storedBlocks, blocks); err != nil {
 			return nil, fmt.Errorf("store blocks: %w", err)
 		}
 	}
@@ -1137,7 +1157,7 @@ func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, wsStores 
 
 	blocks := partsToBlocks(outParts)
 	if len(blocks) > 0 {
-		if err := cs.StoreBlocks(ctx, projectID, stream, blocks); err != nil {
+		if err := writeBackEdited(ctx, cs, projectID, stream, storedBlocks, blocks); err != nil {
 			return nil, fmt.Errorf("store blocks: %w", err)
 		}
 	}
