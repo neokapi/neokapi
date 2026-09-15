@@ -206,6 +206,35 @@ func TestContext_TextMovedBetweenDocuments(t *testing.T) {
 	assert.Equal(t, reconcile.Moved, got[0].Kind)
 }
 
+// Text repeated across documents stays with its own document when its context
+// changes. Many files in a project hold the same short strings, "Description"
+// among them. When a block's name, type or properties move and the exact match
+// fails, the block takes the unit its own document holds with those words
+// before one another document holds, or a translation and its review move to a
+// different file. Within a document, repeated text keeps its units in document
+// order.
+func TestContext_RepeatedTextPrefersItsOwnDocument(t *testing.T) {
+	other := reconcile.Identify("formats/tmx.yaml", blk("fields.description", "Description"))
+	other.Key = "u-tmx-description"
+	first := reconcile.Identify("formats/xml.yaml", blk("fields.description", "Description"))
+	first.Key = "u-xml-description-1"
+	second := reconcile.Identify("formats/xml.yaml", blk("options.description", "Description"))
+	second.Key = "u-xml-description-2"
+	// A venue serves priors in path order, so the other document's unit comes first.
+	prior := []reconcile.Unit{other, first, second}
+
+	// The same two blocks, read again after a property was recorded on each.
+	current := []*model.Block{
+		withProp("fields.description", "Description", "level", "1"),
+		withProp("options.description", "Description", "level", "1"),
+	}
+	got := reconcile.Blocks("formats/xml.yaml", current, prior)
+	require.Len(t, got, 2)
+	assert.Equal(t, "u-xml-description-1", got[0].Key, "the first block keeps its own document's unit")
+	assert.Equal(t, "u-xml-description-2", got[1].Key, "the second keeps the next one, in document order")
+	assert.Equal(t, reconcile.Moved, got[0].Kind)
+}
+
 func values(m map[string]string) []string {
 	out := make([]string, 0, len(m))
 	for _, v := range m {

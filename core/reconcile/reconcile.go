@@ -125,10 +125,11 @@ func Identify(scope string, b *model.Block) Unit {
 // reconcile one document at a time, but may pass the whole project's prior
 // units, which is what lets content moved between files keep its identity.
 //
-// Matching runs strongest signal first — both hashes, then content alone, then
-// context alone — and each pass consumes the priors it claims. A prior is
-// therefore claimed at most once: two blocks can never resolve to the same key,
-// which is what keeps one block's approval from silently approving another.
+// Matching runs strongest signal first: both hashes, then content within the
+// block's own document, then content anywhere, then context alone. Each pass
+// consumes the priors it claims, so a prior is claimed at most once and two
+// blocks can never resolve to the same key, which is what keeps one block's
+// approval from silently approving another.
 func Blocks(scope string, current []*model.Block, prior []Unit) []Result {
 	pool := newPool(prior)
 	out := make([]Result, len(current))
@@ -143,6 +144,18 @@ func Blocks(scope string, current []*model.Block, prior []Unit) []Result {
 	resolve(out, ids, func(id Unit) (string, bool) {
 		return pool.take(bothKey(id.Scope, id.ContentHash, id.ContextHash))
 	}, Unchanged)
+
+	// Content within the block's own document before content anywhere. Short
+	// strings repeat across a project, and a context change fails the exact
+	// match for every one of them at once. A project-wide queue then hands each
+	// block the first unclaimed unit with its words, which is often another
+	// document's, and the translation and review attached to that unit move to a
+	// different file. Matched in its own document first, a block keeps its own
+	// unit, and repeated text inside one document keeps its units in document
+	// order. Text moved from another document still matches in the next pass.
+	resolve(out, ids, func(id Unit) (string, bool) {
+		return pool.take(scopedContentKey(id.Scope, id.ContentHash))
+	}, Moved)
 
 	// Content before context, because the two signals are not equally strong. A
 	// content hash identifies the exact words; a context hash for a prose format
@@ -216,16 +229,18 @@ func newPool(prior []Unit) *pool {
 	for _, u := range prior {
 		both := bothKey(u.Scope, u.ContentHash, u.ContextHash)
 		ctx := ctxKey(u.Scope, u.ContextHash)
+		scoped := scopedContentKey(u.Scope, u.ContentHash)
 		content := contentKey(u.ContentHash)
 		p.byKey[both] = append(p.byKey[both], u.Key)
 		p.byKey[ctx] = append(p.byKey[ctx], u.Key)
+		p.byKey[scoped] = append(p.byKey[scoped], u.Key)
 		p.byKey[content] = append(p.byKey[content], u.Key)
 	}
 	return p
 }
 
 // take returns the first unit under lookup that no earlier pass has claimed.
-// A unit appears under three lookups, so entries already taken are skipped
+// A unit appears under four lookups, so entries already taken are skipped
 // rather than removed when claimed elsewhere.
 func (p *pool) take(lookup string) (string, bool) {
 	queue := p.byKey[lookup]
@@ -249,4 +264,7 @@ func bothKey(scope, content, context string) string {
 	return "b:" + scope + "|" + content + "|" + context
 }
 func ctxKey(scope, context string) string { return "x:" + scope + "|" + context }
-func contentKey(content string) string    { return "c:" + content }
+func scopedContentKey(scope, content string) string {
+	return "s:" + scope + "|" + content
+}
+func contentKey(content string) string { return "c:" + content }

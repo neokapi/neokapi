@@ -81,3 +81,29 @@ func TestWriteBackBlocks_ASourceEditOfTheReadContentLands(t *testing.T) {
 	assert.Equal(t, 1, countRows(t, s, "change_log",
 		`project_id=? AND block_id=? AND change_type='source_modified'`, p.ID, sb.Block.ID))
 }
+
+// A write-back leaves the stored context hash as the push stored it, as it does
+// on the Postgres store.
+func TestWriteBackBlocks_KeepsTheStoredContextHash(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+	require.NoError(t, s.StoreItem(ctx, p.ID, "main", &platstore.Item{Name: "en.json", Format: "json"}))
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{model.NewBlock("k", "Hello")}))
+	sb := readItemByKey(t, s, p.ID, "en.json")["k"]
+	require.NotNil(t, sb)
+	pushed := sb.ContextHash
+
+	if sb.Block.Properties == nil {
+		sb.Block.Properties = map[string]string{}
+	}
+	sb.Block.Properties["__source_settled_hash"] = sb.ContentHash
+	res, err := s.WriteBackBlocks(ctx, p.ID, "main", []*venue.StoredBlock{sb})
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Written)
+
+	after := readItemByKey(t, s, p.ID, "en.json")["k"]
+	require.NotNil(t, after)
+	assert.Equal(t, sb.ContentHash, after.Block.Properties["__source_settled_hash"], "the recorded property is stored")
+	assert.Equal(t, pushed, after.ContextHash, "the stored context hash is the one the push stored")
+}

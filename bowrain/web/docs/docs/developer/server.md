@@ -64,7 +64,10 @@ editor's bulk actions, writes each block only to the row it read, and only
 while that row still holds the content hash it read. A block that a push
 removed or rewrote in the meantime keeps what the push left: a removed item
 stays removed, and a pushed source is never replaced by the wording the job
-read.
+read. The properties such work records on a block, such as the source
+settlement stamp, are stored without changing the block's stored context hash,
+so the producer's next push compares against the hashes its own push stored and
+uploads only what changed.
 
 The same routes exist under `/api/v1/projects/:id/sync/:ref/...` for a project
 that has not yet been claimed into a workspace, authenticated by its claim token.

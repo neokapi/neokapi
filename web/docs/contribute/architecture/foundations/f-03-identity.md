@@ -199,13 +199,23 @@ exists. The fourth carries nothing over: when both signals change, nothing links
 the block to its predecessor, and a guess would attach a real decision to the
 wrong words.
 
-`reconcile.Blocks(scope, current, prior)` runs three passes (both hashes, then
-content alone, then context alone), and each pass consumes the priors it claims,
-so a prior unit is claimed at most once. Two blocks can never resolve to one key,
-which is what stops approving one from approving another. Callers may pass the
-whole project's prior units while reconciling one document at a time, which is what
-lets content moved between files keep its identity, and lets a removed block return
-to its own history later.
+`reconcile.Blocks(scope, current, prior)` runs four passes (both hashes, then
+content within the block's own document, then content anywhere in the project,
+then context alone), and each pass consumes the priors it claims, so a prior unit
+is claimed at most once. Two blocks can never resolve to one key, which is what
+stops approving one from approving another. Callers may pass the whole project's
+prior units while reconciling one document at a time, which is what lets content
+moved between files keep its identity, and lets a removed block return to its own
+history later.
+
+**A block's own document is searched before the rest of the project.** Short
+strings repeat across a project, and a change to the context signal fails the
+exact match for all of them at once. Searched project-wide first, each block would
+take the first unclaimed unit with its words, often one from another document,
+and the translation and review attached to that unit would move to a different
+file. Searched in its own document first, a block keeps its own unit, and repeated
+text inside one document keeps its units in document order, which is the order a
+venue serves priors in.
 
 **Content is graded before context**, and that settles the ambiguous case. Delete a
 paragraph and the one below slides into the vacated slot: its words match the old
@@ -228,8 +238,9 @@ a few hundred documents is the common case rather than an edge case. So the cont
 scope beside the block's own two hashes, unchanged from `model.ComputeIdentity`,
 and the pool keys its context lookup on the pair (scope, context hash). The
 hashes stay the ones the sync wire sends and a venue stores, so a venue's stored
-hashes serve as a prior set. Content is left unscoped, so a sentence moved between
-files keeps its translation.
+hashes serve as a prior set. Content is matched in the block's own document first
+and then across the project, so a sentence moved between files keeps its
+translation.
 
 That scope is the document's **key rather than its path**; otherwise renaming a file
 would rewrite the context of every block inside it at once, and a file that was

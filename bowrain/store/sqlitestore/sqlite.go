@@ -698,6 +698,7 @@ func (s *SQLiteStore) SetBlockOrder(ctx context.Context, projectID, stream, item
 // write-back of item-less blocks read from this store: a block is written only
 // to an existing row that still holds the content hash the caller read, and
 // every other block is recorded on wb as skipped with nothing written for it.
+// A write-back keeps the row's stored context hash, which is the producer's.
 func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block, wb *storeutil.WriteBack) error {
 	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -814,7 +815,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 	var guarded *sql.Stmt
 	if wb != nil {
 		guarded, err = tx.PrepareContext(ctx,
-			`UPDATE blocks SET name=?, type=?, mime_type=?, translatable=?, content_hash=?, context_hash=?,
+			`UPDATE blocks SET name=?, type=?, mime_type=?, translatable=?, content_hash=?,
 				source_json=?, properties=?, overlays=?, word_count=?, updated_at=?
 			 WHERE project_id=? AND stream=? AND id=? AND content_hash=?`)
 		if err != nil {
@@ -984,7 +985,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		if wb != nil {
 			res, err := guarded.ExecContext(ctx,
 				b.Name, b.Type, b.MimeType, translatable,
-				identity.ContentHash, identity.ContextHash,
+				identity.ContentHash,
 				string(sourceJSON), string(propsJSON), string(overlaysJSON),
 				model.CountWordsInRunsJSON(string(sourceJSON)), now,
 				projectID, stream, internalID, wb.Base(internalID))

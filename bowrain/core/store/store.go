@@ -104,6 +104,12 @@ type BlockStore interface {
 	// only while that row still holds that content hash, so a push that removed
 	// the row or changed its source after the read is never undone. Blocks that
 	// do not land are reported in the result. It creates no row and no item.
+	//
+	// It keeps each row's stored context hash. That hash is the producer's: a
+	// push stores it and the producer's next push compares against it, while the
+	// properties a server step records, such as the source settlement stamp, are
+	// the server's own bookkeeping. Recomputing it over them made every settled
+	// block read as changed to the next push.
 	WriteBackBlocks(ctx context.Context, projectID, stream string, reads []*venue.StoredBlock) (WriteBackResult, error)
 	// SetBlockOrder records an item's document order: the position of each of
 	// its blocks, named by the durable block key the store holds as source_id
