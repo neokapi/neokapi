@@ -35,7 +35,7 @@ const unread: CheckWarning[] = [
     code: "format.no_reader",
     source: "pkg/doc.idml",
     message:
-      'no reader for format "okf_idml" is installed, so pkg/doc.idml was not measured; install the plugin that supplies it (kapi plugins install okf_idml)',
+      'no reader for format "okf_idml" is installed, so pkg/doc.idml was not measured; install the plugin that supplies it (kapi plugins install okapi-bridge)',
   },
 ];
 
@@ -55,7 +55,7 @@ describe("ConvergenceHero over content with no installed reader", () => {
     const notice = document.querySelector("[data-slot='hero-unread']");
     expect(notice).not.toBeNull();
     expect(notice?.textContent).toContain("pkg/doc.idml");
-    expect(notice?.textContent).toContain("kapi plugins install okf_idml");
+    expect(notice?.textContent).toContain("kapi plugins install okapi-bridge");
   });
 
   it("shows no notice when every declared file was read", () => {

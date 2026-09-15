@@ -67,7 +67,7 @@ func TestMergeFromProjectStoreSkipsContentWithNoReader(t *testing.T) {
 	assert.Positive(t, out.Written, "the readable collection was written")
 	_, err := os.Stat(filepath.Join(dir, "src", "nb.json"))
 	require.NoError(t, err, "the readable translation is on disk")
-	requireNoReader(t, out.Warnings, "pkg/doc.idml", "okf_idml")
+	requireNoReader(t, out.Warnings, "pkg/doc.idml", "okf_idml", "okapi-bridge")
 	assert.Contains(t, stderr.String(), `no reader for format "okf_idml"`)
 }
 
@@ -79,5 +79,5 @@ func TestMergeFromProjectStoreOverOnlyUnreadableContentFails(t *testing.T) {
 	err := a.MergeFromProjectStore(cmd)
 	require.Error(t, err, "a merge over nothing it can read never reports success")
 	assert.Contains(t, err.Error(), "nothing was materialized")
-	assert.Contains(t, err.Error(), "kapi plugins install okf_idml")
+	assert.Contains(t, err.Error(), "kapi plugins install okapi-bridge")
 }

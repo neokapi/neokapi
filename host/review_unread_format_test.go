@@ -95,8 +95,8 @@ func TestStatusReviewSkipsContentWithNoReader(t *testing.T) {
 		assert.NotContains(t, it.File, "doc", "a set-aside file lists no unit")
 	}
 	assert.True(t, listed, "the readable translation awaits review: %+v", q.Pending)
-	requireNoReader(t, q.Warnings, "pkg/doc.idml", "okf_idml")
-	requireNoReader(t, q.Warnings, "cask/kapi.rb", "sourcecode")
+	requireNoReader(t, q.Warnings, "pkg/doc.idml", "okf_idml", "okapi-bridge")
+	requireNoReader(t, q.Warnings, "cask/kapi.rb", "sourcecode", "sourcecode")
 	assert.Contains(t, stderr, `no reader for format "okf_idml"`)
 }
 
@@ -120,7 +120,7 @@ func TestProjectConvergenceSkipsContentWithNoReader(t *testing.T) {
 	rep, err := (&App{}).ProjectConvergence(context.Background(), filepath.Join(root, "kapi.yaml"), "en")
 	require.NoError(t, err)
 	require.NotEmpty(t, rep.Review, "the readable translation awaits review")
-	requireNoReader(t, rep.Warnings, "pkg/doc.idml", "okf_idml")
+	requireNoReader(t, rep.Warnings, "pkg/doc.idml", "okf_idml", "okapi-bridge")
 	var measured bool
 	for _, lc := range rep.Locales {
 		if lc.Locale == "fr" && lc.Total > 0 {

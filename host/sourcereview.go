@@ -288,7 +288,7 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 		if berr != nil {
 			// The request names this file, so a missing reader fails it and
 			// names the plugin to install.
-			return nil, NoReaderError(berr, ref.File, u.SourceFormat)
+			return nil, NoReaderError(berr, ref.File, u.SourceFormat, a.discoveredPlugins()...)
 		}
 		scope := docs.Scope(root, u.SourcePath)
 		for _, b := range blocks {
@@ -388,7 +388,7 @@ func (a *App) ApproveSourceUnit(ctx context.Context, projectPath, sourceLang str
 
 		blocks, berr := a.readSource(ctx, u)
 		if berr != nil {
-			return false, NoReaderError(berr, ref.File, u.SourceFormat)
+			return false, NoReaderError(berr, ref.File, u.SourceFormat, a.discoveredPlugins()...)
 		}
 		for _, b := range blocks {
 			if !b.Translatable || blockKey(b) != ref.Key {

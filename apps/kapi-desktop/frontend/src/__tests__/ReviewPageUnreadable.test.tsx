@@ -10,7 +10,7 @@ const WARNINGS: CheckWarning[] = [
     code: "format.no_reader",
     source: "pkg/doc.idml",
     message:
-      'no reader for format "okf_idml" is installed, so pkg/doc.idml was not listed for review; install the plugin that supplies it (kapi plugins install okf_idml)',
+      'no reader for format "okf_idml" is installed, so pkg/doc.idml was not listed for review; install the plugin that supplies it (kapi plugins install okapi-bridge)',
   },
 ];
 
@@ -26,7 +26,7 @@ describe("ReviewPage over content with no installed reader", () => {
     );
     const notice = document.querySelector("[data-slot='review-unread']");
     expect(notice?.textContent).toContain("pkg/doc.idml");
-    expect(notice?.textContent).toContain("kapi plugins install okf_idml");
+    expect(notice?.textContent).toContain("kapi plugins install okapi-bridge");
     expect(document.body.textContent).not.toContain("Every translated unit is reviewed.");
   });
 

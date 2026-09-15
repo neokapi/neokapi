@@ -60,12 +60,12 @@ func declarePluginCollections(t *testing.T, recipe string, keepApp bool) {
 	require.NoError(t, project.Save(recipe, proj))
 }
 
-func requireNoReader(t *testing.T, warnings []check.Warning, file, format string) {
+func requireNoReader(t *testing.T, warnings []check.Warning, file, format, plugin string) {
 	t.Helper()
 	for _, w := range warnings {
 		if w.Code == check.WarningFormatNoReader && w.Source == file {
 			assert.Contains(t, w.Message, `"`+format+`"`)
-			assert.Contains(t, w.Message, "kapi plugins install "+format)
+			assert.Contains(t, w.Message, "(kapi plugins install "+plugin+")")
 			return
 		}
 	}
@@ -96,8 +96,8 @@ func TestUpSetsAsideCollectionsWithNoReader(t *testing.T) {
 	require.NoError(t, rerr)
 	assert.Contains(t, string(target), "Hei verden", "the readable collection was materialized")
 
-	requireNoReader(t, out.Warnings, "pkg/doc.idml", "okf_idml")
-	requireNoReader(t, out.Warnings, "cask/kapi.rb", "sourcecode")
+	requireNoReader(t, out.Warnings, "pkg/doc.idml", "okf_idml", "okapi-bridge")
+	requireNoReader(t, out.Warnings, "cask/kapi.rb", "sourcecode", "sourcecode")
 
 	var logged []string
 	for _, ev := range events {
@@ -107,7 +107,8 @@ func TestUpSetsAsideCollectionsWithNoReader(t *testing.T) {
 	}
 	joined := strings.Join(logged, "\n")
 	assert.Contains(t, joined, `No reader for format "okf_idml"`)
-	assert.Contains(t, joined, "kapi plugins install okf_idml")
+	assert.Contains(t, joined, "kapi plugins install okapi-bridge")
+	assert.NotContains(t, joined, "kapi plugins install okf_idml")
 	assert.Contains(t, joined, "pkg/doc.idml")
 
 	var text bytes.Buffer
@@ -139,7 +140,7 @@ func TestUpPlanSetsAsideCollectionsWithNoReader(t *testing.T) {
 
 	plan, err := a.computeProjectPlan(context.Background(), proj, recipe)
 	require.NoError(t, err)
-	requireNoReader(t, plan.Warnings, "pkg/doc.idml", "okf_idml")
+	requireNoReader(t, plan.Warnings, "pkg/doc.idml", "okf_idml", "okapi-bridge")
 	var app bool
 	for _, s := range plan.Scopes {
 		if s.Collection == "app" {
@@ -179,12 +180,12 @@ func TestUpOverOnlyUnreadableContentConvergesNothing(t *testing.T) {
 	})
 	require.Error(t, err, "a run over nothing it can read never reports success")
 	assert.Contains(t, err.Error(), "nothing was converged")
-	assert.Contains(t, err.Error(), "kapi plugins install okf_idml")
+	assert.Contains(t, err.Error(), "kapi plugins install okapi-bridge")
 	assert.False(t, out.Converged)
 
 	plan, err := a.computeProjectPlan(context.Background(), proj, recipe)
 	require.NoError(t, err)
-	requireNoReader(t, plan.Warnings, "pkg/doc.idml", "okf_idml")
+	requireNoReader(t, plan.Warnings, "pkg/doc.idml", "okf_idml", "okapi-bridge")
 	var text bytes.Buffer
 	require.NoError(t, plan.FormatText(&text))
 	assert.NotContains(t, text.String(), "Nothing to do")

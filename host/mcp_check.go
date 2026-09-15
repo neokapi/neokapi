@@ -255,7 +255,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		execution.Timings.ExtractionMS += elapsedMS(extractionStart)
 		execution.skipped("reader.validation", in.File, "Reader validation was not requested.")
 		if berr != nil {
-			return nil, check.Report{}, NoReaderError(berr, in.File, fmtName)
+			return nil, check.Report{}, NoReaderError(berr, in.File, fmtName, a.discoveredPlugins()...)
 		}
 		if missing {
 			return nil, check.Report{}, fmt.Errorf("target file %q does not exist", in.Target)

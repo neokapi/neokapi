@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 
 	"github.com/neokapi/neokapi/core/asr"
 	"github.com/neokapi/neokapi/core/av"
@@ -16,26 +17,43 @@ import (
 	pluginhostreg "github.com/neokapi/neokapi/host/pluginhost/registry"
 )
 
-// formatPluginProviders maps a format the host can't read in-core to the plugin
-// that provides it. Used for on-demand install: on macOS the kapi-pdfium plugin
-// arrives via the Homebrew Cask → kapi-cli → kapi-pdfium chain, but the
-// Linux/Windows desktop ships as a raw artifact with no package manager to
-// express that dependency, so the engine has no PDF reader until the plugin is
-// installed. Rather than bundle (and duplicate) the engine per platform, we
-// fetch it from the registry the first time the user actually opens a PDF.
-var formatPluginProviders = map[string]string{"pdf": "pdfium"}
+// onDemandFormats are the formats whose plugin the desktop installs the first
+// time a user opens a file in one; pluginhost.FormatProvider names the plugin.
+// On macOS the kapi-pdfium plugin arrives via the Homebrew Cask → kapi-cli →
+// kapi-pdfium chain, but the Linux/Windows desktop ships as a raw artifact with
+// no package manager to express that dependency, so the engine has no PDF reader
+// until the plugin is installed. Rather than bundle (and duplicate) the engine
+// per platform, we fetch it from the registry the first time the user actually
+// opens a PDF.
+var onDemandFormats = []string{"pdf"}
+
+// discoveredPlugins returns the plugins the app discovered, or nil before
+// plugins are first loaded.
+func (a *App) discoveredPlugins() []*pluginhost.Plugin {
+	if a.pluginRuntime == nil {
+		return nil
+	}
+	if h := a.host(); h != nil {
+		return h.Plugins()
+	}
+	return nil
+}
 
 // ensureFormatPlugin installs, once and on demand, the plugin that provides a
 // format the host currently can't read (e.g. PDF via kapi-pdfium). It is a
 // best-effort, synchronous install so the immediately-following NewReader
 // succeeds, and emits the same plugin-installing / plugin-progress /
 // plugin-installed / plugin-error events the Plugin Manager uses, so the UI can
-// show a toast. A no-op when the reader already exists or no plugin is known.
+// show a toast. A no-op when the reader already exists or the format is not
+// installed on demand.
 func (a *App) ensureFormatPlugin(formatName string) {
 	if a.formatReg.HasReader(registry.FormatID(formatName)) {
 		return
 	}
-	if plugin, ok := formatPluginProviders[formatName]; ok {
+	if !slices.Contains(onDemandFormats, formatName) {
+		return
+	}
+	if plugin, ok := pluginhost.FormatProvider(a.discoveredPlugins(), formatName); ok {
 		a.installPluginOnDemand(plugin, formatName)
 	}
 }

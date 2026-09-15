@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host/pluginhost"
 )
 
 // UnreadSet collects the declared content a check over the project never
@@ -35,47 +36,95 @@ type UnreadSet struct {
 	// the command that skipped it: "checked" for a check, "converged" for a
 	// run, "priced" for a plan. Empty reads as "checked".
 	outcome string
+	// installed are the discovered plugins whose manifests name the plugin
+	// that supplies a format, ahead of the formats kapi knows.
+	installed []*pluginhost.Plugin
 }
 
 // missingReader is the reader an unread file needs and the plugin that
 // supplies it.
 type missingReader struct {
 	// what names the reader: `format "sourcecode"`, or `TypeScript comments`.
-	what   string
+	what string
+	// plugin is the registry name of the plugin that supplies the reader, or
+	// empty when kapi knows no plugin that does.
 	plugin string
 }
 
 // missingReaderOf names the reader err reports missing, for a file declared in
-// format.
-func missingReaderOf(err error, format string) missingReader {
+// format, and the plugin that supplies it.
+func missingReaderOf(err error, format string, installed []*pluginhost.Plugin) missingReader {
 	if comments, ok := errors.AsType[*noCommentReaderError](err); ok {
 		return missingReader{what: comments.hint.DisplayName + " comments", plugin: comments.hint.Plugin}
 	}
-	return missingReader{what: fmt.Sprintf("format %q", format), plugin: format}
+	plugin, _ := pluginhost.FormatProvider(installed, format)
+	return missingReader{what: fmt.Sprintf("format %q", format), plugin: plugin}
+}
+
+// installClause says how to get a reader: the command that installs plugin, or,
+// when plugin is empty, that kapi knows no plugin that supplies it.
+func installClause(plugin string) string {
+	if plugin == "" {
+		return "no known plugin supplies it"
+	}
+	return fmt.Sprintf("install the plugin that supplies it (kapi plugins install %s)", plugin)
+}
+
+// formatInstallClause is installClause for the plugin that supplies format.
+func formatInstallClause(installed []*pluginhost.Plugin, format string) string {
+	plugin, _ := pluginhost.FormatProvider(installed, format)
+	return installClause(plugin)
+}
+
+// sourceGateUnreadMessage is the run log line for a format no installed reader
+// opens, whose content the source gate therefore did not count.
+func sourceGateUnreadMessage(installed []*pluginhost.Plugin, format string) string {
+	return fmt.Sprintf("No reader for format %q: its content is not counted in the source gate. %s.",
+		format, sentenceCase(formatInstallClause(installed, format)))
+}
+
+// sentenceCase returns s with its first letter upper-cased, for a clause that
+// starts a sentence.
+func sentenceCase(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 // noReaderReason says that a file was not read, which reader it needs and the
 // plugin to install.
-func noReaderReason(err error, format string) string {
-	r := missingReaderOf(err, format)
-	return fmt.Sprintf("no reader for %s is installed; install the plugin that supplies it (kapi plugins install %s)", r.what, r.plugin)
+func noReaderReason(err error, format string, installed ...*pluginhost.Plugin) string {
+	r := missingReaderOf(err, format, installed)
+	return fmt.Sprintf("no reader for %s is installed; %s", r.what, installClause(r.plugin))
 }
 
 // NewUnreadSet returns an empty set for a check over the project's declared
-// content, such as the desktop Checks panel's.
-func NewUnreadSet() *UnreadSet {
-	return &UnreadSet{formats: map[string]string{}, readers: map[string]missingReader{}}
+// content, such as the desktop Checks panel's. installed are the plugins the
+// caller discovered.
+func NewUnreadSet(installed ...*pluginhost.Plugin) *UnreadSet {
+	return &UnreadSet{formats: map[string]string{}, readers: map[string]missingReader{}, installed: installed}
 }
 
 // NoReaderError is the error for a request that names one file, or one unit in
 // it, when no reader for the file's format is installed: it keeps err in the
-// chain and names the plugin to install. Any other error is returned as it is.
-func NoReaderError(err error, file, format string) error {
+// chain and names the plugin to install. installed are the plugins the caller
+// discovered. Any other error is returned as it is.
+func NoReaderError(err error, file, format string, installed ...*pluginhost.Plugin) error {
 	if !errors.Is(err, registry.ErrUnknownFormat) {
 		return err
 	}
-	return fmt.Errorf("%s: no reader for format %q is installed; install the plugin that supplies it (kapi plugins install %s): %w",
-		file, format, format, err)
+	return fmt.Errorf("%s: no reader for format %q is installed; %s: %w",
+		file, format, formatInstallClause(installed, format), err)
+}
+
+// discoveredPlugins returns the plugins this App discovered, or nil before
+// plugin discovery.
+func (a *App) discoveredPlugins() []*pluginhost.Plugin {
+	if a.PluginHost == nil {
+		return nil
+	}
+	return a.PluginHost.Plugins()
 }
 
 // newUnreadSet returns the set a check over the project's declared content
@@ -91,7 +140,7 @@ func (a *App) newUnreadSetFor(outcome string) *UnreadSet {
 	if a.FormatFlag != "" {
 		return nil
 	}
-	u := NewUnreadSet()
+	u := NewUnreadSet(a.discoveredPlugins()...)
 	u.outcome = outcome
 	return u
 }
@@ -127,7 +176,7 @@ func (u *UnreadSet) Skip(err error, file, format string) bool {
 	}
 	if _, seen := u.formats[file]; !seen {
 		u.formats[file] = format
-		u.readers[file] = missingReaderOf(err, format)
+		u.readers[file] = missingReaderOf(err, format, u.installed)
 		u.files = append(u.files, file)
 	}
 	return true
@@ -223,18 +272,33 @@ func named(files []string) string {
 	return s
 }
 
-// summary names every unread format with its files and the plugin to install,
-// for a command that could read none of the project's content.
+// summary names every unread format with its files, the plugins to install,
+// each once, and the readers no known plugin supplies, for a command that could
+// read none of the project's content.
 func (u *UnreadSet) summary() string {
 	formats, files := u.byFormat()
 	declared := make([]string, 0, len(formats))
-	installs := make([]string, 0, len(formats))
 	for _, format := range formats {
 		declared = append(declared, fmt.Sprintf("%q (%s)", format, named(files[format])))
-		installs = append(installs, "kapi plugins install "+format)
 	}
-	return fmt.Sprintf("no installed reader opens any of this project's content, declared in format %s; "+
-		"install the plugin that supplies it (%s)", strings.Join(declared, ", "), strings.Join(installs, ", "))
+	var installs, unknown []string
+	readers, _ := u.byReader()
+	for _, r := range readers {
+		switch install := "kapi plugins install " + r.plugin; {
+		case r.plugin == "":
+			unknown = append(unknown, r.what)
+		case !slices.Contains(installs, install):
+			installs = append(installs, install)
+		}
+	}
+	msg := "no installed reader opens any of this project's content, declared in format " + strings.Join(declared, ", ")
+	if len(installs) > 0 {
+		msg += fmt.Sprintf("; install the plugin that supplies it (%s)", strings.Join(installs, ", "))
+	}
+	if len(unknown) > 0 {
+		msg += "; no known plugin supplies " + strings.Join(unknown, ", ")
+	}
+	return msg
 }
 
 // warnings returns a WarningFormatNoReader warning for each unread file.
@@ -246,10 +310,9 @@ func (u *UnreadSet) warnings() []check.Warning {
 	for _, file := range u.files {
 		r := u.readers[file]
 		out = append(out, check.Warning{
-			Code:   check.WarningFormatNoReader,
-			Source: file,
-			Message: fmt.Sprintf("no reader for %s is installed, so %s was not %s; "+
-				"install the plugin that supplies it (kapi plugins install %s)", r.what, file, u.verb(), r.plugin),
+			Code:    check.WarningFormatNoReader,
+			Source:  file,
+			Message: fmt.Sprintf("no reader for %s is installed, so %s was not %s; %s", r.what, file, u.verb(), installClause(r.plugin)),
 		})
 	}
 	return out
@@ -303,7 +366,7 @@ func (u *UnreadSet) warn(a *App, cmd Command) {
 	readers, files := u.byReader()
 	for _, r := range readers {
 		fmt.Fprintf(cmd.ErrOrStderr(),
-			"warning: no reader for %s, so %s was not %s; install the plugin that supplies it (kapi plugins install %s)\n",
-			r.what, named(files[r]), u.verb(), r.plugin)
+			"warning: no reader for %s, so %s was not %s; %s\n",
+			r.what, named(files[r]), u.verb(), installClause(r.plugin))
 	}
 }

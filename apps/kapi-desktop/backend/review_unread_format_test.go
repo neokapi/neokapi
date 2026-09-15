@@ -9,12 +9,12 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 )
 
-func requireNoReaderIn(t *testing.T, warnings []check.Warning, file, format string) {
+func requireNoReaderIn(t *testing.T, warnings []check.Warning, file, format, plugin string) {
 	t.Helper()
 	for _, w := range warnings {
 		if w.Code == check.WarningFormatNoReader && w.Source == file {
 			assert.Contains(t, w.Message, `"`+format+`"`)
-			assert.Contains(t, w.Message, "kapi plugins install "+format)
+			assert.Contains(t, w.Message, "(kapi plugins install "+plugin+")")
 			return
 		}
 	}
@@ -35,10 +35,10 @@ func TestReviewQueueSkipsTranslatedContentWithNoReader(t *testing.T) {
 	for _, it := range q.Pending {
 		assert.NotContains(t, it.File, "doc", "a set-aside file lists no unit")
 	}
-	requireNoReaderIn(t, q.Warnings, "pkg/doc.idml", "okf_idml")
+	requireNoReaderIn(t, q.Warnings, "pkg/doc.idml", "okf_idml", "okapi-bridge")
 
 	rep, err := app.GetConvergence(tabID)
 	require.NoError(t, err)
 	require.NotEmpty(t, rep.Review)
-	requireNoReaderIn(t, rep.Warnings, "pkg/doc.idml", "okf_idml")
+	requireNoReaderIn(t, rep.Warnings, "pkg/doc.idml", "okf_idml", "okapi-bridge")
 }

@@ -93,7 +93,7 @@ func isolateCheckPlugins(t *testing.T) {
 
 // requireNoReaderWarning holds a result to naming the file it could not read,
 // the format and the plugin to install, as data the panel renders.
-func requireNoReaderWarning(t *testing.T, res *CheckRunResult, file, format string) {
+func requireNoReaderWarning(t *testing.T, res *CheckRunResult, file, format, plugin string) {
 	t.Helper()
 	var found *check.Warning
 	for i := range res.Warnings {
@@ -103,7 +103,7 @@ func requireNoReaderWarning(t *testing.T, res *CheckRunResult, file, format stri
 	}
 	require.NotNil(t, found, "a format.no_reader warning names %s: %+v", file, res.Warnings)
 	assert.Contains(t, found.Message, `"`+format+`"`)
-	assert.Contains(t, found.Message, "kapi plugins install "+format)
+	assert.Contains(t, found.Message, "(kapi plugins install "+plugin+")")
 }
 
 func checkedPaths(res *CheckRunResult) []string {
@@ -127,7 +127,7 @@ func TestRunChecksSkipsDeclaredContentWithNoReader(t *testing.T) {
 	// did not run.
 	assert.Equal(t, "passed", res.Verdict)
 	assert.True(t, res.Pass)
-	requireNoReaderWarning(t, res, filepath.Join("cask", "kapi.rb"), "sourcecode")
+	requireNoReaderWarning(t, res, filepath.Join("cask", "kapi.rb"), "sourcecode", "sourcecode")
 	paths := checkedPaths(res)
 	assert.True(t, slicesContainSuffix(paths, "locales/en.json"), "the readable file was checked: %v", paths)
 	assert.False(t, slicesContainSuffix(paths, "cask/kapi.rb"), "an unread file is never listed as checked: %v", paths)
@@ -143,8 +143,8 @@ func TestRunChecksSkipsTranslatedContentWithNoReader(t *testing.T) {
 	res, err := app.RunChecks(tabID, ProjectFilter{Languages: []string{"fr"}})
 	require.NoError(t, err)
 	assert.Equal(t, "passed", res.Verdict)
-	requireNoReaderWarning(t, res, filepath.Join("pkg", "doc.idml"), "okf_idml")
-	requireNoReaderWarning(t, res, filepath.Join("cask", "kapi.rb"), "sourcecode")
+	requireNoReaderWarning(t, res, filepath.Join("pkg", "doc.idml"), "okf_idml", "okapi-bridge")
+	requireNoReaderWarning(t, res, filepath.Join("cask", "kapi.rb"), "sourcecode", "sourcecode")
 	paths := checkedPaths(res)
 	assert.True(t, slicesContainSuffix(paths, "locales/en.json"), "%v", paths)
 	assert.False(t, slicesContainSuffix(paths, "pkg/doc.idml"), "%v", paths)
@@ -165,7 +165,7 @@ func TestRunChecksOfOnlyUnreadableContentDidNotRun(t *testing.T) {
 	reasons := strings.Join(res.DidNotRun, "; ")
 	assert.Contains(t, reasons, filepath.Join("cask", "kapi.rb"))
 	assert.Contains(t, reasons, filepath.Join("pkg", "doc.idml"))
-	requireNoReaderWarning(t, res, filepath.Join("cask", "kapi.rb"), "sourcecode")
+	requireNoReaderWarning(t, res, filepath.Join("cask", "kapi.rb"), "sourcecode", "sourcecode")
 }
 
 // Only a missing reader is skipped. A JSON file that does not parse was opened

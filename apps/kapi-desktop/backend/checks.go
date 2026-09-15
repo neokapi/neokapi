@@ -180,7 +180,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	// The declared files no installed reader opens, such as a collection in a
 	// format a plugin supplies. The run checks the rest and names these in its
 	// result, as `kapi check` does.
-	unread := host.NewUnreadSet()
+	unread := host.NewUnreadSet(a.discoveredPlugins()...)
 	// The files whose items declare their comments, and the findings on those
 	// comments, which the run checks after the files' values.
 	var commentFiles []project.ResolvedFile
