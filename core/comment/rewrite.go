@@ -47,14 +47,23 @@ type RewriteCanary struct {
 	Block string
 	// Refused is text a rewrite of Block must refuse.
 	Refused string
+	// Delimited is the id Blocks gives a delimited comment in Source, and
+	// Terminator is text holding the sequence that closes it, which a rewrite
+	// of Delimited must refuse as RefusedTerminator. Both are empty only for a
+	// language with no delimited comments.
+	Delimited  string
+	Terminator string
 }
 
 // VerifyRewriter runs p's rewrite canary through rewrite and Contain, and
 // returns what failed, or nil when p's comments can be written. Rewriting the
 // canary's comment with its own prose must leave the file as it is. Rewriting
 // it with the refused text must be refused, and so must a rewrite guarded by a
-// fingerprint the comment does not have. A rewrite spliced one byte before the
-// comment's span must be refused as uncontained.
+// fingerprint the comment does not have. Rewriting the canary's delimited
+// comment with its own prose must leave the file as it is too, and rewriting it
+// with text that holds its terminator must be refused as RefusedTerminator. A
+// rewrite spliced one byte before the comment's span must be refused as
+// uncontained.
 func VerifyRewriter(p Provider, rewrite RewriteFunc) error {
 	r, ok := p.(Rewriter)
 	if !ok {
@@ -97,6 +106,9 @@ func VerifyRewriter(p Provider, rewrite RewriteFunc) error {
 	if refusal, ok := AsRefusal(err); !ok || refusal.Reason != RefusedChanged {
 		return fmt.Errorf("a rewrite guarded by a fingerprint the canary's comment does not have was not refused as changed: %w", err)
 	}
+	if err := verifyDelimited(p, r, c, located, ids, rewrite); err != nil {
+		return err
+	}
 	span, err := r.Render(c.Name, c.Source, target, prose, RenderOptions{})
 	if err != nil {
 		return fmt.Errorf("the canary's comment could not be rendered: %w", err)
@@ -111,6 +123,43 @@ func VerifyRewriter(p Provider, rewrite RewriteFunc) error {
 	}
 	if refusal, ok := AsRefusal(err); !ok || refusal.Reason != RefusedContainment {
 		return fmt.Errorf("a rewrite spliced one byte before the canary's comment was not refused as uncontained: %w", err)
+	}
+	return nil
+}
+
+// verifyDelimited runs the delimited half of the rewrite canary c, whose file
+// located holds under ids: the delimited comment rewrites to itself, and text
+// holding its terminator is refused as RefusedTerminator.
+func verifyDelimited(p Provider, r Rewriter, c RewriteCanary, located *File, ids []string, rewrite RewriteFunc) error {
+	if c.Delimited == "" {
+		return nil
+	}
+	index := slices.Index(ids, c.Delimited)
+	if index < 0 {
+		return fmt.Errorf("the rewrite canary holds no comment named %s", c.Delimited)
+	}
+	d := located.Comments[index]
+	if d.Style != StyleBlock {
+		return fmt.Errorf("the rewrite canary's comment %s is not a delimited comment", c.Delimited)
+	}
+	prose, err := r.Prose(c.Source, d)
+	if err != nil {
+		return fmt.Errorf("the prose of the canary's delimited comment could not be read: %w", err)
+	}
+	target := Target{ID: c.Delimited, Fingerprint: Fingerprint(c.Source, d)}
+	same, err := rewrite(p, c.Name, c.Source, nil, target, prose, RenderOptions{})
+	if err != nil {
+		return fmt.Errorf("rewriting the canary's delimited comment with its own prose: %w", err)
+	}
+	if !bytes.Equal(same.Source, c.Source) {
+		return errors.New("rewriting the canary's delimited comment with its own prose changed the file")
+	}
+	_, err = rewrite(p, c.Name, c.Source, nil, target, c.Terminator, RenderOptions{})
+	if err == nil {
+		return fmt.Errorf("the canary's delimited comment was rewritten with %q, which holds its terminator and must be refused", c.Terminator)
+	}
+	if refusal, ok := AsRefusal(err); !ok || refusal.Reason != RefusedTerminator {
+		return fmt.Errorf("rewriting the canary's delimited comment with %q was not refused as holding its terminator: %w", c.Terminator, err)
 	}
 	return nil
 }
@@ -144,8 +193,15 @@ const (
 	RefusedExampleOutput = RefusalReason(ReasonExampleOutput)
 	// RefusedUnsupported is a language whose provider writes no comments.
 	RefusedUnsupported RefusalReason = "unsupported"
-	// RefusedBlockComment is a delimited comment, which is not rewritten.
-	RefusedBlockComment RefusalReason = "block-comment"
+	// RefusedLayout is a comment whose layout a rewrite cannot keep: one made
+	// of several comments, or of delimited and line comments together, or a
+	// delimited comment whose empty lines or line endings are written in more
+	// than one way.
+	RefusedLayout RefusalReason = "layout"
+	// RefusedTerminator is text holding the sequence that closes the delimited
+	// comment it would sit in, which would end the comment early and turn the
+	// rest of the text into code.
+	RefusedTerminator RefusalReason = "terminator"
 	// RefusedStale is a comment that no longer spans the lines it was read at.
 	RefusedStale RefusalReason = "stale"
 	// RefusedChanged is a comment whose bytes or prose differ from the
@@ -272,15 +328,11 @@ func Rewrite(p Provider, name string, src []byte, declared Directives, target Ta
 }
 
 // address finds the comment target names in f, located in src, and refuses an
-// id that names none, a delimited comment, and a comment that differs from what
-// guards the rewrite.
+// id that names none and a comment that differs from what guards the rewrite.
 func (f *File) address(src []byte, r Rewriter, target Target) (int, *Refusal) {
 	_, ids := f.names()
 	if i := slices.Index(ids, target.ID); i >= 0 {
 		c := f.Comments[i]
-		if c.Style != StyleLine {
-			return 0, refuse(RefusedBlockComment, "%s is a delimited comment, and only line comments are rewritten", target.ID)
-		}
 		switch {
 		case target.Fingerprint != "":
 			if got := Fingerprint(src, c); got != target.Fingerprint {
@@ -289,6 +341,9 @@ func (f *File) address(src []byte, r Rewriter, target Target) (int, *Refusal) {
 			}
 		case target.Prose != nil:
 			prose, err := r.Prose(src, c)
+			if refusal, ok := AsRefusal(err); ok {
+				return 0, refusal
+			}
 			if err != nil || prose != normalizeProse(*target.Prose) {
 				return 0, refuse(RefusedChanged, "the comment changed since it was read: the prose of %s differs from the text the edit carries; read it again", target.ID)
 			}
@@ -359,7 +414,8 @@ func describe(e Excluded) string {
 //     on the same subject, with the same deprecation marker and the same
 //     placeholders;
 //   - when p is a Formatter, the formatter would rewrite neither that comment
-//     nor any comment it agreed with before.
+//     nor any comment it agreed with before, and would change no line of the
+//     file it leaves as it is before.
 //
 // A rewrite that fails any of them is a *Refusal.
 func Contain(p Provider, name string, before, after []byte, declared Directives, located *File, index int) (*Rewritten, error) {
@@ -466,7 +522,7 @@ func Contain(p Provider, name string, before, after []byte, declared Directives,
 
 // formatterAgrees refuses a rewrite the formatter would change: one where the
 // rewritten comment disagrees with it, or another comment does that agreed
-// with it before.
+// with it before, or any other line does that it left as it was.
 func formatterAgrees(f Formatter, name string, before, after []byte, located, relocated *File, index int, ids []string) error {
 	was, err := f.Disagreements(name, before, located)
 	if err != nil {
@@ -486,6 +542,48 @@ func formatterAgrees(f Formatter, name string, before, after []byte, located, re
 			return refuse(RefusedFormatter, "%s would rewrite the comment as:\n%s", f.FormatterName(), d.Formatted)
 		case !disagreed[d.Comment]:
 			return refuse(RefusedFormatter, "%s would rewrite %s after the rewrite", f.FormatterName(), ids[d.Comment])
+		}
+	}
+	return formatterLeaves(f, name, before, after, located.Comments[index], relocated.Comments[index])
+}
+
+// formatterLeaves refuses a rewrite after which the formatter would change a
+// line it leaves as it is before. Every line of the file counts, so code a
+// formatter aligns with the comment, on its line or the lines around it, is
+// held as well as the comments. A line of the rewritten comment counts as new
+// only when the formatter left every line of the comment as it was before.
+func formatterLeaves(f Formatter, name string, before, after []byte, c, rc Comment) error {
+	formatted, err := f.Format(name, before)
+	if err != nil {
+		return refuse(RefusedFormatter, "%s could not format the file before the rewrite: %v", f.FormatterName(), err)
+	}
+	was := formatterChurn(before, formatted)
+	formatted, err = f.Format(name, after)
+	if err != nil {
+		return refuse(RefusedFormatter, "%s could not format the rewritten file: %v", f.FormatterName(), err)
+	}
+	now := formatterChurn(after, formatted)
+	if len(now) == 0 {
+		return nil
+	}
+	commentWas := false
+	for line := c.Lines.First; line <= c.Lines.Last; line++ {
+		commentWas = commentWas || was[line]
+	}
+	lineDelta := rc.Lines.Last - c.Lines.Last
+	lines := make([]int, 0, len(now))
+	for line := range now {
+		lines = append(lines, line)
+	}
+	slices.Sort(lines)
+	for _, line := range lines {
+		switch {
+		case line >= rc.Lines.First && line <= rc.Lines.Last:
+			if !commentWas {
+				return refuse(RefusedFormatter, "%s would change line %d, which holds the rewritten comment, after the rewrite", f.FormatterName(), line)
+			}
+		case line < rc.Lines.First && !was[line], line > rc.Lines.Last && !was[line-lineDelta]:
+			return refuse(RefusedFormatter, "%s would change line %d after the rewrite, and leaves it as it is before", f.FormatterName(), line)
 		}
 	}
 	return nil

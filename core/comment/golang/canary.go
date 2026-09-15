@@ -1,6 +1,10 @@
 package golang
 
-import "github.com/neokapi/neokapi/core/comment"
+import (
+	"slices"
+
+	"github.com/neokapi/neokapi/core/comment"
+)
 
 // Canary implements comment.Provider. The doubled word sits in a doc comment
 // that shares its group with a directive, so a provider that drops the prose of
@@ -15,14 +19,17 @@ func (Provider) Canary() comment.Canary {
 
 // RewriteCanary implements comment.Rewriter. It rewrites the doc comment of
 // Canary, which shares its group with a directive, and its refused text would
-// make the comment's second line a linter suppression.
+// make the comment's second line a linter suppression. Below it, a delimited
+// doc comment with a line of asterisks must refuse text holding `*/`.
 func (p Provider) RewriteCanary() comment.RewriteCanary {
 	c := p.Canary()
 	return comment.RewriteCanary{
-		Name:    "canary.go",
-		Source:  c.Source,
-		Block:   c.Block,
-		Refused: "Parse reads the input.\nnolint",
+		Name:       "canary.go",
+		Source:     append(slices.Clip(c.Source), "\n/*\n * Close releases the reader.\n */\nfunc Close() {}\n"...),
+		Block:      c.Block,
+		Refused:    "Parse reads the input.\nnolint",
+		Delimited:  "func/Close",
+		Terminator: "Close releases the reader */ and returns.",
 	}
 }
 

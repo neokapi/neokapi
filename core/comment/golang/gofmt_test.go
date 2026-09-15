@@ -64,11 +64,11 @@ func TestGofmtAttributesAMovedDirectiveToTheProseAroundIt(t *testing.T) {
 }
 
 func TestDiffLines(t *testing.T) {
-	changed, inserted := diffLines([]string{"a", "b", "c"}, []string{"a", "x", "b", "c", "y"})
+	changed, inserted := comment.DiffLines([]string{"a", "b", "c"}, []string{"a", "x", "b", "c", "y"})
 	assert.Equal(t, []bool{false, false, false}, changed)
 	assert.Equal(t, []bool{false, true, false, true}, inserted)
 
-	changed, inserted = diffLines([]string{"a", "b", "c"}, []string{"a", "c"})
+	changed, inserted = comment.DiffLines([]string{"a", "b", "c"}, []string{"a", "c"})
 	assert.Equal(t, []bool{false, true, false}, changed)
 	assert.Equal(t, []bool{false, false, false, false}, inserted)
 }

@@ -55,9 +55,10 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"id and lines (as check_file reports them, such as func/Parse), comment_sha256 (the fingerprint check_file reports " +
 			"for the comment; a comment whose bytes differ is refused as changed, and current_text may carry the prose as " +
 			"read instead) and " +
-			"text (the comment's prose without comment markers). Every byte outside the comment is kept, the result must " +
-			"parse and the language's formatter must agree; a directive, a generated file's comment, a block comment, a " +
-			"changed comment and text that drops a code block or reference are refused with a reason and write nothing. " +
+			"text (the comment's prose without comment markers, or a /* */ comment's delimiters and the * opening each line). " +
+			"Every byte outside the comment is kept, a /* */ comment keeps its layout, the result must " +
+			"parse and the language's formatter must agree; a directive, a generated file's comment, a changed comment, " +
+			"text holding */ in a /* */ comment and text that drops a code block or reference are refused with a reason and write nothing. " +
 			"Each written file's result carries a check scoped to the change.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
 		return a.applyEditsMCP(ctx, in)

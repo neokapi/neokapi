@@ -65,6 +65,8 @@ func (r *Registry) ForFormat(format string) (Provider, bool) {
 type Formatter interface {
 	// FormatterName names the formatter, such as "gofmt".
 	FormatterName() string
+	// Format returns src as the formatter writes it.
+	Format(name string, src []byte) ([]byte, error)
 	// Disagreements reports the comments in f, located in src, that the
 	// formatter would rewrite.
 	Disagreements(name string, src []byte, f *File) ([]Disagreement, error)

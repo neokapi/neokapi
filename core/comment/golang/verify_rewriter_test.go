@@ -40,6 +40,42 @@ func TestVerifyRewriter(t *testing.T) {
 	t.Run("must fail: a language that writes no comments", func(t *testing.T) {
 		require.Error(t, comment.VerifyRewriter(readOnly{}, comment.Rewrite))
 	})
+
+	t.Run("must fail: a renderer that writes */ as it is", func(t *testing.T) {
+		err := comment.VerifyRewriter(rawTerminator{}, comment.Rewrite)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not refused as holding its terminator")
+	})
+
+	t.Run("must fail: a provider whose delimited prose loses a byte", func(t *testing.T) {
+		err := comment.VerifyRewriter(lossyBlockProse{}, comment.Rewrite)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "delimited comment with its own prose")
+	})
+}
+
+// terminatorStandIn takes the place of `*/` while rawTerminator renders.
+const terminatorStandIn = "zzTERMINATORzz"
+
+// rawTerminator renders like the Go provider, then writes each `*/` the text
+// holds into the comment as it is.
+type rawTerminator struct{ Provider }
+
+func (p rawTerminator) Render(name string, src []byte, c comment.Comment, text string, opts comment.RenderOptions) ([]byte, error) {
+	span, err := p.Provider.Render(name, src, c, strings.ReplaceAll(text, "*/", terminatorStandIn), opts)
+	return bytes.ReplaceAll(span, []byte(terminatorStandIn), []byte("*/")), err
+}
+
+// lossyBlockProse reads a delimited comment's prose without its last full stop,
+// and a line comment's as the Go provider does.
+type lossyBlockProse struct{ Provider }
+
+func (p lossyBlockProse) Prose(src []byte, c comment.Comment) (string, error) {
+	prose, err := p.Provider.Prose(src, c)
+	if c.Style == comment.StyleBlock {
+		prose = strings.TrimSuffix(prose, ".")
+	}
+	return prose, err
 }
 
 // uncontainedRewrite renders the text and splices it into the file without

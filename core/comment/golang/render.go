@@ -24,11 +24,16 @@ var _ layer.Rewriter = Provider{}
 const tabColumns = 4
 
 // Prose implements layer.Rewriter. Each line of a line comment gives one line
-// of text: what follows its `//`, less one space. A delimited comment has no
-// such form and is refused.
+// of text: what follows its `//`, less one space. A delimited comment gives
+// its text as layer.Layout reads it, without the delimiters, the space beside
+// them or the prefix of each line.
 func (Provider) Prose(src []byte, c layer.Comment) (string, error) {
 	if c.Style != layer.StyleLine {
-		return "", &layer.Refusal{Reason: layer.RefusedBlockComment, Detail: "only line comments are rewritten"}
+		l, err := blockLayout(src, c)
+		if err != nil {
+			return "", err
+		}
+		return l.Text(), nil
 	}
 	lines := strings.Split(string(src[c.Start:c.End]), "\n")
 	for i, line := range lines {
@@ -55,10 +60,11 @@ func (Provider) Prose(src []byte, c layer.Comment) (string, error) {
 // comment goes through go/doc/comment's printer, as gofmt does.
 //
 // A comment after code on its line holds one line of text, since a second line
-// would be a comment of its own. Text a comment cannot hold is refused.
+// would be a comment of its own. Text a comment cannot hold is refused. A
+// delimited comment is rendered by renderBlock.
 func (Provider) Render(name string, src []byte, c layer.Comment, text string, opts layer.RenderOptions) ([]byte, error) {
 	if c.Style != layer.StyleLine {
-		return nil, &layer.Refusal{Reason: layer.RefusedBlockComment, Detail: "only line comments are rewritten"}
+		return renderBlock(name, src, c, text, opts)
 	}
 	lines, err := textLines(text)
 	if err != nil {
@@ -80,7 +86,7 @@ func (Provider) Render(name string, src []byte, c layer.Comment, text string, op
 	}
 	avail := width - columns(indent) - len("// ")
 	lines = wrap(lines, avail)
-	if gofmtFormats(name, src, c) {
+	if gofmtDocGroup(name, src, c) != nil {
 		lines = wrap(printed(lines), avail)
 		lines = printed(lines)
 	}
@@ -98,6 +104,85 @@ func (Provider) Render(name string, src []byte, c layer.Comment, text string, op
 		b.WriteString(marked(line))
 	}
 	return []byte(b.String()), nil
+}
+
+// goBlock is the syntax of a Go delimited comment.
+var goBlock = layer.BlockMarker{Open: "/*", Close: "*/"}
+
+// blockLayout reads the layout of a delimited comment. A comment that opens
+// with a line comment, or holds more than one comment, has none. gofmt writes
+// the lines of a comment it formats as a doc comment with no prefix, so such a
+// comment's text keeps the indentation of its lists and code blocks.
+func blockLayout(src []byte, c layer.Comment) (*layer.Layout, error) {
+	span := src[c.Start:c.End]
+	lineStart := bytes.LastIndexByte(src[:c.Start], '\n') + 1
+	indent := string(src[lineStart:c.Start])
+	if strings.TrimLeft(indent, " \t") != "" {
+		indent = ""
+	}
+	if lineStart == c.Start && bytes.Contains(span, []byte("\n")) && !allStars(string(span)) {
+		if g := gofmtDocGroup("", src, c); g != nil && len(g.List) == 1 {
+			return layer.ParseLayoutWithPrefix(span, goBlock, "")
+		}
+	}
+	return layer.ParseLayout(span, indent, goBlock)
+}
+
+// renderBlock renders text into the layout of the delimited comment c.
+//
+// The comment keeps its delimiters, the space beside them, the prefix of each
+// line and its line ending, so a comment's own text renders to its own bytes.
+// A comment on one line holds one line of text. Over several lines, a paragraph
+// or list item holding a line wider than the width is reflowed as in a line
+// comment. A comment gofmt reformats as a doc comment goes through
+// go/doc/comment's printer, as gofmt does: the whole group in doc position, over
+// several lines, without an asterisk opening each line. Text holding `*/` is
+// refused, because the comment would end there.
+func renderBlock(name string, src []byte, c layer.Comment, text string, opts layer.RenderOptions) ([]byte, error) {
+	layout, err := blockLayout(src, c)
+	if err != nil {
+		return nil, err
+	}
+	lines, err := textLines(text)
+	if err != nil {
+		return nil, err
+	}
+	if layout.Single() {
+		return layout.Render(lines)
+	}
+	width := opts.Width
+	if width <= 0 {
+		width = max(layer.DefaultWidth, widest(src, c))
+	}
+	avail := width - columns(layout.Prefix())
+	lines = wrap(lines, avail)
+	span, err := layout.Render(lines)
+	if err != nil {
+		return nil, err
+	}
+	if g := gofmtDocGroup(name, src, c); g != nil && len(g.List) == 1 && !allStars(string(span)) {
+		lines = wrap(printed(lines), avail)
+		return layout.Render(printed(lines))
+	}
+	return span, nil
+}
+
+// allStars is go/printer's test for an old-style delimited comment, one in
+// which every line after the first opens with an asterisk once its spaces and
+// tabs are skipped. gofmt leaves the text of such a doc comment as it is.
+func allStars(text string) bool {
+	for i := range len(text) {
+		if text[i] == '\n' {
+			j := i + 1
+			for j < len(text) && (text[j] == ' ' || text[j] == '\t') {
+				j++
+			}
+			if j < len(text) && text[j] != '*' {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // marked is one line of text with the comment marker gofmt writes for it.
@@ -190,15 +275,15 @@ func printed(lines []string) []string {
 	return strings.Split(out, "\n")
 }
 
-// gofmtFormats reports whether gofmt reformats the comment group c sits in as
-// a doc comment. It is go/printer's own test: a group that starts a line, ends
-// directly above the next token, follows no import keyword, and precedes a
-// token that is not an identifier.
-func gofmtFormats(name string, src []byte, c layer.Comment) bool {
+// gofmtDocGroup returns the comment group c sits in when gofmt reformats that
+// group as a doc comment, and nil otherwise. It is go/printer's own test: a
+// group that starts a line, ends directly above the next token, follows no
+// import keyword, and precedes a token that is not an identifier.
+func gofmtDocGroup(name string, src []byte, c layer.Comment) *ast.CommentGroup {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, name, src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
-		return false
+		return nil
 	}
 	tf := fset.File(f.Pos())
 	var group *ast.CommentGroup
@@ -209,7 +294,7 @@ func gofmtFormats(name string, src []byte, c layer.Comment) bool {
 		}
 	}
 	if group == nil || tf.PositionFor(group.Pos(), false).Column != 1 {
-		return false
+		return nil
 	}
 	var s goscanner.Scanner
 	s.Init(tf, src, nil, 0)
@@ -217,13 +302,16 @@ func gofmtFormats(name string, src []byte, c layer.Comment) bool {
 	for {
 		pos, tok, lit := s.Scan()
 		if tok == token.EOF {
-			return false
+			return nil
 		}
 		if tok == token.SEMICOLON && lit == "\n" {
 			continue
 		}
 		if pos > group.End() {
-			return tok != token.IDENT && prev != token.IMPORT && pos == group.End()+1
+			if tok != token.IDENT && prev != token.IMPORT && pos == group.End()+1 {
+				return group
+			}
+			return nil
 		}
 		prev = tok
 	}

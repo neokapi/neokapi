@@ -188,9 +188,7 @@ func (s *scanner) prose(run []*ast.Comment, subj subject, docs *docCommentParser
 				style = comment.StyleBlock
 			}
 		}
-		// The run holds no directive, so go/ast's own marker stripping has
-		// nothing to drop.
-		doc := docs.Parse((&ast.CommentGroup{List: lines}).Text())
+		doc := docs.Parse(s.text(lines))
 		runs, err := docRuns(doc)
 		if err != nil {
 			return err
@@ -209,6 +207,26 @@ func (s *scanner) prose(run []*ast.Comment, subj subject, docs *docCommentParser
 	}
 	s.exclude(run[last:], comment.ReasonBlank, "")
 	return nil
+}
+
+// text is what a run of comment lines says once its markers are removed, as
+// go/doc/comment reads it. A delimited comment alone in the run is read through
+// its layout, as a rewrite reads it, so the space beside its delimiters and a
+// prefix such as a line of asterisks stay out of its text. A run of several
+// comments is read by go/ast, which removes each comment's markers. The run
+// holds no directive, so go/ast has nothing else to drop.
+func (s *scanner) text(lines []*ast.Comment) string {
+	if len(lines) == 1 && strings.HasPrefix(lines[0].Text, "/*") {
+		start, end := s.span(lines[0], lines[0])
+		if l, err := blockLayout(s.src, comment.Comment{Start: start, End: end}); err == nil {
+			out := strings.Split(l.Text(), "\n")
+			for i, line := range out {
+				out[i] = strings.TrimRight(line, " \t")
+			}
+			return strings.Join(out, "\n") + "\n"
+		}
+	}
+	return (&ast.CommentGroup{List: lines}).Text()
 }
 
 // isBlank reports whether a comment holds nothing once its markers are removed.
