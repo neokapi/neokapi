@@ -22,6 +22,16 @@ var ErrUnlocated = errors.New("formatter output does not line up with the source
 // FormatterName implements comment.Formatter.
 func (Provider) FormatterName() string { return "gofmt" }
 
+// Format implements comment.Formatter with go/format, the library gofmt is
+// built on.
+func (Provider) Format(name string, src []byte) ([]byte, error) {
+	formatted, err := format.Source(src)
+	if err != nil {
+		return nil, fmt.Errorf("gofmt %s: %w", name, err)
+	}
+	return formatted, nil
+}
+
 // Disagreements implements comment.Formatter with go/format, the library gofmt
 // is built on. The repository runs `gofmt -s`; the simplification it adds
 // rewrites expressions and never touches a comment.
@@ -65,7 +75,7 @@ func (Provider) Disagreements(name string, src []byte, f *comment.File) ([]comme
 
 	var out []comment.Disagreement
 	for gi, group := range before {
-		changed, inserted := diffLines(group.keys(), after[gi].keys())
+		changed, inserted := comment.DiffLines(group.keys(), after[gi].keys())
 		if !anyTrue(changed) && !anyTrue(inserted) {
 			continue
 		}
@@ -187,59 +197,6 @@ func lineOf(tf *token.File, src []byte, c *ast.Comment) commentLine {
 		indent = "" // a trailing comment: what precedes it is code
 	}
 	return commentLine{start: start, indent: indent, text: c.Text}
-}
-
-// maxDiffCells bounds the comparison table. A comment group long enough to
-// exceed it is compared as changed throughout rather than not at all.
-const maxDiffCells = 1 << 22
-
-// diffLines compares a with b. changed[i] reports that a[i] has no counterpart
-// in b; inserted[i] reports that b holds lines with no counterpart in a
-// immediately before a[i] (inserted[len(a)] is after the last line).
-func diffLines(a, b []string) (changed, inserted []bool) {
-	n, m := len(a), len(b)
-	changed, inserted = make([]bool, n), make([]bool, n+1)
-	if (n+1)*(m+1) > maxDiffCells {
-		for i := range changed {
-			changed[i] = true
-		}
-		return changed, inserted
-	}
-	// lcs[i][j] is the length of the longest common subsequence of a[i:] and b[j:].
-	lcs := make([][]int32, n+1)
-	for i := range lcs {
-		lcs[i] = make([]int32, m+1)
-	}
-	for i := n - 1; i >= 0; i-- {
-		for j := m - 1; j >= 0; j-- {
-			if a[i] == b[j] {
-				lcs[i][j] = lcs[i+1][j+1] + 1
-			} else {
-				lcs[i][j] = max(lcs[i+1][j], lcs[i][j+1])
-			}
-		}
-	}
-	i, j := 0, 0
-	for i < n && j < m {
-		switch {
-		case a[i] == b[j]:
-			i++
-			j++
-		case lcs[i+1][j] >= lcs[i][j+1]:
-			changed[i] = true
-			i++
-		default:
-			inserted[i] = true
-			j++
-		}
-	}
-	for ; i < n; i++ {
-		changed[i] = true
-	}
-	if j < m {
-		inserted[n] = true
-	}
-	return changed, inserted
 }
 
 func anyTrue(bs []bool) bool {

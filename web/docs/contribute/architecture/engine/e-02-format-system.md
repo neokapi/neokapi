@@ -627,18 +627,38 @@ by the rewrite and otherwise equal. The rewritten comment must sit on the same
 subject, with the same deprecation marker and the same placeholders: code
 blocks, links, references and list items. Where the language has a formatter,
 it must agree with the rewritten comment and with every comment it agreed with
-before. A rewrite that fails any of these is refused with a reason, and nothing
-is written.
+before, and it must leave as they are the lines of the file it left as they were
+before. The last rule holds code a formatter aligns with a comment, such as the
+body of a one-line function after a `/* */` comment in its signature. A rewrite
+that fails any of these is refused with a reason, and nothing is written.
 
-The Go provider rewrites line comments. It keeps the comment's indentation and
-line ending, and writes each line with the marker gofmt uses. It reflows a
-paragraph or list item only when one of its lines is wider than the comment's
-widest line, or 80 columns, whichever is wider. A comment in the position gofmt
-reformats as a doc comment goes through `go/doc/comment`'s printer, as gofmt
-does. Directives, generated files, the cgo preamble, example output and `/* */`
-comments are not addressable, and a refusal names what the file sets aside.
-`TestProseP3_go` rewrites every Go comment in the repository with its own prose
-and requires each file to stay byte-identical.
+The Go provider rewrites line comments and `/* */` comments. It keeps a line
+comment's indentation and line ending, and writes each line with the marker
+gofmt uses. It reflows a paragraph or list item only when one of its lines is
+wider than the comment's widest line, or 80 columns, whichever is wider. A
+comment in the position gofmt reformats as a doc comment goes through
+`go/doc/comment`'s printer, as gofmt does. Directives, generated files, the cgo
+preamble and example output are not addressable, and a refusal names what the
+file sets aside.
+
+A `/* */` comment is written in the layout it already has, which
+`comment.ParseLayout` reads from its bytes: the delimiters as written, such as
+`/**`, the space beside them, whether text starts on the opener's line or ends
+on the closer's, the prefix each line below the opener's opens with, such as a
+line of ` * `, how an empty line between paragraphs is written, the blank lines
+above and below the text, and the line ending. The text of the comment is what
+remains, and the Go provider reads the comment's prose from that same text, so
+a check and a rewrite read one comment the same way. Rendering a comment's own
+text in its layout reproduces its bytes. A delimited comment ends at the first
+`*/`, so text holding `*/`, or text whose first character completes one with
+the prefix before it, is refused as `terminator`. No escape for `*/` exists
+inside a Go comment, and a rewrite that changed the text to avoid it would write
+prose nobody wrote. A comment made of several comments, such as a `/* */`
+comment beside line comments in one group, has no one layout and is refused as
+`layout`. `TestProseP3_go` rewrites every Go comment in the repository with its
+own prose, and `TestProseP4_go` does the same for every `/* */` comment in the
+repository and in the Go toolchain's source tree, and requires each file to
+stay byte-identical.
 
 `kapi apply` and MCP `apply_edits` reach the rewrite through a `comment` entry,
 addressed by file and the id a check reports. A check gives each finding on a
@@ -651,7 +671,9 @@ before any entry is applied. Before the first comment of a language is written
 in a run, `comment.VerifyRewriter` runs a write canary: a known comment
 rewritten with its own prose must stay byte-identical, and a known-bad text, a
 rewrite guarded by a fingerprint the comment does not have, and a splice one
-byte before the comment must each be refused. When the
+byte before the comment must each be refused. A language with `/* */` comments
+adds one to the canary, which must also rewrite to itself, and text holding its
+closer must be refused as `terminator`. When the
 canary fails, no comment of that language is written. A file's edits apply from
 its last comment to its first, the file is read again before it is written, and
 a check scoped to the written change comes back with the result.

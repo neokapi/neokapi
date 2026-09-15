@@ -103,7 +103,7 @@ project release gates.
 Repair a finding on a code comment, such as `func/Parse` in a Go file, with a
 `comment` entry. Do not edit the file around the comment. The entry names the
 `file`, the comment's `id`, and the `lines` and `comment_sha256` from the finding
-in `kapi check --json`, and `text` holds the new prose without `//` markers:
+in `kapi check --json`, and `text` holds the new prose without comment markers:
 
 ```json
 {"kind":"comment","file":"internal/parse/parse.go","id":"func/Parse","lines":{"first":5,"last":7},"comment_sha256":"<location.comment_sha256 from the finding>","text":"Parse reads the input.\n\nIt stops at the end."}
@@ -121,8 +121,12 @@ kapi apply edits.jsonl
   fingerprint and is still written. Without a fingerprint, pass the prose you
   read in `current_text`; an entry with neither is rejected.
 - A refused edit writes nothing, reports a `reason` and `detail`, and exits on
-  the gate code (3). Directives, generated files, the cgo preamble, example
-  output and `/* */` comments are refused.
+  the gate code (3). Directives, generated files, the cgo preamble and example
+  output are refused.
+- For a `/* */` comment, leave out `/*`, `*/` and the ` * ` that opens each
+  line. kapi writes the text back in the comment's own layout. Text holding
+  `*/` is refused as `terminator`, because the comment would end there:
+  reword it.
 - The result carries a check scoped to what was written. If it reports a
   finding, send another edit for it. Then check the whole change
   (`kapi check --diff-against <base>` or `--staged`) before you report done.

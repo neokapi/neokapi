@@ -64,7 +64,8 @@ func Noinline() {}
 // TestProseP3_go is the P3 rung for Go comments: a comment is rewritten with
 // every byte outside its span identical, the result parses, gofmt agrees, and
 // directives, generated files, the cgo preamble and example output are never
-// addressable. Every Go comment in the repository rewrites to its own bytes.
+// addressable. Every Go comment in the repository rewrites to its own bytes,
+// except one made of several comments, which is refused.
 //
 // The subtests named "must fail" corrupt a rewrite on purpose and assert that
 // the containment check refuses it. Nothing in here skips.
@@ -122,7 +123,7 @@ func TestProseP3_go(t *testing.T) {
 
 	t.Run("every Go comment in the repository rewrites to itself", func(t *testing.T) {
 		files, comments, blockComments := rewriteCorpus(t)
-		t.Logf("rewrite-corpus files=%d comments=%d block-comments-refused=%d", files, comments, blockComments)
+		t.Logf("rewrite-corpus files=%d comments=%d block-comments=%d", files, comments, blockComments)
 		assert.GreaterOrEqual(t, files, corpusMinFiles)
 		assert.GreaterOrEqual(t, comments, corpusMinComments)
 	})
@@ -143,8 +144,8 @@ func TestProseP3_go(t *testing.T) {
 				comment.Target{ID: "import/C", Lines: &fmtpkg.LineRange{First: 3, Last: 3}}, comment.RefusedCgoPreamble},
 			{"an example's output", "x_test.go", "package p\n\nimport \"fmt\"\n\nfunc ExampleParse() {\n\tfmt.Println(1)\n\t// Output: 1\n}\n",
 				comment.Target{ID: "func/ExampleParse/comment", Lines: &fmtpkg.LineRange{First: 7, Last: 7}}, comment.RefusedExampleOutput},
-			{"a block comment", "b.go", "package p\n\n/* Parse parses. */\nfunc Parse() {}\n",
-				comment.Target{ID: "func/Parse"}, comment.RefusedBlockComment},
+			{"a line comment and a delimited comment in one group", "b.go", "package p\n\n// Parse parses.\n/* More. */\nfunc Parse() {}\n",
+				comment.Target{ID: "func/Parse"}, comment.RefusedLayout},
 			{"a comment read at other lines", "s.go", "package p\n\n// Parse parses.\nfunc Parse() {}\n",
 				comment.Target{ID: "func/Parse", Lines: &fmtpkg.LineRange{First: 2, Last: 2}}, comment.RefusedStale},
 		} {
@@ -250,13 +251,14 @@ func TestProseP3_go(t *testing.T) {
 	})
 }
 
-// rewriteCorpus rewrites every line comment in the repository's tracked Go
-// files with its own prose and requires each rewrite to leave the file's bytes
-// and its comment count as they are. Each file is located once and each of its
+// rewriteCorpus rewrites every comment in the repository's tracked Go files
+// with its own prose and requires each rewrite to leave the file's bytes and
+// its comment count as they are. Each file is located once and each of its
 // comments rendered and held to Contain, the two steps Rewrite takes after it
-// locates the file. A delimited comment must be refused. It returns how many
-// files it read, how many comments it rewrote, and how many delimited comments
-// were refused.
+// locates the file. A comment made of several comments has no one layout and
+// is refused as comment.RefusedLayout, which the corpus allows. It returns how
+// many files it read, how many comments it rewrote, and how many of those were
+// delimited comments.
 func rewriteCorpus(t *testing.T) (files, comments, blockComments int) {
 	t.Helper()
 	root := repoRoot(t)
@@ -289,15 +291,10 @@ func rewriteCorpus(t *testing.T) (files, comments, blockComments int) {
 					continue // a fixture that does not parse holds no located comment
 				}
 				ids := located.Blocks()
-				rewrote, refused := 0, 0
+				rewrote, delimited := 0, 0
 				for i, c := range located.Comments {
 					prose, perr := Provider{}.Prose(src, c)
-					if c.Style == comment.StyleBlock {
-						_, err := comment.Rewrite(Provider{}, path, src, nil, comment.Target{ID: ids[i].ID}, "Prose.", comment.RenderOptions{})
-						if refusal, ok := comment.AsRefusal(err); !ok || refusal.Reason != comment.RefusedBlockComment {
-							t.Errorf("%s:%d: a delimited comment was not refused as one: %v", rel, c.Lines.First, err)
-						}
-						refused++
+					if refusal, ok := comment.AsRefusal(perr); ok && refusal.Reason == comment.RefusedLayout {
 						continue
 					}
 					if perr != nil {
@@ -320,11 +317,14 @@ func rewriteCorpus(t *testing.T) (files, comments, blockComments int) {
 						continue
 					}
 					rewrote++
+					if c.Style == comment.StyleBlock {
+						delimited++
+					}
 				}
 				mu.Lock()
 				files++
 				comments += rewrote
-				blockComments += refused
+				blockComments += delimited
 				mu.Unlock()
 			}
 		})
