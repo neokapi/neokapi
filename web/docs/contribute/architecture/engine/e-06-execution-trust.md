@@ -189,8 +189,10 @@ terminal. A decision is recorded only by answering that prompt.
 
 ## Consequences
 
-- **Nothing in this repository prompts.** No recipe here, no sample, and no
-  example names an exec-class tool.
+- **No recipe in this repository arms an exec-class tool.** No recipe here, no
+  sample, and no example names one. A comment edit in this repository's own
+  TypeScript does prompt: the root `vite.config.ts` imports `vite-plus`, which
+  selects oxfmt, and `kapi apply` asks before running it.
 - **The tools are not removed, deprecated, or hidden.** `external-command` and
   `script` keep their config factories, their schemas, their CLI commands, and
   their reference pages ([E-03](e-03-tool-system.md)). The change is that a

@@ -53,7 +53,7 @@ type changeEntry struct {
 	CommentSHA256 string            `json:"comment_sha256,omitempty" jsonschema:"for kind=comment: the comment_sha256 check_file reports for the comment; an edit to a comment whose bytes differ is refused as changed"`
 	CurrentText   *string           `json:"current_text,omitempty" jsonschema:"for kind=comment: the comment's prose as you read it, without comment markers; guards the edit when comment_sha256 is not given"`
 	Lines         *format.LineRange `json:"lines,omitempty" jsonschema:"for kind=comment: the lines check_file reported for the comment"`
-	Width         int               `json:"width,omitempty" jsonschema:"for kind=comment: the column a line of prose wraps at; 0 keeps the width of the comment being rewritten, and never less than 80"`
+	Width         int               `json:"width,omitempty" jsonschema:"for kind=comment: the column a line of prose wraps at; 0 keeps the width of the comment being rewritten, and never less than 80. The languages a comment plugin reads keep the comment's own line breaks, so width does not apply to them"`
 
 	// asset common
 	Op string `json:"op,omitempty"`
@@ -170,12 +170,20 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		}
 	}
 
+	// --diff writes a unified diff for a person and --json a report for a
+	// program. With both, the diff goes to stderr, so stdout holds one JSON
+	// document; the report carries each comment's diff as well.
+	diffOut := cmd.OutOrStdout()
+	if asJSON {
+		diffOut = cmd.ErrOrStderr()
+	}
+
 	for _, file := range fileOrder {
 		report := &coretools.ApplyReport{}
 		byID, byHash := buildEditMaps(byFile[file])
 		t := coretools.NewApplyEditsTool(byID, byHash, report)
 		if diff {
-			if _, derr := a.rewriteDiffFile(ctx, file, t, cmd.OutOrStdout()); derr != nil {
+			if _, derr := a.rewriteDiffFile(ctx, file, t, diffOut); derr != nil {
 				if errors.Is(derr, context.Canceled) {
 					return derr
 				}
@@ -198,7 +206,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		out.Comments = a.applyComments(ctx, cmd, comments, diff, backupSuffix, a.applyFormatterTrust(cmd, path == "" || path == StdinName))
 		if diff {
 			for _, f := range out.Comments {
-				fmt.Fprint(cmd.OutOrStdout(), f.Diff)
+				fmt.Fprint(diffOut, f.Diff)
 			}
 			if !asJSON {
 				printCommentResults(cmd.ErrOrStderr(), out.Comments)

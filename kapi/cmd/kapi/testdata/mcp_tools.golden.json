@@ -117,7 +117,7 @@
                 ]
               },
               "width": {
-                "description": "for kind=comment: the column a line of prose wraps at; 0 keeps the width of the comment being rewritten, and never less than 80",
+                "description": "for kind=comment: the column a line of prose wraps at; 0 keeps the width of the comment being rewritten, and never less than 80. The languages a comment plugin reads keep the comment's own line breaks, so width does not apply to them",
                 "type": "integer"
               }
             },

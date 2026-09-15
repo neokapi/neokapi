@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/atomicfile"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -1281,54 +1282,41 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 	// some writers (e.g. the KBF writer) only emit their payload in Close,
 	// so the buffer must outlive Close. Output bytes are unchanged.
 	//
-	// Write into a sibling temp file and rename on success (#608, S1).
+	// Write into a sibling temp file and rename onto the destination on
+	// success (#608, S1), through atomicfile: a destination that is a symlink
+	// keeps its link and an existing file keeps its mode.
 	// The executor and writer run concurrently — the writer drains the tool
 	// output channel directly. Because output is produced incrementally, a
 	// tool/writer error could leave a partial file at outputPath; the
 	// temp-then-rename keeps the destination all-or-nothing, matching the
 	// pre-S1 contract where a tool error produced no output file at all.
-	tmpFile, err := os.CreateTemp(outputDir, ".kapi-out-*")
-	if err != nil {
-		return ClassifyOutputPathError(outputPath, outputDir, err)
-	}
-	tmpPath := tmpFile.Name()
-	failTmp := func(format string, args ...any) error {
-		_ = tmpFile.Close()
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf(format, args...)
-	}
-
-	bw := bufio.NewWriterSize(tmpFile, 64*1024)
-	if err := writer.SetOutputWriter(bw); err != nil {
-		return failTmp("set output: %w", err)
-	}
-
-	if err := r.runExecuteWrite(ctx, flowName, tools, feed, targetLang, writer, sourcePath, inputContent, label); err != nil {
-		_ = tmpFile.Close()
-		_ = os.Remove(tmpPath)
-		return err
-	}
-
-	// Close the writer first (lets writers that emit on Close, like KBF,
-	// finish writing into the buffer), then flush the buffer to the file,
-	// then close the file, then rename into place. Any error removes the
-	// temp file so outputPath is never left partial.
-	if cerr := writer.Close(); cerr != nil {
-		return failTmp("close writer %q: %w", label, cerr)
-	}
-	if ferr := bw.Flush(); ferr != nil {
-		return failTmp("flush %q: %w", label, ferr)
-	}
-	if ferr := tmpFile.Close(); ferr != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("close %q: %w", label, ferr)
-	}
-	if rerr := os.Rename(tmpPath, outputPath); rerr != nil {
-		_ = os.Remove(tmpPath)
-		// The pre-flight cleared this path, so a failure here is a race (or a
-		// condition stat cannot see). Classify it the same way rather than
-		// leaking the raw errno.
-		return ClassifyOutputPathError(outputPath, outputDir, rerr)
+	_, werr := atomicfile.Replace(outputPath, func(dst io.Writer) error {
+		bw := bufio.NewWriterSize(dst, 64*1024)
+		if err := writer.SetOutputWriter(bw); err != nil {
+			return fmt.Errorf("set output: %w", err)
+		}
+		if err := r.runExecuteWrite(ctx, flowName, tools, feed, targetLang, writer, sourcePath, inputContent, label); err != nil {
+			return err
+		}
+		// Close the writer first (lets writers that emit on Close, like KBF,
+		// finish writing into the buffer), then flush the buffer to the file.
+		if cerr := writer.Close(); cerr != nil {
+			return fmt.Errorf("close writer %q: %w", label, cerr)
+		}
+		if ferr := bw.Flush(); ferr != nil {
+			return fmt.Errorf("flush %q: %w", label, ferr)
+		}
+		return nil
+	})
+	if werr != nil {
+		// The pre-flight cleared this path, so a failure at the destination is
+		// a race (or a condition stat cannot see). Classify it the same way
+		// rather than leaking the raw errno. A failure of the run itself is
+		// the run's error, and travels as it is.
+		if perr, ok := errors.AsType[*atomicfile.Error](werr); ok {
+			return ClassifyOutputPathError(outputPath, outputDir, perr.Err)
+		}
+		return werr
 	}
 	return nil
 }

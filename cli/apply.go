@@ -39,20 +39,22 @@ drops the unit back below reviewed. 'kapi commit' writes it into the committed
 record under .kapi/state/.
 
 A comment edit (kind:"comment") rewrites one code comment, addressed by its file
-and the id 'kapi check' reports for it, such as func/Parse. Its text is the
-comment's prose without comment markers. It carries the comment_sha256 that
+and the id 'kapi check' reports for it, such as func/Parse, in Go and in the
+languages a comment plugin reads (TypeScript, TSX and JavaScript among them).
+Its text is the comment's prose without comment markers. It carries the comment_sha256 that
 'kapi check --json' reports for the comment, or the prose as read in
 current_text, and a comment that changed since is refused. Every byte outside
 the comment stays as it is, the result must parse, and the language's formatter
-must agree. A directive, a generated file's comment, a block comment, and text
-that drops or adds a code block or reference are refused with a reason and
-write nothing. Each written file is checked again over what changed, and the
+must agree. Running that formatter runs code the project controls, so kapi asks
+once per project, in a terminal, and records the answer. A directive, a
+generated file's comment, and text that drops or adds a code block or reference
+are refused with a reason and write nothing. Each written file is checked again over what changed, and the
 findings are reported beside the edit.
 
 The change-set is JSONL (one entry per line), read from CHANGESET or, with no
 argument or "-", from standard input. Content entries name their own file, so
-apply writes those files in place; --diff previews the content changes and
-writes nothing. No AI provider is required.`,
+apply writes those files in place; --diff previews content and comment changes
+and writes nothing. No AI provider is required.`,
 		Example: `  kapi inspect report.docx --jsonl | edit-the-text | kapi apply
   kapi apply changeset.jsonl
   kapi apply changeset.jsonl --diff
@@ -77,7 +79,7 @@ writes nothing. No AI provider is required.`,
 		},
 	}
 	f := cmd.Flags()
-	f.BoolVar(&diff, "diff", false, "preview content changes as a unified diff and write nothing")
+	f.BoolVar(&diff, "diff", false, "preview content and comment changes as a unified diff and write nothing")
 	f.BoolVar(&asJSON, "json", false, "print the apply report as JSON")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format for content files (default: auto-detect)")
 	a.AddSourceLangFlag(f)
