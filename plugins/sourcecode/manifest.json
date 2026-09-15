@@ -1,13 +1,13 @@
 {
   "manifest_version": "1",
   "plugin": "sourcecode",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Reads product copy and code comments out of source files, such as package descriptions, installer strings, cask notes and doc comments. The plugin never writes a file: kapi writes a comment back, in a language declared writable, only when the project's formatter agrees.",
   "homepage": "https://github.com/neokapi/neokapi/tree/main/plugins/sourcecode",
   "author": "Neokapi <hello@neokapi.dev>",
   "license": "Apache-2.0",
   "binary": "kapi-sourcecode",
-  "min_kapi_version": "1.2.0-rc30",
+  "min_kapi_version": "1.2.0",
   "group": "neokapi",
   "capabilities": {
     "selfcheck": true,
