@@ -2374,7 +2374,7 @@ func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindi
 			point := a.GovernancePointFor("", "")
 			if inputPath != "" {
 				root, aerr := filepath.Abs(filepath.Dir(projectPath))
-				if rel, ok := projectRelPath(root, inputPath); aerr == nil && ok {
+				if rel, ok := projectRelPath(root, inputPath); aerr == nil && ok && !ProjectIgnores(root, rel) {
 					point = a.GovernancePointFor("", rel)
 				}
 			}

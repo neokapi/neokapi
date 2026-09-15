@@ -325,7 +325,7 @@ func (a *App) resolveProjectVoiceProfile(cmd Command, locale, channel, persona s
 	defer release()
 
 	// Where the first named file sits, if any. A path outside every declared
-	// glob resolves the project defaults.
+	// glob, or one the project's ignore rules match, resolves the project defaults.
 	point := a.GovernancePointFor("", "")
 	for _, path := range paths {
 		if path == "" {
@@ -337,7 +337,7 @@ func (a *App) resolveProjectVoiceProfile(cmd Command, locale, channel, persona s
 				abs = filepath.Join(cwd, path)
 			}
 		}
-		if rel, rerr := filepath.Rel(root, abs); rerr == nil && !strings.HasPrefix(rel, "..") {
+		if rel, rerr := filepath.Rel(root, abs); rerr == nil && !strings.HasPrefix(rel, "..") && !ProjectIgnores(root, filepath.ToSlash(rel)) {
 			point = a.GovernancePointFor("", filepath.ToSlash(rel))
 			point.NoReader = a.NoReaderFor(abs)
 		}

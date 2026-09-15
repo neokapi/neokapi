@@ -262,10 +262,15 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 				req.Path, root)
 			return src, noop
 		}
-		point = contextPathPoint(proj, req, matched, a.NoReaderFor(filepath.Join(root, filepath.FromSlash(matched))), src.At)
-		src.Path, src.Collection = matched, proj.ContentCollectionForPath(matched, point.NoReader)
-		if point.Comments {
-			src.Collection = proj.CollectionForPath(matched)
+		src.Path = matched
+		// A file the project's ignore rules match is content the project does not
+		// declare, so it sits at the project's default point and in no collection.
+		if !ProjectIgnores(root, matched) {
+			point = contextPathPoint(proj, req, matched, a.NoReaderFor(filepath.Join(root, filepath.FromSlash(matched))), src.At)
+			src.Collection = proj.ContentCollectionForPath(matched, point.NoReader)
+			if point.Comments {
+				src.Collection = proj.CollectionForPath(matched)
+			}
 		}
 	}
 

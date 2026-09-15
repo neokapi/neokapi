@@ -1429,7 +1429,8 @@ func (t *checkTerms) forPoint(ctx context.Context, point project.GovernancePoint
 }
 
 // governancePointForFile is the point a source file sits at: its own, when the
-// file is inside the project, and the project default otherwise.
+// file is inside the project and its ignore rules leave it alone, and the
+// project default otherwise.
 func (a *App) governancePointForFile(root, file string) project.GovernancePoint {
 	abs := file
 	if !filepath.IsAbs(abs) {
@@ -1437,7 +1438,7 @@ func (a *App) governancePointForFile(root, file string) project.GovernancePoint 
 			abs = r
 		}
 	}
-	if rel, ok := projectRelPath(root, abs); ok {
+	if rel, ok := projectRelPath(root, abs); ok && !ProjectIgnores(root, rel) {
 		point := a.GovernancePointFor("", rel)
 		point.NoReader = a.NoReaderFor(abs)
 		return point
