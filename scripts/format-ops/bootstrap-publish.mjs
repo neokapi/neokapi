@@ -26,7 +26,9 @@
 //          JSON (for the date-dedupe), the ledger.
 // Outputs: web/static/data/format-maturity.json (+ history), the generated
 //          block in docs/internals/format-maturity.md, support.yaml
-//          last_certified, and a triage-score run record in the ledger.
+//          last_certified, a triage-score run record in the ledger, and the
+//          /evals index (web/src/pages/evals/_index.json), which copies the
+//          dataset's date.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync, existsSync, mkdtempSync } from 'node:fs'
@@ -358,6 +360,9 @@ if (existsSync(P.ledger)) {
   })
   writeFileSync(P.ledger, JSON.stringify(ledger, null, 2) + '\n')
 }
+
+// ── the /evals index copies the dataset's date, so it is rebuilt with it ────
+execFileSync('go', ['run', './scripts/evalindex'], { cwd: ROOT, stdio: 'inherit' })
 
 console.log(`bootstrap-publish: wrote ${P.dataset} (${rows.length} formats, ${TODAY})`)
 for (const axis of S.AXIS_IDS) console.log(`  ${axis.padEnd(11)} ${JSON.stringify(byAxisDist[axis])}`)

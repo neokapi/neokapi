@@ -838,7 +838,8 @@ ${json}
    - rituals."triage-score".last_run = TODAY
    - rituals."triage-score".watermarks: core_formats_sha = output of \`git log -1 --format=%H -- core/formats\`; audit_sha = the sha256 hex of \`python3 .skills/refresh-format-maturity/scripts/audit-format.py --all --json | shasum -a 256\`; scorer_version = 5; axes_published = ["engine","vocabulary","editor","knowledge","corpus","security","structure","prose"]. Leave model_id and prompt_sha as they are.
    - append to runs[] (append-only — never modify existing entries): {"date": TODAY, "ritual": "triage-score", "commit": output of \`git rev-parse HEAD\`, "model_id": "", "outcome": "published", "evidence": [], "followups": []}
-7. Every edited JSON file MUST be 2-space indented (the repo formatter, \`vp check\`, requires it). Verify every edited JSON file parses as valid JSON. Report the engine level distribution and the per-axis distributions you published.`
+7. Every edited JSON file MUST be 2-space indented (the repo formatter, \`vp check\`, requires it). Verify every edited JSON file parses as valid JSON. Report the engine level distribution and the per-axis distributions you published.
+8. Regenerate the /evals index, which copies the dataset's date: run \`go run ./scripts/evalindex\` (it rewrites web/src/pages/evals/_index.json), then \`go test ./scripts/evalindex/\`, and report whether the test passed.`
 }
 
 function buildDataset(rows, runIntegrity, tierByFmt, languages = []) {
