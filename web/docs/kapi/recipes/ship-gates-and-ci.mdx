@@ -64,7 +64,7 @@ jobs:
   ship-gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: neokapi/setup-kapi@v1
       # Exits 3 (failing the job) when a voice, terminology, check,
       # staleness or coverage gate is unmet, and 4 when a gate did not run.

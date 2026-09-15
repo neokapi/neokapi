@@ -160,7 +160,7 @@ jobs:
   source-checks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: neokapi/setup-kapi@v1
         with:

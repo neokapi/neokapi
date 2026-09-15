@@ -25,7 +25,7 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: neokapi/setup-kapi@v1
         with:
           plugins: ""
@@ -54,7 +54,7 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: neokapi/setup-kapi@v1
         with:
           plugins: ""
@@ -86,7 +86,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: neokapi/setup-kapi@v1
         with:
           plugins: ""

@@ -21,7 +21,7 @@ Add `neokapi/setup-kapi@v1` to your workflow:
 
 ```yaml
 steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@v7
 
   - uses: neokapi/setup-kapi@v1
 ```
@@ -49,7 +49,7 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 The simplest CI pattern uses two actions together:
 
 - [`neokapi/setup-kapi`](https://github.com/neokapi/setup-kapi): installs kapi (the bowrain plugin is included by default)
-- [`neokapi/kapi-action`](https://github.com/neokapi/kapi-action): runs a `kapi` command (here, `kapi up`) and commits the results
+- [`neokapi/kapi-action`](https://github.com/neokapi/kapi-action): runs a `kapi` command (here, `kapi up`) and reports what changed, for a step of your own to deliver
 
 ```yaml
 name: Catch up
@@ -68,7 +68,7 @@ jobs:
   up:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: neokapi/setup-kapi@v1
         with:
@@ -80,21 +80,33 @@ jobs:
         with:
           command: up
 
-      - name: Summary
-        if: steps.up.outputs.committed == 'true'
-        run: echo "Results committed at ${{ steps.up.outputs.commit-sha }}"
+      - name: Commit the results
+        if: steps.up.outputs.has-changes == 'true'
+        env:
+          OUTCOME: ${{ steps.up.outputs.outcome }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: update translations via kapi ($OUTCOME)"
+          git push
 ```
 
-With `command: up` (the default), the action runs `kapi up` (the kapi loop on the server: push → catch up → pull), then checks for changes, commits, and pushes. A run that **caught up** (`converged`: every gated scope cleared its ship gate) commits the produced results; a run that **parked** (work remains that needs a person) commits what did catch up and annotates the parked locales; a **failed** run exits non-zero and commits nothing. It sets outputs you can use in subsequent steps:
+With `command: up` (the default), the action runs `kapi up` (the kapi loop on the server: push → catch up → pull) and reports what the run left in the working tree. The action commits nothing; the last step above commits and pushes. A run that **caught up** (`converged`: every gated scope cleared its ship gate) leaves the produced results; a run that **parked** (work remains that needs a person) leaves what did catch up and annotates the parked locales; a **failed** run exits non-zero, so the steps after it are skipped. It sets outputs you can use in subsequent steps:
 
-| Output           | Description                                                        |
-| ---------------- | ------------------------------------------------------------------ |
-| `status`         | `success`, `no-changes`, or `failed`                               |
-| `outcome`        | With `command: up`: `converged` or `parked`                        |
-| `passes`         | With `command: up`: how many reconciliation passes the run took    |
-| `parked-locales` | With `command: up`: comma-separated locales still short of their gate |
-| `committed`      | `true` if a commit was created                                     |
-| `commit-sha`     | SHA of the created commit                                          |
+| Output              | Description                                                        |
+| ------------------- | ------------------------------------------------------------------ |
+| `status`            | `success`, `no-changes`, or `failed`                               |
+| `outcome`           | With `command: up`: `converged` or `parked`                        |
+| `passes`            | With `command: up`: how many reconciliation passes the run took    |
+| `parked-locales`    | With `command: up`: comma-separated locales still short of their gate |
+| `gate`              | With `command: check`: `pass` or `fail`                            |
+| `result`            | With `command: check`: `passed`, `failed`, `did_not_run`, or `error` |
+| `did-not-run-cause` | With `command: check`, when `result` is `did_not_run`: the cause kapi reported |
+| `has-changes`       | `true` when the run left changes in the working tree               |
+| `changed-files`     | Newline-separated paths the run changed                            |
+
+With `plan: true`, the `plan-*` outputs carry the pending units, the units content memory recovers, the units left for AI and the token estimate.
 
 ### kapi-action Inputs
 
@@ -104,19 +116,15 @@ With `command: up` (the default), the action runs `kapi up` (the kapi loop on th
 | `args`           | `""`                                    | Additional arguments                     |
 | `project`        | `""`                                    | Path to the `kapi.yaml` recipe (`-p` flag)   |
 | `plan`           | `false`                                 | With `command: up`, dry-run instead (`kapi up --plan`): report pending work, memory reuse, and a token estimate; no writes, no provider calls. Pairs with `pr-comment` to post the cost of a change on its PR |
-| `fail-on-parked` | `false`                                 | With `command: up`, fail the workflow when the run parks instead of committing partial progress |
-| `commit`         | `true`                                  | Whether to commit changes                |
-| `commit-message` | `chore: update translations via kapi`   | Commit message                           |
-| `create-pull-request` | `false`                            | Deliver the changes as a branch and pull request instead of committing to the current branch |
-| `pr-comment`     | `false`                                 | On pull-request events, post one sticky comment with the report (plan, `kapi up` outcome, or gate result) that re-runs update in place |
-| `git-user-name`  | `Kapi Bot`                              | Git committer name                       |
-| `git-user-email` | `bot@kapi.dev`                          | Git committer email                      |
-| `paths`          | `""` (all changes)                      | Space-separated paths to stage for commit |
+| `fail-on-parked` | `false`                                 | With `command: up`, fail the workflow when the run parks instead of reporting partial progress |
+| `pr-comment`     | `false`                                 | On pull-request events, post one sticky comment with the report (plan, `kapi up` outcome, or check result) that re-runs update in place |
+| `token`          | `github.token`                          | GitHub token for the sticky PR comment   |
+| `paths`          | `""` (the whole working tree)           | Space-separated paths to scan for changes |
 
 :::note
-The workflow needs `permissions: contents: write` for the action to push
-commits, plus `pull-requests: write` when `create-pull-request` or
-`pr-comment` is used.
+The workflow needs `permissions: contents: write` for your delivery step to
+push commits, plus `pull-requests: write` when `pr-comment` is used or the
+delivery step opens a pull request.
 :::
 
 ## Reusable workflows
@@ -196,7 +204,7 @@ jobs:
   ship-gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: neokapi/setup-kapi@v1
 
@@ -228,7 +236,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: neokapi/setup-kapi@v1
         with:
@@ -244,8 +252,7 @@ The `auth-token` and `server` inputs export `BOWRAIN_AUTH_TOKEN` and `BOWRAIN_SE
 ## Example: Scheduled catch-up
 
 Catch up on a schedule (for example nightly) to keep target locales up to date.
-`kapi-action` runs `kapi up` and handles the commit, so no manual git plumbing
-is needed:
+`kapi-action` runs `kapi up`, and the last step commits what the run changed:
 
 ```yaml
 name: Nightly catch-up
@@ -261,7 +268,7 @@ jobs:
   up:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: neokapi/setup-kapi@v1
         with:
@@ -269,6 +276,16 @@ jobs:
           server: https://dev.bowrain.cloud
 
       - uses: neokapi/kapi-action@v1
+        id: up
+
+      - name: Commit the results
+        if: steps.up.outputs.has-changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: update translations via kapi"
+          git push
 ```
 
 To draft specific files ad hoc instead of catching a project up, `kapi
@@ -292,7 +309,7 @@ jobs:
   pull:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: neokapi/setup-kapi@v1
         with:
