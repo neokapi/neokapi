@@ -383,10 +383,16 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			continue
 		}
 		kept = append(kept, rf)
+		// A file whose item names no target has no destination in any
+		// language. It extracts and settles with the rest of the source, and
+		// no locale pass runs over it.
+		if rf.Item == nil || rf.Item.Target == "" {
+			continue
+		}
 		sources = append(sources, rf.Path)
 	}
 	resolved = kept
-	if len(sources) == 0 {
+	if len(resolved) == 0 {
 		if !unread.empty() {
 			// Nothing a run could read is nothing converged, never a run that
 			// found every scope shippable.
