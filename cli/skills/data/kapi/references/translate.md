@@ -187,7 +187,10 @@ rather than rewording the translation. A source term matches as a whole word, so
 source a term also matches with -s, -es, -ed or -ing added (-d after a final e),
 unless it lists forms, which then replace those endings. A source term in another
 language matches as written or in its listed forms, which
-`kapi terms expand --locale <source language>` proposes.
+`kapi terms expand --locale <source language>` proposes. A term inside the
+source's inline code, a quoted `kapi` command, an example command line or a flag
+name is not demanded, because code keeps its words in a translation. Voice term
+rules leave code out with `scope: prose` instead.
 
 Use the approved (preferred) term; avoid deprecated/forbidden ones. A bound
 terms store also feeds the translation step, and so does a `term_rules:` list in

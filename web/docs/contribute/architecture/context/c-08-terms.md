@@ -236,8 +236,11 @@ written or as a form the term declares. Placeholders are syntax on both sides
 reads program syntax as syntax (`check.TermText`): inline code and fenced
 blocks, a kapi command in quotes such as 'kapi check --staged', an indented
 example command line up to its shell comment, and a flag name such as
-`--diff-range`. A command a translation keeps as written therefore demands no
-rendering, and the same word in the prose beside it still does. A
+`--diff-range`. Code keeps its words in a translation, so a term written in the
+source's code owes no rendering whatever the rule's scope, and the same word in
+the prose beside it still does. A voice term rule reports where a term is
+written rather than what a translation owes, so it reads code and leaves it out
+only when its `scope` is `prose`. A
 do-not-translate rule reads the source with only its placeholders as syntax, so
 a product name inside a command is still held to being kept. Where the terms of two rules cover the same
 words, only the longer one is demanded.
@@ -384,6 +387,8 @@ The framework ships terminology tools as ordinary pipeline stages:
   `terms.Locate`: the concepts in the store and the rules a project carries under
   `term_rules:`, so terminology declared in a recipe counts as much as
   terminology decided in the store. Downstream tools use these for context.
+  An occurrence is where a reader sees a term written, so both sources read
+  code as written, with only placeholder names masked.
 - **`term-check`** (validate): holds a target to the renderings its
   `term_rules:` require, finding source terms by word and renderings by
   containment as described above. A do-not-translate rule names no rendering:

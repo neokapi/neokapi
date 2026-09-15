@@ -205,6 +205,10 @@ Three pipeline tools bring terminology into the flow:
   `replacement`, a `severity`, and optionally a `concept_id` that ties the rule
   to a concept here). A concept marked do-not-translate yields a rule with no
   replacement, and the check fails a target that does not keep its term verbatim.
+  A term written in the source's inline code, a quoted `kapi` command, an
+  example command line or a flag name owes no rendering, because code keeps its
+  words in a translation; the prose around it is checked as usual. A voice
+  profile's term rules leave code out with `scope: prose` instead.
   A rule whose `severity` is `minor` warns; any other value, including unset,
   fails, because a rule resolved from a store carries no severity and must not
   be silently downgraded.
