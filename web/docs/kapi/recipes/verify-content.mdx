@@ -149,9 +149,7 @@ jobs:
           args: --diff-range origin/${{ github.base_ref }}...HEAD --strict
 ```
 
-`--diff-range` needs kapi 1.2.0-rc32 or later, so the job pins `version:`.
-setup-kapi's default, `latest`, installs the newest stable release, and a
-release candidate is reachable only through a pin. `fetch-depth: 0` fetches the base branch and the history kapi needs to find the
+`fetch-depth: 0` fetches the base branch and the history kapi needs to find the
 merge base. With `A...B`, the job checks only what the pull request changed,
 however far the base branch has moved since. A failed gate exits `3`, which the
 action reports as an unmet gate. A check that did not run fails the job too.

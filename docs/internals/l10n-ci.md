@@ -268,7 +268,8 @@ bowrain.cloud, nightly and on demand. It is deliberately unremarkable:
 ```yaml
 - uses: neokapi/setup-kapi@v1
   with:
-    plugins: bowrain
+    version: "1.2.0-rc32"
+    plugins: bowrain@1.2.0-rc32
     auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
 - run: make l10n-extract
 - uses: neokapi/kapi-action@v1
