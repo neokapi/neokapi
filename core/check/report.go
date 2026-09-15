@@ -172,8 +172,12 @@ type Location struct {
 	// Lines are the lines of File the whole block spans, when the block's
 	// position in the file is known. They locate the block, not the finding
 	// inside it, which Anchor does.
-	Lines   *format.LineRange `json:"lines,omitempty"`
-	Snippet string            `json:"snippet,omitempty"`
+	Lines *format.LineRange `json:"lines,omitempty"`
+	// CommentSHA256 is the hex SHA-256 of the bytes of the comment a finding
+	// sits on (comment.Fingerprint), set when its block is a comment. A comment
+	// edit carries it back, so a comment that changed since is refused.
+	CommentSHA256 string `json:"comment_sha256,omitempty"`
+	Snippet       string `json:"snippet,omitempty"`
 }
 
 // RuleID builds the stable "<check>.<category>" rule id.

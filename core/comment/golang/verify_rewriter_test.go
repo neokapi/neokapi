@@ -23,6 +23,14 @@ func TestVerifyRewriter(t *testing.T) {
 		assert.Contains(t, err.Error(), "must be refused")
 	})
 
+	t.Run("must fail: a rewrite that ignores the fingerprint", func(t *testing.T) {
+		err := comment.VerifyRewriter(Provider{}, func(p comment.Provider, name string, src []byte, declared comment.Directives, target comment.Target, text string, opts comment.RenderOptions) (*comment.Rewritten, error) {
+			return comment.Rewrite(p, name, src, declared, comment.Target{ID: target.ID}, text, opts)
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "refused as changed")
+	})
+
 	t.Run("must fail: a provider whose prose loses a byte", func(t *testing.T) {
 		err := comment.VerifyRewriter(lossyProse{}, comment.Rewrite)
 		require.Error(t, err)

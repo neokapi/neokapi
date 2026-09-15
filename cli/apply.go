@@ -40,10 +40,11 @@ record under .kapi/state/.
 
 A comment edit (kind:"comment") rewrites one code comment, addressed by its file
 and the id 'kapi check' reports for it, such as func/Parse. Its text is the
-comment's prose without comment markers, and its lines are the lines the check
-reported. Every byte outside the comment stays as it is, the result must parse,
-and the language's formatter must agree. A directive, a generated file's
-comment, a block comment, a comment that has moved since it was read, and text
+comment's prose without comment markers. It carries the comment_sha256 that
+'kapi check --json' reports for the comment, or the prose as read in
+current_text, and a comment that changed since is refused. Every byte outside
+the comment stays as it is, the result must parse, and the language's formatter
+must agree. A directive, a generated file's comment, a block comment, and text
 that drops or adds a code block or reference are refused with a reason and
 write nothing. Each written file is checked again over what changed, and the
 findings are reported beside the edit.
@@ -57,7 +58,7 @@ writes nothing. No AI provider is required.`,
   kapi apply changeset.jsonl --diff
   kapi status --review --json | approve-units | kapi apply
   kapi apply changeset.jsonl --in-place=.bak
-  echo '{"kind":"comment","file":"parse.go","id":"func/Parse","lines":{"first":3,"last":4},"text":"Parse reads the input."}' | kapi apply`,
+  echo '{"kind":"comment","file":"parse.go","id":"func/Parse","lines":{"first":3,"last":4},"comment_sha256":"<from kapi check --json>","text":"Parse reads the input."}' | kapi apply`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inPlace := cmd.Flags().Changed("in-place")

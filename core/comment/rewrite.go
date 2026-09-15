@@ -2,6 +2,8 @@ package comment
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -50,8 +52,9 @@ type RewriteCanary struct {
 // VerifyRewriter runs p's rewrite canary through rewrite and Contain, and
 // returns what failed, or nil when p's comments can be written. Rewriting the
 // canary's comment with its own prose must leave the file as it is. Rewriting
-// it with the refused text must be refused. A rewrite spliced one byte before
-// the comment's span must be refused as uncontained.
+// it with the refused text must be refused, and so must a rewrite guarded by a
+// fingerprint the comment does not have. A rewrite spliced one byte before the
+// comment's span must be refused as uncontained.
 func VerifyRewriter(p Provider, rewrite RewriteFunc) error {
 	r, ok := p.(Rewriter)
 	if !ok {
@@ -72,19 +75,27 @@ func VerifyRewriter(p Provider, rewrite RewriteFunc) error {
 	if err != nil {
 		return fmt.Errorf("the rewrite canary's prose could not be read: %w", err)
 	}
-	same, err := rewrite(p, c.Name, c.Source, nil, Target{ID: c.Block, Lines: &target.Lines}, prose, RenderOptions{})
+	fingerprint := Fingerprint(c.Source, target)
+	same, err := rewrite(p, c.Name, c.Source, nil, Target{ID: c.Block, Fingerprint: fingerprint, Lines: &target.Lines}, prose, RenderOptions{})
 	if err != nil {
 		return fmt.Errorf("rewriting the canary's comment with its own prose: %w", err)
 	}
 	if !bytes.Equal(same.Source, c.Source) {
 		return errors.New("rewriting the canary's comment with its own prose changed the file")
 	}
-	_, err = rewrite(p, c.Name, c.Source, nil, Target{ID: c.Block}, c.Refused, RenderOptions{})
+	_, err = rewrite(p, c.Name, c.Source, nil, Target{ID: c.Block, Fingerprint: fingerprint}, c.Refused, RenderOptions{})
 	if err == nil {
 		return fmt.Errorf("the canary's comment was rewritten with %q, which must be refused", c.Refused)
 	}
 	if _, ok := AsRefusal(err); !ok {
 		return fmt.Errorf("rewriting the canary's comment with %q failed without a refusal: %w", c.Refused, err)
+	}
+	_, err = rewrite(p, c.Name, c.Source, nil, Target{ID: c.Block, Fingerprint: strings.Repeat("0", len(fingerprint))}, prose, RenderOptions{})
+	if err == nil {
+		return errors.New("a rewrite guarded by a fingerprint the canary's comment does not have was written, and it must be refused as changed")
+	}
+	if refusal, ok := AsRefusal(err); !ok || refusal.Reason != RefusedChanged {
+		return fmt.Errorf("a rewrite guarded by a fingerprint the canary's comment does not have was not refused as changed: %w", err)
 	}
 	span, err := r.Render(c.Name, c.Source, target, prose, RenderOptions{})
 	if err != nil {
@@ -137,6 +148,10 @@ const (
 	RefusedBlockComment RefusalReason = "block-comment"
 	// RefusedStale is a comment that no longer spans the lines it was read at.
 	RefusedStale RefusalReason = "stale"
+	// RefusedChanged is a comment whose bytes or prose differ from the
+	// fingerprint or prose that guards the rewrite: it changed since it was
+	// read.
+	RefusedChanged RefusalReason = "changed"
 	// RefusedText is text the comment cannot hold: an empty text, a control
 	// character, or a line break where the comment holds one line.
 	RefusedText RefusalReason = "text"
@@ -180,13 +195,31 @@ func AsRefusal(err error) (*Refusal, bool) {
 	return r, ok
 }
 
-// Target names the comment a rewrite replaces.
+// Target names the comment a rewrite replaces and guards the rewrite with what
+// was read of it.
 type Target struct {
 	// ID is the id Blocks gives the comment, as a check reports it.
 	ID string
-	// Lines, when set, are the lines the comment spanned when it was read. A
-	// comment spanning other lines is refused as stale.
+	// Fingerprint, when set, is the comment's Fingerprint as it was read. A
+	// comment whose bytes differ is refused as changed, and one that moved to
+	// other lines with the same bytes is rewritten where it now sits.
+	Fingerprint string
+	// Prose, when set and Fingerprint is not, is the comment's prose as it was
+	// read, as Rewriter.Prose returns it. A comment whose prose differs is
+	// refused as changed. Line endings and a final line break are not compared.
+	Prose *string
+	// Lines, when set, are the lines the comment spanned when it was read. With
+	// neither Fingerprint nor Prose set, a comment spanning other lines is
+	// refused as stale.
 	Lines *format.LineRange
+}
+
+// Fingerprint is the hex SHA-256 of the bytes of c, located in src. A check
+// reports it beside a comment's block and lines, and a rewrite guarded by it
+// replaces only the bytes that were read.
+func Fingerprint(src []byte, c Comment) string {
+	sum := sha256.Sum256(src[c.Start:c.End])
+	return hex.EncodeToString(sum[:])
 }
 
 // Rewritten is a file with one comment rewritten and shown to be contained.
@@ -222,7 +255,7 @@ func Rewrite(p Provider, name string, src []byte, declared Directives, target Ta
 	if err != nil {
 		return nil, refuse(RefusedParse, "the comments in the file could not be located: %v", err)
 	}
-	index, refusal := located.address(target)
+	index, refusal := located.address(src, r, target)
 	if refusal != nil {
 		return nil, refusal
 	}
@@ -238,18 +271,30 @@ func Rewrite(p Provider, name string, src []byte, declared Directives, target Ta
 	return Contain(p, name, src, out, declared, located, index)
 }
 
-// address finds the comment target names in f, and refuses an id that names
-// none, or a comment that no longer spans the lines target read it at.
-func (f *File) address(target Target) (int, *Refusal) {
+// address finds the comment target names in f, located in src, and refuses an
+// id that names none, a delimited comment, and a comment that differs from what
+// guards the rewrite.
+func (f *File) address(src []byte, r Rewriter, target Target) (int, *Refusal) {
 	_, ids := f.names()
 	if i := slices.Index(ids, target.ID); i >= 0 {
 		c := f.Comments[i]
-		if target.Lines != nil && *target.Lines != c.Lines {
-			return 0, refuse(RefusedStale, "%s spans lines %d-%d, and was read at lines %d-%d; read the file again",
-				target.ID, c.Lines.First, c.Lines.Last, target.Lines.First, target.Lines.Last)
-		}
 		if c.Style != StyleLine {
 			return 0, refuse(RefusedBlockComment, "%s is a delimited comment, and only line comments are rewritten", target.ID)
+		}
+		switch {
+		case target.Fingerprint != "":
+			if got := Fingerprint(src, c); got != target.Fingerprint {
+				return 0, refuse(RefusedChanged, "the comment changed since it was checked: %s has fingerprint %s, and the edit carries %s; check the file again",
+					target.ID, got, target.Fingerprint)
+			}
+		case target.Prose != nil:
+			prose, err := r.Prose(src, c)
+			if err != nil || prose != normalizeProse(*target.Prose) {
+				return 0, refuse(RefusedChanged, "the comment changed since it was read: the prose of %s differs from the text the edit carries; read it again", target.ID)
+			}
+		case target.Lines != nil && *target.Lines != c.Lines:
+			return 0, refuse(RefusedStale, "%s spans lines %d-%d, and was read at lines %d-%d; read the file again",
+				target.ID, c.Lines.First, c.Lines.Last, target.Lines.First, target.Lines.Last)
 		}
 		return i, nil
 	}
@@ -266,6 +311,11 @@ func (f *File) address(target Target) (int, *Refusal) {
 		}
 	}
 	detail := fmt.Sprintf("no comment in the file is named %q", target.ID)
+	if target.Fingerprint != "" {
+		if i := slices.IndexFunc(f.Comments, func(c Comment) bool { return Fingerprint(src, c) == target.Fingerprint }); i >= 0 {
+			detail += fmt.Sprintf("; the comment with that fingerprint is named %q", ids[i])
+		}
+	}
 	if len(setAside) > 0 {
 		const named = 3
 		if len(setAside) > named {
@@ -274,6 +324,12 @@ func (f *File) address(target Target) (int, *Refusal) {
 		detail += "; the file sets aside " + strings.Join(setAside, ", ")
 	}
 	return 0, refuse(RefusedUnknown, "%s", detail)
+}
+
+// normalizeProse removes carriage returns before line breaks and the line
+// breaks that end a text, which Rewriter.Prose never returns.
+func normalizeProse(text string) string {
+	return strings.TrimRight(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
 }
 
 func describe(e Excluded) string {

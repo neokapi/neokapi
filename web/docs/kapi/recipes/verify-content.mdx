@@ -478,9 +478,10 @@ any file.
 
 ### Repair a comment finding
 
-A comment finding names the file, the comment's id and its lines. Rewrite the
-comment with `kapi apply` instead of editing the file around it, so every other
-byte of the file stays as it is.
+A comment finding names the file, the comment's id and its lines, and the JSON
+report gives it a `location.comment_sha256`: the SHA-256 of the comment's bytes.
+Rewrite the comment with `kapi apply` instead of editing the file around it, so
+every other byte of the file stays as it is.
 
 Check the change first:
 
@@ -493,11 +494,11 @@ kapi check --diff-against HEAD
   CRITICAL  voice.style  internal/parse/parse.go:func/Parse L5-7  Prohibited pattern: Say use rather than utilize.
 ```
 
-Write the new prose for that comment as a `comment` entry, with the id and
-lines from the finding:
+Write the new prose for that comment as a `comment` entry, with the id, lines
+and `comment_sha256` from the finding in `kapi check --diff-against HEAD --json`:
 
 ```json title="edits.jsonl"
-{"kind":"comment","file":"internal/parse/parse.go","id":"func/Parse","lines":{"first":5,"last":7},"text":"Parse reads the input from an [io.Reader] and helps callers use the result.\n\nIt stops at the end."}
+{"kind":"comment","file":"internal/parse/parse.go","id":"func/Parse","lines":{"first":5,"last":7},"comment_sha256":"8d65ce744d4fe688bd8c64ca408fa32ccde8d0ae979b33ce9936f61993b8f26b","text":"Parse reads the input from an [io.Reader] and helps callers use the result.\n\nIt stops at the end."}
 ```
 
 ```bash
@@ -511,10 +512,14 @@ own indentation, wraps a paragraph that is too wide, and writes a doc comment
 as gofmt does.
 
 kapi writes the edit only when the file still parses and gofmt agrees with it.
-It refuses the edit with a reason when the comment has moved since the check
-read it, when the text drops or adds a code block, reference or list item, or
-when the id names a directive, a generated file's comment or a `/* */` comment.
-A refused edit leaves the file untouched, and `kapi apply` exits `3`.
+It refuses the edit with a reason when the comment's bytes no longer match
+`comment_sha256`, because someone changed it after the check, when the text
+drops or adds a code block, reference or list item, or when the id names a
+directive, a generated file's comment or a `/* */` comment. A refused edit
+leaves the file untouched, and `kapi apply` exits `3`. A comment that only moved,
+because code above it changed, keeps its fingerprint, and kapi writes the edit
+at its new lines. Without a fingerprint, pass the prose you read in
+`current_text`. An entry with neither is rejected before anything is written.
 
 After writing, `kapi apply` checks what changed and reports it beside the edit:
 

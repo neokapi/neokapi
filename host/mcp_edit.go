@@ -52,10 +52,12 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"committed source and compiled into the cache. No AI provider is used. Read the " +
 			"context://<project-relative-path> resource before editing content, then run check_file on " +
 			"each changed file to review findings and analyzer coverage. For a code comment, an entry uses kind=comment, file, " +
-			"id (the comment's id as check_file reports it, such as func/Parse), lines (the lines check_file reported) and " +
+			"id and lines (as check_file reports them, such as func/Parse), comment_sha256 (the fingerprint check_file reports " +
+			"for the comment; a comment whose bytes differ is refused as changed, and current_text may carry the prose as " +
+			"read instead) and " +
 			"text (the comment's prose without comment markers). Every byte outside the comment is kept, the result must " +
 			"parse and the language's formatter must agree; a directive, a generated file's comment, a block comment, a " +
-			"moved comment and text that drops a code block or reference are refused with a reason and write nothing. " +
+			"changed comment and text that drops a code block or reference are refused with a reason and write nothing. " +
 			"Each written file's result carries a check scoped to the change.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
 		return a.applyEditsMCP(ctx, in)

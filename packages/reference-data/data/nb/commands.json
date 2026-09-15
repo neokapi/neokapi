@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T22:59:40Z",
+  "generatedAt": "2026-09-15T00:04:48Z",
   "commands": [
     {
       "id": "add",
@@ -128,7 +128,7 @@
         "kapi apply changeset.jsonl --diff",
         "kapi status --review --json | approve-units | kapi apply",
         "kapi apply changeset.jsonl --in-place=.bak",
-        "echo '{\"kind\":\"comment\",\"file\":\"parse.go\",\"id\":\"func/Parse\",\"lines\":{\"first\":3,\"last\":4},\"text\":\"Parse reads the input.\"}' | kapi apply"
+        "echo '{\"kind\":\"comment\",\"file\":\"parse.go\",\"id\":\"func/Parse\",\"lines\":{\"first\":3,\"last\":4},\"comment_sha256\":\"\u003cfrom kapi check --json\u003e\",\"text\":\"Parse reads the input.\"}' | kapi apply"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

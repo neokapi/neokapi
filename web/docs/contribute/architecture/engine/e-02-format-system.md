@@ -641,11 +641,17 @@ comments are not addressable, and a refusal names what the file sets aside.
 and requires each file to stay byte-identical.
 
 `kapi apply` and MCP `apply_edits` reach the rewrite through a `comment` entry,
-addressed by file and the id a check reports, with the lines the check reported
-as its drift anchor. Before the first comment of a language is written in a run,
-`comment.VerifyRewriter` runs a write canary: a known comment rewritten with its
-own prose must stay byte-identical, a known-bad text must be refused, and a
-splice one byte before the comment must be refused as uncontained. When the
+addressed by file and the id a check reports. A check gives each finding on a
+comment `location.comment_sha256`, the SHA-256 of the comment's bytes
+(`comment.Fingerprint`), and the entry carries it back as the guard: a comment
+whose bytes differ is refused as changed, and one that only moved to other
+lines is rewritten where it now sits. An entry may carry the prose as it was
+read, `current_text`, instead, and an entry with neither guard is rejected
+before any entry is applied. Before the first comment of a language is written
+in a run, `comment.VerifyRewriter` runs a write canary: a known comment
+rewritten with its own prose must stay byte-identical, and a known-bad text, a
+rewrite guarded by a fingerprint the comment does not have, and a splice one
+byte before the comment must each be refused. When the
 canary fails, no comment of that language is written. A file's edits apply from
 its last comment to its first, the file is read again before it is written, and
 a check scoped to the written change comes back with the result.
