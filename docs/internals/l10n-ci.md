@@ -68,6 +68,17 @@ collection and fails on any critical, major or minor finding; the
 `reference-data-drift.yml` workflow runs it beside the dataset and page gates, so a
 dossier lands fresh and in register in the same change.
 
+Four collections at `source/comments` declare the comments of the repository's
+Go, TypeScript, JavaScript, CSS, YAML, Markdown, MDX and HTML trees. Every item
+in them is `comments: {only: true}`: `kapi check` reads those comments against
+the comment voice in `.kapi/profiles/source/voice.yaml`, and the loop passes
+over the files. A push leaves their patterns out of the scope it declares, so
+the venue holds and removes exactly what it held before they were declared.
+`make check-comment-coverage` fails when a tracked file in one of those families
+sits in no collection and under no `defaults.exclude` pattern. It runs in
+`make lint`, `make pre-push` and the *Repo guards* job, and every generated tree
+the exclude list names carries its reason beside it in `kapi.yaml`.
+
 The recipe binds `flow: tm-recycle`: exact-match content-memory leverage and
 nothing else: no AI, no provider credentials, no network. A checkout with no
 credentials therefore converges from the committed context alone. AI convergence
