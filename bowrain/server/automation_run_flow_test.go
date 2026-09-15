@@ -38,6 +38,9 @@ func newRunFlowTestServer(t *testing.T) *Server {
 
 	bus := event.NewChannelEventBus()
 	t.Cleanup(func() { bus.Close() })
+	// The server subscribed its consumers to the bus it was built with, and
+	// shutdown closes only the bus it holds, so close that one before replacing it.
+	srv.EventBus.Close()
 	srv.EventBus = bus
 
 	if srv.AutomationEngine != nil {

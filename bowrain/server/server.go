@@ -874,6 +874,9 @@ func NewServer(cfg Config) *Server {
 	// with the content the same way `kapi up` keeps a project's own graph in
 	// step with its block cache.
 	s.subscribeContextGraphOnPush()
+	// A landed push can open or clear a quality gate, so its gates are announced
+	// from the push rather than from whoever reads the project next.
+	s.subscribeShipGatesOnPush()
 
 	// Initialize MCP server for voice + agent tools when stores are available.
 	if s.VoiceStore != nil {

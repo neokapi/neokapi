@@ -343,7 +343,7 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 		slog.WarnContext(ctx, "review recheck: store demoted blocks failed", "project", proj.ID, "error", err)
 		return fmt.Errorf("store demoted blocks for %s: %w", proj.ID, err)
 	}
-	s.invalidateDashboardCache(proj.WorkspaceID, proj.ID)
+	s.shipInputsChanged(ctx, proj.WorkspaceID, proj.ID, "main")
 	for _, sb := range changed {
 		s.publishEditorBlockChange(proj.ID, sb.Block.ID, sb.ItemName, "main", "updated", actor, "")
 	}

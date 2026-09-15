@@ -84,6 +84,21 @@ func initTestStoresOnDB(t *testing.T, srv *Server, db *storage.PgDB) {
 // Call after each push to simulate the worker.
 func drainPushQueue(t *testing.T, srv *Server) {
 	t.Helper()
+	drainPushJobs(t, srv, false)
+}
+
+// drainPushQueueOnBus is drainPushQueue with the worker publishing on the
+// server's event bus, as a deployed worker does, so a test sees the events a
+// landed push publishes.
+func drainPushQueueOnBus(t *testing.T, srv *Server) {
+	t.Helper()
+	drainPushJobs(t, srv, true)
+}
+
+// drainPushJobs processes every queued sync-push job, with the worker
+// publishing on the server's event bus when onBus is set.
+func drainPushJobs(t *testing.T, srv *Server, onBus bool) {
+	t.Helper()
 	for {
 		// Non-blocking dequeue with immediate timeout.
 		ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
@@ -97,6 +112,9 @@ func drainPushQueue(t *testing.T, srv *Server) {
 			ContentStore: srv.ContentStore,
 			BlobStore:    srv.BlobStore,
 			Queue:        srv.JobQueue,
+		}
+		if onBus {
+			deps.EventBus = srv.EventBus
 		}
 		if err := jobs.ProcessSyncPushJobForTest(t.Context(), deps, jobID); err != nil {
 			t.Logf("drainPushQueue: job %s failed: %v", jobID, err)
@@ -115,6 +133,12 @@ type pushBlockItem struct {
 // pushBlocks performs a full push flow (init → diff → chunk upload → commit → drain)
 // and returns the commit response recorder. This tests the real end-to-end push flow.
 func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID string, items []pushBlockItem) *httptest.ResponseRecorder {
+	t.Helper()
+	return pushBlocksDrainedBy(t, srv, e, authHeader, projectID, items, drainPushQueue)
+}
+
+// pushBlocksDrainedBy is pushBlocks with the job queue drained by drain.
+func pushBlocksDrainedBy(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID string, items []pushBlockItem, drain func(*testing.T, *Server)) *httptest.ResponseRecorder {
 	t.Helper()
 
 	// Build blocks grouped by item.
@@ -284,7 +308,7 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 	require.Equal(t, http.StatusAccepted, rec.Code, "push commit should return 202")
 
 	// 5. Drain the job queue.
-	drainPushQueue(t, srv)
+	drain(t, srv)
 
 	return rec
 }

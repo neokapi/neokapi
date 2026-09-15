@@ -330,7 +330,7 @@ func (s *Server) HandleUploadFiles(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	s.invalidateDashboardCache(wsID, pid)
+	s.shipInputsChanged(c.Request().Context(), wsID, pid, streamParam(c))
 	s.annotateProjectOrigin(ctx, wsID, info)
 	return c.JSON(http.StatusOK, info)
 }
@@ -365,7 +365,7 @@ func (s *Server) HandleRemoveFile(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	s.invalidateDashboardCache(wsID, pid)
+	s.shipInputsChanged(c.Request().Context(), wsID, pid, streamParam(c))
 	s.annotateProjectOrigin(ctx, wsID, info)
 	return c.JSON(http.StatusOK, info)
 }
@@ -619,7 +619,7 @@ func (s *Server) HandleUpdateBlockTarget(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	s.invalidateDashboardCache(wsID, pid)
+	s.shipInputsChanged(c.Request().Context(), wsID, pid, streamParam(c))
 
 	userID, _ := c.Get("user_id").(string)
 	s.trackEvent(userID, "translation_saved", map[string]any{
@@ -663,7 +663,7 @@ func (s *Server) HandleUpdateBlockTargetRuns(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	s.invalidateDashboardCache(wsID, pid)
+	s.shipInputsChanged(c.Request().Context(), wsID, pid, streamParam(c))
 	return c.NoContent(http.StatusNoContent)
 }
 
@@ -696,7 +696,7 @@ func (s *Server) HandlePseudoTranslate(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	s.invalidateDashboardCache(wsID, pid)
+	s.shipInputsChanged(c.Request().Context(), wsID, pid, streamParam(c))
 	return c.JSON(http.StatusOK, stats)
 }
 
@@ -750,7 +750,7 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 		return serverErr(c, err)
 	}
 
-	s.invalidateDashboardCache(wsID, pid)
+	s.shipInputsChanged(c.Request().Context(), wsID, pid, streamParam(c))
 	return c.JSON(http.StatusOK, stats)
 }
 
@@ -784,7 +784,7 @@ func (s *Server) HandleMemoryTranslate(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	s.invalidateDashboardCache(wsID, pid)
+	s.shipInputsChanged(c.Request().Context(), wsID, pid, streamParam(c))
 	return c.JSON(http.StatusOK, stats)
 }
 
@@ -1365,7 +1365,6 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 	if err := applyShipStates(ctx, s.ContentStore, s.VoiceStore, proj.ID, stream, gate, stats); err != nil {
 		return serverErr(c, err)
 	}
-	s.announceShipGates(ctx, proj, stream, stats)
 
 	// Cache the full result; each request slices its own page from it.
 	s.dashboardCache.Store(cacheKey, &dashboardCacheEntry{

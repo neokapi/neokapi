@@ -209,7 +209,7 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	s.invalidateDashboardCache(wsID, pid)
+	s.shipInputsChanged(ctx, wsID, pid, stream)
 
 	// Governed review continuation (RV-B): when this approval leaves the project
 	// with zero blocks pending review for any configured locale, hand off to a

@@ -105,7 +105,6 @@ func (s *Server) shipDashboardStats(ctx context.Context, proj *store.Project, st
 	if err := applyShipStates(ctx, s.ContentStore, s.VoiceStore, proj.ID, stream, gate, stats); err != nil {
 		return nil, err
 	}
-	s.announceShipGates(ctx, proj, stream, stats)
 	s.dashboardCache.Store(key, &dashboardCacheEntry{stats: stats, expiresAt: time.Now().Add(dashboardCacheTTL)})
 	return stats, nil
 }

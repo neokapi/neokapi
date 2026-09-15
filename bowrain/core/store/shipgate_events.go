@@ -21,7 +21,8 @@ const (
 	ShipGateNameRejected = "rejected"
 )
 
-// A ShipGateResult is one gate's standing in a locale scope.
+// A ShipGateResult is one gate's standing in a locale scope, as
+// EvaluateShipState decided it.
 type ShipGateResult struct {
 	Gate string
 	Met  bool
@@ -33,39 +34,6 @@ type ShipGateResult struct {
 	// against zero for every other gate.
 	Actual   int
 	Required int
-}
-
-// ShipGateResults lists the gates ls was evaluated on, with each one's
-// standing. A scope's ship state is pending exactly when one of them is unmet.
-//
-// Review is not among them: a scope that is not fully reviewed ships as
-// ai_shippable. The checks and terms gates are counted only for a scope at full
-// coverage (applyShipStates), and terms only where terms govern the locale, so a
-// scope below full coverage has no result for them and they are left out.
-func ShipGateResults(ls LocaleTranslationStats) []ShipGateResult {
-	covered := ls.TotalBlocks > 0 && ls.TranslatedBlocks >= ls.TotalBlocks
-	out := []ShipGateResult{{
-		Gate:       ShipGateNameTranslated,
-		Met:        covered,
-		NotChecked: ls.TotalBlocks == 0,
-		Actual:     ls.TranslatedBlocks,
-		Required:   ls.TotalBlocks,
-	}}
-	if covered {
-		out = append(out, ShipGateResult{Gate: ShipGateNameChecks, Met: ls.FailingChecks == 0, Actual: ls.FailingChecks})
-		if ls.ComplianceBasis.GovernsTerms() {
-			out = append(out, ShipGateResult{
-				Gate:       ShipGateNameTerms,
-				Met:        ls.TermsNotCheckedBlocks == 0,
-				NotChecked: ls.TermsNotCheckedBlocks > 0,
-				Actual:     ls.TermsNotCheckedBlocks,
-			})
-		}
-	}
-	return append(out,
-		ShipGateResult{Gate: ShipGateNameStale, Met: ls.StaleBlocks == 0, Actual: ls.StaleBlocks},
-		ShipGateResult{Gate: ShipGateNameRejected, Met: ls.RejectedAwaitingDraftBlocks == 0, Actual: ls.RejectedAwaitingDraftBlocks},
-	)
 }
 
 // A ShipGateFailure is one unmet gate of a locale scope, as it was announced.

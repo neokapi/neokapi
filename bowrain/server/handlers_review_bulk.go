@@ -262,7 +262,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 	actor, _ := c.Get("user_id").(string)
 	reviewCompleted := s.advanceReviewLoop(ctx, proj, stream, touched, actor)
 
-	s.invalidateDashboardCache(wsID, pid)
+	s.shipInputsChanged(ctx, wsID, pid, stream)
 
 	// One separation-of-duties record for the pass, with how many targets it
 	// covered. A record per block would flood the bus a corpus-sized pass

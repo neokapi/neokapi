@@ -156,7 +156,7 @@ func (s *Server) HandleBulkReviewBlocks(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	s.invalidateDashboardCache(wsID, pid)
+	s.shipInputsChanged(ctx, wsID, pid, stream)
 
 	reviewCompleted := false
 	if approvals > 0 {
@@ -345,7 +345,7 @@ func (s *Server) HandleBulkApplyMemory(c echo.Context) error {
 			s.emitEditorBlockChange(c, pid, b.ID, "", stream, "updated")
 		}
 		wsID, _ := c.Get("workspace_id").(string)
-		s.invalidateDashboardCache(wsID, pid)
+		s.shipInputsChanged(ctx, wsID, pid, stream)
 	}
 
 	return c.JSON(http.StatusOK, resp)
