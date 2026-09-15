@@ -1250,6 +1250,13 @@ jobs:
       - name: Guard — a final tag publishes stable on both release tracks
         run: ./scripts/release-channel.sh --self-test
 
+      # The desktop update feeds are published by a script that runs only on a
+      # release tag, and a release candidate exercises only its beta half. Its
+      # self-test runs it for a final and a candidate on both tracks and checks
+      # which feeds reach the registry.
+      - name: "Guard: a final tag publishes the stable update feed on both tracks"
+        run: ./scripts/publish-appcast.sh --self-test
+
       # The fixture guard expands the extract globs the way the extractor does,
       # so it needs `fs/promises.glob` — Node 22. No dependencies: it reads the
       # flag sets from `make l10n-extract-globs` and globs the working tree.

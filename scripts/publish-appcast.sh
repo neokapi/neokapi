@@ -18,9 +18,11 @@
 # arch, so arch is disambiguated by the feed URL. The app fetches
 # appcast-<name>-<runtime.GOOS>-<runtime.GOARCH>[-beta].xml.
 #
-# Channel is tag-driven: a prerelease tag (vX.Y.Z-rc.N) → beta feed only; a final
-# tag (vX.Y.Z) → both the stable and beta feeds. Beta is a superset fast ring
-# (see docs/internals/auto-update.md, "Release channels").
+# Channel is tag-driven and resolved by scripts/release-channel.sh, on either
+# track's tag shape: a prerelease (v1.2.0-rc1, bowrain-v1.2.0-rc1) → beta feed
+# only; a final (v1.2.0, bowrain-v1.2.0) → both the stable and beta feeds. Beta
+# is a superset fast ring (see docs/internals/auto-update.md, "Release
+# channels").
 #
 # Required env: UPDATE_ED25519_PRIVATE_KEY, REGISTRY_TOKEN, GH_TOKEN.
 #
@@ -30,6 +32,10 @@
 #   source   .app dir (os=darwin) | .zip (os=windows) | .tar.gz (os=linux)
 #   os       darwin | windows | linux   (the app's runtime.GOOS; names the feed)
 #   arch     arm64 | amd64
+#
+#        publish-appcast.sh --self-test
+#   runs this script for a final and a prerelease on both tracks, with gh and go
+#   stubbed, and checks which feeds reach the registry.
 set -euo pipefail
 
 # Never block on a credential prompt.
@@ -48,12 +54,16 @@ with_timeout() {
   local secs="$1"; shift
   "$@" &
   local pid=$!
+  # The watchdog's output goes nowhere. Killing it leaves its `sleep` running,
+  # and a sleep that still held the caller's stdout would make a command
+  # substitution around with_timeout wait out the whole deadline after the
+  # command itself had finished.
   (
     sleep "$secs"
     kill -TERM "$pid" 2>/dev/null || true
     sleep 5
     kill -KILL "$pid" 2>/dev/null || true
-  ) &
+  ) >/dev/null 2>&1 &
   local killer=$!
   local rc=0
   wait "$pid" 2>/dev/null || rc=$?
@@ -93,6 +103,88 @@ publish_feed_via_registry_api() {
   return 1
 }
 
+# ── self-test ────────────────────────────────────────────────────────────────
+#
+# This script runs only on a release tag, and a prerelease exercises only half
+# of it: every candidate writes the beta feed, and only a final writes the
+# stable one. The self-test runs the real script for a final and a prerelease on
+# both release tracks, with gh and go replaced by stubs that record which feeds
+# reach the registry. It runs under whatever `bash` is first on PATH, which on a
+# Mac is the /bin/bash 3.2 the macOS release runners use.
+self_test() {
+  local here script work status=0
+  here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  script="$here/$(basename "${BASH_SOURCE[0]}")"
+  work="$(mktemp -d)"
+  # shellcheck disable=SC2064  # expand $work now, not at trap time
+  trap "rm -rf '$work'" RETURN
+
+  mkdir -p "$work/bin"
+  # gh: record the path of every Contents API write, succeed at everything else.
+  cat >"$work/bin/gh" <<'STUB'
+#!/usr/bin/env bash
+put=0
+for arg in "$@"; do
+  case "$arg" in
+    PUT) put=1 ;;
+    repos/neokapi/registry/contents/*) [ "$put" = 1 ] && echo "${arg##*/}" >>"$SELFTEST_FEEDS" ;;
+  esac
+done
+exit 0
+STUB
+  # go: stand in for `go run ./scripts/mkappcast gen`, writing only its --out.
+  cat >"$work/bin/go" <<'STUB'
+#!/usr/bin/env bash
+while [ "$#" -gt 0 ]; do
+  [ "$1" = --out ] && : >"$2"
+  shift
+done
+STUB
+  chmod +x "$work/bin/gh" "$work/bin/go"
+  printf 'dummy\n' >"$work/artifact.tar.gz"
+
+  # expect <title> <name> <version> <ref> <feed>...: the feeds a run must publish.
+  expect() {
+    local title="$1" name="$2" version="$3" ref="$4"
+    shift 4
+    local want got
+    want="$(printf '%s\n' "$@" | sort)"
+    : >"$work/feeds"
+    if ! (cd "$work" && PATH="$work/bin:$PATH" SELFTEST_FEEDS="$work/feeds" \
+      REGISTRY_TOKEN=selftest GH_TOKEN=selftest bash "$script" "$title" "$name" "$version" "$ref" neokapi/neokapi \
+      "$work/artifact.tar.gz" linux amd64 >"$work/log" 2>&1); then
+      echo "✖ self-test: ${ref} exited non-zero:"
+      sed 's/^/    /' "$work/log"
+      status=1
+      return
+    fi
+    got="$(sort "$work/feeds")"
+    if [ "$got" = "$want" ]; then
+      echo "✓ self-test: ${ref} publishes $(printf '%s' "$want" | tr '\n' ' ')"
+    else
+      echo "✖ self-test: ${ref} published: $(printf '%s' "$got" | tr '\n' ' ')"
+      echo "             expected:  $(printf '%s' "$want" | tr '\n' ' ')"
+      status=1
+    fi
+  }
+
+  expect Kapi kapi 1.2.0 v1.2.0 \
+    appcast-kapi-linux-amd64.xml appcast-kapi-linux-amd64-beta.xml
+  expect Kapi kapi 1.2.0-rc1 v1.2.0-rc1 \
+    appcast-kapi-linux-amd64-beta.xml
+  expect Bowrain bowrain 1.2.0 bowrain-v1.2.0 \
+    appcast-bowrain-linux-amd64.xml appcast-bowrain-linux-amd64-beta.xml
+  expect Bowrain bowrain 1.2.0-rc1 bowrain-v1.2.0-rc1 \
+    appcast-bowrain-linux-amd64-beta.xml
+
+  return "$status"
+}
+
+if [ "${1:-}" = "--self-test" ]; then
+  self_test
+  exit
+fi
+
 title="${1:?title required}"
 name="${2:?feed name required}"
 version="${3:?version required}"
@@ -104,11 +196,11 @@ arch="${8:?arch required}"
 
 # A prerelease publishes to the beta feed only; a final publishes to BOTH the
 # stable and beta feeds, so the beta channel also carries finals and beta users
-# never fall behind stable.
-case "$ref" in
-  *-*) channels="beta" ;;
-  *)   channels="stable beta" ;;
-esac
+# never fall behind stable. The decision is the one the formulae and casks make,
+# read from the same script: the Bowrain track's tag prefix carries a hyphen, so
+# a hyphen test on the ref reads bowrain-v1.2.0 as a prerelease.
+channels="$(bash "$(dirname "${BASH_SOURCE[0]}")/release-channel.sh" "$ref" | sed -n 's/^channels=//p')"
+[ -n "$channels" ] || { echo "publish-appcast.sh: no channel resolved for '$ref'" >&2; exit 1; }
 
 # sparkle:os value the Wails appcast provider matches against runtime.GOOS.
 case "$os" in
@@ -147,11 +239,14 @@ for channel in $channels; do
   feed="appcast-${name}-${os}-${arch}${suffix}.xml"
   chan_args=(); [ "$channel" = beta ] && chan_args=(--channel beta)
 
+  # The ${a[@]+"${a[@]}"} form because the macOS runners run this under
+  # /bin/bash 3.2, where an empty array is an unbound variable under `set -u`
+  # and the stable feed, whose array is empty, would end the script.
   go run ./scripts/mkappcast gen \
     --title "$title" \
     --version "$version" \
     --os "$sparkle_os" \
-    "${chan_args[@]}" \
+    ${chan_args[@]+"${chan_args[@]}"} \
     --url-prefix "https://github.com/${repo}/releases/download/${ref}" \
     --out "$feed" \
     "$artifact"
