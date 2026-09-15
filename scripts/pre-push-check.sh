@@ -89,6 +89,10 @@ run_check "Documentation palettes are fresh" make check-docs-palette
 # text", and it fails by showing less content rather than by failing. ~1s.
 run_check "Run projections are declared" ./scripts/check-run-projection.sh
 
+# Ungated: a directory added anywhere can hold files whose comments no
+# kapi.yaml collection reaches, and only this guard notices.
+run_check "Comment coverage" make check-comment-coverage
+
 # Ungated: a walk selector dies in the app, not in the recorder that names it,
 # so gating this on the recorder's own path would never fire. ~2s.
 run_check "Walk selectors still exist" ./scripts/check-walk-selectors.sh
