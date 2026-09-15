@@ -118,6 +118,48 @@ func TestWriteVoicePointer(t *testing.T) {
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
 			wantIn:     []string{"`kapi voice guide <path>`", "Some collections carry a voice of their own"},
+			wantNotIn:  []string{"--comments"},
+		},
+		{
+			name: "comments placed by defaults.comments.channel get their own retrieval",
+			recipe: fileRecipe + "  comments:\n    channel: source/comments\n" +
+				"profiles:\n  source:\n    channels: [comments]\n" +
+				"collections:\n  - name: code\n    content:\n      - path: \"code/*.go\"\n        comments: true\n",
+			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			wantFile:   "CLAUDE.md",
+			wantAction: VoicePointerCreated,
+			wantVoice:  "House Voice",
+			wantIn:     []string{"`kapi voice guide <path>`", "`kapi voice guide --comments <path>`"},
+		},
+		{
+			name: "comments an item places at a channel get their own retrieval",
+			recipe: fileRecipe + "profiles:\n  source:\n    channels: [comments]\n" +
+				"collections:\n  - name: code\n    content:\n      - path: \"code/*.go\"\n        comments:\n          channel: source/comments\n",
+			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			wantFile:   "CLAUDE.md",
+			wantAction: VoicePointerCreated,
+			wantVoice:  "House Voice",
+			wantIn:     []string{"`kapi voice guide --comments <path>`"},
+		},
+		{
+			name: "an item declared for its comments alone gets their own retrieval",
+			recipe: fileRecipe + "collections:\n  - name: workflows\n    source_only: true\n    content:\n" +
+				"      - path: \".github/workflows/*.yaml\"\n        comments:\n          only: true\n",
+			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			wantFile:   "CLAUDE.md",
+			wantAction: VoicePointerCreated,
+			wantVoice:  "House Voice",
+			wantIn:     []string{"with `kapi voice guide`.", "`kapi voice guide --comments <path>`"},
+		},
+		{
+			name: "comments: true alone places no point of their own",
+			recipe: fileRecipe + "collections:\n  - name: code\n    content:\n" +
+				"      - path: \"code/*.go\"\n        comments: true\n",
+			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			wantFile:   "CLAUDE.md",
+			wantAction: VoicePointerCreated,
+			wantVoice:  "House Voice",
+			wantNotIn:  []string{"--comments"},
 		},
 		{
 			name:       "a project without a voice writes nothing",
