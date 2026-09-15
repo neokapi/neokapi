@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/flow"
@@ -338,9 +337,6 @@ func (ctx *ProjectContext) ResolvePaths(reg *registry.FormatRegistry, rels []str
 	for _, rel := range rels {
 		relSlash := filepath.ToSlash(rel)
 		if !filepath.IsLocal(filepath.FromSlash(rel)) || claimed[relSlash] || ig.Match(relSlash, false) {
-			continue
-		}
-		if slices.ContainsFunc(ctx.Project.Defaults.Exclude, func(exc string) bool { return MatchGlob(exc, relSlash) }) {
 			continue
 		}
 		item, ci, ii, ok := ctx.Project.itemForPath(relSlash)

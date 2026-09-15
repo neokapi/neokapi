@@ -3,6 +3,7 @@ package project
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -731,7 +732,8 @@ func (p *KapiProject) BindsTermsByProfile() bool {
 // slash-separated path: the first item in recipe order, across collections,
 // whose pattern matches it, with its collection's base and languages folded in
 // (EffectiveItems). The index of that collection comes back beside it; ok is
-// false when no item claims the path.
+// false when no item claims the path. No item claims a path that
+// `defaults.exclude` matches.
 //
 // This is the one path-to-item rule. ProjectContext.ResolveContent applies it
 // when it expands the recipe into files, and every lookup that starts from a
@@ -745,6 +747,9 @@ func (p *KapiProject) ItemForPath(relPath string) (item ContentItem, collIdx int
 // itemForPath is ItemForPath with the item's position among its collection's
 // EffectiveItems as well.
 func (p *KapiProject) itemForPath(relPath string) (item ContentItem, collIdx, itemIdx int, ok bool) {
+	if p.excludes(relPath) {
+		return ContentItem{}, -1, -1, false
+	}
 	for i := range p.Collections {
 		for j, candidate := range p.Collections[i].EffectiveItems() {
 			if candidate.Path == "" || !MatchGlob(candidate.Path, relPath) {
@@ -754,6 +759,11 @@ func (p *KapiProject) itemForPath(relPath string) (item ContentItem, collIdx, it
 		}
 	}
 	return ContentItem{}, -1, -1, false
+}
+
+// excludes reports that relPath matches a pattern under `defaults.exclude`.
+func (p *KapiProject) excludes(relPath string) bool {
+	return slices.ContainsFunc(p.Defaults.Exclude, func(exc string) bool { return MatchGlob(exc, relPath) })
 }
 
 // CollectionForPath returns the name of the content collection whose item
@@ -777,6 +787,9 @@ func (p *KapiProject) CollectionForPath(relPath string) string {
 // item as if the recipe did not declare it; ok is false when no other item
 // matches.
 func (p *KapiProject) ContentItemForPath(relPath string, noReader bool) (item ContentItem, collIdx int, ok bool) {
+	if p.excludes(relPath) {
+		return ContentItem{}, -1, false
+	}
 	for i := range p.Collections {
 		for _, candidate := range p.Collections[i].EffectiveItems() {
 			if candidate.Path == "" || !MatchGlob(candidate.Path, relPath) || candidate.claimsOnlyComments(noReader) {
