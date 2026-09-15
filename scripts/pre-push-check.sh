@@ -135,6 +135,15 @@ if matches '^bowrain/core/' '^bowrain/plugin/' '^bowrain/.*\.go$' '^bowrain/go\.
     run_check "Go lint (bowrain)" make check-bowrain
 fi
 
+# The /evals index copies each eval dataset's date and headline number, so a
+# republished dataset leaves the committed index stale until `make eval-index`
+# regenerates it. The datasets sit under web/static/data/ and beside their pages
+# as web/src/pages/<page>/_<name>.json, and the index tests also resolve the
+# make targets the cards name. The package links no cgo and runs in seconds.
+if matches '^web/static/data/' '^web/src/pages/[^/]+/_[^/]+\.json$' '^scripts/evalindex/' '^Makefile$'; then
+    run_check "Eval index is current" go test ./scripts/evalindex/
+fi
+
 # The desktop module is its own go.mod, so the framework lint above stops at it.
 # Same gate as the CI `kapi-desktop` job, and the same target that job runs, so
 # a finding surfaces here rather than on the pull request.

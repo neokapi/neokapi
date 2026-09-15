@@ -27,7 +27,10 @@ with nothing behind it shows as a hole rather than as an absence from a list.
 
 Run `make eval-index` after **re-running** an eval too, not only after adding
 one. The index records each dataset's date, so a refresh makes the committed
-index stale and its drift test fails.
+index stale and its drift test fails. The format-maturity publish
+(`scripts/format-ops/bootstrap-publish.mjs`) rebuilds the index as its last
+step, and `make pre-push` runs `go test ./scripts/evalindex/` whenever a
+dataset, the index, `scripts/evalindex/` or the Makefile changes.
 
 The tests will refuse the card unless every claim in it resolves: a `make`
 target must exist in the Makefile, a page must have a file, a dataset must

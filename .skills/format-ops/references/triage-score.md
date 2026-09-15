@@ -68,6 +68,11 @@ rules — read §3 before publishing.
    gap-analysis report` markers) — same run, never hand-edited.
 7. On a passing run, refresh `last_certified` in `core/formats/support.yaml`
    — **that field only**; every other field belongs to `tier-review`.
+8. Regenerate the `/evals` index with `make eval-index`. It copies the
+   dataset's `generated_at`, so the committed
+   `web/src/pages/evals/_index.json` goes stale with every publish and
+   `TestCommittedIndexIsCurrent` fails until it is rebuilt.
+   `scripts/format-ops/bootstrap-publish.mjs` runs it as its last step.
 
 ## Verification (→ `runs[].evidence`)
 
@@ -85,12 +90,13 @@ rules — read §3 before publishing.
 - `watermarks.model_id` = session model; `watermarks.prompt_sha` = sha256 of
   this reference file; `watermarks.axes_published` = the axes in the dataset.
 - Append the `runs[]` entry; commit dashboard + history + docs block +
-  support.yaml `last_certified` + ledger **together**.
+  support.yaml `last_certified` + ledger + `/evals` index **together**.
 
 ## Outputs
 
 Refreshed `web/static/data/format-maturity{,-history}.json`, regenerated docs
-snapshot block, refreshed `last_certified`, ledger entry. Tier-change
+snapshot block, refreshed `last_certified`, ledger entry, regenerated
+`web/src/pages/evals/_index.json`. Tier-change
 *suggestions* the vector surfaces go to `tier-review` (note them in
 `followups[]`) — this ritual never edits tier fields.
 
