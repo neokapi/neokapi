@@ -25,8 +25,8 @@ steps:
 
   - uses: neokapi/setup-kapi@v1
     with:
-      version: "1.2.0-rc32"
-      plugins: bowrain@1.2.0-rc32
+      version: "1.2.0"
+      plugins: bowrain@1.2.0
 ```
 
 The action downloads the correct binary for the runner platform (Linux, macOS, or Windows), verifies its SHA-256 checksum, and adds it to `PATH`. The built-in workflow token covers public release downloads, so no `token` input is required. On subsequent runs, the binary is restored from cache.
@@ -75,8 +75,8 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          version: "1.2.0-rc32"
-          plugins: bowrain@1.2.0-rc32
+          version: "1.2.0"
+          plugins: bowrain@1.2.0
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -213,8 +213,8 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          version: "1.2.0-rc32"
-          plugins: bowrain@1.2.0-rc32
+          version: "1.2.0"
+          plugins: bowrain@1.2.0
 
       - name: Enforce the ship gates
         run: kapi check --ship
@@ -248,8 +248,8 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          version: "1.2.0-rc32"
-          plugins: bowrain@1.2.0-rc32
+          version: "1.2.0"
+          plugins: bowrain@1.2.0
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -282,8 +282,8 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          version: "1.2.0-rc32"
-          plugins: bowrain@1.2.0-rc32
+          version: "1.2.0"
+          plugins: bowrain@1.2.0
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -325,8 +325,8 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          version: "1.2.0-rc32"
-          plugins: bowrain@1.2.0-rc32
+          version: "1.2.0"
+          plugins: bowrain@1.2.0
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -385,9 +385,9 @@ The `plugins` input defaults to `bowrain`, the plugin that provides sync, push, 
 ```yaml
 - uses: neokapi/setup-kapi@v1
   with:
-    version: "1.2.0-rc32"
+    version: "1.2.0"
     plugins: |
-      bowrain@1.2.0-rc32
+      bowrain@1.2.0
       okapi-bridge
 ```
 
@@ -400,7 +400,7 @@ Pin the CLI version to avoid surprises from new releases:
 ```yaml
 - uses: neokapi/setup-kapi@v1
   with:
-    version: "1.2.0-rc32"
+    version: "1.2.0"
 ```
 
 `latest` (the default) installs the newest stable release, and `kapi up`, `kapi check --ship` and the other commands these examples run need 1.2.0 or later.
