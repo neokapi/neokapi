@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T00:04:48Z",
+  "generatedAt": "2026-09-15T09:27:07Z",
   "commands": [
     {
       "id": "add",
@@ -120,6 +120,12 @@
           "name": "source-lang",
           "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
           "type": "string"
+        },
+        {
+          "name": "trust-project-formatters",
+          "usage": "run the formatter a comment edit's project configures, which runs code the project controls",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
@@ -5264,6 +5270,12 @@
           "shorthand": "p",
           "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
+        },
+        {
+          "name": "trust-project-formatters",
+          "usage": "let apply_edits run the formatter a comment edit's project configures, which runs code the project controls",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "offlineCapable": false,

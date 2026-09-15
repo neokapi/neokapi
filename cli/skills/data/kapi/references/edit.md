@@ -128,10 +128,14 @@ kapi apply edits.jsonl
   `*/` is refused as `terminator`, because the comment would end there:
   reword it.
 - A TypeScript, TSX or JavaScript comment is written when the sourcecode plugin
-  is installed and the project configures oxfmt or prettier. Without the plugin
-  the edit reports `did-not-run` with the reason `no-reader`, and without a
-  formatter that runs on the file, with the reason `formatter`. Neither writes
-  anything. Keep JSDoc tags such as `@param` and every `{@link}`: dropping one
+  is installed, the project configures oxfmt or prettier, and the user trusts
+  the project's formatter, which runs code the project controls. Without the
+  plugin the edit reports `did-not-run` with the reason `no-reader`. Without a
+  formatter that runs on the file, or without that trust, the reason is
+  `formatter`. None of these writes anything. Trust comes from the user:
+  `kapi apply --trust-project-formatters`, `kapi mcp --trust-project-formatters`,
+  or a directory in `formatters.trusted_dirs` in kapi's configuration. Report a
+  `formatter` result to the user rather than granting the trust yourself. Keep JSDoc tags such as `@param` and every `{@link}`: dropping one
   refuses the edit.
 - The result carries a check scoped to what was written. If it reports a
   finding, send another edit for it. Then check the whole change

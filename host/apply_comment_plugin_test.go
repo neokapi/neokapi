@@ -45,12 +45,13 @@ func runOxfmt(t *testing.T, path string, src []byte) []byte {
 
 // tsRewriteApp returns an App reading comments through the sourcecode plugin
 // built from this repository, with the oxfmt its manifest declares for each
-// writable language run from this repository's node_modules. edit, when set,
-// changes each language's rewrite declaration further.
+// writable language run from this repository's node_modules, and every
+// project's formatter trusted. edit, when set, changes each language's rewrite
+// declaration further.
 func tsRewriteApp(t *testing.T, edit func(rewrite map[string]any)) *App {
 	t.Helper()
 	oxfmt := repoOxfmt(t)
-	return sourcecodeApp(t, func(l map[string]any) {
+	a := sourcecodeApp(t, func(l map[string]any) {
 		rewrite, ok := l["rewrite"].(map[string]any)
 		if !ok {
 			return
@@ -65,6 +66,8 @@ func tsRewriteApp(t *testing.T, edit func(rewrite map[string]any)) *App {
 			edit(rewrite)
 		}
 	})
+	a.TrustProjectFormatters = true
+	return a
 }
 
 // tsProject writes rewriteTS into a project formatted by oxfmt and returns the
@@ -274,7 +277,7 @@ func TestPluginCommentRewrite(t *testing.T) {
 		p, ok := a.commentProviderFor(file)
 		require.True(t, ok)
 		broken := misindentingPluginRenderer{Provider: p, Rewriter: p.(comment.Rewriter)}
-		held := &formattedRewriter{Provider: broken, Rewriter: broken, commentFormatter: resolveCommentFormatter(p, file, p.(commentRewriteDeclarer).Rewrite())}
+		held := &formattedRewriter{Provider: broken, Rewriter: broken, commentFormatter: resolveCommentFormatter(p, file, p.(commentRewriteDeclarer).Rewrite(), formatterTrust{all: true})}
 		_, err := comment.Rewrite(held, file, []byte(rewriteTS), nil, comment.Target{ID: "func/parse"}, "Parses the input.\nIt stops at the end.", comment.RenderOptions{})
 		refusal, ok := comment.AsRefusal(err)
 		require.True(t, ok, "%v", err)

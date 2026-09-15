@@ -93,7 +93,8 @@ func (r commentFileResult) ok() bool {
 // A language's write canary runs before the first comment of that language is
 // written in the run, and when it fails no entry in the language runs. Entries
 // in a plugin language are held to the project's formatter, and run only when
-// it does. A file's entries are applied from its last comment to its first, so
+// it does, which it does only for a project the user trusts (formatterTrust).
+// A file's entries are applied from its last comment to its first, so
 // an edit never moves the lines of a comment still to come, and each rewrite is
 // held to comment.Contain. The file is read again before it is written, and a file
 // that changed meanwhile is left alone. After writing, the bytes on disk are
@@ -114,9 +115,10 @@ func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEn
 	}
 	formats, formatsErr := a.newCheckFormats(cmd)
 	canaries := map[string]error{}
+	trust := a.commentFormatterTrust()
 	results := make([]commentFileResult, 0, len(order))
 	for _, file := range order {
-		w := &commentFileWrite{app: a, cmd: cmd, file: file, entries: byFile[file], preview: preview, backupSuffix: backupSuffix}
+		w := &commentFileWrite{app: a, cmd: cmd, file: file, entries: byFile[file], preview: preview, backupSuffix: backupSuffix, trust: trust}
 		w.result = commentFileResult{File: file, Edits: make([]commentEdit, len(w.entries))}
 		for i, e := range w.entries {
 			w.result.Edits[i] = commentEdit{ID: e.ID}
@@ -142,6 +144,7 @@ type commentFileWrite struct {
 	entries      []changeEntry
 	preview      bool
 	backupSuffix string
+	trust        formatterTrust
 	result       commentFileResult
 }
 
@@ -185,7 +188,7 @@ func (w *commentFileWrite) apply(ctx context.Context, formats *checkFormats, can
 		}
 		return
 	}
-	p = withCommentFormatter(p, w.file)
+	p = withCommentFormatter(p, w.file, w.trust)
 	if f, ok := p.(*formattedRewriter); ok && f.notRun != "" {
 		w.notRun(string(comment.RefusedFormatter), f.notRun+"; nothing was written")
 		return

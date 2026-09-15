@@ -126,6 +126,12 @@ type App struct {
 	// from `kapi mcp` flags; the zero value is the curated set.
 	MCPSurface MCPSurface
 
+	// TrustProjectFormatters lets a comment edit run the formatter of every
+	// project it edits, which runs code that project controls. Set from the
+	// --trust-project-formatters flag of `kapi apply` and `kapi mcp`; see
+	// formatterTrust in host/comment_formatter.go.
+	TrustProjectFormatters bool
+
 	// mcpRecipePath retains the explicitly resolved recipe for MCP calls.
 	mcpRecipePath string
 
