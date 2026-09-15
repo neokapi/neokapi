@@ -111,6 +111,14 @@ type BlockStore interface {
 	// the server's own bookkeeping. Recomputing it over them made every settled
 	// block read as changed to the next push.
 	WriteBackBlocks(ctx context.Context, projectID, stream string, reads []*venue.StoredBlock) (WriteBackResult, error)
+	// UpdateBlock changes one block the way a single interactive write does. It
+	// reads the block, holds its row until the write ends, passes the block to
+	// update, and stores what update leaves on it. When update returns an error
+	// nothing is written, and the error comes back with the block as it stands,
+	// so a caller that refuses a write made against an older read, by returning
+	// ErrBlockChanged, can answer with the current block. update decides before
+	// it changes the block.
+	UpdateBlock(ctx context.Context, projectID, stream, blockID string, update func(current *venue.StoredBlock) error) (*venue.StoredBlock, error)
 	// SetBlockOrder records an item's document order: the position of each of
 	// its blocks, named by the durable block key the store holds as source_id
 	// (core/venue.TreeItem.Keys, which a push declares in document order).

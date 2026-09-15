@@ -260,6 +260,9 @@ type BlockInfoResponse struct {
 	HasInlineCodes bool                       `json:"has_inline_codes"`
 	Properties     map[string]string          `json:"properties"`
 	Entities       []EntityInfoResponse       `json:"entities,omitempty"`
+	// TargetRevisions names each served locale's target revision: the value a
+	// save or a review decision sends back as base_revision.
+	TargetRevisions map[string]string `json:"target_revisions,omitempty"`
 }
 
 // BlockTargetInfo is one locale's committed target in the blocks payload:
@@ -297,9 +300,13 @@ type TermCandidateInfoResponse struct {
 }
 
 // UpdateBlockTargetRequest holds parameters for updating a block target.
+// BaseRevision is the target revision the editor read (target_revisions in the
+// blocks payload). A save that names one is refused with the current block when
+// the target has moved since.
 type UpdateBlockTargetRequest struct {
 	TargetLocale string `json:"target_locale"`
 	Text         string `json:"text"`
+	BaseRevision string `json:"base_revision,omitempty"`
 }
 
 // UpdateBlockTargetRunsRequest updates a block target from a Run sequence —
@@ -308,6 +315,7 @@ type UpdateBlockTargetRequest struct {
 type UpdateBlockTargetRunsRequest struct {
 	TargetLocale string      `json:"target_locale"`
 	Runs         []model.Run `json:"runs"`
+	BaseRevision string      `json:"base_revision,omitempty"`
 }
 
 // TranslateRequest holds parameters for translation operations.
@@ -737,15 +745,19 @@ func editorQueryBlocks(ctx context.Context, cs store.ContentStore, query store.B
 	return blocks, nil
 }
 
-// editorUpdateBlockTarget loads a block, updates its target, and stores it back.
+// editorUpdateBlockTarget updates a block's target while holding the block's
+// row. A request that names the revision it read is refused with the block as
+// it stands when that target has moved since (see checkBaseRevision).
 func editorUpdateBlockTarget(ctx context.Context, cs store.ContentStore, projectID, stream, blockID string, req UpdateBlockTargetRequest) error {
-	sb, err := cs.GetBlock(ctx, projectID, stream, blockID)
-	if err != nil {
-		return err
-	}
-
-	applyTargetTextEdit(sb.Block, model.LocaleID(req.TargetLocale), req.Text, humanEditOrigin())
-	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
+	loc := model.LocaleID(req.TargetLocale)
+	_, err := cs.UpdateBlock(ctx, projectID, stream, blockID, func(sb *venue.StoredBlock) error {
+		if err := checkBaseRevision(sb, loc, req.BaseRevision); err != nil {
+			return err
+		}
+		applyTargetTextEdit(sb.Block, loc, req.Text, humanEditOrigin())
+		return nil
+	})
+	return err
 }
 
 // applyTargetTextEdit writes text as the block's target for locale, stamping the
@@ -780,21 +792,22 @@ func stampTargetOrigin(b *model.Block, loc model.LocaleID, origin model.Origin) 
 	}
 }
 
-// editorUpdateBlockTargetRuns loads a block, updates its target with the given
-// Run sequence, and stores it back.
+// editorUpdateBlockTargetRuns updates a block's target with the given Run
+// sequence while holding the block's row, and refuses a stale save the way
+// editorUpdateBlockTarget does.
 func editorUpdateBlockTargetRuns(ctx context.Context, cs store.ContentStore, projectID, stream, blockID string, req UpdateBlockTargetRunsRequest) error {
-	sb, err := cs.GetBlock(ctx, projectID, stream, blockID)
-	if err != nil {
-		return err
-	}
-
 	loc := model.LocaleID(req.TargetLocale)
-	oldRuns := sb.Block.TargetRuns(loc)
-	sb.Block.SetTargetRuns(loc, req.Runs)
-	stampTargetOrigin(sb.Block, loc, humanEditOrigin())
-	demoteStaleReviewOnEdit(sb.Block, loc, oldRuns)
-
-	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
+	_, err := cs.UpdateBlock(ctx, projectID, stream, blockID, func(sb *venue.StoredBlock) error {
+		if err := checkBaseRevision(sb, loc, req.BaseRevision); err != nil {
+			return err
+		}
+		oldRuns := sb.Block.TargetRuns(loc)
+		sb.Block.SetTargetRuns(loc, req.Runs)
+		stampTargetOrigin(sb.Block, loc, humanEditOrigin())
+		demoteStaleReviewOnEdit(sb.Block, loc, oldRuns)
+		return nil
+	})
+	return err
 }
 
 // demoteStaleReviewOnEdit drops a reviewed/signed-off Target.Status back to
@@ -1646,6 +1659,13 @@ func storedBlockToInfoResponse(sb *venue.StoredBlock, targetLocales []string) Bl
 		Targets:      targets,
 		Translatable: sb.Block.Translatable,
 		Properties:   props,
+	}
+
+	if len(targetLocales) > 0 {
+		bi.TargetRevisions = make(map[string]string, len(targetLocales))
+		for _, locale := range targetLocales {
+			bi.TargetRevisions[locale] = store.TargetRevision(sb, model.LocaleID(locale))
+		}
 	}
 
 	enrichBlockInfoResponse(&bi, sb.Block, targetLocales)

@@ -406,6 +406,20 @@ func (s *EventEmittingStore) StoreBlocks(ctx context.Context, projectID, stream 
 	return nil
 }
 
+func (s *EventEmittingStore) UpdateBlock(ctx context.Context, projectID, stream, blockID string, update func(*venue.StoredBlock) error) (*venue.StoredBlock, error) {
+	sb, err := s.inner.UpdateBlock(ctx, projectID, stream, blockID, update)
+	if err != nil {
+		return sb, err
+	}
+	s.publish(ctx, platev.Event{
+		Type:      platev.EventBlockUpdated,
+		Source:    "store",
+		ProjectID: projectID,
+		Data:      map[string]string{"block_id": blockID},
+	})
+	return sb, nil
+}
+
 func (s *EventEmittingStore) WriteBackBlocks(ctx context.Context, projectID, stream string, reads []*venue.StoredBlock) (store.WriteBackResult, error) {
 	res, err := s.inner.WriteBackBlocks(ctx, projectID, stream, reads)
 	if err != nil {

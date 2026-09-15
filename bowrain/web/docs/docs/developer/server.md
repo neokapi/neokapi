@@ -97,6 +97,16 @@ applying push to commit and a push waits for the block writes already in
 progress, and both complete. A write-back that waited skips the blocks the push
 removed or changed.
 
+A single interactive write to one block, such as a target save in the editor, a
+review decision or the `update_block` tool, changes the block while the store
+holds its row. The editor's blocks payload carries a revision for each target
+locale (`target_revisions`), and `get_block` returns the same values as
+`revisions`. A write that sends the revision it read as `base_revision` is
+refused when that target has moved since: the editor routes answer `409` with
+`code: "block_changed"` and the block as it now stands in `current`, and
+`update_block` returns an error naming the current wording. Nothing is written,
+so the writer decides again on the wording that stands.
+
 The same routes exist under `/api/v1/projects/:id/sync/:ref/...` for a project
 that has not yet been claimed into a workspace, authenticated by its claim token.
 See [`kapi push`](/cli/commands/push) for the protocol as a client sees it.

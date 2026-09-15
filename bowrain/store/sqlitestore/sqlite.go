@@ -700,12 +700,21 @@ func (s *SQLiteStore) SetBlockOrder(ctx context.Context, projectID, stream, item
 // every other block is recorded on wb as skipped with nothing written for it.
 // A write-back keeps the row's stored context hash, which is the producer's.
 func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block, wb *storeutil.WriteBack) error {
-	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+	if err := s.storeBlocksTx(ctx, tx, projectID, stream, itemName, blocks, wb); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// storeBlocksTx is storeBlocks on the transaction the caller brings.
+func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, stream, itemName string, blocks []*model.Block, wb *storeutil.WriteBack) error {
+	stream = storeutil.DefaultStream(stream)
+	var err error
 
 	// When storing blocks for a specific item, map format-reader IDs (source_id)
 	// to internal project-unique IDs. Blocks stored without an item keep their
@@ -1058,7 +1067,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*venue.StoredBlock, error) {

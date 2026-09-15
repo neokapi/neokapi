@@ -65,11 +65,15 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 // request (reviewed=true) lands on "reviewed" by default, or on "signed-off",
 // the rung above it, when the reviewer signs the target off. Any other pairing
 // is a 400.
+//
+// BaseRevision is the target revision the reviewer read. A decision that names
+// one is refused with the current block when the target has moved since.
 type ReviewBlockRequest struct {
 	TargetLocale string `json:"target_locale"`
 	ItemName     string `json:"item_name,omitempty"`
 	Reviewed     bool   `json:"reviewed"`
 	Status       string `json:"status,omitempty"`
+	BaseRevision string `json:"base_revision,omitempty"`
 }
 
 // legacyTranslationStatusProperty is the pre-per-locale review flag: a
@@ -188,6 +192,9 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 		Vet:     sod.vet,
 	})
 	if err != nil {
+		if changed, ok := asBlockChanged(err); ok {
+			return s.answerBlockChanged(c, pid, changed, req.TargetLocale)
+		}
 		if fault, ok := errors.AsType[reviewFault](err); ok {
 			return c.JSON(fault.code, ErrorResponse{Error: fault.msg})
 		}
@@ -287,87 +294,101 @@ type blockReviewOutcome struct {
 // per-request rather than per-block.
 func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockReviewInput) (blockReviewOutcome, error) {
 	req := in.Request
-	sb, err := s.ContentStore.GetBlock(ctx, in.ProjectID, in.Stream, in.BlockID)
-	if err != nil {
-		return blockReviewOutcome{}, reviewFault{http.StatusNotFound, "block not found: " + err.Error()}
-	}
-
 	loc := model.LocaleID(req.TargetLocale)
-	target := sb.Block.Target(loc) // locale-only variant (tone/channel empty)
 
 	promoteTo := in.PromoteTo
 	if promoteTo == "" {
 		promoteTo = model.TargetStatusReviewed
 	}
 
-	var status model.TargetStatus
-	if req.Reviewed {
-		if target == nil || strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
-			return blockReviewOutcome{}, reviewFault{http.StatusUnprocessableEntity, fmt.Sprintf(
-				"block %q has no %s translation to review: translate it first (an untranslated block falls back to source, which is not a reviewable translation)",
-				in.BlockID, req.TargetLocale)}
+	// The decision is made on the block as the write holds it, so the status
+	// lands on the wording that was judged. out is what the decision leaves.
+	var out blockReviewOutcome
+	clearedLegacy := false
+	sb, err := s.ContentStore.UpdateBlock(ctx, in.ProjectID, in.Stream, in.BlockID, func(sb *venue.StoredBlock) error {
+		if err := checkBaseRevision(sb, loc, req.BaseRevision); err != nil {
+			return err
 		}
-		if target.Status == model.TargetStatusSignedOff {
-			// Signed-off is the top of the ladder; approving or re-signing it
-			// must not demote it. Idempotent success, keeping the rung.
-			return blockReviewOutcome{HadTarget: true, From: target.Status, Status: target.Status}, nil
-		}
-		// Separation of duties applies to a real promotion. A call that lands
-		// on a rung the target already holds moves nothing, so there is no
-		// decision to refuse: re-approving a reviewed target passes, while
-		// signing one off is a fresh decision and is vetted.
-		if in.Vet != nil && target.Status.Rank() < promoteTo.Rank() {
-			if err := in.Vet(in.BlockID, req.TargetLocale); err != nil {
-				return blockReviewOutcome{}, err
-			}
-		}
-		status = promoteTo
-	} else {
-		if target == nil {
-			// Nothing to demote. Clear the legacy block-global flag if present so
-			// a block reviewed under the old scheme can be un-reviewed at all.
-			if _, ok := sb.Block.Properties[legacyTranslationStatusProperty]; ok {
-				delete(sb.Block.Properties, legacyTranslationStatusProperty)
-				if err := s.ContentStore.StoreBlocks(ctx, in.ProjectID, in.Stream, []*model.Block{sb.Block}); err != nil {
-					return blockReviewOutcome{}, fmt.Errorf("store block: %w", err)
-				}
-				s.emitEditorBlockChange(c, in.ProjectID, in.BlockID, req.ItemName, in.Stream, "updated")
-			}
-			return blockReviewOutcome{}, nil
-		}
-		if target.Status == model.TargetStatusSignedOff {
-			// Undoing a sign-off is a review-level action, not ordinary
-			// translation work: without this gate a PermTranslate caller could
-			// drop a signed-off target two rungs to translated with no audit
-			// trail distinct from an ordinary un-review.
-			if err := in.Elevate(); err != nil {
-				return blockReviewOutcome{}, err
-			}
-		}
-		status = in.DemoteTo
-	}
-	from := target.Status
-	// A sign-off counts for the review loop exactly as an approval does: it
-	// leaves the project one pending unit lighter. Signing off a target that
-	// was already reviewed leaves the pending count where it was, so it does
-	// not advance the loop, the same way a re-approve does not.
-	approval := req.Reviewed && status.Rank() >= model.TargetStatusReviewed.Rank() &&
-		from.Rank() < model.TargetStatusReviewed.Rank()
-	target.Status = status
+		target := sb.Block.Target(loc) // locale-only variant (tone/channel empty)
 
-	if err := s.ContentStore.StoreBlocks(ctx, in.ProjectID, in.Stream, []*model.Block{sb.Block}); err != nil {
-		return blockReviewOutcome{}, fmt.Errorf("store block: %w", err)
+		var status model.TargetStatus
+		if req.Reviewed {
+			if target == nil || strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
+				return reviewFault{http.StatusUnprocessableEntity, fmt.Sprintf(
+					"block %q has no %s translation to review: translate it first (an untranslated block falls back to source, which is not a reviewable translation)",
+					in.BlockID, req.TargetLocale)}
+			}
+			if target.Status == model.TargetStatusSignedOff {
+				// Signed-off is the top of the ladder; approving or re-signing it
+				// must not demote it. Idempotent success, keeping the rung.
+				out = blockReviewOutcome{HadTarget: true, From: target.Status, Status: target.Status}
+				return errNothingToWrite
+			}
+			// Separation of duties applies to a real promotion. A call that lands
+			// on a rung the target already holds moves nothing, so there is no
+			// decision to refuse: re-approving a reviewed target passes, while
+			// signing one off is a fresh decision and is vetted.
+			if in.Vet != nil && target.Status.Rank() < promoteTo.Rank() {
+				if err := in.Vet(in.BlockID, req.TargetLocale); err != nil {
+					return err
+				}
+			}
+			status = promoteTo
+		} else {
+			if target == nil {
+				// Nothing to demote. Clear the legacy block-global flag if present so
+				// a block reviewed under the old scheme can be un-reviewed at all.
+				if _, ok := sb.Block.Properties[legacyTranslationStatusProperty]; !ok {
+					return errNothingToWrite
+				}
+				delete(sb.Block.Properties, legacyTranslationStatusProperty)
+				clearedLegacy = true
+				return nil
+			}
+			if target.Status == model.TargetStatusSignedOff {
+				// Undoing a sign-off is a review-level action, not ordinary
+				// translation work: without this gate a PermTranslate caller could
+				// drop a signed-off target two rungs to translated with no audit
+				// trail distinct from an ordinary un-review.
+				if err := in.Elevate(); err != nil {
+					return err
+				}
+			}
+			status = in.DemoteTo
+		}
+		from := target.Status
+		// A sign-off counts for the review loop exactly as an approval does: it
+		// leaves the project one pending unit lighter. Signing off a target that
+		// was already reviewed leaves the pending count where it was, so it does
+		// not advance the loop, the same way a re-approve does not.
+		approval := req.Reviewed && status.Rank() >= model.TargetStatusReviewed.Rank() &&
+			from.Rank() < model.TargetStatusReviewed.Rank()
+		target.Status = status
+		out = blockReviewOutcome{HadTarget: true, From: from, Status: status, Approval: approval, Changed: from != status}
+		return nil
+	})
+	switch {
+	case nothingToWrite(err):
+		return out, nil
+	case err != nil && sb == nil:
+		return blockReviewOutcome{}, reviewFault{http.StatusNotFound, "block not found: " + err.Error()}
+	case err != nil:
+		return blockReviewOutcome{}, err
+	}
+	if clearedLegacy {
+		s.emitEditorBlockChange(c, in.ProjectID, in.BlockID, req.ItemName, in.Stream, "updated")
+		return blockReviewOutcome{}, nil
 	}
 
 	// The review is a DECISION, and decisions live in the ledger — with the
 	// decider's identity, the time, and the hash of the translation it
-	// blesses — not only in the projected status the line above wrote. The
+	// blesses — not only in the projected status the write above landed. The
 	// ledger is what travels to the client on pull, where the same record
 	// lands in the project's committed state.
-	s.recordReviewDecision(ctx, c, in.ProjectID, in.Stream, sb, req.TargetLocale, status, req.Reviewed)
+	s.recordReviewDecision(ctx, c, in.ProjectID, in.Stream, sb, req.TargetLocale, out.Status, req.Reviewed)
 	s.emitEditorBlockChange(c, in.ProjectID, in.BlockID, req.ItemName, in.Stream, "updated")
 
-	return blockReviewOutcome{HadTarget: true, From: from, Status: status, Approval: approval, Changed: from != status}, nil
+	return out, nil
 }
 
 // PresenceRequest reports the caller's current editing focus in a project.

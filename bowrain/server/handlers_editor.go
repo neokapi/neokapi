@@ -612,6 +612,9 @@ func (s *Server) HandleUpdateBlockTarget(c echo.Context) error {
 	}
 
 	if err := editorUpdateBlockTarget(c.Request().Context(), s.ContentStore, pid, streamParam(c), bid, req); err != nil {
+		if changed, ok := asBlockChanged(err); ok {
+			return s.answerBlockChanged(c, pid, changed, req.TargetLocale)
+		}
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
@@ -653,6 +656,9 @@ func (s *Server) HandleUpdateBlockTargetRuns(c echo.Context) error {
 	}
 
 	if err := editorUpdateBlockTargetRuns(c.Request().Context(), s.ContentStore, pid, streamParam(c), bid, req); err != nil {
+		if changed, ok := asBlockChanged(err); ok {
+			return s.answerBlockChanged(c, pid, changed, req.TargetLocale)
+		}
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
