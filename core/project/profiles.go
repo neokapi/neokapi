@@ -587,10 +587,11 @@ func (p *KapiProject) governanceLadder(pt GovernancePoint) ([]ChannelRef, error)
 
 // declaredChannelsFor returns the `channel:` references a point declares, finest
 // first, together with the recipe subject to name in an error. A path is matched
-// against every item with the same first-match-wins glob walk as
-// CollectionForPath, and a point for the file's own content passes over an item
-// that claims only its comments (ContentItemForPath); a collection is looked up
-// by name, and answers when no item claimed the path.
+// against every item by the claims rule (fileClaims): a point for the file's own
+// content resolves at the item that claims its values (ContentItemForPath), and
+// a point for its comments at the item that claims them (CommentItemForPath), or
+// at the values' item when no item declares the comments. A collection is
+// looked up by name, and answers when no item claimed the path.
 func (p *KapiProject) declaredChannelsFor(pt GovernancePoint) ([]string, string, error) {
 	var declared []string
 	subject := ""
@@ -598,9 +599,10 @@ func (p *KapiProject) declaredChannelsFor(pt GovernancePoint) ([]string, string,
 		declared, subject = []string{p.Defaults.Comments.Channel}, "defaults.comments"
 	}
 	if pt.Path != "" {
-		item, i, ok := p.ItemForPath(pt.Path)
-		if !pt.Comments {
-			item, i, ok = p.ContentItemForPath(pt.Path, pt.NoReader)
+		claims := p.claimsForPath(pt.Path, fixedNoReader(pt.NoReader))
+		item, i, ok := claims.values.at()
+		if pt.Comments && claims.comments.ok {
+			item, i, ok = claims.comments.at()
 		}
 		if ok {
 			coll := &p.Collections[i]
@@ -729,36 +731,112 @@ func (p *KapiProject) BindsTermsByProfile() bool {
 }
 
 // ItemForPath returns the content item that claims relPath, a project-relative
-// slash-separated path: the first item in recipe order, across collections,
-// whose pattern matches it, with its collection's base and languages folded in
+// slash-separated path, with its collection's base and languages folded in
 // (EffectiveItems). The index of that collection comes back beside it; ok is
 // false when no item claims the path. No item claims a path that
 // `defaults.exclude` matches.
 //
-// This is the one path-to-item rule. ProjectContext.ResolveContent applies it
-// when it expands the recipe into files, and every lookup that starts from a
-// path (governance, format, target, reader configuration) asks here, so a file
-// is claimed by the same item whichever direction the question is asked from.
+// The item is the one that claims the file's values: the first item in recipe
+// order, across collections, whose pattern matches the path and that is not
+// declared `comments: {only: true}`. For a file that only such items match, it
+// is the first of them, which claims the file's comments.
+//
+// This is the one path-to-item rule (fileClaims). ProjectContext.ResolveContent
+// applies it, with the formats it detects, when it expands the recipe into
+// files, and every lookup that starts from a path (governance, format, target,
+// reader configuration) asks here, so a file is claimed by the same item
+// whichever direction the question is asked from.
 func (p *KapiProject) ItemForPath(relPath string) (item ContentItem, collIdx int, ok bool) {
-	item, collIdx, _, ok = p.itemForPath(relPath)
-	return item, collIdx, ok
+	return p.claimsForPath(relPath, fixedNoReader(false)).item().at()
 }
 
-// itemForPath is ItemForPath with the item's position among its collection's
-// EffectiveItems as well.
-func (p *KapiProject) itemForPath(relPath string) (item ContentItem, collIdx, itemIdx int, ok bool) {
+// itemClaim is an item's claim on one layer of a file: the item, with its
+// collection's base and languages folded in, the collection's index, and the
+// item's position among the collection's EffectiveItems. ok is false when no
+// item claims the layer.
+type itemClaim struct {
+	item        ContentItem
+	coll, index int
+	ok          bool
+}
+
+// at returns the claimed item, its collection's index, and ok. The index is -1
+// when no item claims the layer.
+func (c itemClaim) at() (ContentItem, int, bool) {
+	if !c.ok {
+		return ContentItem{}, -1, false
+	}
+	return c.item, c.coll, true
+}
+
+// fileClaims are the claims recipe items make on one file. Each layer is
+// claimed by the first item in recipe order that claims it. The values go to
+// the first item whose pattern matches the file and that claims more than its
+// comments. The comments go to the first item that claims only the comments,
+// or to the values' item when it declares them and comes first. An item after
+// the values' item that claims more than the comments claims nothing.
+type fileClaims struct {
+	values, comments itemClaim
+}
+
+// offer gives the claims the next item in recipe order whose pattern matches
+// the file. noReader reports that no reader parses the file, and is asked only
+// when the item's claim depends on it.
+func (c *fileClaims) offer(item ContentItem, coll, index int, noReader func() bool) {
+	if item.claimsOnlyComments(noReader) {
+		if !c.comments.ok {
+			c.comments = itemClaim{item: item, coll: coll, index: index, ok: true}
+		}
+		return
+	}
+	if c.values.ok {
+		return
+	}
+	c.values = itemClaim{item: item, coll: coll, index: index, ok: true}
+	if !c.comments.ok && item.Comments.Declared {
+		c.comments = c.values
+	}
+}
+
+// decided reports claims that no later item changes.
+func (c fileClaims) decided() bool {
+	return c.values.ok && c.comments.ok
+}
+
+// item is the claim that names the file: the one on its values, or the one on
+// its comments when no item claims the values.
+func (c fileClaims) item() itemClaim {
+	if c.values.ok {
+		return c.values
+	}
+	return c.comments
+}
+
+// fixedNoReader reports what a caller already knows about whether a reader
+// parses a file.
+func fixedNoReader(noReader bool) func() bool {
+	return func() bool { return noReader }
+}
+
+// claimsForPath resolves the claims recipe items make on relPath. No item
+// claims a path that `defaults.exclude` matches.
+func (p *KapiProject) claimsForPath(relPath string, noReader func() bool) fileClaims {
+	var c fileClaims
 	if p.excludes(relPath) {
-		return ContentItem{}, -1, -1, false
+		return c
 	}
 	for i := range p.Collections {
 		for j, candidate := range p.Collections[i].EffectiveItems() {
 			if candidate.Path == "" || !MatchGlob(candidate.Path, relPath) {
 				continue
 			}
-			return candidate, i, j, true
+			c.offer(candidate, i, j, noReader)
+			if c.decided() {
+				return c
+			}
 		}
 	}
-	return ContentItem{}, -1, -1, false
+	return c
 }
 
 // excludes reports that relPath matches a pattern under `defaults.exclude`.
@@ -779,26 +857,23 @@ func (p *KapiProject) CollectionForPath(relPath string) string {
 	return ""
 }
 
-// ContentItemForPath returns the item that governs relPath's own content: the
-// first item in recipe order whose pattern matches it and that claims more than
-// the file's comments. An item declared `comments: {only: true}` claims only
-// the comments, and so does an item that declares the comments of a file no
-// reader parses (noReader) and names no format. Resolution passes over such an
-// item as if the recipe did not declare it; ok is false when no other item
-// matches.
+// ContentItemForPath returns the item that governs relPath's own content, the
+// one that claims its values: the first item in recipe order whose pattern
+// matches it and that claims more than the file's comments. An item declared
+// `comments: {only: true}` claims only the comments, and so does an item that
+// declares the comments of a file no reader parses (noReader) and names no
+// format. ok is false when no other item matches.
 func (p *KapiProject) ContentItemForPath(relPath string, noReader bool) (item ContentItem, collIdx int, ok bool) {
-	if p.excludes(relPath) {
-		return ContentItem{}, -1, false
-	}
-	for i := range p.Collections {
-		for _, candidate := range p.Collections[i].EffectiveItems() {
-			if candidate.Path == "" || !MatchGlob(candidate.Path, relPath) || candidate.claimsOnlyComments(noReader) {
-				continue
-			}
-			return candidate, i, true
-		}
-	}
-	return ContentItem{}, -1, false
+	return p.claimsForPath(relPath, fixedNoReader(noReader)).values.at()
+}
+
+// CommentItemForPath returns the item that claims relPath's comments, at whose
+// point they sit: the first item in recipe order whose pattern matches it and
+// that claims only its comments (noReader as for ContentItemForPath), or the
+// item ContentItemForPath names when it declares the comments and comes first.
+// ok is false when no item declares the file's comments.
+func (p *KapiProject) CommentItemForPath(relPath string, noReader bool) (item ContentItem, collIdx int, ok bool) {
+	return p.claimsForPath(relPath, fixedNoReader(noReader)).comments.at()
 }
 
 // ContentCollectionForPath is CollectionForPath for a file's own content: the
@@ -810,13 +885,13 @@ func (p *KapiProject) ContentCollectionForPath(relPath string, noReader bool) st
 	return ""
 }
 
-// ClaimsOnlyComments reports that the item claiming relPath, the first in recipe
-// order whose pattern matches it, claims only the file's comments. Every block
-// the project reads from such a file is a comment, so a caller holding those
-// blocks resolves them with GovernancePoint.Comments.
+// ClaimsOnlyComments reports that an item claims relPath's comments and no item
+// claims its values. Every block the project reads from such a file is a
+// comment, so a caller holding those blocks resolves them with
+// GovernancePoint.Comments.
 func (p *KapiProject) ClaimsOnlyComments(relPath string, noReader bool) bool {
-	item, _, ok := p.ItemForPath(relPath)
-	return ok && item.claimsOnlyComments(noReader)
+	c := p.claimsForPath(relPath, fixedNoReader(noReader))
+	return c.comments.ok && !c.values.ok
 }
 
 // ---------------------------------------------------------------------------

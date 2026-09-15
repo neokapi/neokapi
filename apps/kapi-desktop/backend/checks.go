@@ -220,7 +220,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 				return fmt.Errorf("read check source %s: %w", rf.Relative, rerr)
 			}
 			blocksChecked += len(sourceBlocks)
-			if rf.Item != nil && rf.Item.Comments.Declared {
+			if rf.CommentItem != nil {
 				commentFiles = append(commentFiles, rf)
 			}
 

@@ -39,7 +39,7 @@ func (a *App) resolveVerifyCheckUnits(
 	seen, seenComments := map[string]bool{}, map[string]bool{}
 	for _, rf := range resolved {
 		hasTargets := rf.Item != nil && rf.Item.Target != "" && len(rf.Item.ResolvedTargetLanguages(nil, proj.Defaults)) > 0
-		comments := rf.Item != nil && rf.Item.Comments.Declared
+		comments := rf.CommentItem != nil
 		switch {
 		case hasTargets && (!comments || seenComments[rf.Path]):
 			continue
@@ -58,7 +58,7 @@ func (a *App) resolveVerifyCheckUnits(
 			SourcePath: rf.Path, Locale: a.SourceLocale(), Collection: rf.Collection,
 			DisplayPath: relative, ProjectRoot: root, SourceFormat: rf.Format,
 			SourceConfig: mergedFormatConfig(proj, rf.Format, rf.Item),
-			Comments:     comments, OnlyComments: hasTargets || narrowedToComments(rf), Directives: commentDirectives(proj, rf.Item),
+			Comments:     comments, OnlyComments: hasTargets || narrowedToComments(rf), Directives: commentDirectives(proj, rf.CommentItem),
 		})
 	}
 	return units, nil

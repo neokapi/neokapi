@@ -174,11 +174,15 @@ Resolution walks the declared bindings **from the finest to the coarsest**:
 
 1. **A content item's own `channel:`**. A file is the finest declared point, so
    one file in a collection can ship on a different channel, or under a different
-   profile, than its neighbours. A path is matched against every item with the
-   same first-match-wins glob walk that assigns a file to its collection. An
-   item that claims only the file's comments governs only those comments, so a
-   point for the file's own content passes over it to the next item that
-   claims the path. An item claims only the comments when it declares
+   profile, than its neighbours. A path is matched against every item in recipe
+   order, and each layer of the file resolves at the first item that claims it
+   (`fileClaims`), the same walk that assigns a file to its collection. An item
+   that claims only the file's comments governs only those comments, wherever
+   the recipe lists it. A point for the file's own content resolves at the
+   first other item that claims the path (`ContentItemForPath`). A point for
+   its comments resolves at the first item that claims only the comments, or at
+   the values' item when that item declares the comments and comes first
+   (`CommentItemForPath`). An item claims only the comments when it declares
    `comments: {only: true}`, or when it declares the comments of a file no
    reader parses (`NoReader`) and names no format.
 2. **The collection's `channel:`**, for a path no item claims and for a caller
@@ -188,8 +192,9 @@ Resolution walks the declared bindings **from the finest to the coarsest**:
 
 `kapi voice guide`, `kapi context` and a check of files named on the command
 line or through MCP `check_file` answer for a file's own content. Every block
-the project reads from a file whose item claims only its comments is a comment
-(`ClaimsOnlyComments`), so a surface holding those blocks resolves them at the
+the project reads from a file whose comments an item claims and whose values no
+item claims is a comment (`ClaimsOnlyComments`), so a surface holding those
+blocks resolves them at the
 comments' point: a check of the project's declared content, the review of a
 source unit, and the places `context_search` reports a term in use.
 

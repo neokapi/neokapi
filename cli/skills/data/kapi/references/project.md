@@ -166,7 +166,10 @@ collections:
   gates skip the values. The item governs only the comments: `kapi check
   <file>` naming the file checks its values too, and `kapi voice guide <file>`
   and `kapi context <file>` answer for them, at the next item that claims the
-  file or the project's default point. Such an item cannot also set `target`,
+  file or the project's default point. Another item that matches the same
+  files claims their values wherever either item is listed, so `kapi up`
+  converges those values and the comments stay at the comments-only item's
+  point. Such an item cannot also set `target`,
   `target_languages`, `redaction`, `format.config` or `format.preset`.
   Markers your own tools read in
   comments, such as `okapi-skip:`, go under `defaults.comments.directives` for

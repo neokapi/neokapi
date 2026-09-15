@@ -189,9 +189,12 @@ that the pattern names before its first wildcard.
 
 A file belongs to exactly one item. Items are matched in the order they are
 written, across all collections, and the first item whose `path` matches a file
-claims it; later items never see that file, however specific their pattern. To
-place one file at its own point, or under its own format or target, list its
-item before the glob that would otherwise cover it:
+claims it; later items never see that file, however specific their pattern. An
+item declared `comments: {only: true}` claims only comments, wherever it is
+written: the first other item that matches a file claims its values, and the
+comments stay with the comments-only item unless that other item comes first
+and declares them itself. To place one file at its own point, or under its own
+format or target, list its item before the glob that would otherwise cover it:
 
 ```yaml
 collections:

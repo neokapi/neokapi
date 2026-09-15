@@ -1290,9 +1290,9 @@ func (a *App) sourceUnits(proj *project.KapiProject, root string, commentsOnly b
 			DisplayPath:  rel,
 			SourceFormat: rf.Format,
 			SourceConfig: mergedFormatConfig(proj, rf.Format, rf.Item),
-			Comments:     rf.Item != nil && rf.Item.Comments.Declared,
+			Comments:     rf.CommentItem != nil,
 			OnlyComments: narrowedToComments(rf),
-			Directives:   commentDirectives(proj, rf.Item),
+			Directives:   commentDirectives(proj, rf.CommentItem),
 		})
 	}
 	return units, nil

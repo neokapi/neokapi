@@ -203,7 +203,17 @@ standing ("2 to push" / "synced"), derived from the sync cache.
 
 			out := output.LsOutput{HasStats: stats}
 			seen := map[string]bool{}
+			// A file two items match takes its format from the item that claims
+			// its values, so the items declared for comments alone come last.
+			var items, commentItems []coreproj.IteratedItem
 			for _, it := range proj.IterateContent() {
+				if it.Item.Comments.Only {
+					commentItems = append(commentItems, it)
+				} else {
+					items = append(items, it)
+				}
+			}
+			for _, it := range append(items, commentItems...) {
 				lang := string(it.Item.ResolvedSourceLanguage(it.Collection, proj.Defaults))
 				pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
 				// `ls` does not go through project.ResolveContent, so it carried
