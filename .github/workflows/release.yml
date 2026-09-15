@@ -414,12 +414,13 @@ jobs:
           ( cd dist && { sha256sum ./*.deb ./*.rpm 2>/dev/null | sed 's| \./| |' || true; } >> checksums.txt )
           ls -l dist/*.deb dist/*.rpm 2>/dev/null || true
 
-      # Publish the .deb/.rpm into the self-hosted apt + yum repos
-      # (https://neokapi.github.io/packages/). Stable channel only — system
-      # package managers track stable. No-op until the signing key + packages
-      # token are configured.
+      # Publish the .deb/.rpm into the self-hosted apt + yum repository
+      # (https://neokapi.github.io/packages/). Final tags only, because system
+      # package managers track stable, and only when the repository variable
+      # PUBLISH_PACKAGES is "true": the repository is off until it is set.
+      # scripts/check-packages-publish-gate.sh keeps this condition in place.
       - name: Publish to apt/yum repo
-        if: ${{ needs.setup.outputs.prerelease != 'true' }}
+        if: ${{ needs.setup.outputs.prerelease != 'true' && vars.PUBLISH_PACKAGES == 'true' }}
         env:
           PACKAGES_GPG_PRIVATE_KEY: ${{ secrets.PACKAGES_GPG_PRIVATE_KEY }}
           PACKAGES_TOKEN: ${{ secrets.PACKAGES_TOKEN }}

@@ -1205,6 +1205,8 @@ jobs:
         run: ./scripts/check-tracked-binaries.sh
       - name: Guard — no plugin release claims the repo's "latest"
         run: ./scripts/check-plugin-release-latest.sh
+      - name: "Guard: the apt/yum repository publishes only when it is turned on"
+        run: ./scripts/check-packages-publish-gate.sh
 
       # The gate itself runs only in the nightly convergence, where nothing
       # exercises it on a pull request. Its self-test does: it drives the real

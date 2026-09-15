@@ -2,7 +2,8 @@
 
 Status: **Phases 1–4 implemented** (CLI self-update + notifier; cross-platform
 desktop in-app updates via the Wails native updater + per-(os,arch) signed
-appcasts; winget; Linux apt/yum). All need their release-side wiring exercised
+appcasts; winget; Linux `.deb`/`.rpm`, with the apt/yum repository off until
+`PUBLISH_PACKAGES` is set). All need their release-side wiring exercised
 on a real tagged release and the documented operational gates (signing keys,
 per-user Windows NSIS, on-device swap validation) before going live. Phase 5
 (Velopack) pending. Tracking doc for how neokapi keeps its shipped artifacts up
@@ -274,10 +275,16 @@ only user-facing asset names follow this scheme.
 - [x] nfpm-built `.deb`/`.rpm` for the kapi CLI (`packaging/nfpm.yaml` +
       `release.yml`): `kapi-cli_<ver>_<arch>.deb` / `.rpm` with the kapi binary +
       toolbox symlinks, attached to the release and listed in `checksums.txt`.
-      Direct-download packages (apt/dnf own updates), not in `cli.json`.
-- [x] **Self-hosted apt + yum repos** (`scripts/publish-packages.sh` +
-      `release.yml`, stable channel only) served at
-      `https://neokapi.github.io/packages/`. apt is a flat repo
+      Direct-download packages: dpkg or rpm owns the installed file, so they
+      are not in `cli.json`.
+- [x] **Self-hosted apt + yum repository** (`scripts/publish-packages.sh` +
+      `release.yml`, final tags only) served at
+      `https://neokapi.github.io/packages/`. The repository is **off** until the
+      repository variable `PUBLISH_PACKAGES` is `true`. `release.yml` runs the
+      publish step only when that variable is set, and
+      `scripts/check-packages-publish-gate.sh` (Repo guards) fails a publish step
+      that lacks the condition. While the repository is off, Linux users install
+      the `.deb` or `.rpm` attached to the release. apt is a flat repo
       (`apt/pool/*.deb` + signed `InRelease`/`Release.gpg`); yum is
       `createrepo_c` output with a signed `repomd.xml.asc`. The signed indexes
       carry each package's SHA-256, so a tampered package is caught even though
@@ -285,7 +292,7 @@ only user-facing asset names follow this scheme.
       Ubuntu/Rocky containers (`apt-get update` + `dnf makecache` both accept
       the repo and list `kapi-cli`).
 
-#### apt/yum install (users)
+#### apt/yum install (users, once the repository is on)
 
 ```bash
 # Debian/Ubuntu
@@ -333,7 +340,10 @@ checksums; per-package rpm signing is a possible later hardening.)
    ```
 3. Set secrets: `PACKAGES_GPG_PRIVATE_KEY` (armored private key) and
    `PACKAGES_TOKEN` (PAT with write to `neokapi/packages`).
-4. Cut a stable release; `release.yml` publishes the `.deb`/`.rpm` into the repo.
+4. Turn the repository on:
+   `gh variable set PUBLISH_PACKAGES --repo neokapi/neokapi --body true`. The
+   next final tag publishes its `.deb`/`.rpm` into the repository; a release
+   candidate never does. Deleting the variable turns it off again.
 - [ ] Possible later hardening: per-package `.deb`/`.rpm` GPG signing, a beta
       apt component, and a branded domain (CNAME on the Pages repo).
 
