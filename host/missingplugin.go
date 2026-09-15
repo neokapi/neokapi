@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -280,7 +281,8 @@ func (a *App) recipeDeclares(cmd Command, key string, override map[string]any) b
 
 // dispatchPluginVerb runs verb through the freshly installed plugin, the same
 // way pluginattach's synthesized cobra command would have: raw args through to
-// the plugin, over the daemon when the plugin declares Mode-C for this op.
+// the plugin, over the daemon when the plugin declares Mode-C for this op. A
+// daemon route asked for help prints it here, since cobra has already returned.
 func (a *App) dispatchPluginVerb(ctx context.Context, verb string, args []string) error {
 	if a.PluginHost == nil {
 		return fmt.Errorf("plugin installed but %q is still unavailable. Rerun the command", verb)
@@ -292,7 +294,16 @@ func (a *App) dispatchPluginVerb(ctx context.Context, verb string, args []string
 	if pool := a.DaemonPool(); pool != nil &&
 		pluginhost.SupportsModeCDispatch(route.Plugin.Name(), verb) &&
 		route.Plugin.Manifest.Daemon != nil {
-		return pluginhost.DispatchViaDaemon(ctx, pool, route.Plugin, verb, args)
+		err := pluginhost.DispatchViaDaemon(ctx, pool, route.Plugin, verb, args)
+		if help, ok := errors.AsType[*pluginhost.RouteHelp](err); ok {
+			synopsis := verb
+			if help.Usage != "" {
+				synopsis += " " + help.Usage
+			}
+			fmt.Fprintf(os.Stdout, "%s\n\nUsage:\n  kapi %s [flags]\n\nFlags:\n%s", route.Command.Short, synopsis, help.Flags.FlagUsages())
+			return nil
+		}
+		return err
 	}
 	return pluginhost.ExecPluginCommand(ctx, route, args)
 }

@@ -129,7 +129,10 @@ the kapi process environment:
 
 - `KAPI_NO_PROJECT=1` — opt out of discovery (an explicit `-p` still wins).
   `KAPI_PROJECT=""` does **not** disable discovery; only a non-empty
-  `KAPI_NO_PROJECT` does.
+  `KAPI_NO_PROJECT` does. Plugin routes a daemon serves (`kapi push`, `pull`,
+  `status`, `ls`) resolve the project the same way, so with it set and no `-p`
+  they refuse to run. They also refuse a flag they do not take, and `--help`
+  prints their help without starting a daemon.
 - `KAPI_CONFIG_DIR`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` → throwaway dirs, so kapi
   can't read the developer's `~/.config/kapi`, plugins, or caches.
 - `KAPI_PLUGINS_DIR_ONLY=1` — discover plugins only from `$KAPI_PLUGINS_DIR`
