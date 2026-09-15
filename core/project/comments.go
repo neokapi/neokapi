@@ -147,6 +147,25 @@ func (item *ContentItem) claimsOnlyComments(noReader func() bool) bool {
 	return (item.Format == nil || ResolveFormat(item.Format.Name) == "") && noReader()
 }
 
+// DeclaresCommentPoint reports that the recipe places comments at a point apart
+// from their file's own: `defaults.comments.channel` is set, an item sets
+// `comments.channel`, or an item declares its files for their comments alone,
+// whose content resolves past it. A comment's voice can then differ from the
+// voice of the content beside it.
+func (p *KapiProject) DeclaresCommentPoint() bool {
+	if p.Defaults.Comments.Channel != "" {
+		return true
+	}
+	for i := range p.Collections {
+		for _, item := range p.Collections[i].Content {
+			if item.Comments.Channel != "" || item.Comments.Only {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // CommentDirectives returns the directives in force in the comments of this
 // item's files: the ones under `defaults.comments`, then the item's own.
 func (item *ContentItem) CommentDirectives(defaults Defaults) []string {

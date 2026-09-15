@@ -44,6 +44,23 @@ func TestRenderVoicePointer(t *testing.T) {
 				"Some collections carry a voice of their own",
 				"`kapi voice guide <path>`",
 			},
+			absent: []string{"--comments"},
+		},
+		{
+			name:    "comments at a point of their own",
+			pointer: VoicePointer{Name: "House", PerFile: true, Comments: true},
+			want: []string{
+				"`kapi voice guide <path>` for the file you are writing.",
+				"Comments in a file can sit under a voice of their own, so retrieve that voice with `kapi voice guide --comments <path>` before writing one.",
+			},
+		},
+		{
+			name:    "comments at a point of their own in a project with one voice",
+			pointer: VoicePointer{Name: "House", Comments: true},
+			want: []string{
+				"with `kapi voice guide`.",
+				"`kapi voice guide --comments <path>`",
+			},
 		},
 	}
 	for _, tt := range tests {

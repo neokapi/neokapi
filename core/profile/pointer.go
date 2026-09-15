@@ -19,6 +19,10 @@ type VoicePointer struct {
 	// PerFile is true when the recipe declares profiles, so parts of the tree
 	// carry a voice of their own and the retrieval command takes the file.
 	PerFile bool
+	// Comments is true when the recipe places comments at a point of their
+	// own, so a comment's voice can differ from the content's and the section
+	// names the command that retrieves it.
+	Comments bool
 }
 
 const (
@@ -54,6 +58,9 @@ func RenderVoicePointer(p VoicePointer) string {
 		b.WriteString(" Some collections carry a voice of their own, so retrieve what is in force before writing, with `kapi voice guide <path>` for the file you are writing.")
 	} else {
 		b.WriteString(" Retrieve what is in force before writing, with `kapi voice guide`.")
+	}
+	if p.Comments {
+		b.WriteString(" Comments in a file can sit under a voice of their own, so retrieve that voice with `kapi voice guide --comments <path>` before writing one.")
 	}
 	b.WriteString("\n")
 	b.WriteString(VoicePointerEnd)

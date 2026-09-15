@@ -117,9 +117,11 @@ Then point the next assistant at the voice you bound:
 kapi voice pointer     # a section in CLAUDE.md (or an AGENTS.md already there) naming the voice
 ```
 
-It writes three sentences: the project's voice is held by kapi, it applies to
-prose written here, and `kapi voice guide` retrieves it. Nothing about how to
-write; the guide stays one command away. `kapi init` writes the same section
+It writes a few sentences: the project's voice is held by kapi, it applies to
+prose written here, and `kapi voice guide` retrieves it. A recipe that places
+comments at a point of their own also gets a sentence naming
+`kapi voice guide --comments <path>`, the command for a comment's voice. Nothing
+about how to write; the guide stays one command away. `kapi init` writes the same section
 when the scaffold it creates binds a voice, and the recipe edit above is what it
 names, so run it after the edit. The section sits between `<!-- kapi:voice -->`
 markers and is replaced in place; hand-written content around it is kept. Tell

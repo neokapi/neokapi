@@ -83,6 +83,9 @@ type ProjectVoiceInfo struct {
 	// PerFile is true when the recipe declares profiles, so the voice in force
 	// depends on where a file sits.
 	PerFile bool
+	// Comments is true when the recipe places comments at a point of their own
+	// (project.KapiProject.DeclaresCommentPoint).
+	Comments bool
 	// Project is the recipe's name, for the title of a file created from
 	// nothing.
 	Project string
@@ -106,6 +109,7 @@ func (a *App) DescribeProjectVoice(ctx context.Context, root string) (info Proje
 		info.Project = filepath.Base(root)
 	}
 	info.PerFile = len(proj.Profiles) > 0
+	info.Comments = proj.DeclaresCommentPoint()
 
 	rc, err := proj.ResolveGovernanceFor(project.GovernancePoint{})
 	if err != nil {
@@ -223,7 +227,7 @@ func (a *App) WriteVoicePointer(ctx context.Context, root string) (*VoicePointer
 		return res, nil
 	}
 
-	section := coreprofile.RenderVoicePointer(coreprofile.VoicePointer{Name: info.Name, PerFile: info.PerFile})
+	section := coreprofile.RenderVoicePointer(coreprofile.VoicePointer{Name: info.Name, PerFile: info.PerFile, Comments: info.Comments})
 	res.File = path
 	if !exists {
 		out := []byte("# " + info.Project + "\n\n" + section)
