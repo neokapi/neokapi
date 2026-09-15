@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage/compression"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/stretchr/testify/assert"
@@ -129,6 +130,44 @@ func TestSyncPull_Pagination(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp2))
 	assert.Len(t, resp2.Blocks, 2)
 	assert.False(t, resp2.HasMore)
+}
+
+// TestSyncPull_NeverServesABlockWithoutAnItem pins the pull contract: every
+// block the change stream serves names the item it belongs to. A block row
+// with no item is what an item-less write leaves when it lands on an id a push
+// removed: it carries source and targets, and a client can write it nowhere.
+// The stream moves past such a row, so a client's cursor moves past it too.
+func TestSyncPull_NeverServesABlockWithoutAnItem(t *testing.T) {
+	srv, token := newTestServer(t)
+	e := srv.GetEcho()
+	authHeader := "Bearer " + token
+	pid := createProject(t, srv, token)
+
+	pushBlocks(t, srv, e, authHeader, pid, []pushBlockItem{
+		{ID: "b1", Text: "Hello", ItemName: "en.json"},
+	})
+
+	orphan := model.NewBlock("orphan-1", "Orphan")
+	orphan.Translatable = true
+	orphan.SetTargetText("nb", "Foreldrelos")
+	require.NoError(t, srv.ContentStore.StoreBlocks(t.Context(), pid, "main", []*model.Block{orphan}))
+	latest, err := srv.ContentStore.LatestCursor(t.Context(), pid, "main")
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/main/pull?cursor=0&locales=nb", nil)
+	req.Header.Set("Authorization", authHeader)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp apiclient.RichPullResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.NotEmpty(t, resp.Blocks, "the addressed item is still served")
+	for _, b := range resp.Blocks {
+		assert.NotEmpty(t, b.ItemName, "block %s is served without an item", b.ID)
+	}
+	assert.Equal(t, latest, resp.Cursor, "the stream moves past the row it did not serve")
+	assert.False(t, resp.HasMore)
 }
 
 func TestSyncGetBlocks(t *testing.T) {

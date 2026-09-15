@@ -82,6 +82,10 @@ Pull also reports what it deliberately did not apply:
 
 - **Retired items.** An item the server still streams whose source is gone
   from this checkout is skipped rather than resurrected.
+- **Blocks without a file.** A block the server sends with an empty item name,
+  or with one that points outside the project, has no file to land in. Pull
+  skips it, prints how many it skipped with the first block ids, and moves
+  past it, so the next pull continues from there.
 - **Governance divergence.** Pull reports the collections the server holds and
   how it governs them. For a collection this recipe declares, `kapi.yaml` is
   the authority, so a point, channel or voice that differs on the server is

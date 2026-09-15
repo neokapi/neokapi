@@ -1256,9 +1256,24 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 
 	if len(allBlocks) > 0 && len(locales) > 0 {
 		blocksByItem := map[string][]apiclient.SyncBlock{}
+		var unaddressed []string
+		seenUnaddressed := map[string]bool{}
 		for _, b := range allBlocks {
+			// A block whose item name is empty, absolute or climbs out of the
+			// project names no file this checkout could hold, on this pull or
+			// any retry. Holding the cursor for it would stop every later
+			// translation behind it, so it is skipped and reported. A block
+			// can arrive on several pages, so each one is counted once.
+			if !writableItemName(b.ItemName) {
+				if id := cmp.Or(b.ID, b.Name); !seenUnaddressed[id] {
+					seenUnaddressed[id] = true
+					unaddressed = append(unaddressed, id)
+				}
+				continue
+			}
 			blocksByItem[b.ItemName] = append(blocksByItem[b.ItemName], b)
 		}
+		reportUnaddressedBlocks(unaddressed)
 
 		for itemName, blocks := range blocksByItem {
 			// Check if any blocks have targets for our locales.
@@ -1752,6 +1767,28 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 	}
 
 	return blocks, media, nil
+}
+
+// writableItemName reports whether a pulled item name is a path inside the
+// project: non-empty, relative, and never climbing above the root. Any other
+// name addresses no file a pull may write.
+func writableItemName(itemName string) bool {
+	return filepath.IsLocal(filepath.FromSlash(itemName))
+}
+
+// reportUnaddressedBlocks warns once about pulled blocks whose item name is not
+// writable, naming how many there are and the first few ids.
+func reportUnaddressedBlocks(ids []string) {
+	if len(ids) == 0 {
+		return
+	}
+	const shown = 5
+	named := strings.Join(ids[:min(len(ids), shown)], ", ")
+	if len(ids) > shown {
+		named += fmt.Sprintf(" and %d more", len(ids)-shown)
+	}
+	fmt.Fprintf(os.Stderr, "pull: skipping %d block(s) the server sent without a writable item name (%s); no file can hold them, so the cursor moves past them\n",
+		len(ids), named)
 }
 
 // resolveTargetPath maps a pulled item to the output path its translation is
