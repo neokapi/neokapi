@@ -315,9 +315,12 @@ rebuild it, and the same graph relations hold.
   database. Standalone stores outside a project keep their own selectors
   (`--termstore`, `--memory`); those address a file the user owns, which is a
   different thing.
-- **CI caches `.kapi/work/cache/`, not `store.db`.** The database carries staged
-  unit state, and a cache key that restores stale state is worse than a cold
-  rebuild ([Convergence in CI](/kapi/convergence-in-ci)).
+- **CI caches `.kapi/work/cache/docs`, and nothing else under `work/`.** The
+  parse cache is keyed by content, configuration and build, so a restored entry
+  changes no result, and `setup-kapi` carries it by default. The database
+  carries staged unit state, and restoring it changes what a run reports; the
+  remaining entries under `cache/` belong to the checkout that wrote them
+  ([Convergence in CI](/kapi/convergence-in-ci)).
 
 ## See also
 
