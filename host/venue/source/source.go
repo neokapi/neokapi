@@ -1442,7 +1442,20 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// is a change nobody ever sees again.
 	c.refs.Consume(c.stream, cursor)
 	if served != nil {
-		c.refs.Observe(c.stream, *served)
+		// The venue answered about this project's own rows, so an empty context
+		// or decisions component in that answer is the venue holding nothing,
+		// and it is recorded as such. Merging the answer kept a value this
+		// project observed while the venue still held something: the next push
+		// asserted it, the venue refused with "decisions moved", and the pull
+		// that refusal asks for could never clear it, so every later push
+		// failed until someone deleted the ref cache by hand.
+		//
+		// Terminology is the exception, and the pull route makes it one: it
+		// computes no terminology, so the empty terms component it carries says
+		// nothing, and the value a terminology pull observed stands.
+		c.refs.SetIdentity(c.stream, ref.ComponentContext, served.Context)
+		c.refs.SetIdentity(c.stream, ref.ComponentDecisions, served.Decisions)
+		c.refs.Observe(c.stream, ref.Ref{Terms: served.Terms})
 	}
 	c.refs.Touch(time.Now())
 
