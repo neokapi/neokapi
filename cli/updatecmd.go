@@ -3,10 +3,12 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"time"
 
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
 	"github.com/neokapi/neokapi/cli/selfupdate"
@@ -97,10 +99,15 @@ SHA-256 and cosign signature, and replaces the binary in place.
 			}
 
 			fmt.Fprintf(errOut, "Updating kapi %s → %s …\n", version.Version, rel.Version)
-			if err := selfupdate.Apply(ctx, rel, progressFunc(errOut)); err != nil {
+			tty := writerIsTTY(errOut)
+			if err := selfupdate.Apply(ctx, rel, newProgress(errOut, tty)); err != nil {
 				return err
 			}
-			fmt.Fprintf(out, "\nUpdated kapi to %s. Restart any running kapi processes.\n", rel.Version)
+			if tty {
+				// Close the line the redraw has been overwriting.
+				fmt.Fprintln(errOut)
+			}
+			fmt.Fprintf(out, "Updated kapi to %s. Restart any running kapi processes.\n", rel.Version)
 			return nil
 		},
 	}
@@ -153,12 +160,33 @@ func runManagedUpgrade(cmd *cobra.Command, source selfupdate.Source, channel, la
 	return nil
 }
 
-// progressFunc renders a simple percentage to w as the download proceeds.
-func progressFunc(w interface{ Write([]byte) (int, error) }) func(downloaded, total int64) {
+// progressFunc renders the download's progress to w.
+func progressFunc(w io.Writer) func(downloaded, total int64) {
+	return newProgress(w, writerIsTTY(w))
+}
+
+// newProgress renders a percentage to w as the download proceeds, redrawing
+// one line with a carriage return while w is a terminal.
+//
+// Off a terminal a redraw per read of the body lands as its own line, filling
+// a CI log or a redirect with thousands of them, so the update reports that it
+// started and what it did, and stays quiet in between.
+func newProgress(w io.Writer, tty bool) func(downloaded, total int64) {
+	if !tty {
+		return func(int64, int64) {}
+	}
 	return func(downloaded, total int64) {
 		if total <= 0 {
 			return
 		}
 		fmt.Fprintf(w, "\rDownloading… %d%%", downloaded*100/total)
 	}
+}
+
+// writerIsTTY reports whether w is a terminal. It asks about the destination
+// the command writes to rather than about os.Stderr, which a test or an
+// embedded run has replaced with a buffer.
+func writerIsTTY(w io.Writer) bool {
+	f, ok := w.(*os.File)
+	return ok && (isatty.IsTerminal(f.Fd()) || isatty.IsCygwinTerminal(f.Fd()))
 }
