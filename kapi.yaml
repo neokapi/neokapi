@@ -483,9 +483,10 @@ collections:
   # collections place the comments of the repository's sources at
   # source/comments, where the comment voice checks them. Each item declares
   # its files for their comments alone (`comments: {only: true}`), so no run
-  # extracts, converges, merges or counts a value in them. They come last: the
-  # first item that matches a file claims it, so every file declared above
-  # stays with its own item.
+  # extracts, converges, merges or counts a value in them. They come last, and
+  # a file declared above keeps that item for its values. Its comments are
+  # checked at source/comments when a collection here matches it, unless the
+  # item that claims its values declares comments of its own first.
   #
   # The patterns name the directories that hold code rather than `**` from a
   # package root. A workspace package keeps a node_modules of symlinks into the
