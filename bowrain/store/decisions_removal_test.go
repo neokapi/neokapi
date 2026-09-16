@@ -72,7 +72,11 @@ func TestDeleteItem_HoldingNoDecisionTakesTheItemRow(t *testing.T) {
 	assert.Zero(t, countRows(t, s, "blocks", `project_id=$1 AND item_name=$2`, p.ID, "plain.json"))
 }
 
-func TestDeleteItem_ContentReturningFindsItsDecisions(t *testing.T) {
+// Returning content lands on the item its decisions are keyed to, and the
+// ledger rows are still hanging from it. Whether the decision reaches the
+// returning target is the projection's business, and this asserts nothing
+// about it.
+func TestDeleteItem_ContentReturningLandsOnTheItemHoldingTheDecisions(t *testing.T) {
 	s := newTestStore(t)
 	p := createTestProject(t, s)
 	ctx := t.Context()
@@ -90,5 +94,5 @@ func TestDeleteItem_ContentReturningFindsItsDecisions(t *testing.T) {
 	assert.Equal(t, anchor, anchorItemID(t, s, p.ID, "main", "en.json"),
 		"the returning content lands on the item the ledger is keyed on")
 	assert.Contains(t, listDecisions(t, s, p.ID), "en.json|greeting|nb",
-		"so the approval is there to be found")
+		"and the ledger still holds the decision, keyed to that item")
 }
