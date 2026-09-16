@@ -243,6 +243,20 @@ func resumeSeq(c echo.Context) int {
 	return n
 }
 
+// convergenceHeartbeatEvery is how often a quiet run stream sends a comment
+// frame.
+//
+// A stage says nothing while it works, and settling source over a large corpus
+// says nothing for minutes. Everything between the client and this handler
+// measures that silence as an idle connection: CloudFront allows 60 seconds on
+// the API origin (origin_read_timeout and origin_keepalive_timeout), and the
+// load balancer behind it takes the same 60 second default. A quarter of the
+// shortest of those puts four frames in every window, so one lost frame still
+// leaves the connection open.
+//
+// A var, so a test can shorten it.
+var convergenceHeartbeatEvery = 15 * time.Second
+
 // HandleConvergenceRunSSE streams a run's convergence.Event feed: it replays
 // the persisted events (from the client's resume point, or the beginning),
 // then follows live until the terminal done event (or the client disconnects).
@@ -320,6 +334,11 @@ func (s *Server) HandleConvergenceRunSSE(c echo.Context) error {
 	// hub frame and guarantees the terminal frame is eventually delivered.
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
+	// A comment frame keeps the connection in use while a stage works in
+	// silence, which is the difference between a long stage and an idle
+	// connection to everything in front of this handler.
+	heartbeat := time.NewTicker(convergenceHeartbeatEvery)
+	defer heartbeat.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -335,6 +354,15 @@ func (s *Server) HandleConvergenceRunSSE(c echo.Context) error {
 			if drainStore() {
 				return nil
 			}
+		case <-heartbeat.C:
+			// An SSE comment carries no id and no data, so it moves no resume
+			// point and no reader folds it into the run. A client skips every
+			// line that is neither, the released one included, which is what
+			// makes this safe to send to clients already in the field.
+			if _, err := fmt.Fprint(c.Response(), ": heartbeat\n\n"); err != nil {
+				return nil
+			}
+			c.Response().Flush()
 		}
 	}
 }

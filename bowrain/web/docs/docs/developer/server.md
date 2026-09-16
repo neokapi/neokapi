@@ -98,6 +98,15 @@ confirms a push for a few seconds before it may start a run, and a large push
 applies for longer, so settlement reads what the push wrote rather than the
 blocks the push is about to change or remove.
 
+A run's event stream sends a comment frame every 15 seconds while a stage works
+in silence, which is well inside the 60 seconds any connection may sit idle
+between a client and this server. The comment carries no id and no data, so it
+moves no resume point and no client renders it. A client whose connection drops
+resumes from the last event id it received, through the `Last-Event-ID` header
+or `?after=<seq>`, and the server replays the persisted events past that point.
+A run itself belongs to the server: it goes on, and its events are recorded,
+whether or not anyone is watching the stream.
+
 A push applies under a write lock on its project stream, and so does removing a
 file from the editor. The server's block writes on that stream, write-backs
 among them, share the lock with one another. A block write waits for an
