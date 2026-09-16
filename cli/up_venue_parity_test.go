@@ -158,3 +158,25 @@ func TestUpVenue_LocalFlagStillDispatches(t *testing.T) {
 	assert.Equal(t, host.UpVenueServer, cliDecision.Venue)
 	assert.Equal(t, cliDecision, mcpDecision)
 }
+
+// A venue flag the plumbing acts on is still typed at `kapi up`, and this
+// command is what parses argv: a flag only the plumbing declares is rejected as
+// unknown before the plumbing runs at all. So the flag is registered here too,
+// and forwarded to the subprocess that acts on it.
+func TestUpVenue_AVenueFlagParsesHereAndReachesThePlumbing(t *testing.T) {
+	cmd := NewUpCmd(&App{})
+	require.NoError(t, cmd.ParseFlags([]string{"--fail-on-incomplete-watch"}),
+		"kapi up parses argv before it execs the plumbing, so an unregistered flag never reaches it")
+
+	assert.Contains(t, forwardedFlagArgs(cmd.Flags(), "server"), "--fail-on-incomplete-watch=true",
+		"the plumbing parses the same flag surface, so what the user set has to reach it")
+}
+
+// The control: --server resolves the venue here and means nothing to the
+// plumbing, so it is the one flag deliberately held back.
+func TestUpVenue_TheServerFlagIsNotForwarded(t *testing.T) {
+	cmd := NewUpCmd(&App{})
+	require.NoError(t, cmd.ParseFlags([]string{"--server"}))
+
+	assert.NotContains(t, forwardedFlagArgs(cmd.Flags(), "server"), "--server=true")
+}

@@ -67,6 +67,7 @@ kapi up --passes 1
 | `--no-extract` | Skip the pre-pass source-drift check and block-store re-extraction          | `false`        |
 | `--no-checks`  | Skip the bound checks in the loop                                           | `false`        |
 | `--json`       | Stream the convergence events as NDJSON, with one `result` record           | `false`        |
+| `--fail-on-incomplete-watch` | Server venue: fail when the event stream ends before the run does, instead of reporting it and pulling what landed | `false` |
 
 With `--json`, read the outcome from the record whose `type` is `result`. On the
 server venue, and in a project with no server, it is the last record. After
@@ -74,6 +75,13 @@ server venue, and in a project with no server, it is the last record. After
 writes its records after it: a `changeset` record when it proposed terminology
 edits, a `voice_profile` record when the recipe binds a voice profile, and a
 `governance` record when the server did not accept a verdict.
+
+On the server venue the stream opens with a `run_started` record carrying the
+run's `id`, and the `result` record carries `run` (`id`, `state`, `passes`, as
+[`kapi status --json`](/cli/commands/status) reports them) beside `watch`, which
+says whether this client saw the whole run and what ended it (`done`, `timeout`
+or `stream_error`). A consumer that loses the stream still holds the run's id,
+and `kapi status` reports where that run got to.
 
 ## The loop
 
@@ -106,8 +114,18 @@ either way.
 
 ## Exit Codes
 
-- `0`: caught up, or parked work reported (target drift is never a failure)
-- `1`: error (network, auth, load)
+The exit code answers whether the work happened, not whether this command
+watched it happen. A server run outlives the connection that watches it: when
+the stream ends early, `up` says so, pulls what landed, and reports the run's
+state as the server holds it.
+
+- `0`: caught up, parked work reported (target drift is never a failure), or the
+  run went on after the event stream ended early
+- `1`: the work did not happen or its outcome is unknown: a failed or canceled
+  run, a push or pull that failed, a run that never started, a truncated `--json`
+  document, or an interrupted command
+- `--fail-on-incomplete-watch` moves a watch that ended early into `1`, for a
+  pipeline that would rather stop than proceed on a partial view
 
 ## Related Commands
 

@@ -70,7 +70,7 @@ a pipeline needs:
 | Command | Role | Exit behavior |
 |---|---|---|
 | `kapi status` | **Observe**: per-locale coverage and gate standing | Always `0`: behind is pending work, not an error |
-| `kapi up` | **Produce**: runs the kapi loop | `0` whether the run caught everything up or parked work for review; non-zero only when the run broke |
+| `kapi up` | **Produce**: runs the kapi loop | `0` whether the run caught everything up, parked work for review, or went on after the event stream ended early; non-zero when the run broke or its outcome is unknown |
 | `kapi check --ship` | **Enforce**: the release bar | `0` pass, `3` gate unmet, `4` a gate did not run, `1` operational error |
 
 Parked work is pending review, not an error. The gate is the explicit,

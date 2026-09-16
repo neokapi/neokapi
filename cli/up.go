@@ -108,6 +108,10 @@ gates (e.g. before a release tag).
 	cmd.Flags().Bool("local", false, "run the loop on this machine even when the recipe declares a server (the results are then pushed so the server stays current)")
 	cmd.Flags().Bool("server", false, "require the server venue: fail rather than run the loop locally when the recipe has no server or the server plumbing is unavailable")
 	cmd.Flags().Duration("timeout", 15*time.Minute, "server venue: maximum time to wait for the server run to finish before pulling available results")
+	// Registered here as well as in the plumbing that acts on it: this command
+	// parses argv and forwards what the user set, so a flag only the plumbing
+	// declares is rejected as unknown before the plumbing ever runs.
+	cmd.Flags().Bool("fail-on-incomplete-watch", false, "server venue: fail when the run's event stream ends before the run does, instead of reporting it and pulling what landed")
 	return cmd
 }
 
