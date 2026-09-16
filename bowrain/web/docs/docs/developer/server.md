@@ -87,10 +87,10 @@ A removal takes a file's content and leaves the decisions it holds standing. The
 item row stays as the anchor those rows are keyed on, because the producer's
 committed record still holds the decisions and a producer sends that record again
 only when its fold moves: rows dropped here would have nothing to bring them
-back. Content pushed to that path again lands on the same item and finds them. An
-item holding no decision is removed outright, and the tree the server serves
-leaves out an item holding no blocks, so a producer is never told about a file it
-does not have.
+back. Content pushed to that path again lands on the same item, and the ledger
+still holds those decisions. An item holding no decision is removed outright, and
+the tree the server serves leaves out an item holding no blocks, so a producer is
+never told about a file it does not have.
 
 A server run begins by waiting for the project's pushes that are still queued or
 being applied, up to a limit, and settles source only after them. A client

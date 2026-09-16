@@ -80,9 +80,12 @@ func TestAPushCarryingNoRecordKeepsADecisionForAFileTheCheckoutDoesNotHold(t *te
 
 // The same rule where the venue does hold the content: the file is deleted in
 // the checkout after its record was sent, so the declaration removes it and the
-// push carries no record. The content goes and the approval stays, and the file
-// coming back finds it.
-func TestARemovedFileKeepsItsDecisionsAndFindsThemWhenItReturns(t *testing.T) {
+// push carries no record. The content goes, the ledger keeps the approval, and
+// content pushed to that path again lands on the item still holding it.
+//
+// What the returning target shows is the projection's business, and this
+// asserts nothing about it.
+func TestARemovedFileKeepsItsDecisionsWhenItsContentReturns(t *testing.T) {
 	deps := newTestWorkerDeps(t)
 	deps.ReviewAuthority = pushAuthority{review: map[string]bool{"nb": true}}
 	ctx := t.Context()
@@ -123,5 +126,5 @@ func TestARemovedFileKeepsItsDecisionsAndFindsThemWhenItReturns(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, back, 1, "the file comes back")
 	assert.Len(t, decisionsFor(t, deps, projectID, "doomed.json"), 1,
-		"and its approval is there to be found")
+		"and the ledger still holds its approval")
 }

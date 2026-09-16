@@ -62,7 +62,10 @@ func TestDeleteItem_HoldingNoDecisionTakesTheItemRow_SQLite(t *testing.T) {
 	assert.Zero(t, countRows(t, s, "blocks", `project_id=? AND item_name=?`, p.ID, "plain.json"))
 }
 
-func TestDeleteItem_ContentReturningFindsItsDecisions_SQLite(t *testing.T) {
+// As in the Postgres suite: the returning content lands on the item its
+// decisions are keyed to, and nothing here asserts that the decision reaches
+// the returning target.
+func TestDeleteItem_ContentReturningLandsOnTheItemHoldingTheDecisions_SQLite(t *testing.T) {
 	s := newTestStore(t)
 	p := createTestProject(t, s)
 	ctx := t.Context()
@@ -79,5 +82,5 @@ func TestDeleteItem_ContentReturningFindsItsDecisions_SQLite(t *testing.T) {
 	assert.Equal(t, anchor, anchorItemID(t, s, p.ID, "main", "en.json"),
 		"the returning content lands on the item the ledger is keyed on")
 	assert.Equal(t, 1, countRows(t, s, "unit_decisions", `project_id=? AND item_name=?`, p.ID, "en.json"),
-		"so the approval is there to be found")
+		"and the ledger still holds the decision, keyed to that item")
 }
