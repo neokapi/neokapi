@@ -157,10 +157,9 @@ func locateComments(src []byte, classify func(inner string) (string, bool)) (*co
 }
 
 // directiveForms are the comments tools read in HTML files.
-var directiveForms = []markup.DirectiveForm{
-	conditionalComment, serverSideInclude, markup.Markdownlint,
-	markup.PrettierIgnore, markup.FormatterToggle, markup.Suppress, markup.ReSharper,
-}
+var directiveForms = append([]markup.DirectiveForm{
+	conditionalComment, serverSideInclude, markup.ReSharper,
+}, markup.HTMLComment...)
 
 // conditionalRe opens a conditional comment's condition.
 var conditionalRe = regexp.MustCompile(`^\[if\b`)

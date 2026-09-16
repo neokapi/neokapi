@@ -3,7 +3,6 @@ package markdown
 import (
 	"bytes"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -120,11 +119,18 @@ type Span struct {
 	// Code holds the ranges of code spans and fenced and indented code, a part
 	// of Content.
 	Code [][2]int
-	// Comments holds the ranges of the HTML comments.
-	Comments [][2]int
+	// Comments holds the HTML comments, each with the length of its closing
+	// marker: `-->`, or the shorter marker of the empty forms `<!-->` and
+	// `<!--->`. A format embedding Markdown needs that length to read what a
+	// comment holds.
+	Comments []CommentSpan
 	// Headings are the span's headings, in document order.
 	Headings []Heading
 }
+
+// CommentSpan is one HTML comment in a span: its half-open byte range and the
+// length of its closing marker.
+type CommentSpan struct{ Start, End, Close int }
 
 // Heading is one heading: where its text starts, its level, and the path
 // segment it names a section by.
@@ -151,7 +157,7 @@ func ReadSpan(src []byte) (*Span, error) {
 		span.Code = append(span.Code, [2]int{r.start, r.end})
 	}
 	for _, c := range w.comments {
-		span.Comments = append(span.Comments, [2]int{c.start, c.end})
+		span.Comments = append(span.Comments, CommentSpan{Start: c.start, End: c.end, Close: c.close})
 	}
 	return span, nil
 }
@@ -178,23 +184,7 @@ func CommentSubject(headings []Heading, offset int) string {
 }
 
 // commentDirectiveForms are the comments tools read in Markdown files.
-var commentDirectiveForms = []markup.DirectiveForm{
-	markup.Truncate, voicePointer, generatedRegion,
-	markup.Markdownlint, markup.PrettierIgnore, markup.FormatterToggle, markup.Suppress,
-}
-
-// voicePointer bounds the region kapi writes into an agent instructions file,
-// from `<!-- kapi:voice -->` to `<!-- /kapi:voice -->`.
-var voicePointer = markup.DirectiveForm{Name: "kapi:voice", Match: func(b string) bool {
-	return strings.HasPrefix(b, "kapi:voice") || strings.HasPrefix(b, "/kapi:voice")
-}}
-
-// regionRe is a generated region's marker.
-var regionRe = regexp.MustCompile(`^(BEGIN|END)\s*:\s*\S`)
-
-// generatedRegion bounds content a script replaces, as between
-// `<!-- BEGIN:downloads-cli -->` and `<!-- END:downloads-cli -->`.
-var generatedRegion = markup.DirectiveForm{Name: "region", Match: regionRe.MatchString}
+var commentDirectiveForms = append([]markup.DirectiveForm{markup.Truncate}, markup.HTMLComment...)
 
 func classifyComment(inner string) (string, bool) {
 	return markup.Classify(inner, commentDirectiveForms)

@@ -31,15 +31,16 @@ func (CommentProvider) Locate(_ string, src []byte) (*comment.File, error) {
 	return LocateComments(src)
 }
 
-// LineText implements comment.Provider: the expression comment that opens line
-// and closes on it, the bytes it occupies through its closing brace, and what
-// it holds between `/*` and `*/`.
+// LineText implements comment.Provider for both comment syntaxes an MDX
+// document carries: the expression comment that opens line and closes on it,
+// the bytes it occupies through its closing brace, and what it holds between
+// `/*` and `*/`; or an HTML comment, read by the Markdown provider, so the
+// empty forms `<!-->` and `<!--->` close where Markdown closes them.
 func (CommentProvider) LineText(line []byte) (n int, text string, ok bool) {
-	c, ok := expressionComment(line)
-	if !ok {
-		return 0, "", false
+	if c, found := expressionComment(line); found {
+		return c.end, string(line[c.open : c.end-c.close]), true
 	}
-	return c.end, string(line[c.open : c.end-c.close]), true
+	return markdown.CommentProvider{}.LineText(line)
 }
 
 // Canary implements comment.Provider: an expression comment with a doubled
@@ -66,9 +67,8 @@ var ErrCommentsUnlocated = fmt.Errorf("mdx: %w", comment.ErrUnlocated)
 // comment, sit inside one, or sit in content: code or front matter in a Markdown
 // span, which the Markdown format reads, code in the Markdown children of a JSX
 // element, or an ESM statement. So a document with
-// an expression comment inside a JSX element or a paragraph, an HTML comment,
-// which MDX does not allow, or an expression holding more than one comment is
-// refused with ErrCommentsUnlocated.
+// an expression comment inside a JSX element or a paragraph, or an expression
+// holding more than one comment, is refused with ErrCommentsUnlocated.
 //
 // A file whose first comment says `DO NOT EDIT` belongs to its generator, and
 // every comment in it is set aside as generated. A comment is named for the
@@ -95,8 +95,8 @@ func locateComments(src []byte, classify func(inner string) (string, bool)) (*co
 			if err != nil {
 				return nil, fmt.Errorf("%w: the Markdown at byte %d: %w", ErrCommentsUnlocated, start, err)
 			}
-			if len(span.Comments) > 0 {
-				return nil, commentsUnlocated("the HTML comment at byte %d, which MDX does not allow", start+span.Comments[0][0])
+			for _, c := range span.Comments {
+				comments = append(comments, mdxComment{start: start + c.Start, end: start + c.End, open: len(markup.Open), close: c.Close, html: true})
 			}
 			for _, r := range span.Content {
 				content = append(content, [2]int{start + r[0], start + r[1]})
@@ -115,8 +115,8 @@ func locateComments(src []byte, classify func(inner string) (string, bool)) (*co
 			if err != nil {
 				continue
 			}
-			if len(span.Comments) > 0 {
-				return nil, commentsUnlocated("the HTML comment at byte %d, which MDX does not allow", start+span.Comments[0][0])
+			for _, c := range span.Comments {
+				comments = append(comments, mdxComment{start: start + c.Start, end: start + c.End, open: len(markup.Open), close: c.Close, html: true})
 			}
 			for _, r := range span.Code {
 				content = append(content, [2]int{start + r[0], start + r[1]})
@@ -159,7 +159,11 @@ func locateComments(src []byte, classify func(inner string) (string, bool)) (*co
 			exclude(comment.ReasonBlank, "")
 			continue
 		}
-		if form, ok := classify(inner); ok {
+		classifyThis := classify
+		if c.html {
+			classifyThis = classifyHTMLComment
+		}
+		if form, ok := classifyThis(inner); ok {
 			exclude(comment.ReasonDirective, form)
 			continue
 		}
@@ -182,12 +186,25 @@ var generatedRe = regexp.MustCompile(`(?i)\bdo not edit\b`)
 // commentDirectiveForms are the comments tools read in MDX files.
 var commentDirectiveForms = []markup.DirectiveForm{markup.Truncate, markup.PrettierIgnore, markup.Markdownlint, markup.ESLint}
 
+// htmlCommentDirectiveForms are what a tool reads in the HTML comments of a
+// document read as MDX: the shared markup forms, and Docusaurus's truncate
+// marker, which a Markdown page writes as `<!-- truncate -->`.
+var htmlCommentDirectiveForms = append([]markup.DirectiveForm{markup.Truncate}, markup.HTMLComment...)
+
 func classifyComment(inner string) (string, bool) {
 	return markup.Classify(inner, commentDirectiveForms)
 }
 
+func classifyHTMLComment(inner string) (string, bool) {
+	return markup.Classify(inner, htmlCommentDirectiveForms)
+}
+
 type mdxComment struct {
 	start, end int
+	// html marks a comment written `<!-- -->` in a Markdown span rather than
+	// an MDX expression comment. The two carry different markers and read
+	// different directive forms.
+	html bool
 	// open and close are the lengths of the markers: `{` and `/*` with any
 	// whitespace between them, and `*/` and `}` likewise.
 	open, close int
