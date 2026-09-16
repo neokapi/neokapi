@@ -305,7 +305,18 @@ func runChecksOnBlock(ctx context.Context, block *model.Block, checks pointCheck
 	}
 
 	// The standard set: what every target in this locale is judged by.
-	if _, err := tools.NewRuleCheckTool(tools.NewRuleCheckConfig(checks.TargetLocale)).ApplyContext(ctx, part); err != nil {
+	//
+	// Placeholder integrity is asked for explicitly, because the config leaves
+	// it off. A catalogue leaf carries {name} in its text rather than as an
+	// inline run, so the run-based checks find nothing to compare and the
+	// target goes unexamined: a help string reached a locale without {ext},
+	// {lang}, {name} or {path}, and an ICU plural arrived as a sentence with no
+	// count in it. The CLI gate asks the same question of the same content
+	// (host/verify.go, host/loopchecks.go), and a target converged on this
+	// venue is judged the same way.
+	ruleCfg := tools.NewRuleCheckConfig(checks.TargetLocale)
+	ruleCfg.CheckPlaceholders = true
+	if _, err := tools.NewRuleCheckTool(ruleCfg).ApplyContext(ctx, part); err != nil {
 		return nil, fmt.Errorf("rule check: %w", err)
 	}
 
