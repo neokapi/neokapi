@@ -470,6 +470,14 @@ holds: the venue keeps the unit's record, reports the rejection it did not apply
 and carries its record back. The project takes that record, or keeps the basis
 without the rejection where the venue holds none.
 
+A venue also keeps a decision after the content it judged is removed. A file
+leaving a checkout says nothing about the record, which still holds the decision,
+and a project sends its record again only when that record's fold moves. A venue
+that dropped the decision would have nothing to bring it back, so it keeps the
+decision and whatever entry the decision hangs from, and content arriving at that
+path again finds it. What the venue reports as content leaves that entry out, so
+a project is never asked to account for a file it does not have.
+
 ### The committed location is fixed
 
 The record lives at `.kapi/state/`, derived from the project layout: inside the

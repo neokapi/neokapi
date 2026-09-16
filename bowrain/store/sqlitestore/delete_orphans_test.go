@@ -114,7 +114,9 @@ func TestDeleteItem_LeavesNoOrphans_SQLite(t *testing.T) {
 		assert.Zero(t, countRows(t, s, table, `project_id=? AND block_id=?`, p.ID, blockID),
 			"%s: a deleted item leaves none of its blocks' rows behind", table)
 	}
-	assert.Zero(t, countRows(t, s, "unit_decisions", `project_id=? AND item_name=?`, p.ID, "en.json"))
+	// The ledger is the exception: a decision outlives the content it judges,
+	// and the item row stays as its anchor. decisions_removal_test.go pins why.
+	assert.Equal(t, 1, countRows(t, s, "unit_decisions", `project_id=? AND item_name=?`, p.ID, "en.json"))
 }
 
 // A deleted STREAM is covered in the Postgres suite only: making a second

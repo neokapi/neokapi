@@ -459,14 +459,9 @@ func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, stream, itemNam
 	if err != nil {
 		return fmt.Errorf("look up item %q: %w", itemName, err)
 	}
-	if _, err := tx.ExecContext(ctx,
-		`DELETE FROM items WHERE project_id=? AND stream=? AND id=?`, projectID, stream, itemID); err != nil {
-		return fmt.Errorf("delete item: %w", err)
-	}
-
-	// Everything describing this item on this stream goes with it. Each table
-	// is stream-scoped, and so now is blocks, so a sibling branch holding the
-	// same item at the same ids is untouched by any of it.
+	// Everything describing this item's blocks on this stream goes with them.
+	// Each table is stream-scoped, and so now is blocks, so a sibling branch
+	// holding the same item at the same ids is untouched by any of it.
 	for _, table := range storeutil.BlockScopedTables() {
 		//nolint:gosec // table is a fixed literal from storeutil, never user input
 		q := `DELETE FROM ` + table + ` WHERE project_id=? AND stream=?
@@ -476,15 +471,27 @@ func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, stream, itemNam
 		}
 	}
 	if _, err := tx.ExecContext(ctx,
-		`DELETE FROM unit_decisions WHERE project_id=? AND stream=? AND item_id=?`,
-		projectID, stream, itemID); err != nil {
-		return fmt.Errorf("delete unit decisions for item %q: %w", itemName, err)
-	}
-
-	if _, err := tx.ExecContext(ctx,
 		`DELETE FROM blocks WHERE project_id=? AND stream=? AND item_name=?`,
 		projectID, stream, itemName); err != nil {
 		return fmt.Errorf("delete item blocks: %w", err)
+	}
+
+	// The content goes and the ledger stays, the rule the Postgres store's
+	// deleteItemTx states: an item holding decisions keeps its row as the anchor
+	// those rows are keyed on, so content arriving at that path again finds them.
+	var holdsDecisions bool
+	if err := tx.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM unit_decisions WHERE project_id=? AND stream=? AND item_id=?)`,
+		projectID, stream, itemID).Scan(&holdsDecisions); err != nil {
+		return fmt.Errorf("read the decisions item %q holds: %w", itemName, err)
+	}
+	if holdsDecisions {
+		return tx.Commit()
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM items WHERE project_id=? AND stream=? AND id=?`, projectID, stream, itemID); err != nil {
+		return fmt.Errorf("delete item: %w", err)
 	}
 
 	return tx.Commit()

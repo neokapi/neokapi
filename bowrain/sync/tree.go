@@ -44,6 +44,15 @@ func (d *DiffEngine) LoadTree(ctx context.Context, projectID, stream string, sco
 		if err != nil {
 			return nil, err
 		}
+		// An item holding no blocks is not content. Two things mint one: a
+		// decision naming a file the venue holds no content for, and a removal
+		// that leaves the item row standing to anchor the decisions it holds.
+		// Serving either reads to a producer, and to the identity plan, as a
+		// file the declaration dropped, and the plan would remove it and the
+		// decisions with it.
+		if len(ti.Keys) == 0 {
+			continue
+		}
 		ti.ID = item.ID
 		tree[item.Name] = ti
 	}
