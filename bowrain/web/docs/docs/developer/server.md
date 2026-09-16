@@ -81,8 +81,16 @@ and merge by record time. The decisions component folds decisions alone, so the
 records a server run writes while it drafts leave it where a client read it. The
 worker makes the same assertion again inside the push's transaction, against the
 ledger as it stood before the push wrote anything, so rows the push itself
-removes, such as the decisions of an item its declared tree no longer holds,
-never count against it.
+changes never count against it.
+
+A removal takes a file's content and leaves the decisions it holds standing. The
+item row stays as the anchor those rows are keyed on, because the producer's
+committed record still holds the decisions and a producer sends that record again
+only when its fold moves: rows dropped here would have nothing to bring them
+back. Content pushed to that path again lands on the same item and finds them. An
+item holding no decision is removed outright, and the tree the server serves
+leaves out an item holding no blocks, so a producer is never told about a file it
+does not have.
 
 A server run begins by waiting for the project's pushes that are still queued or
 being applied, up to a limit, and settles source only after them. A client

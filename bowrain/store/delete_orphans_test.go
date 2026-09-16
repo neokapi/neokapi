@@ -108,7 +108,9 @@ func TestDeleteItem_LeavesNoOrphans(t *testing.T) {
 		assert.Zero(t, countRows(t, s, table, `project_id=$1 AND block_id=$2`, p.ID, f.blockID),
 			"%s: a deleted item leaves none of its blocks' rows behind", table)
 	}
-	assert.Zero(t, countRows(t, s, "unit_decisions", `project_id=$1 AND item_name=$2`, p.ID, "en.json"))
+	// The ledger is the exception: a decision outlives the content it judges,
+	// and the item row stays as its anchor. decisions_removal_test.go pins why.
+	assert.Equal(t, 1, countRows(t, s, "unit_decisions", `project_id=$1 AND item_name=$2`, p.ID, "en.json"))
 }
 
 // TestDeleteStream_LeavesNoOrphans: a deleted stream is erased. Every table

@@ -540,26 +540,37 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemN
 
 // deleteItemTx is the work, on whatever executor the caller brings — its own
 // transaction, or the one a whole push is landing in.
+//
+// The content goes and the ledger stays. A decision is the producer's committed
+// record speaking, and a file leaving a checkout says nothing about that record:
+// the file is gone from the tree, the approval is still in the record, and a
+// producer sends the record again only when its fold moves. Taking the rows here
+// lost them, because the push that removed them was the one push carrying them.
+//
+// So an item holding decisions keeps its row as the anchor those rows are keyed
+// on, and content arriving at that path again finds them. An item holding none
+// is removed outright.
 func deleteItemTx(ctx context.Context, tx Runner, projectID, stream, itemName string) error {
 	stream = storeutil.DefaultStream(stream)
 
-	// Remove this stream's item row first; its absence is the not-found signal.
-	// The id comes back with it, because the rows describing an item are keyed
-	// on what it IS and the name is only how this call addressed it.
+	// The id first, because the rows describing an item are keyed on what it IS
+	// and the name is only how this call addressed it. Its absence is the
+	// not-found signal, and the row is held so it cannot move while this decides
+	// whether to remove it.
 	var itemID string
 	err := tx.QueryRowContext(ctx,
-		`DELETE FROM items WHERE project_id=$1 AND stream=$2 AND name=$3 RETURNING id`,
+		`SELECT id FROM items WHERE project_id=$1 AND stream=$2 AND name=$3 FOR UPDATE`,
 		projectID, stream, itemName).Scan(&itemID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("item %q not found in project %s", itemName, projectID)
 	}
 	if err != nil {
-		return fmt.Errorf("delete item: %w", err)
+		return fmt.Errorf("look up item %q: %w", itemName, err)
 	}
 
-	// Everything describing this item on this stream goes with it. Each table
-	// is stream-scoped, and so now is blocks, so a sibling branch holding the
-	// same item at the same ids is untouched by any of it.
+	// Everything describing this item's blocks on this stream goes with them.
+	// Each table is stream-scoped, and so now is blocks, so a sibling branch
+	// holding the same item at the same ids is untouched by any of it.
 	for _, table := range storeutil.BlockScopedTables() {
 		q := `DELETE FROM ` + table + ` WHERE project_id=$1 AND stream=$2
 			 AND block_id IN (SELECT id FROM blocks WHERE project_id=$1 AND stream=$2 AND item_name=$3)`
@@ -568,15 +579,28 @@ func deleteItemTx(ctx context.Context, tx Runner, projectID, stream, itemName st
 		}
 	}
 	if _, err := tx.ExecContext(ctx,
-		`DELETE FROM unit_decisions WHERE project_id=$1 AND stream=$2 AND item_id=$3`,
-		projectID, stream, itemID); err != nil {
-		return fmt.Errorf("delete unit decisions for item %q: %w", itemName, err)
-	}
-
-	if _, err := tx.ExecContext(ctx,
 		`DELETE FROM blocks WHERE project_id=$1 AND stream=$2 AND item_name=$3`,
 		projectID, stream, itemName); err != nil {
 		return fmt.Errorf("delete item blocks: %w", err)
+	}
+
+	var holdsDecisions bool
+	if err := tx.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM unit_decisions WHERE project_id=$1 AND stream=$2 AND item_id=$3)`,
+		projectID, stream, itemID).Scan(&holdsDecisions); err != nil {
+		return fmt.Errorf("read the decisions item %q holds: %w", itemName, err)
+	}
+	if holdsDecisions {
+		// Ledger-only from here: no content, and the decisions it anchors. The
+		// content tree leaves such an item out (bowrain/sync.LoadTree), so no
+		// producer is told about a file it does not have.
+		return nil
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM items WHERE project_id=$1 AND stream=$2 AND id=$3`,
+		projectID, stream, itemID); err != nil {
+		return fmt.Errorf("delete item: %w", err)
 	}
 	return nil
 }
