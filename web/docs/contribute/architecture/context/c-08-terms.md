@@ -421,14 +421,28 @@ The framework ships terminology tools as ordinary pipeline stages:
   replaces entity values with typed placeholders before an external service and
   restores them afterwards.
 
-Terminology reaches generation as well as validation. The translate step renders
-the rules that name a replacement as the renderings to use, and the rules marked
-do-not-translate as the terms to keep verbatim, each scoped to the text of the
-call. A term listed by a recipe or `--dnt` is masked before the model instead,
-which locks the span and costs the batched path. Both projections enter the
-context fingerprint stamped on what the step writes, so marking a concept
-do-not-translate makes the content it governs stale rather than leaving targets
-that were drafted without it.
+Terminology reaches generation as well as validation, by two routes of
+different strength.
+
+A string a recipe or `--dnt` names is **masked**: the translate step replaces
+each occurrence with a sentinel before the model sees the text and restores the
+original afterwards, so the term cannot be translated, transliterated or
+reworded. The lock costs the batched path, because a per-span sentinel cannot
+be tracked across a packed multi-segment generation, so a run configured with
+masked terms translates one block per call.
+
+A concept the terms store marks do-not-translate is **instructed and checked**:
+the translate step renders it as a term to keep verbatim, and `term-check` fails
+a target that does not keep it. An instruction alone is not a guarantee, and the
+check is what makes it one. Concepts are instructed rather than masked so that a
+store holding a handful of product names does not pin every run to one block per
+call.
+
+The rules that name a replacement are rendered as the renderings to use, each
+projection scoped to the text of the call. Both enter the context fingerprint
+stamped on what the step writes, so marking a concept do-not-translate makes the
+content it governs stale rather than leaving targets that were drafted without
+it.
 
 <PipelineDiagram
   stages={[
