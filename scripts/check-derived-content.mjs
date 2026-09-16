@@ -39,6 +39,7 @@
 // Usage:
 //     node scripts/check-derived-content.mjs <lang> <target>:<reference>...
 //     node scripts/check-derived-content.mjs <lang> --only <path> ... <pair>...
+//     node scripts/check-derived-content.mjs <lang> --hold-back <pair>...
 //     node scripts/check-derived-content.mjs --backing <path>...
 //     node scripts/check-derived-content.mjs --self-test
 //
@@ -47,11 +48,15 @@
 // of the same question — whether a change under `.kapi/` says anything, or
 // merely re-serializes what was already there.
 //
+// `--hold-back` removes the defective leaves instead of reporting them, so a
+// run delivers the rest of what it wrote. It edits the artifacts, so only the
+// gate on the return leg passes it; every other caller is a reading.
+//
 // Run it through `make l10n-content-check` (the whole committed tier) or
 // `scripts/check-sync-backed.sh` (what a run wrote).
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const DEMO_DIR = "harness/demos";
@@ -443,6 +448,199 @@ function valuesByKey(scalars) {
 
 function readJSON(path) {
   return JSON.parse(readFileSync(path, "utf8"));
+}
+
+// ── holding a leaf back ──────────────────────────────────────────────────────
+//
+// A defective leaf is removed from the artifact rather than failing the run
+// that produced it. Every runtime that reads this tier falls back to the source
+// string for a key it cannot find, so a leaf that is gone reads as the pending
+// work it is: `dict[hash] ?? fallback` in the React runtime, with the English
+// source compiled into the bundle beside the call; a gettext miss returning the
+// msgid for the Go catalogs; the `en` subject for the mailer. Writing an empty
+// string instead would render a blank element, because the React runtime
+// separates absent from empty and only absent falls back.
+//
+// The bytes are edited in place instead of the document being parsed and
+// written back. `core/i18n/catalogs/*.json` and `host/i18n/catalogs/*.json`
+// escape `/` as `\/`, so a round trip through `JSON.parse` rewrites every line
+// carrying one and a single withheld leaf arrives as a rewritten file.
+
+/**
+ * Every string leaf of a raw JSON document as key path → the span of the member
+ * that carries it, measured in bytes of the text it was read from.
+ */
+function leafSpans(text) {
+  const out = new Map();
+  let i = 0;
+
+  const ws = () => {
+    while (i < text.length && /\s/.test(text[i])) i++;
+  };
+
+  function str() {
+    const start = i;
+    i++;
+    while (i < text.length) {
+      if (text[i] === "\\") {
+        i += 2;
+        continue;
+      }
+      if (text[i] === '"') {
+        i++;
+        break;
+      }
+      i++;
+    }
+    return JSON.parse(text.slice(start, i));
+  }
+
+  function value(path) {
+    ws();
+    const ch = text[i];
+    if (ch === '"') {
+      const start = i;
+      str();
+      return { string: true, start, end: i };
+    }
+    if (ch === "{") return container(path, "}", true);
+    if (ch === "[") return container(path, "]", false);
+    const start = i;
+    while (i < text.length && !/[,}\]\s]/.test(text[i])) i++;
+    return { string: false, start, end: i };
+  }
+
+  function container(path, close, keyed) {
+    const start = i;
+    i++;
+    ws();
+    if (text[i] === close) {
+      i++;
+      return { string: false, start, end: i };
+    }
+    for (let n = 0; ; n++) {
+      ws();
+      const memberStart = i;
+      let child;
+      if (keyed) {
+        const key = str();
+        ws();
+        i++; // the colon
+        child = path ? `${path}.${key}` : key;
+      } else {
+        child = `${path}[${n}]`;
+      }
+      const v = value(child);
+      if (v.string) out.set(child, { memberStart, memberEnd: i });
+      ws();
+      if (text[i] === ",") {
+        i++;
+        continue;
+      }
+      if (text[i] !== close) throw new Error(`unexpected ${JSON.stringify(text[i])} at ${i}`);
+      i++;
+      break;
+    }
+    return { string: false, start, end: i };
+  }
+
+  value("");
+  return out;
+}
+
+/**
+ * The document with one string leaf removed, or null when removing it is not
+ * what holding it back would mean: the document does not carry that leaf, or it
+ * is the only leaf there is. An artifact that lost every leaf is an erasure
+ * rather than a target that falls back, which is the reading
+ * `make l10n-collapse-check` already refuses.
+ */
+function exciseLeaf(text, keyPath) {
+  let spans;
+  try {
+    spans = leafSpans(text);
+  } catch {
+    return null;
+  }
+  if (spans.size <= 1) return null;
+  const span = spans.get(keyPath);
+  if (span === undefined) return null;
+
+  const { memberStart, memberEnd } = span;
+
+  // The member and the comma that joins it to the next one, so the line it sat
+  // on goes with it.
+  let after = memberEnd;
+  while (after < text.length && /\s/.test(text[after])) after++;
+  if (text[after] === ",") {
+    let end = after + 1;
+    while (end < text.length && /[ \t]/.test(text[end])) end++;
+    if (text[end] === "\n") end++;
+    let start = memberStart;
+    while (start > 0 && /[ \t]/.test(text[start - 1])) start--;
+    return text.slice(0, start) + text.slice(end);
+  }
+
+  // The last member of its object carries no comma of its own, so the one
+  // before it is what has to go.
+  let before = memberStart;
+  while (before > 0 && /\s/.test(text[before - 1])) before--;
+  if (text[before - 1] === ",") return text.slice(0, before - 1) + text.slice(memberEnd);
+  return null;
+}
+
+/**
+ * Whether a defect is one leaf of a JSON artifact, which is what can be held
+ * back. The artifact-level kinds name no leaf to remove, and a narration
+ * sidecar overlays its master scene for scene, so removing a scalar from one
+ * breaks the structure check by construction.
+ */
+const HOLDABLE_KINDS = new Set(["placeholder", "identifier", "invented"]);
+
+function holdable(defect) {
+  return HOLDABLE_KINDS.has(defect.kind) && defect.target.endsWith(".json");
+}
+
+/**
+ * Remove every defective leaf the artifacts can give up, and report what was
+ * withheld and what is left. A defect that cannot be held back stays a defect,
+ * so a run carrying one still refuses.
+ */
+function holdBack(defects) {
+  const withheld = [];
+  const remaining = [];
+  const byTarget = new Map();
+  for (const defect of defects) {
+    if (!holdable(defect)) {
+      remaining.push(defect);
+      continue;
+    }
+    byTarget.set(defect.target, [...(byTarget.get(defect.target) ?? []), defect]);
+  }
+
+  for (const [target, list] of byTarget) {
+    let text;
+    try {
+      text = readFileSync(target, "utf8");
+    } catch {
+      remaining.push(...list);
+      continue;
+    }
+    const held = [];
+    for (const defect of list) {
+      const next = exciseLeaf(text, defect.key);
+      if (next === null) {
+        remaining.push(defect);
+        continue;
+      }
+      text = next;
+      held.push(defect);
+    }
+    if (held.length === 0) continue;
+    writeFileSync(target, text);
+    withheld.push(...held);
+  }
+  return { withheld, remaining };
 }
 
 // ── the checks ───────────────────────────────────────────────────────────────
@@ -867,6 +1065,81 @@ function selfTest() {
     { key: "run", value: "  kapi up\n  kapi check" },
   ]);
 
+  // Excision: what holding a defective leaf back does to the artifact. The
+  // documents are the two shapes the tier is written in, a flat dictionary and
+  // a nested catalog. The assertion is on the exact bytes, because a hold-back
+  // that reformatted the file would report one withheld leaf and deliver a
+  // rewritten document.
+  const flat = '{\n  "a": "one",\n  "b": "two",\n  "c": "three"\n}\n';
+  check(
+    "a leaf is excised with its line, leaving the rest byte-identical",
+    exciseLeaf(flat, "b"),
+    '{\n  "a": "one",\n  "c": "three"\n}\n',
+  );
+  check(
+    "excising the last leaf takes the comma before it",
+    exciseLeaf(flat, "c"),
+    '{\n  "a": "one",\n  "b": "two"\n}\n',
+  );
+  check(
+    "excising the first leaf leaves the document opening intact",
+    exciseLeaf(flat, "a"),
+    '{\n  "b": "two",\n  "c": "three"\n}\n',
+  );
+
+  const nested = '{\n  "t": {\n    "q": {\n      "name": "Quality",\n      "cat": "quality"\n    }\n  }\n}\n';
+  check(
+    "a nested leaf is excised and its containers stay",
+    exciseLeaf(nested, "t.q.name"),
+    '{\n  "t": {\n    "q": {\n      "cat": "quality"\n    }\n  }\n}\n',
+  );
+
+  // The Go-surface catalogs escape `/` as `\/`, so anything that parsed and
+  // re-serialized would rewrite every line carrying one.
+  const escaped = '{\n  "a": "x \\/ y \\"q\\"",\n  "b": "keep \\/ me"\n}\n';
+  check(
+    "an escaped slash in a neighbouring leaf survives an excision",
+    exciseLeaf(escaped, "a"),
+    '{\n  "b": "keep \\/ me"\n}\n',
+  );
+
+  check(
+    "two leaves can be excised from one document",
+    exciseLeaf(exciseLeaf(flat, "a"), "c"),
+    '{\n  "b": "two"\n}\n',
+  );
+
+  // Emptying an artifact is not holding a leaf back. `make l10n-collapse-check`
+  // exists because a catalog that came back empty looks like a legitimate
+  // regeneration to everything downstream.
+  check("the only leaf of a document is not excised", exciseLeaf('{\n  "a": "one"\n}\n', "a"), null);
+  check("a leaf the document does not carry is not excised", exciseLeaf(flat, "zz"), null);
+  check(
+    "the last leaf beside a value that is not one is not excised either",
+    exciseLeaf('{\n  "a": "one",\n  "n": 3\n}\n', "a"),
+    null,
+  );
+
+  // Which defects a leaf can be taken out of. The artifact-level kinds name no
+  // leaf, and a narration sidecar is answered scene for scene rather than leaf
+  // by leaf, so neither is something to hold back.
+  const defect = (target, key, kind) => ({ target, key, kind, detail: "" });
+  check(
+    "a placeholder dropped from a json artifact is held back",
+    holdable(defect("core/i18n/catalogs/nb.json", "tools.qa.description", "placeholder")),
+    true,
+  );
+  check(
+    "an artifact-level defect names no leaf to hold back",
+    holdable(defect("core/i18n/catalogs/nb.json", "", "unparseable")),
+    false,
+  );
+  check(
+    "a narration sidecar's defect is not held back",
+    holdable(defect("harness/demos/demo-a/demo.nb.yaml", "id", "identifier")),
+    false,
+  );
+
   check("a reordered array is not a decision", canonical({ a: [2, 1] }), canonical({ a: [1, 2] }));
   check(
     "a changed value is a decision",
@@ -979,9 +1252,14 @@ function main(argv) {
 
   const only = new Set();
   const rest = [];
+  let hold = false;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--only") {
       only.add(argv[++i]);
+      continue;
+    }
+    if (argv[i] === "--hold-back") {
+      hold = true;
       continue;
     }
     rest.push(argv[i]);
@@ -1007,7 +1285,16 @@ function main(argv) {
   }
 
   const { defects, checked } = validate(lang, parsed, only.size > 0 ? only : null, rules);
-  return report(defects, checked);
+  if (!hold) return report(defects, checked);
+
+  // What was held back is printed as records rather than prose, the way
+  // `--backing` prints its classification: the gate that asked for it renders
+  // the report, so the two cannot describe the same run differently.
+  const { withheld, remaining } = holdBack(defects);
+  for (const d of withheld) {
+    console.log(`withheld\t${d.target}\t${d.key}\t${d.kind}\t${d.detail}`);
+  }
+  return report(remaining, checked);
 }
 
 process.exit(main(process.argv.slice(2)));

@@ -162,8 +162,16 @@ jobs:
       # repaired, so a defect delivered here is a defect the next run reproduces:
       # a translation that lost the placeholder its sentence was built around, a
       # scene id translated into something the harness matches nothing by, a
-      # catalog that no longer parses. The gate reads the artifacts and refuses
-      # that run, naming every defect, and this job goes red.
+      # catalog that no longer parses.
+      #
+      # `--hold-back` makes the gate answer that per leaf rather than per run.
+      # A defective leaf is removed from the artifact and named in the log, the
+      # job summary and the pull request; the target falls back to its source
+      # for that string, which is the pending state this loop absorbs. The rest
+      # of the night is delivered. A defect with no leaf to remove refuses the
+      # run by name and this job goes red: an artifact that does not parse, a
+      # narration sidecar that stopped overlaying its master, or a leaf whose
+      # removal would empty the artifact.
       #
       # Coverage is not what it asks. A locale short of its source is the pending
       # state this loop absorbs, and a night that approved nothing is an ordinary
@@ -176,7 +184,7 @@ jobs:
       # (a `plan` dispatch, or a run with nothing to catch up) passes.
       - name: Refuse derived content that must not be committed
         id: gate
-        run: ./scripts/check-sync-backed.sh
+        run: ./scripts/check-sync-backed.sh --hold-back
 
       # The action reports; delivery is this workflow's own step, and it is a
       # pull request rather than a push to main. Approved wording is content
@@ -206,6 +214,8 @@ jobs:
           DERIVED: ${{ steps.gate.outputs.derived }}
           BACKING: ${{ steps.gate.outputs.backing }}
           DECISIONS: ${{ steps.gate.outputs.decisions }}
+          WITHHELD: ${{ steps.gate.outputs.withheld }}
+          WITHHELD_DETAIL: ${{ steps.gate.outputs.withheld_detail }}
         run: |
           # Globbing off: the derived set carries git pathspec magic
           # (`:(glob)…`), which the shell must not expand against the tree.
@@ -224,6 +234,16 @@ jobs:
             exit 1
           fi
           AUTO_PR_NOTE="\`kapi up\` converged this repository's content on bowrain.cloud. ${COMMIT_NOTE} The content gate read ${DERIVED:-0} derived change(s) and found them sound; \`.kapi/\` moved in ${BACKING:-0} file(s), ${DECISIONS:-0} of which carry a decision rather than a re-serialization."
+          # What the gate withheld is named here rather than counted. A reviewer
+          # deciding whether to merge the night needs to know which string each
+          # surface is still missing and why it was refused, and the diff cannot
+          # show a leaf that was never written.
+          if [ "${WITHHELD:-0}" -gt 0 ]; then
+            held="The gate held back ${WITHHELD} string(s) it may not deliver. Each was removed from the artifact it was written to, so that surface falls back to its source for that string until the translation is sound:"
+            # shellcheck disable=SC2016  # the fences are markdown for the body
+            AUTO_PR_NOTE="$(printf '%s\n\n%s\n\n```\n%s\n```' \
+              "$AUTO_PR_NOTE" "$held" "$WITHHELD_DETAIL")"
+          fi
           export AUTO_PR_NOTE
           # shellcheck disable=SC2086  # the derived set is a list of pathspecs
           ./scripts/auto-pr.sh bot/dogfood-sync \

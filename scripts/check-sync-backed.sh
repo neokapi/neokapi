@@ -33,6 +33,19 @@
 # where their placeholder had been. Both runs moved exactly the files a
 # convergence run moves.
 #
+# `--hold-back` changes what a defect costs. Without it one bad leaf refuses the
+# whole run, so a night of sound work is thrown away over a single string; with
+# it the defective leaf is removed from the artifact and named, and the rest of
+# the run is delivered. Every runtime that reads this tier falls back to the
+# source string for a key it cannot find, so the withheld string reads as the
+# pending work it is rather than as a hole in a sentence. The nightly passes it;
+# a bare run is a reading and leaves the tree alone.
+#
+# What it never does is turn a defect into a pass. A leaf whose removal would
+# empty its artifact, an artifact that does not parse, and every narration
+# sidecar defect refuse the run exactly as before: a sidecar overlays its master
+# scene for scene, so there is no leaf to take out of one.
+#
 # Backing is reported rather than required. A night that converged and brought
 # nothing home to `.kapi/` is the ordinary state of a repository whose source
 # moves daily and whose reviewers approve in batches, and refusing it made the
@@ -46,6 +59,7 @@
 #     ./scripts/check-sync-backed.sh --repo DIR      # gate another checkout
 #     ./scripts/check-sync-backed.sh --derived 'a b' # override the derived set
 #     ./scripts/check-sync-backed.sh --pairs 'L a:b' # override the content pairs
+#     ./scripts/check-sync-backed.sh --hold-back     # withhold defective leaves
 #     ./scripts/check-sync-backed.sh --self-test     # prove the gate both ways
 #
 # Wired into .github/workflows/dogfood-sync.yml between `kapi up` and the
@@ -114,13 +128,18 @@ outputs() {
 # what this run wrote: the gate's question is about the run, not about the
 # standing of the committed tier.
 #
+# Everything the reader said is printed, on a sound run as well as a defective
+# one, because with hold-back on there is something to say either way: the
+# records naming what left the artifacts come back the same way the defects do.
+# The caller separates them.
+#
 # A run that produced no derived change asks nothing. A checkout whose reader is
 # missing is fatal rather than permissive, for the same reason an unreadable
 # derived set is: a gate that cannot read what was written would pass everything
 # while looking armed.
 content_defects() {
-  local pairs="$1"
-  shift
+  local pairs="$1" hold="$2"
+  shift 2
   local paths=("$@")
   [ "${#paths[@]}" -gt 0 ] || return 0
 
@@ -139,6 +158,9 @@ content_defects() {
     only+=(--only "$p")
   done
 
+  local hold_args=()
+  [ -n "$hold" ] && hold_args=(--hold-back)
+
   local status=0 line args out rc
   while IFS= read -r line; do
     [ -n "${line//[[:space:]]/}" ] || continue
@@ -147,13 +169,44 @@ content_defects() {
     args=($line)
     set +f
     rc=0
-    out="$(node "$CONTENT_READER" "${args[@]}" "${only[@]}" 2>&1)" || rc=$?
+    out="$(node "$CONTENT_READER" "${args[@]}" ${hold_args[@]+"${hold_args[@]}"} "${only[@]}" 2>&1)" ||
+      rc=$?
+    printf '%s\n' "$out"
     if [ "$rc" -ne 0 ]; then
-      printf '%s\n' "$out" >&2
       status="$rc"
     fi
   done <<<"$pairs"
   return "$status"
+}
+
+# render_withheld turns the reader's withheld records into the lines a reviewer
+# reads: which artifact, which leaf, what was wrong with it.
+render_withheld() {
+  local target key kind detail
+  while IFS=$'\t' read -r _ target key kind detail; do
+    [ -n "$target" ] || continue
+    printf '  %s %s: %s (%s)\n' "$target" "$key" "$detail" "$kind"
+  done <<<"$1"
+}
+
+# held_back_block is what the log and the job summary say about the leaves the
+# run did not deliver.
+held_back_block() {
+  printf 'held back (%s): withheld from this run, so the surface falls back to\n' "$1"
+  printf 'its source for these strings until the translation is sound.\n'
+  render_withheld "$2"
+}
+
+# withheld_output publishes the withheld records as a multi-line step output, so
+# the delivery step can name each one in the pull request it opens. A count
+# alone would tell a reviewer that something is missing and not what.
+withheld_output() {
+  [ -n "${GITHUB_OUTPUT:-}" ] || return 0
+  {
+    echo 'withheld_detail<<CHECK_SYNC_BACKED_WITHHELD'
+    if [ -n "$1" ]; then render_withheld "$1"; fi
+    echo 'CHECK_SYNC_BACKED_WITHHELD'
+  } >>"$GITHUB_OUTPUT"
 }
 
 # ── the gate ─────────────────────────────────────────────────────────────────
@@ -162,7 +215,7 @@ content_defects() {
 # $3 the content pairs, one locale per line. Returns 0 when the tree is
 # committable, 1 when it refuses.
 gate() {
-  local repo="$1" derived_spec="$2" content_pairs="${3:-}"
+  local repo="$1" derived_spec="$2" content_pairs="${3:-}" hold="${4:-}"
   local rec path
   local all_entries=() all_paths=() derived_paths=() backing_paths=()
   local refused_foreign=() backing_entries=() derived_entries=()
@@ -247,24 +300,32 @@ gate() {
   fi
 
   local content_status=0
-  local content_out=""
+  local content_out="" withheld_out="" defect_out="" withheld_count=0
   if [ "${#derived_entries[@]}" -gt 0 ]; then
     local derived_only=()
     for path in "${all_paths[@]}"; do
       in_list "$path" ${derived_paths[@]+"${derived_paths[@]}"} && derived_only+=("$path")
     done
-    content_out="$(content_defects "$content_pairs" ${derived_only[@]+"${derived_only[@]}"} 2>&1)" ||
+    content_out="$(content_defects "$content_pairs" "$hold" ${derived_only[@]+"${derived_only[@]}"} 2>&1)" ||
       content_status=$?
     if [ "$content_status" -eq 2 ]; then
       printf '%s\n' "$content_out" >&2
       return 2
+    fi
+    # The reader answers on one stream: a tab-separated record for every leaf it
+    # withheld, and the report a human reads for everything else.
+    withheld_out="$(printf '%s\n' "$content_out" | grep $'^withheld\t' || true)"
+    defect_out="$(printf '%s\n' "$content_out" | grep -v $'^withheld\t' || true)"
+    if [ -n "$withheld_out" ]; then
+      withheld_count="$(printf '%s\n' "$withheld_out" | wc -l | tr -d ' ')"
     fi
   fi
 
   if [ "$content_status" -eq 0 ] && [ "${#refused_foreign[@]}" -eq 0 ] &&
     [ "${#refused_deleted[@]}" -eq 0 ]; then
     outputs "derived=${#derived_entries[@]}" "backing=${#backing_entries[@]}" \
-      "decisions=${decisions}"
+      "decisions=${decisions}" "withheld=${withheld_count}"
+    withheld_output "$withheld_out"
     if [ "${#derived_entries[@]}" -eq 0 ] && [ "${#backing_entries[@]}" -eq 0 ]; then
       echo "check-sync-backed: the run left nothing to commit"
       summary "### Sync content gate" "" "The run left nothing to commit."
@@ -272,6 +333,9 @@ gate() {
     fi
     echo "check-sync-backed: ${#derived_entries[@]} derived change(s) carry sound content;" \
       "${decisions} context decision(s), ${normalizations} normalization(s)"
+    if [ -n "$withheld_out" ]; then
+      held_back_block "$withheld_count" "$withheld_out"
+    fi
     if [ "${#backing_entries[@]}" -gt 0 ]; then
       echo "context (.kapi/):"
       report "${backing_entries[@]}"
@@ -282,6 +346,10 @@ gate() {
     fi
     summary "### Sync content gate" "" \
       "${#derived_entries[@]} derived change(s) carry sound content. Context: \`${decisions}\` decision(s), \`${normalizations}\` normalization(s)."
+    if [ -n "$withheld_out" ]; then
+      summary "" "\`${withheld_count}\` string(s) held back, so those surfaces fall back to their source:" \
+        "" '```' "$(render_withheld "$withheld_out")" '```'
+    fi
     return 0
   fi
 
@@ -294,12 +362,19 @@ The run wrote artifacts the loop owns, and what it wrote in them is not sound.
 Regeneration re-materializes these files rather than repairing them, so
 committing them ships the defect and the next run reproduces it.
 EOF
-    printf '%s\n' "$content_out" >&2
+    printf '%s\n' "$defect_out" >&2
     cat >&2 <<'EOF'
 Nothing here is coverage: a string the target does not carry falls back to its
 source, which is the pending state this loop absorbs. These are strings the
 target does carry and gets wrong.
 EOF
+  fi
+
+  # A run can give up some leaves and still be refused over one it cannot. What
+  # it did give up is reported either way, because those artifacts were edited.
+  if [ -n "$withheld_out" ]; then
+    echo "" >&2
+    held_back_block "$withheld_count" "$withheld_out" >&2
   fi
 
   if [ "${#refused_deleted[@]}" -gt 0 ]; then
@@ -336,7 +411,7 @@ EOF
   fi
   summary "### Sync content gate — REFUSED" "" \
     "The run produced derived content that must not be committed." "" \
-    '```' "$(printf '%s\n' "$content_out"
+    '```' "$(printf '%s\n' "$defect_out"
       report ${refused_deleted[@]+"${refused_deleted[@]}"} ${refused_foreign[@]+"${refused_foreign[@]}"})" '```'
   return 1
 }
@@ -462,7 +537,7 @@ expect() {
   local label="$1" repo="$2" want="$3"
   shift 3
   local out rc=0 path
-  out="$(gate "$repo" "$SELFTEST_DERIVED" "$SELFTEST_PAIRS" 2>&1)" || rc=$?
+  out="$(gate "$repo" "$SELFTEST_DERIVED" "$SELFTEST_PAIRS" "${HOLD:-}" 2>&1)" || rc=$?
   if [ "$rc" -ne "$want" ]; then
     echo "✖ self-test: ${label} — expected exit ${want}, got ${rc}:"
     printf '%s\n' "$out" | sed 's/^/    /'
@@ -624,6 +699,74 @@ self_test() {
   rm -f "$repo/harness/demos/demo-a/demo.nb.yaml"
   git -C "$repo" checkout -q -- .
 
+  # Holding a leaf back. With --hold-back the gate removes the defective leaves
+  # and delivers the rest of what the run wrote, which is what the nightly asks
+  # for: one bad translation used to discard a whole night's work. Every runtime
+  # that reads this tier falls back to the source string for a key it cannot
+  # find, so a withheld leaf reads as the pending work it is.
+  HOLD=hold
+
+  printf '{"tools":{"qa":{"displayName":"Kvalitet","category":"quality","description":"Kontrollerte blokk(er)"}}}\n' \
+    >"$repo/core/i18n/catalogs/nb.json"
+  expect "a defective leaf is held back and the rest of the run is delivered" "$repo" 0 \
+    "tools.qa.description" "held back" "missing {count}"
+  if grep -q 'Kvalitet' "$repo/core/i18n/catalogs/nb.json" &&
+    ! grep -q 'description' "$repo/core/i18n/catalogs/nb.json"; then
+    echo "✓ self-test: the withheld leaf left the artifact and the sound ones stayed"
+  else
+    echo "✖ self-test: the artifact does not carry what the run delivered:"
+    sed 's/^/    /' "$repo/core/i18n/catalogs/nb.json"
+    SELFTEST_STATUS=1
+  fi
+
+  # The counts a reviewer reads come from the gate, so a run that withheld a
+  # leaf says so in its outputs and not only in its log.
+  : >"$outfile"
+  git -C "$repo" checkout -q -- .
+  printf '{"tools":{"qa":{"displayName":"Kvalitet","category":"quality","description":"Kontrollerte blokk(er)"}}}\n' \
+    >"$repo/core/i18n/catalogs/nb.json"
+  expect "a held-back run is still a delivered run" "$repo" 0 "held back"
+  if grep -qx 'withheld=1' "$outfile"; then
+    echo "✓ self-test: the withheld count is published as a step output"
+  else
+    echo "✖ self-test: the step outputs do not carry the withheld count:"
+    sed 's/^/    /' "$outfile"
+    SELFTEST_STATUS=1
+  fi
+
+  # The artifact may not be emptied to hold a leaf back: a catalog that came
+  # back with nothing in it is an erasure, which is what l10n-collapse-check
+  # refuses. A target carrying only the defective leaf is refused instead.
+  # The defective leaf has a sibling that is not a string, so the excision
+  # itself would succeed and leave a document with no translations in it. A
+  # target whose only leaf sits alone in its object is refused by the shape of
+  # the edit rather than by the rule, which is not the rule being tested here.
+  git -C "$repo" checkout -q -- .
+  printf '{"tools":{"qa":{"description":"Kontrollerte blokk(er)","weight":3}}}\n' \
+    >"$repo/core/i18n/catalogs/nb.json"
+  expect "the artifact's only leaf is refused rather than emptied" "$repo" 1 \
+    "tools.qa.description" "placeholder"
+
+  # A defect with no leaf to remove is refused with --hold-back exactly as
+  # without it. Zero coverage is never a pass.
+  git -C "$repo" checkout -q -- .
+  printf 'not json\n' >"$repo/core/i18n/catalogs/nb.json"
+  expect "an artifact that does not parse is refused even with hold-back on" "$repo" 1 \
+    "core/i18n/catalogs/nb.json" "unparseable"
+
+  # A narration sidecar overlays its master scene for scene, so there is no leaf
+  # to take out of one: removing a scalar breaks the structure check by
+  # construction. A sidecar's defect refuses the run.
+  git -C "$repo" checkout -q -- .
+  printf '%s' "${SELFTEST_SIDECAR//id: discover/id: oppdag}" \
+    >"$repo/harness/demos/demo-a/demo.nb.yaml"
+  expect "a narration sidecar's defect is not held back" "$repo" 1 \
+    "harness/demos/demo-a/demo.nb.yaml" "oppdag" "identifier"
+  rm -f "$repo/harness/demos/demo-a/demo.nb.yaml"
+
+  HOLD=""
+  git -C "$repo" checkout -q -- .
+
   # The gate arms itself in this repository: both lists come from the Makefile,
   # and a rename there must fail loudly rather than pass everything.
   cd "$start"
@@ -663,7 +806,7 @@ self_test() {
 # ── entry point ──────────────────────────────────────────────────────────────
 
 main() {
-  local repo="" derived="" pairs="" mode="gate"
+  local repo="" derived="" pairs="" mode="gate" hold=""
 
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -678,6 +821,10 @@ main() {
       --pairs)
         pairs="${2:-}"
         shift 2
+        ;;
+      --hold-back)
+        hold=hold
+        shift
         ;;
       --self-test)
         mode="self-test"
@@ -713,7 +860,7 @@ main() {
     pairs="$(resolve_pairs "$repo")" || return 2
   fi
 
-  gate "$repo" "$derived" "$pairs"
+  gate "$repo" "$derived" "$pairs" "$hold"
 }
 
 main "$@"

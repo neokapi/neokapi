@@ -174,7 +174,8 @@ repairing them.
   has one, its source document otherwise, and for a narration sidecar the
   `demo.yaml` master it overlays. `make l10n-content-check` reads the whole
   committed tier; `scripts/check-sync-backed.sh` reads what a run wrote, and
-  refuses on a defect.
+  with `--hold-back` removes the defective leaves rather than refusing the run
+  that produced them.
 - `make l10n-report`: per-locale coverage and placeholder parity, posted to the
   `l10n` workflow's job summary. It reports and cannot fail: an English change
   that leaves nb behind is pending work, not a build break. Coverage and
@@ -351,11 +352,20 @@ the per-locale renders as owned output alongside the catalogs they come from.
 
 `scripts/check-sync-backed.sh` then reads what the run wrote, which is why it
 runs last. It classifies the working tree (context, derived, foreign) and then
-opens the derived artifacts: a run whose output does not parse, dropped a
-placeholder, or translated a machine identifier is refused by name, and the
-nightly goes red. It also refuses anything the run changed outside `.kapi/` and
-the owned set: an indiscriminate delivery would otherwise carry a source edit
-into main with no review and no CI.
+opens the derived artifacts. The nightly runs it with `--hold-back`, which
+answers a defect per string rather than per run: the defective leaf is removed
+from the artifact and named in the step log, the job summary and the pull
+request, and everything else the night produced is delivered. Every runtime that
+reads this tier falls back to the source string for a key it cannot find, so a
+withheld string reads as the pending work it is.
+
+A defect with no leaf to remove refuses the run by name and the nightly goes
+red: an artifact that does not parse, a narration sidecar that stopped
+overlaying its master scene for scene, and a leaf whose removal would empty its
+artifact, which is the erasure `make l10n-collapse-check` reads. A bare run
+holds nothing back, because a reading is not a run. The gate also refuses
+anything the run changed outside `.kapi/` and the owned set: an indiscriminate
+delivery would otherwise carry a source edit into main with no review and no CI.
 
 Two things it does *not* do, each for a reason the other half of this document
 gives.
