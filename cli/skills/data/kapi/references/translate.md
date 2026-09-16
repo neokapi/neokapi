@@ -127,7 +127,13 @@ expose the same loop and dry run to an assistant. `kapi run <flow>` is only for 
 
 In a server-connected project (recipe has a `bowrain:` block), `kapi up` runs on
 the Bowrain server by default and streams progress back; `kapi up --local`
-runs the loop on this machine and pushes the results. `kapi push` / `kapi pull` are
+runs the loop on this machine and pushes the results. The server run outlives
+the stream that watches it, so with `--json` the first record is `run_started`
+carrying the run's `id`, and the result record carries `run` (`id`, `state`,
+`passes`) beside `watch`. A `watch.complete` of false means the stream ended
+before the run did and the run may still be going: read `run.state`, and ask
+`kapi status` about `run.id` rather than reporting a failed run.
+`kapi push` / `kapi pull` are
 **transport only**: they move project state and never translate. There is no
 `kapi sync`.
 

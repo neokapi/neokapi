@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T23:16:29Z",
+  "generatedAt": "2026-09-16T11:45:42Z",
   "commands": [
     {
       "id": "add",
@@ -7841,6 +7841,12 @@
         {
           "name": "explain",
           "usage": "print the resolved source → sink bindings and exit without running",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "fail-on-incomplete-watch",
+          "usage": "server venue: fail when the run's event stream ends before the run does, instead of reporting it and pulling what landed",
           "default": "false",
           "type": "bool"
         },

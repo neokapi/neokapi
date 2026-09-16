@@ -3740,6 +3740,9 @@
             "explain": {
               "usage": "print the resolved source → sink bindings and exit without running"
             },
+            "fail-on-incomplete-watch": {
+              "usage": "server venue: fail when the run's event stream ends before the run does, instead of reporting it and pulling what landed"
+            },
             "fail-on-unknown": {
               "usage": "exit with error if any file cannot be processed (default: skip with a warning)"
             },

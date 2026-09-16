@@ -299,6 +299,10 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	if !app.Quiet && !jsonOut {
 		fmt.Fprintf(stderr, "Server run %s started.\n", run.ID)
 	}
+	// The id travels as data too. A consumer that loses the stream still holds
+	// the handle `kapi status` takes, and it holds it from the start rather than
+	// only in the closing record.
+	emitRunStarted(jsonStream, run, client.Stream())
 
 	// Phase 3: subscribe to the run's event stream and re-emit it locally.
 	var sink func(convergence.Event)
@@ -321,14 +325,18 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		streamCtx, cancel = context.WithTimeout(ctx, upTimeout)
 		defer cancel()
 	}
-	if err := client.StreamConvergenceRunEvents(streamCtx, run.ID, onEvent); err != nil {
-		// A timeout is not a failure: pull whatever landed and report.
-		if !errors.Is(err, context.DeadlineExceeded) {
-			return fmt.Errorf("stream server run: %w", err)
-		}
-		if !app.Quiet && !jsonOut {
-			fmt.Fprintln(stderr, "Timed out waiting for the run; pulling available results...")
-		}
+	// Whether this client watched the run is a different question from whether
+	// the run happened, and the exit code answers the second. The caller's own
+	// --timeout has always meant "pull what landed", and a gateway closing an
+	// idle connection says as little about the run as that does, so both end the
+	// watch and nothing else. A person pressing Ctrl-C is the exception: they
+	// asked this command to stop.
+	watch, streamErr := watchResult(client.StreamConvergenceRunEvents(streamCtx, run.ID, onEvent))
+	if streamErr != nil {
+		return streamErr
+	}
+	if !watch.Complete && !app.Quiet && !jsonOut {
+		fmt.Fprintln(stderr, watchEndedLine(watch, run.ID))
 	}
 
 	// Phase 4: transport — pull the produced targets back down.
@@ -368,19 +376,21 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		}
 	}
 
-	// Phase 5: final result — prefer the run's authoritative final standing,
-	// falling back to what the event stream accumulated.
-	final, gerr := client.GetConvergenceRun(ctx, run.ID)
-	if gerr != nil {
-		final = run
-	}
-	if err := cli.PrintUpResultStream(cmd, jsonStream, acc.output(final)); err != nil {
+	// Phase 5: final result — the run's own state, read again here so the record
+	// says what the server holds rather than the last frame this client saw.
+	final := runStateNow(ctx, client, run, &watch)
+	if err := writeServerUpResult(cmd, jsonStream, acc.output(final), final, watch); err != nil {
 		return err
 	}
 	// A run that ended failed/canceled is not ordinary parked work: surface it
 	// as a non-zero exit so CI on `kapi up` does not read a broken run as
 	// success. The summary above still prints for context.
-	return acc.terminalError(final)
+	if err := acc.terminalError(final); err != nil {
+		return err
+	}
+	// A watch that ended early is reported in the record, and fails the command
+	// only for a caller that asked for that.
+	return incompleteWatchError(watch, flagBool(cmd, "fail-on-incomplete-watch"))
 }
 
 // reportVoicePush surfaces the voice profile result of up's push phase the way
@@ -473,6 +483,7 @@ func init() {
 	cli.AddProjectFlag(upCmd)
 	cli.AddUpFlags(upCmd)
 	upCmd.Flags().BoolVar(&upLocal, "local", false, "run the loop on this machine instead of the server, then push the results")
+	upCmd.Flags().Bool("fail-on-incomplete-watch", false, "fail when the run's event stream ends before the run does, instead of reporting it and pulling what landed")
 	upCmd.Flags().DurationVar(&upTimeout, "timeout", 15*time.Minute, "maximum time to wait for a server run to finish before pulling available results")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, a *cli.App) {
 		// Match the built-in `kapi up` flag surface exactly (NewUpCmd adds the
