@@ -69,6 +69,57 @@ func ScopedTermRuleMap(rules []TermRule, texts ...string) map[string]string {
 	return TermRuleMap(ScopeTermRules(rules, texts...))
 }
 
+// ScopedDoNotTranslateTerms is DoNotTranslateTerms over the rules the texts
+// can use: the terms a prompt asks the model to keep.
+//
+// Presence is decided by containment on the raw text, not by ScopeTermRules,
+// and the difference is deliberate. term-check demands a do-not-translate term
+// wherever the source writes it, reading the source with only its placeholders
+// overwritten, so a term inside a quoted command or a flag name is still
+// demanded. ScopeTermRules reads the source as renderings are matched, where
+// code is not a use of a term. Scoping these that way would drop exactly the
+// lines the check goes on to demand, and the target would fail a rule the
+// prompt never carried.
+func ScopedDoNotTranslateTerms(rules []TermRule, texts ...string) []string {
+	if len(rules) == 0 {
+		return nil
+	}
+	if len(texts) == 0 {
+		return DoNotTranslateTerms(rules)
+	}
+
+	lowered := make([]string, 0, len(texts))
+	for _, t := range texts {
+		lowered = append(lowered, strings.ToLower(t))
+	}
+
+	kept := make([]TermRule, 0, len(rules))
+	for _, r := range rules {
+		if r.DoNotTranslate && writtenIn(lowered, r) {
+			kept = append(kept, r)
+		}
+	}
+	return DoNotTranslateTerms(kept)
+}
+
+// writtenIn reports whether any text writes the rule's term or one of its
+// declared forms. Case-folded, because a term the source capitalises at the
+// start of a sentence is the same term.
+func writtenIn(loweredTexts []string, r TermRule) bool {
+	for _, form := range r.AllForms() {
+		f := strings.ToLower(strings.TrimSpace(form))
+		if f == "" {
+			continue
+		}
+		for _, text := range loweredTexts {
+			if strings.Contains(text, f) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // wordSet is every word in the texts as term matching reads them
 // (check.TermText, so neither a placeholder's name nor the words of inline
 // code, a quoted kapi command or a flag name are words here), in the

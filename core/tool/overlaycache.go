@@ -27,9 +27,10 @@ func OverlayConfigFingerprint(parts ...string) string {
 }
 
 // ContextFingerprint hashes the governing context as it reached a producer: the
-// rendered voice guidance and the terminology it was given. It backs
-// model.Origin.ContextFingerprint — a change detector that answers "have the
-// governing inputs moved since this target was produced?" and nothing more.
+// rendered voice guidance, the terminology it was given, and the terms it was
+// told to keep verbatim. It backs model.Origin.ContextFingerprint — a change
+// detector that answers "have the governing inputs moved since this target was
+// produced?" and nothing more.
 //
 // It is deliberately narrower than an engine's OverlayConfigFingerprint, which
 // also covers provider, model and prompt wording: folding those in would make a
@@ -40,17 +41,27 @@ func OverlayConfigFingerprint(parts ...string) string {
 //
 // The terms come as a map, so its keys are sorted before hashing: an unsorted walk
 // would hash identical terminology differently on each run and report drift that
-// never happened. Returns "" when there is no governing context at all, so an
-// ungoverned run reads as ungoverned rather than as the constant hash of two
-// empty strings.
-func ContextFingerprint(voiceGuide string, terms map[string]string) string {
-	if voiceGuide == "" && len(terms) == 0 {
+// never happened. keepVerbatim is sorted by its caller for the same reason.
+// Returns "" when there is no governing context at all, so an ungoverned run
+// reads as ungoverned rather than as the constant hash of two empty strings.
+//
+// An empty keepVerbatim contributes nothing to the hash, so a project that
+// marks no concept do-not-translate keeps the fingerprints it already has.
+// Widening the hash retires the stored targets of the projects a change governs
+// and no others: a fingerprint that moves for everyone re-drafts a corpus whose
+// governance never changed.
+func ContextFingerprint(voiceGuide string, terms map[string]string, keepVerbatim []string) string {
+	if voiceGuide == "" && len(terms) == 0 && len(keepVerbatim) == 0 {
 		return ""
 	}
-	parts := make([]string, 0, len(terms)*2+1)
+	parts := make([]string, 0, len(terms)*2+len(keepVerbatim)+2)
 	parts = append(parts, voiceGuide)
 	for _, src := range slices.Sorted(maps.Keys(terms)) {
 		parts = append(parts, src, terms[src])
+	}
+	if len(keepVerbatim) > 0 {
+		parts = append(parts, "keep-verbatim")
+		parts = append(parts, keepVerbatim...)
 	}
 	return OverlayConfigFingerprint(parts...)
 }

@@ -113,7 +113,13 @@ type TranslateRequest struct {
 	SourceLanguage model.LocaleID    `json:"source_language"`
 	TargetLocale   model.LocaleID    `json:"target_locale"`
 	PreferredTerms map[string]string `json:"preferred_terms,omitempty"`
-	Format         string            `json:"format,omitempty"` // e.g., "html", "plain"
+	// DoNotTranslate names the terms that must survive verbatim into the
+	// target: the concepts a terms store marks do-not-translate, and the
+	// strings a recipe names. The prompt asks the model to keep them, which is
+	// what PreferredTerms cannot express — a do-not-translate term names no
+	// wording to use instead.
+	DoNotTranslate []string `json:"do_not_translate,omitempty"`
+	Format         string   `json:"format,omitempty"` // e.g., "html", "plain"
 	// VoiceGuide is voice profile guidance (rendered from a VoiceProfile) that the
 	// model should apply while translating, so output is on-brand at generation
 	// time rather than only checked afterwards. Empty when no profile is bound.
@@ -150,6 +156,7 @@ func (req TranslateRequest) Prompt() prompt.Translate {
 		Instruction:    req.Instruction,
 		VoiceGuide:     req.VoiceGuide,
 		PreferredTerms: req.PreferredTerms,
+		DoNotTranslate: req.DoNotTranslate,
 	}
 }
 

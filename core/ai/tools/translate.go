@@ -481,6 +481,7 @@ func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
 		Instruction:    cfg.Instruction,
 		VoiceGuide:     voiceGuide,
 		PreferredTerms: coreprofile.TermRuleMap(cfg.TermRules),
+		DoNotTranslate: coreprofile.DoNotTranslateTerms(cfg.TermRules),
 	}
 	// The context *policy* is part of the fingerprint: turning context on changes
 	// every prompt, so cached targets produced without it must not be served. The
@@ -796,6 +797,7 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
 		PreferredTerms: t.termsFor(maskedSource),
+		DoNotTranslate: t.keptVerbatimFor(maskedSource),
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 		BlockContext:   t.contextFor(ctx, v.ID(), v.Name(), v.ChainUnit()),
@@ -887,6 +889,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
 		PreferredTerms: t.termsFor(maskedSource),
+		DoNotTranslate: t.keptVerbatimFor(maskedSource),
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 		PreserveTags:   true,
@@ -1246,6 +1249,20 @@ func (t *AITranslateTool) termsFor(texts ...string) map[string]string {
 	return coreprofile.ScopedTermRuleMap(t.termRules, texts...)
 }
 
+// keptVerbatimFor is the do-not-translate terms one call sends: the terms of
+// the rules whose term the text it carries writes.
+//
+// Scoped per call like the renderings, and for the same reason. A term already
+// masked by the DNT list is absent from the text handed here, so it costs no
+// prompt line: the mask has locked it, and the model is told about what it can
+// still see.
+func (t *AITranslateTool) keptVerbatimFor(texts ...string) []string {
+	if len(t.termRules) == 0 {
+		return nil
+	}
+	return coreprofile.ScopedDoNotTranslateTerms(t.termRules, texts...)
+}
+
 // contextFor is the reference material for one block: its key always, and its
 // neighbours when the tool holds the document in order.
 func (t *AITranslateTool) contextFor(ctx context.Context, id, name, unit string) prompt.Context {
@@ -1362,6 +1379,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 		SourceLocale:   t.sourceLocale,
 		TargetLocale:   t.targetLocale,
 		PreferredTerms: t.termsFor(texts...),
+		DoNotTranslate: t.keptVerbatimFor(texts...),
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
 	}
