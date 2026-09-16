@@ -47,6 +47,10 @@ type refServer struct {
 	// unchanged makes the negotiation report the fast path, so a push commits
 	// nothing at all.
 	unchanged bool
+	// publishesNoRef makes a pull answer carry no ref field, which is what a
+	// venue too old to publish one sends. It is not the same as publishing an
+	// empty ref, and the two must not be read alike.
+	publishesNoRef bool
 	// byStream answers for a stream holding something other than the project's
 	// published ref, which is how a second stream starts: with none of the
 	// decisions the first one holds.
@@ -97,10 +101,15 @@ func newRefServer(t *testing.T, projectID string, published ref.Ref) *refServer 
 			})
 		})
 		mux.HandleFunc(sync+"/pull", func(w http.ResponseWriter, _ *http.Request) {
-			current := rs.streamRef(stream)
-			_ = json.NewEncoder(w).Encode(apiclient.RichPullResponse{
-				Cursor: current.Content, HasMore: false, Ref: &current,
-			})
+			answer := apiclient.RichPullResponse{Cursor: rs.streamRef(stream).Content, HasMore: false}
+			// A venue too old to publish a ref sends no ref field at all, which
+			// is why the field is a pointer: silence and an empty ref are
+			// different facts. publishesNoRef asks for the silent one.
+			if !rs.publishesNoRef {
+				current := rs.streamRef(stream)
+				answer.Ref = &current
+			}
+			_ = json.NewEncoder(w).Encode(answer)
 		})
 		// A venue that holds nothing: every block the scan reads is missing, so
 		// the push uploads. The producer diffs against this rather than against
@@ -239,6 +248,10 @@ func TestDeletedRefCacheCostsOneRoundTripNotAWrongResult(t *testing.T) {
 // governance must not be recorded as governance being empty.
 func TestPull_AServerWithNoRefLeavesTheCachedOneStanding(t *testing.T) {
 	srv := newRefServer(t, "proj1", ref.Ref{Content: 7})
+	// Silence, which is what such a venue sends: no ref field at all. A venue
+	// that publishes a ref with empty governance is saying its governance is
+	// empty, and that answer is recorded rather than merged.
+	srv.publishesNoRef = true
 	conn := newRefConnector(t, srv.Server, "proj1")
 	conn.refs.Observe("main", ref.Ref{Context: "ctx-1", Terms: "trm-1", Decisions: "dec-1"})
 
