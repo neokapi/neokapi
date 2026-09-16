@@ -86,6 +86,11 @@ provider: anthropic  model: claude-sonnet-5
   Terminology (use these renderings):
   - utilize → use
 
+  [do_not_translate · terms (2 do-not-translate terms)]
+  Keep these terms exactly as written, in the same casing. Do not translate them:
+  - Acme
+  - Acme Cloud
+
   ── user ──
   [content · source block]
   Save
@@ -166,6 +171,7 @@ sections rather than replace the prompt.
 | A standing directive for the project  | `defaults.tools.translate.instruction` in the recipe   |
 | Consistent tone and phrasing          | A [voice profile](/framework/checks/voice) |
 | Specific terms translated a fixed way | A [terms store](/framework/terminology)                |
+| A term kept exactly as written        | A concept marked do-not-translate, or `--dnt`          |
 | The model to know what a string *is*  | `--context key` (default) or `--context neighbours`    |
 
 ```yaml title="kapi.yaml"

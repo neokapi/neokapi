@@ -421,6 +421,15 @@ The framework ships terminology tools as ordinary pipeline stages:
   replaces entity values with typed placeholders before an external service and
   restores them afterwards.
 
+Terminology reaches generation as well as validation. The translate step renders
+the rules that name a replacement as the renderings to use, and the rules marked
+do-not-translate as the terms to keep verbatim, each scoped to the text of the
+call. A term listed by a recipe or `--dnt` is masked before the model instead,
+which locks the span and costs the batched path. Both projections enter the
+context fingerprint stamped on what the step writes, so marking a concept
+do-not-translate makes the content it governs stale rather than leaving targets
+that were drafted without it.
+
 <PipelineDiagram
   stages={[
     { label: "Source", sub: "binding", role: "io" },

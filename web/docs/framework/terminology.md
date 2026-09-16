@@ -214,8 +214,10 @@ Three pipeline tools bring terminology into the flow:
   be silently downgraded.
 - **`dnt-check`** (do-not-translate) fails a target where a term listed under
   `--terms` (product names, trademarks, code identifiers) was translated,
-  transliterated or dropped. The translate step masks those spans so the model
-  never sees them.
+  transliterated or dropped. The translate step masks those spans, so the model
+  never sees them. A concept the terms store marks do-not-translate travels a
+  different route: the translate step names it in the prompt as a term to keep
+  verbatim, and `term-check` holds the target to it.
 - **`term-extract`** surfaces candidate terms from the source, for a curator to
   approve into the store.
 
