@@ -139,7 +139,6 @@ func TestLocateMDXCommentsRefusesWhatItCannotPlace(t *testing.T) {
 	for name, src := range map[string]string{
 		"an expression comment inside JSX":   "<Tabs>\n{/* note */}\n</Tabs>\n",
 		"an expression comment in a line":    "Hello {/* note */} world.\n",
-		"an HTML comment":                    "Hello.\n\n<!-- note -->\n",
 		"two comments in one expression":     "{/* a */ /* b */}\n",
 		"text after a comment on its line":   "{/* a */} and more\n",
 		"an expression that is never closed": "{/* never closed\n",
@@ -150,6 +149,16 @@ func TestLocateMDXCommentsRefusesWhatItCannotPlace(t *testing.T) {
 			require.ErrorIs(t, err, comment.ErrUnlocated, "the host treats any provider's unlocated file the same way")
 		})
 	}
+}
+
+// An HTML comment was refused here until a document a recipe binds to MDX was
+// read for its comments. The MDX reader reads such a document, so its comment
+// layer reads it too, and html_comments_test.go holds what it locates.
+func TestLocateMDXCommentsLocatesWhatMDXDocumentsCarry(t *testing.T) {
+	got, err := LocateComments([]byte("Hello.\n\n<!-- note -->\n"))
+	require.NoError(t, err, "an HTML comment is located rather than refused")
+	require.Len(t, got.Comments, 1)
+	assert.Equal(t, "note", model.RunsText(got.Comments[0].Runs))
 }
 
 func TestMDXLineText(t *testing.T) {
@@ -166,6 +175,11 @@ func TestMDXLineText(t *testing.T) {
 		{"{/* spans on to the next line", 0, "", false},
 		{"{value}", 0, "", false},
 		{"text", 0, "", false},
+		{"<!-- a -->", 10, " a ", true},
+		{"<!-->", 5, "", true},
+		{"<!--->", 6, "", true},
+		{"<!-- a --> after", 10, " a ", true},
+		{"<!-- spans on to the next line", 0, "", false},
 	} {
 		t.Run(tc.line, func(t *testing.T) {
 			n, text, ok := CommentProvider{}.LineText([]byte(tc.line))
@@ -206,6 +220,7 @@ func mdxSuite(p comment.Provider) commenttest.Suite {
 			{Name: "crlf.mdx", Source: strings.ReplaceAll(pageFixture, "\n", "\r\n"), Literals: pageLiterals},
 			{Name: "generated.mdx", Source: generatedFixture},
 			{Name: "directives.mdx", Source: directiveFixture},
+			{Name: "htmlcomments.mdx", Source: htmlCommentFixture},
 		},
 	}
 }
@@ -330,6 +345,30 @@ func mdxUnits(_ string, src []byte) ([]commenttest.Unit, error) {
 			fence = "```"
 		case bytes.HasPrefix(trimmed, []byte("~~~")):
 			fence = "~~~"
+		case bytes.HasPrefix(trimmed, []byte("<!--")):
+			at := lineStart + (len(line) - len(trimmed))
+			end, closeLen := 0, len(markup.Close)
+			switch {
+			// The empty forms close in fewer bytes than `-->`, and their
+			// closing marker overlaps the opening one.
+			case bytes.HasPrefix(src[at:], []byte("<!--->")):
+				end, closeLen = at+len("<!--->"), 2
+			case bytes.HasPrefix(src[at:], []byte("<!-->")):
+				end, closeLen = at+len("<!-->"), 1
+			default:
+				shut := bytes.Index(src[at+len(markup.Open):], []byte(markup.Close))
+				if shut < 0 {
+					return nil, errors.New("an HTML comment that never closes")
+				}
+				end = at + len(markup.Open) + shut + len(markup.Close)
+			}
+			u := commenttest.Unit{Start: at, End: end, Open: len(markup.Open), Close: closeLen, Group: len(units)}
+			_, u.Directive = classifyHTMLComment(string(src[u.Start+u.Open : u.End-u.Close]))
+			units = append(units, u)
+			next = len(src)
+			if i := bytes.IndexByte(src[end:], '\n'); i >= 0 {
+				next = end + i + 1
+			}
 		case bytes.HasPrefix(line, []byte("{/*")):
 			shut := bytes.Index(src[lineStart:], []byte("*/}"))
 			if shut < 0 {

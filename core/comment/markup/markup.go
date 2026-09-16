@@ -129,6 +129,28 @@ var resharperRe = regexp.MustCompile(`^ReSharper (disable|restore)\b`)
 // ReSharper is ReSharper's instruction to disable or restore inspections.
 var ReSharper = DirectiveForm{Name: "ReSharper", Match: resharperRe.MatchString}
 
+// HTMLComment are the forms a tool reads in a comment written `<!-- -->`.
+// Every format whose comments carry that syntax classifies with these, and adds
+// only what its own syntax or ecosystem needs: HTML adds conditional comments
+// and server-side includes, Markdown and MDX add Docusaurus's truncate marker.
+var HTMLComment = []DirectiveForm{
+	Markdownlint, PrettierIgnore, FormatterToggle, Suppress, VoicePointer, GeneratedRegion,
+}
+
+// VoicePointer bounds the region kapi writes into an agent instructions file,
+// from `<!-- kapi:voice -->` to `<!-- /kapi:voice -->`.
+var VoicePointer = DirectiveForm{Name: "kapi:voice", Match: func(b string) bool {
+	return strings.HasPrefix(b, "kapi:voice") || strings.HasPrefix(b, "/kapi:voice")
+}}
+
+// regionRe is a generated region's marker.
+var regionRe = regexp.MustCompile(`^(BEGIN|END)\s*:\s*\S`)
+
+// GeneratedRegion bounds content a script replaces, as between
+// `<!-- BEGIN:downloads-cli -->` and `<!-- END:downloads-cli -->`. What a script
+// writes is never prose a person is held to.
+var GeneratedRegion = DirectiveForm{Name: "region", Match: regionRe.MatchString}
+
 // Markdownlint is markdownlint's instruction to turn rules off or on, as in
 // `<!-- markdownlint-disable MD033 -->`.
 var Markdownlint = DirectiveForm{Name: "markdownlint", Match: func(b string) bool {

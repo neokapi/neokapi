@@ -70,6 +70,8 @@ const directiveFixture = `<body>
   <!-- @formatter:off -->
   <!--suppress HtmlUnknownTag -->
   <!-- ReSharper disable MarkupTextTypo -->
+  <!-- kapi:voice -->
+  <!-- BEGIN:downloads-cli -->
   <!--$-->
 </body>
 `
