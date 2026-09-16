@@ -15,6 +15,7 @@ Bowrain 1.2.0 is the first stable release on the Bowrain track, which now releas
 - Server jobs do not recreate removed content or revert pushed source.
 - An unchanged push uploads nothing, and blocks keep their keys across server runs.
 - After `kapi pull` and `kapi commit`, a push is not refused for decisions it did not change.
+- A push that removes a file no longer deletes the review decisions that file's content holds. The server keeps them.
 - The server settles source only after a project's pushes apply, and a push that arrives while a server run is writing still applies.
 - A push updates the workspace's context graph with the project's term uses and collection membership.
 - The plugin is licensed Apache-2.0.
