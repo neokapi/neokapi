@@ -47,6 +47,21 @@ type refServer struct {
 	// unchanged makes the negotiation report the fast path, so a push commits
 	// nothing at all.
 	unchanged bool
+	// byStream answers for a stream holding something other than the project's
+	// published ref, which is how a second stream starts: with none of the
+	// decisions the first one holds.
+	byStream map[string]ref.Ref
+	// treeUnavailable fails the tree route, so a push cannot learn what the
+	// venue holds and says so rather than assuming.
+	treeUnavailable bool
+}
+
+// streamRef is what this venue holds on one stream.
+func (rs *refServer) streamRef(stream string) ref.Ref {
+	if r, ok := rs.byStream[stream]; ok {
+		return r
+	}
+	return rs.published
 }
 
 func newRefServer(t *testing.T, projectID string, published ref.Ref) *refServer {
@@ -60,59 +75,71 @@ func newRefServer(t *testing.T, projectID string, published ref.Ref) *refServer 
 			ID: projectID, DefaultSourceLanguage: "en", TargetLanguages: []string{"fr"},
 		})
 	})
-	mux.HandleFunc(base+"/sync/main/ref", func(w http.ResponseWriter, _ *http.Request) {
-		answer := rs.published
-		if rs.commits > 0 && rs.afterCommit != nil {
-			answer = *rs.afterCommit
-		}
-		_ = json.NewEncoder(w).Encode(answer)
-	})
-	mux.HandleFunc(base+"/sync/main/status", func(w http.ResponseWriter, _ *http.Request) {
-		if rs.statusUnavailable {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"push_id": "p1", "status": "completed", "total": 1, "completed": 1,
+	// Every sync route exists per stream, because what a venue holds is a
+	// question about one stream: a second stream starts out holding none of the
+	// decisions the first one does.
+	for _, stream := range []string{"main", "feature"} {
+		sync := base + "/sync/" + stream
+		mux.HandleFunc(sync+"/ref", func(w http.ResponseWriter, _ *http.Request) {
+			answer := rs.streamRef(stream)
+			if rs.commits > 0 && rs.afterCommit != nil {
+				answer = *rs.afterCommit
+			}
+			_ = json.NewEncoder(w).Encode(answer)
 		})
-	})
-	mux.HandleFunc(base+"/sync/main/pull", func(w http.ResponseWriter, _ *http.Request) {
-		current := rs.published
-		_ = json.NewEncoder(w).Encode(apiclient.RichPullResponse{
-			Cursor: rs.published.Content, HasMore: false, Ref: &current,
+		mux.HandleFunc(sync+"/status", func(w http.ResponseWriter, _ *http.Request) {
+			if rs.statusUnavailable {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"push_id": "p1", "status": "completed", "total": 1, "completed": 1,
+			})
 		})
-	})
-	// A venue that holds nothing: every block the scan reads is missing, so the
-	// push uploads. The producer diffs against this rather than against its own
-	// cache, which is why the route has to exist for a push to behave at all.
-	mux.HandleFunc(base+"/sync/main/tree", func(w http.ResponseWriter, _ *http.Request) {
-		current := rs.published
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"ref": current, "root_hash": "", "items": []any{},
+		mux.HandleFunc(sync+"/pull", func(w http.ResponseWriter, _ *http.Request) {
+			current := rs.streamRef(stream)
+			_ = json.NewEncoder(w).Encode(apiclient.RichPullResponse{
+				Cursor: current.Content, HasMore: false, Ref: &current,
+			})
 		})
-	})
-	mux.HandleFunc(base+"/sync/main/push/chunks/", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	mux.HandleFunc(base+"/sync/main/push/init", func(w http.ResponseWriter, _ *http.Request) {
-		current := rs.published
-		status := "diff_computed"
-		if rs.unchanged {
-			status = apiclient.PushUnchanged
-		}
-		_ = json.NewEncoder(w).Encode(apiclient.PushInitResponse{
-			UploadID: "u1", Status: status, ContextChanged: true, Ref: &current,
+		// A venue that holds nothing: every block the scan reads is missing, so
+		// the push uploads. The producer diffs against this rather than against
+		// its own cache, which is why the route has to exist for a push to
+		// behave at all. The ref it carries is what the push reads to tell
+		// whether the venue already holds the record it is about to send.
+		mux.HandleFunc(sync+"/tree", func(w http.ResponseWriter, _ *http.Request) {
+			if rs.treeUnavailable {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			current := rs.streamRef(stream)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"ref": current, "root_hash": "", "items": []any{},
+			})
 		})
-	})
-	mux.HandleFunc(base+"/sync/main/push/commit", func(w http.ResponseWriter, r *http.Request) {
-		var manifest apiclient.PushCommitRequest
-		_ = json.NewDecoder(r.Body).Decode(&manifest)
-		rs.commitAssert = manifest.ExpectedRef
-		rs.commits++
-		rs.decisionsSent += len(manifest.Decisions)
-		w.WriteHeader(http.StatusAccepted)
-		_ = json.NewEncoder(w).Encode(map[string]any{"push_id": "p1", "status": "queued"})
-	})
+		mux.HandleFunc(sync+"/push/chunks/", func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+		mux.HandleFunc(sync+"/push/init", func(w http.ResponseWriter, _ *http.Request) {
+			current := rs.streamRef(stream)
+			status := "diff_computed"
+			if rs.unchanged {
+				status = apiclient.PushUnchanged
+			}
+			_ = json.NewEncoder(w).Encode(apiclient.PushInitResponse{
+				UploadID: "u1", Status: status, ContextChanged: true, Ref: &current,
+			})
+		})
+		mux.HandleFunc(sync+"/push/commit", func(w http.ResponseWriter, r *http.Request) {
+			var manifest apiclient.PushCommitRequest
+			_ = json.NewDecoder(r.Body).Decode(&manifest)
+			rs.commitAssert = manifest.ExpectedRef
+			rs.commits++
+			rs.decisionsSent += len(manifest.Decisions)
+			w.WriteHeader(http.StatusAccepted)
+			_ = json.NewEncoder(w).Encode(map[string]any{"push_id": "p1", "status": "queued"})
+		})
+	}
 
 	rs.Server = httptest.NewServer(mux)
 	t.Cleanup(rs.Close)

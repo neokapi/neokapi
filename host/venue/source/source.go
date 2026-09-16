@@ -712,18 +712,37 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// The committed decision record travels with the content it judges. A
 	// malformed record fails the push rather than being skipped: state is
 	// authoritative, and a push that silently dropped it would be the exact
-	// failure shape this protocol keeps re-learning to confess. Hashed against
-	// the sync cache so a decision committed since the last push forces the
-	// push past every "nothing changed" fast path — decisions only travel
-	// when they changed, and a changed record cannot be silently skipped.
+	// failure shape this protocol keeps re-learning to confess.
+	//
+	// Two questions decide whether it travels, and both are asked. The sync
+	// cache says whether this record changed since this client last sent it,
+	// which is what carries a decision committed since, and the records of what
+	// was produced, past every "nothing changed" fast path. The tree's ref says
+	// what the venue holds on the stream being pushed, so a stream this client
+	// has not pushed to, and a venue whose ledger was reset, are told rather
+	// than assumed to know it already. Remembering only that it was sent once
+	// is what left both of those holding less than this project's record, with
+	// no later push to correct it.
+	//
+	// A server run drafting translations moves the record's fold but not its
+	// decisions component, so what a venue produces never makes this resend.
 	decisions, derr := c.committedDecisions(ctx)
 	if derr != nil {
 		return nil, derr
 	}
 	decisionsHash := venue.DecisionRecordsHash(decisions)
-	decisionsChanged := decisionsHash != c.cache.DecisionsSynced
-	if !decisionsChanged {
-		decisions = nil // unchanged: this client already sent this record
+	recordChangedHere := decisionsHash != c.cache.DecisionsSynced
+	// A record that decides nothing has nothing to tell a venue about, so what
+	// the venue holds settles nothing either: a project where no one has
+	// reviewed anything keeps the cache's answer, and a push with nothing to
+	// say still says nothing, whatever the venue's ledger holds for other
+	// clients.
+	ours := venue.DecisionsComponent(decisions)
+	venueHoldsRecord := ours == "" ||
+		(serverTree != nil && serverTree.Ref != nil && serverTree.Ref.Decisions == ours)
+	sendRecord := recordChangedHere || !venueHoldsRecord
+	if !sendRecord {
+		decisions = nil // the venue holds these decisions, and none changed here
 	}
 
 	if opts.DryRun {
@@ -747,7 +766,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// cannot make that comparison and does not pretend to: it stays additive,
 	// as it was before there were trees.
 	if len(changed) == 0 && !venueHoldsMoreThan(serverTree, localTree, scope) &&
-		!c.PushContextChanged() && !decisionsChanged {
+		!c.PushContextChanged() && !sendRecord {
 		return &bowrainconn.PushResult{FilesScanned: len(hashMap)}, nil
 	}
 
@@ -836,7 +855,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// The record counts as sent only once the venue applied the push that
 	// carried it. An unconfirmed ingest clears the fold, so the next push sends
 	// the record again rather than trusting a write that may not have landed.
-	if decisionsChanged {
+	if sendRecord {
 		if ingest == bowrainconn.IngestApplied {
 			c.cache.DecisionsSynced = decisionsHash
 		} else {
