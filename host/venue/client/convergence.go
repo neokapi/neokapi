@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -263,6 +264,7 @@ func (c *BowrainClient) StreamConvergenceRunEvents(ctx context.Context, runID st
 	var lastID string
 	backoff := 500 * time.Millisecond
 	const maxBackoff = 5 * time.Second
+	gatewayFailures := 0
 	for {
 		done, id, err := c.streamOnce(ctx, runID, lastID, onEvent)
 		if done {
@@ -271,14 +273,34 @@ func (c *BowrainClient) StreamConvergenceRunEvents(ctx context.Context, runID st
 		if id != "" {
 			lastID = id
 		}
-		if err != nil {
+		switch {
+		case err != nil:
 			// ctx cancellation / deadline is the caller's signal, not a retry.
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			// A hard error (HTTP status, request build) is terminal; a mere
-			// connection drop returns err==nil with done==false and is retried.
-			return err
+			// Something between here and the server can answer for itself while
+			// a stage works in silence, and a gateway's 502, 503 or 504 says the
+			// connection did not reach the run rather than anything about the
+			// run. Resuming costs one request and the server replays from the
+			// last event id; failing costs the work the run is still doing.
+			//
+			// Bounded, because a gateway that answers this way forever is a
+			// fault to report rather than to wait on, and said out loud, because
+			// a log that simply stops is what made this hard to see.
+			var status *StatusError
+			if !errors.As(err, &status) || !transientStreamStatus(status.StatusCode) {
+				return err
+			}
+			gatewayFailures++
+			if gatewayFailures > maxGatewayFailures {
+				return fmt.Errorf("the run's event stream failed at a gateway %d times in a row; the run may still be going: %w",
+					gatewayFailures, err)
+			}
+			slog.Warn("the run's event stream was interrupted before the server answered; resuming",
+				"run", runID, "status", status.StatusCode, "attempt", gatewayFailures, "resume_from", lastID)
+		default:
+			gatewayFailures = 0
 		}
 		// Clean EOF before the terminal frame: the run is still going. Wait,
 		// then resume from lastID.
@@ -290,6 +312,24 @@ func (c *BowrainClient) StreamConvergenceRunEvents(ctx context.Context, runID st
 		if backoff < maxBackoff {
 			backoff *= 2
 		}
+	}
+}
+
+// maxGatewayFailures caps how many times in a row a gateway may answer for the
+// server before this gives up on the stream. The run is not lost when it does:
+// the server keeps it and its events, and `kapi status` reads them.
+const maxGatewayFailures = 5
+
+// transientStreamStatus reports whether a status came from something between
+// this client and the server rather than from the run. A gateway closing an
+// idle connection, or a proxy with nothing behind it for a moment, answers
+// 502, 503 or 504 without ever reaching the run.
+func transientStreamStatus(code int) bool {
+	switch code {
+	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	default:
+		return false
 	}
 }
 
