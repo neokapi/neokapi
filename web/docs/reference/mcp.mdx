@@ -322,12 +322,12 @@ drops or adds a code block or reference, the text holds `*/` inside a `/* */`
 comment, the result would not parse, or the formatter would rewrite it. A
 comment in a language whose formatter is not installed, or does not format the
 file, is not written, and the edit reports that it did not run. A formatter runs
-code its project controls, such as its configuration and plugins, so it falls
-under execution trust: `apply_edits` runs one only when a person has already
-allowed it, by answering the prompt `kapi apply` shows in a terminal for a
-comment edit in that project. It never asks, and it does not read
-`KAPI_TRUST_EXEC`. Without that allow the edit reports that it did not run, with
-the reason `formatter`. Each written file's result carries a check scoped to what was written.
+code its project controls, such as its configuration and plugins, and an agent
+that may write files can write that configuration, so `apply_edits` never runs
+one. Such an edit reports that it did not run, with the reason `formatter`; a
+person applies it with `kapi apply` in a terminal, where the formatter runs
+under execution trust. A Go comment is held to `go/format` inside the kapi
+binary, so a Go edit starts no formatter process. Each written file's result carries a check scoped to what was written.
 
 | `kind`    | What the entry changes                       |
 | --------- | -------------------------------------------- |
