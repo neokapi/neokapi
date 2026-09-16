@@ -1,7 +1,9 @@
 package profile
 
 import (
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -23,8 +25,34 @@ func GovernanceContext(p *VoiceProfile, rules []TermRule) (profileID, profileVer
 			profileVersion = strconv.Itoa(p.Version)
 		}
 	}
-	contextFP = tool.ContextFingerprint(RenderVoiceGuideCompact(p), TermRuleMap(rules))
+	contextFP = tool.ContextFingerprint(RenderVoiceGuideCompact(p), TermRuleMap(rules), DoNotTranslateTerms(rules))
 	return
+}
+
+// DoNotTranslateTerms projects term rules into the terms a translation producer
+// must keep verbatim: the rules marked do-not-translate, sorted and
+// deduplicated so one rule set yields one prompt and one fingerprint however
+// the rules were ordered.
+//
+// It is the second half of the projection TermRuleMap begins, and it exists
+// because the two carry different instructions. A rule with a replacement says
+// which wording to use; a do-not-translate rule says to leave the term alone,
+// and has no replacement by construction. Projected through the map alone it
+// was dropped, so the prompt never asked for what the check then demanded and
+// the fingerprint did not move when the flag was set.
+func DoNotTranslateTerms(rules []TermRule) []string {
+	seen := make(map[string]bool, len(rules))
+	out := make([]string, 0, len(rules))
+	for _, r := range rules {
+		term := strings.TrimSpace(r.Term)
+		if !r.DoNotTranslate || term == "" || seen[term] {
+			continue
+		}
+		seen[term] = true
+		out = append(out, term)
+	}
+	slices.Sort(out)
+	return out
 }
 
 // TermRuleMap projects term rules into the term to replacement map a
@@ -37,7 +65,9 @@ func GovernanceContext(p *VoiceProfile, rules []TermRule) (profileID, profileVer
 // every target read as stale against a context nobody changed.
 //
 // A rule with no replacement is dropped: it says which wording to reach for
-// without saying what to reach past, which a prompt line cannot carry. A
+// without saying what to reach past, which a prompt line of this shape cannot
+// carry. A do-not-translate rule is one of those, and DoNotTranslateTerms
+// carries it instead. A
 // duplicated term keeps its FIRST rule, so one set of rules resolves the same
 // way on every run — a prompt has to be deterministic, and so does a
 // fingerprint over it.

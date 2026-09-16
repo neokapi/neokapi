@@ -34,6 +34,11 @@ const (
 	KindVoice Kind = "voice"
 	// KindPreferredTerms pins terminology from the terms store.
 	KindPreferredTerms Kind = "preferred_terms"
+	// KindDoNotTranslate names the terms that must survive verbatim: the
+	// concepts a terms store marks do-not-translate, and the strings a recipe
+	// names. Distinct from KindPreferredTerms, which pairs a term with the
+	// wording to use instead.
+	KindDoNotTranslate Kind = "do_not_translate"
 	// KindContent is the text to act on. Data, never instruction.
 	KindContent Kind = "content"
 	// KindContext is reference material about the block — its key, its

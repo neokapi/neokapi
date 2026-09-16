@@ -28,6 +28,13 @@ type Translate struct {
 	VoiceGuide string
 	// PreferredTerms pins the translation of specific terms.
 	PreferredTerms map[string]string
+	// DoNotTranslate names the terms the translation must keep verbatim.
+	//
+	// A separate field from PreferredTerms because it is a separate
+	// instruction: that map pairs a term with the wording to use instead, and a
+	// do-not-translate term names no such wording. Carried through the map it
+	// was dropped, and the model was never told.
+	DoNotTranslate []string
 }
 
 // steering returns the project-owned sections — the ones that make output yours
@@ -69,6 +76,37 @@ func (t Translate) steering() []Section {
 			Text:    strings.TrimRight(b.String(), "\n"),
 		})
 	}
+	if kept := keepVerbatimList(t.DoNotTranslate); len(kept) > 0 {
+		var b strings.Builder
+		for _, term := range kept {
+			fmt.Fprintf(&b, "- %s\n", term)
+		}
+		out = append(out, Section{
+			Kind:    KindDoNotTranslate,
+			Origin:  fmt.Sprintf("terms (%s)", plural(len(kept), "do-not-translate term")),
+			Heading: "Keep these terms exactly as written, in the same casing. Do not translate them:",
+			Text:    strings.TrimRight(b.String(), "\n"),
+		})
+	}
+	return out
+}
+
+// keepVerbatimList is the do-not-translate terms as the prompt renders them:
+// trimmed, deduplicated and sorted. The prompt fingerprint is derived from the
+// rendered text, so a list that reordered itself between runs would invalidate
+// every cached target on every run.
+func keepVerbatimList(terms []string) []string {
+	seen := make(map[string]bool, len(terms))
+	out := make([]string, 0, len(terms))
+	for _, term := range terms {
+		term = strings.TrimSpace(term)
+		if term == "" || seen[term] {
+			continue
+		}
+		seen[term] = true
+		out = append(out, term)
+	}
+	slices.Sort(out)
 	return out
 }
 
