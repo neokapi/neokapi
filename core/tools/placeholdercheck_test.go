@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"regexp"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/check"
@@ -66,11 +67,19 @@ func TestPlaceholderCheck_Extra(t *testing.T) {
 }
 
 func TestPlaceholderCheck_DoubleBraceTokenization(t *testing.T) {
-	// {{x}} must tokenize as one token, not as {x}.
-	c := countMatches(check.PlaceholderToken, "{{x}} and {y}")
-	assert.Equal(t, 1, c["{{x}}"])
-	assert.Equal(t, 1, c["{y}"])
-	assert.Equal(t, 0, c["{x}"])
+	// {{x}} must tokenize as one token, not as {x}. Both readings answer this
+	// the same way, and the comparison uses the narrow one.
+	for name, re := range map[string]*regexp.Regexp{
+		"interpolation": check.InterpolationToken,
+		"masking":       check.PlaceholderToken,
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := countMatches(re, "{{x}} and {y}")
+			assert.Equal(t, 1, c["{{x}}"])
+			assert.Equal(t, 1, c["{y}"])
+			assert.Equal(t, 0, c["{x}"])
+		})
+	}
 }
 
 // runPlaceholderRuns drives the check over Run sequences rather than flat
