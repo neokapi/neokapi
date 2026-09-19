@@ -67,7 +67,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: neokapi/setup-kapi@v1
         with:
-          version: "1.2.0-rc32"
+          version: "1.2.0"
       # Exits 3 (failing the job) when a voice, terminology, check,
       # staleness or coverage gate is unmet, and 4 when a gate did not run.
       - run: kapi check --ship
