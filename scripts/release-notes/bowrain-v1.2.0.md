@@ -11,6 +11,8 @@ Bowrain 1.2.0 is the first stable release on the Bowrain track, which now releas
 - A push carries the project's declared structure, its voice profile and its terms, and the server applies it in one transaction. The plugin computes the change against the server's tree, so renames and deletions arrive as renames and deletions.
 - `kapi pull` writes an approved recipe change into the working tree, and writes no translation for content without a target.
 - `kapi up` prints the server's governance refusals for a push. Content declared only for its comments stays out of the push scope.
+- A server run outlives the connection that watches it. When the event stream ends before the run does, `kapi up` reads the run's state from the server, pulls what landed and reports it, rather than failing. With `--json` the stream opens with a `run_started` record carrying the run's `id`, and the result record carries `run` (`id`, `state`, `passes`) beside `watch` (`complete`, `reason`, `detail`). `kapi status` reports where a run got to.
+- The server checks placeholder integrity on the content it converges. A target that drops a placeholder its source carries, including an ICU plural flattened to a sentence with no count in it, is reported as a critical finding in the `placeholder` category. Where a locale has full translation coverage, that failing check holds it at pending instead of shippable. The CLI has always made this check, so this makes a run on the server agree with a run on your machine.
 - A pull skips blocks that belong to no item and serves each block once.
 - Server jobs do not recreate removed content or revert pushed source.
 - An unchanged push uploads nothing, and blocks keep their keys across server runs.
