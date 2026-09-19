@@ -1,0 +1,225 @@
+# Native reference doc for the built-in `qa` tool.
+# Schema source: core/ai/tools/unified.go (CheckSchema, over core/tools RuleCheckConfig
+# plus the LLM provider fields). With no --provider, qa runs the deterministic
+# rule-based checks below; with --provider it runs LLM-judged checks.
+description: "Kontroller oversettelseskvalitet med regelbaserte kontroller, eller en LLM når en leverandør er angitt."
+overview: |
+  **Kvalitetskontroll**-verktøyet kjører en serie regelbaserte kontroller over hver
+  oversettelse og lagrer funnene i blokken som en JSON-matrise
+  med funn, sammen med et bestått/ikke bestått-flagg. Kontrollene dekker flere kategorier:
+  generell tekst (tom måltekst, uoverensstemmelse i blanktegn, doble mellomrom,
+  double ord, måltekst identisk med kildetekst, ødelagte tegn), konsistens i innebygd kode,
+  brudd på spenningsbegrensninger, bevaring av regex-mønstre og lengdeforhold.
+  En målspråkkode er påkrevd; når en blokk ikke har noen oversettelse, gjelder bare
+  kontroll for tom måltekst.
+
+  Uten `--provider` er kontrollene deterministiske og krever ingen legitimasjon.
+  Å sette `--provider` kjører i stedet KI-vurderte kontroller: den valgte modellen gjennomgår hver
+  oversettelse for terminologi, flyt og nøyaktighet. De regelbaserte bryterne
+  nedenfor gjelder deterministisk modus; `model` og `checks` gjelder LLM-modus.
+  Hver regelkontroll kan slås av og på uavhengig, og lengdekontrollene
+  deler modellen for lang/kort-forhold som brukes av det dedikerte lengdekontrollverktøyet.
+parameters:
+  provider:
+    description: LLM-leverandør for KI-vurderte kontroller (utelat for regelbaserte kontroller).
+    help: |
+      Når dette er satt, kjører verktøyet som en LLM-dommer og bruker denne leverandøren i stedet for
+      de deterministiske regelkontrollene. Alternativene hentes fra leverandørregisteret. La feltet stå tomt for å kjøre de regelbaserte kontrollene uten legitimasjon.
+    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` (standard: ikke angitt → regelbasert)"
+  apiKey:
+    description: API-nøkkel for LLM-leverandøren (LLM-modus).
+    help: |
+      Legitimasjon for den valgte hostede leverandøren når `--provider` velger en.
+    values: "streng"
+  model:
+    description: Modellnavnet som skal forespørres (LLM-modus).
+    help: |
+      Den leverandørspesifikke modellidentifikatoren for KI-vurderte kontroller. Når denne utelates,
+      brukes leverandørens standardmodell.
+    values: "streng"
+  checks:
+    description: Kvalitetsdimensjoner for LLM-dommeren (LLM-modus).
+    help: |
+      Listen over kvalitetsdimensjoner som LLM-en evaluerer, f.eks. terminologi,
+      flyt, nøyaktighet, konsistens. Standard er terminologi, flyt, nøyaktighet.
+    values: "liste over strenger"
+  checkLeadingWhitespace:
+    description: Kontroller for avvik i ledende blanktegn mellom kilde og mål.
+    help: |
+      Flagger en advarsel når det ledende blanktegnet i målteksten avviker fra det
+      i kildeteksten.
+    values: "`true` / `false` (standard `true`)"
+  checkTrailingWhitespace:
+    description: Kontroller for avvik i etterfølgende blanktegn mellom kilde og mål.
+    help: |
+      Flaggер en advarsel når etterfølgende blanktegn i målteksten avviker fra det
+      i kildeteksten.
+    values: "`true` / `false` (standard `true`)"
+  checkEmptyTarget:
+    description: "Advar når målet er tomt, men kilden har innhold."
+    help: |
+      Flagger en feil når en blokk har kildeinnhold men ingen (eller tom) måltekst.
+      Dette er den ene kontrollen som fortsatt gjelder når en blokk ikke har
+      noen oversettelse i det hele tatt.
+    values: "`true` / `false` (standard `true`)"
+  checkEmptySource:
+    description: "Advar når målet er ikke-tomt, men kilden er tom."
+    help: |
+      Flaggер en advarsel når målet har innhold, men kilden er tom.
+    values: "`true` / `false` (standard `true`)"
+  checkTargetSameAsSource:
+    description: Advar når målteksten er identisk med kildeteksten.
+    help: |
+      Flagger en advarsel når målteksten er lik kildeteksten og inneholder minst
+      én bokstav eller ett siffer. Segmenter med kun tall styres av
+      `targetSameAsSourceWithNumbers`.
+    values: "`true` / `false` (standard `true`)"
+  targetSameAsSourceWithCodes:
+    description: Inkluder inline-koder ved sammenligning av kildetekst og måltekst for identitet.
+    help: |
+      Kontrollerer om inline-koder tas med i betraktningen i sammenligningen av samme-som-kilde.
+    values: "`true` / `false` (standard `true`)"
+  targetSameAsSourceWithNumbers:
+    description: Inkluder segmenter med kun tall i sammenligningen der måltekst er lik kildetekst.
+    help: |
+      Når aktivert, inkluderes segmenter som kun inneholder tall (og tegnsetting) i kontrollen for mål-lik-kilde. Deaktiver den for å ignorere segmenter med bare tall, som ofte er identiske av legitime årsaker.
+    values: "`true` / `false` (standard `true`)"
+  checkDoubleSpaces:
+    description: Kontroller for doble mellomrom i målteksten.
+    help: |
+      Flaggер en advarsel når målet inneholder to påfølgende mellomrom.
+    values: "`true` / `false` (standard `true`)"
+  checkDoubledWord:
+    description: Kontroller for påfølgende gjentatte ord i målteksten.
+    help: |
+      Flagger en advarsel når det samme ordet forekommer to ganger på rad i målteksten,
+      med mindre ordet er oppført i `doubledWordExceptions`.
+    values: "`true` / `false` (standard `true`)"
+  doubledWordExceptions:
+    description: Ord som har lov til å gjenta seg på rad.
+    help: |
+      En semikolonseparert liste over ord som kan forekomme to ganger på rad uten å være feil
+      (for eksempel visse pronomen), slik at de ikke flagges av
+      dobbeltord-kontrollen.
+    values: "streng (standard `sie;vous;nous`)"
+    dependsOn:
+      - property: checkDoubledWord
+        condition: konsulteres kun når kontrollen for doble ord er aktivert
+  checkTerminology:
+    description: Aktiver termkontroller.
+    help: |
+      Aktiverer terminologiverifisering i kontrollen. Deaktivert som standard.
+    values: "`true` / `false` (standard `false`)"
+  checkSpanConstraints:
+    description: Kontroller brudd på span-begrensninger for ikke-slettbare og ikke-klonbare elementer.
+    help: |
+      Flagger en feil når en ikke-slettbar inline-kode mangler fra målteksten, eller en ikke-klonerbar inline-kode er duplisert i målteksten, i henhold til de per-kode-begrensningene som er knyttet til kildekjøringene.
+    values: "`true` / `false` (standard `true`)"
+  checkCodeDifference:
+    description: Kontroller at målteksten har de samme inline-kodene som kildeteksten.
+    help: |
+      Flaggер advarsler når inline-kode mangler i eller er ekstra i målet
+      sammenlignet med kilden, telt etter kodetype.
+    values: "`true` / `false` (standard `true`)"
+  strictCodeOrder:
+    description: Flagg forskjeller når koder vises i en annen rekkefølge.
+    help: |
+      Når aktivert, og ingen telleforskjeller ble funnet, flagges målteksten hvis inline-kodene vises i en annen rekkefølge enn i kilden.
+    values: "`true` / `false` (standard `false`)"
+    dependsOn:
+      - property: checkCodeDifference
+        condition: rekkefølgekontroll kjøres parallelt med kontroll av kodeforskjeller
+  checkPatterns:
+    description: Bekreft at kildemønstre har forventet tilsvarende innhold i målet.
+    help: |
+      Når aktivert, kontrolleres konfigurerte kilde/mål-regex-mønsterpar slik at
+      mønstre som finnes i kilden bevares i målet. Mønsterparene
+      leveres programmatisk.
+    values: "`true` / `false` (standard `true`)"
+  checkCorruptedCharacters:
+    description: Kontroller for mønstre som indikerer kodingskorrupsjon.
+    help: |
+      Flaggер en advarsel når målet inneholder tegn som tyder på kodingskorrupsjon (for eksempel UTF-8 feillest som ISO-8859-1, signalisert av Unicode-erstatningstegnet).
+    values: "`true` / `false` (standard `true`)"
+  checkMaxCharLength:
+    description: Flagg måltekster som er lengre enn en prosentandel av kildenes tegntelling.
+    help: |
+      Aktiverer kontrollen for maksimal lengderatio, ved bruk av en lang/kort-modell: tillatt
+      prosentandel avhenger av om kilden er over eller under
+      maksimalt bruddpunkt.
+    values: "`true` / `false` (standard `true`)"
+  maxCharLengthBreak:
+    description: Antall tegn over hvilket tekst anses som lang (maks-kontroll).
+    help: |
+      Kildetekst som er lengre enn dette behandles som lang for maksimumsratiokontrollen;
+      kortere tekst behandles som kort.
+    values: "heltall (standard `20`)"
+  maxCharLengthAbove:
+    description: Maksimalt tillatt prosentandel av kildetekstlengden for lang tekst.
+    help: |
+      Det største mål/kilde-forholdet som brukes når kilden er lang.
+    values: "heltall (standard `200`)"
+  maxCharLengthBelow:
+    description: Maksimalt tillatt prosentandel av kildelengden for kort tekst.
+    help: |
+      Det største mål/kilde-forholdet som brukes når kilden er kort.
+    values: "heltall (standard `350`)"
+  checkMinCharLength:
+    description: Flagg mål som er kortere enn en prosentandel av kildenes tegnlengde.
+    help: |
+      Aktiverer kontrollen for minste lengdeforhold, ved hjelp av en lang/kort-modell: den påkrevde prosentandelen avhenger av om kilden er over eller under det minste bruddpunktet.
+    values: "`true` / `false` (standard `true`)"
+  minCharLengthBreak:
+    description: Antall tegn som anses som langt (min-kontroll).
+    help: |
+      Kildetekst lengre enn dette behandles som lang for minimumforholdskontrollen; kortere tekst behandles som kort.
+    values: "heltall (standard `20`)"
+  minCharLengthAbove:
+    description: Minimum påkrevd prosentandel av kildetekstlengden for lang tekst.
+    help: |
+      Det minste mål/kilde-forholdet som brukes når kilden er lang.
+    values: "heltall (standard `45`)"
+  minCharLengthBelow:
+    description: Minimum påkrevd prosentandel av kildelengden for kort tekst.
+    help: |
+      Det minste mål/kilde-forholdet som brukes når kilden er kort.
+    values: "heltall (standard `30`)"
+  checkAbsoluteMaxCharLength:
+    description: Flagg målsegmenter som overskrider en absolutt tegnantallsgrense.
+    help: |
+      Når dette er aktivert, flagges målteksten hvis den overskrider det absolutte antallet tegn
+      angitt av `absoluteMaxCharLength`, uavhengig av kildetekstens lengde.
+    values: "`true` / `false` (standard `false`)"
+    dependsOn:
+      - property: absoluteMaxCharLength
+        condition: setter grensen som gjelder når denne kontrollen er aktivert
+  absoluteMaxCharLength:
+    description: Maksimalt antall tegn tillatt i et hvilket som helst målsegment.
+    help: |
+      Den absolutte tegngrensen som brukes av kontrollen for absolutt maksimallengde.
+    values: "heltall (standard `255`)"
+    dependsOn:
+      - property: checkAbsoluteMaxCharLength
+        condition: må være aktivert for at denne grensen skal tre i kraft
+limitations:
+  - Lengde- og forholdskontroller sammenligner bare tegnlengder når både kilde og mål er ikke-tomme.
+  - "Regex-mønsterparene som brukes av `checkPatterns`, angis programmatisk, ikke som skjemaparametere."
+  - Krever en konfigurert målspråkkode.
+processingNotes:
+  - Opererer på oversettbare blokker; ikke-oversettbar struktur passerer gjennom uendret.
+  - "Når en blokk ikke har noen oversettelse, gjelder bare tom-mål-kontrollen."
+  - Funn lagres på blokken som en JSON-matrise med et bestått/ikke bestått-flagg.
+examples:
+  - title: Kun inline-kode- og blanktegnkontroller
+    description: "Fokus på bevaring av inline-kode og blanktegn, med deaktivering av lengdeforholdskontrroller."
+    config: |
+      checkCodeDifference: true
+      checkLeadingWhitespace: true
+      checkTrailingWhitespace: true
+      checkMaxCharLength: false
+      checkMinCharLength: false
+  - title: Håndhev en absolutt tegngrense
+    description: Flagg ethvert målsegment som er lengre enn 200 tegn.
+    config: |
+      checkAbsoluteMaxCharLength: true
+      absoluteMaxCharLength: 200

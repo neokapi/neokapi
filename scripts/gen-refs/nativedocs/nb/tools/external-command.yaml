@@ -1,0 +1,75 @@
+# Native reference doc for the built-in `external-command` tool.
+# Schema source: core/tools/externalcommand.go (ExternalCommandConfig).
+description: Kjør et eksternt kommandolinjeprogramm på blokkens tekst og bruk programmets stdout som resultatet.
+overview: |
+  **Verktøyet External Command** sender teksten i hver blokk gjennom et eksternt kommandolinjeverktøy og bruker programmets standardutdata som ny tekst. Det lar en pipeline gjenbruke et eksisterende CLI-filter – en tilpasset normaliserer, en stavelsesretter, en translitterator – uten å skrive et eget verktøy.
+
+  Tekst kan sendes til kommandoen via standardinndata eller settes inn i argumentlisten via plassholderne `${source}` og `${target}`. En kommando er påkrevd, og en målspråkkode er påkrevd når verktøyet brukes på målteksten. Hver kjøring har en tidsgrense; avslutningskoden registreres på blokken, og en verdi ulik null lar teksten være uendret og registrerer feilen.
+
+  **Dette verktøyet kjører kode som oppskriften velger, og er derfor sperret.** Det tilhører exec-klassen: et prosjekt som navngir det i en flyt, kjører kommandoer med dine rettigheter og ditt miljø, og en oppskrift er bundet av å gå inn i en katalog. kapi spør derfor én gang per prosjekt, før noe annet skjer med det, og husker svaret; en uovervåket kjøring uten noen å spørre avslår i stedet for å anta. `KAPI_TRUST_EXEC=1` gir tillatelse der pipeline-forfatteren bestemmer det, ikke i repositoriet som behandles. Den samme klassifiseringen holder dette verktøyet borte fra agentflaten, fra motor-API-et og fra enhver oppskrift som ankommer i en `.kpz`-fil. Se [E-06](/contribute/architecture/engine/e-06-execution-trust).
+parameters:
+  command:
+    description: Den kjørbare filen som skal kjøres.
+    help: |
+      Sti eller navn på kommandolinjeprogrammet som skal kjøres for hver blokk. Dets
+      standardutdata erstatter blokkteksten.
+    values: "streng (påkrevd)"
+  args:
+    description: Argumenter som sendes til kommandoen.
+    help: |
+      Argumentlisten for kommandoen. Bruk `${source}` og `${target}` som
+      plassholdere; begge erstattes med teksten som behandles.
+    values: "liste med strenger"
+  applySource:
+    description: Behandle kildetekst.
+    help: "Når dette er aktivert, sendes kildeteksten gjennom kommandoen."
+    values: "`true` / `false` (standard `false`)"
+  applyTarget:
+    description: Behandle måltekst.
+    help: |
+      Når dette er aktivert, sendes målteksten gjennom kommandoen for den
+      konfigurerte språkkoden. Bare eksisterende mål berøres.
+    values: "`true` / `false` (standard `true`)"
+    dependsOn:
+      - property: targetLocale
+        condition: påkrevd når applyTarget er aktivert
+  targetLocale:
+    description: Målspråkkode for behandling.
+    help: Språkkoden hvis måltekst behandles. Påkrevd når `applyTarget` er aktivert.
+    values: "BCP-47 språkkode"
+    dependsOn:
+      - property: applyTarget
+        condition: må være aktivert for at dette skal tre i kraft
+  sendAsStdin:
+    description: Send teksten på standardinndata i stedet for som et argument.
+    help: |
+      Når aktivert, skrives teksten til kommandoens standardinndata. Når
+      deaktivert, når teksten kommandoen bare gjennom `${source}` /
+      `${target}` argument-plassholderene.
+    values: "`true` / `false` (standard `true`)"
+  timeout:
+    description: Tidsavbrudd per kjøring i sekunder.
+    help: |
+      Maksimal ventetid for at kommandoen skal fullføres for én enkelt blokk. Kommandoen
+      avbrytes når tidsfristen utløper.
+    values: "heltall ≥ 1 (standard `30`)"
+limitations:
+  - En ikke-null avslutnignskode lar teksten være uendret og registrerer avslutnignskoden og feilmeldingen som blokkegenskaper.
+  - "Kommandoen kjøres én gang per blokk per omfang (kilde og/eller mål), noe som kan være tregt for store dokumenter."
+processingNotes:
+  - Opererer kun på oversettbare blokker; ikke-oversettbare blokker passerer gjennom uendret.
+  - Etterfølgende linjeskift fjernes fra det innhentede resultatet.
+examples:
+  - title: Send måltekst gjennom en formateringsmotor
+    description: Kjør et eksternt program på målet og send tekst på stdin.
+    config: |
+      command: my-formatter
+      applyTarget: true
+      targetLocale: fr
+  - title: Send tekst som et argument
+    description: Sett inn teksten i argumentlisten i stedet for stdin.
+    config: |
+      command: transform
+      args: ["--text", "${source}"]
+      applySource: true
+      sendAsStdin: false

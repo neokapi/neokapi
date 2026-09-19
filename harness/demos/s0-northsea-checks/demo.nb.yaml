@@ -1,0 +1,115 @@
+id: s0-northsea-checks
+title: Kontroller reglene prosjektet registrerer
+subtitle: "Ett repositorium, ett språk, og en port som kjører uten server og uten modell."
+kind: use-case
+publishAs: monolingual-governance
+# A scripted plain-shell demo: every command is deterministic, so it runs for
+# real and its output is recorded exactly. Nothing here reaches a network.
+#
+# Three `kapi check` runs exit 3 on purpose, because a failing gate is the point
+# of those beats. Each declares it with `expectExit: 3`, so a take where the
+# gate silently passed would fail the capture instead of shipping.
+terminal: shell
+brand: kapi
+cwd: ~/northsea
+needsAi: false
+# The sandbox IS the Northsea sample project, copied from samples/northsea so
+# the recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/northsea
+project: true
+captureTimeoutSec: 180
+aspects:
+  - offline gates
+  - decisions, not edits
+  - record a scoped term decision
+outro:
+  line: Kjør porten over prosaen i repositoriet ditt.
+  pointer: kapi check --strict
+
+# The graph the sample ships is committed here, so the recording starts where a
+# reviewer starts: with the gates, not with the adoption s0-northsea-context
+# already tells.
+setup:
+  - git init -q
+  - git config user.email ops@northsea.example
+  - git config user.name Northsea
+  - git add -A
+  - git commit -qm "Northsea content and its context graph"
+
+script:
+  - comment: A company repository. Operator documentation, interface strings, one marketing page. One language.
+  - command: ls
+  - comment: One verb reconciles the committed graph and the sources, so the gates read a project that is up to date.
+  - command: kapi up
+  - comment: Run the gates the way you run tests.
+  # The gate must fail here: one major finding is the substance of this beat.
+  - command: kapi check --strict
+    expectExit: 3
+  - comment: The same findings, in the shape CI reads.
+  # Same gate, same exit code: the JSON a reader inspects is the failing run,
+  # not a second run with the gate turned off.
+  - command: kapi check --strict --json > findings.json
+    expectExit: 3
+  - comment: Three of those are wording the source got wrong, so correct the source.
+  - command: ksed -i 's/our seamless integration/our unified integration/' landing/index.html
+  - command: ksed -i 's/Release a mooring earlier/Release a berth earlier/' docs/berths.md
+  - command: ksed -i 's/by ship name/by vessel name/' app/strings.en.json
+  - comment: The reviewer also spots a word the graph has never been told about. Northsea says berth, and the page says dock. That is a decision rather than an edit.
+  - command: echo '{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}' > decisions.jsonl
+  - command: kapi apply decisions.jsonl
+  - comment: The reviewer recorded a term decision. The next check uses that rule.
+  # And again here: a decision that changed nothing would be no decision at all.
+  - command: kapi check --strict
+    expectExit: 3
+  - command: ksed -i 's/could not dock when the pilot called/could not reach its berth when the pilot called/' landing/index.html
+  - comment: Converge, and read where you stand.
+  - command: kapi up
+  - command: kapi status
+  - command: kapi check --strict
+
+artifacts:
+  - id: findings
+    caption: "kapi check --json: rule, point and replacement, per finding"
+    source: report
+    report: json
+    path: findings.json
+    reportTitle: "kapi check --json"
+    reportSub: "what CI reads on every pull request"
+    width: 1200
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Dette repositoriet inneholder dokumentasjon, grensesnittstrenger og en markedsføringsside på ett språk. En redigering har innført en forbudt term. Konfigurerte kontroller rapporterer disse ordvalgsbruddene. De vurderer ikke alle aspekter ved skrivingen.
+  - id: check
+    kind: terminal
+    through: 8
+    highlight: { text: [MAJOR, MINOR] }
+    caption: "Ett alvorlig funn, og resten veiledende."
+    text: >-
+      Et forbudt ord på markedsføringssiden er alvorlig. En utgått term som fortsatt finnes i dokumentasjonen er mindre alvorlig etter dette prosjektets gjennomgangspolicy. Hvert funn navngir regelen, punktet det er avgrenset til, og rettelsen.
+  - id: findings
+    kind: artifact
+    artifact: findings
+    caption: "Den samme kjøringen, i formatet en pull request leser."
+    text: >-
+      De samme funnene i maskinformat, fra den samme mislykkede kjøringen. Hvert funn bærer regelen sin, filen og blokken det befinner seg i, og erstatningen – det er det en pull request-kontroll og en assistent begge leser.
+  - id: correct
+    kind: terminal
+    through: 15
+    caption: "Tre rettelser, og én beslutning."
+    text: >-
+      Tre funn gjelder ordvalg, så kilden rettes. Det fjerde er annerledes: revieweren legger merke til et ord grafen aldri har fått beskjed om. Det er en beslutning, så den skrives ned som én oppføring i vokabularet prosjektet leser.
+  - id: learned
+    kind: terminal
+    through: 22
+    highlight: { text: [dock, berth] }
+    caption: Neste kjøring håndhever den registrerte termbeslutningen.
+    text: >-
+      Kjør kontrollen på nytt, og den finner det forrige kjøring godkjente. Én oppføring nådde både registeret og porten. Rett den siste, konverger, og de konfigurerte kontrollene passerer på ett språk – uten server og uten legitimasjon. Faktanøyaktighet og generell skrivekvalitet krever fortsatt sin egen gjennomgang.
+  - id: outro
+    kind: outro
+    text: >-
+      Pek den samme porten mot prosaen i repositoriet ditt. Utgang tre er listen over funn, og den kjører uten nettilgang.

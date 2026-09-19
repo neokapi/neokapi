@@ -1,0 +1,34 @@
+# Native reference doc for the built-in `doclang` format.
+# Source: core/formats/doclang/{reader.go,writer.go,config.go,spec.yaml}.
+# No Okapi equivalent: DocLang is a new LF AI & Data standard.
+description: "Les og skriv DocLang, den åpne LF AI & Data-standarden (.dclg.xml) for KI-native dokumenter, med semantiske roller og sidegeometri."
+overview: |
+  **DocLang**-formatet leser og skriver
+  [DocLang](https://doclang.ai), LF AI & Data åpen standard for KI-native
+  dokumenter, festet til spesifikasjon v0.6. Det tilordner `.dclg.xml` til neokapi-innholdsmodellen
+  pluss strukturlaget (SemanticRole, GeometryAnnotation,
+  LayoutLayer). Dette er den filbaserte «consume Docling»-grensen: et verktøy kjører
+  Docling, sender ut DocLang, og neokapi leser det.
+
+  Dekning (v0.6): dokumentroten + head; blokknivå-semantiske elementer
+  (heading, text, footnote, page_header, page_footer, code, formula); lister
+  (med ldiv-avgrensede elementer); grupper; OTSL-tabell/indeks-celler (fcel, ched, rhed,
+  ecel, srow, corn) med `nl`-radterminatorer; element-head-egenskapslaget
+  og 4-verdis location-blokken (tilordnet til sidegeometri); og innlinjsformatering
+  (fet, kursiv, understreking, gjennomstreking, hevet skrift, senket skrift).
+
+  Ikke tilordnet ennå (hoppes over uten å miste omkringliggende innhold): OTSL-spennkontinuasjoner
+  (lcel/ucel/xcel), konstruksjoner for bilde/felt/markør/avkrysningsboks, og
+  tråd/xref/href-kontinuitet.
+parameters:
+  emitGeometry:
+    description: Send ut <location>-geometriblokker ved skriving.
+    help: |
+      Skrivealternativ (ingen effekt ved lesing): send ut `<location>`-blokker fra en blokks
+      geometriannotering. Sett til false for å projisere til et geometriløst DocLang ved
+      re-sending av reflowbart innhold.
+    values: "`true` / `false` (standard `true`)"
+limitations:
+  - OTSL-spenningskontinuasjoner (lcel/ucel/xcel) og konstruksjoner for bilde/felt/markør/avkrysningsboks hoppes over (omkringliggende innhold bevares).
+processingNotes:
+  - "Disambigueres fra generisk XML ved hjelp av en innholdssjekk etter `<doclang`-taggen og en lavere-enn-standard formatprioritet, slik at en vanlig `.xml` aldri løses til DocLang når sjekken mislykkes."

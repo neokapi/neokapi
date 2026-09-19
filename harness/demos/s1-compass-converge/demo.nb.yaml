@@ -1,0 +1,86 @@
+id: s1-compass-converge
+title: "Gjenbruk først, skriv utkast for resten"
+subtitle: "Tre språk fra én kilde, og en leverandør ble bare spurt om det som gjenstår."
+kind: use-case
+publishAs: multilingual-converge
+# A scripted plain-shell demo: every command is deterministic and offline. The AI
+# leg is the built-in `demo` provider, which needs no key and no network and
+# marks its own output, so a take costs nothing and claims nothing.
+terminal: shell
+brand: kapi
+cwd: ~/compass
+needsAi: false
+# The sandbox IS the Compass sample project, copied from samples/compass so the
+# recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/compass
+project: true
+captureTimeoutSec: 240
+aspects:
+  - one point, one more axis
+  - recycle before AI
+  - ship states, not file presence
+outro:
+  line: La løkken gjenbruke før den skriver utkast.
+  pointer: kapi up
+
+script:
+  - comment: Compass is the product whose interface strings the monolingual sample already governs. One line makes it multilingual.
+  - command: kapi context site/locales/en-GB.json | head -6
+  - comment: Both axes, on one screen. The source gained a Tide window panel last week; no language carries it.
+  - command: kapi status
+  - comment: The deployed page builds its language picker from one file, and kapi writes it. Nothing is offered yet.
+  - command: kapi status --ship --emit site/ship.json
+  - command: cat site/ship.json
+  - comment: One verb. Approved wording is recycled; only what is left reaches a provider.
+  - command: kapi up
+  - comment: Norwegian and German clear the ship gate on drafted work. Dutch parks, because one of its units fails the project's bound checks.
+  - command: kapi status
+  - command: kapi status --ship --emit site/ship.json
+  - command: cat site/ship.json
+
+artifacts:
+  - id: ship
+    caption: "site/ship.json: locale to shippable and verified"
+    source: report
+    report: json
+    path: site/ship.json
+    reportTitle: "kapi status --ship"
+    reportSub: "the whole contract between the loop and the delivery edge"
+    width: 1200
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Et andre språk er én akse til på innhold som allerede er styrt. Løkken gjenbruker ordlyden et prosjekt har godkjent tidligere, og ber bare en leverandør om resten.
+  - id: standing
+    kind: terminal
+    through: 7
+    highlight: { text: ["false"] }
+    caption: "Fire strenger etter, og ingenting er tilbudt ennå."
+    text: >-
+      Begge akser på én skjerm. Kilden fikk et Tide-vindu-panel forrige uke, fire strenger, og ingen språkkode har det. Det er ordinært arbeid snarere enn en feil, og det er nok til å holde alle språkkoder bak ship gate.
+  - id: converge
+    kind: terminal
+    through: 9
+    caption: "Gjenbrukt først, og bare resten skrives som utkast."
+    text: >-
+      Ett verb konvergerer. Trettisju av norskens trettiåtte enheter kommer tilbake ut av prosjektets eget content memory, og bare resten når en leverandør – her er det offline-stubben som merker alt den skriver.
+  - id: gated
+    kind: terminal
+    through: 13
+    highlight: { text: [blocked, checks] }
+    caption: To språkkoder tilbudt. Nederlandsk stopper på en feilende kontroll.
+    text: >-
+      Norsk og tysk passerer ship gate på utkastarbeid. Nederlandsk stopper: én av enhetene feiler kontrollene prosjektet binder, og en språkkode som holder en feilende enhet holdes tilbake til noen ser på det. Utkastene er trygge i lageret; det gate-en holder tilbake er levering.
+  - id: ship
+    kind: artifact
+    artifact: ship
+    caption: "To svar per språkkode, og ingenting annet mellom dem."
+    text: >-
+      Denne filen er hele kontrakten mellom løkken og det publiserte nettstedet. Per språkkode to uavhengige svar: er det trygt å tilby i det hele tatt, og har en person godkjent hver streng i den.
+  - id: outro
+    kind: outro
+    text: >-
+      Kjør løkken på et prosjekt som allerede har godkjent ordlyd, og se hvor lite av den som i det hele tatt når en leverandør.

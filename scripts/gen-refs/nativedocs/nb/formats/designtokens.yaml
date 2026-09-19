@@ -1,0 +1,24 @@
+# Native reference doc for the built-in `designtokens` format.
+# Schema source: core/formats/designtokens/config.go (Config) + schema.go.
+# Built on the json format; extracts only $description documentation.
+description: Trekk ut og oppdater lesbar $description-dokumentasjon i W3C DTCG-designtokenfiler.
+overview: |
+  Formatet **Design Tokens (DTCG)** leser W3C Design Tokens Community Group-tokenfiler (`.tokens` / `.tokens.json`), JSON-utvekslingsformatet som brukes av Style Dictionary, Tokens Studio og lignende verktøy.
+
+  Tokenverdier er typede designdata (farger, dimensjoner, skriftfamilier, aliaser), ikke naturlig språk, så formatet trekker ut bare den lesbare `$description`-dokumentasjonen på tokens og grupper som tekstinnhold; alle token-`$value`-, `$type`- og `$extensions`-felt samt den omkringliggende strukturen passerer gjennom urørt. Deteksjon krever den unike `.tokens`-utvidelsen og sjekker DTCG-innhold (`$value` + `$type`); `.tokens.json`-filer løses til JSON-formatet basert på utvidelsen med mindre `-f designtokens` er angitt. Rundtur er byte-tro, arvet fra JSON-leseren/skriveren.
+parameters:
+  extractDescriptions:
+    description: Trekk ut $description-dokumentasjon som oversettbart innhold.
+    help: |
+      Når aktivert (standard), trekkes `$description`-felter på tokens og grupper
+      ut som oversettbare blokker. Når deaktivert gir filen ingen
+      oversettbart innhold.
+    values: "`true` / `false` (standard `true`)"
+processingNotes:
+  - Kun `$description` trekkes ut; tokenverdier og struktur er ikke-oversettbar gjennomstrømning.
+  - "En tokenfil uten `$description` gir null blokker, noe som er forventet for maskinegenererte tokensett."
+examples:
+  - title: Deaktiver uttrekk av beskrivelser
+    description: Behandle filen som fullstendig ikke-oversettbar.
+    config: |
+      extractDescriptions: false

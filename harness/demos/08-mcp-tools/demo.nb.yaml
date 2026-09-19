@@ -1,0 +1,81 @@
+id: 08-mcp-tools
+title: En assistent uten skall
+subtitle: "kapi som Model Context Protocol-verktøy, ned til en registrert godkjenning."
+kind: integration
+aspects:
+  - MCP integration
+  - size before you act
+  - the review queue
+  - a decision with a name on it
+needsAi: false
+mcp: true
+model: sonnet
+captureTimeoutSec: 300
+# The sandbox IS the project: a recipe at its root with a drafted French
+# catalog, so the project-scoped tools (review_queue, review_unit, approve_unit)
+# have a real queue to work. The sandbox lives in os.tmpdir(), outside the repo.
+project: true
+outro:
+  line: Legg kapi til i assistentens MCP-konfigurasjon.
+  pointer: /reference/mcp
+
+prompt: >
+  Using kapi, take a look at content.json for me: what format is it, and how much
+  translatable content does it hold? Then show me what is waiting for review in French,
+  open the first unit with everything that governs it, and approve it if the wording
+  holds up.
+
+artifacts:
+  - id: wordcount
+    caption: "kapi stats on content.json: the real figure"
+    source: command
+    command: kapi stats content.json --json
+    report: stats
+    width: 1000
+    height: 640
+  - id: queue
+    caption: "the review queue as the assistant reads it, one unit shorter"
+    source: command
+    command: kapi status --review -p . --json
+    report: json
+    reportTitle: "review_queue"
+    reportSub: "every unit awaiting a person, addressed by file, key and locale"
+    width: 1100
+    height: 760
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      En assistent kan nå kapi uten et skall, som Model Context Protocol-verktøy med typede resultater. Her måler den en fil, leser den franske gjennomgangskøen og registrerer en godkjenning under sitt eget navn.
+  - id: tools
+    kind: terminal
+    caption: "Typede kall, strukturerte resultater, ingen konsoll å skrape."
+    text: >-
+      Skallet er slått av i denne sesjonen, så hvert steg er et verktøykall med et strukturert resultat – ikke tekst skrapt fra en konsoll.
+  - id: wordcount
+    kind: artifact
+    artifact: wordcount
+    caption: "Motorens egen ordtelling, for denne filen."
+    text: >-
+      De to første kallene oppdager formatet og måler innholdet – og disse er tallene motoren selv holder: ord og segmenter med tekst, for denne filen, i dette formatet.
+  - id: review
+    kind: terminal
+    caption: "Én enhet, og alt en beslutning tas på grunnlag av."
+    text: >-
+      Deretter gjennomgangskøen, filtrert til fransk. Et andre kall åpner én enhet og returnerer det en beslutning tas på grunnlag av: punktet som styrer filen, den gjeldende stempelen der, de nærliggende blokkene og versjonen som ble godkjent sist.
+  - id: approve
+    kind: terminal
+    caption: Beslutningen er registrert med agentens navn på den.
+    text: >-
+      Godkjenning er et eget kall. Det skriver beslutningen inn i prosjektlageret mot den nøyaktige teksten som ble vurdert, og posten registrerer hvem som tok den – slik at en godkjenning fra en assistent er merket som det.
+  - id: queue
+    kind: artifact
+    artifact: queue
+    caption: "Den samme køen, én enhet kortere."
+    text: >-
+      Og køen etterpå, én enhet kortere. Hver rad adresserer en enhet etter fil, nøkkel og språkkode – det samme som en person ser når de åpner kapi-desktop.
+  - id: outro
+    kind: outro
+    text: >-
+      Pek assistentens konfigurasjon mot kapi-serveren, så når den den samme gjennomgangsposten som en person gjør.

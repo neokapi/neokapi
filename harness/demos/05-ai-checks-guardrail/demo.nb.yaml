@@ -1,0 +1,71 @@
+id: 05-ai-checks-guardrail
+title: Finn en manglende plassholder og et endret produktnavn
+subtitle: "En tapt plassholder og et oversatt produktnavn, funnet slik en test finner dem."
+kind: use-case
+publishAs: kapi-checks-guardrail
+# A scripted plain-shell demo (no Claude): the checks are deterministic, so the
+# commands run for real and their output is recorded exactly.
+terminal: shell
+brand: kapi
+cwd: ~/checkout
+needsAi: false
+captureTimeoutSec: 120
+aspects:
+  - checks as tests
+  - do-not-translate
+  - placeholder integrity
+  - gate in CI
+outro:
+  line: Legg kontrollen til i CI-jobben din.
+  pointer: kapi check --ship
+
+# The gate is on: the first check exits 3 on camera, which is what a merge is
+# held to. `expectExit: 3` binds it both ways, so a take where the gate passed
+# would fail the capture instead of shipping. stderr is dropped from both runs
+# so the recorded output is the findings table and the verdict, nothing else.
+script:
+  - comment: A prepared German fixture contains two planted defects.
+  - command: cat app.de.json
+  - comment: Check the translation against the source, the way you run tests.
+  - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" 2>/dev/null
+    expectExit: 3
+  - comment: "A dropped placeholder and a changed product name. Copy the prepared repair."
+  - command: cp -f app.de.fixed.json app.de.json && cat app.de.json
+  - comment: Run the same check again.
+  - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" 2>/dev/null
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Dette forberedte eksempelet har to plantede feil: en manglende plassholder og et endret produktnavn. Vi kjører den faktiske kontrollen, og kopierer deretter en forberedt reparasjon for å vise at de samme kontrollene består.
+  - id: german
+    kind: terminal
+    through: 2
+    caption: En forberedt målfil med to plantede feil.
+    text: >-
+      Målfilen inneholder en manglende tellingsplassholder og et endret beskyttet navn. Kildeteksten og den konfigurerte beskyttede termen gir grunnlaget for disse kontrollene.
+  - id: check
+    kind: terminal
+    through: 4
+    highlight: { text: [CRITICAL, MAJOR] }
+    caption: Kontrollen feiler og navngir begge funnene.
+    text: >-
+      kapi check leser tysk mot engelsk og kjører reglene slik tester kjøres: beskyttede navn og plassholderintegritet. Tellingsplassholderen mangler, produktnavnet ble oversatt, og kommandoen avsluttes med tre.
+  - id: fix
+    kind: terminal
+    through: 6
+    caption: "Kopier en forberedt reparasjon, og kjør kontrollene på nytt."
+    text: >-
+      Kopieringskommandoen erstatter målet med en forberedt reparasjon. Den gjenoppretter plassholderen og det beskyttede navnet. Dette trinnet viser en reparasjonsfil – ikke en agent som diagnostiserer eller skriver rettelsen.
+  - id: pass
+    kind: terminal
+    through: 8
+    highlight: { text: [PASS] }
+    caption: "Avslutningstatus 0, fra kommandoen som nettopp avsluttet med 3."
+    text: >-
+      Den samme kontrollen igjen – og den består. Kommandoen endret seg ikke, reglene endret seg ikke, og målteksten endret seg. Dette resultatet bekrefter de konfigurerte kontrollene, ikke faktanøyaktighet eller overordnet oversettelseskvalitet.
+  - id: outro
+    kind: outro
+    text: >-
+      Legg kontrollen inn i CI-jobben din. Avslutningstatus 3 stopper flettingen, slik en mislykket test gjør det.

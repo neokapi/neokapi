@@ -1,0 +1,76 @@
+# Native reference doc for the built-in `redact` tool.
+# Schema source: core/tools/redact.go (RedactConfig).
+description: Erstatt sensitive tekstdeler med beskyttede plassholdere før behandling.
+overview: |
+  Verktøyet **Redact** erstatter sensitive tekstdeler i kilden med beskyttede
+  plassholdere før innholdet behandles (for eksempel før det sendes
+  til en oversettingsleverandør), og lagrer originalverdiene lokalt slik at en senere
+  `unredact` kan gjenopprette dem. Det skriver aldri den opprinnelige verdien inn i
+  det omskrevne innholdet. Det er en gjenopprettbar transformator: det produserer en redigeringsplan
+  (tekstdelerstatningene samt originalene som skal lagres) og rammeverkets
+  applier skriver om kilden og rebaserer overlevende kjøringsankrede overlegg slik at
+  en oppstrøms annotators termer eller entiteter følger omskrivningen.
+
+  To deteksjonsbakender kan kjøre, alene eller sammen: `rules` matcher bokstavelige
+  termer og regulære uttrykk fra en regelfil eller innebygde regler, og
+  `entities` sladderer entitetsannotasjoner som allerede finnes på blokken (slik de produseres av
+  `entity-extract`). Når ingen detektor er konfigurert, brukes `rules`. Originalene
+  lagres på blokken som en in-process hemmelig annotasjon som standard, eller skrives til et sidecar-hvelv
+  når en hvelvsti er oppgitt (den
+  ekterne modusen brukt av `extract` → `merge`).
+parameters:
+  detectors:
+    description: "Deteksjonsmotorer som skal kjøres: rules og/eller entities."
+    help: |
+      `rules` matcher bokstavelige termer og regulære uttrykk fra en regelfil eller
+      inline-regler. `entities` sladder entitetsannotasjoner som allerede er knyttet til
+      blokkens (f.eks. av `entity-extract`). Begge kan angis; når ingen er satt,
+      brukes `rules`.
+    values: "liste over `rules` / `entities` (standard `[rules]`)"
+  rulesPath:
+    description: Bane til en YAML-fil med sladderegler.
+    help: |
+      Laster inn literale termer og regulære uttrykk for sladding. Bare relevant når
+      `rules`-detektoren er aktivert. En regelfil kan også definere sin egen
+      plassholder-mal, som brukes med mindre verktøyets `placeholder` er angitt.
+    values: "filsti"
+    dependsOn:
+      - property: detectors
+        condition: "`rules`-detektoren må være aktivert"
+  placeholder:
+    description: Synlig stedfortredende mal for sladdede tekstdeler.
+    help: |
+      Malen som brukes til å gjengi den synlige plassholderen som erstatter hver
+      sladdet tekstdel. Den støtter `{category}` (den oppdagede kategorien) og `{n}`
+      (en per-kategori-teller). Når ikke angitt, brukes rammeverkets standardmal.
+    values: "malstreng"
+  entityTypes:
+    description: Enhetskategorier som skal sladdes når `entities`-detektoren er aktivert.
+    help: |
+      Begrenser entitetssladding til de opplistede kategoriene. Når den ikke er angitt, er
+      standardsettet person, organisasjon, produkt og sted. Datoer, klokkeslett,
+      valutaer og målinger er bevisst utelatt fordi de trenger
+      lokalespesifikk formatering fremfor sladding.
+    values: "liste over entitetskategorier (standard `[person, organization, product, location]`)"
+    dependsOn:
+      - property: detectors
+        condition: "`entities`-detektoren må være aktivert"
+limitations:
+  - "Detektoren `entities` virker bare på entitetsannotasjoner som allerede finnes på blokken; den oppdager ikke entiteter selv, så bruk den sammen med `entity-extract`."
+  - Innebygde regler og sidevogn-hvelvbanen leveres programmatisk av kallere (f.eks. extract → merge) snarere enn gjennom skjemafeltene dokumentert her.
+  - "Opererer på oversettbare kildetekstdeler; datoer, klokkeslett, valutaer og målinger er utelatt fra standardentitetssettet."
+processingNotes:
+  - "En gjenopprettbar transformator som returnerer en redigeringsplan, hvoretter rammeverkets applier skriver om kilden og rebaserer overlevende overlegg på tvers av omskrivningen. Plasseringspasset krever at den kjører før ethvert steg som sender kilden til en ekstern mottaker."
+  - "Originaler registreres som en intern hemmelig annotasjon som standard, eller i et sidevogn-hvelv når en hvelvbane er oppgitt (ekstern modus); applier hvelvlegger dem atomisk med omskrivingen."
+  - En senere `unredact` leser gjenopprettingsposten for å gjenopprette originalene.
+examples:
+  - title: Sladd etter regelfil
+    description: Erstatt tekstdeler matchet av en regelfil med standardplassholderen.
+    config: |
+      detectors: [rules]
+      rulesPath: redaction-rules.yaml
+  - title: Sladd uttrukne entiteter
+    description: Sladd person- og organisasjonsentiteter som allerede er annotert på blokken.
+    config: |
+      detectors: [entities]
+      entityTypes: [person, organization]

@@ -1,0 +1,108 @@
+# Native reference doc for the built-in `csv` format.
+# Schema source: core/formats/csv/config.go (Config) + schema.go.
+# Mirrors the Okapi okf_table_csv filter (Table filter, CSV mode).
+description: "Trekk ut og sett inn igjen oversettbare celler fra CSV-filer, med kolonnebasert utvalg og siteringskontroll."
+overview: |
+  **CSV**-formatet leser kommaseparerte verdi-filer, trekker ut valgte
+  kolonner som oversettbare blokker, og skriver oversettelsene tilbake i de
+  samme radene. Det håndterer siterte felt som inneholder skilletegn eller linjeskift og
+  valgfrie hodelinjer. Den samme implementasjonen ligger til grunn for det tabulatorseparerte TSV-
+  formatet med en tabulatorskilletegn.
+
+  Som standard behandles den første raden som en hodelinje og hver datakolonne er
+  oversettbar. Du kan begrense uttrekk til bestemte kolonner, angi nøkkelkolonner
+  som leverer hver blokks ID, merke kommentarkolonner hvis verdier blir notater,
+  og justere skilletegn, sitattegn og radforskyvninger.
+parameters:
+  separator:
+    description: Feltskilletegn.
+    help: |
+      Tegnet som skiller feltene – komma for CSV og tabulator for TSV.
+    values: "Enkelt tegn (standard `,`)"
+  textQualifier:
+    description: Anførselstegn for felt med skilletegn eller linjeskift.
+    help: |
+      Tegnet som brukes til å sitere feltverdier som inneholder skilletegnet, et
+      linjeskift eller sitattegnet selv.
+    values: Enkelt tegn (standard `"`)
+  hasHeader:
+    description: Behandle første rad som en ikke-oversettbar overskrift.
+    help: |
+      Når dette er aktivert (standardinnstillingen), behandles første rad som kolonneoverskrifter
+      og trekkes ikke ut. Deaktiver det for filer der data begynner på
+      første rad.
+    values: "`true` / `false` (standard `true`)"
+  columnNamesRow:
+    description: 1-basert radnummer som inneholder kolonnenavn.
+    help: |
+      Den 1-baserte raden som inneholder kolonnenavnene. `0` betyr automatisk gjenkjenning: rad
+      1 brukes når `hasHeader` er aktivert.
+    values: Heltall; `0` = automatisk gjenkjenning (standard `0`)
+  valuesStartRow:
+    description: 1-basert rad der dataverdier begynner.
+    help: |
+      Den 1-baserte raden som dataverdier leses fra. `0` betyr automatisk gjenkjenning:
+      raden etter overskriften, eller rad 1 når det ikke finnes noen overskrift.
+    values: Heltall; `0` = automatisk gjenkjenning (standard `0`)
+  translatableColumns:
+    description: 0-baserte indekser for kolonner som skal trekkes ut.
+    help: |
+      De 0-baserte kolonneindeksene hvis celler trekkes ut som oversettbart
+      innhold. Når tom, behandles hver kolonne som oversettbar.
+    values: "Array av 0-baserte heltall (standard tom, alle kolonner)"
+    examples:
+      - "`[1, 2]` trekker ut den andre og tredje kolonnen"
+  keyColumns:
+    description: 0-baserte indekser for kolonner som angir blokk-ID.
+    help: |
+      De 0-baserte kolonneindeksene hvis verdier angir hver blokks ID
+      (kilde-/post-identifikator). Når flere er oppgitt, slås verdiene deres
+      sammen med `.`. Når tom, brukes radbaserte ID-er.
+    values: "Array av 0-baserte heltall (standard tom, radbaserte ID-er)"
+    examples:
+      - "`[0]` bruker den første kolonnen som post-ID"
+  commentColumns:
+    description: 0-baserte indekser for kolonner som inneholder kommentarer eller notater.
+    help: |
+      De 0-baserte kolonneindeksene hvis verdier registreres som notater på
+      radens oversettbare blokker i stedet for å trekkes ut som innhold.
+    values: Array av 0-baserte heltall (standard tom)
+  trimValues:
+    description: Fjern omgivende blanktegn fra celleverdier.
+    help: |
+      Når aktivert, fjernes ledende og etterfølgende blanktegn fra hver celleverdi før uttrekk.
+    values: "`true` / `false` (standard `false`)"
+  useCodeFinder:
+    description: Aktiver regex-basert inline-kode-deteksjon.
+    help: |
+      Aktiverer regex-basert gjenkjenning av inline-kode i celleverdier. Mønstrene
+      oppgis via `codeFinderRules`.
+    values: "`true` / `false` (standard `false`)"
+  codeFinderRules:
+    description: Regex-mønstre som matcher inline-koder i celler.
+    help: |
+      En array med regulære uttrykk; tekst som samsvarer med noen av dem behandles
+      som inline-kode i stedet for oversettbare ord. Brukes bare når
+      `useCodeFinder` er aktivert.
+    values: Array med regulære uttrykk (standard tom)
+    dependsOn:
+      - property: useCodeFinder
+        condition: må være aktivert for at disse mønstrene skal gjelde
+limitations:
+  - Kolonnevalg er indeksbasert; kolonner adresseres ikke etter overskriftsnavn.
+processingNotes:
+  - "Hver valgte celle blir en oversettbar blokk; radstruktur, skilletegn og sitering utgjør det ikke-oversettbare skjelettet."
+  - Nøkkelkolonner leverer ID-er og kommentarkolonner leverer notater; de trekkes ikke selv ut som oversettbart innhold.
+examples:
+  - title: "Oversett én kolonne, nøklet av en annen"
+    description: "Trekk ut kolonne 2, med kolonne 0 som post-ID."
+    config: |
+      translatableColumns:
+        - 2
+      keyColumns:
+        - 0
+  - title: Hodelos semikolondelt fil
+    description: Les en fil uten hodelinje og med semikolon som skilletegn.
+    config: |
+      separator: ";"
+      hasHeader: false

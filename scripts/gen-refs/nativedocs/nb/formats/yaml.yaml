@@ -1,0 +1,59 @@
+# Native reference doc for the built-in `yaml` format.
+# Schema source: core/formats/yaml/config.go (Config) + schema.go.
+# Mirrors the Okapi okf_yaml filter.
+description: "Trekk ut og sett inn igjen oversettbare skalarverdier fra YAML-filer, med nøkkelsti-filtrering og underfiltre."
+overview: |
+  **YAML**-formatet leser YAML-dokumenter, trekker ut skalare strengverdier som oversettbare blokker, og skriver oversettelsene tilbake mens den bevarer den omkringliggende strukturen, kommentarer og rekkefølge. Det egner seg for Rails-lokale filer, applikasjonskonfigurasjon og andre nøkkel/verdi-kataloger uttrykt i YAML.
+
+  Som standard trekkes bare strengskalarer ut. Du kan også trekke ut ikke-streng-skalarer, begrense uttrekket til bestemte nøkkelstier med glob-mønstre, oppdage inline-kode, og rute verdier som inneholder innebygd markup (som HTML) til et underfilter.
+parameters:
+  extractNonStrings:
+    description: Trekk ut ikke-streng skalaverdier.
+    help: |
+      Når aktivert, trekkes også ikke-streng skalarer (boolske verdier, tall og null-verdier) ut som blokker. Som standard trekkes bare streng-skalarer ut.
+    values: "`true` / `false` (standard `false`)"
+  keyPathPatterns:
+    description: Glob-mønstre som velger hvilke nøkkelstier som trekkes ut.
+    help: |
+      En matrise med glob-stil nøkkelsti-mønstre. Når den ikke er tom, trekkes bare nøkler
+      som samsvarer med ett av mønstrene ut. `*` samsvarer med ett enkelt nøkkelsegment;
+      `**` samsvarer med et hvilket som helst antall segmenter på hvilken som helst dybde.
+    values: "Tabell med glob-mønstre (standard tom, alle nøkler trekkes ut)"
+    examples:
+      - "`en.**` trekker ut bare nøkler nestet under toppnivånøkkelen `en`"
+      - "`*.title` trekker ut `title`-nøkkelen direkte under enhver toppnivånøkkel"
+  subfilter:
+    description: Underfilter-format anvendt på skalarverdier.
+    help: |
+      Navnet på et format som brukes som underfilter (for eksempel `html`) for å analysere innebygd markup inne i uttrukne skalarverdier, slik at markup-en eksponeres som inline-kode i stedet for å oversettes som litteral tekst.
+    values: Formatnavn (standard tom)
+    examples:
+      - "`html` parser HTML inne i YAML-skalarfelt"
+  useCodeFinder:
+    description: Aktiver regex-basert inline-kode-deteksjon.
+    help: |
+      Aktiverer regex-basert deteksjon av inline-kode i strengverdier. Mønstrene
+      oppgis via `codeFinderRules`.
+    values: "`true` / `false` (standard `false`)"
+  codeFinderRules:
+    description: Regex-mønstre som matcher inline-kode i verdier.
+    help: |
+      En matrise av regulære uttrykk; tekst som matcher noen av dem behandles som inline-kode i stedet for oversettbare ord. Brukes kun når `useCodeFinder` er aktivert.
+    values: Matrise av regulære uttrykk (standard tom)
+    dependsOn:
+      - property: useCodeFinder
+        condition: må være aktivert for at disse mønstrene skal gjelde
+limitations:
+  - Bare skalaverdier er oversettbare; tilordningsnøkler og sekvensstruktur utgjør det ikke-oversettbare skjelettet.
+processingNotes:
+  - "Dokumentstruktur, nøkkelrekkefølge og kommentarer bevares gjennom lese/skrive-rundturen."
+examples:
+  - title: Trekk ut et enkelt undertre for språkkode
+    description: Oversett kun nøklene under en-grenen i en Rails-stil lokalfil.
+    config: |
+      keyPathPatterns:
+        - "en.**"
+  - title: HTML inne i verdier
+    description: Analyser HTML-markup i YAML-skalaverdier.
+    config: |
+      subfilter: html

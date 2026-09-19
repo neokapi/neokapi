@@ -413,11 +413,11 @@
         {
           "text": "ordliste",
           "locale": "nb",
-          "status": "preferred"
+          "status": "admitted"
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
-      "updated_at": "2026-08-23T08:00:00Z"
+      "updated_at": "2026-06-11T06:47:18Z"
     },
     {
       "id": "term:4097889236",
@@ -984,7 +984,9 @@
           "text": "eksakt treff",
           "locale": "nb",
           "status": "preferred",
-          "forms": ["eksakttreff"]
+          "forms": [
+            "eksakttreff"
+          ]
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
@@ -1225,7 +1227,13 @@
           "text": "trekk ut",
           "locale": "nb",
           "status": "preferred",
-          "forms": ["trekkes ut", "trukket ut", "trakk ut", "uttrukket", "uttrukne"]
+          "forms": [
+            "trekkes ut",
+            "trukket ut",
+            "trakk ut",
+            "uttrukket",
+            "uttrukne"
+          ]
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
@@ -1265,7 +1273,9 @@
           "text": "sladding",
           "locale": "nb",
           "status": "preferred",
-          "forms": ["sladde"]
+          "forms": [
+            "sladde"
+          ]
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",

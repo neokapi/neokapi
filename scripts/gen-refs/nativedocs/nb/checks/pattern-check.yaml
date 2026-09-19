@@ -1,0 +1,33 @@
+# Native reference doc for the `pattern-check` source-side check.
+# Source: core/check/sourcechecks.go (NewSourcePatternTool, PatternRule);
+# flags in cli/check.go.
+# A check, not a registry tool: it is configured by CLI flags, not a schema.
+description: "Krev at et mønster vises i hver kildeblokk, eller forby ett fra å vises i det hele tatt."
+overview: |
+  **Mønsterkontrollen** holder kildeteksten i hver blokk opp mot regulære uttrykk som kalleren navngir. `--forbid` angir et uttrykk som ikke må forekomme, og `--require` ett som må forekomme – begge kan gjentas, og begge rapporteres med alvorlighetsgrad major: `pattern.forbidden-pattern` når et forbudt uttrykk finnes, og `pattern.pattern-missing` når et påkrevd uttrykk mangler. Et forbidden-pattern-funn bærer med seg teksten det matchet, slik at både blokken og de problematiske ordene er navngitt.
+
+  Uttrykkene er Go-regulære uttrykk, matchet slik de er skrevet: ingen implisitt folding av store/små bokstaver og ingen implisitte ordgrenser, så `(?i)todo` er måten du ignorerer store/små bokstaver på, og `\bdraft\b` er måten du krever et helt ord på. Et tomt uttrykk, ett som ikke kompilerer, eller en regel som både krever og forbyr, avvises når kontrollen bygges – i stedet for å la alt passere stille.
+
+  Dette er rømningsveien ved siden av kontrollene som vet hva de leter etter. En stempelprofil bærer vokabularet et prosjekt har bestemt seg for, og termer bærer ordene det har avtalt; et uttrykk er for listen som ikke har noe vokabular bak seg – for eksempel en plassholdersyntaks som må overleve, eller en markør som aldri må sendes ut.
+parameters:
+  --forbid:
+    description: Et regulært uttrykk som ikke må vises i kilden.
+    help: |
+      Rapporterer alle blokker hvis kilde samsvarer. Kan gjentas, slik at flere
+      forbud kan angis i én kjøring.
+    values: "Go regulært uttrykk, kan gjentas"
+  --require:
+    description: Et regulært uttrykk som må vises i kilden.
+    help: |
+      Rapporterer alle blokker hvis kilde ikke samsvarer. Kan gjentas. Brukes per
+      blokk, så et mønster som bare én del av et dokument har, rapporteres
+      overalt ellers.
+    values: "Go regulært uttrykk, kan gjentas"
+limitations:
+  - Leser kun kildetekst; om en oversettelse bevarte et mønster er spørsmålet for den tospråklige `qa`-kontrollen.
+  - "Et obligatorisk mønster kreves av alle blokker, så det passer en regel som gjelder for hver blokk snarere enn for et dokument som helhet."
+  - "Matching skjer over blokkens ren tekst, så et mønster kan ikke adressere kjøringene en plassholder eller en inline-kode representerer."
+processingNotes:
+  - "Av med mindre et mønster er oppgitt, så en vanlig kontrollkjøring rapporterer ingenting fra den."
+  - Kjører over oversettbare blokker; innhold som en leser presenterer som struktur eller kode matches aldri.
+  - "Et tomt eller ikke-kompilerbart mønster, og en regel som både krever og forbyr, er feil når kontrollen bygges."

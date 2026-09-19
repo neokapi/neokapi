@@ -1,0 +1,79 @@
+id: 06-multi-format-publishing
+title: "To formater, én forespørsel, ingen konverteringssteg"
+subtitle: "Markdown og en properties-fil, hver skrevet tilbake som det den var."
+kind: use-case
+aspects:
+  - format-aware
+  - Markdown round-trip
+  - .properties round-trip
+needsAi: true
+model: sonnet
+captureTimeoutSec: 320
+outro:
+  line: Prøv det på det uvanlige formatet i repositoryet ditt.
+  pointer: kapi formats
+
+prompt: >
+  We need French versions of two files: our getting-started guide README.md, and our UI
+  strings messages.properties. Can you translate both into French, keeping each in its own
+  format? Save them as README.fr.md and messages.fr.properties.
+
+artifacts:
+  - id: md-before
+    caption: "README.md: the English guide, rendered"
+    source: report
+    report: markdown
+    reportTitle: "README.md (English)"
+    path: README.md
+    width: 1100
+    height: 820
+  - id: md-after
+    caption: "README.fr.md: same headings, lists and quote, in French"
+    source: report
+    report: markdown
+    reportTitle: "README.fr.md (Français)"
+    path: README.fr.md
+    width: 1100
+    height: 820
+  - id: props
+    caption: "messages.fr.properties: keys preserved, values translated"
+    source: report
+    report: catalog
+    reportTitle: "messages.fr.properties"
+    reportSub: "kapi · Java properties round-trip"
+    path: messages.fr.properties
+    width: 1100
+    height: 700
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Én forespørsel, to filer, to formater. kapi leser Markdown og Java properties som det de er, oversetter bare teksten en leser ser, og skriver hver tilbake i sitt eget format.
+  - id: md-before
+    kind: artifact
+    artifact: md-before
+    caption: "Overskrifter, en liste, et blokkssitat. Alt sammen syntaks."
+    text: >-
+      Her er den engelske guiden. Rundt setningene er overskrifter, en liste og et blokkssitat, og en oversetter som jobber med råfilen må trå over dem alle.
+  - id: markdown
+    kind: terminal
+    caption: "Prosa inn, fransk tilbake, syntaksen urørt."
+    text: >-
+      kapi tolker filen som Markdown. Prosaen sendes til leverandøren som prosa, uthevingen og lenkemålene følger med som struktur, og det som kommer tilbake skrives som Markdown igjen.
+  - id: md-after
+    kind: artifact
+    artifact: md-after
+    caption: "Det samme dokumentet, på fransk."
+    text: >-
+      Den franske guiden gjengis slik den engelske ble. Samme overskriftsnivåer, samme liste, samme blokkssitat, og kodeeksempelet midt i det er fortsatt kodeeksempelet.
+  - id: props
+    kind: artifact
+    artifact: props
+    caption: Nøkler til venstre. Bare høyresiden ble flyttet.
+    text: >-
+      Properties-filen gikk gjennom samme kjøring og kom tilbake som en properties-fil. Hver nøkkel til venstre for likhetstegnet er nøkkelen koden slår opp, og bare meldingen til høyre ble oversatt.
+  - id: outro
+    kind: outro
+    text: >-
+      Spør kapi hva det leser, og kjør deretter samme forespørsel mot formatet i repositoryet ditt som ingenting annet vil åpne.

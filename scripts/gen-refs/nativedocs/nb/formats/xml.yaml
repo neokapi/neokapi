@@ -1,0 +1,162 @@
+# Native reference doc for the built-in `xml` format.
+# Schema source: core/formats/xml/config.go (Config) + schema.go.
+# Mirrors the Okapi okf_xml filter (generic XML, ITS-style rules).
+description: "Trekk ut og sett inn tekst fra generisk XML, styrt av element- og attributtregler."
+overview: |
+  **XML**-formatet leser generiske XML-dokumenter, trekker ut teksten i konfigurerte elementer og attributter som oversettbare blokker, og skriver oversettelsene tilbake mens omliggende markup bevares. Inline-elementer blir inline-koder i en blokk, slik at formateringskoder overlever oversettelse.
+
+  Uttrekk er regelbasert. De enkle listene (`translatableElements`, `translatableAttributes`, `inlineElements`, `excludedElements`) dekker de fleste tilfeller. De avanserte mappene `elements` og `attributes` uttrykker rikere ITS-lignende regler med attributtbetingelser, ID- og oversettbart-attributt-mappinger, og eksplisitt inkluder/ekskluder-atferd. Når ingen oversettbare elementer er oppgitt, behandles alt tekstinnhold som oversettbart; sett `excludeByDefault` for å invertere dette og bare inkludere det som regler velger inn.
+parameters:
+  translatableElements:
+    description: Elementnavn hvis tekstinnhold er oversettbart.
+    help: |
+      En liste over elementnavn hvis tekstinnhold trekkes ut som oversettbart.
+      Når listen er tom, behandles alt tekstinnhold som oversettbart.
+    values: "Array med elementnavn (standard tom, all tekst er oversettbar)"
+    examples:
+      - "`[title, para]` trekker ut teksten i elementene `title` og `para`"
+  translatableAttributes:
+    description: Attributtnavn som er oversettbare på tvers av alle elementer.
+    help: |
+      En liste over attributtnavn hvis verdier trekkes ut som oversettbare,
+      på ethvert element som bærer dem.
+    values: Array av attributtnavn (standard tom)
+    examples:
+      - "`[title, alt]` trekker ut attributtverdiene `title` og `alt`"
+  excludeByDefault:
+    description: Ekskluder alle elementer med mindre en regel inkluderer dem.
+    help: |
+      Når aktivert, utelukkes alle elementer fra uttrekk med mindre en elementregel
+      explisitt inkluderer dem med en `INCLUDE`-regeltype. Dette inverterer
+      standarden, der tekstinnhold er oversettbart med mindre det er utelukket.
+    values: "`true` / `false` (standard `false`)"
+  inlineElements:
+    description: Elementnavn som behandles som inline-spenn.
+    help: |
+      En liste med elementnavn som behandles som inline. De representeres som inline-koder i den omgivende tekstblokken, ikke som blokkgrenser.
+    values: Tabell med elementnavn (standard tom)
+    examples:
+      - "`[b, i, span]` behandler disse som inline-formatering i tekst"
+  excludedElements:
+    description: Elementnavn hvis innhold er ekskludert.
+    help: |
+      En liste over elementnavn hvis innhold ikke trekkes ut, selv når
+      teksten deres ellers ville vært oversettbar.
+    values: Tabell med elementnavn (standard tom)
+    examples:
+      - "`[script, style]` trekker aldri ut innholdet i disse elementene"
+  preserveWhitespaceElements:
+    description: Elementnavn som alltid bevarer blanktegn.
+    help: |
+      En liste over elementnavn hvis tekstinnhold beholder sitt opprinnelige blanktegn
+      uavhengig av den globale `preserveWhitespace`-innstillingen.
+    values: Tabell med elementnavn (standard tom)
+    examples:
+      - "`[pre, code]` bevarer blanktegn inne i disse elementene"
+  groupElements:
+    description: Elementnavn som produserer gruppe-/laggrenser.
+    help: |
+      En liste over elementnavn som skaper gruppe- (lag-)grenser i
+      utdataene, og grupperer blokkene de inneholder.
+    values: Tabell med elementnavn (standard tom)
+  idAttributes:
+    description: Attributtnavn brukt til å utlede blokk-ID-er.
+    help: |
+      En liste over attributtnavn som konsulteres, i rekkefølge, for å hente en blokks ID
+      fra det omsluttende elementet. Når ingen samsvarer, brukes `id`-attributtet
+      som reserve.
+    values: Tabell med attributtnavn (standard tom)
+    examples:
+      - "`[name, key]` bruker et `name`- eller `key`-attributt som blokk-ID"
+  preserveWhitespace:
+    description: Bevar blanktegn globalt i stedet for å komprimere det.
+    help: |
+      Når aktivert, bevares blanktegn i tekstinnhold slik det er. Som standard
+      komprimeres sekvenser av blanktegn til ett enkelt mellomrom og trimmes.
+    values: "`true` / `false` (standard `false`)"
+  elements:
+    description: Avanserte elementspesifikke regler.
+    help: |
+      Et kart over elementnavn (eller et enkeltanführselstegn-regex-mønster) til et regelobjekt. En regel kan inneholde `ruleTypes` (`TEXTUNIT`, `INLINE`, `EXCLUDE`,
+      `INCLUDE`, `PRESERVE_WHITESPACE`, …), et attributt `conditions`-triplett,
+      `idAttributes`, og et `translatableAttributes`-kart. Betingelser lar en regel
+      utløses kun når et attributt samsvarer, etter mønster av ITS-stil-selektorer.
+    values: "Kart over elementnavn → regelobjekt (standard tom)"
+    examples:
+      - "`{ p: { ruleTypes: [TEXTUNIT] } }` trekker ut teksten i `p`-elementet"
+  attributes:
+    description: Avanserte attributtspesifikke regler.
+    help: |
+      Et kart over attributtnavn (eller et enkeltanførselstegns regex-mønster) til et regelobjekt.
+      En regel kan inneholde `ruleTypes` (som `ATTRIBUTE_TRANS`,
+      `ATTRIBUTE_ID`, `ATTRIBUTE_WRITABLE`) og et elementomfang via
+      `onlyTheseElements` eller `allElementsExcept`.
+    values: "Kart over attributtnavn → regelobjekt (standard tomt)"
+    examples:
+      - "`{ alt: { ruleTypes: [ATTRIBUTE_TRANS], onlyTheseElements: [img] } }`"
+  blockTypeMap:
+    description: Tilordne elementnavn til semantiske blokk-type-strenger.
+    help: |
+      Et kart fra elementnavn til en blokk-type-streng, som annoterer de resulterende
+      blokkene med en semantisk type for nedstrøms verktøy.
+    values: "Kart over elementnavn → typestreng (standard tom)"
+  subfilters:
+    description: Per-mønster underfilter-tilordninger for innebygd innhold.
+    help: |
+      En matrise av `{pattern, format}`-objekter som ruter tekstinnholdet i
+      samsvarende elementstier til en annen formatleser. Mønstre bruker
+      punktadskilte elementstier med glob-støtte. Hver tilordning krever et
+      ikke-tomt `pattern` og `format`.
+    values: "Array av `{pattern, format}`-objekter (standard tom)"
+    examples:
+      - "`[{pattern: 'root.body', format: html}]` tolker `body`-innhold som HTML"
+  useCodeFinder:
+    description: Aktiver regex-basert deteksjon av inline-kode.
+    help: |
+      Aktiverer regex-basert deteksjon av inline-koder i trukket-ut tekst.
+      Mønstrene angis via `codeFinderRules`.
+    values: "`true` / `false` (standard `false`)"
+  codeFinderRules:
+    description: Regex-mønstre som samsvarer med inline-koder i tekst.
+    help: |
+      En matrise av regulære uttrykk; tekst som samsvarer med noen av dem behandles
+      som inline-kode i stedet for oversettbare ord. Brukes bare når
+      `useCodeFinder` er aktivert.
+    values: Array av regulære uttrykk (standard tom)
+    dependsOn:
+      - property: useCodeFinder
+        condition: må være aktivert for at disse mønstrene skal gjelde
+limitations:
+  - Dette er en generisk XML-leser; for spesifikke XML-dialekter (som RESX) bør du starte fra et skreddersydd regelsett i stedet for de bare standardverdiene.
+  - Element- og attributtnavn i avanserte regler omgitt av enkle anførselstegn behandles som forankrede regulære uttrykk.
+processingNotes:
+  - Inline-elementer blir inline-koder innenfor blokker; elementer på blokknivå danner den omkringliggende strukturen.
+  - Elementregler med `INCLUDE`/`EXCLUDE` kombineres med `excludeByDefault` for å gi finkornet kontroll over hvilket innhold som trekkes ut.
+examples:
+  - title: Trekk ut spesifikke elementer
+    description: "Oversett kun title- og para-tekst, og behandle b og i som inline."
+    config: |
+      translatableElements:
+        - title
+        - para
+      inlineElements:
+        - b
+        - i
+  - title: Oversettbare attributter
+    description: Trekk ut verdier for title- og alt-attributter på tvers av alle elementer.
+    config: |
+      translatableAttributes:
+        - title
+        - alt
+  - title: Betinget uttrekk med regler
+    description: Inkluder bare div-elementer hvis translate-attributt er yes.
+    config: |
+      excludeByDefault: true
+      elements:
+        div:
+          ruleTypes:
+            - INCLUDE
+          conditions:
+            - translate
+            - EQUALS
+            - "yes"

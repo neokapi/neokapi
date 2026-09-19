@@ -1,0 +1,64 @@
+id: kapi-desktop-content
+title: Ingenting leses før du leser det
+subtitle: "Én uttrekking, og hver samling har et tall mot hvert språk."
+kind: use-case
+publishAs: kapi-desktop-content
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - Content collections
+  - File patterns
+  - Keyed file preview
+  - Format detection
+outro:
+  line: Trekk ut én gang; redigeringer trekker seg selv ut på nytt.
+  pointer: kapi status
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      En samling er et sett med filmønstre, og inntil prosjektet leser dem vet det ingenting om hva som er inni. Én uttrekking, og hvert språk har et tall mot seg.
+  - id: open-project
+    kind: desktop
+    beat: open-project
+    caption: "Fire samlinger, og ingenting lest ennå."
+    text: >-
+      Eksempelet åpner med sin tilstand: fire samlinger, alle dekningskolonner tomme, og et panel som sier med rene ord at ingenting er trukket ut.
+  - id: extract
+    kind: desktop
+    beat: extract
+    caption: "Les én gang, og dekningen fylles inn."
+    crop: { selector: ['[data-slot="ship-gate-cell"]', '[data-testid="collection-file-count"]'] }
+    highlight: { selector: '[data-slot="ship-gate-cell"]' }
+    hold: 12
+    text: >-
+      Uttrekking leser hver matchet fil med formatet Kapi oppdaget for den, og gjør hver enkelt om til blokker. Tellingene og oversikten for hvert språk kommer fra det, og det er derfor skjermen var tom inntil nå.
+  - id: patterns
+    kind: desktop
+    beat: patterns
+    caption: "Mønstrene, og filene hver av dem matchet."
+    crop: { selector: '[data-slot="matched-files-scroll"]' }
+    text: >-
+      Å åpne en samling viser mønstrene som definerer den. Hvert utdatamønster åpner til kildefilen over språkfilene, og hver enkelt bærer formatet Kapi leste den som.
+  - id: keys
+    kind: desktop
+    beat: keys
+    caption: Nøkkelkolonnen navngir blokken Review bestemmer seg for.
+    crop: { x: 0.5, y: 0.14, w: 0.5, h: 0.42 }
+    text: >-
+      En JSON-katalog er en liste med nøkler og tilhørende tekst, så forhåndsvisningen leser den som en tabell. Nøkkelkolonnen er det som gjør den navigerbar, og det er den samme nøkkelen som navngir blokken i Review.
+  - id: code
+    kind: desktop
+    beat: code
+    caption: "Den samme filen, slik den er skrevet på disk."
+    crop: { x: 0.5, y: 0.12, w: 0.5, h: 0.42 }
+    text: >-
+      Den andre fanen er selve filen, med linjen for den valgte nøkkelen uthevet. Struktur på den ene, byte på den andre, og det samme innholdet under begge.
+  - id: outro
+    kind: outro
+    text: >-
+      Trekk ut én gang. Etter det trekker en redigering av en kildefil den ut på nytt, slik at det prosjektet vet holder seg i takt med arbeidstreet.

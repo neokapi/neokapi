@@ -1,0 +1,69 @@
+# Native reference doc for the built-in `vtt` format.
+# Schema source: core/formats/vtt/config.go (Config).
+# Behaviour grounded in core/formats/vtt/reader.go, writer.go, transform.go
+# and spec.yaml, mirroring Okapi's WebVTT subtitle filter (okf_vtt).
+description: "Les og skriv WebVTT-undertekstfiler, og trekk ut én blokk per melding."
+overview: |
+  WebVTT (Web Video Text Tracks) er W3Cs undertekst- og undertekstformat
+  som brukes av HTML5-`<track>`-elementer. En `.vtt`-fil åpner med en `WEBVTT`-
+  overskrift og lister deretter opp cuer: en valgfri cue-identifikator, en tidskode-linje
+  (`HH:MM:SS.mmm --> HH:MM:SS.mmm` pluss valgfrie posisjonsinnstillinger),
+  og én eller flere linjer med cue-tekst.
+
+  Leseren sender ut `WEBVTT`-overskriften som en ikke-oversettbar datadel,
+  hver cue-identifikator som sin egen datadel, og én oversettbar blokk per
+  cue. Tidskoden (inkludert eventuelle cue-innstillinger) bevares i
+  blokkkens `timecode`-egenskap og skrives tilbake uendret, slik at timingen
+  overlever rundturen. Cuer holdes separate uten sammenslåing etter
+  setning, så hver cue oversettes uavhengig.
+parameters:
+  maxCharsPerLine:
+    description: Maksimalt antall tegn per linje med meldingstekst på utdata.
+    help: |
+      Begrenser linjelengden på skrevet cue-tekst. `0` (standard) betyr ingen
+      grense. Dette er en parameter på utdatasiden modellert etter Okapis WebVTT-
+      skriver; den innebygde skriveren aksepterer den for konfigurasjonsparitet, men
+      ombryter foreløpig ikke cue-tekst; linjer skrives slik de er levert
+      av blokken.
+    values: "Heltall (standard `0`, som betyr ingen grense)"
+  maxLinesPerCaption:
+    description: Maksimalt antall tekstlinjer per melding på utdata.
+    help: |
+      Begrenser hvor mange linjer en enkelt melding kan oppta. `0` (standard) betyr
+      innen grense. Akseptert for paritet med Okapis WebVTT-skriver; den innebygde
+      skriveren håndhever dette for øyeblikket ikke.
+    values: "Heltall (standard `0`, som betyr ingen grense)"
+  cjkCharsPerLine:
+    description: Maksimalt antall tegn per linje for CJK-språk.
+    help: |
+      En separat tegngrense per linje anvendt på CJK-tekst, der hvert
+      tegn er visuelt bredere. `0` (standard) faller tilbake til
+      `maxCharsPerLine`. Akseptert for paritet med Okapis WebVTT-skriver;
+      den innebygde skriveren håndhever dette for øyeblikket ikke.
+    values: "Heltall (standard `0`, faller tilbake til maxCharsPerLine)"
+    dependsOn:
+      - property: maxCharsPerLine
+        condition: brukes som reserveverdi når cjkCharsPerLine er 0
+  splitWords:
+    description: Tillat deling av ord for å holde seg innenfor tegngrensen.
+    help: |
+      Når aktivert, kan ord brytes på tvers av linjer for å overholde
+      tegn per linje-grensen; når deaktivert, faller linjeskift bare på
+      ordgrenser. Trer i kraft kun sammen med en ikke-null tegngrense.
+      Akseptert for paritet med Okapis WebVTT-skriver; den innebygde
+      skriveren pakker for øyeblikket ikke om tekst.
+    values: "`true` / `false` (standard `false`)"
+    dependsOn:
+      - property: maxCharsPerLine
+        condition: kun relevant når en tegngrense er angitt
+limitations:
+  - "Parameterne for linjebryting på utdata (maxCharsPerLine, maxLinesPerCaption, cjkCharsPerLine, splitWords) er akseptert for paritet med Okapi, men håndheves ikke ennå av den innebygde skriveren; meldingstekst skrives som levert."
+  - Replikker flettes aldri etter setning; hver replikk er en separat blokk.
+processingNotes:
+  - WEBVTT-headeren sendes ut som en datadel; meldingsidentifikatorer blir egne datadeler.
+  - Meldingstidskoden og innstillingene bevares på blokk-egenskapen `timecode` og skrives tilbake uendret.
+examples:
+  - title: Standard uttrekk
+    description: Les hver melding som en oversettbar blokk uten utdata-linjegrenser.
+    config: |
+      {}

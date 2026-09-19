@@ -1,0 +1,62 @@
+id: bowrain-web-collaboration
+title: En teammates avatar dukker opp på under ett sekund
+subtitle: "To personer i én fil, over én server, uten ett flette-steg."
+tagline: the server-side platform companion to kapi
+kind: use-case
+publishAs: bowrain-web-collaboration
+terminal: desktop
+target: web
+brand: bowrain
+needsAi: false
+# One continuous narration read: uniform voice across scenes.
+oneshot: true
+outro:
+  line: Inviter via e-post under Medlemmer og roller.
+  pointer: bowrain.cloud
+aspects:
+  - Live presence in the editor
+  - Two people, one file
+  - Invited by email, governed by role
+
+# Recorded with TWO genuine authenticated users: the camera is the first user
+# (Alice); a second, off-camera session (Bob) joins the same Translate file, so
+# his presence avatar appears live over the real collab WebSocket. The beats
+# below match harness/src/driver/record-desktop.ts `bowrainCollaborationWalk`.
+# Seed with harness/scripts/seed-collaboration.mjs (prints both tokens + the
+# project/item/locale) and pass BOWRAIN_PEER_TOKEN to record the live presence.
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Når en teammate åpner filen du allerede er i, vises avataren deres i editoren din innen ett sekund.
+  - id: teammate-joins
+    kind: desktop
+    beat: teammate-joins
+    caption: "En annen person, i samme fil."
+    hold: 20
+    crop: { selector: '[data-testid="presence-avatars"]' }
+    zoom: 2.5
+    highlight: { selector: '[data-testid="presence-avatars"]' }
+    text: >-
+      Det er en annen person, i en annen nettleser, pålogget som seg selv. Serveren videresender tilstedeværelsen deres i sanntid, så en fil du jobber i endres aldri stille av noen du ikke kan se. Ingenting ble eksportert, og ingenting trenger å flettes inn etterpå.
+  - id: co-editing
+    kind: desktop
+    beat: co-editing
+    caption: Tilstedeværelsen følger personen.
+    hold: 18
+    crop: { x: 0.12, y: 0.15, w: 0.76, h: 0.42 }
+    text: >-
+      De går til sin egen blokk, og tilstedeværelsen følger med. To oversettere jobber i samme fil samtidig, med samme delte memory og de samme termene, så ingen av dem trenger å gjette hva den andre allerede har bestemt.
+  - id: members
+    kind: desktop
+    beat: members
+    caption: "Invitert via e-post, tildelt en rolle."
+    hold: 14
+    crop: { selector: '[role="dialog"]' }
+    text: >-
+      Hvem som får tilgang er en beslutning, ikke en bivirkning. Inviter en kollega via e-post under Medlemmer og roller, og gi dem rollen språket trenger: eier, admin, medlem eller leser.
+  - id: outro
+    kind: outro
+    text: >-
+      Ett arbeidsområde, delt i sanntid og styrt av rollen hver person har.

@@ -1,0 +1,61 @@
+id: bowrain-web-governance
+title: "En term som er avtalt én gang, bør ikke diskuteres to ganger"
+subtitle: "Ett konsept, formuleringen per språk, tilgjengelig der du skriver."
+tagline: the server-side platform companion to kapi
+kind: use-case
+publishAs: bowrain-web-governance
+terminal: desktop
+target: web
+brand: bowrain
+needsAi: false
+# One continuous narration read: uniform voice across scenes.
+oneshot: true
+outro:
+  line: "Push et prosjekt, og termene dets ankommer her."
+  pointer: kapi push
+aspects:
+  - Concepts, with a status per language
+  - Shared content memory
+  - The agreed wording, beside the block
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      En term som bestemmes én gang på én laptop, bestemmes på nytt på den neste. Bowrain lagrer teamets termer på serveren i stedet.
+  - id: concept
+    kind: desktop
+    beat: concept
+    caption: "Ett konsept, ett avtalt ord per språk."
+    hold: 17
+    crop:
+      selector:
+        - '[data-testid="concept-header"]'
+        - '[data-slot="concept-geography"]'
+    highlight: { selector: '[data-testid="concept-header"]' }
+    text: >-
+      Dette er ett konsept: selve ideen, hva teamet kaller det på hvert språk, og statusen hvert av disse ordene har. Det er registeret to oversettere ellers ville argumentert fra hukommelsen, og ingenting av det ligger i noens checkout.
+  - id: tm-search
+    kind: desktop
+    beat: tm-search
+    caption: "Den samme formuleringen, allerede registrert."
+    hold: 14
+    crop: { selector: '[data-testid="tm-browser"]' }
+    text: >-
+      Arbeidsområdets content memory svarer for setninger teamet allerede har godkjent. Søk i det, og hvert prosjekt i arbeidsområdet bruker de samme svarene i stedet for å betale for å oversette dem en gang til.
+  - id: in-the-editor
+    kind: desktop
+    beat: in-the-editor
+    caption: "Gjeldende termer, ved siden av blokken."
+    hold: 21
+    crop:
+      selector:
+        - '[data-testid="term-sidebar"]'
+        - '[data-testid="visual-editor-card"]'
+    highlight: { selector: '[data-testid="term-sidebar"]' }
+    text: >-
+      Og dette er grunnen til at begge hører hjemme på en server. Åpne en fil i Translate, og termene som gjelder for denne blokken vises ved siden av redigeringskortet sammen med memory-treff for den, før noen har skrevet et ord. Beslutningen følger arbeidet i stedet for å vente på å bli slått opp.
+  - id: outro
+    kind: outro
+    text: >-
+      Push et prosjekt, og termene og beslutningene dets ankommer her for teamet.

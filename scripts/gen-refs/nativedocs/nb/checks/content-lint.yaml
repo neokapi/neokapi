@@ -1,0 +1,43 @@
+# Native reference doc for the `content-lint` source-side check.
+# Source: core/check/sourcechecks.go (NewContentLintTool, contentLintFindings)
+# and core/check/hygiene.go (the shape predicates it reads).
+# A check, not a registry tool: it has no schema and no flag of its own.
+description: "Rapporter teksthygienefeil i en enkelt kildetekst, inkludert tomhet, løse blanktegn, avstand og repetisjon."
+overview: |
+  **Content Lint**-kontrollen er den alltid-på halvparten av `kapi check`. Den leser kildeteksten i hver
+  blokk alene, uten måltekst og uten sammenligning mot en språkkode,
+  og rapporterer hva som er galt med innholdets form:
+
+  - `hygiene.empty`: blokken inneholder ingenting annet enn blanktegn. Alvorlig, og det eneste
+    funnet som rapporteres for den blokken, fordi de øvrige ikke har noe å bedømme.
+  - `hygiene.leading-whitespace` og `hygiene.trailing-whitespace`: blanktegn på
+    en kant som en forfatter har lagt igjen der.
+  - `hygiene.double-spaces`: to eller flere mellomrom mellom to innholdsdeler på
+    én linje.
+  - `hygiene.doubled-word`: et ord som gjentas umiddelbart, sammenlignet uten hensyn
+    til store og små bokstaver.
+  - `hygiene.control-char`: et løst kontrolltegn. Tab, vognretur og
+    linjeskift er ordinære blanktegn og rapporteres ikke.
+
+  Alt unntatt tomhetsfunnet er mindre alvorlig, så et dokument med småfeil
+  består likevel en vanlig kontroll og vises i poengsummen. Unntaket er et dobbelt
+  mellomrom i en kommentar, som er alvorlig.
+
+  Hvert enkelt av disse er en vurdering av *form*, og form bedømmes over
+  blokken snarere enn over ren tekst. En plassholder er innhold: den holder en
+  posisjon, så mellomrommet ved siden av den skiller den fra et ord i stedet for å henge
+  etter kanten av innholdet. Et inline-kode-spenn står som én enhet, så det en
+  forfatter har skrevet inne i backticks er sitert, ikke bedømt – to mellomrom i et
+  kode-spenn er eksempelet, ikke en feil. Og ett enkelt avsluttende linjeskift er
+  innholdets linjeavslutning, som formater som et YAML-blokkskalar krever, så
+  det er ikke blanktegn noen har lagt igjen.
+limitations:
+  - Leser bare kildetekst; et misforhold mellom en kilde og dens oversettelse er spørsmålet for den tospråklige `qa`-kontrollen.
+  - "Bedømmer form fremfor språk, og utfører ingen stave-, grammatikk- eller stilanalyse."
+  - Kjører over oversettbare blokker; innhold en leser presenterer som struktur eller kode blir aldri vurdert.
+processingNotes:
+  - Alltid på. Den trenger ingen konfigurasjon og har ingen bryter for å aktivere eller deaktivere den.
+  - "Funn bærer den stabile regel-id-en `hygiene.<category>` og blokkens plassering, slik at en fikssløyfe kan adressere den eksakte blokken og spore en regel på tvers av iterasjoner."
+  - "Regelen om dobbelt mellomrom ser bort fra en rekke mellomrom som rykker inn en fortsettelseslinje, fordi det er kildens linjestruktur snarere enn mellomrom inne i en setning."
+  - "I en kommentar rapporterer regelen for dobbelt mellomrom bare en sekvens på nøyaktig to mellomrom mellom to tegn – ikke én som slutter der et ord begynner på linjen over eller under, og ikke én inne i backticks eller doble anførselstegn, fordi en kommentar legger ut tekst i kolonner og siterer bokstavelig tekst. Et dobbelt mellomrom som rapporteres, er alvorlig."
+  - "Regelen for dobbelt ord rapporterer et gjentatt *ord*, så et gjentatt tegn eller symbol, notasjonen en forfatter mente å vise, er ikke et slikt."

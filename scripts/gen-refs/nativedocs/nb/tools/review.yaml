@@ -1,0 +1,47 @@
+# Native reference doc for the built-in `review` tool.
+# Schema source: core/ai/tools/review.go (AIReviewConfig).
+description: "Gjennomgå hver oversettelse med en LLM, og produser en poengsum, vurdering og forslag."
+overview: |
+  **Review**-verktøyet ber en konfigurert LLM-leverandør gjennomgå hver
+  oversettelse og returnere en kortfattet vurdering: en poengsum fra 1 til 10, en kort
+  bedømmelse av nøyaktighet og flyt, og et forslag til forbedring der det er aktuelt.
+  Gjennomgangsteksten registreres på blokkens egenskaper sammen med leverandørnavnet. Blokker uten en oversettelse for målspråkkoden hoppes over.
+
+  Både en målspråkkode og leverandørlegitimason er påkrevd, siden verktøyet gjør
+  et eksternt API-kall per blokk. I motsetning til den AI-baserte kontrollen, som returnerer
+  strukturerte funn, produserer dette verktøyet en friformatgjennomgang beregnet på menneskelige
+  revisorer som avgjør om en oversettelse trenger revisjon.
+parameters:
+  provider:
+    description: LLM-leverandørens backend som skal brukes.
+    help: |
+      Velger hvilken modellbackend som utfører gjennomgangen.
+    values: "`anthropic` (standard), `openai`, `gemini`, `azureopenai`, `ollama` (lokal, ingen nøkkel)"
+  apiKey:
+    description: API-nøkkel for AI-leverandøren.
+    help: |
+      Legitimasjon for den valgte leverandøren. Lokale leverandører som Ollama krever kanskje ikke en nøkkel. Foretrekk legitimasjonslageret eller miljøet fremfor å lagre nøkler i en oppskrift.
+    values: "streng"
+  model:
+    description: Modellnavnet som skal forespørres fra leverandøren.
+    help: |
+      Den leverandørspesifikke modellidentifikatoren. Når den utelates, brukes leverandørens standardmodell.
+    values: "streng"
+limitations:
+  - Krever legitimasjon for AI-leverandøren og en målspråkkode; gjør et eksternt API-kall per blokk.
+  - "Gjennomgangen er friformatutdata fra modellen, ikke strukturerte funn."
+  - Blokker uten en oversettelse for målspråkkoden hoppes over.
+processingNotes:
+  - Behandler blokker som har en oversettelse for målspråkkoden.
+  - Blokker behandles parallelt som standard for gjennomstrømning.
+  - Gjennomgangsteksten og leverandørnavnet lagres på blokkens egenskaper.
+examples:
+  - title: Gjennomgang med standard leverandør
+    description: Skår og vurder hver oversettelse ved hjelp av Anthropic.
+    config: |
+      provider: anthropic
+  - title: Gjennomgang med en bestemt modell
+    description: Bruk en navngitt OpenAI-modell for gjennomgangen.
+    config: |
+      provider: openai
+      model: gpt-4o

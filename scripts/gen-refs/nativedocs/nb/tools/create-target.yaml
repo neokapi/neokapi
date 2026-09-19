@@ -1,0 +1,48 @@
+# Native reference doc for the built-in `create-target` tool.
+# Schema source: core/tools/createtarget.go (CreateTargetConfig).
+description: "Opprett målsegmentbeholdere for en språkkode, eventuelt fylt med kildeteksten."
+overview: |
+  Verktøyet **Create Target** sikrer at hver blokk har et målsegment for en gitt språkkode. Det er det vanlige første steget når du gjør innhold klart for oversettelse: det oppretter tomme (eller kildebaserte) målbeholdere som senere verktøy (oversettelse, gjenbruk, verifisering) fyller ut og kontrollerer.
+
+  En målspråkkode er påkrevd. Som standard forblir eksisterende mål urørt; aktiver overskriving for å erstatte dem. Mål kan også opprettes for ikke-oversettbare blokker, noe som holder den tospråklige strukturen komplett gjennom hele dokumentet.
+parameters:
+  targetLocale:
+    description: Språkkoden det skal opprettes et mål for.
+    help: |
+      BCP-47-språkkodeidentifikatoren for målet som skal opprettes (for eksempel
+      `fr`). I CLI og i flyter angis dette vanligvis av
+      verdien `--target-lang`.
+    values: "BCP-47-språkkode (påkrevd)"
+  copySource:
+    description: Fyll det nye målet med kildeteksten.
+    help: |
+      Når aktivert, kopieres kildeteksten inn i det nye målsegmentet slik at det
+      starter som en kopi av kilden. Når deaktivert, opprettes målet
+      tomt.
+    values: "`true` / `false` (standard `false`)"
+  overwrite:
+    description: Erstatt mål som allerede finnes.
+    help: |
+      Som standard forblir en blokk som allerede har et mål for språkkoden
+      uendret. Aktiver dette for å overskrive det eksisterende målet med et nytt
+      (tomt eller kildeinitiert) ett.
+    values: "`true` / `false` (standard `false`)"
+  createOnNonTranslatable:
+    description: Opprett også mål for ikke-oversettbare blokker.
+    help: |
+      Når aktivert, opprettes målbeholdere selv for blokker merket som
+      ikke-oversettbare, noe som holder den tospråklige strukturen komplett. Deaktiver for å
+      hoppe over ikke-oversettbare blokker helt.
+    values: "`true` / `false` (standard `true`)"
+processingNotes:
+  - Eksisterende mål hoppes over med mindre overskriving er aktivert.
+examples:
+  - title: Opprett tomme mål for en språkkode
+    description: Klargjør tomme målbeholdere klare for oversettelse.
+    config: |
+      targetLocale: fr
+  - title: Forhåndsutfyll mål med kilden
+    description: Fyll mål med kildetekst som et utgangsutkast.
+    config: |
+      targetLocale: de
+      copySource: true

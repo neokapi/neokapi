@@ -1,0 +1,53 @@
+id: kapi-desktop-config
+title: Nøkkelringen holder nøkkelen
+subtitle: "En oppskrift registrerer hvilken legitimasjon som skal brukes, og hemmeligheten holdes utenfor."
+kind: use-case
+publishAs: kapi-desktop-config
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - Appearance
+  - AI providers
+  - Plugins
+  - Keychain-backed keys
+outro:
+  line: Legg til nøkkelen én gang; begge overflater bruker den.
+  pointer: kapi credentials add
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      kapi-desktop legger en leverandørnøkkel i operativsystemets nøkkelring, slik at oppskriften du forplikter aldri bærer en. Innstillinger er der nøkkelen legges til, og der tillegg og utseende også bor.
+  - id: open-settings
+    kind: desktop
+    beat: open-settings
+    caption: "Utseende, modeller, tillegg og språkkoder, på ett sted."
+    text: >-
+      Innstillinger samler utseende, AI-modellene et prosjekt kan oversette med, tillegg og språkene selve grensesnittet kan kjøre på.
+  - id: general
+    kind: desktop
+    beat: general
+    caption: "Følger systemet, eller låst til ett av alternativene."
+    text: >-
+      Utseende følger systemet ditt som standard, eller du kan låse til lyst eller mørkt. Grensesnittet kan også kjøre i et pseudospråk, som er måten du tester at et skjermbilde tåler lengre ord.
+  - id: credentials
+    kind: desktop
+    beat: credentials
+    caption: Nøkkelen skrives inn her og lagres av nøkkelringen.
+    crop: { selector: '[role="dialog"]' }
+    text: >-
+      AI-modeller viser leverandørene og modellene under hver av dem. Når du legger til legitimasjon, bes du om et navn, en modell og nøkkelen, og nøkkelen lagres i operativsystemets nøkkelring. Oppskriften registrerer hvilken legitimasjon som skal brukes, aldri selve hemmeligheten.
+  - id: plugins
+    kind: desktop
+    beat: plugins
+    caption: "Tillegg legger til formater, koblinger og verktøy."
+    text: >-
+      Tillegg utvider hva prosjektet kan lese og kjøre, ved å legge til formater, koblinger og verktøy utover det innebygde settet.
+  - id: outro
+    kind: outro
+    text: >-
+      Legg til en nøkkel én gang her, og kommandolinjen i samme mappe bruker den samme, fordi begge leser den samme nøkkelringen.

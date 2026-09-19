@@ -1,0 +1,99 @@
+id: 07-global-launch-many-languages
+title: Se regningen før du bruker den
+subtitle: "Fire språk, ett pass, og en plan som kjører uten leverandørkall."
+kind: zero-to-hero
+aspects:
+  - multi-locale
+  - CJK / non-Latin
+  - placeholders preserved
+needsAi: true
+model: sonnet
+captureTimeoutSec: 360
+# The sandbox IS the project: a recipe at its root naming the four target
+# languages, so the commands read the way a user types them. The sandbox lives
+# in os.tmpdir(), outside the repo.
+project: true
+outro:
+  line: Les planen før du kjører passet.
+  pointer: kapi up --plan
+
+# Both legs are stated as instructions in one message, in order, with the
+# go-ahead in it. A headless `claude -p` session gets no second turn, so a
+# request that reads as a checkpoint ends the take on "Shall I proceed?" (#2576):
+# the plan is presented, nobody answers, and the artifact stage finds no
+# catalogs to spotlight.
+prompt: >
+  We're launching our notes app in more markets. The recipe already lists German,
+  Spanish, French and Japanese. Do both of these, in order, without stopping to ask:
+  first show me the plan for the pending work, then bring the project up to date so
+  each language has a catalog beside src/en.json.
+
+artifacts:
+  - id: plan
+    caption: "kapi up --plan: the pending work, before anything runs"
+    source: command
+    # The pristine tree: on the post-run snapshot the plan is empty, because the
+    # run it previews has already happened. `from: fixture` puts the command's
+    # cwd in the COMMITTED fixtures directory, so the plan is read in a copy
+    # made under the system temp directory: a dry run still opens a project
+    # store, and nothing a recording does may land in a tracked tree. Artifact
+    # commands run under the harness's kapi isolation, which turns recipe
+    # discovery off, so the recipe is named rather than walked to.
+    command: d=$(mktemp -d) && cp -R . "$d" && cd "$d" && kapi up --plan --json -p kapi.yaml
+    from: fixture
+    report: json
+    reportTitle: "kapi up --plan --json"
+    reportSub: "units, memory leverage and an estimate per locale, computed locally"
+    width: 1120
+    height: 760
+  - id: ja
+    caption: "src/ja.json: Japanese, placeholders intact"
+    source: report
+    report: catalog
+    reportTitle: "src/ja.json (日本語)"
+    reportSub: "kapi · {{name}} and {{price}} preserved"
+    path: src/ja.json
+    width: 1120
+    height: 720
+  - id: status
+    caption: "kapi status: four locales, after one pass"
+    source: command
+    command: kapi status -p kapi.yaml --json
+    report: json
+    reportTitle: "kapi status --json"
+    reportSub: "per locale: how much is there, and how far it has come"
+    width: 1120
+    height: 760
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Fire målspråk fra én engelsk fil er ett prosjekt å oppdatere, og planen viser hva det vil koste før noe brukes.
+  - id: plan
+    kind: artifact
+    artifact: plan
+    caption: "Hva som venter, per språkkode, før en leverandør kalles."
+    text: >-
+      Dette er forhåndsvisningen. Per språkkode: enhetene uten måltekst ennå, hvor mange av dem prosjektets eget memory kan svare på, og et estimat for resten. Den beregnes på denne maskinen, så å lese den koster ingenting.
+  - id: work
+    kind: terminal
+    caption: "Ett pass, fire språkkoder, nøkler og plassholderene bevart."
+    text: >-
+      Så konvergerer ett pass alle fire samtidig. kapi tolker filen som en katalog, så hver nøkkel og hver interpolasjonsplassholder er struktur den bærer – ikke tekst en modell kan skrive om.
+  - id: ja
+    kind: artifact
+    artifact: ja
+    caption: "Japansk, med plassholderene der koden forventer dem."
+    text: >-
+      Her er japansk. Grensesnittteksten er i et ikke-latinsk skriftsystem, navn- og prisplassholderene sitter nøyaktig der koden leser dem, og filen er fortsatt gyldig JSON.
+  - id: status
+    kind: artifact
+    artifact: status
+    caption: "Fire språkkoder, én linje hver."
+    text: >-
+      Og dette er hvor prosjektet står etterpå. Én linje per språkkode, og å legge til et femte marked senere er én ny oppføring i oppskriften – ikke en femte jobb å planlegge.
+  - id: outro
+    kind: outro
+    text: >-
+      Kjør planen på ditt eget prosjekt først. Den leser det ventende arbeidet uten å kalle en leverandør, så tallet kommer frem før regningen gjør det.

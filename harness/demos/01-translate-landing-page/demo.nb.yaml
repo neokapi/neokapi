@@ -1,0 +1,65 @@
+id: 01-translate-landing-page
+title: Markup-en kommer tilbake urørt
+subtitle: "Én forespørsel i Claude Code, og bare ordene en besøkende leser endres."
+kind: zero-to-hero
+aspects:
+  - AI translation
+  - HTML round-trip
+  - format-aware
+needsAi: true
+model: sonnet
+captureTimeoutSec: 300
+outro:
+  line: "Installer skill-et, og spør på vanlig norsk."
+  pointer: /plugin install kapi@neokapi-plugins
+
+prompt: >
+  We're launching Lumen Notes in France next week. Can you translate our landing page,
+  index.html, into French? Save the French version as index.fr.html.
+
+artifacts:
+  - id: before
+    caption: "index.html: the English page"
+    source: html
+    path: index.html
+    width: 1280
+    height: 900
+  - id: after
+    caption: "index.fr.html: the same page, text in French"
+    source: html
+    path: index.fr.html
+    width: 1280
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Send en landingsside til Claude Code og be om den på fransk. Med kapi-skill-et installert bruker assistenten en formatbevisst oversettelse, og HTML-en kommer tilbake intakt.
+  - id: before
+    kind: artifact
+    artifact: before
+    caption: "En hero, en oppfordring til handling, tre kort. Alt er markup."
+    text: >-
+      Her er siden slik den er i dag. En hero, en oppfordring til handling, tre funksjonskort, og rundt hver setning klassene og lenkene som gjør det til en side fremfor et dokument.
+  - id: recognise
+    kind: terminal
+    caption: "Skill-et svarer på forespørselen, og ett kapi-kall følger."
+    highlight: { text: [Skill, kapi translate] }
+    text: >-
+      Claude leser forespørselen, gjenkjenner en oversettelsesjobb og laster kapi-skill-et før det kjører noe som helst. Kallet det gjør angir filen og målspråket, og ingenting annet.
+  - id: round-trip
+    kind: terminal
+    caption: "Tekst ut, oversatt og tilbake i de samme taggene."
+    text: >-
+      kapi skiller lesbar tekst fra markup, gjenbruker ordlyden dette prosjektet allerede har godkjent, sender resten til den konfigurerte leverandøren og kjører kontroller før resultatet skrives tilbake i samme struktur.
+  - id: after
+    kind: artifact
+    artifact: after
+    caption: "Samme klasser, samme layout. Bare ordene ble endret."
+    text: >-
+      Og den franske siden. Klassene, layouten og lenkene er de samme som var der før. Det som endret seg er teksten en besøkende leser.
+  - id: outro
+    kind: outro
+    text: >-
+      Installer skill-et i Claude Code, og be om en side på et annet språk slik denne forespørselen gjorde.
