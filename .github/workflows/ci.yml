@@ -1294,6 +1294,8 @@ jobs:
           cache: false
       - name: Guard — every tracked .go file is gofmt-clean
         run: make check-gofmt
+      - name: "Guard: every tracked Go, code, YAML and markup file is claimed or excluded by kapi.yaml"
+        run: make check-comment-coverage
 
       # Every em-dash part but one runs here, behind the same toolchain: the
       # matcher builds from its own module with GOWORK=off and imports only the

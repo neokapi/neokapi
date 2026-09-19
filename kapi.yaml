@@ -128,6 +128,16 @@ defaults:
       config:
         translateFrontMatter: true
         frontMatterKeys: [title, description, sidebar_label]
+  # Code comments are prose, and the collections at source/comments below
+  # declare them. A comment line that opens with one of these markers is read
+  # by the contract audit (.contract-audit), so a check sets it aside rather
+  # than reading it as a sentence.
+  comments:
+    directives:
+      - "okapi:"
+      - "okapi-skip:"
+      - "okapi-unmapped:"
+      - "okapi-deferred:"
   exclude:
     - "**/node_modules/**"
     - "**/.git/**"
@@ -137,6 +147,30 @@ defaults:
     - "bowrain/web/docs/i18n/**"
     - "harness/public/**"
     - "**/testdata/**"
+    # What the comment collections below leave out. This list is the only
+    # allowlist `make check-comment-coverage` accepts, so each entry says why.
+    # Build output.
+    - "**/dist/**"
+    # Recipes. The content resolver never claims a file named kapi.yaml, so no
+    # collection can declare a recipe's comments.
+    - "**/kapi.yaml"
+    # Generated: the Wails bindings (wails3 generate bindings), the rendered
+    # mail templates (make l10n-compile), the demo narration sidecars and the
+    # pseudo-translated reference dossiers (both written by the loop), and the
+    # docs palette (make generate-docs-palette).
+    - "apps/kapi-desktop/frontend/bindings/**"
+    - "bowrain/apps/bowrain/frontend/bindings/**"
+    - "bowrain/mailer/templates/**"
+    - "harness/demos/*/demo.*.yaml"
+    - "scripts/gen-refs/nativedocs/qps/**"
+    - "**/palette.generated.css"
+    # Sample projects and test fixtures: content written to be read by a check
+    # or a test, faults included, rather than prose about this repository.
+    - "samples/**"
+    - "apps/kapi-desktop/backend/sample/**"
+    - "bowrain/apps/bowrain/samples/**"
+    - "**/e2e/fixtures/**"
+    - "**/e2e/seed/**"
 
 # Governance bound to a product. Two products share one repository and one kapi
 # project, so the profile is what tells their content apart; the channels it
@@ -152,6 +186,13 @@ profiles:
   bowrain:
     channels: [app, ctrl, pulse, docs, email, landing]
     voice: .kapi/profiles/bowrain/voice.yaml
+  # The code comments of both products. The comment voice holds them to its
+  # length limits and to the writing tells a comment avoids. Its terms store is
+  # empty: a comment names identifiers and standards that the product
+  # vocabulary is not written for.
+  source:
+    channels: [comments]
+    voice: .kapi/profiles/source/voice.yaml
 
 # A channel is always bound as `<profile>/<channel>`: the product owns the
 # surface, and the binding reads as one.
@@ -436,6 +477,121 @@ collections:
         format:
           name: yaml
         target: "{dir}/demo.{lang}.yaml"
+  # ── Code comments ────────────────────────────────────────────────────────
+  #
+  # A comment is prose that a person or an agent writes beside the code. These
+  # collections place the comments of the repository's sources at
+  # source/comments, where the comment voice checks them. Each item declares
+  # its files for their comments alone (`comments: {only: true}`), so no run
+  # extracts, converges, merges or counts a value in them. They come last, and
+  # a file declared above keeps that item for its values. Its comments are
+  # checked at source/comments when a collection here matches it, unless the
+  # item that claims its values declares comments of its own first.
+  #
+  # The patterns name the directories that hold code rather than `**` from a
+  # package root. A workspace package keeps a node_modules of symlinks into the
+  # pnpm store, and a glob follows them, which costs seconds on every
+  # resolution. A new package needs its directory added here.
+  - name: source-go-comments
+    channel: source/comments
+    source_only: true
+    content:
+      - path: "{bench,cli,cmd,core,examples,host,kapi,kpz,memory,plugins,providers,scripts,terms,voice}/**/*.go"
+        comments:
+          only: true
+      - path: "bowrain/{agent,ai,analytics,apierror,auth,billing,cmd,connector,contextscan,core,credentials,crypto,e2e,editorclient,event,forge,graph,jobs,knowledge,mailer,memory,migrations,observe,platformconfig,plugin,proto,resilience,review,safehttp,sandbox,server,service,storage,store,sync,terms,testutil,voice}/**/*.go"
+        comments:
+          only: true
+      - path: "{apps/kapi-desktop,bowrain/apps/bowrain}/*.go"
+        comments:
+          only: true
+      - path: "{apps/kapi-desktop,bowrain/apps/bowrain}/{backend,cmd}/**/*.go"
+        comments:
+          only: true
+  - name: source-code-comments
+    channel: source/comments
+    source_only: true
+    content:
+      # TypeScript, JavaScript and CSS under each package's src/, and the
+      # scripts. The sourcecode plugin reads these; without it a check names
+      # the plugin and counts the files as not checked.
+      - path: "{bowrain/apps,bowrain/packages,packages}/*/src/**/*.{ts,tsx,js,mjs,cjs,css}"
+        comments:
+          only: true
+      - path: "{apps/kapi-desktop/frontend,bowrain/apps/bowrain/frontend,bowrain/emails,bowrain/web/landing,web}/src/**/*.{ts,tsx,js,mjs,cjs,css}"
+        comments:
+          only: true
+      - path: "{bowrain/packages,packages}/*/{examples,tests}/**/*.{ts,tsx,js,mjs,cjs,css}"
+        comments:
+          only: true
+      - path: "{bowrain/apps/*,bowrain/apps/bowrain/frontend}/e2e/**/*.{ts,tsx,js,mjs}"
+        comments:
+          only: true
+      - path: "{bowrain/storybook,storybook}/.storybook/*.{ts,tsx,js,css}"
+        comments:
+          only: true
+      - path: "*.{ts,tsx,js,mjs,cjs,css}"
+        comments:
+          only: true
+      - path: "{apps/kapi-desktop/frontend,bowrain/apps/*,bowrain/apps/bowrain/frontend,bowrain/packages/*,bowrain/web/docs,bowrain/web/landing,packages/*,web}/*.{ts,tsx,js,mjs,cjs,css}"
+        comments:
+          only: true
+      - path: "{apps/kapi-desktop/frontend/scripts,bowrain/apps/bowrain/frontend/scripts,bowrain/emails/scripts,bowrain/web/docs/src,bowrain/web/landing/e2e,packages/*/cli,.skills,examples,.claude/workflows}/**/*.{ts,tsx,js,mjs,cjs,css}"
+        comments:
+          only: true
+      - path: "web/{plugins,scripts}/**/*.{ts,tsx,js,mjs,cjs,css}"
+        comments:
+          only: true
+      - path: "{bowrain/e2e,harness,scripts}/**/*.{ts,tsx,js,mjs,cjs,css}"
+        comments:
+          only: true
+      - path: "{.skills,bench,bowrain/docker,bowrain/e2e,bowrain/scripts,core,examples,harness,kapi,plugins,scripts}/**/*.{sh,py,rs,c,h,cs,java,rb}"
+        comments:
+          only: true
+  - name: source-config-comments
+    channel: source/comments
+    source_only: true
+    content:
+      - path: "{*,.*}.{yaml,yml}"
+        comments:
+          only: true
+      - path: "{apps/kapi-desktop,bowrain/apps/bowrain,bowrain/web/docs}/*.{yaml,yml}"
+        comments:
+          only: true
+      - path: "bowrain/apps/bowrain/build/**/*.{yaml,yml}"
+        comments:
+          only: true
+      - path: "{.github,.kapi,.skills,apps/kapi-desktop/build,bowrain/deploy,bowrain/docker,bowrain/e2e,cli,core,docs,harness,scripts,specs,web/demos,web/scenes,web/walkthroughs}/**/*.{yaml,yml}"
+        comments:
+          only: true
+      - path: "bowrain/*.yaml"
+        comments:
+          only: true
+  - name: source-markup-comments
+    channel: source/comments
+    source_only: true
+    content:
+      - path: "*.md"
+        comments:
+          only: true
+      - path: "{.kapi,.skills,bowrain/docker,bowrain/e2e,bowrain/graph,bowrain/web/docs,cli,core,deploy,docs,examples,harness,host,packages/kapi-claude-plugin,plugins,scripts,specs,web/demos,web/static,web/walkthroughs}/**/*.{md,mdx,html}"
+        comments:
+          only: true
+      - path: "{apps/kapi-desktop/frontend,bowrain,bowrain/apps/bowrain/frontend,bowrain/web/landing,packages/*}/*.{md,html}"
+        comments:
+          only: true
+      - path: "packages/ui/docs/**/*.{md,mdx}"
+        comments:
+          only: true
+      - path: "{.claude,bowrain/apps/*,bowrain/web/landing/public}/*.{md,html}"
+        comments:
+          only: true
+      - path: "web/src/**/*.{md,mdx}"
+        comments:
+          only: true
+      - path: "{apps/kapi-desktop/build,harness,web/scenes}/**/*.{xml,resx,tmx,xlf,properties,po}"
+        comments:
+          only: true
 flows:
   # Exact-match content-memory leverage plus the one check that is about
   # correctness rather than coverage: the deterministic pass `defaults.flow`

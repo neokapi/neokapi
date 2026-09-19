@@ -10,6 +10,7 @@ use (
 	./host
 	./kapi
 	./scripts/batcheval
+	./scripts/commentcoverage
 	./scripts/contexteval
 	./scripts/contract-audit
 	./scripts/emdashcheck
