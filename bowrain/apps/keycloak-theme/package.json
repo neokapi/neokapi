@@ -17,7 +17,7 @@
     "@neokapi/docs-shared": "*",
     "@neokapi/ui": "*",
     "@tailwindcss/vite": "^4.3.3",
-    "keycloakify": "^11.15.14",
+    "keycloakify": "^11.16.0",
     "lucide-react": "^1.46.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
