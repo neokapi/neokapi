@@ -20,7 +20,8 @@ type KcContextLike = {
   rpId: string;
   attestationConveyancePreference: string;
   authenticatorAttachment: string;
-  requireResidentKey: string;
+  requireResidentKey?: string;
+  residentKey?: string;
   userVerificationRequirement: string;
   createTimeout: number | string;
   excludeCredentialIds: string;
@@ -77,6 +78,7 @@ export function useWebauthnRegisterScript(params: {
     attestationConveyancePreference,
     authenticatorAttachment,
     requireResidentKey,
+    residentKey,
     userVerificationRequirement,
     createTimeout,
     excludeCredentialIds,
@@ -125,6 +127,7 @@ export function useWebauthnRegisterScript(params: {
               attestationConveyancePreference : ${JSON.stringify(attestationConveyancePreference)},
               authenticatorAttachment : ${JSON.stringify(authenticatorAttachment)},
               requireResidentKey : ${JSON.stringify(requireResidentKey)},
+              residentKey : ${JSON.stringify(residentKey)},
               userVerificationRequirement : ${JSON.stringify(userVerificationRequirement)},
               createTimeout : ${createTimeout},
               excludeCredentialIds : ${JSON.stringify(excludeCredentialIds)},
