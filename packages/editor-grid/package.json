@@ -20,7 +20,7 @@
     "test:watch": "vp test watch"
   },
   "dependencies": {
-    "@tanstack/react-virtual": "3.14.10"
+    "@tanstack/react-virtual": "3.14.13"
   },
   "devDependencies": {
     "@storybook/react-vite": "^10.5.10",
