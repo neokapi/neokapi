@@ -181,3 +181,37 @@ func TestWriteBackBlocks_KeepsTheStoredContextHash(t *testing.T) {
 	assert.Equal(t, sb.ContentHash, after.Block.Properties["__source_settled_hash"], "the recorded property is stored")
 	assert.Equal(t, pushed, after.ContextHash, "the stored context hash is the one the push stored")
 }
+
+// The change log stamps target_modified for every target the caller carried,
+// asking only whether that locale existed before, never whether its text moved.
+// So a settlement stamp or one locale's draft re-serves every other locale on a
+// scoped pull. recordTargetHistoryPg already makes the comparison this needs.
+func TestWriteBackBlocks_AnUnchangedTargetIsNotLogged(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+	seed := model.NewBlock("k", "Hello")
+	seed.SetTargetText("nb", "Uendret")
+	seedWriteBackItem(t, s, p.ID, "en.json", seed)
+
+	sb := readItemByKey(t, s, p.ID, "en.json")["k"]
+	require.NotNil(t, sb)
+	logged := func() int {
+		return countRows(t, s, "change_log",
+			`project_id=$1 AND block_id=$2 AND change_type='target_modified' AND locale='nb'`,
+			p.ID, sb.Block.ID)
+	}
+	before := logged()
+
+	// The caller records a server stamp and leaves nb exactly as it read it.
+	if sb.Block.Properties == nil {
+		sb.Block.Properties = map[string]string{}
+	}
+	sb.Block.Properties["__source_settled_hash"] = sb.ContentHash
+	res, err := s.WriteBackBlocks(ctx, p.ID, "main", []*venue.StoredBlock{sb})
+	require.NoError(t, err)
+	require.Equal(t, 1, res.Written)
+
+	assert.Equal(t, before, logged(),
+		"a target whose text did not move is not logged as modified")
+}

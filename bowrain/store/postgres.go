@@ -1232,16 +1232,29 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 					return err
 				}
 			}
-			for key := range b.Targets {
+			// A target is logged when its text moved, not merely because the
+			// caller carried it. Every write-back caller hands over the whole
+			// block with every locale hydrated, so logging on presence alone
+			// stamped one locale's draft, or a settlement stamp, as a change in
+			// every other locale: a locale-scoped pull then re-serves blocks
+			// nobody touched. recordTargetHistoryPg already asks this question
+			// of the same snapshot, a few lines above.
+			prevText := oldTargetText[internalID]
+			for key, nt := range b.Targets {
+				if nt == nil {
+					continue
+				}
 				variant := VariantKeyText(key)
-				if _, had := existing.locales[variant]; had {
-					if err := logChange(ctx, tx, projectID, stream, internalID, "target_modified", variant, ""); err != nil {
-						return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
-					}
-				} else {
-					if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", variant, ""); err != nil {
-						return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
-					}
+				_, had := existing.locales[variant]
+				if had && model.RunsText(nt.Runs) == prevText[variant] {
+					continue
+				}
+				changeType := "target_added"
+				if had {
+					changeType = "target_modified"
+				}
+				if err := logChange(ctx, tx, projectID, stream, internalID, changeType, variant, ""); err != nil {
+					return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
 				}
 			}
 		}
