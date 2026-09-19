@@ -27,6 +27,7 @@ import type { Block, File } from "@neokapi/kapi-format";
 import { flattenRuns, isKbfPath } from "@neokapi/kapi-format";
 
 import { buildReviewManifest } from "../review/manifest.ts";
+import { hasICUSyntax } from "../runtime/icu.ts";
 
 interface BlockRecord {
   block: Block;
@@ -55,15 +56,58 @@ function tokenCounts(text: string): Map<string, number> {
 }
 
 /**
+ * The head of every picker a message opens: the argument name and the keyword,
+ * as `{judged.length, plural`. A plural or select carries its value inside the
+ * picker rather than as a token, so this is the only part of it a target owes.
+ *
+ * The same expression `scripts/check-derived-content.mjs` compares picker
+ * messages on, for the same reason the token above is shared with it.
+ */
+const PICKER_HEAD = /\{\s*([A-Za-z_][A-Za-z0-9_.-]*)\s*,\s*(?:plural|select|selectordinal)\b/g;
+
+function matchSet(re: RegExp, text: string): Set<string> {
+  return new Set([...text.matchAll(re)].map((m) => m[0]));
+}
+
+function sameSet(want: Set<string>, got: Set<string>): boolean {
+  if (want.size !== got.size) return false;
+  for (const value of want) {
+    if (!got.has(value)) return false;
+  }
+  return true;
+}
+
+/**
  * Whether a target may ship: it carries its source's placeholders, each the
  * same number of times.
  *
  * Counted, not just present: a plural whose target reuses one token where the
- * source had two still loses a value. Extra tokens fail too — a token the
+ * source had two still loses a value. Extra tokens fail too: a token the
  * source never had renders as a literal brace to a reader, which is how a
  * translator's typo reaches production looking like markup.
+ *
+ * A message that opens a picker is compared differently, because counting is
+ * the wrong question there. How many categories a language needs is a property
+ * of that language, so Norwegian writes two branches where Polish writes four
+ * and Japanese writes one, and a target with fewer is correct rather than
+ * lossy. What such a target owes is the picker's head and every argument
+ * inside it, both by presence: a flattened plural loses the head, and a renamed
+ * argument resolves against nothing at render time. Branch bodies are not
+ * tokens, which the narrow braced form above already reflects, so the text a
+ * translator writes inside a branch is theirs to change.
  */
 function carriesItsPlaceholders(sourceText: string, targetText: string): boolean {
+  if (hasICUSyntax(sourceText) || hasICUSyntax(targetText)) {
+    const wantHeads = matchSet(PICKER_HEAD, sourceText);
+    const gotHeads = matchSet(PICKER_HEAD, targetText);
+    if (wantHeads.size > 0 || gotHeads.size > 0) {
+      return (
+        sameSet(wantHeads, gotHeads) &&
+        sameSet(matchSet(TOKEN, sourceText), matchSet(TOKEN, targetText))
+      );
+    }
+  }
+
   const want = tokenCounts(sourceText);
   const got = tokenCounts(targetText);
   if (want.size !== got.size) return false;
