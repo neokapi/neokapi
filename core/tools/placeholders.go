@@ -122,9 +122,14 @@ func compareICUPlaceholders(src, tgt icu.Tokens, source, target string, flagExtr
 	return missing, extra
 }
 
+// compareLiteralPlaceholders compares by the narrow reading of a placeholder:
+// what a program interpolates into, rather than everything that looks like
+// program syntax. A braced run of prose or quoted JSON is text both sides are
+// free to translate, and reporting one as dropped names a loss that did not
+// happen. check.PlaceholderToken keeps the greedy reading for masking.
 func compareLiteralPlaceholders(source, target string, flagExtra bool) (missing, extra []placeholderDelta) {
-	srcCounts := countMatches(check.PlaceholderToken, source)
-	tgtCounts := countMatches(check.PlaceholderToken, target)
+	srcCounts := countMatches(check.InterpolationToken, source)
+	tgtCounts := countMatches(check.InterpolationToken, target)
 	for _, tok := range sortedKeys(srcCounts) {
 		if tgtCounts[tok] < srcCounts[tok] {
 			missing = append(missing, placeholderDelta{

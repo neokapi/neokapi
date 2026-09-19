@@ -13,8 +13,31 @@ import (
 // multilingual content, longest/most-specific forms first so "{{x}}" wins over
 // "{x}". Covered: {{name}}, ${name}, %(name)s (Python), %1$s (positional),
 // %s/%d/%@ (printf/ObjC), {name}/{0} (ICU/.NET), <0>…</0> (numbered tags).
+//
+// The braced form takes any run of characters, which is the reading masking
+// wants: see InterpolationToken for the narrow one, and why there are two.
 var PlaceholderToken = regexp.MustCompile(
 	`\{\{[^{}]+\}\}|\$\{[^{}]+\}|%\([^)]+\)[a-zA-Z]|%\d+\$[a-zA-Z]|%[sdifeEgGxXobpqv@%]|\{[^{}]+\}|</?[0-9]+>`)
+
+// InterpolationToken matches the same styles with the braced form narrowed to
+// an identifier: {name}, {0}, {row.done} and the KBF projection markers {=m0}
+// and {/=m0}, but not {"reason":"findings"} or {pattern, format}.
+//
+// Two tokens, because masking and comparing ask opposite questions of one text.
+//
+// Masking overwrites everything that looks like program syntax so a term cannot
+// match inside it, and a braced run of prose is syntax a term must stay out of.
+// That reading has to stay greedy: "{draught, number}" carries no picker, so it
+// reaches this regex rather than the ICU parse, and a term check that stopped
+// masking it would start reporting "number" as a use of the term.
+//
+// Comparing a source against its target asks a different question: which holes
+// does a reader's value go into. A braced run of prose is not one. CLI help
+// quotes JSON, so a translated word inside {"reason":"findings"} is prose, and
+// reporting it as a dropped placeholder names a loss that did not happen.
+// scripts/check-derived-content.mjs draws the same line for the same reason.
+var InterpolationToken = regexp.MustCompile(
+	`\{\{[^{}]+\}\}|\$\{[^{}]+\}|%\([^)]+\)[a-zA-Z]|%\d+\$[a-zA-Z]|%[sdifeEgGxXobpqv@%]|\{/?=?[A-Za-z0-9_][A-Za-z0-9_.-]*\}|</?[0-9]+>`)
 
 // NonBracePlaceholderToken is PlaceholderToken without the brace forms: the
 // styles that can sit inside an ICU message as ordinary text, where the ICU
