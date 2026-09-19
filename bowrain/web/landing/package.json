@@ -30,7 +30,7 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.0",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.1",
     "@types/react": "^19.3.0",
@@ -39,7 +39,7 @@
     "jsdom": "^30.0.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.3.0",
+    "vite-plus": "^0.3.3",
     "vitest": "^5.0.0"
   }
 }

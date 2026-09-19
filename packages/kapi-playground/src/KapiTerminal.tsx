@@ -398,8 +398,7 @@ export default function KapiTerminal({ runtime, onFsChange, ref }: KapiTerminalP
         } else if (code >= 32) {
           line = line.slice(0, cursor) + ch + line.slice(cursor);
           cursor++;
-          if (cursor === line.length)
-            term.write(ch); // fast path: append at end
+          if (cursor === line.length) term.write(ch); // fast path: append at end
           else render();
         }
       }
