@@ -60,11 +60,9 @@ jobs:
       - name: Install kapi and the bowrain plugin
         uses: neokapi/setup-kapi@v1
         with:
-          # `kapi up` and the current recipe shape ship in 1.2.0; until it is
-          # stable this pins the release candidate (same as kapi-workflows).
-          # `latest` resolves stable tags only, so a prerelease is reachable
-          # from a pin and from nowhere else. The CLI and the plugin are cut at
-          # one version, so this pair is the pair that was released together.
+          # The CLI and the plugin are cut at one version, so this pair is the
+          # pair that was released together. A pin rather than `latest` keeps a
+          # scheduled run on a known pair when a newer release lands.
           #
           # The plugin is the client of the push protocol, so the version here
           # decides which endpoints the run calls. The deployed server routes
@@ -72,8 +70,8 @@ jobs:
           # those routes existed posts to `/push/diff` and receives a 404 for
           # every file it sends. Bump both lines together whenever the push
           # protocol changes.
-          version: 1.2.0-rc32
-          plugins: bowrain@1.2.0-rc32
+          version: 1.2.0
+          plugins: bowrain@1.2.0
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
 
       # The one thing kapi cannot do for itself. Five collections declare
