@@ -1146,7 +1146,9 @@ const routeTree = rootRoute.addChildren([
 // Branded fallback for any route that throws in a loader or on render and does
 // not set its own errorComponent — matching the loading polish already wired
 // via the skeleton pending components. `reset` re-attempts the failed boundary.
-function RouteErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+// `error` is `unknown` because a boundary catches whatever was thrown, not just
+// an Error; ErrorNotice normalises it through parseAppError.
+function RouteErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-6">
       <ErrorNotice error={error} onRetry={reset} className="max-w-lg" />
