@@ -139,4 +139,121 @@ describe("compile — a target keeps its source's placeholders or it does not sh
     ]);
     expect(dict).toEqual({ sound: "Lagre" });
   });
+
+  // An ICU plural carries its count inside the picker rather than as a token,
+  // so the token comparison sees nothing on either side and lets a flattened
+  // target through. The nightly delivered exactly that: the `other` branch on
+  // its own, with the picker gone, so a reader is handed a sentence that no
+  // longer says how many.
+  it("leaves out one that flattened an ICU plural", async () => {
+    const dict = await compile([
+      block({
+        hash: "flattened",
+        source: [
+          {
+            plural: {
+              pivot: "judged.length",
+              forms: {
+                one: [{ text: "The one pair has been judged." }],
+                other: [{ text: "Every pair has been judged." }],
+              },
+            },
+          },
+        ],
+        targets: { nb: [{ text: "Alle par er vurdert." }] },
+      }),
+    ]);
+    expect(dict).not.toHaveProperty("flattened");
+  });
+
+  // The half that must not move. How many categories a language needs is a
+  // property of that language: English writes two where Japanese writes one.
+  // A target writing fewer than its source is correct and still ships.
+  it("ships a plural whose target writes fewer categories than the source", async () => {
+    const dict = await compile([
+      block({
+        hash: "fewer",
+        source: [
+          {
+            plural: {
+              pivot: "count",
+              forms: { one: [{ text: "1 file" }], other: [{ text: "# files" }] },
+            },
+          },
+        ],
+        targets: {
+          nb: [{ plural: { pivot: "count", forms: { other: [{ text: "# filer" }] } } }],
+        },
+      }),
+    ]);
+    expect(dict.fewer).toBe("{count, plural, other {# filer}}");
+  });
+
+  // A picker whose argument the target renamed resolves against nothing at
+  // render time, so it is as lost as a dropped token.
+  it("leaves out one that renamed the picker's argument", async () => {
+    const dict = await compile([
+      block({
+        hash: "renamed",
+        source: [
+          {
+            plural: {
+              pivot: "count",
+              forms: { one: [{ text: "1 file" }], other: [{ text: "# files" }] },
+            },
+          },
+        ],
+        targets: {
+          nb: [{ plural: { pivot: "antall", forms: { other: [{ text: "# filer" }] } } }],
+        },
+      }),
+    ]);
+    expect(dict).not.toHaveProperty("renamed");
+  });
+
+  // A placeholder inside a branch is a hole like any other, and this one is
+  // caught today. It stays caught.
+  it("leaves out one that dropped a placeholder from inside a branch", async () => {
+    const dict = await compile([
+      block({
+        hash: "branchhole",
+        source: [
+          {
+            plural: {
+              pivot: "count",
+              forms: {
+                one: [{ text: "1 file for " }, { ph: { id: "1", equiv: "name" } }],
+                other: [{ text: "# files for " }, { ph: { id: "1", equiv: "name" } }],
+              },
+            },
+          },
+        ],
+        targets: {
+          nb: [{ plural: { pivot: "count", forms: { other: [{ text: "# filer" }] } } }],
+        },
+      }),
+    ]);
+    expect(dict).not.toHaveProperty("branchhole");
+  });
+
+  // A number, date or time argument is ICU syntax that opens no picker, so
+  // there is no head to compare and counting stays the right question. A target
+  // that used one token where the source used two has lost a value.
+  it("counts tokens in an ICU message that opens no picker", async () => {
+    const dict = await compile([
+      block({
+        hash: "numberarg",
+        source: [
+          { text: "Updated {n, number} for " },
+          { ph: { id: "1", equiv: "name" } },
+          { text: " and " },
+          { ph: { id: "2", equiv: "name" } },
+        ],
+        targets: {
+          nb: [{ text: "Oppdatert {n, number} for " }, { ph: { id: "1", equiv: "name" } }],
+        },
+      }),
+    ]);
+    expect(dict).not.toHaveProperty("numberarg");
+  });
 });
