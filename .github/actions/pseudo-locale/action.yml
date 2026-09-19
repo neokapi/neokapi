@@ -20,10 +20,10 @@ inputs:
     required: true
   kapi-version:
     description: >
-      Released kapi that generates the locale. Pinned rather than resolved,
-      because `latest` takes stable tags only and this line is a prerelease.
+      Released kapi that generates the locale. Pinned rather than resolved so
+      every docs build regenerates the locale with one known CLI.
     required: false
-    default: "1.2.0-rc28"
+    default: "1.2.0"
 
 runs:
   using: composite
