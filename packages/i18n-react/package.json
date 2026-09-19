@@ -112,7 +112,7 @@
   },
   "devDependencies": {
     "@storybook/react-vite": "^10.5.10",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.6.1",
     "@types/react": "^19.3.0",
     "esbuild": "^0.28.2",
     "react": "^19.3.0",
