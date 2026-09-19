@@ -41,7 +41,7 @@
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "lucide-react": "^1.46.0",
-    "onnxruntime-web": "^1.29.0"
+    "onnxruntime-web": "^1.30.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
