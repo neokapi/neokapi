@@ -18,9 +18,9 @@ the desktop app, and the kapi CLI for the [developer
 route](/server/connectors/kapi).
 
 :::tip[Beta channel]
-During a release-candidate phase the **beta channel** carries the freshest
-build. The beta and stable packages install the same binary on different
-update tracks. Pick one; they are mutually exclusive.
+The **beta channel** carries prereleases ahead of stable. The beta and stable
+packages install the same binary on different update tracks. Pick one; they are
+mutually exclusive.
 :::
 
 ## The web app
@@ -37,8 +37,8 @@ support.
 ### Homebrew (macOS)
 
 ```bash
-brew install --cask neokapi/tap/bowrain@beta   # beta channel
 brew install --cask neokapi/tap/bowrain        # stable
+brew install --cask neokapi/tap/bowrain@beta   # beta channel
 ```
 
 ### Direct downloads
@@ -47,20 +47,20 @@ The links below always point at the release named in them; they are regenerated
 on every release from the assets actually attached to it.
 
 <!-- BEGIN:downloads-bowrain-desktop -->
-Direct downloads for **Bowrain Desktop 1.2.0-rc13**:
+Direct downloads for **Bowrain Desktop 1.2.0**:
 
 **macOS** (Apple Silicon)
-- **macOS arm64 (.dmg)** — [`bowrain-1.2.0-rc13-macOS-arm64.dmg`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/bowrain-1.2.0-rc13-macOS-arm64.dmg)
+- **macOS arm64 (.dmg)**: [`bowrain-1.2.0-macOS-arm64.dmg`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0/bowrain-1.2.0-macOS-arm64.dmg)
 
 **Windows** (Authenticode-signed, portable zip)
-- **Windows amd64** — [`bowrain-1.2.0-rc13-windows-amd64.zip`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/bowrain-1.2.0-rc13-windows-amd64.zip)
-- **Windows arm64** — [`bowrain-1.2.0-rc13-windows-arm64.zip`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/bowrain-1.2.0-rc13-windows-arm64.zip)
+- **Windows amd64**: [`bowrain-1.2.0-windows-amd64.zip`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0/bowrain-1.2.0-windows-amd64.zip)
+- **Windows arm64**: [`bowrain-1.2.0-windows-arm64.zip`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0/bowrain-1.2.0-windows-arm64.zip)
 
 **Linux**
-- **Linux amd64 (tar.gz)** — [`bowrain-1.2.0-rc13-linux-amd64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/bowrain-1.2.0-rc13-linux-amd64.tar.gz)
-- **Linux arm64 (tar.gz)** — [`bowrain-1.2.0-rc13-linux-arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/bowrain-1.2.0-rc13-linux-arm64.tar.gz)
+- **Linux amd64 (tar.gz)**: [`bowrain-1.2.0-linux-amd64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0/bowrain-1.2.0-linux-amd64.tar.gz)
+- **Linux arm64 (tar.gz)**: [`bowrain-1.2.0-linux-arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0/bowrain-1.2.0-linux-arm64.tar.gz)
 
-Verify a download against [`checksums.txt`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/checksums.txt).
+Verify a download against [`checksums.txt`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0/checksums.txt).
 <!-- END:downloads-bowrain-desktop -->
 
 ## The kapi CLI (the developer route)
@@ -77,8 +77,8 @@ content reaches Bowrain.
 Installs the kapi CLI together with the bowrain plugin:
 
 ```bash
-brew install neokapi/tap/bowrain-cli-beta   # beta channel
 brew install neokapi/tap/bowrain-cli        # stable
+brew install neokapi/tap/bowrain-cli-beta   # beta channel
 ```
 
 ### WinGet (Windows)
