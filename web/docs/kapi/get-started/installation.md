@@ -155,7 +155,7 @@ brew update
 # Remove the stable packages (the desktop cask depends on the CLI formula).
 brew uninstall --cask neokapi/tap/kapi
 brew uninstall neokapi/tap/kapi-cli
-# Install the beta packages — the cask pulls kapi-cli-beta automatically.
+# Install the beta packages; the cask pulls kapi-cli-beta automatically.
 brew install --cask neokapi/tap/kapi@beta
 ```
 
