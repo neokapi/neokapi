@@ -28,10 +28,12 @@ import (
 //     use) AND from the voice profile's vocabulary (core/profile.MatchVocabulary,
 //     the single brand-vocab matcher the voice-vocab-check tool and blast radius
 //     call).
-//   - ABSENCE: the source uses a concept that MANDATES a preferred/approved
-//     rendering for the target locale, yet the target OMITS it — the term-check /
-//     term-enforce direction (TermEnforceTool's primitives: LookupAll to detect
-//     the source term, a case-insensitive contains for the mandated rendering).
+//   - ABSENCE: the source uses a concept that MANDATES a preferred or approved
+//     rendering for the target locale and the target OMITS it, or the concept is
+//     marked do-not-translate and the target does not keep the term verbatim.
+//     Both are decided by coretools.TermCheckViolations, the function the
+//     term-check tool itself decides with, so a translation the CLI gate passes
+//     is compliant here and one it fails is a violation.
 //
 // The checks are deterministic and offline — no DB or LLM call is made per block.
 // The terms store is snapshotted in-memory once per (workspace) and the voice profile
@@ -175,7 +177,7 @@ func newTermGate(srcLoc model.LocaleID, tb terms.Terminology, termsFP string, re
 // blockTermCompliance decide retires every stored verdict rather than leaving
 // counters that were computed by code no longer running. Bump it whenever the
 // predicate's answer can change for unchanged content.
-const shipGateAlgorithm = "3"
+const shipGateAlgorithm = "4"
 
 // fingerprint names the governance in force for a set of target locales: the
 // predicate's own revision, the source language it reads, the terms snapshot,
@@ -362,9 +364,14 @@ func snapshotTerms(ctx context.Context, tb terms.Store) (terms.Terminology, stri
 				"concept", c.ID, "error", err)
 			continue
 		}
-		fmt.Fprintf(h, "%s|%s|", c.ID, c.Domain)
+		// Every field the predicate reads takes part, because the digest's job
+		// is to retire a stored verdict exactly when the governance behind it
+		// moved. DoNotTranslate decides whether a target must keep the term at
+		// all, and a term's declared forms decide which targets satisfy a rule,
+		// so a snapshot differing only in those governs differently.
+		fmt.Fprintf(h, "%s|%s|%t|", c.ID, c.Domain, c.DoNotTranslate)
 		for _, t := range c.Terms {
-			fmt.Fprintf(h, "%s/%s/%s/%t,", t.Locale, t.Text, t.Status, t.CompetitorTerm)
+			fmt.Fprintf(h, "%s/%s/%s/%t/%s,", t.Locale, t.Text, t.Status, t.CompetitorTerm, strings.Join(t.Forms, "+"))
 		}
 		h.Write([]byte{'\n'})
 	}
