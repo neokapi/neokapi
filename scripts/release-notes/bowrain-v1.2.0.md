@@ -14,6 +14,7 @@ Bowrain 1.2.0 is the first stable release on the Bowrain track, which now releas
 - A server run outlives the connection that watches it. When the event stream ends before the run does, `kapi up` reads the run's state from the server, pulls what landed and reports it, rather than failing. With `--json` the stream opens with a `run_started` record carrying the run's `id`, and the result record carries `run` (`id`, `state`, `passes`) beside `watch` (`complete`, `reason`, `detail`). `kapi status` reports where a run got to.
 - The server checks placeholder integrity on the content it converges. A target that drops a placeholder its source carries, including an ICU plural flattened to a sentence with no count in it, is reported as a critical finding in the `placeholder` category. Where a locale has full translation coverage, that failing check holds it at pending instead of shippable. The CLI has always made this check, so this makes a run on the server agree with a run on your machine.
 - A pull skips blocks that belong to no item and serves each block once.
+- A locale-scoped pull no longer re-serves blocks nobody touched. A target counts as changed when its text moved, so one locale's draft, or the server's own settlement stamp, no longer marks every other locale on that block as changed.
 - Server jobs do not recreate removed content or revert pushed source.
 - An unchanged push uploads nothing, and blocks keep their keys across server runs.
 - After `kapi pull` and `kapi commit`, a push is not refused for decisions it did not change.

@@ -963,10 +963,13 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 			continue
 		}
 
-		// Record target history before overwriting.
+		// Record target history before overwriting. The snapshot is kept for the
+		// change log below, which asks the same question of the same targets.
+		var oldTargets map[model.VariantKey]*model.Target
 		if !isNew && len(b.Targets) > 0 {
-			oldTargets, loadErr := loadExistingTargets(ctx, tx, projectID, itemName, internalID)
-			if loadErr == nil && oldTargets != nil {
+			loaded, loadErr := loadExistingTargets(ctx, tx, projectID, itemName, internalID)
+			if loadErr == nil && loaded != nil {
+				oldTargets = loaded
 				if err := recordTargetHistory(ctx, tx, projectID, stream, internalID, oldTargets, b.Targets); err != nil {
 					return err
 				}
@@ -1058,17 +1061,32 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 			// payload diff (modified-but-same?) is a best-effort check:
 			// if the variant was already there and we're upserting, it's
 			// a modification worth logging.
+			// A target is logged when its text moved, not merely because the
+			// caller carried it. Write-back callers hand over the whole block
+			// with every locale hydrated, so logging on presence alone stamped
+			// one locale's draft as a change in every other locale, and a
+			// locale-scoped pull then re-serves blocks nobody touched.
+			// recordTargetHistory asked this question of the same snapshot
+			// above; this reuses it rather than loading it twice.
 			prev := existingLocales[internalID]
-			for key := range b.Targets {
+			for key, nt := range b.Targets {
+				if nt == nil {
+					continue
+				}
 				variant := bstore.VariantKeyText(key)
-				if _, had := prev[variant]; had {
-					if err := logChange(ctx, tx, projectID, stream, internalID, "target_modified", variant, ""); err != nil {
-						return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
+				_, had := prev[variant]
+				if had && oldTargets != nil {
+					if old := oldTargets[key]; old != nil &&
+						model.RunsText(nt.Runs) == model.RunsText(old.Runs) {
+						continue
 					}
-				} else {
-					if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", variant, ""); err != nil {
-						return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
-					}
+				}
+				changeType := "target_added"
+				if had {
+					changeType = "target_modified"
+				}
+				if err := logChange(ctx, tx, projectID, stream, internalID, changeType, variant, ""); err != nil {
+					return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
 				}
 			}
 		}
