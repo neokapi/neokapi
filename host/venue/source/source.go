@@ -202,7 +202,10 @@ func NewSourceConnector(app *host.App, project *Project, formatReg *registry.For
 	}
 
 	// Resolve the active stream and set it on the client.
-	stream := ResolveStream("", streamFor(recipe))
+	stream, err := ResolveStream("", streamFor(recipe))
+	if err != nil {
+		return nil, err
+	}
 	client.SetStream(stream)
 
 	return &BowrainSourceConnector{
@@ -1190,6 +1193,11 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	for i, l := range pullLocales {
 		locales[i] = string(l)
 	}
+
+	// A position describes what one project store consumed. Bind it before it
+	// is read, so a store that was deleted and built again replays the feed
+	// rather than resuming from a place nothing here ever reached.
+	c.bindRefsToStore(ctx)
 
 	cursor := c.refs.Ref(c.stream).Content
 	if opts.Force {

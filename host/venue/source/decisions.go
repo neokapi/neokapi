@@ -33,6 +33,28 @@ func (c *BowrainSourceConnector) workingStore(ctx context.Context) (*state.WorkS
 	return c.app.OpenProjectState(ctx, c.project.Root)
 }
 
+// bindRefsToStore ties this project's recorded positions to the store they were
+// consumed into, dropping them when that store has been replaced.
+//
+// Best-effort: a connector with no App, a build with no file-backed store, and
+// a store that will not open all leave the positions where they are. None of
+// them is evidence that the store changed, and replaying a change feed on a
+// guess would be a full re-pull on every contact.
+func (c *BowrainSourceConnector) bindRefsToStore(ctx context.Context) {
+	if c.app == nil || c.refs == nil {
+		return
+	}
+	db, err := c.app.ProjectDB(ctx, c.project.Root)
+	if err != nil {
+		return
+	}
+	id, err := db.InstanceID(ctx)
+	if err != nil {
+		return
+	}
+	c.refs.BindStore(id)
+}
+
 // variantText renders a VariantKey in its wire text form ("nb", "fr;tone=…").
 func variantText(k model.VariantKey) string {
 	b, err := k.MarshalText()
@@ -98,12 +120,22 @@ func (c *BowrainSourceConnector) committedDecisions(ctx context.Context) ([]venu
 // project's working store: a record newer than the local one (by Updated)
 // replaces it; an older or identical one is left alone. Staged, not committed —
 // publishing to the tracked record stays a deliberate act.
+//
+// Leaving an identical or older record alone is what makes staging idempotent,
+// and the ledger is served whole on every pull page rather than from the stream
+// position (the venue's pull route lists it in full beside the page of
+// changes). So a project whose store was deleted with a pulled decision still
+// staged in it gets that decision back on the next pull, and a project that
+// pulls twice stages it once. The position guards the same property from the
+// other side: it is bound to the store that consumed it
+// (refcache.Cache.BindStore), so a new store replays the feed rather than
+// asking for the changes after a position it never reached.
+//
 // It also reports how many records it could NOT stage. Skipping a decision
-// whose variant does not parse is not fatal — a variant spelling this client
-// does not understand is a forward-compatibility case, not a corruption — but
-// it must be counted, because the pull advances a forward-only stream cursor
-// and the server never offers that record again. An uncounted skip is a review
-// approval, and its attribution, gone with nothing anywhere saying so.
+// whose variant does not parse is a forward-compatibility case rather than a
+// corruption, so it is not fatal, but it must be counted: the reviewer's
+// verdict and its attribution are then absent from this checkout with nothing
+// anywhere saying so.
 func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulled []venue.UnitDecision) (staged, skipped int, err error) {
 	if len(pulled) == 0 {
 		return 0, 0, nil

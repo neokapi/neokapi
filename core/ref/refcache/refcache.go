@@ -36,6 +36,11 @@ type Cache struct {
 	ServerURL string `json:"server_url,omitempty"`
 	ProjectID string `json:"project_id,omitempty"`
 
+	// StoreID names the project store whose consumption the positions below
+	// describe. Empty in a cache written before the two were tied together, and
+	// in one belonging to a build with no file-backed store.
+	StoreID string `json:"store_id,omitempty"`
+
 	// ObservedAt is when the destination was last reached. Reporting only: no
 	// decision is taken from a clock, because a clock cannot say whether the
 	// thing it timed has moved since.
@@ -200,6 +205,40 @@ func (c *Cache) Consume(stream string, cursor int64) {
 	c.update(stream, func(current ref.Ref) ref.Ref {
 		return current.Advance(cursor)
 	})
+}
+
+// BindStore ties the recorded positions to the project store that consumed
+// them, and drops every position when that store is a different one.
+//
+// The cache and the store are two files in the same disposable directory, and
+// they are deleted independently. What a pull consumed lands in the store:
+// target files on disk, and decisions the venue's ledger carried, staged there
+// and published only by `kapi commit`. A position outliving the store it
+// consumed into claims that content is held here, so a later pull asks the
+// venue for the changes after it and the venue answers with nothing.
+//
+// Dropping the position costs one replay of the change feed, which rewrites the
+// same target files and re-stages the same decisions: staging leaves a record
+// it already holds alone, so a replay adds nothing twice.
+//
+// The governance identities stay. They identify the committed record and what
+// the venue published, neither of which the store holds, so a new store says
+// nothing about them.
+//
+// An empty storeID binds nothing. A build with no file-backed store has no file
+// to identify, and reading that silence as a different store would replay the
+// feed on every pull.
+func (c *Cache) BindStore(storeID string) {
+	if c == nil || storeID == "" {
+		return
+	}
+	if c.StoreID != "" && c.StoreID != storeID {
+		for name, r := range c.Streams {
+			r.Content = 0
+			c.Streams[name] = r
+		}
+	}
+	c.StoreID = storeID
 }
 
 // Reset drops a stream's position, so the next transfer starts from the

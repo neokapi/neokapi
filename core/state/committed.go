@@ -2,8 +2,11 @@ package state
 
 import (
 	"bufio"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -141,6 +144,54 @@ func ReadCommitted(dir string) ([]UnitState, error) {
 		out = append(out, units...)
 	}
 	return out, nil
+}
+
+// CommittedDigest identifies the record held under dir: every shard's name and
+// every shard's bytes, in name order, through SHA-256. A missing directory and
+// an empty one hash alike, both being a project with no record.
+//
+// It reads the bytes rather than stat-ing them. A branch switch rewrites a
+// shard to whatever the other branch holds, and two branches of the same
+// project carry shards of very similar size written within the same second, so
+// a size-and-time stamp answers "unchanged" for exactly the case the digest
+// exists to catch.
+func CommittedDigest(dir string) (string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return hex.EncodeToString(sha256.New().Sum(nil)), nil
+		}
+		return "", fmt.Errorf("state: read state dir: %w", err)
+	}
+
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), CommittedExt) {
+			names = append(names, e.Name())
+		}
+	}
+	sort.Strings(names)
+
+	sum := sha256.New()
+	for _, name := range names {
+		fmt.Fprintf(sum, "%s\x00", name)
+		if err := hashFile(sum, filepath.Join(dir, name)); err != nil {
+			return "", err
+		}
+	}
+	return hex.EncodeToString(sum.Sum(nil)), nil
+}
+
+func hashFile(into io.Writer, path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("state: open %s: %w", path, err)
+	}
+	defer f.Close()
+	if _, err := io.Copy(into, f); err != nil {
+		return fmt.Errorf("state: read %s: %w", path, err)
+	}
+	return nil
 }
 
 func readShard(path string) ([]UnitState, error) {

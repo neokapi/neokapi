@@ -15,6 +15,41 @@ import (
 	"github.com/neokapi/neokapi/core/projectdb"
 )
 
+// A store's identity is minted once and stands for the life of the file, so a
+// record kept outside it can say which store it is about. A store deleted and
+// opened again is a different one, which is what the ref cache reads to decide
+// that a position it holds vouches for nothing here.
+func TestInstanceID_StableForAFileAndFreshForANewOne(t *testing.T) {
+	layout := newLayout(t)
+	db := openStore(t, layout)
+
+	first, err := db.InstanceID(t.Context())
+	require.NoError(t, err)
+	assert.NotEmpty(t, first)
+
+	again, err := db.InstanceID(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, first, again, "the identity is minted once, not per call")
+
+	reopened, err := projectdb.Open(t.Context(), layout)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = reopened.Close() })
+	carried, err := reopened.InstanceID(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, first, carried, "reopening the same file keeps its identity")
+
+	require.NoError(t, reopened.Close())
+	require.NoError(t, db.Close())
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		_ = os.Remove(layout.StorePath() + suffix)
+	}
+
+	rebuilt := openStore(t, layout)
+	minted, err := rebuilt.InstanceID(t.Context())
+	require.NoError(t, err)
+	assert.NotEqual(t, first, minted, "a store built again is a different store")
+}
+
 func TestMeta_ReadWriteReplace(t *testing.T) {
 	db := openStore(t, newLayout(t))
 	ctx := t.Context()

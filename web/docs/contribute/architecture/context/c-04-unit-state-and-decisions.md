@@ -116,6 +116,36 @@ is the text serialization and the database is only a working index over it.
 Discard the working index, reopen from the committed record, lose nothing beyond
 what was staged.
 
+### The record moves under the working set
+
+The record is git-tracked and the working set is not, so `git switch` replaces
+every shard while the database keeps the rows of the branch left behind. A
+commit from that set writes one branch's decisions into another branch's record
+and prunes the shards those rows do not cover, because `WriteCommitted` replaces
+a directory rather than appending to one.
+
+So the set carries the identity of the record it was built from:
+`state.CommittedDigest`, over each shard's name and bytes, stamped in the
+working set's own `state_meta` table. That is the same key-and-value shape the
+block cache uses for its extraction stamps
+([C-03](c-03-context-store-and-graph.md)). Every open compares the stamp against
+the shards on disk, and so does every write to the record, so a process holding
+the store open across a branch switch publishes from the record this checkout
+holds.
+
+A stamp that no longer matches means the unstaged rows describe a record this
+checkout does not hold. Those rows are dropped and rebuilt from the shards,
+which the record supplies in full; a run's own basis records go with them, and
+the next run writes them again against the tree it reads. Staged decisions cross
+the rebuild untouched (`WorkStore.Staged` carries them), being the one thing in
+the set that no record supplies.
+
+The crossing is reported. `kapi status` and `kapi commit` each state that the
+record changed since the set was seeded from it and how many staged decisions
+came across, so a person can see that decisions made on another branch are about
+to be written here. `kapi commit --dry-run` reports what a commit would write
+and writes nothing.
+
 **One line per unit, sharded by document**, rather than one JSON array. A single
 indented document means one approval rewrites every byte of the file: the diff
 for a one-word change is the whole project, two branches touching unrelated
@@ -135,7 +165,7 @@ the mental model of staged changes:
   when there are none, on the habit that a clean project should read clean.
 - `Commit()` materializes the working set to the durable home in one
   auditable step, rather than churning a write on every approval. `kapi commit`
-  is the verb.
+  is the verb, and `kapi commit --dry-run` reports what it would write.
 
 Recording and publishing are different acts. A run of automated approvals should
 not land in the tracked record before anyone has looked at it, and an explicit
@@ -529,7 +559,8 @@ re-exports the core types through aliases so downstream code sees one import.
   `Stale`/`Fresh`/`Reviewed` ladder helpers, and `WorkStore`, the working set
   over the sharded committed record
   (`Get`/`Put`/`Delete`/`All`/`Pending`/`Commit`, plus `Documents` and
-  `AdoptDocuments` for document identity).
+  `AdoptDocuments` for document identity, and `CommittedDigest`,
+  `SyncWithCommitted` and `Reseed` for agreement with the record on disk).
 - **Approvals flow through one verb.** `kapi apply` with `kind:"review"` records
   the unit state in the project store, addressed by `(file, id, locale)` exactly
   as `kapi status --review` lists it. The desktop's approve action and the CLI
