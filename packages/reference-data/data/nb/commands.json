@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-16T11:45:42Z",
+  "generatedAt": "2026-09-20T22:10:27Z",
   "commands": [
     {
       "id": "add",
@@ -328,6 +328,12 @@
       "long": "Skriv enhetstilstanden som er registrert siden siste commit inn i prosjektets forpliktede\npost — JSON Lines-skårene under .kapi/state/ som git sporer.\n\nÅ registrere en gjennomgang og å publisere den er separate handlinger. Tilstandsposten er\nvarig idet den skrives; å committe er det som legger den inn i posten en\nanmelder leser, slik at en kjøring av automatiske godkjenninger ikke lander i den sporede\nposten før noen har sett på den.\n\n'kapi status' rapporterer hva som er iscenesatt.",
       "groupID": "work",
       "flags": [
+        {
+          "name": "dry-run",
+          "usage": "report what would be committed and write nothing",
+          "default": "false",
+          "type": "bool"
+        },
         {
           "name": "project",
           "shorthand": "p",

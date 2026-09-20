@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-16T11:45:42Z",
+  "generatedAt": "2026-09-20T22:10:27Z",
   "commands": [
     {
       "id": "add",
@@ -325,9 +325,15 @@
       ],
       "use": "commit",
       "short": "Write staged unit state into the project's committed record",
-      "long": "Write the unit state recorded since the last commit into the project's committed\nrecord: the JSON Lines shards under .kapi/state/ that git tracks.\n\nRecording a review and publishing it are separate acts. The state record is\ndurable the moment it is written; committing is what puts it in the record a\nreviewer reads, so a run of automated approvals does not land in the tracked\nrecord before anyone has looked at it.\n\n'kapi status' reports what is staged.",
+      "long": "Write the unit state recorded since the last commit into the project's committed\nrecord: the JSON Lines shards under .kapi/state/ that git tracks.\n\nRecording a review and publishing it are separate acts. The state record is\ndurable the moment it is written; committing is what puts it in the record a\nreviewer reads, so a run of automated approvals does not land in the tracked\nrecord before anyone has looked at it.\n\nThe working set is rebuilt from the record this checkout holds whenever the two\nhave parted, which is what switching branches does to them. Staged decisions\ncross that rebuild and are reported, because they were made against the record\nof another branch.\n\n'--dry-run' reports what would be written and writes nothing.\n'kapi status' reports what is staged.",
       "groupID": "work",
       "flags": [
+        {
+          "name": "dry-run",
+          "usage": "report what would be committed and write nothing",
+          "default": "false",
+          "type": "bool"
+        },
         {
           "name": "project",
           "shorthand": "p",
