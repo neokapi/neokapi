@@ -62,6 +62,7 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 // checkTextInput is the input to the check_text MCP tool.
 type checkTextInput struct {
 	Text        string   `json:"text" jsonschema:"the text to verify"`
+	Project     string   `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 	ContextPath string   `json:"context_path,omitempty" jsonschema:"project-relative destination whose voice and terms govern this draft; may not exist yet; requires a project; cannot combine with profile_pack or profile_file"`
 	MaxChars    int      `json:"max_chars,omitempty" jsonschema:"flag content longer than this many characters (0 = off)"`
 	MaxWords    int      `json:"max_words,omitempty" jsonschema:"flag content with more than this many words (0 = off)"`
@@ -74,6 +75,7 @@ type checkTextInput struct {
 // checkFileInput is the input to the check_file MCP tool.
 type checkFileInput struct {
 	File        string   `json:"file,omitempty" jsonschema:"path to the file whose content should be checked; with diff, diff_against, staged or diff_range it narrows the scope to this file, and may be omitted"`
+	Project     string   `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 	Diff        string   `json:"diff,omitempty" jsonschema:"unified diff text (git diff output); only the content blocks it touches are checked"`
 	DiffAgainst string   `json:"diff_against,omitempty" jsonschema:"git revision to diff the working tree against, read-only, with untracked files as added; only the content blocks changed are checked"`
 	Staged      bool     `json:"staged,omitempty" jsonschema:"check the changes staged for commit: the index diffed against HEAD, with each file read from the index, leaving out unstaged edits and untracked files; only the content blocks changed are checked"`
@@ -103,7 +105,7 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 		return nil, check.Report{}, err
 	}
 	if in.ContextPath != "" {
-		if err := a.resolveTextCheckContext(ctx, in.ContextPath, &opts); err != nil {
+		if err := a.resolveTextCheckContext(ctx, in.Project, in.ContextPath, &opts); err != nil {
 			return nil, check.Report{}, err
 		}
 	}
@@ -127,26 +129,17 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 // resolveTextCheckContext resolves a lexical destination, not an input file.
 // Anchoring it to the recipe root keeps collection matching independent of cwd
 // and permits a draft for a file that has not yet been created.
-func (a *App) resolveTextCheckContext(ctx context.Context, contextPath string, opts *checkRunOptions) error {
+func (a *App) resolveTextCheckContext(ctx context.Context, projectPath, contextPath string, opts *checkRunOptions) error {
 	validPath := fs.ValidPath(contextPath) && contextPath != "." && !filepath.IsAbs(contextPath)
 	if !validPath || strings.ContainsAny(contextPath, "\\\x00") {
 		return errors.New("context_path must be a clean project-relative file path")
 	}
-	cmd := NewEnvCommand(ctx, "check_text")
-	if a.mcpRecipePath != "" {
-		cmd.Flags().String(projectFlagName, a.mcpRecipePath, "")
-	}
-	recipe, err := ResolveProjectPath(cmd)
+	cmd, recipe, err := a.mcpCallCommand(ctx, "check_text", projectPath)
 	if err != nil {
-		return fmt.Errorf("resolve context_path project: %w", err)
+		return err
 	}
 	if recipe == "" {
-		return errors.New("context_path requires a project; start the MCP server with -p")
-	}
-	// Freeze the resolution for both voice and terms, including when the server
-	// was assembled by an embedded caller using environment-based discovery.
-	if cmd.Flags().Lookup(projectFlagName) == nil {
-		cmd.Flags().String(projectFlagName, recipe, "")
+		return &MCPProjectError{Reason: "context_path requires a project: pass `project`, or start the MCP server with -p"}
 	}
 	destination := filepath.Join(filepath.Dir(recipe), filepath.FromSlash(contextPath))
 	voice, err := a.newCheckVoice(cmd, opts.execution.warningSink())
@@ -197,9 +190,9 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	}
 	// Check context is required when bound. A resolution failure is an operation
 	// error, not permission to omit the governing rules from a successful report.
-	cmd := NewEnvCommand(ctx, "check_file")
-	if a.mcpRecipePath != "" {
-		cmd.Flags().String(projectFlagName, a.mcpRecipePath, "")
+	cmd, recipe, err := a.mcpCallCommand(ctx, "check_file", in.Project)
+	if err != nil {
+		return nil, check.Report{}, err
 	}
 	var voice *checkVoice
 	if opts.profile == nil {
@@ -222,7 +215,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		return nil, check.Report{}, err
 	}
 	if scoped {
-		return a.checkDiffMCP(ctx, cmd, in, opts)
+		return a.checkDiffMCP(ctx, cmd, recipe, in, opts)
 	}
 	execution.Timings.ContextMS += elapsedMS(contextStart)
 	target := check.Target{Kind: "file", File: in.File}
@@ -329,7 +322,7 @@ func (a *App) mcpCheckOptions(ctx context.Context, execution *checkExecution, ma
 // checkDiffMCP is check_file scoped to a diff: the same run `kapi check
 // --diff-file`, `--diff-against`, `--staged` and `--diff-range` make, with
 // governance resolved per changed file unless the call named a profile.
-func (a *App) checkDiffMCP(ctx context.Context, cmd Command, in checkFileInput, opts checkRunOptions) (*mcp.CallToolResult, check.Report, error) {
+func (a *App) checkDiffMCP(ctx context.Context, cmd Command, recipe string, in checkFileInput, opts checkRunOptions) (*mcp.CallToolResult, check.Report, error) {
 	if in.Target != "" {
 		return nil, check.Report{}, errors.New("target checks a source against its translation and cannot be scoped to a diff")
 	}
@@ -342,8 +335,8 @@ func (a *App) checkDiffMCP(ctx context.Context, cmd Command, in checkFileInput, 
 	if err != nil {
 		return nil, check.Report{}, err
 	}
-	if a.mcpRecipePath != "" {
-		dir = filepath.Dir(a.mcpRecipePath)
+	if recipe != "" {
+		dir = filepath.Dir(recipe)
 	}
 	var src *diffSource
 	switch {

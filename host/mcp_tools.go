@@ -31,6 +31,12 @@ func init() {
 // a.ProjectContext so the MCP factories can scope themselves to it. Unavailable
 // requested context fails startup instead of silently selecting ad-hoc mode.
 func (a *App) ResolveMCPProject(cmd Command) error {
+	// Before anything the server will serve: InitRegistries writes the registry
+	// fields and is not safe to run from two calls at once, and a server
+	// answering several calls concurrently would otherwise reach it lazily from
+	// each handler. It is idempotent, so a binary that already initialized its
+	// registries pays nothing here.
+	a.InitRegistries()
 	path, err := ResolveProjectPath(cmd)
 	if err != nil {
 		return fmt.Errorf("resolve MCP project: %w", err)
@@ -242,6 +248,14 @@ func frameworkToolInputSchema(s *schema.ComponentSchema, policy targetPolicy) (j
 			"description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
 		}
 	}
+	if _, exists := props["project"]; !exists {
+		props["project"] = map[string]any{
+			"type": "string",
+			"description": "The project whose first target language this call defaults to: its kapi.yaml recipe, " +
+				"its root directory, or any path inside it. Defaults to the project the MCP server started in. " +
+				"An explicit target_lang wins.",
+		}
+	}
 	required := []any{"text"}
 	if policy != targetWithheld {
 		props["target"] = map[string]any{
@@ -257,10 +271,34 @@ func frameworkToolInputSchema(s *schema.ComponentSchema, policy targetPolicy) (j
 	return json.Marshal(base)
 }
 
+// mcpDefaultTargetLang is the target language a framework tool call falls back
+// to when it named none: the first target language of the project the call
+// named, else serverDefault, the first target language of the project the
+// server started in.
+//
+// A project named here decides a default and nothing else. Which tools the
+// server lists is fixed when it starts (a client reads tools/list once), so the
+// exposed set stays the start project's while each call's language follows the
+// project it acts on.
+func (a *App) mcpDefaultTargetLang(named, serverDefault string) (string, error) {
+	if named == "" {
+		return serverDefault, nil
+	}
+	ctx, err := a.mcpProjectContext(named)
+	if err != nil {
+		return "", err
+	}
+	if ctx == nil || len(ctx.TargetLocales) == 0 {
+		return serverDefault, nil
+	}
+	return string(ctx.TargetLocales[0]), nil
+}
+
 // frameworkMCPHandler builds the untyped MCP handler for one framework tool: it
-// splits `text`/`target`/`target_lang` from the remaining arguments (the tool
-// config), instantiates the tool via the registry (running the credential
-// preprocessor), runs it over the text, and returns the serialized result block.
+// splits `text`/`target`/`target_lang`/`project` from the remaining arguments
+// (the tool config), instantiates the tool via the registry (running the
+// credential preprocessor), runs it over the text, and returns the serialized
+// result block.
 func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string, policy targetPolicy) mcp.ToolHandler {
 	return func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		var args map[string]any
@@ -279,7 +317,12 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		}
 		targetLang, _ := args["target_lang"].(string)
 		if targetLang == "" {
-			targetLang = defaultTargetLang
+			named, _ := args["project"].(string)
+			resolved, err := a.mcpDefaultTargetLang(named, defaultTargetLang)
+			if err != nil {
+				return nil, err
+			}
+			targetLang = resolved
 		}
 		// A target with no locale to file it under cannot be matched to the
 		// locale the tool was configured for, so the tool would read past it.
@@ -299,7 +342,7 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 
 		config := make(map[string]any, len(args))
 		for k, v := range args {
-			if k == "text" || k == "target" || k == "target_lang" {
+			if k == "text" || k == "target" || k == "target_lang" || k == "project" {
 				continue
 			}
 			config[k] = v

@@ -1081,8 +1081,24 @@ export class KapiProject {
              */
             this["version"] = "";
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * ID is the project's stable identity. `kapi init` mints one, and every
+             * key kapi derives for the project's recorded context reads it through
+             * Identity, so renaming the project, moving the folder and cloning the
+             * repository elsewhere all leave that context where it is and two
+             * checkouts of one recipe resolve to one project. A recipe carrying no id
+             * is identified by its Name; `kapi init --mint-id` writes one into such a
+             * recipe. See id.go.
+             * @member
+             * @type {string | undefined}
+             */
+            this["id"] = undefined;
+        }
         if (!("name" in $$source)) {
             /**
+             * Name is the project's human label, shown wherever a person reads which
+             * project they are in. It is free to change; ID is what survives.
              * @member
              * @type {string}
              */
@@ -1232,54 +1248,54 @@ export class KapiProject {
      * @returns {KapiProject}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType26;
-        const $$createField3_0 = $$createType27;
-        const $$createField4_0 = $$createType29;
-        const $$createField6_0 = $$createType32;
-        const $$createField7_0 = $$createType34;
-        const $$createField8_0 = $$createType23;
-        const $$createField9_0 = $$createType36;
-        const $$createField10_0 = $$createType37;
-        const $$createField11_0 = $$createType23;
-        const $$createField12_0 = $$createType36;
-        const $$createField13_0 = $$createType23;
-        const $$createField14_0 = $$createType38;
+        const $$createField3_0 = $$createType26;
+        const $$createField4_0 = $$createType27;
+        const $$createField5_0 = $$createType29;
+        const $$createField7_0 = $$createType32;
+        const $$createField8_0 = $$createType34;
+        const $$createField9_0 = $$createType23;
+        const $$createField10_0 = $$createType36;
+        const $$createField11_0 = $$createType37;
+        const $$createField12_0 = $$createType23;
+        const $$createField13_0 = $$createType36;
+        const $$createField14_0 = $$createType23;
+        const $$createField15_0 = $$createType38;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
-            $$parsedSource["plugins"] = $$createField2_0($$parsedSource["plugins"]);
+            $$parsedSource["plugins"] = $$createField3_0($$parsedSource["plugins"]);
         }
         if ("defaults" in $$parsedSource) {
-            $$parsedSource["defaults"] = $$createField3_0($$parsedSource["defaults"]);
+            $$parsedSource["defaults"] = $$createField4_0($$parsedSource["defaults"]);
         }
         if ("collections" in $$parsedSource) {
-            $$parsedSource["collections"] = $$createField4_0($$parsedSource["collections"]);
+            $$parsedSource["collections"] = $$createField5_0($$parsedSource["collections"]);
         }
         if ("flows" in $$parsedSource) {
-            $$parsedSource["flows"] = $$createField6_0($$parsedSource["flows"]);
+            $$parsedSource["flows"] = $$createField7_0($$parsedSource["flows"]);
         }
         if ("profiles" in $$parsedSource) {
-            $$parsedSource["profiles"] = $$createField7_0($$parsedSource["profiles"]);
+            $$parsedSource["profiles"] = $$createField8_0($$parsedSource["profiles"]);
         }
         if ("ship_gate" in $$parsedSource) {
-            $$parsedSource["ship_gate"] = $$createField8_0($$parsedSource["ship_gate"]);
+            $$parsedSource["ship_gate"] = $$createField9_0($$parsedSource["ship_gate"]);
         }
         if ("ship_gates" in $$parsedSource) {
-            $$parsedSource["ship_gates"] = $$createField9_0($$parsedSource["ship_gates"]);
+            $$parsedSource["ship_gates"] = $$createField10_0($$parsedSource["ship_gates"]);
         }
         if ("gates" in $$parsedSource) {
-            $$parsedSource["gates"] = $$createField10_0($$parsedSource["gates"]);
+            $$parsedSource["gates"] = $$createField11_0($$parsedSource["gates"]);
         }
         if ("verified_gate" in $$parsedSource) {
-            $$parsedSource["verified_gate"] = $$createField11_0($$parsedSource["verified_gate"]);
+            $$parsedSource["verified_gate"] = $$createField12_0($$parsedSource["verified_gate"]);
         }
         if ("verified_gates" in $$parsedSource) {
-            $$parsedSource["verified_gates"] = $$createField12_0($$parsedSource["verified_gates"]);
+            $$parsedSource["verified_gates"] = $$createField13_0($$parsedSource["verified_gates"]);
         }
         if ("source_gate" in $$parsedSource) {
-            $$parsedSource["source_gate"] = $$createField13_0($$parsedSource["source_gate"]);
+            $$parsedSource["source_gate"] = $$createField14_0($$parsedSource["source_gate"]);
         }
         if ("requires" in $$parsedSource) {
-            $$parsedSource["requires"] = $$createField14_0($$parsedSource["requires"]);
+            $$parsedSource["requires"] = $$createField15_0($$parsedSource["requires"]);
         }
         return new KapiProject(/** @type {Partial<KapiProject>} */($$parsedSource));
     }

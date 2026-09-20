@@ -111,7 +111,7 @@ type ExtractContentInput struct {
 	Path       string `json:"path" jsonschema:"File path to extract content from"`
 	Format     string `json:"format,omitempty" jsonschema:"Override format detection"`
 	SourceLang string `json:"source_lang,omitempty" jsonschema:"Source language (default: en)"`
-	Project    string `json:"project,omitempty" jsonschema:"Path to .kapi project file for scoped format detection"`
+	Project    string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in); its declared formats scope detection"`
 }
 
 type BlockEntry struct {
@@ -135,7 +135,7 @@ type ExtractContentOutput struct {
 type RunFlowInput struct {
 	FlowName   string `json:"flow_name" jsonschema:"Name of the flow to run (e.g. pseudo-translate or qa)"`
 	Path       string `json:"path,omitempty" jsonschema:"Input file path (optional when project has content patterns)"`
-	Project    string `json:"project,omitempty" jsonschema:"Path to a .kapi project file for project-scoped execution"`
+	Project    string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in); the flow runs scoped to it"`
 	SourceLang string `json:"source_lang,omitempty" jsonschema:"Source language (default: en)"`
 	TargetLang string `json:"target_lang,omitempty" jsonschema:"Target language"`
 	OutputPath string `json:"output_path,omitempty" jsonschema:"Output file path (default: auto-generated)"`
@@ -229,7 +229,11 @@ func handleDetectFormat(a *cli.App, input DetectFormatInput) (*mcp.CallToolResul
 }
 
 func handleExtractContent(ctx context.Context, a *cli.App, input ExtractContentInput) (*mcp.CallToolResult, ExtractContentOutput, error) {
-	fmtName, reader, err := openReader(ctx, a, input.Path, input.Format, input.SourceLang, input.Project)
+	projectPath, err := a.ResolveMCPCallProject(input.Project)
+	if err != nil {
+		return nil, ExtractContentOutput{}, err
+	}
+	fmtName, reader, err := openReader(ctx, a, input.Path, input.Format, input.SourceLang, projectPath)
 	if err != nil {
 		return nil, ExtractContentOutput{}, err
 	}
@@ -268,9 +272,14 @@ func handleExtractContent(ctx context.Context, a *cli.App, input ExtractContentI
 }
 
 func handleRunFlow(ctx context.Context, a *cli.App, input RunFlowInput) (*mcp.CallToolResult, RunFlowOutput, error) {
-	// When a project file is specified, use ProjectContext for defaults and content resolution.
-	if input.Project != "" {
-		return handleRunFlowWithProject(ctx, a, input)
+	// With a project in scope, ProjectContext supplies the defaults and the
+	// content resolution.
+	projectPath, err := a.ResolveMCPCallProject(input.Project)
+	if err != nil {
+		return nil, RunFlowOutput{}, err
+	}
+	if projectPath != "" {
+		return handleRunFlowWithProject(ctx, a, projectPath, input)
 	}
 
 	if input.Path == "" {
@@ -314,15 +323,15 @@ func firstInput(resolved []project.ResolvedFile) string {
 	return ""
 }
 
-func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInput) (*mcp.CallToolResult, RunFlowOutput, error) {
-	proj, err := a.LoadProjectInteractive(ctx, input.Project, cli.LoadProjectInteractiveOptions{
+func handleRunFlowWithProject(ctx context.Context, a *cli.App, projectPath string, input RunFlowInput) (*mcp.CallToolResult, RunFlowOutput, error) {
+	proj, err := a.LoadProjectInteractive(ctx, projectPath, cli.LoadProjectInteractiveOptions{
 		AssumeYes: a.AssumeYes,
 	})
 	if err != nil {
 		return nil, RunFlowOutput{}, fmt.Errorf("load project: %w", err)
 	}
 
-	pctx := project.NewProjectContext(proj, input.Project)
+	pctx := project.NewProjectContext(proj, projectPath)
 
 	// Apply project defaults for languages.
 	sourceLang := input.SourceLang
@@ -351,7 +360,7 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 		// Project flow — assemble the tool chain through the host so the
 		// AD-006 placement gate, per-step config resolution and project
 		// bindings all apply, exactly as they do on the CLI.
-		flowTools, cleanup, err := a.BuildProjectFlowTools(ctx, flowName, spec, pctx, input.Project, sourceLang, targetLang)
+		flowTools, cleanup, err := a.BuildProjectFlowTools(ctx, flowName, spec, pctx, projectPath, sourceLang, targetLang)
 		if err != nil {
 			return nil, RunFlowOutput{}, err
 		}

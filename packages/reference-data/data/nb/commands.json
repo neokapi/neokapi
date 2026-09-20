@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T22:10:27Z",
+  "generatedAt": "2026-09-20T22:23:59Z",
   "commands": [
     {
       "id": "add",
@@ -5093,8 +5093,14 @@
           "type": "bool"
         },
         {
+          "name": "mint-id",
+          "usage": "Write a stable project id into a recipe that has none, and print the id",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "name",
-          "usage": "Project id/name (default: directory basename)",
+          "usage": "Project name (default: directory basename)",
           "type": "string"
         },
         {

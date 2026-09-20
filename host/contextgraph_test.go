@@ -2,6 +2,8 @@ package host
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -11,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/occurrence"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
+	graphstore "github.com/neokapi/neokapi/host/storage/graph"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -171,6 +174,118 @@ func TestMaterializeContextGraphSurvivesReparse(t *testing.T) {
 	after := edgeIDs(t, ctx, a, root, contextgraph.EdgeUsesTerm)
 
 	assert.Equal(t, before, after, "a renumbered re-parse rewrites the same edges")
+}
+
+// The scope's project dimension is the recipe's stable id, and the name only
+// where there is no id to use.
+func TestProjectScopeKeysOnTheStableID(t *testing.T) {
+	id := project.NewID()
+	tests := []struct {
+		name string
+		proj *project.KapiProject
+		want string
+	}{
+		{name: "nil project", proj: nil, want: ""},
+		{name: "id wins over name", proj: &project.KapiProject{ID: id, Name: "neokapi"}, want: id},
+		{name: "name alone", proj: &project.KapiProject{Name: "neokapi"}, want: "neokapi"},
+		{name: "neither", proj: &project.KapiProject{}, want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, contextgraph.Scope{Project: tt.want}, ProjectScope(tt.proj))
+		})
+	}
+}
+
+// With an id in the recipe, renaming the project re-keys nothing: every node
+// and every edge the materializer writes carries the same id before and after,
+// so the whole projection survives an edit to `name:`.
+func TestMaterializeContextGraphRenameWithIDReKeysNothing(t *testing.T) {
+	ctx := context.Background()
+	a := &App{}
+	root := t.TempDir()
+	require.NoError(t, project.EnsureLayout(project.LayoutAt(root)))
+	graphFixture(t, a, root, defaultFixtureBlocks())
+
+	id := project.NewID()
+	before := fixtureProject("neokapi")
+	before.ID = id
+	_, err := a.MaterializeContextGraph(ctx, root, before)
+	require.NoError(t, err)
+
+	labels := []string{
+		contextgraph.EdgeUsesTerm, contextgraph.EdgeInCollection,
+		contextgraph.EdgeGovernedBy, contextgraph.EdgeBlesses,
+	}
+	beforeEdges := map[string][]string{}
+	for _, label := range labels {
+		beforeEdges[label] = edgeIDs(t, ctx, a, root, label)
+	}
+	require.NotEmpty(t, beforeEdges[contextgraph.EdgeUsesTerm])
+	beforeUses, err := contextgraph.Uses(ctx, mustGraph(t, ctx, a, root), ProjectScope(before), "c-memory")
+	require.NoError(t, err)
+	require.NotEmpty(t, beforeUses)
+
+	after := fixtureProject("kapi")
+	after.ID = id
+	require.Equal(t, ProjectScope(before), ProjectScope(after), "the rename does not move the scope")
+
+	_, err = a.MaterializeContextGraph(ctx, root, after)
+	require.NoError(t, err)
+
+	for _, label := range labels {
+		assert.Equal(t, beforeEdges[label], edgeIDs(t, ctx, a, root, label),
+			"a rename leaves every %s edge keyed as it was", label)
+	}
+
+	g := mustGraph(t, ctx, a, root)
+	for _, label := range labels {
+		edges, ferr := g.FindEdges(ctx, label, nil)
+		require.NoError(t, ferr)
+		for _, e := range edges {
+			src, ok := contextgraph.ParseNodeID(e.Source)
+			require.True(t, ok)
+			assert.Equal(t, id, src.Scope.Project, "every node stays under the project id")
+			_, gerr := g.GetNode(ctx, e.Source)
+			require.NoError(t, gerr, "edge %s source resolves", e.ID)
+			_, gerr = g.GetNode(ctx, e.Target)
+			require.NoError(t, gerr, "edge %s target resolves", e.ID)
+		}
+	}
+
+	afterUses, err := contextgraph.Uses(ctx, g, ProjectScope(after), "c-memory")
+	require.NoError(t, err)
+	assert.Equal(t, beforeUses, afterUses, "the same question gets the same answer after the rename")
+}
+
+// Two checkouts of one repository are one project: the recipe travels with the
+// id, so the same bytes read from two directories resolve to one scope. Without
+// an id the two would agree only for as long as both spell the name the same
+// way.
+func TestTwoCheckoutsOfOneRecipeResolveToOneScope(t *testing.T) {
+	recipe := "version: v1\nid: " + project.NewID() + "\nname: Northsea\ndefaults:\n  source_language: en\n"
+
+	scopeAt := func(dir string) contextgraph.Scope {
+		t.Helper()
+		path := filepath.Join(dir, project.RecipeFileName)
+		require.NoError(t, os.WriteFile(path, []byte(recipe), 0o644))
+		proj, err := project.Load(path)
+		require.NoError(t, err)
+		return ProjectScope(proj)
+	}
+
+	first := scopeAt(t.TempDir())
+	second := scopeAt(t.TempDir())
+	assert.Equal(t, first, second)
+	assert.Equal(t, first.Key(), second.Key(), "the node id segment is the same in both checkouts")
+	assert.NotEmpty(t, first.Project)
+}
+
+func mustGraph(t *testing.T, ctx context.Context, a *App, root string) *graphstore.SQLiteGraphStore {
+	t.Helper()
+	g, err := a.ProjectGraph(ctx, root)
+	require.NoError(t, err)
+	return g
 }
 
 // Renaming the project re-keys every instance node, and the pass that writes the

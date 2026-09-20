@@ -130,6 +130,10 @@
             "null",
             "array"
           ]
+        },
+        "project": {
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+          "type": "string"
         }
       },
       "required": [
@@ -160,7 +164,7 @@
           "type": "string"
         },
         "project": {
-          "description": "Path to the .kapi project file (default: the ambient project)",
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"
         }
       },
@@ -229,6 +233,10 @@
           "description": "explicit voice override; omitting profile_pack and profile_file preserves the file-scoped project voice and channel",
           "type": "string"
         },
+        "project": {
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+          "type": "string"
+        },
         "require": {
           "description": "regex that MUST appear in the content",
           "items": {
@@ -294,6 +302,10 @@
           "description": "built-in profile pack to check vocabulary against (e.g. marketing-blog)",
           "type": "string"
         },
+        "project": {
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+          "type": "string"
+        },
         "require": {
           "description": "regex that MUST appear in the content",
           "items": {
@@ -330,6 +342,10 @@
         },
         "memory": {
           "description": "path to a standalone content memory (default: the project's own store)",
+          "type": "string"
+        },
+        "project": {
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"
         },
         "query": {
@@ -377,7 +393,7 @@
           "type": "string"
         },
         "project": {
-          "description": "Path to .kapi project file for scoped format detection",
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in); its declared formats scope detection",
           "type": "string"
         },
         "source_lang": {
@@ -416,6 +432,10 @@
         "placeholder": {
           "description": "Visible stand-in template; supports {category} and {n}",
           "title": "Placeholder Template",
+          "type": "string"
+        },
+        "project": {
+          "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins.",
           "type": "string"
         },
         "rulesPath": {
@@ -488,7 +508,7 @@
           "type": "string"
         },
         "project": {
-          "description": "Path to the .kapi project file (default: the ambient project)",
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"
         }
       },
@@ -518,7 +538,7 @@
           "type": "string"
         },
         "project": {
-          "description": "Path to the .kapi project file (default: the ambient project)",
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"
         }
       },
@@ -543,7 +563,7 @@
           "type": "string"
         },
         "project": {
-          "description": "Path to the .kapi project file (default: the ambient project)",
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"
         }
       },
@@ -577,7 +597,7 @@
           "type": "string"
         },
         "project": {
-          "description": "Path to the .kapi project file (default: the ambient project)",
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"
         }
       },
@@ -625,6 +645,10 @@
           "description": "Whether term matching is case-sensitive",
           "title": "Case Sensitive",
           "type": "boolean"
+        },
+        "project": {
+          "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins.",
+          "type": "string"
         },
         "target": {
           "description": "The existing translation to run the tool over, in `target_lang`. Bilingual tools read this; without it they have nothing to check.",
@@ -768,6 +792,10 @@
         "model": {
           "description": "AI model name",
           "title": "Model",
+          "type": "string"
+        },
+        "project": {
+          "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins.",
           "type": "string"
         },
         "provider": {
@@ -969,7 +997,7 @@
           "type": "integer"
         },
         "project": {
-          "description": "path to the kapi.yaml recipe (default: discovered upward from the working directory, like git)",
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"
         }
       },
@@ -982,7 +1010,7 @@
       "additionalProperties": false,
       "properties": {
         "project": {
-          "description": "path to the kapi.yaml recipe (default: discovered upward from the working directory, like git)",
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"
         }
       },
