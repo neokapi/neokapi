@@ -43,6 +43,9 @@ func SetField(proj *KapiProject, path string, raw json.RawMessage) (bool, error)
 	}
 
 	switch path {
+	case "id":
+		return setProjectID(proj, path, raw)
+
 	case "name":
 		var v string
 		if err := decodeRecipeValue(path, raw, &v); err != nil {
@@ -124,6 +127,38 @@ func SetField(proj *KapiProject, path string, raw json.RawMessage) (bool, error)
 	default:
 		return false, fmt.Errorf("recipe: unknown or unsettable path %q", path)
 	}
+}
+
+// setProjectID gives a recipe the stable id it has none of.
+//
+// Setting it is a one-way step, and the refusals are what make it one. Every
+// key kapi derives for the project's recorded context reads the id, so writing
+// a second one over the first abandons that context under the old key, and
+// clearing it hands identity back to a label a user edits. A project that must
+// genuinely become a different project loses nothing by starting from a recipe
+// with no id, which mints a fresh one.
+func setProjectID(proj *KapiProject, path string, raw json.RawMessage) (bool, error) {
+	var v string
+	if err := decodeRecipeValue(path, raw, &v); err != nil {
+		return false, err
+	}
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return false, errors.New(`recipe: "id" cannot be cleared: it is what the project's recorded context is keyed on`)
+	}
+	if err := ValidateID(v); err != nil {
+		return false, fmt.Errorf("recipe: %w", err)
+	}
+	if proj.ID == v {
+		return false, nil
+	}
+	if proj.ID != "" {
+		return false, fmt.Errorf(
+			"recipe: this project already has the id %s, and re-keying it would strand everything recorded under that id. Remove `id:` and re-mint to make it a different project",
+			proj.ID)
+	}
+	proj.ID = v
+	return true, nil
 }
 
 // DeclarableAxis reports whether an axis may be declared under

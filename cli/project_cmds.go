@@ -23,6 +23,7 @@ func NewInitCmd(a *App) *cobra.Command {
 		presetName   string
 		listPresets  bool
 		noPointer    bool
+		mintID       bool
 	)
 	cmd := &cobra.Command{
 		Use:     "init",
@@ -36,9 +37,15 @@ voice: a voice profile, the project terms store, and a check flow, with no
 target languages. Pass --target-locale (or --framework) to make it a
 translation project instead.
 
-The project id defaults to the current directory's basename and the source
+The project name defaults to the current directory's basename and the source
 locale to en. Override with --name, --source-locale, --target-locale
 (repeatable).
+
+Every project kapi scaffolds is given a stable id under 'id:' in the recipe.
+It survives a rename, a move and a clone, and everything kapi records about
+the project is keyed on it. A recipe written before this and carrying no id
+keeps working, identified by its name; --mint-id writes one into it, leaving
+the rest of the file exactly as it is.
 
 --preset <name> (alias: --framework) pre-fills the content mapping for a known
 stack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,
@@ -80,6 +87,7 @@ alone. --no-pointer skips it; 'kapi voice pointer' writes it later.`,
 				SourceLocale:  sourceLocale,
 				TargetLocales: targetLocale,
 				Framework:     framework,
+				MintID:        mintID,
 			})
 			if err != nil {
 				return err
@@ -91,6 +99,12 @@ alone. --no-pointer skips it; 'kapi voice pointer' writes it later.`,
 				fmt.Fprintf(cmd.OutOrStdout(), "Initialized kapi project %q\n", res.Name)
 				fmt.Fprintf(cmd.OutOrStdout(), "  recipe: %s\n", res.RecipePath)
 				fmt.Fprintf(cmd.OutOrStdout(), "  state:  %s\n", res.StateDir)
+			}
+			// The id is reported only where the user asked about it. An
+			// ordinary init writes it into the recipe, which is where it is
+			// read from.
+			if mintID {
+				printMintedID(cmd, res)
 			}
 			if noPointer {
 				return nil
@@ -112,15 +126,28 @@ alone. --no-pointer skips it; 'kapi voice pointer' writes it later.`,
 		},
 	}
 	cmd.Flags().StringVar(&dir, "dir", "", "Directory to scaffold in (default: current directory)")
-	cmd.Flags().StringVar(&name, "name", "", "Project id/name (default: directory basename)")
+	cmd.Flags().StringVar(&name, "name", "", "Project name (default: directory basename)")
 	cmd.Flags().StringVar(&sourceLocale, "source-locale", "en", "Source locale (BCP-47)")
 	cmd.Flags().StringSliceVar(&targetLocale, "target-locale", nil, "Target locale (repeatable)")
 	cmd.Flags().StringVar(&framework, "framework", "", "Pre-fill content mapping for a known stack (see 'kapi init --list-presets'); scaffolds a translation project")
 	cmd.Flags().StringVar(&presetName, "preset", "", "Scaffold from a named framework preset (see 'kapi init --list-presets'); alias of --framework")
 	cmd.Flags().BoolVar(&listPresets, "list-presets", false, "List available presets (framework scaffolds and per-format parsing presets) and exit")
 	cmd.Flags().BoolVar(&noPointer, "no-pointer", false, "Do not write the voice pointer into CLAUDE.md or AGENTS.md")
+	cmd.Flags().BoolVar(&mintID, "mint-id", false, "Write a stable project id into a recipe that has none, and print the id")
 	cmd.MarkFlagsMutuallyExclusive("preset", "framework")
 	return cmd
+}
+
+// printMintedID reports the project's stable id and whether this run wrote it,
+// so a user who asked for one can tell an id that just landed in their recipe
+// from one that was already there.
+func printMintedID(cmd *cobra.Command, res *InitResult) {
+	switch {
+	case res.IDMinted:
+		fmt.Fprintf(cmd.OutOrStdout(), "  id:     %s (written to the recipe)\n", res.ID)
+	case res.ID != "":
+		fmt.Fprintf(cmd.OutOrStdout(), "  id:     %s (already set)\n", res.ID)
+	}
 }
 
 // printInitPointer reports what init did to the assistant file. On a fresh

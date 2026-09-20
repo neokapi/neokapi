@@ -193,6 +193,66 @@ func TestInitCmd_idempotentOnExistingRecipe(t *testing.T) {
 	assert.Contains(t, out.String(), "already initialized")
 }
 
+// A scaffolded recipe carries a stable id, and the ordinary run says nothing
+// about it: the recipe is where it is read.
+func TestInitCmd_scaffoldWritesAStableID(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+
+	cmd := NewInitCmd(app)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--dir", dir, "--name", "my-app"})
+	require.NoError(t, cmd.Execute())
+
+	p, err := project.Load(filepath.Join(dir, project.RecipeFileName))
+	require.NoError(t, err)
+	require.NoError(t, project.ValidateID(p.ID))
+	assert.Equal(t, p.ID, p.Identity())
+	assert.NotContains(t, out.String(), p.ID, "an ordinary init reports the recipe, not the id")
+}
+
+// --mint-id gives an existing recipe an id, prints it, and leaves the rest of
+// the file as the author wrote it. Running it again finds the id already there.
+func TestInitCmd_mintID(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+	recipePath := filepath.Join(dir, project.RecipeFileName)
+	const recipe = "version: v1\n# the label\nname: existing\n\ndefaults:\n  source_language: en\n"
+	require.NoError(t, os.WriteFile(recipePath, []byte(recipe), 0o644))
+
+	run := func() string {
+		cmd := NewInitCmd(app)
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetErr(&out)
+		cmd.SetArgs([]string{"--dir", dir, "--mint-id"})
+		require.NoError(t, cmd.Execute())
+		return out.String()
+	}
+
+	first := run()
+	p, err := project.Load(recipePath)
+	require.NoError(t, err)
+	require.NoError(t, project.ValidateID(p.ID))
+	assert.Equal(t, "existing", p.Name)
+	assert.Contains(t, first, p.ID)
+	assert.Contains(t, first, "written to the recipe")
+
+	body, err := os.ReadFile(recipePath)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "# the label")
+	assert.Contains(t, string(body), "name: existing")
+	assert.Contains(t, string(body), "source_language: en")
+
+	second := run()
+	assert.Contains(t, second, "already set")
+	after, err := os.ReadFile(recipePath)
+	require.NoError(t, err)
+	assert.Equal(t, string(body), string(after), "a second mint writes nothing")
+}
+
 // kapi init points an assistant at the voice it just bound: the content
 // scaffold binds a pack, so a fresh project gets a CLAUDE.md section naming
 // it; an AGENTS.md already at the root takes the section instead; --no-pointer

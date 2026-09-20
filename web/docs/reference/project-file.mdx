@@ -17,6 +17,7 @@ Like git, `kapi` walks up the directory tree from where you run it and uses the 
 
 ```yaml
 version: v1
+id: prj_k3m7xq2vw9ta5r8ybn4dcp
 name: My App
 
 collections:
@@ -82,6 +83,7 @@ defaults:
 
 | Field      | Type           | Description                                                                                                  |
 | ---------- | -------------- | ----------------------------------------------------------------------------------------------------------- |
+| `id`       | string         | The project's stable identity (see [Project identity](#project-identity))                                   |
 | `collections` | Collection[] | The content this project governs (see [Collections](#collections))                                          |
 | `profiles` | map            | Governance bound per product, keyed by profile name (see [Profiles and channels](#profiles-and-channels))    |
 | `preset`   | string         | A framework preset name (see [`kapi init`](/reference/commands/init) `--list-presets`) (e.g., `nextjs`, `react-intl`) applied to formats    |
@@ -95,6 +97,26 @@ defaults:
 | `source_gate` | Gate        | Coverage gate over the source authoring ladder (see [source_gate](#source_gate))                            |
 | `verified_gate` | Gate      | A single catch-all verified gate: the bar a locale must clear to read as *verified*, independent of shipping (see [Ship gates](#ship-gates)) |
 | `verified_gates` | ShipGateRule[] | Scoped verified-gate rules, in the same `when`/`gate` form as `ship_gates`; the most specific rule wins. With neither key set, no locale is verified |
+
+### Project identity
+
+`kapi init` writes an `id:` into every recipe it scaffolds:
+
+```yaml
+version: v1
+id: prj_k3m7xq2vw9ta5r8ybn4dcp
+name: My App
+```
+
+The id is random, minted once, and derived from nothing else in the project. Everything kapi records about the project locally is keyed on it, so you can rename the project, move the folder, or clone the repository onto another machine and the recorded context still belongs to the same project. Two checkouts of one repository are one project because they share one recipe.
+
+`name:` is the label you read in `kapi status` and in Kapi Desktop. Change it whenever you like.
+
+Keep the `id:` line when you commit the recipe, and keep it when you copy a recipe as a starting point for a genuinely different project: delete the line there and run `kapi init --mint-id` in the new project, which writes a fresh id and leaves the rest of the file untouched.
+
+A recipe with no `id:` keeps working. kapi identifies such a project by its `name:`, and `kapi init --mint-id` gives it an id whenever you want one.
+
+Older kapi releases read a recipe carrying an `id:` without complaint: an unrecognized top-level key round-trips as an extension. Such a release still identifies the project by its name, so a project shared between two kapi versions is keyed differently by each until both carry this release.
 
 ### Collections
 

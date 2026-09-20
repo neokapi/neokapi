@@ -1,6 +1,7 @@
 package host
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,6 +26,10 @@ type InitOptions struct {
 	// Framework pre-fills the content mapping for a known stack (a preset name)
 	// and scaffolds a translation project.
 	Framework string
+	// MintID asks for a stable project id on a recipe that is already there
+	// and carries none. A recipe InitProject writes itself always gets one, so
+	// this only governs the adopt path.
+	MintID bool
 }
 
 // InitResult reports what InitProject did.
@@ -32,6 +37,11 @@ type InitResult struct {
 	Name       string
 	RecipePath string
 	StateDir   string
+	// ID is the project's stable id, empty when the adopted recipe has none
+	// and none was asked for.
+	ID string
+	// IDMinted is true when this call wrote ID into the recipe.
+	IDMinted bool
 	// AlreadyInitialized is true when a recipe was already present; InitProject
 	// adopts it and leaves it untouched (init is idempotent).
 	AlreadyInitialized bool
@@ -66,18 +76,36 @@ func InitProject(root string, opts InitOptions) (*InitResult, error) {
 	recipePath := filepath.Join(root, project.RecipeFileName)
 	stateDir := filepath.Join(root, project.StateDirName)
 
-	if !recipeExists {
+	res := &InitResult{
+		Name:               name,
+		RecipePath:         recipePath,
+		StateDir:           stateDir,
+		AlreadyInitialized: recipeExists,
+	}
+
+	switch {
+	case !recipeExists:
+		// Every project kapi scaffolds is born with a stable identity, so
+		// nothing it later records is keyed on a label the user is free to
+		// edit.
+		res.ID, res.IDMinted = project.NewID(), true
 		// On-brand content is the default; a target locale or a framework opts
 		// into the translation scaffold.
 		var recipe []byte
 		if len(opts.TargetLocales) > 0 || opts.Framework != "" {
-			recipe = ScaffoldRecipe(name, sourceLocale, opts.TargetLocales, content, voiceProfile, termsSource)
+			recipe = ScaffoldRecipe(name, res.ID, sourceLocale, opts.TargetLocales, content, voiceProfile, termsSource)
 		} else {
-			recipe = ScaffoldContentRecipe(name, sourceLocale)
+			recipe = ScaffoldContentRecipe(name, res.ID, sourceLocale)
 		}
 		if err := os.WriteFile(recipePath, recipe, 0o644); err != nil {
 			return nil, fmt.Errorf("write recipe: %w", err)
 		}
+	case opts.MintID:
+		id, minted, err := MintProjectID(recipePath)
+		if err != nil {
+			return nil, err
+		}
+		res.ID, res.IDMinted = id, minted
 	}
 
 	// EnsureLayout/SaveState are safe to run on an existing layout.
@@ -97,12 +125,53 @@ func InitProject(root string, opts InitOptions) (*InitResult, error) {
 		}
 	}
 
-	return &InitResult{
-		Name:               name,
-		RecipePath:         recipePath,
-		StateDir:           stateDir,
-		AlreadyInitialized: recipeExists,
-	}, nil
+	return res, nil
+}
+
+// MintProjectID gives a recipe the stable project id it has none of, and
+// reports the id the recipe carries either way along with whether this call
+// wrote it.
+//
+// The write goes through the recipe setter every other pending recipe change
+// takes (project.SetField, then project.Save over core/yamledit), so the file
+// keeps its comments, its blank lines, its key order and the spelling of every
+// value already in it. A recipe that already carries an id is read and left
+// alone: SetField refuses to re-key a project, and this path does not ask it to.
+func MintProjectID(recipePath string) (string, bool, error) {
+	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return "", false, fmt.Errorf("load project: %w", err)
+	}
+	if proj.ID != "" {
+		return proj.ID, false, nil
+	}
+	id := project.NewID()
+	raw, err := json.Marshal(id)
+	if err != nil {
+		return "", false, fmt.Errorf("encode project id: %w", err)
+	}
+	if _, err := project.SetField(proj, "id", raw); err != nil {
+		return "", false, err
+	}
+	if err := project.Save(recipePath, proj); err != nil {
+		return "", false, err
+	}
+	return id, true, nil
+}
+
+// writeScaffoldID writes the project's stable id under `version:`, with the one
+// line of explanation a reader of a fresh recipe needs for a value they did not
+// type. An empty id writes nothing, which is what a caller building a recipe
+// for comparison rather than for a project asks for.
+func writeScaffoldID(b *strings.Builder, id string) {
+	if id == "" {
+		return
+	}
+	b.WriteString("# This project's stable identity. It survives a rename, a move and a clone,\n")
+	b.WriteString("# and everything kapi records about the project is keyed on it. Keep it.\n")
+	b.WriteString("id: ")
+	b.WriteString(id)
+	b.WriteByte('\n')
 }
 
 // scaffoldContent is one content mapping written into a scaffolded recipe.
@@ -201,9 +270,10 @@ func RecipeExists(dir string) (bool, error) {
 	return false, err
 }
 
-func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content []scaffoldContent, voiceProfile, termsSource string) []byte {
+func ScaffoldRecipe(name, id, sourceLocale string, targetLocales []string, content []scaffoldContent, voiceProfile, termsSource string) []byte {
 	var b strings.Builder
 	b.WriteString("version: v1\n")
+	writeScaffoldID(&b, id)
 	b.WriteString("name: ")
 	b.WriteString(name)
 	// Source/target locales live under `defaults:` — the schema the loader
@@ -301,9 +371,10 @@ flows: {}
 // ships a `check` flow that scores content with the deterministic
 // voice-vocabulary check. Passing --target-locale or --framework scaffolds a
 // translation project (ScaffoldRecipe) instead.
-func ScaffoldContentRecipe(name, sourceLocale string) []byte {
+func ScaffoldContentRecipe(name, id, sourceLocale string) []byte {
 	var b strings.Builder
 	b.WriteString("version: v1\n")
+	writeScaffoldID(&b, id)
 	b.WriteString("name: ")
 	b.WriteString(name)
 	b.WriteString("\ndefaults:\n")
