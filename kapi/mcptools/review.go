@@ -15,7 +15,6 @@ package mcptools
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -78,27 +77,18 @@ func agentIdentity(req *mcp.CallToolRequest) string {
 	return "agent"
 }
 
-// resolveReviewProject resolves the target project recipe: the explicit
-// `project` input when given, else the ambient project (KAPI_PROJECT / upward
-// walk, honoring KAPI_NO_PROJECT).
-func resolveReviewProject(explicit string) (string, error) {
-	if explicit != "" {
-		return explicit, nil
-	}
-	path, err := cli.ResolveProjectPath(nil)
-	if err != nil {
-		return "", err
-	}
-	if path == "" {
-		return "", errors.New("no kapi project found. Pass the project input (path to the kapi.yaml recipe)")
-	}
-	return path, nil
+// resolveReviewProject resolves the target project recipe through the shared
+// per-call seam: the explicit `project` input (a recipe, a project root, or any
+// path inside one), else the project the MCP server started in, else the
+// ambient project (KAPI_PROJECT / upward walk, honoring KAPI_NO_PROJECT).
+func resolveReviewProject(a *cli.App, explicit string) (string, error) {
+	return a.RequireMCPCallProject(explicit)
 }
 
 // --- Input/Output types ---
 
 type ReviewQueueInput struct {
-	Project    string `json:"project,omitempty" jsonschema:"Path to the .kapi project file (default: the ambient project)"`
+	Project    string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 	Language   string `json:"language,omitempty" jsonschema:"Only list units in this language; the project's source language lists its source units"`
 	Locale     string `json:"locale,omitempty" jsonschema:"Only list units for this target locale"`
 	Collection string `json:"collection,omitempty" jsonschema:"Only list units in this content collection"`
@@ -113,7 +103,7 @@ type ReviewQueueOutput struct {
 }
 
 type ReviewUnitInput struct {
-	Project string `json:"project,omitempty" jsonschema:"Path to the .kapi project file (default: the ambient project)"`
+	Project string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 	Locale  string `json:"locale" jsonschema:"Language of the unit, as listed by review_queue: a target locale, or the project's source language for a source unit"`
 	File    string `json:"file" jsonschema:"File path, as listed by review_queue: the target file for a translation, the source file for a source unit"`
 	Key     string `json:"key" jsonschema:"Unit key, as listed by review_queue"`
@@ -136,7 +126,7 @@ var reviewUnitOutputSchema = json.RawMessage(
 	`{"type":"object","properties":{"unit":{"type":"object"}}}`)
 
 type ReviewDecisionInput struct {
-	Project string `json:"project,omitempty" jsonschema:"Path to the .kapi project file (default: the ambient project)"`
+	Project string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 	Locale  string `json:"locale" jsonschema:"Target locale, as listed by review_queue"`
 	File    string `json:"file" jsonschema:"Target file path, as listed by review_queue"`
 	Key     string `json:"key" jsonschema:"Unit key, as listed by review_queue"`
@@ -155,7 +145,7 @@ type ReviewDecisionOutput struct {
 // --- Handlers ---
 
 func handleReviewQueue(ctx context.Context, a *cli.App, input ReviewQueueInput) (*mcp.CallToolResult, ReviewQueueOutput, error) {
-	projectPath, err := resolveReviewProject(input.Project)
+	projectPath, err := resolveReviewProject(a, input.Project)
 	if err != nil {
 		return nil, ReviewQueueOutput{}, err
 	}
@@ -181,7 +171,7 @@ func handleReviewQueue(ctx context.Context, a *cli.App, input ReviewQueueInput) 
 }
 
 func handleReviewUnit(ctx context.Context, a *cli.App, input ReviewUnitInput) (*mcp.CallToolResult, ReviewUnitOutput, error) {
-	projectPath, err := resolveReviewProject(input.Project)
+	projectPath, err := resolveReviewProject(a, input.Project)
 	if err != nil {
 		return nil, ReviewUnitOutput{}, err
 	}
@@ -195,7 +185,7 @@ func handleReviewUnit(ctx context.Context, a *cli.App, input ReviewUnitInput) (*
 }
 
 func handleReviewDecision(ctx context.Context, a *cli.App, input ReviewDecisionInput, decision, by string) (*mcp.CallToolResult, ReviewDecisionOutput, error) {
-	projectPath, err := resolveReviewProject(input.Project)
+	projectPath, err := resolveReviewProject(a, input.Project)
 	if err != nil {
 		return nil, ReviewDecisionOutput{}, err
 	}

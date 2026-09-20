@@ -2,7 +2,6 @@ package host
 
 import (
 	"context"
-	"errors"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/project"
@@ -19,7 +18,7 @@ func init() {
 
 // upMCPInput is the input to the `up` MCP tool.
 type upMCPInput struct {
-	Project     string `json:"project,omitempty" jsonschema:"path to the kapi.yaml recipe (default: discovered upward from the working directory, like git)"`
+	Project     string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 	Passes      int    `json:"passes,omitempty" jsonschema:"maximum reconciliation passes (0 = loop until up to date or parked; 1 = single pass)"`
 	Jobs        int    `json:"jobs,omitempty" jsonschema:"how many languages to catch up concurrently per pass (0 = project default, else 4)"`
 	Materialize bool   `json:"materialize,omitempty" jsonschema:"after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy)"`
@@ -29,7 +28,7 @@ type upMCPInput struct {
 
 // upPlanMCPInput is the input to the `up_plan` MCP tool.
 type upPlanMCPInput struct {
-	Project string `json:"project,omitempty" jsonschema:"path to the kapi.yaml recipe (default: discovered upward from the working directory, like git)"`
+	Project string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 }
 
 func registerUpMCPTools(server *mcp.Server, a *App) {
@@ -89,21 +88,8 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 	})
 }
 
-// mcpProjectPath resolves the project for an MCP call: the explicit input path
-// when given, then the server recipe, else discovery (honoring KAPI_NO_PROJECT).
+// mcpProjectPath resolves the project the loop verbs run over. Both need one,
+// so "no project" is refused rather than returned (ResolveMCPCallProject).
 func (a *App) mcpProjectPath(explicit string) (string, error) {
-	if explicit != "" {
-		return explicit, nil
-	}
-	if a.mcpRecipePath != "" {
-		return a.mcpRecipePath, nil
-	}
-	path, err := ResolveProjectPath(nil)
-	if err != nil {
-		return "", err
-	}
-	if path == "" {
-		return "", errors.New("no kapi project found. Pass project, or run the MCP server inside a kapi project directory")
-	}
-	return path, nil
+	return a.RequireMCPCallProject(explicit)
 }

@@ -23,6 +23,7 @@ func init() {
 // Each entry is a content edit or an asset edit (term/tm/brand/recipe).
 type applyEditsInput struct {
 	Changeset []changeEntry `json:"changeset" jsonschema:"the typed change-set entries to apply"`
+	Project   string        `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 }
 
 // applyEditsMCPOutput reports the per-block content outcome and per-entry asset
@@ -77,10 +78,14 @@ func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallT
 	byFile := map[string][]changeEntry{}
 	var fileOrder []string
 	var comments []changeEntry
-	// A bare command carries the context for the asset appliers' project
-	// resolution (they walk up from cwd); no flags are set, so they take their
-	// project-default paths.
-	cmd := NewEnvCommand(ctx, "apply-edits")
+	// The asset appliers resolve their store from this command's project: the
+	// one the call named, else the one the server started in. A term or a
+	// content-memory pair is written into that project's store rather than into
+	// whichever project the server's working directory happens to sit in.
+	cmd, _, err := a.mcpCallCommand(ctx, "apply-edits", in.Project)
+	if err != nil {
+		return nil, applyEditsMCPOutput{}, err
+	}
 
 	for _, e := range in.Changeset {
 		switch e.Kind {
@@ -116,13 +121,9 @@ func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallT
 		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
 	}
 	if len(comments) > 0 {
-		// The check of a written comment resolves governance from the project
-		// the server was started for, as check_file does.
-		checkCmd := NewEnvCommand(ctx, "apply-edits")
-		if a.mcpRecipePath != "" {
-			checkCmd.Flags().String(projectFlagName, a.mcpRecipePath, "")
-		}
-		out.Comments = a.applyComments(ctx, checkCmd, comments, false, "", mcpFormatterTrust())
+		// The check of a written comment resolves governance from the call's
+		// project, as check_file does.
+		out.Comments = a.applyComments(ctx, cmd, comments, false, "", mcpFormatterTrust())
 	}
 
 	return nil, applyEditsMCPOutput{
