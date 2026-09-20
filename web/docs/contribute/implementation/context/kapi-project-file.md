@@ -16,7 +16,8 @@ The `kapi.yaml` recipe is a YAML document parsed by `core/project.KapiProject`:
 ```go
 type KapiProject struct {
     Version     string                     `yaml:"version"`
-    Name        string                     `yaml:"name,omitempty"`
+    ID          string                     `yaml:"id,omitempty"`       // the stable identity; see Project identity
+    Name        string                     `yaml:"name,omitempty"`     // the label; free to change
     Plugins     map[string]PluginSpec      `yaml:"plugins,omitempty"`  // name → spec (scalar = version short form)
     Defaults    Defaults                   `yaml:"defaults,omitempty"` // project-wide defaults (locales live here)
     Collections []Collection               `yaml:"collections,omitempty"`
@@ -416,6 +417,9 @@ the full extension model.
 - `version` is required, must be `"v1"`. A top-level key the recipe does not
   have (`content:`, `coordinates:`) is rejected by name with a hint at the key
   that carries the intent, rather than captured as an unknown extension.
+- `id` is optional. When set, `ValidateID` requires `prj_` followed by 20 to 64
+  characters from `a-z2-7`, which is what `NewID` mints (128 random bits as
+  lowercase RFC 4648 base32, 26 characters).
 - For each `collections[]` entry:
   - Bare entry: `path` is required and `content` must be empty.
   - Named collection: `path` must be empty (use `content`) and `content` must be
@@ -458,7 +462,11 @@ the full extension model.
 - Extras at each scope are validated against any registered extension schema.
 
 Note: `name` is optional (`yaml:"name,omitempty"`); the framework does not
-require it.
+require it. `KapiProject.Identity()` reads `id` first and falls back to `name`,
+and that is the value every project-scoped key is derived from, starting with
+the context graph's scope (`host.ProjectScope`). `project.SetField(proj, "id",
+…)` is the one writer: it refuses an empty value and refuses to replace an id
+the recipe already carries, so an applied change-set cannot re-key a project.
 
 ## File Paths
 

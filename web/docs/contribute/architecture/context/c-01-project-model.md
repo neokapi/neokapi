@@ -171,6 +171,7 @@ The recipe is a YAML document parsed into `core/project.KapiProject`:
 ```yaml
 # kapi.yaml
 version: v1
+id: prj_k3m7xq2vw9ta5r8ybn4dcp
 name: Northsea App
 
 profiles:
@@ -261,6 +262,50 @@ Discovery is git-style: kapi walks up from the current directory until it finds 
 file named exactly `kapi.yaml` (`core/project.ResolveLayout`). A directory holds
 at most one, so discovery is unambiguous; an explicit `-p <path>` overrides it,
 and `KAPI_NO_PROJECT=1` opts out of discovery entirely.
+
+### Project identity
+
+`id:` is the project's identity and `name:` is its label. They are separate
+fields because they answer different questions, and because the label changes.
+
+The id is minted once, by `kapi init`, out of `crypto/rand` and nothing else.
+No part of it is derived from the name, the folder or the repository's origin,
+so editing any of those leaves it alone. The form is `prj_` followed by
+lowercase RFC 4648 base32 of 128 random bits, which leaves the value
+case-insensitive and free of every character that needs quoting in YAML, a URL
+or a shell word (`core/project.NewID`, checked on load by `ValidateID`).
+
+Everything kapi records about a project locally is keyed on
+`KapiProject.Identity()`, the id when the recipe carries one. The context
+graph's scope tuple ([C-03](c-03-context-store-and-graph.md)) is the first such
+key: `host.ProjectScope` writes every node and edge id under it. What a project
+can do without disturbing that key follows directly:
+
+- Rename it. The label is one line in the recipe, and editing it leaves every
+  derived key where it stands.
+- Move the folder, or clone the repository somewhere else. No key is derived
+  from a path.
+- Work in two checkouts at once. Both carry the same recipe and therefore the
+  same id, so a per-user store keyed by project reads them as one project.
+
+`Identity()` falls back to `name:` for a recipe that carries no `id:`. Such a
+project keeps working with the name as its key and no warning about it, and
+`kapi init --mint-id` writes an id into it through the ordinary recipe setter
+(`project.SetField`, saved over `core/yamledit`), so the file keeps its
+comments, its blank lines and its key order. A recipe stating neither leaves
+the scope's project dimension empty, which is the honest answer where there is
+no identity to state.
+
+Setting the id is one-way. The setter refuses to clear it, and refuses to write
+a second one over the first, because either strands everything already recorded
+under it. Turning a copied recipe into a genuinely different project means
+deleting the `id:` line and minting a fresh one.
+
+Unknown top-level keys are preserved rather than rejected (see [Recipe extension
+mechanism](#recipe-extension-mechanism)), so a kapi release built before this
+field reads a recipe carrying an `id:` and identifies the project by its name.
+The near-miss reporter stays quiet about it as well, since `id` resembles no
+field of `KapiProject`.
 
 ### Content paths
 

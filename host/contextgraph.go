@@ -24,17 +24,20 @@ import (
 // under.
 //
 // Locally the dimensions are pinned: the store IS one project, so there is no
-// workspace to name and no stream to distinguish. The project dimension is the
-// recipe's name — the only identity a disconnected project has — and it is
+// workspace to name and no stream to distinguish. The project dimension is
 // carried anyway, because the ids have to be the qualified scheme for a local
-// subgraph and a server one to describe the same world. A project that names
-// itself nothing leaves the dimension empty, which is the honest answer rather
-// than a fabricated id.
+// subgraph and a server one to describe the same world.
+//
+// The dimension is project.Identity: the recipe's stable `id:`, falling back to
+// its `name:` for a recipe that carries none. Keying on the id keeps a rename
+// out of the graph, and gives two checkouts of one recipe one scope. A recipe
+// stating neither leaves the dimension empty, which is the honest answer where
+// there is no identity to state.
 func ProjectScope(proj *project.KapiProject) contextgraph.Scope {
 	if proj == nil {
 		return contextgraph.Scope{}
 	}
-	return contextgraph.Scope{Project: proj.Name}
+	return contextgraph.Scope{Project: proj.Identity()}
 }
 
 // MaterializeContextGraph rebuilds the project's context graph — term
@@ -126,11 +129,13 @@ func (a *App) ExtractToProjectStore(
 // owns are cleared and rebuilt each pass.
 //
 // The clear is also what makes a re-key free. Node ids carry the scope tuple, so
-// renaming the project changes every id this writer produces; because the pass
-// deletes what it owns before writing, the rows under the old name go with it
-// and nothing is left orphaned. The same holds for a re-parse that renumbers a
-// document, which does not even re-key: block nodes are their content, not a
-// positional id.
+// a change to the project's identity changes every id this writer produces;
+// because the pass deletes what it owns before writing, the rows under the old
+// key go with it and nothing is left orphaned. A project carrying a stable `id:`
+// re-keys on nothing a user does, so the whole question falls away for it; a
+// recipe identified by its name alone re-keys on a rename and rebuilds. The same
+// holds for a re-parse that renumbers a document, which does not even re-key:
+// block nodes are their content, not a positional id.
 //
 // Concept nodes are refreshed rather than purged: they mirror the authored
 // terms store, and they are workspace vocabulary a future terms-hierarchy writer

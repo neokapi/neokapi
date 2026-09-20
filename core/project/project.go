@@ -58,7 +58,19 @@ var retiredProjectKeys = map[string]string{
 
 // KapiProject is the root type for a .kapi project file.
 type KapiProject struct {
-	Version     string                     `yaml:"version" json:"version"`
+	Version string `yaml:"version" json:"version"`
+
+	// ID is the project's stable identity. `kapi init` mints one, and every
+	// key kapi derives for the project's recorded context reads it through
+	// Identity, so renaming the project, moving the folder and cloning the
+	// repository elsewhere all leave that context where it is and two
+	// checkouts of one recipe resolve to one project. A recipe carrying no id
+	// is identified by its Name; `kapi init --mint-id` writes one into such a
+	// recipe. See id.go.
+	ID string `yaml:"id,omitempty" json:"id,omitempty"`
+
+	// Name is the project's human label, shown wherever a person reads which
+	// project they are in. It is free to change; ID is what survives.
 	Name        string                     `yaml:"name,omitempty" json:"name"`
 	Plugins     map[string]PluginSpec      `yaml:"plugins,omitempty" json:"plugins,omitempty"`
 	Defaults    Defaults                   `yaml:"defaults,omitempty" json:"defaults,omitzero"`
@@ -993,6 +1005,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	}
 	if p.Version != CurrentVersion {
 		return fmt.Errorf("unsupported version %q (expected %q)", p.Version, CurrentVersion)
+	}
+	if err := ValidateID(p.ID); err != nil {
+		return err
 	}
 	for _, key := range sortedKeys(p.Extras) {
 		if replacement, retired := retiredProjectKeys[key]; retired {

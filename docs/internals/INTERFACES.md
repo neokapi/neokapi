@@ -899,6 +899,17 @@ with `$HOME/.config/kapi/kapi.yaml` read as a lower-precedence legacy layer
 everywhere; `KAPI_CONFIG_DIR` overrides the home. The sketch below shows the
 shape of the lookup, not the code:
 
+Beside it sits the per-user **data** root, `host.DataDir()` in
+`host/datadir.go`, for what kapi records across projects rather than what a
+person configures. It resolves `$KAPI_DATA_DIR` first, then
+`$XDG_DATA_HOME/kapi` when that variable is set on any platform, then the
+platform default: `~/Library/Application Support/kapi` on macOS,
+`~/.local/share/kapi` on Linux, `%LocalAppData%\kapi` on Windows. Honouring
+`XDG_DATA_HOME` off Linux keeps the in-repo isolation contract whole, since
+that is the variable the Makefile's `$(KAPI_ISO_ENV)` and `kapi/e2e` already
+set. `DataDir` names the directory and leaves creating it to whoever writes
+there.
+
 ```go
 package config
 
