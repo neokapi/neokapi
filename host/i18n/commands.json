@@ -165,7 +165,7 @@
         "commit": {
           "flags": {
             "dry-run": {
-              "usage": "Report what would be committed and write nothing"
+              "usage": "report what would be committed and write nothing"
             },
             "project": {
               "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
