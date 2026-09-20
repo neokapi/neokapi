@@ -27,7 +27,7 @@ func TestDataDir(t *testing.T) {
 		{
 			name: "KAPI_DATA_DIR wins on darwin",
 			goos: "darwin",
-			env:  map[string]string{EnvDataDir: "/tmp/iso/data", "XDG_DATA_HOME": "/xdg", "HOME": "/Users/x"},
+			env:  map[string]string{EnvDataDir: "/tmp/iso/data", "XDG_DATA_HOME": "/xdg", "HOME": "/fakehome"},
 			want: "/tmp/iso/data",
 		},
 		{
@@ -39,13 +39,13 @@ func TestDataDir(t *testing.T) {
 		{
 			name: "KAPI_DATA_DIR wins on windows",
 			goos: "windows",
-			env:  map[string]string{EnvDataDir: `C:\iso\data`, "LOCALAPPDATA": `C:\Users\x\AppData\Local`},
+			env:  map[string]string{EnvDataDir: `C:\iso\data`, "LOCALAPPDATA": `C:\fakeprofile\AppData\Local`},
 			want: `C:\iso\data`,
 		},
 		{
 			name: "XDG_DATA_HOME is honoured on darwin",
 			goos: "darwin",
-			env:  map[string]string{"XDG_DATA_HOME": "/xdg", "HOME": "/Users/x"},
+			env:  map[string]string{"XDG_DATA_HOME": "/xdg", "HOME": "/fakehome"},
 			want: filepath.Join("/xdg", "kapi"),
 		},
 		{
@@ -57,14 +57,14 @@ func TestDataDir(t *testing.T) {
 		{
 			name: "XDG_DATA_HOME is honoured on windows",
 			goos: "windows",
-			env:  map[string]string{"XDG_DATA_HOME": `C:\xdg`, "LOCALAPPDATA": `C:\Users\x\AppData\Local`},
+			env:  map[string]string{"XDG_DATA_HOME": `C:\xdg`, "LOCALAPPDATA": `C:\fakeprofile\AppData\Local`},
 			want: filepath.Join(`C:\xdg`, "kapi"),
 		},
 		{
 			name: "darwin default",
 			goos: "darwin",
-			env:  map[string]string{"HOME": "/Users/x"},
-			want: filepath.Join("/Users/x", "Library", "Application Support", "kapi"),
+			env:  map[string]string{"HOME": "/fakehome"},
+			want: filepath.Join("/fakehome", "Library", "Application Support", "kapi"),
 		},
 		{
 			name: "linux default",
@@ -81,14 +81,14 @@ func TestDataDir(t *testing.T) {
 		{
 			name: "windows default",
 			goos: "windows",
-			env:  map[string]string{"LOCALAPPDATA": `C:\Users\x\AppData\Local`, "USERPROFILE": `C:\Users\x`},
-			want: filepath.Join(`C:\Users\x\AppData\Local`, "kapi"),
+			env:  map[string]string{"LOCALAPPDATA": `C:\fakeprofile\AppData\Local`, "USERPROFILE": `C:\fakeprofile`},
+			want: filepath.Join(`C:\fakeprofile\AppData\Local`, "kapi"),
 		},
 		{
 			name: "windows without LOCALAPPDATA falls back to the profile",
 			goos: "windows",
-			env:  map[string]string{"USERPROFILE": `C:\Users\x`},
-			want: filepath.Join(`C:\Users\x`, "AppData", "Local", "kapi"),
+			env:  map[string]string{"USERPROFILE": `C:\fakeprofile`},
+			want: filepath.Join(`C:\fakeprofile`, "AppData", "Local", "kapi"),
 		},
 		{
 			name: "an empty override is no override",
