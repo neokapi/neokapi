@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T21:46:42Z",
+  "generatedAt": "2026-09-20T22:01:41Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -2293,7 +2293,7 @@
       "uriTemplate": "context://{+path}{?format,project}",
       "name": "context-at-location",
       "title": "Context at a location",
-      "description": "What this project's context says applies at one place: the voice profile in force with its full guidance, the terms bound there, and the governance windows around them. Read this BEFORE writing or editing content at that location. Returns markdown by default; append `?format=json` for the structured shape. The path is project-relative, e.g. `context://docs/guide.md`. Append `\u0026project=\u003cpath\u003e` to read another project than the one the server started in.",
+      "description": "What this project's context says applies at one place: the voice profile in force with its full guidance, the terms bound there, and the governance windows around them. Read this BEFORE writing or editing content at that location. Returns markdown by default; append `?format=json` for the structured shape. The path is project-relative, e.g. `context://docs/guide.md`. Add `?project=\u003cpath\u003e` to read a project other than the one the server started in; the path names its kapi.yaml, its root directory, or anything inside it.",
       "mimeType": "text/markdown"
     }
   ]

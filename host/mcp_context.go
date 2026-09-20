@@ -74,7 +74,8 @@ func registerContextResources(server *mcp.Server, a *App) {
 		URITemplate: contextURIScheme + "{+path}{?format,project}",
 		MIMEType:    "text/markdown",
 		Description: description + " The path is project-relative, e.g. `context://docs/guide.md`. " +
-			"Append `&project=<path>` to read another project than the one the server started in.",
+			"Add `?project=<path>` to read a project other than the one the server started in; " +
+			"the path names its kapi.yaml, its root directory, or anything inside it.",
 	}, a.handleContextResource)
 
 	server.AddResourceTemplate(&mcp.ResourceTemplate{
