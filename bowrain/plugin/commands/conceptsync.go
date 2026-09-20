@@ -934,9 +934,16 @@ func observedTermsRef(proj *bproject.Project) string {
 	if proj.Recipe == nil || proj.Recipe.Server == nil {
 		return ""
 	}
+	stream, err := bproject.ResolveStream("", proj.Recipe.Server.Stream)
+	if err != nil {
+		// A checkout that names no stream has observed nothing on one, which is
+		// what an empty value already means to every caller here. The command
+		// the user actually ran reports the detached HEAD.
+		return ""
+	}
 	return refcache.Load(proj.Layout,
 		config.NormalizeServerURL(proj.Recipe.Server.ServerURL()),
-		proj.Recipe.Server.ProjectID()).Ref(bproject.ResolveStream("", proj.Recipe.Server.Stream)).Terms
+		proj.Recipe.Server.ProjectID()).Ref(stream).Terms
 }
 
 // changesetURL builds a best-effort link to review a change-set in the web hub

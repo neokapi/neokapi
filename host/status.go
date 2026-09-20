@@ -40,6 +40,13 @@ type StatusOutput struct {
 	// committed record. Omitted when there are none, so a clean project stays
 	// quiet — the same habit as git status.
 	Staged int `json:"staged,omitempty"`
+	// RecordReseeded reports that the committed record moved since the working
+	// set was seeded from it, which is what switching branches does to them, so
+	// the set was rebuilt from the record this checkout holds.
+	RecordReseeded bool `json:"record_reseeded,omitempty"`
+	// StagedCarried counts the staged decisions that crossed that rebuild. They
+	// were made against another record and are the part a person acts on.
+	StagedCarried int `json:"staged_carried,omitempty"`
 }
 
 // StatusVenue names the effective convergence venue for a server-connected
@@ -156,6 +163,10 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 		writeVenueLine(w, *o.Venue)
 	}
 	writeStagedLine(w, o.Staged)
+	if o.RecordReseeded {
+		fmt.Fprintln(w)
+		writeRecordReseeded(w, o.StagedCarried)
+	}
 	return nil
 }
 
@@ -712,6 +723,10 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		}
 		a.warnUnreadableFormats(cmd, src.Unreadable)
 		out.Staged = a.PendingDecisions(ctxOrBackground(cmd.Context()), root)
+		if reseed := a.ProjectStateReseed(ctxOrBackground(cmd.Context()), root); reseed.Reseeded {
+			out.RecordReseeded = true
+			out.StagedCarried = reseed.Carried
+		}
 		a.appendServerStatus(cmd, proj, &out)
 		out.Venue = a.statusVenue(proj)
 		a.WarnInertRecipeFields(cmd, proj)

@@ -2,7 +2,9 @@ package projectdb
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -46,6 +48,11 @@ const (
 	// MetaBlocksSourceStamps records, per project-relative source path, the
 	// identity that source had at extract time.
 	MetaBlocksSourceStamps = "blocks.sourceStamps"
+	// MetaStoreInstance identifies this store file. It is minted on the first
+	// ask and never rewritten, so a store deleted and created again is a
+	// different one, which is what anything holding a claim about the store's
+	// contents needs to be able to tell.
+	MetaStoreInstance = "store.instance"
 )
 
 // ErrNoStore reports an operation that needs the database on a handle that has
@@ -80,6 +87,37 @@ ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
 		return fmt.Errorf("projectdb: write metadata %q: %w", key, err)
 	}
 	return nil
+}
+
+// InstanceID returns this store file's identity, minting one on the first ask.
+//
+// It exists so a record kept outside the store can say which store it is about.
+// The position a project has consumed in a venue's change feed is such a
+// record: it lives in the ref cache and vouches for what landed in the store,
+// including decisions pulled and staged but not committed. The two are deleted
+// independently, and a position carried onto a store that never consumed it
+// claims content this project holds nowhere.
+//
+// Returns ErrNoStore on a build with no file-backed store, where there is no
+// file to identify.
+func (d *DB) InstanceID(ctx context.Context) (string, error) {
+	if d.raw == nil {
+		return "", ErrNoStore
+	}
+	if id, ok, err := d.Meta(ctx, MetaStoreInstance); err != nil {
+		return "", err
+	} else if ok && strings.TrimSpace(id) != "" {
+		return id, nil
+	}
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("projectdb: mint store identity: %w", err)
+	}
+	id := hex.EncodeToString(buf)
+	if err := d.PutMeta(ctx, MetaStoreInstance, id); err != nil {
+		return "", err
+	}
+	return id, nil
 }
 
 // StampBlockStoreVersion records the running binary's extraction semantics as

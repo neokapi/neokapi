@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/storage"
@@ -40,9 +41,9 @@ import (
 // WorkStore is a SQLite-backed working set of unit state.
 //
 // Durability note: while a decision is here and not yet committed, this database
-// holds the only copy. It therefore lives beside the derived caches but is not
-// one — and the window is kept short by committing at the end of each command
-// rather than leaving a staging area to accumulate.
+// holds the only copy. It therefore lives beside the derived caches without
+// being one. Committing publishes a decision into the project's tracked record,
+// and a decision stays here until someone runs `kapi commit`.
 type WorkStore struct {
 	db        *storage.DB
 	committed string // path of the committed serialization this indexes
@@ -51,6 +52,12 @@ type WorkStore struct {
 	// opened its own file, false when it adopted the project's merged store,
 	// whose owner closes it once for all four subsystems.
 	ownsDB bool
+
+	// mu guards reseed, which a Commit on one goroutine writes and a status
+	// report on another reads.
+	mu sync.Mutex
+	// reseed is what the last agreement with the committed record amounted to.
+	reseed Reseed
 
 	// mem is the browser fallback: the wasm build has no file-backed SQLite
 	// (storage.ErrNoSQLite), yet the review→approve loop must still work in
@@ -64,9 +71,10 @@ type WorkStore struct {
 
 // memWork is the JSON-sidecar working set backing the browser build.
 type memWork struct {
-	path  string // the sidecar the set persists to
-	units map[Key]memUnit
-	docs  map[string]memDoc
+	path      string // the sidecar the set persists to
+	units     map[Key]memUnit
+	docs      map[string]memDoc
+	committed string // digest of the record this set was built from
 }
 
 // memDoc is one document's identity in the sidecar: where it lives now, and
@@ -86,6 +94,9 @@ type memUnit struct {
 type memFile struct {
 	Units []memUnit         `json:"units"`
 	Docs  map[string]memDoc `json:"docs,omitempty"`
+	// Committed is the digest of the committed record this set was built from,
+	// the sidecar's copy of what the database keeps in state_meta.
+	Committed string `json:"committed,omitempty"`
 }
 
 // load reads the sidecar back into the working set. A missing sidecar is an
@@ -109,13 +120,14 @@ func (m *memWork) load() (found bool, err error) {
 	if f.Docs != nil {
 		m.docs = f.Docs
 	}
+	m.committed = f.Committed
 	return true, nil
 }
 
 // persist writes the working set to the sidecar. Called after every mutation:
 // while a decision is only here, this file is its only durable copy.
 func (m *memWork) persist() error {
-	f := memFile{Units: make([]memUnit, 0, len(m.units))}
+	f := memFile{Units: make([]memUnit, 0, len(m.units)), Committed: m.committed}
 	for _, mu := range m.units {
 		f.Units = append(f.Units, mu)
 	}
@@ -207,7 +219,38 @@ CREATE INDEX IF NOT EXISTS unit_state_staged  ON unit_state(staged) WHERE staged
 	SQL: `
 ALTER TABLE document ADD COLUMN content TEXT NOT NULL DEFAULT '[]';
 CREATE INDEX IF NOT EXISTS document_path ON document(path);`,
+}, {
+	Version:     5,
+	Description: "the working set records which record it was built from",
+	// The set is a projection of a git-tracked record, and `git switch`
+	// replaces every shard of that record while the database keeps its rows. So
+	// the set holds the digest of the record it projects and compares it
+	// against the shards on disk.
+	//
+	// The same key/value shape the block cache's stamps use, in this
+	// subsystem's own schema under its own ledger.
+	SQL: `
+CREATE TABLE IF NOT EXISTS state_meta (
+    key   TEXT NOT NULL PRIMARY KEY,
+    value TEXT NOT NULL
+);`,
 }}
+
+// metaCommittedDigest keys the digest of the committed record the working set
+// was built from.
+const metaCommittedDigest = "committed.digest"
+
+// Reseed is what bringing the working set into agreement with the committed
+// record amounted to.
+type Reseed struct {
+	// Reseeded reports that the record on disk had moved since the set was
+	// built from it, so the unstaged rows were rebuilt from the shards.
+	Reseeded bool
+	// Carried counts the staged decisions that crossed the rebuild. They are
+	// the one thing here no record reproduces, so they are reported by number
+	// rather than assumed.
+	Carried int
+}
 
 // The store runs its statements on ctx: a WorkStore is a
 // local SQLite file with no cancellation semantics yet, and the API predates
@@ -232,7 +275,7 @@ func OpenWork(ctx context.Context, dbPath, committedPath string) (*WorkStore, er
 		return nil, fmt.Errorf("state: migrate work store: %w", err)
 	}
 	w := &WorkStore{db: db, committed: committedPath, ownsDB: true}
-	if err := w.seedIfEmpty(ctx); err != nil {
+	if err := w.SyncWithCommitted(ctx); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -257,7 +300,7 @@ func OpenWorkFromDB(ctx context.Context, db *storage.DB, committedPath string) (
 		return nil, fmt.Errorf("state: migrate work store: %w", err)
 	}
 	w := &WorkStore{db: db, committed: committedPath}
-	if err := w.seedIfEmpty(ctx); err != nil {
+	if err := w.SyncWithCommitted(ctx); err != nil {
 		return nil, err
 	}
 	return w, nil
@@ -277,37 +320,190 @@ func OpenWorkSidecar(ctx context.Context, sidecarPath, committedPath string) (*W
 		docs:  map[string]memDoc{},
 	}
 	w := &WorkStore{committed: committedPath, mem: mem}
-	found, err := mem.load()
-	if err != nil {
+	if _, err := mem.load(); err != nil {
 		return nil, err
 	}
-	if !found {
-		if err := w.seed(ctx); err != nil {
-			return nil, err
-		}
+	if err := w.SyncWithCommitted(ctx); err != nil {
+		return nil, err
 	}
 	return w, nil
 }
 
-// seedIfEmpty imports the committed record into a working store that holds
-// nothing yet.
-func (w *WorkStore) seedIfEmpty(ctx context.Context) error {
+// SyncWithCommitted brings the working set into agreement with the committed
+// record on disk and reports what that took.
+//
+// The set is a projection of the record plus whatever has been staged since,
+// and the record moves underneath it: the shards are git-tracked, so `git
+// switch` replaces them all while the database keeps the rows of the branch
+// left behind. A commit from that set writes those rows into the shards of the
+// branch now checked out and prunes the shards they do not cover.
+//
+// So the record is identified by a digest and the set carries the digest it
+// projects. A digest that no longer matches the shards on disk means the
+// unstaged rows describe a record this checkout does not hold, and they are
+// rebuilt from the shards. A run's own basis records go with them: the record
+// supplies its rows again, and the next run writes its own against the tree it
+// reads.
+//
+// Staged decisions cross the rebuild untouched, being the only thing in the set
+// that no record supplies. The count crossing is reported, so a person can see
+// what is riding on a branch it was not made on.
+//
+// It runs at every open and again at every write to the record, so a process
+// holding the store open across a branch switch publishes from the record this
+// checkout holds.
+func (w *WorkStore) SyncWithCommitted(ctx context.Context) error {
+	digest, err := CommittedDigest(w.committed)
+	if err != nil {
+		return err
+	}
+	stamp, stamped, err := w.readMeta(ctx, metaCommittedDigest)
+	if err != nil {
+		return err
+	}
+	if stamped && stamp == digest {
+		return nil
+	}
+
 	empty, err := w.isEmpty(ctx)
 	if err != nil {
 		return err
 	}
-	if !empty {
-		return nil
+	if empty {
+		// A fresh set, and the ordinary case: nothing to carry and nothing to
+		// report, whatever the record holds.
+		if err := w.seed(ctx); err != nil {
+			return err
+		}
+		return w.stampCommitted(ctx, digest)
 	}
-	return w.seed(ctx)
+
+	// A set carrying no digest reads as built from an unknown record and takes
+	// this branch too. The rebuild is a no-op where the set and the shards
+	// already agree, so reading the unknown as moved costs one pass over the
+	// record and never a wrong answer.
+	staged, err := w.Staged(ctx)
+	if err != nil {
+		return err
+	}
+	if err := w.dropUnstaged(ctx); err != nil {
+		return err
+	}
+	if err := w.seedBesideStaged(ctx); err != nil {
+		return err
+	}
+	if err := w.stampCommitted(ctx, digest); err != nil {
+		return err
+	}
+	w.noteReseed(Reseed{Reseeded: true, Carried: len(staged)})
+	return nil
+}
+
+// Reseed reports whether this handle had to rebuild its set from a record that
+// moved under it, and how many staged decisions crossed. It holds for the life
+// of the handle, so every surface under one App says the same thing about the
+// same open store. The zero value is a store that found the record where it
+// left it.
+func (w *WorkStore) Reseed() Reseed {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.reseed
+}
+
+func (w *WorkStore) noteReseed(r Reseed) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.reseed = r
+}
+
+// readMeta reads one of this store's own stamps. ok is false when the key was
+// never written.
+func (w *WorkStore) readMeta(ctx context.Context, key string) (value string, ok bool, err error) {
+	if w.mem != nil {
+		if w.mem.committed == "" {
+			return "", false, nil
+		}
+		return w.mem.committed, true, nil
+	}
+	err = w.db.QueryRowContext(ctx, `SELECT value FROM state_meta WHERE key = ?`, key).Scan(&value)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("state: read %q: %w", key, err)
+	}
+	return value, true, nil
+}
+
+// stampCommitted records the digest of the record the set now projects.
+func (w *WorkStore) stampCommitted(ctx context.Context, digest string) error {
+	if w.mem != nil {
+		w.mem.committed = digest
+		return w.mem.persist()
+	}
+	_, err := w.db.ExecContext(ctx, `
+INSERT INTO state_meta (key, value) VALUES (?, ?)
+ON CONFLICT(key) DO UPDATE SET value = excluded.value`, metaCommittedDigest, digest)
+	if err != nil {
+		return fmt.Errorf("state: stamp committed record: %w", err)
+	}
+	return nil
+}
+
+// restamp records the digest of the record as it stands after this store wrote
+// it, so the next open reads the set as current rather than as moved.
+func (w *WorkStore) restamp(ctx context.Context) error {
+	digest, err := CommittedDigest(w.committed)
+	if err != nil {
+		return err
+	}
+	return w.stampCommitted(ctx, digest)
 }
 
 func (w *WorkStore) isEmpty(ctx context.Context) (bool, error) {
+	if w.mem != nil {
+		return len(w.mem.units) == 0, nil
+	}
 	var n int
 	if err := w.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM unit_state`).Scan(&n); err != nil {
 		return false, fmt.Errorf("state: count units: %w", err)
 	}
 	return n == 0, nil
+}
+
+// dropUnstaged removes every row the committed record is about to supply again.
+func (w *WorkStore) dropUnstaged(ctx context.Context) error {
+	if w.mem != nil {
+		for k, mu := range w.mem.units {
+			if !mu.Staged {
+				delete(w.mem.units, k)
+			}
+		}
+		return nil
+	}
+	if _, err := w.db.ExecContext(ctx, `DELETE FROM unit_state WHERE staged = 0`); err != nil {
+		return fmt.Errorf("state: drop unstaged units: %w", err)
+	}
+	return nil
+}
+
+// seedBesideStaged imports the committed record without disturbing a staged
+// row. A staged decision is newer than the record by construction, and it is
+// the one row here that the record cannot supply again.
+func (w *WorkStore) seedBesideStaged(ctx context.Context) error {
+	units, err := ReadCommitted(w.committed)
+	if err != nil {
+		return err
+	}
+	for _, u := range units {
+		if err := w.putIfAbsent(ctx, u); err != nil {
+			return err
+		}
+	}
+	if w.mem != nil {
+		return w.mem.persist()
+	}
+	return nil
 }
 
 // seed imports the committed serialization. A working store is derived, so this
@@ -377,11 +573,17 @@ func (w *WorkStore) Record(ctx context.Context, u UnitState) error { return w.pu
 // moves a staged decision into the committed record, and it still clears the
 // staged flag; this writes around it.
 func (w *WorkStore) PersistRecords(ctx context.Context) error {
+	if err := w.SyncWithCommitted(ctx); err != nil {
+		return err
+	}
 	units, err := w.unstaged(ctx)
 	if err != nil {
 		return err
 	}
-	return WriteCommitted(w.committed, units)
+	if err := WriteCommitted(w.committed, units); err != nil {
+		return err
+	}
+	return w.restamp(ctx)
 }
 
 // unstaged returns every recorded state that is not waiting for a commit.
@@ -431,6 +633,33 @@ ON CONFLICT(scope, unit, variant) DO UPDATE SET
 		u.Scope, u.Unit, string(variant), u.ContentHash, u.ContextHash, string(payload), flag)
 	if err != nil {
 		return fmt.Errorf("state: put unit: %w", err)
+	}
+	return nil
+}
+
+// putIfAbsent records a unit's state only where the set holds no row for it,
+// leaving a staged decision exactly as it was.
+func (w *WorkStore) putIfAbsent(ctx context.Context, u UnitState) error {
+	if w.mem != nil {
+		k := u.Key()
+		if _, taken := w.mem.units[k]; taken {
+			return nil
+		}
+		w.mem.units[k] = memUnit{Unit: u}
+		return nil
+	}
+	variant, _ := u.Variant.MarshalText()
+	payload, err := json.Marshal(u)
+	if err != nil {
+		return fmt.Errorf("state: marshal unit: %w", err)
+	}
+	_, err = w.db.ExecContext(ctx, `
+INSERT INTO unit_state (scope, unit, variant, content_hash, context_hash, payload, staged)
+VALUES (?, ?, ?, ?, ?, ?, 0)
+ON CONFLICT(scope, unit, variant) DO NOTHING`,
+		u.Scope, u.Unit, string(variant), u.ContentHash, u.ContextHash, string(payload))
+	if err != nil {
+		return fmt.Errorf("state: seed unit: %w", err)
 	}
 	return nil
 }
@@ -753,7 +982,15 @@ func (w *WorkStore) Pending(ctx context.Context) (int, error) {
 // Commit serializes the working set to the project's committed record and clears
 // the staged flag. This is the once-per-run write that replaced the
 // once-per-decision one.
+//
+// It agrees with the record on disk first. The write is whole-directory, shards
+// the set does not cover are pruned, and a set built on another branch's record
+// would therefore publish that branch's rows here and delete the shards this
+// one holds.
 func (w *WorkStore) Commit(ctx context.Context) error {
+	if err := w.SyncWithCommitted(ctx); err != nil {
+		return err
+	}
 	n, err := w.Pending(ctx)
 	if err != nil {
 		return err
@@ -766,6 +1003,9 @@ func (w *WorkStore) Commit(ctx context.Context) error {
 		return err
 	}
 	if err := WriteCommitted(w.committed, units); err != nil {
+		return err
+	}
+	if err := w.restamp(ctx); err != nil {
 		return err
 	}
 	if w.mem != nil {

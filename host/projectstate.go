@@ -43,30 +43,61 @@ func targetHash(text string) string {
 	return state.TargetHash(text)
 }
 
+// StateCommit is what a commit wrote, or what a dry run says it would write.
+type StateCommit struct {
+	// Committed counts the staged decisions written into the record. On a dry
+	// run it counts the ones a commit would write.
+	Committed int
+	// Reseeded reports that the committed record on disk had moved since the
+	// working set was built from it, so the set was rebuilt from the shards
+	// this checkout holds.
+	Reseeded bool
+	// Carried counts the staged decisions that crossed that rebuild.
+	Carried int
+}
+
 // CommitProjectState writes staged decisions into the project's committed
 // record and reports how many were written.
 //
-// Committing is explicit. A decision is durable the moment it is recorded — the
-// working store is a database, not a buffer — but becoming part of the project's
-// reviewable record is a separate act, the same shape as staging and committing
-// in git. That is what keeps a run of automated decisions from landing in the
-// tracked record before anyone has looked at them.
+// Committing is explicit. A decision is durable the moment it is recorded, the
+// working store being a database rather than a buffer, and becoming part of the
+// project's reviewable record is a separate act, the same shape as staging and
+// committing in git. That is what keeps a run of automated decisions from
+// landing in the tracked record before anyone has looked at them.
 func (a *App) CommitProjectState(ctx context.Context, root string) (int, error) {
+	res, err := a.CommitProjectStateReport(ctx, root, false)
+	return res.Committed, err
+}
+
+// CommitProjectStateReport commits and reports what the write amounted to,
+// including whether the working set had to be rebuilt from a record that moved
+// under it. With dryRun set it inspects and writes nothing.
+func (a *App) CommitProjectStateReport(ctx context.Context, root string, dryRun bool) (StateCommit, error) {
 	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
-		return 0, err
+		return StateCommit{}, err
 	}
+	// The set is agreed with the record before the count is taken. A dry run
+	// needs that agreement as much as a write does, or it reports the rows of a
+	// record this checkout no longer holds.
+	if err := st.SyncWithCommitted(ctx); err != nil {
+		return StateCommit{}, err
+	}
+	reseed := st.Reseed()
+	res := StateCommit{Reseeded: reseed.Reseeded, Carried: reseed.Carried}
+
 	n, err := st.Pending(ctx)
 	if err != nil {
-		return 0, err
+		return res, err
 	}
-	if n == 0 {
-		return 0, nil
+	res.Committed = n
+	if dryRun || n == 0 {
+		return res, nil
 	}
 	if err := st.Commit(ctx); err != nil {
-		return 0, err
+		return res, err
 	}
-	return n, nil
+	return res, nil
 }
 
 // PendingDecisions reports how many decisions are staged and not yet committed.
@@ -81,4 +112,15 @@ func (a *App) PendingDecisions(ctx context.Context, root string) int {
 		return 0
 	}
 	return n
+}
+
+// ProjectStateReseed reports whether opening the project's working set found
+// the committed record moved, and how many staged decisions crossed the
+// rebuild. An unreadable store reports nothing: status stays informational.
+func (a *App) ProjectStateReseed(ctx context.Context, root string) state.Reseed {
+	st, err := a.OpenProjectState(ctx, root)
+	if err != nil {
+		return state.Reseed{}
+	}
+	return st.Reseed()
 }

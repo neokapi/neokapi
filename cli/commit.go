@@ -16,10 +16,17 @@ durable the moment it is written; committing is what puts it in the record a
 reviewer reads, so a run of automated approvals does not land in the tracked
 record before anyone has looked at it.
 
+The working set is rebuilt from the record this checkout holds whenever the two
+have parted, which is what switching branches does to them. Staged decisions
+cross that rebuild and are reported, because they were made against the record
+of another branch.
+
+'--dry-run' reports what would be written and writes nothing.
 'kapi status' reports what is staged.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error { return a.RunCommit(cmd, args) },
 	}
 	AddProjectFlag(cmd)
+	cmd.Flags().Bool("dry-run", false, "report what would be committed and write nothing")
 	return cmd
 }
