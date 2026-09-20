@@ -46,7 +46,7 @@ flows:
 
 		a := testApp()
 		a.AssumeYes = true
-		_, out, err := handleRunFlowWithProject(t.Context(), a, RunFlowInput{
+		_, out, err := handleRunFlowWithProject(t.Context(), a, recipe, RunFlowInput{
 			FlowName:   flowName,
 			Project:    recipe,
 			TargetLang: "qps",

@@ -87,6 +87,12 @@ jobs:
       # have reported, because fts5 is a runtime SQL capability rather than a
       # compile gate. The target also builds the i18n catalogs the suite reads
       # and selects ./kapi/e2e/..., so CI and a local run test the same thing.
+      #
+      # This job is also what holds the MCP surface: kapi/e2e's conformance
+      # suite drives a real `kapi mcp` over stdio and compares every check
+      # tool's findings with what the CLI reports for the same input. The
+      # `cli` filter above covers cli/mcp.go, host/mcp_*.go, host/mcpregistry.go
+      # and kapi/mcptools/**, so a change to any of them runs it pre-merge.
       - name: Run kapi CLI e2e tests
         working-directory: .
         run: make test-e2e-kapi

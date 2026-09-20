@@ -59,6 +59,13 @@ Two jobs follow from that, and they are the ones to reach for first:
   say plainly when a store was unreachable rather than returning a confident
   empty result, and both state what scope they answered from.
 
+  Every project-scoped MCP tool takes an optional `project`, and the resource
+  takes `?project=<path>`. Pass it whenever you work outside the project the
+  server started in: the value is that project's `kapi.yaml`, its root
+  directory, or any path inside it, so the file you are editing will do. Omit
+  it and the call acts on the project the server started in. A path that holds
+  no project is refused and names the path back to you.
+
   Retrieve first, then write; a check that fails afterwards is the expensive way
   to learn the same fact.
 - **Context freshness**: a retrieved answer is a snapshot, and the project's

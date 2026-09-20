@@ -17,6 +17,7 @@ func TestParseContextURI(t *testing.T) {
 		wantPath    string
 		wantProfile string
 		wantJSON    bool
+		wantProject string
 		wantErr     string
 	}{
 		{
@@ -64,6 +65,25 @@ func TestParseContextURI(t *testing.T) {
 			wantErr: "unknown context rendering",
 		},
 		{
+			name:        "a location in a named project",
+			uri:         "context://docs/guide.md?project=/srv/acme",
+			wantPath:    "docs/guide.md",
+			wantProject: "/srv/acme",
+		},
+		{
+			name:        "a named project beside the json rendering",
+			uri:         "context://docs/guide.md?format=json&project=/srv/acme/kapi.yaml",
+			wantPath:    "docs/guide.md",
+			wantJSON:    true,
+			wantProject: "/srv/acme/kapi.yaml",
+		},
+		{
+			name:        "a profile in a named project",
+			uri:         "context://profile/marketing?project=/srv/acme",
+			wantProfile: "marketing",
+			wantProject: "/srv/acme",
+		},
+		{
 			name:    "another scheme is not this resource",
 			uri:     "file:///docs/guide.md",
 			wantErr: "Resource not found",
@@ -82,7 +102,7 @@ func TestParseContextURI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req, asJSON, err := parseContextURI(tt.uri)
+			req, asJSON, namedProject, err := parseContextURI(tt.uri)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -92,6 +112,7 @@ func TestParseContextURI(t *testing.T) {
 			assert.Equal(t, tt.wantPath, req.Path)
 			assert.Equal(t, tt.wantProfile, req.Profile)
 			assert.Equal(t, tt.wantJSON, asJSON)
+			assert.Equal(t, tt.wantProject, namedProject)
 		})
 	}
 }

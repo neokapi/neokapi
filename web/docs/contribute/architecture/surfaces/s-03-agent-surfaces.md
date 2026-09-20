@@ -282,9 +282,43 @@ An MCP session binds to an explicit recipe (`kapi mcp -p project.kapi.yaml`) or
 an implicitly discovered project. An explicit path wins when discovery is
 disabled. Invalid bound context fails startup or the affected check operation;
 it cannot silently become an ungoverned successful result. File checks retain
-the bound recipe path and resolve the file's effective profile at that path.
-CLI and MCP reports share finding, gate and execution semantics. Their transport
-and timing boundaries remain distinct.
+the recipe path the call resolved and resolve the file's effective profile at
+that path. CLI and MCP reports share finding, gate and execution semantics.
+Their transport and timing boundaries remain distinct.
+
+### The project is an argument of the call
+
+An assistant works in more than one project, and an MCP server outlives any one
+of them. So every project-scoped tool takes an optional `project`, and the
+`context://` resource takes a `?project=` parameter. The value names the
+project's `kapi.yaml`, its root directory, or any path inside it: a call can
+pass the file it is editing.
+
+Resolution runs per call, through the seam the CLI uses (`host.ResolveProjectPath`
+→ `core/project.ResolveRecipePath` → `core/project.ResolveLayout`), so a call and
+a `kapi -p …` invocation reach the same recipe. `KAPI_NO_PROJECT` is honoured
+exactly as it is on the CLI: it disables discovery, and an explicit path still
+resolves. A path that holds no project is refused with a typed error naming the
+path, rather than falling back to whichever project the server's working
+directory sits in.
+
+The project the server resolved at start remains the default, so a client
+configured for one project keeps the behaviour it had.
+
+Three properties follow from resolving per call rather than per process.
+
+**Nothing about a call lands on the server.** The resolved recipe travels on the
+command the handler builds, which is what every embedded surface already does,
+so two calls for two projects run at once without interfering.
+
+**Each project gets its own store handle.** `App.ProjectDB` memoizes one handle
+per project root, and `Shutdown` closes all of them, so a second project opens a
+second connection pool and neither outlives the server.
+
+**The tool list stays the start project's.** A client reads `tools/list` once, so
+which tools exist is fixed when the server starts. A per-call project decides
+what governs the content, and for a registry tool it decides the target-language
+default; it does not add or remove tools.
 
 `kapi mcp` starts a stdio JSON-RPC server. Its surface is a **decision with a
 name attached**, never a consequence of a tool being CLI-visible. Exposing every
@@ -326,17 +360,37 @@ arguments, so it is a **tool** (`context_search`). Asking what applies at a
 
 | Address | Answers |
 | --- | --- |
-| `context://{+path}` | what applies at a project-relative location: the voice profile in force with its guidance, the terms bound there, and the governance windows around them |
-| `context://profile/{name}` | the same, addressed by governance profile name, for a caller with no file in hand |
+| `context://{+path}{?format,project}` | what applies at a project-relative location: the voice profile in force with its guidance, the terms bound there, and the governance windows around them |
+| `context://profile/{name}{?format,project}` | the same, addressed by governance profile name, for a caller with no file in hand |
 
 Both render markdown by default; `?format=json` returns the structured shape.
 Making the rendering a property of the read, a MIME type, is what avoids a
 second entry point for the same question. One reserved path prefix carries the
-by-name form, so a single scheme carries both address forms.
+by-name form, so a single scheme carries both address forms. `?project=` names
+the project the read acts on, the way the tools take a `project` argument.
 
 Both MCP primitives are thin wrappers over the same host functions the `kapi
 context` verbs call. The skill drives the CLI, so a capability that existed on
 only one surface would teach an assistant a kapi the other half does not have.
+
+### Parity is a suite, not a claim
+
+Sharing an implementation makes the two surfaces agree in principle. What
+establishes it in practice is a conformance suite that drives the real
+`kapi mcp` over stdio the way a client does (`initialize`, `tools/list`,
+`tools/call`, `resources/read`) against scratch projects, and compares each
+answer with what `kapi check`, `kapi exec` or `kapi context` reports for the
+same input.
+
+Every check-type tool carries a fixture that must pass and a fixture that must
+fail. The must-fail half is the point: the harness that builds a block from a
+snippet built it source-only, so every bilingual check reached over MCP returned
+a clean result whatever the translation said, and the CLI path was correct the
+whole time. A suite that only asserts a clean result on clean content cannot see
+that.
+
+The suite lives in `kapi/e2e` and runs pre-merge in the `Kapi CLI E2E` job on
+every pull request touching `cli/`, `host/` or `kapi/`.
 
 ### The skill drives the CLI
 
@@ -366,6 +420,10 @@ output.
 - A curated MCP surface means the agent-facing tool list is a reviewed decision;
   the code-execution exclusion is a test, so widening the surface can never
   silently grant shell access.
+- One long-lived server serves an assistant that moves between projects, because
+  the project is an argument of the call rather than a property of the process.
+- A check tool that stops reporting a violation over MCP fails a pre-merge job,
+  rather than surviving until someone notices a clean result on broken content.
 - Splitting retrieval into a tool and a resource lets rendering be a property of
   the read rather than a second address, and keeps both forms of the question in
   one address space.
