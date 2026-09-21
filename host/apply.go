@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
@@ -81,6 +82,16 @@ type changeEntry struct {
 	// recipe
 	Path  string          `json:"path,omitempty"`
 	Value json.RawMessage `json:"value,omitempty"`
+
+	// Actor is who wrote this entry, recorded on the context operation the
+	// entry produces (core/contextop). Omitted reads as a person, which is what
+	// someone running `kapi apply` is. An agent naming itself here is refused
+	// for an asset entry, because applying one is a decision and only a person
+	// makes those; an agent proposes instead.
+	Actor *contextop.Actor `json:"actor,omitempty" jsonschema:"who is making this change; omit unless you are an agent recording on someone's behalf"`
+	// Evidence is where the wording behind an asset entry was seen, recorded on
+	// the operation so the decision can be argued with later.
+	Evidence []contextop.Evidence `json:"evidence,omitempty" jsonschema:"for asset entries: where the wording behind this decision was seen"`
 }
 
 // assetResult is the outcome of one asset entry, surfaced in the ApplyReport.
@@ -158,7 +169,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		case kindComment:
 			comments = append(comments, e)
 		case kindTerm, kindMemory, kindVoice, kindRecipe:
-			res := a.applyAssetEntry(ctx, cmd, e)
+			res := a.applyRecordedAssetEntry(ctx, cmd, e)
 			out.Assets = append(out.Assets, res)
 		case kindReview:
 			res := a.applyReviewEntry(ctx, cmd, e)

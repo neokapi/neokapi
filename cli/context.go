@@ -44,7 +44,13 @@ afterwards.
 
 Four more verbs move the context itself: import and snapshot carry it between
 the project's files and its store, export and restore carry the whole of it as
-one file, and with --workspace those two carry every project you work on here.`,
+one file, and with --workspace those two carry every project you work on here.
+
+Six more grow it. Context accumulates out of ordinary work: propose records a
+rule with the evidence behind it, log shows what has been proposed and decided,
+and confirm, discard, revert and widen are the decisions. A proposal advises
+from the moment it is recorded and no check fails on one; confirming is what
+makes it bind.`,
 		Example: "  kapi context docs/guide.md\n" +
 			"  kapi context docs/guide.md --json\n" +
 			"  kapi context --profile marketing\n" +
@@ -101,6 +107,12 @@ one file, and with --workspace those two carry every project you work on here.`,
 		newContextSnapshotCmd(a),
 		newContextExportCmd(a),
 		newContextRestoreCmd(a),
+		newContextProposeCmd(a),
+		newContextLogCmd(a),
+		newContextConfirmCmd(a),
+		newContextDiscardCmd(a),
+		newContextRevertCmd(a),
+		newContextWidenCmd(a),
 	)
 	return cmd
 }

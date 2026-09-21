@@ -90,6 +90,10 @@ type Occurrence struct {
 	// it stands.
 	DoNotTranslate bool
 	Source         OccurrenceSource
+	// Advisory marks a hit against a rule nobody has confirmed: one of the
+	// candidates a project has accumulated (core/contextop). It carries
+	// SeverityNeutral, so the consuming gate reports it and nothing else.
+	Advisory bool
 	// Start and End are byte offsets into the searched text, for a consumer that
 	// reports over flat text rather than over runs.
 	Start, End int
@@ -162,6 +166,7 @@ func ruleOccurrences(req LocateRequest) []Occurrence {
 			Kind:           h.Kind,
 			DoNotTranslate: dnt[strings.ToLower(h.Term)],
 			Source:         SourceRule,
+			Advisory:       h.Advisory,
 			Start:          h.Start,
 			End:            h.End,
 		})
@@ -326,5 +331,6 @@ func (o Occurrence) Hit() profile.VocabHit {
 		ConceptID:   o.ConceptID,
 		Start:       o.Start,
 		End:         o.End,
+		Advisory:    o.Advisory,
 	}
 }

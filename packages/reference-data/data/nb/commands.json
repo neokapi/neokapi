@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T11:08:05Z",
+  "generatedAt": "2026-09-21T11:08:25Z",
   "commands": [
     {
       "id": "add",
@@ -605,7 +605,7 @@
       ],
       "use": "context [path]",
       "short": "Spør hva dette prosjektets innholdskontekst sier",
-      "long": "Retrieve the content context this project goes by: the terms, the\nvoice and the rules that hold, without needing to know which store holds the\nanswer.\n\nTwo questions, and every asset-shaped lookup is one of them:\n\n  kapi context \u003cpath\u003e          what applies HERE: the voice in force at that\n                               location, its guidance, the terms bound there\n  kapi context --profile \u003cn\u003e   the same answer for a named profile, when you\n                               have no file in hand\n  kapi context search \u003cquery\u003e  what we know about THIS: terms, prior wording\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says before you write, rather than learning it from a failing check\nafterwards.\n\nFour more verbs move the context itself: import and snapshot carry it between\nthe project's files and its store, export and restore carry the whole of it as\none file, and with --workspace those two carry every project you work on here.",
+      "long": "Retrieve the content context this project goes by: the terms, the\nvoice and the rules that hold, without needing to know which store holds the\nanswer.\n\nTwo questions, and every asset-shaped lookup is one of them:\n\n  kapi context \u003cpath\u003e          what applies HERE: the voice in force at that\n                               location, its guidance, the terms bound there\n  kapi context --profile \u003cn\u003e   the same answer for a named profile, when you\n                               have no file in hand\n  kapi context search \u003cquery\u003e  what we know about THIS: terms, prior wording\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says before you write, rather than learning it from a failing check\nafterwards.\n\nFour more verbs move the context itself: import and snapshot carry it between\nthe project's files and its store, export and restore carry the whole of it as\none file, and with --workspace those two carry every project you work on here.\n\nSix more grow it. Context accumulates out of ordinary work: propose records a\nrule with the evidence behind it, log shows what has been proposed and decided,\nand confirm, discard, revert and widen are the decisions. A proposal advises\nfrom the moment it is recorded and no check fails on one; confirming is what\nmakes it bind.",
       "groupID": "work",
       "flags": [
         {
@@ -654,6 +654,83 @@
         "kapi context --profile marketing",
         "kapi context search widget",
         "kapi context snapshot --out build/context"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.confirm",
+      "path": [
+        "context",
+        "confirm"
+      ],
+      "use": "confirm \u003cid\u003e",
+      "short": "Make a proposed rule binding",
+      "long": "Confirm a proposal, which makes its rule binding at the severity it\ncarries and writes it where the rest of kapi reads it: the project's terms, its\nvoice profile, or its content memory.\n\nThe write goes into the committed file the recipe binds, so \"git diff\" shows the\ndecision like any other change.\n\nEdit the rule as you confirm it with --use and --severity, and widen it past the\npoint its evidence was seen at with --widen-to.",
+      "flags": [
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "severity",
+          "usage": "change how hard the rule bites: minor or neutral report, anything else fails a check",
+          "type": "string"
+        },
+        {
+          "name": "use",
+          "usage": "change what the rule says to write instead",
+          "type": "string"
+        },
+        {
+          "name": "widen-to",
+          "usage": "widen as you confirm: \"workspace\", or the name of an axis the rule should stop being specific about",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context confirm 7",
+        "kapi context confirm 7 --use \"content memory\"",
+        "kapi context confirm 7 --severity critical",
+        "kapi context confirm 7 --widen-to workspace"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.discard",
+      "path": [
+        "context",
+        "discard"
+      ],
+      "use": "discard \u003cid\u003e",
+      "short": "Reject a proposed rule",
+      "long": "Discard a proposal. It stops being reported at once, and the record\nof it stays in the log so the same suggestion can be recognised next time.\n\nDiscarding a rule that was already confirmed takes it back out of the project's\nterms, voice profile or content memory, and out of the committed file it was\nwritten to.",
+      "flags": [
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context discard 7",
+        "kapi context discard 7 --note \"we say it both ways on purpose\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -737,6 +814,122 @@
       "demoMode": false
     },
     {
+      "id": "context.log",
+      "path": [
+        "context",
+        "log"
+      ],
+      "use": "log",
+      "short": "Show how this project's context came to be",
+      "long": "List what has been proposed, corrected and decided about this\nproject's context, newest first.\n\nEach line carries an operation's id, when it happened, who did it, what it was\nabout and where it stands: a candidate nobody has decided on, a confirmed rule\nin force, or one that was discarded or reverted.\n\nThe id is what the other verbs take. Narrow the list with --status to see what\nis waiting for a decision, or with --session to see what one agent run did.",
+      "flags": [
+        {
+          "name": "actor",
+          "usage": "only one actor, by name or by kind",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "usage": "keep the most recent N (0 keeps them all)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "session",
+          "usage": "only what one agent session recorded",
+          "type": "string"
+        },
+        {
+          "name": "since",
+          "usage": "only what happened after a date (2006-01-02) or instant",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "usage": "only operations at one status: candidate, confirmed, discarded or reverted",
+          "type": "string"
+        },
+        {
+          "name": "subjects",
+          "usage": "only what was proposed, leaving out the decisions about it",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "examples": [
+        "kapi context log",
+        "kapi context log --status candidate",
+        "kapi context log --session 0ab4e399 --json",
+        "kapi context log --actor agent --since 2026-09-01"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.propose",
+      "path": [
+        "context",
+        "propose"
+      ],
+      "use": "propose \u003cterm\u003e",
+      "short": "Propose a rule about a word, for someone to confirm",
+      "long": "Propose a rule about a word: write this instead of that.\n\nA proposal takes effect at once as advice. Checks report it wherever the word\nappears, and no check fails on it, so a proposal never stops anyone's work. It\nstarts binding when someone confirms it with \"kapi context confirm\".\n\nSay where you saw the word with --seen-in. A rule with evidence behind it can be\nargued with later; a rule without any is a preference somebody typed.\n\nPropose a rule for the voice profile's vocabulary with --list, and one for the\nproject's terms without it.",
+      "flags": [
+        {
+          "name": "list",
+          "usage": "propose a voice-profile rule in this list instead of a project term: forbidden, competitor or preferred",
+          "type": "string"
+        },
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "quote",
+          "usage": "the wording it was seen in",
+          "type": "string"
+        },
+        {
+          "name": "seen-in",
+          "usage": "a file the word was seen in (repeatable)",
+          "default": "[]",
+          "type": "stringSlice"
+        },
+        {
+          "name": "severity",
+          "usage": "how hard the rule bites once confirmed: minor or neutral report, anything else fails a check",
+          "type": "string"
+        },
+        {
+          "name": "use",
+          "usage": "what to write instead",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context propose utilise --use use",
+        "kapi context propose utilise --use use --seen-in docs/guide.md",
+        "kapi context propose Ripgrep --use ripgrep --list forbidden --severity major"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "context.restore",
       "path": [
         "context",
@@ -776,6 +969,41 @@
         "kapi context restore context.kpz --merge",
         "kapi context restore context.kpz --replace",
         "kapi context restore --workspace backups/everything.kpz"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.revert",
+      "path": [
+        "context",
+        "revert"
+      ],
+      "use": "revert [id]",
+      "short": "Undo one operation, or everything one session did",
+      "long": "Undo an operation. Whatever it put in force stops answering, and a\nrule it got written into the project's terms, voice profile or content memory is\ntaken back out.\n\nWith --session it undoes everything one agent run recorded, which puts the\nproject's answers back where they were before that run started.\n\nNothing is erased. The undone operations stay in the log, marked reverted.",
+      "flags": [
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "session",
+          "usage": "undo everything one agent session recorded",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context revert 7",
+        "kapi context revert --session 0ab4e399"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -861,6 +1089,41 @@
         "kapi context snapshot",
         "kapi context snapshot --out build/context",
         "kapi context snapshot --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.widen",
+      "path": [
+        "context",
+        "widen"
+      ],
+      "use": "widen \u003cid\u003e",
+      "short": "Put a confirmed rule in force somewhere broader",
+      "long": "Widen a confirmed rule past the point its evidence was seen at.\n\nA rule learned in one place holds in that place. Widening says it holds more\nwidely: \"--to workspace\" puts it in force in every project you work on here, and\nnaming an axis drops that axis from the rule's point so it stops being specific\nabout it.\n\nA project that has its own decision about the word keeps it. The more specific\nanswer always wins.",
+      "flags": [
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "to",
+          "usage": "\"workspace\", or the name of an axis the rule should stop being specific about",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context widen 7 --to workspace",
+        "kapi context widen 7 --to mode"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -5230,11 +5493,6 @@
       "long": "Opprett et nytt kapi-prosjekt med en kapi.yaml-oppskrift og en\ntilhørende .kapi/-tilstandskatalog.\n\nSom standard setter kapi init opp et innholdsprosjekt som holder kilden i\nstemme — en stemmeprofil, prosjektets termbutikk og en kontrollflyt, uten\nmålspråk. Send --target-locale (eller --framework) for å gjøre det til et\noversettelsesprosjekt i stedet.\n\nProsjekt-ID-en er som standard gjeldende katalogs basisnavn og kildelokaliteten\ner en. Overstyr med --name, --source-locale, --target-locale\n(gjentakbar).\n\n--preset \u003cname\u003e (alias: --framework) forhåndsutfyller innholdstilordningen for en kjent\nstabelens i18n-kataloger: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular — og setter opp oversettelsesprosjektet. List opp alle forhåndsinnstillinger (rammeverk-\noppsett pluss per-format parsingsforhåndsinnstillinger) med --list-presets.",
       "groupID": "work",
       "flags": [
-        {
-          "name": "agents",
-          "usage": "Coding agents to wire this project for: a comma-separated list of claude-code, cursor, vscode, agents; 'all'; or 'none' (default: claude-code plus every host already used here)",
-          "type": "string"
-        },
         {
           "name": "dir",
           "usage": "Directory to scaffold in (default: current directory)",

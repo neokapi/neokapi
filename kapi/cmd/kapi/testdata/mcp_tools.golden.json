@@ -9,6 +9,28 @@
           "items": {
             "additionalProperties": false,
             "properties": {
+              "actor": {
+                "additionalProperties": false,
+                "description": "who is making this change; omit unless you are an agent recording on someone's behalf",
+                "properties": {
+                  "kind": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "session": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": [
+                  "null",
+                  "object"
+                ]
+              },
               "comment_sha256": {
                 "description": "for kind=comment: the comment_sha256 check_file reports for the comment; an edit to a comment whose bytes differ is refused as changed",
                 "type": "string"
@@ -28,6 +50,28 @@
                 "type": [
                   "null",
                   "boolean"
+                ]
+              },
+              "evidence": {
+                "description": "for asset entries: where the wording behind this decision was seen",
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "quote": {
+                      "type": "string"
+                    },
+                    "unit": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": [
+                  "null",
+                  "array"
                 ]
               },
               "file": {

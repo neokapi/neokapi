@@ -36,6 +36,26 @@ type VoiceVocabCheckTool struct {
 	// rather than on every block, so without it a caller with a terms store bound
 	// would look its vocabulary up in the empty language and match nothing.
 	sourceLocale model.LocaleID
+	// extra are rule sets from outside the profile and the terms store: the
+	// workspace-wide rules a person widened, and the candidates a project has
+	// accumulated and not yet decided on (core/contextop). They go through the
+	// same matcher as everything else, so one pass covers the lot.
+	extra []coreprofile.TermRuleSet
+}
+
+// Holding adds rule sets the caller resolved elsewhere to what this tool checks
+// against, and returns the tool so a caller can chain it onto the constructor.
+//
+// It is how a project's context operations reach the gate: a set marked
+// Advisory raises its hits at neutral severity, so a candidate is reported and
+// fails nothing, and an unmarked set behaves like any other declared rule.
+func (t *VoiceVocabCheckTool) Holding(sets ...coreprofile.TermRuleSet) *VoiceVocabCheckTool {
+	for _, set := range sets {
+		if len(set.Rules) > 0 {
+			t.extra = append(t.extra, set)
+		}
+	}
+	return t
 }
 
 // InSourceLocale sets the language the vocabulary lookup asks in for blocks that
@@ -110,7 +130,7 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	occurrences, err := terms.Locate(v.Context(), terms.LocateRequest{
 		Text:     sourceText,
 		Runs:     sourceRuns,
-		RuleSets: coreprofile.VocabularyRuleSets(t.profile),
+		RuleSets: append(coreprofile.VocabularyRuleSets(t.profile), t.extra...),
 		Store:    t.terminology,
 		Locale:   lookupIn,
 	})
@@ -177,6 +197,31 @@ func (t *VoiceVocabCheckTool) Canaries(ctx context.Context) (canaries []check.Ca
 				continue
 			}
 			if text, ok := matchingText(r.Constraint.Regex); ok && add("constraint "+r.Constraint.ID, text) {
+				break
+			}
+		}
+	}
+	// A rule set the caller is holding is a declared rule like any other, so it
+	// owes the same proof: a term it names, confirmed to match through the
+	// shared matcher before the tool sees it.
+	for _, set := range t.extra {
+		found := false
+		for _, rule := range set.Rules {
+			term := strings.TrimSpace(rule.Term)
+			if term == "" {
+				continue
+			}
+			for _, text := range []string{term, "`" + term + "`"} {
+				if len(coreprofile.MatchTermRules([]coreprofile.TermRuleSet{set}, text)) > 0 {
+					canaries = append(canaries, check.Canary{
+						Name:  fmt.Sprintf("%s term %q", set.Kind, term),
+						Block: check.CanaryBlock(text),
+					})
+					found = true
+					break
+				}
+			}
+			if found {
 				break
 			}
 		}

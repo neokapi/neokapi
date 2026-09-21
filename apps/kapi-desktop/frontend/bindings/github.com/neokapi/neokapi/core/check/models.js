@@ -94,6 +94,19 @@ export class Finding {
              */
             this["metadata"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Advisory marks a finding raised against a rule nobody has confirmed: a
+             * candidate a project has accumulated and not yet decided on
+             * (core/contextop). Such a finding is always SeverityNeutral, which carries
+             * no penalty and trips no gate threshold, so it is reported and settles
+             * nothing. The flag is what lets a surface show it as the proposal it is
+             * rather than as a rule that was broken.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["advisory"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
