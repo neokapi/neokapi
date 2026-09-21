@@ -132,19 +132,19 @@ func (l Layout) UnitStateDir() string {
 	return filepath.Join(l.StateDir, UnitStateDirName)
 }
 
-// StoreFileName is the project's single local store: one SQLite file holding
-// the content memory, the terms store, the block cache and the unit working
-// set, each keeping its own migration ledger (see core/projectdb).
+// StoreFileName is this checkout's PROJECTION: one SQLite file holding the
+// block cache, the overlays a flow wrote and the extraction stamps, each
+// keeping its own migration ledger (see core/projectdb).
 //
-// One file because the four it replaces could not be written together. An
-// approve-and-promote touches the working set and the content memory in the
-// same breath, and across two databases there is no transaction that covers
-// both — a crash between them left a unit approved against wording the memory
-// never learned.
+// Everything in it is derived from the working tree beside it, so it belongs
+// beside that tree and a second checkout of the same project keeps one of its
+// own. What the project authored — the terms, the voice profiles, the content
+// memory and the unit working set with its staged decisions — is in the user's
+// workspace, one database per project, shared by every checkout (core/workspace).
 //
-// It sits at the TOP of the work directory, not under work/cache/, because it
-// carries staged unit state: deleting it costs at most the state staged since
-// the last commit, whereas `rm -rf .kapi/work/cache` must stay free.
+// It sits at the TOP of the work directory rather than under work/cache/
+// because it is rebuilt by a full re-extraction rather than by the next run
+// that happens to need a parse, and `rm -rf .kapi/work/cache` must stay free.
 const StoreFileName = "store.db"
 
 // StoreSidecarFileName is the working set's JSON stand-in on builds with no

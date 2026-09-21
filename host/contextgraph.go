@@ -69,11 +69,14 @@ func (a *App) MaterializeContextGraph(ctx context.Context, root string, proj *pr
 // Re-extract), so the graph can stay in step with the block cache on that
 // surface the same way `kapi up` keeps it in step. A store with no file-backed
 // SQLite driver (the browser's JSON sidecar) has no graph tables and is a no-op.
+//
+// The rows land wherever the store's graph pool is: the workspace database for
+// a project bound to a workspace, the checkout's own projection otherwise.
 func MaterializeContextGraphInDB(ctx context.Context, db *projectdb.DB, proj *project.KapiProject) (int, error) {
-	if db == nil || db.Raw() == nil {
+	if db == nil || db.Graph() == nil {
 		return 0, nil
 	}
-	g, err := graphstore.NewSQLiteGraphStore(db.Raw())
+	g, err := graphstore.NewSQLiteGraphStore(db.Graph())
 	if err != nil {
 		return 0, fmt.Errorf("materialize context graph: open graph: %w", err)
 	}

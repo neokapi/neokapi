@@ -135,6 +135,18 @@ the kapi process environment:
   prints their help without starting a daemon.
 - `KAPI_CONFIG_DIR`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` → throwaway dirs, so kapi
   can't read the developer's `~/.config/kapi`, plugins, or caches.
+- `KAPI_DATA_DIR` → a throwaway dir. It names the data root outright and **wins
+  over `XDG_DATA_HOME`**, so setting only the latter leaves a developer's
+  exported `KAPI_DATA_DIR` in force. The root holds the **workspace**
+  (`<root>/workspaces/default/`): every project's terms, voice profiles,
+  content memory, recorded decisions and context graph. An in-repo kapi that
+  reached it would read and write the developer's own context.
+
+  A Go test binary is covered without the variable — `host.DataDir()` answers
+  with a per-process directory under `os.TempDir()` unless `KAPI_DATA_DIR` names
+  one — so no `go test` run can touch the real workspace. A released binary is
+  not a test binary, which is why every surface that launches one (the Makefile,
+  `kapi/e2e`, `harness/`) sets it.
 - `KAPI_PLUGINS_DIR_ONLY=1` — discover plugins only from `$KAPI_PLUGINS_DIR`
   (empty → none). `XDG_DATA_HOME` alone isolates the *user* plugin root only;
   without this, an in-repo kapi still picks up Homebrew-installed plugins.

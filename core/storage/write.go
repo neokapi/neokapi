@@ -36,6 +36,12 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...any) (sql.R
 		return nil, err
 	}
 	defer db.gate.release()
+	// Inside the permit, so this process queues for the file once rather than
+	// once per waiting goroutine.
+	if err := db.flock.acquire(ctx); err != nil {
+		return nil, err
+	}
+	defer db.flock.release()
 	res, err := db.DB.ExecContext(ctx, query, args...)
 	return res, CancelledBy(ctx, err)
 }
@@ -64,12 +70,19 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	if err := db.gate.acquire(ctx, true); err != nil {
 		return nil, err
 	}
+	// Before BEGIN IMMEDIATE, which is where SQLite would otherwise start its
+	// own backoff against the other processes on this file.
+	if err := db.flock.acquire(ctx); err != nil {
+		db.gate.release()
+		return nil, err
+	}
 	tx, err := db.DB.BeginTx(ctx, opts)
 	if err != nil {
+		db.flock.release()
 		db.gate.release()
 		return nil, CancelledBy(ctx, err)
 	}
-	return &Tx{Tx: tx, ctx: ctx, gate: db.gate}, nil
+	return &Tx{Tx: tx, ctx: ctx, gate: db.gate, flock: db.flock}, nil
 }
 
 // Begin starts a transaction without a context. Prefer BeginTx.
@@ -89,9 +102,10 @@ type Tx struct {
 
 	// ctx is the context the transaction was begun with, kept so Commit can say
 	// why it failed; see CancelledBy.
-	ctx  context.Context
-	gate *writeGate
-	done atomic.Bool
+	ctx   context.Context
+	gate  *writeGate
+	flock *fileLock
+	done  atomic.Bool
 }
 
 // Commit commits the transaction and releases the write permit.
@@ -114,6 +128,9 @@ func (tx *Tx) Rollback() error {
 
 func (tx *Tx) finish() {
 	if tx.done.CompareAndSwap(false, true) {
+		// The reverse of BeginTx: the file lock was taken inside the permit, so
+		// it is released inside it too.
+		tx.flock.release()
 		tx.gate.release()
 	}
 }

@@ -74,8 +74,8 @@ my-app/
 │   │       └── terms.json
 │   ├── state/                  ← the committed unit-state record (C-04)
 │   │   └── <document>.jsonl
-│   └── work/                   ← ALL MACHINE STATE (ignored)
-│       ├── store.db            ← the one local database (C-03)
+│   └── work/                   ← WHAT THIS CHECKOUT DERIVES (ignored)
+│       ├── store.db            ← this checkout's projection (C-03)
 │       ├── vault/              ← withheld originals (C-10), local-only
 │       └── cache/              ← free to delete, always
 │           ├── extractions/    ← per-extract batch state (M-01)
@@ -123,10 +123,17 @@ Ownership, zone by zone:
   one shard per document ([C-04](c-04-unit-state-and-decisions.md)). Written by
   `kapi commit`, not hand-edited, so the record travels with the project.
 
-- **`.kapi/work/`** is everything the machine derives, and the only thing kapi
-  keeps out of version control. One database, `store.db`, holds every subsystem's
-  tables ([C-03](c-03-context-store-and-graph.md)). Beside it sit the caches and
-  the redaction vault ([C-10](c-10-redaction.md)).
+- **`.kapi/work/`** is everything THIS CHECKOUT derives, and the only thing kapi
+  keeps out of version control. `store.db` is the projection of the working
+  tree: the block cache, the overlays a flow wrote, the extraction stamps
+  ([C-03](c-03-context-store-and-graph.md)). Beside it sit the caches and the
+  redaction vault ([C-10](c-10-redaction.md)).
+
+  The project's authored context is not here. Its terms, voice profiles,
+  content memory and recorded decisions live in the user's workspace, one
+  database per project, shared by every checkout of that project. A second clone
+  and a git worktree each keep a `work/` of their own and reach one context
+  store.
 
 - **`src/**`** is user-authored content. Referenced by the recipe; never moved
   into `.kapi/`.
@@ -158,11 +165,13 @@ What deleting costs, stated exactly:
 
 - `rm -rf .kapi/work/cache` is **always free**. Everything under it is rebuilt on
   the next run.
-- `rm -rf .kapi/work` costs two things. Unit state staged since the last `kapi
-  commit` lives only in `store.db`, and the redaction vault under
+- `rm -rf .kapi/work` costs one thing: the redaction vault under
   `.kapi/work/vault/` holds withheld originals that are **local-only and not
   regenerable** ([C-10](c-10-redaction.md)): never committed, never synced, so
-  nothing anywhere else has a copy.
+  nothing anywhere else has a copy. Everything else under `work/` is derived
+  from the working tree, including `store.db`. Unit state staged since the last
+  `kapi commit` is in the workspace, not here
+  ([C-03](c-03-context-store-and-graph.md)).
 
 ### Recipe schema
 
@@ -580,7 +589,7 @@ right extraction without guessing from its name.
 - [C-02: Coordinates and governance](c-02-coordinates-and-governance.md): the
   point a collection sits at and what governs it.
 - [C-03: The context store and graph](c-03-context-store-and-graph.md):
-  `.kapi/work/store.db`.
+  `.kapi/work/store.db` and the workspace holding the other half.
 - [C-04: Unit state and the decision record](c-04-unit-state-and-decisions.md):
   `.kapi/state/`.
 - [E-01: Processing Engine](../engine/e-01-processing-engine.md): flow

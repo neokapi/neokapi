@@ -910,6 +910,26 @@ that is the variable the Makefile's `$(KAPI_ISO_ENV)` and `kapi/e2e` already
 set. `DataDir` names the directory and leaves creating it to whoever writes
 there.
 
+What it holds is the **workspace**, at
+`host.DefaultWorkspaceDir()` (`<DataDir>/workspaces/default/`): the project
+registry, the context graph, and one context store per project, carrying that
+project's terms, voice profiles, content memory and recorded decisions
+(`core/workspace`, [C-03](../../web/docs/contribute/architecture/context/c-03-context-store-and-graph.md)).
+It is created on first use and a recipe binds nothing to it.
+
+Two consequences for anything that runs kapi:
+
+- **A test binary never reaches the platform default.** Unless `$KAPI_DATA_DIR`
+  names a root outright, `DataDir()` inside a `go test` binary answers with a
+  directory of that process's own under the system temporary directory, so no
+  test run can write into the developer's workspace or read it back.
+- **`$KAPI_DATA_DIR` is part of the isolation contract**, and it wins over
+  `$XDG_DATA_HOME`. Every in-repo surface that launches a RELEASED kapi (the
+  Makefile's `$(KAPI_ISO_ENV)`, `kapi/e2e`'s `isoEnv`, the harness's
+  `kapiIsolationEnv`) sets it: a released binary is not a test binary, and
+  setting only `$XDG_DATA_HOME` leaves a developer's exported `$KAPI_DATA_DIR`
+  in force.
+
 ```go
 package config
 

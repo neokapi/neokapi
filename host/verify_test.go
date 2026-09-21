@@ -83,16 +83,15 @@ collections:
 	// Seed the project store's vocabulary: Save -> Enregistrer (approved).
 	// Bound now means "the store holds a concept", not "a terms file exists" —
 	// every project store has the tables from its first open.
-	db, err := projectdb.Open(t.Context(), project.LayoutAt(root))
-	require.NoError(t, err)
-	require.NoError(t, db.Terms().AddConcept(t.Context(), terms.Concept{
-		ID: "c1",
-		Terms: []terms.Term{
-			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
-			{Text: "Enregistrer", Locale: model.LocaleFrench, Status: model.TermPreferred},
-		},
-	}))
-	require.NoError(t, db.Close())
+	seedProjectStore(t, root, func(db *projectdb.DB) {
+		require.NoError(t, db.Terms().AddConcept(t.Context(), terms.Concept{
+			ID: "c1",
+			Terms: []terms.Term{
+				{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+				{Text: "Enregistrer", Locale: model.LocaleFrench, Status: model.TermPreferred},
+			},
+		}))
+	})
 
 	return root, targetFile
 }

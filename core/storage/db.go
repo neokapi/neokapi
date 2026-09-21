@@ -49,6 +49,18 @@ type DB struct {
 	// in-process FIFO queue every write transaction on this handle passes
 	// through. See gate.go for what it fixes and what it cannot reach.
 	gate *writeGate
+
+	// flock is nil unless the handle was opened with
+	// Options.CrossProcessWrites: an advisory lock on a file beside the
+	// database, taken inside the gate, that orders the writers the gate cannot
+	// reach. See filelock.go.
+	flock *fileLock
+
+	// cleanup runs after the pool closes. It is set only where the handle is
+	// backed by something this package created for it, which today means the
+	// snapshot OpenReadOnly takes when a database's own directory is not
+	// writable.
+	cleanup func()
 }
 
 // Options configures how a database handle is opened. The zero value is the
@@ -79,17 +91,39 @@ type Options struct {
 	// stream of large ones — busy_timeout's backoff is not fair, and no amount
 	// of timeout makes it fair. See writeGate.
 	SerializeWrites bool
+
+	// ReadOnly opens the database for reading only: the journal-mode switch is
+	// skipped, every connection carries PRAGMA query_only=ON, and the pool is
+	// held to one connection so that pragma governs every statement.
+	//
+	// It is what a caller wants where the database's directory may not be
+	// writable. Opening still touches the filesystem, so it can fail where the
+	// write-ahead log's shared-memory index is absent and cannot be created;
+	// OpenReadOnly covers that case too, by reading a snapshot.
+	ReadOnly bool
+
+	// CrossProcessWrites installs an advisory lock on a file beside the
+	// database, held for the length of every write transaction this handle
+	// issues, so writers in DIFFERENT processes wait for each other in the
+	// kernel instead of sleeping through SQLite's busy backoff.
+	//
+	// It is what a file several processes write wants: a project's context
+	// store, opened at once by an agent's server, a CLI run and the desktop. A
+	// file one process writes pays a lock acquisition for nothing.
+	CrossProcessWrites bool
 }
 
-// ProjectOptions is what a merged, multi-subsystem store wants: both halves.
-// They belong together — the gate orders the writers this process controls, and
-// IMMEDIATE keeps the ones it does not (another kapi process on the same file)
-// in a queue SQLite will actually wait in rather than refuse.
+// ProjectOptions is what a multi-subsystem store wants: three settings that
+// belong together. The gate orders the writers this process controls, the
+// advisory lock orders the ones it does not, and IMMEDIATE keeps whatever
+// reaches SQLite in a queue it will wait in rather than refuse.
 //
-// It is named rather than spelled out at the call site so that the two settings
-// stay one decision. core/projectdb is the caller.
+// It is named rather than spelled out at the call site so the three stay one
+// decision. core/projectdb is the caller, for both of a project's pools: the
+// projection several tools in one process write, and the context store several
+// processes share.
 func ProjectOptions() Options {
-	return Options{ImmediateTx: true, SerializeWrites: true}
+	return Options{ImmediateTx: true, SerializeWrites: true, CrossProcessWrites: true}
 }
 
 // pathLocks hands out one mutex per database file, so callers that must
@@ -173,16 +207,20 @@ func OpenWith(dbPath string, opts Options) (*DB, error) {
 	}
 
 	// In-memory databases create a separate DB per connection. Force a single
-	// connection so all queries share the same in-memory state.
-	if isMemoryDSN(dbPath) {
+	// connection so all queries share the same in-memory state. A read-only
+	// handle is held to one connection for a different reason: query_only is a
+	// per-connection pragma with no DSN spelling in either driver, so one
+	// connection is what makes it govern every statement the handle issues.
+	switch {
+	case isMemoryDSN(dbPath), opts.ReadOnly:
 		db.SetMaxOpenConns(1)
-	} else {
+	default:
 		db.SetMaxOpenConns(25)
 		db.SetMaxIdleConns(5)
 		db.SetConnMaxLifetime(30 * time.Minute)
 	}
 
-	if err := applyPragmasRetry(db); err != nil {
+	if err := applyPragmasRetry(db, opts); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("apply pragmas: %w", err)
 	}
@@ -190,6 +228,14 @@ func OpenWith(dbPath string, opts Options) (*DB, error) {
 	wrapped := &DB{DB: db, path: dbPath}
 	if opts.SerializeWrites {
 		wrapped.gate = newWriteGate()
+	}
+	if opts.CrossProcessWrites && !opts.ReadOnly && !isMemoryDSN(dbPath) {
+		lock, lerr := newFileLock(dbPath)
+		if lerr != nil {
+			db.Close()
+			return nil, lerr
+		}
+		wrapped.flock = lock
 	}
 	return wrapped, nil
 }
@@ -202,12 +248,12 @@ func OpenWith(dbPath string, opts Options) (*DB, error) {
 // bounded retry, not the busy handler, is what absorbs it. First-creation
 // migrations complete in at most seconds; anything still locked after the
 // window is a real fault and surfaces as the error.
-func applyPragmasRetry(db *sql.DB) error {
+func applyPragmasRetry(db *sql.DB, opts Options) error {
 	const window = 15 * time.Second
 	delay := 10 * time.Millisecond
 	deadline := time.Now().Add(window)
 	for {
-		err := applyPragmas(db)
+		err := applyPragmas(db, opts)
 		if err == nil || !isBusyErr(err) || time.Now().After(deadline) {
 			return err
 		}
@@ -234,6 +280,21 @@ func (db *DB) Path() string {
 	return db.path
 }
 
+// Close releases the pool and then whatever this package created to back it.
+// The only such thing today is the snapshot OpenReadOnly takes when a
+// database's own directory cannot be written.
+func (db *DB) Close() error {
+	err := db.DB.Close()
+	if cerr := db.flock.close(); cerr != nil && err == nil {
+		err = cerr
+	}
+	if db.cleanup != nil {
+		db.cleanup()
+		db.cleanup = nil
+	}
+	return err
+}
+
 // isMemoryDSN reports whether dbPath addresses an in-memory database. The
 // ":memory:" form and "mode=memory" query parameter behave identically across
 // the mattn and modernc drivers.
@@ -254,7 +315,24 @@ func isMemoryDSN(dbPath string) bool {
 // repeated here mainly to switch the journal mode on first open under the cgo
 // driver. Both the mattn (cgo) and modernc (no-cgo) drivers honour these PRAGMA
 // statements via Exec.
-func applyPragmas(db *sql.DB) error {
+func applyPragmas(db *sql.DB, opts Options) error {
+	if opts.ReadOnly {
+		// No journal_mode switch: it is a write, and the whole point of this
+		// handle is that the database's directory may refuse one. query_only
+		// then makes the refusal explicit at the first write rather than at
+		// whatever the filesystem happens to allow.
+		for _, p := range []string{
+			"PRAGMA busy_timeout=5000",
+			"PRAGMA cache_size=-131072",
+			"PRAGMA temp_store=MEMORY",
+			"PRAGMA query_only=ON",
+		} {
+			if _, err := db.Exec(p); err != nil { //nolint:noctx // startup pragmas
+				return fmt.Errorf("execute %s: %w", p, err)
+			}
+		}
+		return nil
+	}
 	pragmas := []string{
 		// busy_timeout first: subsequent statements (notably the journal_mode=WAL
 		// switch, which needs a write lock) then wait for a busy database instead

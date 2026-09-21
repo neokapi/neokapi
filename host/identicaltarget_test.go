@@ -54,16 +54,15 @@ collections:
 	write("locales/nb/app.json", `{"brand":"Compass","greet":"Hei","code":"Hei"}`)
 
 	if dnt {
-		db, err := projectdb.Open(t.Context(), project.LayoutAt(root))
-		require.NoError(t, err)
-		require.NoError(t, db.Terms().AddConcept(t.Context(), terms.Concept{
-			ID: "brand",
-			Terms: []terms.Term{
-				{Text: "Compass", Locale: model.LocaleEnglish, Status: model.TermPreferred},
-				{Text: "Compass", Locale: model.LocaleID("nb"), Status: model.TermPreferred},
-			},
-		}))
-		require.NoError(t, db.Close())
+		seedProjectStore(t, root, func(db *projectdb.DB) {
+			require.NoError(t, db.Terms().AddConcept(t.Context(), terms.Concept{
+				ID: "brand",
+				Terms: []terms.Term{
+					{Text: "Compass", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+					{Text: "Compass", Locale: model.LocaleID("nb"), Status: model.TermPreferred},
+				},
+			}))
+		})
 	}
 	return root
 }

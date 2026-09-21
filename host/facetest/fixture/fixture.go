@@ -162,7 +162,6 @@ vocabulary:
 		ContextLimit: 10,
 		SearchLimit:  10,
 	}
-	seedTerms(t, p)
 	t.Chdir(root)
 	return p
 }
@@ -257,21 +256,22 @@ func Concepts() []terms.Concept {
 	}
 }
 
-// seedTerms writes the fixture's concepts into the project's own terms store.
+// SeedTerms writes the fixture's concepts into a project store the caller
+// opened.
 //
 // The two halves of retrieval read different sources: by-location resolves the
 // recipe's declared terms file, and by-content searches the store a project
 // accumulates. A fixture that declared terms only in the file would leave every
 // face's search empty, and a contract satisfied by three empty answers proves
 // nothing.
-func seedTerms(t *testing.T, p Project) {
+//
+// The store is the caller's because a project's terms live in a workspace the
+// host layer resolves, and this package is written with no dependency on the
+// host layer. A local suite passes the store its App opened (host/facetest);
+// the platform's suite seeds its own from Concepts.
+func SeedTerms(t *testing.T, db *projectdb.DB) {
 	t.Helper()
 	ctx := context.Background()
-	layout := project.LayoutAt(p.Root)
-	require.NoError(t, project.EnsureLayout(layout))
-	db, err := projectdb.Open(ctx, layout)
-	require.NoError(t, err)
-	defer func() { require.NoError(t, db.Close()) }()
 	for _, c := range Concepts() {
 		require.NoError(t, db.Terms().AddConcept(ctx, c))
 	}

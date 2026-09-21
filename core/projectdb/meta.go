@@ -62,10 +62,10 @@ var ErrNoStore = errors.New("projectdb: this build has no file-backed store")
 
 // Meta reads one metadata value. ok is false when the key was never written.
 func (d *DB) Meta(ctx context.Context, key string) (value string, ok bool, err error) {
-	if d.raw == nil {
+	if d.projection == nil {
 		return "", false, ErrNoStore
 	}
-	err = d.raw.QueryRowContext(ctx, `SELECT value FROM store_meta WHERE key = ?`, key).Scan(&value)
+	err = d.projection.QueryRowContext(ctx, `SELECT value FROM store_meta WHERE key = ?`, key).Scan(&value)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", false, nil
 	}
@@ -77,10 +77,10 @@ func (d *DB) Meta(ctx context.Context, key string) (value string, ok bool, err e
 
 // PutMeta writes one metadata value, replacing any previous one.
 func (d *DB) PutMeta(ctx context.Context, key, value string) error {
-	if d.raw == nil {
+	if d.projection == nil {
 		return ErrNoStore
 	}
-	_, err := d.raw.ExecContext(ctx, `
+	_, err := d.projection.ExecContext(ctx, `
 INSERT INTO store_meta (key, value) VALUES (?, ?)
 ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
 	if err != nil {
@@ -101,7 +101,7 @@ ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
 // Returns ErrNoStore on a build with no file-backed store, where there is no
 // file to identify.
 func (d *DB) InstanceID(ctx context.Context) (string, error) {
-	if d.raw == nil {
+	if d.projection == nil {
 		return "", ErrNoStore
 	}
 	if id, ok, err := d.Meta(ctx, MetaStoreInstance); err != nil {

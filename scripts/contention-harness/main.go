@@ -111,6 +111,9 @@ type config struct {
 	decisionHz  int
 	commitTick  time.Duration
 	statusHz    int
+	agents      int
+	agentHz     int
+	memoryEvery int
 	keepData    bool
 }
 
@@ -567,6 +570,14 @@ type streamStats struct {
 	P99       float64 `json:"p99Ms"`
 	Max       float64 `json:"maxMs"`
 	Mean      float64 `json:"meanMs"`
+	// Samples is the retained latency sample of this stream, in milliseconds.
+	//
+	// It travels so a parent merging several processes' reports can compute the
+	// quantiles of the UNION. Merging quantiles instead answers the wrong
+	// question: with a few dozen observations per process, each one's "p99" is
+	// its maximum, and the worst of sixteen maxima is the run's maximum wearing
+	// a percentile's name.
+	Samples []float64 `json:"samplesMs,omitempty"`
 }
 
 func (s *stream) stats() streamStats {
@@ -584,6 +595,10 @@ func (s *stream) stats() streamStats {
 	}
 	if s.ops > 0 {
 		st.Mean = ms(s.total / time.Duration(s.ops))
+	}
+	st.Samples = make([]float64, len(sorted))
+	for i, d := range sorted {
+		st.Samples[i] = ms(d)
 	}
 	return st
 }
@@ -1583,9 +1598,11 @@ func main() {
 		cfg       config
 		modeFlag  string
 		childRole string
+		checkout  string
 	)
 	flag.StringVar(&modeFlag, "mode", "split,merged,merged-immediate,merged-gated",
-		"topologies to measure, comma separated: split, merged, hybrid, work-apart, merged-immediate, merged-gated")
+		"topologies to measure, comma separated: split, merged, hybrid, work-apart, "+
+			"merged-immediate, merged-gated, projectdb, workspace")
 	flag.StringVar(&cfg.dir, "dir", "",
 		"directory holding the synthetic projects (default: .contention-harness beside this source tree)")
 	flag.DurationVar(&cfg.duration, "duration", 60*time.Second, "measured window per topology")
@@ -1605,8 +1622,15 @@ func main() {
 	flag.DurationVar(&cfg.commitTick, "commit-every", 5*time.Second, "interval between working-set commits")
 	flag.IntVar(&cfg.statusHz, "status-hz", 5, "status polls per second (child process)")
 	flag.BoolVar(&cfg.keepData, "keep", false, "keep the synthetic projects instead of deleting them")
+	flag.IntVar(&cfg.agents, "agents", 16, "agent-shaped writer processes in the workspace topology")
+	flag.IntVar(&cfg.agentHz, "agent-hz", 1,
+		"rounds per second per agent process, each recording a decision")
+	flag.IntVar(&cfg.memoryEvery, "memory-every", 10,
+		"rounds between an agent promoting wording into the content memory (0 disables)")
 	flag.StringVar(&childRole, "child-role", "",
-		"internal: run as an out-of-process workload (status or extract)")
+		"internal: run as an out-of-process workload (status, extract, agent, desktop or cli)")
+	flag.StringVar(&checkout, "checkout", "",
+		"internal: which checkout a workspace child opens")
 	flag.Parse()
 
 	if cfg.memoryOneAt < 0 {
@@ -1625,14 +1649,18 @@ func main() {
 
 	if childRole != "" {
 		cfg.mode = topology(modeFlag)
-		root := filepath.Join(cfg.dir, string(cfg.mode))
-		p := newStorePaths(root, cfg.mode)
 		var err error
 		switch childRole {
-		case roleStatus:
-			err = runStatusChild(ctx, p, cfg)
-		case roleExtract:
-			err = runExtractChild(ctx, root, p, cfg)
+		case roleAgent, roleDesktop, roleCLI:
+			err = runWorkspaceChild(ctx, childRole, checkout, cfg)
+		case roleStatus, roleExtract:
+			root := filepath.Join(cfg.dir, string(cfg.mode))
+			p := newStorePaths(root, cfg.mode)
+			if childRole == roleStatus {
+				err = runStatusChild(ctx, p, cfg)
+			} else {
+				err = runExtractChild(ctx, root, p, cfg)
+			}
 		default:
 			err = fmt.Errorf("unknown child role %q", childRole)
 		}
@@ -1661,7 +1689,20 @@ func main() {
 	fmt.Printf("data under %s\n", cfg.dir)
 
 	var results []result
+	missedBar := false
 	for _, m := range modes {
+		if m == topoWorkspace {
+			r, err := measureWorkspace(ctx, cfg)
+			if err != nil {
+				fail(fmt.Errorf("%s: %w", m, err))
+			}
+			printModeTable(r)
+			if !reportWorkspaceBar(r.stats) {
+				missedBar = true
+			}
+			results = append(results, r)
+			continue
+		}
 		r, err := measure(ctx, m, cfg)
 		if err != nil {
 			fail(fmt.Errorf("%s: %w", m, err))
@@ -1670,6 +1711,9 @@ func main() {
 		results = append(results, r)
 	}
 	printComparison(results)
+	if missedBar {
+		fail(errWorkspaceBar)
+	}
 }
 
 func measure(ctx context.Context, m topology, cfg config) (result, error) {
@@ -1704,13 +1748,13 @@ func parseModes(s string) ([]topology, error) {
 	for part := range strings.SplitSeq(s, ",") {
 		switch m := topology(strings.TrimSpace(part)); m {
 		case topoSplit, topoMerged, topoHybrid, topoWorkApart,
-			topoMergedImmediate, topoMergedGated, topoProjectDB:
+			topoMergedImmediate, topoMergedGated, topoProjectDB, topoWorkspace:
 			out = append(out, m)
 		case "":
 			continue
 		default:
 			return nil, fmt.Errorf("unknown mode %q (want split, merged, hybrid, work-apart, "+
-				"merged-immediate, merged-gated or projectdb)", part)
+				"merged-immediate, merged-gated, projectdb or workspace)", part)
 		}
 	}
 	if len(out) == 0 {

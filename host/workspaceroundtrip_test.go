@@ -68,13 +68,18 @@ collections:
 	return root
 }
 
-// openProjectStore opens a project's store directly, for tests that seed or
-// inspect it outside an App.
+// openProjectStore opens a project's store through an App, for tests that seed
+// or inspect it outside a command.
+//
+// It goes through an App because a project's context store lives in the
+// workspace, and only the host layer resolves where that is; a store opened
+// from core/projectdb alone would keep its context tables beside the projection
+// and no command would read them.
 func openProjectStore(t *testing.T, root string) *projectdb.DB {
 	t.Helper()
-	db, err := projectdb.Open(t.Context(), project.Layout{
-		Root: root, StateDir: filepath.Join(root, project.StateDirName),
-	})
+	a := &App{}
+	t.Cleanup(a.Shutdown)
+	db, err := a.ProjectDB(t.Context(), root)
 	require.NoError(t, err)
 	return db
 }

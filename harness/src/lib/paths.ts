@@ -107,6 +107,7 @@ export const PLUGIN_DIR = path.join(PLUGIN_MARKETPLACE_DIR, "plugins", "kapi");
  */
 export const KAPI_ISO = path.join(HARNESS_ROOT, ".kapi");
 export const KAPI_ISO_DATA = path.join(KAPI_ISO, "data"); // XDG_DATA_HOME → plugins live in <data>/kapi/plugins
+export const KAPI_ISO_DATA_ROOT = path.join(KAPI_ISO_DATA, "kapi"); // KAPI_DATA_DIR → the workspace lives in <root>/workspaces
 export const KAPI_ISO_HOME = path.join(KAPI_ISO, "home"); // KAPI_CONFIG_DIR → KAPI_HOME (memory/terms/flows)
 export const KAPI_ISO_PLUGINS = path.join(KAPI_ISO_DATA, "kapi", "plugins");
 export const KAPI_ISO_CACHE = path.join(KAPI_ISO, "cache"); // XDG_CACHE_HOME → <cache>/kapi/plugins-cache.json
@@ -131,12 +132,19 @@ export const KAPI_ISO_CACHE = path.join(KAPI_ISO, "cache"); // XDG_CACHE_HOME �
  * a kapi call from binding a discovered project; the one demo class that DOES
  * want a project (bowrain CLI, sandbox in os.tmpdir() outside the repo) opts
  * back in explicitly.
+ *
+ * KAPI_DATA_DIR names the data root outright and WINS over XDG_DATA_HOME. That
+ * root holds the workspace: every project's terms, voice profiles, content
+ * memory and recorded decisions. A recording drives a released binary, which
+ * resolves the platform default unless this says otherwise, so leaving it
+ * unset would let a demo act on the developer's own context.
  */
 export function kapiIsolationEnv(): Record<string, string> {
   ensureDir(KAPI_ISO_CACHE);
   return {
     XDG_DATA_HOME: KAPI_ISO_DATA,
     XDG_CACHE_HOME: KAPI_ISO_CACHE,
+    KAPI_DATA_DIR: KAPI_ISO_DATA_ROOT,
     KAPI_CONFIG_DIR: KAPI_ISO_HOME,
     KAPI_PLUGINS_DIR: KAPI_ISO_PLUGINS,
     KAPI_PLUGINS_DIR_ONLY: "1",
