@@ -70,6 +70,7 @@ tone:
 }
 `)
 	write("docs/guide.md", "# Guide\n")
+	readProjectContext(t, root)
 	t.Chdir(root)
 	return root
 }
@@ -223,6 +224,7 @@ description: The voice at the project's default point.
 description: The voice the guides profile binds.
 `)
 	write("docs/guide.md", "# Guide\n")
+	readProjectContext(t, root)
 	return root
 }
 

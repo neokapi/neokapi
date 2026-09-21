@@ -72,6 +72,7 @@ defaults:
     profile_file: voice.yaml
 `)
 	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(voiceYAML), 0o644))
+	readProjectContext(t, root)
 	t.Chdir(root)
 
 	a := &App{}
@@ -81,13 +82,16 @@ defaults:
 	require.NoError(t, err, "no flag + project binding must resolve, not error")
 	require.NotNil(t, profile)
 	assert.Equal(t, "Project Brand", profile.Name)
-	assert.Equal(t, filepath.Join(root, "voice.yaml"), src)
+	assert.Equal(t, "store:project-brand", src,
+		"the binding names which profile applies; the store answers for it")
 }
 
-// TestResolveVoiceProfile_FromConventionFile asserts that with no flag and no
-// recipe binding, brand resolution falls back to a voice.yaml convention file
-// at the project root.
-func TestResolveVoiceProfile_FromConventionFile(t *testing.T) {
+// TestResolveVoiceProfile_UnboundFileGovernsNothing: a voice profile sitting at
+// a well-known location governs nothing on its own. The recipe says which
+// profile applies, and a recipe that binds none leaves the point ungoverned
+// however many profile files the checkout carries. Reading them into the store
+// puts them within reach of a binding without putting any of them in force.
+func TestResolveVoiceProfile_UnboundFileGovernsNothing(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
@@ -95,16 +99,15 @@ defaults:
   target_languages: [fr]
 `)
 	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(voiceYAML), 0o644))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(root, project.RelStatePath("voice.yaml")), []byte(voiceYAML), 0o644))
+	readProjectContext(t, root)
 	t.Chdir(root)
 
 	a := &App{}
-	cmd := newVoiceCheckCmd(a)
-
-	profile, src, err := a.ResolveVoiceProfileCmd(cmd)
-	require.NoError(t, err)
-	require.NotNil(t, profile)
-	assert.Equal(t, "Project Brand", profile.Name)
-	assert.Equal(t, filepath.Join(root, "voice.yaml"), src)
+	_, _, err := a.ResolveVoiceProfileCmd(newVoiceCheckCmd(a))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "specify a profile")
 }
 
 // TestResolveVoiceProfile_NoProjectNoFlag asserts the original "specify a

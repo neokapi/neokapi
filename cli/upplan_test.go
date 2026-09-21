@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
@@ -125,16 +126,13 @@ func TestUpPlan_NeverCreatesTheProjectStore(t *testing.T) {
 	assert.NoFileExists(t, storePath+"-wal", "nor a journal for one")
 }
 
-// TestUpPlan_FreshCheckoutReportsCommittedMemoryLeverage: a clone with no
-// project store still plans against the corpus git carries. The committed
-// `.kapi/memory/` bundles are compiled through the same importers into a
-// content memory that exists only for the call, so the plan reads what the run
-// will read and the checkout is left as git wrote it — the shape of CI's leg
-// and a new contributor's, and the one where the estimate is most consulted
+// TestUpPlan_LeverageComesFromTheStore: a clone's committed `.kapi/memory/`
+// bundles price nothing until `kapi context import` reads them, and price the
+// run once it has. The plan answers from the project store alone, so two
+// checkouts of one project quote the same work whatever their branches carry
 // (#1866).
-func TestUpPlan_FreshCheckoutReportsCommittedMemoryLeverage(t *testing.T) {
-	a := processOnlyApp(t)
-	recipe, root := compassCopy(t)
+func TestUpPlan_LeverageComesFromTheStore(t *testing.T) {
+	recipe, root := compassCheckout(t)
 
 	storePath := project.LayoutAt(root).StorePath()
 	require.NoFileExists(t, storePath, "the sample is committed without a store")
@@ -142,15 +140,24 @@ func TestUpPlan_FreshCheckoutReportsCommittedMemoryLeverage(t *testing.T) {
 	// Nothing has a target yet: the sample's catalogs start short of the source.
 	require.NoError(t, os.RemoveAll(filepath.Join(root, "site", "locales", "nb.json")))
 
-	outJSON, err := runUp(t, a, recipe, "--plan", "--json")
-	require.NoError(t, err, outJSON)
-	var plan UpPlanOutput
-	require.NoError(t, json.Unmarshal([]byte(outJSON), &plan))
+	planTotals := func(t *testing.T) host.UpPlanScope {
+		t.Helper()
+		outJSON, err := runUp(t, processOnlyApp(t), recipe, "--plan", "--json")
+		require.NoError(t, err, outJSON)
+		var plan UpPlanOutput
+		require.NoError(t, json.Unmarshal([]byte(outJSON), &plan))
+		return plan.Totals
+	}
 
-	assert.Positive(t, plan.Totals.MemoryExact,
-		"the committed bundles answer units git already carries reviewed wording for: %s", outJSON)
-	assert.NoFileExists(t, storePath, "and reading them materialized no store")
+	assert.Zero(t, planTotals(t).MemoryExact,
+		"a bundle the store has not been given answers nothing")
+	assert.NoFileExists(t, storePath, "and a dry run materialized no store")
 	assert.NoFileExists(t, storePath+"-wal", "nor a journal for one")
+
+	readContextAt(t, recipe)
+
+	assert.Positive(t, planTotals(t).MemoryExact,
+		"once read, the bundles answer units git already carries reviewed wording for")
 }
 
 // TestUpPlan_TextTable: the human rendering is a table with a totals row and

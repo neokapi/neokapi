@@ -61,6 +61,8 @@ collections:
 	write("docs/guide.json", body)
 	write("docs/legal/eula.json", body)
 
+	readProjectContext(t, root)
+
 	return root, filepath.Join(root, "docs", "guide.json"),
 		filepath.Join(root, "docs", "legal", "eula.json")
 }

@@ -442,4 +442,5 @@ func seedBasislessApproval(t *testing.T, root, unit, target string) {
 		Updated:    "2026-01-01T00:00:00Z",
 		Scope:      "en.json",
 	}}))
+	readProjectContext(t, root)
 }

@@ -68,6 +68,7 @@ collections:
 	require.NoError(t, os.WriteFile(targetFile, []byte(bad), 0o644))
 
 	seedProjectTerms(t, root)
+	readProjectContext(t, root)
 	return root, targetFile
 }
 
