@@ -20,7 +20,7 @@
     "@neokapi/bowrain-app": "*",
     "@neokapi/i18n-react": "*",
     "@neokapi/ui": "*",
-    "@sentry/react": "^10.74.0",
+    "@sentry/react": "^10.75.0",
     "@tailwindcss/vite": "^4.3.3",
     "posthog-js": "^1.422.4",
     "react": "^19.3.0",
