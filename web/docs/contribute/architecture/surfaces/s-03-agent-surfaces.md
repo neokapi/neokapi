@@ -311,6 +311,7 @@ entry discriminated by `kind`, and every one lands through `kapi apply`:
 | `kind` | What it edits | How it lands |
 | --- | --- | --- |
 | `content` | a block's text in a named `file` | byte-faithful round-trip, drift- and inline-code guarded |
+| `comment` | one comment's prose in a named `file`, pinned by `comment_sha256` | the same round-trip, through the collection that governs comments |
 | `term` | a term | the committed terms source → import → the terms tables of the project store |
 | `memory` | a content-memory pair | the committed memory source → import → the memory tables of the project store |
 | `voice` | a voice vocabulary rule | the committed voice profile → voice-store import ([C-07](../context/c-07-voice-profiles.md)) |
@@ -412,16 +413,16 @@ registry tool produced an agent surface nobody chose, most of it pipeline steps
 should be assembling by hand, plus verbs like recycling that the catch-up loop
 does automatically and invisibly.
 
-The default surface is therefore the hand-authored porcelain (reading and
-sizing content, checking text or a file, voice scoring and offline rewriting,
-context search, the three context write tools and the session read, the catch-up
-verbs and their dry run, the review-queue verbs, and `apply_edits`) plus a short
-curated list of registry tools that produce something a caller cannot produce
-itself or check something with no porcelain equivalent: `translate`,
-`term-check` and `redact`. The listing and format-detection helpers,
-`extract_content`, `pseudo_translate` and the flow-running verbs sit behind
-`--all-tools` and `--all-flows`; `--all` is the shorthand for both. The full
-generated list is in the [MCP reference](/reference/mcp).
+The default surface is therefore the hand-authored porcelain (reading and sizing
+content with `extract_content`, `detect_format` and `stats`, checking text or a
+file, voice scoring and offline rewriting, context search, the three context
+write tools and the session read, the catch-up verbs and their dry run, the
+review-queue verbs, and `apply_edits`) plus a short curated list of registry
+tools that produce something a caller cannot produce itself or check something
+with no porcelain equivalent: `translate`, `term-check` and `redact`. The
+listing helpers and `pseudo_translate` sit behind `--all-tools`, the
+flow-running verbs behind `--all-flows`, and `--all` is the shorthand for both.
+The full generated list is in the [MCP reference](/reference/mcp).
 
 Three curation rules are asserted by tests rather than remembered:
 

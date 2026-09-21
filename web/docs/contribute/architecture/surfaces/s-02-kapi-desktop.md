@@ -2,8 +2,8 @@
 id: s-02-kapi-desktop
 sidebar_position: 2
 title: "S-02: Kapi Desktop"
-description: "Kapi Desktop is a Wails v3 application over the same host runtime the CLI uses: one Go service bound to a React frontend, several projects open as tabs, a project home that leads with the context graph, a Context hub for the stores, governance editing on the recipe, runs dispatched through the up venue, and no Cobra anywhere in its dependency graph."
-keywords: [neokapi, architecture decision, Kapi Desktop, Wails, desktop app, module isolation, context hub, point map, governance, review, credential vault]
+description: "Kapi Desktop is a Wails v3 application over the same host runtime the CLI uses: one Go service bound to a React frontend, a home screen on the workspace's project registry, several projects open as tabs, a feed of what agents recorded about a project's context, a Context hub for the stores, governance editing on the recipe, runs dispatched through the up venue, and no Cobra anywhere in its dependency graph."
+keywords: [neokapi, architecture decision, Kapi Desktop, Wails, desktop app, module isolation, workspace, context hub, context operations, point map, governance, review, credential vault]
 ---
 
 import { SwimlaneDiagram } from "@neokapi/docs-shared";
@@ -13,17 +13,21 @@ import { SwimlaneDiagram } from "@neokapi/docs-shared";
 ## Summary
 
 Kapi Desktop is a Wails v3 application at `apps/kapi-desktop/` (module
-`github.com/neokapi/neokapi/kapi-desktop`). It opens projects by their folder,
-the one holding a `kapi.yaml` recipe, several at a time as tabs, and gives them
-a visual surface: a project home that opens on what the project stands at and
-a map of its coordinate points, a Context hub holding the graph explorer, the
-voice profile, the terms and the content memory, a checks panel, a review
-queue, governance editing on the recipe, a runner that brings the project up to
-date through the same venue the CLI uses, a tool reference, and an OS-keychain
-credential vault. It depends on the framework and `host` only. It links neither
-Cobra nor the `cli` module, and no package from the platform layer, which
-`make audit-modules` asserts by inspecting the transitive package list of
-`./backend/...`.
+`github.com/neokapi/neokapi/kapi-desktop`). It opens on the **workspace**: every
+project this machine account has run kapi in, whichever surface ran it
+([C-03](../context/c-03-context-store-and-graph.md)), beside a feed of what
+people and agents have recorded about their context
+([C-11](../context/c-11-context-operations.md)). Projects open from there as
+tabs, several at a time, and each gets a visual surface: a project home that
+opens on what the project stands at and a map of its coordinate points, a
+Context hub holding the graph explorer, the voice profile, the terms, the
+content memory and the project's own recorded operations, a checks panel, a
+review queue, governance editing on the recipe, a runner that brings the project
+up to date through the same venue the CLI uses, a tool reference, and an
+OS-keychain credential vault. It depends on the framework and `host` only. It
+links neither Cobra nor the `cli` module, and no package from the platform
+layer, which `make audit-modules` asserts by inspecting the transitive package
+list of `./backend/...`.
 
 ## Context
 
@@ -96,7 +100,7 @@ CLI or from git.
 ### The app opens on the workspace
 
 The first screen reads the workspace's project registry
-([C-01](../context/c-01-project-model.md)): every project this machine account
+([C-03](../context/c-03-context-store-and-graph.md)): every project this machine account
 has run kapi in, whichever surface ran it. A project registers the first time
 kapi opens it, so the desktop lists a repository set up from a terminal without
 being told about it. The app registers too, from `OpenProject` and `NewProject`,
@@ -123,9 +127,12 @@ all leave the project registered, because a context that disappears as a side
 effect of something else is the loss this separation exists to prevent.
 
 The home follows other processes without any channel to them. A CLI run and an
-agent's MCP server register into the same workspace, and every registration
-appends to its operation log, so `workspace.Head` is one indexed integer that
-says whether anything has happened. A goroutine started in `ServiceStartup`
+agent's MCP server write into the same workspace, and a registration that
+changed something appends to its operation log, as every context operation
+does, so `workspace.Head` is one indexed integer that says whether anything has
+happened. Re-opening a project nothing has changed about writes no operation,
+which is what keeps the head from moving whenever anyone looks at anything. A
+goroutine started in `ServiceStartup`
 reads it once a second and emits `workspace:changed` when it moves, which the
 frontend turns into a refetch. Polling rather than watching the files: a SQLite
 database in WAL mode changes three files in an order a filesystem event says
@@ -406,7 +413,9 @@ the package manager.
 - [E-03: The tool system](../engine/e-03-tool-system.md): the registry and schemas the forms are generated from
 - [E-04: Flows and I/O binding](../engine/e-04-flows-and-io-binding.md): why the graph's ends are endpoint pickers
 - [E-05: The plugin system](../engine/e-05-plugin-system.md): the plugin manager's model
-- [C-01: The project model](../context/c-01-project-model.md): the recipe and the `.kapi/` state a tab loads
+- [C-01: The project model](../context/c-01-project-model.md): the recipe and the `.kapi/` sources a tab loads
+- [C-03: The context store and graph](../context/c-03-context-store-and-graph.md): the workspace the home screen reads and the operation log it follows
+- [C-11: Context operations](../context/c-11-context-operations.md): the operations the feed shows and the policy behind its decisions
 - [C-02: Coordinates and governance](../context/c-02-coordinates-and-governance.md): the coordinate points the home maps and the axes the settings edit
 - [C-04: Unit state and decisions](../context/c-04-unit-state-and-decisions.md): what the review queue records
 - [C-06: Context retrieval](../context/c-06-retrieval.md): the guide the explorer renders

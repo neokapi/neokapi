@@ -6,6 +6,8 @@ description: "Architecture decision: every change to a project's context is an a
 keywords: [context operations, candidate, confirm, revert, widen, evidence, policy, actor, operation log, workspace, architecture decision, neokapi]
 ---
 
+import { CycleDiagram } from "@neokapi/docs-shared";
+
 # C-11: Context operations
 
 ## Summary
@@ -37,6 +39,17 @@ from a hundred documents that agree, a person corrects a translation, a check
 enforces what was agreed, and the next correction is evidence for the rule after
 that.
 
+<CycleDiagram
+  steps={[
+    { label: "Observe", sub: "a fact, with evidence" },
+    { label: "Propose", sub: "a rule about a word" },
+    { label: "Confirm", sub: "a person decides" },
+    { label: "Enforce", sub: "kapi check" },
+    { label: "Correct", sub: "wording someone changed" },
+  ]}
+  caption="Every leg is an operation in the workspace log. An agent records the first two and the last; a person makes the third."
+/>
+
 Two properties decide whether that loop is usable. The first is that a machine's
 suggestion must never stop a person's work, because a project that fails its
 build over an unreviewed guess is a project whose context people turn off. The
@@ -57,17 +70,21 @@ operations take the same shape for the same reasons.
 
 ```go
 type Record struct {
-    ID       string               // the position the workspace log gave it
-    Project  workspace.ProjectKey
-    Actor    Actor                // person | agent | tool, a name, an agent's session
-    Kind     Kind                 // observe | propose | correct | confirm | discard | revert | widen
-    Subject  Subject              // a term rule, a voice rule, a content-memory pair, a note
-    Evidence []Evidence           // file, unit, quotation: where this was seen
-    Basis    Basis                // the governance in force when it was recorded
-    Scope    Scope                // how far it reaches, and at which coordinates
-    Target   string               // the operation this one acts on
-    At       time.Time
-    Status   Status               // folded from the log, never stored
+    ID            string               // the position the workspace log gave it
+    Seq           int64                // the same position as a number
+    Project       workspace.ProjectKey
+    Actor         Actor                // person | agent | tool, a name, an agent's session
+    Kind          Kind                 // observe | propose | correct | confirm | discard | revert | widen
+    Subject       Subject              // a term rule, a voice rule, a content-memory pair, a note
+    Correction    *Correction          // the wording before and the wording after
+    Evidence      []Evidence           // file, unit, quotation: where this was seen
+    Basis         Basis                // the governance in force when it was recorded
+    Scope         Scope                // how far it reaches, and at which coordinates
+    Target        string               // the operation this one acts on
+    TargetSession string               // the session a revert undoes
+    Note          string               // why, in the recorder's words
+    At            time.Time
+    Status        Status               // folded from the log, never stored
 }
 ```
 
@@ -75,9 +92,9 @@ The seven kinds divide into three that carry a subject and four that act on one.
 `observe` records a fact with no rule implied, such as how a product name is
 written or who the documents address. `propose` records a candidate rule with
 its evidence. `correct` records that someone changed wording from one form to
-another at a location, carries both wordings, and may carry the rule it implies.
-`confirm`, `discard`, `revert` and `widen` name an earlier operation and say
-what became of it.
+another at a location, carries both wordings in `Correction`, and may carry the
+rule it implies as its subject. `confirm`, `discard`, `revert` and `widen` name
+an earlier operation and say what became of it.
 
 Status is folded rather than stored. `contextop.Ledger` reads the log forward
 and reports each subject-bearing operation at the status the operations naming
@@ -177,6 +194,12 @@ record a correction, and may discard or revert its own candidate, which is how a
 session cleans up after itself. Everything that turns advice into a rule belongs
 to a person: confirming, editing another actor's proposal, discarding one,
 withdrawing a confirmed rule, reverting a whole session, and widening.
+
+Widening is a property of the transition rather than of the verb, so the check
+covers every route to it. `Ledger.Append` raises `Widening` for a `widen` and
+equally for a `confirm` that names the workspace, and a `Widening` transition is
+refused for any actor but a person. Two sessions of one agent count as two
+parties, so an agent acts on its own candidate and on nobody else's.
 
 Every writer goes through it: `kapi context`, `kapi apply`, the agent tools, the
 desktop feed. Agent roles with wider rights are a change to this function rather

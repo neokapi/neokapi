@@ -119,7 +119,10 @@ Each checkout keeps a **view**: the pairing each unit has in it. The view is
 derived, rebuilt from that checkout's committed shards whenever they move, which
 is what a branch switch does to them. A row recorded here and not yet written out
 survives that rebuild, because no record supplies it, and the entry behind it
-still answers only where its pairing appears.
+still answers only where its pairing appears. Emptying the view
+(`WorkStore.ClearView`, what restoring a context bundle over a project does to
+the decisions half) leaves every entry in the ledger, so a pairing that comes
+back comes back to what was decided about it.
 
 ### Recording is durable; writing the record is an export
 
@@ -565,6 +568,7 @@ re-exports the core types through aliases so downstream code sees one import.
   checkout's view of it (`Lookup`/`Get`/`Put`/`Record`/`RecordEntry`/`Delete`/
   `All`/`Priors`/`Entries`, `Ledger` for the whole of it, `Commit` and
   `RecordDiff` for the export, `Import` and `CommittedDigest` for the shards,
+  `ClearView` for emptying this checkout's view while every entry stands,
   `Documents` and `AdoptDocuments` for document identity, and `SetPolicy` for
   who may record what).
 - **A backup reads the ledger, a commit reads the view.** `Ledger` answers with

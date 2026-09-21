@@ -117,8 +117,10 @@ disagree.
 
 ## What governs a point
 
-Three stores hold the context, and all three are committed to git and versioned
-like code: the recipe binds them, and `git diff` reviews changes to them.
+Three stores hold the context, and each is written from a file the recipe binds:
+the file is committed and versioned like code, so `git diff` reviews every
+change to it, and kapi keeps the store it compiles into
+[outside your checkout](/kapi/project-store).
 
 | Store              | Holds                                                | Bound by                          |
 | ------------------ | ---------------------------------------------------- | --------------------------------- |
@@ -164,7 +166,7 @@ default. A profile directory is itself a binding: a profile that names neither
 project that keeps its overrides here does not have to restate every one of them
 in `kapi.yaml`.
 
-The content memory and the unit-state record stay at the top of `.kapi/`
+The content-memory bundles and the unit-state record stay at the top of `.kapi/`
 rather than splitting by profile. A recycled wording and an approval are facts
 about a unit, true wherever that unit is governed from. See
 [the project store](/kapi/project-store) for the full layout.
@@ -320,11 +322,14 @@ reads; it is the same shape the MCP tool returns.
 
 ### An answer with nothing in it
 
+Most projects start here, and the first weeks of one are spent filling it in.
 Ask either question in a project that has recorded nothing and you still get an
 answer. It says the project holds nothing at that point yet, and it says what is
 worth noticing while you work: the names this project gives its own things, the
 spellings it keeps to, who the text addresses, how formal it is. It invents no
-rule, because there are none to report.
+rule, because there are none to report. That note is what an agent acts on: it
+records what it notices as it reads, and the next answer has more in it
+([Growing context](/kapi/context-decisions)).
 
 The JSON carries the same fact as a `coverage` value, so a script or an
 assistant can act on it. It counts what is in force at the point: the voice
