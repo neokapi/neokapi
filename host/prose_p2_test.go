@@ -79,6 +79,7 @@ func TestProseP2_go(t *testing.T) {
 
 	t.Run("the declaration is never converged", func(t *testing.T) {
 		a, cmd, recipe := newFreshCheckoutProject(t)
+		readProjectContext(t, filepath.Dir(recipe))
 		goSource := declareGoComments(t, recipe, true)
 		require.NoError(t, cmd.Flags().Set("fail-on-unknown", "true"))
 		proj, err := project.Load(recipe)
@@ -150,6 +151,7 @@ func TestProseP2_go(t *testing.T) {
 
 	t.Run("must fail: without comments: true the Go file reaches the flow", func(t *testing.T) {
 		a, cmd, recipe := newFreshCheckoutProject(t)
+		readProjectContext(t, filepath.Dir(recipe))
 		declareGoComments(t, recipe, false)
 		require.NoError(t, cmd.Flags().Set("fail-on-unknown", "true"))
 		proj, err := project.Load(recipe)

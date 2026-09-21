@@ -77,6 +77,7 @@ func requireNoReader(t *testing.T, warnings []check.Warning, file, format, plugi
 func TestUpSetsAsideCollectionsWithNoReader(t *testing.T) {
 	a, cmd, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, true)
+	readProjectContext(t, filepath.Dir(recipe))
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 
@@ -116,10 +117,10 @@ func TestUpSetsAsideCollectionsWithNoReader(t *testing.T) {
 	assert.Contains(t, text.String(), `no reader for format "okf_idml"`)
 }
 
-// Seeding the committed context reads every committed translation. A committed
+// Reading the committed context reads every committed translation. A committed
 // target in a plugin format is left for a machine that can read it, and the rest
 // of the record is still absorbed.
-func TestSeedSkipsCommittedTargetsWithNoReader(t *testing.T) {
+func TestReadSkipsCommittedTargetsWithNoReader(t *testing.T) {
 	a, _, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, true)
 	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(recipe), "src", "nb.json"),
@@ -154,8 +155,8 @@ func TestUpPlanSetsAsideCollectionsWithNoReader(t *testing.T) {
 	require.NoError(t, plan.FormatText(&text))
 	assert.Contains(t, text.String(), `no reader for format "okf_idml"`)
 
-	// The plan path seeds an existing store before it prices, and the seed
-	// reads the committed layout target.
+	// A plan over a store the import has filled prices the same way, and the
+	// import reads the committed layout target.
 	_, err = a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	require.NoError(t, cmd.Flags().Set("plan", "true"))

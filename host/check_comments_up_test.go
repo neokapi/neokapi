@@ -35,6 +35,7 @@ func declareGoComments(t *testing.T, recipe string, comments bool) string {
 func TestUpNeverConvergesACommentsOnlyCollection(t *testing.T) {
 	t.Run("declared for its comments", func(t *testing.T) {
 		a, cmd, recipe := newFreshCheckoutProject(t)
+		readProjectContext(t, filepath.Dir(recipe))
 		goFile := declareGoComments(t, recipe, true)
 		before, err := os.ReadFile(goFile)
 		require.NoError(t, err)
@@ -54,6 +55,7 @@ func TestUpNeverConvergesACommentsOnlyCollection(t *testing.T) {
 
 	t.Run("must fail: the same file without comments: true reaches the flow", func(t *testing.T) {
 		a, cmd, recipe := newFreshCheckoutProject(t)
+		readProjectContext(t, filepath.Dir(recipe))
 		declareGoComments(t, recipe, false)
 		require.NoError(t, cmd.Flags().Set("fail-on-unknown", "true"))
 		proj, err := project.Load(recipe)
