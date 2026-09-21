@@ -50,6 +50,7 @@ func RunConformance(t *testing.T, newBackend Factory) {
 		{"a project registers with no checkout", registersWithNoCheckout},
 		{"two projects register in one workspace", twoProjectsRegister},
 		{"a project with no registration is not found", unregisteredProjectIsNotFound},
+		{"a widened rule is held for the whole workspace", widenedRulesAreHeldForTheWorkspace},
 		{"close is idempotent", closeIsIdempotent},
 	}
 	for _, tc := range cases {
@@ -293,6 +294,62 @@ func unregisteredProjectIsNotFound(t *testing.T, b workspace.Backend) {
 
 	_, err = w.Register(ctx, "", "Nameless", "/fakehome/src/x")
 	assert.ErrorIs(t, err, workspace.ErrNoProjectKey)
+}
+
+// widenedRulesAreHeldForTheWorkspace covers the one piece of context that
+// belongs to no project: a rule a person deliberately put in force everywhere.
+//
+// Everything else a project learns lives in that project's own context store.
+// A widened rule has nowhere there to live, so the workspace holds it, keeps
+// the project its evidence came from, and hands it back to whatever knows what
+// the bytes mean.
+func widenedRulesAreHeldForTheWorkspace(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	w, err := workspace.Open(ctx, b)
+	require.NoError(t, err)
+
+	at := time.Now().UTC().Truncate(time.Second)
+	require.NoError(t, w.WidenRule(ctx, workspace.Rule{
+		ID:      "rule_vocabulary",
+		Kind:    "vocabulary",
+		Origin:  "prj_docs",
+		Payload: []byte(`{"term":"utilise"}`),
+		At:      at,
+	}))
+	require.NoError(t, w.WidenRule(ctx, workspace.Rule{
+		ID:      "rule_other",
+		Kind:    "something-else",
+		Payload: []byte(`{}`),
+		At:      at.Add(time.Second),
+	}))
+
+	held, err := w.WidenedRules(ctx, "vocabulary")
+	require.NoError(t, err)
+	require.Len(t, held, 1, "a listing narrowed to one kind holds only that kind")
+	assert.Equal(t, "rule_vocabulary", held[0].ID)
+	assert.Equal(t, workspace.ProjectKey("prj_docs"), held[0].Origin, "provenance survives widening")
+	assert.JSONEq(t, `{"term":"utilise"}`, string(held[0].Payload))
+	assert.Equal(t, at, held[0].At)
+
+	all, err := w.WidenedRules(ctx, "")
+	require.NoError(t, err)
+	assert.Len(t, all, 2, "an unnarrowed listing holds every kind")
+
+	require.NoError(t, w.WidenRule(ctx, workspace.Rule{
+		ID: "rule_vocabulary", Kind: "vocabulary", Payload: []byte(`{"term":"leverage"}`), At: at,
+	}))
+	held, err = w.WidenedRules(ctx, "vocabulary")
+	require.NoError(t, err)
+	require.Len(t, held, 1, "widening the same rule again replaces it")
+	assert.JSONEq(t, `{"term":"leverage"}`, string(held[0].Payload))
+
+	require.NoError(t, w.NarrowRule(ctx, "rule_vocabulary"))
+	held, err = w.WidenedRules(ctx, "vocabulary")
+	require.NoError(t, err)
+	assert.Empty(t, held, "narrowing takes the rule back out")
+	require.NoError(t, w.NarrowRule(ctx, "rule_vocabulary"), "narrowing a rule the workspace does not hold is not an error")
+
+	assert.ErrorIs(t, w.WidenRule(ctx, workspace.Rule{Kind: "vocabulary"}), workspace.ErrNoRuleID)
 }
 
 func closeIsIdempotent(t *testing.T, b workspace.Backend) {

@@ -310,6 +310,13 @@ a rule that names none of its own takes. A voice profile contributes two sets
 run cover every source a caller holds, and what keeps a rule-carrying tool from
 being a second-class citizen of the vocabulary gate.
 
+A set may be marked `Advisory`, which is how the candidates a project has
+accumulated reach the same pass ([C-11](c-11-context-operations.md)). Every hit
+against such a set is raised at `neutral` severity whatever its rule declares,
+and carries `Advisory` through the hit, the finding and the diagnostic. A rule
+nobody has confirmed is therefore reported wherever a decided term would be, and
+weighs nothing in the score and nothing in the gate.
+
 What a consumer does with an occurrence is its own business. The voice
 vocabulary gate raises a finding, presenting it through `HitsToFindings`, the
 mapping every check surface shares (`kapi check`, the `check_text` and

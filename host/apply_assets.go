@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
@@ -57,6 +58,108 @@ func (a *App) applyAssetEntry(ctx context.Context, cmd Command, e changeEntry) a
 		res.Detail = fmt.Sprintf("unsupported asset kind %q", e.Kind)
 		return res
 	}
+}
+
+// applyRecordedAssetEntry lands an asset change and records it in the project's
+// context history.
+//
+// An asset entry states a decision about the project's vocabulary or its
+// content memory, so it belongs in the same history as every other such
+// decision: `kapi context log` shows what `kapi apply` did beside what an agent
+// proposed and what a person confirmed. The operation is recorded as confirmed
+// the moment it lands, because a person ran the command.
+//
+// The policy is put first, before anything is written. An agent that names
+// itself in an entry's `actor` is refused here rather than after the committed
+// source has already moved.
+func (a *App) applyRecordedAssetEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
+	actor := contextop.Actor{Kind: contextop.ActorPerson}
+	if e.Actor != nil {
+		actor = *e.Actor
+		if actor.Kind == "" {
+			actor.Kind = contextop.ActorPerson
+		}
+	}
+	subject, records := assetSubject(e)
+	if records {
+		if err := contextop.PersonDecides(contextop.Transition{
+			Actor:   actor,
+			Kind:    contextop.KindConfirm,
+			Subject: subject.Kind,
+		}); err != nil {
+			return errResult(assetResult{Kind: e.Kind, Op: e.Op, Target: e.Term}, err.Error())
+		}
+	}
+
+	res := a.applyAssetEntry(ctx, cmd, e)
+	if !records || res.Status != "applied" {
+		return res
+	}
+	if err := a.recordAppliedAsset(ctx, cmd, actor, subject, e.Evidence); err != nil {
+		// The decision is on disk and in the store; only its history is
+		// missing. Say so on the result rather than failing a write that
+		// already happened.
+		res.Detail = strings.TrimSpace(res.Detail + "; not recorded in the context history: " + err.Error())
+	}
+	return res
+}
+
+// assetSubject reads an asset entry as the context subject it decides, and
+// reports whether the entry decides one. A recipe field is configuration rather
+// than context, so it records nothing.
+func assetSubject(e changeEntry) (contextop.Subject, bool) {
+	switch e.Kind {
+	case kindTerm:
+		return contextop.Subject{Kind: contextop.SubjectTerm, Term: &coreprofile.TermRule{
+			Term:        e.Term,
+			Replacement: e.Replacement,
+		}}, true
+	case kindVoice:
+		return contextop.Subject{Kind: contextop.SubjectVoice, Voice: &contextop.VoiceRule{
+			List: e.List,
+			Rule: coreprofile.TermRule{Term: e.Term, Replacement: e.Replacement, Severity: e.Severity},
+		}}, true
+	case kindMemory:
+		return contextop.Subject{Kind: contextop.SubjectMemory, Memory: &contextop.MemoryPair{
+			Source:       e.Source,
+			Target:       e.Target,
+			SourceLocale: e.SourceLocale,
+			TargetLocale: e.TargetLocale,
+		}}, true
+	}
+	return contextop.Subject{}, false
+}
+
+// recordAppliedAsset writes the operation an applied asset entry produced: the
+// proposal and the confirmation of it, in one pair, because the person who ran
+// the command made both statements at once.
+func (a *App) recordAppliedAsset(ctx context.Context, cmd Command, actor contextop.Actor, subject contextop.Subject, evidence []contextop.Evidence) error {
+	recipePath, err := ResolveProjectPath(cmd)
+	if err != nil || recipePath == "" {
+		return err
+	}
+	s, err := a.contextOps(ctx, recipePath)
+	if err != nil {
+		return err
+	}
+	proposed, err := s.ledger.Append(ctx, s.stamp(contextop.Record{
+		Actor:    actor,
+		Kind:     contextop.KindPropose,
+		Subject:  subject,
+		Evidence: evidence,
+		Note:     "applied with `kapi apply`",
+	}, evidence))
+	if err != nil {
+		return err
+	}
+	_, err = s.ledger.Append(ctx, contextop.Record{
+		Actor:   actor,
+		Kind:    contextop.KindConfirm,
+		Target:  proposed.ID,
+		Project: proposed.Project,
+		Scope:   proposed.Scope,
+	})
+	return err
 }
 
 // resolveProjectRoot resolves the .kapi project recipe and its root directory.

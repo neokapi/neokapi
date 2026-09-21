@@ -44,6 +44,11 @@ type VocabHit struct {
 	Scope       string // where the rule applies (TermRule.Scope); empty means everywhere
 	Start       int    // byte offset into the searched text (inclusive)
 	End         int    // byte offset into the searched text (exclusive)
+	// Advisory marks a hit against a rule nobody has confirmed yet. Its
+	// severity is SeverityNeutral, which carries no penalty and trips no gate
+	// threshold, so the hit is reported and settles nothing. A surface shows it
+	// as the proposal it is.
+	Advisory bool
 }
 
 // A TermRuleSet is one source of term rules matched together: the rules, what
@@ -63,6 +68,14 @@ type TermRuleSet struct {
 	Category Dimension
 	// Default severity for a rule that names none. Zero means SeverityMajor.
 	Default Severity
+	// Advisory marks a set whose rules nobody has confirmed: the candidates a
+	// project has accumulated but not yet decided on (core/contextop). Every
+	// hit against such a set is raised at SeverityNeutral, whatever the rule
+	// says, so a candidate is reported everywhere a rule would be and can never
+	// fail a check or a gate. The severity a candidate's rule carries takes
+	// effect when a person confirms it and the rule moves into the project's
+	// own store.
+	Advisory bool
 }
 
 // MatchTermRules returns every hit in text under the given rule sets. Matching
@@ -112,6 +125,13 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 				continue
 			}
 			sev := severityForRule(rule.Severity, fallback)
+			if set.Advisory {
+				// An unconfirmed rule is reported and never gates. Neutral is
+				// the level the framework already defines as carrying no
+				// penalty, so every existing threshold, score and readiness
+				// gate treats the hit as advice without being taught to.
+				sev = SeverityNeutral
+			}
 			// Every shape the rule declares, matched exactly. See
 			// TermRule.Forms and core/check/forms.go.
 			find := check.FindTermForms
@@ -147,6 +167,7 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 					Scope:       rule.Scope,
 					Start:       h[0],
 					End:         h[1],
+					Advisory:    set.Advisory,
 				})
 			}
 		}
@@ -218,12 +239,20 @@ func HitsToFindings(hits []VocabHit, text string, runs []model.Run) []VoiceFindi
 			Category:     string(hit.Category),
 			Severity:     hit.Severity,
 			OriginalText: text[hit.Start:hit.End],
+			Advisory:     hit.Advisory,
 		}
 		if len(runs) > 0 {
 			f.Position = model.RangeAnchorForBytes(runs, hit.Start, hit.End)
 		}
-		switch hit.Kind {
-		case VocabCompetitor:
+		switch {
+		case hit.Advisory:
+			// A proposal reads as one. "Forbidden" would say a decision has been
+			// made, and nobody has made it yet.
+			f.Message = fmt.Sprintf("Proposed rule about %q, not yet confirmed", hit.Term)
+			if hit.Note != "" {
+				f.Message = fmt.Sprintf("Proposed rule about %q, not yet confirmed: %s", hit.Term, hit.Note)
+			}
+		case hit.Kind == VocabCompetitor:
 			f.Message = fmt.Sprintf("Competitor term %q found", hit.Term)
 		default:
 			f.Message = fmt.Sprintf("Forbidden term %q found", hit.Term)

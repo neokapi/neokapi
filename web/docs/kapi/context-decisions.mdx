@@ -1,0 +1,163 @@
+---
+sidebar_position: 5
+title: Growing context
+description: "Six verbs that grow a project's context out of ordinary work: propose records a rule with the evidence behind it, log shows what has been proposed and decided, and confirm, discard, revert and widen are the decisions. A proposal is reported by checks and never fails one."
+keywords: [kapi, context, propose, confirm, discard, revert, widen, candidate, evidence, terms, voice profile, content memory]
+---
+
+# Growing context
+
+A new project knows nothing. It has no terms, no voice profile and no approved
+wording, and it should not: the words a project cares about are the ones it
+turns out to use, and nobody knows those on the first day.
+
+Context grows out of the work instead. Someone notices how the product name is
+written. A rule is proposed from a hundred pages that agree. You confirm it, and
+from then on checks hold new writing to it. When you correct a translation, that
+correction is evidence for the next rule.
+
+Six verbs are that loop.
+
+| Verb | Does |
+| --- | --- |
+| `kapi context propose` | record a rule about a word, with where you saw it |
+| `kapi context log` | show what has been proposed, corrected and decided |
+| `kapi context confirm` | make a proposed rule binding |
+| `kapi context discard` | reject one |
+| `kapi context revert` | undo an operation, or everything one agent run did |
+| `kapi context widen` | put a confirmed rule in force somewhere broader |
+
+## A proposal never stops your work
+
+Propose a rule and say where you saw the word:
+
+```bash
+kapi context propose utilise --use use --seen-in docs/guide.md
+```
+
+From that moment a check reports the word wherever it appears:
+
+```
+docs/guide.md  Proposed rule about "utilise", not yet confirmed
+               Use "use" instead
+```
+
+The finding is a note. It carries no penalty, it does not lower a score, and it
+cannot fail a check or a gate, not even under `--strict`. That is what makes it
+safe to let an agent propose rules while you work: whatever it suggests is
+visible and nothing it suggests can break a build.
+
+A rule about a word in the voice profile's vocabulary rather than the project's
+terms takes `--list`:
+
+```bash
+kapi context propose Ripgrep --use ripgrep --list forbidden --severity major
+```
+
+## Confirming is what makes a rule bind
+
+Read what is waiting:
+
+```bash
+kapi context log --status candidate
+```
+
+```
+#12  2026-09-21T09:14:03Z  agent claude/s-nightly  propose  term "utilise", use "use"  [candidate]
+  seen in docs/guide.md greeting: "We utilise the widget"
+#9   2026-09-20T16:02:11Z  person asgeir  correct  "widget" became "component"  [candidate]
+  seen in docs/guide.md
+```
+
+Then decide:
+
+```bash
+kapi context confirm 12
+```
+
+Confirming writes the rule into the file your recipe binds, so `git diff` shows
+the decision like any other change, and every command that reads your project's
+context sees it from there. From now on the rule bites at the severity it
+carries: `minor` and `neutral` report, and anything else fails a check.
+
+Change the rule as you confirm it:
+
+```bash
+kapi context confirm 12 --use "employ" --severity critical
+```
+
+Reject it instead with `kapi context discard 12`. Either way the record stays in
+the log, so the same suggestion is recognisable the next time somebody makes it.
+
+## Undoing
+
+An agent run can propose a great deal in an evening. Undo all of it at once:
+
+```bash
+kapi context revert --session s-nightly
+```
+
+Everything that run recorded stops answering, and any rule it got confirmed is
+taken back out of your terms, your voice profile or your content memory, and out
+of the committed file it was written into. What a check said before that run and
+what it says after the revert are the same answer.
+
+Undo one operation with `kapi context revert 12`.
+
+Nothing is erased. Reverted operations stay in the log, marked reverted.
+
+## Where a rule holds
+
+A rule holds where its evidence was seen. A word you decided about in one
+product's reference pages says nothing about another product's tutorials, which
+is usually what you want: house style is rarely one thing across a whole
+company.
+
+When it is one thing, say so:
+
+```bash
+kapi context widen 12 --to workspace
+```
+
+That rule is then in force in every project you work on here. A project that has
+its own decision about the word keeps it, because the more specific answer
+always wins.
+
+You can also widen past a single axis of the point the rule sits at, which keeps
+it specific about everything else:
+
+```bash
+kapi context widen 12 --to mode
+```
+
+## Who may do what
+
+Anyone may say what they saw. An agent proposes and records corrections, and
+everything it records is advice.
+
+Deciding belongs to a person. Confirming a rule, editing what someone else
+proposed, rejecting it, withdrawing a rule already in force and widening one are
+all yours. An agent that tries is refused, and told so.
+
+An agent may withdraw its own proposal while nobody has decided on it, which is
+how a run cleans up after itself.
+
+## `kapi apply` writes the same history
+
+The asset entries of `kapi apply` are decisions about the same context, so they
+appear in the same log:
+
+```
+#5  2026-09-21T11:02:16Z  person  confirm  of #4
+#4  2026-09-21T11:02:16Z  person  propose  term "utilise", use "use"  [confirmed]
+  applied with `kapi apply`
+```
+
+They are confirmed the moment they land, because you ran the command.
+
+## What to read next
+
+- [Moving context](./context-portability.mdx) carries a project's context
+  between its files, its store and a backup file.
+- [Asking what applies](./context.mdx) answers what governs one place before
+  you write there.
