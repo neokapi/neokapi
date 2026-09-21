@@ -212,11 +212,21 @@ func storedVoiceProfiles(ctx context.Context, db *projectdb.DB) ([]boundVoicePro
 	if store == nil {
 		return nil, nil
 	}
+	return boundVoiceProfiles(ctx, store, loadVoiceBindings(ctx, db))
+}
+
+// boundVoiceProfiles is storedVoiceProfiles over a voice store and the bindings
+// recorded for it, for a caller that reaches the store without a project
+// handle: a whole-workspace export reads a project's context store out of the
+// workspace, where there is no checkout to record bindings in.
+func boundVoiceProfiles(ctx context.Context, store coreprofile.Store, bindings map[string]string) ([]boundVoiceProfile, error) {
+	if store == nil {
+		return nil, nil
+	}
 	profiles, err := store.ListProfiles(ctx, LocalScope)
 	if err != nil {
 		return nil, fmt.Errorf("list voice profiles: %w", err)
 	}
-	bindings := loadVoiceBindings(ctx, db)
 	byID := make(map[string]string, len(bindings))
 	for rel, id := range bindings {
 		// A binding that lost its file still names where the profile belongs.

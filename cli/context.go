@@ -44,7 +44,7 @@ afterwards.
 
 Four more verbs move the context itself: import and snapshot carry it between
 the project's files and its store, export and restore carry the whole of it as
-one file.`,
+one file, and with --workspace those two carry every project you work on here.`,
 		Example: "  kapi context docs/guide.md\n" +
 			"  kapi context docs/guide.md --json\n" +
 			"  kapi context --profile marketing\n" +
@@ -218,16 +218,38 @@ Withheld originals are never in it. They stay on the machine that redacted them,
 and no flag puts them in a file meant to be copied.
 
 The project's committed record is written first, the same write "kapi commit"
-makes.`,
+makes.
+
+With --workspace it writes every project you have worked on here instead of
+this one, which is the backup for the context of a whole machine. Add --dry-run
+to see what that file would hold before you write it.`,
 		Example: "  kapi context export -o context.kpz\n" +
-			"  kapi context export -o backups/acme-context.kpz --json",
+			"  kapi context export -o backups/acme-context.kpz --json\n" +
+			"  kapi context export --workspace --dry-run\n" +
+			"  kapi context export --workspace -o backups/everything.kpz",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			out, _ := cmd.Flags().GetString("output")
+			all, _ := cmd.Flags().GetBool("workspace")
+			dryRun, _ := cmd.Flags().GetBool("dry-run")
+
+			if all {
+				res, err := a.ExportWorkspaceContext(cmd.Context(), host.ContextWorkspaceExportRequest{
+					Out:    out,
+					DryRun: dryRun,
+				})
+				if err != nil {
+					return err
+				}
+				return output.Print(cmd, res)
+			}
+			if dryRun {
+				return errors.New("--dry-run reports what a whole-workspace export would carry; pass it with --workspace")
+			}
 			projectPath, err := RequireProjectPath(cmd)
 			if err != nil {
 				return err
 			}
-			out, _ := cmd.Flags().GetString("output")
 			res, err := a.ExportProjectContext(cmd.Context(), projectPath, out)
 			if err != nil {
 				return err
@@ -236,6 +258,8 @@ makes.`,
 		},
 	}
 	cmd.Flags().StringP("output", "o", "", "file to write")
+	cmd.Flags().Bool("workspace", false, "write every project you have worked on here, not just this one")
+	cmd.Flags().Bool("dry-run", false, "with --workspace, report what the file would hold and write nothing")
 	AddProjectFlag(cmd)
 	return cmd
 }
@@ -250,16 +274,18 @@ store, with every identity it left with.
 A store that already holds context is left alone until you say what should
 happen to it. --merge reads the file over what is there, which is idempotent:
 restoring the same file twice leaves the same store. --replace puts the file in
-place of what is there, so what is left is the file and nothing else.`,
+place of what is there, so what is left is the file and nothing else.
+
+With --workspace it reads a whole-machine backup: every project in the file
+comes back under the name and identity it had, whether or not you have a
+checkout of it here. The same two flags apply, and --replace names every
+project whose context it is about to empty before it empties any of them.`,
 		Example: "  kapi context restore context.kpz\n" +
 			"  kapi context restore context.kpz --merge\n" +
-			"  kapi context restore context.kpz --replace",
+			"  kapi context restore context.kpz --replace\n" +
+			"  kapi context restore --workspace backups/everything.kpz",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			projectPath, err := RequireProjectPath(cmd)
-			if err != nil {
-				return err
-			}
 			merge, _ := cmd.Flags().GetBool("merge")
 			replace, _ := cmd.Flags().GetBool("replace")
 			if merge && replace {
@@ -272,6 +298,25 @@ place of what is there, so what is left is the file and nothing else.`,
 			case merge:
 				mode = host.RestoreMerge
 			}
+
+			if all, _ := cmd.Flags().GetBool("workspace"); all {
+				res, err := a.RestoreWorkspaceContext(cmd.Context(), host.ContextWorkspaceRestoreRequest{
+					Bundle: args[0],
+					Mode:   mode,
+					// The notice a replace prints goes to the error stream, so
+					// it reaches a person watching without joining the record
+					// --json is read for.
+					Notice: cmd.ErrOrStderr(),
+				})
+				if err != nil {
+					return err
+				}
+				return output.Print(cmd, res)
+			}
+			projectPath, err := RequireProjectPath(cmd)
+			if err != nil {
+				return err
+			}
 			res, err := a.RestoreProjectContext(cmd.Context(), projectPath, args[0], mode)
 			if err != nil {
 				return err
@@ -281,6 +326,7 @@ place of what is there, so what is left is the file and nothing else.`,
 	}
 	cmd.Flags().Bool("merge", false, "read the file over the context the store already holds")
 	cmd.Flags().Bool("replace", false, "put the file in place of the context the store already holds")
+	cmd.Flags().Bool("workspace", false, "read a whole-machine backup, every project in it")
 	AddProjectFlag(cmd)
 	return cmd
 }

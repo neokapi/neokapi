@@ -160,7 +160,7 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 		// there is nothing further to read.
 		return res, nil
 	}
-	n, err := a.importDecisionRecord(ctx, db, from.UnitStateDir())
+	n, err := importDecisionRecord(ctx, db.Work(), from.UnitStateDir())
 	if err != nil {
 		return res, err
 	}
@@ -211,7 +211,7 @@ func reportedPath(root, path string) string {
 	return filepath.ToSlash(rel)
 }
 
-// importDecisionRecord reads a layout's committed decision record into the
+// importDecisionRecord reads a directory of committed decision shards into a
 // project's ledger and writes the project's own record out again.
 //
 // Each row is recorded with the origin of a record read in, and recording is
@@ -219,7 +219,11 @@ func reportedPath(root, path string) string {
 // second import reads the same layout to the same store. The project's own
 // shards are read first, so a record that moved under the handle cannot take
 // the rows out again on the way through.
-func (a *App) importDecisionRecord(ctx context.Context, db *projectdb.DB, dir string) (int, error) {
+//
+// A handle that has no checkout (core/state.OpenLedger, which a whole-workspace
+// restore opens) reads and writes no committed record, so for it the pass is
+// the ledger writes alone.
+func importDecisionRecord(ctx context.Context, st *state.WorkStore, dir string) (int, error) {
 	units, err := state.ReadCommitted(dir)
 	if err != nil {
 		return 0, err
@@ -227,7 +231,6 @@ func (a *App) importDecisionRecord(ctx context.Context, db *projectdb.DB, dir st
 	if len(units) == 0 {
 		return 0, nil
 	}
-	st := db.Work()
 	if st == nil {
 		return 0, projectdb.ErrNoStore
 	}

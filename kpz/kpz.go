@@ -157,6 +157,17 @@ const (
 	// is context: a project's documents are in git, and a package that mixed
 	// the two would make a context backup as large as the corpus.
 	KindContext = "kapi-context"
+	// KindWorkspace marks a workspace .kpz: every project a workspace holds,
+	// one KindContext package each, plus the registry entries that say which
+	// project each one is. It is what `kapi context export --workspace` writes
+	// and `kapi context restore --workspace` reads.
+	//
+	// A workspace holds the authored context of many projects and lives outside
+	// every checkout, so losing it loses all of them at once. One archive of the
+	// whole of it is the recovery story, and a project inside it is a complete
+	// context package: unzip the workspace and each `projects/<n>.kpz` is a file
+	// `kapi context restore` reads on its own.
+	KindWorkspace = "kapi-workspace"
 
 	// ManifestPath is the manifest member's path within the archive.
 	ManifestPath = "manifest.json"
@@ -195,6 +206,17 @@ const (
 	// decisions/<shard>.jsonl and are content: who approved which wording at
 	// which content hash is the most expensive thing a project holds.
 	ContentTypeDecisions = "decisions"
+	// ContentTypeProject carries one project's whole context package inside a
+	// workspace package: a complete KindContext .kpz, carried verbatim. Members
+	// live under projects/ and are streamed rather than buffered, so a
+	// workspace of any size packs and unpacks a project at a time.
+	ContentTypeProject = "project"
+	// ContentTypeRegistry carries the workspace's project registry: which
+	// project each projects/ member is, and the display name it goes by.
+	// Content, so the identities a restore rebuilds are covered by the root
+	// hash. The checkout paths a workspace also records are machine-local and
+	// never travel.
+	ContentTypeRegistry = "registry"
 
 	// memoryPath and termsPath are the conventional bare bundle names, so
 	// unzipping a package by hand yields the same spelling the rest of the
@@ -218,6 +240,11 @@ const (
 	// DecisionsDir is the archive directory holding the decision record's
 	// shards, one member each.
 	DecisionsDir = "decisions/"
+	// ProjectsDir is the archive directory holding one context package per
+	// project inside a workspace package.
+	ProjectsDir = "projects/"
+	// RegistryPath is the workspace registry member's archive path.
+	RegistryPath = "workspace.json"
 )
 
 // zipEpoch is a fixed modification time so the archive bytes are deterministic
@@ -285,6 +312,12 @@ type Package struct {
 	// Decisions carries the decision record, one member per shard, holding
 	// the shard's bytes verbatim. Content (part of the RootHash).
 	Decisions []DecisionDoc
+
+	// Projects carries a workspace's projects, one KindContext package each,
+	// plus the identity of the project it belongs to. Content: both the
+	// packages and the registry member that names them are in the RootHash.
+	// Empty for every profile but KindWorkspace.
+	Projects []ProjectDoc
 }
 
 // HasContent reports whether the package carries any packable content — blocks,
@@ -302,6 +335,7 @@ func (p *Package) HasContent() bool {
 		len(p.Source) > 0 ||
 		len(p.Voice) > 0 ||
 		len(p.Decisions) > 0 ||
+		len(p.Projects) > 0 ||
 		(p.Memory != nil && len(p.Memory.Entries) > 0) ||
 		(p.Terms != nil && len(p.Terms.Concepts) > 0)
 }
@@ -490,16 +524,34 @@ type memberContent struct {
 }
 
 // Marshal serializes the package to deterministic .kpz (zip) bytes.
+//
+// It holds the whole archive in memory. A package whose members are references
+// to files, such as a workspace carrying one context package per project, is
+// written with WriteTo instead, which streams member by member.
 func (p *Package) Marshal() ([]byte, error) {
+	var buf bytes.Buffer
+	if _, err := p.WriteTo(&buf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// WriteTo serializes the package to deterministic .kpz (zip) bytes on w,
+// streaming each referenced member straight from its source.
+//
+// The archive it writes is byte-for-byte what Marshal returns. It is what a
+// caller writing to a file uses, so the size of what is being packed never
+// decides whether the write fits in memory.
+func (p *Package) WriteTo(w io.Writer) (int64, error) {
 	members, err := p.serializeMembers()
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	sort.Slice(members, func(i, j int) bool { return members[i].Path < members[j].Path })
 
 	recipe, err := marshalRecipe(p.Recipe)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	kind := p.Kind
 	if kind == "" {
@@ -521,7 +573,7 @@ func (p *Package) Marshal() ([]byte, error) {
 	}
 	manifestData, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("kpz: encode manifest: %w", err)
+		return 0, fmt.Errorf("kpz: encode manifest: %w", err)
 	}
 	manifestData = append(manifestData, '\n')
 
@@ -531,33 +583,46 @@ func (p *Package) Marshal() ([]byte, error) {
 	all := append([]memberContent{{Path: ManifestPath, data: manifestData}}, members...)
 	sort.Slice(all, func(i, j int) bool { return all[i].Path < all[j].Path })
 
-	var buf bytes.Buffer
-	zw := zip.NewWriter(&buf)
+	counted := &countingWriter{w: w}
+	zw := zip.NewWriter(counted)
 	for _, m := range all {
-		w, err := zw.CreateHeader(&zip.FileHeader{Name: m.Path, Method: zip.Store, Modified: zipEpoch})
+		mw, err := zw.CreateHeader(&zip.FileHeader{Name: m.Path, Method: zip.Store, Modified: zipEpoch})
 		if err != nil {
-			return nil, fmt.Errorf("kpz: create %q: %w", m.Path, err)
+			return counted.n, fmt.Errorf("kpz: create %q: %w", m.Path, err)
 		}
 		if m.content != nil {
 			// Referenced member: stream from the source (file or ZIP entry)
 			// straight into the archive — the whole asset never sits in memory.
 			rc, oerr := m.content.Open()
 			if oerr != nil {
-				return nil, fmt.Errorf("kpz: open %q: %w", m.Path, oerr)
+				return counted.n, fmt.Errorf("kpz: open %q: %w", m.Path, oerr)
 			}
-			_, cerr := io.Copy(w, rc)
+			_, cerr := io.Copy(mw, rc)
 			_ = rc.Close()
 			if cerr != nil {
-				return nil, fmt.Errorf("kpz: write %q: %w", m.Path, cerr)
+				return counted.n, fmt.Errorf("kpz: write %q: %w", m.Path, cerr)
 			}
-		} else if _, err := w.Write(m.data); err != nil {
-			return nil, fmt.Errorf("kpz: write %q: %w", m.Path, err)
+		} else if _, err := mw.Write(m.data); err != nil {
+			return counted.n, fmt.Errorf("kpz: write %q: %w", m.Path, err)
 		}
 	}
 	if err := zw.Close(); err != nil {
-		return nil, fmt.Errorf("kpz: finalize archive: %w", err)
+		return counted.n, fmt.Errorf("kpz: finalize archive: %w", err)
 	}
-	return buf.Bytes(), nil
+	return counted.n, nil
+}
+
+// countingWriter reports how many bytes reached the destination, so WriteTo can
+// answer with the archive's size without the caller measuring the file.
+type countingWriter struct {
+	w io.Writer
+	n int64
+}
+
+func (c *countingWriter) Write(p []byte) (int, error) {
+	n, err := c.w.Write(p)
+	c.n += int64(n)
+	return n, err
 }
 
 // RootHash returns the package's Merkle content identity — the same digest
@@ -678,6 +743,18 @@ func (p *Package) serializeMembers() ([]memberContent, error) {
 		}
 		addData(d.Path, ContentTypeDecisions, d.Data)
 	}
+	if len(p.Projects) > 0 {
+		registry, err := marshalProjectRegistry(p.Projects)
+		if err != nil {
+			return nil, err
+		}
+		for _, pr := range p.Projects {
+			if err := addContent(pr.Path, ContentTypeProject, pr.Content); err != nil {
+				return nil, err
+			}
+		}
+		addData(RegistryPath, ContentTypeRegistry, registry)
+	}
 	if len(p.Overlays) > 0 {
 		data, err := marshalOverlaySet(p.Overlays)
 		if err != nil {
@@ -718,6 +795,33 @@ func Unmarshal(data []byte) (*Package, error) {
 	if err != nil {
 		return nil, fmt.Errorf("kpz: open archive: %w", err)
 	}
+	return read(zr)
+}
+
+// OpenFile parses a .kpz from a file without reading the archive into memory:
+// the structured members are parsed, and every whole-asset member is left as a
+// reader over its entry in the still-open file. It validates exactly what
+// Unmarshal validates.
+//
+// The caller closes the returned handle when it is done with the package,
+// after which no member's Content may be opened. It is how a workspace package
+// is read: its members are whole context packages, and one of them at a time is
+// as much as a restore ever holds.
+func OpenFile(path string) (*Package, io.Closer, error) {
+	zr, err := zip.OpenReader(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("kpz: open %s: %w", path, err)
+	}
+	pkg, err := read(&zr.Reader)
+	if err != nil {
+		_ = zr.Close()
+		return nil, nil, err
+	}
+	return pkg, zr, nil
+}
+
+// read parses a package from an open archive.
+func read(zr *zip.Reader) (*Package, error) {
 	// Bound the archive on its declared headers before a single byte is
 	// decompressed, then stream every entry through ONE guard so the cumulative
 	// caps apply across the package rather than per member.
@@ -743,16 +847,16 @@ func Unmarshal(data []byte) (*Package, error) {
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
 		return nil, fmt.Errorf("kpz: decode manifest: %w", err)
 	}
-	// Accept the project profile (KindProject), the interchange profile
-	// (KindInterchange) and the context profile (KindContext); reject any
-	// other kind.
+	// Accept the four profiles the container has: the project snapshot, the
+	// bilingual interchange slice, a project's authored context, and a
+	// workspace of those. Reject any other kind.
 	kind := manifest.Kind
 	switch kind {
-	case KindProject, KindInterchange, KindContext:
+	case KindProject, KindInterchange, KindContext, KindWorkspace:
 		// keep
 	default:
-		return nil, fmt.Errorf("kpz: unknown kind %q (want %q, %q or %q)",
-			manifest.Kind, KindProject, KindInterchange, KindContext)
+		return nil, fmt.Errorf("kpz: unknown kind %q (want %q, %q, %q or %q)",
+			manifest.Kind, KindProject, KindInterchange, KindContext, KindWorkspace)
 	}
 	major, vok := schemaversion.Major(manifest.SchemaVersion)
 	if !vok {
@@ -795,6 +899,10 @@ func Unmarshal(data []byte) (*Package, error) {
 		voiceMeta[vi.Path] = vi
 	}
 	verify := make([]memberContent, 0, len(manifest.Members))
+	// The registry member names the project each projects/ member is. It is
+	// read like any other member and applied once every project member is
+	// known, because the manifest orders members by path.
+	var registry []byte
 
 	for _, m := range manifest.Members {
 		zf, ok := files[m.Path]
@@ -877,6 +985,14 @@ func Unmarshal(data []byte) (*Package, error) {
 			})
 		case ContentTypeDecisions:
 			pkg.Decisions = append(pkg.Decisions, DecisionDoc{Path: m.Path, Data: body})
+		case ContentTypeProject:
+			// One project's whole context package, verified above by streaming
+			// and then referenced: a workspace is unpacked a project at a time.
+			pkg.Projects = append(pkg.Projects, ProjectDoc{
+				Path: m.Path, Content: zipContent{zf, PackageZipLimits},
+			})
+		case ContentTypeRegistry:
+			registry = body
 		case ContentTypeHistory:
 			pkg.History = body
 		case ContentTypeOverlays:
@@ -897,6 +1013,10 @@ func Unmarshal(data []byte) (*Package, error) {
 		}
 	}
 
+	if err := applyProjectRegistry(pkg, registry); err != nil {
+		return nil, err
+	}
+
 	if got := rootHash(verify); got != manifest.RootHash {
 		return nil, fmt.Errorf("kpz: root hash mismatch (want %s, got %s)", manifest.RootHash, got)
 	}
@@ -909,7 +1029,7 @@ func Unmarshal(data []byte) (*Package, error) {
 // history) are parsed, so they must be read.
 func opaqueContentType(ct string) bool {
 	switch ct {
-	case ContentTypeMedia, ContentTypeSource, ContentTypeSkeleton:
+	case ContentTypeMedia, ContentTypeSource, ContentTypeSkeleton, ContentTypeProject:
 		return true
 	default:
 		return false

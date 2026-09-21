@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T08:07:19Z",
+  "generatedAt": "2026-09-21T09:57:26Z",
   "commands": [
     {
       "id": "add",
@@ -605,7 +605,7 @@
       ],
       "use": "context [path]",
       "short": "Ask what this project's content context says",
-      "long": "Retrieve the content context this project goes by: the terms, the\nvoice and the rules that hold, without needing to know which store holds the\nanswer.\n\nTwo questions, and every asset-shaped lookup is one of them:\n\n  kapi context \u003cpath\u003e          what applies HERE: the voice in force at that\n                               location, its guidance, the terms bound there\n  kapi context --profile \u003cn\u003e   the same answer for a named profile, when you\n                               have no file in hand\n  kapi context search \u003cquery\u003e  what we know about THIS: terms, prior wording\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says before you write, rather than learning it from a failing check\nafterwards.\n\nFour more verbs move the context itself: import and snapshot carry it between\nthe project's files and its store, export and restore carry the whole of it as\none file.",
+      "long": "Retrieve the content context this project goes by: the terms, the\nvoice and the rules that hold, without needing to know which store holds the\nanswer.\n\nTwo questions, and every asset-shaped lookup is one of them:\n\n  kapi context \u003cpath\u003e          what applies HERE: the voice in force at that\n                               location, its guidance, the terms bound there\n  kapi context --profile \u003cn\u003e   the same answer for a named profile, when you\n                               have no file in hand\n  kapi context search \u003cquery\u003e  what we know about THIS: terms, prior wording\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says before you write, rather than learning it from a failing check\nafterwards.\n\nFour more verbs move the context itself: import and snapshot carry it between\nthe project's files and its store, export and restore carry the whole of it as\none file, and with --workspace those two carry every project you work on here.",
       "groupID": "work",
       "flags": [
         {
@@ -667,8 +667,14 @@
       ],
       "use": "export",
       "short": "Write this project's whole context to one file",
-      "long": "Write everything this project's store holds as context into a\nsingle file: the terms, the voice profiles, the wording already approved, and\nthe decision record.\n\nIt is the backup, and the way to move a project's context to another machine.\nNothing is lost and nothing is flattened: every part travels in the form kapi\nreads it back from, and \"kapi context restore\" puts it into a store with the\nsame identities it left with.\n\nWithheld originals are never in it. They stay on the machine that redacted them,\nand no flag puts them in a file meant to be copied.\n\nThe project's committed record is written first, the same write \"kapi commit\"\nmakes.",
+      "long": "Write everything this project's store holds as context into a\nsingle file: the terms, the voice profiles, the wording already approved, and\nthe decision record.\n\nIt is the backup, and the way to move a project's context to another machine.\nNothing is lost and nothing is flattened: every part travels in the form kapi\nreads it back from, and \"kapi context restore\" puts it into a store with the\nsame identities it left with.\n\nWithheld originals are never in it. They stay on the machine that redacted them,\nand no flag puts them in a file meant to be copied.\n\nThe project's committed record is written first, the same write \"kapi commit\"\nmakes.\n\nWith --workspace it writes every project you have worked on here instead of\nthis one, which is the backup for the context of a whole machine. Add --dry-run\nto see what that file would hold before you write it.",
       "flags": [
+        {
+          "name": "dry-run",
+          "usage": "with --workspace, report what the file would hold and write nothing",
+          "default": "false",
+          "type": "bool"
+        },
         {
           "name": "output",
           "shorthand": "o",
@@ -680,11 +686,19 @@
           "shorthand": "p",
           "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
+        },
+        {
+          "name": "workspace",
+          "usage": "write every project you have worked on here, not just this one",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
         "kapi context export -o context.kpz",
-        "kapi context export -o backups/acme-context.kpz --json"
+        "kapi context export -o backups/acme-context.kpz --json",
+        "kapi context export --workspace --dry-run",
+        "kapi context export --workspace -o backups/everything.kpz"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -730,7 +744,7 @@
       ],
       "use": "restore \u003cbundle\u003e",
       "short": "Read a context file back into this project's store",
-      "long": "Read a file written by \"kapi context export\" into this project's\nstore, with every identity it left with.\n\nA store that already holds context is left alone until you say what should\nhappen to it. --merge reads the file over what is there, which is idempotent:\nrestoring the same file twice leaves the same store. --replace puts the file in\nplace of what is there, so what is left is the file and nothing else.",
+      "long": "Read a file written by \"kapi context export\" into this project's\nstore, with every identity it left with.\n\nA store that already holds context is left alone until you say what should\nhappen to it. --merge reads the file over what is there, which is idempotent:\nrestoring the same file twice leaves the same store. --replace puts the file in\nplace of what is there, so what is left is the file and nothing else.\n\nWith --workspace it reads a whole-machine backup: every project in the file\ncomes back under the name and identity it had, whether or not you have a\ncheckout of it here. The same two flags apply, and --replace names every\nproject whose context it is about to empty before it empties any of them.",
       "flags": [
         {
           "name": "merge",
@@ -749,12 +763,19 @@
           "usage": "put the file in place of the context the store already holds",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "workspace",
+          "usage": "read a whole-machine backup, every project in it",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
         "kapi context restore context.kpz",
         "kapi context restore context.kpz --merge",
-        "kapi context restore context.kpz --replace"
+        "kapi context restore context.kpz --replace",
+        "kapi context restore --workspace backups/everything.kpz"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

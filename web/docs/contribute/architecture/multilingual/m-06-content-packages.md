@@ -2,8 +2,8 @@
 id: m-06-content-packages
 sidebar_position: 6
 title: "M-06: Content packages"
-description: "A family of deterministic, lossless JSON formats, one per content atom, and a .kpz container that bundles them with the project recipe into a portable parcel, in three profiles: a whole-project snapshot, a task-scoped bilingual interchange file, and a project's authored context on its own."
-keywords: [neokapi, architecture decision, kpz, package, content bundle, memory bundle, terms bundle, pack, unpack, interchange, determinism]
+description: "A family of deterministic, lossless JSON formats, one per content atom, and a .kpz container that bundles them with the project recipe into a portable parcel, in four profiles: a whole-project snapshot, a task-scoped bilingual interchange file, a project's authored context on its own, and a whole workspace of those."
+keywords: [neokapi, architecture decision, kpz, package, content bundle, memory bundle, terms bundle, pack, unpack, interchange, workspace, determinism]
 ---
 
 import { LanesDiagram } from "@neokapi/docs-shared";
@@ -137,8 +137,9 @@ a `.kpz` path.
 | To a translator or reviewer | **bilingual `.kpz`** | lossless native | `extract` / `merge` |
 | To a third-party translation tool | XLIFF 2.x / PO | interoperable, lossy | `extract` / `merge` |
 | To a hosted platform layer | the sync wire, the package's over-the-wire twin | lossless, streamed | `push` / `pull` |
+| One machine account's whole authored context | **workspace `.kpz`** | lossless native | `context export --workspace` / `context restore --workspace` |
 
-One container therefore carries **three profiles**, distinguished by the
+One container therefore carries **four profiles**, distinguished by the
 manifest kind:
 
 - **Project profile** (`kapi-project`): the whole project, every locale, the
@@ -161,8 +162,21 @@ manifest kind:
   project profile carries source by identity: a project's documents are already
   in version control, and a package that mixed them in would make a context
   backup as large as the corpus it governs.
+- **Workspace profile** (`kapi-workspace`): every project a workspace holds, one
+  context package each, plus the registry entries that name them. A workspace
+  keeps the authored context of every project a machine account works on,
+  outside every checkout and in no version control
+  ([C-03](../context/c-03-context-store-and-graph.md)), so an archive of the
+  whole of it is what a person has after losing the directory. It is what
+  `kapi context export --workspace` writes and
+  `kapi context restore --workspace` reads.
 
-All three profiles are parcels rather than workspaces.
+  A project is read out of the workspace rather than out of a checkout, so one
+  whose working tree was deleted travels exactly as one that is open now. What a
+  workspace records and this profile leaves behind is the checkout paths: they
+  name directories on one machine.
+
+All four profiles are parcels rather than workspaces.
 
 The context profile adds two member kinds. A `voice` member is one profile's
 YAML, written through the comment-preserving writer every committed voice
@@ -172,6 +186,21 @@ in the manifest so a restore puts it back where governance resolves it from. A
 Lines `core/state` writes, so the record travels in the one form every reader of
 it already parses. Both are content: they are in the root hash, and what a
 reviewer approved is the most expensive thing a project holds.
+
+The workspace profile adds two more. A `project` member is one project's whole
+context package, carried verbatim under `projects/`, and a `registry` member
+(`workspace.json`) says which project each one is: its key, its display name,
+and the member it lives in. Both are content, so the identities a restore
+rebuilds are covered by the root hash, and a registry that names a member the
+package does not carry is refused rather than restored short.
+
+Nesting a package inside a package is what keeps the whole of a workspace
+streamable. A `project` member is a reference like `media` and `source`: packing
+reads one project's archive at a time from disk, unpacking hands back a reader
+over one entry, and the size of a workspace never decides whether a backup fits
+in memory. It also means the members are useful on their own, since unzipping a
+workspace archive yields one `.kpz` per project that `kapi context restore`
+reads without the outer file.
 
 ## Working state, hand-off, and resume
 
@@ -328,6 +357,8 @@ whose logical path would escape the project root is refused rather than written.
 | derived stores and caches | the work directory | none | regenerated on unpack |
 | plugin binaries | user or system install | none | re-resolved via the registry |
 | provenance | none | the history member | opt-in, excluded from the root hash |
+| a project's identity and display name | the workspace registry | `workspace.json` | travels (workspace profile) |
+| the directories a project was worked in | the workspace registry | none | **never travels** |
 
 ## A packaged recipe may only name places inside the project it lands in
 
