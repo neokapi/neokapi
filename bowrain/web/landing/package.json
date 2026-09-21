@@ -40,6 +40,6 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite-plus": "^0.3.3",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   }
 }

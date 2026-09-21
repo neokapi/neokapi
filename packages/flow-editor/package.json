@@ -41,7 +41,7 @@
     "storybook": "^10.6.0",
     "typescript": "^7.0.2",
     "vite-plus": "^0.3.3",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   },
   "peerDependencies": {
     "react": "^19.0.0",
