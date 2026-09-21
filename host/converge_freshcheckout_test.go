@@ -18,16 +18,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newSelfSeedProject writes a fresh-clone-shaped project: a source file, a
+// newFreshCheckoutProject writes a fresh-clone-shaped project: a source file, a
 // committed content-memory bundle holding the reviewed target for every string
 // in it, `materialize: on-converge`, and a recycle-only flow (no provider, no
-// key, no spend). Nothing is compiled — the store is as empty as it is after
-// `git clone`.
+// key, no spend). The bundle is read by nobody, so the store is as empty as it
+// is after `git clone`.
 //
 // It runs under the dogfood isolation contract (CLAUDE.md): every root this run
 // could otherwise inherit is pinned to a throwaway dir and project discovery is
 // off, so the repo's own recipe can never be found.
-func newSelfSeedProject(t *testing.T) (*App, *EnvCommand, string) {
+func newFreshCheckoutProject(t *testing.T) (*App, *EnvCommand, string) {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
@@ -111,17 +111,18 @@ func runFreshConverge(t *testing.T, a *App, cmd *EnvCommand, recipe string) Conv
 	return out
 }
 
-// TestConverge_SelfSeedsCommittedContext is the fresh-clone criterion: a
-// checkout with no credentials and no store converges off the committed content
-// memory alone, and `materialize: on-converge` writes the target file. Before
-// the up path compiled the committed sources, the same run found an empty store,
-// recycled nothing, and left the locale at source fallback.
-func TestConverge_SelfSeedsCommittedContext(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+// TestConverge_RecyclesWhatTheStoreHolds is the fresh-clone criterion under the
+// store-only contract: a checkout with no credentials converges off the content
+// memory its store holds, and `materialize: on-converge` writes the target
+// file. A bundle git carries reaches that store through `kapi context import`.
+func TestConverge_RecyclesWhatTheStoreHolds(t *testing.T) {
+	a, cmd, recipe := newFreshCheckoutProject(t)
+	readProjectContext(t, filepath.Dir(recipe))
+
 	out := runFreshConverge(t, a, cmd, recipe)
 
 	require.Len(t, out.Locales, 1)
-	assert.Equal(t, 100, out.Locales[0].Pct["translated"], "the committed content memory filled the locale")
+	assert.Equal(t, 100, out.Locales[0].Pct["translated"], "the content memory in the store filled the locale")
 	assert.Positive(t, out.MaterializedFiles, "materialize: on-converge wrote the target file")
 
 	target, err := os.ReadFile(filepath.Join(filepath.Dir(recipe), "src", "nb.json"))
@@ -129,13 +130,25 @@ func TestConverge_SelfSeedsCommittedContext(t *testing.T) {
 	assert.Contains(t, string(target), "Hei verden")
 }
 
+// TestConverge_AnUnreadBundleRecyclesNothing is the same checkout with the read
+// left out: the run opens no context file, so the reviewed wording git carries
+// governs nothing and the locale stays at source fallback.
+func TestConverge_AnUnreadBundleRecyclesNothing(t *testing.T) {
+	a, cmd, recipe := newFreshCheckoutProject(t)
+
+	runFreshConverge(t, a, cmd, recipe)
+
+	target, err := os.ReadFile(filepath.Join(filepath.Dir(recipe), "src", "nb.json"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(target), "Hei verden")
+	assert.Contains(t, string(target), "Hello world", "the locale falls back to source")
+}
+
 // TestUpPlan_DoesNotCreateTheStore: `kapi up --plan` is a dry run, so it must
-// not leave a project store behind. Seeding on the plan path is therefore
-// conditional on a store already being there — computeProjectPlan stats rather
-// than opens for the same reason, because opening runs every subsystem's
-// migrations and creates the file.
+// leave no project store behind. computeProjectPlan stats rather than opens,
+// because opening runs every subsystem's migrations and creates the file.
 func TestUpPlan_DoesNotCreateTheStore(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	require.NoError(t, cmd.Flags().Set("plan", "true"))
 
 	require.NoError(t, a.ExecuteUp(cmd, recipe))
@@ -144,33 +157,41 @@ func TestUpPlan_DoesNotCreateTheStore(t *testing.T) {
 		"a dry run created a project store")
 }
 
-// TestUpPlan_ColdCheckoutPricesTheCommittedCorpus: the leverage a plan reports
-// is the number a reviewer approves spend against, and on a fresh checkout the
-// corpus the run will recycle from is the one git carries, not the one the
-// store holds — the store does not exist yet. A plan that read only the store
-// reported no recycling at all and priced every unit as AI work, on precisely
-// the leg (a pull-request CI job) that never runs anything before it.
-func TestUpPlan_ColdCheckoutPricesTheCommittedCorpus(t *testing.T) {
-	a, _, recipe := newSelfSeedProject(t)
+// TestUpPlan_PricesWhatTheStoreHolds: the leverage a plan reports is the number
+// a reviewer approves spend against, and it is the corpus the run will actually
+// recycle from, which is the store's. A checkout whose bundle nobody has read
+// in prices every unit as AI work, and reading it in moves the same unit to
+// recycling.
+func TestUpPlan_PricesWhatTheStoreHolds(t *testing.T) {
+	a, _, recipe := newFreshCheckoutProject(t)
+	root := filepath.Dir(recipe)
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 
-	plan, err := a.computeProjectPlan(context.Background(), proj, recipe)
+	cold, err := a.computeProjectPlan(context.Background(), proj, recipe)
 	require.NoError(t, err)
+	assert.Equal(t, 1, cold.Totals.MissingTarget)
+	assert.Equal(t, 0, cold.Totals.MemoryExact, "an unread bundle answers nothing")
+	assert.Equal(t, 1, cold.Totals.OutOfReach,
+		"and this flow drafts nothing, so the unit is out of reach rather than priced")
+	assert.NoFileExists(t, project.LayoutAt(root).StorePath(),
+		"pricing a checkout creates no project store")
 
-	assert.Equal(t, 1, plan.Totals.MissingTarget)
-	assert.Equal(t, 1, plan.Totals.MemoryExact, "the committed bundle answers the only unit")
-	assert.Equal(t, 0, plan.Totals.AIRemaining, "so nothing is left for a provider")
-	assert.Zero(t, plan.Totals.TokenEstimate, "and there are no tokens to quote")
-	assert.NoFileExists(t, project.LayoutAt(filepath.Dir(recipe)).StorePath(),
-		"the committed corpus was read without creating a project store")
+	readProjectContext(t, root)
+
+	warm, err := a.computeProjectPlan(context.Background(), proj, recipe)
+	require.NoError(t, err)
+	assert.Equal(t, 1, warm.Totals.MissingTarget)
+	assert.Equal(t, 1, warm.Totals.MemoryExact, "the content memory in the store answers the only unit")
+	assert.Equal(t, 0, warm.Totals.AIRemaining, "so nothing is left for a provider")
+	assert.Zero(t, warm.Totals.TokenEstimate, "and there are no tokens to quote")
 }
 
-// TestUpPlan_ColdCheckoutLeavesNoTraceOfTheCorpusItRead: the scratch corpus the
-// cold plan assembles is discarded with the call. Nothing under `.kapi/` moves,
-// so the next command finds the checkout exactly as git left it.
-func TestUpPlan_ColdCheckoutLeavesNoTraceOfTheCorpusItRead(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+// TestUpPlan_ColdCheckoutLeavesNoTrace: a plan over a checkout with no store
+// moves nothing under `.kapi/`, so the next command finds the checkout exactly
+// as git left it.
+func TestUpPlan_ColdCheckoutLeavesNoTrace(t *testing.T) {
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	root := filepath.Dir(recipe)
 	before := stateTree(t, project.LayoutAt(root).StateDir)
 
@@ -201,18 +222,19 @@ func stateTree(t *testing.T, dir string) []string {
 	return out
 }
 
-// TestUpPlan_SeedsAnExistingStore: once a store is there, the plan seeds it, so
-// the leverage figure a user approves spend against reflects what git carries
-// rather than what the last run happened to leave behind.
-func TestUpPlan_SeedsAnExistingStore(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+// TestUpPlan_ReadsNoBundleIntoAnExistingStore: a store that is already there is
+// left as the plan found it. Pricing a run is a question about the project, and
+// answering it must not put a checkout's bundle in force behind the person's
+// back.
+func TestUpPlan_ReadsNoBundleIntoAnExistingStore(t *testing.T) {
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	root := filepath.Dir(recipe)
 	ctx := context.Background()
 
-	// A store exists but predates the committed bundle.
+	// A store exists and holds nothing the committed bundle carries.
 	db, err := a.ProjectDB(ctx, root)
 	require.NoError(t, err)
-	require.NoError(t, db.PutMeta(ctx, "seed-test", "1"))
+	require.NoError(t, db.PutMeta(ctx, "plan-test", "1"))
 	before, err := db.Memory().Count(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 0, before)
@@ -222,13 +244,13 @@ func TestUpPlan_SeedsAnExistingStore(t *testing.T) {
 
 	after, err := db.Memory().Count(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, 1, after, "the plan seeded the existing store from the committed bundle")
+	assert.Equal(t, 0, after, "the plan read no committed bundle into the store")
 }
 
-// TestConverge_SeedsAPulledSourceEdit: a `git pull` that changes a committed
-// bundle reaches the store on the next run, without an explicit import.
-func TestConverge_SeedsAPulledSourceEdit(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+// TestConverge_ReadsAPulledSourceEdit: a `git pull` that changes a committed
+// bundle reaches the store when the import is run over the checkout again.
+func TestConverge_ReadsAPulledSourceEdit(t *testing.T) {
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	root := filepath.Dir(recipe)
 	runConverge(t, a, cmd, recipe)
 

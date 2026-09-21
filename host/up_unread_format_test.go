@@ -75,7 +75,7 @@ func requireNoReader(t *testing.T, warnings []check.Warning, file, format, plugi
 // The run converges the readable collection, sets the two plugin collections
 // aside, and reports them in its result and as convergence events.
 func TestUpSetsAsideCollectionsWithNoReader(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, true)
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -120,7 +120,7 @@ func TestUpSetsAsideCollectionsWithNoReader(t *testing.T) {
 // target in a plugin format is left for a machine that can read it, and the rest
 // of the record is still absorbed.
 func TestSeedSkipsCommittedTargetsWithNoReader(t *testing.T) {
-	a, _, recipe := newSelfSeedProject(t)
+	a, _, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, true)
 	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(recipe), "src", "nb.json"),
 		[]byte(`{"greeting":"Hei verden"}`), 0o644))
@@ -133,7 +133,7 @@ func TestSeedSkipsCommittedTargetsWithNoReader(t *testing.T) {
 // `kapi up --plan` prices the readable collections and names the one it set
 // aside.
 func TestUpPlanSetsAsideCollectionsWithNoReader(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, true)
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -169,7 +169,7 @@ func TestUpPlanSetsAsideCollectionsWithNoReader(t *testing.T) {
 // could read. The run says nothing was converged and fails, and the plan says
 // nothing could be priced rather than that nothing is left to do.
 func TestUpOverOnlyUnreadableContentConvergesNothing(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, false)
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -195,7 +195,7 @@ func TestUpOverOnlyUnreadableContentConvergesNothing(t *testing.T) {
 // Only a missing reader sets a collection aside. `--fail-on-unknown` asks for a
 // file that cannot be processed to fail the run, and it still does.
 func TestUpFailOnUnknownStillFailsOnAMissingReader(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, true)
 	require.NoError(t, cmd.Flags().Set("fail-on-unknown", "true"))
 	proj, err := project.Load(recipe)
@@ -209,7 +209,7 @@ func TestUpFailOnUnknownStillFailsOnAMissingReader(t *testing.T) {
 // A source in a format kapi reads that fails to parse was opened and is broken.
 // The run still fails on it.
 func TestUpStillFailsOnABrokenFileInAKnownFormat(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, true)
 	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(recipe), "src", "en.json"),
 		[]byte(`{"greeting": "Hello`), 0o644))
