@@ -91,4 +91,11 @@ type Finding struct {
 	// Metadata carries checker-specific detail (model name, confidence, the
 	// matched rule id) without widening the struct per checker.
 	Metadata map[string]string `json:"metadata,omitempty"`
+	// Advisory marks a finding raised against a rule nobody has confirmed: a
+	// candidate a project has accumulated and not yet decided on
+	// (core/contextop). Such a finding is always SeverityNeutral, which carries
+	// no penalty and trips no gate threshold, so it is reported and settles
+	// nothing. The flag is what lets a surface show it as the proposal it is
+	// rather than as a rule that was broken.
+	Advisory bool `json:"advisory,omitempty"`
 }

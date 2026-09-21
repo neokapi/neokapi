@@ -5,6 +5,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
@@ -17,6 +18,10 @@ type atPoint struct {
 	profile      *profile.VoiceProfile
 	voiceContext check.VoiceContext
 	terms        terms.Terminology
+	// context is what the project's context operations add here: rules a person
+	// widened to the whole workspace, which bind, and candidates nobody has
+	// decided on, which advise (core/contextop).
+	context contextop.Resolution
 }
 
 // fileGovernance is what one file's blocks are held to: the governance at the
@@ -65,6 +70,9 @@ func (a *App) governFile(ctx context.Context, voice *checkVoice, vocab *checkTer
 				return fileGovernance{}, err
 			}
 			at.point = &check.Point{Profile: rc.Profile, Channel: rc.Channel}
+			if at.context, err = vocab.contextAt(point); err != nil {
+				return fileGovernance{}, err
+			}
 		}
 		if comments {
 			g.comments = at
@@ -82,6 +90,7 @@ func (a *App) governFile(ctx context.Context, voice *checkVoice, vocab *checkTer
 // own point, and the comments' point when they sit apart.
 func (o checkRunOptions) govern(g fileGovernance) checkRunOptions {
 	o.profile, o.voiceContext, o.terms, o.point = g.content.profile, g.content.voiceContext, g.content.terms, g.content.point
+	o.context = g.content.context
 	o.comments = nil
 	if g.apart() {
 		comments := g.comments
@@ -92,7 +101,7 @@ func (o checkRunOptions) govern(g fileGovernance) checkRunOptions {
 
 // here is the governance at the file's own point.
 func (o checkRunOptions) here() atPoint {
-	return atPoint{point: o.point, profile: o.profile, voiceContext: o.voiceContext, terms: o.terms}
+	return atPoint{point: o.point, profile: o.profile, voiceContext: o.voiceContext, terms: o.terms, context: o.context}
 }
 
 // pointGroup is the blocks of one file held to one point.
@@ -168,6 +177,7 @@ func (e *checkExecution) recordContexts(file, destination string, opts checkRunO
 	if opts.comments != nil && len(comments) > 0 {
 		at := opts
 		at.profile, at.voiceContext, at.terms, at.point = opts.comments.profile, opts.comments.voiceContext, opts.comments.terms, opts.comments.point
+		at.context = opts.comments.context
 		at.comments = nil
 		e.recordContext(file, destination, at)
 	}

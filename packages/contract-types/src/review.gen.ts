@@ -177,6 +177,7 @@ export interface CheckFinding {
   original_text?: string;
   check?: string;
   metadata?: Record<string, string>;
+  advisory?: boolean;
 }
 
 /**
