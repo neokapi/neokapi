@@ -176,8 +176,9 @@ object naming the state it was reached from:
 The record reports and gates nothing: an absent workspace, a project whose
 context is still empty and a projection that has drifted all leave the verdict,
 the score and the gate as they would be without it, and none of them appears in
-the human output. `kapi check --ship` reports gates rather than a
-`kapi.check/v1` Report, and carries no evaluation record.
+the human output. Every producer of a `kapi.check/v1` Report carries the
+record. `kapi check --ship` reports gates rather than a Report, so it carries
+none.
 
 For a project file, omit MCP `profile_file` and `profile_pack` to retain its
 applicable profile and channel. An explicit profile replaces that voice
