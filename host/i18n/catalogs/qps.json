@@ -4449,14 +4449,13 @@
   "desktop": {
     "menu": {
       "checkForUpdates": "▒ Çĥéçķ ƒöŕ Üþđàţéš… ▒",
-      "clearRecentProjects": "▒ Çļéàŕ Ŕéçéñţ Þŕöĵéçţš ▒",
       "file": "▒ Ƒîļé ▒",
       "newProject": "▒ Ñéŵ Þŕöĵéçţ ▒",
-      "noRecentProjects": "▒ Ñö Ŕéçéñţ Þŕöĵéçţš ▒",
+      "noWorkspaceProjects": "▒ Ñö Þŕöĵéçţš Ýéţ ▒",
       "open": "▒ Öþéñ... ▒",
-      "recentProjects": "▒ Ŕéçéñţ Þŕöĵéçţš ▒",
       "save": "▒ Šàṽé ▒",
-      "saveAs": "▒ Šàṽé Àš... ▒"
+      "saveAs": "▒ Šàṽé Àš... ▒",
+      "workspaceProjects": "▒ Þŕöĵéçţš îñ Ýöüŕ Ŵöŕķšþàçé ▒"
     }
   }
 }
