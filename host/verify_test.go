@@ -93,6 +93,10 @@ collections:
 		}))
 	})
 
+	// The voice gate reads the profile the store holds, so the bound file
+	// reaches it through the explicit import.
+	readProjectContext(t, root)
+
 	return root, targetFile
 }
 
@@ -266,13 +270,22 @@ func TestVerify_GateSelection(t *testing.T) {
 	assert.Equal(t, gateTerms, parsed.Gates[0].Gate)
 }
 
-// writeTermsSourceProject creates a project that binds a committed
-// termbase_source (a .terms.json) and whose own store holds no concepts, so the
-// check path must resolve the vocabulary straight from the source. The terms store carries
-// two concepts: a do-not-translate brand term (KapiMart, identical in en/fr) and
-// a translated term (Save -> Enregistrer). The fr target keeps the brand term
-// identical (correct) and mistranslates "Save" as "Sauvegarder" (a terms fail).
+// writeTermsSourceProject creates a project that binds a committed terms source
+// (a `.kapi/terms.json`) and reads it into the project store, which is where
+// the check path resolves the vocabulary from. The bundle carries two concepts:
+// a do-not-translate brand term (KapiMart, identical in en/fr) and a translated
+// term (Save -> Enregistrer). The fr target keeps the brand term identical
+// (correct) and mistranslates "Save" as "Sauvegarder" (a terms fail).
 func writeTermsSourceProject(t *testing.T) string {
+	t.Helper()
+	root := writeUnreadTermsSourceProject(t)
+	readProjectContext(t, root)
+	return root
+}
+
+// writeUnreadTermsSourceProject is writeTermsSourceProject with the bundle left
+// where it was written: committed, bound by the recipe, and read by nobody.
+func writeUnreadTermsSourceProject(t *testing.T) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
@@ -326,14 +339,12 @@ collections:
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(root, project.RelStatePath("terms.json")), data, 0o644))
 
-	readProjectContext(t, root)
 	return root
 }
 
 // TestVerify_PreferredTermsFromTermsSource asserts the terminology gate resolves
-// the project vocabulary directly from the committed termbase_source
-// (.terms.json) when the project store holds no concepts — the common case at
-// check time in CI, where the gitignored store does not exist at all. The gate must run and fail on the mistranslated "Save".
+// the project vocabulary a read of the committed bundle put into the store. The
+// gate runs and fails on the mistranslated "Save".
 func TestVerify_PreferredTermsFromTermsSource(t *testing.T) {
 	root := writeTermsSourceProject(t)
 	t.Chdir(root)
@@ -343,45 +354,44 @@ func TestVerify_PreferredTermsFromTermsSource(t *testing.T) {
 	require.ErrorIs(t, runErr, ErrQualityGate, "the mistranslated term must fail the gate")
 
 	terms, ok := gateByName(out, gateTerms)
-	require.True(t, ok, "terminology gate must run when termbase_source is bound")
+	require.True(t, ok, "terminology gate must run when a terms source is bound")
 	assert.False(t, terms.Pass, "terminology gate must fail on Save -> Sauvegarder")
 	require.NotEmpty(t, terms.Findings)
 	assert.Contains(t, terms.Findings[0].Message, "Enregistrer",
-		"the finding must name the preferred term resolved from the .terms.json source")
+		"the finding must name the preferred term the store holds")
 }
 
-// TestVerify_PreferredTermsFromTermsSourceWithAnEmptyStorePresent is the case the
-// merged store introduced, and the one a stat-based gate gets wrong.
+// TestVerify_PreferredTermsFromAnUnreadTermsSource pins the gate's half of the
+// store-only contract, at the shape a fresh checkout arrives in: the committed
+// bundle is there, the recipe binds it, and the store is present and empty
+// because the first kapi command run in the checkout opened it.
 //
-// A fresh checkout has the committed `.terms.json` and no store. The first kapi
-// command run there — any command — opens the project store, which CREATES it
-// with every subsystem's tables in place and none of them populated. From that
-// moment a file-presence test says "there is a compiled vocabulary here", and a
-// gate that trusted it would read an empty store and pass a project whose
-// committed terms are being violated.
-//
-// So the rule is: committed source wins while the store's vocabulary tables are
-// empty. Same project, same expected failure, with the store sitting there.
-func TestVerify_PreferredTermsFromTermsSourceWithAnEmptyStorePresent(t *testing.T) {
-	root := writeTermsSourceProject(t)
+// The gate enforces what the store holds, so the mistranslated "Save" passes
+// until someone runs `kapi context import`. A gate that answered from the file
+// would hold every checkout to whatever its own branch carries.
+func TestVerify_PreferredTermsFromAnUnreadTermsSource(t *testing.T) {
+	root := writeUnreadTermsSourceProject(t)
 
 	// Exactly what a first command in a fresh checkout leaves behind.
 	db := openProjectStore(t, root)
 	has, err := db.HasTerms(t.Context())
 	require.NoError(t, err)
-	require.False(t, has, "the store must be present and empty — that is the whole point")
+	require.False(t, has, "the store is present and empty")
 	require.NoError(t, db.Close())
 	require.FileExists(t, project.LayoutAt(root).StorePath())
 
 	t.Chdir(root)
+	out, _ := runVerifyJSON(t)
+
+	_, gated := gateByName(out, gateTerms)
+	assert.False(t, gated, "an unread bundle leaves the project with no vocabulary to gate")
+
+	// Reading it in is what puts the vocabulary in force.
+	readProjectContext(t, root)
 	out, runErr := runVerifyJSON(t)
-
-	require.ErrorIs(t, runErr, ErrQualityGate,
-		"an empty store must not shadow the committed source and pass a violating project")
-
+	require.ErrorIs(t, runErr, ErrQualityGate)
 	terms, ok := gateByName(out, gateTerms)
-	require.True(t, ok, "terminology gate must still run")
-	assert.False(t, terms.Pass)
+	require.True(t, ok)
 	require.NotEmpty(t, terms.Findings)
 	assert.Contains(t, terms.Findings[0].Message, "Enregistrer")
 }
@@ -404,8 +414,8 @@ func TestVerify_DoNotTranslateNotFlagged(t *testing.T) {
 }
 
 // writeTermsProjectUnbound builds the same project as writeTermsSourceProject
-// but with NO defaults.terms_source binding, committing the terms at the
-// conventional location rel instead.
+// but with NO defaults.terms_source binding, writing the terms bundle at rel
+// instead.
 func writeTermsProjectUnbound(t *testing.T, rel string) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
@@ -423,8 +433,8 @@ collections:
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	require.NotContains(t, recipe, "termbase_source",
-		"this test must exercise the convention ladder, not a binding")
+	require.NotContains(t, recipe, "terms_source",
+		"the bundle must reach the store as part of the layout, not through a binding")
 
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "app.json"),
 		[]byte("{\n  \"save\": \"Save\"\n}\n"), 0o644))
@@ -447,38 +457,45 @@ collections:
 	return root
 }
 
-// TestVerify_PreferredTermsFromConventionalLocation covers the well-known-location
-// ladder for terms: with no defaults.terms_source binding, a terms file
-// committed at either conventional path is still found and still gates.
-func TestVerify_PreferredTermsFromConventionalLocation(t *testing.T) {
+// TestVerify_UnboundTermsReachTheGateFromTheLayout covers the bundle an import
+// picks up without a binding. `.kapi/terms.json` is part of the layout, so a
+// read finds it and the gate then enforces it. A bundle anywhere else is a file
+// the import was never pointed at, and the gate enforces nothing from it.
+func TestVerify_UnboundTermsReachTheGateFromTheLayout(t *testing.T) {
 	tests := []struct {
-		name string
-		rel  string
+		name     string
+		rel      string
+		wantGate bool
 	}{
-		{"context directory", project.RelStatePath("terms.json")},
-		{"repository root", "terms.json"},
+		{"the layout's own terms bundle", project.RelStatePath("terms.json"), true},
+		{"a bundle at the repository root", "terms.json", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			root := writeTermsProjectUnbound(t, tt.rel)
+			readProjectContext(t, root)
 			t.Chdir(root)
 
 			_, runErr := runVerifyJSON(t)
-			require.ErrorIs(t, runErr, ErrQualityGate,
-				"an unbound project must find the conventional terms and fail on the mistranslated term")
+			if tt.wantGate {
+				require.ErrorIs(t, runErr, ErrQualityGate,
+					"the read vocabulary fails the mistranslated term")
+				return
+			}
+			require.NoError(t, runErr, "a bundle outside the layout enforces nothing")
 		})
 	}
 }
 
-// TestVerify_ConventionalPreferredTermsPreferContextDir pins the ordering when both
-// rungs are present: `.kapi/` wins. It is committed and it is where a
-// project's authored sources live, so the conventional home and the reviewed
-// home are the same directory.
-func TestVerify_ConventionalPreferredTermsPreferContextDir(t *testing.T) {
+// TestVerify_TermsAtTheRootLeaveTheLayoutsBundleInForce pins which bundle
+// answers when a project carries two. The layout's is read; the one at the root
+// is a file like any other, so the vocabulary in force stays the layout's even
+// though the stray copy would pass the same project.
+func TestVerify_TermsAtTheRootLeaveTheLayoutsBundleInForce(t *testing.T) {
 	root := writeTermsProjectUnbound(t, project.RelStatePath("terms.json"))
 
-	// A root terms file that would PASS the gate. If the ladder still preferred
-	// the root, the run would come back clean and this test would fail.
+	// A root terms file that would PASS the gate, so a run that read it would
+	// come back clean and this test would fail.
 	stray := ktb.FromConcepts([]terms.Concept{{
 		ID: "save",
 		Terms: []terms.Term{
@@ -490,8 +507,9 @@ func TestVerify_ConventionalPreferredTermsPreferContextDir(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(root, "terms.json"), data, 0o644))
 
+	readProjectContext(t, root)
 	t.Chdir(root)
 	_, runErr := runVerifyJSON(t)
 	require.ErrorIs(t, runErr, ErrQualityGate,
-		"the context-directory terms must win over the one at the root")
+		"the layout's terms stay in force beside the copy at the root")
 }
