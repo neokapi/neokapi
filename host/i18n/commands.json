@@ -311,6 +311,31 @@
             "long": "Confirm a proposal, which makes its rule binding at the severity it\ncarries and writes it where the rest of kapi reads it: the project's terms, its\nvoice profile, or its content memory.\n\nThe write goes into the committed file the recipe binds, so \"git diff\" shows the\ndecision like any other change.\n\nEdit the rule as you confirm it with --use and --severity, and widen it past the\npoint its evidence was seen at with --widen-to.",
             "short": "Make a proposed rule binding"
           },
+          "correct": {
+            "example": "  kapi context correct \"sign in\" \"log in\" --seen-in web/src/auth.tsx\n  kapi context correct utilise use --seen-in docs/guide.md --propose --severity minor",
+            "flags": {
+              "note": {
+                "usage": "why"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
+              "propose": {
+                "usage": "also record the rule the change implies, as a candidate"
+              },
+              "quote": {
+                "usage": "the sentence the change was made in"
+              },
+              "seen-in": {
+                "usage": "a file the change was made in (repeatable)"
+              },
+              "severity": {
+                "usage": "how hard that rule bites once confirmed: minor or neutral report, anything else fails a check"
+              }
+            },
+            "long": "Record that somebody changed wording: what was there, what replaced\nit, and where.\n\nA correction is evidence about how this project writes, and the cheapest there\nis, because the judgement has already been made. On its own it records the\nchange and nothing else.\n\nWith --propose it also records the rule the change implies, so the next use of\nthe old wording is reported. That rule is a candidate: checks report it and none\nof them fails on it until someone confirms it.",
+            "short": "Record that wording was changed at a place"
+          },
           "discard": {
             "example": "  kapi context discard 7\n  kapi context discard 7 --note \"we say it both ways on purpose\"",
             "flags": {
@@ -409,6 +434,22 @@
             "short": "Show how this project's context came to be"
           },
           "long": "Retrieve the content context this project goes by: the terms, the\nvoice and the rules that hold, without needing to know which store holds the\nanswer.\n\nTwo questions, and every asset-shaped lookup is one of them:\n\n  kapi context \u003cpath\u003e          what applies HERE: the voice in force at that\n                               location, its guidance, the terms bound there\n  kapi context --profile \u003cn\u003e   the same answer for a named profile, when you\n                               have no file in hand\n  kapi context search \u003cquery\u003e  what we know about THIS: terms, prior wording\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says before you write, rather than learning it from a failing check\nafterwards.\n\nFour more verbs move the context itself: import and snapshot carry it between\nthe project's files and its store, export and restore carry the whole of it as\none file, and with --workspace those two carry every project you work on here.\n\nSix more grow it. Context accumulates out of ordinary work: propose records a\nrule with the evidence behind it, log shows what has been proposed and decided,\nand confirm, discard, revert and widen are the decisions. A proposal advises\nfrom the moment it is recorded and no check fails on one; confirming is what\nmakes it bind.",
+          "observe": {
+            "example": "  kapi context observe \"the docs address the reader as you\"\n  kapi context observe \"the product is written Kapi Desktop, never KapiDesktop\" \\\n    --seen-in docs/guide.md --quote \"Open Kapi Desktop and pick a project.\"",
+            "flags": {
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
+              "quote": {
+                "usage": "the wording you saw"
+              },
+              "seen-in": {
+                "usage": "a file you saw it in (repeatable)"
+              }
+            },
+            "long": "Record something you noticed about how this project writes: a\nproduct name as it spells it, a spelling it is consistent about, who its text\naddresses, the register it keeps.\n\nAn observation states no rule. Nothing about a check changes, and nobody has to\ndecide anything about it. It is the material a rule is proposed from later, and\nrecording it costs less than working the same fact out twice.\n\nSay where you saw it with --seen-in and --quote.",
+            "short": "Record a fact about how this project writes"
+          },
           "propose": {
             "example": "  kapi context propose utilise --use use\n  kapi context propose utilise --use use --seen-in docs/guide.md\n  kapi context propose Ripgrep --use ripgrep --list forbidden --severity major",
             "flags": {

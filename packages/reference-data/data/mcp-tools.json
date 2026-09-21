@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T11:08:05Z",
+  "generatedAt": "2026-09-21T17:11:03Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -265,6 +265,165 @@
       ]
     },
     {
+      "name": "context_correct",
+      "description": "Record that the person changed your wording: what you wrote, what they replaced it with, and where. Call it as soon as you see the edit, before you carry on. A correction is evidence about this project's wording, and it is the cheapest context there is, because someone has already made the judgement. Set `propose` to also record the rule it implies, so the next use of the old wording is reported.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "from",
+          "type": "string",
+          "required": true,
+          "description": "the wording that was there"
+        },
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "description": "the project-relative file they changed it in"
+        },
+        {
+          "name": "to",
+          "type": "string",
+          "required": true,
+          "description": "the wording that replaced it"
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "what they said about the change"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
+        },
+        {
+          "name": "propose",
+          "type": "boolean",
+          "required": false,
+          "description": "also record the rule the change implies, so the next use of the old wording is reported"
+        },
+        {
+          "name": "quote",
+          "type": "string",
+          "required": false,
+          "description": "the sentence the change was made in"
+        },
+        {
+          "name": "severity",
+          "type": "string",
+          "required": false,
+          "description": "how hard that rule bites once a person confirms it: minor and neutral report, anything else fails a check"
+        },
+        {
+          "name": "unit",
+          "type": "string",
+          "required": false,
+          "description": "the block or unit id inside that file, when you have one"
+        }
+      ]
+    },
+    {
+      "name": "context_observe",
+      "description": "Record one fact you noticed about how this project writes: a product name as it spells it, a spelling it is consistent about, who its text addresses, the register it keeps. Call it while you read, as soon as you notice something, one fact per call. It states no rule, changes no check and takes effect immediately. Say where you saw it: `path` and `quote` are what let a person judge the fact later, and an observation with neither is worth much less than one with both.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "the fact, in one sentence, in your own words"
+        },
+        {
+          "name": "path",
+          "type": "string",
+          "required": false,
+          "description": "the project-relative file you saw it in"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
+        },
+        {
+          "name": "quote",
+          "type": "string",
+          "required": false,
+          "description": "the wording you saw, quoted from the file"
+        },
+        {
+          "name": "unit",
+          "type": "string",
+          "required": false,
+          "description": "the block or unit id inside that file, when you have one"
+        }
+      ]
+    },
+    {
+      "name": "context_propose",
+      "description": "Propose a rule about a word: write this instead of that. Use it when the project is consistent about a word and nothing records it yet. Evidence is required: `path` names the file you saw it in and `quote` the wording as it stands there. The result is a CANDIDATE. It advises from the moment you record it, every check reports it, and no check can fail on it until a person confirms it. Do not tell anyone a rule is now in force.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "description": "the project-relative file you saw the wording in"
+        },
+        {
+          "name": "term",
+          "type": "string",
+          "required": true,
+          "description": "the word or phrase the rule is about"
+        },
+        {
+          "name": "list",
+          "type": "string",
+          "required": false,
+          "description": "propose a voice-profile rule in this list instead of a project term: forbidden, competitor or preferred"
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "why you are proposing it"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
+        },
+        {
+          "name": "quote",
+          "type": "string",
+          "required": false,
+          "description": "the wording as it stands there"
+        },
+        {
+          "name": "severity",
+          "type": "string",
+          "required": false,
+          "description": "how hard the rule bites once a person confirms it: minor and neutral report, anything else fails a check"
+        },
+        {
+          "name": "unit",
+          "type": "string",
+          "required": false,
+          "description": "the block or unit id inside that file, when you have one"
+        },
+        {
+          "name": "use",
+          "type": "string",
+          "required": false,
+          "description": "what to write instead; a rule without one records the word and matches nothing"
+        }
+      ]
+    },
+    {
       "name": "context_search",
       "description": "Ask what this project's content context says about a word or phrase: what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. One question across every store the project binds; you do not need to know which one holds the answer. Search before writing; read the context://\u003cproject-relative-path\u003e resource for the full guidance at your destination. After saving edits, use check_file on the changed files. Results are grouped by kind, and say what could not be reached. `coverage` grades what stood behind the answer (empty, thin or covered); an empty one means this project has recorded nothing about the query, and its notes say what is worth noticing while you work. `provenance` names the project that answered, the workspace revision it was read at, and whether the content kapi holds still matches the files on disk. Each term carries how often the project's extracted content uses it, as of the last extraction (the last `kapi up`) rather than of the working tree.",
       "surface": "default",
@@ -304,6 +463,25 @@
           "type": "string",
           "required": false,
           "description": "path to a standalone terms store (default: the project's own store)"
+        }
+      ]
+    },
+    {
+      "name": "context_session_summary",
+      "description": "Report what this session recorded, proposed and had confirmed. Call it before you say the work is done, and end your report with what it says, including the command it gives for reviewing the session.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
+        },
+        {
+          "name": "session",
+          "type": "string",
+          "required": false,
+          "description": "the session to summarize (default: this MCP server's own)"
         }
       ]
     },

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T13:34:57Z",
+  "generatedAt": "2026-09-21T17:11:03Z",
   "commands": [
     {
       "id": "add",
@@ -707,6 +707,58 @@
       "demoMode": false
     },
     {
+      "id": "context.correct",
+      "path": [
+        "context",
+        "correct"
+      ],
+      "use": "correct \u003cfrom\u003e \u003cto\u003e",
+      "short": "Record that wording was changed at a place",
+      "long": "Record that somebody changed wording: what was there, what replaced\nit, and where.\n\nA correction is evidence about how this project writes, and the cheapest there\nis, because the judgement has already been made. On its own it records the\nchange and nothing else.\n\nWith --propose it also records the rule the change implies, so the next use of\nthe old wording is reported. That rule is a candidate: checks report it and none\nof them fails on it until someone confirms it.",
+      "flags": [
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "propose",
+          "usage": "also record the rule the change implies, as a candidate",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "quote",
+          "usage": "the sentence the change was made in",
+          "type": "string"
+        },
+        {
+          "name": "seen-in",
+          "usage": "a file the change was made in (repeatable)",
+          "default": "[]",
+          "type": "stringSlice"
+        },
+        {
+          "name": "severity",
+          "usage": "how hard that rule bites once confirmed: minor or neutral report, anything else fails a check",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context correct \"sign in\" \"log in\" --seen-in web/src/auth.tsx",
+        "kapi context correct utilise use --seen-in docs/guide.md --propose --severity minor"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "context.discard",
       "path": [
         "context",
@@ -867,6 +919,43 @@
         "kapi context log --status candidate",
         "kapi context log --session 0ab4e399 --json",
         "kapi context log --actor agent --since 2026-09-01"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.observe",
+      "path": [
+        "context",
+        "observe"
+      ],
+      "use": "observe \u003cwhat you noticed\u003e",
+      "short": "Record a fact about how this project writes",
+      "long": "Record something you noticed about how this project writes: a\nproduct name as it spells it, a spelling it is consistent about, who its text\naddresses, the register it keeps.\n\nAn observation states no rule. Nothing about a check changes, and nobody has to\ndecide anything about it. It is the material a rule is proposed from later, and\nrecording it costs less than working the same fact out twice.\n\nSay where you saw it with --seen-in and --quote.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "quote",
+          "usage": "the wording you saw",
+          "type": "string"
+        },
+        {
+          "name": "seen-in",
+          "usage": "a file you saw it in (repeatable)",
+          "default": "[]",
+          "type": "stringSlice"
+        }
+      ],
+      "examples": [
+        "kapi context observe \"the docs address the reader as you\"",
+        "kapi context observe \"the product is written Kapi Desktop, never KapiDesktop\" \\",
+        "--seen-in docs/guide.md --quote \"Open Kapi Desktop and pick a project.\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
