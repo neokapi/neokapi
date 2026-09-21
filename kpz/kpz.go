@@ -14,9 +14,11 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/kbf"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/schemaversion"
+	"github.com/neokapi/neokapi/core/yamledit"
 	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/neokapi/neokapi/terms/ktb"
 )
@@ -145,6 +147,16 @@ const (
 	// blocks, skeleton, target overlays, and the relevant content memory/term context.
 	// neokapi's lossless interchange format for a translator or reviewer.
 	KindInterchange = "kapi-interchange"
+	// KindContext marks a context .kpz: everything a project's store holds
+	// as authored context — terms, voice profiles, content memory and the
+	// decision record — and no content. It is what `kapi context export`
+	// writes and `kapi context restore` reads, so a store that has become the
+	// authority for context has a backup and a way between machines.
+	//
+	// It carries no blocks, no skeletons and no source, because none of those
+	// is context: a project's documents are in git, and a package that mixed
+	// the two would make a context backup as large as the corpus.
+	KindContext = "kapi-context"
 
 	// ManifestPath is the manifest member's path within the archive.
 	ManifestPath = "manifest.json"
@@ -175,6 +187,14 @@ const (
 	// deliberately EXCLUDED from the content RootHash, never read by resume
 	// or status, and safe to delete with no loss of work. Opt-in.
 	ContentTypeHistory = "history"
+	// ContentTypeVoice carries one voice profile, as the YAML a project
+	// authors it in. Members live under voice/<id>.yaml and are content.
+	ContentTypeVoice = "voice"
+	// ContentTypeDecisions carries one shard of the decision record — the
+	// JSON Lines a project commits under `.kapi/state/`. Members live under
+	// decisions/<shard>.jsonl and are content: who approved which wording at
+	// which content hash is the most expensive thing a project holds.
+	ContentTypeDecisions = "decisions"
 
 	// memoryPath and termsPath are the conventional bare bundle names, so
 	// unzipping a package by hand yields the same spelling the rest of the
@@ -193,6 +213,11 @@ const (
 	// `pack --with-source`). Named here rather than spelled at each call site so
 	// the writer and the reader that strips it back off cannot disagree.
 	SourceDir = "source/"
+	// VoiceDir is the archive directory holding one member per voice profile.
+	VoiceDir = "voice/"
+	// DecisionsDir is the archive directory holding the decision record's
+	// shards, one member each.
+	DecisionsDir = "decisions/"
 )
 
 // zipEpoch is a fixed modification time so the archive bytes are deterministic
@@ -253,6 +278,13 @@ type Package struct {
 	// source→target locale pair (AD-025 §7). nil for a project snapshot.
 	// Manifest metadata, not part of the content RootHash.
 	InterchangeTask *InterchangeTask
+
+	// Voice carries the project's voice profiles, one member each. Content
+	// (part of the RootHash).
+	Voice []VoiceDoc
+	// Decisions carries the decision record, one member per shard, holding
+	// the shard's bytes verbatim. Content (part of the RootHash).
+	Decisions []DecisionDoc
 }
 
 // HasContent reports whether the package carries any packable content — blocks,
@@ -268,8 +300,49 @@ func (p *Package) HasContent() bool {
 		len(p.Skeletons) > 0 ||
 		len(p.Media) > 0 ||
 		len(p.Source) > 0 ||
+		len(p.Voice) > 0 ||
+		len(p.Decisions) > 0 ||
 		(p.Memory != nil && len(p.Memory.Entries) > 0) ||
 		(p.Terms != nil && len(p.Terms.Concepts) > 0)
+}
+
+// VoiceDoc is one voice profile member: the profile itself plus where the
+// project authors it, so a restore can put it back at the path governance
+// resolves it from.
+type VoiceDoc struct {
+	// Path is the archive path under voice/, e.g. "voice/acme.yaml".
+	Path string
+	// ID is the profile's identity in a voice store. A restore upserts by it,
+	// which is what keeps a restore idempotent.
+	ID string
+	// Binding is the project-relative slash path the profile is authored at
+	// (`.kapi/voice.yaml`, `.kapi/profiles/acme/voice.yaml`). Empty when the
+	// exporting project recorded none.
+	Binding string
+	// Profile is the profile itself, serialized as YAML in the member.
+	Profile *profile.VoiceProfile
+}
+
+// VoiceIdentity records one voice member's identity and binding in the
+// manifest, so both survive the archive round trip. Metadata, not in the
+// RootHash: the substance is the member.
+type VoiceIdentity struct {
+	// Path names the voice/<name>.yaml member this identity describes.
+	Path string `json:"path"`
+	// ID is the profile's identity in a voice store.
+	ID string `json:"id,omitempty"`
+	// Binding is the project-relative slash path the profile is authored at.
+	Binding string `json:"binding,omitempty"`
+}
+
+// DecisionDoc is one shard of the decision record, carried verbatim. The bytes
+// are the serialization core/state writes under `.kapi/state/`, so a package
+// holds the record in the one form every reader of it already parses.
+type DecisionDoc struct {
+	// Path is the archive path under decisions/, e.g. "decisions/d-docs.jsonl".
+	Path string
+	// Data is the shard's JSON Lines bytes.
+	Data []byte
 }
 
 // SourceIdentity records one source document's identity so a .kpz can detect
@@ -394,6 +467,9 @@ type Manifest struct {
 	// Task scopes a KindInterchange package to one locale pair. Metadata,
 	// not in the RootHash.
 	Task *InterchangeTask `json:"task,omitempty"`
+	// Voice records each voice member's profile id and authoring path.
+	// Metadata, not in the RootHash.
+	Voice []VoiceIdentity `json:"voice,omitempty"`
 }
 
 // Member is one entry in the manifest inventory.
@@ -438,6 +514,7 @@ func (p *Package) Marshal() ([]byte, error) {
 		Recipe:        recipe,
 		Sources:       p.Sources,
 		Task:          p.InterchangeTask,
+		Voice:         voiceIdentities(p.Voice),
 	}
 	for _, m := range members {
 		manifest.Members = append(manifest.Members, m.Member)
@@ -582,6 +659,25 @@ func (p *Package) serializeMembers() ([]memberContent, error) {
 			return nil, err
 		}
 	}
+	for _, v := range p.Voice {
+		if v.Path == "" || v.Profile == nil {
+			return nil, errors.New("kpz: voice doc needs Path and Profile")
+		}
+		// yamledit with no original is a plain deterministic marshal, and it is
+		// the writer every committed voice profile already goes through, so a
+		// member and the file it came from carry the same bytes.
+		data, err := yamledit.Marshal(nil, v.Profile)
+		if err != nil {
+			return nil, fmt.Errorf("kpz: marshal %q: %w", v.Path, err)
+		}
+		addData(v.Path, ContentTypeVoice, data)
+	}
+	for _, d := range p.Decisions {
+		if d.Path == "" {
+			return nil, errors.New("kpz: decision shard needs Path")
+		}
+		addData(d.Path, ContentTypeDecisions, d.Data)
+	}
 	if len(p.Overlays) > 0 {
 		data, err := marshalOverlaySet(p.Overlays)
 		if err != nil {
@@ -647,14 +743,16 @@ func Unmarshal(data []byte) (*Package, error) {
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
 		return nil, fmt.Errorf("kpz: decode manifest: %w", err)
 	}
-	// Accept the project profile (KindProject) and the interchange profile
-	// (KindInterchange); reject any other kind.
+	// Accept the project profile (KindProject), the interchange profile
+	// (KindInterchange) and the context profile (KindContext); reject any
+	// other kind.
 	kind := manifest.Kind
 	switch kind {
-	case KindProject, KindInterchange:
+	case KindProject, KindInterchange, KindContext:
 		// keep
 	default:
-		return nil, fmt.Errorf("kpz: unknown kind %q (want %q or %q)", manifest.Kind, KindProject, KindInterchange)
+		return nil, fmt.Errorf("kpz: unknown kind %q (want %q, %q or %q)",
+			manifest.Kind, KindProject, KindInterchange, KindContext)
 	}
 	major, vok := schemaversion.Major(manifest.SchemaVersion)
 	if !vok {
@@ -690,6 +788,11 @@ func Unmarshal(data []byte) (*Package, error) {
 		if si.SkeletonPath != "" {
 			skelMeta[si.SkeletonPath] = si
 		}
+	}
+	// The same idiom for voice members: id and binding ride in the manifest.
+	voiceMeta := make(map[string]VoiceIdentity, len(manifest.Voice))
+	for _, vi := range manifest.Voice {
+		voiceMeta[vi.Path] = vi
 	}
 	verify := make([]memberContent, 0, len(manifest.Members))
 
@@ -763,6 +866,17 @@ func Unmarshal(data []byte) (*Package, error) {
 				ContentHash: si.ContentHash,
 				Content:     zipContent{zf, PackageZipLimits},
 			})
+		case ContentTypeVoice:
+			prof, err := profile.LoadProfileYAML(bytes.NewReader(body))
+			if err != nil {
+				return nil, fmt.Errorf("kpz: parse %q: %w", m.Path, err)
+			}
+			vi := voiceMeta[m.Path]
+			pkg.Voice = append(pkg.Voice, VoiceDoc{
+				Path: m.Path, ID: vi.ID, Binding: vi.Binding, Profile: prof,
+			})
+		case ContentTypeDecisions:
+			pkg.Decisions = append(pkg.Decisions, DecisionDoc{Path: m.Path, Data: body})
 		case ContentTypeHistory:
 			pkg.History = body
 		case ContentTypeOverlays:
@@ -863,5 +977,29 @@ func validateManifestPaths(m *Manifest) error {
 			}
 		}
 	}
+	for _, vi := range m.Voice {
+		if err := check("voice member path", vi.Path); err != nil {
+			return err
+		}
+		if vi.Binding != "" {
+			if err := check("voice binding", vi.Binding); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
+}
+
+// voiceIdentities projects the voice members onto the manifest index, in member
+// order so two marshals of the same package produce the same manifest bytes.
+func voiceIdentities(docs []VoiceDoc) []VoiceIdentity {
+	if len(docs) == 0 {
+		return nil
+	}
+	out := make([]VoiceIdentity, 0, len(docs))
+	for _, d := range docs {
+		out = append(out, VoiceIdentity{Path: d.Path, ID: d.ID, Binding: d.Binding})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out
 }

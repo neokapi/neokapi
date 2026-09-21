@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,6 +36,20 @@ func shardNames(t *testing.T, dir string) []string {
 }
 
 func removeAll(path string) error { return os.RemoveAll(filepath.Dir(path)) }
+
+func shardModTime(t *testing.T, dir, name string) time.Time {
+	t.Helper()
+	info, err := os.Stat(filepath.Join(dir, name))
+	require.NoError(t, err)
+	return info.ModTime()
+}
+
+// stamped gives a record the `Updated` time its entry is ordered by.
+func stamped(u state.UnitState, at string) state.UnitState {
+	u.Updated = at
+	u.Decision.At = at
+	return u
+}
 
 // One line per unit: recording a decision is a one-line diff, not a rewrite of
 // the whole project.

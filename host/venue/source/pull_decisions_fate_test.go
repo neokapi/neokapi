@@ -112,11 +112,16 @@ func decisionsConnector(t *testing.T, a *host.App, proj *bproject.Project, srv *
 	}
 }
 
-// TestPull_StagedDecisionsSurviveDeletingTheStore: the working store and the
-// ref cache sit in the same disposable directory and are deleted independently.
-// A decision pulled into the store and not yet committed lives only there, so
-// deleting the store must leave it recoverable: the next pull stages it again.
-func TestPull_StagedDecisionsSurviveDeletingTheStore(t *testing.T) {
+// TestPull_DecisionsSurviveDeletingTheProjection: the checkout's projection and
+// the ref cache sit in the same disposable directory and are deleted
+// independently. A decision pulled and not yet committed is in the decision
+// ledger, which is in the workspace, so deleting the projection loses neither
+// the decision nor the ability to write it to the record.
+//
+// The position the pull recorded does go, because it vouches for the projection
+// by that store's identity: the next pull replays the feed from the beginning
+// and finds it has nothing new to record.
+func TestPull_DecisionsSurviveDeletingTheProjection(t *testing.T) {
 	const projectID = "proj-decisions"
 	key := state.Key{Scope: "locales/en.json", Unit: "greeting", Variant: model.Variant("fr")}
 
@@ -141,9 +146,9 @@ func TestPull_StagedDecisionsSurviveDeletingTheStore(t *testing.T) {
 
 	st, err := first.OpenProjectState(t.Context(), proj.Root)
 	require.NoError(t, err)
-	staged, err := st.Pending(t.Context())
+	diff, err := st.RecordDiff(t.Context())
 	require.NoError(t, err)
-	require.Equal(t, 1, staged, "the pulled decision is staged, not committed")
+	require.Equal(t, 1, diff.Changed(), "the pulled decision is recorded, and the shards do not carry it yet")
 
 	// Everything the pull recorded about its position is on disk, and so is the
 	// store that position vouches for.
@@ -151,9 +156,9 @@ func TestPull_StagedDecisionsSurviveDeletingTheStore(t *testing.T) {
 	require.Equal(t, int64(42), saved.Ref("main").Content)
 	require.NotEmpty(t, saved.StoreID, "the position names the store that consumed it")
 
-	// Delete the store alone. The ref cache under work/cache/ survives, which is
-	// the shape this guards: one file gone, the other still claiming what it
-	// held.
+	// Delete the projection alone. The ref cache under work/cache/ survives,
+	// which is the shape this guards: one file gone, the other still claiming
+	// what it held.
 	first.Shutdown()
 	for _, suffix := range []string{"", "-wal", "-shm"} {
 		_ = os.Remove(proj.Layout.StorePath() + suffix)
@@ -167,18 +172,19 @@ func TestPull_StagedDecisionsSurviveDeletingTheStore(t *testing.T) {
 
 	res, err = again.Pull(context.Background(), bowrainconn.PullOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, 1, res.DecisionsStaged, "the decision is staged again")
+	assert.Zero(t, res.DecisionsStaged,
+		"the replay finds the decision already recorded and records nothing")
 	require.NoError(t, again.Close())
 
 	st, err = second.OpenProjectState(t.Context(), proj.Root)
 	require.NoError(t, err)
 	recovered, found := st.Get(t.Context(), key)
-	require.True(t, found, "the decision is back in the project's working set")
+	require.True(t, found, "the decision survived the projection it never lived in")
 	assert.Equal(t, "approved", recovered.Decision.ReviewState)
 	assert.Equal(t, "reviewer@example.test", recovered.Decision.By)
-	staged, err = st.Pending(t.Context())
+	diff, err = st.RecordDiff(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, 1, staged, "and it is staged, so `kapi commit` still publishes it")
+	assert.Equal(t, 1, diff.Changed(), "and `kapi commit` still writes it into the record")
 
 	// The second pull asked from the beginning: the position it held described a
 	// store that no longer exists, so it made no claim about this one.
@@ -186,10 +192,10 @@ func TestPull_StagedDecisionsSurviveDeletingTheStore(t *testing.T) {
 		"a store built again replays the feed rather than resuming")
 }
 
-// TestPull_StagingTheSameLedgerTwiceChangesNothing: replaying the feed is only
-// safe because staging an identical record is a no-op, so a project that pulls
-// twice reports one decision staged and then none.
-func TestPull_StagingTheSameLedgerTwiceChangesNothing(t *testing.T) {
+// TestPull_RecordingTheSameLedgerTwiceChangesNothing: replaying the feed is
+// only safe because recording an identical record is a no-op, so a project that
+// pulls twice reports one decision and then none.
+func TestPull_RecordingTheSameLedgerTwiceChangesNothing(t *testing.T) {
 	const projectID = "proj-idempotent"
 
 	srv := newDecisionLedgerServer(t, projectID, []venue.UnitDecision{{
@@ -216,9 +222,9 @@ func TestPull_StagingTheSameLedgerTwiceChangesNothing(t *testing.T) {
 
 	st, err := a.OpenProjectState(t.Context(), proj.Root)
 	require.NoError(t, err)
-	staged, err := st.Pending(t.Context())
+	diff, err := st.RecordDiff(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, 1, staged, "one decision, however many times it arrived")
+	assert.Equal(t, 1, diff.Changed(), "one decision, however many times it arrived")
 }
 
 // TestPull_AnUnchangedStoreKeepsItsPosition: the guard fires on a store that was

@@ -106,7 +106,7 @@ func TestProjectGraph_LedgersCoexistPerPool(t *testing.T) {
 	for _, want := range []string{
 		"termbase_migrations", "tb_concepts", // the terms store
 		"sievepen_migrations", "tm_entries", // the content memory
-		"state", "unit_state", // the unit working set
+		"state", "unit_decision", "unit_view", // the decision ledger and this checkout's view
 		"voice_profiles", // the voice store
 	} {
 		assert.Contains(t, tablesOf(db.Raw()), want, "the context store holds what was authored")

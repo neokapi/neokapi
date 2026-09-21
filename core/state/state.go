@@ -1,13 +1,21 @@
-// Package state is the project's authoritative workflow-state model — the record
-// of decisions that are NOT derivable from the source/target content: the review
-// ladder (draft→translated→reviewed→signed-off), who approved a unit and when,
-// parking, and the content hash of the specific translation a decision blesses.
+// Package state holds a project's authored workflow decisions: the review
+// ladder (draft, translated, reviewed, signed-off), who approved a unit and
+// when, parking, notes, and the pairing of source and translation each decision
+// blessed. None of it is derivable from the content, so all of it is kept.
 //
-// This is distinct from the content memory (a recycle/leverage corpus, keyed
-// by content) and from the document cache (a derived, rebuildable optimization).
-// State is authored decision data: its durable home is a committed, diff-friendly
-// serialization (the source of truth); a working store is a derived index over
-// it. See strategy/content-cache/project-state-model.md.
+// Decisions live in an append-only, content-addressed ledger (WorkStore). A
+// decision is durable the moment it is recorded, and an entry answers for a
+// unit exactly where the pairing it blessed appears, which is how one ledger
+// serves several checkouts of a project that sit on different branches.
+//
+// The JSON Lines shards under a project's `.kapi/state/` are a checkout's
+// export of that ledger and an import source for it: git tracks them, a
+// reviewer reads them in a diff, and a fresh clone restores its decisions from
+// them.
+//
+// The content memory is a separate store, keyed by content rather than by unit,
+// and the document cache is derived and rebuildable. See the architecture note
+// C-04 (web/docs/contribute/architecture/context).
 package state
 
 import (

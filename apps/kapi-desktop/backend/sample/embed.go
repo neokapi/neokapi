@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/memory"
@@ -77,9 +76,9 @@ func Scaffold(name, targetDir string) error {
 		return fmt.Errorf("write kapi.yaml: %w", err)
 	}
 
-	// Seed the content memory and terms into the project's own store. Both are
-	// schemas of `.kapi/work/store.db`, so this is one handle rather than two files —
-	// and the handle must be closed before the caller opens the project, or the
+	// Seed the content memory and terms into the project's own store. Both live
+	// in the workspace, in the one database this project keeps there, and the
+	// handle must be released before the caller opens the project, or the
 	// process would hold two connection pools on it.
 	if err := seedStore(targetDir); err != nil {
 		return err
@@ -97,19 +96,22 @@ func Scaffold(name, targetDir string) error {
 // --- KapiMart seed functions ---
 
 // seedStore opens the sample project's store, seeds the content memory and the
-// terms, and closes it. Opening creates `.kapi/` and the store file, so nothing
-// needs to make the state directory first.
+// terms, and releases it. Opening creates `.kapi/` and both of the project's
+// databases, so nothing needs to make the state directory first.
+//
+// It opens through a host App rather than from core/projectdb, because a
+// project's content memory and terms live in the workspace and only the host
+// layer resolves where that is. Seeding the checkout's own file instead would
+// scaffold a sample whose store the app then never reads.
 func seedStore(targetDir string) error {
-	layout := project.Layout{
-		Root:     targetDir,
-		StateDir: filepath.Join(targetDir, project.StateDirName),
-	}
-	db, err := projectdb.Open(context.Background(), layout)
+	ctx := context.Background()
+	app := &host.App{}
+	defer app.Shutdown()
+
+	db, err := app.ProjectDB(ctx, targetDir)
 	if err != nil {
 		return fmt.Errorf("open sample project store: %w", err)
 	}
-	defer db.Close()
-
 	if err := seedTMv2(db.Memory(), targetDir); err != nil {
 		return fmt.Errorf("seed content memory: %w", err)
 	}

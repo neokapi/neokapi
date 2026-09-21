@@ -2,6 +2,7 @@ package projectdb_test
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -78,7 +80,7 @@ func TestOpen_AllSubsystemsMigrateInOneFile(t *testing.T) {
 	}
 
 	// The subsystems' own tables, not just their bookkeeping.
-	for _, table := range []string{"store_meta", "tm_entries", "tb_concepts", "blocks", "overlays", "unit_state", "document"} {
+	for _, table := range []string{"store_meta", "tm_entries", "tb_concepts", "blocks", "overlays", "unit_decision", "unit_view", "document"} {
 		assert.True(t, tableExists(t, db, table), "table %s is present", table)
 	}
 
@@ -216,9 +218,9 @@ func TestSubsystems_RoundTripThroughSharedPool(t *testing.T) {
 	t.Run("work", func(t *testing.T) {
 		require.NoError(t, db.Work().Put(ctx, unit("u1", "d-intro", "Save changes")))
 
-		pending, err := db.Work().Pending(ctx)
+		diff, err := db.Work().RecordDiff(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, 1, pending)
+		assert.Equal(t, 1, diff.Changed())
 
 		require.NoError(t, db.Work().Commit(ctx))
 
@@ -227,9 +229,9 @@ func TestSubsystems_RoundTripThroughSharedPool(t *testing.T) {
 		require.Len(t, committed, 1, "Commit wrote the committed shard")
 		assert.Equal(t, "u1", committed[0].Unit)
 
-		pending, err = db.Work().Pending(ctx)
+		diff, err = db.Work().RecordDiff(ctx)
 		require.NoError(t, err)
-		assert.Zero(t, pending)
+		assert.Zero(t, diff.Changed())
 	})
 }
 
@@ -312,18 +314,15 @@ func TestRaw_CrossSubsystemTransaction(t *testing.T) {
 			`INSERT INTO tm_entries (id, project_id, hint_src_lang, created_at, updated_at, has_codes)
 			 VALUES (?, '', 'en', datetime('now'), datetime('now'), 0)`, "x1")
 		require.NoError(t, err)
-		_, err = tx.ExecContext(ctx, `
-INSERT INTO unit_state (unit, variant, scope, content_hash, context_hash, payload, staged)
-VALUES (?, 'nb', 'd-intro', '', '', ?, 1)`, "x1", `{"unit":"x1","variant":"nb"}`)
-		require.NoError(t, err)
+		require.NoError(t, insertDecision(ctx, tx, "x1"))
 		require.NoError(t, tx.Commit())
 
 		hasMem, err := db.HasMemory(ctx)
 		require.NoError(t, err)
 		assert.True(t, hasMem)
-		pending, err := db.Work().Pending(ctx)
+		diff, err := db.Work().RecordDiff(ctx)
 		require.NoError(t, err)
-		assert.Equal(t, 1, pending)
+		assert.Equal(t, 1, diff.Changed())
 	})
 
 	t.Run("rollback takes neither", func(t *testing.T) {
@@ -334,18 +333,31 @@ VALUES (?, 'nb', 'd-intro', '', '', ?, 1)`, "x1", `{"unit":"x1","variant":"nb"}`
 			`INSERT INTO tm_entries (id, project_id, hint_src_lang, created_at, updated_at, has_codes)
 			 VALUES (?, '', 'en', datetime('now'), datetime('now'), 0)`, "x2")
 		require.NoError(t, err)
-		_, err = tx.ExecContext(ctx, `
-INSERT INTO unit_state (unit, variant, scope, content_hash, context_hash, payload, staged)
-VALUES (?, 'nb', 'd-intro', '', '', ?, 1)`, "x2", `{"unit":"x2","variant":"nb"}`)
-		require.NoError(t, err)
+		require.NoError(t, insertDecision(ctx, tx, "x2"))
 		require.NoError(t, tx.Rollback())
 
 		_, found, err := db.Memory().GetEntry(ctx, "x2")
 		require.NoError(t, err)
 		assert.False(t, found, "the rolled-back entry is not in the content memory")
 		_, ok := db.Work().Get(ctx, state.Key{Scope: "d-intro", Unit: "x2", Variant: model.Variant("nb")})
-		assert.False(t, ok, "nor is the decision in the working set")
+		assert.False(t, ok, "nor is the decision in the ledger")
 	})
+}
+
+// insertDecision writes one ledger entry and the view row that points at it,
+// which is what recording a decision amounts to at the SQL level.
+func insertDecision(ctx context.Context, tx *storage.Tx, unitID string) error {
+	payload := fmt.Sprintf(`{"unit":%q,"variant":"nb","scope":"d-intro"}`, unitID)
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO unit_decision (id, scope, unit, variant, content_hash, target_hash, actor, origin, recorded_at, revoked, payload)
+VALUES (?, 'd-intro', ?, 'nb', '', '', '', 'local', '2026-01-01T00:00:00.000000000Z', 0, ?)`,
+		"entry-"+unitID, unitID, payload); err != nil {
+		return err
+	}
+	_, err := tx.ExecContext(ctx, `
+INSERT INTO unit_view (checkout, scope, unit, variant, content_hash, target_hash, exported)
+SELECT id, 'd-intro', ?, 'nb', '', '', 0 FROM checkout`, unitID)
+	return err
 }
 
 // Close releases the pool once, for all four subsystems, and tolerates a second

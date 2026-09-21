@@ -2,7 +2,7 @@
 id: m-06-content-packages
 sidebar_position: 6
 title: "M-06: Content packages"
-description: "A family of deterministic, lossless JSON formats, one per content atom, and a .kpz container that bundles them with the project recipe into a portable parcel, in two profiles: a whole-project snapshot and a task-scoped bilingual interchange file."
+description: "A family of deterministic, lossless JSON formats, one per content atom, and a .kpz container that bundles them with the project recipe into a portable parcel, in three profiles: a whole-project snapshot, a task-scoped bilingual interchange file, and a project's authored context on its own."
 keywords: [neokapi, architecture decision, kpz, package, content bundle, memory bundle, terms bundle, pack, unpack, interchange, determinism]
 ---
 
@@ -22,6 +22,8 @@ them into a portable snapshot of a project's authoritative content:
 | stand-off overlays | overlay records (`.overlays.jsonl`) | `annotations/*.overlays.jsonl` | none |
 | content memory | memory bundle (`.memory.json`) | `memory.json` | TMX |
 | terms | terms bundle (`.terms.json`) | `terms.json` | TBX |
+| voice profiles | profile document (`voice.yaml`) | `voice/*.yaml` | none |
+| the decision record | state shards (`.jsonl`) | `decisions/*.jsonl` | none |
 | media | opaque blobs | `media/*` | none |
 
 Every member of the family is JSON, and its suffix says so. A marker segment
@@ -136,8 +138,8 @@ a `.kpz` path.
 | To a third-party translation tool | XLIFF 2.x / PO | interoperable, lossy | `extract` / `merge` |
 | To a hosted platform layer | the sync wire, the package's over-the-wire twin | lossless, streamed | `push` / `pull` |
 
-One container therefore carries **two profiles**, distinguished by the manifest
-kind:
+One container therefore carries **three profiles**, distinguished by the
+manifest kind:
 
 - **Project profile** (`kapi-project`): the whole project, every locale, the
   full recipe, content memory, terms, overlays, source identity and skeletons.
@@ -148,8 +150,28 @@ kind:
   and term context. It excludes other locales, the full recipe, and raw source.
   This is neokapi's native interchange carrier, the parcel `extract` sends and
   `merge` ingests.
+- **Context profile** (`kapi-context`): everything the project store holds as
+  authored context, and no content. Terms, the voice profiles with the paths
+  they are authored at, the content memory, and the decision record's shards.
+  It is what `kapi context export` writes and `kapi context restore` reads,
+  which is the backup and the carrier between machines for a store that holds
+  reviewed work ([C-03](../context/c-03-context-store-and-graph.md)).
 
-Both profiles are parcels rather than workspaces.
+  It carries no blocks, no skeletons and no source, for the same reason the
+  project profile carries source by identity: a project's documents are already
+  in version control, and a package that mixed them in would make a context
+  backup as large as the corpus it governs.
+
+All three profiles are parcels rather than workspaces.
+
+The context profile adds two member kinds. A `voice` member is one profile's
+YAML, written through the comment-preserving writer every committed voice
+profile goes through, with its store identity and its authoring path recorded
+in the manifest so a restore puts it back where governance resolves it from. A
+`decisions` member is one shard of the decision record, carried as the JSON
+Lines `core/state` writes, so the record travels in the one form every reader of
+it already parses. Both are content: they are in the root hash, and what a
+reviewer approved is the most expensive thing a project holds.
 
 ## Working state, hand-off, and resume
 

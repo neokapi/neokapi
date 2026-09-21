@@ -195,11 +195,22 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	// only the deadline and cancellation are dropped.
 	openCtx := context.WithoutCancel(ctxOrBackground(ctx))
 
+	var opts []projectdb.Option
 	stores, err := s.bindWorkspace(openCtx, abs)
-	if err != nil {
+	switch {
+	case err == nil:
+		opts = append(opts, projectdb.WithWorkspace(stores))
+	case errors.Is(err, storage.ErrNoSQLite):
+		// The browser build has no file-backed SQLite driver and no user data
+		// directory, so there is no workspace to reach and no need of one: it
+		// holds one project and nothing outlives the tab. The project opens in
+		// the embedded layout, with its context tables beside its projection,
+		// which core/projectdb degrades to a JSON sidecar from there.
+	default:
 		return nil, err
 	}
-	db, err := projectdb.Open(openCtx, projectLayoutAt(abs), projectdb.WithWorkspace(stores))
+
+	db, err := projectdb.Open(openCtx, projectLayoutAt(abs), opts...)
 	if err != nil {
 		return nil, err
 	}

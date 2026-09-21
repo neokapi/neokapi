@@ -26,9 +26,8 @@ import (
 // retired it, leaving the basis it carried and nothing more, and a refused
 // withdrawal is restored to the record the venue kept.
 //
-// Neither is staged. Staging is where a person's own pending decisions wait for
-// a commit, and this is not the person's decision: it is the venue's answer
-// about a decision they already published.
+// Both are recorded with the venue as their origin, because the venue is who
+// reached them: they are its answer about a decision this project sent it.
 
 // retireRefusedVerdicts brings the project's committed record into line with
 // what the venue accepted, and reports how many records it changed.
@@ -87,28 +86,15 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 	if m, derr := st.DocumentPaths(ctx); derr == nil {
 		docPaths = m
 	}
+	// The push sent every decision this checkout holds, so the venue's report
+	// covers all of them.
 	all, err := st.All(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("read project state: %w", err)
 	}
-	// A staged decision is one nobody has published: the push sent the
-	// committed record, so the venue has not seen it and has not refused it.
-	// Retiring it would delete a person's pending work on the strength of an
-	// answer about somebody else's.
-	staged, err := st.Staged(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("read staged decisions: %w", err)
-	}
-	pending := make(map[state.Key]bool, len(staged))
-	for _, u := range staged {
-		pending[u.Key()] = true
-	}
 
 	retired := 0
 	for _, u := range all {
-		if pending[u.Key()] {
-			continue
-		}
 		item := u.Scope
 		if p, ok := docPaths[u.Scope]; ok && p != "" {
 			item = p
@@ -116,21 +102,21 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 		variant := variantText(u.Variant)
 		key := unitKey{item: item, unit: u.Unit, variant: variant}
 		if h, ok := held[key]; ok {
-			if err := st.Record(ctx, withHeld(u, h)); err != nil {
+			if err := st.RecordEntry(ctx, withHeld(u, h), h.DecidedBy, state.OriginVenue); err != nil {
 				return retired, fmt.Errorf("restore unit state %s/%s: %w", u.Unit, variant, err)
 			}
 			retired++
 			continue
 		}
 		if h, ok := kept[key]; ok {
-			if err := st.Record(ctx, asVenueRecord(u, h)); err != nil {
+			if err := st.RecordEntry(ctx, asVenueRecord(u, h), h.DecidedBy, state.OriginVenue); err != nil {
 				return retired, fmt.Errorf("take the venue's record for %s/%s: %w", u.Unit, variant, err)
 			}
 			retired++
 			continue
 		}
 		if staleRejections[key] && u.Decision.ReviewState == venue.ReviewStateRejected {
-			if err := st.Record(ctx, withoutVerdict(u)); err != nil {
+			if err := st.RecordEntry(ctx, withoutVerdict(u), "", state.OriginVenue); err != nil {
 				return retired, fmt.Errorf("retire unit state %s/%s: %w", u.Unit, variant, err)
 			}
 			retired++
@@ -142,7 +128,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 		if !blockedLocales[string(u.Variant.Locale)] && !units[key] {
 			continue
 		}
-		if err := st.Record(ctx, withoutVerdict(u)); err != nil {
+		if err := st.RecordEntry(ctx, withoutVerdict(u), "", state.OriginVenue); err != nil {
 			return retired, fmt.Errorf("retire unit state %s/%s: %w", u.Unit, variant, err)
 		}
 		retired++

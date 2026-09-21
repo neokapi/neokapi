@@ -9,7 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,13 +55,13 @@ func TestScaffoldKapiMart(t *testing.T) {
 	_, err = os.Stat(filepath.Join(dir, "output"))
 	require.True(t, os.IsNotExist(err), "KapiMart must not scaffold an output/ dir")
 
-	// The seed landed in the project's one store; both subsystems come off the
-	// same handle, and closing it releases both.
-	db, err := projectdb.Open(t.Context(), project.Layout{
-		Root: dir, StateDir: filepath.Join(dir, project.StateDirName),
-	})
+	// The seed landed in the project's context store, which lives in the
+	// workspace, so it is read back the way the app reads it: through an App,
+	// which is what resolves where that store is.
+	app := &host.App{}
+	defer app.Shutdown()
+	db, err := app.ProjectDB(t.Context(), dir)
 	require.NoError(t, err)
-	defer db.Close()
 
 	// The memory is a projection of approvals rather than an imported corpus, so
 	// it is small on purpose: every entry is one the record taught it.

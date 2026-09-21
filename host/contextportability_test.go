@@ -1,0 +1,640 @@
+package host
+
+import (
+	"archive/zip"
+	"bytes"
+	"context"
+	"encoding/json"
+	"io"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/kpz"
+	"github.com/neokapi/neokapi/memory/kmb"
+	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/terms/ktb"
+)
+
+// Making a project's context portable: the four verbs and the properties that
+// make them usable as a recovery story.
+//
+// A store holding authored work has to be writable back out, readable back in,
+// and carryable to another machine, and each of those has a property a test can
+// hold: an import changes nothing the second time, a snapshot's bytes do not
+// move on their own, a snapshot read into an empty store snapshots identically,
+// a clean clone of a snapshot governs its content by the same fingerprint, and
+// a bundle survives a round trip byte for byte.
+
+const portableVoiceYAML = `name: Portable Voice
+version: 1
+tone:
+  formality: neutral
+vocabulary:
+  forbidden_terms:
+    - term: utilize
+      replacement: use
+      severity: minor
+`
+
+const portableProfileVoiceYAML = `name: Portable Landing Voice
+version: 1
+tone:
+  formality: casual
+`
+
+const portableTermsJSON = `{
+  "schemaVersion": "1.0",
+  "kind": "kapi-terms",
+  "concepts": [
+    {
+      "id": "c-widget",
+      "domain": "product",
+      "definition": "The thing the product is about.",
+      "terms": [
+        { "text": "widget", "locale": "en", "status": "approved" },
+        { "text": "dings", "locale": "nb", "status": "approved" }
+      ]
+    }
+  ]
+}
+`
+
+// writePortableProject builds a project whose whole context sits in `.kapi/`:
+// a bound voice profile, a per-profile voice profile, a bound terms bundle and
+// a source document with a translated twin the record absorb learns from.
+func writePortableProject(t *testing.T) (a *App, root, recipe string) {
+	t.Helper()
+	root = t.TempDir()
+	return newPortableApp(t, root), root, writePortableTree(t, root)
+}
+
+// writePortableTree lays the project out under root and returns its recipe.
+func writePortableTree(t *testing.T, root string) string {
+	t.Helper()
+	layout := project.LayoutAt(root)
+	require.NoError(t, os.MkdirAll(layout.StateDir, 0o755))
+	require.NoError(t, os.MkdirAll(layout.ProfileDir("landing"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "nb"), 0o755))
+
+	recipe := `version: v1
+name: portable
+defaults:
+  source_language: en
+  target_languages: [nb]
+  voice:
+    profile_file: .kapi/voice.yaml
+  terms_source: .kapi/terms.json
+profiles:
+  landing:
+    channels: [web]
+collections:
+  - name: app
+    path: "locales/en/*.json"
+    target: "locales/{lang}/*.json"
+`
+	write := func(rel, content string) {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+	}
+	write(project.RecipeFileName, recipe)
+	write(".kapi/voice.yaml", portableVoiceYAML)
+	write(".kapi/profiles/landing/voice.yaml", portableProfileVoiceYAML)
+	write(".kapi/terms.json", portableTermsJSON)
+	write("locales/en/app.json", "{\n  \"greeting\": \"Hello there\",\n  \"farewell\": \"Goodbye\"\n}\n")
+	write("locales/nb/app.json", "{\n  \"greeting\": \"Hei der\",\n  \"farewell\": \"Ha det\"\n}\n")
+	return filepath.Join(root, project.RecipeFileName)
+}
+
+// newPortableApp returns an App whose project stores are closed when the test
+// ends, so a second App over the same tree opens the file rather than a handle
+// the first one still holds.
+func newPortableApp(t *testing.T, root string) *App {
+	t.Helper()
+	a := &App{SourceLang: "en"}
+	a.InitRegistries()
+	t.Cleanup(a.Shutdown)
+	_ = root
+	return a
+}
+
+// seedPortable compiles the project's committed context and records one
+// decision, so the store holds something of every kind a snapshot writes.
+//
+// The decision is recorded before the seeding pass, the order a real project
+// meets them in: a review approves wording, and the next run compiles the
+// committed context and absorbs the translations that approval blessed. The
+// pass carries the decision's governing context onto the pair it learns, so the
+// store the snapshot is taken from is the one a run leaves behind.
+func seedPortable(t *testing.T, a *App, root, recipe string) {
+	t.Helper()
+	ctx := context.Background()
+
+	st, err := a.OpenProjectState(ctx, root)
+	require.NoError(t, err)
+	scope := a.DocumentScope(ctx, root, filepath.Join(root, "locales", "en", "app.json"))
+	require.NoError(t, st.Put(ctx, state.UnitState{
+		Unit: "greeting", Variant: model.Variant("nb"), Scope: scope,
+		Status:               model.TargetStatusReviewed,
+		Decision:             state.Decision{ReviewState: "approved", By: "reviewer"},
+		TargetHash:           state.TargetHash("Hei der"),
+		ContentHash:          state.SourceHash("Hello there"),
+		GoverningFingerprint: "fp-portable",
+	}))
+
+	_, err = a.SeedProjectContext(ctx, recipe)
+	require.NoError(t, err)
+}
+
+// snapshotInto snapshots the project into a fresh directory and returns it.
+func snapshotInto(t *testing.T, a *App, recipe string) (string, ContextSnapshot) {
+	t.Helper()
+	out := t.TempDir()
+	res, err := a.SnapshotProjectContext(context.Background(), recipe, ContextSnapshotRequest{Out: out})
+	require.NoError(t, err)
+	return out, res
+}
+
+// treeBytes reads every file under dir, keyed by its slash path relative to it.
+func treeBytes(t *testing.T, dir string) map[string][]byte {
+	t.Helper()
+	out := map[string][]byte{}
+	require.NoError(t, filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		rel, rerr := filepath.Rel(dir, path)
+		if rerr != nil {
+			return rerr
+		}
+		data, rerr := os.ReadFile(path)
+		if rerr != nil {
+			return rerr
+		}
+		out[filepath.ToSlash(rel)] = data
+		return nil
+	}))
+	return out
+}
+
+// assertSameTree compares two written layouts file by file, so a failure names
+// the file that moved rather than printing two archives at each other.
+func assertSameTree(t *testing.T, want, got string, msg string) {
+	t.Helper()
+	wantFiles, gotFiles := treeBytes(t, want), treeBytes(t, got)
+	assert.Equal(t, treePaths(t, want), treePaths(t, got), "%s: the same files", msg)
+	for path, data := range wantFiles {
+		other, ok := gotFiles[path]
+		if !ok {
+			continue
+		}
+		assert.Equal(t, string(comparableBytes(path, data)), string(comparableBytes(path, other)),
+			"%s: %s", msg, path)
+	}
+}
+
+// learnStamp matches the three instants a content-memory entry records about
+// its own history: when this store first held it, when it last changed, and
+// when each origin was added.
+var learnStamp = regexp.MustCompile(`("(?:addedAt|created|updated)": ")20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ"`)
+
+// comparableBytes is a file's content with the instants that say WHEN a store
+// learned something replaced by a fixed token.
+//
+// Everything a snapshot carries is compared byte for byte except those three
+// fields on the content-memory bundle. A clean clone re-learns the committed
+// pairs from its own target documents (the record absorb, which runs for any
+// pass over the project's own layout) and stamps them with its own clock, so
+// the two stores agree on every entry, every id, every variant and every origin
+// while disagreeing about the second in which each of them learned it. Reading
+// a bundle into a store preserves the stamps the file carries; what rewrites
+// them is the absorb that follows, and until that is settled a byte comparison
+// over these fields passes only when both snapshots fall inside one second.
+func comparableBytes(path string, data []byte) []byte {
+	if path != project.MemoryDirName+"/"+kmb.ConventionalName {
+		return data
+	}
+	return learnStamp.ReplaceAll(data, []byte(`${1}0000-00-00T00:00:00Z"`))
+}
+
+// treePaths lists a directory's files in path order.
+func treePaths(t *testing.T, dir string) []string {
+	t.Helper()
+	files := treeBytes(t, dir)
+	out := make([]string, 0, len(files))
+	for p := range files {
+		out = append(out, p)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// TestSnapshotProjectContext_WritesTheLayoutTheSeedingPassReads: a snapshot
+// produces the `.kapi/` shape, holding one file of every kind the store has.
+func TestSnapshotProjectContext_WritesTheLayoutTheSeedingPassReads(t *testing.T) {
+	a, root, recipe := writePortableProject(t)
+	seedPortable(t, a, root, recipe)
+
+	out, res := snapshotInto(t, a, recipe)
+
+	assert.Equal(t, 1, res.Concepts)
+	assert.Positive(t, res.Entries, "the absorbed translations reach the content memory")
+	assert.Equal(t, 2, res.VoiceProfiles, "the project default and the profile override")
+	assert.Positive(t, res.Decisions)
+
+	paths := treePaths(t, out)
+	assert.Contains(t, paths, "terms.json")
+	assert.Contains(t, paths, "memory/memory.json")
+	assert.Contains(t, paths, "voice.yaml")
+	assert.Contains(t, paths, "profiles/landing/voice.yaml")
+	var shards int
+	for _, p := range paths {
+		if strings.HasPrefix(p, project.UnitStateDirName+"/") {
+			shards++
+		}
+	}
+	assert.Positive(t, shards, "the decision record is written as shards")
+
+	head, err := os.ReadFile(filepath.Join(out, "voice.yaml"))
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(string(head), snapshotVoiceHeader),
+		"a generated profile says so at the top of itself")
+}
+
+// TestSnapshotProjectContext_IsByteStable: snapshotting twice with nothing
+// changed in between moves no bytes.
+func TestSnapshotProjectContext_IsByteStable(t *testing.T) {
+	a, root, recipe := writePortableProject(t)
+	seedPortable(t, a, root, recipe)
+
+	out := t.TempDir()
+	ctx := context.Background()
+	first, err := a.SnapshotProjectContext(ctx, recipe, ContextSnapshotRequest{Out: out})
+	require.NoError(t, err)
+	require.NotEmpty(t, first.Written, "the first snapshot writes the files")
+	before := treeBytes(t, out)
+
+	second, err := a.SnapshotProjectContext(ctx, recipe, ContextSnapshotRequest{Out: out})
+	require.NoError(t, err)
+	assert.Empty(t, second.Written, "a snapshot with nothing to say writes nothing")
+	assert.Equal(t, before, treeBytes(t, out))
+}
+
+// TestImportProjectContext_IsIdempotent: reading the same layout twice leaves
+// the store holding exactly what it held after the first read.
+func TestImportProjectContext_IsIdempotent(t *testing.T) {
+	a, root, recipe := writePortableProject(t)
+	seedPortable(t, a, root, recipe)
+	ctx := context.Background()
+
+	first, err := a.ImportProjectContext(ctx, recipe, ContextImportRequest{Force: true})
+	require.NoError(t, err)
+	require.True(t, first.Read())
+	afterFirst, _ := snapshotInto(t, a, recipe)
+
+	second, err := a.ImportProjectContext(ctx, recipe, ContextImportRequest{Force: true})
+	require.NoError(t, err)
+	assert.Equal(t, first.Concepts, second.Concepts)
+	assert.Equal(t, first.VoiceProfiles, second.VoiceProfiles)
+	afterSecond, _ := snapshotInto(t, a, recipe)
+
+	assertSameTree(t, afterFirst, afterSecond, "a second read leaves the store saying the same thing")
+
+	// Without --force the unchanged sources are skipped, which is what makes a
+	// read on every run cost nothing.
+	third, err := a.ImportProjectContext(ctx, recipe, ContextImportRequest{})
+	require.NoError(t, err)
+	assert.Positive(t, third.Unchanged)
+	assert.Zero(t, third.Concepts)
+	assert.Zero(t, third.VoiceProfiles)
+}
+
+// TestContextSnapshot_RoundTripsThroughAnEmptyStore: importing a snapshot into
+// a project with no store and snapshotting again produces the same bytes.
+func TestContextSnapshot_RoundTripsThroughAnEmptyStore(t *testing.T) {
+	a, root, recipe := writePortableProject(t)
+	seedPortable(t, a, root, recipe)
+	first, _ := snapshotInto(t, a, recipe)
+
+	clone, cloneRecipe := clonePortableProject(t, root, first)
+	b := newPortableApp(t, clone)
+	res, err := b.ImportProjectContext(context.Background(), cloneRecipe, ContextImportRequest{})
+	require.NoError(t, err)
+	require.True(t, res.Read())
+
+	second, _ := snapshotInto(t, b, cloneRecipe)
+	assertSameTree(t, first, second, "a snapshot read into an empty store snapshots back identically")
+}
+
+// clonePortableProject writes a fresh checkout of the project holding the
+// snapshot at `.kapi/` and no store, the shape of a clean clone.
+func clonePortableProject(t *testing.T, root, snapshot string) (string, string) {
+	t.Helper()
+	clone := t.TempDir()
+	recipe := writePortableTree(t, clone)
+	layout := project.LayoutAt(clone)
+	require.NoError(t, os.RemoveAll(layout.StateDir))
+	require.NoError(t, copyTree(snapshot, layout.StateDir))
+	require.NoFileExists(t, layout.StorePath(), "a clean clone holds no store")
+	return clone, recipe
+}
+
+// copyTree copies every file under src into dst.
+func copyTree(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, rerr := filepath.Rel(src, path)
+		if rerr != nil {
+			return rerr
+		}
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, rerr := os.ReadFile(path)
+		if rerr != nil {
+			return rerr
+		}
+		if rerr := os.MkdirAll(filepath.Dir(target), 0o755); rerr != nil {
+			return rerr
+		}
+		return os.WriteFile(target, data, 0o644)
+	})
+}
+
+// TestContextSnapshot_CleanCloneGovernsByTheSameFingerprint: a checkout holding
+// only a snapshot resolves the governing context its source project resolves,
+// which is the property that makes a snapshot a recovery story rather than a
+// listing.
+func TestContextSnapshot_CleanCloneGovernsByTheSameFingerprint(t *testing.T) {
+	a, root, recipe := writePortableProject(t)
+	seedPortable(t, a, root, recipe)
+	want := governingNow(t, a, recipe, root)
+
+	snapshot, _ := snapshotInto(t, a, recipe)
+	clone, cloneRecipe := clonePortableProject(t, root, snapshot)
+	b := newPortableApp(t, clone)
+	_, err := b.ImportProjectContext(context.Background(), cloneRecipe, ContextImportRequest{})
+	require.NoError(t, err)
+
+	assert.Equal(t, want, governingNow(t, b, cloneRecipe, clone),
+		"the clone governs its content exactly as the project that wrote the snapshot does")
+}
+
+// TestContextSnapshotAndExport_LeaveTheVaultBehind: the withheld originals stay
+// on the machine, out of both the files a snapshot writes and the bundle an
+// export carries.
+func TestContextSnapshotAndExport_LeaveTheVaultBehind(t *testing.T) {
+	a, root, recipe := writePortableProject(t)
+	seedPortable(t, a, root, recipe)
+
+	const secret = "the-withheld-original"
+	layout := project.LayoutAt(root)
+	require.NoError(t, os.MkdirAll(layout.VaultDir(), 0o755))
+	require.NoError(t, os.WriteFile(layout.RedactionVaultPath(),
+		[]byte(`{"blocks":{"b1":{"TOKEN":"`+secret+`"}}}`), 0o600))
+
+	snapshot, _ := snapshotInto(t, a, recipe)
+	for path, data := range treeBytes(t, snapshot) {
+		assert.NotContains(t, path, project.VaultDirName, "the vault is not a snapshot path")
+		assert.NotContains(t, string(data), secret, "no snapshot file carries a withheld original")
+	}
+
+	bundle := filepath.Join(t.TempDir(), "context.kpz")
+	_, err := a.ExportProjectContext(context.Background(), recipe, bundle)
+	require.NoError(t, err)
+	data, err := os.ReadFile(bundle)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), secret, "the bundle carries no withheld original")
+
+	pkg, err := kpz.Unmarshal(data)
+	require.NoError(t, err)
+	assert.Empty(t, pkg.Source, "a context bundle carries no source documents")
+	assert.Empty(t, pkg.Blocks, "a context bundle carries no content")
+
+	// The vault itself is untouched: excluding it must not mean deleting it.
+	held, err := os.ReadFile(layout.RedactionVaultPath())
+	require.NoError(t, err)
+	assert.Contains(t, string(held), secret)
+}
+
+// TestContextBundle_RoundTripsByteForByte: exporting, restoring into a fresh
+// store and exporting again yields the same archive.
+func TestContextBundle_RoundTripsByteForByte(t *testing.T) {
+	a, root, recipe := writePortableProject(t)
+	seedPortable(t, a, root, recipe)
+	ctx := context.Background()
+
+	first := filepath.Join(t.TempDir(), "context.kpz")
+	res, err := a.ExportProjectContext(ctx, recipe, first)
+	require.NoError(t, err)
+	assert.Equal(t, 1, res.Concepts)
+	assert.Equal(t, 2, res.VoiceProfiles)
+	assert.Positive(t, res.Decisions)
+	assert.NotEmpty(t, res.RootHash)
+
+	clone := t.TempDir()
+	cloneRecipe := writePortableTree(t, clone)
+	require.NoError(t, os.RemoveAll(project.LayoutAt(clone).StateDir))
+	require.NoError(t, os.MkdirAll(project.LayoutAt(clone).StateDir, 0o755))
+	b := newPortableApp(t, clone)
+
+	restored, err := b.RestoreProjectContext(ctx, cloneRecipe, first, RestoreRefuse)
+	require.NoError(t, err)
+	assert.Equal(t, res.Concepts, restored.Concepts)
+	assert.Equal(t, res.Entries, restored.Entries)
+	assert.Equal(t, res.VoiceProfiles, restored.VoiceProfiles)
+	assert.Equal(t, res.Decisions, restored.Decisions)
+
+	second := filepath.Join(t.TempDir(), "context.kpz")
+	again, err := b.ExportProjectContext(ctx, cloneRecipe, second)
+	require.NoError(t, err)
+	assert.Equal(t, res.RootHash, again.RootHash, "the same context has the same content identity")
+
+	firstBytes, err := os.ReadFile(first)
+	require.NoError(t, err)
+	secondBytes, err := os.ReadFile(second)
+	require.NoError(t, err)
+	assert.Equal(t, firstBytes, secondBytes, "a bundle survives a restore byte for byte")
+}
+
+// TestRestoreProjectContext_RefusesAStoreThatHoldsContext covers the three
+// modes: refuse by default, merge idempotently, replace on request.
+func TestRestoreProjectContext_RefusesAStoreThatHoldsContext(t *testing.T) {
+	a, root, recipe := writePortableProject(t)
+	seedPortable(t, a, root, recipe)
+	ctx := context.Background()
+
+	bundle := filepath.Join(t.TempDir(), "context.kpz")
+	_, err := a.ExportProjectContext(ctx, recipe, bundle)
+	require.NoError(t, err)
+
+	_, err = a.RestoreProjectContext(ctx, recipe, bundle, RestoreRefuse)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--merge")
+	assert.Contains(t, err.Error(), "--replace")
+
+	before, _ := snapshotInto(t, a, recipe)
+	merged, err := a.RestoreProjectContext(ctx, recipe, bundle, RestoreMerge)
+	require.NoError(t, err)
+	assert.False(t, merged.Cleared)
+	after, _ := snapshotInto(t, a, recipe)
+	assertSameTree(t, before, after, "a merge of the same bundle changes nothing")
+
+	replaced, err := a.RestoreProjectContext(ctx, recipe, bundle, RestoreReplace)
+	require.NoError(t, err)
+	assert.True(t, replaced.Cleared)
+	afterReplace, _ := snapshotInto(t, a, recipe)
+	assertSameTree(t, before, afterReplace, "replacing a store with the bundle it came from restores the same context")
+}
+
+// TestRestoreProjectContext_ReplaceDropsWhatTheBundleDoesNotCarry: a replace
+// leaves the store holding the bundle and nothing else.
+func TestRestoreProjectContext_ReplaceDropsWhatTheBundleDoesNotCarry(t *testing.T) {
+	a, root, recipe := writePortableProject(t)
+	seedPortable(t, a, root, recipe)
+	ctx := context.Background()
+
+	bundle := filepath.Join(t.TempDir(), "context.kpz")
+	_, err := a.ExportProjectContext(ctx, recipe, bundle)
+	require.NoError(t, err)
+
+	db, err := a.ProjectDB(ctx, root)
+	require.NoError(t, err)
+	require.NoError(t, db.Terms().AddConcept(ctx, portableExtraConcept()))
+	count, err := db.Terms().Count(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
+	_, err = a.RestoreProjectContext(ctx, recipe, bundle, RestoreReplace)
+	require.NoError(t, err)
+	count, err = db.Terms().Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "the concept the bundle does not carry is gone")
+}
+
+// TestRestoreProjectContext_RefusesAPackageOfAnotherKind: the container carries
+// several profiles, and only the context one is a thing to restore.
+func TestRestoreProjectContext_RefusesAPackageOfAnotherKind(t *testing.T) {
+	a, root, recipe := writePortableProject(t)
+	seedPortable(t, a, root, recipe)
+	_ = root
+
+	pkg := &kpz.Package{Kind: kpz.KindProject, Terms: portableTermsFile(t)}
+	data, err := pkg.Marshal()
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "project.kpz")
+	require.NoError(t, os.WriteFile(path, data, 0o644))
+
+	_, err = a.RestoreProjectContext(context.Background(), recipe, path, RestoreMerge)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), kpz.KindProject)
+	assert.Contains(t, err.Error(), "kapi context export")
+}
+
+// TestRestoreProjectContext_RefusesABundleFromALaterBuild: a package format
+// major this build does not speak is refused by name rather than half-read.
+func TestRestoreProjectContext_RefusesABundleFromALaterBuild(t *testing.T) {
+	a, root, recipe := writePortableProject(t)
+	seedPortable(t, a, root, recipe)
+	ctx := context.Background()
+
+	bundle := filepath.Join(t.TempDir(), "context.kpz")
+	_, err := a.ExportProjectContext(ctx, recipe, bundle)
+	require.NoError(t, err)
+	rewriteBundleSchemaVersion(t, bundle, "9.0")
+
+	_, err = a.RestoreProjectContext(ctx, recipe, bundle, RestoreMerge)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "later kapi")
+	assert.Contains(t, err.Error(), "context.kpz")
+}
+
+// rewriteBundleSchemaVersion rebuilds a bundle with another schema version in
+// its manifest, so the archive stays intact and only the version a reader
+// checks has moved. Editing the bytes in place would break the archive's own
+// checksums and the reader would refuse it for the wrong reason.
+func rewriteBundleSchemaVersion(t *testing.T, path, version string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, f := range zr.File {
+		rc, oerr := f.Open()
+		require.NoError(t, oerr)
+		body, rerr := io.ReadAll(rc)
+		require.NoError(t, rc.Close())
+		require.NoError(t, rerr)
+		if f.Name == kpz.ManifestPath {
+			var manifest map[string]any
+			require.NoError(t, json.Unmarshal(body, &manifest))
+			manifest["schemaVersion"] = version
+			body, err = json.MarshalIndent(manifest, "", "  ")
+			require.NoError(t, err)
+		}
+		w, cerr := zw.CreateHeader(&zip.FileHeader{Name: f.Name, Method: zip.Store})
+		require.NoError(t, cerr)
+		_, werr := w.Write(body)
+		require.NoError(t, werr)
+	}
+	require.NoError(t, zw.Close())
+	require.NoError(t, os.WriteFile(path, buf.Bytes(), 0o644))
+}
+
+// TestImportProjectContext_ReadsAnotherCheckoutsLayout: the migration path, for
+// a project bringing an existing context across.
+func TestImportProjectContext_ReadsAnotherCheckoutsLayout(t *testing.T) {
+	a, root, recipe := writePortableProject(t)
+	seedPortable(t, a, root, recipe)
+	donor, _ := snapshotInto(t, a, recipe)
+
+	clone := t.TempDir()
+	cloneRecipe := writePortableTree(t, clone)
+	require.NoError(t, os.RemoveAll(project.LayoutAt(clone).StateDir))
+	require.NoError(t, os.MkdirAll(project.LayoutAt(clone).StateDir, 0o755))
+	b := newPortableApp(t, clone)
+
+	res, err := b.ImportProjectContext(context.Background(), cloneRecipe, ContextImportRequest{Dir: donor})
+	require.NoError(t, err)
+	assert.Equal(t, 1, res.Concepts)
+	assert.Equal(t, 2, res.VoiceProfiles)
+	assert.Positive(t, res.Entries)
+	assert.Positive(t, res.Decisions, "the donor's decision record comes across")
+}
+
+// portableExtraConcept is a concept no bundle in these tests carries.
+func portableExtraConcept() terms.Concept {
+	return terms.Concept{
+		ID:         "c-extra",
+		Domain:     "product",
+		Definition: "Written after the bundle was made.",
+		Terms: []terms.Term{
+			{Text: "gadget", Locale: "en", Status: model.TermApproved},
+		},
+	}
+}
+
+// portableTermsFile builds the terms member for a package of another kind.
+func portableTermsFile(t *testing.T) *ktb.File {
+	t.Helper()
+	f, err := ktb.Unmarshal([]byte(portableTermsJSON))
+	require.NoError(t, err)
+	return f
+}

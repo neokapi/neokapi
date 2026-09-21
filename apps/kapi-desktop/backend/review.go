@@ -636,16 +636,12 @@ func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
 // presence baseline and waits for a reviewer to approve the new wording.
 //
 // The record has the shape the loop writes for its own output (host's basis
-// records), and it is recorded rather than staged for the same reason: staging
-// counts the decisions somebody owes an answer to, and typing a translation is
-// production. The previous record, with the origin the loop stamped, stays in
-// the committed state history until the next write of it.
+// records) and lands in the ledger as its own entry, so the previous record,
+// with the origin the loop stamped, stays readable in the unit's history.
 //
-// Recording it leaves it in the working store rather than serializing the
-// committed shards, which is where an approval also stops. PersistRecords
-// rewrites those shards from the unstaged rows alone, so calling it here would
-// drop every pending decision in the project out of the committed record on
-// each hand edit.
+// The entry is durable where it lands. Serializing the committed shards is a
+// separate act (`kapi commit`), and doing it on every keystroke-sized edit
+// would rewrite the project's record for one line.
 func (a *App) recordHumanTargetEdit(ctx context.Context, op *openProject, rf project.ResolvedFile, tgtPath, locale, key string) error {
 	root := filepath.Dir(op.Path)
 	st, err := a.hostEngine().OpenProjectState(ctx, root)
@@ -683,5 +679,5 @@ func (a *App) recordHumanTargetEdit(ctx context.Context, op *openProject, rf pro
 		next.SourceStatus = prev.SourceStatus
 		next.ContextHash = prev.ContextHash
 	}
-	return st.Record(ctx, next)
+	return st.RecordEntry(ctx, next, "", state.OriginLocal)
 }

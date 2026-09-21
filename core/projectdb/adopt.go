@@ -15,19 +15,19 @@ import (
 // `.kapi/work/store.db`.
 //
 // Almost everything in those tables is a projection of a committed source: the
-// terms bundle, the memory bundles, the voice profiles and the unit-state
-// record under `.kapi/`. The next command derives them again into the context
-// store, so adoption carries none of it.
+// terms bundle, the memory bundles, the voice profiles and the decision record
+// under `.kapi/`. The next command derives them again into the context store,
+// so adoption carries none of it.
 //
-// A STAGED unit state is the exception, and the whole reason this exists.
-// Between a review landing and `kapi commit` writing it to `.kapi/state/`, the
-// working set holds the only copy, and it is in the projection. Those rows are
-// read out and written into the context store before anything is dropped, and
-// nothing is dropped if that fails.
+// What it does carry is every decision the committed shards do not hold.
+// Between a decision being recorded and `kapi commit` writing it to
+// `.kapi/state/`, the ledger holds its only copy, and that ledger is in the
+// projection. Those rows are recorded in the context store before anything is
+// dropped, and nothing is dropped if that fails.
 
-// adoptEmbeddedContext carries a project out of the embedded layout: staged
-// decisions move into the context store, and the context tables then leave the
-// projection.
+// adoptEmbeddedContext carries a project out of the embedded layout: the
+// decisions the record does not hold move into the context store, and the
+// context tables then leave the projection.
 //
 // Best-effort. A project that cannot be adopted keeps both copies and works
 // from the context store, which the committed sources re-seed; refusing to open
@@ -36,46 +36,58 @@ func adoptEmbeddedContext(ctx context.Context, db *DB) {
 	if db.projection == nil || db.context == nil || db.work == nil {
 		return
 	}
+	if has, err := hasUserTables(ctx, db.projection); err != nil || !has {
+		return
+	}
+	if !carryDecisionsFromProjection(ctx, db) {
+		return
+	}
+	// Recomputed after the carry: opening the old store creates the ledger's
+	// own tables where a project predates them, and those leave with the rest.
 	residue, err := embeddedContextTables(ctx, db.projection)
 	if err != nil || len(residue) == 0 {
 		return
 	}
-	if _, staged := residue[unitStateTable]; staged {
-		if !carryStagedFromProjection(ctx, db) {
-			return
-		}
-	}
 	dropTables(ctx, db.projection, residue)
 }
 
-// unitStateTable is the working set's table, and the one table in the
-// projection whose rows adoption cannot regenerate.
-const unitStateTable = "unit_state"
-
-// carryStagedFromProjection reads the decisions staged in the projection's
-// working set and writes them into the context store's. It reports whether
-// every one of them landed.
+// carryDecisionsFromProjection records in the context store every decision the
+// projection's ledger holds that this checkout's committed shards do not. It
+// reports whether every one of them landed.
 //
-// The projection's set is opened against the same committed record, so its
-// staged rows survive the sync the open performs (state.WorkStore.SyncWithCommitted
-// rebuilds unstaged rows from the record and carries staged ones through
-// untouched). Nothing is deleted here: the rows go out of scope when the table
-// does.
-func carryStagedFromProjection(ctx context.Context, db *DB) bool {
+// Both sides are opened against the same committed record, which is what
+// identifies a checkout (core/state.checkoutID), so a decision arrives in the
+// context store under the view it was made in. Opening the old store also runs
+// core/state's own migration, so a project that predates the ledger has its
+// rows carried into one before they are read.
+//
+// core/state.WorkStore.Staged is the reading: what this checkout holds that its
+// shards do not. Everything the shards do supply comes back on the next import
+// in the context store, so it is neither read here nor needed.
+//
+// Nothing is deleted from the projection here; the rows go out of scope when
+// their tables do.
+func carryDecisionsFromProjection(ctx context.Context, db *DB) bool {
 	old, err := state.OpenWorkFromDB(ctx, db.projection, db.layout.UnitStateDir())
 	if err != nil {
 		return false
 	}
-	staged, err := old.Staged(ctx)
+	unrecorded, err := old.Staged(ctx)
 	if err != nil {
 		return false
 	}
-	for _, u := range staged {
+	for _, u := range unrecorded {
 		if err := db.work.Put(ctx, u); err != nil {
 			return false
 		}
 	}
 	return true
+}
+
+// hasUserTables reports whether a database holds any table of its own.
+func hasUserTables(ctx context.Context, db *storage.DB) (bool, error) {
+	empty, err := isEmptyDatabase(ctx, db)
+	return !empty, err
 }
 
 // isEmptyDatabase reports whether a database holds no table of its own, which

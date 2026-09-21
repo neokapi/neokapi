@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"errors"
+
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/output"
@@ -38,11 +40,16 @@ Two questions, and every asset-shaped lookup is one of them:
 
 Communication is contextual: a legal notice is not a help article. Ask what the
 project says before you write, rather than learning it from a failing check
-afterwards.`,
+afterwards.
+
+Four more verbs move the context itself: import and snapshot carry it between
+the project's files and its store, export and restore carry the whole of it as
+one file.`,
 		Example: "  kapi context docs/guide.md\n" +
 			"  kapi context docs/guide.md --json\n" +
 			"  kapi context --profile marketing\n" +
-			"  kapi context search widget",
+			"  kapi context search widget\n" +
+			"  kapi context snapshot --out build/context",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := ""
@@ -88,7 +95,193 @@ afterwards.`,
 	AddProjectFlag(cmd)
 	AddResourceFlags(cmd)
 
-	cmd.AddCommand(newContextSearchCmd(a))
+	cmd.AddCommand(
+		newContextSearchCmd(a),
+		newContextImportCmd(a),
+		newContextSnapshotCmd(a),
+		newContextExportCmd(a),
+		newContextRestoreCmd(a),
+	)
+	return cmd
+}
+
+// The portability half of the context surface (AD C-03). The store holds the
+// context a project goes by; these four verbs move it.
+//
+// Import and snapshot are the two directions between the store and the `.kapi/`
+// files a project commits: import reads them, snapshot writes them. Export and
+// restore are the same two directions against one archive, for a backup or a
+// move between machines. All four go through the importers and exporters the
+// rest of kapi already uses, so a file written here is a file `kapi up` reads.
+
+func newContextImportCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "import [path]",
+		Short: "Read committed context files into this project's store",
+		Long: `Read a project's committed context into its store: the terms, the
+voice profiles, the wording already approved, and the record of who approved it.
+
+With no path it reads the project's own ".kapi" directory, which is what a run
+does for you on every "kapi up". Name a path to read another checkout's
+directory instead, when you are bringing an existing project's context across.
+
+Running it twice changes nothing. Everything is matched by the identity the file
+carries, so a second read finds the store already holding what the file says.
+A file whose bytes have not moved since the last read is skipped; --force reads
+it anyway.`,
+		Example: "  kapi context import\n" +
+			"  kapi context import ../other-project/.kapi\n" +
+			"  kapi context import --force",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			projectPath, err := RequireProjectPath(cmd)
+			if err != nil {
+				return err
+			}
+			dir := ""
+			if len(args) == 1 {
+				dir = args[0]
+			}
+			force, _ := cmd.Flags().GetBool("force")
+			res, err := a.ImportProjectContext(cmd.Context(), projectPath, host.ContextImportRequest{
+				Dir:   dir,
+				Force: force,
+			})
+			if err != nil {
+				return err
+			}
+			return output.Print(cmd, res)
+		},
+	}
+	cmd.Flags().Bool("force", false, "read every file, including ones whose bytes have not moved")
+	AddProjectFlag(cmd)
+	return cmd
+}
+
+func newContextSnapshotCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "snapshot",
+		Short: "Write this project's context back out as files",
+		Long: `Write the context in force for this project into a ".kapi"
+directory: the terms, the voice profiles at the paths they are bound from, the
+approved wording, and the decision record.
+
+The files it writes are generated. Edit the project's context and snapshot
+again rather than editing them by hand, the way you would with any other
+generated artifact.
+
+With no --out it writes the project's own ".kapi" directory. A clean clone that
+holds only what a snapshot wrote governs its content exactly as the project that
+wrote it does.
+
+Two things never travel. Withheld originals stay on the machine that redacted
+them, and nothing kapi keeps for its own use is written.
+
+The project's committed record is written first, the same write "kapi commit"
+makes, so the record in the snapshot is the project's.`,
+		Example: "  kapi context snapshot\n" +
+			"  kapi context snapshot --out build/context\n" +
+			"  kapi context snapshot --json",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			projectPath, err := RequireProjectPath(cmd)
+			if err != nil {
+				return err
+			}
+			out, _ := cmd.Flags().GetString("out")
+			res, err := a.SnapshotProjectContext(cmd.Context(), projectPath, host.ContextSnapshotRequest{Out: out})
+			if err != nil {
+				return err
+			}
+			return output.Print(cmd, res)
+		},
+	}
+	cmd.Flags().String("out", "", "directory to write the layout into (default: the project's own)")
+	AddProjectFlag(cmd)
+	return cmd
+}
+
+func newContextExportCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "export",
+		Short: "Write this project's whole context to one file",
+		Long: `Write everything this project's store holds as context into a
+single file: the terms, the voice profiles, the wording already approved, and
+the decision record.
+
+It is the backup, and the way to move a project's context to another machine.
+Nothing is lost and nothing is flattened: every part travels in the form kapi
+reads it back from, and "kapi context restore" puts it into a store with the
+same identities it left with.
+
+Withheld originals are never in it. They stay on the machine that redacted them,
+and no flag puts them in a file meant to be copied.
+
+The project's committed record is written first, the same write "kapi commit"
+makes.`,
+		Example: "  kapi context export -o context.kpz\n" +
+			"  kapi context export -o backups/acme-context.kpz --json",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			projectPath, err := RequireProjectPath(cmd)
+			if err != nil {
+				return err
+			}
+			out, _ := cmd.Flags().GetString("output")
+			res, err := a.ExportProjectContext(cmd.Context(), projectPath, out)
+			if err != nil {
+				return err
+			}
+			return output.Print(cmd, res)
+		},
+	}
+	cmd.Flags().StringP("output", "o", "", "file to write")
+	AddProjectFlag(cmd)
+	return cmd
+}
+
+func newContextRestoreCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "restore <bundle>",
+		Short: "Read a context file back into this project's store",
+		Long: `Read a file written by "kapi context export" into this project's
+store, with every identity it left with.
+
+A store that already holds context is left alone until you say what should
+happen to it. --merge reads the file over what is there, which is idempotent:
+restoring the same file twice leaves the same store. --replace puts the file in
+place of what is there, so what is left is the file and nothing else.`,
+		Example: "  kapi context restore context.kpz\n" +
+			"  kapi context restore context.kpz --merge\n" +
+			"  kapi context restore context.kpz --replace",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			projectPath, err := RequireProjectPath(cmd)
+			if err != nil {
+				return err
+			}
+			merge, _ := cmd.Flags().GetBool("merge")
+			replace, _ := cmd.Flags().GetBool("replace")
+			if merge && replace {
+				return errors.New("--merge and --replace ask for different things; pass one")
+			}
+			mode := host.RestoreRefuse
+			switch {
+			case replace:
+				mode = host.RestoreReplace
+			case merge:
+				mode = host.RestoreMerge
+			}
+			res, err := a.RestoreProjectContext(cmd.Context(), projectPath, args[0], mode)
+			if err != nil {
+				return err
+			}
+			return output.Print(cmd, res)
+		},
+	}
+	cmd.Flags().Bool("merge", false, "read the file over the context the store already holds")
+	cmd.Flags().Bool("replace", false, "put the file in place of the context the store already holds")
+	AddProjectFlag(cmd)
 	return cmd
 }
 

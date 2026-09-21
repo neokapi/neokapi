@@ -19,10 +19,11 @@ it, so it belongs beside the tree it describes and a second checkout of the same
 project keeps one of its own.
 
 The **context store** lives in a **workspace**, outside every checkout: the
-terms, the voice profiles, the content memory, and the unit-state working set
-with the decisions staged in it. It is authored rather than derived, written a
-little at a time, and true wherever the project is checked out. Two checkouts of
-one project, a second clone and a git worktree, share it.
+terms, the voice profiles, the content memory, and the unit decision ledger
+([C-04](c-04-unit-state-and-decisions.md)). It is authored rather than derived,
+written a little at a time, and true wherever the project is checked out. Two
+checkouts of one project, a second clone and a git worktree, share it, and each
+keeps its own view of the one ledger.
 
 The workspace also holds what spans projects: the **project registry** and the
 **context graph**, whose node ids already carry the project they belong to.
@@ -160,10 +161,10 @@ until the project is opened somewhere else.
 | terms | `terms/` ([C-08](c-08-terms.md)) | context | the committed terms source |
 | content memory | `memory/` ([C-09](c-09-content-memory.md)) | context | the committed targets plus the `.memory.json` seeds |
 | voice profiles | `voice/` ([C-07](c-07-voice-profiles.md)) | context | the committed `voice.yaml` files |
-| unit-state working set | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | context | the committed `.kapi/state/*.jsonl` shards, plus what is staged |
-| `graph_nodes`, `graph_edges` | `host/storage/graph`, vocabulary in `core/contextgraph` | workspace | the rows above, plus the recipe |
-| `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace | what has been opened |
-| `workspace_ops` | `core/workspace` | workspace | its own log |
+| unit decision ledger, and one view per checkout | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | the committed `.kapi/state/*.jsonl` shards, plus what each checkout has recorded since |
+| `graph_nodes`, `graph_edges` | `host/storage/graph`, vocabulary in `core/contextgraph` | the rows above, plus the recipe |
+| `workspace_projects`, `workspace_checkouts` | `core/workspace` | what has been opened |
+| `workspace_ops` | `core/workspace` | its own log |
 
 Each subsystem owns its own schema and its own migration ledger
 (`storage.Migrate(db, "<subsystem>", …)`), so a subsystem evolves without
@@ -191,12 +192,18 @@ inside the framework that names one.
 The first open of a project WITH a workspace, where the context store is new and
 the projection still carries context tables, carries the project across.
 
-Only staged unit state moves. Everything else in those tables is a projection of
-a committed source under `.kapi/` and the next command derives it again into the
-context store. Between a review landing and `kapi commit` writing it to
-`.kapi/state/`, the working set holds the only copy of a staged decision, so
-those rows are read out and written into the context store first. Nothing is
-dropped unless that succeeded.
+Only the decisions the committed shards do not carry move. Everything else in
+those tables is a projection of a committed source under `.kapi/` and the next
+command derives it again into the context store. Between a decision being
+recorded and `kapi commit` writing it to `.kapi/state/`, the ledger holds its
+only copy, so `core/state.WorkStore.Staged` reads exactly those rows out of the
+old store and they are recorded in the new one first. Nothing is dropped unless
+that succeeded.
+
+The old store's own migration runs first, so a project that predates the ledger
+has its rows carried into one before they are read. The checkout is the same on
+both sides of the move (a checkout is identified by its committed-record
+directory), so a decision arrives under the view it was made in.
 
 What is dropped afterwards is computed rather than listed: an empty projection
 is built in memory, its tables are what a projection is entitled to hold, and
@@ -217,9 +224,9 @@ WHERE t.concept_id = ?
 ```
 
 The connection is read-only for the length of the call. A join reads; a write
-spanning both pools is two transactions, and the pairing that must be atomic —
-a decision and the wording the content memory learns from it — is why the unit
-working set and the content memory are in the same pool.
+spanning both pools is two transactions, and the pairing that must be atomic,
+a decision and the wording the content memory learns from it, is why the
+decision ledger and the content memory are in the same pool.
 
 ### Write discipline
 
@@ -350,19 +357,26 @@ Both pools are **indexes**, and every row in them is reconstructible from:
 
 Delete either database and a re-run rebuilds it from those. The one exception is
 the same one it has always been, and it is now in the workspace rather than the
-checkout: between a decision landing and `kapi commit` materializing it, the
-working set holds the only copy of that staged state.
+checkout: between a decision being recorded and `kapi commit` materializing it,
+the ledger holds its only copy.
 
 ### `.kapi/work/` is free to delete again
 
 `.kapi/work/cache/` means *free to delete*: the parse cache, extraction batches,
-collection overlays. `.kapi/work/store.db` now qualifies too, because the state
-that made it not qualify lives in the workspace. Deleting the whole of
-`.kapi/work/` costs a re-extraction.
+collection overlays. `.kapi/work/store.db` now qualifies too. What made it not
+qualify was the decision ledger: between a decision being recorded and `kapi
+commit` writing it to `.kapi/state/`, the ledger holds the only copy of it, and
+the ledger is in the workspace. Deleting the whole of `.kapi/work/` costs a
+re-extraction.
+
+That responsibility moved rather than disappearing, and the workspace now
+carries it: deleting `<DataDir>/workspaces/` costs every decision recorded since
+the last `kapi commit`, in every project.
 
 The redaction vault ([C-10](c-10-redaction.md)) at `.kapi/work/vault/` is the
-exception and stays one: it holds withheld originals, local-only by design,
-never committed and never sent anywhere, so nothing else has a copy.
+one thing under `work/` that is still a loss rather than a rebuild: it holds
+withheld originals, local-only by design, never committed and never sent
+anywhere, so nothing else has a copy.
 
 ### Locales are keyed canonically
 
@@ -375,7 +389,9 @@ asking for `targets/nb-NO` address one overlay. Rows a store wrote before it
 normalized locales are keyed by whatever spelling the recipe used then, and no
 lookup finds them again; `projectdb.NonCanonicalLocales` reports them across both
 pools, and `kapi status` and `kapi up` print the report once with the rebuild
-named.
+named. Both pools are projections of committed sources, so the remedy is to
+write the decision record with `kapi commit` and delete the affected database,
+which the next `kapi up` derives again.
 
 ### Presence is table-level
 
@@ -431,9 +447,9 @@ come from a term search over the block cache (`core/occurrence`), where repeated
 uses of one term in one block fold into a `count` property rather than into
 separate edges, and the term and the locale are the edge discriminators;
 `governed_by` comes from resolving each named collection's governance; `blesses`
-joins the unit-state working set against the block cache, so a record whose block
+joins the unit decision ledger against the block cache, so a record whose block
 no longer exists keeps its node and loses its edge. A unit state names its
-document by the durable key the working set records
+document by the durable key the ledger's view records
 ([C-04](c-04-unit-state-and-decisions.md)); the graph writer turns that key back
 into the path the block cache files blocks under before joining.
 
@@ -562,11 +578,17 @@ rollup across projects.
 
 There is no SQLite in the browser build. The model is unchanged and the backends
 differ: in-memory content memory and terms, a path-keyed in-memory block store,
-and a working set that persists to a JSON sidecar, `.kapi/work/store.json`.
-There is no workspace either, and no need of one: the browser holds one project
-and nothing outlives the tab. Operations that genuinely need a database report
-`projectdb.ErrNoStore`, which callers whose feature is optional there match and
-degrade on.
+and a decision ledger that persists to a JSON sidecar, `.kapi/work/store.json`.
+Operations that genuinely need a database report `projectdb.ErrNoStore`, which
+callers whose feature is optional there match and degrade on. The same sources
+rebuild it, and the same graph relations hold.
+
+There is no workspace there either, and no need of one: the browser holds one
+project and nothing outlives the tab. So the browser build keeps the **embedded
+layout**, and the host layer says so rather than failing: a workspace that
+cannot be opened because this build has no file-backed SQLite driver
+(`storage.ErrNoSQLite`) is not an error, and the project opens with its context
+tables beside its projection.
 
 ### Where the workspace lives
 
@@ -608,18 +630,19 @@ sets `$KAPI_DATA_DIR` as part of the isolation contract.
   user owns, which is a different thing.
 - **CI caches `.kapi/work/cache/docs`, and nothing else under `work/`.** The
   parse cache is keyed by content, configuration and build, so a restored entry
-  changes no result, and `setup-kapi` carries it by default
+  changes no result, and `setup-kapi` carries it by default. The remaining
+  entries under `cache/` belong to the checkout that wrote them
   ([Convergence in CI](/kapi/convergence-in-ci)).
 - **A machine's context is one directory.** Backing up
   `<DataDir>/workspaces/default/` backs up every project's authored context;
-  deleting it costs whatever was staged and not committed.
+  deleting it costs every decision recorded since the last `kapi commit`.
 
 ## See also
 
 - [C-01: The project model](c-01-project-model.md): the layout the projection
   sits in.
 - [C-04: Unit state and the decision record](c-04-unit-state-and-decisions.md):
-  the working set inside the context store.
+  the decision ledger inside the context store.
 - [C-08: Terms](c-08-terms.md) and [C-09: Content memory](c-09-content-memory.md):
   the two subsystems whose source-versus-projection split this store
   implements.

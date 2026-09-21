@@ -12,20 +12,19 @@ import (
 	"github.com/neokapi/neokapi/core/state"
 )
 
-// The committed record is git-tracked, so it is replaced wholesale by a branch
-// switch while the working set, which is not tracked, keeps the rows of the
-// branch left behind. These tests drive that with a real repository: two
-// branches whose records name different documents, and one working store that
-// outlives the switch between them.
+// The committed shards are git-tracked, so a branch switch replaces them
+// wholesale while the store, which is not tracked, keeps what it held. These
+// tests drive that with a real repository: two branches whose records name
+// different documents, and one store that outlives the switch between them.
 
 // branchRepo is a git repository with a committed record on each of two
-// branches, plus the path of the record directory and of the working store that
-// spans them.
+// branches, plus the path of the record directory and of the store that spans
+// them.
 type branchRepo struct {
 	t       *testing.T
 	root    string
 	record  string // the committed record directory, .kapi/state
-	storeDB string // the working store, .kapi/work/store.db
+	storeDB string // the store, .kapi/work/store.db
 }
 
 func (r *branchRepo) git(args ...string) {
@@ -38,8 +37,8 @@ func (r *branchRepo) git(args ...string) {
 
 // newBranchRepo builds the fixture: branch `main` holds a record naming
 // `doc-main`, branch `feature` holds one naming `doc-feature`. Neither branch's
-// record mentions the other's document, which is what makes a commit from the
-// wrong set visible as both a stray shard and a pruned one.
+// record mentions the other's document, which is what makes a write from the
+// wrong view visible as both a stray shard and a pruned one.
 func newBranchRepo(t *testing.T) *branchRepo {
 	t.Helper()
 	root := t.TempDir()
@@ -71,9 +70,9 @@ func newBranchRepo(t *testing.T) *branchRepo {
 	return r
 }
 
-// open returns a working store over the record as this checkout holds it. The
-// database file is the same one every time, which is the whole point: it is not
-// tracked, so it survives the switch.
+// open returns a store over the record as this checkout holds it. The database
+// file is the same one every time, which is the whole point: it is not tracked,
+// so it survives the switch.
 func (r *branchRepo) open() *state.WorkStore {
 	r.t.Helper()
 	w, err := state.OpenWork(r.t.Context(), r.storeDB, r.record)
@@ -89,8 +88,8 @@ func scopesOf(units []state.UnitState) []string {
 	return out
 }
 
-// (a) After a switch, reads reflect the record the checkout holds rather than
-// the one the set was seeded from.
+// After a switch, reads answer for the record the checkout holds rather than
+// the one the view was built from.
 func TestWorkStore_ReadsFollowTheCheckedOutRecord(t *testing.T) {
 	r := newBranchRepo(t)
 
@@ -107,12 +106,12 @@ func TestWorkStore_ReadsFollowTheCheckedOutRecord(t *testing.T) {
 	all, err = w.All(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, []string{"doc-main"}, scopesOf(all),
-		"the set answers for the record this checkout holds")
+		"the view answers for the record this checkout holds")
 }
 
-// (b) Committing after a switch writes into the checked-out branch's record and
-// leaves its shards alone: no shard of this branch is pruned, and no shard of
-// the other branch is written here.
+// Writing the record after a switch writes into the checked-out branch's
+// shards and leaves them alone: the shard this branch holds is not pruned, and
+// the other branch's record is not published here.
 func TestWorkStore_CommitDoesNotCarryTheOtherBranchesShards(t *testing.T) {
 	r := newBranchRepo(t)
 
@@ -131,56 +130,54 @@ func TestWorkStore_CommitDoesNotCarryTheOtherBranchesShards(t *testing.T) {
 
 	onDisk, err := state.ReadCommitted(r.record)
 	require.NoError(t, err)
-	scopes := scopesOf(onDisk)
-	assert.Contains(t, scopes, "doc-main",
-		"the record this branch holds survives the commit")
+	assert.Contains(t, scopesOf(onDisk), "doc-main",
+		"the record this branch holds survives the write")
 
-	// The staged decision travels with the person who made it, so it lands
-	// here. What must not land is the OTHER branch's record: the seeded rows.
+	// A decision recorded here and not yet written out follows the person who
+	// made it. What must not follow is the OTHER branch's record: the lines the
+	// import supplied.
 	var stray int
 	for _, u := range onDisk {
-		if u.Scope == "doc-feature" && u.Unit == "u-feature" {
+		if u.Unit == "u-feature" {
 			stray++
 		}
 	}
-	assert.Zero(t, stray, "rows seeded from the other branch's record are not published here")
+	assert.Zero(t, stray, "lines imported from the other branch's record are not published here")
 }
 
-// (c) A staged decision crosses the rebuild untouched and the crossing is
-// reported, because it was made against a record this checkout does not hold.
-func TestWorkStore_StagedDecisionsCrossTheRebuildAndAreReported(t *testing.T) {
+// A decision made on one branch is not lost by switching away and back: the
+// ledger keeps the entry, and the branch's own shards bring the pairing back,
+// so the entry applies again.
+func TestWorkStore_ADecisionReturnsWithItsBranch(t *testing.T) {
 	r := newBranchRepo(t)
 
+	decided := unit("u-feature", "doc-feature", "Bravo")
+	decided.Decision.Note = "reviewed here"
+
 	w := r.open()
-	require.NoError(t, w.Put(t.Context(), unit("u-decided", "doc-feature", "Charlie")))
-	pending, err := w.Pending(t.Context())
-	require.NoError(t, err)
-	require.Equal(t, 1, pending)
+	require.NoError(t, w.Put(t.Context(), decided))
+	require.NoError(t, w.Commit(t.Context()))
 	require.NoError(t, w.Close())
+	r.git("add", "-A", ".kapi")
+	r.git("commit", "-m", "review on feature")
 
 	r.git("switch", "main")
+	w = r.open()
+	_, found := w.Get(t.Context(), nbKey("doc-feature", "u-feature"))
+	assert.False(t, found, "the other branch's unit does not answer here")
+	require.NoError(t, w.Close())
 
+	r.git("switch", "feature")
 	w = r.open()
 	defer func() { _ = w.Close() }()
-
-	reseed := w.Reseed()
-	assert.True(t, reseed.Reseeded, "the record moved under the set")
-	assert.Equal(t, 1, reseed.Carried, "the staged decision is counted across")
-
-	pending, err = w.Pending(t.Context())
-	require.NoError(t, err)
-	assert.Equal(t, 1, pending, "the staged decision is still staged")
-
-	got, found := w.Get(t.Context(), state.Key{
-		Scope: "doc-feature", Unit: "u-decided", Variant: unit("", "", "").Variant,
-	})
-	require.True(t, found, "the staged decision survived the rebuild")
-	assert.Equal(t, "approved", got.Decision.ReviewState)
+	got, found := w.Get(t.Context(), nbKey("doc-feature", "u-feature"))
+	require.True(t, found, "the branch that holds the pairing gets its decision back")
+	assert.Equal(t, "reviewed here", got.Decision.Note)
 }
 
-// (d) A record found where the set left it is not rebuilt, so the ordinary open
-// costs a digest and nothing else, and reports nothing.
-func TestWorkStore_AnUnchangedRecordIsNotReseeded(t *testing.T) {
+// A record found where the view left it is not re-imported, so the ordinary
+// open costs a digest and nothing else.
+func TestWorkStore_AnUnchangedRecordIsNotReimported(t *testing.T) {
 	r := newBranchRepo(t)
 
 	w := r.open()
@@ -188,17 +185,19 @@ func TestWorkStore_AnUnchangedRecordIsNotReseeded(t *testing.T) {
 
 	w = r.open()
 	defer func() { _ = w.Close() }()
-	assert.False(t, w.Reseed().Reseeded, "nothing moved, so nothing was rebuilt")
 
 	all, err := w.All(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, []string{"doc-feature"}, scopesOf(all))
+
+	diff, err := w.RecordDiff(t.Context())
+	require.NoError(t, err)
+	assert.Zero(t, diff.Changed())
 }
 
-// A commit re-stamps the record it just wrote, so the next open reads the set as
-// current. Without that every commit would make the following command announce
-// a record that moved.
-func TestWorkStore_CommitLeavesTheSetAgreedWithTheRecord(t *testing.T) {
+// Writing the record re-stamps what it just wrote, so the next open reads the
+// view as current rather than importing all over again.
+func TestWorkStore_CommitLeavesTheViewAgreedWithTheRecord(t *testing.T) {
 	r := newBranchRepo(t)
 
 	w := r.open()
@@ -208,5 +207,7 @@ func TestWorkStore_CommitLeavesTheSetAgreedWithTheRecord(t *testing.T) {
 
 	w = r.open()
 	defer func() { _ = w.Close() }()
-	assert.False(t, w.Reseed().Reseeded)
+	diff, err := w.RecordDiff(t.Context())
+	require.NoError(t, err)
+	assert.Zero(t, diff.Changed())
 }
