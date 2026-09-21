@@ -132,6 +132,34 @@ func (b *LocalBackend) Project(ctx context.Context, key ProjectKey) (*storage.DB
 	return db, nil
 }
 
+// Forget closes one project's context store and removes its file, together
+// with the write-ahead log and shared-memory sidecars beside it. Removing the
+// file while a pool is still on it would leave that pool writing into an
+// unlinked inode, so the handle goes first.
+func (b *LocalBackend) Forget(_ context.Context, key ProjectKey) error {
+	if key == "" {
+		return ErrNoProjectKey
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.readOnly {
+		return ErrReadOnly
+	}
+	if db, ok := b.projects[key]; ok {
+		delete(b.projects, key)
+		if err := db.Close(); err != nil {
+			return fmt.Errorf("workspace: release the context store of %s: %w", key, err)
+		}
+	}
+	path := b.ProjectPath(key)
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		if err := os.Remove(path + suffix); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("workspace: remove %s: %w", path+suffix, err)
+		}
+	}
+	return nil
+}
+
 // open creates dir and opens path inside it, falling back to a read-only handle
 // where the directory refuses to be written.
 //
@@ -214,20 +242,6 @@ func (b *LocalBackend) Record(ctx context.Context, ops ...Op) ([]Op, error) {
 	return out, nil
 }
 
-// Head returns the highest sequence number the log holds, and zero for a log
-// with nothing in it.
-func (b *LocalBackend) Head(ctx context.Context) (int64, error) {
-	db, err := b.Registry(ctx)
-	if err != nil {
-		return 0, err
-	}
-	var seq int64
-	if err := db.QueryRowContext(ctx, `SELECT COALESCE(MAX(seq), 0) FROM workspace_ops`).Scan(&seq); err != nil {
-		return 0, fmt.Errorf("workspace: read the operation log position: %w", err)
-	}
-	return seq, nil
-}
-
 // Since returns the operations after a sequence number, oldest first.
 func (b *LocalBackend) Since(ctx context.Context, after int64, limit int) ([]Op, error) {
 	db, err := b.Registry(ctx)
@@ -266,6 +280,20 @@ func (b *LocalBackend) Since(ctx context.Context, after int64, limit int) ([]Op,
 		return nil, fmt.Errorf("workspace: read operations: %w", err)
 	}
 	return out, nil
+}
+
+// Head returns the sequence number of the last operation recorded.
+func (b *LocalBackend) Head(ctx context.Context) (int64, error) {
+	db, err := b.Registry(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var head int64
+	if err := db.QueryRowContext(ctx,
+		`SELECT COALESCE(MAX(seq), 0) FROM workspace_ops`).Scan(&head); err != nil {
+		return 0, fmt.Errorf("workspace: read the operation log head: %w", err)
+	}
+	return head, nil
 }
 
 // Close releases every pool this backend opened.

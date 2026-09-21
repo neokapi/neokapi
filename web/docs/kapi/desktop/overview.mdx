@@ -22,8 +22,25 @@ conformance suite holds them to it.
 
 ## What the app opens to
 
-The desktop is **project-first**: it opens to your projects and reopens the ones
-you had last time. A project's home says where it stands, on two axes:
+The app opens on your **workspace**: every project kapi has run in on this
+machine, whichever surface ran it. Set a repository up from a terminal and it is
+on the list when you next look, with no step in the app. Each project shows its
+name, its identity, when it was last active, and the folders it has been seen
+in. Two worktrees or two clones of one repository are one project with two
+folders beneath it, because they share an identity and one context.
+
+A folder that has gone away is marked missing rather than dropped: the project
+and its context are unaffected, and the row still says where the files were. A
+project with no copy on this machine, one you have only ever opened elsewhere,
+opens on its context alone. **Open a Project** is there for a folder kapi has
+never run in, and opening it adds it to the list.
+
+Removing a project from the workspace is something you ask for. The confirmation
+names the file that will be deleted and the folders that will not, and nothing
+else in the app removes a project as a consequence of anything.
+
+A project reopens as a tab, and the tabs you had last time come back. A
+project's home says where it stands, on two axes:
 
 - **Content.** What has been read into the project, what has changed on disk
   since, and what is missing.
@@ -46,6 +63,10 @@ The **Context** hub is where the graph is legible:
 - **Explorer** answers by location and by content. Ask what applies at a file,
   or search for a word and see the terms, the prior wording, and where each is
   used.
+- **Agent View** shows the context an agent receives for a file you pick: the
+  point it resolves to, the voice in force, the terms that apply, and the body
+  the agent reads, word for word. It is the same answer `kapi context <path>`
+  prints.
 - **Voice** renders the profile that actually governs a point: tone, style
   rules, vocabulary with severities, examples, and the overrides that apply.
   Where a binding was skipped because its window had closed, the page says so

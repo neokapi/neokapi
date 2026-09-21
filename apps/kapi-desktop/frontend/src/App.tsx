@@ -53,8 +53,14 @@ function AppInner() {
   useNeokapi();
 
   const shortenHome = useShortenHome();
-  const { recentFiles, samplesDismissed, refreshRecent, removeRecent, dismissSamples } =
-    useAppInit();
+  const {
+    workspace,
+    workspaceError,
+    samplesDismissed,
+    refreshWorkspace,
+    forgetProject,
+    dismissSamples,
+  } = useAppInit();
   const tm = useTabManager();
   const { hasActive: hasRunningFlow } = useJobFeed();
 
@@ -64,10 +70,10 @@ function AppInner() {
     tm.activeTabID,
   ) as ReturnType<typeof useProjectHistory> & { cleanup: (id: string) => void };
 
-  // Refresh recent files when tabs change.
+  // Opening or closing a tab moves the workspace's last-active times.
   useEffect(() => {
-    refreshRecent();
-  }, [refreshRecent, tm.tabs.length]);
+    refreshWorkspace();
+  }, [refreshWorkspace, tm.tabs.length]);
 
   // Opt-out desktop analytics (D1): keyless builds and DNT stay silent; the
   // persisted app setting gates capture. The one-time first-run notice shows
@@ -318,10 +324,12 @@ function AppInner() {
                 updateProject={updateProject}
                 navigate={tm.navigate}
                 updateTab={tm.updateTab}
-                recentFiles={recentFiles}
+                workspace={workspace}
+                workspaceError={workspaceError}
                 samplesDismissed={samplesDismissed}
-                onOpenRecent={tm.openRecent}
-                onRemoveRecent={removeRecent}
+                onOpenCheckout={tm.openRecent}
+                onOpenContext={tm.openWorkspaceContext}
+                onForgetProject={forgetProject}
                 onNewProject={() => {
                   tm.switchMode("projects");
                   tm.setShowNewProjectForm(true);

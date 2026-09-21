@@ -90,7 +90,10 @@ func (a *App) contextProvenance(cmd Command, proj *project.KapiProject) *Context
 
 	ctx := CmdContext(cmd)
 	if ws, werr := a.Workspace(ctx); werr == nil && ws != nil {
-		if rev, rerr := ws.Revision(ctx); rerr == nil {
+		// The operation log's head, the same number the desktop polls to learn
+		// that something changed. One query, on a path an agent hits
+		// repeatedly inside a single thought.
+		if rev, rerr := ws.Head(ctx); rerr == nil {
 			out.Revision = rev
 		}
 	}

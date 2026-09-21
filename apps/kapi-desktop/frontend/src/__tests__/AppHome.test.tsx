@@ -2,13 +2,20 @@ import { render, screen } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { AppHome } from "../components/AppHome";
-import type { RecentFile } from "../types/api";
+import type { WorkspaceHome, WorkspaceProject } from "../types/api";
+
+const emptyWorkspace: WorkspaceHome = {
+  location: "/fakehome/.local/share/kapi/workspaces/default",
+  read_only: false,
+  projects: [],
+};
 
 const defaultProps = {
-  recentFiles: [] as RecentFile[],
+  workspace: emptyWorkspace,
   samplesDismissed: false,
-  onOpenRecent: vi.fn(),
-  onRemoveRecent: vi.fn(),
+  onOpenCheckout: vi.fn(),
+  onOpenContext: vi.fn(),
+  onForgetProject: vi.fn(),
   onNewProject: vi.fn(),
   onOpenProject: vi.fn(),
   onNavigate: vi.fn(),
@@ -16,24 +23,32 @@ const defaultProps = {
   onDismissSamples: vi.fn(),
 };
 
+/** One project with one live checkout. */
+function project(overrides: Partial<WorkspaceProject> = {}): WorkspaceProject {
+  return {
+    key: "prj_kapimart",
+    name: "KapiMart",
+    last_active: "2026-09-20T09:00:00Z",
+    checkouts: [
+      {
+        path: "/fakehome/src/kapimart",
+        recipe: "/fakehome/src/kapimart/kapi.yaml",
+        missing: false,
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function withProjects(...projects: WorkspaceProject[]): WorkspaceHome {
+  return { ...emptyWorkspace, projects };
+}
+
 describe("AppHome", () => {
   it("shows sample project cards when not dismissed", () => {
     render(<AppHome {...defaultProps} />);
     expect(screen.getByText("KapiMart")).toBeInTheDocument();
     expect(screen.getByText(/New to Kapi/)).toBeInTheDocument();
-  });
-
-  it("shows sample project cards even with recent files", () => {
-    const recentFiles = [
-      {
-        path: "/tmp/project/kapi.yaml",
-        name: "Test",
-        opened_at: "2026-03-01T00:00:00Z",
-        available: true,
-      },
-    ];
-    render(<AppHome {...defaultProps} recentFiles={recentFiles} />);
-    expect(screen.getByText("KapiMart")).toBeInTheDocument();
   });
 
   it("hides sample project cards when dismissed", () => {
@@ -72,8 +87,6 @@ describe("AppHome", () => {
 
   it("leads with a project-first Projects section", () => {
     render(<AppHome {...defaultProps} />);
-    expect(screen.getByText("Projects")).toBeInTheDocument();
-    // Project actions and quick tools are both present.
     const projects = screen.getByText("Projects");
     const quickTools = screen.getByText("Quick tools");
     expect(projects).toBeInTheDocument();
@@ -104,77 +117,140 @@ describe("AppHome", () => {
     expect(onNavigate).toHaveBeenCalledWith("flows");
   });
 
-  it("renders recent projects when present", () => {
-    const recentFiles = [
-      {
-        path: "/home/dev/KapiProjects/MyApp/kapi.yaml",
-        name: "MyApp",
-        opened_at: "2026-03-01T00:00:00Z",
-        available: true,
-      },
-    ];
-    render(<AppHome {...defaultProps} recentFiles={recentFiles} />);
-    expect(screen.getByText("MyApp")).toBeInTheDocument();
-    expect(screen.getByText("Recent Projects")).toBeInTheDocument();
-  });
-  // #2560: a remembered project whose recipe went away is shown for what it is
-  // and never opened, so nothing downstream reads a recipe that is not there.
-  describe("a project whose recipe is gone", () => {
-    const gone: RecentFile = {
-      path: "/home/dev/KapiProjects/KapiMart/kapi.yaml",
-      name: "KapiMart Project",
-      opened_at: "2026-03-01T00:00:00Z",
-      available: false,
-      unavailable: "moved",
-    };
-
-    it("renders it as unavailable with the folder-gone reason", () => {
-      render(<AppHome {...defaultProps} recentFiles={[gone]} />);
-      expect(screen.getByText("KapiMart Project")).toBeInTheDocument();
-      expect(screen.getByText("Unavailable")).toBeInTheDocument();
-      expect(screen.getByText(/moved or deleted/i)).toBeInTheDocument();
-      expect(screen.getByText("/home/dev/KapiProjects/KapiMart")).toBeInTheDocument();
+  // The workspace list replaces the recent-files list: a project is here
+  // because kapi has run in it, whichever surface ran.
+  describe("the workspace list", () => {
+    it("lists what the workspace holds, and where the workspace is", () => {
+      render(<AppHome {...defaultProps} workspace={withProjects(project())} samplesDismissed />);
+      expect(screen.getByText("Your Projects")).toBeInTheDocument();
+      expect(screen.getByText("KapiMart")).toBeInTheDocument();
+      expect(screen.getByText("prj_kapimart")).toBeInTheDocument();
+      expect(screen.getByText(/workspaces\/default/)).toBeInTheDocument();
     });
 
-    it("gives the missing-recipe reason when the folder survived", () => {
-      render(<AppHome {...defaultProps} recentFiles={[{ ...gone, unavailable: "deleted" }]} />);
-      expect(screen.getByText("The recipe is missing from this folder.")).toBeInTheDocument();
+    it("says so when nothing has registered yet", () => {
+      render(<AppHome {...defaultProps} />);
+      expect(screen.getByText(/Nothing here yet/)).toBeInTheDocument();
     });
 
-    it("does not open it", async () => {
-      const onOpenRecent = vi.fn();
-      render(<AppHome {...defaultProps} recentFiles={[gone]} onOpenRecent={onOpenRecent} />);
-      await userEvent.click(screen.getByTestId("recent-unavailable"));
-      expect(onOpenRecent).not.toHaveBeenCalled();
-    });
-
-    it("removes it on request", async () => {
-      const onRemoveRecent = vi.fn();
-      const onOpenRecent = vi.fn();
+    it("opens a project with one checkout straight from its row", async () => {
+      const onOpenCheckout = vi.fn();
       render(
         <AppHome
           {...defaultProps}
-          recentFiles={[gone]}
-          onOpenRecent={onOpenRecent}
-          onRemoveRecent={onRemoveRecent}
+          workspace={withProjects(project())}
+          onOpenCheckout={onOpenCheckout}
         />,
       );
-      await userEvent.click(screen.getByRole("button", { name: "Remove" }));
-      expect(onRemoveRecent).toHaveBeenCalledWith(gone.path);
-      expect(onOpenRecent).not.toHaveBeenCalled();
+      await userEvent.click(screen.getByRole("button", { name: "Open" }));
+      expect(onOpenCheckout).toHaveBeenCalledWith("/fakehome/src/kapimart/kapi.yaml");
     });
 
-    it("still opens the projects beside it", async () => {
-      const onOpenRecent = vi.fn();
-      const alive: RecentFile = {
-        path: "/home/dev/KapiProjects/MyApp/kapi.yaml",
-        name: "MyApp",
-        opened_at: "2026-03-02T00:00:00Z",
-        available: true,
-      };
-      render(<AppHome {...defaultProps} recentFiles={[gone, alive]} onOpenRecent={onOpenRecent} />);
-      await userEvent.click(screen.getByText("MyApp"));
-      expect(onOpenRecent).toHaveBeenCalledWith(alive.path);
+    it("collapses several checkouts into one project and asks which", async () => {
+      const onOpenCheckout = vi.fn();
+      const worktrees = project({
+        checkouts: [
+          {
+            path: "/fakehome/src/kapimart",
+            recipe: "/fakehome/src/kapimart/kapi.yaml",
+            missing: false,
+          },
+          {
+            path: "/fakehome/src/kapimart-fix",
+            recipe: "/fakehome/src/kapimart-fix/kapi.yaml",
+            missing: false,
+          },
+        ],
+      });
+      render(
+        <AppHome
+          {...defaultProps}
+          workspace={withProjects(worktrees)}
+          onOpenCheckout={onOpenCheckout}
+        />,
+      );
+      expect(screen.getAllByTestId("workspace-project")).toHaveLength(1);
+      // No single "Open": the reader picks which checkout.
+      expect(screen.queryByRole("button", { name: "Open" })).not.toBeInTheDocument();
+      const choices = screen.getAllByTestId("checkout-open");
+      expect(choices).toHaveLength(2);
+      await userEvent.click(choices[1]);
+      expect(onOpenCheckout).toHaveBeenCalledWith("/fakehome/src/kapimart-fix/kapi.yaml");
+    });
+
+    it("shows a checkout that is gone as missing, keeping the project", () => {
+      const gone = project({
+        checkouts: [
+          {
+            path: "/fakehome/src/kapimart",
+            recipe: "/fakehome/src/kapimart/kapi.yaml",
+            missing: true,
+          },
+        ],
+      });
+      render(<AppHome {...defaultProps} workspace={withProjects(gone)} samplesDismissed />);
+      expect(screen.getByText("KapiMart")).toBeInTheDocument();
+      expect(screen.getByTestId("checkout-missing")).toBeInTheDocument();
+      expect(screen.getByText("Missing")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Open" })).not.toBeInTheDocument();
+    });
+
+    it("opens the context of a project with no checkout here", async () => {
+      const onOpenContext = vi.fn();
+      render(
+        <AppHome
+          {...defaultProps}
+          workspace={withProjects(project({ checkouts: [] }))}
+          onOpenContext={onOpenContext}
+        />,
+      );
+      await userEvent.click(screen.getByRole("button", { name: /Open context/ }));
+      expect(onOpenContext).toHaveBeenCalledWith("prj_kapimart");
+    });
+
+    it("confirms a removal by naming what goes before it goes", async () => {
+      const onForgetProject = vi.fn();
+      render(
+        <AppHome
+          {...defaultProps}
+          workspace={withProjects(project())}
+          onForgetProject={onForgetProject}
+        />,
+      );
+      await userEvent.click(screen.getByRole("button", { name: /Remove KapiMart/ }));
+      expect(onForgetProject).not.toHaveBeenCalled();
+      expect(screen.getByText(/Remove KapiMart from your workspace/)).toBeInTheDocument();
+      expect(screen.getByText(/its content memory and every decision/)).toBeInTheDocument();
+      expect(screen.getByText(/Your files stay exactly where they are/)).toBeInTheDocument();
+      expect(screen.getAllByText("/fakehome/src/kapimart").length).toBeGreaterThan(1);
+
+      await userEvent.click(screen.getByRole("button", { name: /Remove this project/ }));
+      expect(onForgetProject).toHaveBeenCalledWith("prj_kapimart");
+    });
+
+    it("cancels a removal without touching anything", async () => {
+      const onForgetProject = vi.fn();
+      render(
+        <AppHome
+          {...defaultProps}
+          workspace={withProjects(project())}
+          onForgetProject={onForgetProject}
+        />,
+      );
+      await userEvent.click(screen.getByRole("button", { name: /Remove KapiMart/ }));
+      await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(onForgetProject).not.toHaveBeenCalled();
+    });
+
+    it("reports a workspace it could not read", () => {
+      render(
+        <AppHome
+          {...defaultProps}
+          workspace={null}
+          workspaceError={new Error("the workspace directory is not writable")}
+        />,
+      );
+      expect(screen.getByText(/could not be read/)).toBeInTheDocument();
     });
   });
 });

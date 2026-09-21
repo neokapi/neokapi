@@ -111,14 +111,14 @@ func (w *Workspace) Ops(ctx context.Context, after int64, limit int) ([]Op, erro
 	return w.backend.Since(ctx, after, limit)
 }
 
-// Revision is the position the operation log has reached: the sequence number
-// of the last operation recorded, and zero for a workspace nothing has been
-// recorded in yet.
+// Head returns the sequence number of the last operation recorded, and zero for
+// a workspace nothing has written to yet.
 //
-// It is what an answer reports as the state of the context it was read from,
-// so two answers carrying the same revision were read from the same workspace
-// state, and a higher one says something has been recorded since.
-func (w *Workspace) Revision(ctx context.Context) (int64, error) {
+// A surface that keeps a view of the workspace on screen reads it to learn that
+// something changed: one number, whoever wrote it and from whichever process.
+// A retrieval answer reports the same number as the revision it was read at, so
+// two answers carrying one head were read from one state of the context.
+func (w *Workspace) Head(ctx context.Context) (int64, error) {
 	return w.backend.Head(ctx)
 }
 
@@ -216,6 +216,50 @@ ON CONFLICT(project, path) DO UPDATE SET seen_at = excluded.seen_at`,
 
 	reg, _, err := w.Lookup(ctx, key)
 	return reg, err
+}
+
+// Forget removes a project from the workspace: its registration, the checkouts
+// recorded against it, and the context store holding its terms, voice profiles,
+// content memory and recorded decisions.
+//
+// It is the one destructive operation a workspace offers, so a caller asks for
+// it deliberately and nothing calls it on the way to something else. The files
+// in a checkout are untouched, and running kapi there again registers the
+// project afresh with an empty context.
+//
+// The store goes first. Where it cannot be removed the registration stands and
+// the project is still listed, which is the honest outcome of a removal that
+// did not happen.
+func (w *Workspace) Forget(ctx context.Context, key ProjectKey) error {
+	if key == "" {
+		return ErrNoProjectKey
+	}
+	if w.backend.Describe().ReadOnly {
+		return ErrReadOnly
+	}
+	if err := w.backend.Forget(ctx, key); err != nil {
+		return err
+	}
+
+	tx, err := w.registry.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("workspace: forget %s: %w", key, err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM workspace_checkouts WHERE project = ?`, string(key)); err != nil {
+		return fmt.Errorf("workspace: forget the checkouts of %s: %w", key, err)
+	}
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM workspace_projects WHERE key = ?`, string(key)); err != nil {
+		return fmt.Errorf("workspace: forget %s: %w", key, err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("workspace: forget %s: %w", key, err)
+	}
+
+	_, err = w.backend.Record(ctx, Op{Project: key, Kind: OpForgetProject, At: time.Now().UTC()})
+	return err
 }
 
 // Lookup returns one project's registration. ok is false when the workspace

@@ -4575,14 +4575,13 @@
   "desktop": {
     "menu": {
       "checkForUpdates": "Check for Updates…",
-      "clearRecentProjects": "Clear Recent Projects",
       "file": "File",
       "newProject": "New Project",
-      "noRecentProjects": "No Recent Projects",
+      "noWorkspaceProjects": "No Projects Yet",
       "open": "Open...",
-      "recentProjects": "Recent Projects",
       "save": "Save",
-      "saveAs": "Save As..."
+      "saveAs": "Save As...",
+      "workspaceProjects": "Projects in Your Workspace"
     }
   }
 }

@@ -459,6 +459,11 @@ export interface TabInfo {
   id: string;
   name: string;
   path: string;
+  /**
+   * A tab over a project's context alone, opened from the workspace for a
+   * project no checkout on this machine carries. Its path is empty.
+   */
+  context_only?: boolean;
 }
 
 /** A saved "Active Filter": narrows the project to a subset of collections
@@ -609,20 +614,100 @@ export interface SessionState {
   activeProject: string;
 }
 
-/**
- * Why a remembered project can no longer be opened: "moved" when the project
- * folder is gone from that location, "deleted" when the folder is still there
- * without a recipe in it.
- */
-export type RecentUnavailableReason = "moved" | "deleted";
-
-/** A project the app remembers, with whether its recipe is still on disk. */
-export interface RecentFile {
+/** One directory a project has been seen at on this machine. */
+export interface WorkspaceCheckout {
   path: string;
+  /** The recipe inside it, which is what opening the project reads. */
+  recipe: string;
+  /** No recipe is readable there any more. The row stays either way. */
+  missing: boolean;
+}
+
+/** One project the workspace holds. */
+export interface WorkspaceProject {
+  key: string;
   name: string;
-  opened_at: string;
-  available: boolean;
-  unavailable?: string;
+  /** When kapi last ran in this project, RFC3339 in UTC. */
+  last_active: string;
+  /**
+   * Where it has been seen on this machine, empty for a project only ever
+   * opened elsewhere. Several worktrees or clones are several rows here.
+   */
+  checkouts: WorkspaceCheckout[];
+}
+
+/** The workspace and the projects it holds: the app's first screen. */
+export interface WorkspaceHome {
+  location: string;
+  read_only: boolean;
+  projects: WorkspaceProject[];
+}
+
+/** The coordinate a context answer is about. */
+export interface ResolvedContextPoint {
+  path?: string;
+  profile?: string;
+  channel?: string;
+  collection?: string;
+  /** Profile and channel as the recipe writes the binding. */
+  ref?: string;
+  coordinates?: Record<string, string>;
+  /** Resolution fell through to the project's default point. */
+  default: boolean;
+}
+
+/** One term bound at a point. */
+export interface ResolvedContextTerm {
+  concept_id: string;
+  term: string;
+  locale?: string;
+  status?: string;
+  definition?: string;
+  replacement?: string;
+  discouraged: boolean;
+  valid_from?: string;
+  valid_to?: string;
+}
+
+/** A governance profile whose validity is bounded, read against the answer. */
+export interface ResolvedContextProfile {
+  name: string;
+  valid_from?: string;
+  valid_to?: string;
+  state: string;
+}
+
+/**
+ * What applies at one point, as the retrieval surface resolves it. The same
+ * answer `kapi context <path>` prints and the `context://` resource serves.
+ */
+export interface ResolvedContext {
+  point: ResolvedContextPoint;
+  /** How much of the graph could be read: "project", "workspace", "profile". */
+  scope: string;
+  voice?: { name: string; source?: string; field?: string; guide?: string };
+  terms?: ResolvedContextTerm[];
+  terms_total?: number;
+  profiles?: ResolvedContextProfile[];
+  /** Freshness and scope caveats, so a thin answer is never ambiguous. */
+  notes?: string[];
+}
+
+/** The resolved context for one file, with the body an agent reads verbatim. */
+export interface AgentContextView {
+  path: string;
+  answer: ResolvedContext;
+  text: string;
+}
+
+/** What removing a project from the workspace will delete. */
+export interface WorkspaceRemoval {
+  key: string;
+  name: string;
+  /** The file holding the project's context. It is deleted. */
+  store: string;
+  /** The directories it has been seen at. Their files are untouched. */
+  checkouts: string[];
 }
 
 /** Per-collection translation status rendered on the project home. */

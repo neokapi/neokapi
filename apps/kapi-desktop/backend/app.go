@@ -38,6 +38,7 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host"
 	appconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/host/credentials"
@@ -134,8 +135,11 @@ type App struct {
 
 	// Persistence
 	credentials *credentials.Store
-	recent      *recentStore
 	settings    *settingsStore
+
+	// wsWatcher polls the workspace's operation log so the home screen follows
+	// what other kapi processes do while the app is open.
+	wsWatcher *workspaceWatcher
 
 	// aiConfig is the shared kapi app config (~/.config/kapi/kapi.yaml) — the
 	// same file the kapi CLI reads. It supplies the default AI provider/model
@@ -190,7 +194,6 @@ func NewApp() *App {
 		memoryHandles: newHandleStore[*memory.SQLiteStore](),
 		tbHandles:     newHandleStore[*terms.SQLiteStore](),
 		credentials:   credStore,
-		recent:        newRecentStore(),
 		settings:      newSettingsStore(),
 		aiConfig:      aiCfg,
 		logger:        logger,
@@ -200,10 +203,6 @@ func NewApp() *App {
 	// for recording at construction time, so one built earlier would never
 	// report. Nothing in this constructor builds one.
 	app.aiActivityStop = aiprovider.AddRecorder(app.aiActivity.add)
-	// Emit recent:changed whenever the recent-projects list mutates so the
-	// native File → Recent Projects menu can rebuild itself (the menu is built
-	// once at startup and otherwise never sees later opens — issue #3).
-	app.recent.onChange = func() { app.emitEvent("recent:changed", nil) }
 
 	// Wire AI defaulting + credential resolution, exactly like the CLI: first
 	// fill the default provider/model (ai.provider/ai.model) for AI tools that
@@ -237,6 +236,18 @@ type openProject struct {
 	Path    string
 	Project *project.KapiProject
 	watcher *fileWatcher
+
+	// workspaceKey is the project's identity in the workspace, which is what
+	// ties this tab to the row the home screen lists and to the context store
+	// every checkout of the project shares.
+	workspaceKey workspace.ProjectKey
+
+	// contextOnly marks a tab opened from the workspace for a project no
+	// checkout on this machine carries. It has no recipe and no files, so its
+	// Path is empty and the content surfaces stay out of it; contextName is
+	// what the tab is called, since there is no recipe to read a name from.
+	contextOnly bool
+	contextName string
 
 	// Project-scoped content memory and terms: borrowed handles onto the two
 	// schemas of the project's own store, registered so the frontend can address
@@ -309,12 +320,17 @@ func (a *App) GetProjectHandles(tabID string) ProjectHandles {
 // the frontend renders.
 func (a *App) ServiceStartup(ctx context.Context, options application.ServiceOptions) error {
 	a.logger.Println("service starting")
+	a.wsWatcher = newWorkspaceWatcher(a, workspaceWatchInterval)
+	a.wsWatcher.Start(ctx)
 	return nil
 }
 
 // ServiceShutdown is called by Wails v3 during application shutdown.
 func (a *App) ServiceShutdown() error {
 	a.logger.Println("service shutting down")
+	if a.wsWatcher != nil {
+		a.wsWatcher.Stop()
+	}
 	if a.aiActivityStop != nil {
 		a.aiActivityStop()
 	}
@@ -393,6 +409,10 @@ type TabInfo struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	Path string `json:"path"`
+	// ContextOnly marks a tab over a project's context alone, opened from the
+	// workspace for a project no checkout on this machine carries. Its Path is
+	// empty and the surfaces that read files are not offered.
+	ContextOnly bool `json:"context_only,omitempty"`
 }
 
 // NewProject creates a new project, saves it to disk, and opens it as a tab.
@@ -476,13 +496,18 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 	displayName := projectDisplayName(proj, savePath)
 
 	tabID := id.New()
-	op := &openProject{ID: tabID, Path: savePath, Project: proj}
+	op := &openProject{
+		ID:           tabID,
+		Path:         savePath,
+		Project:      proj,
+		workspaceKey: workspaceKeyFor(proj, filepath.Dir(savePath)),
+	}
 	a.mu.Lock()
 	a.projects[tabID] = op
 	a.mu.Unlock()
 
 	a.startWatcher(op)
-	a.recent.add(savePath, displayName)
+	a.registerInWorkspace(op)
 	return &TabInfo{ID: tabID, Name: displayName, Path: savePath}, nil
 }
 
@@ -535,7 +560,12 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 		return nil, err
 	}
 	tabID := id.New()
-	op := &openProject{ID: tabID, Path: path, Project: proj}
+	op := &openProject{
+		ID:           tabID,
+		Path:         path,
+		Project:      proj,
+		workspaceKey: workspaceKeyFor(proj, filepath.Dir(path)),
+	}
 
 	// Auto-open project-scoped content memory and terms if present.
 	a.autoOpenProjectResources(op)
@@ -545,8 +575,8 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 	a.mu.Unlock()
 
 	a.startWatcher(op)
+	a.registerInWorkspace(op)
 	displayName := projectDisplayName(proj, path)
-	a.recent.add(path, displayName)
 	return &TabInfo{ID: tabID, Name: displayName, Path: path}, nil
 }
 
@@ -666,6 +696,10 @@ func (a *App) ListTabs() []TabInfo {
 	defer a.mu.RUnlock()
 	var tabs []TabInfo
 	for _, op := range a.projects {
+		if op.contextOnly {
+			tabs = append(tabs, TabInfo{ID: op.ID, Name: op.contextName, ContextOnly: true})
+			continue
+		}
 		tabs = append(tabs, TabInfo{ID: op.ID, Name: op.Project.Name, Path: op.Path})
 	}
 	return tabs

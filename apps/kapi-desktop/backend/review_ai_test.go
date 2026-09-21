@@ -292,13 +292,13 @@ func TestRunAIPreReview_EmptyScope(t *testing.T) {
 	assert.Zero(t, res.Reviewed)
 }
 
-// commitAndReadUnits commits the project's staged decisions and reads the
-// resulting record.
+// commitAndReadUnits writes the project's committed shards from the decision
+// ledger and reads them back.
 //
-// Recording no longer writes the committed record: a decision is staged, and
-// `kapi commit` publishes it. So a test that asserts what the record holds has
-// to commit first — which is also what pins that the decision made it into the
-// working store at all.
+// Recording puts a decision in the ledger, where it is durable at once. Writing
+// the shards in the checkout is a separate act (`kapi commit`), so a test that
+// asserts what the committed record holds does that first, which also pins that
+// the decision reached the ledger at all.
 //
 // It commits through the app's own engine. The working store is a schema of the
 // project's one store, so committing from an App of its own would be a second

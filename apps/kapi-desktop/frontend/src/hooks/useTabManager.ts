@@ -77,6 +77,28 @@ export function useTabManager() {
 
   const addTab = useCallback(
     async (tab: TabInfo, project: KapiProject) => {
+      // A context-only tab carries no recipe and no files, so the questions
+      // asked of a checkout (is it empty, which preset, are its plugins
+      // installed) have no subject. It opens straight on the Context hub.
+      if (tab.context_only) {
+        setTabs((prev) => {
+          if (prev.some((t) => t.info.id === tab.id)) return prev;
+          return [
+            ...prev,
+            {
+              info: tab,
+              project,
+              isEmpty: false,
+              pluginsResolved: true,
+              view: "context",
+            },
+          ];
+        });
+        setActiveTabID(tab.id);
+        setMode("projects");
+        setGlobalView("");
+        return;
+      }
       const empty = await api.isEmptyProject(tab.id);
       let detected: string | undefined;
       if (!empty) {
@@ -166,6 +188,8 @@ export function useTabManager() {
     }
   }, [addTab, showError]);
 
+  // Open a project from one of its checkouts, by recipe path. The workspace
+  // home and the native Projects menu both land here.
   const openRecent = useCallback(
     async (path: string) => {
       try {
@@ -175,7 +199,21 @@ export function useTabManager() {
           if (proj) await addTab(tab, proj);
         }
       } catch (err) {
-        showError("Failed to open recent project", err);
+        showError("Failed to open the project", err);
+      }
+    },
+    [addTab, showError],
+  );
+
+  // Open a project the workspace holds and no checkout on this machine
+  // carries. The tab reads its context and has no files to show.
+  const openWorkspaceContext = useCallback(
+    async (key: string) => {
+      try {
+        const tab = await api.openWorkspaceContext(key);
+        if (tab) await addTab(tab, { version: "v1", name: tab.name });
+      } catch (err) {
+        showError("Failed to open the project's context", err);
       }
     },
     [addTab, showError],
@@ -348,6 +386,7 @@ export function useTabManager() {
     switchMode,
     openProject,
     openRecent,
+    openWorkspaceContext,
     createProject,
     createSampleProject,
     resetSample,
