@@ -97,7 +97,9 @@ vocabulary:
 Every mooring is allocated on arrival, and the handover is seamless.
 `)
 
-	return filepath.Join(real, project.RecipeFileName), real
+	recipe = filepath.Join(real, project.RecipeFileName)
+	readContextAt(t, recipe)
+	return recipe, real
 }
 
 // runCLI executes one cobra command and returns its combined output. The recipe

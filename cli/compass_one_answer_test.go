@@ -45,7 +45,12 @@ func compassCopy(t *testing.T) (recipe, root string) {
 	t.Setenv("KAPI_PLUGINS_DIR", t.TempDir())
 	t.Setenv("KAPI_NO_PROJECT", "1")
 
-	return filepath.Join(root, "kapi.yaml"), root
+	// The sample commits its terms, its voice profile, its content memory and
+	// its decision record. A checkout is read into the store by `kapi context
+	// import`, and the journey starts where a person who has run it starts.
+	recipe = filepath.Join(root, "kapi.yaml")
+	readContextAt(t, recipe)
+	return recipe, root
 }
 
 // reviewQueue is the shape `kapi status --review --json` emits, narrowed to the
