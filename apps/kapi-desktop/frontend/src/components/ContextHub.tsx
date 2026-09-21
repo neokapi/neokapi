@@ -10,17 +10,22 @@
 // languages is not shown a surface it has nothing to put in.
 
 import { useState } from "react";
-import { BookOpen, Bot, Compass, Database, MessageSquareQuote } from "lucide-react";
-import { cn } from "@neokapi/ui-primitives";
+import { useQuery } from "@tanstack/react-query";
+import { BookOpen, Bot, Compass, Database, History, MessageSquareQuote } from "lucide-react";
+import { ScrollArea, cn } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { AgentContextPane } from "./AgentContextPane";
+import { AwaitingBadge } from "./ContextFeed";
+import { CONTEXT_FEED_LIMIT, ContextFeedPanel } from "./ContextFeedPanel";
 import { ContextExplorerView } from "./ContextExplorerView";
 import { VoicePage } from "./VoicePage";
 import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
+import { api } from "../hooks/useApi";
+import { qk } from "../lib/queryKeys";
 
 /** The surfaces filed under Context. */
-export type ContextSection = "explorer" | "agent" | "voice" | "terms" | "memory";
+export type ContextSection = "explorer" | "agent" | "voice" | "terms" | "memory" | "recorded";
 
 /** A point to open the explorer standing at, and what sent it there. */
 export interface ContextPin {
@@ -62,6 +67,7 @@ const SECTIONS: Array<{
 }> = [
   { id: "explorer", label: "Explorer", icon: <Compass size={14} />, needsCheckout: true },
   { id: "agent", label: "Agent View", icon: <Bot size={14} />, needsCheckout: true },
+  { id: "recorded", label: "Recorded", icon: <History size={14} /> },
   {
     id: "voice",
     label: "Voice",
@@ -95,6 +101,15 @@ export function ContextHub({
   // not stay selected.
   const current = sections.some((s) => s.id === active) ? active : sections[0].id;
 
+  // The same query key the Recorded panel reads, so the count on the rail and
+  // the feed behind it come from one fetch.
+  const feedQuery = useQuery({
+    queryKey: qk.projectContextFeed(tabID),
+    queryFn: () => api.projectContextFeed(tabID, CONTEXT_FEED_LIMIT),
+    placeholderData: (previous) => previous,
+  });
+  const awaiting = feedQuery.data?.awaiting_here ?? 0;
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <nav
@@ -116,6 +131,7 @@ export function ContextHub({
           >
             {s.icon}
             {s.label}
+            {s.id === "recorded" && <AwaitingBadge count={awaiting} label={String(awaiting)} />}
           </button>
         ))}
       </nav>
@@ -124,6 +140,17 @@ export function ContextHub({
           <ContextExplorerView tabID={tabID} projectName={projectName} pin={unitPin ?? pin} />
         )}
         {current === "agent" && <AgentContextPane tabID={tabID} path={pin?.path} />}
+        {current === "recorded" && (
+          <ScrollArea className="h-full">
+            <div className="px-6 py-4">
+              <p className="mb-3 text-sm text-muted-foreground">
+                What you and the agents working in this project have recorded about its terms, voice
+                and wording. A candidate advises until you confirm it, and never fails a check.
+              </p>
+              <ContextFeedPanel tabID={tabID} />
+            </div>
+          </ScrollArea>
+        )}
         {current === "voice" && <VoicePage tabID={tabID} />}
         {current === "terms" && <TermsPage tabID={tabID} />}
         {current === "memory" && (

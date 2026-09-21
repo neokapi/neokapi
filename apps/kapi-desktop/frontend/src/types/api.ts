@@ -710,6 +710,196 @@ export interface WorkspaceRemoval {
   checkouts: string[];
 }
 
+// --- Context operations: the feed, and the decisions made on it ---
+
+/** Who performed a context operation. */
+export interface ContextActor {
+  /** "person", "agent" or "tool". */
+  kind: string;
+  /** The person's handle, the agent's client name, or the tool's name. */
+  name?: string;
+  /** The id one agent run's operations share. */
+  session?: string;
+  /** The machine the agent ran on, when its name carries one. */
+  host?: string;
+}
+
+/** Where a subject was seen. */
+export interface ContextEvidence {
+  path?: string;
+  unit?: string;
+  quote?: string;
+}
+
+/** What an operation is about. `kind` says which fields carry anything. */
+export interface ContextSubject {
+  /** "term", "voice", "memory", "note", or absent. */
+  kind?: string;
+  term?: string;
+  replacement?: string;
+  severity?: string;
+  /** The voice profile's vocabulary list a voice rule sits in. */
+  list?: string;
+  source?: string;
+  target?: string;
+  target_locale?: string;
+  /** The prose of a note. */
+  text?: string;
+  /** The one line the log prints for the subject. */
+  describe?: string;
+}
+
+/** The wording a correction changed. */
+export interface ContextCorrection {
+  from: string;
+  to: string;
+}
+
+/** How far a subject answers. */
+export interface ContextScope {
+  /** "project" or "workspace". */
+  level: string;
+  coordinates?: Record<string, string>;
+  describe: string;
+}
+
+/** One recorded operation as the feed shows it. */
+export interface ContextFeedEntry {
+  id: string;
+  seq: number;
+  project_key: string;
+  project_name?: string;
+  /** observe, propose, correct, confirm, discard, revert, widen. */
+  kind: string;
+  /** candidate, confirmed, discarded, reverted. */
+  status: string;
+  actor: ContextActor;
+  subject: ContextSubject;
+  correction?: ContextCorrection;
+  evidence: ContextEvidence[];
+  scope: ContextScope;
+  target?: string;
+  target_session?: string;
+  note?: string;
+  /** When the log accepted it, RFC3339 in UTC. */
+  at: string;
+  /** A candidate carrying a rule a person can confirm or discard. */
+  decidable: boolean;
+  /** A rule in force a person can take back out. */
+  revertible: boolean;
+  /** The widenings open to it: "workspace", and each axis of its point. */
+  widen_to: string[];
+  /** The checkout a decision goes through, absent when none is here. */
+  recipe?: string;
+}
+
+/** One session's work: an agent run, or a person's operations on one day. */
+export interface ContextFeedGroup {
+  id: string;
+  session?: string;
+  actor: ContextActor;
+  /** The local date a person's or a tool's group covers. */
+  day?: string;
+  project_key?: string;
+  project_name?: string;
+  recipe?: string;
+  first: string;
+  last: string;
+  awaiting: number;
+  recorded: number;
+  proposed: number;
+  corrected: number;
+  confirmed: number;
+  discarded: number;
+  /** Nothing has been added for a while, so the counts are of finished work. */
+  quiet: boolean;
+  entries: ContextFeedEntry[];
+}
+
+/** How many candidates one project has awaiting a decision. */
+export interface ContextAwaiting {
+  project_key: string;
+  project_name?: string;
+  count: number;
+}
+
+/** What a person and the agents beside them have recorded. */
+export interface ContextFeed {
+  /** The project the feed was narrowed to, absent for the whole workspace. */
+  project_key?: string;
+  groups: ContextFeedGroup[];
+  /** Per-project counts, over the whole workspace whatever the feed shows. */
+  awaiting: ContextAwaiting[];
+  awaiting_total: number;
+  /** Candidates awaiting a decision in what this feed shows. */
+  awaiting_here: number;
+  truncated: boolean;
+  read_only: boolean;
+}
+
+/** One decision about one operation. */
+export interface ContextDecisionRequest {
+  /** The project's workspace key, which every feed entry carries. */
+  project: string;
+  id: string;
+  /** Edits applied as the rule is confirmed. */
+  replacement?: string;
+  severity?: string;
+  /** "workspace", or an axis the rule stops being specific about. */
+  widen_to?: string;
+  note?: string;
+}
+
+/** Undo one operation, or everything one session recorded. */
+export interface ContextRevertRequest {
+  project: string;
+  id?: string;
+  session?: string;
+  note?: string;
+}
+
+/** What a revert undid, or would undo. */
+export interface ContextRevertSummary {
+  session?: string;
+  operations: number;
+  /** The rules taken back out of the project's stores. */
+  rules: string[];
+  /** One line per operation, so a confirmation can name what goes. */
+  subjects: string[];
+}
+
+/** One project a widened rule would answer in. */
+export interface ContextWidenTarget {
+  project_key: string;
+  project_name?: string;
+  /** The project the rule already answers in. */
+  current: boolean;
+  checked_out: boolean;
+}
+
+/** One point in the recipe a widened rule would newly answer at. */
+export interface ContextWidenPoint {
+  ref: string;
+  label: string;
+  coordinates?: Record<string, string>;
+  collections: string[];
+}
+
+/** Where a rule would answer once widened, read before accepting it. */
+export interface ContextWidenPreview {
+  /** "workspace", or the axis dropped. */
+  to: string;
+  from: ContextScope;
+  scope: ContextScope;
+  rule: ContextSubject;
+  /** The workspace's projects, for a widening to the workspace. */
+  projects: ContextWidenTarget[];
+  /** The recipe's points newly covered, for a widening past one axis. */
+  points: ContextWidenPoint[];
+  /** Always false: which content the rule touches is not computed. */
+  content_impact: boolean;
+}
+
 /** Per-collection translation status rendered on the project home. */
 export interface CollectionStatus {
   name: string;

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { AppHome } from "../components/AppHome";
+import { CONTEXT_FEED } from "./fixtures/contextFeed";
 import type { WorkspaceHome } from "../types/api";
 
 const LOCATION = "/fakehome/.local/share/kapi/workspaces/default";
@@ -153,5 +154,32 @@ export const WorkspaceUnreadable: Story = {
     samplesDismissed: true,
     workspace: null,
     workspaceError: new Error("workspace: /fakehome/Dropbox/kapi is inside a synchronized folder"),
+  },
+};
+
+/**
+ * An agent has been working in KapiMart while the app was open: its proposal
+ * is on the feed with the evidence behind it, and the count beside the project
+ * says how many decisions are waiting.
+ */
+export const WithRecordedWork: Story = {
+  args: {
+    samplesDismissed: true,
+    awaiting: [{ project_key: "prj_kapimart", project_name: "KapiMart", count: 1 }],
+    feed: CONTEXT_FEED,
+    workspace: workspace([
+      {
+        key: "prj_kapimart",
+        name: "KapiMart",
+        last_active: "2026-09-21T09:00:00Z",
+        checkouts: [
+          {
+            path: "/fakehome/src/kapimart",
+            recipe: "/fakehome/src/kapimart/kapi.yaml",
+            missing: false,
+          },
+        ],
+      },
+    ]),
   },
 };
