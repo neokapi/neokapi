@@ -365,6 +365,53 @@ func TestHookPreEdit_AllowsUnrelatedFile(t *testing.T) {
 	assert.Empty(t, dec.HookSpecificOutput.PermissionDecision)
 }
 
+// TestHookPreEdit_MatchesThroughSymlink asserts the guard compares paths in
+// symlink-free space. The project root comes from the session's working
+// directory while file_path arrives verbatim from the assistant, so the two
+// spell the same tree differently whenever a link sits anywhere above the file.
+// A target that has not been written yet is the case the resolution has to
+// reach past: nothing on the last two segments exists, so the answer comes from
+// the nearest ancestor that does.
+func TestHookPreEdit_MatchesThroughSymlink(t *testing.T) {
+	root, _ := writeVerifyProject(t)
+	// A second source whose fr target is not on disk, for the Write case.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "help.json"),
+		[]byte("{\n  \"help\": \"Help\"\n}\n"), 0o644))
+	t.Chdir(root)
+
+	// The link sits above the project, so the payload's path carries it two
+	// segments above the file the guard has to recognise.
+	alias := filepath.Join(t.TempDir(), "alias")
+	require.NoError(t, os.Symlink(filepath.Dir(root), alias))
+	aliased := filepath.Join(alias, filepath.Base(root))
+
+	tests := []struct {
+		name string
+		file string
+		deny bool
+	}{
+		{name: "generated target", file: filepath.Join(aliased, "locales", "fr", "app.json"), deny: true},
+		{name: "target not written yet", file: filepath.Join(aliased, "locales", "fr", "help.json"), deny: true},
+		{name: "source file", file: filepath.Join(aliased, "locales", "en", "app.json")},
+		{name: "unrelated file", file: filepath.Join(aliased, "src", "main.go")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dec, raw := runHookPreEditCapture(t, preEditPayload(root, tt.file))
+			if !tt.deny {
+				assert.Empty(t, raw, "a file the project does not generate must not be blocked")
+				assert.Empty(t, dec.HookSpecificOutput.PermissionDecision)
+				return
+			}
+			require.NotEmpty(t, raw, "a generated target reached through a symlink must still be denied")
+			assert.Equal(t, "deny", dec.HookSpecificOutput.PermissionDecision)
+			reason := dec.HookSpecificOutput.PermissionDecisionReason
+			assert.Contains(t, reason, filepath.Join("locales", "fr"), "the reason names the target")
+			assert.NotContains(t, reason, alias, "the reason renders paths in resolved space")
+		})
+	}
+}
+
 // TestHookPreEdit_HonorsPayloadCWD asserts the hook resolves the project from
 // the payload cwd even when the process starts elsewhere.
 func TestHookPreEdit_HonorsPayloadCWD(t *testing.T) {

@@ -37,6 +37,11 @@ func (a *App) ResolveMCPProject(cmd Command) error {
 	// each handler. It is idempotent, so a binary that already initialized its
 	// registries pays nothing here.
 	a.InitRegistries()
+	// Recorded before the start project is adopted below, because adoption
+	// writes into the same field. A call that names another project ranks its
+	// recipe against what was already named, not against the language the start
+	// project happened to declare (mcpCallSourceLocale).
+	a.mcpNamedSourceLang = a.SourceLang
 	path, err := ResolveProjectPath(cmd)
 	if err != nil {
 		return fmt.Errorf("resolve MCP project: %w", err)
@@ -315,9 +320,9 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 		if policy == targetRequired && targetText == "" {
 			return nil, fmt.Errorf("%q reads the translation, so it requires a non-empty 'target' argument alongside 'text'", name)
 		}
+		named, _ := args["project"].(string)
 		targetLang, _ := args["target_lang"].(string)
 		if targetLang == "" {
-			named, _ := args["project"].(string)
 			resolved, err := a.mcpDefaultTargetLang(named, defaultTargetLang)
 			if err != nil {
 				return nil, err
@@ -347,6 +352,20 @@ func (a *App) frameworkMCPHandler(name registry.ToolID, defaultTargetLang string
 			}
 			config[k] = v
 		}
+		// The text is read in the language the call's project writes source in.
+		// The registry's preprocessor supplies the App's language, which is the
+		// start project's, so the call's is settled here while its project is
+		// known; a sourceLocale the caller passed in the tool's own parameters
+		// still stands (ApplySourceLocale).
+		source := a.SourceLocale()
+		if named != "" {
+			recipe, rerr := a.ResolveMCPCallProject(named)
+			if rerr != nil {
+				return nil, rerr
+			}
+			source = a.mcpCallSourceLocale(recipe)
+		}
+		config = ApplySourceLocale(source, config)
 
 		tl, err := a.ToolReg.NewToolWithConfig(name, config, targetLang)
 		if err != nil {

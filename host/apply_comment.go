@@ -104,7 +104,11 @@ func (r commentFileResult) ok() bool {
 //
 // With preview set, nothing is written or checked, and each file's diff is
 // reported.
-func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEntry, preview bool, backupSuffix string, trust *formatterTrust) []commentFileResult {
+//
+// sourceLocale is the language that check reads the file in. A command-line run
+// passes "" and gets the language the invocation settled on; an MCP call passes
+// the language of the project it named, which the App does not hold.
+func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEntry, preview bool, backupSuffix string, trust *formatterTrust, sourceLocale string) []commentFileResult {
 	a.InitRegistries()
 	byFile := map[string][]changeEntry{}
 	var order []string
@@ -118,7 +122,7 @@ func (a *App) applyComments(ctx context.Context, cmd Command, entries []changeEn
 	canaries := map[string]error{}
 	results := make([]commentFileResult, 0, len(order))
 	for _, file := range order {
-		w := &commentFileWrite{app: a, cmd: cmd, file: file, entries: byFile[file], preview: preview, backupSuffix: backupSuffix, trust: trust}
+		w := &commentFileWrite{app: a, cmd: cmd, file: file, entries: byFile[file], preview: preview, backupSuffix: backupSuffix, trust: trust, sourceLocale: sourceLocale}
 		w.result = commentFileResult{File: file, Edits: make([]commentEdit, len(w.entries))}
 		for i, e := range w.entries {
 			w.result.Edits[i] = commentEdit{ID: e.ID}
@@ -145,6 +149,9 @@ type commentFileWrite struct {
 	preview      bool
 	backupSuffix string
 	trust        *formatterTrust
+	// sourceLocale is the language the check of the written comments reads the
+	// file in, empty when the run resolved none of its own.
+	sourceLocale string
 	result       commentFileResult
 }
 
@@ -250,7 +257,7 @@ func (w *commentFileWrite) apply(ctx context.Context, formats *checkFormats, can
 		return
 	}
 	w.locateEdits(p, out, directives)
-	report, cerr := w.app.checkWrittenComments(ctx, w.cmd, w.file, w.result.Diff)
+	report, cerr := w.app.checkWrittenComments(ctx, w.cmd, w.file, w.result.Diff, w.sourceLocale)
 	if cerr != nil {
 		w.result.CheckError = cerr.Error()
 		return
@@ -391,7 +398,7 @@ func diffLines(content []byte) []string {
 // checkWrittenComments checks what a written comment edit changed: the diff,
 // scoped the way `kapi check --diff-file` scopes one, under the governance at
 // the file's point.
-func (a *App) checkWrittenComments(ctx context.Context, cmd Command, file, diff string) (check.Report, error) {
+func (a *App) checkWrittenComments(ctx context.Context, cmd Command, file, diff, sourceLocale string) (check.Report, error) {
 	abs, err := filepath.Abs(file)
 	if err != nil {
 		return check.Report{}, err
@@ -418,7 +425,7 @@ func (a *App) checkWrittenComments(ctx context.Context, cmd Command, file, diff 
 	return a.runDiffCheck(ctx, diffCheckRun{
 		src:   src,
 		cmd:   cmd,
-		opts:  checkRunOptions{formats: formats, execution: execution},
+		opts:  checkRunOptions{formats: formats, execution: execution, sourceLocale: sourceLocale},
 		voice: voice,
 		vocab: vocab,
 		gate:  check.DefaultGate(),

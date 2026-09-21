@@ -128,9 +128,9 @@ func homeDir(getenv func(string) string, goos string) string {
 	return getenv("HOME")
 }
 
-// NormalizeCheckoutPath renders a directory in the one spelling two paths to
-// the same place share, so a comparison between them answers what a person
-// means by "the same checkout".
+// NormalizeCheckoutPath renders a file or directory in the one spelling two
+// paths to the same place share, so a comparison between them answers what a
+// person means by "the same checkout", "the same file".
 //
 // A path is made absolute and then resolved through every symlink on it. That
 // second step is what the comparison needs: on macOS a temporary directory is
@@ -138,9 +138,12 @@ func homeDir(getenv func(string) string, goos string) string {
 // reached through a symlinked parent spells the same tree two ways.
 //
 // A path that does not exist resolves as far as its nearest existing ancestor
-// and keeps the rest verbatim, so a directory about to be created compares
-// equal to the same directory once it is there. With nothing on the path
-// resolvable, the cleaned absolute path stands.
+// and keeps the rest verbatim, so a file about to be written compares equal to
+// the same file once it is there. With nothing on the path resolvable, the
+// cleaned absolute path stands.
+//
+// It is the one normalizer: the workspace registry, the diff scope keys and the
+// pre-edit write guard all compare paths through it.
 func NormalizeCheckoutPath(p string) string {
 	if p == "" {
 		return ""

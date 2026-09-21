@@ -129,6 +129,13 @@ type App struct {
 	// mcpRecipePath retains the explicitly resolved recipe for MCP calls.
 	mcpRecipePath string
 
+	// mcpNamedSourceLang is the source language already named when the MCP
+	// server started, empty when nothing named one. Starting the server adopts
+	// the start project's language into SourceLang, which fills the slot that
+	// tells "named" from "unset", so this is what a per-call project's language
+	// is ranked against (host/sourcelang.go).
+	mcpNamedSourceLang string
+
 	// freshness remembers the governance identities this process last read, so
 	// a retrieval answer can say what moved under it. Process-lived on purpose:
 	// it is the difference between two reads by the same reader, which is what

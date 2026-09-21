@@ -47,7 +47,11 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 		if err != nil {
 			return nil, nil, err
 		}
-		out, err := a.RunUpDispatch(ctx, path, "", UpOptions{
+		// The loop runs in this project's source language. Passing it as the
+		// override is what makes it stick: starting the server adopted the start
+		// project's language into the field the loop's own resolution reads as
+		// "named", so the loop would otherwise keep that one.
+		out, err := a.RunUpDispatch(ctx, path, a.mcpCallSourceLocale(path), UpOptions{
 			UntilGate:   in.Passes != 1,
 			MaxPasses:   in.Passes,
 			Jobs:        in.Jobs,
@@ -79,7 +83,7 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 		// One MCP server serves many projects over its lifetime, so this
 		// project's language is bounded to this call (host/sourcelang.go).
 		defer a.scopeSourceLang()()
-		a.ResolveSourceLang(proj.Defaults.SourceLanguage)
+		a.SourceLang = a.mcpCallSourceLocale(path)
 		plan, err := a.computeProjectPlan(ctx, proj, path)
 		if err != nil {
 			return nil, nil, err

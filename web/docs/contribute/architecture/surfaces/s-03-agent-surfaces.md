@@ -305,7 +305,7 @@ directory sits in.
 The project the server resolved at start remains the default, so a client
 configured for one project keeps the behaviour it had.
 
-Three properties follow from resolving per call rather than per process.
+Four properties follow from resolving per call rather than per process.
 
 **Nothing about a call lands on the server.** The resolved recipe travels on the
 command the handler builds, which is what every embedded surface already does,
@@ -314,6 +314,13 @@ so two calls for two projects run at once without interfering.
 **Each project gets its own store handle.** `App.ProjectDB` memoizes one handle
 per project root, and `Shutdown` closes all of them, so a second project opens a
 second connection pool and neither outlives the server.
+
+**Content is read in the call's own source language.** A term lookup matches the
+locale exactly, so content read in another project's language is held to no
+vocabulary at all. The language is settled from the recipe each call resolved
+and travels with the run. A source language named when the server started still
+outranks a recipe, as an explicit `--source-lang` outranks one on the command
+line, and the server's own language answers a call that resolved no project.
 
 **The tool list stays the start project's.** A client reads `tools/list` once, so
 which tools exist is fixed when the server starts. A per-call project decides
