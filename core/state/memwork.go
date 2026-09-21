@@ -120,7 +120,7 @@ func (m *memWork) load(now time.Time) error {
 		return fmt.Errorf("state: parse work set %s: %w", m.path, err)
 	}
 	for _, e := range f.Entries {
-		m.appendEntry(e)
+		m.appendEntry(e, false)
 	}
 	for _, r := range f.View {
 		m.view[r.key()] = r
@@ -134,7 +134,7 @@ func (m *memWork) load(now time.Time) error {
 		if u.Staged {
 			origin = OriginLocal
 		}
-		if err := m.record(u.Unit, u.Unit.Decision.By, origin, false, entryTimeText(now)); err != nil {
+		if err := m.record(u.Unit, u.Unit.Decision.By, origin, false, entryTimeText(now), false); err != nil {
 			return err
 		}
 		m.view[u.Unit.Key()] = memViewRow{
@@ -147,15 +147,23 @@ func (m *memWork) load(now time.Time) error {
 }
 
 // appendEntry puts an entry in the ledger, keeping the address index and the
-// per-pairing answer current. An address the ledger already holds is left
-// alone.
-func (m *memWork) appendEntry(e memEntry) {
-	if _, held := m.byID[e.ID]; held {
+// per-pairing answer current.
+//
+// An address the ledger already holds is left where it is, unless reassert says
+// someone is making the same statement again, in which case it takes the new
+// stamp and answers for its pairing once more.
+func (m *memWork) appendEntry(e memEntry, reassert bool) {
+	pos, held := m.byID[e.ID]
+	switch {
+	case held && !reassert:
 		return
+	case held:
+		m.entries[pos].Recorded = e.Recorded
+	default:
+		m.entries = append(m.entries, e)
+		pos = len(m.entries) - 1
+		m.byID[e.ID] = pos
 	}
-	m.entries = append(m.entries, e)
-	pos := len(m.entries) - 1
-	m.byID[e.ID] = pos
 	p := e.State.Pairing()
 	if cur, ok := m.latest[p]; !ok || !entryPrecedes(m.entries[pos], m.entries[cur]) {
 		m.latest[p] = pos
@@ -167,12 +175,12 @@ func (m *memWork) appendEntry(e memEntry) {
 func entryPrecedes(a, b memEntry) bool { return a.Recorded < b.Recorded }
 
 // record appends one entry, addressed by what it says.
-func (m *memWork) record(u UnitState, actor string, origin EntryOrigin, revoked bool, recorded string) error {
+func (m *memWork) record(u UnitState, actor string, origin EntryOrigin, revoked bool, recorded string, reassert bool) error {
 	id, err := Address(u, actor, revoked)
 	if err != nil {
 		return err
 	}
-	m.appendEntry(memEntry{ID: id, State: u, Actor: actor, Origin: origin, Recorded: recorded, Revoked: revoked})
+	m.appendEntry(memEntry{ID: id, State: u, Actor: actor, Origin: origin, Recorded: recorded, Revoked: revoked}, reassert)
 	return nil
 }
 

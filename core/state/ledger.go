@@ -22,6 +22,13 @@ import (
 // committed shards, a venue pull and a re-import of either all reach the same
 // address for the same decision, so a project may import the same record any
 // number of times and hold it once.
+//
+// Recording a decision the ledger already holds re-asserts it: the entry keeps
+// its address and its fields and takes the moment of the re-assertion, so it
+// answers for its pairing again. That is what lets a withdrawn decision be made
+// again, and what keeps the ledger one row per statement however often the
+// statement is made. Reading the shards in is not an assertion and never moves
+// an entry's position.
 
 // EntryOrigin says how an entry reached the ledger. It is metadata about
 // arrival, so it sits outside the content address: a decision that arrives by

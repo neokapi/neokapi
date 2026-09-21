@@ -123,9 +123,9 @@ Three properties make a snapshot usable as a reviewed artifact:
   store resolves the same voice, the same terms and the same rules the project
   that wrote the snapshot resolves.
 
-A snapshot publishes any decisions waiting to be committed first, the same write
-`kapi commit` makes, so the record in the snapshot is the project's record
-rather than a copy that has already drifted from it.
+A snapshot writes the project's committed record first, the same write `kapi
+commit` makes, so the record in the snapshot is the project's record rather than
+a copy that has already drifted from it.
 
 A directory that already holds content-memory bundles you wrote by hand keeps
 them. A snapshot writes the store's own bundle beside them rather than deleting

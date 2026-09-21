@@ -65,8 +65,8 @@ type ContextSnapshot struct {
 	Entries       int `json:"entries"`
 	VoiceProfiles int `json:"voiceProfiles"`
 	Decisions     int `json:"decisions"`
-	// Committed counts the staged decisions published into the record on the
-	// way, the same write `kapi commit` makes.
+	// Committed counts the lines the write put into the committed record on
+	// the way, the same write `kapi commit` makes.
 	Committed int `json:"committed,omitempty"`
 	// Written lists the files whose bytes moved, relative to Dir, in path
 	// order. Empty when the snapshot already matched what was there.
@@ -99,7 +99,7 @@ func (r ContextSnapshot) FormatText(w io.Writer) error {
 // SnapshotProjectContext writes the context in force for the project into a
 // `.kapi/` layout.
 //
-// Staged decisions are published first, through the same commit the `kapi
+// The committed record is written first, through the same write the `kapi
 // commit` verb makes, so the record in the snapshot is the project's record
 // rather than a copy of it that has drifted.
 //
@@ -130,8 +130,8 @@ func (a *App) SnapshotProjectContext(ctx context.Context, projectPath string, re
 		return res, err
 	}
 
-	// The record first, so a snapshot cannot carry a store whose staged
-	// decisions never reached the record it also carries.
+	// The record first, so a snapshot cannot carry a store whose decisions
+	// never reached the record it also carries.
 	commit, err := a.CommitProjectStateReport(ctx, layout.Root, false)
 	if err != nil {
 		return res, err

@@ -420,7 +420,7 @@ func (w *WorkStore) importUnits(ctx context.Context, units []UnitState) error {
 		now := w.clock()
 		for _, u := range units {
 			if w.arrivalStands(ctx, u) {
-				if err := w.mem.record(u, u.Decision.By, OriginImport, false, entryTimeText(now)); err != nil {
+				if err := w.mem.record(u, u.Decision.By, OriginImport, false, entryTimeText(now), false); err != nil {
 					return err
 				}
 			}
@@ -456,7 +456,7 @@ func (w *WorkStore) importUnits(ctx context.Context, units []UnitState) error {
 	now := w.clock()
 	for i, u := range units {
 		if stands[i] {
-			if err := insertEntry(ctx, tx, u, u.Decision.By, OriginImport, false, now); err != nil {
+			if err := insertEntry(ctx, tx, u, u.Decision.By, OriginImport, false, now, false); err != nil {
 				return err
 			}
 		}
@@ -570,7 +570,7 @@ func (w *WorkStore) append(ctx context.Context, u UnitState, actor string, origi
 	stamp := w.clock()
 
 	if w.mem != nil {
-		if rerr := w.mem.record(u, actor, origin, revoked, entryTimeText(stamp)); rerr != nil {
+		if rerr := w.mem.record(u, actor, origin, revoked, entryTimeText(stamp), true); rerr != nil {
 			return rerr
 		}
 		if !revoked {
@@ -587,7 +587,7 @@ func (w *WorkStore) append(ctx context.Context, u UnitState, actor string, origi
 		return fmt.Errorf("state: record decision: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err := insertEntry(ctx, tx, u, actor, origin, revoked, stamp); err != nil {
+	if err := insertEntry(ctx, tx, u, actor, origin, revoked, stamp, true); err != nil {
 		return err
 	}
 	if !revoked {
@@ -604,7 +604,7 @@ func (w *WorkStore) append(ctx context.Context, u UnitState, actor string, origi
 // insertEntry writes one entry. An address the ledger already holds is left
 // exactly as it was, which is what makes an import and a repeated pull cost
 // nothing.
-func insertEntry(ctx context.Context, tx *storage.Tx, u UnitState, actor string, origin EntryOrigin, revoked bool, stamp time.Time) error {
+func insertEntry(ctx context.Context, tx *storage.Tx, u UnitState, actor string, origin EntryOrigin, revoked bool, stamp time.Time, reassert bool) error {
 	id, err := Address(u, actor, revoked)
 	if err != nil {
 		return err
@@ -618,11 +618,15 @@ func insertEntry(ctx context.Context, tx *storage.Tx, u UnitState, actor string,
 	if revoked {
 		flag = 1
 	}
+	conflict := "ON CONFLICT(id) DO NOTHING"
+	if reassert {
+		conflict = "ON CONFLICT(id) DO UPDATE SET recorded_at = excluded.recorded_at"
+	}
 	_, err = tx.ExecContext(ctx, `
 INSERT INTO unit_decision
     (id, scope, unit, variant, content_hash, target_hash, actor, origin, recorded_at, revoked, payload)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id) DO NOTHING`,
+`+conflict,
 		id, u.Scope, u.Unit, string(variant), u.ContentHash, u.TargetHash,
 		actor, string(origin), entryTimeText(stamp), flag, string(payload))
 	if err != nil {
@@ -648,6 +652,26 @@ ON CONFLICT(checkout, scope, unit, variant) DO UPDATE SET
 		checkout, p.Key.Scope, p.Key.Unit, string(variant), p.ContentHash, p.TargetHash, flag)
 	if err != nil {
 		return fmt.Errorf("state: point view at pairing: %w", err)
+	}
+	return nil
+}
+
+// ClearView empties this checkout's view, so the checkout holds no unit state
+// until something puts it back. The ledger keeps every entry, and a pairing
+// that comes back comes back to what was decided about it.
+//
+// It is what "replace the project's context with this bundle" means for
+// decisions: the bundle decides what the checkout holds, and the decisions it
+// does not carry stop answering here without being erased from the record of
+// what was decided.
+func (w *WorkStore) ClearView(ctx context.Context) error {
+	if w.mem != nil {
+		w.mem.view = map[Key]memViewRow{}
+		return w.mem.persist()
+	}
+	if _, err := w.db.ExecContext(ctx,
+		`DELETE FROM unit_view WHERE checkout = ?`, w.checkout); err != nil {
+		return fmt.Errorf("state: clear checkout view: %w", err)
 	}
 	return nil
 }
@@ -1282,7 +1306,7 @@ func carryLegacyUnits(ctx context.Context, tx *storage.Tx, checkout string, now 
 		if l.staged {
 			origin = OriginLocal
 		}
-		if ierr := insertEntry(ctx, tx, l.unit, l.unit.Decision.By, origin, false, now); ierr != nil {
+		if ierr := insertEntry(ctx, tx, l.unit, l.unit.Decision.By, origin, false, now, false); ierr != nil {
 			return false, ierr
 		}
 		if verr := putView(ctx, tx, checkout, l.unit.Pairing(), !l.staged); verr != nil {

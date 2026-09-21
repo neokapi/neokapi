@@ -76,8 +76,8 @@ type ContextExport struct {
 	Entries       int `json:"entries"`
 	VoiceProfiles int `json:"voiceProfiles"`
 	Decisions     int `json:"decisions"`
-	// Committed counts the staged decisions published into the record on the
-	// way, the same write `kapi commit` makes.
+	// Committed counts the lines the write put into the committed record on
+	// the way, the same write `kapi commit` makes.
 	Committed int `json:"committed,omitempty"`
 }
 
@@ -125,9 +125,9 @@ func (r ContextRestore) FormatText(w io.Writer) error {
 
 // ExportProjectContext writes the project's whole context to one bundle.
 //
-// Staged decisions are published into the record first, the same write
-// `kapi context snapshot` makes, so the bundle carries the project's record
-// rather than a divergent copy of it.
+// The committed record is written first, the same write `kapi context snapshot`
+// makes, so the bundle carries the project's record rather than a divergent
+// copy of it.
 func (a *App) ExportProjectContext(ctx context.Context, projectPath, out string) (ContextExport, error) {
 	var res ContextExport
 
@@ -522,14 +522,13 @@ func (a *App) clearProjectContext(ctx context.Context, db *projectdb.DB) error {
 		}
 	}
 	if st := db.Work(); st != nil {
-		units, err := st.All(ctx)
-		if err != nil {
+		// The checkout stops holding any unit state; the ledger keeps every
+		// entry it ever recorded. A decision the bundle carries is recorded
+		// again a moment later and answers for its unit once more, and one the
+		// bundle does not carry stops answering here without being erased from
+		// the record of what was decided.
+		if err := st.ClearView(ctx); err != nil {
 			return fmt.Errorf("clear the decision record: %w", err)
-		}
-		for _, u := range units {
-			if err := st.Delete(ctx, u.Key()); err != nil {
-				return fmt.Errorf("clear the decision record: %w", err)
-			}
 		}
 		if err := st.PersistRecords(ctx); err != nil {
 			return err

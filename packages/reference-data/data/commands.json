@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T07:39:09Z",
+  "generatedAt": "2026-09-21T08:07:19Z",
   "commands": [
     {
       "id": "add",
@@ -667,7 +667,7 @@
       ],
       "use": "export",
       "short": "Write this project's whole context to one file",
-      "long": "Write everything this project's store holds as context into a\nsingle file: the terms, the voice profiles, the wording already approved, and\nthe decision record.\n\nIt is the backup, and the way to move a project's context to another machine.\nNothing is lost and nothing is flattened: every part travels in the form kapi\nreads it back from, and \"kapi context restore\" puts it into a store with the\nsame identities it left with.\n\nWithheld originals are never in it. They stay on the machine that redacted them,\nand no flag puts them in a file meant to be copied.\n\nDecisions waiting to be committed are published into the record first, the same\nwrite \"kapi commit\" makes.",
+      "long": "Write everything this project's store holds as context into a\nsingle file: the terms, the voice profiles, the wording already approved, and\nthe decision record.\n\nIt is the backup, and the way to move a project's context to another machine.\nNothing is lost and nothing is flattened: every part travels in the form kapi\nreads it back from, and \"kapi context restore\" puts it into a store with the\nsame identities it left with.\n\nWithheld originals are never in it. They stay on the machine that redacted them,\nand no flag puts them in a file meant to be copied.\n\nThe project's committed record is written first, the same write \"kapi commit\"\nmakes.",
       "flags": [
         {
           "name": "output",
@@ -822,7 +822,7 @@
       ],
       "use": "snapshot",
       "short": "Write this project's context back out as files",
-      "long": "Write the context in force for this project into a \".kapi\"\ndirectory: the terms, the voice profiles at the paths they are bound from, the\napproved wording, and the decision record.\n\nThe files it writes are generated. Edit the project's context and snapshot\nagain rather than editing them by hand, the way you would with any other\ngenerated artifact.\n\nWith no --out it writes the project's own \".kapi\" directory. A clean clone that\nholds only what a snapshot wrote governs its content exactly as the project that\nwrote it does.\n\nTwo things never travel. Withheld originals stay on the machine that redacted\nthem, and nothing kapi keeps for its own use is written.\n\nDecisions waiting to be committed are published into the record first, the same\nwrite \"kapi commit\" makes, so the record in the snapshot is the project's.",
+      "long": "Write the context in force for this project into a \".kapi\"\ndirectory: the terms, the voice profiles at the paths they are bound from, the\napproved wording, and the decision record.\n\nThe files it writes are generated. Edit the project's context and snapshot\nagain rather than editing them by hand, the way you would with any other\ngenerated artifact.\n\nWith no --out it writes the project's own \".kapi\" directory. A clean clone that\nholds only what a snapshot wrote governs its content exactly as the project that\nwrote it does.\n\nTwo things never travel. Withheld originals stay on the machine that redacted\nthem, and nothing kapi keeps for its own use is written.\n\nThe project's committed record is written first, the same write \"kapi commit\"\nmakes, so the record in the snapshot is the project's.",
       "flags": [
         {
           "name": "out",
