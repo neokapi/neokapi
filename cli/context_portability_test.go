@@ -232,3 +232,48 @@ func TestContextPortability_TextFormIsTheResultsOwnRender(t *testing.T) {
 	again := runContext(t, a, "import", "-p", recipe)
 	assert.Contains(t, again, "Nothing to read")
 }
+
+// TestContextLocales_ReportsAndFiles: the verb the drift warning names reports
+// the spellings the store's rows carry, and --fix files the authored ones the
+// way lookups ask.
+func TestContextLocales_ReportsAndFiles(t *testing.T) {
+	root := writePortableCLIProject(t)
+	recipe := filepath.Join(root, "kapi.yaml")
+	a := &App{}
+	a.InitRegistries()
+	t.Cleanup(a.Shutdown)
+
+	runContext(t, a, "import", "-p", recipe, "--json")
+	assert.Contains(t, runContext(t, a, "locales", "-p", recipe),
+		"Every row is keyed by the locale its lookups ask for.")
+
+	// A term row as a store that predates canonical locales held it.
+	db, err := a.ProjectDB(t.Context(), root)
+	require.NoError(t, err)
+	_, err = db.Raw().ExecContext(t.Context(), `
+INSERT INTO tb_terms (concept_id, text, text_lower, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags, forms)
+VALUES ('c-widget', 'dings', 'dings', 'NB-no', 'approved', '', '', '', 0, NULL, NULL, '[]', '[]')`)
+	require.NoError(t, err)
+
+	out := runContext(t, a, "locales", "-p", recipe, "--json")
+	var found struct {
+		Drift []struct {
+			Subsystem string `json:"subsystem"`
+			Pool      string `json:"pool"`
+			Locale    string `json:"locale"`
+			Canonical string `json:"canonical"`
+			Rows      int    `json:"rows"`
+		} `json:"drift"`
+		Rekeyed []struct{} `json:"rekeyed"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &found))
+	require.Len(t, found.Drift, 1)
+	assert.Equal(t, "terms", found.Drift[0].Subsystem)
+	assert.Equal(t, "context", found.Drift[0].Pool)
+	assert.Equal(t, "nb-NO", found.Drift[0].Canonical)
+	assert.Empty(t, found.Rekeyed, "a report writes nothing on its own")
+
+	fixed := runContext(t, a, "locales", "-p", recipe, "--fix")
+	assert.Contains(t, fixed, `terms: 1 row(s) moved from "NB-no" to "nb-NO"`)
+	assert.Contains(t, fixed, "Every row is keyed by the locale its lookups ask for.")
+}

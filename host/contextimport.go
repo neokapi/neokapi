@@ -237,7 +237,11 @@ func importDecisionRecord(ctx context.Context, st *state.WorkStore, dir string) 
 	if err := st.Import(ctx); err != nil {
 		return 0, err
 	}
-	for _, u := range units {
+	first, last, err := recordOrderKeepingTheView(ctx, st, units)
+	if err != nil {
+		return 0, err
+	}
+	for _, u := range append(first, last...) {
 		if err := st.Record(ctx, u); err != nil {
 			return 0, err
 		}
@@ -246,4 +250,36 @@ func importDecisionRecord(ctx context.Context, st *state.WorkStore, dir string) 
 		return 0, err
 	}
 	return len(units), nil
+}
+
+// recordOrderKeepingTheView splits a record into the rows to write first and
+// the rows to write last.
+//
+// Recording an entry points this checkout's view at its pairing, and a context
+// bundle carries the project's whole ledger: a unit two branches answer
+// differently arrives as a line per pairing, and the last line written would
+// decide what this checkout holds. The rows whose pairing the checkout already
+// holds go last, so the view comes back to where it was and `kapi commit` here
+// still writes this branch's answers. A checkout holding none of them, which is
+// what a recovery into a fresh clone is, takes the record's own order.
+func recordOrderKeepingTheView(ctx context.Context, st *state.WorkStore, units []state.UnitState) (first, last []state.UnitState, err error) {
+	held, err := st.All(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(held) == 0 {
+		return units, nil, nil
+	}
+	inView := make(map[state.Pairing]bool, len(held))
+	for _, u := range held {
+		inView[u.Pairing()] = true
+	}
+	for _, u := range units {
+		if inView[u.Pairing()] {
+			last = append(last, u)
+			continue
+		}
+		first = append(first, u)
+	}
+	return first, last, nil
 }

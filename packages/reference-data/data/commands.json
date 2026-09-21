@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T17:11:03Z",
+  "generatedAt": "2026-09-21T18:33:30Z",
   "commands": [
     {
       "id": "add",
@@ -605,7 +605,7 @@
       ],
       "use": "context [path]",
       "short": "Ask what this project's content context says",
-      "long": "Retrieve the content context this project goes by: the terms, the\nvoice and the rules that hold, without needing to know which store holds the\nanswer.\n\nTwo questions, and every asset-shaped lookup is one of them:\n\n  kapi context \u003cpath\u003e          what applies HERE: the voice in force at that\n                               location, its guidance, the terms bound there\n  kapi context --profile \u003cn\u003e   the same answer for a named profile, when you\n                               have no file in hand\n  kapi context search \u003cquery\u003e  what we know about THIS: terms, prior wording\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says before you write, rather than learning it from a failing check\nafterwards.\n\nFour more verbs move the context itself: import and snapshot carry it between\nthe project's files and its store, export and restore carry the whole of it as\none file, and with --workspace those two carry every project you work on here.\n\nSix more grow it. Context accumulates out of ordinary work: propose records a\nrule with the evidence behind it, log shows what has been proposed and decided,\nand confirm, discard, revert and widen are the decisions. A proposal advises\nfrom the moment it is recorded and no check fails on one; confirming is what\nmakes it bind.",
+      "long": "Retrieve the content context this project goes by: the terms, the\nvoice and the rules that hold, without needing to know which store holds the\nanswer.\n\nTwo questions, and every asset-shaped lookup is one of them:\n\n  kapi context \u003cpath\u003e          what applies HERE: the voice in force at that\n                               location, its guidance, the terms bound there\n  kapi context --profile \u003cn\u003e   the same answer for a named profile, when you\n                               have no file in hand\n  kapi context search \u003cquery\u003e  what we know about THIS: terms, prior wording\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says before you write, rather than learning it from a failing check\nafterwards.\n\nFour more verbs move the context itself: import and snapshot carry it between\nthe project's files and its store, export and restore carry the whole of it as\none file, and with --workspace those two carry every project you work on here.\n\nSix more grow it. Context accumulates out of ordinary work: propose records a\nrule with the evidence behind it, log shows what has been proposed and decided,\nand confirm, discard, revert and widen are the decisions. A proposal advises\nfrom the moment it is recorded and no check fails on one; confirming is what\nmakes it bind.\n\nOne reports on the store itself: locales says which locale each stored row is\nfiled under, and files them the way lookups ask when one has drifted.",
       "groupID": "work",
       "flags": [
         {
@@ -860,6 +860,38 @@
         "kapi context import",
         "kapi context import ../other-project/.kapi",
         "kapi context import --force"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.locales",
+      "path": [
+        "context",
+        "locales"
+      ],
+      "use": "locales",
+      "short": "Report the locale each stored row is filed under",
+      "long": "Report the locale spelling every stored row carries, and whether it\nis the one lookups ask in.\n\nA row filed under a spelling nothing asks for is never matched. The term, the\napproved wording or the overlay it holds reads as absent, which looks exactly\nlike content nobody has worked on yet.\n\n--fix files the project's context rows under the spelling lookups ask in,\nwithout moving them out of the store. Terms, approved wording and voice\nprofiles exist there and nowhere else, so nothing is thrown away: a row whose\ncanonical spelling is free takes it, a row saying exactly what the canonical\nrow says folds into it, and a row whose canonical spelling already answers\ndifferently is left alone and reported, for you to say which answer is right.\n\nThe rows kapi read out of your own files are rebuilt rather than moved. The\nreport names the file to delete, and the next \"kapi up\" reads your files\nagain.",
+      "flags": [
+        {
+          "name": "fix",
+          "usage": "file the project's context rows under the spelling lookups ask in",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context locales",
+        "kapi context locales --json",
+        "kapi context locales --fix"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

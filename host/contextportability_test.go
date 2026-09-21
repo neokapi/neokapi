@@ -190,6 +190,14 @@ func treeBytes(t *testing.T, dir string) map[string][]byte {
 
 // assertSameTree compares two written layouts file by file, so a failure names
 // the file that moved rather than printing two archives at each other.
+//
+// Nothing is normalized. An entry in the content memory records three instants
+// about its own history: when this store first held it, when it last changed,
+// and when each origin was added. They are compared like every other byte,
+// because a clean clone that re-learns the committed pairs recognises the
+// entries the import already supplied and leaves their stamps alone. A
+// comparison that passed only when both snapshots fell inside one second would
+// say nothing about the clock.
 func assertSameTree(t *testing.T, want, got string, msg string) {
 	t.Helper()
 	wantFiles, gotFiles := treeBytes(t, want), treeBytes(t, got)
@@ -199,33 +207,8 @@ func assertSameTree(t *testing.T, want, got string, msg string) {
 		if !ok {
 			continue
 		}
-		assert.Equal(t, string(comparableBytes(path, data)), string(comparableBytes(path, other)),
-			"%s: %s", msg, path)
+		assert.Equal(t, string(data), string(other), "%s: %s", msg, path)
 	}
-}
-
-// learnStamp matches the three instants a content-memory entry records about
-// its own history: when this store first held it, when it last changed, and
-// when each origin was added.
-var learnStamp = regexp.MustCompile(`("(?:addedAt|created|updated)": ")20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ"`)
-
-// comparableBytes is a file's content with the instants that say WHEN a store
-// learned something replaced by a fixed token.
-//
-// Everything a snapshot carries is compared byte for byte except those three
-// fields on the content-memory bundle. A clean clone re-learns the committed
-// pairs from its own target documents (the record absorb, which runs for any
-// pass over the project's own layout) and stamps them with its own clock, so
-// the two stores agree on every entry, every id, every variant and every origin
-// while disagreeing about the second in which each of them learned it. Reading
-// a bundle into a store preserves the stamps the file carries; what rewrites
-// them is the absorb that follows, and until that is settled a byte comparison
-// over these fields passes only when both snapshots fall inside one second.
-func comparableBytes(path string, data []byte) []byte {
-	if path != project.MemoryDirName+"/"+kmb.ConventionalName {
-		return data
-	}
-	return learnStamp.ReplaceAll(data, []byte(`${1}0000-00-00T00:00:00Z"`))
 }
 
 // treePaths lists a directory's files in path order.
@@ -335,6 +318,47 @@ func TestContextSnapshot_RoundTripsThroughAnEmptyStore(t *testing.T) {
 
 	second, _ := snapshotInto(t, b, cloneRecipe)
 	assertSameTree(t, first, second, "a snapshot read into an empty store snapshots back identically")
+}
+
+// learnStamp matches the three instants a content-memory entry records about
+// its own history: when this store first held it, when it last changed, and
+// when each origin was added.
+var learnStamp = regexp.MustCompile(`("(?:addedAt|created|updated)": ")20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ"`)
+
+// TestContextImport_KeepsTheInstantsTheSnapshotCarried: a clean clone reads a
+// snapshot whose content-memory entries were learned long ago, and the pass
+// that re-learns the committed pairs from its own target documents leaves those
+// instants where they are.
+//
+// Stamping them with this machine's clock is what made two snapshots of an
+// unchanged project differ, and it is invisible: every entry, id, variant and
+// origin agrees, and only the second each store says it learned them in moves.
+// A doctored instant says so outright rather than by a comparison that passes
+// whenever both snapshots fall in one second.
+func TestContextImport_KeepsTheInstantsTheSnapshotCarried(t *testing.T) {
+	a, root, recipe := writePortableProject(t)
+	seedPortable(t, a, root, recipe)
+	snapshot, _ := snapshotInto(t, a, recipe)
+
+	bundle := filepath.Join(snapshot, project.MemoryDirName, kmb.ConventionalName)
+	data, err := os.ReadFile(bundle)
+	require.NoError(t, err)
+	const learned = "2020-01-01T00:00:00Z"
+	doctored := learnStamp.ReplaceAll(data, []byte(`${1}`+learned+`"`))
+	require.Contains(t, string(doctored), learned, "the fixture has instants to doctor")
+	require.NoError(t, os.WriteFile(bundle, doctored, 0o644))
+
+	clone, cloneRecipe := clonePortableProject(t, root, snapshot)
+	b := newPortableApp(t, clone)
+	res, err := b.ImportProjectContext(context.Background(), cloneRecipe, ContextImportRequest{})
+	require.NoError(t, err)
+	require.True(t, res.Read())
+
+	out, _ := snapshotInto(t, b, cloneRecipe)
+	written, err := os.ReadFile(filepath.Join(out, project.MemoryDirName, kmb.ConventionalName))
+	require.NoError(t, err)
+	assert.Equal(t, string(doctored), string(written),
+		"the clone snapshots the entries it read, instants and all")
 }
 
 // clonePortableProject writes a fresh checkout of the project holding the
@@ -469,6 +493,152 @@ func TestContextBundle_RoundTripsByteForByte(t *testing.T) {
 	secondBytes, err := os.ReadFile(second)
 	require.NoError(t, err)
 	assert.Equal(t, firstBytes, secondBytes, "a bundle survives a restore byte for byte")
+}
+
+// TestContextBundle_CarriesTheLedgerNotOneCheckoutsView: two checkouts of one
+// project sit on different branches and answer one unit differently, sharing
+// the one context store the workspace keeps for the project. A bundle exported
+// from either carries both pairings, and both answer again after a restore into
+// a fresh store.
+//
+// The view a checkout reads is by construction one pairing per unit, so an
+// export built from it is lossless for that checkout and lossy for the project:
+// the other branch's approval is in the ledger and in no bundle.
+func TestContextBundle_CarriesTheLedgerNotOneCheckoutsView(t *testing.T) {
+	ctx := context.Background()
+	base := t.TempDir()
+
+	branchA := filepath.Join(base, "branch-a")
+	branchB := filepath.Join(base, "branch-b")
+	recipeA := writePortableTree(t, branchA)
+	recipeB := writePortableTree(t, branchB)
+
+	// One App over both checkouts, pointed at one workspace, which is what puts
+	// them on one context store: the recipes name one project.
+	a := newPortableApp(t, branchA)
+	a.SetWorkspaceRoot(filepath.Join(base, "workspaces", "shared"))
+	seedPortable(t, a, branchA, recipeA)
+
+	stA, err := a.OpenProjectState(ctx, branchA)
+	require.NoError(t, err)
+	key := state.Key{
+		Scope:   a.DocumentScope(ctx, branchA, filepath.Join(branchA, "locales", "en", "app.json")),
+		Unit:    "greeting",
+		Variant: model.Variant("nb"),
+	}
+	onBranchA, ok := stA.Get(ctx, key)
+	require.True(t, ok, "the seeded project holds the decision it recorded")
+
+	// The other branch translates the same source differently and approves that.
+	stB, err := a.OpenProjectState(ctx, branchB)
+	require.NoError(t, err)
+	onBranchB := onBranchA
+	onBranchB.TargetHash = state.TargetHash("Hallo der")
+	onBranchB.Decision = state.Decision{ReviewState: "approved", By: "other-reviewer"}
+	require.NoError(t, stB.Put(ctx, onBranchB))
+	_ = recipeB
+
+	view, err := stA.All(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, countForKey(view, key), "a checkout holds one pairing per unit")
+	ledger, err := stA.Ledger(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 2, countForKey(ledger, key), "the project has decided both")
+
+	bundle := filepath.Join(t.TempDir(), "context.kpz")
+	exported, err := a.ExportProjectContext(ctx, recipeA, bundle)
+	require.NoError(t, err)
+	assert.Equal(t, len(ledger), exported.Decisions, "the bundle carries every entry the ledger holds")
+
+	restoredRoot := filepath.Join(base, "restored")
+	restoredRecipe := writePortableTree(t, restoredRoot)
+	require.NoError(t, os.RemoveAll(project.LayoutAt(restoredRoot).StateDir))
+	require.NoError(t, os.MkdirAll(project.LayoutAt(restoredRoot).StateDir, 0o755))
+	c := newPortableApp(t, restoredRoot)
+	c.SetWorkspaceRoot(filepath.Join(base, "workspaces", "fresh"))
+
+	read, err := c.RestoreProjectContext(ctx, restoredRecipe, bundle, RestoreRefuse)
+	require.NoError(t, err)
+	assert.Equal(t, exported.Decisions, read.Decisions)
+
+	stC, err := c.OpenProjectState(ctx, restoredRoot)
+	require.NoError(t, err)
+	fromA, ok := stC.Lookup(ctx, key, onBranchA.ContentHash, onBranchA.TargetHash)
+	assert.True(t, ok, "the pairing the exporting checkout held answers")
+	assert.Equal(t, onBranchA.Decision.By, fromA.Decision.By)
+	fromB, ok := stC.Lookup(ctx, key, onBranchB.ContentHash, onBranchB.TargetHash)
+	assert.True(t, ok, "and so does the one the other branch held")
+	assert.Equal(t, onBranchB.Decision.By, fromB.Decision.By)
+
+	// Bundle identity survives the wider record: exporting the restored store
+	// writes the archive it was restored from.
+	again := filepath.Join(t.TempDir(), "context.kpz")
+	reexported, err := c.ExportProjectContext(ctx, restoredRecipe, again)
+	require.NoError(t, err)
+	assert.Equal(t, exported.RootHash, reexported.RootHash)
+	firstBytes, err := os.ReadFile(bundle)
+	require.NoError(t, err)
+	secondBytes, err := os.ReadFile(again)
+	require.NoError(t, err)
+	assert.Equal(t, firstBytes, secondBytes, "a bundle holding two branches survives a restore byte for byte")
+}
+
+// TestRestoreProjectContext_LeavesTheCheckoutHoldingItsOwnPairing: restoring a
+// bundle that carries another branch's answer for a unit this checkout has
+// decided leaves this checkout answering with its own.
+func TestRestoreProjectContext_LeavesTheCheckoutHoldingItsOwnPairing(t *testing.T) {
+	ctx := context.Background()
+	base := t.TempDir()
+
+	branchA := filepath.Join(base, "branch-a")
+	branchB := filepath.Join(base, "branch-b")
+	recipeA := writePortableTree(t, branchA)
+	recipeB := writePortableTree(t, branchB)
+
+	a := newPortableApp(t, branchA)
+	a.SetWorkspaceRoot(filepath.Join(base, "workspaces", "shared"))
+	seedPortable(t, a, branchA, recipeA)
+
+	stA, err := a.OpenProjectState(ctx, branchA)
+	require.NoError(t, err)
+	key := state.Key{
+		Scope:   a.DocumentScope(ctx, branchA, filepath.Join(branchA, "locales", "en", "app.json")),
+		Unit:    "greeting",
+		Variant: model.Variant("nb"),
+	}
+	onBranchA, ok := stA.Get(ctx, key)
+	require.True(t, ok)
+
+	stB, err := a.OpenProjectState(ctx, branchB)
+	require.NoError(t, err)
+	onBranchB := onBranchA
+	onBranchB.TargetHash = state.TargetHash("Hallo der")
+	onBranchB.Decision = state.Decision{ReviewState: "approved", By: "other-reviewer"}
+	require.NoError(t, stB.Put(ctx, onBranchB))
+
+	bundle := filepath.Join(t.TempDir(), "context.kpz")
+	_, err = a.ExportProjectContext(ctx, recipeA, bundle)
+	require.NoError(t, err)
+
+	_, err = a.RestoreProjectContext(ctx, recipeB, bundle, RestoreMerge)
+	require.NoError(t, err)
+
+	held, ok := stB.Get(ctx, key)
+	require.True(t, ok)
+	assert.Equal(t, onBranchB.TargetHash, held.TargetHash,
+		"the branch keeps the translation it approved")
+	assert.Equal(t, onBranchB.Decision.By, held.Decision.By)
+}
+
+// countForKey counts the records a slice holds for one unit identity.
+func countForKey(units []state.UnitState, key state.Key) int {
+	n := 0
+	for _, u := range units {
+		if u.Key() == key {
+			n++
+		}
+	}
+	return n
 }
 
 // TestRestoreProjectContext_RefusesAStoreThatHoldsContext covers the three

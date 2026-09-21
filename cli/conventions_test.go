@@ -46,6 +46,7 @@ var listCommands = [][]string{
 	{"memory", "sessions", "show"},
 	{"memory", "sessions", "delete"},
 	{"terms", "stats"},
+	{"context", "locales"},
 	{"inspect"},
 	{"info"},
 	{"ls"},

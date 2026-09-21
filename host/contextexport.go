@@ -38,6 +38,15 @@ import (
 // concept id, entry id, profile id and unit key — so exporting, restoring into
 // a fresh store and exporting again yields the same archive bytes.
 //
+// The decisions a bundle carries are the project's LEDGER, the entry in force
+// at every pairing, not one checkout's view of it. One ledger serves every
+// checkout of a project, and two of them sit on different branches with
+// different translations of the same unit at once, so a bundle built from a
+// view would be lossless for the checkout that wrote it and lossy for the
+// project. A restore records every entry, and each checkout answers for the
+// pairings its own files carry. The `.kapi/` snapshot keeps writing the view,
+// because the shards are what that checkout commits and evaluates from.
+//
 // The redaction vault is not in it, and there is no flag that puts it there.
 
 // ContextBundleExt is the suffix a context bundle carries.
@@ -152,7 +161,10 @@ func (a *App) ExportProjectContext(ctx context.Context, projectPath, out string)
 
 	stores := contextStoresOf(ctx, db)
 	if st := db.Work(); st != nil {
-		if stores.units, err = st.All(ctx); err != nil {
+		// The ledger, not this checkout's view of it: a project whose branches
+		// answer one unit differently has decided both, and a backup that
+		// carried only what is checked out here would drop the rest.
+		if stores.units, err = st.Ledger(ctx); err != nil {
 			return res, err
 		}
 	}
@@ -199,7 +211,9 @@ type contextStores struct {
 	memory   memory.Store
 	voice    coreprofile.Store
 	bindings map[string]string
-	// units is the decision record the bundle carries.
+	// units is the decision ledger the bundle carries: the entry in force at
+	// every pairing the project has recorded, from whichever checkout recorded
+	// it.
 	units []state.UnitState
 }
 
@@ -316,13 +330,16 @@ func bundleVoice(ctx context.Context, store coreprofile.Store, bindings map[stri
 	return out, nil
 }
 
-// bundleDecisions serializes the decision record into the shards a project
+// bundleDecisions serializes the decision ledger into the shards a project
 // commits, through the writer core/state owns, and carries their bytes.
 //
 // The shards are produced from the store rather than read out of the checkout,
 // so a bundle holds what the project decided and not what happens to be on
-// disk beside it. They are written to a directory that exists for the length of
-// the call, because the serializer's unit is a directory of shards.
+// disk beside it. A unit several branches answer differently contributes a line
+// per pairing, which is more than any one checkout's shards hold and is what a
+// reader of the bundle records back. They are written to a directory that
+// exists for the length of the call, because the serializer's unit is a
+// directory of shards.
 func bundleDecisions(units []state.UnitState) ([]kpz.DecisionDoc, error) {
 	if len(units) == 0 {
 		return nil, nil
@@ -572,8 +589,10 @@ func restoreVoice(ctx context.Context, t contextTarget, pkg *kpz.Package, res *C
 	return nil
 }
 
-// restoreDecisions writes the bundle's decision record into the project's
-// ledger and makes it durable, through the reader core/state owns.
+// restoreDecisions writes every entry the bundle's decision record carries into
+// the project's ledger and makes it durable, through the reader core/state
+// owns. A unit the bundle answers at several pairings gets a ledger entry for
+// each, so every branch that had decided it still answers here.
 func (a *App) restoreDecisions(ctx context.Context, t contextTarget, pkg *kpz.Package, res *ContextRestore) error {
 	if len(pkg.Decisions) == 0 {
 		return nil

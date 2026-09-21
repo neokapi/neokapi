@@ -388,10 +388,23 @@ every write, read and list, so a producer writing `targets/nb_NO` and a reader
 asking for `targets/nb-NO` address one overlay. Rows a store wrote before it
 normalized locales are keyed by whatever spelling the recipe used then, and no
 lookup finds them again; `projectdb.NonCanonicalLocales` reports them across both
-pools, and `kapi status` and `kapi up` print the report once with the rebuild
-named. Both pools are projections of committed sources, so the remedy is to
-write the decision record with `kapi commit` and delete the affected database,
-which the next `kapi up` derives again.
+pools with the pool each row is in, and `kapi status` and `kapi up` print the
+report once with the remedy for that pool named.
+
+The two pools take different remedies, because a row in one is derived and a
+row in the other is authored. The projection is a reading of the working tree,
+so writing the decision record with `kapi commit`, deleting the database and
+running `kapi up` derives every row in it again. The context store holds terms,
+approved wording and voice profiles that exist there and nowhere else, so
+`projectdb.RekeyContextLocales` keys its rows canonically where they stand, in
+one transaction over the context store, and `kapi context locales --fix` is the
+verb that calls it. It deletes nothing: a row whose canonical spelling is free
+takes it, a row saying exactly what the canonical row says folds into it and is
+reported as merged, and a row whose canonical spelling already answers
+differently stays where it is and is reported, because choosing between two
+approvals is not a repair. The content memory's search indexes are rebuilt
+afterwards, since they carry the locale beside each variant they were built
+from.
 
 ### Presence is table-level
 

@@ -318,7 +318,8 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 	// be recognized as the loop's own last output for the wording that is gone.
 	corpus := &memoryAnswers{ctx: ctx, tm: tm, source: sourceLocale, cache: map[string][]memory.Entry{}}
 
-	if err := relearnRecordIfRekeyed(ctx, db, tm); err != nil {
+	relearn, err := beginRecordRelearn(ctx, db, tm)
+	if err != nil {
 		return res, err
 	}
 
@@ -448,7 +449,11 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 		}
 	}
 
-	if err := a.writeRecordPairs(ctx, tm, pairs, sourceLocale, &res); err != nil {
+	asserted := map[string]bool{}
+	if err := a.writeRecordPairs(ctx, tm, pairs, sourceLocale, asserted, &res); err != nil {
+		return res, err
+	}
+	if err := relearn.finish(ctx, db, tm, asserted); err != nil {
 		return res, err
 	}
 	if err := saveRecordDigests(ctx, db, next); err != nil {
@@ -540,7 +545,13 @@ func (a *App) recordSettlement(ctx context.Context, db *projectdb.DB, proj *proj
 // writeRecordPairs resolves each source's winning target, reconciles the entries
 // already in the store that answer the same source differently, and writes the
 // whole set in one transaction followed by one index rebuild.
-func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pairs map[string]*recordPair, sourceLocale model.LocaleID, res *RecordAbsorbResult) error {
+//
+// asserted collects the entry ids this pass says the current identity mints, so
+// a re-learn can sweep the absorber's rows it did not reach. An entry the store
+// already holds with the same identity and the same wording is asserted and
+// left alone: writing it again would move only the instants it records about
+// its own history, and those may have arrived with an import.
+func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pairs map[string]*recordPair, sourceLocale model.LocaleID, asserted map[string]bool, res *RecordAbsorbResult) error {
 	if len(pairs) == 0 {
 		return nil
 	}
@@ -574,6 +585,10 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pair
 		if err != nil {
 			return fmt.Errorf("read content-memory entries for a committed pair: %w", err)
 		}
+		byID := make(map[string]memory.Entry, len(existing))
+		for _, e := range existing {
+			byID[e.ID] = e
+		}
 
 		// The ordinary case: the record answers this source one way, wherever it
 		// asked. One entry, bound to no point, exactly as before — an answer
@@ -591,6 +606,7 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pair
 					continue
 				}
 				if memory.NormalizeText(e.VariantText(p.locale)) == win.text {
+					asserted[e.ID] = true
 					held = true
 					continue
 				}
@@ -607,18 +623,36 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pair
 				if fresh {
 					res.Reconciled++
 				}
+				asserted[e.ID] = true
 				held = true
 			}
 			if held {
 				continue
 			}
-			origin := p.origin
-			origin.AddedAt = now
 			// The id keys on the source alone, so a second locale for the same
 			// source folds into the entry the first one staged rather than
 			// opening a rival.
+			id := recordEntryID(recordSourceKey(p.sourceRuns), "")
+			asserted[id] = true
+			if e, ok := byID[id]; ok {
+				// The store already holds the entry under this id, carrying the
+				// source and no answer in this locale: an import supplied it, or
+				// a seed did. It is corrected rather than replaced, so its
+				// origins and the instants it records about its own history stay
+				// as they arrived.
+				s, fresh := stage(e)
+				s.Variants[p.locale] = win.runs
+				s.Origins = withRecordOrigin(s.Origins, p.origin, now)
+				s.UpdatedAt = now
+				if fresh {
+					res.Learned++
+				}
+				continue
+			}
+			origin := p.origin
+			origin.AddedAt = now
 			s, fresh := stage(memory.Entry{
-				ID:          recordEntryID(recordSourceKey(p.sourceRuns), ""),
+				ID:          id,
 				HintSrcLang: sourceLocale,
 				Variants:    map[model.LocaleID][]model.Run{sourceLocale: p.sourceRuns},
 				Origins:     []memory.Origin{origin},
@@ -643,16 +677,17 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pair
 		res.Contested++
 		res.ContestedSources = append(res.ContestedSources, p.listContested())
 
-		byID := make(map[string]memory.Entry, len(existing))
-		for _, e := range existing {
-			byID[e.ID] = e
-		}
 		written := map[string]bool{}
 		for _, point := range p.points() {
 			answer := p.resolve(point)
 			id := recordEntryID(recordSourceKey(p.sourceRuns), point)
 			written[id] = true
+			asserted[id] = true
 			if e, ok := byID[id]; ok {
+				if recordEntryHolds(e, point, p.locale, answer.text, p.origin) {
+					// The store already says exactly this.
+					continue
+				}
 				// The store already holds this point's entry: correct it in
 				// place, so the other locales it carries survive the write.
 				s, fresh := stage(e)
@@ -1133,47 +1168,102 @@ func recordEntryID(sourceKey, point string) string {
 	return recordEntryPrefix + hex.EncodeToString(sum[:])[:24]
 }
 
-// relearnRecordIfRekeyed makes a store written under an older entry identity
-// forget what the absorber taught it, so this pass teaches it again under the
-// current one.
+// recordRelearn is a pass that has to re-establish the absorber's own entries
+// under the identity in force, because the store was last written under an
+// older one.
 //
-// It drops the absorber's own entries — the ids it mints, and nobody else does
-// — and every absorb stamp, which is what makes the next loop read every
-// committed target rather than skip the ones whose bytes have not moved. What
-// the corpus learned elsewhere is left alone: a seed, an import and an approval
-// are not the record's to forget, and the pass corrects them the same way it
-// always did.
+// The rows it may have to drop are the ids the absorber mints, and nobody else
+// does. What the corpus learned elsewhere is not the record's to forget: a
+// seed, an import and an approval are corrected the way they always were.
 //
-// Left in place, an entry keyed on its source alone would sit beside the
-// point-keyed entries as a rival answer bound to no location — an answer at the
-// default point, competing at full score with the approvals that actually
-// govern, and demoting them for every reader who cannot say where they are
-// asking from.
-func relearnRecordIfRekeyed(ctx context.Context, db *projectdb.DB, tm *memory.SQLiteStore) error {
+// The drop happens AFTER the pass rather than before it. A row the current
+// identity still mints is re-asserted by the pass and stays exactly as it is,
+// which is what lets an entry a context bundle carried keep the instants it
+// arrived with; only the rows the pass did not reach are swept. Left in place,
+// an entry keyed on its source alone would sit beside the point-keyed ones as a
+// rival answer bound to no location, competing at full score with the approvals
+// that actually govern and demoting them for every reader who cannot say where
+// they are asking from.
+type recordRelearn struct {
+	// stale is the absorber's entry ids as the store held them before the pass.
+	// Nil for a store already under the current identity, which is every pass
+	// after the first.
+	stale map[string]bool
+}
+
+// beginRecordRelearn reads what the absorber taught a store written under an
+// older identity, and clears every absorb stamp so this pass reads every
+// committed target rather than skipping the ones whose bytes have not moved.
+func beginRecordRelearn(ctx context.Context, db *projectdb.DB, tm *memory.SQLiteStore) (recordRelearn, error) {
 	scheme, _, err := db.Meta(ctx, MetaRecordScheme)
 	if err == nil && scheme == recordSchemeCurrent {
-		return nil
+		return recordRelearn{}, nil
 	}
 	entries, eerr := tm.Entries(ctx)
 	if eerr != nil {
-		return fmt.Errorf("read the content memory to re-learn the committed record: %w", eerr)
+		return recordRelearn{}, fmt.Errorf("read the content memory to re-learn the committed record: %w", eerr)
 	}
+	r := recordRelearn{stale: map[string]bool{}}
 	for _, e := range entries {
-		if !strings.HasPrefix(e.ID, recordEntryPrefix) {
-			continue
-		}
-		if derr := tm.Delete(ctx, e.ID); derr != nil {
-			return fmt.Errorf("forget content-memory entry %s: %w", e.ID, derr)
+		if strings.HasPrefix(e.ID, recordEntryPrefix) {
+			r.stale[e.ID] = true
 		}
 	}
 	if serr := saveRecordDigests(ctx, db, map[string]string{}); serr != nil {
-		return serr
+		return recordRelearn{}, serr
+	}
+	return r, nil
+}
+
+// finish drops the absorber's rows the pass did not assert, and records that
+// the store is keyed under the identity in force.
+func (r recordRelearn) finish(ctx context.Context, db *projectdb.DB, tm *memory.SQLiteStore, asserted map[string]bool) error {
+	if r.stale == nil {
+		return nil
+	}
+	ids := make([]string, 0, len(r.stale))
+	for id := range r.stale {
+		if !asserted[id] {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		if derr := tm.Delete(ctx, id); derr != nil {
+			return fmt.Errorf("forget content-memory entry %s: %w", id, derr)
+		}
 	}
 	if perr := db.PutMeta(ctx, MetaRecordScheme, recordSchemeCurrent); perr != nil &&
 		!errors.Is(perr, projectdb.ErrNoStore) {
 		return perr
 	}
 	return nil
+}
+
+// recordEntryHolds reports that a stored entry already says what the pass would
+// write for one locale: the same point, the same wording, and the same record
+// origin apart from the instant it was added.
+//
+// An entry that holds it is left alone. The only difference a write would make
+// is to the three instants an entry records about its own history, and those
+// belong to whoever taught the corpus first. A snapshot and a bundle carry
+// them, so a pass that stamped them with its own clock would make two snapshots
+// of an unchanged project differ.
+func recordEntryHolds(e memory.Entry, point string, locale model.LocaleID, text string, origin memory.Origin) bool {
+	if e.Point != point || !e.HasLocale(locale) {
+		return false
+	}
+	if memory.NormalizeText(e.VariantText(locale)) != text {
+		return false
+	}
+	for _, o := range e.Origins {
+		if o.Source != recordOriginSource || o.Key != origin.Key {
+			continue
+		}
+		o.AddedAt = origin.AddedAt
+		return o == origin
+	}
+	return false
 }
 
 // loadRecordDigests reads the per-artifact absorb stamps. Any uncertainty
