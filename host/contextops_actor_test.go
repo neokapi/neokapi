@@ -78,6 +78,31 @@ func TestACommandLineAgentIsRecordedAsOne(t *testing.T) {
 	assert.Len(t, mine.Operations, 3, "an agent reads its own run back without being told the id")
 }
 
+// TestACommandLineAgentSessionReachesTheWorkspace: the desktop feed draws who
+// is working in a project from the workspace's session rows, which the MCP
+// server writes for its own run. A run that reached kapi from a shell is at
+// work in the same sense.
+func TestACommandLineAgentSessionReachesTheWorkspace(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := contextOpsProject(t, "ctxops-cli-session")
+	asAgent(t, "codex", "s-cli-feed")
+
+	_, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
+		Project: recipeOf(root),
+		Text:    "the docs address the reader as you",
+	})
+	require.NoError(t, err)
+
+	ws, err := app.Workspace(t.Context())
+	require.NoError(t, err)
+	sessions, err := ws.AgentSessions(t.Context(), "", 0)
+	require.NoError(t, err)
+	require.Len(t, sessions, 1)
+	assert.Equal(t, "s-cli-feed", sessions[0].ID)
+	assert.Equal(t, "codex", sessions[0].Agent)
+	assert.NotEmpty(t, sessions[0].Project, "the row says which project the run is working in")
+}
+
 // TestACommandLineAgentIsRefusedEveryDecision is the other half of #2912: with
 // the actor resolved, the policy reaches the command line, and an agent that
 // tries a decision is told what to do instead.

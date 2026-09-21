@@ -228,17 +228,44 @@ const ContextLogSessionSelf = "this"
 // actorFor resolves who a request belongs to and folds the resolution into the
 // note the operation carries.
 //
-// A caller that states a kind is taken at its word. An empty kind is a command
-// line, and the environment answers.
-func (a *App) actorFor(stated contextop.Actor, note string) (contextop.Actor, string, error) {
+// A caller that states a kind is taken at its word, and states its own session
+// where it has one: the MCP tools do both. An empty kind is a command line,
+// where the environment answers and the session is noted here, so the desktop
+// feed and `kapi context log --session` see one kind of agent session whichever
+// surface recorded it.
+func (s *contextOpsSession) actorFor(ctx context.Context, stated contextop.Actor, note string) (contextop.Actor, string, error) {
 	if stated.Kind != "" {
 		return stated, note, nil
 	}
-	resolved, err := a.commandActor()
+	resolved, err := s.app.commandActor()
 	if err != nil {
 		return contextop.Actor{}, "", err
 	}
+	s.noteAgentSession(ctx, resolved.Actor)
 	return resolved.Actor, resolved.NoteWith(note), nil
+}
+
+// noteAgentSession records that an agent is at work in this project.
+//
+// Every failure is swallowed, for the reason NoteMCPSession gives: the note is
+// something the workspace offers other surfaces, and an agent mid-task has
+// nothing to do about a workspace that will not take one.
+func (s *contextOpsSession) noteAgentSession(ctx context.Context, actor contextop.Actor) {
+	if actor.Kind != contextop.ActorAgent || actor.Session == "" {
+		return
+	}
+	ws, err := s.app.Workspace(ctx)
+	if err != nil || ws == nil {
+		return
+	}
+	now := time.Now().UTC()
+	_ = ws.NoteAgentSession(ctx, workspace.AgentSession{
+		ID:       actor.Session,
+		Project:  s.key,
+		Agent:    actor.Name,
+		Started:  now,
+		LastSeen: now,
+	})
 }
 
 // teachRefusal answers a policy refusal with what to do instead.
@@ -265,7 +292,7 @@ func (a *App) RecordContextObservation(ctx context.Context, req ContextObserveRe
 	if req.Text == "" {
 		return ContextOperation{}, errors.New("an observation needs something to say")
 	}
-	actor, note, err := a.actorFor(req.Actor, "")
+	actor, note, err := s.actorFor(ctx, req.Actor, "")
 	if err != nil {
 		return ContextOperation{}, err
 	}
@@ -295,7 +322,7 @@ func (a *App) ProposeContextRule(ctx context.Context, req ContextProposeRequest)
 	if err != nil {
 		return ContextOperation{}, err
 	}
-	actor, note, err := a.actorFor(req.Actor, req.Note)
+	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
 	if err != nil {
 		return ContextOperation{}, err
 	}
@@ -357,7 +384,7 @@ func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectReq
 	if req.From == "" || req.To == "" {
 		return ContextOperation{}, errors.New("a correction needs the wording that was there and the wording that replaced it")
 	}
-	actor, note, err := a.actorFor(req.Actor, req.Note)
+	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
 	if err != nil {
 		return ContextOperation{}, err
 	}
@@ -451,7 +478,7 @@ func (a *App) ConfirmContextOperation(ctx context.Context, req ContextConfirmReq
 		return ContextOperation{}, fmt.Errorf("operation %s states no rule to confirm", target.ID)
 	}
 
-	actor, note, err := a.actorFor(req.Actor, req.Note)
+	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
 	if err != nil {
 		return ContextOperation{}, err
 	}
@@ -557,7 +584,7 @@ func (a *App) DiscardContextOperation(ctx context.Context, req ContextDiscardReq
 	if err != nil {
 		return ContextOperation{}, err
 	}
-	actor, note, err := a.actorFor(req.Actor, req.Note)
+	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
 	if err != nil {
 		return ContextOperation{}, err
 	}
@@ -592,7 +619,7 @@ func (a *App) RevertContextOperations(ctx context.Context, req ContextRevertRequ
 		return ContextRevertResult{}, errors.New("revert names an operation or a session, not both and not neither")
 	}
 
-	actor, note, err := a.actorFor(req.Actor, req.Note)
+	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
 	if err != nil {
 		return ContextRevertResult{}, err
 	}
@@ -652,7 +679,7 @@ func (a *App) WidenContextOperation(ctx context.Context, req ContextWidenRequest
 	if err != nil {
 		return ContextOperation{}, err
 	}
-	actor, note, err := a.actorFor(req.Actor, req.Note)
+	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
 	if err != nil {
 		return ContextOperation{}, err
 	}
