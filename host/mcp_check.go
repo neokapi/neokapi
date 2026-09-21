@@ -133,7 +133,11 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 		diags[i].Location.File = ""
 	}
 	target := check.Target{Kind: "text", Blocks: 1, ContextPath: in.ContextPath}
-	return nil, execution.report(target, diags, check.DefaultGate()), nil
+	// The evaluation record names the project the draft was checked against,
+	// which for an MCP call is the call's own project rather than the server's
+	// working directory. A call that resolves none carries no record of one.
+	cmd, _, _ := a.mcpCallCommand(ctx, "check_text", in.Project)
+	return nil, execution.report(a, cmd, target, diags, check.DefaultGate()), nil
 }
 
 // resolveTextCheckContext resolves a lexical destination, not an input file.
@@ -295,14 +299,14 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		execution.recordContexts(in.File, "", opts, blocks)
 		target.Blocks = len(blocks)
 		diags = fileDiags
-		report := execution.report(target, diags, check.DefaultGate())
+		report := execution.report(a, cmd, target, diags, check.DefaultGate())
 		if validateMode == format.ValidationStrict {
 			applyStrictValidationGate(&report)
 		}
 		ApplyFormatterGate(&report)
 		return nil, report, nil
 	}
-	return nil, execution.report(target, diags, check.DefaultGate()), nil
+	return nil, execution.report(a, cmd, target, diags, check.DefaultGate()), nil
 }
 
 // mcpCheckOptions resolves the shared content-check options for the MCP tools,

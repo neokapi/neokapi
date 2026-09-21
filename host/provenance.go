@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 )
@@ -25,25 +26,12 @@ import (
 
 // ContextProvenance says which project a retrieval answer came from and what
 // state it was read at.
-type ContextProvenance struct {
-	// Project is the project's stable identity: the recipe's `id:`, or its
-	// `name:` where the recipe carries no id. It is the key everything kapi
-	// records about the project is filed under.
-	Project string `json:"project,omitempty"`
-	// Name is the recipe's `name:`, the label a person recognises. It is left
-	// out when it is the identity as well.
-	Name string `json:"name,omitempty"`
-	// Revision is the position the workspace's operation log had reached when
-	// this answer was read. Two answers carrying one revision were read from
-	// one state of the context.
-	Revision int64 `json:"revision"`
-	// Stale reports that the blocks this project holds were read from files
-	// that have since changed, so anything counted over content (a term's use
-	// count, a coverage figure) describes the files as they were.
-	Stale bool `json:"stale"`
-	// StaleReason says what moved, in the wording an answer's note carries.
-	StaleReason string `json:"stale_reason,omitempty"`
-}
+//
+// The type is declared in core/check, because a check result carries the same
+// three facts about the context it was evaluated against and the report it
+// carries them in is framework-level. One declaration keeps a retrieval answer
+// and a check result reporting one shape under one set of field names.
+type ContextProvenance = check.ContextProvenance
 
 // provenanceLine renders the provenance as the one line a text answer carries,
 // so the CLI reader and the JSON reader are told the same three things. Empty

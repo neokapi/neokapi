@@ -1,0 +1,25 @@
+{
+  "at": "2026-03-17T09:45:00Z",
+  "context": {
+    "project": "prj_aaaabbbbccccddddeeee",
+    "name": "Acme Documentation",
+    "revision": 412,
+    "stale": true,
+    "stale_reason": "3 file(s) changed since kapi read them. `kapi up` reads them again"
+  },
+  "tool": {
+    "name": "kapi",
+    "version": "1.3.0",
+    "commit": "b1a3033dc"
+  },
+  "analyzers": [
+    {
+      "id": "hygiene",
+      "ran": 2
+    },
+    {
+      "id": "voice.rules",
+      "ran": 2
+    }
+  ]
+}

@@ -15,6 +15,30 @@ type checkExecution struct {
 	// warnings collects the configuration warnings of the voice profiles the
 	// operation loads, and report hands them to the Report.
 	warnings voiceWarnings
+	// plugins maps each plugin that served the operation to what it served,
+	// such as `format:pdf`, and pluginVersions to the version it declared.
+	// The evaluation record reads both (host/check_evaluation.go).
+	plugins        map[string]map[string]bool
+	pluginVersions map[string]string
+}
+
+// served records that a plugin read a format, located a language's comments or
+// ran an analysis for this operation. A nil execution records nothing.
+func (e *checkExecution) served(plugin, pluginVersion, capability string) {
+	if e == nil || plugin == "" {
+		return
+	}
+	if e.plugins == nil {
+		e.plugins = map[string]map[string]bool{}
+		e.pluginVersions = map[string]string{}
+	}
+	if e.plugins[plugin] == nil {
+		e.plugins[plugin] = map[string]bool{}
+	}
+	e.plugins[plugin][capability] = true
+	if pluginVersion != "" {
+		e.pluginVersions[plugin] = pluginVersion
+	}
 }
 
 // termMatching records how a terminology check matched terms for its target
@@ -109,7 +133,10 @@ func (e *checkExecution) completed(id, file string, findings int, start time.Tim
 	}
 }
 
-func (e *checkExecution) report(target check.Target, diags []check.Diagnostic, gate check.Gate) check.Report {
+// report assembles the Report one operation produces. Every check surface goes
+// through it, so the evaluation record is attached here rather than at each
+// caller: a surface added later carries it without being told to.
+func (e *checkExecution) report(a *App, cmd Command, target check.Target, diags []check.Diagnostic, gate check.Gate) check.Report {
 	start := time.Now()
 	report := check.BuildReport(target, diags, gate)
 	if e != nil {
@@ -119,6 +146,7 @@ func (e *checkExecution) report(target check.Target, diags []check.Diagnostic, g
 		report.Execution = &e.Execution
 		report.Decide()
 	}
+	report.Evaluation = a.checkEvaluation(cmd, e)
 	return report
 }
 

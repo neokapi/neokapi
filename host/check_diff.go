@@ -272,7 +272,7 @@ func (a *App) runDiffCheck(ctx context.Context, run diffCheckRun) (check.Report,
 		scope.Files = append(scope.Files, entry)
 	}
 
-	report := run.opts.execution.report(check.Target{Kind: "diff", File: run.src.label, Blocks: checked}, diags, run.gate)
+	report := run.opts.execution.report(a, run.cmd, check.Target{Kind: "diff", File: run.src.label, Blocks: checked}, diags, run.gate)
 	report.Scope = scope
 	report.Decide()
 	// A formatter that would rewrite a touched comment fails the check as it does
@@ -302,6 +302,7 @@ func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 	fmtName, cfg := run.opts.formats.forFile(a, path)
 	directives := run.opts.formats.directivesFor(path)
 	if p, ok := a.commentLayerFor(path, fmtName); ok {
+		a.recordCommentPlugin(run.opts.execution, path)
 		return func(_ context.Context, content []byte) (scopedRead, error) {
 			layer, err := locateComments(path, content, p, directives)
 			if err != nil {
@@ -317,6 +318,7 @@ func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 		}
 		fmtName = string(detected)
 	}
+	a.recordFormatPlugin(run.opts.execution, path, fmtName)
 	if run.opts.formats.commentsOnly(path) {
 		return func(_ context.Context, content []byte) (scopedRead, error) {
 			layer, err := a.declaredComments(path, fmtName, content, directives)
