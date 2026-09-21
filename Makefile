@@ -2434,6 +2434,36 @@ paired-eval-pilot: ## Run the paired pilot within the persistent attempt ceiling
 paired-eval-score: ## Summarize saved paired attempts without model calls
 	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase score
 
+# The cold-start drill: one project whose context is empty, an ordinary writing
+# task, and only the shipped skill and MCP server. It measures whether an agent
+# grows the context by itself in a way a person would confirm. The fixture is
+# generated outside this repository, and the live phases share one persistent
+# attempt ceiling with no automatic retries.
+COLDSTART_MANIFEST ?= scripts/skilleval/testdata/coldstart-study.json
+COLDSTART_DIR ?= harness/out/coldstart
+COLDSTART_MAX_ATTEMPTS ?= 2
+COLDSTART_ARGS ?=
+COLDSTART_FLAGS = -coldstart-manifest "$(COLDSTART_MANIFEST)" -coldstart-dir "$(COLDSTART_DIR)" $(COLDSTART_ARGS)
+.PHONY: coldstart-preflight coldstart-smoke coldstart-session-one coldstart-review coldstart-session-two coldstart-report
+
+coldstart-preflight: ## Build the cold-start fixture and establish its wiring without model calls (build kapi first)
+	$(GO) run ./scripts/skilleval $(COLDSTART_FLAGS) -coldstart-phase preflight
+
+coldstart-smoke: ## Run one cold-start first session per host (consumes plan allowance)
+	$(GO) run ./scripts/skilleval $(COLDSTART_FLAGS) -coldstart-phase smoke -coldstart-live -coldstart-max-attempts $(COLDSTART_MAX_ATTEMPTS)
+
+coldstart-session-one: ## Run every cold-start first session within the ceiling (consumes plan allowance)
+	$(GO) run ./scripts/skilleval $(COLDSTART_FLAGS) -coldstart-phase session-one -coldstart-live -coldstart-max-attempts $(COLDSTART_MAX_ATTEMPTS)
+
+coldstart-review: ## Print each cell's candidates for a person, and read back what was decided
+	$(GO) run ./scripts/skilleval $(COLDSTART_FLAGS) -coldstart-phase review
+
+coldstart-session-two: ## Run the second cold-start session over what the person left in force (consumes plan allowance)
+	$(GO) run ./scripts/skilleval $(COLDSTART_FLAGS) -coldstart-phase session-two -coldstart-live -coldstart-max-attempts $(COLDSTART_MAX_ATTEMPTS)
+
+coldstart-report: ## Render the three cold-start measures from saved attempts without model calls
+	$(GO) run ./scripts/skilleval $(COLDSTART_FLAGS) -coldstart-phase report
+
 PRIORAB_ARGS ?=
 # Costs model calls. Two halves: a deterministic consistency check (does the
 # approved wording survive) and a judged quality score. Only the first should be
