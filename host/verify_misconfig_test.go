@@ -38,6 +38,7 @@ collections:
 		[]byte("{\"greeting\": \"Hello\"}\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "fr", "app.json"),
 		[]byte("{\"greeting\": \"Bonjour\"}\n"), 0o644))
+	readProjectContext(t, root)
 	return root
 }
 
@@ -181,6 +182,7 @@ collections:
 	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(profile), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "app.json"),
 		[]byte("{\"greeting\": \"Hello there\"}\n"), 0o644))
+	readProjectContext(t, root)
 	return root
 }
 
