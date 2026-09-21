@@ -20,9 +20,9 @@ import (
 
 // Where a profile-terms fixture binds its vocabulary.
 const (
-	termsOnProfileStore  = "profile termstore database"
-	termsOnDefaults      = "defaults terms_source"
-	termsNowhere         = "nowhere"
+	termsOnProfileStore = "profile termstore database"
+	termsOnDefaults     = "defaults terms_source"
+	termsNowhere        = "nowhere"
 )
 
 // profileTermsBindings is how a profile binds terms of its own: `termstore:`

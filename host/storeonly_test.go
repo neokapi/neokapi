@@ -198,7 +198,7 @@ func TestTwoCheckouts_BothSeeTheProfileTheStoreHolds(t *testing.T) {
 				VoiceResolveOptions{Store: store})
 			require.NoError(t, err)
 			require.True(t, found, "the binding resolves against the store")
-			assert.Equal(t, "neutral", string(profile.Tone.Formality),
+			assert.Equal(t, "neutral", profile.Tone.Formality,
 				"the profile the store holds, not the file in this tree")
 		})
 	}

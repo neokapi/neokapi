@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"sort"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
@@ -42,20 +43,9 @@ func (n ContextFilesNotice) Message() string {
 func (n ContextFilesNotice) list() string {
 	const shown = 3
 	if len(n.Files) <= shown {
-		return joinFiles(n.Files)
+		return strings.Join(n.Files, ", ")
 	}
-	return joinFiles(n.Files[:shown]) + " and " + pluralUnit(len(n.Files)-shown, "other", "others")
-}
-
-func joinFiles(files []string) string {
-	out := ""
-	for i, f := range files {
-		if i > 0 {
-			out += ", "
-		}
-		out += f
-	}
-	return out
+	return strings.Join(n.Files[:shown], ", ") + " and " + pluralUnit(len(n.Files)-shown, "other", "others")
 }
 
 // ContextFilesUnread reports a checkout holding context files whose project
