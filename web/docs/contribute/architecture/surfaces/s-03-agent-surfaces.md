@@ -56,24 +56,35 @@ cli/skills/data/kapi/
     ├── voice.md        retrieve guidance, score a draft, fix it
     ├── translate.md    translation and terminology
     ├── project.md      the project model
-    ├── context-discovery.md   first-visit discovery, and the refresh path
+    ├── context.md      ask what applies, and notice when it moves
+    ├── check.md        the report, its exit codes, the release gates
+    ├── growing-context.md   the everyday calls, discovery, and the refresh path
     ├── toolbox.md
     ├── i18n.md         routes by detected stack into…
     └── i18n/           …per-ecosystem playbooks + a machine-readable registry
 ```
 
-The router's job is triage: judge whether the request is ad hoc or ongoing, then
-point at one reference. The references carry the task detail, one per concern.
+`SKILL.md` leads with **four habits** an assistant keeps inside other work: ask
+what applies at the file before writing it, record what it notices while reading
+the project, record the wording the person changes, and check what it changed
+before reporting the work done and saying what the session recorded. Each habit
+is a few lines and one command, and everything past them is a map of the
+references. The body is a router: it triages the request and points at one
+reference, and the references carry the task detail, one per concern.
 Terminology folds into the voice and translate references rather than standing
 alone, because a term is something you apply while writing or translating, not a
 task you set out to do.
 
-The `context-discovery` reference covers two visits. On the first, the
-assistant assembles a project's context from the user's material. On a later
-one it diffs new material against what the project already holds and proposes
-a **refresh**: a change-set the user approves (`kapi apply refresh.jsonl`), so
-terms and voice rules land atomically and nothing is rewritten behind the user's
-back.
+The `growing-context` reference is the second and third habits at their other
+speed. Everyday growth and a deliberate discovery session are one mechanism:
+both record operations that produce candidates, and neither writes a governance
+file, because confirming is what writes one ([C-11](../context/c-11-context-operations.md)).
+The deliberate half covers two visits. On the first, the assistant assembles a
+project's context from the user's material. On a later one it diffs new material
+against what the project already holds and proposes a **refresh**: candidates
+the user confirms one at a time, or a change-set the user approves
+(`kapi apply refresh.jsonl`) where the decisions are already made. Nothing is
+rewritten behind the user's back either way.
 
 The `i18n` concern is itself a tree. `references/i18n.md` detects the stack and
 routes into `references/i18n/`, driven by a machine-readable framework registry
@@ -159,11 +170,19 @@ Four properties hold for everything written:
 
 `initialize` carries an `instructions` string to every client, ahead of the
 tool list and whether or not the host loads a skill. It is the only text a
-client with no skill support ever reads about kapi, so it says the two things
-that change what an assistant does: read the context resource for a file
-before writing it, and run `check_file` on what changed before reporting the
-work done. `host/mcp_instructions_test.go` holds it to the names the server
-actually serves.
+client with no skill support ever reads about kapi, so it carries the same four
+habits the skill leads with, one paragraph each.
+`host/mcp_instructions_test.go` holds it to the names the server actually
+serves and to a length budget, so a fifth paragraph is a decision rather than a
+drift.
+
+The server also writes one row into the workspace saying that an agent is at
+work: the session id it records operations under, the project, the client's own
+name from `initialize`, when the session opened and when it was last seen. A
+receiving middleware moves the row forward on every request, so a session that
+is only reading still says it is here, and the desktop can show it
+([S-02](s-02-kapi-desktop.md)). Nothing has to be cleaned up when a process
+exits: a row that stops moving ages out on the next write.
 
 The skill's `description` is the sole triggering lever, and it is loaded at
 startup by every `SKILL.md`-aware tool. Whether it fires on the right tasks is
@@ -395,15 +414,16 @@ does automatically and invisibly.
 
 The default surface is therefore the hand-authored porcelain (reading and
 sizing content, checking text or a file, voice scoring and offline rewriting,
-context search, the catch-up verbs and their dry run, the review-queue verbs,
-and `apply_edits`) plus a short curated list of registry tools that produce
-something a caller cannot produce itself or check something with no porcelain
-equivalent: `translate`, `term-check` and `redact`. The listing and
-format-detection helpers, `extract_content`, `pseudo_translate` and the
-flow-running verbs sit behind `--all-tools` and `--all-flows`; `--all` is the
-shorthand for both. The full generated list is in the [MCP reference](/reference/mcp).
+context search, the three context write tools and the session read, the catch-up
+verbs and their dry run, the review-queue verbs, and `apply_edits`) plus a short
+curated list of registry tools that produce something a caller cannot produce
+itself or check something with no porcelain equivalent: `translate`,
+`term-check` and `redact`. The listing and format-detection helpers,
+`extract_content`, `pseudo_translate` and the flow-running verbs sit behind
+`--all-tools` and `--all-flows`; `--all` is the shorthand for both. The full
+generated list is in the [MCP reference](/reference/mcp).
 
-Two curation rules are asserted by tests rather than remembered:
+Three curation rules are asserted by tests rather than remembered:
 
 - **Nothing that executes caller-supplied code is ever agent-facing**, not even
   under `--all-tools`. "Show me every tool" and "let a caller run arbitrary
@@ -412,6 +432,15 @@ Two curation rules are asserted by tests rather than remembered:
   from the CLI: `kapi exec` still runs both.
 - **No curated tool shadows a porcelain one.** Two names for one job means the
   caller picks wrong half the time.
+- **Nothing a person decides is agent-facing.** `context_observe`,
+  `context_propose` and `context_correct` record what an agent may record;
+  confirming, discarding another actor's work, reverting and widening are a
+  person's, and the surface carries no tool for them at all. The policy
+  ([C-11](../context/c-11-context-operations.md)) would refuse such a call
+  anyway, and a tool that is always refused is one an assistant keeps trying.
+  The actor rides on the call rather than in it: kind `agent`, the name from
+  `initialize`, and a session minted once per server process, so a caller cannot
+  claim to be a person.
 
 In project mode the set narrows further to tools whose source the recipe
 declares, and the project's first target language becomes the default.
@@ -426,7 +455,7 @@ arguments, so it is a **tool** (`context_search`). Asking what applies at a
 
 | Address | Answers |
 | --- | --- |
-| `context://{+path}{?format,project}` | what applies at a project-relative location: the voice profile in force with its guidance, the terms bound there, and the governance windows around them |
+| `context://{+path}{?format,project}` | what applies at a project-relative location: the voice profile in force with its guidance, the terms bound there, the candidates nobody has decided on, and the governance windows around them |
 | `context://profile/{name}{?format,project}` | the same, addressed by governance profile name, for a caller with no file in hand |
 
 Both render markdown by default; `?format=json` returns the structured shape.
@@ -496,12 +525,18 @@ output.
 - Whether the skill fires, and whether an agent picks the right tool, is a
   measured number with a transcript behind it rather than a checklist someone
   remembers to run.
+- A project's context grows out of the work an assistant was doing anyway,
+  because the habits are in the two places an assistant reads before it acts:
+  the skill body and the server's instructions. What it records advises and
+  never binds, so a session that records the wrong thing costs a person one
+  decision rather than a bad rule in force.
 
 ## Related
 
 - [S-01: The kapi CLI](s-01-kapi-cli.md): the command surface the skill drives and the exit-code contract it consumes
 - [S-04: Toolbox utilities](s-04-toolbox.md): the format-aware utilities a skill reaches for; `kapi apply` is the deliberate, reviewed sibling of `ksed`'s regex substitution
 - [S-07: The review model](s-07-context-centric-review.md): the object `review_unit` returns whole
+- [C-11: Context operations](../context/c-11-context-operations.md): the operations the write tools record, and the policy that decides who may record which
 - [F-03: Identity](../foundations/f-03-identity.md): the `content_hash` a change-set pins as its drift anchor
 - [E-02: The format system](../engine/e-02-format-system.md): the writer capabilities behind `editable` / `round_trip` / `generative`
 - [E-06: Execution trust](../engine/e-06-execution-trust.md): why code-executing tools stay off the agent surface
