@@ -52,7 +52,7 @@
     "tailwindcss": "^4.3.3",
     "travels": "^2.2.0",
     "use-travel": "^2.2.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",
