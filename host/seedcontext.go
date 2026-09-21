@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -18,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
+	"github.com/neokapi/neokapi/terms/ktb"
 )
 
 // Committed context sources — the terms bundle and the content-memory bundles
@@ -38,6 +40,16 @@ import (
 // a JSON object of project-relative slash path to digest.
 const MetaContextSourceDigests = "context.sourceDigests"
 
+// MetaVoiceBindings is the store-metadata key holding where each voice profile
+// in the store is authored — a JSON object of project-relative slash path to
+// profile id.
+//
+// A voice profile resolves through the FILE the recipe binds, so writing the
+// store back out has to put each profile where its binding names it. The store
+// keys profiles by id and the recipe keys them by path, and this map is the one
+// place the two are tied together.
+const MetaVoiceBindings = "context.voiceBindings"
+
 // SeedContextResult reports what a seeding pass compiled. Skipped counts the
 // sources whose digest was unchanged, so a caller can tell "nothing to do" from
 // "no sources at all".
@@ -50,6 +62,8 @@ type SeedContextResult struct {
 	// entries they carried.
 	MemoryFiles int `json:"memoryFiles,omitempty"`
 	Entries     int `json:"entries,omitempty"`
+	// VoiceFiles counts the voice profiles compiled.
+	VoiceFiles int `json:"voiceFiles,omitempty"`
 	// Skipped counts sources already in the store at their current digest.
 	Skipped int `json:"skipped,omitempty"`
 	// Record reports the committed translations absorbed after the bundles —
@@ -60,7 +74,8 @@ type SeedContextResult struct {
 // Compiled reports whether the pass has anything to say: what it wrote into the
 // store, or a pairing it declined because the record's own basis contradicts it.
 func (r SeedContextResult) Compiled() bool {
-	return r.TermsFiles > 0 || r.MemoryFiles > 0 || r.Record.Absorbed() || r.Record.Superseded > 0
+	return r.TermsFiles > 0 || r.MemoryFiles > 0 || r.VoiceFiles > 0 ||
+		r.Record.Absorbed() || r.Record.Superseded > 0
 }
 
 // formatSeedLine renders a seeding pass as the one line a run prints before the
@@ -75,6 +90,14 @@ func formatSeedLine(r SeedContextResult) string {
 		head = fmt.Sprintf("seeded: %d concept(s) from the committed terms source", r.Concepts)
 	case r.MemoryFiles > 0:
 		head = fmt.Sprintf("seeded: %d content-memory entry(ies) from %d committed bundle(s)", r.Entries, r.MemoryFiles)
+	}
+	if r.VoiceFiles > 0 {
+		voice := fmt.Sprintf("seeded: %d committed voice profile(s)", r.VoiceFiles)
+		if head == "" {
+			head = voice
+		} else {
+			head += "\n" + voice
+		}
 	}
 	rec := formatRecordLine(r.Record)
 	switch {
@@ -160,6 +183,7 @@ type contextSourceKind int
 const (
 	sourceKindTerms contextSourceKind = iota
 	sourceKindMemory
+	sourceKindVoice
 )
 
 // SeedProjectContext compiles the project's committed context sources into its
@@ -178,26 +202,65 @@ const (
 // the store is left alone. A store this build cannot open (the browser build)
 // is likewise not an error — there is nothing to project into.
 func (a *App) SeedProjectContext(ctx context.Context, projectPath string) (SeedContextResult, error) {
-	var res SeedContextResult
-
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
-		return res, err
+		return SeedContextResult{}, err
 	}
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
-		return res, fmt.Errorf("load project: %w", err)
+		return SeedContextResult{}, fmt.Errorf("load project: %w", err)
 	}
-	sources, err := committedContextSources(proj, layout)
+	db, err := a.ProjectDB(ctx, layout.Root)
+	if err != nil {
+		return SeedContextResult{}, err
+	}
+	return a.compileContextSources(ctx, db, contextCompileOptions{
+		layout:      layout,
+		proj:        proj,
+		projectPath: projectPath,
+		stamp:       true,
+		absorb:      true,
+	})
+}
+
+// contextCompileOptions steers one pass of the reader every committed context
+// file goes through.
+type contextCompileOptions struct {
+	// layout names the `.kapi/` layout to read.
+	layout project.Layout
+	// proj is the recipe whose bindings add to the conventional sources. nil
+	// for a layout that belongs to no loaded recipe.
+	proj *project.KapiProject
+	// projectPath is the recipe of the project being written into, for the
+	// record absorb. Empty when absorb is false.
+	projectPath string
+	// force compiles every source, including one whose digest is unchanged.
+	force bool
+	// stamp records each source's digest so the next pass can skip it, and
+	// reads the stamps to decide what to skip. A digest is keyed by
+	// project-relative path, so only a pass over the project's own layout
+	// stamps; a pass over a directory elsewhere always compiles.
+	stamp bool
+	// absorb runs the committed-record absorb after the sources.
+	absorb bool
+}
+
+// compileContextSources compiles one `.kapi/` layout into the store. It is the
+// single reader: `kapi up` reaches it through SeedProjectContext and
+// `kapi context import` through ImportProjectContext, and both read each
+// committed file through the same importer.
+func (a *App) compileContextSources(ctx context.Context, db *projectdb.DB, opts contextCompileOptions) (SeedContextResult, error) {
+	var res SeedContextResult
+
+	sources, err := committedContextSources(opts.proj, opts.layout)
 	if err != nil {
 		return res, err
 	}
 
-	db, err := a.ProjectDB(ctx, layout.Root)
-	if err != nil {
-		return res, err
+	var stamps map[string]string
+	if opts.stamp {
+		stamps = loadContextDigests(ctx, db)
 	}
-	stamps := loadContextDigests(ctx, db)
 	next := make(map[string]string, len(sources))
 
 	for _, src := range sources {
@@ -213,11 +276,11 @@ func (a *App) SeedProjectContext(ctx context.Context, projectPath string) (SeedC
 			return res, derr
 		}
 		next[src.rel] = digest
-		if stamps[src.rel] == digest {
+		if opts.stamp && !opts.force && stamps[src.rel] == digest {
 			res.Skipped++
 			continue
 		}
-		n, cerr := a.compileContextSource(ctx, db, layout.Root, src)
+		n, cerr := a.compileContextSource(ctx, db, opts.layout.Root, src)
 		if cerr != nil {
 			return res, cerr
 		}
@@ -228,6 +291,8 @@ func (a *App) SeedProjectContext(ctx context.Context, projectPath string) (SeedC
 		case sourceKindMemory:
 			res.MemoryFiles++
 			res.Entries += n
+		case sourceKindVoice:
+			res.VoiceFiles++
 		}
 	}
 
@@ -241,16 +306,19 @@ func (a *App) SeedProjectContext(ctx context.Context, projectPath string) (SeedC
 	// It is saved only when there were sources at all: a project with none is
 	// left with its stamps as they were rather than having an empty map written
 	// over them.
-	if len(sources) > 0 {
+	if opts.stamp && len(sources) > 0 {
 		if err := saveContextDigests(ctx, db, next); err != nil {
 			return res, err
 		}
 	}
 
+	if !opts.absorb {
+		return res, nil
+	}
 	// The committed translations, after the bundles and never before them: on the
 	// pass that compiles both — a fresh clone — the record answers last, which is
 	// what makes the reviewed wording git carries supersede the accelerant.
-	record, rerr := a.absorbCommittedRecord(ctx, db, proj, projectPath, layout)
+	record, rerr := a.absorbCommittedRecord(ctx, db, opts.proj, opts.projectPath, opts.layout)
 	if rerr != nil {
 		return res, rerr
 	}
@@ -395,6 +463,8 @@ func storeHolds(db *projectdb.DB, kind contextSourceKind) bool {
 		return db.Terms() != nil
 	case sourceKindMemory:
 		return db.Memory() != nil
+	case sourceKindVoice:
+		return db.Voice() != nil
 	}
 	return false
 }
@@ -424,15 +494,32 @@ func (a *App) compileContextSource(ctx context.Context, db *projectdb.DB, root s
 			return 0, fmt.Errorf("compile content memory %s: %w", src.rel, err)
 		}
 		return n, nil
+	case sourceKindVoice:
+		if err := a.compileVoiceSource(ctx, db, src); err != nil {
+			return 0, fmt.Errorf("compile voice profile %s: %w", src.rel, err)
+		}
+		return 1, nil
 	}
 	return 0, fmt.Errorf("compile context source %s: unknown kind", src.rel)
 }
 
-// committedContextSources resolves the committed bundles a seeding pass
-// compiles, in a stable order (terms first, then memory bundles by path) so two
-// runs over the same tree do the same work in the same sequence. A bound source
-// that does not exist yet is skipped, not an error: a recipe may bind the file
-// an author has not written.
+// committedContextSources resolves the committed context files a seeding pass
+// compiles, in a stable order (terms, then memory bundles by path, then voice
+// profiles by path) so two runs over the same tree do the same work in the same
+// sequence. A bound source that does not exist yet is skipped, not an error: a
+// recipe may bind the file an author has not written.
+//
+// Each kind is found the way the project already addresses it. Terms and the
+// content memory are bound in the recipe, and both also have a conventional
+// place under `.kapi/`, which is where `kapi apply` and `kapi context snapshot`
+// write them; a file sitting there is compiled whether or not the recipe names
+// it, the same rule the memory directory has always followed. Voice profiles
+// are found at the paths governance resolves them from: the project default and
+// one per profile directory.
+//
+// proj may be nil, for a caller reading a `.kapi/` layout that belongs to no
+// loaded recipe. Only the recipe-bound paths are skipped then; the conventional
+// ones still answer.
 func committedContextSources(proj *project.KapiProject, layout project.Layout) ([]contextSource, error) {
 	var out []contextSource
 	seen := map[string]bool{}
@@ -457,33 +544,92 @@ func committedContextSources(proj *project.KapiProject, layout project.Layout) (
 		return nil
 	}
 
-	if bound := proj.Defaults.TermsSource; bound != "" {
-		if err := add(bound, sourceKindTerms); err != nil {
-			return nil, err
+	if proj != nil {
+		if bound := proj.Defaults.TermsSource; bound != "" {
+			if err := add(bound, sourceKindTerms); err != nil {
+				return nil, err
+			}
 		}
+	}
+	if err := add(filepath.Join(layout.StateDir, ktb.ConventionalName), sourceKindTerms); err != nil {
+		return nil, err
 	}
 
-	var memoryPaths []string
-	entries, err := os.ReadDir(layout.MemoryDir())
-	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("read content-memory bundles: %w", err)
+	memoryPaths, err := bundlePathsIn(layout.MemoryDir())
+	if err != nil {
+		return nil, err
 	}
-	for _, e := range entries {
-		if e.IsDir() || !kmb.IsBundlePath(e.Name()) {
-			continue
-		}
-		memoryPaths = append(memoryPaths, filepath.Join(layout.MemoryDir(), e.Name()))
-	}
-	sort.Strings(memoryPaths)
-	if bound := proj.Defaults.MemorySource; bound != "" {
-		memoryPaths = append(memoryPaths, resolveUnder(layout.Root, bound))
+	if proj != nil && proj.Defaults.MemorySource != "" {
+		memoryPaths = append(memoryPaths, resolveUnder(layout.Root, proj.Defaults.MemorySource))
 	}
 	for _, p := range memoryPaths {
 		if err := add(p, sourceKindMemory); err != nil {
 			return nil, err
 		}
 	}
+
+	for _, p := range voiceProfilePaths(proj, layout) {
+		if err := add(p, sourceKindVoice); err != nil {
+			return nil, err
+		}
+	}
 	return out, nil
+}
+
+// bundlePathsIn lists the content-memory bundles in dir, sorted. A missing
+// directory holds no bundles, which is not an error.
+func bundlePathsIn(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read content-memory bundles: %w", err)
+	}
+	var out []string
+	for _, e := range entries {
+		if e.IsDir() || !kmb.IsBundlePath(e.Name()) {
+			continue
+		}
+		out = append(out, filepath.Join(dir, e.Name()))
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// voiceProfilePaths lists the voice profiles a `.kapi/` layout holds: the
+// project default first, then one per profile directory in name order, then
+// anything a recipe binds elsewhere. The order puts the default ahead of the
+// overrides, so an id both of them claim is settled the way resolution settles
+// it.
+func voiceProfilePaths(proj *project.KapiProject, layout project.Layout) []string {
+	out := []string{filepath.Join(layout.StateDir, VoiceConventionalName)}
+
+	entries, err := os.ReadDir(layout.ProfilesDir())
+	if err == nil {
+		names := make([]string, 0, len(entries))
+		for _, e := range entries {
+			if e.IsDir() {
+				names = append(names, e.Name())
+			}
+		}
+		sort.Strings(names)
+		for _, n := range names {
+			out = append(out, filepath.Join(layout.ProfileDir(n), VoiceConventionalName))
+		}
+	}
+	if proj == nil {
+		return out
+	}
+	if b := proj.Defaults.Voice; b != nil && b.ProfileFile != "" {
+		out = append(out, resolveUnder(layout.Root, b.ProfileFile))
+	}
+	for _, name := range slices.Sorted(maps.Keys(proj.Profiles)) {
+		if b := proj.Profiles[name].Voice; b != nil && b.ProfileFile != "" {
+			out = append(out, resolveUnder(layout.Root, b.ProfileFile))
+		}
+	}
+	return out
 }
 
 // relSlash renders path relative to root in slash form, falling back to the
