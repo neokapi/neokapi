@@ -50,24 +50,28 @@ func runCounts(t *testing.T, out string) (viaMemory, viaDraft, viaAI int) {
 }
 
 // TestUpPlan_PricesWhatTheRunDrafts is the whole verb over the three-locale
-// project: the plan header and the run agree on how many provider calls the run
-// makes, in both the fresh-clone case and after a source rewrite that only one
-// locale holds a decision for.
+// project: once the store has read the committed translations, the plan header
+// and the run agree on how many provider calls the run makes, including after a
+// source rewrite that only one locale holds a decision for. On the clone's
+// first run the header says which units it has no corpus to judge yet.
 func TestUpPlan_PricesWhatTheRunDrafts(t *testing.T) {
 	root := writeThreeLocaleProject(t)
 	proj := filepath.Join(root, "kapi.yaml")
 
-	// A fresh clone. Every locale's committed translation of "Apple" is absorbed
-	// and recycled; "Compass" is identical in all four languages with no approval
-	// behind it, so the record declines the pairing and the pass drafts it — one
-	// provider call per locale, quoted before it is spent.
+	// A fresh clone. The store has read none of the committed translations, so
+	// the header names the units it declines to price and why, rather than
+	// quoting a zero it cannot stand behind. The run reads them first: every
+	// locale's "Apple" is recycled, and "Compass" is identical in all four
+	// languages with no approval behind it, so the record declines the pairing
+	// and the pass drafts it.
 	first := demoProviderApp(t)
 	out, err := runUp(t, first, proj)
 	require.NoError(t, err, out)
 	_, _, ai := runCounts(t, out)
 	assert.Equal(t, 3, ai, "one draft per locale for the unit the record declines: %s", out)
-	assert.Contains(t, out, "3 AI", "the header prices the run it is about to start: %s", out)
-	assert.Contains(t, out, "drafting 3 unit(s) the content memory does not answer")
+	assert.Contains(t, out, "6 produced unit(s) not priced",
+		"the header says what it cannot price yet: %s", out)
+	assert.Contains(t, out, "this run reads them first")
 
 	// One locale's translation is approved, and then the source sentence it was
 	// written against is rewritten. The key survives, so every locale's old
@@ -156,8 +160,8 @@ func TestUpPlan_DryRunPricesTheRunThatFollows(t *testing.T) {
 	assert.Contains(t, out2, "3 drafts · 0 AI", "the run's own header says so before it starts: %s", out2)
 }
 
-// houseVoice is a voice profile at the conventional path, enough to give the
-// project a governing context where it had none.
+// houseVoice is a voice profile, enough to give the project a governing
+// context where it had none.
 const houseVoice = `id: house
 name: House
 tone:
@@ -174,9 +178,8 @@ func TestUpPlan_StoredDraftsAreReuseOnlyWhileTheirAnswerStands(t *testing.T) {
 	root := writeThreeLocaleProject(t)
 	proj := filepath.Join(root, "kapi.yaml")
 
-	// plan reads the structured plan off stdout alone: the seed phase that
-	// precedes a plan reports what it compiled on stderr, and a project that
-	// just gained a voice profile has something to compile.
+	// plan reads the structured plan off stdout alone, so a warning or a
+	// preamble on stderr stays out of the JSON.
 	plan := func(t *testing.T, a *App) host.UpPlanScope {
 		t.Helper()
 		cmd := NewUpCmd(a)
@@ -226,10 +229,25 @@ func TestUpPlan_StoredDraftsAreReuseOnlyWhileTheirAnswerStands(t *testing.T) {
 	assert.Equal(t, 3, totals.Drafts)
 	assert.Zero(t, totals.AIRemaining)
 
-	// A voice profile at the conventional path moves the governing context the
-	// stored answers were made under, whichever model made them.
+	// A voice profile bound at the project's default point moves the governing
+	// context the stored answers were made under, whichever model made them.
+	// The recipe says which profile applies and the import puts it in the
+	// store, which is the only place a gate reads one from.
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".kapi", "voice.yaml"), []byte(houseVoice), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(`version: v1
+name: three
+defaults:
+  source_language: en
+  target_languages: [nb, de, nl]
+  voice:
+    profile_file: .kapi/voice.yaml
+collections:
+  - path: en.json
+    target: "{lang}.json"
+ship_gate: { translated: 100, reviewed: 50 }
+`), 0o644))
+	readProjectContext(t, root)
 	totals = plan(t, largeModel(t))
 	assert.Zero(t, totals.Drafts, "a draft made under another context is not reused")
 	assert.Equal(t, 3, totals.AIRemaining)

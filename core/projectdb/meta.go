@@ -89,6 +89,43 @@ ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
 	return nil
 }
 
+// ContextMeta reads one metadata value about the project's CONTEXT, from the
+// context store. ok is false when the key was never written.
+//
+// Separate from Meta because the two pools answer for different things. A
+// stamp about the projection is about this checkout's derived state, and a
+// fact about the context is true of the project: every checkout reads one
+// answer, which is what keeps two of them from disagreeing about which stored
+// profile a recipe's binding names.
+func (d *DB) ContextMeta(ctx context.Context, key string) (value string, ok bool, err error) {
+	if d.context == nil {
+		return "", false, ErrNoStore
+	}
+	err = d.context.QueryRowContext(ctx, `SELECT value FROM store_meta WHERE key = ?`, key).Scan(&value)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("projectdb: read context metadata %q: %w", key, err)
+	}
+	return value, true, nil
+}
+
+// PutContextMeta writes one metadata value about the project's context,
+// replacing any previous one.
+func (d *DB) PutContextMeta(ctx context.Context, key, value string) error {
+	if d.context == nil {
+		return ErrNoStore
+	}
+	_, err := d.context.ExecContext(ctx, `
+INSERT INTO store_meta (key, value) VALUES (?, ?)
+ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
+	if err != nil {
+		return fmt.Errorf("projectdb: write context metadata %q: %w", key, err)
+	}
+	return nil
+}
+
 // InstanceID returns this store file's identity, minting one on the first ask.
 //
 // It exists so a record kept outside the store can say which store it is about.

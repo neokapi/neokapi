@@ -8,6 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
@@ -253,10 +254,28 @@ func TestRunCheckToolAndFindingsFromBlock(t *testing.T) {
 	assert.False(t, ok)
 }
 
-// TestResolveVoiceProfile_Ladder exercises the cobra-free resolution ladder:
-// recipe binding (profile_file) wins, then the convention voice.yaml files,
-// then found=false.
-func TestResolveVoiceProfile_Ladder(t *testing.T) {
+// voiceFixtureProject writes a recipe over proj and reads the checkout's
+// context into the project store, then opens that store for a resolution. It
+// returns the store and the project as a resolution reaches them.
+func voiceFixtureProject(t *testing.T, root string, proj *project.KapiProject) coreprofile.Store {
+	t.Helper()
+	proj.Version = project.CurrentVersion
+	proj.Defaults.SourceLanguage = "en"
+	require.NoError(t, project.Save(filepath.Join(root, project.RecipeFileName), proj))
+	readProjectContext(t, root)
+
+	app := &App{}
+	store, release, err := app.ProjectVoiceStore(t.Context(), root)
+	require.NoError(t, err)
+	t.Cleanup(release)
+	return store
+}
+
+// TestResolveVoiceProfile_ResolvesAgainstTheStore exercises the cobra-free
+// resolution: a recipe binding names which profile applies, and the project's
+// voice store answers for it. A profile file in the checkout selects nothing on
+// its own, whichever conventional place it sits in.
+func TestResolveVoiceProfile_ResolvesAgainstTheStore(t *testing.T) {
 	app := &App{}
 	ctx := context.Background()
 	profileYAML := []byte("id: house\nname: House Style\n")
@@ -267,39 +286,42 @@ func TestResolveVoiceProfile_Ladder(t *testing.T) {
 		proj := &project.KapiProject{
 			Defaults: project.Defaults{Voice: &project.VoiceBinding{ProfileFile: "voice.yaml"}},
 		}
-		p, src, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
+		store := voiceFixtureProject(t, root, proj)
+
+		p, src, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{Store: store})
 		require.NoError(t, err)
 		require.True(t, found)
 		assert.Equal(t, "House Style", p.Name)
-		assert.Equal(t, filepath.Join(root, "voice.yaml"), src)
+		assert.Equal(t, "store:house", src, "the binding names the profile the store holds")
 	})
 
-	t.Run("convention voice.yaml", func(t *testing.T) {
+	t.Run("an unread profile file binds nothing", func(t *testing.T) {
 		root := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), profileYAML, 0o644))
-		proj := &project.KapiProject{}
-		p, src, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
+		proj := &project.KapiProject{
+			Defaults: project.Defaults{Voice: &project.VoiceBinding{ProfileFile: "voice.yaml"}},
+		}
+		_, _, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
 		require.NoError(t, err)
-		require.True(t, found)
-		assert.Equal(t, "House Style", p.Name)
-		assert.Equal(t, filepath.Join(root, "voice.yaml"), src)
+		assert.False(t, found, "a file nobody has read in governs nothing")
 	})
 
-	t.Run("convention .kapi/voice.yaml", func(t *testing.T) {
+	t.Run("a conventional file the recipe does not bind", func(t *testing.T) {
 		root := t.TempDir()
 		conv := filepath.Join(root, project.RelStatePath(VoiceConventionalName))
 		require.NoError(t, os.MkdirAll(filepath.Dir(conv), 0o755))
 		require.NoError(t, os.WriteFile(conv, profileYAML, 0o644))
 		proj := &project.KapiProject{}
-		_, src, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
+		store := voiceFixtureProject(t, root, proj)
+
+		_, _, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{Store: store})
 		require.NoError(t, err)
-		require.True(t, found)
-		assert.Equal(t, conv, src)
+		assert.False(t, found, "a read puts the profile in the store; a binding is what selects it")
 	})
 
-	// A profile's own directory answers before the project default does — the
-	// recipe binds the point, the filesystem holds what that point overrides.
-	t.Run("a matched profile is answered by its own directory", func(t *testing.T) {
+	// A profile's own name answers before the project default does: the recipe
+	// binds the point, and the store holds what that point overrides.
+	t.Run("a matched profile is answered by its own name", func(t *testing.T) {
 		root := t.TempDir()
 		conv := filepath.Join(root, project.RelStatePath(VoiceConventionalName))
 		require.NoError(t, os.MkdirAll(filepath.Dir(conv), 0o755))
@@ -321,35 +343,20 @@ func TestResolveVoiceProfile_Ladder(t *testing.T) {
 			}},
 		}
 		proj.Defaults.Voice = &project.VoiceBinding{ProfileFile: ".kapi/voice.yaml"}
+		store := voiceFixtureProject(t, root, proj)
 
-		p, src, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{Point: project.GovernancePoint{Collection: "app"}})
+		p, src, found, err := app.ResolveVoiceProfile(ctx, proj, root,
+			VoiceResolveOptions{Point: project.GovernancePoint{Collection: "app"}, Store: store})
 		require.NoError(t, err)
 		require.True(t, found)
-		assert.Equal(t, "Bowrain Style", p.Name, "the profile's directory outranks defaults.voice")
-		assert.Equal(t, profileVoice, src)
+		assert.Equal(t, "Bowrain Style", p.Name, "the profile's own voice outranks defaults.voice")
+		assert.Equal(t, "store:bowrain", src)
 
 		// A point no profile claims still gets the project default.
-		p, _, found, err = app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
+		p, _, found, err = app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{Store: store})
 		require.NoError(t, err)
 		require.True(t, found)
 		assert.Equal(t, "House Style", p.Name)
-	})
-
-	// The state directory outranks the root: `.kapi/` is committed, so the
-	// conventional home and the reviewed home are the same directory.
-	t.Run("context directory outranks the root", func(t *testing.T) {
-		root := t.TempDir()
-		conv := filepath.Join(root, project.RelStatePath(VoiceConventionalName))
-		require.NoError(t, os.MkdirAll(filepath.Dir(conv), 0o755))
-		require.NoError(t, os.WriteFile(conv, profileYAML, 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"),
-			[]byte("id: root\nname: Root Style\n"), 0o644))
-
-		p, src, found, err := app.ResolveVoiceProfile(ctx, &project.KapiProject{}, root, VoiceResolveOptions{})
-		require.NoError(t, err)
-		require.True(t, found)
-		assert.Equal(t, "House Style", p.Name)
-		assert.Equal(t, conv, src)
 	})
 
 	t.Run("nothing bound", func(t *testing.T) {

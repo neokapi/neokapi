@@ -138,6 +138,9 @@ collections:
       - path: '*.json'
 `), 0o600))
 	require.NoError(t, os.Remove(filepath.Join(root, ".kapi", "voice.yaml")))
+	// The rewritten recipe names a different project, so its store is a
+	// different one and the bundle is read into that.
+	readProjectContext(t, root)
 	file := filepath.Join(root, "page.json")
 	require.NoError(t, os.WriteFile(file, []byte(`{"body":"Use the old-route."}`), 0o600))
 	cmd := executionCommand(t)

@@ -433,7 +433,7 @@ collections:
 func seedBasislessApproval(t *testing.T, root, unit, target string) {
 	t.Helper()
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
-	require.NoError(t, state.WriteCommitted(layout.UnitStateDir(), []state.UnitState{{
+	require.NoError(t, state.WriteCommitted(layout.Export().UnitStateDir(), []state.UnitState{{
 		Unit:       unit,
 		Variant:    model.Variant("nb"),
 		Status:     model.TargetStatusReviewed,
@@ -442,4 +442,5 @@ func seedBasislessApproval(t *testing.T, root, unit, target string) {
 		Updated:    "2026-01-01T00:00:00Z",
 		Scope:      "en.json",
 	}}))
+	readProjectContext(t, root)
 }

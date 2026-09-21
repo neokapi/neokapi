@@ -14,24 +14,24 @@ import (
 // layout, where the context tables sat beside the projection in
 // `.kapi/work/store.db`.
 //
-// Almost everything in those tables is a projection of a committed source: the
-// terms bundle, the memory bundles, the voice profiles and the decision record
-// under `.kapi/`. The next command derives them again into the context store,
-// so adoption carries none of it.
+// What it carries is the decisions. The projection's ledger holds them and
+// nothing else will supply them again: a file under `.kapi/` is read only by
+// `kapi context import`, and a project whose decisions were never exported has
+// its only copy here. Every one of them is recorded in the context store before
+// anything is dropped, and nothing is dropped if that fails.
 //
-// What it does carry is every decision the committed shards do not hold.
-// Between a decision being recorded and `kapi commit` writing it to
-// `.kapi/state/`, the ledger holds its only copy, and that ledger is in the
-// projection. Those rows are recorded in the context store before anything is
-// dropped, and nothing is dropped if that fails.
+// The terms, the content memory and the voice profiles are not carried. They
+// are the subsystems a workspace already holds per project, and a project that
+// has rows for them in its projection has them in the store the projection was
+// opened beside.
 
-// adoptEmbeddedContext carries a project out of the embedded layout: the
-// decisions the record does not hold move into the context store, and the
-// context tables then leave the projection.
+// adoptEmbeddedContext carries a project out of the embedded layout: its
+// decisions move into the context store, and the context tables then leave the
+// projection.
 //
 // Best-effort. A project that cannot be adopted keeps both copies and works
-// from the context store, which the committed sources re-seed; refusing to open
-// the project would be the worse answer.
+// from the context store; refusing to open the project would be the worse
+// answer.
 func adoptEmbeddedContext(ctx context.Context, db *DB) {
 	if db.projection == nil || db.context == nil || db.work == nil {
 		return
@@ -52,31 +52,30 @@ func adoptEmbeddedContext(ctx context.Context, db *DB) {
 }
 
 // carryDecisionsFromProjection records in the context store every decision the
-// projection's ledger holds that this checkout's committed shards do not. It
-// reports whether every one of them landed.
+// projection's ledger holds. It reports whether every one of them landed.
 //
-// Both sides are opened against the same committed record, which is what
+// Both sides are opened against the same committed record path, which is what
 // identifies a checkout (core/state.checkoutID), so a decision arrives in the
 // context store under the view it was made in. Opening the old store also runs
 // core/state's own migration, so a project that predates the ledger has its
 // rows carried into one before they are read.
 //
-// core/state.WorkStore.Staged is the reading: what this checkout holds that its
-// shards do not. Everything the shards do supply comes back on the next import
-// in the context store, so it is neither read here nor needed.
+// The reading is the whole ledger rather than the part no export holds. An
+// exported shard is read back only by `kapi context import`, so a decision
+// left behind here would be one the project has lost.
 //
 // Nothing is deleted from the projection here; the rows go out of scope when
 // their tables do.
 func carryDecisionsFromProjection(ctx context.Context, db *DB) bool {
-	old, err := state.OpenWorkFromDB(ctx, db.projection, db.layout.UnitStateDir())
+	old, err := state.OpenWorkFromDB(ctx, db.projection, db.layout.Export().UnitStateDir())
 	if err != nil {
 		return false
 	}
-	unrecorded, err := old.Staged(ctx)
+	held, err := old.Ledger(ctx)
 	if err != nil {
 		return false
 	}
-	for _, u := range unrecorded {
+	for _, u := range held {
 		if err := db.work.Put(ctx, u); err != nil {
 			return false
 		}

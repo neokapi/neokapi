@@ -179,7 +179,7 @@ func TestHandleReviewDecision_ApproveRejectSignOff(t *testing.T) {
 	defer committer.Shutdown()
 	_, err = committer.CommitProjectState(t.Context(), root)
 	require.NoError(t, err)
-	units, err := state.ReadCommitted(project.LayoutAt(root).UnitStateDir())
+	units, err := state.ReadCommitted(project.LayoutAt(root).Export().UnitStateDir())
 	require.NoError(t, err)
 	require.Len(t, units, 2)
 	byUnit := map[string]state.UnitState{}

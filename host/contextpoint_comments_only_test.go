@@ -61,6 +61,10 @@ collections:
 	t.Setenv("KAPI_PROJECT", recipe)
 	t.Chdir(root)
 
+	// A by-location answer resolves its voice from the project store, so the
+	// fixture's profiles reach it through the explicit import.
+	readProjectContext(t, root)
+
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	defaults, err := proj.ResolveGovernanceFor(project.GovernancePoint{})

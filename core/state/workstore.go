@@ -298,21 +298,28 @@ func newStore(db *storage.DB, committedPath string) *WorkStore {
 }
 
 // start brings a freshly opened handle up: it carries any pre-ledger rows
-// across, registers the checkout, and imports the shards this checkout holds.
+// across and registers the checkout.
+//
+// It reads no committed record. A project's decisions live in the ledger, and
+// a directory of shards in the checkout is what `kapi context export` wrote;
+// `kapi context import` reads one back. An open that imported them would let
+// whichever branch a checkout sits on decide what the whole project holds.
 func (w *WorkStore) start(ctx context.Context) error {
 	if err := w.carryLegacyRows(ctx); err != nil {
 		return err
 	}
-	if err := w.registerCheckout(ctx); err != nil {
-		return err
-	}
-	return w.Import(ctx)
+	return w.registerCheckout(ctx)
 }
 
-// checkoutID names the view a handle reads: the SHA-256 of the absolute path of
-// its committed record directory. Two worktrees, two clones and two branches
-// checked out side by side each have their own record directory, so each has
-// its own view of one ledger.
+// checkoutID names the view a handle reads: the SHA-256 of the absolute path
+// its committed record directory would sit at, `.kapi/state/` inside the
+// checkout. Two worktrees, two clones and two branches checked out side by side
+// each have their own, so each has its own view of one ledger.
+//
+// The value is the path STRING. Nothing is read there and the directory need
+// not exist; what the hash buys is an identity per checkout that survives a
+// process, which is what lets a decision recorded on one branch stay out of
+// another branch's view.
 //
 // A handle opened with no committed record directory (OpenLedger) names no
 // view. It reads and writes the ledger and leaves every checkout's view alone.

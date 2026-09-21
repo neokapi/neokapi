@@ -82,8 +82,8 @@ func commentPointProject(t *testing.T, p placement) string {
 		defaults = "  comments:\n    channel: source/comments\n"
 	}
 	// The project binds terms of its own, so the ship gate runs its terminology
-	// gate; each profile's conventional terms store wins at that profile's
-	// points.
+	// gate; each profile binds a terms store of its own, which wins at that
+	// profile's points.
 	write("kapi.yaml", `version: v1
 name: comment-points
 defaults:
@@ -92,8 +92,10 @@ defaults:
 `+defaults+`profiles:
   site:
     channels: [web]
+    termstore: vocab/site.db
   source:
     channels: [comments]
+    termstore: vocab/source.db
 collections:
   - name: config
     channel: site/web
@@ -111,10 +113,11 @@ collections:
 	write(".kapi/profiles/site/voice.yaml", siteVoice)
 	write(".kapi/profiles/source/voice.yaml", sourceVoice)
 	writeTermsBundle(t, filepath.Join(root, ".kapi", "terms.json"), "project-name", "Kapi", "OldKapi")
-	writeTermsBundle(t, filepath.Join(root, ".kapi", "profiles", "site", "terms.json"), "site-name", "SiteName", "ScopedName")
-	writeTermsBundle(t, filepath.Join(root, ".kapi", "profiles", "source", "terms.json"), "source-name", "SourceName", "LegacyName")
+	writeTermsStore(t, filepath.Join(root, "vocab", "site.db"), "site-name", "SiteName", "ScopedName")
+	writeTermsStore(t, filepath.Join(root, "vocab", "source.db"), "source-name", "SourceName", "LegacyName")
 	write("config/app.yaml", pointYAML)
 	write("code/parse.go", pointGo)
+	readProjectContext(t, root)
 	return root
 }
 
@@ -129,6 +132,20 @@ func writeTermsBundle(t *testing.T, path, id, preferred, forbidden string) {
 	}}}))
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(path, data, 0o600))
+}
+
+// writeTermsStore writes a standalone terms store holding one concept, for a
+// profile that binds its vocabulary with `termstore:`.
+func writeTermsStore(t *testing.T, path, id, preferred, forbidden string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+	store, err := terms.NewSQLiteStore(path)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, store.Close()) }()
+	require.NoError(t, store.AddConcept(t.Context(), terms.Concept{ID: id, Terms: []terms.Term{
+		{Text: preferred, Locale: model.LocaleEnglish, Status: model.TermPreferred},
+		{Text: forbidden, Locale: model.LocaleEnglish, Status: model.TermForbidden},
+	}}))
 }
 
 // governedFinding is a finding reduced to its file, its block and the word it

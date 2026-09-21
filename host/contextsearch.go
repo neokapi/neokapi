@@ -377,13 +377,11 @@ type ContextSearchSources struct {
 	// was read at. nil for a standalone-store query with no project in scope.
 	Provenance *ContextProvenance
 
-	// Unseeded reports a project whose committed context sources have never been
-	// compiled into the store this search reads — a fresh clone, before anything
-	// ran. Its stores answer, and answer empty, which is indistinguishable from
-	// a project that genuinely holds no such term. The by-location answer reads
-	// the committed documents directly and does not have this state, so leaving
-	// it unsaid is what let the two retrieval primitives disagree in silence.
-	Unseeded bool
+	// Unread names the context files a checkout holds whose project store has
+	// never held context — a clone, before anyone read its layout in. Its
+	// stores answer, and answer empty, which is indistinguishable from a
+	// project that genuinely holds no such term.
+	Unread *ContextFilesNotice
 
 	// Recipe is the project whose context space the answer resolves places
 	// against, so a term's uses can say where each one is governed. nil for a
@@ -453,7 +451,9 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 		if proj, err := project.Load(path); err == nil {
 			src.Recipe = proj
 			src.Profiles = profileHits(proj.ProfileWindows(), src.At)
-			src.Unseeded = a.ContextSourcesUnseeded(ctxOrBackground(cmd.Context()), path)
+			if notice, unread := a.ContextFilesUnread(ctxOrBackground(cmd.Context()), path); unread {
+				src.Unread = &notice
+			}
 			a.bindContextGraph(ctxOrBackground(cmd.Context()), path, proj, &src)
 		}
 		src.Provenance = a.contextProvenance(cmd, src.Recipe)
@@ -528,9 +528,8 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	// it is the only note that says the rest of the answer may already be
 	// answering a question about a graph that has moved.
 	res.Notes = append(res.Notes, src.Freshness...)
-	if src.Unseeded {
-		res.Notes = append(res.Notes,
-			"this project's committed context has not been compiled into its store yet, so an empty answer here means unread rather than absent. Run `kapi up`")
+	if src.Unread != nil {
+		res.Notes = append(res.Notes, src.Unread.Message())
 	}
 
 	if src.Terms != nil {

@@ -16,6 +16,10 @@ import (
 // wholesale while the store, which is not tracked, keeps what it held. These
 // tests drive that with a real repository: two branches whose records name
 // different documents, and one store that outlives the switch between them.
+//
+// Reading a record is explicit: opening a store reads nothing, and
+// `kapi context import` calls Import. The fixture's open() does both, which is
+// what a person who has just switched branches and read the record in has.
 
 // branchRepo is a git repository with a committed record on each of two
 // branches, plus the path of the record directory and of the store that spans
@@ -70,13 +74,14 @@ func newBranchRepo(t *testing.T) *branchRepo {
 	return r
 }
 
-// open returns a store over the record as this checkout holds it. The database
-// file is the same one every time, which is the whole point: it is not tracked,
-// so it survives the switch.
+// open returns a store over the record as this checkout holds it, with that
+// record read in. The database file is the same one every time, which is the
+// whole point: it is not tracked, so it survives the switch.
 func (r *branchRepo) open() *state.WorkStore {
 	r.t.Helper()
 	w, err := state.OpenWork(r.t.Context(), r.storeDB, r.record)
 	require.NoError(r.t, err)
+	require.NoError(r.t, w.Import(r.t.Context()))
 	return w
 }
 

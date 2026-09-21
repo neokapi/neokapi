@@ -133,6 +133,7 @@ func newTermRulesConvergeProject(t *testing.T) (*App, *EnvCommand, string, strin
 
 	cmd := NewEnvCommand(context.Background(), "up")
 	a.AddFlowRunFlags(cmd)
+	readProjectContext(t, root)
 	return a, cmd, recipe, root, rec
 }
 

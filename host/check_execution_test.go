@@ -201,6 +201,7 @@ defaults:
 collections:
   - path: content.json
 `), 0o644))
+	readContextAt(t, recipe)
 	app := &App{}
 	serverCmd := NewEnvCommand(t.Context(), "mcp")
 	serverCmd.Flags().String("project", recipe, "")

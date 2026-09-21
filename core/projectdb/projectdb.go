@@ -107,11 +107,12 @@ import (
 // the file-existence signal the four-file layout used no longer distinguishes
 // anything.
 const (
-	memoryTable   = "tm_entries"
-	termsTable    = "tb_concepts"
-	blocksTable   = "blocks"
-	voiceTable    = "voice_profiles"
-	overlaysTable = "overlays"
+	memoryTable    = "tm_entries"
+	termsTable     = "tb_concepts"
+	blocksTable    = "blocks"
+	voiceTable     = "voice_profiles"
+	overlaysTable  = "overlays"
+	decisionsTable = "unit_decision"
 )
 
 // ContextSchema is the name the context store is attached under inside a Join.
@@ -252,6 +253,14 @@ func (d *DB) bind(ctx context.Context) error {
 	if err := storage.Migrate(d.projection, metaMigrationsTable, metaMigrations); err != nil {
 		return fmt.Errorf("projectdb: migrate store metadata: %w", err)
 	}
+	// The same table in the context pool, for the facts that are true of the
+	// project rather than of this checkout. In the embedded layout the two
+	// pools are one handle and the second migration is the same one.
+	if !d.ownsContext {
+		if err := storage.Migrate(d.context, metaMigrationsTable, metaMigrations); err != nil {
+			return fmt.Errorf("projectdb: migrate context metadata: %w", err)
+		}
+	}
 	blocks, err := sqlitestore.NewFromDB(d.projection, false)
 	if err != nil {
 		return fmt.Errorf("projectdb: bind block store: %w", err)
@@ -273,7 +282,7 @@ func (d *DB) bind(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("projectdb: bind voice store: %w", err)
 	}
-	work, err := state.OpenWorkFromDB(ctx, d.context, d.layout.UnitStateDir())
+	work, err := state.OpenWorkFromDB(ctx, d.context, d.layout.Export().UnitStateDir())
 	if err != nil {
 		return fmt.Errorf("projectdb: bind working store: %w", err)
 	}
@@ -284,7 +293,7 @@ func (d *DB) bind(ctx context.Context) error {
 // openDegraded builds the browser build's handle: a sidecar-backed working
 // store and nothing else.
 func openDegraded(ctx context.Context, layout project.Layout) (*DB, error) {
-	work, err := state.OpenWorkSidecar(ctx, layout.StoreSidecarPath(), layout.UnitStateDir())
+	work, err := state.OpenWorkSidecar(ctx, layout.StoreSidecarPath(), layout.Export().UnitStateDir())
 	if err != nil {
 		return nil, fmt.Errorf("projectdb: open working set sidecar: %w", err)
 	}
@@ -448,6 +457,20 @@ func (d *DB) HasTerms(ctx context.Context) (bool, error) {
 // HasVoice reports whether the voice store holds any profile.
 func (d *DB) HasVoice(ctx context.Context) (bool, error) {
 	return hasRows(ctx, d.context, voiceTable)
+}
+
+// HasDecisions reports whether the ledger holds any decision, whichever
+// checkout recorded it. A degraded build keeps its decisions in the sidecar
+// rather than a table, and answers from there.
+func (d *DB) HasDecisions(ctx context.Context) (bool, error) {
+	if d.context == nil {
+		if d.work == nil {
+			return false, nil
+		}
+		held, err := d.work.Ledger(ctx)
+		return len(held) > 0, err
+	}
+	return hasRows(ctx, d.context, decisionsTable)
 }
 
 // HasBlocks reports whether the block cache holds any extracted block. It

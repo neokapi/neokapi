@@ -91,6 +91,7 @@ version: 2
 tone:
   formality: formal
 `), 0o644))
+	readProjectContext(t, root)
 	moved := governingNow(t, a, recipe, root)
 	require.NotEqual(t, want, moved)
 
@@ -203,7 +204,7 @@ func TestAbsorbCommittedRecord_ReadsTheGoverningContextFromTheRecord(t *testing.
 			rewritten.GoverningFingerprint = "fp-stale"
 			require.NoError(t, st.Put(ctx, rewritten))
 
-			res, err := a.SeedProjectContext(ctx, recipe)
+			res, err := a.seedContext(ctx, recipe)
 			require.NoError(t, err)
 			require.Equal(t, 3, res.Record.Learned)
 
@@ -247,16 +248,16 @@ func writeGoverningBundle(t *testing.T, root string, fingerprint string, pairs m
 	}
 	data, err := kmb.Marshal(kmb.FromModel(entries, nil))
 	require.NoError(t, err)
-	dir := project.LayoutAt(root).MemoryDir()
+	dir := project.LayoutAt(root).Export().MemoryDir()
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, kmb.ConventionalName), data, 0o644))
 }
 
-// TestSeedProjectContext_CarriesTheBundlesGoverningContextOntoTheRecord: a
+// TestSeedContext_CarriesTheBundlesGoverningContextOntoTheRecord: a
 // re-seed writes the bundle's fingerprint onto the record row for the unit it
 // answers, when the row holds none and is about that translation, and makes
 // the row durable in the committed shards.
-func TestSeedProjectContext_CarriesTheBundlesGoverningContextOntoTheRecord(t *testing.T) {
+func TestSeedContext_CarriesTheBundlesGoverningContextOntoTheRecord(t *testing.T) {
 	a, root, recipe := newRecordProject(t, ".json")
 	writeDoc(t, root, "src/en.json", `{"greeting":"source of greeting","farewell":"source of farewell","ok":"source of ok"}`)
 	ctx := context.Background()
@@ -281,7 +282,7 @@ func TestSeedProjectContext_CarriesTheBundlesGoverningContextOntoTheRecord(t *te
 		"ok":       "Alt klart",
 	})
 
-	_, err = a.SeedProjectContext(ctx, recipe)
+	_, err = a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 
 	get := func(unit string) state.UnitState {
@@ -294,7 +295,7 @@ func TestSeedProjectContext_CarriesTheBundlesGoverningContextOntoTheRecord(t *te
 	assert.Equal(t, "fp-own", get("ok").GoverningFingerprint, "the record's own fingerprint stands")
 	assert.Equal(t, "approved", get("greeting").Decision.ReviewState, "the decision itself is untouched")
 
-	committed, err := state.ReadCommitted(project.LayoutAt(root).UnitStateDir())
+	committed, err := state.ReadCommitted(project.LayoutAt(root).Export().UnitStateDir())
 	require.NoError(t, err)
 	var durable string
 	for _, u := range committed {

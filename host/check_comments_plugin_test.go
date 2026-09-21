@@ -68,6 +68,7 @@ constraints:
 `)
 	write("src/parse.ts", "/** Parses the input. */\nexport function parse(src: string): string {\n  return src;\n}\n")
 	write("ui/Greeting.tsx", "/** Renders the greeting. */\nexport function Greeting() {\n  return <p>Hello</p>;\n}\n")
+	readProjectContext(t, root)
 	return root
 }
 

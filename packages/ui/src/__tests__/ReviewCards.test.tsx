@@ -266,14 +266,14 @@ describe("HistoryCard", () => {
     expect(screen.queryByTestId("memory-match-use")).toBeNull();
   });
 
-  it("states its own empty case, and that an unread memory is not an empty one", () => {
+  it("states its own empty case, and that unread context is not an empty memory", () => {
     const { unmount } = render(<HistoryCard history={{}} />);
     expect(slot("review-history-empty")?.textContent).toBe(
       "No content-memory match for this block.",
     );
     unmount();
-    render(<HistoryCard history={{ unseeded: true }} />);
-    expect(slot("review-history-empty")?.textContent).toContain("has not been read");
+    render(<HistoryCard history={{ unread: true }} />);
+    expect(slot("review-history-empty")?.textContent).toContain("have not been read");
     expect(slot("review-history-empty")?.textContent).not.toContain("no close match");
   });
 });

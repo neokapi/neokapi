@@ -48,6 +48,7 @@ func writeTermsAgreementProject(t *testing.T) string {
 			{Text: "Enregistrer", Locale: model.LocaleFrench, Status: model.TermPreferred},
 		}},
 	})
+	readProjectContext(t, root)
 	return root
 }
 

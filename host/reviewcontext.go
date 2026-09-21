@@ -341,7 +341,7 @@ func indexOfBlockKey(blocks []*model.Block, key string) int {
 func (a *App) reviewHistory(ctx context.Context, req ReviewContextRequest, b *model.Block, loc model.LocaleID) ReviewHistory {
 	var h ReviewHistory
 	if req.Root != "" {
-		h.Unseeded = a.ContextSourcesUnseeded(ctx, req.Root)
+		_, h.Unread = a.ContextFilesUnread(ctx, req.Root)
 	}
 	if req.Memory == nil {
 		return h

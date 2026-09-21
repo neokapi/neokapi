@@ -37,8 +37,10 @@ defaults:
 profiles:
   site:
     channels: [web]
+    termstore: vocab/site.db
   source:
     channels: [comments]
+    termstore: vocab/source.db
 collections:
   - name: pages
     channel: site/web
@@ -51,9 +53,10 @@ collections:
 	write(".kapi/profiles/site/voice.yaml", siteVoice)
 	write(".kapi/profiles/source/voice.yaml", sourceVoice)
 	writeTermsBundle(t, filepath.Join(root, ".kapi", "terms.json"), "project-name", "Kapi", "OldKapi")
-	writeTermsBundle(t, filepath.Join(root, ".kapi", "profiles", "site", "terms.json"), "site-name", "SiteName", "ScopedName")
-	writeTermsBundle(t, filepath.Join(root, ".kapi", "profiles", "source", "terms.json"), "source-name", "SourceName", "LegacyName")
+	writeTermsStore(t, filepath.Join(root, "vocab", "site.db"), "site-name", "SiteName", "ScopedName")
+	writeTermsStore(t, filepath.Join(root, "vocab", "source.db"), "source-name", "SourceName", "LegacyName")
 	write(name, body)
+	readProjectContext(t, root)
 	return root
 }
 

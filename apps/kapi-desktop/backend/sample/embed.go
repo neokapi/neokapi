@@ -19,7 +19,6 @@ import (
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
-	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 )
 
@@ -95,29 +94,43 @@ func Scaffold(name, targetDir string) error {
 
 // --- KapiMart seed functions ---
 
-// seedStore opens the sample project's store, seeds the content memory and the
-// terms, and releases it. Opening creates `.kapi/` and both of the project's
-// databases, so nothing needs to make the state directory first.
+// seedStore reads the context the scaffold just wrote into the sample
+// project's store and releases it. Opening creates `.kapi/` and both of the
+// project's databases, so nothing needs to make the state directory first.
 //
-// It opens through a host App rather than from core/projectdb, because a
-// project's content memory and terms live in the workspace and only the host
-// layer resolves where that is. Seeding the checkout's own file instead would
-// scaffold a sample whose store the app then never reads.
+// It reads through a host App rather than from core/projectdb, because a
+// project's context lives in the workspace and only the host layer resolves
+// where that is. Seeding the checkout's own file instead would scaffold a
+// sample whose store the app then never reads.
+//
+// The pass is the one `kapi context import` runs, so the terms, the content
+// memory, the voice profile and the decision record all arrive together and
+// the sample opens with the context its committed files describe.
 func seedStore(targetDir string) error {
 	ctx := context.Background()
 	app := &host.App{}
+	app.InitRegistries()
 	defer app.Shutdown()
 
 	db, err := app.ProjectDB(ctx, targetDir)
 	if err != nil {
 		return fmt.Errorf("open sample project store: %w", err)
 	}
-	if err := seedTMv2(db.Memory(), targetDir); err != nil {
+	recipe := filepath.Join(targetDir, project.RecipeFileName)
+	if _, err := app.ImportProjectContext(ctx, recipe, host.ContextImportRequest{}); err != nil {
+		return fmt.Errorf("read the sample's committed context: %w", err)
+	}
+	if err := indexMemory(ctx, db.Memory()); err != nil {
 		return fmt.Errorf("seed content memory: %w", err)
 	}
-	if err := seedTermsv2(db.Terms(), targetDir); err != nil {
-		return fmt.Errorf("seed terms: %w", err)
-	}
+
+	// The concepts are spread across the history the sample models, so a fresh
+	// scaffold looks like a project that has been worked on. The content-memory
+	// entries keep the timestamps their bundle carries: each one matches the
+	// decision in `.kapi/state` that approved that unit, and a reshuffle would
+	// give the memory a different account of when the work happened than the
+	// ledger has.
+	spreadTimestamps(db.Terms().DB(), "tb_concepts", 90)
 	return nil
 }
 
@@ -130,45 +143,21 @@ var (
 	TermsSourceRel  = filepath.Join(project.StateDirName, ktb.ConventionalName)
 )
 
-func seedTMv2(tm *memory.SQLiteStore, targetDir string) error {
-	ctx := context.Background()
-
-	// Compiled through the same importer `kapi apply` uses, from the file the
-	// recipe binds, so the store has one writer and the committed bundle is the
-	// only description of what is in it.
-	if _, err := host.ImportKMBFile(ctx, tm, filepath.Join(targetDir, MemorySourceRel)); err != nil {
-		return fmt.Errorf("compile content memory: %w", err)
+// indexMemory rebuilds the content memory's search side-tables.
+//
+// The bulk import path skips the per-row FTS5 inserts, leaving the search and
+// fuzzy side-tables empty until they are rebuilt set-wise. Exact lookup works
+// without this; search and fuzzy lookup return nothing and report no error.
+func indexMemory(ctx context.Context, tm *memory.SQLiteStore) error {
+	if tm == nil {
+		return nil
 	}
-
-	// The bulk path skips the per-row FTS5 inserts, leaving the search and fuzzy
-	// side-tables empty until they are rebuilt set-wise. Exact lookup works
-	// without this; search and fuzzy lookup return nothing and report no error.
 	if err := tm.RebuildSearchIndex(ctx); err != nil {
 		return fmt.Errorf("rebuild content-memory search index: %w", err)
 	}
 	if err := tm.RebuildFuzzyIndex(ctx); err != nil {
 		return fmt.Errorf("rebuild content-memory fuzzy index: %w", err)
 	}
-
-	// The entries keep the timestamps the bundle carries. They are spread across
-	// the history the sample models, and each one matches the decision in
-	// `.kapi/state` that approved that unit — a scaffold-time reshuffle would
-	// give the memory a different account of when the work happened than the
-	// ledger has.
-	return nil
-}
-
-func seedTermsv2(tb *terms.SQLiteStore, targetDir string) error {
-	f, err := os.Open(filepath.Join(targetDir, TermsSourceRel))
-	if err != nil {
-		return fmt.Errorf("open terms source: %w", err)
-	}
-	defer f.Close()
-
-	if _, err := host.ImportKTBFile(context.Background(), tb, f); err != nil {
-		return fmt.Errorf("compile terms: %w", err)
-	}
-	spreadTimestamps(tb.DB(), "tb_concepts", 90)
 	return nil
 }
 

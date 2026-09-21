@@ -98,11 +98,11 @@ func TestSweep_CarriesStagedDecisionsForward(t *testing.T) {
 
 	// A committed record the new working store will re-seed from, so the test
 	// can tell a carried decision from a re-derived one.
-	require.NoError(t, state.WriteCommitted(layout.UnitStateDir(), []state.UnitState{
+	require.NoError(t, state.WriteCommitted(layout.Export().UnitStateDir(), []state.UnitState{
 		unit("u-committed", "d-intro", "Already committed"),
 	}))
 
-	old, err := state.OpenWork(t.Context(), oldWorkStorePath(layout), layout.UnitStateDir())
+	old, err := state.OpenWork(t.Context(), oldWorkStorePath(layout), layout.Export().UnitStateDir())
 	require.NoError(t, err)
 	require.NoError(t, old.Put(t.Context(), unit("u-staged", "d-intro", "Staged, never committed")))
 	unwritten, err := old.RecordDiff(t.Context())
@@ -138,7 +138,7 @@ func TestSweep_CarriesStagedDecisionsFromSidecar(t *testing.T) {
 	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
 
 	sidecar := filepath.Join(layout.WorkDir(), "state.json")
-	old, err := state.OpenWorkSidecar(t.Context(), sidecar, layout.UnitStateDir())
+	old, err := state.OpenWorkSidecar(t.Context(), sidecar, layout.Export().UnitStateDir())
 	require.NoError(t, err)
 	require.NoError(t, old.Put(t.Context(), unit("u-sidecar", "d-intro", "Staged in the browser")))
 	require.NoError(t, old.Close())
@@ -234,15 +234,16 @@ func TestFold_MovesCommittedRecordIntoUnitState(t *testing.T) {
 
 	db := openStore(t, layout)
 
-	after, err := os.ReadFile(filepath.Join(layout.UnitStateDir(), shards[0].Name()))
+	after, err := os.ReadFile(filepath.Join(layout.Export().UnitStateDir(), shards[0].Name()))
 	require.NoError(t, err, "the shard landed under .kapi/state/")
 	assert.Equal(t, before, after, "the committed record moves byte-identical")
 	assert.NoDirExists(t, flatDecisionsDir(layout), "an emptied source directory goes")
 
-	// And it is a record, not just a file: the working store seeded from it,
-	// which is why the fold has to precede the open.
+	// And it is a record, not just a file: an import reads it from where the
+	// fold put it, which is why the fold has to precede the open.
+	require.NoError(t, db.Work().Import(t.Context()))
 	_, ok := db.Work().Get(t.Context(), state.Key{Scope: "d-intro", Unit: "u-flat", Variant: model.Variant("nb")})
-	assert.True(t, ok, "the moved record seeded the working set on this same open")
+	assert.True(t, ok, "an import reads the moved record")
 }
 
 // The vault holds the only copy of a withheld original. It moves for the same
@@ -363,17 +364,17 @@ func TestFold_SecondOpenIsANoOp(t *testing.T) {
 	db := openStore(t, layout)
 	require.NoError(t, db.Close())
 
-	shards, err := os.ReadDir(layout.UnitStateDir())
+	shards, err := os.ReadDir(layout.Export().UnitStateDir())
 	require.NoError(t, err)
 	require.Len(t, shards, 1)
-	firstShard, err := os.ReadFile(filepath.Join(layout.UnitStateDir(), shards[0].Name()))
+	firstShard, err := os.ReadFile(filepath.Join(layout.Export().UnitStateDir(), shards[0].Name()))
 	require.NoError(t, err)
 	firstVault, err := os.ReadFile(layout.RedactionVaultPath())
 	require.NoError(t, err)
 
 	openStore(t, layout)
 
-	secondShard, err := os.ReadFile(filepath.Join(layout.UnitStateDir(), shards[0].Name()))
+	secondShard, err := os.ReadFile(filepath.Join(layout.Export().UnitStateDir(), shards[0].Name()))
 	require.NoError(t, err)
 	secondVault, err := os.ReadFile(layout.RedactionVaultPath())
 	require.NoError(t, err)
@@ -397,10 +398,10 @@ func TestFold_CollisionKeepsBothCopies(t *testing.T) {
 
 	// A shard already at the destination, holding a different decision for the
 	// same document — the shape a half-migrated project would arrive in.
-	require.NoError(t, state.WriteCommitted(layout.UnitStateDir(), []state.UnitState{
+	require.NoError(t, state.WriteCommitted(layout.Export().UnitStateDir(), []state.UnitState{
 		unit("u-current", "d-intro", "The current copy"),
 	}))
-	occupied := filepath.Join(layout.UnitStateDir(), shards[0].Name())
+	occupied := filepath.Join(layout.Export().UnitStateDir(), shards[0].Name())
 	before, err := os.ReadFile(occupied)
 	require.NoError(t, err)
 
@@ -453,18 +454,19 @@ func TestFold_LiftsContextUmbrella(t *testing.T) {
 
 	assert.Equal(t, `{"concepts":[]}`, readString(t, filepath.Join(layout.StateDir, "terms.json")))
 	assert.Equal(t, `{"entries":["primary"]}`,
-		readString(t, filepath.Join(layout.MemoryDir(), "memory.json")),
+		readString(t, filepath.Join(layout.Export().MemoryDir(), "memory.json")),
 		"the single conventional bundle becomes the primary inside memory/")
 	assert.Equal(t, `{"entries":["docs"]}`,
-		readString(t, filepath.Join(layout.MemoryDir(), "docs-nb.memory.json")))
+		readString(t, filepath.Join(layout.Export().MemoryDir(), "docs-nb.memory.json")))
 	assert.Equal(t, "notes a project kept\n", readString(t, filepath.Join(layout.StateDir, "README.md")),
 		"a file the fold has no rule for is lifted verbatim, not left behind")
 
-	shards, err := os.ReadDir(layout.UnitStateDir())
+	shards, err := os.ReadDir(layout.Export().UnitStateDir())
 	require.NoError(t, err)
 	require.Len(t, shards, 1)
+	require.NoError(t, db.Work().Import(t.Context()))
 	_, ok := db.Work().Get(t.Context(), state.Key{Scope: "d-intro", Unit: "u-umbrella", Variant: model.Variant("nb")})
-	assert.True(t, ok, "the lifted record seeded the working set on this same open")
+	assert.True(t, ok, "an import reads the lifted record")
 
 	assert.NoDirExists(t, umbrella, "an emptied umbrella goes")
 }
@@ -485,9 +487,9 @@ func TestFold_MovesGovernanceIntoProfiles(t *testing.T) {
 	assert.Equal(t, "name: Default\n", readString(t, filepath.Join(layout.StateDir, "voice.yaml")),
 		"the project default drops the prefix the directory now states")
 	assert.Equal(t, "name: Bowrain\n",
-		readString(t, filepath.Join(layout.ProfileDir("bowrain"), "voice.yaml")))
+		readString(t, filepath.Join(layout.Export().ProfileDir("bowrain"), "voice.yaml")))
 	assert.Equal(t, `{"concepts":["bowrain"]}`,
-		readString(t, filepath.Join(layout.ProfileDir("bowrain"), "terms.json")))
+		readString(t, filepath.Join(layout.Export().ProfileDir("bowrain"), "terms.json")))
 	assert.Equal(t, `{"concepts":["default"]}`,
 		readString(t, filepath.Join(layout.StateDir, "terms.json")),
 		"an unprefixed terms bundle is the project's own and stays flat")
@@ -504,7 +506,7 @@ func TestFold_MovesGovernanceFromFlatStateDir(t *testing.T) {
 
 	assert.Equal(t, "name: Default\n", readString(t, filepath.Join(layout.StateDir, "voice.yaml")))
 	assert.Equal(t, "name: Bowrain\n",
-		readString(t, filepath.Join(layout.ProfileDir("bowrain"), "voice.yaml")))
+		readString(t, filepath.Join(layout.Export().ProfileDir("bowrain"), "voice.yaml")))
 	assert.NoFileExists(t, filepath.Join(layout.StateDir, "brand-voice.yaml"))
 }
 
@@ -516,12 +518,12 @@ func TestFold_ContextUmbrellaCollisionKeepsBothCopies(t *testing.T) {
 	writeUnder(t, filepath.Join(umbrella, "terms.json"), `{"concepts":["umbrella"]}`)
 	writeUnder(t, filepath.Join(umbrella, "memory.json"), `{"entries":["umbrella"]}`)
 	writeUnder(t, filepath.Join(layout.StateDir, "terms.json"), `{"concepts":["flat"]}`)
-	writeUnder(t, filepath.Join(layout.MemoryDir(), "memory.json"), `{"entries":["flat"]}`)
+	writeUnder(t, filepath.Join(layout.Export().MemoryDir(), "memory.json"), `{"entries":["flat"]}`)
 
 	openStore(t, layout)
 
 	assert.Equal(t, `{"concepts":["flat"]}`, readString(t, filepath.Join(layout.StateDir, "terms.json")))
-	assert.Equal(t, `{"entries":["flat"]}`, readString(t, filepath.Join(layout.MemoryDir(), "memory.json")))
+	assert.Equal(t, `{"entries":["flat"]}`, readString(t, filepath.Join(layout.Export().MemoryDir(), "memory.json")))
 	assert.Equal(t, `{"concepts":["umbrella"]}`, readString(t, filepath.Join(umbrella, "terms.json")),
 		"the source stays, visibly, rather than being deleted unread")
 	assert.Equal(t, `{"entries":["umbrella"]}`, readString(t, filepath.Join(umbrella, "memory.json")))
@@ -537,11 +539,11 @@ func TestFold_ContextUmbrellaSecondOpenIsANoOp(t *testing.T) {
 
 	db := openStore(t, layout)
 	require.NoError(t, db.Close())
-	first := readString(t, filepath.Join(layout.ProfileDir("bowrain"), "voice.yaml"))
+	first := readString(t, filepath.Join(layout.Export().ProfileDir("bowrain"), "voice.yaml"))
 
 	openStore(t, layout)
 
-	assert.Equal(t, first, readString(t, filepath.Join(layout.ProfileDir("bowrain"), "voice.yaml")))
+	assert.Equal(t, first, readString(t, filepath.Join(layout.Export().ProfileDir("bowrain"), "voice.yaml")))
 	assert.Equal(t, `{"concepts":[]}`, readString(t, filepath.Join(layout.StateDir, "terms.json")))
 	assert.NoDirExists(t, umbrella)
 }

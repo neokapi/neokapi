@@ -55,6 +55,7 @@ collections:
 	write(".kapi/profiles/source/voice.yaml", "name: source comments\nstyle:\n  comments:\n    doc_words: 120\n")
 	write("code/parse.go", "package code\n\n// Parse reads the input.\nfunc Parse() {}\n")
 	write("config/app.yaml", "# The greeting.\ngreeting: Hello\n")
+	readProjectContext(t, root)
 	return root
 }
 

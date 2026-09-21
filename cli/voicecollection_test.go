@@ -117,5 +117,6 @@ collections:
       - path: mail/**/*.json
         target: mail/{lang}/{filename}
 `)
+	readProjectContext(t, root)
 	return root
 }

@@ -68,8 +68,8 @@ export function HistoryCard({
       ? t("Content memory best match {score}%", { score })
       : !history && loading
         ? t("Reading what was approved before…")
-        : history?.unseeded
-          ? t("The committed content memory has not been read into this copy yet.")
+        : history?.unread
+          ? t("This project's context files have not been read into its store yet.")
           : t("No close match in the content memory.");
 
   return (
@@ -190,9 +190,9 @@ export function HistoryCard({
 
         {history && !prior && !match && bareScore === undefined && (
           <p className="text-muted-foreground" data-slot="review-history-empty">
-            {history.unseeded
+            {history.unread
               ? t(
-                  "The committed content memory has not been read into this copy of the project yet, so nothing can be matched. Bring up to date reads it.",
+                  "This project's context files have not been read into its store yet, so nothing can be matched. `kapi context import` reads them.",
                 )
               : (emptyText ?? t("No content-memory match for this block."))}
           </p>

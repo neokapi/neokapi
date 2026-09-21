@@ -227,10 +227,25 @@ func TestContextPortability_TextFormIsTheResultsOwnRender(t *testing.T) {
 	assert.Contains(t, got, "1 concept")
 	assert.Contains(t, got, "1 voice profile")
 
-	// A second read has nothing to say, and says so rather than reporting work
-	// it did not do.
-	again := runContext(t, a, "import", "-p", recipe)
-	assert.Contains(t, again, "Nothing to read")
+	// The same run's --json carries the numbers the text spells out, which is
+	// what keeps a reader and a program describing one thing.
+	out := runContext(t, a, "import", "-p", recipe, "--json")
+	var imported struct {
+		Concepts      int `json:"concepts"`
+		VoiceProfiles int `json:"voiceProfiles"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &imported))
+	assert.Equal(t, 1, imported.Concepts)
+	assert.Equal(t, 1, imported.VoiceProfiles)
+
+	// Every importer upserts by the identity its file carries, so reading the
+	// layout a third time leaves the store holding one copy of each.
+	runContext(t, a, "import", "-p", recipe)
+	db, err := a.ProjectDB(t.Context(), root)
+	require.NoError(t, err)
+	concepts, err := db.Terms().Count(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, 1, concepts)
 }
 
 // TestContextLocales_ReportsAndFiles: the verb the drift warning names reports

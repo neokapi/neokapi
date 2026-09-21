@@ -101,6 +101,7 @@ func unitProject(t *testing.T) (a *App, recipe, root, srcFile string) {
 		},
 	}))
 	a.MemoryBackend = backend
+	readProjectContext(t, root)
 	return a, recipe, root, srcFile
 }
 

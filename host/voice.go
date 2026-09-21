@@ -240,8 +240,8 @@ func (a *App) ResolveVoiceProfileCmd(cmd Command, paths ...string) (*coreprofile
 		return nil, "", errors.New("--profile, --profile-file, and --pack are mutually exclusive")
 	}
 	if count == 0 {
-		// No explicit flag — fall back to the project's bound voice profile
-		// (defaults.voice) or a convention file at the project root.
+		// No explicit flag — fall back to the voice profile the project binds
+		// (defaults.voice), resolved against its voice store.
 		// This makes `kapi voice check DRAFT.md` work flag-free inside a
 		// project directory.
 		profile, src, ok, perr := a.resolveProjectVoiceProfile(cmd, locale, channel, persona, paths...)
@@ -295,8 +295,8 @@ func (a *App) ResolveVoiceProfileCmd(cmd Command, paths ...string) (*coreprofile
 // them), and delegates the resolution ladder.
 //
 // Returns (profile, source, found, error). found is false (with nil error)
-// when no project is in scope or the project carries no voice binding and no
-// convention file — letting the caller surface the "specify a profile" error.
+// when no project is in scope or the project binds no voice profile — letting
+// the caller surface the "specify a profile" error.
 func (a *App) resolveProjectVoiceProfile(cmd Command, locale, channel, persona string, paths ...string) (*coreprofile.VoiceProfile, string, bool, error) {
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil {
@@ -383,25 +383,26 @@ type VoiceResolveOptions struct {
 // voice/check/verify paths and the Kapi Desktop. Resolution order:
 //
 //  1. The `voice:` of the profile whose `when:` matches the collection's point
-//     most closely (profile_file → YAML, pack → built-in starter pack, profile
-//     → local voice store). profile_file is resolved relative to the project
-//     root.
-//  2. That profile's conventional file, <root>/.kapi/profiles/<name>/voice.yaml.
-//  3. defaults.voice, in the same three forms.
-//  4. A convention file at <root>/.kapi/voice.yaml, then <root>/voice.yaml.
+//     most closely (profile → the project's voice store, pack → built-in
+//     starter pack).
+//  2. defaults.voice, in the same two forms.
+//
+// A binding that names a `profile_file:` names WHICH profile applies, and the
+// store answers for it under the id `kapi context import` filed that path
+// under. The file itself stays closed.
 //
 // What the recipe binds is *loaded* here and then handed to the framework's one
 // resolution chain (coreprofile.ResolveProfileFromContext) at the collection tier,
 // where a connector- or editor-created project's `CollectionConfig` binding
-// sits. Loading has to happen here because a recipe binds a profile file or a
-// starter pack, which the store cannot name — but ranking does not: an explicit
+// sits. Loading has to happen here because a recipe binds a starter pack, which
+// the store cannot name — but ranking does not: an explicit
 // per-call profile still wins over the recipe, stream/project/workspace
 // bindings still sit under it, and the locale/channel/persona composition is
 // the same ResolveProfile every surface uses. The collection's channel enters
 // at the same tier; an explicit Channel (a `--channel` flag) outranks it there.
 //
 // Returns (profile, source, found, error). found is false (with nil error)
-// when the project carries no voice binding and no convention file.
+// when the project binds no voice profile at that point.
 func (a *App) ResolveVoiceProfile(ctx context.Context, proj *project.KapiProject, root string, opts VoiceResolveOptions) (*coreprofile.VoiceProfile, string, bool, error) {
 	profile, _, src, found, err := a.ResolveVoiceAtPoint(ctx, proj, root, opts)
 	return profile, src, found, err
@@ -468,8 +469,8 @@ func (a *App) resolveVoiceForGovernance(ctx context.Context, root string, store 
 // happened to be resolved last.
 //
 // Returns (profile, governance, source, found, error). found is false (with a
-// nil error) when the project carries no voice binding and no convention file;
-// the governance is still returned, since its channel and terms are resolved
+// nil error) when the project binds no voice profile at that point; the
+// governance is still returned, since its channel and terms are resolved
 // whether or not a voice was bound.
 func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject, root string, opts VoiceResolveOptions) (*coreprofile.VoiceProfile, *project.ResolvedGovernance, string, bool, error) {
 	if proj == nil {
@@ -486,45 +487,32 @@ func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject
 // loadVoiceAtGovernance loads the voice profile an already-resolved governance
 // binds, AS AUTHORED — the ladder LoadCollectionVoice documents, once the point
 // itself has been resolved.
+//
+// The profile comes from the project's voice store in the user's workspace,
+// selected by the name the recipe binds. A `voice.yaml` in the checkout is an
+// artifact of `kapi context export`; `kapi context import` reads one in.
 func (a *App) loadVoiceAtGovernance(ctx context.Context, root string, store coreprofile.Store, rc *project.ResolvedGovernance) (*coreprofile.VoiceProfile, string, bool, error) {
 	if rc == nil {
 		return nil, "", false, nil
 	}
-	// A profile that binds no `voice:` of its own is answered by its own
-	// directory before the project default is: `.kapi/profiles/<name>/voice.yaml`
-	// is that profile's voice by convention, and a project that keeps its
-	// overrides there should not have to bind every one of them by hand.
+	// A profile that binds no `voice:` of its own is answered by the profile
+	// the store holds for its name, before the project default is. The name is
+	// the recipe's own, and `.kapi/profiles/<name>/voice.yaml` is where an
+	// export writes it, so the two agree whichever way a project arrived at
+	// its store.
 	if rc.Profile != "" && rc.VoiceField == project.DefaultVoiceField {
-		conv := filepath.Join(root, project.RelStatePath(project.ProfilesDirName, rc.Profile, VoiceConventionalName))
-		p, lerr := loadProfileFile(conv)
-		if lerr != nil {
-			return nil, "", false, lerr
-		}
-		if p != nil {
-			return p, conv, true, nil
-		}
-	}
-	profile, src, found, err := a.loadBoundVoiceProfile(ctx, rc.Voice, root, store, rc.VoiceField)
-	if err != nil {
-		return nil, "", false, err
-	}
-	if !found {
-		for _, conv := range VoiceProfileConventions(root) {
-			p, lerr := loadProfileFile(conv)
-			if lerr != nil {
-				return nil, "", false, lerr
-			}
-			if p != nil {
-				profile, src, found = p, conv, true
-				break
+		conv := project.RelStatePath(project.ProfilesDirName, rc.Profile, VoiceConventionalName)
+		if id := a.voiceProfileIDForBinding(ctx, root, conv); id != "" {
+			if p, err := lookupProfileIn(ctx, store, id); err == nil {
+				return p, "store:" + id, true, nil
 			}
 		}
 	}
-	return profile, src, found, nil
+	return a.loadBoundVoiceProfile(ctx, rc.Voice, root, store, rc.VoiceField)
 }
 
 // VoiceConventionalName is the voice profile's filename at a conventional
-// location, matching kmb/ktb's ConventionalName for the other two committed
+// location, matching kmb/ktb's ConventionalName for the other two exported
 // sources.
 //
 // Just `voice.yaml`, because the directory already says whose voice it is:
@@ -532,13 +520,12 @@ func (a *App) loadVoiceAtGovernance(ctx context.Context, root string, store core
 // that profile's. A per-profile scope belongs in the path, not in the filename.
 const VoiceConventionalName = "voice.yaml"
 
-// VoiceProfileConventions lists the well-known profile locations, in the order
-// an unbound project is searched.
+// VoiceProfileConventions lists the well-known profile locations under a
+// project root, `.kapi/` first.
 //
-// `.kapi/` comes first: it is committed, and it is where a project's authored
-// sources live — beside the terms bundle and the memory bundles, which is where
-// a reader looks for the voice. The root spelling is second; a project that
-// keeps its profile there is not wrong.
+// An export writes a profile at the first of them and an import reads either.
+// Governance resolves a voice from the project's voice store, so nothing on a
+// read path calls this.
 func VoiceProfileConventions(root string) []string {
 	return []string{
 		filepath.Join(root, project.RelStatePath(VoiceConventionalName)),
@@ -546,30 +533,21 @@ func VoiceProfileConventions(root string) []string {
 	}
 }
 
-// loadBoundVoiceProfile turns a resolved voice binding into a VoiceProfile.
-// Returns found=false when the binding is nil (nothing bound at this point, nor
-// project-wide). field names the recipe key the binding came from,
-// so a missing file names the line to fix. profile_file paths are resolved
-// relative to the project root; a profile name is looked up in the local voice
-// store.
+// loadBoundVoiceProfile turns a resolved voice binding into a VoiceProfile,
+// out of the project's voice store. Returns found=false when the binding is nil
+// (nothing bound at this point, nor project-wide) and when the store holds no
+// profile for it. field names the recipe key the binding came from.
+//
+// A `profile_file:` names WHICH profile applies here, and the store answers for
+// it under the id `kapi context import` filed that path under. The file itself
+// is never opened: a checkout on another branch carries a different copy of it,
+// and a gate that read whichever copy was in the tree would enforce a voice the
+// project never agreed on.
 func (a *App) loadBoundVoiceProfile(ctx context.Context, bv *project.VoiceBinding, root string, store coreprofile.Store, field string) (*coreprofile.VoiceProfile, string, bool, error) {
 	if bv == nil {
 		return nil, "", false, nil
 	}
 	switch {
-	case bv.ProfileFile != "":
-		path := bv.ProfileFile
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(root, path)
-		}
-		p, err := loadProfileFile(path)
-		if err != nil {
-			return nil, "", false, err
-		}
-		if p == nil {
-			return nil, "", false, fmt.Errorf("voice profile file %q (from %s.profile_file) not found", path, field)
-		}
-		return p, path, true, nil
 	case bv.Pack != "":
 		p, err := packs.Load(bv.Pack)
 		if err != nil {
@@ -582,6 +560,19 @@ func (a *App) loadBoundVoiceProfile(ctx context.Context, bv *project.VoiceBindin
 			return nil, "", false, err
 		}
 		return p, "store:" + bv.Profile, true, nil
+	case bv.ProfileFile != "":
+		id := a.voiceProfileIDForBinding(ctx, root, bv.ProfileFile)
+		if id == "" {
+			return nil, "", false, nil
+		}
+		p, err := lookupProfileIn(ctx, store, id)
+		if err != nil {
+			// The store has not been given this profile. The first-meeting
+			// notice names the file and the command that reads it, so the
+			// answer here is that nothing is bound.
+			return nil, "", false, nil
+		}
+		return p, "store:" + id, true, nil
 	}
 	return nil, "", false, nil
 }

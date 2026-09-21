@@ -181,12 +181,12 @@ type History struct {
 	// wording. A percentage alone tells a reviewer that something close exists
 	// and never what it says.
 	Match *MemoryMatch `json:"match,omitempty"`
-	// Unseeded reports a project whose committed context sources have never
-	// been compiled into the store this history reads: a fresh clone, before
-	// anything ran. The store answers, and answers empty, which a reviewer
-	// cannot tell from a memory that genuinely holds nothing close. `kapi up`
-	// compiles the sources; until it has, an empty Match means unread.
-	Unseeded bool `json:"unseeded,omitempty"`
+	// Unread reports a checkout carrying context files whose project store has
+	// never held context: a clone, before anyone read its layout in. The store
+	// answers, and answers empty, which a reviewer cannot tell from a memory
+	// that genuinely holds nothing close. `kapi context import` reads the
+	// files; until then, an empty Match means unread.
+	Unread bool `json:"unread,omitempty"`
 }
 
 // PriorVersion is one block's previous source and the target approved for it,

@@ -20,15 +20,16 @@ import (
 
 // Where a profile-terms fixture binds its vocabulary.
 const (
-	termsOnProfileBundle = "profile termstore bundle"
-	termsOnProfileStore  = "profile termstore database"
-	termsOnProfileDir    = "profile conventional terms file"
-	termsOnDefaults      = "defaults terms_source"
-	termsNowhere         = "nowhere"
+	termsOnProfileStore = "profile termstore database"
+	termsOnDefaults     = "defaults terms_source"
+	termsNowhere        = "nowhere"
 )
 
-// profileTermsBindings are the three ways a profile binds terms of its own.
-var profileTermsBindings = []string{termsOnProfileBundle, termsOnProfileStore, termsOnProfileDir}
+// profileTermsBindings is how a profile binds terms of its own: `termstore:`
+// naming a store. A bundle under `.kapi/` is an export artifact that an import
+// reads into the project vocabulary, so it governs everywhere rather than at
+// one point.
+var profileTermsBindings = []string{termsOnProfileStore}
 
 // profileTermsFixture describes a project with a `press` profile on the `docs`
 // channel and French targets. The vocabulary approves Enregistrer for Save.
@@ -76,8 +77,6 @@ func writeProfileTermsProject(t *testing.T, f profileTermsFixture) string {
 	}
 	recipe.WriteString("profiles:\n  press:\n    channels: [docs]\n")
 	switch f.binding {
-	case termsOnProfileBundle:
-		recipe.WriteString("    termstore: vocab/press.terms.json\n")
 	case termsOnProfileStore:
 		recipe.WriteString("    termstore: vocab/press.db\n")
 	}
@@ -118,8 +117,6 @@ func writeProfileTermsProject(t *testing.T, f profileTermsFixture) string {
 	}
 
 	switch f.binding {
-	case termsOnProfileBundle:
-		writeConceptsBundle(t, filepath.Join(root, "vocab", "press.terms.json"), concepts)
 	case termsOnProfileStore:
 		require.NoError(t, os.MkdirAll(filepath.Join(root, "vocab"), 0o755))
 		store, err := terms.NewSQLiteStore(filepath.Join(root, "vocab", "press.db"))
@@ -128,11 +125,10 @@ func writeProfileTermsProject(t *testing.T, f profileTermsFixture) string {
 			require.NoError(t, store.AddConcept(t.Context(), c))
 		}
 		require.NoError(t, store.Close())
-	case termsOnProfileDir:
-		writeConceptsBundle(t, filepath.Join(root, project.RelStatePath(project.ProfilesDirName, "press", ktb.ConventionalName)), concepts)
 	case termsOnDefaults:
 		writeConceptsBundle(t, filepath.Join(root, project.RelStatePath(ktb.ConventionalName)), concepts)
 	}
+	readProjectContext(t, root)
 	return root
 }
 
@@ -295,7 +291,7 @@ func TestShip_ProfileTermsPassWhenContentFollowsThem(t *testing.T) {
 func TestShip_ProfileTermsLeaveContentElsewhereNotGoverned(t *testing.T) {
 	for _, fixed := range []bool{false, true} {
 		t.Run(map[bool]string{false: "violation", true: "clean"}[fixed], func(t *testing.T) {
-			root := writeProfileTermsProject(t, profileTermsFixture{binding: termsOnProfileBundle, fixed: fixed, elsewhere: true})
+			root := writeProfileTermsProject(t, profileTermsFixture{binding: termsOnProfileStore, fixed: fixed, elsewhere: true})
 
 			out := shipCheck(t, root, nil)
 			g, ok := gateByName(out, gateTerms)
@@ -327,7 +323,7 @@ func TestShip_ProfileTermsLeaveContentElsewhereNotGoverned(t *testing.T) {
 // was checked, so the gate did not run, although readable content sits
 // elsewhere.
 func TestShip_ProfileTermsOverUnreadableContentDidNotRun(t *testing.T) {
-	root := writeProfileTermsProject(t, profileTermsFixture{binding: termsOnProfileBundle, noDocument: true, catalog: true, elsewhere: true})
+	root := writeProfileTermsProject(t, profileTermsFixture{binding: termsOnProfileStore, noDocument: true, catalog: true, elsewhere: true})
 
 	out := shipCheck(t, root, nil)
 	g, ok := gateByName(out, gateTerms)
@@ -351,7 +347,7 @@ func TestShip_ProfileTermsOverUnreadableContentDidNotRun(t *testing.T) {
 // document cleanly, and cannot read the press catalog. The gate does not pass
 // on the half it read, and the ship gate names the unchecked units.
 func TestShip_UnreadableGovernedContentWithholdsTheTerminologyGate(t *testing.T) {
-	root := writeProfileTermsProject(t, profileTermsFixture{binding: termsOnProfileBundle, fixed: true, catalog: true})
+	root := writeProfileTermsProject(t, profileTermsFixture{binding: termsOnProfileStore, fixed: true, catalog: true})
 
 	out := shipCheck(t, root, nil)
 	g, ok := gateByName(out, gateTerms)
@@ -419,7 +415,7 @@ func TestShip_NoTermsAnywhere(t *testing.T) {
 // collection sits at. Nothing in scope is governed, so a default run has no
 // terminology gate, and naming the gate reports that it checked nothing.
 func TestShip_ProfileTermsWithNoContentAtTheirPoint(t *testing.T) {
-	root := writeProfileTermsProject(t, profileTermsFixture{binding: termsOnProfileBundle, noDocument: true, elsewhere: true})
+	root := writeProfileTermsProject(t, profileTermsFixture{binding: termsOnProfileStore, noDocument: true, elsewhere: true})
 
 	out := shipCheck(t, root, nil)
 	_, ok := gateByName(out, gateTerms)
@@ -438,7 +434,7 @@ func TestShip_ProfileTermsWithNoContentAtTheirPoint(t *testing.T) {
 // and the checks gate and the ship gate's checks read that as settled at the
 // press point rather than as an untranslated unit.
 func TestShip_ProfileTermsSettleAnIdenticalTarget(t *testing.T) {
-	root := writeProfileTermsProject(t, profileTermsFixture{binding: termsOnProfileBundle, fixed: true, brand: true})
+	root := writeProfileTermsProject(t, profileTermsFixture{binding: termsOnProfileStore, fixed: true, brand: true})
 
 	out := shipCheck(t, root, nil)
 	checks, ok := gateByName(out, gateChecks)

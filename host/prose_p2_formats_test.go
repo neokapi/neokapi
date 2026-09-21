@@ -157,6 +157,7 @@ collections:
 	write(".kapi/voice.yaml", serviceVoiceProfile)
 	write(filepath.Join("src", pf.file), pf.body(text))
 	write(filepath.Join("guide", pf.file), pf.body(text))
+	readProjectContext(t, root)
 	return root
 }
 

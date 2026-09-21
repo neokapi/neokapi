@@ -75,8 +75,9 @@ func requireNoReader(t *testing.T, warnings []check.Warning, file, format, plugi
 // The run converges the readable collection, sets the two plugin collections
 // aside, and reports them in its result and as convergence events.
 func TestUpSetsAsideCollectionsWithNoReader(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, true)
+	readProjectContext(t, filepath.Dir(recipe))
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 
@@ -116,16 +117,16 @@ func TestUpSetsAsideCollectionsWithNoReader(t *testing.T) {
 	assert.Contains(t, text.String(), `no reader for format "okf_idml"`)
 }
 
-// Seeding the committed context reads every committed translation. A committed
+// Reading the committed context reads every committed translation. A committed
 // target in a plugin format is left for a machine that can read it, and the rest
 // of the record is still absorbed.
-func TestSeedSkipsCommittedTargetsWithNoReader(t *testing.T) {
-	a, _, recipe := newSelfSeedProject(t)
+func TestReadSkipsCommittedTargetsWithNoReader(t *testing.T) {
+	a, _, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, true)
 	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(recipe), "src", "nb.json"),
 		[]byte(`{"greeting":"Hei verden"}`), 0o644))
 
-	res, err := a.SeedProjectContext(context.Background(), recipe)
+	res, err := a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	assert.Positive(t, res.Record.Documents, "the readable committed translation was read")
 }
@@ -133,7 +134,7 @@ func TestSeedSkipsCommittedTargetsWithNoReader(t *testing.T) {
 // `kapi up --plan` prices the readable collections and names the one it set
 // aside.
 func TestUpPlanSetsAsideCollectionsWithNoReader(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, true)
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -154,9 +155,9 @@ func TestUpPlanSetsAsideCollectionsWithNoReader(t *testing.T) {
 	require.NoError(t, plan.FormatText(&text))
 	assert.Contains(t, text.String(), `no reader for format "okf_idml"`)
 
-	// The plan path seeds an existing store before it prices, and the seed
-	// reads the committed layout target.
-	_, err = a.SeedProjectContext(context.Background(), recipe)
+	// A plan over a store the import has filled prices the same way, and the
+	// import reads the committed layout target.
+	_, err = a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	require.NoError(t, cmd.Flags().Set("plan", "true"))
 	var planOut bytes.Buffer
@@ -169,7 +170,7 @@ func TestUpPlanSetsAsideCollectionsWithNoReader(t *testing.T) {
 // could read. The run says nothing was converged and fails, and the plan says
 // nothing could be priced rather than that nothing is left to do.
 func TestUpOverOnlyUnreadableContentConvergesNothing(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, false)
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -195,7 +196,7 @@ func TestUpOverOnlyUnreadableContentConvergesNothing(t *testing.T) {
 // Only a missing reader sets a collection aside. `--fail-on-unknown` asks for a
 // file that cannot be processed to fail the run, and it still does.
 func TestUpFailOnUnknownStillFailsOnAMissingReader(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, true)
 	require.NoError(t, cmd.Flags().Set("fail-on-unknown", "true"))
 	proj, err := project.Load(recipe)
@@ -209,7 +210,7 @@ func TestUpFailOnUnknownStillFailsOnAMissingReader(t *testing.T) {
 // A source in a format kapi reads that fails to parse was opened and is broken.
 // The run still fails on it.
 func TestUpStillFailsOnABrokenFileInAKnownFormat(t *testing.T) {
-	a, cmd, recipe := newSelfSeedProject(t)
+	a, cmd, recipe := newFreshCheckoutProject(t)
 	declarePluginCollections(t, recipe, true)
 	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(recipe), "src", "en.json"),
 		[]byte(`{"greeting": "Hello`), 0o644))

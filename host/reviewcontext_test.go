@@ -179,25 +179,25 @@ func chainAnswer(id, unit, source, target, fingerprint string, at time.Time) mem
 	}
 }
 
-// TestReviewHistoryReportsAnUnseededStore: on a fresh clone the committed
-// content memory has not been compiled into the store yet, so the store
-// answers empty. A reviewer must be told that the memory is unread rather than
-// shown "no close match" for wording the project has already approved.
-func TestReviewHistoryReportsAnUnseededStore(t *testing.T) {
+// TestReviewHistoryReportsAnUnreadStore: a checkout carrying content-memory
+// bundles whose store has never held context answers empty. A reviewer must be
+// told that the memory is unread rather than shown "no close match" for
+// wording the project has already approved.
+func TestReviewHistoryReportsAnUnreadStore(t *testing.T) {
 	ctx := t.Context()
 	a, root, recipe := newSeedProject(t, false)
 	writeMemoryBundle(t, root, "docs-nb", map[string]string{"Hello": "Hei"})
 	block := docBlock("greeting", "Hello", "")
 
 	before := a.reviewHistory(ctx, ReviewContextRequest{Root: root, Memory: a.ReviewMemory(ctx, root)}, block, "nb")
-	assert.True(t, before.Unseeded, "a never-compiled store is unread, not empty")
-	assert.Nil(t, before.Match, "the store holds nothing until the sources are compiled")
+	assert.True(t, before.Unread, "a store that has never held context is unread, not empty")
+	assert.Nil(t, before.Match, "the store holds nothing until the files are read in")
 
-	_, err := a.SeedProjectContext(ctx, recipe)
+	_, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 
 	after := a.reviewHistory(ctx, ReviewContextRequest{Root: root, Memory: a.ReviewMemory(ctx, root)}, block, "nb")
-	assert.False(t, after.Unseeded, "once compiled, an empty answer means absent")
+	assert.False(t, after.Unread, "once read in, an empty answer means absent")
 	require.NotNil(t, after.Match, "the committed wording is what the store now answers with")
 	assert.Equal(t, "Hei", after.Match.Target)
 }

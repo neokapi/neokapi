@@ -428,6 +428,7 @@ func TestStatus_DoNotTranslateGovernsAndIsChecked(t *testing.T) {
     {"id": "c-banana", "do_not_translate": true, "terms": [{"text": "Banana", "locale": "en", "status": "preferred"}]}
   ]
 }`), 0o644))
+	readProjectContext(t, root)
 	t.Chdir(root)
 
 	out := runStatusJSON(t)

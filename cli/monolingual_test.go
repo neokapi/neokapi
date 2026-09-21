@@ -100,6 +100,15 @@ Every mooring is allocated on arrival, and the handover is seamless.
 	return filepath.Join(real, project.RecipeFileName), real
 }
 
+// monolingualProjectRead is monolingualProject with its context files read into
+// the project store, where the gates answer from.
+func monolingualProjectRead(t *testing.T) (recipe, root string) {
+	t.Helper()
+	recipe, root = monolingualProject(t)
+	readContextAt(t, recipe)
+	return recipe, root
+}
+
 // runCLI executes one cobra command and returns its combined output. The recipe
 // is always named explicitly by the caller, because discovery is off under the
 // isolation contract.
@@ -183,7 +192,7 @@ func TestStatus_MonolingualReportsTheSource(t *testing.T) {
 // source is a finding.
 func TestCheck_MonolingualFiresTheVoiceViolation(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := monolingualProject(t)
+	recipe, _ := monolingualProjectRead(t)
 
 	out, err := runCLI(t, NewCheckCmd(a), "--project", recipe, "--no-fail")
 	require.NoError(t, err, out)
@@ -197,10 +206,9 @@ func TestCheck_MonolingualFiresTheVoiceViolation(t *testing.T) {
 // voice rule — to be both recorded and held to.
 func TestCheck_MonolingualFiresTheTermsViolation(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := monolingualProject(t)
+	recipe, _ := monolingualProjectRead(t)
 
-	// The terms store is the store's projection of the committed source, so the
-	// gate reads what a converged project holds.
+	// The gate reads what a converged project holds, so the run comes first.
 	upOut, err := runCLI(t, NewUpCmd(a), "--project", recipe)
 	require.NoError(t, err, upOut)
 
@@ -218,7 +226,7 @@ func TestCheck_MonolingualFiresTheTermsViolation(t *testing.T) {
 // other empty.
 func TestContext_BothRetrievalPrimitivesAgree(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := monolingualProject(t)
+	recipe, root := monolingualProjectRead(t)
 
 	upOut, err := runCLI(t, NewUpCmd(a), "--project", recipe)
 	require.NoError(t, err, upOut)

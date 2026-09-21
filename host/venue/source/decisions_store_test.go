@@ -147,7 +147,7 @@ func TestDecisions_CarryTheGoverningContextBothWays(t *testing.T) {
 
 	// Up: a record read in from the committed shards maps the field onto the
 	// wire, beside the one the pull brought in.
-	require.NoError(t, state.WriteCommitted(c.project.Layout.UnitStateDir(), []state.UnitState{{
+	require.NoError(t, state.WriteCommitted(c.project.Layout.Export().UnitStateDir(), []state.UnitState{{
 		Scope: "locales/en.json", Unit: "farewell", Variant: model.Variant("fr"),
 		Status: model.TargetStatusReviewed, Decision: state.Decision{ReviewState: "approved"},
 		GoverningFingerprint: "fp-local", Updated: "2026-08-05T11:00:00Z",
@@ -171,7 +171,7 @@ func TestDecisions_ARejectionCarriesTheApprovedBasis(t *testing.T) {
 	defer a.Shutdown()
 	c := newDecisionsConnector(t, a)
 
-	require.NoError(t, state.WriteCommitted(c.project.Layout.UnitStateDir(), []state.UnitState{{
+	require.NoError(t, state.WriteCommitted(c.project.Layout.Export().UnitStateDir(), []state.UnitState{{
 		Scope: "locales/en.json", Unit: "greeting", Variant: model.Variant("fr"),
 		Status: model.TargetStatusDraft, Decision: state.Decision{ReviewState: "rejected"},
 		TargetHash:  "th-redraft",

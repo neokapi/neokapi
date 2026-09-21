@@ -116,6 +116,7 @@ func namedContentProject(t *testing.T) string {
 	data = []byte(strings.Replace(string(data), anchor, anchor+"  voice: .kapi/voice.yaml\n", 1))
 	require.NoError(t, os.WriteFile(recipe, data, 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".kapi", "voice.yaml"), []byte(projectVoice), 0o600))
+	readProjectContext(t, root)
 	return root
 }
 

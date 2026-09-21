@@ -42,6 +42,7 @@ func governanceRunProject(t *testing.T, recipe string) (recipePath, root, guide,
 
 	recipePath = filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, os.WriteFile(recipePath, []byte(recipe), 0o644))
+	readProjectContext(t, dir)
 	return recipePath, dir,
 		filepath.Join(dir, "docs", "guide.md"),
 		filepath.Join(dir, "docs", "legal", "eula.md")

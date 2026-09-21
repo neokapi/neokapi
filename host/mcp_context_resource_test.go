@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,7 +79,28 @@ vocabulary:
 
 	t.Setenv("KAPI_PROJECT", filepath.Join(root, "kapi.yaml"))
 	t.Chdir(root)
+	readProjectContext(t, root)
 	return root
+}
+
+// readProjectContext reads a fixture project's `.kapi/` layout into its store,
+// which is what `kapi context import` does for a person. A fixture that authors
+// a voice profile or a terms bundle calls it: those files reach a gate no other
+// way.
+func readProjectContext(t *testing.T, root string) {
+	t.Helper()
+	readContextAt(t, filepath.Join(root, project.RecipeFileName))
+}
+
+// readContextAt is readProjectContext for a recipe that is not named
+// `kapi.yaml`.
+func readContextAt(t *testing.T, recipe string) {
+	t.Helper()
+	a := &host.App{}
+	a.InitRegistries()
+	defer a.Shutdown()
+	_, err := a.ImportProjectContext(context.Background(), recipe, host.ContextImportRequest{})
+	require.NoError(t, err)
 }
 
 // contextClient starts a real server over an in-memory transport and returns a
@@ -240,6 +262,9 @@ func TestContextMCPRetainsExplicitRecipeWithoutDiscovery(t *testing.T) {
 	require.NoError(t, os.WriteFile(profilePath, profile, 0o600))
 	recipe := filepath.Join(root, "governed-content.yaml")
 	require.NoError(t, os.Rename(filepath.Join(root, "kapi.yaml"), recipe))
+	// The channel guidance was appended to the profile after the fixture read
+	// it, so the store is given the edited profile.
+	readContextAt(t, recipe)
 	t.Setenv("KAPI_PROJECT", "")
 	t.Setenv("KAPI_NO_PROJECT", "1")
 	app := &host.App{}

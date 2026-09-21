@@ -18,8 +18,8 @@ import (
 )
 
 // newSeedProject writes a recipe binding a committed terms source and returns
-// the app, project root and recipe path. Nothing is compiled yet: the store
-// starts as empty as it is on a fresh clone.
+// the app, project root and recipe path. Nothing is read yet: the store starts
+// as empty as it is on a fresh clone.
 func newSeedProject(t *testing.T, bindTermsSource bool) (a *App, root, recipe string) {
 	t.Helper()
 	root = t.TempDir()
@@ -43,9 +43,15 @@ func newSeedProject(t *testing.T, bindTermsSource bool) (a *App, root, recipe st
 	return a, root, recipe
 }
 
-// writeTermsSource writes a committed terms bundle holding one concept per
-// (text, translation) pair.
+// writeTermsSource writes a terms bundle holding one concept per
+// (text, translation) pair, at the conventional path.
 func writeTermsSource(t *testing.T, root string, pairs map[string]string) {
+	t.Helper()
+	writeTermsBundleAt(t, filepath.Join(root, project.RelStatePath(ktb.ConventionalName)), pairs)
+}
+
+// writeTermsBundleAt writes a terms bundle at path.
+func writeTermsBundleAt(t *testing.T, path string, pairs map[string]string) {
 	t.Helper()
 	var concepts []terms.Concept
 	stamp := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -63,13 +69,12 @@ func writeTermsSource(t *testing.T, root string, pairs map[string]string) {
 	}
 	data, err := ktb.Marshal(ktb.FromConcepts(concepts))
 	require.NoError(t, err)
-	path := filepath.Join(root, project.RelStatePath(ktb.ConventionalName))
 	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 	require.NoError(t, os.WriteFile(path, data, 0o644))
 }
 
-// writeMemoryBundle writes one committed content-memory bundle under
-// .kapi/memory/, named for the surface it backs.
+// writeMemoryBundle writes one content-memory bundle under .kapi/memory/, named
+// for the surface it backs.
 func writeMemoryBundle(t *testing.T, root, name string, pairs map[string]string) {
 	t.Helper()
 	var entries []memory.Entry
@@ -88,9 +93,68 @@ func writeMemoryBundle(t *testing.T, root, name string, pairs map[string]string)
 	}
 	data, err := kmb.Marshal(kmb.FromModel(entries, nil))
 	require.NoError(t, err)
-	dir := project.LayoutAt(root).MemoryDir()
+	dir := project.LayoutAt(root).Export().MemoryDir()
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, name+".memory.json"), data, 0o644))
+}
+
+// readProjectContext reads a fixture project's `.kapi/` layout into its store,
+// which is what `kapi context import` does for a person. A fixture that authors
+// a voice profile or a terms bundle calls it: those files reach a gate no other
+// way.
+//
+// It uses an App of its own, so the fixture is ready before the App under test
+// opens anything. Both land in the same workspace, which in a test binary is
+// derived from the project's own path.
+func readProjectContext(t *testing.T, root string) {
+	t.Helper()
+	readContextAt(t, filepath.Join(root, project.RecipeFileName))
+}
+
+// readContextAt is readProjectContext for a recipe that is not named
+// `kapi.yaml`.
+func readContextAt(t *testing.T, recipe string) {
+	t.Helper()
+	a := &App{}
+	a.InitRegistries()
+	defer a.Shutdown()
+	_, err := a.ImportProjectContext(context.Background(), recipe, ContextImportRequest{})
+	require.NoError(t, err)
+}
+
+// seedResult is what one pass over a project's own files puts into its store.
+type seedResult struct {
+	Concepts      int
+	Entries       int
+	VoiceProfiles int
+	// Record is what the committed translations taught the content memory.
+	Record RecordAbsorbResult
+}
+
+// Compiled reports whether the pass has anything to say.
+func (r seedResult) Compiled() bool {
+	return r.Concepts > 0 || r.Entries > 0 || r.VoiceProfiles > 0 ||
+		r.Record.Absorbed() || r.Record.Superseded > 0
+}
+
+// seedContext reads a project's context layout into its store and absorbs its
+// committed translations: the two halves a converge run runs on the way in,
+// which many of these tests need together.
+func (a *App) seedContext(ctx context.Context, recipe string) (seedResult, error) {
+	read, err := a.ImportProjectContext(ctx, recipe, ContextImportRequest{})
+	if err != nil {
+		return seedResult{}, err
+	}
+	record, err := a.AbsorbProjectRecord(ctx, recipe)
+	if err != nil {
+		return seedResult{}, err
+	}
+	return seedResult{
+		Concepts:      read.Concepts,
+		Entries:       read.Entries,
+		VoiceProfiles: read.VoiceProfiles,
+		Record:        record,
+	}, nil
 }
 
 // storeCounts reports how many concepts and content-memory entries the project
@@ -111,44 +175,42 @@ func storeCounts(t *testing.T, a *App, root string) (concepts, entries int) {
 	return concepts, entries
 }
 
-func TestSeedProjectContext(t *testing.T) {
+// TestImportProjectContext_ReadsTheLayout: what `kapi context import` puts into
+// the store for each shape of `.kapi/` layout.
+func TestImportProjectContext_ReadsTheLayout(t *testing.T) {
 	tests := []struct {
 		name string
-		// setup writes the committed sources; the recipe binds terms_source
-		// when bindTerms is set.
+		// setup writes the context files; the recipe binds terms_source when
+		// bindTerms is set.
 		bindTerms    bool
 		setup        func(t *testing.T, root string)
 		wantConcepts int
 		wantEntries  int
-		wantTerms    int // compiled terms bundles
-		wantMemory   int // compiled memory bundles
 	}{
 		{
-			name:      "no committed sources compiles nothing",
+			name:      "no context files reads nothing",
 			bindTerms: false,
 			setup:     func(*testing.T, string) {},
 		},
 		{
-			name:      "bound terms source compiles into the store",
+			name:      "a bound terms source reads into the store",
 			bindTerms: true,
 			setup: func(t *testing.T, root string) {
 				writeTermsSource(t, root, map[string]string{"content memory": "innholdsminne"})
 			},
 			wantConcepts: 1,
-			wantTerms:    1,
 		},
 		{
-			name:      "every committed bundle under the memory directory compiles",
+			name:      "every bundle under the memory directory is read",
 			bindTerms: false,
 			setup: func(t *testing.T, root string) {
 				writeMemoryBundle(t, root, "docs-nb", map[string]string{"Hello": "Hei"})
 				writeMemoryBundle(t, root, "cli-nb", map[string]string{"Goodbye": "Ha det"})
 			},
 			wantEntries: 2,
-			wantMemory:  2,
 		},
 		{
-			name:      "terms and memory seed together",
+			name:      "terms and memory are read together",
 			bindTerms: true,
 			setup: func(t *testing.T, root string) {
 				writeTermsSource(t, root, map[string]string{"terms": "termer"})
@@ -156,13 +218,24 @@ func TestSeedProjectContext(t *testing.T) {
 			},
 			wantConcepts: 1,
 			wantEntries:  1,
-			wantTerms:    1,
-			wantMemory:   1,
 		},
 		{
-			name:      "a bound source that does not exist yet is not an error",
+			name:      "a bound source that does not exist is not an error",
 			bindTerms: true,
 			setup:     func(*testing.T, string) {},
+		},
+		{
+			// A profile keeps its own vocabulary under its directory, and a
+			// read that skipped it would leave those terms in the checkout
+			// with nothing to bring them in.
+			name:      "a profile's own terms are read",
+			bindTerms: false,
+			setup: func(t *testing.T, root string) {
+				writeTermsBundleAt(t,
+					filepath.Join(project.LayoutAt(root).Export().ProfileDir("landing"), ktb.ConventionalName),
+					map[string]string{"sign in": "logg inn"})
+			},
+			wantConcepts: 1,
 		},
 	}
 
@@ -171,10 +244,8 @@ func TestSeedProjectContext(t *testing.T) {
 			a, root, recipe := newSeedProject(t, tc.bindTerms)
 			tc.setup(t, root)
 
-			res, err := a.SeedProjectContext(context.Background(), recipe)
+			res, err := a.ImportProjectContext(context.Background(), recipe, ContextImportRequest{})
 			require.NoError(t, err)
-			assert.Equal(t, tc.wantTerms, res.TermsFiles)
-			assert.Equal(t, tc.wantMemory, res.MemoryFiles)
 			assert.Equal(t, tc.wantConcepts, res.Concepts)
 			assert.Equal(t, tc.wantEntries, res.Entries)
 
@@ -185,71 +256,10 @@ func TestSeedProjectContext(t *testing.T) {
 	}
 }
 
-// TestSeedProjectContext_DigestKeyed: an unchanged source recompiles nothing,
-// and an edited one recompiles exactly itself. This is what keeps `kapi up`
-// from re-importing the whole committed context on every pass.
-func TestSeedProjectContext_DigestKeyed(t *testing.T) {
-	a, root, recipe := newSeedProject(t, true)
-	writeTermsSource(t, root, map[string]string{"content memory": "innholdsminne"})
-	writeMemoryBundle(t, root, "docs-nb", map[string]string{"Hello": "Hei"})
-	ctx := context.Background()
-
-	first, err := a.SeedProjectContext(ctx, recipe)
-	require.NoError(t, err)
-	require.Equal(t, 1, first.TermsFiles)
-	require.Equal(t, 1, first.MemoryFiles)
-	require.Equal(t, 0, first.Skipped)
-
-	second, err := a.SeedProjectContext(ctx, recipe)
-	require.NoError(t, err)
-	assert.False(t, second.Compiled(), "an unchanged source recompiles nothing")
-	assert.Equal(t, 2, second.Skipped)
-
-	// A pulled edit to the committed terms source reaches the store.
-	writeTermsSource(t, root, map[string]string{
-		"content memory": "innholdsminne",
-		"voice profile":  "stemmeprofil",
-	})
-	third, err := a.SeedProjectContext(ctx, recipe)
-	require.NoError(t, err)
-	assert.Equal(t, 1, third.TermsFiles, "the edited terms source recompiled")
-	assert.Equal(t, 1, third.Skipped, "the untouched memory bundle did not")
-
-	concepts, _ := storeCounts(t, a, root)
-	assert.Equal(t, 2, concepts)
-}
-
-// TestSeedProjectContext_ForgetsDeletedSources: a bundle removed from git stops
-// being remembered, so the stamp map does not accumulate one entry per surface
-// the project ever had and a re-added bundle compiles rather than reading as
-// already-seeded.
-func TestSeedProjectContext_ForgetsDeletedSources(t *testing.T) {
-	a, root, recipe := newSeedProject(t, false)
-	writeMemoryBundle(t, root, "docs-nb", map[string]string{"Hello": "Hei"})
-	writeMemoryBundle(t, root, "cli-nb", map[string]string{"Goodbye": "Ha det"})
-	ctx := context.Background()
-
-	first, err := a.SeedProjectContext(ctx, recipe)
-	require.NoError(t, err)
-	require.Equal(t, 2, first.MemoryFiles)
-
-	bundle := filepath.Join(project.LayoutAt(root).MemoryDir(), "docs-nb.memory.json")
-	require.NoError(t, os.Remove(bundle))
-	gone, err := a.SeedProjectContext(ctx, recipe)
-	require.NoError(t, err)
-	require.Equal(t, 1, gone.Skipped, "only the surviving bundle was considered")
-
-	writeMemoryBundle(t, root, "docs-nb", map[string]string{"Hello": "Hei"})
-	back, err := a.SeedProjectContext(ctx, recipe)
-	require.NoError(t, err)
-	assert.Equal(t, 1, back.MemoryFiles, "the re-added bundle compiled again")
-	assert.Equal(t, 1, back.Skipped, "the untouched bundle did not")
-}
-
-// TestSeedProjectContext_KeepsServerVocabulary: seeding is an upsert of what git
-// carries, never a replace — terminology a venue pull wrote into the store
-// survives a later compile of the committed source.
-func TestSeedProjectContext_KeepsServerVocabulary(t *testing.T) {
+// TestImportProjectContext_KeepsServerVocabulary: an import is an upsert of what
+// the files carry, never a replace — terminology a venue pull wrote into the
+// store survives a later read of a bundle.
+func TestImportProjectContext_KeepsServerVocabulary(t *testing.T) {
 	a, root, recipe := newSeedProject(t, true)
 	writeTermsSource(t, root, map[string]string{"content memory": "innholdsminne"})
 	ctx := context.Background()
@@ -262,40 +272,19 @@ func TestSeedProjectContext_KeepsServerVocabulary(t *testing.T) {
 		Terms:  []terms.Term{{Text: "workspace", Locale: "en", Status: model.TermPreferred}},
 	}))
 
-	_, err = a.SeedProjectContext(ctx, recipe)
+	_, err = a.ImportProjectContext(ctx, recipe, ContextImportRequest{})
 	require.NoError(t, err)
 
 	_, found, err := db.Terms().GetConcept(ctx, "concept:from-the-server")
 	require.NoError(t, err)
-	assert.True(t, found, "the pulled concept survived the compile")
+	assert.True(t, found, "the pulled concept survived the read")
 	concepts, _ := storeCounts(t, a, root)
-	assert.Equal(t, 2, concepts, "the store is the union of the source and the pull")
+	assert.Equal(t, 2, concepts, "the store is the union of the bundle and the pull")
 }
 
-// TestSeedProjectContext_ApplyStampsWhatItCompiled: a write path that edits a
-// committed source and imports it itself records the digest, so the next
-// seeding pass does not re-import a source the store already holds.
-func TestSeedProjectContext_ApplyStampsWhatItCompiled(t *testing.T) {
-	a, cmd, root, recipe := newApplyAssetProject(t)
-	ctx := context.Background()
-
-	res := a.applyAssetEntry(ctx, cmd, changeEntry{
-		Kind: kindTerm, Op: "upsert", Term: "sign in", Locale: "en", Status: "preferred",
-	})
-	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
-
-	seeded, err := a.SeedProjectContext(ctx, recipe)
-	require.NoError(t, err)
-	assert.False(t, seeded.Compiled(), "apply's own compile was recorded")
-	assert.Equal(t, 1, seeded.Skipped)
-
-	concepts, _ := storeCounts(t, a, root)
-	assert.Equal(t, 1, concepts)
-}
-
-// TestSeedProjectContext_RelationsRoundTrip: the committed bundle is the terms
-// store's lossless form, so the edges it carries reach the store too.
-func TestSeedProjectContext_RelationsRoundTrip(t *testing.T) {
+// TestImportProjectContext_RelationsRoundTrip: the bundle is the terms store's
+// lossless form, so the edges it carries reach the store too.
+func TestImportProjectContext_RelationsRoundTrip(t *testing.T) {
 	a, root, recipe := newSeedProject(t, true)
 	ctx := context.Background()
 
@@ -317,7 +306,7 @@ func TestSeedProjectContext_RelationsRoundTrip(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 	require.NoError(t, os.WriteFile(path, data, 0o644))
 
-	_, err = a.SeedProjectContext(ctx, recipe)
+	_, err = a.ImportProjectContext(ctx, recipe, ContextImportRequest{})
 	require.NoError(t, err)
 
 	db, err := a.ProjectDB(ctx, root)
@@ -326,4 +315,27 @@ func TestSeedProjectContext_RelationsRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rels, 1)
 	assert.Equal(t, "rel:old-new", rels[0].ID)
+}
+
+// TestImportProjectContext_NothingIsReadWithoutTheCommand: a project whose
+// checkout carries every context file answers with none of it until the import
+// runs. This is the whole of the store-only contract: two checkouts of one
+// project cannot decide each other's terms by what their branches happen to
+// hold.
+func TestImportProjectContext_NothingIsReadWithoutTheCommand(t *testing.T) {
+	a, root, recipe := newSeedProject(t, true)
+	writeTermsSource(t, root, map[string]string{"widget": "dings"})
+	writeMemoryBundle(t, root, "docs-nb", map[string]string{"Hello": "Hei"})
+	ctx := context.Background()
+
+	concepts, entries := storeCounts(t, a, root)
+	assert.Zero(t, concepts, "opening the store reads no terms bundle")
+	assert.Zero(t, entries, "opening the store reads no content-memory bundle")
+
+	_, err := a.ImportProjectContext(ctx, recipe, ContextImportRequest{})
+	require.NoError(t, err)
+
+	concepts, entries = storeCounts(t, a, root)
+	assert.Equal(t, 1, concepts)
+	assert.Equal(t, 1, entries)
 }

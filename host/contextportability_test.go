@@ -83,7 +83,7 @@ func writePortableTree(t *testing.T, root string) string {
 	t.Helper()
 	layout := project.LayoutAt(root)
 	require.NoError(t, os.MkdirAll(layout.StateDir, 0o755))
-	require.NoError(t, os.MkdirAll(layout.ProfileDir("landing"), 0o755))
+	require.NoError(t, os.MkdirAll(layout.Export().ProfileDir("landing"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "nb"), 0o755))
 
@@ -153,7 +153,7 @@ func seedPortable(t *testing.T, a *App, root, recipe string) {
 		GoverningFingerprint: "fp-portable",
 	}))
 
-	_, err = a.SeedProjectContext(ctx, recipe)
+	_, err = a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 }
 
@@ -294,13 +294,14 @@ func TestImportProjectContext_IsIdempotent(t *testing.T) {
 
 	assertSameTree(t, afterFirst, afterSecond, "a second read leaves the store saying the same thing")
 
-	// Without --force the unchanged sources are skipped, which is what makes a
-	// read on every run cost nothing.
+	// A third read reports the same counts: every importer upserts by the
+	// identity the file carries, so reading is repeatable rather than additive.
 	third, err := a.ImportProjectContext(ctx, recipe, ContextImportRequest{})
 	require.NoError(t, err)
-	assert.Positive(t, third.Unchanged)
-	assert.Zero(t, third.Concepts)
-	assert.Zero(t, third.VoiceProfiles)
+	assert.Equal(t, first.Concepts, third.Concepts)
+	assert.Equal(t, first.VoiceProfiles, third.VoiceProfiles)
+	afterThird, _ := snapshotInto(t, a, recipe)
+	assertSameTree(t, afterFirst, afterThird, "and so does a third")
 }
 
 // TestContextSnapshot_RoundTripsThroughAnEmptyStore: importing a snapshot into

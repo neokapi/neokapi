@@ -59,6 +59,7 @@ constraints:
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".kapi", "terms.json"), data, 0o644))
 	path := filepath.Join(root, "content.json")
 	require.NoError(t, os.WriteFile(path, []byte(`{"title":"Harbor helps you prepare.","body":"Contact our team for help."}`), 0o644))
+	readProjectContext(t, root)
 	return root, path
 }
 
@@ -209,6 +210,10 @@ func TestVerifyEmptyScopeDidNotRun(t *testing.T) {
 	assert.NotContains(t, buf.String(), "PASS")
 }
 
+// TestVerifySourceTerminologyUsesCollectionScope: a source check resolves the
+// vocabulary at the collection's own point. The `help` profile binds a terms
+// store of its own, which approves the name the project default forbids, so the
+// content the profile governs is judged by the profile's vocabulary alone.
 func TestVerifySourceTerminologyUsesCollectionScope(t *testing.T) {
 	root, path := sourceShipFixture(t)
 	recipePath := filepath.Join(root, "kapi.yaml")
@@ -218,18 +223,20 @@ func TestVerifySourceTerminologyUsesCollectionScope(t *testing.T) {
   help:
     channels: [web]
     voice: .kapi/voice.yaml
+    termstore: vocab/help.db
 collections:`, 1)
 	scoped = strings.Replace(scoped, "  - name: content", "  - name: content\n    channel: help/web", 1)
 	require.NoError(t, os.WriteFile(recipePath, []byte(scoped), 0o644))
-	scopeDir := filepath.Join(root, ".kapi", "profiles", "help")
-	require.NoError(t, os.MkdirAll(scopeDir, 0o755))
-	concepts := []terms.Concept{{ID: "scoped-service", Terms: []terms.Term{
+
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "vocab"), 0o755))
+	store, err := terms.NewSQLiteStore(filepath.Join(root, "vocab", "help.db"))
+	require.NoError(t, err)
+	require.NoError(t, store.AddConcept(t.Context(), terms.Concept{ID: "scoped-service", Terms: []terms.Term{
 		{Text: "ForbiddenName", Locale: model.LocaleEnglish, Status: model.TermPreferred},
 		{Text: "ScopedName", Locale: model.LocaleEnglish, Status: model.TermForbidden},
-	}}}
-	data, err := ktb.Marshal(ktb.FromConcepts(concepts))
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(scopeDir, "terms.json"), data, 0o644))
+	}}))
+	require.NoError(t, store.Close())
+
 	require.NoError(t, os.WriteFile(path, []byte(`{"title":"ForbiddenName and ScopedName help you."}`), 0o644))
 	for _, args := range [][]string{nil, {path}} {
 		out, err := (&App{}).computeVerify(sourceShipCommand(t, root), args)

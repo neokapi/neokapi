@@ -150,24 +150,6 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	}
 	a.InitRegistries()
 
-	// Seed before the plan, not only before the loop: the plan's leverage figure
-	// is read out of the project store, so a store left behind git reports less
-	// leverage than the project has and a token estimate for translating a
-	// corpus git already carries the reviewed wording for. The converge path
-	// seeds again; the compile is digest-keyed, so the second call is a read.
-	//
-	// Except on a store that does not exist yet. A plan must not CREATE one —
-	// that is a dry run with a side effect, and computeProjectPlan goes out of
-	// its way to stat the store rather than open it for exactly that reason —
-	// so a fresh clone's plan reports the no-leverage case an absent store
-	// legitimately is, and the run that follows seeds it.
-	if !BoolFlag(cmd, "plan") || projectStoreExists(projectPath) {
-		if seeded, serr := a.SeedProjectContext(cmd.Context(), projectPath); serr != nil {
-			return fmt.Errorf("seed committed context: %w", serr)
-		} else if seeded.Compiled() && !a.Quiet {
-			fmt.Fprintln(cmd.ErrOrStderr(), formatSeedLine(seeded))
-		}
-	}
 	// Rows keyed by a locale spelling the lookups no longer ask for would read
 	// as leverage the project lacks; say so before the plan prices the work.
 	a.WarnStoreLocaleDrift(cmd, projectPath)

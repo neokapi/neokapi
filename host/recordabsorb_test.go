@@ -172,7 +172,7 @@ func TestAbsorbCommittedRecord(t *testing.T) {
 				writeDoc(t, root, "src/nb"+tc.ext, tc.target)
 			}
 
-			res, err := a.SeedProjectContext(context.Background(), recipe)
+			res, err := a.seedContext(context.Background(), recipe)
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantDocuments, res.Record.Documents, "committed target documents read")
 			assert.Equal(t, tc.wantPairs, res.Record.Pairs, "pairs absorbed")
@@ -203,12 +203,12 @@ func TestAbsorbCommittedRecord_DigestKeyed(t *testing.T) {
 	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei verden"}`)
 	ctx := context.Background()
 
-	first, err := a.SeedProjectContext(ctx, recipe)
+	first, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	require.Equal(t, 1, first.Record.Learned)
 	require.Zero(t, first.Record.Skipped)
 
-	second, err := a.SeedProjectContext(ctx, recipe)
+	second, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	assert.Zero(t, second.Record.Documents, "an unchanged target is not read back")
 	assert.Zero(t, second.Record.Learned)
@@ -217,7 +217,7 @@ func TestAbsorbCommittedRecord_DigestKeyed(t *testing.T) {
 	assert.False(t, second.Compiled(), "a second run has nothing to report")
 
 	writeDoc(t, root, "src/nb.json", `{"greeting":"Hallo verden"}`)
-	third, err := a.SeedProjectContext(ctx, recipe)
+	third, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	assert.Equal(t, 1, third.Record.Documents, "an edited target is read again")
 	assert.Equal(t, 1, third.Record.Reconciled, "its own entry is corrected, not duplicated")
@@ -238,9 +238,9 @@ func TestAbsorbCommittedRecord_RecordSupersedesSeed(t *testing.T) {
 	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei verden"}`)
 	writeMemoryBundle(t, root, "app-nb", map[string]string{"Hello world": "Hallo verden"})
 
-	res, err := a.SeedProjectContext(context.Background(), recipe)
+	res, err := a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
-	assert.Equal(t, 1, res.MemoryFiles, "the seed compiled first")
+	assert.Equal(t, 1, res.Entries, "the bundle was read first")
 	assert.Equal(t, 1, res.Record.Reconciled, "then the record corrected it")
 	assert.Zero(t, res.Record.Learned, "the seed's entry carries the answer; no rival is added")
 
@@ -250,7 +250,7 @@ func TestAbsorbCommittedRecord_RecordSupersedesSeed(t *testing.T) {
 	entry := matches[0].Entry
 	assert.Equal(t, "Hei verden", entry.VariantText("nb"))
 
-	seed, err := os.ReadFile(filepath.Join(project.LayoutAt(root).MemoryDir(), "app-nb.memory.json"))
+	seed, err := os.ReadFile(filepath.Join(project.LayoutAt(root).Export().MemoryDir(), "app-nb.memory.json"))
 	require.NoError(t, err)
 	assert.Contains(t, string(seed), "Hallo verden",
 		"the committed seed is read-only — it is the store that moved, not the file")
@@ -269,7 +269,7 @@ func TestAbsorbCommittedRecord_LaterStatementWins(t *testing.T) {
 	writeMemoryBundle(t, root, "app-nb", map[string]string{"Hello world": "Hallo verden"})
 	ctx := context.Background()
 
-	_, err := a.SeedProjectContext(ctx, recipe)
+	_, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	first := lookupFullScore(t, a, root, "Hello world")
 	require.Len(t, first, 1)
@@ -277,9 +277,9 @@ func TestAbsorbCommittedRecord_LaterStatementWins(t *testing.T) {
 	assert.Equal(t, "Hei verden", fromRecord.VariantText("nb"), "the record answered last")
 
 	writeMemoryBundle(t, root, "app-nb", map[string]string{"Hello world": "God dag verden"})
-	res, err := a.SeedProjectContext(ctx, recipe)
+	res, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
-	require.Equal(t, 1, res.MemoryFiles, "the edited bundle recompiled")
+	require.Equal(t, 1, res.Entries, "the edited bundle was read again")
 	assert.Equal(t, 1, res.Record.Skipped, "the target has not moved, so it is not re-asserted")
 
 	second := lookupFullScore(t, a, root, "Hello world")
@@ -288,7 +288,7 @@ func TestAbsorbCommittedRecord_LaterStatementWins(t *testing.T) {
 	assert.Equal(t, "God dag verden", fromSeed.VariantText("nb"))
 
 	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei, verden"}`)
-	_, err = a.SeedProjectContext(ctx, recipe)
+	_, err = a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	third := lookupFullScore(t, a, root, "Hello world")
 	require.Len(t, third, 1)
@@ -367,7 +367,7 @@ func TestAbsorbCommittedRecord_ContestedSourceResolvesToTheNearestApproval(t *te
 	writeDoc(t, root, "engine/en.json", `{"a":"Recycle","b":"Recycle","c":"Recycle"}`)
 	writeDoc(t, root, "engine/nb.json", `{"a":"Bruk om igjen","b":"Bruk om igjen","c":"Bruk om igjen"}`)
 
-	res, err := a.SeedProjectContext(context.Background(), recipe)
+	res, err := a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	assert.Equal(t, 4, res.Record.Pairs)
 	assert.Equal(t, 1, res.Record.Contested, "one source string, answered two ways")
@@ -400,7 +400,7 @@ func TestAbsorbCommittedRecord_ContestedSourceIsNamed(t *testing.T) {
 	writeDoc(t, root, "engine/en.json", `{"a":"Recycle"}`)
 	writeDoc(t, root, "engine/nb.json", `{"a":"Bruk om igjen"}`)
 
-	res, err := a.SeedProjectContext(context.Background(), recipe)
+	res, err := a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	require.Len(t, res.Record.ContestedSources, 1)
 	c := res.Record.ContestedSources[0]
@@ -411,7 +411,7 @@ func TestAbsorbCommittedRecord_ContestedSourceIsNamed(t *testing.T) {
 		{Target: "Bruk om igjen", Point: "neokapi/engine/neokapi-engine", Governs: true},
 	}, c.Answers, "each answer, and the point that approved it")
 
-	line := formatSeedLine(res)
+	line := formatRecordLine(res.Record)
 	assert.Contains(t, line, "1 source string(s) the record answers more than one way")
 	assert.Contains(t, line, `contested: "Recycle" in nb`)
 	assert.Contains(t, line, `"Gjenbruk" approved at neokapi/cli/neokapi-cli`)
@@ -429,7 +429,7 @@ func TestAbsorbCommittedRecord_TwoApprovalsAtOnePointFallToTheirText(t *testing.
 	writeDoc(t, root, "src/en.json", `{"a":"Name","b":"Name","c":"Name"}`)
 	writeDoc(t, root, "src/nb.json", `{"a":"Navn","b":"Navn","c":"Betegnelse"}`)
 
-	res, err := a.SeedProjectContext(context.Background(), recipe)
+	res, err := a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	assert.Equal(t, 3, res.Record.Pairs)
 	assert.Equal(t, 1, res.Record.Contested)
@@ -446,7 +446,7 @@ func TestAbsorbCommittedRecord_TwoApprovalsAtOnePointFallToTheirText(t *testing.
 	// repeat count that flips the answer; under the tie-break nothing moves.
 	writeDoc(t, root, "src/en.json", `{"a":"Name","b":"Name","c":"Name","d":"Name"}`)
 	writeDoc(t, root, "src/nb.json", `{"a":"Navn","b":"Navn","c":"Betegnelse","d":"Navn"}`)
-	_, err = a.SeedProjectContext(context.Background(), recipe)
+	_, err = a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	after := lookupFrom(t, a, root, "Name", at)
 	require.Len(t, after, 1)
@@ -466,7 +466,7 @@ func TestAbsorbCommittedRecord_ContestedSourceIsAmbiguousWithoutAPoint(t *testin
 	writeDoc(t, root, "engine/en.json", `{"a":"Recycle"}`)
 	writeDoc(t, root, "engine/nb.json", `{"a":"Bruk om igjen"}`)
 
-	_, err := a.SeedProjectContext(context.Background(), recipe)
+	_, err := a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 
 	assert.Empty(t, lookupFrom(t, a, root, "Recycle", ""),
@@ -503,7 +503,7 @@ func TestAbsorbCommittedRecord_RelearnsAStoreKeyedWithoutItsPoint(t *testing.T) 
 	writeDoc(t, root, "engine/en.json", `{"a":"Recycle"}`)
 	writeDoc(t, root, "engine/nb.json", `{"a":"Bruk om igjen"}`)
 
-	_, err := a.SeedProjectContext(ctx, recipe)
+	_, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 
 	// A store as an older kapi left it: one record-derived row for the source,
@@ -522,7 +522,7 @@ func TestAbsorbCommittedRecord_RelearnsAStoreKeyedWithoutItsPoint(t *testing.T) 
 	require.NoError(t, db.Memory().Add(ctx, legacy))
 	require.NoError(t, db.PutMeta(ctx, MetaRecordScheme, ""))
 
-	res, err := a.SeedProjectContext(ctx, recipe)
+	res, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	assert.Equal(t, 2, res.Record.Documents, "every committed target is read again")
 
@@ -557,7 +557,7 @@ func TestAbsorbCommittedRecord_FoldsEveryLocaleIntoOneEntry(t *testing.T) {
 	writeDoc(t, root, "src/de.json", `{"greeting":"Hallo Welt"}`)
 	ctx := context.Background()
 
-	res, err := a.SeedProjectContext(ctx, recipe)
+	res, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	assert.Equal(t, 2, res.Record.Pairs, "one pair per locale")
 	assert.Equal(t, 1, res.Record.Learned, "one source, one entry")
@@ -571,7 +571,7 @@ func TestAbsorbCommittedRecord_FoldsEveryLocaleIntoOneEntry(t *testing.T) {
 	// Both targets move at once: each locale's correction must survive the other.
 	writeDoc(t, root, "src/nb.json", `{"greeting":"Hallo verden"}`)
 	writeDoc(t, root, "src/de.json", `{"greeting":"Hallo, Welt"}`)
-	res, err = a.SeedProjectContext(ctx, recipe)
+	res, err = a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	assert.Equal(t, 2, res.Record.Pairs, "both locales answered again")
 	assert.Equal(t, 1, res.Record.Reconciled, "one entry corrected, in two locales")
@@ -595,7 +595,7 @@ func TestAbsorbCommittedRecord_KeepsPulledApproval(t *testing.T) {
 	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei verden"}`)
 	ctx := context.Background()
 
-	_, err := a.SeedProjectContext(ctx, recipe)
+	_, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 
 	// What a venue pull leaves behind: a pair for a string git carries no
@@ -618,7 +618,7 @@ func TestAbsorbCommittedRecord_KeepsPulledApproval(t *testing.T) {
 	held.Variants["nb"] = []model.Run{{Text: &model.TextRun{Text: "Hei, verden"}}}
 	require.NoError(t, tm.Add(ctx, held))
 
-	res, err := a.SeedProjectContext(ctx, recipe)
+	res, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	require.Equal(t, 1, res.Record.Skipped, "an unchanged artifact is not read back")
 
@@ -686,7 +686,7 @@ func TestAbsorbCommittedRecord_SupersededPairingKeepsItsOwnSource(t *testing.T) 
 	// translation is still beside it.
 	writeDoc(t, root, "src/en.json", `{"greeting":"Good evening, world"}`)
 
-	res, err := a.SeedProjectContext(ctx, recipe)
+	res, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	assert.Equal(t, 1, res.Record.Superseded, "the record's own basis contradicts the document's layout")
 	assert.Equal(t, 1, res.Record.Learned)
@@ -713,7 +713,7 @@ func TestAbsorbCommittedRecord_UnrecoverableSupersededPairingIsRefused(t *testin
 	approveRecordUnit(t, a, recipe, "greeting")
 	writeDoc(t, root, "src/en.json", `{"greeting":"Good evening, world"}`)
 
-	res, err := a.SeedProjectContext(context.Background(), recipe)
+	res, err := a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	assert.Equal(t, 1, res.Record.Superseded)
 	assert.Zero(t, res.Record.Learned, "an unrecoverable pairing is declined, not guessed at")
@@ -740,7 +740,7 @@ func TestAbsorbCommittedRecord_SupersededOnlyWhileTheDecisionStillBlessesTheTarg
 	writeDoc(t, root, "src/en.json", `{"greeting":"Good evening, world"}`)
 	writeDoc(t, root, "src/nb.json", `{"greeting":"God kveld, verden"}`)
 
-	res, err := a.SeedProjectContext(ctx, recipe)
+	res, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	assert.Zero(t, res.Record.Superseded, "neither half of the decision is on disk any more")
 	assert.Equal(t, 1, res.Record.Learned)
@@ -780,7 +780,7 @@ func TestAbsorbCommittedRecord_RewrittenSourceMispairsEveryLocale(t *testing.T) 
 	ctx := context.Background()
 
 	extractRecordBlocks(t, a, recipe)
-	warm, err := a.SeedProjectContext(ctx, recipe)
+	warm, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	require.Equal(t, 1, warm.Record.Learned, "the corpus holds what the committed targets say")
 
@@ -789,7 +789,7 @@ func TestAbsorbCommittedRecord_RewrittenSourceMispairsEveryLocale(t *testing.T) 
 
 	writeDoc(t, root, "src/en.json", `{"greeting":"Good evening, world"}`)
 
-	res, err := a.SeedProjectContext(ctx, recipe)
+	res, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	assert.Equal(t, 3, res.Record.Superseded,
 		"the rewrite mispairs the undecided locales exactly as it mispairs the decided one")
@@ -820,14 +820,14 @@ func TestAbsorbCommittedRecord_SourceAndTargetRewrittenTogetherIsTheFreshPairing
 	ctx := context.Background()
 
 	extractRecordBlocks(t, a, recipe)
-	_, err := a.SeedProjectContext(ctx, recipe)
+	_, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 
 	// nb moves with the source; de is left behind.
 	writeDoc(t, root, "src/en.json", `{"greeting":"Good evening, world"}`)
 	writeDoc(t, root, "src/nb.json", `{"greeting":"God kveld, verden"}`)
 
-	res, err := a.SeedProjectContext(ctx, recipe)
+	res, err := a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 	assert.Equal(t, 1, res.Record.Superseded, "only the locale that stayed behind is mispaired")
 
@@ -849,7 +849,7 @@ func TestAbsorbCommittedRecord_NoPriorSourceLeavesTheAdjacencyAlone(t *testing.T
 	writeDoc(t, root, "src/en.json", `{"greeting":"Good evening, world"}`)
 	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei verden"}`)
 
-	res, err := a.SeedProjectContext(context.Background(), recipe)
+	res, err := a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	assert.Zero(t, res.Record.Superseded)
 	assert.Equal(t, 1, res.Record.Learned)
@@ -890,7 +890,7 @@ func TestAbsorbCommittedRecord_IdenticalPair(t *testing.T) {
 				approveRecordUnit(t, a, recipe, "terminal")
 			}
 
-			res, err := a.SeedProjectContext(context.Background(), recipe)
+			res, err := a.seedContext(context.Background(), recipe)
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantLearned, res.Record.Learned)
 
@@ -921,7 +921,7 @@ func TestAbsorbCommittedRecord_ApprovalDoesNotSurviveAnEditToWhatItApproved(t *t
 	// the decision on record judges wording that is no longer there.
 	writeDoc(t, root, "src/nb.json", `{"terminal":"Terminal"}`)
 
-	res, err := a.SeedProjectContext(context.Background(), recipe)
+	res, err := a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	assert.Zero(t, res.Record.Learned)
 	assert.Empty(t, storeEntries(t, a, root))
@@ -938,7 +938,7 @@ func TestAbsorbCommittedRecord_CarriesTheBlockIdentity(t *testing.T) {
 	writeDoc(t, root, "src/en.json", `{"greeting":"Hello world","farewell":"Goodbye"}`)
 	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei verden","farewell":"Ha det"}`)
 
-	res, err := a.SeedProjectContext(context.Background(), recipe)
+	res, err := a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	require.Equal(t, 2, res.Record.Learned)
 

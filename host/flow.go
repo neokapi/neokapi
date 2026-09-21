@@ -35,7 +35,6 @@ import (
 	sqlmemory "github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/leverage"
 	sqlterms "github.com/neokapi/neokapi/terms"
-	"github.com/neokapi/neokapi/terms/ktb"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -1936,14 +1935,11 @@ func ToolAccepts(s *schema.ComponentSchema, cap string) bool {
 // use, with no flag. Resolution order:
 //
 //  1. An explicit --termstore flag (named resource or path) — a standalone store.
-//  2. The `terms:` of the profile governing the point
+//  2. The `termstore:` of the profile governing the point
 //     (project.ResolveGovernanceFor) — a standalone store, relative to the
-//     project root. This is the one place a recipe still names a terms FILE: it
-//     binds a vocabulary to a region of the context space, and there is nothing
-//     on the wire for it, so it stays a local path.
-//  3. That profile's conventional override, `.kapi/profiles/<name>/terms.json`,
-//     when the file exists — the same binding without the line in the recipe.
-//  4. The project's own store.
+//     project root. It binds a vocabulary to a region of the context space, and
+//     there is nothing on the wire for it, so it stays a local path.
+//  3. The project's own store.
 //
 // The zero point resolves the project-wide binding, which is what every caller
 // outside a partitioned flow run wants.
@@ -1984,15 +1980,12 @@ func (a *App) ResolveTermsStore(cmd Command, point project.GovernancePoint) (Sto
 	return StoreSelection{Root: root}, nil
 }
 
-// governedTermsPath returns the terms bundle a resolved governance points at,
+// governedTermsPath returns the terms store a resolved governance points at,
 // absolute, or "" when the project's own terms govern.
 //
-// Two rungs. The matched profile's explicit `terms:` wins, as written in the
-// recipe. Failing that, a profile is answered by its own directory:
-// `.kapi/profiles/<name>/terms.json` is that profile's vocabulary by
-// convention, and only when the file is actually there — an absent override is
-// the ordinary case, and it has to fall through to the project's own terms
-// rather than resolve to a path nothing wrote.
+// One rung: the matched profile's `termstore:`, as written in the recipe. It
+// binds a vocabulary to a region of the context space and is the one place a
+// recipe still names a store of its own.
 func governedTermsPath(root string, rc *project.ResolvedGovernance) string {
 	if rc == nil {
 		return ""
@@ -2003,34 +1996,24 @@ func governedTermsPath(root string, rc *project.ResolvedGovernance) string {
 		}
 		return bound
 	}
-	if rc.Profile == "" {
-		return ""
-	}
-	conv := filepath.Join(root, project.RelStatePath(project.ProfilesDirName, rc.Profile, ktb.ConventionalName))
-	if _, err := os.Stat(conv); err == nil {
-		return conv
-	}
 	return ""
 }
 
 // ResolveTermRules builds the term rules governing the project — for each
 // concept, the source term and the translation approved for the target locale —
-// for the active source and target locales. It reads the committed .terms.json
-// serialization, the terms store's durable form (AD-010), directly, so the
-// terminology gate validates the committed state and works at check time in CI,
-// where the gitignored working-store .db doesn't exist (see projectConcepts for
-// the full precedence). Returns nil when no terms store is in scope or it has
-// no terms for the locale pair. The result is what every governed step takes
-// under the "term_rules" key.
+// for the active source and target locales. It reads the project's terms store
+// in the workspace (see projectConcepts for the precedence). Returns nil when
+// no terms store is in scope or it has no terms for the locale pair. The result
+// is what every governed step takes under the "term_rules" key.
 func (a *App) ResolveTermRules(cmd Command, targetLang string) ([]coreprofile.TermRule, error) {
 	return a.ResolveTermRulesFor(cmd, targetLang, project.GovernancePoint{})
 }
 
 // ResolveTermRulesFor is ResolveTermRules scoped to one point in the
-// context space: it reads the terms governing there (the profile's own `terms:`,
-// else defaults.terms_source), so a recipe governing two brands enforces each
-// brand's vocabulary over its own content. The zero point is the project-wide
-// resolution.
+// context space: it reads the terms governing there (the profile's own
+// `termstore:`, else the project's own terms), so a recipe governing two brands
+// enforces each brand's vocabulary over its own content. The zero point is the
+// project-wide resolution.
 func (a *App) ResolveTermRulesFor(cmd Command, targetLang string, point project.GovernancePoint) ([]coreprofile.TermRule, error) {
 	concepts, err := a.projectConcepts(cmd, point)
 	if err != nil || len(concepts) == 0 {
@@ -2049,42 +2032,23 @@ func (a *App) ResolveTermRulesFor(cmd Command, targetLang string, point project.
 	return sqlterms.RulesFromConcepts(concepts, model.LocaleID(a.SourceLocale()), target), nil
 }
 
-// projectConcepts loads the project's terms concepts for the read-only check
-// gates. Per the terms store model (AD-010), the committed .terms.json is the authored
-// source and the SQLite .db is only a rebuildable read-cache over it — so a ship
-// gate validates the *committed* source: when the recipe binds a termbase_source
-// we decode it directly, no cache required. That is also why the terminology
-// gate works on a fresh CI checkout, where the gitignored .db is absent.
+// projectConcepts loads the terms concepts governing a point, for the
+// read-only check gates.
 //
-// Precedence: an explicit --termstore selects a specific store (honour it); else
-// the committed serialization wins; else the working index the recipe binds
-// directly (a project whose store holds concepts but binds no committed
-// source — the shape a `kapi terms import` leaves behind).
+// The project's terms live in its store in the user's workspace, and that
+// store is what every surface reads: a gate, `kapi terms lookup`, `kapi
+// context search` and the MCP tools all answer from the one place, so a person
+// and an agent asking the same project the same question get the same answer.
+// A `.terms.json` in the checkout is an artifact of `kapi context export`;
+// `kapi context import` reads one in.
+//
+// Two rungs. An explicit --termstore or the `termstore:` of the profile
+// governing the point selects that store by name. Otherwise the project's own
+// terms answer.
 //
 // point scopes the resolution to the terms binding governing there; the zero
 // point is the project-wide answer.
 func (a *App) projectConcepts(cmd Command, point project.GovernancePoint) ([]sqlterms.Concept, error) {
-	explicitStore := false
-	if cmd != nil {
-		if v, _ := cmd.Flags().GetString("termstore"); v != "" {
-			explicitStore = true
-		}
-	}
-
-	// Source of truth: the committed .terms.json serialization.
-	if !explicitStore {
-		srcPath, err := a.resolveProjectTermsSourcePath(cmd, point)
-		if err != nil {
-			return nil, err
-		}
-		if srcPath != "" {
-			return conceptsFromKTB(srcPath)
-		}
-	}
-
-	// Working index: an explicit --termstore, the point's standalone terms
-	// binding, or the project's own store. Read directly only when no
-	// serialization is bound (or the user explicitly selected a store).
 	sel, err := a.ResolveTermsStore(cmd, point)
 	if err != nil {
 		return nil, err
@@ -2106,13 +2070,6 @@ func (a *App) projectConcepts(cmd Command, point project.GovernancePoint) ([]sql
 	}
 	if sel.Path != "" {
 		if _, statErr := os.Stat(sel.Path); statErr == nil {
-			// A point's `terms:` binding names a committed bundle, not a
-			// working store: it is the one place a recipe still names a terms
-			// FILE, so the same path can arrive as either shape and reading it
-			// as the wrong one fails with "file is not a database".
-			if ktb.IsBundlePath(sel.Path) {
-				return conceptsFromKTB(sel.Path)
-			}
 			tb, err := sqlterms.NewSQLiteStore(sel.Path)
 			if err != nil {
 				return nil, fmt.Errorf("open terms %q: %w", sel.Path, err)
@@ -2126,96 +2083,6 @@ func (a *App) projectConcepts(cmd Command, point project.GovernancePoint) ([]sql
 		}
 	}
 	return nil, nil
-}
-
-// conceptsFromKTB decodes the committed .terms.json terms serialization into
-// concepts — the read-only fast path a check gate uses to validate the
-// committed source of truth without materializing the SQLite working index.
-func conceptsFromKTB(path string) ([]sqlterms.Concept, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("open terms source %q: %w", path, err)
-	}
-	defer f.Close()
-	file, err := ktb.Decode(f)
-	if err != nil {
-		return nil, fmt.Errorf("decode terms source %q: %w", path, err)
-	}
-	return file.Concepts, nil
-}
-
-// resolveProjectTermsSourcePath returns the absolute path of the project's
-// committed terms bundle, or "" when there is none.
-//
-// An explicit defaults.terms_source binding wins. With none, the well-known
-// locations are searched, mirroring the ladder the voice profile uses: a
-// project that keeps its terms at the conventional path needs no recipe
-// entry at all.
-//
-// A point whose profile binds its own terms has named the vocabulary for that
-// content, and the project-wide committed source then belongs to other content
-// — so there is no committed source at that point, and the profile's store is
-// read through ResolveTermsStore instead. Without this the profile's terms would
-// be shadowed in every recipe that also binds defaults.terms_source, which is
-// most of them.
-func (a *App) resolveProjectTermsSourcePath(cmd Command, point project.GovernancePoint) (string, error) {
-	projectPath, err := ResolveProjectPath(cmd)
-	if err != nil || projectPath == "" {
-		return "", err
-	}
-	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
-	if lerr != nil {
-		return "", fmt.Errorf("load project for terms source: %w", lerr)
-	}
-	root := filepath.Dir(projectPath)
-
-	rc, rerr := proj.ResolveGovernanceFor(point)
-	if rerr != nil {
-		return "", rerr
-	}
-	if governedTermsPath(root, rc) != "" {
-		return "", nil
-	}
-
-	src := proj.Defaults.TermsSource
-	if src == "" {
-		return firstExistingTermsBundle(root), nil
-	}
-	// Only the canonical terms bundle is resolved live at check time. Lossy
-	// interchange sources (CSV, TBX) are import formats: they're compiled into
-	// the project store by up/apply and read from there, so we don't try to
-	// decode them here.
-	if !ktb.IsBundlePath(src) {
-		return "", nil
-	}
-	if !filepath.IsAbs(src) {
-		src = filepath.Join(root, src)
-	}
-	if _, statErr := os.Stat(src); statErr != nil {
-		// Bound but missing — no terms to enforce, not an error.
-		return "", nil
-	}
-	return src, nil
-}
-
-// firstExistingTermsBundle returns the first well-known terms bundle present
-// under root, or "" when none is.
-//
-// `.kapi/` is searched FIRST: it is committed, and it is where a project's
-// authored sources live, so the conventional home and the reviewed home are the
-// same directory. The root spelling stays second because a project that keeps
-// its terms beside its content is not wrong, and dropping the rung would
-// silently unbind it.
-func firstExistingTermsBundle(root string) string {
-	for _, candidate := range []string{
-		filepath.Join(root, project.RelStatePath(ktb.ConventionalName)),
-		filepath.Join(root, ktb.ConventionalName),
-	} {
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-	}
-	return ""
 }
 
 // runProjectStepsOver runs a project flow's steps over an explicit input set.

@@ -31,6 +31,7 @@ func writeDoNotTranslateProject(t *testing.T, source, target string) string {
 	writeFixtureFile(t, root, "en/app.json", source)
 	writeFixtureFile(t, root, "fr/app.json", target)
 	writeConceptsBundle(t, filepath.Join(root, project.RelStatePath(ktb.ConventionalName)), []terms.Concept{kapiDoNotTranslate})
+	readProjectContext(t, root)
 	return root
 }
 

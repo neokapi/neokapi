@@ -133,9 +133,10 @@ vocabulary:
 		TargetLang:  targetLang,
 		TargetTerm:  targetTerm,
 	}
-	// The by-content half of retrieval reads the project's own store rather
-	// than the committed terms file, so the fixture compiles one.
-	kapi(t, "terms", "import", filepath.Join(root, ".kapi", "terms.json"), "-p", p.Recipe)
+	// Retrieval and the gates read the project's own store rather than the
+	// committed files, so the fixture runs the import that puts the terms
+	// bundle and the voice profile there.
+	kapi(t, "context", "import", "-p", p.Recipe)
 	return p
 }
 
@@ -215,7 +216,7 @@ collections:
 		Deprecated: deprecated,
 		Foreign:    foreign,
 	}
-	kapi(t, "terms", "import", filepath.Join(root, ".kapi", "terms.json"), "-p", p.Recipe)
+	kapi(t, "context", "import", "-p", p.Recipe)
 	return p
 }
 

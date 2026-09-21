@@ -138,7 +138,7 @@ func TestReviewAIAction_Explain(t *testing.T) {
 	// committed shard set under `.kapi/state/`, so a write shows up there —
 	// asserting on any other path makes this vacuously true.
 	layout := project.LayoutAt(root)
-	units, _ := os.ReadDir(layout.UnitStateDir())
+	units, _ := os.ReadDir(layout.Export().UnitStateDir())
 	assert.Empty(t, units, "explain must record no decision")
 }
 
@@ -309,7 +309,7 @@ func commitAndReadUnits(t *testing.T, app *App, root string) []state.UnitState {
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
-	units, err := state.ReadCommitted(layout.UnitStateDir())
+	units, err := state.ReadCommitted(layout.Export().UnitStateDir())
 	require.NoError(t, err)
 	return units
 }

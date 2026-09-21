@@ -20,16 +20,17 @@ import (
 
 // Voice profiles, on the way into the store and back out of it.
 //
-// A voice profile resolves through a FILE: `defaults.voice` names one, a
-// profile's `voice:` names another, and a profile directory under
-// `.kapi/profiles/` answers for one that names none. The store keys profiles by
-// id instead, so writing the store back out needs the tie between the two, and
-// compiling a profile in is where that tie is recorded (MetaVoiceBindings).
+// A recipe names a profile by a PATH: `defaults.voice.profile_file` names one
+// and a profile's `voice:` names another. The store keys profiles by id, so the
+// tie between the two is what governance resolves through and what a snapshot
+// writes by. Reading a profile in is where that tie is recorded
+// (MetaVoiceBindings), in the context store, so every checkout of the project
+// resolves one answer.
 
-// compileVoiceSource writes one committed voice profile into the project
-// store's voice store and records where it is authored.
+// compileVoiceSource writes one voice profile into the project store's voice
+// store and records where it is authored.
 //
-// The upsert is by id, so compiling the same file twice leaves the store as it
+// The upsert is by id, so reading the same file twice leaves the store as it
 // was. An id is what the profile declares, falling back to a slug of its name,
 // and finally to the directory it sits in, so two unnamed profiles in different
 // profile directories stay two profiles.
@@ -164,11 +165,44 @@ func voiceProfileScopeName(rel string) string {
 	return "default"
 }
 
+// voiceProfileIDForBinding answers which profile in the project's voice store a
+// recipe's `profile_file:` selects, or "" when nothing does.
+//
+// The tie is the binding a read of that file recorded (MetaVoiceBindings). A
+// store filled by a restore rather than by a read has no binding recorded, and
+// the conventional path answers instead: `.kapi/profiles/<id>/voice.yaml` is
+// where a profile of that id is written, which is the same rule
+// storedVoiceProfiles writes by.
+func (a *App) voiceProfileIDForBinding(ctx context.Context, root, profileFile string) string {
+	path := profileFile
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(root, path)
+	}
+	rel := relSlash(root, path)
+	if db, err := a.ProjectDB(ctx, root); err == nil {
+		if id := loadVoiceBindings(ctx, db)[rel]; id != "" {
+			return id
+		}
+	}
+	return profileIDFromConventionalPath(rel)
+}
+
+// profileIDFromConventionalPath reads a profile id out of
+// `.kapi/profiles/<id>/voice.yaml`, or returns "" for any other path.
+func profileIDFromConventionalPath(rel string) string {
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	if len(parts) != 4 || parts[0] != project.StateDirName ||
+		parts[1] != project.ProfilesDirName || parts[3] != VoiceConventionalName {
+		return ""
+	}
+	return parts[2]
+}
+
 // loadVoiceBindings reads where each voice profile in the store is authored.
 // Any uncertainty yields an empty map, which reads as "nothing recorded" and
 // costs one re-record.
 func loadVoiceBindings(ctx context.Context, db *projectdb.DB) map[string]string {
-	v, ok, err := db.Meta(ctx, MetaVoiceBindings)
+	v, ok, err := db.ContextMeta(ctx, MetaVoiceBindings)
 	if err != nil || !ok {
 		return map[string]string{}
 	}
@@ -185,7 +219,7 @@ func saveVoiceBindings(ctx context.Context, db *projectdb.DB, bindings map[strin
 	if err != nil {
 		return fmt.Errorf("encode voice bindings: %w", err)
 	}
-	if err := db.PutMeta(ctx, MetaVoiceBindings, string(data)); err != nil && !errors.Is(err, projectdb.ErrNoStore) {
+	if err := db.PutContextMeta(ctx, MetaVoiceBindings, string(data)); err != nil && !errors.Is(err, projectdb.ErrNoStore) {
 		return err
 	}
 	return nil
