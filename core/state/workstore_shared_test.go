@@ -42,9 +42,8 @@ func TestOpenWorkFromDB_SameBehaviourAsItsOwnFile(t *testing.T) {
 	assert.Equal(t, "u1", onDisk[0].Unit)
 }
 
-// An adopted working store seeds from the committed record just as one that
-// opened its own file does — the working set is an index over that record
-// however it is stored.
+// An adopted store imports the committed record just as one that opened its own
+// file does. The shards are the import source however the ledger is stored.
 func TestOpenWorkFromDB_SeedsFromCommitted(t *testing.T) {
 	committed := filepath.Join(t.TempDir(), "units")
 	require.NoError(t, state.WriteCommitted(committed, []state.UnitState{
@@ -59,9 +58,9 @@ func TestOpenWorkFromDB_SeedsFromCommitted(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, all, 2)
 
-	pending, err := w.Pending(t.Context())
+	diff, err := w.RecordDiff(t.Context())
 	require.NoError(t, err)
-	assert.Zero(t, pending, "a re-derived unit is not a staged decision")
+	assert.Zero(t, diff.Changed(), "an imported record is already what the shards carry")
 }
 
 // Closing an adopted store must leave the pool open for the subsystems sharing
@@ -74,7 +73,7 @@ func TestOpenWorkFromDB_CloseDoesNotCloseAdoptedPool(t *testing.T) {
 	require.NoError(t, w.Close())
 
 	var n int
-	assert.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM unit_state`).Scan(&n),
+	assert.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM unit_decision`).Scan(&n),
 		"the pool is still usable after the adopting store closed")
 }
 
@@ -84,21 +83,27 @@ func TestOpenWorkFromDB_RejectsNilDatabase(t *testing.T) {
 	assert.Contains(t, err.Error(), "nil database")
 }
 
-// Staged is the set Pending counts. It exists so a working store being replaced
-// can hand over the decisions no committed source can reproduce.
-func TestStaged_ReturnsExactlyWhatPendingCounts(t *testing.T) {
-	committed := filepath.Join(t.TempDir(), "units")
-	require.NoError(t, state.WriteCommitted(committed, []state.UnitState{
-		unit("u-seeded", "d-intro", "Seeded"),
-	}))
+// Staged is what the committed shards do not carry. It exists so a store being
+// replaced can hand over the records no import would reproduce.
+func TestStaged_IsWhatTheShardsDoNotCarry(t *testing.T) {
+	// A record directory per case: each writes its own, and sharing one would
+	// let the first case's write answer the second's question.
+	record := func(t *testing.T) string {
+		t.Helper()
+		committed := filepath.Join(t.TempDir(), "units")
+		require.NoError(t, state.WriteCommitted(committed, []state.UnitState{
+			unit("u-seeded", "d-intro", "Seeded"),
+		}))
+		return committed
+	}
 
 	for _, tc := range []struct {
 		name string
-		open func(*testing.T) *state.WorkStore
+		open func(*testing.T, string) *state.WorkStore
 	}{
 		{
 			name: "database",
-			open: func(t *testing.T) *state.WorkStore {
+			open: func(t *testing.T, committed string) *state.WorkStore {
 				w, err := state.OpenWork(t.Context(), filepath.Join(t.TempDir(), "work", "state.db"), committed)
 				require.NoError(t, err)
 				return w
@@ -106,7 +111,7 @@ func TestStaged_ReturnsExactlyWhatPendingCounts(t *testing.T) {
 		},
 		{
 			name: "sidecar",
-			open: func(t *testing.T) *state.WorkStore {
+			open: func(t *testing.T, committed string) *state.WorkStore {
 				w, err := state.OpenWorkSidecar(t.Context(), filepath.Join(t.TempDir(), "store.json"), committed)
 				require.NoError(t, err)
 				return w
@@ -114,7 +119,7 @@ func TestStaged_ReturnsExactlyWhatPendingCounts(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			w := tc.open(t)
+			w := tc.open(t, record(t))
 			t.Cleanup(func() { _ = w.Close() })
 
 			staged, err := w.Staged(t.Context())
@@ -128,21 +133,21 @@ func TestStaged_ReturnsExactlyWhatPendingCounts(t *testing.T) {
 			require.Len(t, staged, 1)
 			assert.Equal(t, "u-decided", staged[0].Unit)
 
-			pending, err := w.Pending(t.Context())
+			diff, err := w.RecordDiff(t.Context())
 			require.NoError(t, err)
-			assert.Equal(t, len(staged), pending)
+			assert.Equal(t, len(staged), diff.Changed())
 
 			require.NoError(t, w.Commit(t.Context()))
 			staged, err = w.Staged(t.Context())
 			require.NoError(t, err)
-			assert.Empty(t, staged, "committing clears the staged set")
+			assert.Empty(t, staged, "writing the record leaves nothing outside it")
 		})
 	}
 }
 
 // A store written before the document joined the key upgrades in place rather
 // than being reset. Everything the committed record reproduces would survive a
-// reset, but a decision staged and not yet committed has no other copy — so the
+// reset; a decision recorded and not yet written out has no other copy, so the
 // migration carries the rows across, and the upgraded store then tells two
 // documents' namesakes apart.
 func TestOpenWork_UpgradesAStoreKeyedWithoutItsDocument(t *testing.T) {
@@ -184,9 +189,9 @@ CREATE TABLE document (key TEXT NOT NULL PRIMARY KEY, path TEXT NOT NULL);`)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = w.Close() })
 
-	pending, err := w.Pending(t.Context())
+	carried, err := w.Staged(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, 1, pending, "an uncommitted decision survives the upgrade — nothing else holds it")
+	assert.Len(t, carried, 1, "an unwritten decision survives the upgrade, nothing else holding it")
 
 	got, ok := w.Get(t.Context(), state.Key{Scope: "d-intro", Unit: "p", Variant: model.VariantKey{Locale: "nb"}})
 	require.True(t, ok, "and is addressable by the identity it always had")

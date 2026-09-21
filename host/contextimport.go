@@ -29,7 +29,7 @@ import (
 //   - The committed-record absorb reads the project's own target documents, so
 //     it runs only for a pass over the project's own layout.
 //   - A foreign layout's decision record is read explicitly; the project's own
-//     is already what the working set is built from.
+//     is what the store's ledger imports when it opens.
 
 // ContextImportRequest names the layout to read.
 type ContextImportRequest struct {
@@ -156,8 +156,8 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 	res.Unchanged = seeded.Skipped
 
 	if own {
-		// The working set is built from this layout's record when the store
-		// opens, so there is nothing further to read.
+		// The ledger imports this layout's record when the store opens, so
+		// there is nothing further to read.
 		return res, nil
 	}
 	n, err := a.importDecisionRecord(ctx, db, from.UnitStateDir())
@@ -212,13 +212,13 @@ func reportedPath(root, path string) string {
 }
 
 // importDecisionRecord reads a layout's committed decision record into the
-// project's working set and makes it durable.
+// project's ledger and writes the project's own record out again.
 //
-// Every row is recorded rather than staged: these decisions were committed
-// where they came from, so they are part of the record rather than something
-// waiting for a review. The set is agreed with the record on disk before the
-// rows go in, so a record that moved under the handle cannot take them out
-// again on the way through.
+// Each row is recorded with the origin of a record read in, and recording is
+// addressed by content, so a row the ledger already holds costs nothing and a
+// second import reads the same layout to the same store. The project's own
+// shards are read first, so a record that moved under the handle cannot take
+// the rows out again on the way through.
 func (a *App) importDecisionRecord(ctx context.Context, db *projectdb.DB, dir string) (int, error) {
 	units, err := state.ReadCommitted(dir)
 	if err != nil {
@@ -231,7 +231,7 @@ func (a *App) importDecisionRecord(ctx context.Context, db *projectdb.DB, dir st
 	if st == nil {
 		return 0, projectdb.ErrNoStore
 	}
-	if err := st.SyncWithCommitted(ctx); err != nil {
+	if err := st.Import(ctx); err != nil {
 		return 0, err
 	}
 	for _, u := range units {

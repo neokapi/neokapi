@@ -35,7 +35,7 @@ func TestStagePulledDecisions_WritesThroughTheAppsHandle(t *testing.T) {
 	defer a.Shutdown()
 	c := newDecisionsConnector(t, a)
 
-	staged, _, err := c.stagePulledDecisions(t.Context(), []venue.UnitDecision{{
+	staged, _, err := c.recordPulledDecisions(t.Context(), []venue.UnitDecision{{
 		ItemName:    "locales/en.json",
 		Unit:        "greeting",
 		Variant:     "fr",
@@ -72,7 +72,7 @@ func TestStagePulledDecisions_LeavesANewerLocalRecord(t *testing.T) {
 		Updated:  "2026-08-05T12:00:00Z",
 	}))
 
-	staged, _, err := c.stagePulledDecisions(t.Context(), []venue.UnitDecision{{
+	staged, _, err := c.recordPulledDecisions(t.Context(), []venue.UnitDecision{{
 		Unit:        "greeting",
 		Variant:     "fr",
 		ReviewState: "approved",
@@ -96,7 +96,7 @@ func TestStagePulledDecisions_CountsUnreadableVariants(t *testing.T) {
 	defer a.Shutdown()
 	c := newDecisionsConnector(t, a)
 
-	staged, skipped, err := c.stagePulledDecisions(t.Context(), []venue.UnitDecision{
+	staged, skipped, err := c.recordPulledDecisions(t.Context(), []venue.UnitDecision{
 		{Unit: "greeting", Variant: "fr", ReviewState: "approved", Updated: "2026-08-05T10:00:00Z"},
 		{Unit: "farewell", Variant: "", ReviewState: "approved", Updated: "2026-08-05T10:00:00Z"},
 		{Unit: "welcome", Variant: ";;;not a variant", ReviewState: "approved", Updated: "2026-08-05T10:00:00Z"},
@@ -111,7 +111,7 @@ func TestStagePulledDecisions_CountsUnreadableVariants(t *testing.T) {
 // would have hidden.
 func TestStagePulledDecisions_WithoutAnAppIsAnError(t *testing.T) {
 	c := newDecisionsConnector(t, nil)
-	_, _, err := c.stagePulledDecisions(t.Context(), []venue.UnitDecision{{
+	_, _, err := c.recordPulledDecisions(t.Context(), []venue.UnitDecision{{
 		Unit: "greeting", Variant: "fr", ReviewState: "approved",
 	}})
 	require.Error(t, err)
@@ -128,7 +128,7 @@ func TestDecisions_CarryTheGoverningContextBothWays(t *testing.T) {
 	c := newDecisionsConnector(t, a)
 
 	// Down: a pulled decision lands on the row with its fingerprint.
-	staged, _, err := c.stagePulledDecisions(t.Context(), []venue.UnitDecision{{
+	staged, _, err := c.recordPulledDecisions(t.Context(), []venue.UnitDecision{{
 		ItemName:             "locales/en.json",
 		Unit:                 "greeting",
 		Variant:              "fr",
@@ -145,17 +145,21 @@ func TestDecisions_CarryTheGoverningContextBothWays(t *testing.T) {
 	require.True(t, found)
 	assert.Equal(t, "fp-venue", us.GoverningFingerprint)
 
-	// Up: the committed record maps the field onto the wire.
+	// Up: a record read in from the committed shards maps the field onto the
+	// wire, beside the one the pull brought in.
 	require.NoError(t, state.WriteCommitted(c.project.Layout.UnitStateDir(), []state.UnitState{{
 		Scope: "locales/en.json", Unit: "farewell", Variant: model.Variant("fr"),
 		Status: model.TargetStatusReviewed, Decision: state.Decision{ReviewState: "approved"},
 		GoverningFingerprint: "fp-local", Updated: "2026-08-05T11:00:00Z",
 	}}))
-	out, err := c.committedDecisions(t.Context())
+	out, err := c.projectDecisions(t.Context())
 	require.NoError(t, err)
-	require.Len(t, out, 1)
-	assert.Equal(t, "farewell", out[0].Unit)
-	assert.Equal(t, "fp-local", out[0].GoverningFingerprint)
+	sent := map[string]string{}
+	for _, d := range out {
+		sent[d.Unit] = d.GoverningFingerprint
+	}
+	assert.Equal(t, map[string]string{"farewell": "fp-local", "greeting": "fp-venue"}, sent,
+		"a push carries every decision this checkout holds, with the context each was made under")
 }
 
 // TestDecisions_ARejectionCarriesTheApprovedBasis: only an approval re-stamps a
@@ -175,7 +179,7 @@ func TestDecisions_ARejectionCarriesTheApprovedBasis(t *testing.T) {
 		Updated: "2026-08-05T12:00:00Z",
 	}}))
 
-	out, err := c.committedDecisions(t.Context())
+	out, err := c.projectDecisions(t.Context())
 	require.NoError(t, err)
 	require.Len(t, out, 1)
 	assert.Equal(t, "rejected", out[0].ReviewState)
@@ -187,7 +191,7 @@ func TestDecisions_ARejectionCarriesTheApprovedBasis(t *testing.T) {
 
 	// And back down onto a checkout that recorded none of it.
 	out[0].Updated = "2026-08-05T13:00:00Z"
-	staged, _, err := c.stagePulledDecisions(t.Context(), out)
+	staged, _, err := c.recordPulledDecisions(t.Context(), out)
 	require.NoError(t, err)
 	require.Equal(t, 1, staged)
 	st, err := a.OpenProjectState(t.Context(), c.project.Root)

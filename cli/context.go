@@ -177,8 +177,8 @@ wrote it does.
 Two things never travel. Withheld originals stay on the machine that redacted
 them, and nothing kapi keeps for its own use is written.
 
-Decisions waiting to be committed are published into the record first, the same
-write "kapi commit" makes, so the record in the snapshot is the project's.`,
+The project's committed record is written first, the same write "kapi commit"
+makes, so the record in the snapshot is the project's.`,
 		Example: "  kapi context snapshot\n" +
 			"  kapi context snapshot --out build/context\n" +
 			"  kapi context snapshot --json",
@@ -217,8 +217,8 @@ same identities it left with.
 Withheld originals are never in it. They stay on the machine that redacted them,
 and no flag puts them in a file meant to be copied.
 
-Decisions waiting to be committed are published into the record first, the same
-write "kapi commit" makes.`,
+The project's committed record is written first, the same write "kapi commit"
+makes.`,
 		Example: "  kapi context export -o context.kpz\n" +
 			"  kapi context export -o backups/acme-context.kpz --json",
 		Args: cobra.NoArgs,

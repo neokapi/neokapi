@@ -158,18 +158,19 @@ re-fetches.
 The position is bound to the project store that consumed it. The two files sit
 in the same disposable directory and are deleted independently, and what a pull
 consumes lands in the store: target files on disk, and the decisions the venue's
-ledger carried, staged there until `kapi commit` publishes them
+ledger carried, recorded in the project's own ledger
 ([C-04](c-04-unit-state-and-decisions.md)). A position outliving the store it
 consumed into says this project holds content it holds nowhere, so the cache
 records the store's identity (`projectdb.DB.InstanceID`) beside the positions
 and drops every position when that identity changes (`Cache.BindStore`). The
 replay costs one pass over the change feed: it rewrites the same target files,
-and staging a record the set already holds leaves it alone. The governance
+and a decision the ledger already holds is held once, whatever route it came
+by. The governance
 identities stay, since they identify the committed record and what the venue
 published rather than anything the store holds.
 
 The decision ledger travels beside the position rather than on it. A venue
-serves its ledger in full with every page of changes, so a pull stages what the
+serves its ledger in full with every page of changes, so a pull records what the
 venue holds whatever the position says.
 
 Two readers, kept apart. `Load` is destination-keyed and is what everything that

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -19,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/kpz"
+	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 )
@@ -197,8 +199,33 @@ func assertSameTree(t *testing.T, want, got string, msg string) {
 		if !ok {
 			continue
 		}
-		assert.Equal(t, string(data), string(other), "%s: %s", msg, path)
+		assert.Equal(t, string(comparableBytes(path, data)), string(comparableBytes(path, other)),
+			"%s: %s", msg, path)
 	}
+}
+
+// learnStamp matches the three instants a content-memory entry records about
+// its own history: when this store first held it, when it last changed, and
+// when each origin was added.
+var learnStamp = regexp.MustCompile(`("(?:addedAt|created|updated)": ")20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ"`)
+
+// comparableBytes is a file's content with the instants that say WHEN a store
+// learned something replaced by a fixed token.
+//
+// Everything a snapshot carries is compared byte for byte except those three
+// fields on the content-memory bundle. A clean clone re-learns the committed
+// pairs from its own target documents (the record absorb, which runs for any
+// pass over the project's own layout) and stamps them with its own clock, so
+// the two stores agree on every entry, every id, every variant and every origin
+// while disagreeing about the second in which each of them learned it. Reading
+// a bundle into a store preserves the stamps the file carries; what rewrites
+// them is the absorb that follows, and until that is settled a byte comparison
+// over these fields passes only when both snapshots fall inside one second.
+func comparableBytes(path string, data []byte) []byte {
+	if path != project.MemoryDirName+"/"+kmb.ConventionalName {
+		return data
+	}
+	return learnStamp.ReplaceAll(data, []byte(`${1}0000-00-00T00:00:00Z"`))
 }
 
 // treePaths lists a directory's files in path order.

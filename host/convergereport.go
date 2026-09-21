@@ -339,9 +339,8 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 	if err := st.Put(ctx, next); err != nil {
 		return false, err
 	}
-	// Staged, not committed. A decision is durable the moment it lands in the
-	// working store; making it part of the project's committed record is a
-	// separate, deliberate act — see `kapi commit`.
+	// Durable here. `kapi commit` serializes the record this checkout holds
+	// into the git-tracked shards, and this decision is part of it from now on.
 	return true, nil
 }
 
@@ -419,7 +418,8 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 			recorded++
 		}
 	}
-	// Staged only; `kapi commit` writes the project's committed record.
+	// `kapi commit` writes the project's committed record from what the store
+	// now holds.
 	return recorded, nil
 }
 

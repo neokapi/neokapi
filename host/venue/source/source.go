@@ -729,7 +729,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	//
 	// A server run drafting translations moves the record's fold but not its
 	// decisions component, so what a venue produces never makes this resend.
-	decisions, derr := c.committedDecisions(ctx)
+	decisions, derr := c.projectDecisions(ctx)
 	if derr != nil {
 		return nil, derr
 	}
@@ -1266,11 +1266,11 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 		}, nil
 	}
 
-	// Reconcile the server's decision ledger into the working store — staged,
-	// not committed: `kapi commit` remains the only door into the git-tracked
-	// record, so a pull can never publish on anyone's behalf. `kapi status`
-	// reports what arrived and names the command that publishes it.
-	decisionsStaged, decisionsSkipped, err := c.stagePulledDecisions(ctx, decisions)
+	// Reconcile the server's decision ledger into the project's. A pulled
+	// decision is durable where it lands, and the next write of the committed
+	// record carries it into the shards along with everything else this
+	// checkout holds.
+	decisionsRecorded, decisionsSkipped, err := c.recordPulledDecisions(ctx, decisions)
 	if err != nil {
 		return nil, err
 	}
@@ -1480,7 +1480,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 		LocalesCount:         len(locales),
 		FilesWritten:         filesWritten,
 		ItemsRetired:         itemsRetired,
-		DecisionsStaged:      decisionsStaged,
+		DecisionsStaged:      decisionsRecorded,
 		DecisionsSkipped:     decisionsSkipped,
 		CollectionsObserved:  contextResult.Observed,
 		GovernanceDiverged:   contextResult.Diverged,
