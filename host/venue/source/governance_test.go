@@ -73,7 +73,7 @@ func TestRetireRefusedVerdicts(t *testing.T) {
 		defer a.Shutdown()
 		c, st := committedProject(t, a, approvedUnit("greeting", "fr"))
 
-		sent, err := c.committedDecisions(t.Context())
+		sent, err := c.projectDecisions(t.Context())
 		require.NoError(t, err)
 		require.Len(t, sent, 1)
 		held := venueLedger(sent)
@@ -93,15 +93,15 @@ func TestRetireRefusedVerdicts(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, retired)
 
-		after, err := c.committedDecisions(t.Context())
+		after, err := c.projectDecisions(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, venue.DecisionsComponent(held), venue.DecisionsComponent(after),
 			"the next push has nothing left to send")
 
-		pending, err := st.Pending(t.Context())
+		diff, err := st.RecordDiff(t.Context())
 		require.NoError(t, err)
-		assert.Zero(t, pending,
-			"the venue's answer about published work is not the person's pending decision")
+		assert.Zero(t, diff.Changed(),
+			"the retired record was written out, so the shards already carry it")
 	})
 
 	t.Run("a language refusal reaches the units the bounded list could not name", func(t *testing.T) {
@@ -126,7 +126,7 @@ func TestRetireRefusedVerdicts(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 2, retired)
 
-		after, err := c.committedDecisions(t.Context())
+		after, err := c.projectDecisions(t.Context())
 		require.NoError(t, err)
 		for _, d := range after {
 			assert.False(t, d.CarriesVerdict(), "no verdict survives a language-wide refusal: %+v", d)
@@ -151,7 +151,7 @@ func TestRetireRefusedVerdicts(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, retired, "separation of duties is about the unit, not the language")
 
-		after, err := c.committedDecisions(t.Context())
+		after, err := c.projectDecisions(t.Context())
 		require.NoError(t, err)
 		byUnit := map[string]venue.UnitDecision{}
 		for _, d := range after {
@@ -166,13 +166,13 @@ func TestRetireRefusedVerdicts(t *testing.T) {
 		defer a.Shutdown()
 		c, _ := committedProject(t, a, approvedUnit("greeting", "fr"))
 
-		before, err := c.committedDecisions(t.Context())
+		before, err := c.projectDecisions(t.Context())
 		require.NoError(t, err)
 		retired, err := c.retireRefusedVerdicts(t.Context(), nil)
 		require.NoError(t, err)
 		assert.Zero(t, retired)
 
-		after, err := c.committedDecisions(t.Context())
+		after, err := c.projectDecisions(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, venue.DecisionsComponent(before), venue.DecisionsComponent(after))
 	})
@@ -212,7 +212,7 @@ func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, retired)
 
-		after, err := c.committedDecisions(t.Context())
+		after, err := c.projectDecisions(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, venue.DecisionsComponent([]venue.UnitDecision{held}), venue.DecisionsComponent(after),
 			"the project's record folds to what the venue holds, so the next push has nothing to send")
@@ -221,9 +221,10 @@ func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
 		assert.Equal(t, "reviewer@example.com", after[0].DecidedBy, "the sign-off still names the person who made it")
 		assert.Equal(t, string(model.TargetStatusSignedOff), after[0].Status)
 
-		pending, err := st.Pending(t.Context())
+		diff, err := st.RecordDiff(t.Context())
 		require.NoError(t, err)
-		assert.Zero(t, pending, "the venue's answer about published work is not the person's pending decision")
+		assert.Zero(t, diff.Changed(),
+			"the retired record was written out, so the shards already carry it")
 	})
 
 	t.Run("a refusal that names no record changes nothing", func(t *testing.T) {
@@ -231,7 +232,7 @@ func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
 		defer a.Shutdown()
 		c, _ := committedProject(t, a, withdrawn)
 
-		before, err := c.committedDecisions(t.Context())
+		before, err := c.projectDecisions(t.Context())
 		require.NoError(t, err)
 		retired, err := c.retireRefusedVerdicts(t.Context(), &venue.PushGovernance{
 			Refusals: []venue.DecisionRefusal{refusal},
@@ -243,65 +244,43 @@ func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
 		require.NoError(t, err)
 		assert.Zero(t, retired, "the local record cannot invent the sign-off's decider; a pull settles it")
 
-		after, err := c.committedDecisions(t.Context())
+		after, err := c.projectDecisions(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, venue.DecisionsComponent(before), venue.DecisionsComponent(after))
 	})
 }
 
-// A decision nobody has published is nobody's business but the person who made
-// it. The push sends the committed record, so a staged decision was never sent
-// and was never refused; retiring it on a language-wide refusal would delete
-// pending work over an answer about somebody else's.
-func TestRetireRefusedVerdicts_LeavesPendingWork(t *testing.T) {
+// The push sends every decision this checkout holds, so the venue's answer
+// covers all of them: a language-wide refusal retires each verdict for that
+// language, not only the ones the record on disk happened to carry.
+func TestRetireRefusedVerdicts_CoversEveryDecisionThePushSent(t *testing.T) {
 	a := &host.App{}
 	defer a.Shutdown()
 	c, st := committedProject(t, a, approvedUnit("published", "fr"))
 
-	// A second approval, staged and not committed.
-	require.NoError(t, st.Put(t.Context(), approvedUnit("pending", "fr")))
-	before, err := st.Pending(t.Context())
-	require.NoError(t, err)
-	require.Equal(t, 1, before)
+	// A second approval, recorded and not yet written into the shards. The push
+	// read the ledger, so this one went to the venue as well.
+	require.NoError(t, st.Put(t.Context(), approvedUnit("recorded", "fr")))
 
 	retired, err := c.retireRefusedVerdicts(t.Context(), &venue.PushGovernance{
 		Refusals: []venue.DecisionRefusal{{
 			Locale: "fr", Kind: venue.VerdictApproval,
-			Reason: venue.RefusedNoReviewPermission, Count: 1,
+			Reason: venue.RefusedNoReviewPermission, Count: 2,
 		}},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, 1, retired, "only the record the push actually sent")
+	assert.Equal(t, 2, retired, "both verdicts the push carried are retired")
 
-	after, err := st.Pending(t.Context())
-	require.NoError(t, err)
-	assert.Equal(t, 1, after, "the staged decision is still staged")
-	us, found := st.Get(t.Context(), state.Key{
-		Scope: "locales/en.json", Unit: "pending", Variant: model.Variant("fr"),
-	})
-	require.True(t, found)
-	assert.Equal(t, venue.ReviewStateApproved, us.Decision.ReviewState,
-		"and it still says what the person decided")
-}
-
-// TestRefusedVerdict_GoverningContextFollowsTheVerdict: the fingerprint records
-// the context a verdict was made under, so it leaves with a retired verdict and
-// arrives with a held one, exactly as venue.UnitDecision.AsBasis and the
-// venue's kept record have it.
-func TestRefusedVerdict_GoverningContextFollowsTheVerdict(t *testing.T) {
-	u := state.UnitState{
-		Unit: "greeting", Variant: model.Variant("fr"), Scope: "locales/en.json",
-		Status: model.TargetStatusReviewed, Decision: state.Decision{ReviewState: "approved", By: "ana"},
-		GoverningFingerprint: "fp-local",
+	for _, unitID := range []string{"published", "recorded"} {
+		us, found := st.Get(t.Context(), state.Key{
+			Scope: "locales/en.json", Unit: unitID, Variant: model.Variant("fr"),
+		})
+		require.True(t, found, "unit %s keeps its record", unitID)
+		assert.Empty(t, us.Decision.ReviewState,
+			"the verdict the venue would not take is gone from %s", unitID)
 	}
-	retired := withoutVerdict(u)
-	assert.Empty(t, retired.GoverningFingerprint, "a basis without a verdict carries no decision context")
-	assert.Empty(t, retired.Decision.ReviewState)
 
-	held := withHeld(u, venue.UnitDecision{
-		Status: string(model.TargetStatusSignedOff), ReviewState: "signed-off",
-		DecidedBy: "ben", DecidedAt: "2026-08-05T10:00:00Z", GoverningFingerprint: "fp-venue",
-	})
-	assert.Equal(t, "fp-venue", held.GoverningFingerprint, "the venue's record brings its own context")
-	assert.Equal(t, "signed-off", held.Decision.ReviewState)
+	diff, err := st.RecordDiff(t.Context())
+	require.NoError(t, err)
+	assert.Zero(t, diff.Changed(), "and the shards carry what the checkout now holds")
 }

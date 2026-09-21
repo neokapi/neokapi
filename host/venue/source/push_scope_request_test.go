@@ -123,6 +123,7 @@ func scopeConnector(t *testing.T, srv *httptest.Server, projectID string) *Bowra
 	client := apiclient.NewProjectBearerClient(srv.URL, projectID, "test-token")
 	client.SetStream("main")
 	conn := &BowrainSourceConnector{
+		app:       testApp(t),
 		project:   proj,
 		client:    client,
 		formatReg: reg,

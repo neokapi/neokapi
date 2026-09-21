@@ -2,8 +2,8 @@
 id: c-04-unit-state-and-decisions
 sidebar_position: 4
 title: "C-04: Unit state and the decision record"
-description: "Architecture decision: a project's authored unit state (the review ladder, approvals, sign-off, parking) lives in a first-class core/state store. The committed, diff-friendly serialization under .kapi/state/ is the source of truth; a working set inside the project's one database stages changes until kapi commit publishes them."
-keywords: [project state, decision record, core/state, review, approval, convergence, working set, staged, commit, targetHash, architecture decision, neokapi]
+description: "Architecture decision: a project's authored unit state (the review ladder, approvals, sign-off, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies where the pairing it blessed appears, so one ledger serves every checkout of a project; the committed .kapi/state/ shards are a checkout's export of it and an import source for it."
+keywords: [project state, decision ledger, core/state, review, approval, convergence, append-only, content-addressed, commit, targetHash, architecture decision, neokapi]
 ---
 
 # C-04: Unit state and the decision record
@@ -24,8 +24,8 @@ project's **work**, and that work is itself two kinds of thing:
 
 Authored state needs a carrier a plain target file cannot provide: such a file
 records that a target *exists*, not that anyone *blessed* it. `core/state` is
-that carrier, a first-class, format-independent, committed record of where each
-unit stands, distinct from both the derived cache and the recycle content memory
+that carrier, a first-class, format-independent record of where each unit
+stands, distinct from both the derived cache and the recycle content memory
 ([C-09](c-09-content-memory.md)).
 
 The end-user view of what this state *means* (the ladders, the gates, and the
@@ -67,11 +67,12 @@ two are separated:
 | Kind | Examples | Home | Authoritative? |
 | --- | --- | --- | --- |
 | Derived | parsed blocks, coverage, rungs reachable from content | `.kapi/work/cache/`, and the derived tables of `.kapi/work/store.db` | no: rebuildable, ignored |
-| Authored unit state | approvals, sign-off, parking, reviewer, notes | `.kapi/state/` (`core/state`) | yes: committed |
+| Authored unit state | approvals, sign-off, parking, reviewer, notes | the decision ledger (`core/state`), exported to `.kapi/state/` | yes |
 
-The cache may *mirror* authored state in transit, but it never *owns* it. The
-durable home is the committed record under `.kapi/state/`, and the only window in
-which the record exists nowhere else is between writing it and `kapi commit`.
+The cache may *mirror* authored state in transit, but it never *owns* it. A
+decision is durable in the ledger the moment it is recorded, and the only window
+in which it exists nowhere a reviewer can read it is between the recording and
+the next `kapi commit`.
 
 ### Content memory is recycle, not the state carrier
 
@@ -82,69 +83,69 @@ apply` with `kind:"memory"`) is recycle leverage; approving a unit (`kapi apply`
 with `kind:"review"`) writes the state store. An approved pair may *also* land in
 the memory as leverage, but that is a side effect, not where the record lives.
 
-### The committed serialization is the truth; the working set is an index
+### The ledger is the authority
 
-State has two representations, and conflating them is the trap to avoid:
+A decision is an entry in an **append-only ledger**, addressed by what it says.
+Nothing is rewritten in place: a later decision about the same unit is a new
+entry, and withdrawing one is an entry of its own. An entry carries the record,
+the actor who reached it, how it reached the ledger, and the time it was
+recorded, taken from Go's clock.
 
-1. **Source of truth: a committed, diff-friendly serialization.** JSON Lines
-   under `.kapi/state/`, one shard per document, committed: mergeable, reviewable
-   in a diff, exchangeable to XLIFF (`<target state=…>`, notes, phase and owner,
-   [M-01](../multilingual/m-01-bilingual-interop.md)), carried by a `.kpz`
-   parcel's bilingual profile. This is what a fresh checkout restores from. Each
-   line is one `UnitState` object; lines are sorted within a shard so a file's
-   bytes depend only on its contents, and there is no envelope, version field or
-   header.
-2. **Working set: tables in the project's one database.** `core/state.WorkStore`
-   inside `.kapi/work/store.db` ([C-03](c-03-context-store-and-graph.md)) is the
-   fast random-access model with transactions and hash lookups. Derived from the
-   record: seeded from it when empty, materialized back by `Commit`.
+The entry's key is the unit **and the pairing it blessed**: `(document, unit
+identity, variant, source hash, target hash)`. That is what makes the ledger
+answerable across checkouts, and it is the same fact the `blesses` edge carries
+([C-03](c-03-context-store-and-graph.md)).
 
-   Being a database rather than memory is what makes the record durable the
-   moment it is written, so committing is about *publishing* it rather than about
-   not losing it. That is what lets committing be explicit without inventing a
-   way to lose work. It is an index in every respect but one: deleting `store.db`
-   costs nothing already committed, and it costs exactly the unit state staged
-   since. That bounded exposure is why the database sits at the top of
-   `.kapi/work/` and not under `cache/`.
+The address is the SHA-256 of the record, the actor and the withdrawal flag, so
+two parties that reach the same decision about the same pairing write the same
+entry. Recording one the ledger already holds leaves it alone, which is what
+lets a project read its shards in, pull the same venue ledger twice and replay a
+change feed without the ledger growing.
 
-   In the browser, where there is no SQLite, the working set persists to a JSON
-   sidecar, `.kapi/work/store.json`; the model is unchanged.
+### Applicability is a lookup
 
-Committing a binary database as the authoritative store would be hostile to
-review (opaque, conflict-prone) and would defeat exchange, so the durable home
-is the text serialization and the database is only a working index over it.
-Discard the working index, reopen from the committed record, lose nothing beyond
-what was staged.
+"What is this unit's state here" is answered by looking up the entry recorded for
+the source and the translation this checkout holds **now**. A reader with the
+file content in hand asks for exactly that pairing (`WorkStore.Lookup`).
 
-### The record moves under the working set
+One ledger serves every checkout of a project, and several of them sit on
+different branches at once. Two branches holding different translations of one
+unit hold two entries, each answering only where its pairing appears. Switching
+branches changes which entries apply and moves nothing, so one branch's approvals
+cannot reach another's record. Two checkouts that hold the same source and the
+same translation hold the same answer, and neither had to copy it.
 
-The record is git-tracked and the working set is not, so `git switch` replaces
-every shard while the database keeps the rows of the branch left behind. A
-commit from that set writes one branch's decisions into another branch's record
-and prunes the shards those rows do not cover, because `WriteCommitted` replaces
-a directory rather than appending to one.
+Each checkout keeps a **view**: the pairing each unit has in it. The view is
+derived, rebuilt from that checkout's committed shards whenever they move, which
+is what a branch switch does to them. A row recorded here and not yet written out
+survives that rebuild, because no record supplies it, and the entry behind it
+still answers only where its pairing appears.
 
-So the set carries the identity of the record it was built from:
-`state.CommittedDigest`, over each shard's name and bytes, stamped in the
-working set's own `state_meta` table. That is the same key-and-value shape the
-block cache uses for its extraction stamps
-([C-03](c-03-context-store-and-graph.md)). Every open compares the stamp against
-the shards on disk, and so does every write to the record, so a process holding
-the store open across a branch switch publishes from the record this checkout
-holds.
+### Recording is durable; writing the record is an export
 
-A stamp that no longer matches means the unstaged rows describe a record this
-checkout does not hold. Those rows are dropped and rebuilt from the shards,
-which the record supplies in full; a run's own basis records go with them, and
-the next run writes them again against the tree it reads. Staged decisions cross
-the rebuild untouched (`WorkStore.Staged` carries them), being the one thing in
-the set that no record supplies.
+`Put`, `Record` and `RecordEntry` append to the ledger and are durable at once.
+Nothing has to be published for a decision to count, and no tier sits between
+making one and keeping it.
 
-The crossing is reported. `kapi status` and `kapi commit` each state that the
-record changed since the set was seeded from it and how many staged decisions
-came across, so a person can see that decisions made on another branch are about
-to be written here. `kapi commit --dry-run` reports what a commit would write
-and writes nothing.
+Two directions connect the ledger to the git-tracked shards under `.kapi/state/`,
+and they agree:
+
+1. **Export.** `kapi commit` writes, for each unit this checkout holds, the entry
+   that applies to its current pairing. Lines are sorted within a shard, a shard
+   whose bytes are unchanged is left untouched, and the payload is the record as
+   it was decided, so running it twice over an unchanged project writes the same
+   bytes and leaves the same files. It prunes only shards this checkout's view no
+   longer names. `kapi commit --dry-run` reports what it would write and writes
+   nothing.
+2. **Import.** Opening the store reads the shards into the ledger. A line the
+   ledger already holds costs nothing, and a line older than the entry in force at
+   its pairing (by the `Updated` stamp both ends write) is left out, which is the
+   same last-writer-wins rule a venue pull follows. A fresh clone restores its
+   decisions this way, and so does a checkout picking up a colleague's after `git
+   pull`. `state.CommittedDigest`, over each shard's name and bytes and stamped
+   per checkout in `state_meta`, is the fast path for an import that would find
+   nothing: the same key-and-value shape the block cache uses for its extraction
+   stamps ([C-03](c-03-context-store-and-graph.md)).
 
 **One line per unit, sharded by document**, rather than one JSON array. A single
 indented document means one approval rewrites every byte of the file: the diff
@@ -154,26 +155,24 @@ magnitude more bytes than it writes. A line per unit makes an approval a one-lin
 diff; a shard per document keeps a documentation edit from churning the shard
 holding the interface strings.
 
-### Recording is implicit; publishing is explicit
+The ledger itself lives in the project's one database
+([C-03](c-03-context-store-and-graph.md)), which gives a decision and the wording
+the content memory learns from it one transaction on one connection pool.
+Committing a binary database as the reviewable record would be hostile to review
+(opaque, conflict-prone) and would defeat exchange, so the shards stay text.
 
-Mutations to the working set are **not published until an explicit `Commit`**,
-the mental model of staged changes:
+In the browser, where there is no SQLite, the ledger and the view persist to a
+JSON sidecar, `.kapi/work/store.json`; the model is unchanged.
 
-- `Put` / `Delete` mutate the working set.
-- `Pending()` reports how many unit-state changes are staged. `kapi status`
-  surfaces the count and names the command that publishes them, staying silent
-  when there are none, on the habit that a clean project should read clean.
-- `Commit()` materializes the working set to the durable home in one
-  auditable step, rather than churning a write on every approval. `kapi commit`
-  is the verb, and `kapi commit --dry-run` reports what it would write.
+### Who may record what is policy
 
-Recording and publishing are different acts. A run of automated approvals should
-not land in the tracked record before anyone has looked at it, and an explicit
-commit is the moment at which someone can.
-
-Because the working set is a database rather than memory, staged state survives
-the process. The tiers are *staged* and *committed*, not *in transit* and
-*durable*.
+Every write goes through one function (`state.Policy`), which sees the pairing,
+the actor, the origin and what applies at that pairing now, and either records or
+refuses. The default records everything: a single-player project's decisions are
+the person's, and a connected venue enforces its own permissions on its side and
+reports what it refused. An actor class with narrower or wider rights is a change
+in that one function rather than at each call site, which is why actor and origin
+ride on every entry.
 
 ### Unit state is unit-keyed and bound to the pairing it blessed
 
@@ -189,7 +188,7 @@ reported applied, and all but the last document's discarded, and the pages that
 lost theirs then read as stale against a source nobody edited.
 
 The document's identity is a **durable key**, not its path. When extraction
-reads a document, the working set records what the document held as well as
+reads a document, the checkout's view records what the document held as well as
 where it lives (`project.DocumentAdopter`, implemented by the project pool), and
 `WorkStore.AdoptDocuments` matches each read against the documents the project
 already knows, moving the decisions filed under an address onto the identity.
@@ -480,8 +479,8 @@ basis it carries, with no rung above translated and no decider, and reports what
 it refused.
 
 The project follows that answer rather than restating its own. A refused verdict
-is retired locally to the same basis, recorded rather than staged, because the
-venue's answer about published work is not a person's pending decision. Both
+is recorded locally as the same basis, with the venue as the entry's origin,
+because the venue is who reached it. Both
 ends compute the same record, so the decision component of the freshness ref
 agrees again and the next push has nothing to send. Without that step the two
 folds differ for good, and every push re-sends the same refused approvals.
@@ -491,7 +490,7 @@ takes back a sign-off the venue holds, over the same translation of the same
 source, is a withdrawal, and the venue applies it only for a pusher holding
 review permission for the language. A refused withdrawal keeps the venue's
 record, and the report carries that record back; the project writes it into
-its committed record, recorded rather than staged, so the two agree again with
+its own ledger with the venue as the origin, so the two agree again with
 no pull between them.
 
 A rejection is bound to the translation it judged in the same way. A pushed
@@ -546,8 +545,8 @@ keeps properties no live database can:
 
 ### Layering: the model in `core/`, the IO with its surface
 
-The state record, its working set, and the convergence *model* (the ladder
-types and the per-block rung helpers) live in `core/state` and
+The decision ledger, a checkout's view of it, and the convergence *model* (the
+ladder types and the per-block rung helpers) live in `core/state` and
 `core/convergence`, so every surface agrees on what the rungs mean. The
 *orchestration* that reads files and computes a report stays with its IO. The CLI
 re-exports the core types through aliases so downstream code sees one import.
@@ -555,12 +554,12 @@ re-exports the core types through aliases so downstream code sees one import.
 ## Consequences
 
 - **`core/state`** holds `UnitState` (status, source status, origin, target hash,
-  basis, governing fingerprint, decision, updated), a `Key`, the
-  `Stale`/`Fresh`/`Reviewed` ladder helpers, and `WorkStore`, the working set
-  over the sharded committed record
-  (`Get`/`Put`/`Delete`/`All`/`Pending`/`Commit`, plus `Documents` and
-  `AdoptDocuments` for document identity, and `CommittedDigest`,
-  `SyncWithCommitted` and `Reseed` for agreement with the record on disk).
+  basis, governing fingerprint, decision, updated), a `Key`, a `Pairing`, the
+  `Stale`/`Fresh`/`Reviewed` ladder helpers, and `WorkStore`, the ledger and this
+  checkout's view of it (`Lookup`/`Get`/`Put`/`Record`/`RecordEntry`/`Delete`/
+  `All`/`Priors`/`Entries`, `Commit` and `RecordDiff` for the export, `Import`
+  and `CommittedDigest` for the shards, `Documents` and `AdoptDocuments` for
+  document identity, and `SetPolicy` for who may record what).
 - **Approvals flow through one verb.** `kapi apply` with `kind:"review"` records
   the unit state in the project store, addressed by `(file, id, locale)` exactly
   as `kapi status --review` lists it. The desktop's approve action and the CLI
@@ -569,14 +568,14 @@ re-exports the core types through aliases so downstream code sees one import.
   content-memory properties.
 - **Exchange and parcels carry state**, so a hand-off does not drop it.
 - **The recipe stays clean.** It binds sources, never a derived artifact; the
-  state record and the database that stages it are both fixed by the layout.
+  state record and the database holding the ledger are both fixed by the layout.
 
 ## See also
 
 - [C-01: The project model](c-01-project-model.md): where `.kapi/state/` sits
   among the ownership zones.
 - [C-03: The context store and graph](c-03-context-store-and-graph.md): the
-  working set and the `blesses` edge.
+  database the ledger sits in, and the `blesses` edge.
 - [C-09: Content memory](c-09-content-memory.md): the recycle corpus this store
   is not.
 - [M-01: Bilingual Format Interop](../multilingual/m-01-bilingual-interop.md):

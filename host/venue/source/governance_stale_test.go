@@ -57,7 +57,7 @@ func TestRetireRefusedVerdicts_StaleRejection(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, retired)
 
-		after, err := c.committedDecisions(t.Context())
+		after, err := c.projectDecisions(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, venue.DecisionsComponent([]venue.UnitDecision{held}), venue.DecisionsComponent(after),
 			"the project's record folds to what the venue holds, so the rejection is not sent again")
@@ -78,7 +78,7 @@ func TestRetireRefusedVerdicts_StaleRejection(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 1, retired)
 
-		after, err := c.committedDecisions(t.Context())
+		after, err := c.projectDecisions(t.Context())
 		require.NoError(t, err)
 		require.Len(t, after, 1)
 		assert.Empty(t, after[0].ReviewState, "the rejection is retired")

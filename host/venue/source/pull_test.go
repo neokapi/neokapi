@@ -117,6 +117,7 @@ func newPullTestConnector(t *testing.T, srv *httptest.Server, targetLangs []stri
 	client.SetStream("main")
 
 	return &BowrainSourceConnector{
+		app:       testApp(t),
 		project:   proj,
 		client:    client,
 		formatReg: reg,

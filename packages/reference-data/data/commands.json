@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T22:23:59Z",
+  "generatedAt": "2026-09-21T07:23:09Z",
   "commands": [
     {
       "id": "add",
@@ -324,8 +324,8 @@
         "commit"
       ],
       "use": "commit",
-      "short": "Write staged unit state into the project's committed record",
-      "long": "Write the unit state recorded since the last commit into the project's committed\nrecord: the JSON Lines shards under .kapi/state/ that git tracks.\n\nRecording a review and publishing it are separate acts. The state record is\ndurable the moment it is written; committing is what puts it in the record a\nreviewer reads, so a run of automated approvals does not land in the tracked\nrecord before anyone has looked at it.\n\nThe working set is rebuilt from the record this checkout holds whenever the two\nhave parted, which is what switching branches does to them. Staged decisions\ncross that rebuild and are reported, because they were made against the record\nof another branch.\n\n'--dry-run' reports what would be written and writes nothing.\n'kapi status' reports what is staged.",
+      "short": "Write the project's unit state into its committed record",
+      "long": "Write this checkout's unit state into the project's committed record: the JSON\nLines shards under .kapi/state/ that git tracks.\n\nEvery decision is already durable the moment it is made. This writes the record\nout in the form git tracks and a reviewer reads in a diff: for each unit the\ncheckout holds, what was decided about the source and the translation it holds\nnow. A unit whose wording has moved on since a decision was made keeps that\ndecision and reads as stale, and the decision applies again if the wording comes\nback.\n\nRunning it twice over an unchanged project writes the same bytes and leaves the\nfiles alone.\n\n'--dry-run' reports what would be written and writes nothing.",
       "groupID": "work",
       "flags": [
         {

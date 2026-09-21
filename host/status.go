@@ -36,17 +36,6 @@ type StatusOutput struct {
 	// only when the recipe binds one — the venue of a plain local project is
 	// not ambiguous, so it stays silent.
 	Venue *StatusVenue `json:"venue,omitempty"`
-	// Staged counts decisions recorded but not yet written to the project's
-	// committed record. Omitted when there are none, so a clean project stays
-	// quiet — the same habit as git status.
-	Staged int `json:"staged,omitempty"`
-	// RecordReseeded reports that the committed record moved since the working
-	// set was seeded from it, which is what switching branches does to them, so
-	// the set was rebuilt from the record this checkout holds.
-	RecordReseeded bool `json:"record_reseeded,omitempty"`
-	// StagedCarried counts the staged decisions that crossed that rebuild. They
-	// were made against another record and are the part a person acts on.
-	StagedCarried int `json:"staged_carried,omitempty"`
 }
 
 // StatusVenue names the effective convergence venue for a server-connected
@@ -162,27 +151,7 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 	if o.Venue != nil {
 		writeVenueLine(w, *o.Venue)
 	}
-	writeStagedLine(w, o.Staged)
-	if o.RecordReseeded {
-		fmt.Fprintln(w)
-		writeRecordReseeded(w, o.StagedCarried)
-	}
 	return nil
-}
-
-// writeStagedLine reports unit state recorded but not yet committed, and says
-// what to run. Silent when there is none: a clean project should read clean,
-// the same habit as git status.
-func writeStagedLine(w io.Writer, staged int) {
-	if staged <= 0 {
-		return
-	}
-	noun := "changes"
-	if staged == 1 {
-		noun = "change"
-	}
-	fmt.Fprintf(w, "\n%d unit-state %s staged, not committed. Run `kapi commit` to write them to the project record.\n",
-		staged, noun)
 }
 
 // writeCoverageGrid renders the per-locale coverage table. The scope column
@@ -722,11 +691,6 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			out.Source = &src
 		}
 		a.warnUnreadableFormats(cmd, src.Unreadable)
-		out.Staged = a.PendingDecisions(ctxOrBackground(cmd.Context()), root)
-		if reseed := a.ProjectStateReseed(ctxOrBackground(cmd.Context()), root); reseed.Reseeded {
-			out.RecordReseeded = true
-			out.StagedCarried = reseed.Carried
-		}
 		a.appendServerStatus(cmd, proj, &out)
 		out.Venue = a.statusVenue(proj)
 		a.WarnInertRecipeFields(cmd, proj)

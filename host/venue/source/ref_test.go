@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/neokapi/neokapi/core/registry"
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
+	"github.com/neokapi/neokapi/host"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/config"
 	bproject "github.com/neokapi/neokapi/host/venue/project"
@@ -178,6 +179,7 @@ func newRefConnector(t *testing.T, srv *httptest.Server, projectID string) *Bowr
 	client.SetStream("main")
 
 	return &BowrainSourceConnector{
+		app:       testApp(t),
 		project:   proj,
 		client:    client,
 		formatReg: reg,
@@ -186,6 +188,16 @@ func newRefConnector(t *testing.T, srv *httptest.Server, projectID string) *Bowr
 		stream:    "main",
 		maxBatch:  1000,
 	}
+}
+
+// testApp is the host App a connector reaches the project's decision ledger
+// through. A push reads the ledger, so a connector built by hand for a test
+// needs one exactly as one built by NewLocalConnector does.
+func testApp(t *testing.T) *host.App {
+	t.Helper()
+	a := &host.App{}
+	t.Cleanup(a.Shutdown)
+	return a
 }
 
 func loadRefs(t *testing.T, conn *BowrainSourceConnector) *refcache.Cache {

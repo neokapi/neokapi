@@ -2,151 +2,68 @@ package state
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/neokapi/neokapi/core/reconcile"
 	"github.com/neokapi/neokapi/core/storage"
 )
 
-// The working store is the staging area between a decision being made and the
-// project's committed record of it.
+// WorkStore is the project's decision ledger and one checkout's view of it.
 //
-// It exists because the committed record is a whole-file serialization, and
-// writing it once per decision is quadratic: every approval re-encoded and
-// rewrote the entire artifact, so a run recording a thousand decisions moved
-// gigabytes to record a few hundred kilobytes of change. Worse, two processes
-// each read the whole file, mutated their own copy and wrote it back, so the
-// second silently discarded the first's decisions — the atomic rename made the
-// loss clean and invisible.
+// The ledger is append-only and content-addressed (see ledger.go). It is the
+// authority: a decision is durable the moment it is recorded, and nothing is
+// ever rewritten in place.
 //
-// So decisions accumulate here, in one transaction-capable place, and are
-// serialized once per run by Commit. That is the design the package
-// documentation always described — a committed serialization as the source of
-// truth, a working store as a derived index over it — and that Pending() was
-// written for.
+// The view answers "which pairing does this unit have HERE". One ledger serves
+// every checkout of a project, and several of them are on different branches at
+// once, so the store holds one view per checkout and every read goes through
+// it. A decision recorded on one branch answers for another exactly when that
+// branch's files carry the same source and the same translation, which is what
+// keeps one branch's approvals out of another's record without anything having
+// to move.
 //
-// It is deliberately ONE database. Only the working set genuinely needs
-// transactions and hash lookups; the rest of what a project caches is file
-// artifacts and stays files. A second database would buy nothing (both would sit
-// in the same disposable directory) and would cost a second migration ledger.
-
-// WorkStore is a SQLite-backed working set of unit state.
-//
-// Durability note: while a decision is here and not yet committed, this database
-// holds the only copy. It therefore lives beside the derived caches without
-// being one. Committing publishes a decision into the project's tracked record,
-// and a decision stays here until someone runs `kapi commit`.
+// The committed shards under `.kapi/state/` are this checkout's export of the
+// view, and an import source for the ledger. `kapi commit` writes them; opening
+// the store reads them back. A fresh clone restores its decisions that way, and
+// so does a checkout picking up a colleague's after `git pull`.
 type WorkStore struct {
 	db        *storage.DB
-	committed string // path of the committed serialization this indexes
+	committed string // this checkout's committed record directory
+	checkout  string // the view this handle reads and writes
 
 	// ownsDB records whether Close may close the pool: true when this store
 	// opened its own file, false when it adopted the project's merged store,
-	// whose owner closes it once for all four subsystems.
+	// whose owner closes it once for all subsystems.
 	ownsDB bool
 
-	// mu guards reseed, which a Commit on one goroutine writes and a status
-	// report on another reads.
-	mu sync.Mutex
-	// reseed is what the last agreement with the committed record amounted to.
-	reseed Reseed
+	// mu guards policy, which a caller may replace while another goroutine
+	// records.
+	mu     sync.Mutex
+	policy Policy
+
+	// now is the clock entries are stamped from. Bound here so a test can pin
+	// it and so every stamp in one process comes from one source.
+	now func() time.Time
 
 	// mem is the browser fallback: the wasm build has no file-backed SQLite
-	// (storage.ErrNoSQLite), yet the review→approve loop must still work in
-	// the lab. The working set lives in process memory and persists as a JSON
-	// sidecar next to where the database would sit, written through the
-	// sandbox filesystem — a decision recorded by one command must survive
-	// into the next, exactly as the database gives every other build. nil on
-	// every build with a real driver.
+	// (storage.ErrNoSQLite), yet the review loop must still work in the lab.
+	// The ledger and the view live in process memory and persist to a JSON
+	// sidecar next to where the database would sit. nil on every build with a
+	// real driver.
 	mem *memWork
-}
-
-// memWork is the JSON-sidecar working set backing the browser build.
-type memWork struct {
-	path      string // the sidecar the set persists to
-	units     map[Key]memUnit
-	docs      map[string]memDoc
-	committed string // digest of the record this set was built from
-}
-
-// memDoc is one document's identity in the sidecar: where it lives now, and
-// what it held when it was last read — which is what recognises it again after
-// a rename.
-type memDoc struct {
-	Path    string   `json:"path"`
-	Content []string `json:"content,omitempty"`
-}
-
-type memUnit struct {
-	Unit   UnitState `json:"unit"`
-	Staged bool      `json:"staged,omitempty"`
-}
-
-// memFile is the sidecar serialization of the browser working set.
-type memFile struct {
-	Units []memUnit         `json:"units"`
-	Docs  map[string]memDoc `json:"docs,omitempty"`
-	// Committed is the digest of the committed record this set was built from,
-	// the sidecar's copy of what the database keeps in state_meta.
-	Committed string `json:"committed,omitempty"`
-}
-
-// load reads the sidecar back into the working set. A missing sidecar is an
-// empty set (the caller seeds from the committed record); a malformed one is an
-// error, because the set may hold decisions no other copy has.
-func (m *memWork) load() (found bool, err error) {
-	data, err := os.ReadFile(m.path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("state: read work set %s: %w", m.path, err)
-	}
-	var f memFile
-	if err := json.Unmarshal(data, &f); err != nil {
-		return false, fmt.Errorf("state: parse work set %s: %w", m.path, err)
-	}
-	for _, mu := range f.Units {
-		m.units[mu.Unit.Key()] = mu
-	}
-	if f.Docs != nil {
-		m.docs = f.Docs
-	}
-	m.committed = f.Committed
-	return true, nil
-}
-
-// persist writes the working set to the sidecar. Called after every mutation:
-// while a decision is only here, this file is its only durable copy.
-func (m *memWork) persist() error {
-	f := memFile{Units: make([]memUnit, 0, len(m.units)), Committed: m.committed}
-	for _, mu := range m.units {
-		f.Units = append(f.Units, mu)
-	}
-	sort.Slice(f.Units, func(i, j int) bool { return unitLess(f.Units[i].Unit, f.Units[j].Unit) })
-	if len(m.docs) > 0 {
-		f.Docs = m.docs
-	}
-	data, err := json.Marshal(f)
-	if err != nil {
-		return fmt.Errorf("state: marshal work set: %w", err)
-	}
-	tmp := m.path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return fmt.Errorf("state: write work set: %w", err)
-	}
-	if err := os.Rename(tmp, m.path); err != nil {
-		return fmt.Errorf("state: rename work set: %w", err)
-	}
-	return nil
 }
 
 var workMigrations = []storage.Migration{{
@@ -183,13 +100,6 @@ CREATE TABLE IF NOT EXISTS document (
 	// The document belongs in the key. A unit id is unique inside its document
 	// and nowhere wider, so (unit, variant) made two documents that share an id
 	// one row, and the second decision recorded overwrote the first.
-	//
-	// It rebuilds rather than resets: the old table holds at most one row per
-	// (unit, variant) and every row already carries the scope it belongs to, so
-	// copying across is lossless and by construction cannot collide. A reset
-	// would be cheap for everything the committed record reproduces and would
-	// throw away the one thing it does not — a decision staged and not yet
-	// committed, whose only copy is here.
 	SQL: `
 CREATE TABLE unit_state_scoped (
     scope        TEXT NOT NULL DEFAULT '',
@@ -215,50 +125,80 @@ CREATE INDEX IF NOT EXISTS unit_state_staged  ON unit_state(staged) WHERE staged
 	// the content hash of each block it held, which is what reconcile grades a
 	// candidate against. Without it a rename is indistinguishable from a
 	// deletion plus an unrelated new file, and every decision in the file is
-	// orphaned — silently, since nothing fails.
+	// orphaned, silently, since nothing fails.
 	SQL: `
 ALTER TABLE document ADD COLUMN content TEXT NOT NULL DEFAULT '[]';
 CREATE INDEX IF NOT EXISTS document_path ON document(path);`,
 }, {
 	Version:     5,
 	Description: "the working set records which record it was built from",
-	// The set is a projection of a git-tracked record, and `git switch`
-	// replaces every shard of that record while the database keeps its rows. So
-	// the set holds the digest of the record it projects and compares it
-	// against the shards on disk.
-	//
-	// The same key/value shape the block cache's stamps use, in this
-	// subsystem's own schema under its own ledger.
+	// The committed shards are git-tracked and move under a checkout, so the
+	// store holds the digest of the shards it last imported and compares it
+	// against the ones on disk.
 	SQL: `
 CREATE TABLE IF NOT EXISTS state_meta (
     key   TEXT NOT NULL PRIMARY KEY,
     value TEXT NOT NULL
 );`,
+}, {
+	Version:     6,
+	Description: "decision ledger and per-checkout view",
+	// The ledger is append-only and addressed by content, so recording the same
+	// decision twice records it once. The view names the pairing each unit has
+	// in one checkout, and every read of a unit's state goes through it: one
+	// ledger serves checkouts that sit on different branches at the same time,
+	// and a decision answers only where its pairing appears.
+	//
+	// The document table gains the same dimension for the same reason. Where a
+	// document lives is a property of a checkout, not of the project.
+	SQL: `
+CREATE TABLE IF NOT EXISTS unit_decision (
+    id           TEXT NOT NULL PRIMARY KEY,
+    scope        TEXT NOT NULL DEFAULT '',
+    unit         TEXT NOT NULL,
+    variant      TEXT NOT NULL,
+    content_hash TEXT NOT NULL DEFAULT '',
+    target_hash  TEXT NOT NULL DEFAULT '',
+    actor        TEXT NOT NULL DEFAULT '',
+    origin       TEXT NOT NULL DEFAULT '',
+    recorded_at  TEXT NOT NULL,
+    revoked      INTEGER NOT NULL DEFAULT 0,
+    payload      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS unit_decision_pairing
+    ON unit_decision(scope, unit, variant, content_hash, target_hash, recorded_at);
+CREATE TABLE IF NOT EXISTS unit_view (
+    checkout     TEXT NOT NULL,
+    scope        TEXT NOT NULL DEFAULT '',
+    unit         TEXT NOT NULL,
+    variant      TEXT NOT NULL,
+    content_hash TEXT NOT NULL DEFAULT '',
+    target_hash  TEXT NOT NULL DEFAULT '',
+    exported     INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (checkout, scope, unit, variant)
+);
+CREATE TABLE IF NOT EXISTS checkout (
+    id   TEXT NOT NULL PRIMARY KEY,
+    path TEXT NOT NULL
+);
+ALTER TABLE document RENAME TO document_legacy;
+CREATE TABLE document (
+    checkout TEXT NOT NULL,
+    key      TEXT NOT NULL,
+    path     TEXT NOT NULL,
+    content  TEXT NOT NULL DEFAULT '[]',
+    PRIMARY KEY (checkout, key)
+);
+CREATE INDEX IF NOT EXISTS document_at_path ON document(checkout, path);`,
 }}
 
-// metaCommittedDigest keys the digest of the committed record the working set
-// was built from.
-const metaCommittedDigest = "committed.digest"
+// metaCommittedDigest keys the digest of the shards a checkout's view was
+// imported from. One key per checkout: several checkouts share the ledger and
+// each holds its own shards.
+func metaCommittedDigest(checkout string) string { return "committed.digest:" + checkout }
 
-// Reseed is what bringing the working set into agreement with the committed
-// record amounted to.
-type Reseed struct {
-	// Reseeded reports that the record on disk had moved since the set was
-	// built from it, so the unstaged rows were rebuilt from the shards.
-	Reseeded bool
-	// Carried counts the staged decisions that crossed the rebuild. They are
-	// the one thing here no record reproduces, so they are reported by number
-	// rather than assumed.
-	Carried int
-}
-
-// The store runs its statements on ctx: a WorkStore is a
-// local SQLite file with no cancellation semantics yet, and the API predates
-// context plumbing — which arrives with the merged-store work rather than as
-// nine call sites of ceremony here.
-
-// OpenWork opens the working store at dbPath, seeding it from the committed
-// serialization at committedPath when it holds nothing yet.
+// OpenWork opens the store at dbPath for the checkout whose committed record is
+// at committedPath.
 func OpenWork(ctx context.Context, dbPath, committedPath string) (*WorkStore, error) {
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		return nil, fmt.Errorf("state: work dir: %w", err)
@@ -274,22 +214,22 @@ func OpenWork(ctx context.Context, dbPath, committedPath string) (*WorkStore, er
 		db.Close()
 		return nil, fmt.Errorf("state: migrate work store: %w", err)
 	}
-	w := &WorkStore{db: db, committed: committedPath, ownsDB: true}
-	if err := w.SyncWithCommitted(ctx); err != nil {
+	w := newStore(db, committedPath)
+	w.ownsDB = true
+	if err := w.start(ctx); err != nil {
 		db.Close()
 		return nil, err
 	}
 	return w, nil
 }
 
-// OpenWorkFromDB adopts an already-open database — the project's merged
-// `.kapi/work/store.db`, where the working set is one schema among the content
-// memory, the terms store and the block cache. Same migrations, same `state`
-// ledger, same seeding from the committed shards; only the file is shared.
+// OpenWorkFromDB adopts an already-open database: the project's store, where
+// the ledger is one schema among the content memory, the terms store and the
+// block cache. Same migrations, same `state` ledger, same import from this
+// checkout's shards; only the file is shared.
 //
 // It is what makes an approve-and-promote atomic: the decision and the wording
-// the content memory learns from it are now two writes in one transaction on
-// one connection pool, which no arrangement of separate files could offer.
+// the content memory learns from it are two writes on one connection pool.
 //
 // The returned store does not own db; its owner closes the pool.
 func OpenWorkFromDB(ctx context.Context, db *storage.DB, committedPath string) (*WorkStore, error) {
@@ -299,121 +239,624 @@ func OpenWorkFromDB(ctx context.Context, db *storage.DB, committedPath string) (
 	if err := storage.Migrate(db, "state", workMigrations); err != nil {
 		return nil, fmt.Errorf("state: migrate work store: %w", err)
 	}
-	w := &WorkStore{db: db, committed: committedPath}
-	if err := w.SyncWithCommitted(ctx); err != nil {
+	w := newStore(db, committedPath)
+	if err := w.start(ctx); err != nil {
 		return nil, err
 	}
 	return w, nil
 }
 
-// OpenWorkSidecar opens the JSON-sidecar working set at sidecarPath — the
-// browser build's working store, and the only form the set takes where there is
-// no file-backed SQLite driver. Callers on a build with a driver reach it only
-// to read a set some earlier browser session wrote.
+// OpenWorkSidecar opens the JSON-sidecar store at sidecarPath: the browser
+// build's ledger, and the only form it takes where there is no file-backed
+// SQLite driver. Callers on a build with a driver reach it only to read a
+// sidecar some earlier browser session wrote.
 func OpenWorkSidecar(ctx context.Context, sidecarPath, committedPath string) (*WorkStore, error) {
 	if err := os.MkdirAll(filepath.Dir(sidecarPath), 0o755); err != nil {
 		return nil, fmt.Errorf("state: work dir: %w", err)
 	}
-	mem := &memWork{
-		path:  sidecarPath,
-		units: map[Key]memUnit{},
-		docs:  map[string]memDoc{},
-	}
-	w := &WorkStore{committed: committedPath, mem: mem}
-	if _, err := mem.load(); err != nil {
+	w := newStore(nil, committedPath)
+	w.mem = newMemWork(sidecarPath)
+	if err := w.mem.load(w.now()); err != nil {
 		return nil, err
 	}
-	if err := w.SyncWithCommitted(ctx); err != nil {
+	if err := w.start(ctx); err != nil {
 		return nil, err
 	}
 	return w, nil
 }
 
-// SyncWithCommitted brings the working set into agreement with the committed
-// record on disk and reports what that took.
+func newStore(db *storage.DB, committedPath string) *WorkStore {
+	return &WorkStore{
+		db:        db,
+		committed: committedPath,
+		checkout:  checkoutID(committedPath),
+		policy:    AllowAny,
+		now:       time.Now,
+	}
+}
+
+// start brings a freshly opened handle up: it carries any pre-ledger rows
+// across, registers the checkout, and imports the shards this checkout holds.
+func (w *WorkStore) start(ctx context.Context) error {
+	if err := w.carryLegacyRows(ctx); err != nil {
+		return err
+	}
+	if err := w.registerCheckout(ctx); err != nil {
+		return err
+	}
+	return w.Import(ctx)
+}
+
+// checkoutID names the view a handle reads: the SHA-256 of the absolute path of
+// its committed record directory. Two worktrees, two clones and two branches
+// checked out side by side each have their own record directory, so each has
+// its own view of one ledger.
+func checkoutID(committedPath string) string {
+	abs, err := filepath.Abs(committedPath)
+	if err != nil {
+		abs = committedPath
+	}
+	sum := sha256.Sum256([]byte(filepath.Clean(abs)))
+	return hex.EncodeToString(sum[:16])
+}
+
+// SetPolicy replaces the rule that decides whether an actor may record a
+// transition. The default is AllowAny.
+func (w *WorkStore) SetPolicy(p Policy) {
+	if p == nil {
+		p = AllowAny
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.policy = p
+}
+
+func (w *WorkStore) currentPolicy() Policy {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.policy
+}
+
+// SetClock binds the clock entries are stamped from. Tests use it to make
+// recorded order explicit.
+func (w *WorkStore) SetClock(now func() time.Time) {
+	if now == nil {
+		now = time.Now
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.now = now
+}
+
+func (w *WorkStore) clock() time.Time {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.now()
+}
+
+func (w *WorkStore) Close() error {
+	if w.mem != nil || !w.ownsDB {
+		return nil
+	}
+	return w.db.Close()
+}
+
+// registerCheckout records which record directory a view id stands for, so the
+// table is readable by someone looking at a project store from outside.
+func (w *WorkStore) registerCheckout(ctx context.Context) error {
+	if w.mem != nil {
+		return nil
+	}
+	abs, err := filepath.Abs(w.committed)
+	if err != nil {
+		abs = w.committed
+	}
+	_, err = w.db.ExecContext(ctx, `
+INSERT INTO checkout (id, path) VALUES (?, ?)
+ON CONFLICT(id) DO UPDATE SET path = excluded.path`, w.checkout, filepath.Clean(abs))
+	if err != nil {
+		return fmt.Errorf("state: register checkout: %w", err)
+	}
+	return nil
+}
+
+// Import records this checkout's committed shards in the ledger and rebuilds
+// its view from them.
 //
-// The set is a projection of the record plus whatever has been staged since,
-// and the record moves underneath it: the shards are git-tracked, so `git
-// switch` replaces them all while the database keeps the rows of the branch
-// left behind. A commit from that set writes those rows into the shards of the
-// branch now checked out and prunes the shards they do not cover.
+// Recording is idempotent: a line the ledger already holds has the same content
+// address, so importing the same record any number of times holds it once. The
+// digest of the shards is stamped per checkout, so an import that would find
+// nothing new costs one pass over the directory and stops there.
 //
-// So the record is identified by a digest and the set carries the digest it
-// projects. A digest that no longer matches the shards on disk means the
-// unstaged rows describe a record this checkout does not hold, and they are
-// rebuilt from the shards. A run's own basis records go with them: the record
-// supplies its rows again, and the next run writes its own against the tree it
-// reads.
+// The view is rebuilt from the shards rather than merged with them, because the
+// shards are git-tracked and a branch switch replaces all of them. One thing
+// survives that rebuild: a row this checkout has recorded and not yet written
+// out, which no record supplies. Such a row follows the person who made it, and
+// the entry behind it answers only where its pairing appears, so a decision
+// carried onto another branch writes a line there and claims nothing about that
+// branch's wording.
 //
-// Staged decisions cross the rebuild untouched, being the only thing in the set
-// that no record supplies. The count crossing is reported, so a person can see
-// what is riding on a branch it was not made on.
-//
-// It runs at every open and again at every write to the record, so a process
-// holding the store open across a branch switch publishes from the record this
+// It runs at every open and again before every write of the record, so a
+// process holding the store open across a branch switch exports the record this
 // checkout holds.
-func (w *WorkStore) SyncWithCommitted(ctx context.Context) error {
+func (w *WorkStore) Import(ctx context.Context) error {
 	digest, err := CommittedDigest(w.committed)
 	if err != nil {
 		return err
 	}
-	stamp, stamped, err := w.readMeta(ctx, metaCommittedDigest)
+	stamp, stamped, err := w.readMeta(ctx, metaCommittedDigest(w.checkout))
 	if err != nil {
 		return err
 	}
 	if stamped && stamp == digest {
 		return nil
 	}
-
-	empty, err := w.isEmpty(ctx)
+	units, err := ReadCommitted(w.committed)
 	if err != nil {
 		return err
 	}
-	if empty {
-		// A fresh set, and the ordinary case: nothing to carry and nothing to
-		// report, whatever the record holds.
-		if err := w.seed(ctx); err != nil {
+	if err := w.importUnits(ctx, units); err != nil {
+		return err
+	}
+	return w.stampCommitted(ctx, digest)
+}
+
+// importUnits is the body of an import: the ledger gains every line that is
+// newer than what already answers for its pairing, and the view is rebuilt
+// around whatever this checkout has recorded since its last export.
+//
+// A line older than the entry in force is not recorded. That is the same
+// last-writer-wins rule a venue pull follows, and it is what keeps a
+// colleague's earlier line from displacing a decision made here since.
+func (w *WorkStore) importUnits(ctx context.Context, units []UnitState) error {
+	if w.mem != nil {
+		keep := map[Key]memViewRow{}
+		for k, r := range w.mem.view {
+			if !r.Exported {
+				keep[k] = r
+			}
+		}
+		w.mem.view = map[Key]memViewRow{}
+		now := w.clock()
+		for _, u := range units {
+			if w.arrivalStands(ctx, u) {
+				if err := w.mem.record(u, u.Decision.By, OriginImport, false, entryTimeText(now)); err != nil {
+					return err
+				}
+			}
+			w.mem.view[u.Key()] = memViewRow{
+				Scope: u.Scope, Unit: u.Unit, Variant: u.Variant,
+				ContentHash: u.ContentHash, TargetHash: u.TargetHash, Exported: true,
+			}
+		}
+		maps.Copy(w.mem.view, keep)
+		return w.mem.persist()
+	}
+
+	keep, err := w.unexportedRows(ctx)
+	if err != nil {
+		return err
+	}
+	// Resolved before the transaction opens: the write gate is not reentrant,
+	// so a read that takes a permit cannot run inside one.
+	stands := make([]bool, len(units))
+	for i, u := range units {
+		stands[i] = w.arrivalStands(ctx, u)
+	}
+
+	tx, err := w.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("state: import record: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM unit_view WHERE checkout = ?`, w.checkout); err != nil {
+		return fmt.Errorf("state: clear checkout view: %w", err)
+	}
+	now := w.clock()
+	for i, u := range units {
+		if stands[i] {
+			if err := insertEntry(ctx, tx, u, u.Decision.By, OriginImport, false, now); err != nil {
+				return err
+			}
+		}
+		if err := putView(ctx, tx, w.checkout, u.Pairing(), true); err != nil {
 			return err
 		}
-		return w.stampCommitted(ctx, digest)
 	}
-
-	// A set carrying no digest reads as built from an unknown record and takes
-	// this branch too. The rebuild is a no-op where the set and the shards
-	// already agree, so reading the unknown as moved costs one pass over the
-	// record and never a wrong answer.
-	staged, err := w.Staged(ctx)
-	if err != nil {
-		return err
+	for _, r := range keep {
+		if err := putView(ctx, tx, w.checkout, r, false); err != nil {
+			return err
+		}
 	}
-	if err := w.dropUnstaged(ctx); err != nil {
-		return err
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("state: import record: %w", err)
 	}
-	if err := w.seedBesideStaged(ctx); err != nil {
-		return err
-	}
-	if err := w.stampCommitted(ctx, digest); err != nil {
-		return err
-	}
-	w.noteReseed(Reseed{Reseeded: true, Carried: len(staged)})
 	return nil
 }
 
-// Reseed reports whether this handle had to rebuild its set from a record that
-// moved under it, and how many staged decisions crossed. It holds for the life
-// of the handle, so every surface under one App says the same thing about the
-// same open store. The zero value is a store that found the record where it
-// left it.
-func (w *WorkStore) Reseed() Reseed {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.reseed
+// arrivalStands reports whether a record coming in from elsewhere is newer
+// than whatever answers for its pairing now.
+func (w *WorkStore) arrivalStands(ctx context.Context, u UnitState) bool {
+	inForce, applied := w.applies(ctx, u.Pairing())
+	return !applied || Supersedes(u, inForce)
 }
 
-func (w *WorkStore) noteReseed(r Reseed) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.reseed = r
+// unexportedRows returns the view rows this checkout has recorded since its
+// last export.
+func (w *WorkStore) unexportedRows(ctx context.Context) ([]Pairing, error) {
+	rows, err := w.db.QueryContext(ctx, `
+SELECT scope, unit, variant, content_hash, target_hash
+  FROM unit_view WHERE checkout = ? AND exported = 0`, w.checkout)
+	if err != nil {
+		return nil, fmt.Errorf("state: read checkout view: %w", err)
+	}
+	defer rows.Close()
+	return scanPairings(rows)
+}
+
+func scanPairings(rows *sql.Rows) ([]Pairing, error) {
+	var out []Pairing
+	for rows.Next() {
+		var p Pairing
+		var variant string
+		if err := rows.Scan(&p.Key.Scope, &p.Key.Unit, &variant, &p.ContentHash, &p.TargetHash); err != nil {
+			return nil, fmt.Errorf("state: scan view row: %w", err)
+		}
+		if err := p.Key.Variant.UnmarshalText([]byte(variant)); err != nil {
+			return nil, fmt.Errorf("state: parse variant %q: %w", variant, err)
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// RecordEntry appends one entry to the ledger and points this checkout's view
+// at its pairing.
+//
+// The entry is durable at once. There is no tier between recording and the
+// project's record: `kapi commit` writes the shards, and what it writes is what
+// the ledger already holds.
+func (w *WorkStore) RecordEntry(ctx context.Context, u UnitState, actor string, origin EntryOrigin) error {
+	return w.append(ctx, u, actor, origin, false)
+}
+
+// Put records a decision reached in this checkout.
+func (w *WorkStore) Put(ctx context.Context, u UnitState) error {
+	return w.append(ctx, u, u.Decision.By, OriginLocal, false)
+}
+
+// Record stores what the loop produced rather than what a person decided: a
+// unit's basis, the source it translated and the translation it wrote, with no
+// Decision on it.
+func (w *WorkStore) Record(ctx context.Context, u UnitState) error {
+	return w.append(ctx, u, u.Decision.By, OriginRun, false)
+}
+
+// Delete withdraws whatever applies to the unit in this checkout: a revocation
+// entry at the unit's current pairing, and the view row removed. The ledger
+// keeps everything it held, so the unit's history stays readable and a pairing
+// that comes back comes back to what was decided about it.
+func (w *WorkStore) Delete(ctx context.Context, k Key) error {
+	p, ok, err := w.pairingOf(ctx, k)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return nil
+	}
+	held, _ := w.applies(ctx, p)
+	held.Scope, held.Unit, held.Variant = k.Scope, k.Unit, k.Variant
+	held.ContentHash, held.TargetHash = p.ContentHash, p.TargetHash
+	if err := w.append(ctx, held, held.Decision.By, OriginLocal, true); err != nil {
+		return err
+	}
+	return w.dropView(ctx, k)
+}
+
+// append is the one writer: it resolves what applies at the entry's pairing,
+// puts the transition to the policy, and records.
+func (w *WorkStore) append(ctx context.Context, u UnitState, actor string, origin EntryOrigin, revoked bool) error {
+	p := u.Pairing()
+	applies, applied := w.applies(ctx, p)
+	err := w.currentPolicy()(Transition{
+		Pairing: p, Actor: actor, Origin: origin,
+		Applies: applies, Applied: applied,
+		Proposed: u, Revoke: revoked,
+	})
+	if err != nil {
+		return fmt.Errorf("state: record %s/%s: %w", u.Scope, u.Unit, err)
+	}
+	stamp := w.clock()
+
+	if w.mem != nil {
+		if rerr := w.mem.record(u, actor, origin, revoked, entryTimeText(stamp)); rerr != nil {
+			return rerr
+		}
+		if !revoked {
+			w.mem.view[u.Key()] = memViewRow{
+				Scope: u.Scope, Unit: u.Unit, Variant: u.Variant,
+				ContentHash: u.ContentHash, TargetHash: u.TargetHash,
+			}
+		}
+		return w.mem.persist()
+	}
+
+	tx, err := w.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("state: record decision: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := insertEntry(ctx, tx, u, actor, origin, revoked, stamp); err != nil {
+		return err
+	}
+	if !revoked {
+		if err := putView(ctx, tx, w.checkout, p, false); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("state: record decision: %w", err)
+	}
+	return nil
+}
+
+// insertEntry writes one entry. An address the ledger already holds is left
+// exactly as it was, which is what makes an import and a repeated pull cost
+// nothing.
+func insertEntry(ctx context.Context, tx *storage.Tx, u UnitState, actor string, origin EntryOrigin, revoked bool, stamp time.Time) error {
+	id, err := Address(u, actor, revoked)
+	if err != nil {
+		return err
+	}
+	payload, err := json.Marshal(u)
+	if err != nil {
+		return fmt.Errorf("state: marshal unit: %w", err)
+	}
+	variant, _ := u.Variant.MarshalText()
+	flag := 0
+	if revoked {
+		flag = 1
+	}
+	_, err = tx.ExecContext(ctx, `
+INSERT INTO unit_decision
+    (id, scope, unit, variant, content_hash, target_hash, actor, origin, recorded_at, revoked, payload)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO NOTHING`,
+		id, u.Scope, u.Unit, string(variant), u.ContentHash, u.TargetHash,
+		actor, string(origin), entryTimeText(stamp), flag, string(payload))
+	if err != nil {
+		return fmt.Errorf("state: record entry: %w", err)
+	}
+	return nil
+}
+
+// putView points a checkout's view at a pairing.
+func putView(ctx context.Context, tx *storage.Tx, checkout string, p Pairing, exported bool) error {
+	variant, _ := p.Key.Variant.MarshalText()
+	flag := 0
+	if exported {
+		flag = 1
+	}
+	_, err := tx.ExecContext(ctx, `
+INSERT INTO unit_view (checkout, scope, unit, variant, content_hash, target_hash, exported)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(checkout, scope, unit, variant) DO UPDATE SET
+    content_hash = excluded.content_hash,
+    target_hash  = excluded.target_hash,
+    exported     = excluded.exported`,
+		checkout, p.Key.Scope, p.Key.Unit, string(variant), p.ContentHash, p.TargetHash, flag)
+	if err != nil {
+		return fmt.Errorf("state: point view at pairing: %w", err)
+	}
+	return nil
+}
+
+func (w *WorkStore) dropView(ctx context.Context, k Key) error {
+	if w.mem != nil {
+		delete(w.mem.view, k)
+		return w.mem.persist()
+	}
+	variant, _ := k.Variant.MarshalText()
+	_, err := w.db.ExecContext(ctx,
+		`DELETE FROM unit_view WHERE checkout = ? AND scope = ? AND unit = ? AND variant = ?`,
+		w.checkout, k.Scope, k.Unit, string(variant))
+	if err != nil {
+		return fmt.Errorf("state: drop view row: %w", err)
+	}
+	return nil
+}
+
+// pairingOf returns the pairing a unit has in this checkout.
+func (w *WorkStore) pairingOf(ctx context.Context, k Key) (Pairing, bool, error) {
+	if w.mem != nil {
+		r, ok := w.mem.view[k]
+		if !ok {
+			return Pairing{}, false, nil
+		}
+		return r.pairing(), true, nil
+	}
+	variant, _ := k.Variant.MarshalText()
+	p := Pairing{Key: k}
+	err := w.db.QueryRowContext(ctx, `
+SELECT content_hash, target_hash FROM unit_view
+ WHERE checkout = ? AND scope = ? AND unit = ? AND variant = ?`,
+		w.checkout, k.Scope, k.Unit, string(variant)).Scan(&p.ContentHash, &p.TargetHash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Pairing{}, false, nil
+	}
+	if err != nil {
+		return Pairing{}, false, fmt.Errorf("state: read view row: %w", err)
+	}
+	return p, true, nil
+}
+
+// applies returns the record in force at a pairing: the most recent entry
+// recorded for it, unless that entry withdraws.
+func (w *WorkStore) applies(ctx context.Context, p Pairing) (UnitState, bool) {
+	if w.mem != nil {
+		return w.mem.applies(p)
+	}
+	variant, _ := p.Key.Variant.MarshalText()
+	var payload string
+	var revoked int
+	err := w.db.QueryRowContext(ctx, `
+SELECT payload, revoked FROM unit_decision
+ WHERE scope = ? AND unit = ? AND variant = ? AND content_hash = ? AND target_hash = ?
+ ORDER BY recorded_at DESC, rowid DESC LIMIT 1`,
+		p.Key.Scope, p.Key.Unit, string(variant), p.ContentHash, p.TargetHash).Scan(&payload, &revoked)
+	if err != nil || revoked == 1 {
+		return UnitState{}, false
+	}
+	var u UnitState
+	if json.Unmarshal([]byte(payload), &u) != nil {
+		return UnitState{}, false
+	}
+	return u, true
+}
+
+// Lookup answers what applies to a unit at a given pairing, which is the
+// question every reader of unit state is really asking: this unit, with this
+// source and this translation in front of me, what has been decided about it.
+//
+// A caller holding the file content passes its hashes and gets the entry that
+// blessed exactly that pairing, whatever any other checkout has decided about
+// the same unit.
+func (w *WorkStore) Lookup(ctx context.Context, k Key, contentHash, targetHash string) (UnitState, bool) {
+	return w.applies(ctx, Pairing{Key: k, ContentHash: contentHash, TargetHash: targetHash})
+}
+
+// Get returns what applies to a unit in this checkout: the entry recorded for
+// the pairing the unit has here. A unit this checkout does not hold has no
+// answer, however much the ledger holds about it under another branch's
+// pairing.
+func (w *WorkStore) Get(ctx context.Context, k Key) (UnitState, bool) {
+	p, ok, err := w.pairingOf(ctx, k)
+	if err != nil || !ok {
+		return UnitState{}, false
+	}
+	return w.applies(ctx, p)
+}
+
+// All returns what applies to every unit in this checkout, ordered by the
+// identity key so a serialization of it is stable.
+func (w *WorkStore) All(ctx context.Context) ([]UnitState, error) {
+	return w.resolveView(ctx, "")
+}
+
+// Priors returns the identity signals for every unit in a document, which is
+// what core/reconcile matches a fresh read against.
+//
+// Scoped to one document because that is how reconcile is called, but content
+// matching stays project-wide: pass the whole project's units when text may
+// have moved between files.
+func (w *WorkStore) Priors(ctx context.Context, scope string) ([]UnitState, error) {
+	return w.resolveView(ctx, scope)
+}
+
+// resolveView answers this checkout's view against the ledger. scope limits it
+// to one document; empty takes the whole view.
+func (w *WorkStore) resolveView(ctx context.Context, scope string) ([]UnitState, error) {
+	if w.mem != nil {
+		out := make([]UnitState, 0, len(w.mem.view))
+		for _, r := range w.mem.rows() {
+			if scope != "" && r.Scope != scope {
+				continue
+			}
+			if u, ok := w.mem.applies(r.pairing()); ok {
+				out = append(out, u)
+			}
+		}
+		return out, nil
+	}
+	// The window function picks each pairing's most recent entry once, over the
+	// whole ledger, rather than asking the same question again for every unit
+	// in the view.
+	const query = `
+WITH latest AS (
+  SELECT scope, unit, variant, content_hash, target_hash, payload, revoked,
+         ROW_NUMBER() OVER (
+             PARTITION BY scope, unit, variant, content_hash, target_hash
+             ORDER BY recorded_at DESC, rowid DESC) AS nth
+    FROM unit_decision
+)
+SELECT l.payload
+  FROM unit_view v
+  JOIN latest l
+    ON l.scope = v.scope AND l.unit = v.unit AND l.variant = v.variant
+   AND l.content_hash = v.content_hash AND l.target_hash = v.target_hash
+ WHERE v.checkout = ? AND l.nth = 1 AND l.revoked = 0 AND (? = '' OR v.scope = ?)
+ ORDER BY v.scope, v.unit, v.variant`
+	rows, err := w.db.QueryContext(ctx, query, w.checkout, scope, scope)
+	if err != nil {
+		return nil, fmt.Errorf("state: read checkout record: %w", err)
+	}
+	defer rows.Close()
+	return scanUnits(rows)
+}
+
+// Entries returns every entry the ledger holds for a unit, most recent first.
+// It is the unit's decision history, which the ledger keeps because nothing is
+// ever rewritten.
+func (w *WorkStore) Entries(ctx context.Context, k Key) ([]Entry, error) {
+	if w.mem != nil {
+		var out []Entry
+		for _, e := range slices.Backward(w.mem.entries) {
+			if e.State.Key() != k {
+				continue
+			}
+			stamp, _ := time.Parse(entryTimeLayout, e.Recorded)
+			out = append(out, Entry{
+				ID: e.ID, State: e.State, Actor: e.Actor,
+				Origin: e.Origin, Recorded: stamp, Revoked: e.Revoked,
+			})
+		}
+		sort.SliceStable(out, func(i, j int) bool { return out[i].Recorded.After(out[j].Recorded) })
+		return out, nil
+	}
+	variant, _ := k.Variant.MarshalText()
+	rows, err := w.db.QueryContext(ctx, `
+SELECT id, actor, origin, recorded_at, revoked, payload FROM unit_decision
+ WHERE scope = ? AND unit = ? AND variant = ?
+ ORDER BY recorded_at DESC, rowid DESC`, k.Scope, k.Unit, string(variant))
+	if err != nil {
+		return nil, fmt.Errorf("state: read unit history: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Entry
+	for rows.Next() {
+		var e Entry
+		var origin, stamp, payload string
+		var revoked int
+		if err := rows.Scan(&e.ID, &e.Actor, &origin, &stamp, &revoked, &payload); err != nil {
+			return nil, fmt.Errorf("state: scan entry: %w", err)
+		}
+		if err := json.Unmarshal([]byte(payload), &e.State); err != nil {
+			return nil, fmt.Errorf("state: parse entry: %w", err)
+		}
+		e.Origin = EntryOrigin(origin)
+		e.Revoked = revoked == 1
+		e.Recorded, _ = time.Parse(entryTimeLayout, stamp)
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+func scanUnits(rows *sql.Rows) ([]UnitState, error) {
+	var out []UnitState
+	for rows.Next() {
+		var payload string
+		if err := rows.Scan(&payload); err != nil {
+			return nil, fmt.Errorf("state: scan unit: %w", err)
+		}
+		var u UnitState
+		if err := json.Unmarshal([]byte(payload), &u); err != nil {
+			return nil, fmt.Errorf("state: parse unit: %w", err)
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
 }
 
 // readMeta reads one of this store's own stamps. ok is false when the key was
@@ -435,7 +878,8 @@ func (w *WorkStore) readMeta(ctx context.Context, key string) (value string, ok 
 	return value, true, nil
 }
 
-// stampCommitted records the digest of the record the set now projects.
+// stampCommitted records the digest of the shards this checkout's view now
+// projects.
 func (w *WorkStore) stampCommitted(ctx context.Context, digest string) error {
 	if w.mem != nil {
 		w.mem.committed = digest
@@ -443,15 +887,133 @@ func (w *WorkStore) stampCommitted(ctx context.Context, digest string) error {
 	}
 	_, err := w.db.ExecContext(ctx, `
 INSERT INTO state_meta (key, value) VALUES (?, ?)
-ON CONFLICT(key) DO UPDATE SET value = excluded.value`, metaCommittedDigest, digest)
+ON CONFLICT(key) DO UPDATE SET value = excluded.value`, metaCommittedDigest(w.checkout), digest)
 	if err != nil {
 		return fmt.Errorf("state: stamp committed record: %w", err)
 	}
 	return nil
 }
 
-// restamp records the digest of the record as it stands after this store wrote
-// it, so the next open reads the set as current rather than as moved.
+// RecordDiff is what writing the committed shards would change in them.
+type RecordDiff struct {
+	// Written are the records this checkout holds that the shards do not carry
+	// line for line: a decision made since the last write, a record a pull
+	// brought in, a basis a run produced.
+	Written []UnitState
+	// Removed counts the lines the shards carry for units this checkout no
+	// longer holds, which a write drops.
+	Removed int
+}
+
+// Changed reports how many lines a write of the record would touch.
+func (d RecordDiff) Changed() int { return len(d.Written) + d.Removed }
+
+// RecordDiff compares what this checkout holds against its committed shards. It
+// is what `kapi commit` is about to write and what a dry run reports.
+func (w *WorkStore) RecordDiff(ctx context.Context) (RecordDiff, error) {
+	if err := w.Import(ctx); err != nil {
+		return RecordDiff{}, err
+	}
+	return w.recordDiff(ctx)
+}
+
+func (w *WorkStore) recordDiff(ctx context.Context) (RecordDiff, error) {
+	held, err := w.All(ctx)
+	if err != nil {
+		return RecordDiff{}, err
+	}
+	onDisk, err := ReadCommitted(w.committed)
+	if err != nil {
+		return RecordDiff{}, err
+	}
+	lines := make(map[Key]string, len(onDisk))
+	for _, u := range onDisk {
+		line, merr := json.Marshal(u)
+		if merr != nil {
+			return RecordDiff{}, fmt.Errorf("state: marshal unit %s: %w", u.Unit, merr)
+		}
+		lines[u.Key()] = string(line)
+	}
+	var diff RecordDiff
+	for _, u := range held {
+		line, merr := json.Marshal(u)
+		if merr != nil {
+			return RecordDiff{}, fmt.Errorf("state: marshal unit %s: %w", u.Unit, merr)
+		}
+		if lines[u.Key()] != string(line) {
+			diff.Written = append(diff.Written, u)
+		}
+		delete(lines, u.Key())
+	}
+	diff.Removed = len(lines)
+	return diff, nil
+}
+
+// Staged returns the records this checkout holds that its committed shards do
+// not carry.
+//
+// It exists so a predecessor store's work can be carried into a replacement
+// before the old one is deleted: everything the shards supply comes back by
+// import, and this is what they do not supply.
+func (w *WorkStore) Staged(ctx context.Context) ([]UnitState, error) {
+	diff, err := w.recordDiff(ctx)
+	return diff.Written, err
+}
+
+// Commit writes this checkout's record to the committed shards: for every unit
+// the checkout holds, the ledger entry that applies to its current pairing.
+//
+// The write is deterministic. Lines are sorted within a shard, a shard whose
+// bytes are unchanged is left untouched, and the payload is the record as it
+// was decided, so running it twice over an unchanged project writes the same
+// bytes and leaves the same files.
+//
+// It never prunes on another checkout's behalf: the units it covers are the
+// ones in this checkout's view, and the shards it removes are the ones that
+// view no longer names.
+func (w *WorkStore) Commit(ctx context.Context) error {
+	if err := w.Import(ctx); err != nil {
+		return err
+	}
+	units, err := w.All(ctx)
+	if err != nil {
+		return err
+	}
+	if err := WriteCommitted(w.committed, units); err != nil {
+		return err
+	}
+	if err := w.markExported(ctx); err != nil {
+		return err
+	}
+	return w.restamp(ctx)
+}
+
+// PersistRecords writes the committed shards from what this checkout holds. It
+// is Commit under the name a convergence pass calls it by, so a run makes its
+// own output durable through the same one write.
+func (w *WorkStore) PersistRecords(ctx context.Context) error { return w.Commit(ctx) }
+
+// markExported records that the shards now carry every row of this checkout's
+// view, so a later import rebuilds the view from them rather than treating them
+// as work recorded since.
+func (w *WorkStore) markExported(ctx context.Context) error {
+	if w.mem != nil {
+		for k, r := range w.mem.view {
+			r.Exported = true
+			w.mem.view[k] = r
+		}
+		return w.mem.persist()
+	}
+	_, err := w.db.ExecContext(ctx,
+		`UPDATE unit_view SET exported = 1 WHERE checkout = ? AND exported = 0`, w.checkout)
+	if err != nil {
+		return fmt.Errorf("state: mark view exported: %w", err)
+	}
+	return nil
+}
+
+// restamp records the digest of the shards as they stand after this store wrote
+// them, so the next open reads the view as current rather than as moved.
 func (w *WorkStore) restamp(ctx context.Context) error {
 	digest, err := CommittedDigest(w.committed)
 	if err != nil {
@@ -460,329 +1022,15 @@ func (w *WorkStore) restamp(ctx context.Context) error {
 	return w.stampCommitted(ctx, digest)
 }
 
-func (w *WorkStore) isEmpty(ctx context.Context) (bool, error) {
-	if w.mem != nil {
-		return len(w.mem.units) == 0, nil
-	}
-	var n int
-	if err := w.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM unit_state`).Scan(&n); err != nil {
-		return false, fmt.Errorf("state: count units: %w", err)
-	}
-	return n == 0, nil
-}
-
-// dropUnstaged removes every row the committed record is about to supply again.
-func (w *WorkStore) dropUnstaged(ctx context.Context) error {
-	if w.mem != nil {
-		for k, mu := range w.mem.units {
-			if !mu.Staged {
-				delete(w.mem.units, k)
-			}
-		}
-		return nil
-	}
-	if _, err := w.db.ExecContext(ctx, `DELETE FROM unit_state WHERE staged = 0`); err != nil {
-		return fmt.Errorf("state: drop unstaged units: %w", err)
-	}
-	return nil
-}
-
-// seedBesideStaged imports the committed record without disturbing a staged
-// row. A staged decision is newer than the record by construction, and it is
-// the one row here that the record cannot supply again.
-func (w *WorkStore) seedBesideStaged(ctx context.Context) error {
-	units, err := ReadCommitted(w.committed)
-	if err != nil {
-		return err
-	}
-	for _, u := range units {
-		if err := w.putIfAbsent(ctx, u); err != nil {
-			return err
-		}
-	}
-	if w.mem != nil {
-		return w.mem.persist()
-	}
-	return nil
-}
-
-// seed imports the committed serialization. A working store is derived, so this
-// is a rebuild rather than a migration: deleting the database costs nothing that
-// has already been committed.
-func (w *WorkStore) seed(ctx context.Context) error {
-	units, err := ReadCommitted(w.committed)
-	if err != nil {
-		return err
-	}
-	for _, u := range units {
-		if err := w.put(ctx, u, false); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (w *WorkStore) Close() error {
-	if w.mem != nil || !w.ownsDB {
-		return nil
-	}
-	return w.db.Close()
-}
-
-// Get returns the state recorded for a unit.
-func (w *WorkStore) Get(ctx context.Context, k Key) (UnitState, bool) {
-	if w.mem != nil {
-		mu, ok := w.mem.units[k]
-		return mu.Unit, ok
-	}
-	variant, _ := k.Variant.MarshalText()
-	var payload string
-	err := w.db.QueryRowContext(ctx,
-		`SELECT payload FROM unit_state WHERE scope = ? AND unit = ? AND variant = ?`,
-		k.Scope, k.Unit, string(variant)).Scan(&payload)
-	if err != nil {
-		return UnitState{}, false
-	}
-	var u UnitState
-	if json.Unmarshal([]byte(payload), &u) != nil {
-		return UnitState{}, false
-	}
-	return u, true
-}
-
-// Put records a unit's state and stages it for the next commit.
-func (w *WorkStore) Put(ctx context.Context, u UnitState) error { return w.put(ctx, u, true) }
-
-// Record stores what the loop produced rather than what a person decided: a
-// unit's basis (the source it translated and the translation it wrote) with no
-// Decision on it.
-//
-// It is deliberately not staged. Staging answers "you have N uncommitted
-// decisions", and a convergence pass produces one of these for every unit it
-// writes a target for, and counting them there would bury a person's two
-// pending approvals under fourteen thousand machine records. The loop persists its own
-// output with PersistRecords instead.
-func (w *WorkStore) Record(ctx context.Context, u UnitState) error { return w.put(ctx, u, false) }
-
-// PersistRecords writes the committed serialization from the units that are NOT
-// staged: everything already committed, plus whatever the loop has recorded
-// since.
-//
-// It exists so a run can make its own output durable without publishing a
-// person's pending decisions along with it. Commit is still the only thing that
-// moves a staged decision into the committed record, and it still clears the
-// staged flag; this writes around it.
-func (w *WorkStore) PersistRecords(ctx context.Context) error {
-	if err := w.SyncWithCommitted(ctx); err != nil {
-		return err
-	}
-	units, err := w.unstaged(ctx)
-	if err != nil {
-		return err
-	}
-	if err := WriteCommitted(w.committed, units); err != nil {
-		return err
-	}
-	return w.restamp(ctx)
-}
-
-// unstaged returns every recorded state that is not waiting for a commit.
-func (w *WorkStore) unstaged(ctx context.Context) ([]UnitState, error) {
-	if w.mem != nil {
-		out := make([]UnitState, 0, len(w.mem.units))
-		for _, mu := range w.mem.units {
-			if !mu.Staged {
-				out = append(out, mu.Unit)
-			}
-		}
-		sortUnits(out)
-		return out, nil
-	}
-	rows, err := w.db.QueryContext(ctx,
-		`SELECT payload FROM unit_state WHERE staged = 0 ORDER BY scope, unit, variant`)
-	if err != nil {
-		return nil, fmt.Errorf("state: list unstaged: %w", err)
-	}
-	defer rows.Close()
-	return scanUnits(rows)
-}
-
-func (w *WorkStore) put(ctx context.Context, u UnitState, staged bool) error {
-	if w.mem != nil {
-		k := u.Key()
-		staged = staged || w.mem.units[k].Staged
-		w.mem.units[k] = memUnit{Unit: u, Staged: staged}
-		return w.mem.persist()
-	}
-	variant, _ := u.Variant.MarshalText()
-	payload, err := json.Marshal(u)
-	if err != nil {
-		return fmt.Errorf("state: marshal unit: %w", err)
-	}
-	flag := 0
-	if staged {
-		flag = 1
-	}
-	_, err = w.db.ExecContext(ctx, `
-INSERT INTO unit_state (scope, unit, variant, content_hash, context_hash, payload, staged)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(scope, unit, variant) DO UPDATE SET
-    content_hash = excluded.content_hash,
-    context_hash = excluded.context_hash, payload = excluded.payload,
-    staged = MAX(unit_state.staged, excluded.staged)`,
-		u.Scope, u.Unit, string(variant), u.ContentHash, u.ContextHash, string(payload), flag)
-	if err != nil {
-		return fmt.Errorf("state: put unit: %w", err)
-	}
-	return nil
-}
-
-// putIfAbsent records a unit's state only where the set holds no row for it,
-// leaving a staged decision exactly as it was.
-func (w *WorkStore) putIfAbsent(ctx context.Context, u UnitState) error {
-	if w.mem != nil {
-		k := u.Key()
-		if _, taken := w.mem.units[k]; taken {
-			return nil
-		}
-		w.mem.units[k] = memUnit{Unit: u}
-		return nil
-	}
-	variant, _ := u.Variant.MarshalText()
-	payload, err := json.Marshal(u)
-	if err != nil {
-		return fmt.Errorf("state: marshal unit: %w", err)
-	}
-	_, err = w.db.ExecContext(ctx, `
-INSERT INTO unit_state (scope, unit, variant, content_hash, context_hash, payload, staged)
-VALUES (?, ?, ?, ?, ?, ?, 0)
-ON CONFLICT(scope, unit, variant) DO NOTHING`,
-		u.Scope, u.Unit, string(variant), u.ContentHash, u.ContextHash, string(payload))
-	if err != nil {
-		return fmt.Errorf("state: seed unit: %w", err)
-	}
-	return nil
-}
-
-// Delete removes a unit's state.
-func (w *WorkStore) Delete(ctx context.Context, k Key) error {
-	if w.mem != nil {
-		if _, ok := w.mem.units[k]; !ok {
-			return nil
-		}
-		delete(w.mem.units, k)
-		return w.mem.persist()
-	}
-	variant, _ := k.Variant.MarshalText()
-	_, err := w.db.ExecContext(ctx,
-		`DELETE FROM unit_state WHERE scope = ? AND unit = ? AND variant = ?`,
-		k.Scope, k.Unit, string(variant))
-	if err != nil {
-		return fmt.Errorf("state: delete unit: %w", err)
-	}
-	return nil
-}
-
-// All returns every recorded state, ordered so the serialization is stable.
-func (w *WorkStore) All(ctx context.Context) ([]UnitState, error) {
-	if w.mem != nil {
-		out := make([]UnitState, 0, len(w.mem.units))
-		for _, mu := range w.mem.units {
-			out = append(out, mu.Unit)
-		}
-		sortUnits(out)
-		return out, nil
-	}
-	rows, err := w.db.QueryContext(ctx, `SELECT payload FROM unit_state ORDER BY scope, unit, variant`)
-	if err != nil {
-		return nil, fmt.Errorf("state: list units: %w", err)
-	}
-	defer rows.Close()
-	return scanUnits(rows)
-}
-
-// Staged returns the units decided since the last commit — the same set
-// Pending counts, as records rather than a number.
-//
-// It exists so staged decisions can be carried between working stores: they are
-// the one thing a working store holds that the committed record does not, so a
-// store being replaced must hand them over before it is deleted. Everything
-// else re-seeds.
-func (w *WorkStore) Staged(ctx context.Context) ([]UnitState, error) {
-	if w.mem != nil {
-		var out []UnitState
-		for _, mu := range w.mem.units {
-			if mu.Staged {
-				out = append(out, mu.Unit)
-			}
-		}
-		sortUnits(out)
-		return out, nil
-	}
-	rows, err := w.db.QueryContext(ctx,
-		`SELECT payload FROM unit_state WHERE staged = 1 ORDER BY scope, unit, variant`)
-	if err != nil {
-		return nil, fmt.Errorf("state: list staged: %w", err)
-	}
-	defer rows.Close()
-	return scanUnits(rows)
-}
-
-// Priors returns the identity signals for every unit in a document, which is
-// what core/reconcile matches a fresh read against.
-//
-// Scoped to one document because that is how reconcile is called, but content
-// matching stays project-wide: pass the whole project's units when text may have
-// moved between files.
-func (w *WorkStore) Priors(ctx context.Context, scope string) ([]UnitState, error) {
-	if w.mem != nil {
-		var out []UnitState
-		for _, mu := range w.mem.units {
-			if mu.Unit.Scope == scope {
-				out = append(out, mu.Unit)
-			}
-		}
-		sortUnits(out)
-		return out, nil
-	}
-	rows, err := w.db.QueryContext(ctx,
-		`SELECT payload FROM unit_state WHERE scope = ? ORDER BY unit, variant`, scope)
-	if err != nil {
-		return nil, fmt.Errorf("state: list priors: %w", err)
-	}
-	defer rows.Close()
-	return scanUnits(rows)
-}
-
-func scanUnits(rows *sql.Rows) ([]UnitState, error) {
-	var out []UnitState
-	for rows.Next() {
-		var payload string
-		if err := rows.Scan(&payload); err != nil {
-			return nil, fmt.Errorf("state: scan unit: %w", err)
-		}
-		var u UnitState
-		if err := json.Unmarshal([]byte(payload), &u); err != nil {
-			return nil, fmt.Errorf("state: parse unit: %w", err)
-		}
-		out = append(out, u)
-	}
-	return out, rows.Err()
-}
-
-// Documents returns the documents the project already knows, as identity
-// resolution needs them: a durable key, the path it was last seen at, and the
-// content hashes it held there.
+// Documents returns the documents this checkout knows, as identity resolution
+// needs them: a durable key, the path it was last seen at, and the content
+// hashes it held there.
 func (w *WorkStore) Documents(ctx context.Context) ([]reconcile.DocUnit, error) {
 	if w.mem != nil {
-		out := make([]reconcile.DocUnit, 0, len(w.mem.docs))
-		for key, d := range w.mem.docs {
-			out = append(out, reconcile.DocUnit{Key: key, Path: d.Path, Content: d.Content})
-		}
-		sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
-		return out, nil
+		return w.mem.documents(), nil
 	}
-	rows, err := w.db.QueryContext(ctx, `SELECT key, path, content FROM document ORDER BY key`)
+	rows, err := w.db.QueryContext(ctx,
+		`SELECT key, path, content FROM document WHERE checkout = ? ORDER BY key`, w.checkout)
 	if err != nil {
 		return nil, fmt.Errorf("state: list documents: %w", err)
 	}
@@ -809,16 +1057,16 @@ func (w *WorkStore) Documents(ctx context.Context) ([]reconcile.DocUnit, error) 
 	return out, rows.Err()
 }
 
-// AdoptDocuments resolves a fresh read against the documents the project knows,
-// records the result, and returns each current path's durable key.
+// AdoptDocuments resolves a fresh read against the documents this checkout
+// knows, records the result, and returns each current path's durable key.
 //
 // It is the local half of what a venue does on a push, and it exists for the
 // same reason: a decision is filed against the document it was made in, so if
 // the document's identity is its path, renaming a file orphans every approval
-// inside it — silently, because nothing fails and the loop simply re-approves
+// inside it, silently, because nothing fails and the loop simply re-approves
 // from scratch. Resolution here matches on path first and on surviving content
 // second, so a file that moved keeps its key, and the decisions filed under its
-// old address move onto that key in the same transaction.
+// old address move onto that key.
 //
 // current is what was just read, in any order. The returned map is keyed by
 // DocUnit.Path.
@@ -867,54 +1115,53 @@ func (w *WorkStore) AdoptDocuments(ctx context.Context, current []reconcile.DocU
 	return out, nil
 }
 
-// rekeyScope moves every decision filed under one scope onto another. A no-op
-// when they are already the same, which is the ordinary case: a document whose
-// key equals its path (nothing recorded yet) and a document that did not move.
+// rekeyScope moves every decision this checkout holds under one scope onto
+// another. A no-op when they are already the same, which is the ordinary case:
+// a document whose key equals its path (nothing recorded yet) and a document
+// that did not move.
 //
-// Decisions already under `to` win. Re-keying is a migration of an address into
-// an identity, and it must never overwrite a decision that was recorded against
-// the identity itself.
+// The ledger is append-only, so the move is a fresh entry per unit carrying the
+// record under its new scope, and the view row follows. Rows already under `to`
+// win: re-keying is a migration of an address into an identity, and it must
+// never displace a decision recorded against the identity itself.
 func (w *WorkStore) rekeyScope(ctx context.Context, from, to string) error {
 	if from == "" || to == "" || from == to {
 		return nil
 	}
-	if w.mem != nil {
-		for k, mu := range w.mem.units {
-			if k.Scope != from {
-				continue
-			}
-			moved := Key{Scope: to, Unit: k.Unit, Variant: k.Variant}
-			if _, taken := w.mem.units[moved]; taken {
-				continue
-			}
-			mu.Unit.Scope = to
-			w.mem.units[moved] = mu
-			delete(w.mem.units, k)
-		}
+	moving, err := w.Priors(ctx, from)
+	if err != nil {
+		return err
+	}
+	if len(moving) == 0 {
 		return nil
 	}
-	// The payload carries the scope too, so it is rewritten with the column —
-	// a reader that trusted one and not the other would report the document a
-	// decision was made in as the path it no longer sits at.
-	if _, err := w.db.ExecContext(ctx, `
-UPDATE OR IGNORE unit_state
-   SET scope   = ?,
-       payload = json_set(payload, '$.scope', ?)
- WHERE scope = ?`, to, to, from); err != nil {
-		return fmt.Errorf("state: move decisions from %q to %q: %w", from, to, err)
-	}
-	// Rows the update could not move are ones the target already holds. They
-	// are the address's copy of a decision the identity also has, and leaving
-	// them would make the same unit answer twice.
-	if _, err := w.db.ExecContext(ctx, `DELETE FROM unit_state WHERE scope = ?`, from); err != nil {
-		return fmt.Errorf("state: drop superseded decisions at %q: %w", from, err)
+	for _, u := range moving {
+		k := Key{Scope: to, Unit: u.Unit, Variant: u.Variant}
+		if _, taken, perr := w.pairingOf(ctx, k); perr != nil {
+			return perr
+		} else if taken {
+			// The identity already answers for this unit. The address's copy is
+			// the older one, and leaving it would make the same unit answer twice.
+			if derr := w.dropView(ctx, u.Key()); derr != nil {
+				return derr
+			}
+			continue
+		}
+		moved := u
+		moved.Scope = to
+		if aerr := w.append(ctx, moved, moved.Decision.By, OriginLocal, false); aerr != nil {
+			return aerr
+		}
+		if derr := w.dropView(ctx, u.Key()); derr != nil {
+			return derr
+		}
 	}
 	return nil
 }
 
-// putDocument records where a document currently lives and what it held. The
-// key is its durable identity; the path is only its address, and moves without
-// it.
+// putDocument records where a document currently lives in this checkout and
+// what it held. The key is its durable identity; the path is only its address,
+// and moves without it.
 func (w *WorkStore) putDocument(ctx context.Context, key, path string, content []string) error {
 	if w.mem != nil {
 		w.mem.docs[key] = memDoc{Path: path, Content: content}
@@ -925,16 +1172,17 @@ func (w *WorkStore) putDocument(ctx context.Context, key, path string, content [
 		return fmt.Errorf("state: encode document %q content: %w", key, err)
 	}
 	_, err = w.db.ExecContext(ctx, `
-INSERT INTO document (key, path, content) VALUES (?, ?, ?)
-ON CONFLICT(key) DO UPDATE SET path = excluded.path, content = excluded.content`,
-		key, path, string(encoded))
+INSERT INTO document (checkout, key, path, content) VALUES (?, ?, ?, ?)
+ON CONFLICT(checkout, key) DO UPDATE SET path = excluded.path, content = excluded.content`,
+		w.checkout, key, path, string(encoded))
 	if err != nil {
 		return fmt.Errorf("state: put document: %w", err)
 	}
 	return nil
 }
 
-// DocumentPaths returns the known documents as key to current path.
+// DocumentPaths returns the documents this checkout knows as key to current
+// path.
 func (w *WorkStore) DocumentPaths(ctx context.Context) (map[string]string, error) {
 	if w.mem != nil {
 		out := make(map[string]string, len(w.mem.docs))
@@ -943,7 +1191,8 @@ func (w *WorkStore) DocumentPaths(ctx context.Context) (map[string]string, error
 		}
 		return out, nil
 	}
-	rows, err := w.db.QueryContext(ctx, `SELECT key, path FROM document ORDER BY key`)
+	rows, err := w.db.QueryContext(ctx,
+		`SELECT key, path FROM document WHERE checkout = ? ORDER BY key`, w.checkout)
 	if err != nil {
 		return nil, fmt.Errorf("state: list documents: %w", err)
 	}
@@ -960,70 +1209,127 @@ func (w *WorkStore) DocumentPaths(ctx context.Context) (map[string]string, error
 	return out, rows.Err()
 }
 
-// Pending reports how many decisions are staged and not yet committed — the
-// "you have N uncommitted decisions" signal.
-func (w *WorkStore) Pending(ctx context.Context) (int, error) {
-	if w.mem != nil {
-		n := 0
-		for _, mu := range w.mem.units {
-			if mu.Staged {
-				n++
-			}
-		}
-		return n, nil
-	}
-	var n int
-	if err := w.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM unit_state WHERE staged = 1`).Scan(&n); err != nil {
-		return 0, fmt.Errorf("state: count staged: %w", err)
-	}
-	return n, nil
-}
-
-// Commit serializes the working set to the project's committed record and clears
-// the staged flag. This is the once-per-run write that replaced the
-// once-per-decision one.
+// carryLegacyRows moves a pre-ledger database across: every unit row becomes a
+// ledger entry and a view row for this checkout, and every document row becomes
+// this checkout's.
 //
-// It agrees with the record on disk first. The write is whole-directory, shards
-// the set does not cover are pruned, and a set built on another branch's record
-// would therefore publish that branch's rows here and delete the shards this
-// one holds.
-func (w *WorkStore) Commit(ctx context.Context) error {
-	if err := w.SyncWithCommitted(ctx); err != nil {
-		return err
-	}
-	n, err := w.Pending(ctx)
-	if err != nil {
-		return err
-	}
-	if n == 0 {
+// The rows are authored work, so they are carried rather than reset. A row that
+// was staged and never committed has no other copy, and the ledger is where it
+// belongs now.
+func (w *WorkStore) carryLegacyRows(ctx context.Context) error {
+	if w.mem != nil {
 		return nil
 	}
-	units, err := w.All(ctx)
+	tx, err := w.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("state: carry pre-ledger rows: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	carried, err := carryLegacyUnits(ctx, tx, w.checkout, w.clock())
 	if err != nil {
 		return err
 	}
-	if err := WriteCommitted(w.committed, units); err != nil {
+	moved, err := carryLegacyDocuments(ctx, tx, w.checkout)
+	if err != nil {
 		return err
 	}
-	if err := w.restamp(ctx); err != nil {
-		return err
+	if !carried && !moved {
+		return nil
 	}
-	if w.mem != nil {
-		for k, mu := range w.mem.units {
-			mu.Staged = false
-			w.mem.units[k] = mu
-		}
-		return w.mem.persist()
-	}
-	if _, err := w.db.ExecContext(ctx, `UPDATE unit_state SET staged = 0 WHERE staged = 1`); err != nil {
-		return fmt.Errorf("state: clear staged: %w", err)
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("state: carry pre-ledger rows: %w", err)
 	}
 	return nil
 }
 
-// shardOf groups units into one file per document scope, so editing the docs does
-// not rewrite the shard holding the interface strings. Units with no scope yet
-// land in a shared shard rather than being dropped.
+func carryLegacyUnits(ctx context.Context, tx *storage.Tx, checkout string, now time.Time) (bool, error) {
+	present, err := tableExists(ctx, tx, "unit_state")
+	if err != nil || !present {
+		return false, err
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT payload, staged FROM unit_state`)
+	if err != nil {
+		return false, fmt.Errorf("state: read pre-ledger units: %w", err)
+	}
+	type legacy struct {
+		unit   UnitState
+		staged bool
+	}
+	var held []legacy
+	for rows.Next() {
+		var payload string
+		var staged int
+		if serr := rows.Scan(&payload, &staged); serr != nil {
+			rows.Close()
+			return false, fmt.Errorf("state: scan pre-ledger unit: %w", serr)
+		}
+		var u UnitState
+		if uerr := json.Unmarshal([]byte(payload), &u); uerr != nil {
+			rows.Close()
+			return false, fmt.Errorf("state: parse pre-ledger unit: %w", uerr)
+		}
+		held = append(held, legacy{unit: u, staged: staged == 1})
+	}
+	if rerr := rows.Err(); rerr != nil {
+		rows.Close()
+		return false, fmt.Errorf("state: read pre-ledger units: %w", rerr)
+	}
+	rows.Close()
+
+	for _, l := range held {
+		origin := OriginImport
+		if l.staged {
+			origin = OriginLocal
+		}
+		if ierr := insertEntry(ctx, tx, l.unit, l.unit.Decision.By, origin, false, now); ierr != nil {
+			return false, ierr
+		}
+		if verr := putView(ctx, tx, checkout, l.unit.Pairing(), !l.staged); verr != nil {
+			return false, verr
+		}
+	}
+	if _, derr := tx.ExecContext(ctx, `DROP TABLE unit_state`); derr != nil {
+		return false, fmt.Errorf("state: retire pre-ledger units: %w", derr)
+	}
+	return true, nil
+}
+
+func carryLegacyDocuments(ctx context.Context, tx *storage.Tx, checkout string) (bool, error) {
+	present, err := tableExists(ctx, tx, "document_legacy")
+	if err != nil || !present {
+		return false, err
+	}
+	// The WHERE clause is what tells SQLite that ON CONFLICT belongs to the
+	// INSERT rather than to the SELECT it takes its rows from.
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO document (checkout, key, path, content)
+SELECT ?, key, path, content FROM document_legacy WHERE true
+ON CONFLICT(checkout, key) DO NOTHING`, checkout); err != nil {
+		return false, fmt.Errorf("state: carry pre-ledger documents: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DROP TABLE document_legacy`); err != nil {
+		return false, fmt.Errorf("state: retire pre-ledger documents: %w", err)
+	}
+	return true, nil
+}
+
+func tableExists(ctx context.Context, tx *storage.Tx, name string) (bool, error) {
+	var found string
+	err := tx.QueryRowContext(ctx,
+		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, name).Scan(&found)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("state: look for table %q: %w", name, err)
+	}
+	return true, nil
+}
+
+// shardOf groups units into one file per document scope, so editing the docs
+// does not rewrite the shard holding the interface strings. Units with no scope
+// yet land in a shared shard rather than being dropped.
 func shardOf(u UnitState) string {
 	if s := strings.TrimSpace(u.Scope); s != "" {
 		return s
@@ -1031,9 +1337,8 @@ func shardOf(u UnitState) string {
 	return "unscoped"
 }
 
-// sortUnits orders by the identity key — (scope, unit, variant) — so a shard's
-// bytes depend only on its contents, a stable diff rather than an accident of
-// map iteration.
+// sortUnits orders by the identity key, (scope, unit, variant), so a shard's
+// bytes depend only on its contents.
 func sortUnits(units []UnitState) {
 	sort.Slice(units, func(i, j int) bool { return unitLess(units[i], units[j]) })
 }

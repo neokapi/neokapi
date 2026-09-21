@@ -28,7 +28,7 @@ import (
 // heldHere is the decisions component of the project's committed record.
 func heldHere(t *testing.T, conn *BowrainSourceConnector) string {
 	t.Helper()
-	records, err := conn.committedDecisions(t.Context())
+	records, err := conn.projectDecisions(t.Context())
 	require.NoError(t, err)
 	return venue.DecisionsComponent(records)
 }

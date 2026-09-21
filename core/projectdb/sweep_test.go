@@ -105,9 +105,9 @@ func TestSweep_CarriesStagedDecisionsForward(t *testing.T) {
 	old, err := state.OpenWork(t.Context(), oldWorkStorePath(layout), layout.UnitStateDir())
 	require.NoError(t, err)
 	require.NoError(t, old.Put(t.Context(), unit("u-staged", "d-intro", "Staged, never committed")))
-	pending, err := old.Pending(t.Context())
+	unwritten, err := old.RecordDiff(t.Context())
 	require.NoError(t, err)
-	require.Equal(t, 1, pending, "the seeded unit is not staged; the new decision is")
+	require.Equal(t, 1, unwritten.Changed(), "the imported unit is already in the record; the new decision is not")
 	require.NoError(t, old.Close())
 
 	writePredecessorLayout(t, layout)
@@ -160,17 +160,17 @@ func TestSweep_NoPredecessorIsNoOp(t *testing.T) {
 	layout := newLayout(t)
 	db := openStore(t, layout)
 
-	pending, err := db.Work().Pending(t.Context())
+	diff, err := db.Work().RecordDiff(t.Context())
 	require.NoError(t, err)
-	assert.Zero(t, pending)
+	assert.Zero(t, diff.Changed())
 	assert.NoFileExists(t, oldWorkStorePath(layout))
 
 	// Re-opening finds nothing to sweep and changes nothing.
 	require.NoError(t, db.Close())
 	again := openStore(t, layout)
-	pending, err = again.Work().Pending(t.Context())
+	diff, err = again.Work().RecordDiff(t.Context())
 	require.NoError(t, err)
-	assert.Zero(t, pending)
+	assert.Zero(t, diff.Changed())
 }
 
 // The sweep runs on every open, so a predecessor that reappears (a stale file

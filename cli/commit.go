@@ -2,27 +2,26 @@ package cli
 
 import "github.com/spf13/cobra"
 
-// NewCommitCmd writes staged unit state into the project's committed record.
+// NewCommitCmd writes the project's unit state into its committed record.
 func NewCommitCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "commit",
 		GroupID: "work",
-		Short:   "Write staged unit state into the project's committed record",
-		Long: `Write the unit state recorded since the last commit into the project's committed
-record: the JSON Lines shards under .kapi/state/ that git tracks.
+		Short:   "Write the project's unit state into its committed record",
+		Long: `Write this checkout's unit state into the project's committed record: the JSON
+Lines shards under .kapi/state/ that git tracks.
 
-Recording a review and publishing it are separate acts. The state record is
-durable the moment it is written; committing is what puts it in the record a
-reviewer reads, so a run of automated approvals does not land in the tracked
-record before anyone has looked at it.
+Every decision is already durable the moment it is made. This writes the record
+out in the form git tracks and a reviewer reads in a diff: for each unit the
+checkout holds, what was decided about the source and the translation it holds
+now. A unit whose wording has moved on since a decision was made keeps that
+decision and reads as stale, and the decision applies again if the wording comes
+back.
 
-The working set is rebuilt from the record this checkout holds whenever the two
-have parted, which is what switching branches does to them. Staged decisions
-cross that rebuild and are reported, because they were made against the record
-of another branch.
+Running it twice over an unchanged project writes the same bytes and leaves the
+files alone.
 
-'--dry-run' reports what would be written and writes nothing.
-'kapi status' reports what is staged.`,
+'--dry-run' reports what would be written and writes nothing.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error { return a.RunCommit(cmd, args) },
 	}

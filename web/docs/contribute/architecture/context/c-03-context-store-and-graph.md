@@ -15,7 +15,7 @@ local **projection** of the project's committed context, never its truth, and
 the substrate of the project's **context graph**.
 
 Every subsystem's tables share that one file: the block cache, the terms store,
-the content memory, the voice store, the unit-state working set, and a property
+the content memory, the voice store, the unit decision ledger, and a property
 graph (`graph_nodes` / `graph_edges`) relating them. One file, one connection
 pool, one migration ledger per subsystem.
 
@@ -49,7 +49,7 @@ constraint is that kapi runs on its own.
 | terms | `terms/` ([C-08](c-08-terms.md)) | the committed terms source |
 | content memory | `memory/` ([C-09](c-09-content-memory.md)) | the committed targets plus the `.memory.json` seeds |
 | voice profiles | `voice/` ([C-07](c-07-voice-profiles.md)) | the committed `voice.yaml` files |
-| unit-state working set | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | the committed `.kapi/state/*.jsonl` shards |
+| unit decision ledger | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | the committed `.kapi/state/*.jsonl` shards |
 | `graph_nodes`, `graph_edges` | `host/storage/graph`, vocabulary in `core/contextgraph` | the five above, plus the recipe |
 
 Each subsystem owns its own schema and its own migration ledger
@@ -87,13 +87,13 @@ are committed one directory over.
 
 `.kapi/work/cache/` means *free to delete*: the parse cache, extraction batches,
 collection overlays. `store.db` does not qualify, and by exactly one margin.
-Between a decision landing and `kapi commit` materializing it to `.kapi/state/`,
-the working set inside `store.db` holds the **only** copy of that staged state.
+Between a decision being recorded and `kapi commit` writing it to `.kapi/state/`,
+the decision ledger inside `store.db` holds the **only** copy of it.
 
 So the cost of losing the file is bounded and stated precisely: at most the unit
-state staged since the last commit. Everything else rebuilds. `rm -rf
-.kapi/work/cache` remains completely free, and keeping the two apart is what lets
-that sentence stay true.
+state recorded since the last write of the record. Everything else rebuilds.
+`rm -rf .kapi/work/cache` remains completely free, and keeping the two apart is
+what lets that sentence stay true.
 
 Deleting `.kapi/work` outright is a wider claim, because the redaction vault
 ([C-10](c-10-redaction.md)) lives beside the database at `.kapi/work/vault/` and
@@ -112,7 +112,7 @@ asking for `targets/nb-NO` address one overlay. Rows a store wrote before it
 normalized locales are keyed by whatever spelling the recipe used then, and no
 lookup finds them again; `projectdb.NonCanonicalLocales` reports them, and
 `kapi status` and `kapi up` print the report once with the rebuild named. The
-store is a projection, so the remedy is to write staged decisions with `kapi
+store is a projection, so the remedy is to write the decision record with `kapi
 commit`, delete `store.db` and let the next `kapi up` derive it again.
 
 ### Presence is table-level
@@ -168,9 +168,9 @@ state cannot rebuild. Occurrence edges come from a term search over the block
 cache (`core/occurrence`), where repeated uses of one term in one block fold into
 a `count` property rather than into separate edges, and the term and the locale
 are the edge discriminators; `governed_by` comes from resolving each named
-collection's governance; `blesses` joins the unit-state working set against the
+collection's governance; `blesses` joins the unit decision ledger against the
 block cache, so a record whose block no longer exists keeps its node and loses
-its edge. A unit state names its document by the durable key the working set
+its edge. A unit state names its document by the durable key the ledger's view
 records ([C-04](c-04-unit-state-and-decisions.md)); the graph writer turns that
 key back into the path the block cache files blocks under before joining.
 
@@ -297,7 +297,7 @@ rollup across projects.
 
 There is no SQLite in the browser build. The model is unchanged and the backends
 differ: in-memory content memory and terms, a path-keyed in-memory block store,
-and a working set that persists to a JSON sidecar, `.kapi/work/store.json`.
+and a decision ledger that persists to a JSON sidecar, `.kapi/work/store.json`.
 Operations that genuinely need the database report `projectdb.ErrNoStore`, which
 callers whose feature is optional there match and degrade on. The same sources
 rebuild it, and the same graph relations hold.
@@ -318,7 +318,8 @@ rebuild it, and the same graph relations hold.
 - **CI caches `.kapi/work/cache/docs`, and nothing else under `work/`.** The
   parse cache is keyed by content, configuration and build, so a restored entry
   changes no result, and `setup-kapi` carries it by default. The database
-  carries staged unit state, and restoring it changes what a run reports; the
+  carries unit state no shard holds yet, and restoring it changes what a run
+  reports; the
   remaining entries under `cache/` belong to the checkout that wrote them
   ([Convergence in CI](/kapi/convergence-in-ci)).
 
@@ -326,7 +327,7 @@ rebuild it, and the same graph relations hold.
 
 - [C-01: The project model](c-01-project-model.md): the layout the store sits in.
 - [C-04: Unit state and the decision record](c-04-unit-state-and-decisions.md):
-  the working set inside `store.db`.
+  the decision ledger inside `store.db`.
 - [C-08: Terms](c-08-terms.md) and [C-09: Content memory](c-09-content-memory.md):
   the two subsystems whose source-versus-projection split this store
   implements.

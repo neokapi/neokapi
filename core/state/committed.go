@@ -82,6 +82,13 @@ func writeShard(path string, units []UnitState) error {
 		buf.Write(line)
 		buf.WriteByte('\n')
 	}
+	// A shard whose bytes are already what this write would produce is left
+	// alone, so exporting an unchanged project touches nothing: no rewrite, no
+	// new modification time, and nothing for a file watcher or a build to react
+	// to.
+	if current, err := os.ReadFile(path); err == nil && string(current) == buf.String() {
+		return nil
+	}
 	// Temp + rename, so an interrupted write cannot leave a half-written shard
 	// that would fail to parse on the next read.
 	tmp := path + ".tmp"
