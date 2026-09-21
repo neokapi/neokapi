@@ -2873,7 +2873,17 @@ stage-sourcecode-plugin: build-sourcecode-plugin
 # scripts/check-vocabulary.sh keeps only what kapi cannot open. When a surface
 # moves under a collection it comes OUT of that script — one rule, one enforcer
 # per surface.
-check-governed-prose: build stage-sourcecode-plugin ## Gate: the collections holding distribution prose pass `kapi check`
+# A check reads the voice profile and the terms it judges against from the
+# project's store, and $(KAPI_ISO_ENV) points kapi at a throwaway one that
+# starts empty. So the gates below read this repository's own `.kapi/` layout
+# into it first: without this they would pass whatever they were given, which
+# is a gate that reports PASS and enforces nothing.
+#
+# It reads those files and leaves them as they are.
+import-dogfood-context: build ## Read the repository's own `.kapi/` layout into the isolated store the gates use
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi context import -p $(CURDIR)/kapi.yaml
+
+check-governed-prose: build stage-sourcecode-plugin import-dogfood-context ## Gate: the collections holding distribution prose pass `kapi check`
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'packaging/nfpm.yaml' \
 		-p $(CURDIR)/kapi.yaml --max-major 0
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'apps/kapi-desktop/build/windows/info.json' \
@@ -2897,7 +2907,7 @@ check-governed-prose: build stage-sourcecode-plugin ## Gate: the collections hol
 # MINOR by design. Majors and criticals fail.
 #
 # 379 + 71 files in under two seconds, so it is cheap enough to run on every PR.
-check-docs-prose: build ## Gate: the documentation passes `kapi check` under the project's voice
+check-docs-prose: build import-dogfood-context ## Gate: the documentation passes `kapi check` under the project's voice
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'web/docs/**/*.md' 'web/docs/**/*.mdx' \
 		-p $(CURDIR)/kapi.yaml --max-major 0
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'bowrain/web/docs/docs/**/*.md' 'bowrain/web/docs/docs/**/*.mdx' \
@@ -2919,7 +2929,7 @@ check-docs-prose: build ## Gate: the documentation passes `kapi check` under the
 	@# check-vocabulary.sh lists it under PENDING_SURFACES for the same reason.
 	@# Deciding what a matching surface owes the vocabulary rule comes first.
 
-check-reference-prose: build ## Register gate: the authored reference dossiers pass `kapi check` with no findings
+check-reference-prose: build import-dogfood-context ## Register gate: the authored reference dossiers pass `kapi check` with no findings
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'scripts/gen-refs/nativedocs/*/*.yaml' \
 		-p $(CURDIR)/kapi.yaml --max-major 0 --max-minor 0
 
@@ -3274,6 +3284,7 @@ help: ## Show this help
         publish-cdn-images publish-cdn-bowrain-images publish-cdn-all \
         fetch-corpus publish-corpus corpus-sweep \
         generate-format-docs generate-reference-docs check-reference-docs check-reference-prose generate-reference-pages \
+        import-dogfood-context \
         generate-contract-types check-contract-types \
         generate-translatability check-translatability \
         generate-docs-palette check-docs-palette \

@@ -272,7 +272,7 @@ describe("HistoryCard", () => {
       "No content-memory match for this block.",
     );
     unmount();
-    render(<HistoryCard history={{ unseeded: true }} />);
+    render(<HistoryCard history={{ unread: true }} />);
     expect(slot("review-history-empty")?.textContent).toContain("has not been read");
     expect(slot("review-history-empty")?.textContent).not.toContain("no close match");
   });

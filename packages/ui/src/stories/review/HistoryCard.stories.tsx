@@ -60,9 +60,9 @@ export const MatchWithWrite: Story = {
   },
 };
 
-export const Unseeded: Story = {
+export const Unread: Story = {
   name: "The content memory has not been read into this copy",
-  args: { history: { unseeded: true } },
+  args: { history: { unread: true } },
 };
 
 export const Empty: Story = {

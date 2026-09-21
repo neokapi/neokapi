@@ -32,6 +32,12 @@ type Warning struct {
 // file.
 const WarningFormatNoReader = "format.no_reader"
 
+// WarningContextUnread is the code of a warning naming context files a
+// checkout holds whose project store has never held context. The check ran
+// against what the store holds, and those files say nothing until
+// `kapi context import` reads them.
+const WarningContextUnread = "context.unread"
+
 // MergeWarnings joins warning lists into one list, sorted by source, key and
 // code, holding each distinct warning once. It returns nil when there are none.
 //

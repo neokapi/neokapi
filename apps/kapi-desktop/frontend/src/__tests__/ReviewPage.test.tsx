@@ -676,7 +676,7 @@ describe("ReviewPage review model", () => {
   it("says the content memory is unread, not empty, before it has been compiled", async () => {
     const loadUnit = vi.fn(async (item: ReviewItem) => ({
       ...unitFor(item),
-      context: { ...CONTEXT, history: { unseeded: true } },
+      context: { ...CONTEXT, history: { unread: true } },
     }));
     render(
       <ErrorProvider>

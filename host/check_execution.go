@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/project"
 )
 
 // checkExecution belongs to one synchronous check operation, never to App: MCP
@@ -138,17 +139,45 @@ func (e *checkExecution) completed(id, file string, findings int, start time.Tim
 // through it, so the evaluation record is attached here rather than at each
 // caller: a surface added later carries it without being told to.
 func (e *checkExecution) report(ctx context.Context, a *App, cmd Command, target check.Target, diags []check.Diagnostic, gate check.Gate) check.Report {
+	// Before the report's own clock: naming the context files a checkout holds
+	// opens the project store, which is not time spent assembling a report.
+	unread := a.contextUnreadWarning(ctx, cmd)
+
 	start := time.Now()
 	report := check.BuildReport(target, diags, gate)
 	if e != nil {
-		report.Warnings = e.warnings.merged()
+		report.Warnings = check.MergeWarnings(e.warnings.merged(), unread)
 		e.Timings.ReportMS = elapsedMS(start)
 		e.Timings.TotalMS = elapsedMS(e.started)
 		report.Execution = &e.Execution
 		report.Decide()
+	} else {
+		report.Warnings = unread
 	}
 	report.Evaluation = a.checkEvaluation(ctx, cmd, e)
 	return report
+}
+
+// contextUnreadWarning notes a checkout carrying context files whose project
+// store has never held context. The check ran against what the store holds,
+// which is none of what those files say.
+//
+// It is a warning rather than a finding: nothing about the content is wrong,
+// and the score, the gate and the verdict are what they would be without it.
+func (a *App) contextUnreadWarning(ctx context.Context, cmd Command) []check.Warning {
+	projectPath, err := ResolveProjectPath(cmd)
+	if err != nil || projectPath == "" {
+		return nil
+	}
+	notice, unread := a.ContextFilesUnread(ctx, projectPath)
+	if !unread {
+		return nil
+	}
+	return []check.Warning{{
+		Code:    check.WarningContextUnread,
+		Source:  project.StateDirName,
+		Message: notice.Message(),
+	}}
 }
 
 func (e *checkExecution) recordContext(file, destination string, opts checkRunOptions) {

@@ -519,12 +519,16 @@ func VoiceProfileConventions(root string) []string {
 	}
 }
 
-// loadBoundVoiceProfile turns a resolved voice binding into a VoiceProfile.
-// Returns found=false when the binding is nil (nothing bound at this point, nor
-// project-wide), and when it names a file rather than a profile: a
-// `profile_file:` is an export artifact, read in by `kapi context import` and
-// answered for by the store afterwards. field names the recipe key the binding
-// came from. A profile name is looked up in the project's voice store.
+// loadBoundVoiceProfile turns a resolved voice binding into a VoiceProfile,
+// out of the project's voice store. Returns found=false when the binding is nil
+// (nothing bound at this point, nor project-wide) and when the store holds no
+// profile for it. field names the recipe key the binding came from.
+//
+// A `profile_file:` names WHICH profile applies here, and the store answers for
+// it under the id `kapi context import` filed that path under. The file itself
+// is never opened: a checkout on another branch carries a different copy of it,
+// and a gate that read whichever copy was in the tree would enforce a voice the
+// project never agreed on.
 func (a *App) loadBoundVoiceProfile(ctx context.Context, bv *project.VoiceBinding, root string, store coreprofile.Store, field string) (*coreprofile.VoiceProfile, string, bool, error) {
 	if bv == nil {
 		return nil, "", false, nil
@@ -542,6 +546,19 @@ func (a *App) loadBoundVoiceProfile(ctx context.Context, bv *project.VoiceBindin
 			return nil, "", false, err
 		}
 		return p, "store:" + bv.Profile, true, nil
+	case bv.ProfileFile != "":
+		id := a.voiceProfileIDForBinding(ctx, root, bv.ProfileFile)
+		if id == "" {
+			return nil, "", false, nil
+		}
+		p, err := lookupProfileIn(ctx, store, id)
+		if err != nil {
+			// The store has not been given this profile. The first-meeting
+			// notice names the file and the command that reads it, so the
+			// answer here is that nothing is bound.
+			return nil, "", false, nil
+		}
+		return p, "store:" + id, true, nil
 	}
 	return nil, "", false, nil
 }

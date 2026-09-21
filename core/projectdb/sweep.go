@@ -300,9 +300,13 @@ func moveFile(src, dst string) {
 	_ = os.Rename(src, dst)
 }
 
-// carryStagedForward moves the decisions staged in a predecessor working store
-// into the merged one. Silent on failure by design: the alternative is refusing
-// to open a project because a file that is about to be deleted would not read.
+// carryStagedForward moves the decisions a predecessor working store holds
+// into the merged one, all of them: an exported shard is read back only by
+// `kapi context import`, so a decision left in a file that is about to be
+// deleted would be one the project has lost.
+//
+// Silent on failure by design: the alternative is refusing to open a project
+// because a file that is about to be deleted would not read.
 func carryStagedForward(ctx context.Context, layout project.Layout, into *DB) {
 	if into == nil || into.work == nil {
 		return
@@ -313,11 +317,11 @@ func carryStagedForward(ctx context.Context, layout project.Layout, into *DB) {
 	}
 	defer func() { _ = old.Close() }()
 
-	staged, err := old.Staged(ctx)
+	held, err := old.Ledger(ctx)
 	if err != nil {
 		return
 	}
-	for _, u := range staged {
+	for _, u := range held {
 		if err := into.work.Put(ctx, u); err != nil {
 			return
 		}

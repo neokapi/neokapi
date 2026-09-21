@@ -127,7 +127,7 @@ export interface ReviewNeighbour {
 export interface ReviewHistory {
   prior?: ReviewPriorVersion;
   match?: ReviewMemoryMatch;
-  unseeded?: boolean;
+  unread?: boolean;
 }
 
 /**

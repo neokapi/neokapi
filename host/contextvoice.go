@@ -164,6 +164,39 @@ func voiceProfileScopeName(rel string) string {
 	return "default"
 }
 
+// voiceProfileIDForBinding answers which profile in the project's voice store a
+// recipe's `profile_file:` selects, or "" when nothing does.
+//
+// The tie is the binding a read of that file recorded (MetaVoiceBindings). A
+// store filled by a restore rather than by a read has no binding recorded, and
+// the conventional path answers instead: `.kapi/profiles/<id>/voice.yaml` is
+// where a profile of that id is written, which is the same rule
+// storedVoiceProfiles writes by.
+func (a *App) voiceProfileIDForBinding(ctx context.Context, root, profileFile string) string {
+	path := profileFile
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(root, path)
+	}
+	rel := relSlash(root, path)
+	if db, err := a.ProjectDB(ctx, root); err == nil {
+		if id := loadVoiceBindings(ctx, db)[rel]; id != "" {
+			return id
+		}
+	}
+	return profileIDFromConventionalPath(rel)
+}
+
+// profileIDFromConventionalPath reads a profile id out of
+// `.kapi/profiles/<id>/voice.yaml`, or returns "" for any other path.
+func profileIDFromConventionalPath(rel string) string {
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	if len(parts) != 4 || parts[0] != project.StateDirName ||
+		parts[1] != project.ProfilesDirName || parts[3] != VoiceConventionalName {
+		return ""
+	}
+	return parts[2]
+}
+
 // loadVoiceBindings reads where each voice profile in the store is authored.
 // Any uncertainty yields an empty map, which reads as "nothing recorded" and
 // costs one re-record.
