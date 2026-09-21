@@ -96,13 +96,6 @@ func extract(t *testing.T, p Project) {
 	_, err := a.ImportProjectContext(t.Context(), p.Recipe, host.ContextImportRequest{})
 	require.NoError(t, err)
 
-	// The fixture's voice profile reaches the store the way a person's does,
-	// through `kapi context import`. Every face resolves the voice from the
-	// store, so a leg that skipped this would compare three answers with no
-	// voice in them.
-	_, err = a.ImportProjectContext(t.Context(), p.Recipe, host.ContextImportRequest{})
-	require.NoError(t, err)
-
 	proj, err := project.Load(p.Recipe)
 	require.NoError(t, err)
 	pctx := project.NewProjectContext(proj, p.Recipe)
