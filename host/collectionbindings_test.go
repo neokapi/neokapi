@@ -62,6 +62,7 @@ func governedProject(t *testing.T, platformChannel string) (recipe, root string)
 	}
 	recipe = filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, project.Save(recipe, proj))
+	readContextAt(t, recipe)
 	return recipe, dir
 }
 

@@ -56,6 +56,7 @@ vocabulary:
 	write("docs/bad.md", "# Bad\n\nWe rely on the "+forbidden+" here.\n")
 	write("docs/good.md", "# Good\n\nWe rely on the "+replacement+" here.\n")
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o700))
+	readProjectContext(t, root)
 	return root
 }
 

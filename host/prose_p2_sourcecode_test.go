@@ -254,6 +254,7 @@ constraints:
     kind: prohibited_pattern
     regex: '(?i)\butilize\b'
 `)
+	readProjectContext(t, root)
 	return root
 }
 

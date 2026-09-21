@@ -253,6 +253,14 @@ func (d *DB) bind(ctx context.Context) error {
 	if err := storage.Migrate(d.projection, metaMigrationsTable, metaMigrations); err != nil {
 		return fmt.Errorf("projectdb: migrate store metadata: %w", err)
 	}
+	// The same table in the context pool, for the facts that are true of the
+	// project rather than of this checkout. In the embedded layout the two
+	// pools are one handle and the second migration is the same one.
+	if !d.ownsContext {
+		if err := storage.Migrate(d.context, metaMigrationsTable, metaMigrations); err != nil {
+			return fmt.Errorf("projectdb: migrate context metadata: %w", err)
+		}
+	}
 	blocks, err := sqlitestore.NewFromDB(d.projection, false)
 	if err != nil {
 		return fmt.Errorf("projectdb: bind block store: %w", err)

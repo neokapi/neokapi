@@ -150,6 +150,7 @@ collections:
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"), []byte(`{"a":"Apple","b":"Banana","c":"Cherry"}`), 0o644))
 	appendYAMLCollection(t, root, spelled, "source_gate: { authored: 100 }\n")
+	readProjectContext(t, root)
 	return root
 }
 

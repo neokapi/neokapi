@@ -102,6 +102,7 @@ constraints:
 	write("src/parse.go", "package demo\n\n// Parse helps you utilize the input.\nfunc Parse() string { return \"utilize\" }\n")
 	write("guide/quote.go", "package guide\n\n// Quote shows the retired word utilize in context.\nfunc Quote() {}\n")
 	write("copy.json", `{"title":"Ready."}`)
+	readProjectContext(t, root)
 	return root
 }
 

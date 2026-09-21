@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,7 +79,22 @@ vocabulary:
 
 	t.Setenv("KAPI_PROJECT", filepath.Join(root, "kapi.yaml"))
 	t.Chdir(root)
+	readProjectContext(t, root)
 	return root
+}
+
+// readProjectContext reads a fixture project's `.kapi/` layout into its store,
+// which is what `kapi context import` does for a person. A fixture that authors
+// a voice profile or a terms bundle calls it: those files reach a gate no other
+// way.
+func readProjectContext(t *testing.T, root string) {
+	t.Helper()
+	a := &host.App{}
+	a.InitRegistries()
+	defer a.Shutdown()
+	_, err := a.ImportProjectContext(context.Background(),
+		filepath.Join(root, project.RecipeFileName), host.ContextImportRequest{})
+	require.NoError(t, err)
 }
 
 // contextClient starts a real server over an in-memory transport and returns a

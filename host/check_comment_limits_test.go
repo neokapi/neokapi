@@ -114,6 +114,7 @@ collections:
 	write(".kapi/profiles/site/voice.yaml", "name: Site\n")
 	write(".kapi/profiles/source/voice.yaml", "name: Source comments\nstyle:\n  sentence_length: short\n  comments: {}\n")
 	write("code/parse.go", file)
+	readProjectContext(t, root)
 	return root
 }
 

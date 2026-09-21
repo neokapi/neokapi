@@ -494,6 +494,19 @@ func (a *App) loadVoiceAtGovernance(ctx context.Context, root string, store core
 	if rc == nil {
 		return nil, "", false, nil
 	}
+	// A profile that binds no `voice:` of its own is answered by the profile
+	// the store holds for its name, before the project default is. The name is
+	// the recipe's own, and `.kapi/profiles/<name>/voice.yaml` is where an
+	// export writes it, so the two agree whichever way a project arrived at
+	// its store.
+	if rc.Profile != "" && rc.VoiceField == project.DefaultVoiceField {
+		conv := project.RelStatePath(project.ProfilesDirName, rc.Profile, VoiceConventionalName)
+		if id := a.voiceProfileIDForBinding(ctx, root, conv); id != "" {
+			if p, err := lookupProfileIn(ctx, store, id); err == nil {
+				return p, "store:" + id, true, nil
+			}
+		}
+	}
 	return a.loadBoundVoiceProfile(ctx, rc.Voice, root, store, rc.VoiceField)
 }
 

@@ -72,6 +72,7 @@ constraints:
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".kapi", "terms.json"), data, 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "cask", "kapi.rb"),
 		[]byte("cask \"kapi\" do\n  desc \"Guaranteed safe content engine\"\nend\n"), 0o644))
+	readProjectContext(t, root)
 	return root
 }
 

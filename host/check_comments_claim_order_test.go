@@ -61,6 +61,7 @@ collections:
 	writeTermsBundle(t, filepath.Join(root, ".kapi", "profiles", "site", "terms.json"), "site-name", "SiteName", "ScopedName")
 	writeTermsBundle(t, filepath.Join(root, ".kapi", "profiles", "source", "terms.json"), "source-name", "SourceName", "LegacyName")
 	write("config/app.yaml", pointYAML)
+	readProjectContext(t, root)
 	return root
 }
 

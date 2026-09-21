@@ -20,16 +20,17 @@ import (
 
 // Voice profiles, on the way into the store and back out of it.
 //
-// A voice profile resolves through a FILE: `defaults.voice` names one, a
-// profile's `voice:` names another, and a profile directory under
-// `.kapi/profiles/` answers for one that names none. The store keys profiles by
-// id instead, so writing the store back out needs the tie between the two, and
-// compiling a profile in is where that tie is recorded (MetaVoiceBindings).
+// A recipe names a profile by a PATH: `defaults.voice.profile_file` names one
+// and a profile's `voice:` names another. The store keys profiles by id, so the
+// tie between the two is what governance resolves through and what a snapshot
+// writes by. Reading a profile in is where that tie is recorded
+// (MetaVoiceBindings), in the context store, so every checkout of the project
+// resolves one answer.
 
-// compileVoiceSource writes one committed voice profile into the project
-// store's voice store and records where it is authored.
+// compileVoiceSource writes one voice profile into the project store's voice
+// store and records where it is authored.
 //
-// The upsert is by id, so compiling the same file twice leaves the store as it
+// The upsert is by id, so reading the same file twice leaves the store as it
 // was. An id is what the profile declares, falling back to a slug of its name,
 // and finally to the directory it sits in, so two unnamed profiles in different
 // profile directories stay two profiles.
@@ -201,7 +202,7 @@ func profileIDFromConventionalPath(rel string) string {
 // Any uncertainty yields an empty map, which reads as "nothing recorded" and
 // costs one re-record.
 func loadVoiceBindings(ctx context.Context, db *projectdb.DB) map[string]string {
-	v, ok, err := db.Meta(ctx, MetaVoiceBindings)
+	v, ok, err := db.ContextMeta(ctx, MetaVoiceBindings)
 	if err != nil || !ok {
 		return map[string]string{}
 	}
@@ -218,7 +219,7 @@ func saveVoiceBindings(ctx context.Context, db *projectdb.DB, bindings map[strin
 	if err != nil {
 		return fmt.Errorf("encode voice bindings: %w", err)
 	}
-	if err := db.PutMeta(ctx, MetaVoiceBindings, string(data)); err != nil && !errors.Is(err, projectdb.ErrNoStore) {
+	if err := db.PutContextMeta(ctx, MetaVoiceBindings, string(data)); err != nil && !errors.Is(err, projectdb.ErrNoStore) {
 		return err
 	}
 	return nil
