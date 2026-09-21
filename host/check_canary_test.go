@@ -191,6 +191,7 @@ func TestCheckCanary_NothingToCatch(t *testing.T) {
 
 	t.Run("a project profile with no rules", func(t *testing.T) {
 		recipe := writeCheckInput(t, dir, "custom.kapi", "version: v1\ndefaults:\n  source_language: en\n  voice:\n    profile_file: tone.yaml\ncollections:\n  - path: app.json\n")
+		readContextAt(t, recipe)
 		serverCmd := NewEnvCommand(t.Context(), "mcp")
 		serverCmd.Flags().String("project", recipe, "")
 		projectApp := &App{}

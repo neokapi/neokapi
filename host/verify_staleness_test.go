@@ -53,6 +53,7 @@ collections:
 		[]byte("{\n  \"greeting\": \"Hello there\"\n}\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "fr", "app.json"),
 		[]byte("{\n  \"greeting\": \"Bonjour\"\n}\n"), 0o644))
+	readProjectContext(t, root)
 	return root
 }
 

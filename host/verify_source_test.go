@@ -59,6 +59,7 @@ constraints:
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".kapi", "terms.json"), data, 0o644))
 	path := filepath.Join(root, "content.json")
 	require.NoError(t, os.WriteFile(path, []byte(`{"title":"Harbor helps you prepare.","body":"Contact our team for help."}`), 0o644))
+	readProjectContext(t, root)
 	return root, path
 }
 

@@ -133,6 +133,7 @@ func writeProfileTermsProject(t *testing.T, f profileTermsFixture) string {
 	case termsOnDefaults:
 		writeConceptsBundle(t, filepath.Join(root, project.RelStatePath(ktb.ConventionalName)), concepts)
 	}
+	readProjectContext(t, root)
 	return root
 }
 

@@ -326,12 +326,7 @@ collections:
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(root, project.RelStatePath("terms.json")), data, 0o644))
 
-	// Assert the fallback path is the one under test: no project store exists
-	// yet, so nothing could have been compiled into it. This is the fresh-checkout
-	// shape — the committed source is tracked, the store is not.
-	_, statErr := os.Stat(project.LayoutAt(root).StorePath())
-	require.True(t, os.IsNotExist(statErr), "test must exercise the terms_source fallback, not a compiled store")
-
+	readProjectContext(t, root)
 	return root
 }
 

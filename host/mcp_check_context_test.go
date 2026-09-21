@@ -81,6 +81,7 @@ channels:
     ], "created_at":"2026-01-01T00:00:00Z", "updated_at":"2026-01-01T00:00:00Z"
   }]
 }`)
+	readProjectContext(t, root)
 	app := &App{}
 	cmd := NewEnvCommand(t.Context(), "mcp")
 	cmd.Flags().String(projectFlagName, filepath.Join(root, "kapi.yaml"), "")
