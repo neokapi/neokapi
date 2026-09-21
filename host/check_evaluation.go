@@ -15,8 +15,7 @@ import (
 )
 
 // The evaluation record a check result carries: what the run was evaluated
-// against, so a verdict read from a CI log, an agent transcript or a bug
-// report can be explained and reproduced.
+// against, so a verdict can be explained and reproduced later.
 //
 // Assembly is best-effort throughout, the way the retrieval provenance it
 // reuses is. A workspace that will not open, a recipe that will not load or a
@@ -43,7 +42,7 @@ func (a *App) checkEvaluation(ctx context.Context, cmd Command, e *checkExecutio
 }
 
 // buildEvaluation is the whole shape of the record, assembled from the facts a
-// run gathered. Splitting it from the gathering is what lets a golden pin the
+// run gathered. It sits apart from the gathering so a golden can pin the
 // document with the clock, the versions and every fact fixed.
 func buildEvaluation(prov *check.ContextProvenance, plugins []check.EvaluationPlugin, analyzers []check.AnalyzerExecution) *check.Evaluation {
 	return &check.Evaluation{
@@ -106,16 +105,25 @@ func (a *App) recordFormatPlugin(e *checkExecution, file, fmtName string) {
 	}
 	id := fmtName
 	if id == "" {
+		// The same detection the read does (readBlocksValidated), so the record
+		// names the format the file was actually read under.
 		detected, err := a.FormatReg.Detect(file, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil {
 			return
 		}
 		id = string(detected)
-	} else if name, _, err := a.resolveFormatRef(id); err == nil {
-		id = name
 	}
-	if route := a.PluginHost.FormatRoute(id); route != nil {
-		e.served(route.Plugin.Name(), route.Plugin.Version(), "format:"+id)
+	ids := []string{id}
+	// A recipe may name a format through a preset, `yaml:frontmatter`. The
+	// route is keyed by the registry name behind it.
+	if name, _, err := a.resolveFormatRef(id); err == nil && name != id {
+		ids = append(ids, name)
+	}
+	for _, name := range ids {
+		if route := a.PluginHost.FormatRoute(name); route != nil {
+			e.served(route.Plugin.Name(), route.Plugin.Version(), "format:"+name)
+			return
+		}
 	}
 }
 

@@ -4,15 +4,14 @@ import "sort"
 
 // What a check result says it was evaluated against.
 //
-// The context a check reads lives outside the checkout, in a per-user
-// workspace that moves on its own: terms get confirmed, voice rules get
-// proposed, decisions get recorded. A verdict is read long after the run that
-// produced it, from a CI log, an agent transcript or a bug report, so the
-// result carries the state it was reached from.
+// A check reads its governance from a per-user workspace outside the checkout,
+// where terms, voice rules and recorded decisions accumulate as people work. A
+// verdict is read long after the run that produced it, from a CI log or an
+// agent transcript, so the result names the state it was reached from.
 //
-// The record reports. [Report.Decide] never reads it, so an absent workspace,
-// an empty context or a projection that has drifted leaves the verdict, the
-// score and the gate exactly as they would be without it.
+// Nothing in the record reaches the verdict. [Report.Decide] never reads it, so
+// an absent workspace, an empty context and a projection that has drifted all
+// leave the verdict, the score and the gate exactly as they would be.
 
 // Evaluation is what one check run was evaluated against: the project and the
 // state of its context, the build that ran the check and the plugins that
