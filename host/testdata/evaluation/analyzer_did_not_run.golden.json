@@ -1,0 +1,63 @@
+{
+  "at": "2026-03-17T09:45:00Z",
+  "context": {
+    "project": "prj_aaaabbbbccccddddeeee",
+    "revision": 412,
+    "stale": false
+  },
+  "tool": {
+    "name": "kapi",
+    "version": "1.3.0",
+    "commit": "b1a3033dc"
+  },
+  "analyzers": [
+    {
+      "id": "hygiene",
+      "ran": 1
+    },
+    {
+      "id": "length",
+      "ran": 0,
+      "not_run": [
+        {
+          "status": "not_requested",
+          "reason": "No length limit was configured.",
+          "inputs": 1
+        }
+      ]
+    },
+    {
+      "id": "voice.guidance",
+      "ran": 0,
+      "not_run": [
+        {
+          "status": "unsupported",
+          "reason": "Applicable guidance requires semantic analysis; deterministic rules do not assess it.",
+          "inputs": 1
+        }
+      ]
+    },
+    {
+      "id": "voice.rules",
+      "ran": 0,
+      "not_run": [
+        {
+          "status": "not_applicable",
+          "reason": "The voice profile declares no term or pattern, and the comment analyzers check its comment limits.",
+          "inputs": 1
+        }
+      ]
+    },
+    {
+      "id": "voice.similarity",
+      "ran": 0,
+      "not_run": [
+        {
+          "status": "invalid",
+          "reason": "Reported no finding on its canary, doubled word (\"the the\").",
+          "inputs": 2
+        }
+      ]
+    }
+  ]
+}

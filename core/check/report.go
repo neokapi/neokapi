@@ -56,6 +56,11 @@ type Report struct {
 	// Scope is present when the check was scoped to a diff. It names every file
 	// the diff touched and what became of it.
 	Scope *Scope `json:"scope,omitempty"`
+	// Evaluation says what this run was evaluated against: the project and the
+	// state of its context, the build and plugins that ran it, and what each
+	// analyzer covered. Decide never reads it, so it reports and gates nothing.
+	// Absent means the producer reports no evaluation record.
+	Evaluation *Evaluation `json:"evaluation,omitempty"`
 }
 
 // Scope records what a diff-scoped check covered.

@@ -449,6 +449,7 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 		// `--target` names the translated rendering of one source file, so both
 		// files carry the source's reader binding.
 		fmtName, fmtCfg := opts.formats.forFile(a, sourcePath)
+		a.recordFormatPlugin(execution, sourcePath, fmtName)
 		unit := VerifyUnit{
 			SourcePath:   sourcePath,
 			TargetPath:   targetFile,
@@ -535,7 +536,7 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 	target.Blocks = totalBlocks
 
 	gate := gateFromFlags(cmd)
-	report := execution.report(target, diags, gate)
+	report := execution.report(ctx, a, cmd, target, diags, gate)
 	if validateMode == format.ValidationStrict {
 		applyStrictValidationGate(&report)
 	}
@@ -555,8 +556,10 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 
 	fmtName, fmtCfg := opts.formats.forFile(a, file)
 	if p, ok := a.commentLayerFor(file, fmtName); ok {
+		a.recordCommentPlugin(opts.execution, file)
 		return a.checkCommentFile(ctx, file, p, validateMode, opts)
 	}
+	a.recordFormatPlugin(opts.execution, file, fmtName)
 	if opts.formats.commentsOnly(file) && !opts.named {
 		return a.checkCommentsOnlyFile(ctx, file, fmtName, validateMode, opts)
 	}
@@ -899,11 +902,12 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			if len(refs) == 0 {
 				return nil, errors.New("--voice needs a voice profile with examples. Bind one in the recipe, or name it with --profile/--pack/--profile-file")
 			}
-			t, closeT, derr := dialVoicePlugin(ctx)
+			t, closeT, pluginVersion, derr := dialVoicePlugin(ctx)
 			if derr != nil {
 				return nil, derr
 			}
 			defer closeT()
+			opts.execution.served(checkPluginName, pluginVersion, "analyzer:voice.similarity")
 			vf, verr := voiceSimilarityFindings(g.blocks, refs, t, opts.voiceMin)
 			if verr != nil {
 				return nil, fmt.Errorf("voice check: %w", verr)

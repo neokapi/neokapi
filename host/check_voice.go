@@ -113,30 +113,32 @@ func voiceSimilarityFindings(blocks []*model.Block, refs []string, t voiceTransp
 }
 
 // dialVoicePlugin discovers and starts the kapi-check plugin, returning a
-// transport. It fails closed with guidance when the plugin is not installed —
-// no silent download, the deterministic checks still ran.
-func dialVoicePlugin(ctx context.Context) (voiceTransport, func(), error) {
+// transport and the version the plugin's manifest declares, which the
+// evaluation record names as the analyzer's provider. It fails closed with
+// guidance when the plugin is not installed, downloading nothing on its own;
+// the deterministic checks still ran.
+func dialVoicePlugin(ctx context.Context) (voiceTransport, func(), string, error) {
 	plugins := pluginhost.Discover(pluginhost.DiscoverOptions{
 		EnvPluginsDir: os.Getenv("KAPI_PLUGINS_DIR"),
 	})
-	var bin string
+	var bin, pluginVersion string
 	for _, p := range plugins {
 		if p.Name() == checkPluginName {
-			bin = p.BinaryPath
+			bin, pluginVersion = p.BinaryPath, p.Version()
 			break
 		}
 	}
 	if bin == "" {
-		return nil, nil, fmt.Errorf(
+		return nil, nil, "", fmt.Errorf(
 			"voice check requires the %q plugin; install it with `kapi plugins install check` "+
 				"(then `kapi-check pull` downloads the model), or skip it by omitting --voice",
 			checkPluginName)
 	}
 	proc, err := startCheckProcess(ctx, bin)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
-	return proc, func() { proc.close() }, nil
+	return proc, func() { proc.close() }, pluginVersion, nil
 }
 
 // checkProcess is the live kapi-check subprocess and its transport.
