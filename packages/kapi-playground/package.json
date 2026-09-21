@@ -33,7 +33,7 @@
     "@embedpdf/pdfium": "^2.15.0",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
-    "@huggingface/transformers": "^4.2.0",
+    "@huggingface/transformers": "^4.3.0",
     "@mlc-ai/web-llm": "^0.2.79",
     "@neokapi/contract-types": "*",
     "@neokapi/engine": "*",
