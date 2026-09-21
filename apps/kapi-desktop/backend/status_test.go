@@ -121,7 +121,9 @@ func TestGetProjectStatusStaleVersionStamp(t *testing.T) {
 	assert.True(t, old.Stale, "version mismatch ⇒ stale")
 
 	// A missing stamp (a cache written before the stamp existed) ⇒ stale.
-	_, err = db.Raw().ExecContext(ctx, `DELETE FROM store_meta WHERE key = ?`, projectdb.MetaBlocksSchemaVersion)
+	// store_meta is the projection's bookkeeping: what this checkout derived,
+	// and which extraction semantics wrote it.
+	_, err = db.Projection().ExecContext(ctx, `DELETE FROM store_meta WHERE key = ?`, projectdb.MetaBlocksSchemaVersion)
 	require.NoError(t, err)
 	missing, err := app.GetProjectStatus(tab.ID)
 	require.NoError(t, err)

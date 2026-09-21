@@ -112,11 +112,16 @@ func decisionsConnector(t *testing.T, a *host.App, proj *bproject.Project, srv *
 	}
 }
 
-// TestPull_StagedDecisionsSurviveDeletingTheStore: the working store and the
-// ref cache sit in the same disposable directory and are deleted independently.
-// A decision pulled into the store and not yet committed lives only there, so
-// deleting the store must leave it recoverable: the next pull stages it again.
-func TestPull_StagedDecisionsSurviveDeletingTheStore(t *testing.T) {
+// TestPull_DecisionsSurviveDeletingTheProjection: the checkout's projection and
+// the ref cache sit in the same disposable directory and are deleted
+// independently. A decision pulled and not yet committed is in the decision
+// ledger, which is in the workspace, so deleting the projection loses neither
+// the decision nor the ability to write it to the record.
+//
+// The position the pull recorded does go, because it vouches for the projection
+// by that store's identity: the next pull replays the feed from the beginning
+// and finds it has nothing new to record.
+func TestPull_DecisionsSurviveDeletingTheProjection(t *testing.T) {
 	const projectID = "proj-decisions"
 	key := state.Key{Scope: "locales/en.json", Unit: "greeting", Variant: model.Variant("fr")}
 
@@ -151,9 +156,9 @@ func TestPull_StagedDecisionsSurviveDeletingTheStore(t *testing.T) {
 	require.Equal(t, int64(42), saved.Ref("main").Content)
 	require.NotEmpty(t, saved.StoreID, "the position names the store that consumed it")
 
-	// Delete the store alone. The ref cache under work/cache/ survives, which is
-	// the shape this guards: one file gone, the other still claiming what it
-	// held.
+	// Delete the projection alone. The ref cache under work/cache/ survives,
+	// which is the shape this guards: one file gone, the other still claiming
+	// what it held.
 	first.Shutdown()
 	for _, suffix := range []string{"", "-wal", "-shm"} {
 		_ = os.Remove(proj.Layout.StorePath() + suffix)
@@ -167,13 +172,14 @@ func TestPull_StagedDecisionsSurviveDeletingTheStore(t *testing.T) {
 
 	res, err = again.Pull(context.Background(), bowrainconn.PullOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, 1, res.DecisionsStaged, "the decision is staged again")
+	assert.Zero(t, res.DecisionsStaged,
+		"the replay finds the decision already recorded and records nothing")
 	require.NoError(t, again.Close())
 
 	st, err = second.OpenProjectState(t.Context(), proj.Root)
 	require.NoError(t, err)
 	recovered, found := st.Get(t.Context(), key)
-	require.True(t, found, "the decision is back in the project's working set")
+	require.True(t, found, "the decision survived the projection it never lived in")
 	assert.Equal(t, "approved", recovered.Decision.ReviewState)
 	assert.Equal(t, "reviewer@example.test", recovered.Decision.By)
 	diff, err = st.RecordDiff(t.Context())

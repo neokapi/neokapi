@@ -49,11 +49,11 @@ func seedPlanMemory(t *testing.T, root string) {
 // memory.
 func seedPlanEntry(t *testing.T, root, id, source, target string) {
 	t.Helper()
-	db, err := projectdb.Open(t.Context(), project.Layout{
-		Root: root, StateDir: filepath.Join(root, project.StateDirName),
-	})
-	require.NoError(t, err)
-	defer func() { require.NoError(t, db.Close()) }()
+	withProjectStore(t, root, func(db *projectdb.DB) { seedPlanEntryInto(t, db, id, source, target) })
+}
+
+func seedPlanEntryInto(t *testing.T, db *projectdb.DB, id, source, target string) {
+	t.Helper()
 	now := time.Now().UTC()
 	require.NoError(t, db.Memory().Add(t.Context(), memory.Entry{
 		ID: id,

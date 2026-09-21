@@ -5,7 +5,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
@@ -32,16 +31,15 @@ func TestVerify_TerminologyRecordsItsMatchingMode(t *testing.T) {
 
 	t.Run("containment and declared forms", func(t *testing.T) {
 		root, _ := writeVerifyProject(t)
-		db, err := projectdb.Open(t.Context(), project.LayoutAt(root))
-		require.NoError(t, err)
-		require.NoError(t, db.Terms().AddConcept(t.Context(), terms.Concept{
-			ID: "c1",
-			Terms: []terms.Term{
-				{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
-				{Text: "Enregistrer", Locale: model.LocaleFrench, Status: model.TermPreferred, Forms: []string{"Enregistrez"}},
-			},
-		}))
-		require.NoError(t, db.Close())
+		seedProjectStore(t, root, func(db *projectdb.DB) {
+			require.NoError(t, db.Terms().AddConcept(t.Context(), terms.Concept{
+				ID: "c1",
+				Terms: []terms.Term{
+					{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+					{Text: "Enregistrer", Locale: model.LocaleFrench, Status: model.TermPreferred, Forms: []string{"Enregistrez"}},
+				},
+			}))
+		})
 		t.Chdir(root)
 
 		out, _ := runVerifyJSON(t)

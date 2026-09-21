@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	coreg "github.com/neokapi/neokapi/core/graph"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -66,11 +67,11 @@ func TestProjectGraph_EmptyRootIsAnError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// The graph rides in `.kapi/work/store.db` under its own `graph` ledger, beside the
-// block cache, the terms store, the content memory and the unit working set.
-// Ledger coexistence is the whole premise of the merged store: each subsystem
-// migrates independently, so none of them can replay another's history.
-func TestProjectGraph_LedgersCoexistInOneFile(t *testing.T) {
+// Each subsystem migrates under a ledger of its own, so none of them replays
+// another's history however the pools are arranged: the block cache in the
+// checkout's projection, the terms store and the content memory in the
+// project's context store, the graph in the workspace database.
+func TestProjectGraph_LedgersCoexistPerPool(t *testing.T) {
 	a := &App{}
 	defer a.Shutdown()
 	root := storeRoot(t)
@@ -80,27 +81,44 @@ func TestProjectGraph_LedgersCoexistInOneFile(t *testing.T) {
 	g, err := a.ProjectGraph(t.Context(), root)
 	require.NoError(t, err)
 
-	// Every subsystem's bookkeeping table is present in the one file.
-	rows, err := db.Raw().QueryContext(t.Context(),
-		`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`)
-	require.NoError(t, err)
-	defer rows.Close()
-	var tables []string
-	for rows.Next() {
-		var name string
-		require.NoError(t, rows.Scan(&name))
-		tables = append(tables, name)
+	tablesOf := func(pool *storage.DB) []string {
+		rows, err := pool.QueryContext(t.Context(),
+			`SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`)
+		require.NoError(t, err)
+		defer rows.Close()
+		var tables []string
+		for rows.Next() {
+			var name string
+			require.NoError(t, rows.Scan(&name))
+			tables = append(tables, name)
+		}
+		require.NoError(t, rows.Err())
+		sort.Strings(tables)
+		return tables
 	}
-	require.NoError(t, rows.Err())
-	sort.Strings(tables)
+
 	for _, want := range []string{
-		"graph", "graph_nodes", "graph_edges", // the graph and its ledger
 		"cache_migrations", "blocks", // the block cache
+		"projectdb_migrations", "store_meta", // the store's own metadata
+	} {
+		assert.Contains(t, tablesOf(db.Projection()), want, "the projection holds what the checkout derived")
+	}
+	for _, want := range []string{
 		"termbase_migrations", "tb_concepts", // the terms store
 		"sievepen_migrations", "tm_entries", // the content memory
+		"state", "unit_decision", "unit_view", // the decision ledger and this checkout's view
+		"voice_profiles", // the voice store
 	} {
-		assert.Contains(t, tables, want, "one file holds every subsystem's tables")
+		assert.Contains(t, tablesOf(db.Raw()), want, "the context store holds what was authored")
 	}
+	for _, want := range []string{
+		"graph", "graph_nodes", "graph_edges", // the graph and its ledger
+		"workspace_projects", // the project registry
+	} {
+		assert.Contains(t, tablesOf(db.Graph()), want, "the workspace holds the graph and the registry")
+	}
+	assert.NotEqual(t, db.Projection().Path(), db.Raw().Path(),
+		"the projection and the context store are two files")
 
 	// And the graph is usable through the shared pool.
 	require.NoError(t, g.CreateNode(t.Context(), &coreg.Node{ID: "n1", Label: "Concept"}))

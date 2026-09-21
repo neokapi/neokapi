@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
@@ -491,10 +490,9 @@ ship_gate: { translated: 0 }
 // addStatusConcept adds a concept to the project's own terms store.
 func addStatusConcept(t *testing.T, root string, c terms.Concept) {
 	t.Helper()
-	db, err := projectdb.Open(t.Context(), project.LayoutAt(root))
-	require.NoError(t, err)
-	require.NoError(t, db.Terms().AddConcept(t.Context(), c))
-	require.NoError(t, db.Close())
+	seedProjectStore(t, root, func(db *projectdb.DB) {
+		require.NoError(t, db.Terms().AddConcept(t.Context(), c))
+	})
 }
 
 func TestStatus_ShipManifestStdout(t *testing.T) {

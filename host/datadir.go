@@ -1,9 +1,12 @@
 package host
 
 import (
+	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // kapi keeps two per-user roots apart. ConfigDir (host/resource.go) holds what
@@ -34,9 +37,45 @@ const dataDirName = "kapi"
 // write into the developer's real data root while every other path stayed
 // sandboxed.
 //
+// Inside a `go test` binary the resolution is different: unless $KAPI_DATA_DIR
+// names a root outright, the answer is a directory of this process's own under
+// the system temporary directory. The data root holds the workspace — the
+// terms, the voice profiles, the content memory and the recorded decisions of
+// every project on the machine — so a test that opens a project would otherwise
+// write into the developer's own context and read it back on the next run.
+// $KAPI_DATA_DIR stays the way a test names a root deliberately, and it is what
+// the isolation contract sets on a kapi it launches as a subprocess, since a
+// released binary is not a test binary and resolves the platform default.
+//
 // The directory is named, not created. A caller that writes there creates it.
 func DataDir() string {
+	if dir := os.Getenv(EnvDataDir); dir != "" {
+		return dir
+	}
+	if underTest() {
+		return testDataDir()
+	}
 	return dataDir(os.Getenv, runtime.GOOS)
+}
+
+// underTest reports whether this process is a test binary.
+//
+// The testing package installs its flags before any test runs, so `test.v`
+// existing is the signal; the executable's name is the belt for a binary that
+// has not reached testing.Init yet.
+func underTest() bool {
+	if flag.Lookup("test.v") != nil {
+		return true
+	}
+	base := filepath.Base(os.Args[0])
+	return strings.HasSuffix(base, ".test") || strings.HasSuffix(base, ".test.exe")
+}
+
+// testDataDir is the data root a test binary gets: one directory per process,
+// under the system temporary directory, so two packages running in parallel do
+// not share a workspace and neither reaches the developer's.
+func testDataDir() string {
+	return filepath.Join(os.TempDir(), fmt.Sprintf("kapi-test-data-%d", os.Getpid()))
 }
 
 // dataDir is DataDir with its two environment seams injected, so the platform
@@ -60,6 +99,24 @@ func dataDir(getenv func(string) string, goos string) string {
 	default:
 		return filepath.Join(home, ".local", "share", dataDirName)
 	}
+}
+
+// WorkspacesDirName holds the workspaces under the data root, one directory
+// each, and DefaultWorkspaceName is the one every machine account has without
+// asking for it.
+//
+// A workspace holds the context of every project worked on from this account:
+// the project registry, the context graph, and one context store per project
+// (core/workspace). It is created on first use, and a recipe carries no binding
+// to it, so moving a checkout or cloning it again reaches the same context.
+const (
+	WorkspacesDirName    = "workspaces"
+	DefaultWorkspaceName = "default"
+)
+
+// DefaultWorkspaceDir returns this machine account's implicit workspace.
+func DefaultWorkspaceDir() string {
+	return filepath.Join(DataDir(), WorkspacesDirName, DefaultWorkspaceName)
 }
 
 // homeDir reads the home directory from the variable the platform sets, which

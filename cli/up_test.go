@@ -150,16 +150,11 @@ func TestUp_RequiresProject(t *testing.T) {
 	assert.Contains(t, err.Error(), "needs a project")
 }
 
-// openStore opens a project's store directly, for tests inspecting what a run
-// left in it.
+// openStore opens a project's store for tests inspecting what a run left in
+// it, through an App so both of its pools are the ones the run wrote.
 func openStore(t *testing.T, root string) *projectdb.DB {
 	t.Helper()
-	db, err := projectdb.Open(t.Context(), project.Layout{
-		Root: root, StateDir: filepath.Join(root, project.StateDirName),
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = db.Close() })
-	return db
+	return openProjectStore(t, root)
 }
 
 // storeBlockTexts reads every translatable block's source text from a

@@ -2,14 +2,20 @@ package host
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/storage/graph"
 )
 
@@ -24,11 +30,25 @@ import (
 type projectStores struct {
 	mu  sync.Mutex
 	dbs map[string]*projectdb.DB
-	// graphs holds the property-graph handle bound to each store's pool. It is
-	// memoized beside the store rather than inside projectdb because the graph
-	// implementation lives in the host module: core/projectdb is framework code
-	// and the arrow only points the other way.
+	// graphs holds the property-graph handle bound to the workspace database. It
+	// is memoized beside the stores rather than inside projectdb because the
+	// graph implementation lives in the host module: core/projectdb is framework
+	// code and the arrow only points the other way.
 	graphs map[string]*graph.SQLiteGraphStore
+
+	// root is the workspace directory this App was told to use. Empty means the
+	// machine account's default, resolved on first use so a test that sets
+	// $KAPI_DATA_DIR after building an App still lands in its own directory.
+	root string
+	// ws holds the open workspaces by directory, and wsErrs the failures opening
+	// them met. A workspace that will not open will not open on the next project
+	// either, so the failure is remembered rather than retried once per project.
+	//
+	// There is one entry in a released binary: every project on a machine
+	// account shares one workspace. A test binary that named no data root gets
+	// one per project checkout (see workspaceRootFor).
+	ws    map[string]*workspace.Workspace
+	wsErr map[string]error
 }
 
 // ensureProjectStores returns the App's store holder, creating it on first use.
@@ -42,24 +62,104 @@ func (a *App) ensureProjectStores() *projectStores {
 		a.projectStores = &projectStores{
 			dbs:    map[string]*projectdb.DB{},
 			graphs: map[string]*graph.SQLiteGraphStore{},
+			ws:     map[string]*workspace.Workspace{},
+			wsErr:  map[string]error{},
 		}
 	})
 	return a.projectStores
 }
 
-// ProjectDB returns the open store for the project rooted at root — the one
-// database holding its content memory, terms, block cache and unit working set
-// (core/projectdb).
+// SetWorkspaceRoot points this App at a particular workspace directory instead
+// of the machine account's default one.
+//
+// Every project this App opens afterwards uses it, including inside a test
+// binary, where it is how two Apps are put on one workspace. An App that shares
+// its stores (ShareProjectStores) shares the setting with them.
+func (a *App) SetWorkspaceRoot(root string) {
+	s := a.ensureProjectStores()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.root = root
+}
+
+// Workspace returns this App's open workspace, opening it on first use.
+//
+// Every project this App touches registers here and keeps its context store
+// here: the terms, the voice profiles, the content memory and the unit-state
+// working set, one database per project, shared by every checkout of that
+// project on this machine. The context graph is the workspace's own database,
+// because a node id already carries the project it belongs to.
+//
+// The App owns the handle: do not Close it, and do not Close the databases it
+// hands out. Shutdown releases them.
+func (a *App) Workspace(ctx context.Context) (*workspace.Workspace, error) {
+	s := a.ensureProjectStores()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.workspaceAt(ctx, s.workspaceRootFor(""))
+}
+
+// workspaceAt opens the workspace in a directory once and remembers the
+// outcome. The caller holds s.mu.
+func (s *projectStores) workspaceAt(ctx context.Context, root string) (*workspace.Workspace, error) {
+	if ws, ok := s.ws[root]; ok {
+		return ws, nil
+	}
+	if err, ok := s.wsErr[root]; ok {
+		return nil, err
+	}
+	// Opening is App lifecycle, not request work: the same reasoning as
+	// ProjectDB's open below, and the workspace is opened from inside it.
+	ws, err := workspace.OpenLocal(context.WithoutCancel(ctxOrBackground(ctx)), root)
+	if err != nil {
+		err = fmt.Errorf("open the workspace at %s: %w", root, err)
+		s.wsErr[root] = err
+		return nil, err
+	}
+	s.ws[root] = ws
+	return ws, nil
+}
+
+// workspaceRootFor is the workspace directory a project checkout belongs to.
+// The caller holds s.mu.
+//
+// It is the same directory for every project: one machine account, one
+// workspace. The exception is a test binary that named no data root, where the
+// directory is derived from the checkout instead.
+//
+// That exception exists because a project with no `id:` is keyed by its
+// recipe's `name:`, and test recipes are scaffolded with short names. Two tests
+// in one package that both write `name: demo` would share a context store and
+// read each other's terms and decisions, which is a property of the test
+// fixtures rather than of the design. $KAPI_DATA_DIR names a root deliberately
+// and is honoured as given, and SetWorkspaceRoot is the direct way to put two
+// Apps on one workspace.
+func (s *projectStores) workspaceRootFor(projectRoot string) string {
+	if s.root != "" {
+		return s.root
+	}
+	if projectRoot == "" || os.Getenv(EnvDataDir) != "" || !underTest() {
+		return DefaultWorkspaceDir()
+	}
+	sum := sha256.Sum256([]byte(NormalizeCheckoutPath(projectRoot)))
+	return filepath.Join(DataDir(), WorkspacesDirName, "test-"+hex.EncodeToString(sum[:8]))
+}
+
+// ProjectDB returns the open store for the project rooted at root — its block
+// cache and overlays in the checkout, and its content memory, terms, voice
+// profiles and unit working set in the workspace (core/projectdb).
 //
 // Lifetime: the App owns the handle. It is opened once per (App, project root),
 // memoized, and safe to call concurrently; every caller under one App — including
 // the per-locale workers a convergence pass fans out on — gets the same handle.
 // Do NOT Close it, and do not Close the subsystem handles it hands out: they
-// share its connection pool. Shutdown closes them all.
+// share its connection pools. Shutdown closes them all.
 //
-// Opening runs every subsystem's migrations and the predecessor sweep, so the
-// memoization is what keeps that to once per project per process rather than
-// once per command that touches a store.
+// Opening runs every subsystem's migrations and the predecessor sweep, registers
+// the project in the workspace, and on the first open with a workspace carries a
+// project out of the embedded layout. The memoization is what keeps all of that
+// to once per project per process rather than once per command that touches a
+// store.
 //
 // One handle is also the precondition for write discipline. Two pools on one
 // SQLite file cannot serialize their writers in process, and deferred write
@@ -93,7 +193,24 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	// "count units: context canceled" as a run error — and, worse, could leave
 	// a half-migrated store behind for the next one. Values still propagate;
 	// only the deadline and cancellation are dropped.
-	db, err := projectdb.Open(context.WithoutCancel(ctxOrBackground(ctx)), projectLayoutAt(abs))
+	openCtx := context.WithoutCancel(ctxOrBackground(ctx))
+
+	var opts []projectdb.Option
+	stores, err := s.bindWorkspace(openCtx, abs)
+	switch {
+	case err == nil:
+		opts = append(opts, projectdb.WithWorkspace(stores))
+	case errors.Is(err, storage.ErrNoSQLite):
+		// The browser build has no file-backed SQLite driver and no user data
+		// directory, so there is no workspace to reach and no need of one: it
+		// holds one project and nothing outlives the tab. The project opens in
+		// the embedded layout, with its context tables beside its projection,
+		// which core/projectdb degrades to a JSON sidecar from there.
+	default:
+		return nil, err
+	}
+
+	db, err := projectdb.Open(openCtx, projectLayoutAt(abs), opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -101,19 +218,76 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	return db, nil
 }
 
+// bindWorkspace registers the project rooted at abs and returns the databases
+// its store binds to. The caller holds s.mu.
+func (s *projectStores) bindWorkspace(ctx context.Context, abs string) (projectdb.Stores, error) {
+	ws, err := s.workspaceAt(ctx, s.workspaceRootFor(abs))
+	if err != nil {
+		return projectdb.Stores{}, err
+	}
+	identity, name := recipeIdentity(filepath.Join(abs, project.RecipeFileName))
+	key := workspace.ProjectKey(identity)
+	if key == "" {
+		key = workspace.KeyForCheckout(NormalizeCheckoutPath(abs))
+	}
+	contextDB, err := ws.Context(ctx, key)
+	if err != nil {
+		return projectdb.Stores{}, fmt.Errorf("open the context store of %s: %w", key, err)
+	}
+	// A workspace opened for reading records nothing, which is the honest
+	// outcome in a sandbox that refuses writes and no reason to fail the open.
+	if !ws.Describe().ReadOnly {
+		if _, err := ws.Register(ctx, key, name, NormalizeCheckoutPath(abs)); err != nil {
+			return projectdb.Stores{}, fmt.Errorf("register %s in the workspace: %w", key, err)
+		}
+	}
+	return projectdb.Stores{Context: contextDB, Graph: ws.Registry()}, nil
+}
+
+// recipeIdentity reads the two fields of a recipe that say which project this
+// is: the stable `id:` the workspace keys on, and the `name:` a person reads.
+//
+// It decodes those two fields and nothing else. A full load resolves
+// collections, governance and plugin requirements, any of which can fail for
+// reasons that have no bearing on which project the file describes, and the
+// store has to open for a recipe that does not yet load.
+func recipeIdentity(recipePath string) (identity, name string) {
+	data, err := os.ReadFile(recipePath)
+	if err != nil {
+		return "", ""
+	}
+	var head struct {
+		ID   string `yaml:"id"`
+		Name string `yaml:"name"`
+	}
+	if err := yaml.Unmarshal(data, &head); err != nil {
+		return "", ""
+	}
+	if project.ValidateID(head.ID) != nil {
+		head.ID = ""
+	}
+	if head.ID != "" {
+		return head.ID, head.Name
+	}
+	return head.Name, head.Name
+}
+
 // ErrNoProjectGraph reports that this build cannot hold a property graph,
 // because it has no file-backed SQLite driver. It wraps storage.ErrNoSQLite, so
 // a caller that already distinguishes the browser build needs no new check.
 var ErrNoProjectGraph = fmt.Errorf("project graph: %w", storage.ErrNoSQLite)
 
-// ProjectGraph returns the property graph bound to the project's store — the
-// `graph_nodes` / `graph_edges` tables inside `.kapi/work/store.db`, migrated under
-// their own `graph` ledger beside the block cache, the terms store, the content
-// memory and the unit working set (AD-039).
+// ProjectGraph returns the property graph this project's context-graph rows are
+// written into: the `graph_nodes` / `graph_edges` tables of the WORKSPACE
+// database, migrated under their own `graph` ledger (AD-039).
 //
-// Lifetime matches ProjectDB exactly: one handle per (App, project root), opened
-// on the store's own connection pool, memoized, safe to call concurrently. Do
-// NOT Close it — it never owned the pool, and Shutdown releases the store.
+// The graph is workspace-wide because a node id already carries the project it
+// belongs to, so every project's subgraph fits in one place and a question that
+// spans projects is one query rather than a fan-out. Each project's
+// materialization clears only what it owns, keyed by its own scope tuple.
+//
+// Lifetime matches ProjectDB: memoized, safe to call concurrently. Do NOT Close
+// it — it never owned the pool, and Shutdown releases the workspace.
 //
 // The graph relates what the other subsystems hold; it does not duplicate them.
 // Edges key on durable identity (a block's content key, a unit key), never on a
@@ -127,24 +301,23 @@ func (a *App) ProjectGraph(ctx context.Context, root string) (*graph.SQLiteGraph
 	if err != nil {
 		return nil, err
 	}
-	if db.Raw() == nil {
+	if db.Graph() == nil {
 		return nil, ErrNoProjectGraph
-	}
-	abs, err := filepath.Abs(root)
-	if err != nil {
-		return nil, fmt.Errorf("project graph: resolve root %q: %w", root, err)
 	}
 	s := a.ensureProjectStores()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if g, ok := s.graphs[abs]; ok {
+	// Keyed by the database rather than by the project root: one workspace is
+	// one graph, and two projects open in one App share it.
+	key := db.Graph().Path()
+	if g, ok := s.graphs[key]; ok {
 		return g, nil
 	}
-	g, err := graph.NewSQLiteGraphStore(db.Raw())
+	g, err := graph.NewSQLiteGraphStore(db.Graph())
 	if err != nil {
 		return nil, fmt.Errorf("project graph: %w", err)
 	}
-	s.graphs[abs] = g
+	s.graphs[key] = g
 	return g, nil
 }
 
@@ -223,14 +396,21 @@ func (a *App) closeProjectStores() {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for root, g := range s.graphs {
-		_ = g.Close() // detaches; the pool belongs to the store below
-		delete(s.graphs, root)
+	for key, g := range s.graphs {
+		_ = g.Close() // detaches; the pool belongs to the workspace below
+		delete(s.graphs, key)
 	}
 	for root, db := range s.dbs {
 		_ = db.Close()
 		delete(s.dbs, root)
 	}
+	// Last: a project store reads and writes the context database the workspace
+	// handed it, so the workspace outlives every store that borrowed from it.
+	for root, ws := range s.ws {
+		_ = ws.Close()
+		delete(s.ws, root)
+	}
+	clear(s.wsErr)
 }
 
 // StoreSelection says where a project-aware store command reads and writes: a

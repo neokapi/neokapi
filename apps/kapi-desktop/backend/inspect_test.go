@@ -10,7 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,14 +43,14 @@ vocabulary:
 `
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "voice.yaml"), []byte(voiceYAML), 0o644))
 
-	// Seed the project's terms so the term annotator has data to match. They live
-	// in the project's one store, and this handle must be closed before the app
-	// opens the project — two handles would be two pools on one file.
-	db, err := projectdb.Open(context.Background(), project.Layout{
-		Root: dir, StateDir: filepath.Join(dir, project.StateDirName),
-	})
+	// Seed the project's terms so the term annotator has data to match. They
+	// live in the workspace, so the seed goes through an App, which is where
+	// that location is resolved; the handle is released before the app opens
+	// the project, since two handles would be two pools on one file.
+	seedApp := &host.App{}
+	seedDB, err := seedApp.ProjectDB(context.Background(), dir)
 	require.NoError(t, err)
-	require.NoError(t, db.Terms().AddConcept(context.Background(), terms.Concept{
+	require.NoError(t, seedDB.Terms().AddConcept(context.Background(), terms.Concept{
 		ID:     "c1",
 		Domain: "ui",
 		Terms: []terms.Term{
@@ -58,7 +58,7 @@ vocabulary:
 			{Text: "tableau de bord", Locale: model.LocaleID("fr"), Status: model.TermPreferred},
 		},
 	}))
-	require.NoError(t, db.Close())
+	seedApp.Shutdown()
 
 	proj := &project.KapiProject{
 		Version: project.CurrentVersion,

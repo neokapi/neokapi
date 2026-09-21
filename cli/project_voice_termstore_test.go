@@ -159,17 +159,14 @@ func seedProjectTerms(t *testing.T, root string) {
 	})
 }
 
-// seedTermsStore writes concepts into the project store at root.
+// seedTermsStore writes concepts into the terms store of the project at root.
 func seedTermsStore(t *testing.T, root string, concepts ...terms.Concept) {
 	t.Helper()
-	db, err := projectdb.Open(t.Context(), project.Layout{
-		Root: root, StateDir: filepath.Join(root, project.StateDirName),
+	withProjectStore(t, root, func(db *projectdb.DB) {
+		for _, c := range concepts {
+			require.NoError(t, db.Terms().AddConcept(t.Context(), c))
+		}
 	})
-	require.NoError(t, err)
-	defer func() { require.NoError(t, db.Close()) }()
-	for _, c := range concepts {
-		require.NoError(t, db.Terms().AddConcept(t.Context(), c))
-	}
 }
 
 // TestResolveTermRules_FromProjectStore asserts that with no --termstore

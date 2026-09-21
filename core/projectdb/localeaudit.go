@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/storage"
 )
 
 // Every subsystem in the store keys its rows by a canonical BCP-47 locale
@@ -42,21 +43,23 @@ func (d LocaleDrift) String() string {
 // whose rows are all keyed canonically reports nothing. A build with no
 // file-backed store has no rows to audit and reports nothing either.
 func (d *DB) NonCanonicalLocales(ctx context.Context) ([]LocaleDrift, error) {
-	if d.raw == nil {
+	if d.projection == nil {
 		return nil, nil
 	}
-	var out []LocaleDrift
+	// Two pools, so each probe names the one holding its rows.
 	probes := []struct {
 		subsystem string
+		db        *storage.DB
 		query     string
 		canonical func(string) string
 	}{
-		{"content memory", `SELECT locale, COUNT(*) FROM tm_variants GROUP BY locale`, canonicalLocale},
-		{"terms", `SELECT locale, COUNT(*) FROM tb_terms GROUP BY locale`, canonicalLocale},
-		{"block cache", `SELECT kind, COUNT(*) FROM overlays WHERE kind LIKE 'targets/%' GROUP BY kind`, blockstore.CanonicalOverlayKind},
+		{"content memory", d.context, `SELECT locale, COUNT(*) FROM tm_variants GROUP BY locale`, canonicalLocale},
+		{"terms", d.context, `SELECT locale, COUNT(*) FROM tb_terms GROUP BY locale`, canonicalLocale},
+		{"block cache", d.projection, `SELECT kind, COUNT(*) FROM overlays WHERE kind LIKE 'targets/%' GROUP BY kind`, blockstore.CanonicalOverlayKind},
 	}
+	var out []LocaleDrift
 	for _, p := range probes {
-		rows, err := d.raw.QueryContext(ctx, p.query)
+		rows, err := p.db.QueryContext(ctx, p.query)
 		if err != nil {
 			return nil, fmt.Errorf("projectdb: audit %s locales: %w", p.subsystem, err)
 		}

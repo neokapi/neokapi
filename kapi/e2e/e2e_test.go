@@ -55,6 +55,12 @@ func TestMain(m *testing.M) {
 		// not notice or emit (the isolation contract, epic 018 workstream G).
 		"KAPI_TELEMETRY=0",
 		"KAPI_CONFIG_DIR=" + filepath.Join(iso, "config"),
+		// KAPI_DATA_DIR names the data root outright and WINS over
+		// XDG_DATA_HOME. It holds the workspace: every project's terms, voice
+		// profiles, content memory and recorded decisions. A released binary is
+		// not a test binary, so without this an e2e run acts on the developer's
+		// own context whenever they have the variable exported.
+		"KAPI_DATA_DIR=" + filepath.Join(iso, "data", "kapi"),
 		"XDG_DATA_HOME=" + filepath.Join(iso, "data"),
 		"XDG_CACHE_HOME=" + filepath.Join(iso, "cache"),
 		// KAPI_PLUGINS_DIR_ONLY=1 confines plugin discovery to

@@ -89,6 +89,13 @@ func extract(t *testing.T, p Project) {
 	a.InitRegistries()
 	defer a.Shutdown()
 
+	// The vocabulary goes in through the App's store, which is the one every
+	// face reads: a project's terms live in the workspace, and only the host
+	// layer knows where that is.
+	db, err := a.ProjectDB(t.Context(), p.Root)
+	require.NoError(t, err)
+	fixture.SeedTerms(t, db)
+
 	proj, err := project.Load(p.Recipe)
 	require.NoError(t, err)
 	pctx := project.NewProjectContext(proj, p.Recipe)

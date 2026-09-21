@@ -442,17 +442,14 @@ func TestExtract_IncrementalReuse(t *testing.T) {
 	assert.NotContains(t, out5, "Reused")
 }
 
-// seedProjectMemory puts entries into the PROJECT's own store — the content
-// memory extract pre-fills from, which is one schema of `.kapi/work/store.db` rather
-// than a file of its own.
+// seedProjectMemory puts entries into the PROJECT's own content memory, which
+// extract pre-fills from. It lives in the workspace, one database per project,
+// so it is reached through an App rather than opened from the checkout.
 func seedProjectMemory(t *testing.T, root string, entries ...memory.Entry) {
 	t.Helper()
-	db, err := projectdb.Open(t.Context(), project.Layout{
-		Root: root, StateDir: filepath.Join(root, project.StateDirName),
+	withProjectStore(t, root, func(db *projectdb.DB) {
+		for _, e := range entries {
+			require.NoError(t, db.Memory().Add(t.Context(), e))
+		}
 	})
-	require.NoError(t, err)
-	defer func() { require.NoError(t, db.Close()) }()
-	for _, e := range entries {
-		require.NoError(t, db.Memory().Add(t.Context(), e))
-	}
 }

@@ -106,14 +106,15 @@ func TestDataDir(t *testing.T) {
 
 // The exported entry point reads the real process environment, so the isolation
 // contract's throwaway directory reaches it.
+//
+// $XDG_DATA_HOME is not asserted here: inside a test binary the exported
+// DataDir answers with a directory of this process's own unless $KAPI_DATA_DIR
+// names one, which is what keeps a test out of the developer's workspace. The
+// resolution order it bypasses is the table above, driven through the seam.
 func TestDataDirReadsTheProcessEnvironment(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv(EnvDataDir, dir)
 	assert.Equal(t, dir, DataDir())
-
-	t.Setenv(EnvDataDir, "")
-	t.Setenv("XDG_DATA_HOME", dir)
-	assert.Equal(t, filepath.Join(dir, "kapi"), DataDir())
 }
 
 // Two spellings of one checkout normalize to the same string; two different
