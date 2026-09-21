@@ -60,7 +60,18 @@ func newGovernedProject(t *testing.T) (*host.App, *bproject.Project) {
 	}
 	proj, err := bproject.InitProject(root, recipe)
 	require.NoError(t, err)
+	readProjectContext(t, app, proj)
 	return app, proj
+}
+
+// readProjectContext reads the project's context layout and recipe bindings
+// into its store, which is what `kapi context import` does for a person. A
+// fixture that authors a voice profile calls it: a push resolves the voice from
+// the store, and a file in the checkout reaches it no other way.
+func readProjectContext(t *testing.T, app *host.App, proj *bproject.Project) {
+	t.Helper()
+	_, err := app.ImportProjectContext(t.Context(), proj.Layout.RecipePath, host.ContextImportRequest{Force: true})
+	require.NoError(t, err)
 }
 
 func entriesByName(entries []*pb.SyncContextEntry) map[string]*pb.SyncContextEntry {
@@ -113,6 +124,7 @@ func TestBuildPushContext_CarriesTheVoiceAsAuthored(t *testing.T) {
 	app, proj := newGovernedProject(t)
 	require.NoError(t, os.WriteFile(filepath.Join(proj.Root, "acme-voice.yaml"), []byte(
 		"name: Acme Voice\ntone:\n  formality: neutral\nchannels:\n  docs:\n    tone:\n      formality: formal\n"), 0o644))
+	readProjectContext(t, app, proj)
 
 	pushCtx, _, err := BuildPushContext(t.Context(), app, proj, false)
 	require.NoError(t, err)

@@ -201,6 +201,12 @@ func bindCollectionVoice(t *testing.T, conn *BowrainSourceConnector, name string
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(root, rel), body, 0o644))
 	conn.project.Recipe.KapiProject.Defaults.Voice = &coreproj.VoiceBinding{ProfileFile: rel}
+
+	// The store is the read path, so the profile reaches a local run through
+	// `kapi context import` and no other way.
+	_, err = conn.app.ImportProjectContext(t.Context(), conn.project.Layout.RecipePath,
+		host.ContextImportRequest{Force: true})
+	require.NoError(t, err)
 }
 
 // TestApplyPulledContext_VoiceDivergenceIsReported: the server governs a
@@ -224,8 +230,12 @@ func TestApplyPulledContext_VoiceDivergenceIsReported(t *testing.T) {
 		"the report must name the part that differs, or the reader diffs two sides they cannot see")
 
 	// Report, never resolve: the profile a local run resolves is the recipe's.
+	store, release, err := conn.app.ProjectVoiceStore(t.Context(), conn.project.Root)
+	require.NoError(t, err)
+	defer release()
 	profile, _, _, found, err := conn.app.LoadCollectionVoice(t.Context(),
-		&conn.project.Recipe.KapiProject, conn.project.Root, host.VoiceResolveOptions{Point: coreproj.GovernancePoint{Collection: "docs"}})
+		&conn.project.Recipe.KapiProject, conn.project.Root,
+		host.VoiceResolveOptions{Point: coreproj.GovernancePoint{Collection: "docs"}, Store: store})
 	require.NoError(t, err)
 	require.True(t, found)
 	assert.Equal(t, "Kapi Docs Voice", profile.Name, "a pull must not move the voice a local run resolves")
