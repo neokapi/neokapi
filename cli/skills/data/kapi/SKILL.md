@@ -124,7 +124,7 @@ refused.
   recommend the lowest-toil setup for it:
   [references/i18n.md](references/i18n.md).
 
-## Two things that are always true
+## Credentials, and message keys
 
 Provider-backed translation and model-backed analysis are separate operations
 from the local format and check tools. Use them when the task calls for them and
