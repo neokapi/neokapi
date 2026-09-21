@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type { KapiProject, FlowSpec, RecentFile } from "../types/api";
+import type { KapiProject, FlowSpec, WorkspaceHome } from "../types/api";
 import { ProjectErrorBoundary } from "./ProjectErrorBoundary";
 import type { TabState } from "../hooks/useTabManager";
 import type { ProjectHistory } from "../hooks/useProjectHistory";
@@ -63,11 +63,15 @@ interface ViewSwitchProps {
   navigate: (view: string) => void;
   updateTab: (id: string, patch: Partial<TabState>) => void;
   // Home page props
-  recentFiles: RecentFile[];
+  workspace: WorkspaceHome | null;
+  workspaceError?: unknown;
   samplesDismissed: boolean;
-  onOpenRecent: (path: string) => void;
-  /** Forget one remembered project. Nothing on disk is touched. */
-  onRemoveRecent: (path: string) => void;
+  /** Open a project from one of its checkouts, by recipe path. */
+  onOpenCheckout: (recipe: string) => void;
+  /** Open a project with no checkout here, on its context alone. */
+  onOpenContext: (key: string) => void;
+  /** Remove a project and the context the workspace holds for it. */
+  onForgetProject: (key: string) => Promise<void> | void;
   onNewProject: () => void;
   onOpenProject: () => void;
   onCreateSampleProject: (name: string) => void;
@@ -86,10 +90,12 @@ export function ViewSwitch({
   updateProject,
   navigate,
   updateTab,
-  recentFiles,
+  workspace,
+  workspaceError,
   samplesDismissed,
-  onOpenRecent,
-  onRemoveRecent,
+  onOpenCheckout,
+  onOpenContext,
+  onForgetProject,
   onNewProject,
   onOpenProject,
   onCreateSampleProject,
@@ -183,10 +189,12 @@ export function ViewSwitch({
   if (effectiveView === "home") {
     return (
       <AppHome
-        recentFiles={recentFiles}
+        workspace={workspace}
+        workspaceError={workspaceError}
         samplesDismissed={samplesDismissed}
-        onOpenRecent={onOpenRecent}
-        onRemoveRecent={onRemoveRecent}
+        onOpenCheckout={onOpenCheckout}
+        onOpenContext={onOpenContext}
+        onForgetProject={onForgetProject}
         onNewProject={onNewProject}
         onOpenProject={onOpenProject}
         onNavigate={navigate}
@@ -234,6 +242,23 @@ export function ViewSwitch({
   if (!activeTab) return null;
 
   const tabID = activeTab.info.id;
+
+  // A context-only tab has no recipe and no files, so every project surface
+  // but the Context hub has nothing to read. It opens on the hub and stays
+  // there; the banner says why the rest is absent.
+  if (activeTab.info.context_only) {
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="shrink-0 border-b border-border bg-muted/30 px-6 py-2 text-xs text-muted-foreground">
+          No copy of {activeTab.info.name} is on this machine. Its context is readable here; its
+          content is not. Clone the repository and run Kapi in it to reunite the two.
+        </div>
+        <div className="min-h-0 flex-1">
+          <ContextHub tabID={tabID} projectName={activeTab.info.name} contextOnly />
+        </div>
+      </div>
+    );
+  }
 
   // Render the active project view, guarded by an error boundary so a single
   // un-openable project (e.g. a recipe whose formats come from a plugin that is
@@ -360,6 +385,7 @@ export function ViewSwitch({
             }
             pin={contextPin ?? undefined}
             hasTargetLanguages={(history.project.defaults?.target_languages?.length ?? 0) > 0}
+            contextOnly={activeTab.info.context_only}
           />
         );
 

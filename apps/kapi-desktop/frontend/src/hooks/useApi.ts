@@ -45,7 +45,9 @@ import type {
   AdoptFlowResult,
   ProjectHandles,
   RunTraces,
-  RecentFile,
+  AgentContextView,
+  WorkspaceHome,
+  WorkspaceRemoval,
 } from "../types/api";
 import type { FlowTrace } from "@neokapi/flow-editor";
 
@@ -415,10 +417,26 @@ export const api = {
   // Returns the chosen path, "" when the user cancels, or null outside Wails.
   browsePath: (req: BrowsePathRequest) => call<string>("BrowsePath", req),
 
-  // Recent files
-  listRecentFiles: () => call<RecentFile[]>("ListRecentFiles"),
-  removeRecentFile: (path: string) => call<void>("RemoveRecentFile", path),
-  clearRecentFiles: () => call<void>("ClearRecentFiles"),
+  // The workspace: every project this machine account works on, registered by
+  // whichever surface ran kapi in it.
+  listWorkspaceProjects: () => call<WorkspaceHome>("ListWorkspaceProjects"),
+  /** What removing a project will delete, for the confirmation. */
+  workspaceRemovalFor: (key: string) => call<WorkspaceRemoval>("WorkspaceRemovalFor", key),
+  /** Remove a project and the context the workspace holds for it. */
+  forgetWorkspaceProject: (key: string) => call<void>("ForgetWorkspaceProject", key),
+  /** Open a project no checkout on this machine carries, on its context alone. */
+  openWorkspaceContext: (key: string) => call<TabInfo>("OpenWorkspaceContext", key),
+
+  /** The resolved context for one file, as an agent receives it. */
+  agentContextAt: (tabID: string, path: string, limit: number) =>
+    call<AgentContextView>("AgentContextAt", tabID, path, limit),
+  /** The values one context dimension can take in the open project. */
+  contextOptions: (tabID: string, dimension: string) =>
+    call<Array<{ value: string; label?: string; count?: number }>>(
+      "ContextOptions",
+      tabID,
+      dimension,
+    ),
 
   // Settings
   getSettings: () =>

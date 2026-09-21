@@ -10,16 +10,17 @@
 // languages is not shown a surface it has nothing to put in.
 
 import { useState } from "react";
-import { BookOpen, Compass, Database, MessageSquareQuote } from "lucide-react";
+import { BookOpen, Bot, Compass, Database, MessageSquareQuote } from "lucide-react";
 import { cn } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
+import { AgentContextPane } from "./AgentContextPane";
 import { ContextExplorerView } from "./ContextExplorerView";
 import { VoicePage } from "./VoicePage";
 import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
 
 /** The surfaces filed under Context. */
-export type ContextSection = "explorer" | "voice" | "terms" | "memory";
+export type ContextSection = "explorer" | "agent" | "voice" | "terms" | "memory";
 
 /** A point to open the explorer standing at, and what sent it there. */
 export interface ContextPin {
@@ -40,6 +41,12 @@ export interface ContextHubProps {
   pin?: ContextPin;
   /** Whether the project declares targets. Memory appears when it does. */
   hasTargetLanguages?: boolean;
+  /**
+   * A tab over a project's context alone: the workspace holds the project and
+   * no checkout on this machine carries it. The sections that read files stay
+   * out of a tab that has none.
+   */
+  contextOnly?: boolean;
 }
 
 const SECTIONS: Array<{
@@ -47,9 +54,20 @@ const SECTIONS: Array<{
   label: string;
   icon: React.ReactNode;
   localeGated?: boolean;
+  /**
+   * Reads the recipe or the files beside it, so a context-only tab does not
+   * offer it: there is no checkout behind that tab to read either from.
+   */
+  needsCheckout?: boolean;
 }> = [
-  { id: "explorer", label: "Explorer", icon: <Compass size={14} /> },
-  { id: "voice", label: "Voice", icon: <MessageSquareQuote size={14} /> },
+  { id: "explorer", label: "Explorer", icon: <Compass size={14} />, needsCheckout: true },
+  { id: "agent", label: "Agent View", icon: <Bot size={14} />, needsCheckout: true },
+  {
+    id: "voice",
+    label: "Voice",
+    icon: <MessageSquareQuote size={14} />,
+    needsCheckout: true,
+  },
   { id: "terms", label: "Terms", icon: <BookOpen size={14} /> },
   { id: "memory", label: "Content Memory", icon: <Database size={14} />, localeGated: true },
 ];
@@ -60,14 +78,22 @@ export function ContextHub({
   section,
   pin,
   hasTargetLanguages,
+  contextOnly,
 }: ContextHubProps) {
   const [active, setActive] = useState<ContextSection>(section ?? "explorer");
   // A pin set from inside the hub (the memory browser opening a unit) rather
   // than handed in by the router.
   const [unitPin, setUnitPin] = useState<ContextPin | null>(null);
-  const sections = SECTIONS.filter((s) => !s.localeGated || hasTargetLanguages);
-  // A section the project's languages gated away must not stay selected.
-  const current = sections.some((s) => s.id === active) ? active : "explorer";
+  // A context-only tab holds the whole of a project's context and none of its
+  // files, so the language gate does not apply there: the content memory is
+  // one of the two things such a tab exists to show.
+  const sections = SECTIONS.filter(
+    (s) =>
+      (!s.localeGated || hasTargetLanguages || contextOnly) && (!s.needsCheckout || !contextOnly),
+  );
+  // A section the project's languages or its missing checkout gated away must
+  // not stay selected.
+  const current = sections.some((s) => s.id === active) ? active : sections[0].id;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -97,6 +123,7 @@ export function ContextHub({
         {current === "explorer" && (
           <ContextExplorerView tabID={tabID} projectName={projectName} pin={unitPin ?? pin} />
         )}
+        {current === "agent" && <AgentContextPane tabID={tabID} path={pin?.path} />}
         {current === "voice" && <VoicePage tabID={tabID} />}
         {current === "terms" && <TermsPage tabID={tabID} />}
         {current === "memory" && (

@@ -17,6 +17,7 @@ export {
     AddMemoryEntryRequest,
     AddRelationRequest,
     AdoptFlowResult,
+    AgentContextView,
     AnnotateEntitiesRequest,
     AnnotateResult,
     AppSettings,
@@ -96,7 +97,6 @@ export {
     ProviderInfo,
     ProviderSaveRequest,
     ProviderTypeInfo,
-    RecentFile,
     RecipeAxisDTO,
     RecipeGovernanceDTO,
     RelationDTO,
@@ -133,5 +133,9 @@ export {
     VoicePointDTO,
     VoicePointerDTO,
     VoiceSaveResult,
-    VoiceValidityDTO
+    VoiceValidityDTO,
+    WorkspaceCheckout,
+    WorkspaceHome,
+    WorkspaceProject,
+    WorkspaceRemoval
 } from "./models.js";

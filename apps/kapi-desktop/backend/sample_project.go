@@ -169,8 +169,8 @@ func (a *App) AcknowledgeSampleRevision(tabID string) error {
 // Deleting the whole store is the documented trade of merging the four files:
 // content memory, terms, block cache and working set go together. It is
 // affordable because every one of them is a projection rebuilt from committed
-// sources — except staged decisions, which are decisions nobody has committed
-// on a sample being re-scaffolded anyway.
+// sources, and because the decision ledger is in the workspace rather than in
+// this file.
 func (a *App) resetProjectStore(root string) error {
 	if err := a.hostEngine().CloseProjectDB(root); err != nil {
 		return err
