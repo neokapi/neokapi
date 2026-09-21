@@ -1,7 +1,7 @@
 ---
 title: Your first project
-description: "Create a kapi project in Kapi Desktop, from your AI assistant, or on the command line, and bring it to its first green ship gate."
-keywords: [kapi, project, first project, Kapi Desktop, kapi init, kapi up, ship gate]
+description: "Create a kapi project in Kapi Desktop, from your AI assistant, or on the command line, then work as you normally would and confirm what your agent noticed."
+keywords: [kapi, project, first project, Kapi Desktop, kapi init, context, candidate, confirm, kapi check]
 ---
 
 import Tabs from "@theme/Tabs";
@@ -10,18 +10,50 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Your first project
 
-A project is a committed recipe (`kapi.yaml`) plus a store that remembers your work: approvals, content memory, terminology. Set it up once and every surface works the same project: the desktop app, your AI assistant, and the CLI. A new project starts source-only (checks, voice, terminology); [add languages](/kapi/get-started/add-languages) when you want them.
+A project is a committed recipe (`kapi.yaml`) that says which files count as
+content, plus the wiring that lets the coding agents in your repository reach
+kapi. Set it up once and every surface works the same project: the desktop app,
+your assistant, and the CLI.
+
+**Your project starts with an empty context**, and that is the normal state on
+day one. It has no terms, no approved wording and no house rules, because the
+words a project cares about are the ones it turns out to use. The context fills
+as you and your agents work: an agent records what it notices, you confirm what
+is right, and from then on `kapi check` holds new writing to it.
+
+A new project is source-only, so the loop below is about your own writing.
+[Add languages](/kapi/get-started/add-languages) when you want them.
+
+## 1. Create the project
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-Install [Kapi Desktop](/kapi/get-started/installation#install-kapi-desktop) and open it. On first open, the **Connect your AI** card offers whatever it detects (a Claude Code sign-in that [uses your Claude subscription](/kapi/get-started/use-with-claude#let-kapi-run-claude) with no key, a local Ollama model, or a stored API key) in one click; or skip and use the demo engine.
+Install [Kapi Desktop](/kapi/get-started/installation#install-kapi-desktop) and
+open it. On first open, the **Connect your AI** card offers whatever it detects
+(a Claude Code sign-in that
+[uses your Claude subscription](/kapi/get-started/use-with-claude#let-kapi-run-claude)
+with no key, a local Ollama model, or a stored API key) in one click; or skip
+and use the demo engine.
 
-1. **Create the project.** On the home screen, click **New Project**, name it, and pick a source language. Or click **KapiMart** under *sample projects* to explore a realistic, pre-seeded project first: content collections, a bound voice profile and terms, five target languages, and a stocked content memory.
-2. **Add content.** In the **Project** view, add a pattern that matches your source files (for example `docs/**/*.md`). Kapi lists the matched files and the detected format, grouped into a collection.
-3. **Read where it stands.** The project home says where the project is on two axes: **Content** (what has been read in, what changed on disk, what is missing) and **Governance** (the voice profile in force, the terms bound, when it last converged). Below, the **point map** gives one row per point the recipe declares. Bind a voice profile and set the default point under **Project Settings**; the **Context** hub then shows what applies at any file.
-4. **Bring it up to date.** **Bring up to date** runs the project's default flow until every gated scope is shippable or parked for a person, the desktop form of `kapi up`. For a source-only project that means the checks; once you [add languages](/kapi/get-started/add-languages), per-language coverage appears on the collections it applies to.
-5. **Review what parked.** Anything a machine can't decide lands in the **Review** queue. See [Review & approve](/kapi/recipes/review-and-approve).
+1. **Create the project.** On the home screen, click **New Project**, name it,
+   and pick a source language. Or click **KapiMart** under *sample projects* to
+   explore a realistic, pre-seeded project first: content collections, a bound
+   voice profile and terms, five target languages, and a stocked content memory.
+2. **Add content.** In the **Project** view, add a pattern that matches your
+   source files (for example `docs/**/*.md`). Kapi lists the matched files and
+   the detected format, grouped into a collection.
+3. **Read where it stands.** The project home says where the project is on two
+   axes: **Content** (what has been read in, what changed on disk, what is
+   missing) and **Governance** (the voice profile in force, the terms bound,
+   when it last converged). Below, the **point map** gives one row per point the
+   recipe declares. Bind a voice profile and set the default point under
+   **Project Settings**; the **Context** hub then shows what applies at any file.
+4. **Bring it up to date.** **Bring up to date** runs the project's default flow
+   until every gated scope is shippable or parked for a person, the desktop form
+   of `kapi up`. For a source-only project that means the checks. Anything a
+   machine cannot decide lands in the **Review** queue; see
+   [Review & approve](/kapi/recipes/review-and-approve).
 
 <PendingMedia kind="video" scene="harness/demos/kapi-desktop-projects/demo.yaml">
   Creating a project from the New Project dialog, opening the KapiMart sample,
@@ -31,52 +63,195 @@ Install [Kapi Desktop](/kapi/get-started/installation#install-kapi-desktop) and 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
 
-With the [Kapi skill or MCP server](/kapi/get-started/use-with-claude) connected, ask for the project:
+With the [Kapi skill or MCP server](/kapi/get-started/use-with-claude)
+connected, ask for the project:
 
 > Set kapi up for this project.
 
-Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known i18n layout), adds the content patterns it finds, drafts a voice profile from your existing copy, and proposes terms for you to approve. The result is committed: a recipe, a voice profile, a terms source, and a section in `CLAUDE.md` saying the voice is held by kapi, so the next session asks for it before writing. From there your prompts stay short; "check this is on brand" needs no flags, because the recipe carries them.
+Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known
+i18n layout) and adds the content patterns it finds. What it writes is
+committed: a recipe, a starter voice profile, and a section in `CLAUDE.md`
+saying the voice is held by kapi, so the next session asks for it before
+writing. From there your prompts stay short; "check this is on brand" needs no
+flags, because the recipe carries them.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
 
-[Install the CLI](/kapi/get-started/installation), then from your content directory:
+[Install the CLI](/kapi/get-started/installation), then from your content
+directory:
 
 ```bash
-kapi init                      # scaffold kapi.yaml + the .kapi/ store (source-only)
+kapi init                      # scaffold kapi.yaml + .kapi/, and wire your agents
 kapi add "docs/**/*.md"        # declare the content; format auto-detected
-kapi stats                     # blocks, words, characters for what's tracked
-kapi check                     # check the project's content; exit 3 on gate fail
 ```
 
-For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`, …) pre-fills the content mapping; `kapi init --list-presets` lists them.
+`kapi init` names every file as it writes it:
 
-A scaffolded project binds a starter voice, so `kapi init` also writes a short section into the project's assistant file: an existing `CLAUDE.md` or `AGENTS.md` at the root, or a new `CLAUDE.md`. The section says the voice is held by kapi and that `kapi voice guide` retrieves it, so an assistant working in the tree asks before it writes. It sits between `<!-- kapi:voice -->` markers and is replaced in place on every run; the rest of the file is yours. A section that landed in `AGENTS.md` reaches an assistant limited to `CLAUDE.md` through an import line, `@AGENTS.md`. `kapi init --no-pointer` skips it, and `kapi voice pointer` writes or refreshes it on an existing project.
+```
+Initialized kapi project "acme-docs"
+  recipe: /path/to/acme-docs/kapi.yaml
+  state:  /path/to/acme-docs/.kapi
+  mcp:    .mcp.json (created: kapi mcp --project kapi.yaml)
+  skill:  .claude/skills/kapi (created: 24 files)
+  agents: /path/to/acme-docs/CLAUDE.md (voice pointer for assistants)
+```
 
-`kapi init` also wires the project for the coding agents that work in it, naming every file as it writes it: an MCP entry that starts `kapi mcp` for this project, and a copy of the kapi skill. Choose the agents with `--agents`, or opt out with `--agents none`. See [what `kapi init` wires up](/kapi/get-started/use-with-claude#what-kapi-init-wires-up).
+The last three lines are the wiring: an MCP entry that starts `kapi mcp` for
+this project, a copy of the kapi skill, and a short section in `CLAUDE.md`
+pointing an assistant at the voice. Choose the agents with `--agents`, or opt
+out with `--agents none`. See
+[what `kapi init` wires up](/kapi/get-started/use-with-claude#what-kapi-init-wires-up).
 
-The recipe is plain YAML, and the governance a source-only project checks against is bound under `defaults:`:
+For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`,
+…) pre-fills the content mapping; `kapi init --list-presets` lists them.
+
+The recipe is plain YAML, and what governs a source-only project sits under
+`defaults:`:
 
 ```yaml title="kapi.yaml"
 version: v1
-name: my-app
+id: prj_fbqdv5uoovvpkaarpy5vnexhaq
+name: acme-docs
 defaults:
   source_language: en
-  voice: .kapi/voice.yaml            # the voice profile: kapi voice new --pack <pack> -o .kapi/voice.yaml
-  terms_source: .kapi/terms.json     # the committed terms record: kapi terms import / kapi apply write it
-  coordinates:
-    brand: my-app                    # a declared axis every collection inherits
+  voice:
+    pack: professional-b2b
 collections:
   - path: "docs/**/*.md"
 ```
 
-Commit the recipe **and `.kapi/`**: that directory is your project's context (terms, content memory, voice profile, and the record of where each unit stands in review), and it belongs in review like the rest of your source. `kapi init` writes a two-line ignore rule for the one part that is not: `.kapi/work/`, where the [project store](/kapi/project-store) and its caches are derived, plus `.kapi/filters.local.json` for your personal reader settings. Every kapi command run anywhere in the tree finds the project by walking up, like git. See the [project file reference](/reference/project-file) for the full schema. When you're ready for AI-backed steps, `kapi models setup` detects what you already have (a Claude Code sign-in, Ollama, or an API key) and confirms it as the default ([Use with Claude](/kapi/get-started/use-with-claude)).
+`id:` is the project's identity. It survives a rename, a move and a clone, and
+it is what joins two checkouts of one repository to one context. Keep it.
+
+Commit the recipe **and `.kapi/`**. That directory holds the files your context
+is written into as you confirm things: the terms, the voice profile, the
+content-memory bundles and the record of where each unit stands in review. They
+belong in review like the rest of your source. `kapi init` writes a two-line
+ignore rule for the one part that is not, `.kapi/work/`, where
+[everything derived from your files](/kapi/project-store) goes, plus
+`.kapi/filters.local.json` for your personal reader settings.
+
+Every kapi command run anywhere in the tree finds the project by walking up,
+like git. See the [project file reference](/reference/project-file) for the full
+schema. When you want AI-backed steps, `kapi models setup` detects what you
+already have and confirms it as the default
+([Use with Claude](/kapi/get-started/use-with-claude)).
 
 </TabItem>
 </Tabs>
 
+## 2. Work as you normally would
+
+There is no step here called *set up your context*. Open your assistant in the
+repository and give it an ordinary writing task: fix a page, draft a section,
+rename a feature across the docs. Claude Code asks you to approve the project
+MCP server the first time, so review `.mcp.json` the way you would any file a
+repository ships.
+
+While it works, the agent reads what applies at each file it touches and
+**records what it notices**: how you spell your own product, which word you use
+where two would do, and every wording you change in its draft. Each of those is
+recorded as a **candidate** with the file it came from. It ends its report with
+what the session recorded.
+
+Nothing it records is in force. Checks report candidates and fail on none of
+them, so an agent can keep recording while you work without any risk of
+stopping a build.
+
+## 3. Read what it recorded
+
+```bash
+kapi context log
+```
+
+On a project where nothing has happened yet:
+
+```
+No context operations are recorded here yet.
+```
+
+After a session:
+
+```
+#3  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  propose  term "utilise", use "use"  [candidate]
+  seen in docs/guide.md: "We utilise the widget to configure your account."
+  Every other page in docs/ says "use".
+#2  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  note "The product is written \"Acme Widget\" in headings and \"the widget\" in running text."  [candidate]
+  seen in docs/guide.md: "We utilise the widget to configure your account."
+```
+
+Every line carries who recorded it, what it is about, where it stands, and the
+file and sentence it was seen in. `--status candidate` narrows the list to what
+is waiting for you, and `--session <id>` to one agent run.
+
+In Kapi Desktop the same log is the **Recorded** feed: on the home screen across
+every project, and in a project's **Context** hub for that project alone. It
+groups by session, and the evidence sits on the card, because a decision taken
+without it is a guess.
+
+## 4. Confirm what is right
+
+```bash
+kapi context confirm 3
+```
+
+```
+#4  2026-09-21T19:23:01Z  person  confirm  of #3
+  written to terms.json
+```
+
+Confirming writes the rule into the file your recipe binds, so `git diff` shows
+the decision like any other change. Change it as you confirm it with `--use` and
+`--severity`, or turn it down with `kapi context discard 3`. Either way the
+record stays in the log, so the same suggestion is recognisable the next time
+somebody makes it.
+
+Deciding is yours. An agent observes, proposes and records corrections, and it
+has no verb for confirming, discarding someone else's work, reverting or
+widening. [Growing context](/kapi/context-decisions) covers the whole set of
+verbs, including undoing a whole agent session in one command.
+
+## 5. Check
+
+```bash
+kapi check docs/guide.md
+```
+
+Before you confirmed anything, the proposal read as a note and the check passed:
+
+```
+  severity  rule              location                                    message
+  NEUTRAL   voice.vocabulary  docs/guide.md:getting-started/next-steps/p  Proposed rule about "utilise", not yet confirmed: Every other page in docs/ says "use".
+                                                                          ↳ Use "use" instead
+  NEUTRAL   voice.vocabulary  docs/guide.md:getting-started/p             Proposed rule about "utilise", not yet confirmed: Every other page in docs/ says "use".
+                                                                          ↳ Use "use" instead
+
+PASS configured checks: score 100/100 · 2 finding(s) (0 critical, 0 major, 0 minor)
+```
+
+After confirming, the same word is a rule and bites at the severity it carries:
+
+```
+  severity  rule              location                                    message
+  MAJOR     voice.vocabulary  docs/guide.md:getting-started/next-steps/p  Forbidden term "utilise" found in terms
+                                                                          ↳ Use "use" instead
+  MAJOR     voice.vocabulary  docs/guide.md:getting-started/p             Forbidden term "utilise" found in terms
+                                                                          ↳ Use "use" instead
+
+PASS configured checks: score 90/100 · 2 finding(s) (0 critical, 2 major, 0 minor)
+```
+
+Run `kapi check` with no path to check the whole project, and `kapi check
+--ship` to enforce release policy. It exits `3` when a gate is unmet, which is
+what makes it a CI step: see [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
+
+That is the loop. Every further session adds to what the project knows, and each
+thing it knows is something a person said yes to.
+
 ## Next
 
 - [Add languages](/kapi/get-started/add-languages): target locales, `kapi up`, review, gates.
+- [Growing context](/kapi/context-decisions): every verb that records and decides, and how to undo a session.
 - [Projects](/kapi/projects): the concept; ad-hoc vs project, bindings, the store.
-- [Set up your brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes): the source-quality half.
+- [Set up your brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes): writing a voice profile by hand, when you want one.
