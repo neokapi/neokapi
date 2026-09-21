@@ -65,9 +65,13 @@ export function AgentContextPane({ tabID, path }: AgentContextPaneProps) {
           <SelectContent>
             {files.map((file) => (
               <SelectItem key={file.value} value={file.value}>
-                {file.value}
+                {/* A path and the collection claiming it are the project's own
+                    content, so neither is translated. */}
+                <span translate="no">{file.value}</span>
                 {file.label && (
-                  <span className="ml-2 text-xs text-muted-foreground">{file.label}</span>
+                  <span translate="no" className="ml-2 text-xs text-muted-foreground">
+                    {file.label}
+                  </span>
                 )}
               </SelectItem>
             ))}
