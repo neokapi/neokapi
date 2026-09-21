@@ -143,11 +143,10 @@ already have and confirms it as the default
 
 ## 2. Work as you normally would
 
-There is no step here called *set up your context*. Open your assistant in the
-repository and give it an ordinary writing task: fix a page, draft a section,
-rename a feature across the docs. Claude Code asks you to approve the project
-MCP server the first time, so review `.mcp.json` the way you would any file a
-repository ships.
+The next step is the work itself. Open your assistant in the repository and give
+it an ordinary writing task: fix a page, draft a section, rename a feature
+across the docs. Claude Code asks you to approve the project MCP server the
+first time, so review `.mcp.json` the way you would any file a repository ships.
 
 While it works, the agent reads what applies at each file it touches and
 **records what it notices**: how you spell your own product, which word you use
@@ -246,8 +245,8 @@ Run `kapi check` with no path to check the whole project, and `kapi check
 --ship` to enforce release policy. It exits `3` when a gate is unmet, which is
 what makes it a CI step: see [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
-That is the loop. Every further session adds to what the project knows, and each
-thing it knows is something a person said yes to.
+Repeat steps 2 to 5 as you work. Each session adds to what the project holds,
+and a person decided every part of it.
 
 ## Next
 
