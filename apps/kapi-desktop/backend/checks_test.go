@@ -385,6 +385,48 @@ func TestRunChecksOperationalFailuresReturnNoResult(t *testing.T) {
 	}
 }
 
+// TestRunChecksResolvesAVoiceBoundByName: a recipe that names its profile
+// instead of pointing at a file has nothing in the checkout to fall back on,
+// so the panel produces vocabulary findings only when the run asks the
+// project's voice store for the profile the recipe names.
+func TestRunChecksResolvesAVoiceBoundByName(t *testing.T) {
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "locales")
+	require.NoError(t, os.MkdirAll(srcDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "en.json"),
+		[]byte(`{"greeting":"Please utilize the dashboard"}`), 0o644))
+
+	// The profile reaches the store through the layout an import reads; the
+	// recipe then selects it by the id it was filed under.
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(dir, project.RelStatePath("voice.yaml")), []byte(houseVoiceYAML), 0o644))
+
+	projPath := filepath.Join(dir, "proj.kapi")
+	require.NoError(t, project.Save(projPath, &project.KapiProject{
+		Version: project.CurrentVersion,
+		Defaults: project.Defaults{
+			SourceLanguage: "en",
+			Voice:          &project.VoiceBinding{Profile: "house"},
+		},
+		Collections: []project.Collection{
+			{Path: "locales/en.json", Target: "locales/{lang}.json"},
+		},
+	}))
+	readContextAt(t, projPath)
+
+	app := NewApp()
+	tab, err := app.OpenProject(projPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	res, err := app.RunChecks(tab.ID, ProjectFilter{})
+	require.NoError(t, err)
+	require.Len(t, res.Files, 1)
+	require.NotEmpty(t, res.Files[0].Findings, "the named profile governs the file")
+	assert.Equal(t, "utilize", res.Files[0].Findings[0].Rule)
+}
+
 // TestRunChecksIgnoresAMalformedProfileInTheCheckout: a gate answers from the
 // store, so a voice profile the checkout cannot parse changes nothing about
 // the run.

@@ -384,10 +384,13 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	}
 
 	// The configuration warnings of each profile the run resolved, once each,
-	// as `kapi check` reports them.
+	// as `kapi check` reports them. A profile the run named from the store is
+	// read back out of it, so the panel reports on the profile that governed.
+	voiceStore, releaseVoiceStore := points.store(ctx)
+	defer releaseVoiceStore()
 	var warnings []check.Warning
 	for _, source := range points.loadedSources() {
-		found, werr := capp.VoiceProfileWarnings(ctx, points.store(ctx), source)
+		found, werr := capp.VoiceProfileWarnings(ctx, voiceStore, source)
 		if werr != nil {
 			return nil, fmt.Errorf("voice profile warnings: %w", werr)
 		}
@@ -594,11 +597,6 @@ type pointResolver struct {
 	terms  map[string]terms.Terminology
 	// sources are where the profiles the resolver loaded came from, each once.
 	sources []string
-	// voiceStore is the project's voice store on the shared pool, opened on
-	// first use and held for the operation. A profile lives in the user's
-	// workspace, so a resolution without it finds nothing.
-	voiceStore     coreprofile.Store
-	voiceStoreOpen bool
 }
 
 // newPointResolver builds a resolver for one operation over one project. held
@@ -701,8 +699,15 @@ func (v *pointResolver) load(ctx context.Context, pt project.GovernancePoint) *c
 		v.app.checksMu.Lock()
 		defer v.app.checksMu.Unlock()
 	}
-	p, source, ok, err := v.app.checksCLI().ResolveVoiceProfile(
-		ctx, v.proj, v.root, host.VoiceResolveOptions{Point: pt, Store: v.store(ctx)},
+	engine := v.app.checksCLI()
+	store, release, serr := engine.ProjectVoiceStore(ctx, v.root)
+	if serr != nil {
+		v.err = serr
+		return nil
+	}
+	defer release()
+	p, source, ok, err := engine.ResolveVoiceProfile(
+		ctx, v.proj, v.root, host.VoiceResolveOptions{Point: pt, Store: store},
 	)
 	if err != nil {
 		v.err = err
@@ -717,29 +722,21 @@ func (v *pointResolver) load(ctx context.Context, pt project.GovernancePoint) *c
 	return p
 }
 
-// store returns the project's voice store, opening it on first use. A recipe
-// binds a voice by name or by the path `kapi context import` filed it under,
-// and the store is what answers for either, so a resolution without it reports
-// nothing bound. Best-effort: a store this build cannot open reads as nil, and
-// the voice checks are then skipped.
-func (v *pointResolver) store(ctx context.Context) coreprofile.Store {
+// store returns the project's voice store, for a caller that reports on a
+// profile the resolver loaded. A recipe binds a voice by name or by the path
+// `kapi context import` filed it under, and the store answers for either.
+// Best-effort: a store this build cannot open reads as nil.
+func (v *pointResolver) store(ctx context.Context) (coreprofile.Store, func()) {
+	noop := func() {}
 	if v == nil {
-		return nil
+		return nil, noop
 	}
-	if v.voiceStoreOpen {
-		return v.voiceStore
-	}
-	v.voiceStoreOpen = true
 	store, release, err := v.app.checksCLI().ProjectVoiceStore(ctx, v.root)
 	if err != nil {
 		v.err = err
-		return nil
+		return nil, noop
 	}
-	// The handle belongs to the project pool, so the release is a no-op and the
-	// store stays usable for the rest of the operation.
-	release()
-	v.voiceStore = store
-	return store
+	return store, release
 }
 
 // loadedSources are where the profiles the resolver loaded came from, each once,

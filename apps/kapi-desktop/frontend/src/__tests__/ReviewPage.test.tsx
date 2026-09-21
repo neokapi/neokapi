@@ -673,7 +673,7 @@ describe("ReviewPage review model", () => {
     expect(match?.textContent).toContain("Bonjour {name} !");
   });
 
-  it("says the content memory is unread, not empty, before it has been compiled", async () => {
+  it("says the context is unread, not empty, before a copy has read it in", async () => {
     const loadUnit = vi.fn(async (item: ReviewItem) => ({
       ...unitFor(item),
       context: { ...CONTEXT, history: { unread: true } },
@@ -691,8 +691,8 @@ describe("ReviewPage review model", () => {
     // A fresh clone's store answers empty for wording the project has already
     // approved; "no close match" would be a claim about the memory's contents.
     expect(empty.textContent).not.toContain("no close match");
-    expect(empty.textContent).toContain("has not been read");
-    expect(empty.textContent).toContain("Bring up to date");
+    expect(empty.textContent).toContain("have not been read");
+    expect(empty.textContent).toContain("kapi context import");
   });
 
   it("names the provenance card and carries the decision in force", async () => {
