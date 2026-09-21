@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/storage"
@@ -150,12 +151,8 @@ func (w *Workspace) AgentSessions(ctx context.Context, project ProjectKey, activ
 		where = append(where, `last_seen >= ?`)
 		args = append(args, time.Now().Add(-activeWithin).UTC().Format(time.RFC3339Nano))
 	}
-	for i, clause := range where {
-		if i == 0 {
-			query += ` WHERE ` + clause
-			continue
-		}
-		query += ` AND ` + clause
+	if len(where) > 0 {
+		query += ` WHERE ` + strings.Join(where, ` AND `)
 	}
 	query += ` ORDER BY last_seen DESC, id`
 

@@ -1003,7 +1003,7 @@ func candidateLine(c ContextCandidate) string {
 		}
 	}
 	if len(seen) > 0 {
-		fmt.Fprintf(&b, " — seen in %s", strings.Join(seen, ", "))
+		fmt.Fprintf(&b, ", seen in %s", strings.Join(seen, ", "))
 	}
 	var by []string
 	if c.ProposedBy != "" {

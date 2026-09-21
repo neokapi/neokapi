@@ -82,10 +82,10 @@ func TestMCPAgentActorIsAlwaysAnAgent(t *testing.T) {
 	} {
 		err := contextop.PersonDecides(contextop.Transition{Actor: actor, Kind: kind, Targeted: true})
 		if refused {
-			assert.ErrorIsf(t, err, contextop.ErrRefused, "an agent may not %s", kind)
+			require.ErrorIsf(t, err, contextop.ErrRefused, "an agent may not %s", kind)
 			continue
 		}
-		assert.NoErrorf(t, err, "an agent may %s", kind)
+		require.NoErrorf(t, err, "an agent may %s", kind)
 	}
 }
 

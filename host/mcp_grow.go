@@ -457,13 +457,13 @@ func sessionReport(s contextSessionOutput) string {
 	}
 	var parts []string
 	if s.Observed > 0 {
-		parts = append(parts, fmt.Sprintf("%s observed", plural(s.Observed, "fact", "facts")))
+		parts = append(parts, plural(s.Observed, "fact", "facts")+" observed")
 	}
 	if s.Proposed > 0 {
-		parts = append(parts, fmt.Sprintf("%s proposed", plural(s.Proposed, "rule", "rules")))
+		parts = append(parts, plural(s.Proposed, "rule", "rules")+" proposed")
 	}
 	if s.Corrected > 0 {
-		parts = append(parts, fmt.Sprintf("%s recorded", plural(s.Corrected, "correction", "corrections")))
+		parts = append(parts, plural(s.Corrected, "correction", "corrections")+" recorded")
 	}
 	report := "Context, session " + s.Session + ": " + strings.Join(parts, ", ") + "."
 	if s.Candidates > 0 {

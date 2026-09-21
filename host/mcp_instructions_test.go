@@ -56,12 +56,12 @@ func TestMCPInstructionsReadAsInstructions(t *testing.T) {
 func TestMCPInstructionsCarryTheFourHabits(t *testing.T) {
 	text := MCPInstructions()
 	for habit, name := range map[string]string{
-		"ask what applies before writing":       "context://",
-		"record what you notice while reading":  "context_observe",
-		"propose a rule with the evidence":      "context_propose",
-		"record the person's correction":        "context_correct",
+		"ask what applies before writing":           "context://",
+		"record what you notice while reading":      "context_observe",
+		"propose a rule with the evidence":          "context_propose",
+		"record the person's correction":            "context_correct",
 		"check what you changed before saying done": "check_file",
-		"report what the session recorded":      "context_session_summary",
+		"report what the session recorded":          "context_session_summary",
 	} {
 		assert.Containsf(t, text, name, "the instructions carry the habit: %s", habit)
 	}
