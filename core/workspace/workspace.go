@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -115,6 +116,8 @@ func (w *Workspace) Ops(ctx context.Context, after int64, limit int) ([]Op, erro
 //
 // A surface that keeps a view of the workspace on screen reads it to learn that
 // something changed: one number, whoever wrote it and from whichever process.
+// A retrieval answer reports the same number as the revision it was read at, so
+// two answers carrying one head were read from one state of the context.
 func (w *Workspace) Head(ctx context.Context) (int64, error) {
 	return w.backend.Head(ctx)
 }
@@ -146,6 +149,36 @@ func (w *Workspace) Register(ctx context.Context, key ProjectKey, name, checkout
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	// What the registry already holds, read before the upsert overwrites it.
+	// Opening a project is the most frequent thing that happens to a
+	// workspace, and an operation per open would make the log's position move
+	// whenever anyone looked at anything. The position is what a retrieval
+	// answer reports as the state it was read at, so it has to move when the
+	// workspace changed and stay still otherwise.
+	var (
+		priorName string
+		known     bool
+	)
+	switch err := tx.QueryRowContext(ctx,
+		`SELECT name FROM workspace_projects WHERE key = ?`, string(key)).Scan(&priorName); {
+	case errors.Is(err, sql.ErrNoRows):
+	case err != nil:
+		return Registration{}, fmt.Errorf("workspace: register %s: %w", key, err)
+	default:
+		known = true
+	}
+	newCheckout := false
+	if checkout != "" {
+		var held int
+		if err := tx.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM workspace_checkouts WHERE project = ? AND path = ?`,
+			string(key), checkout).Scan(&held); err != nil {
+			return Registration{}, fmt.Errorf("workspace: register checkout of %s: %w", key, err)
+		}
+		newCheckout = held == 0
+	}
+	moved := !known || newCheckout || (name != "" && name != priorName)
+
 	if _, err := tx.ExecContext(ctx, `
 INSERT INTO workspace_projects (key, name, last_active) VALUES (?, ?, ?)
 ON CONFLICT(key) DO UPDATE SET
@@ -166,17 +199,19 @@ ON CONFLICT(project, path) DO UPDATE SET seen_at = excluded.seen_at`,
 		return Registration{}, fmt.Errorf("workspace: register %s: %w", key, err)
 	}
 
-	payload, err := json.Marshal(struct {
-		Name     string `json:"name,omitempty"`
-		Checkout string `json:"checkout,omitempty"`
-	}{Name: name, Checkout: checkout})
-	if err != nil {
-		return Registration{}, fmt.Errorf("workspace: describe registration of %s: %w", key, err)
-	}
-	if _, err := w.backend.Record(ctx, Op{
-		Project: key, Kind: OpRegisterProject, Payload: payload, At: now,
-	}); err != nil {
-		return Registration{}, err
+	if moved {
+		payload, err := json.Marshal(struct {
+			Name     string `json:"name,omitempty"`
+			Checkout string `json:"checkout,omitempty"`
+		}{Name: name, Checkout: checkout})
+		if err != nil {
+			return Registration{}, fmt.Errorf("workspace: describe registration of %s: %w", key, err)
+		}
+		if _, err := w.backend.Record(ctx, Op{
+			Project: key, Kind: OpRegisterProject, Payload: payload, At: now,
+		}); err != nil {
+			return Registration{}, err
+		}
 	}
 
 	reg, _, err := w.Lookup(ctx, key)

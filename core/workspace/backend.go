@@ -140,7 +140,9 @@ type Backend interface {
 	//
 	// It is what a surface watching the workspace for change reads: one number
 	// per poll, rather than the operations themselves. A process that has seen
-	// Head can ask Since for what it missed.
+	// Head can ask Since for what it missed. It is also the revision a
+	// retrieval answer reports as the state it was read at. Both callers read
+	// it repeatedly, so it costs one query rather than a walk of the log.
 	Head(ctx context.Context) (int64, error)
 
 	// Close releases every handle the backend opened. It is idempotent.

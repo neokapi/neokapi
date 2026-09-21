@@ -2,10 +2,12 @@ package cli
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/neokapi/neokapi/cli/skills"
 	"github.com/neokapi/neokapi/host/output"
 )
 
@@ -24,6 +26,7 @@ func NewInitCmd(a *App) *cobra.Command {
 		listPresets  bool
 		noPointer    bool
 		mintID       bool
+		agents       string
 	)
 	cmd := &cobra.Command{
 		Use:     "init",
@@ -58,7 +61,18 @@ the voice is held by kapi and retrieves it with 'kapi voice guide' before
 writing. An existing CLAUDE.md or AGENTS.md at the root takes the section
 (CLAUDE.md when both exist); with neither, kapi init creates CLAUDE.md.
 Re-running replaces the section in place and leaves the rest of the file
-alone. --no-pointer skips it; 'kapi voice pointer' writes it later.`,
+alone. --no-pointer skips it; 'kapi voice pointer' writes it later.
+
+kapi init also wires the project up for the coding agents that work in it, so
+an agent opened here finds kapi with no further setup: an MCP server entry that
+starts 'kapi mcp' for this project, and a copy of the kapi skill in the
+directory the agent reads skills from. Claude Code is always wired; Cursor and
+VS Code are wired where the project already keeps their directory. --agents
+takes a comma-separated list (claude-code, cursor, vscode, agents), 'all', or
+'none'. Every path written is inside the project, an entry someone else put
+there is left as it is, and re-running writes nothing new. Running kapi init on
+a project that already has a recipe is how an existing project gets the same
+wiring.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// --list-presets: print the preset catalog and exit (absorbs the
 			// former `kapi presets list`, #1078 C1).
@@ -70,6 +84,12 @@ alone. --no-pointer skips it; 'kapi voice pointer' writes it later.`,
 				framework = presetName
 			}
 			root, err := ResolveDir(dir)
+			if err != nil {
+				return err
+			}
+			// Read before anything is written, so a name kapi does not know
+			// fails the command rather than half-initializing a project.
+			hosts, chosen, err := ParseAgentHosts(agents)
 			if err != nil {
 				return err
 			}
@@ -106,6 +126,26 @@ alone. --no-pointer skips it; 'kapi voice pointer' writes it later.`,
 			if mintID {
 				printMintedID(cmd, res)
 			}
+
+			// The agent wiring follows the scaffold for the same reason the
+			// voice pointer does: it is about the tools around the project
+			// rather than the project, and a file it cannot write is reported
+			// without undoing an init that succeeded.
+			if !chosen {
+				hosts = DetectAgentHosts(root)
+			}
+			wiring, werr := WriteAgentWiring(AgentWiringOptions{
+				Root:   root,
+				Hosts:  hosts,
+				Recipe: filepath.Base(res.RecipePath),
+				Skills: skills.Tree(),
+			})
+			if werr != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: agent wiring: %v\n", werr)
+			} else {
+				printAgentWiring(cmd, wiring)
+			}
+
 			if noPointer {
 				return nil
 			}
@@ -134,6 +174,7 @@ alone. --no-pointer skips it; 'kapi voice pointer' writes it later.`,
 	cmd.Flags().BoolVar(&listPresets, "list-presets", false, "List available presets (framework scaffolds and per-format parsing presets) and exit")
 	cmd.Flags().BoolVar(&noPointer, "no-pointer", false, "Do not write the voice pointer into CLAUDE.md or AGENTS.md")
 	cmd.Flags().BoolVar(&mintID, "mint-id", false, "Write a stable project id into a recipe that has none, and print the id")
+	cmd.Flags().StringVar(&agents, "agents", "", "Coding agents to wire this project for: a comma-separated list of claude-code, cursor, vscode, agents; 'all'; or 'none' (default: claude-code plus every host already used here)")
 	cmd.MarkFlagsMutuallyExclusive("preset", "framework")
 	return cmd
 }
@@ -147,6 +188,24 @@ func printMintedID(cmd *cobra.Command, res *InitResult) {
 		fmt.Fprintf(cmd.OutOrStdout(), "  id:     %s (written to the recipe)\n", res.ID)
 	case res.ID != "":
 		fmt.Fprintf(cmd.OutOrStdout(), "  id:     %s (already set)\n", res.ID)
+	}
+}
+
+// printAgentWiring lists every file the agent wiring touched and what became
+// of it. These files are loaded as configuration by a program that runs what
+// they say, so the command that wrote them names each one.
+//
+// The label says which of the two a line is about, because they answer
+// different questions: `mcp` is a server an agent host starts, `skill` is
+// guidance it loads. `agents` stays the voice pointer's label.
+func printAgentWiring(cmd *cobra.Command, res *AgentWiringResult) {
+	w := cmd.OutOrStdout()
+	for _, file := range res.Files {
+		line := fmt.Sprintf("  %-7s %s (%s", string(file.Kind)+":", file.Path, file.Action)
+		if file.Detail != "" {
+			line += ": " + file.Detail
+		}
+		fmt.Fprintln(w, line+")")
 	}
 }
 

@@ -317,6 +317,50 @@ itself. And `--locale` narrows terms to one language, because a spelling can be
 retired in one and admitted in another. Add `--json` for the shape an assistant
 reads; it is the same shape the MCP tool returns.
 
+### An answer with nothing in it
+
+Ask either question in a project that has recorded nothing and you still get an
+answer. It says the project holds nothing at that point yet, and it says what is
+worth noticing while you work: the names this project gives its own things, the
+spellings it keeps to, who the text addresses, how formal it is. It invents no
+rule, because there are none to report.
+
+The JSON carries the same fact as a `coverage` value, so a script or an
+assistant can act on it. It counts what is in force at the point: the voice
+profile, the terms bound there, and the rules you have confirmed
+([Growing context](/kapi/context-decisions)). A search counts the terms it
+matched and the prior wording it found.
+
+| `coverage` | What stood behind the answer |
+| --- | --- |
+| `covered` | two or more of them |
+| `thin` | one of them, or candidates alone |
+| `empty` | nothing |
+
+A candidate counts for less than anything in force: it is a proposal nobody has
+decided on, so it never makes an answer `covered`. It does lift `empty` to
+`thin`, because someone looked here, and the note then says how many candidates
+are waiting for you (`kapi context log`).
+
+`coverage` describes the answer rather than the project, so a search for a word
+nobody here has written about is `empty` however much the project holds
+elsewhere.
+
+### Every answer says what it read
+
+Each answer names the project it came from, the revision of your workspace it
+was read at, and whether the content kapi holds still matches the files on disk:
+
+```text
+Read from project `prj_7k2n…` at workspace revision 41, content current.
+```
+
+In the JSON the same three sit under `provenance`. Two answers carrying one
+revision were read from one state of your context, which is what lets you
+compare them. A `stale` answer means files changed since kapi last read them, so
+counts taken over your content describe the files as they were; `kapi up` reads
+them again.
+
 ## Two directions around the writer
 
 Context works on both sides of the moment content is written:

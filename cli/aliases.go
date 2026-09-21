@@ -16,6 +16,10 @@ type (
 	AISetupChoice                 = host.AISetupChoice
 	AISetupIO                     = host.AISetupIO
 	AISetupPrompter               = host.AISetupPrompter
+	AgentHost                     = host.AgentHost
+	AgentWiringFile               = host.AgentWiringFile
+	AgentWiringOptions            = host.AgentWiringOptions
+	AgentWiringResult             = host.AgentWiringResult
 	App                           = host.App
 	CatOptions                    = host.CatOptions
 	CheckExclusions               = host.CheckExclusions
@@ -126,6 +130,10 @@ var (
 	AddStatusFlags               = host.AddStatusFlags
 	AddUpFlags                   = host.AddUpFlags
 	AddVerifyFlags               = host.AddVerifyFlags
+	AgentHosts                   = host.AgentHosts
+	DetectAgentHosts             = host.DetectAgentHosts
+	ParseAgentHosts              = host.ParseAgentHosts
+	WriteAgentWiring             = host.WriteAgentWiring
 	AiProgressWriter             = host.AiProgressWriter
 	AllKBF                       = host.AllKBF
 	ApplyAIDefaults              = host.ApplyAIDefaults

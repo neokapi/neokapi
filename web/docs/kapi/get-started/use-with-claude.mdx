@@ -48,15 +48,23 @@ npx skills update kapi                               # refresh later
 <details>
 <summary>Install the MCP server (Claude Desktop, Claude Code, Cursor, and the rest)</summary>
 
-Your client launches `kapi mcp` as a stdio subprocess. For Claude Code, add `.mcp.json` at the repository root (Claude Desktop uses `claude_desktop_config.json`, Copilot `.vscode/mcp.json`; same shape):
+`kapi init` writes this for you; the rest of this section is what it writes, for a client it does not know about or a file you would rather edit yourself.
+
+Your client launches `kapi mcp` as a stdio subprocess. Claude Code and Cursor read the server list under `mcpServers`; VS Code reads it under `servers`. Claude Desktop uses `claude_desktop_config.json` with the same shape as Claude Code's:
 
 ```json
 {
   "mcpServers": {
-    "kapi": { "command": "kapi", "args": ["mcp"] }
+    "kapi": {
+      "type": "stdio",
+      "command": "kapi",
+      "args": ["mcp", "--project", "kapi.yaml"]
+    }
   }
 }
 ```
+
+`--project` names the project the server answers for, so it binds yours rather than whichever project sits above the directory your client started it in.
 
 See [MCP server](/reference/mcp) for every client's configuration and the full tool list.
 
@@ -79,6 +87,29 @@ The wire shapes are Claude Code's, and Claude Code versions its own hook schema;
 The loop, whichever door: Claude pulls your voice guide and approved terms first (`kapi voice guide`, `kapi terms lookup`), writes through the one write verb (`kapi apply`: structure preserved, drift-guarded by content hash), then gates out with `kapi check` until green. Bind the profile and the terms store in a [project](/kapi/get-started/first-project) and this happens automatically; your prompts stay short: "Set kapi up for this project", "Check `README.md` against our voice profile and fix what fails", "Translate the docs into French and German, then bring them to the ship gate".
 
 The project also tells the assistant it has a voice. `kapi init` writes a short section into `CLAUDE.md`, the file Claude Code reads, naming the voice and the command that retrieves it, and `kapi voice pointer` writes or refreshes it on a project that bound its voice later. A root that holds `AGENTS.md` alone keeps the section there, and a line reading `@AGENTS.md` in a `CLAUDE.md` imports it. The section carries no guidance of its own, so a changed profile never leaves it stale.
+
+### What `kapi init` wires up {#what-kapi-init-wires-up}
+
+`kapi init` also writes the configuration the agent itself reads, so an agent opened in the project finds kapi with nothing else installed:
+
+| Agent | What it gets |
+|---|---|
+| **Claude Code** | `.mcp.json` with the `kapi` server, and the kapi skill in `.claude/skills/kapi/` |
+| **Cursor** | `.cursor/mcp.json` with the `kapi` server |
+| **VS Code** | `.vscode/mcp.json` with the `kapi` server |
+| **Any SKILL.md-aware tool** | the kapi skill in `.agents/skills/kapi/` |
+
+Claude Code is wired every time. The others are wired when the project already keeps their directory, so `kapi init` adds no directory for an editor you do not use. Choose for yourself with `--agents`:
+
+```bash
+kapi init --agents claude-code,cursor   # exactly these
+kapi init --agents all                  # every agent kapi knows
+kapi init --agents none                 # write no agent files
+```
+
+Everything it writes is inside the project, and it writes nothing but a command: no shell, no environment, no credential. A file that already names a server called `kapi` is left exactly as it is, so your own entry survives. Running `kapi init` again changes nothing, which is also how a project you created earlier gets the same wiring.
+
+Claude Code asks you to approve a project MCP server the first time you open the project, so review `.mcp.json` before you say yes, the way you would any file a repository ships.
 
 ## Let kapi run Claude
 

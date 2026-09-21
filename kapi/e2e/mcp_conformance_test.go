@@ -860,6 +860,200 @@ func TestMCPConformanceCheckFileBilingualParity(t *testing.T) {
 	}
 }
 
+// ─── The first hour: an empty context, and what every read says about itself ──
+
+// writeBareProject is the negative half of the empty-context fixtures: a
+// project with a recipe, content, and nothing recorded about either. It is
+// what most projects look like in the hour after `kapi init`.
+func writeBareProject(t *testing.T, name string) (root, recipe string) {
+	t.Helper()
+	root = t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "docs"), 0o755))
+	recipe = filepath.Join(root, "kapi.yaml")
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: "+name+`
+defaults:
+  source_language: en
+  source_gate: none
+collections:
+  - name: Docs
+    content:
+      - path: "docs/**/*.md"
+`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "guide.md"),
+		[]byte("# Guide\n\nPlace a gadget on the dashboard.\n"), 0o644))
+	return root, recipe
+}
+
+// TestMCPConformanceServerIntroducesItself: the instructions reach a client at
+// initialize, ahead of the tool list and whether or not the host loads a
+// skill. A client that loads nothing else still learns the two things that
+// change what it does.
+func TestMCPConformanceServerIntroducesItself(t *testing.T) {
+	session, _ := mcpServer(t)
+
+	init := session.InitializeResult()
+	require.NotNil(t, init)
+	instructions := init.Instructions
+	require.NotEmpty(t, instructions, "the server introduces itself on initialize")
+
+	assert.Contains(t, instructions, "context://", "ask what applies before writing")
+	assert.Contains(t, instructions, "check_file", "run the check before reporting the work done")
+	assert.Contains(t, instructions, "context_search")
+	assert.Contains(t, instructions, "empty answer",
+		"an empty answer read as nothing to do is the failure the instructions exist to prevent")
+}
+
+// TestMCPConformanceEmptyContextTeaches drives both fixtures through both
+// surfaces: a project that records nothing, and one that records a voice and a
+// vocabulary. An answer for the first says it is empty and what is worth
+// noticing; an answer for the second says neither.
+func TestMCPConformanceEmptyContextTeaches(t *testing.T) {
+	bare, bareRecipe := writeBareProject(t, "bare")
+	seeded := writeConformanceProject(t, "seeded", "translation memory", "content memory", "nb", "innholdsminne")
+	session, ctx := mcpServer(t)
+
+	const teaches = "who the text addresses"
+
+	t.Run("by location, on a project that records nothing", func(t *testing.T) {
+		body, _ := readResource(t, ctx, session, "context://docs/guide.md?format=json&project="+bare)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal([]byte(body), &got))
+
+		assert.Equal(t, "empty", got["coverage"], "nothing is bound here, and the answer says which")
+		notes := strings.Join(noteStrings(got), "\n")
+		assert.Contains(t, notes, "records nothing for this location")
+		assert.Contains(t, notes, teaches)
+		assert.NotContains(t, got, "voice", "an empty answer invents no rule")
+		assert.NotContains(t, got, "terms")
+
+		// The same answer through the CLI, to the byte.
+		want := kapiJSON(t, "context", "docs/guide.md", "-p", bareRecipe, "--json")
+		assert.Equal(t, want["coverage"], got["coverage"], "both surfaces grade the answer the same way")
+		assert.Equal(t, want["notes"], got["notes"])
+
+		// And the prose rendering carries it too, for a client that reads
+		// markdown rather than JSON.
+		text, mime := readResource(t, ctx, session, "context://docs/guide.md?project="+bare)
+		assert.Equal(t, "text/markdown", mime)
+		assert.Contains(t, text, "records nothing for this location")
+	})
+
+	t.Run("by location, on a project that records something", func(t *testing.T) {
+		body, _ := readResource(t, ctx, session, "context://docs/clean.md?format=json&project="+seeded.Root)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal([]byte(body), &got))
+
+		assert.Equal(t, "covered", got["coverage"], "a voice and a vocabulary are both in force here")
+		assert.NotContains(t, strings.Join(noteStrings(got), "\n"), teaches,
+			"an answer with context behind it does not lecture the caller about collecting some")
+	})
+
+	t.Run("by content, on a query the project has never written about", func(t *testing.T) {
+		got := callTool(t, ctx, session, "context_search", map[string]any{
+			"query": "gadget", "project": bare,
+		})
+		assert.Equal(t, "empty", got["coverage"])
+		notes := strings.Join(noteStrings(got), "\n")
+		assert.Contains(t, notes, `records nothing about "gadget"`)
+		assert.Contains(t, notes, teaches)
+	})
+
+	t.Run("a candidate lifts an empty answer to thin", func(t *testing.T) {
+		// A proposal nobody has decided on holds no content to anything, so it
+		// never makes an answer covered. It does say that someone looked here,
+		// which is what keeps `empty` meaning nothing at all.
+		proposed, proposedRecipe := writeBareProject(t, "proposed")
+		kapi(t, "context", "propose", "utilise", "--use", "use",
+			"--seen-in", "docs/guide.md", "-p", proposedRecipe)
+
+		body, _ := readResource(t, ctx, session, "context://docs/guide.md?format=json&project="+proposed)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal([]byte(body), &got))
+
+		assert.Equal(t, "thin", got["coverage"])
+		notes := strings.Join(noteStrings(got), "\n")
+		assert.Contains(t, notes, "1 candidate rule")
+		assert.Contains(t, notes, "confirmed or discarded",
+			"a candidate is named as a candidate, never as a rule in force")
+		assert.NotContains(t, notes, "records nothing for this location")
+
+		want := kapiJSON(t, "context", "docs/guide.md", "-p", proposedRecipe, "--json")
+		assert.Equal(t, want["coverage"], got["coverage"], "both surfaces grade it the same way")
+		assert.Equal(t, want["notes"], got["notes"])
+	})
+
+	t.Run("by content, on a query the project has written about", func(t *testing.T) {
+		got := callTool(t, ctx, session, "context_search", map[string]any{
+			"query": seeded.Forbidden, "project": seeded.Root,
+		})
+		assert.NotEqual(t, "empty", got["coverage"])
+		assert.NotContains(t, strings.Join(noteStrings(got), "\n"), teaches)
+	})
+}
+
+// TestMCPConformanceEveryReadSaysWhatItRead: both primitives, on both
+// surfaces, report the project that answered, the workspace revision it was
+// read at, and whether the content kapi holds still matches the files on disk.
+//
+// Parity is the point. A field one surface reports and the other does not
+// teaches an assistant a kapi that half of it does not have.
+func TestMCPConformanceEveryReadSaysWhatItRead(t *testing.T) {
+	bare, bareRecipe := writeBareProject(t, "provenance")
+	session, ctx := mcpServer(t)
+
+	t.Run("by location", func(t *testing.T) {
+		body, _ := readResource(t, ctx, session, "context://docs/guide.md?format=json&project="+bare)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal([]byte(body), &got))
+		want := kapiJSON(t, "context", "docs/guide.md", "-p", bareRecipe, "--json")
+		assertProvenanceParity(t, want, got, "provenance")
+	})
+
+	t.Run("by content", func(t *testing.T) {
+		got := callTool(t, ctx, session, "context_search", map[string]any{
+			"query": "gadget", "project": bare,
+		})
+		want := kapiJSON(t, "context", "search", "gadget", "-p", bareRecipe, "--json")
+		assertProvenanceParity(t, want, got, "provenance")
+	})
+
+	t.Run("the prose rendering says it too", func(t *testing.T) {
+		text, _ := readResource(t, ctx, session, "context://docs/guide.md?project="+bare)
+		assert.Contains(t, text, "at workspace revision",
+			"a client reading markdown is told the same three things as one reading JSON")
+	})
+}
+
+// assertProvenanceParity holds the two surfaces to the same provenance.
+func assertProvenanceParity(t *testing.T, cli, mcp map[string]any, key string) {
+	t.Helper()
+	want, ok := cli[key].(map[string]any)
+	require.True(t, ok, "the CLI answer carries %s", key)
+	got, ok := mcp[key].(map[string]any)
+	require.True(t, ok, "the MCP answer carries %s", key)
+
+	assert.NotEmpty(t, want["project"], "the answer names the project that produced it")
+	assert.Equal(t, want["project"], got["project"], "both surfaces name one project")
+	assert.Equal(t, want["name"], got["name"])
+	assert.Equal(t, want["stale"], got["stale"], "both surfaces judge the projection the same way")
+	// The revision is a position, so two reads of one unchanged workspace
+	// report one number. Re-opening a project records nothing.
+	assert.Equal(t, want["revision"], got["revision"],
+		"reading the same unchanged workspace twice reports one revision")
+}
+
+// noteStrings reads the notes an answer carries.
+func noteStrings(answer map[string]any) []string {
+	items, _ := answer["notes"].([]any)
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		if s, ok := item.(string); ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
 // ruleIDs reduces findings to the stable rule ids they carry.
 func ruleIDs(items []any) []string {
 	var out []string

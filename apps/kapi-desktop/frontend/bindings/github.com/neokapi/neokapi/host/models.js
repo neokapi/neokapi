@@ -156,6 +156,28 @@ export class ContextAnswer {
              */
             this["scope"] = ContextScope.$zero;
         }
+        if (!("coverage" in $$source)) {
+            /**
+             * Coverage grades how much of the project's context stands behind the
+             * answer: the voice profile in force, the terms bound here and the rules
+             * confirmed here, counted, with a candidate awaiting a decision counting
+             * for less than any of them. A caller reading the JSON branches on this
+             * rather than on the shape of the lists below.
+             * @member
+             * @type {ContextCoverage}
+             */
+            this["coverage"] = ContextCoverage.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Provenance says which project answered, at which workspace revision, and
+             * whether the content kapi holds still matches the files on disk. nil when
+             * no project stands behind the answer.
+             * @member
+             * @type {ContextProvenance | null | undefined}
+             */
+            this["provenance"] = undefined;
+        }
         if (/** @type {any} */(false)) {
             /**
              * Voice is the profile in force and its rendered guidance, nil when no voice
@@ -215,10 +237,11 @@ export class ContextAnswer {
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType1;
         const $$createField1_0 = $$createType2;
-        const $$createField3_0 = $$createType4;
-        const $$createField4_0 = $$createType6;
+        const $$createField4_0 = $$createType4;
+        const $$createField5_0 = $$createType6;
         const $$createField6_0 = $$createType8;
-        const $$createField7_0 = $$createType9;
+        const $$createField8_0 = $$createType10;
+        const $$createField9_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField0_0($$parsedSource["constraints"]);
@@ -226,21 +249,53 @@ export class ContextAnswer {
         if ("point" in $$parsedSource) {
             $$parsedSource["point"] = $$createField1_0($$parsedSource["point"]);
         }
+        if ("provenance" in $$parsedSource) {
+            $$parsedSource["provenance"] = $$createField4_0($$parsedSource["provenance"]);
+        }
         if ("voice" in $$parsedSource) {
-            $$parsedSource["voice"] = $$createField3_0($$parsedSource["voice"]);
+            $$parsedSource["voice"] = $$createField5_0($$parsedSource["voice"]);
         }
         if ("terms" in $$parsedSource) {
-            $$parsedSource["terms"] = $$createField4_0($$parsedSource["terms"]);
+            $$parsedSource["terms"] = $$createField6_0($$parsedSource["terms"]);
         }
         if ("profiles" in $$parsedSource) {
-            $$parsedSource["profiles"] = $$createField6_0($$parsedSource["profiles"]);
+            $$parsedSource["profiles"] = $$createField8_0($$parsedSource["profiles"]);
         }
         if ("notes" in $$parsedSource) {
-            $$parsedSource["notes"] = $$createField7_0($$parsedSource["notes"]);
+            $$parsedSource["notes"] = $$createField9_0($$parsedSource["notes"]);
         }
         return new ContextAnswer(/** @type {Partial<ContextAnswer>} */($$parsedSource));
     }
 }
+
+/**
+ * ContextCoverage says how much of a project's context stood behind one
+ * answer. It describes the answer rather than the project: a search that found
+ * nothing reports an empty answer whatever else the project holds.
+ * @readonly
+ * @enum {string}
+ */
+export const ContextCoverage = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * CoverageEmpty: neither kind of material stood behind the answer.
+     */
+    CoverageEmpty: "empty",
+
+    /**
+     * CoverageThin: one of the two kinds did.
+     */
+    CoverageThin: "thin",
+
+    /**
+     * CoverageCovered: both did.
+     */
+    CoverageCovered: "covered",
+};
 
 /**
  * ContextPoint is the coordinate an answer is about.
@@ -321,7 +376,7 @@ export class ContextPoint {
      * @returns {ContextPoint}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType10;
+        const $$createField5_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coordinates" in $$parsedSource) {
             $$parsedSource["coordinates"] = $$createField5_0($$parsedSource["coordinates"]);
@@ -389,7 +444,7 @@ export class ContextPrecedentHit {
      * @returns {ContextPrecedentHit}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType9;
+        const $$createField4_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("discouraged" in $$parsedSource) {
             $$parsedSource["discouraged"] = $$createField4_0($$parsedSource["discouraged"]);
@@ -411,6 +466,78 @@ export const ContextProfileHit = review$0.ProfileValidity;
  * model's own row (core/review.ProfileValidity): the same fact, read once.
  * @typedef {review$0.ProfileValidity} ContextProfileHit
  */
+
+/**
+ * ContextProvenance says which project a retrieval answer came from and what
+ * state it was read at.
+ */
+export class ContextProvenance {
+    /**
+     * Creates a new ContextProvenance instance.
+     * @param {Partial<ContextProvenance>} [$$source = {}] - The source object to create the ContextProvenance.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Project is the project's stable identity: the recipe's `id:`, or its
+             * `name:` where the recipe carries no id. It is the key everything kapi
+             * records about the project is filed under.
+             * @member
+             * @type {string | undefined}
+             */
+            this["project"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Name is the recipe's `name:`, the label a person recognises. It is left
+             * out when it is the identity as well.
+             * @member
+             * @type {string | undefined}
+             */
+            this["name"] = undefined;
+        }
+        if (!("revision" in $$source)) {
+            /**
+             * Revision is the position the workspace's operation log had reached when
+             * this answer was read. Two answers carrying one revision were read from
+             * one state of the context.
+             * @member
+             * @type {number}
+             */
+            this["revision"] = 0;
+        }
+        if (!("stale" in $$source)) {
+            /**
+             * Stale reports that the blocks this project holds were read from files
+             * that have since changed, so anything counted over content (a term's use
+             * count, a coverage figure) describes the files as they were.
+             * @member
+             * @type {boolean}
+             */
+            this["stale"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * StaleReason says what moved, in the wording an answer's note carries.
+             * @member
+             * @type {string | undefined}
+             */
+            this["stale_reason"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextProvenance instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextProvenance}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ContextProvenance(/** @type {Partial<ContextProvenance>} */($$parsedSource));
+    }
+}
 
 /**
  * ContextScope names how much of the graph a result set could have come from.
@@ -477,6 +604,27 @@ export class ContextSearchResult {
              */
             this["scope"] = ContextScope.$zero;
         }
+        if (!("coverage" in $$source)) {
+            /**
+             * Coverage grades how much stood behind this answer: the terms it matched
+             * and the prior wording it found, counted. It describes the answer, so a
+             * query the project has never written about reports an empty one whatever
+             * else the project holds.
+             * @member
+             * @type {ContextCoverage}
+             */
+            this["coverage"] = ContextCoverage.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Provenance says which project answered, at which workspace revision, and
+             * whether the content kapi holds still matches the files on disk. nil when
+             * no project stands behind the answer.
+             * @member
+             * @type {ContextProvenance | null | undefined}
+             */
+            this["provenance"] = undefined;
+        }
         if (/** @type {any} */(false)) {
             /**
              * Terms are concepts whose terms or definition match — what the project
@@ -532,22 +680,26 @@ export class ContextSearchResult {
      * @returns {ContextSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType6;
-        const $$createField3_0 = $$createType12;
+        const $$createField3_0 = $$createType4;
         const $$createField4_0 = $$createType8;
-        const $$createField5_0 = $$createType9;
+        const $$createField5_0 = $$createType14;
+        const $$createField6_0 = $$createType10;
+        const $$createField7_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("provenance" in $$parsedSource) {
+            $$parsedSource["provenance"] = $$createField3_0($$parsedSource["provenance"]);
+        }
         if ("terms" in $$parsedSource) {
-            $$parsedSource["terms"] = $$createField2_0($$parsedSource["terms"]);
+            $$parsedSource["terms"] = $$createField4_0($$parsedSource["terms"]);
         }
         if ("precedent" in $$parsedSource) {
-            $$parsedSource["precedent"] = $$createField3_0($$parsedSource["precedent"]);
+            $$parsedSource["precedent"] = $$createField5_0($$parsedSource["precedent"]);
         }
         if ("profiles" in $$parsedSource) {
-            $$parsedSource["profiles"] = $$createField4_0($$parsedSource["profiles"]);
+            $$parsedSource["profiles"] = $$createField6_0($$parsedSource["profiles"]);
         }
         if ("notes" in $$parsedSource) {
-            $$parsedSource["notes"] = $$createField5_0($$parsedSource["notes"]);
+            $$parsedSource["notes"] = $$createField7_0($$parsedSource["notes"]);
         }
         return new ContextSearchResult(/** @type {Partial<ContextSearchResult>} */($$parsedSource));
     }
@@ -689,7 +841,7 @@ export class ContextTermHit {
      * @returns {ContextTermHit}
      */
     static createFrom($$source = {}) {
-        const $$createField12_0 = $$createType14;
+        const $$createField12_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("top_uses" in $$parsedSource) {
             $$parsedSource["top_uses"] = $$createField12_0($$parsedSource["top_uses"]);
@@ -1031,7 +1183,7 @@ export class ConvergeLocaleResult {
      * @returns {ConvergeLocaleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType15;
+        const $$createField4_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField4_0($$parsedSource["pct"]);
@@ -1212,9 +1364,9 @@ export class ConvergeOutput {
      * @returns {ConvergeOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType17;
-        const $$createField4_0 = $$createType19;
-        const $$createField15_0 = $$createType21;
+        const $$createField3_0 = $$createType19;
+        const $$createField4_0 = $$createType21;
+        const $$createField15_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -1463,9 +1615,9 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType23;
-        const $$createField4_0 = $$createType22;
-        const $$createField8_0 = $$createType21;
+        const $$createField3_0 = $$createType25;
+        const $$createField4_0 = $$createType24;
+        const $$createField8_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -1655,24 +1807,26 @@ export class UpPlanScope {
 const $$createType0 = profile$0.ConstraintResolution.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = ContextPoint.createFrom;
-const $$createType3 = review$0.Voice.createFrom;
+const $$createType3 = ContextProvenance.createFrom;
 const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = ContextTermHit.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = review$0.ProfileValidity.createFrom;
+const $$createType5 = review$0.Voice.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = ContextTermHit.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = $Create.Array($Create.Any);
-const $$createType10 = $Create.Map($Create.Any, $Create.Any);
-const $$createType11 = ContextPrecedentHit.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = ContextTermUse.createFrom;
+const $$createType9 = review$0.ProfileValidity.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = $Create.Array($Create.Any);
+const $$createType12 = $Create.Map($Create.Any, $Create.Any);
+const $$createType13 = ContextPrecedentHit.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = $Create.Map($Create.Any, $Create.Any);
-const $$createType16 = ConvergeLocaleResult.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = ParkedScope.createFrom;
+const $$createType15 = ContextTermUse.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = $Create.Map($Create.Any, $Create.Any);
+const $$createType18 = ConvergeLocaleResult.createFrom;
 const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = check$0.Warning.createFrom;
+const $$createType20 = ParkedScope.createFrom;
 const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = UpPlanScope.createFrom;
+const $$createType22 = check$0.Warning.createFrom;
 const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = UpPlanScope.createFrom;
+const $$createType25 = $Create.Array($$createType24);

@@ -90,9 +90,8 @@ documents, not in a file an assistant loads into a live context window.
 
 ### The skill is a copy, never a second tree
 
-The binary neither carries nor installs the skill: there is no `kapi skills`
-command. Four make targets copy the one source tree, so the copies cannot
-diverge:
+One source tree, copied. Four make targets and the binary itself produce the
+copies, so they cannot diverge:
 
 | Target | What it produces |
 | --- | --- |
@@ -100,11 +99,71 @@ diverge:
 | `make publish-plugin` | mirrors that bundle to the `neokapi-plugins` marketplace repo |
 | `make publish-skill` | mirrors the portable skill into the agent-skills collection, for any `SKILL.md`-aware tool |
 | `make dev-skills` | copies it into this repo's own `.claude/skills` for dogfooding |
+| `cli/skills` (`go:embed`) | the copy `kapi init` writes into a project (see [the wiring below](#kapi-init-wires-an-agent-up)) |
+
+The embedded copy is the one a release can make a promise about. A plugin
+cannot pin a CLI version, so a marketplace skill that named an unreleased
+command would break an up-to-date plugin against a released binary; the
+embedded copy is the skill the running binary was built with, and the commands
+and flags it names are the ones that binary has.
 
 The marketplace and collection repos are **generated distribution artifacts**,
 like a package-manager tap: never hand-edited. Publication is on kapi release,
-not on merge. A plugin cannot pin a CLI version, so a skill that named an
-unreleased command would break an up-to-date plugin against a released binary.
+not on merge.
+
+### `kapi init` wires an agent up {#kapi-init-wires-an-agent-up}
+
+A project has a voice, terms and a check gate long before anyone tells an
+assistant they exist. The voice pointer says so in prose, in `CLAUDE.md` or
+`AGENTS.md`. The wiring says so in the files an agent host reads as
+configuration, so an agent opened in the project finds kapi with nothing else
+installed:
+
+| Host | What is written | Convention |
+| --- | --- | --- |
+| Claude Code | `.mcp.json` (`mcpServers`), `.claude/skills/kapi/` | [project MCP file](https://code.claude.com/docs/en/mcp), [project skills](https://code.claude.com/docs/en/skills) |
+| Cursor | `.cursor/mcp.json` (`mcpServers`) | [Cursor MCP](https://cursor.com/docs/context/mcp) |
+| VS Code | `.vscode/mcp.json` (`servers`) | [MCP configuration reference](https://code.visualstudio.com/docs/agents/reference/mcp-configuration) |
+| Cross-client | `.agents/skills/kapi/` | [Agent Skills client guide](https://agentskills.io/client-implementation/adding-skills-support) |
+
+Each host is supported where its convention was read from that host's own
+documentation. `servers` and `mcpServers` differ between two of them, and a key
+the host does not read is inert with nothing to notice it, so
+`host/agentwiring_test.go` asserts each spelling rather than trusting one.
+
+Claude Code is wired unconditionally, because its MCP file sits at the project
+root and its skills directory is one kapi creates, so there is nothing to
+detect. The others are wired where the project already keeps their directory.
+`--agents` takes a list, `all`, or `none`; `kapi init` on a project that
+already has a recipe is how an existing project gains the same wiring.
+
+Four properties hold for everything written:
+
+- **Project scope only.** Every path is under the project root. Nothing under
+  the user's home directory and nothing machine-wide is read or written.
+- **A command, and nothing else.** The entry carries the binary, the `mcp`
+  verb, and the project it answers for. No shell, no environment, no
+  credential: these files are committed, shared, and loaded by a program that
+  runs what they say.
+- **The entry names the project.** `kapi mcp --project kapi.yaml`, so the
+  server binds this project rather than whichever one is above the directory
+  the host happened to start it in. The path is relative, because the file is
+  shared with everyone on the project and an absolute one resolves on one
+  machine.
+- **An existing entry is left alone.** A configuration file that already names
+  a server called kapi is read and not written. The skill directory is kapi's
+  own, so the files the binary ships are refreshed there and anything else in
+  it stays.
+
+### The MCP server introduces itself
+
+`initialize` carries an `instructions` string to every client, ahead of the
+tool list and whether or not the host loads a skill. It is the only text a
+client with no skill support ever reads about kapi, so it says the two things
+that change what an assistant does: read the context resource for a file
+before writing it, and run `check_file` on what changed before reporting the
+work done. `host/mcp_instructions_test.go` holds it to the names the server
+actually serves.
 
 The skill's `description` is the sole triggering lever, and it is loaded at
 startup by every `SKILL.md`-aware tool. Whether it fires on the right tasks is
@@ -414,11 +473,11 @@ output.
 
 ## Consequences
 
-- One source tree feeds the plugin bundle, the portable skill, and the in-repo
-  dogfood by copy, and it sits beside the CLI it documents, so a command change
-  and its skill update are one reviewed change.
-- The binary neither carries nor installs the skill; distribution and updates
-  are the assistant's plugin manager's job.
+- One source tree feeds the plugin bundle, the portable skill, the binary's
+  embedded copy and the in-repo dogfood by copy, and it sits beside the CLI it
+  documents, so a command change and its skill update are one reviewed change.
+- A project is wired for the agents that work in it by the command that creates
+  it, so the first hour needs no install step and no hand-written JSON.
 - Progressive disclosure keeps the router cheap and loads detail only on a match.
 - The attended loops call no provider: the assistant writes, kapi round-trips,
   drift-checks, and gates.

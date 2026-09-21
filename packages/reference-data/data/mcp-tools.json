@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T22:01:41Z",
+  "generatedAt": "2026-09-21T11:08:05Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -102,7 +102,7 @@
     },
     {
       "name": "check_file",
-      "description": "Check the actual content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) or only the content blocks a change touched: pass diff (unified diff text), diff_against (a git revision), staged (the changes staged for commit, read from the index) or diff_range (A..B or A...B, read from B) to check each touched block whole, with the lines it spans, and read report.scope for every changed file and what became of it. with format-aware extraction and the applicable project voice and terms. Before editing, read the context://\u003cproject-relative-path\u003e resource; after saving edits (including apply_edits), run check_file and review its per-block findings and analyzer coverage. Returns a kapi.check/v1 Report with effective scope in execution.contexts and configuration warnings, which never change pass; pass is not semantic approval. Omit profile_file/profile_pack to use the file’s project profile and channel. Supplying either replaces that voice selection with an explicit override; project terms still apply. Pass target/target_lang to also run bilingual checks.",
+      "description": "Check the content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) with format-aware extraction and the voice and terms in force at that file's location. Run it on every file you changed, and fix what it reports, before you say the work is done. To check only the blocks a change touched, pass diff (unified diff text), diff_against (a git revision), staged (the changes staged for commit, read from the index) or diff_range (A..B or A...B, read from B); each touched block is checked whole, with the lines it spans, and report.scope names every changed file and what became of it. Before editing, read the context://\u003cproject-relative-path\u003e resource. Returns a kapi.check/v1 Report with effective scope in execution.contexts and configuration warnings, which never change pass; pass is not semantic approval. Omit profile_file/profile_pack to use the file's project profile and channel. Supplying either replaces that voice selection with an explicit override; project terms still apply. Pass target/target_lang to also run bilingual checks.",
       "surface": "default",
       "params": [
         {
@@ -266,7 +266,7 @@
     },
     {
       "name": "context_search",
-      "description": "Ask what this project's content context says about a word or phrase: what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. One question across every store the project binds; you do not need to know which one holds the answer. Search before writing; read the context://\u003cproject-relative-path\u003e resource for the full guidance at your destination. After saving edits, use check_file on the changed files. Results are grouped by kind, and say what could not be reached. Each term carries how often the project's extracted content uses it, as of the last extraction (the last `kapi up`) rather than of the working tree.",
+      "description": "Ask what this project's content context says about a word or phrase: what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. One question across every store the project binds; you do not need to know which one holds the answer. Search before writing; read the context://\u003cproject-relative-path\u003e resource for the full guidance at your destination. After saving edits, use check_file on the changed files. Results are grouped by kind, and say what could not be reached. `coverage` grades what stood behind the answer (empty, thin or covered); an empty one means this project has recorded nothing about the query, and its notes say what is worth noticing while you work. `provenance` names the project that answered, the workspace revision it was read at, and whether the content kapi holds still matches the files on disk. Each term carries how often the project's extracted content uses it, as of the last extraction (the last `kapi up`) rather than of the working tree.",
       "surface": "default",
       "params": [
         {
@@ -2286,14 +2286,14 @@
       "uriTemplate": "context://profile/{name}{?format,project}",
       "name": "context-for-profile",
       "title": "Context of a named profile",
-      "description": "What this project's context says applies at one place: the voice profile in force with its full guidance, the terms bound there, and the governance windows around them. Read this BEFORE writing or editing content at that location. Returns markdown by default; append `?format=json` for the structured shape. Addresses a governance profile by name, for a caller with no file in hand, e.g. `context://profile/marketing`.",
+      "description": "What this project's context says applies at one place: the voice profile in force with its full guidance, the terms bound there, and the governance windows around them. Read this BEFORE writing or editing content at that location. An answer with nothing in it says so and says what is worth noticing while you work, so a project that has recorded nothing yet is still worth asking. Every answer names the project it came from, the workspace revision it was read at, and whether the content kapi holds still matches the files on disk. Returns markdown by default; append `?format=json` for the structured shape, where `coverage` grades what stood behind it (empty, thin or covered). Addresses a governance profile by name, for a caller with no file in hand, e.g. `context://profile/marketing`.",
       "mimeType": "text/markdown"
     },
     {
       "uriTemplate": "context://{+path}{?format,project}",
       "name": "context-at-location",
       "title": "Context at a location",
-      "description": "What this project's context says applies at one place: the voice profile in force with its full guidance, the terms bound there, and the governance windows around them. Read this BEFORE writing or editing content at that location. Returns markdown by default; append `?format=json` for the structured shape. The path is project-relative, e.g. `context://docs/guide.md`. Add `?project=\u003cpath\u003e` to read a project other than the one the server started in; the path names its kapi.yaml, its root directory, or anything inside it.",
+      "description": "What this project's context says applies at one place: the voice profile in force with its full guidance, the terms bound there, and the governance windows around them. Read this BEFORE writing or editing content at that location. An answer with nothing in it says so and says what is worth noticing while you work, so a project that has recorded nothing yet is still worth asking. Every answer names the project it came from, the workspace revision it was read at, and whether the content kapi holds still matches the files on disk. Returns markdown by default; append `?format=json` for the structured shape, where `coverage` grades what stood behind it (empty, thin or covered). The path is project-relative, e.g. `context://docs/guide.md`. Add `?project=\u003cpath\u003e` to read a project other than the one the server started in; the path names its kapi.yaml, its root directory, or anything inside it.",
       "mimeType": "text/markdown"
     }
   ]
