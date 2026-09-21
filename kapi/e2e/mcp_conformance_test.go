@@ -1066,3 +1066,320 @@ func ruleIDs(items []any) []string {
 	}
 	return out
 }
+
+// ─── Growing the context: the write tools an agent keeps its habits with ────
+
+// TestMCPConformanceContextGrowthTools drives the three write tools and the
+// session read, each with a fixture that must be accepted and one that must be
+// refused.
+//
+// Every one of them records an operation whose actor is an AGENT under this
+// server's session. The caller never says who it is, so the refusal cases
+// include an attempt to claim otherwise: an MCP client that could record as a
+// person would be claiming the rights the policy reserves for one.
+func TestMCPConformanceContextGrowthTools(t *testing.T) {
+	proj := writeConformanceProject(t, "growth", "translation memory", "content memory", "nb", "innholdsminne")
+	session, ctx := mcpServer(t, "-p", proj.Recipe)
+
+	t.Run("observe records a fact", func(t *testing.T) {
+		got := callTool(t, ctx, session, "context_observe", map[string]any{
+			"text":  "the guides address the reader as you",
+			"path":  "docs/clean.md",
+			"quote": "We rely on the content memory here.",
+		})
+		assert.Equal(t, "observe", got["kind"])
+		assert.Equal(t, "candidate", got["status"], "an observation is undecided until somebody acts on it")
+		assert.NotEmpty(t, got["operation"], "the answer names the operation a person acts on")
+		assert.NotEmpty(t, got["session"], "everything one run records is grouped under its session")
+		assert.Contains(t, got["review"], "kapi context log --session ")
+	})
+
+	t.Run("observe with nothing to say is refused", func(t *testing.T) {
+		res := rawCallTool(t, ctx, session, "context_observe", map[string]any{"text": "  "})
+		require.True(t, res.IsError, "must fail: an observation with no text was recorded")
+		assert.Contains(t, resultText(res), "text")
+	})
+
+	t.Run("propose records a candidate", func(t *testing.T) {
+		got := callTool(t, ctx, session, "context_propose", map[string]any{
+			"term": "utilise", "use": "use",
+			"path": "docs/clean.md", "quote": "Utilise the editor.",
+		})
+		assert.Equal(t, "propose", got["kind"])
+		assert.Equal(t, "candidate", got["status"])
+		next, _ := got["next"].(string)
+		assert.Contains(t, next, "kapi context confirm",
+			"the answer says a person is what makes the rule bind")
+		assert.Contains(t, next, "candidate")
+	})
+
+	t.Run("propose with no evidence is refused", func(t *testing.T) {
+		res := rawCallTool(t, ctx, session, "context_propose", map[string]any{
+			"term": "leverage", "use": "use",
+		})
+		require.True(t, res.IsError, "must fail: a rule with nothing behind it was recorded")
+		assert.Contains(t, resultText(res), "evidence")
+	})
+
+	t.Run("correct records both wordings", func(t *testing.T) {
+		got := callTool(t, ctx, session, "context_correct", map[string]any{
+			"from": "sign in", "to": "log in",
+			"path": "docs/clean.md", "propose": true,
+		})
+		assert.Equal(t, "correct", got["kind"])
+		recorded, _ := got["recorded"].(string)
+		assert.Contains(t, recorded, "sign in")
+		assert.Contains(t, recorded, "log in")
+	})
+
+	for name, args := range map[string]map[string]any{
+		"with one wording missing": {"to": "log in", "path": "docs/clean.md"},
+		"with no evidence":         {"from": "sign in", "to": "log in"},
+	} {
+		t.Run("correct "+name+" is refused", func(t *testing.T) {
+			res := rawCallTool(t, ctx, session, "context_correct", args)
+			assert.True(t, res.IsError, "must fail: an unusable correction was recorded")
+		})
+	}
+
+	t.Run("a call naming a project that holds none is refused by name", func(t *testing.T) {
+		outside := t.TempDir()
+		for _, tool := range []string{"context_observe", "context_propose", "context_correct", "context_session_summary"} {
+			res := rawCallTool(t, ctx, session, tool, map[string]any{
+				"project": outside,
+				"text":    "a fact", "term": "utilise", "use": "use",
+				"from": "sign in", "to": "log in", "path": "docs/clean.md",
+			})
+			require.Truef(t, res.IsError, "must fail: %s accepted a path holding no project", tool)
+			assert.Contains(t, resultText(res), outside, "%s names the path the call sent", tool)
+		}
+	})
+
+	t.Run("the actor is the agent, whatever the caller says", func(t *testing.T) {
+		got := callTool(t, ctx, session, "context_observe", map[string]any{
+			"text": "the release notes are written in the past tense",
+			"path": "docs/clean.md",
+			// A caller claiming to be a person would be claiming a person's
+			// rights. The tools take no actor at all, so this is ignored.
+			"actor": "person", "actor_kind": "person", "session": "somebody-elses",
+		})
+		id, _ := got["operation"].(string)
+		require.NotEmpty(t, id)
+
+		log := kapiJSON(t, "context", "log", "-p", proj.Recipe, "--json")
+		ops, _ := log["operations"].([]any)
+		require.NotEmpty(t, ops)
+		var found bool
+		for _, item := range ops {
+			op, ok := item.(map[string]any)
+			if !ok || op["id"] != id {
+				continue
+			}
+			found = true
+			actor, ok := op["actor"].(map[string]any)
+			require.True(t, ok, "every operation records who did it")
+			assert.Equal(t, "agent", actor["kind"],
+				"must fail: a call recorded itself as something other than an agent")
+			assert.NotEqual(t, "somebody-elses", actor["session"],
+				"must fail: the caller chose its own session id")
+			assert.NotEmpty(t, actor["session"], "the server mints one session per process")
+		}
+		assert.True(t, found, "the operation the tool reported is in `kapi context log`")
+	})
+
+	t.Run("the session summary reports what this run recorded", func(t *testing.T) {
+		got := callTool(t, ctx, session, "context_session_summary", map[string]any{})
+		assert.Positive(t, got["observed"])
+		assert.Positive(t, got["proposed"])
+		assert.Positive(t, got["corrected"])
+		assert.Positive(t, got["candidates"],
+			"nobody has decided on any of them, which is what the report has to say")
+		report, _ := got["report"].(string)
+		assert.Contains(t, report, "kapi context log --session ",
+			"the sentence an agent ends its report with says how to review the session")
+
+		// The CLI reads the same session back, which is what makes the
+		// sentence actionable.
+		named, _ := got["session"].(string)
+		require.NotEmpty(t, named)
+		cli := kapiJSON(t, "context", "log", "--session", named, "-p", proj.Recipe, "--json")
+		ops, _ := cli["operations"].([]any)
+		assert.NotEmpty(t, ops, "`kapi context log --session` finds what the MCP session recorded")
+	})
+}
+
+// TestMCPConformanceAgentCannotDecide: the policy reserves confirming,
+// discarding another actor's work, reverting and widening for a person, and the
+// agent surface carries no tool for any of them.
+//
+// Both halves are asserted. A tool absent from the listing but reachable by
+// name is a surface a client can still find, and a tool present but refused at
+// the policy is one an assistant will keep trying.
+func TestMCPConformanceAgentCannotDecide(t *testing.T) {
+	proj := writeConformanceProject(t, "decide", "translation memory", "content memory", "nb", "innholdsminne")
+	session, ctx := mcpServer(t, "-p", proj.Recipe, "--all")
+
+	listed := map[string]bool{}
+	params := &mcp.ListToolsParams{}
+	for {
+		res, err := session.ListTools(ctx, params)
+		require.NoError(t, err)
+		for _, tool := range res.Tools {
+			listed[tool.Name] = true
+		}
+		if res.NextCursor == "" {
+			break
+		}
+		params.Cursor = res.NextCursor
+	}
+	require.True(t, listed["context_propose"], "the agent surface records")
+
+	for _, name := range []string{
+		"context_confirm", "context_discard", "context_revert", "context_widen",
+		"confirm_context", "discard_context", "revert_context", "widen_context",
+	} {
+		t.Run(name+" is not on the surface", func(t *testing.T) {
+			assert.False(t, listed[name],
+				"must fail: deciding is a person's, and %s is listed for an agent", name)
+			res := rawCallTool(t, ctx, session, name, map[string]any{"id": "1"})
+			assert.True(t, res.IsError, "must fail: %s answered a call", name)
+		})
+	}
+}
+
+// TestMCPConformanceCandidateCrossesProcesses: a candidate one agent recorded
+// answers for the next one.
+//
+// The point of recording anything is that the next session does not work it out
+// again, and the next session is a different process. Both servers run over the
+// same workspace (the suite's isolation environment), and the second one is
+// started after the first has recorded, so nothing it sees can have come from
+// its own memory.
+func TestMCPConformanceCandidateCrossesProcesses(t *testing.T) {
+	proj := writeConformanceProject(t, "crossing", "translation memory", "content memory", "nb", "innholdsminne")
+
+	first, firstCtx := mcpServer(t, "-p", proj.Recipe)
+	recorded := callTool(t, firstCtx, first, "context_propose", map[string]any{
+		"term": "utilise", "use": "use",
+		"path": "docs/clean.md", "quote": "Utilise the editor.",
+		"note": "the guides say use",
+	})
+	id, _ := recorded["operation"].(string)
+	require.NotEmpty(t, id)
+	require.NoError(t, first.Close())
+
+	second, ctx := mcpServer(t, "-p", proj.Recipe)
+
+	t.Run("a second process reads it, marked a candidate", func(t *testing.T) {
+		body, _ := readResource(t, ctx, second, "context://docs/clean.md?format=json")
+		var got map[string]any
+		require.NoError(t, json.Unmarshal([]byte(body), &got))
+
+		candidates, _ := got["candidates"].([]any)
+		require.NotEmpty(t, candidates, "must fail: the candidate the first session recorded was not reported")
+		var entry map[string]any
+		for _, item := range candidates {
+			if c, ok := item.(map[string]any); ok && c["term"] == "utilise" {
+				entry = c
+			}
+		}
+		require.NotNil(t, entry, "the candidate is reported by the word it is about")
+		assert.Equal(t, "candidate", entry["status"],
+			"must fail: a candidate was reported without saying it is one")
+		assert.Equal(t, "use", entry["replacement"])
+		assert.Equal(t, id, entry["operation"], "the id a person confirms it by")
+		assert.NotEmpty(t, entry["session"], "the session it came from, so a person can revert the run")
+
+		evidence, _ := entry["evidence"].([]any)
+		require.NotEmpty(t, evidence, "must fail: a candidate was reported with no evidence behind it")
+		seen, _ := evidence[0].(map[string]any)
+		assert.Equal(t, "docs/clean.md", seen["path"])
+		assert.Contains(t, seen["quote"], "Utilise")
+
+		// Apart from the rules in force: a caller must not have to tell them
+		// apart by reading the wording.
+		terms, _ := got["terms"].([]any)
+		for _, item := range terms {
+			if hit, ok := item.(map[string]any); ok {
+				assert.NotEqual(t, "utilise", hit["term"], "a candidate is not a term in force")
+			}
+		}
+	})
+
+	t.Run("both surfaces report it the same way", func(t *testing.T) {
+		body, _ := readResource(t, ctx, second, "context://docs/clean.md?format=json")
+		var got map[string]any
+		require.NoError(t, json.Unmarshal([]byte(body), &got))
+		want := kapiJSON(t, "context", "docs/clean.md", "-p", proj.Recipe, "--json")
+		assert.Equal(t, want["candidates"], got["candidates"],
+			"`kapi context <path>` and the context:// resource report one list")
+	})
+
+	t.Run("the prose rendering says it is not a rule", func(t *testing.T) {
+		text, mime := readResource(t, ctx, second, "context://docs/clean.md")
+		assert.Equal(t, "text/markdown", mime)
+		assert.Contains(t, text, "Candidates, not yet decided")
+		assert.Contains(t, text, "kapi context confirm")
+	})
+
+	t.Run("a candidate never fails a check", func(t *testing.T) {
+		// The document uses the word the candidate retires, so a candidate
+		// that could fail a check would fail this one.
+		violating := filepath.Join(proj.Root, "docs", "candidate.md")
+		require.NoError(t, os.WriteFile(violating,
+			[]byte("# Candidate\n\nUtilise the "+proj.Replacement+" here.\n"), 0o644))
+		t.Cleanup(func() { _ = os.Remove(violating) })
+
+		report := callTool(t, ctx, second, "check_file", map[string]any{"file": violating})
+		assert.Empty(t, findings(report),
+			"must fail: a rule nobody has confirmed produced a finding that counts")
+
+		want := kapiJSON(t, "check", violating, "-p", proj.Recipe, "--json")
+		assert.Equal(t, findings(want), findings(report),
+			"check_file must report what `kapi check` reports")
+		assert.Equal(t, want["summary"], report["summary"])
+	})
+}
+
+// TestMCPConformanceGrowthParity holds the write tools to the command line.
+// The skill drives the CLI and an MCP client drives the tools, so a habit that
+// records one thing on one surface and another on the other teaches half the
+// assistants a kapi the rest do not have.
+func TestMCPConformanceGrowthParity(t *testing.T) {
+	overMCP := writeConformanceProject(t, "parity-mcp", "translation memory", "content memory", "nb", "innholdsminne")
+	overCLI := writeConformanceProject(t, "parity-cli", "translation memory", "content memory", "nb", "innholdsminne")
+	session, ctx := mcpServer(t)
+
+	callTool(t, ctx, session, "context_propose", map[string]any{
+		"project": overMCP.Root,
+		"term":    "utilise", "use": "use",
+		"path": "docs/clean.md", "quote": "Utilise the editor.",
+	})
+	kapi(t, "context", "propose", "utilise", "--use", "use",
+		"--seen-in", "docs/clean.md", "--quote", "Utilise the editor.", "-p", overCLI.Recipe)
+
+	fromMCP := kapiJSON(t, "context", "docs/clean.md", "-p", overMCP.Recipe, "--json")
+	fromCLI := kapiJSON(t, "context", "docs/clean.md", "-p", overCLI.Recipe, "--json")
+
+	strip := func(answer map[string]any) []map[string]any {
+		items, _ := answer["candidates"].([]any)
+		out := make([]map[string]any, 0, len(items))
+		for _, item := range items {
+			c, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			// The actor and the session differ by construction: one was
+			// recorded by an agent and one by the person at the command line.
+			delete(c, "proposed_by")
+			delete(c, "session")
+			delete(c, "at")
+			delete(c, "operation")
+			out = append(out, c)
+		}
+		return out
+	}
+	require.NotEmpty(t, strip(fromMCP))
+	assert.Equal(t, strip(fromCLI), strip(fromMCP),
+		"one proposal is one candidate, whichever surface recorded it")
+}
