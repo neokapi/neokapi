@@ -495,9 +495,9 @@ func namedResourceDir(kind string) string {
 // content memory, terms, block cache and unit working set share one file: moving
 // it aside takes all four. That is the documented trade of merging them, and it
 // is affordable because every one of those is a projection rebuilt from
-// committed sources — the exception being decisions staged and not yet
-// committed, which a store this process cannot open was not going to give back
-// either.
+// committed sources, and because the decisions themselves live in the
+// workspace: the project store holds the checkout's view of the ledger, not the
+// ledger.
 //
 // A project store also needs the handle released first: renaming a file under an
 // open pool leaves the pool on the moved inode, and the replacement would be

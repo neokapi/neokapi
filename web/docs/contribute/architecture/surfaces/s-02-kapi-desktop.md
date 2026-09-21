@@ -83,8 +83,8 @@ status, the project's coordinate points, the context graph and the voice
 profile per point, governance edits on the recipe, flow CRUD, the runner, the
 catch-up loop and its venue, checks, the review queue, inspection, content
 memory, terms, media, outputs, the sample project, plugins, credentials and
-model detection, locales, settings and recents, the file watcher, and the
-in-app updater.
+model detection, locales, settings, the workspace home and its watcher, the file
+watcher, and the in-app updater.
 
 Projects open as **tabs**. Every project-scoped method takes a `tabID`, so the
 open set is real state in the backend. Each tab carries its own loaded recipe,
@@ -92,6 +92,46 @@ project context, and resolved stores, and closing one releases them. A file
 watcher on the recipe keeps an open tab honest when the file changes underneath
 it, which is the normal case when the same project is also being driven from the
 CLI or from git.
+
+### The app opens on the workspace
+
+The first screen reads the workspace's project registry
+([C-01](../context/c-01-project-model.md)): every project this machine account
+has run kapi in, whichever surface ran it. A project registers the first time
+kapi opens it, so the desktop lists a repository set up from a terminal without
+being told about it. The app registers too, from `OpenProject` and `NewProject`,
+through `workspace.Register` rather than through the project store, because
+opening a project to look at it is no reason to create `.kapi/work/store.db`
+inside somebody's checkout.
+
+A registration carries the project's identity, its display name, the checkout
+paths it has been seen at on this machine and its last-active time. Checkouts
+are a list rather than a field, so two worktrees or two clones of one repository
+are one row with two places to open it from. A checkout whose recipe has gone is
+marked missing and kept: the project and its context are untouched by a folder
+disappearing, and dropping the row would erase the only record of where it was.
+A project with no checkout here opens as a **context-only tab**: it carries no
+recipe and no files, its terms and content memory are bound straight to the
+workspace's context store as borrowed handles, and the Context hub drops the
+sections that read a checkout.
+
+Removal is a verb of its own. `Workspace.Forget` deletes the registration, the
+checkouts recorded against it and the context store behind it, and the desktop
+asks for confirmation naming the file that goes and the folders that stay.
+Nothing else calls it: closing a tab, deleting a folder and resetting a sample
+all leave the project registered, because a context that disappears as a side
+effect of something else is the loss this separation exists to prevent.
+
+The home follows other processes without any channel to them. A CLI run and an
+agent's MCP server register into the same workspace, and every registration
+appends to its operation log, so `workspace.Head` is one indexed integer that
+says whether anything has happened. A goroutine started in `ServiceStartup`
+reads it once a second and emits `workspace:changed` when it moves, which the
+frontend turns into a refetch. Polling rather than watching the files: a SQLite
+database in WAL mode changes three files in an order a filesystem event says
+nothing useful about, while an idle app here costs one single-row query a
+second. There is no IPC and no background service; the store is the meeting
+point.
 
 ### The project home and the point map
 
@@ -115,6 +155,7 @@ The stores are sections of one hub, beside the graph:
 | Section | What it shows |
 | --- | --- |
 | **Explorer** | the context graph, through `@neokapi/context-explorer`; the governs pane renders the same guide the retrieval surface serves ([C-06](../context/c-06-retrieval.md)) |
+| **Agent View** | the resolved context for one file as an agent receives it: `AgentContextAt` calls the desktop's `ContextAt` and renders the answer's own `FormatText`, so the body on screen is the `context://` resource body rather than a second rendering of it |
 | **Voice** | the whole resolved profile per point: tone, style patterns with severities and rates, term rules, examples, and the locale, channel and persona overrides as authored ([C-07](../context/c-07-voice-profiles.md)); the profile is edited here |
 | **Terms** | the terms store: search, facets, provenance, concept relations |
 | **Content Memory** | the content memory: search, facets, activity, provenance, the languages gate |
@@ -257,7 +298,7 @@ user/system roots entirely, the same isolation contract dev, CI, and the
 harness recorder already rely on.
 
 The desktop's own preferences (theme, interface language, hidden and custom
-locales, telemetry consent, recent projects) live in a *separate* root,
+locales, telemetry consent, the session's open tabs) live in a *separate* root,
 `<UserConfigDir>/kapi-desktop`, overridable with `KAPI_DESKTOP_CONFIG_DIR`. The
 split is deliberate: a preference about a window is not a setting the CLI
 should read, and resetting one should not disturb the other.
@@ -303,6 +344,8 @@ the package manager.
   in the desktop is a recipe edit `git diff` shows.
 - Any new tool, format, or provider registered in the framework appears in the
   desktop with no backend change.
+- The app knows every project on the machine without anyone listing them, and it
+  pays one indexed query a second for keeping that list current.
 
 ## Related
 

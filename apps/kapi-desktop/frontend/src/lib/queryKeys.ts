@@ -77,7 +77,14 @@ export const qk = {
 
   // Settings / system
   settings: () => ["settings"] as const,
-  recentFiles: () => ["recent-files"] as const,
+  workspaceProjects: () => ["workspace-projects"] as const,
+  /** What removing one project from the workspace will delete. */
+  workspaceRemoval: (key: string) => ["workspace-removal", key] as const,
+  /** The resolved context for one file, as an agent receives it. */
+  agentContext: (tabID: string, path: string) => ["agent-context", tabID, path] as const,
+  /** The values one context dimension can take in a project. */
+  contextOptions: (tabID: string, dimension: string) =>
+    ["context-options", tabID, dimension] as const,
   version: () => ["version"] as const,
   homeDir: () => ["home-dir"] as const,
 

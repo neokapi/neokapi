@@ -68,9 +68,10 @@ describe("useApi", () => {
   });
 
   it("exposes all persistence methods", () => {
-    expect(api.listRecentFiles).toBeDefined();
-    expect(api.removeRecentFile).toBeDefined();
-    expect(api.clearRecentFiles).toBeDefined();
+    expect(api.listWorkspaceProjects).toBeDefined();
+    expect(api.workspaceRemovalFor).toBeDefined();
+    expect(api.forgetWorkspaceProject).toBeDefined();
+    expect(api.openWorkspaceContext).toBeDefined();
     expect(api.getSettings).toBeDefined();
     expect(api.saveSettings).toBeDefined();
     expect(api.getTheme).toBeDefined();
@@ -81,6 +82,6 @@ describe("useApi", () => {
     // In vitest, the Wails binding import fails silently — all calls return null.
     expect(await api.getVersion()).toBeNull();
     expect(await api.listPlugins()).toBeNull();
-    expect(await api.listRecentFiles()).toBeNull();
+    expect(await api.listWorkspaceProjects()).toBeNull();
   });
 });

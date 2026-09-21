@@ -1,6 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { AppHome } from "../components/AppHome";
+import type { WorkspaceHome } from "../types/api";
+
+const LOCATION = "/fakehome/.local/share/kapi/workspaces/default";
+
+function workspace(projects: WorkspaceHome["projects"]): WorkspaceHome {
+  return { location: LOCATION, read_only: false, projects };
+}
 
 const meta: Meta<typeof AppHome> = {
   title: "Components/AppHome",
@@ -8,8 +15,9 @@ const meta: Meta<typeof AppHome> = {
   tags: ["autodocs"],
   args: {
     samplesDismissed: false,
-    onOpenRecent: fn(),
-    onRemoveRecent: fn(),
+    onOpenCheckout: fn(),
+    onOpenContext: fn(),
+    onForgetProject: fn(),
     onNewProject: fn(),
     onOpenProject: fn(),
     onNavigate: fn(),
@@ -24,74 +32,126 @@ const meta: Meta<typeof AppHome> = {
 export default meta;
 type Story = StoryObj<typeof AppHome>;
 
-export const WithRecentProjects: Story = {
+/** The ordinary case: a few projects, each with one checkout here. */
+export const WithProjects: Story = {
   args: {
-    recentFiles: [
+    workspace: workspace([
       {
-        path: "/Users/dev/projects/acme-app/kapi.yaml",
+        key: "prj_acmeapp",
         name: "Acme App",
-        opened_at: "2026-03-29T14:30:00Z",
-        available: true,
+        last_active: "2026-09-20T14:30:00Z",
+        checkouts: [
+          {
+            path: "/fakehome/projects/acme-app",
+            recipe: "/fakehome/projects/acme-app/kapi.yaml",
+            missing: false,
+          },
+        ],
       },
       {
-        path: "/Users/dev/projects/website-i18n/kapi.yaml",
-        name: "Website i18n",
-        opened_at: "2026-03-28T09:15:00Z",
-        available: true,
+        key: "prj_website",
+        name: "Website",
+        last_active: "2026-09-18T09:15:00Z",
+        checkouts: [
+          {
+            path: "/fakehome/projects/website",
+            recipe: "/fakehome/projects/website/kapi.yaml",
+            missing: false,
+          },
+        ],
       },
-      {
-        path: "/Users/dev/projects/mobile-strings/kapi.yaml",
-        name: "Mobile Strings",
-        opened_at: "2026-03-25T16:45:00Z",
-        available: true,
-      },
-    ],
+    ]),
   },
 };
 
-/** Empty state shows sample project cards. */
+/** Nothing has registered yet, so the sample cards carry the screen. */
 export const Empty: Story = {
-  args: {
-    recentFiles: [],
-  },
+  args: { workspace: workspace([]) },
 };
 
-/** Sample cards hidden after user dismisses them. */
+/** Sample cards hidden after the user dismisses them. */
 export const SamplesDismissed: Story = {
-  args: {
-    recentFiles: [],
-    samplesDismissed: true,
-  },
+  args: { workspace: workspace([]), samplesDismissed: true },
 };
 
 /**
- * A remembered project whose recipe went away. The row says which loss it was
- * and offers to forget it, and it never opens a tab (#2560).
+ * Two worktrees of one repository are one project with two places to open it
+ * from; a checkout that went away is shown as missing rather than dropped; and
+ * a project only ever opened on another machine still opens, on its context.
  */
-export const WithUnavailableProjects: Story = {
+export const CheckoutsAndLosses: Story = {
   args: {
     samplesDismissed: true,
-    recentFiles: [
+    workspace: workspace([
       {
-        path: "/Users/dev/projects/acme-app/kapi.yaml",
-        name: "Acme App",
-        opened_at: "2026-03-29T14:30:00Z",
-        available: true,
-      },
-      {
-        path: "/Users/dev/KapiProjects/KapiMart/kapi.yaml",
+        key: "prj_kapimart",
         name: "KapiMart",
-        opened_at: "2026-03-28T09:15:00Z",
-        available: false,
-        unavailable: "moved",
+        last_active: "2026-09-21T08:05:00Z",
+        checkouts: [
+          {
+            path: "/fakehome/src/kapimart",
+            recipe: "/fakehome/src/kapimart/kapi.yaml",
+            missing: false,
+          },
+          {
+            path: "/fakehome/src/kapimart-release",
+            recipe: "/fakehome/src/kapimart-release/kapi.yaml",
+            missing: false,
+          },
+        ],
       },
       {
-        path: "/Users/dev/projects/website-i18n/kapi.yaml",
-        name: "Website i18n",
-        opened_at: "2026-03-27T09:15:00Z",
-        available: false,
-        unavailable: "deleted",
+        key: "prj_movedaway",
+        name: "Old Handbook",
+        last_active: "2026-08-02T11:00:00Z",
+        checkouts: [
+          {
+            path: "/fakehome/projects/handbook",
+            recipe: "/fakehome/projects/handbook/kapi.yaml",
+            missing: true,
+          },
+        ],
       },
-    ],
+      {
+        key: "prj_elsewhere",
+        name: "Field Guide",
+        last_active: "2026-09-10T16:45:00Z",
+        checkouts: [],
+      },
+    ]),
+  },
+};
+
+/** A workspace directory that refuses writes: readable, and nothing new joins. */
+export const ReadOnlyWorkspace: Story = {
+  args: {
+    samplesDismissed: true,
+    workspace: {
+      location: LOCATION,
+      read_only: true,
+      projects: [
+        {
+          key: "prj_acmeapp",
+          name: "Acme App",
+          last_active: "2026-09-20T14:30:00Z",
+          checkouts: [
+            {
+              path: "/fakehome/projects/acme-app",
+              recipe: "/fakehome/projects/acme-app/kapi.yaml",
+              missing: false,
+            },
+          ],
+        },
+      ],
+    },
+  },
+};
+
+/** The workspace could not be opened at all. */
+export const WorkspaceUnreadable: Story = {
+  args: {
+    samplesDismissed: true,
+    workspace: null,
+    workspaceError: new Error("workspace: /fakehome/Dropbox/kapi is inside a synchronized folder"),
   },
 };

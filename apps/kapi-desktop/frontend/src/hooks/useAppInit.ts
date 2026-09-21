@@ -5,10 +5,16 @@ import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "./useInvalidateOnEvent";
 
 /**
- * App-level initialization: theme, recent files, external link intercept.
+ * App-level initialization: theme, the workspace's projects, external link
+ * intercept.
  *
- * Server state (settings, recent files) reads through react-query; the persisted
- * theme is applied as a side effect of the settings query resolving.
+ * Server state (settings, the workspace) reads through react-query; the
+ * persisted theme is applied as a side effect of the settings query resolving.
+ *
+ * The workspace list follows other processes. A CLI run or an agent's MCP
+ * server registering a project moves the workspace's operation log, the backend
+ * watcher notices within a second and emits `workspace:changed`, and this
+ * refetches. Nothing tells the app directly.
  */
 export function useAppInit() {
   const qc = useQueryClient();
@@ -17,33 +23,34 @@ export function useAppInit() {
     queryKey: qk.settings(),
     queryFn: () => api.getSettings(),
   });
-  const recentQuery = useQuery({
-    queryKey: qk.recentFiles(),
-    queryFn: () => api.listRecentFiles(),
+  const workspaceQuery = useQuery({
+    queryKey: qk.workspaceProjects(),
+    queryFn: () => api.listWorkspaceProjects(),
   });
 
   // Optimistic dismissal — flips immediately, before the settings refetch.
   const [dismissedOverride, setDismissedOverride] = useState(false);
 
-  const recentFiles = recentQuery.data ?? [];
+  const workspace = workspaceQuery.data ?? null;
+  const workspaceError = workspaceQuery.error;
   const samplesDismissed = settingsQuery.data
     ? dismissedOverride || !!settingsQuery.data.samples_dismissed
     : true;
 
-  const refreshRecent = useCallback(() => {
-    void qc.invalidateQueries({ queryKey: qk.recentFiles() });
+  const refreshWorkspace = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: qk.workspaceProjects() });
   }, [qc]);
 
-  // Forget one remembered project. Nothing on disk is touched, so this is the
-  // action offered on a row whose recipe has gone away.
-  const removeRecent = useCallback(
-    (path: string) => {
-      void api
-        .removeRecentFile(path)
-        .catch(() => {})
-        .finally(() => {
-          void qc.invalidateQueries({ queryKey: qk.recentFiles() });
-        });
+  // Remove a project and the context the workspace holds for it. The caller
+  // confirms first: this deletes the project's terms, voice profiles, content
+  // memory and recorded decisions.
+  const forgetProject = useCallback(
+    async (key: string) => {
+      try {
+        await api.forgetWorkspaceProject(key);
+      } finally {
+        void qc.invalidateQueries({ queryKey: qk.workspaceProjects() });
+      }
     },
     [qc],
   );
@@ -63,7 +70,9 @@ export function useAppInit() {
 
   // Per Wails v3 docs: common:ApplicationStarted fires after all
   // ServiceStartup hooks complete — data is guaranteed available.
-  useInvalidateOnEvent("common:ApplicationStarted", [qk.recentFiles()]);
+  useInvalidateOnEvent("common:ApplicationStarted", [qk.workspaceProjects()]);
+  // The backend's workspace watcher, and every registration this app makes.
+  useInvalidateOnEvent("workspace:changed", [qk.workspaceProjects()]);
 
   // Intercept external link clicks and open in the system browser.
   useEffect(() => {
@@ -93,5 +102,12 @@ export function useAppInit() {
       });
   }, [qc]);
 
-  return { recentFiles, samplesDismissed, refreshRecent, removeRecent, dismissSamples };
+  return {
+    workspace,
+    workspaceError,
+    samplesDismissed,
+    refreshWorkspace,
+    forgetProject,
+    dismissSamples,
+  };
 }

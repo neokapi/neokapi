@@ -1,65 +1,24 @@
-import { FolderKanban, FolderOpen, FolderX, Sparkles, Workflow, X } from "lucide-react";
-import { Badge, Button, SimpleTooltip } from "@neokapi/ui-primitives";
+import { useState } from "react";
+import { FolderKanban, FolderOpen, Sparkles, Workflow, X } from "lucide-react";
+import { Button, ErrorNotice, SimpleTooltip } from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { ConnectAICard } from "./ConnectAICard";
-import type { AIDetectionResult, RecentFile } from "../types/api";
-
-/**
- * A remembered project whose recipe is gone from disk. It keeps its place in
- * the list so the user can see which project it was and where it lived, and it
- * does not open: behind it is a folder the app can no longer read (#2560).
- */
-function UnavailableRecent({
-  file,
-  location,
-  onRemove,
-}: {
-  file: RecentFile;
-  location: string;
-  onRemove: (path: string) => void;
-}) {
-  return (
-    <div
-      data-testid="recent-unavailable"
-      className="flex w-full items-center gap-3 rounded-lg border border-dashed border-border/60 p-3 text-left"
-    >
-      <FolderX size={16} className="shrink-0 text-muted-foreground/70" />
-      <div className="flex-1 truncate">
-        <div className="flex items-center gap-2">
-          <span className="truncate text-sm font-medium text-muted-foreground">{file.name}</span>
-          <Badge variant="outline" className="shrink-0 text-muted-foreground">
-            Unavailable
-          </Badge>
-        </div>
-        {file.unavailable === "deleted" ? (
-          <div className="truncate text-xs text-muted-foreground/70">
-            The recipe is missing from this folder.
-          </div>
-        ) : (
-          <div className="truncate text-xs text-muted-foreground/70">
-            Folder not found. This project was moved or deleted.
-          </div>
-        )}
-        <div className="truncate text-xs text-muted-foreground/70">{location}</div>
-      </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="shrink-0 text-muted-foreground"
-        onClick={() => onRemove(file.path)}
-      >
-        Remove
-      </Button>
-    </div>
-  );
-}
+import { RemoveProjectDialog } from "./RemoveProjectDialog";
+import { WorkspaceProjectRow } from "./WorkspaceProjectRow";
+import type { AIDetectionResult, WorkspaceHome, WorkspaceProject } from "../types/api";
 
 interface AppHomeProps {
-  recentFiles: RecentFile[];
+  /** The workspace and the projects it holds, null while it is being read. */
+  workspace: WorkspaceHome | null;
+  /** Why the workspace could not be read, when it could not. */
+  workspaceError?: unknown;
   samplesDismissed: boolean;
-  onOpenRecent: (path: string) => void;
-  /** Forget one remembered project. Nothing on disk is touched. */
-  onRemoveRecent: (path: string) => void;
+  /** Open a project from one of its checkouts, by recipe path. */
+  onOpenCheckout: (recipe: string) => void;
+  /** Open a project with no checkout here, on its context alone. */
+  onOpenContext: (key: string) => void;
+  /** Remove a project and the context the workspace holds for it. */
+  onForgetProject: (key: string) => Promise<void> | void;
   onNewProject: () => void;
   onOpenProject: () => void;
   onNavigate: (view: string) => void;
@@ -69,11 +28,20 @@ interface AppHomeProps {
   aiDetection?: AIDetectionResult;
 }
 
+/**
+ * The app's first screen: this machine account's workspace.
+ *
+ * Every project kapi has run in is here, whichever surface ran it. A repository
+ * set up from a terminal appears without anyone opening it in the app, and a
+ * project opened here with "Open a Project" joins the same list.
+ */
 export function AppHome({
-  recentFiles,
+  workspace,
+  workspaceError,
   samplesDismissed,
-  onOpenRecent,
-  onRemoveRecent,
+  onOpenCheckout,
+  onOpenContext,
+  onForgetProject,
   onNewProject,
   onOpenProject,
   onNavigate,
@@ -82,12 +50,8 @@ export function AppHome({
   aiDetection,
 }: AppHomeProps) {
   const shortenHome = useShortenHome();
-  // The recipe path identifies the project, and the folder is what the user
-  // recognizes, so show the folder unless the recipe carries a non-standard name.
-  const location = (path: string) =>
-    path.endsWith("/kapi.yaml")
-      ? shortenHome(path.replace(/\/kapi\.yaml$/, ""))
-      : shortenHome(path);
+  const [removing, setRemoving] = useState<WorkspaceProject | null>(null);
+  const projects = workspace?.projects ?? [];
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-8 flex items-center gap-4">
@@ -131,41 +95,57 @@ export function AppHome({
         </div>
       </section>
 
-      {/* Recent projects — prominent, right under the primary actions. */}
-      {recentFiles.length > 0 && (
-        <section className="mb-8">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Recent Projects
+      {/* The workspace: every project kapi has run in, from any surface. A feed
+          of what agents have recorded belongs directly below this list, once
+          there is one to show. */}
+      <section className="mb-8">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Your Projects
           </h2>
-          <div className="space-y-1">
-            {recentFiles.map((file) =>
-              file.available ? (
-                <Button
-                  key={file.path}
-                  variant="outline"
-                  onClick={() => onOpenRecent(file.path)}
-                  className="flex w-full h-auto items-center gap-3 rounded-lg p-3 text-left hover:bg-accent/30"
-                >
-                  <FolderKanban size={16} className="shrink-0 text-muted-foreground" />
-                  <div className="flex-1 truncate">
-                    <div className="text-sm font-medium">{file.name}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {location(file.path)}
-                    </div>
-                  </div>
-                </Button>
-              ) : (
-                <UnavailableRecent
-                  key={file.path}
-                  file={file}
-                  location={location(file.path)}
-                  onRemove={onRemoveRecent}
-                />
-              ),
-            )}
+          {workspace?.location && (
+            <SimpleTooltip content="Where Kapi keeps the context of every project you work on">
+              <span className="truncate font-mono text-[11px] text-muted-foreground/70">
+                {shortenHome(workspace.location)}
+              </span>
+            </SimpleTooltip>
+          )}
+        </div>
+
+        {workspaceError ? (
+          <ErrorNotice error={workspaceError} title="Your workspace could not be read" />
+        ) : projects.length > 0 ? (
+          <div className="space-y-2">
+            {projects.map((project) => (
+              <WorkspaceProjectRow
+                key={project.key}
+                project={project}
+                onOpenCheckout={onOpenCheckout}
+                onOpenContext={onOpenContext}
+                onRemove={setRemoving}
+              />
+            ))}
           </div>
-        </section>
-      )}
+        ) : (
+          workspace && (
+            <p className="text-sm text-muted-foreground">
+              Nothing here yet. Projects appear as soon as Kapi runs in them, whether you open one
+              here or run <code className="font-mono text-xs">kapi</code> in a folder.
+            </p>
+          )
+        )}
+        {workspace?.read_only && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            This workspace is open for reading only, so nothing new registers here.
+          </p>
+        )}
+      </section>
+
+      <RemoveProjectDialog
+        project={removing}
+        onClose={() => setRemoving(null)}
+        onConfirm={onForgetProject}
+      />
 
       {/* First-run: connect an AI provider. The card renders only when no
           provider is configured anywhere, and disappears once one is. */}

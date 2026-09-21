@@ -100,15 +100,14 @@ func TestIsEmptyProjectOnAGoneDirectory(t *testing.T) {
 }
 
 // TestGoneProjectIsRememberedNotRestored walks the whole session path: the
-// project stays in the recent list, marked unavailable, and stays out of the
-// set the frontend reopens.
+// project stays on the workspace home with its checkout marked missing, and
+// stays out of the set the frontend reopens.
 func TestGoneProjectIsRememberedNotRestored(t *testing.T) {
-	app := NewApp()
+	app := newWorkspaceApp(t)
 	app.settings = &settingsStore{
 		filePath: filepath.Join(t.TempDir(), "settings.json"),
 		settings: AppSettings{Theme: "system"},
 	}
-	app.recent = &recentStore{filePath: filepath.Join(t.TempDir(), "recent.json")}
 
 	kept := scaffoldProject(t, "Kept")
 	gone := scaffoldProject(t, "KapiMart")
@@ -130,20 +129,14 @@ func TestGoneProjectIsRememberedNotRestored(t *testing.T) {
 	assert.Equal(t, []string{kept}, session.LastOpenProjects)
 	assert.Empty(t, session.ActiveProject)
 
-	recents := app.ListRecentFiles()
-	require.Len(t, recents, 2)
-	byPath := make(map[string]RecentFile, len(recents))
-	for _, r := range recents {
-		byPath[r.Path] = r
+	home, err := app.ListWorkspaceProjects()
+	require.NoError(t, err)
+	require.Len(t, home.Projects, 2, "a project whose folder went away keeps its place")
+	missing := map[string]bool{}
+	for _, p := range home.Projects {
+		require.Len(t, p.Checkouts, 1)
+		missing[p.Name] = p.Checkouts[0].Missing
 	}
-	assert.True(t, byPath[kept].Available)
-	assert.False(t, byPath[gone].Available)
-	assert.Equal(t, recentReasonMoved, byPath[gone].Unavailable)
-	assert.Equal(t, "KapiMart", byPath[gone].Name)
-
-	// The remove action forgets it; the surviving project is untouched.
-	app.RemoveRecentFile(gone)
-	after := app.ListRecentFiles()
-	require.Len(t, after, 1)
-	assert.Equal(t, kept, after[0].Path)
+	assert.False(t, missing["Kept"])
+	assert.True(t, missing["KapiMart"], "the checkout that went away is shown as missing")
 }

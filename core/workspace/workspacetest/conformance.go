@@ -44,12 +44,15 @@ func RunConformance(t *testing.T, newBackend Factory) {
 		{"a project store keeps what is written to it", projectStoreKeepsWrites},
 		{"operations are numbered in the order they arrive", operationsAreNumbered},
 		{"operations read back from a position", operationsReadBackFromAPosition},
+		{"the log head follows the last operation", headFollowsTheLastOperation},
 		{"an operation needs a kind", operationNeedsAKind},
 		{"the registry records a project", registryRecordsAProject},
 		{"re-registering updates the name and adds the checkout", reRegisteringUpdates},
 		{"a project registers with no checkout", registersWithNoCheckout},
 		{"two projects register in one workspace", twoProjectsRegister},
 		{"a project with no registration is not found", unregisteredProjectIsNotFound},
+		{"forgetting a project removes it and its store", forgettingRemovesTheProject},
+		{"forgetting a project needs a key", forgettingNeedsAKey},
 		{"close is idempotent", closeIsIdempotent},
 	}
 	for _, tc := range cases {
@@ -170,6 +173,26 @@ func operationsReadBackFromAPosition(t *testing.T, b workspace.Backend) {
 	none, err := b.Since(ctx, recorded[2].Seq, 0)
 	require.NoError(t, err)
 	assert.Empty(t, none, "reading past the end returns nothing")
+}
+
+func headFollowsTheLastOperation(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	start, err := b.Head(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, start, "an empty log has no head")
+
+	recorded, err := b.Record(ctx, workspace.Op{Kind: "one"}, workspace.Op{Kind: "two"})
+	require.NoError(t, err)
+	require.Len(t, recorded, 2)
+
+	head, err := b.Head(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, recorded[1].Seq, head, "the head is the last sequence number assigned")
+
+	after, err := b.Since(ctx, start, 0)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"one", "two"}, kinds(after),
+		"a reader that held the old head reads exactly what it missed")
 }
 
 func operationNeedsAKind(t *testing.T, b workspace.Backend) {
@@ -293,6 +316,61 @@ func unregisteredProjectIsNotFound(t *testing.T, b workspace.Backend) {
 
 	_, err = w.Register(ctx, "", "Nameless", "/fakehome/src/x")
 	assert.ErrorIs(t, err, workspace.ErrNoProjectKey)
+}
+
+func forgettingRemovesTheProject(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	w, err := workspace.Open(ctx, b)
+	require.NoError(t, err)
+
+	_, err = w.Register(ctx, "prj_gone", "Gone", "/fakehome/src/gone")
+	require.NoError(t, err)
+	_, err = w.Register(ctx, "prj_kept", "Kept", "/fakehome/src/kept")
+	require.NoError(t, err)
+
+	db, err := w.Context(ctx, "prj_gone")
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE TABLE decided (v TEXT)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `INSERT INTO decided (v) VALUES ('yes')`)
+	require.NoError(t, err)
+
+	require.NoError(t, w.Forget(ctx, "prj_gone"))
+
+	_, ok, err := w.Lookup(ctx, "prj_gone")
+	require.NoError(t, err)
+	assert.False(t, ok, "a forgotten project is no longer registered")
+
+	projects, err := w.Projects(ctx)
+	require.NoError(t, err)
+	require.Len(t, projects, 1, "only the forgotten project goes")
+	assert.Equal(t, workspace.ProjectKey("prj_kept"), projects[0].Key)
+
+	// The store behind it is gone too: opening the key again yields an empty one.
+	fresh, err := w.Context(ctx, "prj_gone")
+	require.NoError(t, err)
+	var tables int
+	require.NoError(t, fresh.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'decided'`).Scan(&tables))
+	assert.Zero(t, tables, "the context the project had is discarded with it")
+
+	ops, err := w.Ops(ctx, 0, 0)
+	require.NoError(t, err)
+	require.NotEmpty(t, ops)
+	last := ops[len(ops)-1]
+	assert.Equal(t, workspace.OpForgetProject, last.Kind, "the removal is in the log")
+	assert.Equal(t, workspace.ProjectKey("prj_gone"), last.Project)
+
+	assert.NoError(t, w.Forget(ctx, "prj_absent"),
+		"forgetting a project the workspace never held is not an error")
+}
+
+func forgettingNeedsAKey(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	w, err := workspace.Open(ctx, b)
+	require.NoError(t, err)
+	require.ErrorIs(t, w.Forget(ctx, ""), workspace.ErrNoProjectKey)
+	require.ErrorIs(t, b.Forget(ctx, ""), workspace.ErrNoProjectKey)
 }
 
 func closeIsIdempotent(t *testing.T, b workspace.Backend) {

@@ -99,6 +99,9 @@ const (
 	// OpRegisterProject records a project registering, or re-registering with a
 	// changed display name or a checkout path not seen before.
 	OpRegisterProject = "project.register"
+	// OpForgetProject records a project being removed from the workspace: its
+	// registration and the context store behind it.
+	OpForgetProject = "project.forget"
 )
 
 // Backend is where a workspace's authoritative copy lives.
@@ -118,6 +121,11 @@ type Backend interface {
 	// Project opens one project's context store, creating it on first use.
 	Project(ctx context.Context, key ProjectKey) (*storage.DB, error)
 
+	// Forget releases one project's context store and discards it. A key the
+	// workspace holds no store for is not an error, so a caller cleaning up
+	// after a partial write need not look first.
+	Forget(ctx context.Context, key ProjectKey) error
+
 	// Record appends operations to the log and returns them with the sequence
 	// numbers the backend assigned, in the order given.
 	Record(ctx context.Context, ops ...Op) ([]Op, error)
@@ -126,6 +134,14 @@ type Backend interface {
 	// after, in sequence order. A limit of zero or less asks for every
 	// operation.
 	Since(ctx context.Context, after int64, limit int) ([]Op, error)
+
+	// Head returns the sequence number of the last operation recorded, and zero
+	// for an empty log.
+	//
+	// It is what a surface watching the workspace for change reads: one number
+	// per poll, rather than the operations themselves. A process that has seen
+	// Head can ask Since for what it missed.
+	Head(ctx context.Context) (int64, error)
 
 	// Close releases every handle the backend opened. It is idempotent.
 	Close() error

@@ -4,7 +4,6 @@ import (
 	"embed"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 
 	// Blank-import the venue schema package so a recipe carrying its extension
@@ -177,43 +176,37 @@ func buildAppMenu(app *application.App, appService *backend.App) *application.Me
 		})
 	fileMenu.AddSeparator()
 
-	// Recent Projects submenu — populated from the live recent store.
-	recentMenu := fileMenu.AddSubmenu(desktopmenu.T(tr, "recentProjects"))
+	// The workspace's projects, one item per checkout on this machine. The app
+	// window lists the same projects with everything the menu cannot show, so
+	// this is the shortcut rather than the surface.
+	projectsMenu := fileMenu.AddSubmenu(desktopmenu.T(tr, "workspaceProjects"))
 	home, _ := os.UserHomeDir()
-	recents := appService.ListRecentFiles()
-	for _, recent := range recents {
-		r := recent // capture
-		// Format: ~/path (Name). The recipe filename is fixed (kapi.yaml), so the
-		// folder identifies the project; only show a non-standard filename.
-		dir := filepath.Dir(r.Path)
-		if home != "" && strings.HasPrefix(dir, home) {
-			dir = "~" + dir[len(home):]
+	items := 0
+	if workspaceHome, err := appService.ListWorkspaceProjects(); err == nil {
+		for _, wsProject := range workspaceHome.Projects {
+			for _, checkout := range wsProject.Checkouts {
+				c := checkout // capture
+				dir := c.Path
+				if home != "" && strings.HasPrefix(dir, home) {
+					dir = "~" + dir[len(home):]
+				}
+				item := projectsMenu.Add(dir + " (" + wsProject.Name + ")").SetTooltip(c.Path)
+				items++
+				if c.Missing {
+					// No recipe is readable there. The entry stays visible so
+					// the checkout is still findable, and stays unclickable so
+					// opening it cannot produce a tab with nothing behind it.
+					item.SetEnabled(false)
+					continue
+				}
+				item.OnClick(func(ctx *application.Context) {
+					app.Event.Emit("menu:open-recent", c.Recipe)
+				})
+			}
 		}
-		var label string
-		if filepath.Base(r.Path) != "kapi.yaml" {
-			label = dir + "/" + filepath.Base(r.Path) + " (" + r.Name + ")"
-		} else {
-			label = dir + " (" + r.Name + ")"
-		}
-		item := recentMenu.Add(label).SetTooltip(r.Path)
-		if !r.Available {
-			// The recipe is gone from disk. The entry stays visible so the
-			// project is still findable, and stays unclickable so opening it
-			// cannot produce a tab with nothing behind it (#2560).
-			item.SetEnabled(false)
-			continue
-		}
-		item.OnClick(func(ctx *application.Context) {
-			app.Event.Emit("menu:open-recent", r.Path)
-		})
 	}
-	if len(recents) == 0 {
-		recentMenu.Add(desktopmenu.T(tr, "noRecentProjects")).SetEnabled(false)
-	} else {
-		recentMenu.AddSeparator()
-		recentMenu.Add(desktopmenu.T(tr, "clearRecentProjects")).OnClick(func(ctx *application.Context) {
-			appService.ClearRecentFiles()
-		})
+	if items == 0 {
+		projectsMenu.Add(desktopmenu.T(tr, "noWorkspaceProjects")).SetEnabled(false)
 	}
 
 	fileMenu.AddSeparator()
