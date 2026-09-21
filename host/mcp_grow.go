@@ -123,10 +123,21 @@ func mcpClientName(req *mcp.CallToolRequest) string {
 	if req == nil {
 		return ""
 	}
-	if info := req.ClientInfo(); info != nil {
-		return info.Name
+	return clientNameOf(req.Session)
+}
+
+// clientNameOf reads the name off a session's initialize parameters. It goes
+// through the session rather than through a request helper, because the two
+// callers here hold different request types and the session is what both have.
+func clientNameOf(ss *mcp.ServerSession) string {
+	if ss == nil {
+		return ""
 	}
-	return ""
+	params := ss.InitializeParams()
+	if params == nil || params.ClientInfo == nil {
+		return ""
+	}
+	return params.ClientInfo.Name
 }
 
 // NoteMCPSession records that this server process is at work in a project, so
@@ -170,21 +181,15 @@ func (a *App) MCPSessionMiddleware() mcp.Middleware {
 	}
 }
 
-// sessionClientName reads the client's name off any request. It is empty until
-// the client has introduced itself, which is one request in.
+// sessionClientName reads the client's name off any request the server
+// answers. It is empty until the client has introduced itself, which is one
+// request in.
 func sessionClientName(req mcp.Request) string {
 	if req == nil {
 		return ""
 	}
-	ss, ok := req.GetSession().(*mcp.ServerSession)
-	if !ok || ss == nil {
-		return ""
-	}
-	params := ss.InitializeParams()
-	if params == nil || params.ClientInfo == nil {
-		return ""
-	}
-	return params.ClientInfo.Name
+	ss, _ := req.GetSession().(*mcp.ServerSession)
+	return clientNameOf(ss)
 }
 
 // ─── What the write tools take ──────────────────────────────────────────────
