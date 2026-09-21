@@ -39,6 +39,17 @@ func coldStartStore(byKind map[string]int, withEvidence, withoutEvidence int) Co
 		WithEvidence: withEvidence, WithoutEvidence: withoutEvidence}
 }
 
+// coldStartOperations lays out a store's entries, one actor label each, so a
+// report can be rendered over attribution the way a run leaves it.
+func coldStartOperations(store ColdStartStore, ops ...ColdStartOperation) ColdStartStore {
+	store.Operations = append(store.Operations, ops...)
+	return store
+}
+
+func coldStartAgentOp(id string) ColdStartOperation {
+	return ColdStartOperation{ID: id, Kind: "observe", Actor: coldStartActorAgent, AgentName: "codex", Session: "019a2c"}
+}
+
 func TestReportColdStartRendersThreeMeasures(t *testing.T) {
 	dir, record := coldStartEvidence(t)
 	session := ColdStartSession{
@@ -168,6 +179,54 @@ func TestReportColdStartRefusesAnAttemptFromAnotherStudy(t *testing.T) {
 func TestReportColdStartWithoutAStudy(t *testing.T) {
 	err := reportColdStart(context.Background(), ColdStartOptions{Dir: t.TempDir()})
 	require.ErrorContains(t, err, "no drill has been recorded here")
+}
+
+// A session is one agent working a task, so every entry it added is an agent's
+// work. A cell where the store says a person recorded it is the defect the
+// report has to surface.
+func TestReportColdStartFlagsWorkAttributedToAPerson(t *testing.T) {
+	dir, record := coldStartEvidence(t)
+	session := ColdStartSession{
+		ID: "release-note-codex-one", Cell: "release-note-codex", Stage: coldStartStageOne,
+		Host: record.Manifest.Hosts[1], Task: "release-note",
+	}
+	writeColdStartAttempt(t, dir, coldStartPhaseSessionOne, coldStartAttempt{
+		Schema: coldStartSchema, Session: session, Phase: coldStartPhaseSessionOne, Fingerprint: record.Fingerprint,
+		HostVersion: "codex-cli 0.155.1",
+	}, &coldStartAttemptResult{
+		Status: "completed", IdentityStatus: "verified", UserDataUntouched: true,
+		StoreBefore: coldStartStore(map[string]int{}, 0, 0),
+		StoreAfter: coldStartOperations(coldStartStore(map[string]int{"observe": 2, "propose": 1}, 3, 0),
+			coldStartAgentOp("op_1"), coldStartAgentOp("op_2"),
+			ColdStartOperation{ID: "op_3", Kind: "propose", Actor: coldStartActorPerson}),
+		Transcript: ColdStartTranscript{Status: "completed", Calls: []ColdStartCall{}},
+	})
+
+	require.NoError(t, reportColdStart(context.Background(), ColdStartOptions{Dir: dir}))
+
+	rendered := coldStartLatest(t, dir, "report-*.md")
+	assert.Contains(t, rendered, "## Who the store says recorded it")
+	assert.Contains(t, rendered, "| release-note-codex | agent 2, person 1 |  | agent codex, session 019a2c; person |")
+	assert.Contains(t, rendered, "- release-note-codex: 1 of 3 entries an agent recorded are attributed to a person")
+
+	var report ColdStartReport
+	require.NoError(t, readPairedJSON(coldStartLatestPath(t, dir, "report-*.json"), &report))
+	for _, row := range report.Rows {
+		if row.Cell != "release-note-codex" {
+			continue
+		}
+		assert.Equal(t, 2, row.One.ByAgent)
+		assert.Equal(t, 1, row.One.ByPerson)
+		assert.Equal(t, []string{"agent codex, session 019a2c", "person"}, row.One.Actors)
+	}
+}
+
+func TestColdStartAttribution(t *testing.T) {
+	assert.Empty(t, coldStartAttribution(ColdStartStageRow{}))
+	assert.Equal(t, "nothing", coldStartAttribution(ColdStartStageRow{Ran: true}))
+	assert.Equal(t, "agent 2", coldStartAttribution(ColdStartStageRow{Ran: true, ByAgent: 2}))
+	assert.Equal(t, "person 1", coldStartAttribution(ColdStartStageRow{Ran: true, ByPerson: 1}))
+	assert.Equal(t, "agent 2, person 1", coldStartAttribution(ColdStartStageRow{Ran: true, ByAgent: 2, ByPerson: 1}))
 }
 
 func TestColdStartGrowthCountsOneSession(t *testing.T) {
