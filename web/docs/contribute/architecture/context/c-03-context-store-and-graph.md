@@ -265,40 +265,45 @@ for change; and one CLI-shaped run holding a purge-and-refill transaction over
 its own projection. Eighteen operating-system processes, because an in-process
 permit can only order writers that share a handle.
 
-Bar: zero failed writes, and p99 under 50 ms for the small writes. The CLI's
-purge-and-refill is excluded from the latency half; it is a transaction over
-thousands of rows and it is in the run as the antagonist.
+Bar: zero failed writes across every stream, and p99 under 50 ms for the small
+writes an observation and a decision make.
 
-Measured over 60 s, 16 agents at one round per second, a round being a decision
-plus a content-memory entry:
+Measured over 120 s at dogfood scale (75 000 blocks, 20 000 content-memory
+entries, 2 000 concepts, 75 000 units), 16 agents recording a decision once a
+second and promoting wording into the content memory every tenth round:
 
 | Workload | ops | failed | p50 ms | p95 ms | p99 ms | max ms |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| agent: decision put | 937 | 0 | 0.46 | 12.88 | 21.28 | 56.57 |
-| agent: content-memory entry | 936 | 0 | 13.06 | 25.83 | 38.65 | 60.20 |
-| agent: register in workspace | 16 | 0 | 0.38 | 0.62 | 0.62 | 0.62 |
-| desktop: poll for change | 299 | 0 | 0.13 | 0.35 | 1.00 | 1.32 |
-| CLI: projection purge+refill | 7 | 0 | 72.80 | 89.85 | 89.85 | 89.85 |
-| CLI: context write | 7 | 0 | 21.62 | 26.48 | 26.48 | 26.48 |
+| agent: decision put | 1894 | 0 | 0.38 | 9.14 | 31.84 | 53.50 |
+| agent: register in workspace | 16 | 0 | 0.40 | 0.87 | 0.87 | 0.87 |
+| agent: content-memory promotion | 198 | 0 | 33.47 | 60.31 | 88.77 | 104.30 |
+| desktop: poll for change | 599 | 0 | 0.18 | 0.83 | 1.02 | 4.88 |
+| CLI: projection purge+refill | 11 | 0 | 86.19 | 108.26 | 108.26 | 108.26 |
+| CLI: context write | 11 | 0 | 30.83 | 51.66 | 51.66 | 51.66 |
 
-The cross-process lock is in the design because of the run before it. Without
-it the same configuration recorded zero failed writes but a 66 ms p99 and a
-778 ms maximum on a write whose median was 0.45 ms. The tail was `busy_timeout`,
-not the work: a writer that loses the race sleeps a fixed step of the backoff
-ladder (1, 2, 5, 10, 15, 20, 25, 25, 25, 50, 50, 100 ms) and wakes to try again,
-so a lock that freed a millisecond later stays untaken for the rest of the step.
-Replacing the sleep with a kernel wait took the p99 to 21 ms and the maximum to
-57 ms.
+The CLI's projection transaction runs for 86 to 108 ms throughout, and the
+agent writes beside it do not move. That is the claim the split makes, measured.
 
-The CLI's projection transaction runs for 73 to 90 ms throughout, and the agent
-writes beside it do not move. That is the claim the split makes, measured.
+Two rows are reported rather than gated, and the second is the reason.
 
-One rate the run also fixes: a content-memory `Add` maintains the FTS5 tables row
-by row and costs about 12 ms with nobody else on the file, so one context store
-serves roughly 80 of them a second. Sixteen agents at ten rounds a second offer
-four times that, and the run then measures a saturated queue (p99 in seconds)
-rather than contention. A converge worker with entries in hand should use
-`BulkAddWithStream`, which is one transaction for the batch.
+**Teaching the content memory is a heavier write, and its cost is its own.**
+`memory.Add` maintains the FTS5 tables row by row, and it grows with the corpus:
+on this store, with a SINGLE writer and nobody else on the file, it costs 32 ms
+at the median and 47 ms at the 99th percentile. The sixteen-process run above
+measures 33 ms and 89 ms, so contention adds about a millisecond to the median.
+Holding that write to a 50 ms bar would measure FTS5 rather than the workspace.
+A converge worker with entries in hand should use `BulkAddWithStream`, which is
+one transaction for the batch; at the decision rate (`-memory-every=1`) the
+store saturates and the tail goes with it.
+
+**The cross-process lock is in the design because of the run before it.** With
+the in-process permit alone, sixteen agents recorded zero failed writes but a
+66 ms p99 and a 778 ms maximum on a write whose median was 0.45 ms. The tail was
+`busy_timeout`, not the work: a writer that loses the race sleeps a fixed step of
+the backoff ladder (1, 2, 5, 10, 15, 20, 25, 25, 25, 50, 50, 100 ms) and wakes to
+try again, so a lock that freed a millisecond later stays untaken for the rest of
+the step. Replacing the sleep with a kernel wait took that p99 to 21 ms and the
+maximum to 57 ms on the same configuration.
 
 ### Reading from a write-restricted sandbox
 

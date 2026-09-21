@@ -97,7 +97,7 @@ func TestKeyForCheckoutIsStableAndDistinct(t *testing.T) {
 	c := workspace.KeyForCheckout("/fakehome/src/two")
 	assert.Equal(t, a, b, "one checkout is one key")
 	assert.NotEqual(t, a, c, "two checkouts are two keys")
-	assert.True(t, len(string(a)) > 8)
+	assert.Greater(t, len(string(a)), 8)
 }
 
 func TestCloudSyncedWorkspaceIsRefused(t *testing.T) {
@@ -187,7 +187,7 @@ func TestWorkspaceReadsFromAWriteRestrictedDirectory(t *testing.T) {
 	assert.Equal(t, "content memory", v)
 
 	_, err = readOnly.Register(ctx, "prj_sealed", "Sealed", "/fakehome/src/sealed")
-	assert.ErrorIs(t, err, workspace.ErrReadOnly, "and refuses a write rather than losing it")
+	require.ErrorIs(t, err, workspace.ErrReadOnly, "and refuses a write rather than losing it")
 
 	_, err = ctxDB.ExecContext(ctx, `INSERT INTO terms (v) VALUES ('lost')`)
 	assert.Error(t, err, "a write through the handle is refused too")

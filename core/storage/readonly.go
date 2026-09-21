@@ -44,12 +44,12 @@ func OpenReadOnly(dbPath string) (*DB, error) {
 	}
 	snapshot, cleanup, serr := snapshotDatabase(dbPath)
 	if serr != nil {
-		return nil, fmt.Errorf("open database %s for reading: %w (snapshot: %v)", dbPath, err, serr)
+		return nil, fmt.Errorf("open database %s for reading: %w (snapshot: %w)", dbPath, err, serr)
 	}
 	db, serr = OpenWith(snapshot, Options{ReadOnly: true})
 	if serr != nil {
 		cleanup()
-		return nil, fmt.Errorf("open database %s for reading: %w (snapshot at %s: %v)", dbPath, err, snapshot, serr)
+		return nil, fmt.Errorf("open database %s for reading: %w (snapshot at %s: %w)", dbPath, err, snapshot, serr)
 	}
 	db.path = dbPath
 	db.cleanup = cleanup

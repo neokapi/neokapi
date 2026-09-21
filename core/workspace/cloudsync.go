@@ -51,7 +51,7 @@ func CloudSyncedDir(path string) (segment, product string, found bool) {
 		return "", "", false
 	}
 	cleaned := filepath.Clean(path)
-	for _, seg := range strings.Split(filepath.ToSlash(cleaned), "/") {
+	for seg := range strings.SplitSeq(filepath.ToSlash(cleaned), "/") {
 		if seg == "" || seg == "." || seg == ".." {
 			continue
 		}
