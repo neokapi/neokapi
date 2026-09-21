@@ -3,7 +3,7 @@ id: c-03-context-store-and-graph
 sidebar_position: 3
 title: "C-03: The context store and graph"
 description: "Architecture decision: a project keeps two databases. The projection of its working tree stays in the checkout at .kapi/work/store.db; its authored context lives in a workspace outside every checkout, one database per project, beside the workspace's project registry and context graph."
-keywords: [workspace, context store, store.db, context graph, graph_nodes, graph_edges, project registry, projection, backend, ATTACH, neokapi, architecture decision]
+keywords: [workspace, context store, store.db, context graph, graph_nodes, graph_edges, project registry, projection, backend, neokapi, architecture decision]
 ---
 
 # C-03: The context store and graph
@@ -28,10 +28,10 @@ keeps its own view of the one ledger.
 The workspace also holds what spans projects: the **project registry** and the
 **context graph**, whose node ids already carry the project they belong to.
 
-A question that reaches across the two files is one query. SQLite's `ATTACH`
-opens the context store beside the projection on one connection, so *which
-blocks use this term, in which collection, at which coordinate, and which of
-them are signed off?* is answered without leaving SQL.
+A question that reaches across the two files is one query. `projectdb.DB.Join`
+opens the context store beside the projection on one read-only connection, so
+*which blocks use this term, in which collection, at which coordinate, and which
+of them are signed off?* is answered in one pass.
 
 ## Context
 
@@ -114,10 +114,16 @@ files a directory listing gives.
 | Method | What it answers |
 | --- | --- |
 | `Describe` | which backend this is, where the workspace is, whether it can be written |
-| `Registry` | the workspace-wide database: registry, graph, operation log |
+| `Registry` | the workspace-wide database: registry, graph, operation log, widened rules, agent sessions |
 | `Project` | one project's context store, created on first use |
+| `Forget` | drop one project's context store |
 | `Record` | append operations, assigning each a sequence number |
 | `Since` | read operations back from a position |
+| `Head` | the position the log stands at |
+| `Close` | release every handle the backend owns |
+
+`Registry` and `Project` answer with handles the backend owns: a caller reads
+and writes through one and closes the backend, never a handle.
 
 One adapter ships: `workspace.Local`, the directory of SQLite files above. The
 interface is drawn so an adapter keeping the authoritative copy elsewhere fits
@@ -165,15 +171,18 @@ until the project is opened somewhere else.
 | `graph_nodes`, `graph_edges` | `host/storage/graph`, vocabulary in `core/contextgraph` | workspace | the rows above, plus the recipe |
 | `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace | what has been opened |
 | `workspace_ops` | `core/workspace` | workspace | its own log |
+| `workspace_rules` | `core/workspace` | workspace | the rules a person widened ([C-11](c-11-context-operations.md)) |
+| `workspace_agent_sessions` | `core/workspace` | workspace | which agents are at work ([S-03](../surfaces/s-03-agent-surfaces.md)) |
 
-Each subsystem owns its own schema and its own migration ledger
-(`storage.Migrate(db, "<subsystem>", …)`), so a subsystem evolves without
-replaying anyone else's migrations, whichever pool it binds to.
+Each subsystem owns its own schema and its own migration ledger, so a subsystem
+evolves without replaying anyone else's migrations, whichever pool it binds to.
 
-`core/projectdb` opens both pools and hands each subsystem its handle. Callers
-name a capability, never a file: `Blocks()` and `BlocksAutocommit()` come from
-the projection, `Memory()`, `Terms()`, `Voice()`, `Work()` and `Raw()` from the
-context store, and nothing above has to know which is which.
+`core/projectdb` opens both project pools and hands each subsystem its handle.
+Callers name a capability rather than a file: `Blocks()` and
+`BlocksAutocommit()` come from the projection, `Memory()`, `Terms()`, `Voice()`,
+`Work()` and `Raw()` from the context store, and nothing above has to know which
+is which. The table-by-table layout is in
+[Note: Workspace storage](../../implementation/context/workspace-storage.md).
 
 ### Opening without a workspace
 
@@ -192,18 +201,12 @@ inside the framework that names one.
 The first open of a project WITH a workspace, where the context store is new and
 the projection still carries context tables, carries the project across.
 
-Only the decisions the committed shards do not carry move. Everything else in
-those tables is a projection of a committed source under `.kapi/` and the next
-command derives it again into the context store. Between a decision being
-recorded and `kapi commit` writing it to `.kapi/state/`, the ledger holds its
-only copy, so `core/state.WorkStore.Staged` reads exactly those rows out of the
-old store and they are recorded in the new one first. Nothing is dropped unless
-that succeeded.
-
-The old store's own migration runs first, so a project that predates the ledger
-has its rows carried into one before they are read. The checkout is the same on
-both sides of the move (a checkout is identified by its committed-record
-directory), so a decision arrives under the view it was made in.
+Only what no committed source reproduces moves. Everything else in those tables
+is a projection of a file under `.kapi/`, and the next command derives it again
+into the context store. Between a decision being recorded and `kapi commit`
+writing it to `.kapi/state/`, the ledger holds its only copy, so those records
+are read out of the old store and recorded in the new one first, and nothing is
+dropped unless that succeeded.
 
 What is dropped afterwards is computed rather than listed: an empty projection
 is built in memory, its tables are what a projection is entitled to hold, and
@@ -214,118 +217,43 @@ current.
 ### Joining across the two files
 
 `projectdb.DB.Join` runs a function on one connection with both files visible:
-the projection as `main` and the context store as `context`.
+the projection and the context store, the second attached under the schema name
+`context`. The connection is read-only for the length of the call.
 
-```sql
-SELECT DISTINCT bt.block_hash
-FROM block_texts bt
-JOIN context.tb_terms t ON instr(bt.text_lower, t.text_lower) > 0
-WHERE t.concept_id = ?
-```
+A join reads. A write spanning both pools is two transactions, and the pairing
+that must be atomic, a decision and the wording the content memory learns from
+it, is why the decision ledger and the content memory are in the same pool.
 
-The connection is read-only for the length of the call. A join reads; a write
-spanning both pools is two transactions, and the pairing that must be atomic,
-a decision and the wording the content memory learns from it, is why the
-decision ledger and the content memory are in the same pool.
+### Writes are ordered; reads are never gated
 
-### Write discipline
+Every pool is opened with `storage.ProjectOptions()`: an immediate transaction,
+an in-process FIFO permit, and a cross-process advisory lock on a file beside
+the database. The first puts the wait where SQLite's busy handler applies, the
+second orders writers that share a handle, and the third orders the several
+processes that write one context store after it leaves the checkout.
 
-Each pool is opened with `storage.ProjectOptions()`, which is three settings that
-belong together:
+The permit and the lock are per file, which is what the split buys back: a block
+session's long transaction holds the projection's and leaves the context store's
+alone, so a review loop recording decisions runs beside an extraction rather
+than behind it. Reads take neither, because under WAL a reader neither blocks a
+writer nor waits for one.
 
-- **`BEGIN IMMEDIATE`** on every transaction. A deferred transaction that reads
-  before it writes must upgrade its lock, and SQLite refuses a contended upgrade
-  immediately, without consulting `busy_timeout`. Taking the write lock up front
-  puts the wait somewhere the busy handler applies.
-- **An in-process FIFO permit** every write holds for its whole life. SQLite's
-  busy backoff has no memory of who has waited longest: measured at dogfood
-  scale, a drip of small unit-state writes completed 32 of 2650 attempts against
-  a saturating content-memory writer. The permit takes that to zero.
-- **A cross-process advisory lock** on a file beside the database, taken inside
-  the permit and released by the same Commit or Rollback. It is what the context
-  store needs after leaving the checkout, where several processes write it at
-  once.
-
-The permit and the lock are per file, which is what the split buys back: a
-block session's long transaction holds the projection's and leaves the context
-store's alone, so a review loop recording decisions runs beside an extraction
-rather than behind it.
-
-Reads are never gated. Under WAL a reader neither blocks a writer nor waits for
-one.
-
-Two consequences at the call site:
-
-- A block-store session from `Blocks()` is ONE transaction over a whole
-  purge-and-refill, so it holds the projection's permit from Begin to Commit.
-  A write to the same pool issued from the goroutine holding one is a deadlock,
-  reported rather than hung: `storage.ErrWriteGateReentrant`.
-- A second kapi process on the same project now queues in the kernel rather than
-  in SQLite's backoff, for both pools.
-
-### What the contention harness measured
-
-`scripts/contention-harness -mode=workspace` runs the shape the split creates:
-16 agent-shaped writer processes, each in a checkout of its own, writing small
-transactions into one shared context store; one desktop-shaped reader polling it
-for change; and one CLI-shaped run holding a purge-and-refill transaction over
-its own projection. Eighteen operating-system processes, because an in-process
-permit can only order writers that share a handle.
-
-Bar: zero failed writes across every stream, and p99 under 50 ms for the small
-writes an observation and a decision make.
-
-Measured over 120 s at dogfood scale (75 000 blocks, 20 000 content-memory
-entries, 2 000 concepts, 75 000 units), 16 agents recording a decision once a
-second and promoting wording into the content memory every tenth round:
-
-| Workload | ops | failed | p50 ms | p95 ms | p99 ms | max ms |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| agent: decision put | 1895 | 0 | 0.68 | 4.80 | 30.19 | 76.99 |
-| agent: register in workspace | 16 | 0 | 0.33 | 0.53 | 0.53 | 0.53 |
-| agent: content-memory promotion | 198 | 0 | 33.19 | 48.78 | 90.98 | 105.36 |
-| desktop: poll for change | 599 | 0 | 16.36 | 25.44 | 29.89 | 33.47 |
-| CLI: projection purge+refill | 11 | 0 | 74.81 | 93.26 | 93.26 | 93.26 |
-| CLI: context write | 11 | 0 | 32.13 | 44.07 | 44.07 | 44.07 |
-
-The CLI's projection transaction runs for 75 to 93 ms throughout, and the agent
-writes beside it do not move. That is the claim the split makes, measured.
-
-Two rows are reported rather than gated, and the second is the reason.
-
-**Teaching the content memory is a heavier write, and its cost is its own.**
-`memory.Add` maintains the FTS5 tables row by row, and it grows with the corpus:
-on this store, with a SINGLE writer and nobody else on the file, it costs 32 ms
-at the median and 47 ms at the 99th percentile. The sixteen-process run above
-measures 33 ms and 89 ms, so contention adds about a millisecond to the median.
-Holding that write to a 50 ms bar would measure FTS5 rather than the workspace.
-A converge worker with entries in hand should use `BulkAddWithStream`, which is
-one transaction for the batch; at the decision rate (`-memory-every=1`) the
-store saturates and the tail goes with it.
-
-**The cross-process lock is in the design because of the run before it.** With
-the in-process permit alone, sixteen agents recorded zero failed writes but a
-66 ms p99 and a 778 ms maximum on a write whose median was 0.45 ms. The tail was
-`busy_timeout`, not the work: a writer that loses the race sleeps a fixed step of
-the backoff ladder (1, 2, 5, 10, 15, 20, 25, 25, 25, 50, 50, 100 ms) and wakes to
-try again, so a lock that freed a millisecond later stays untaken for the rest of
-the step. Replacing the sleep with a kernel wait took that p99 to 21 ms and the
-maximum to 57 ms on the same configuration.
+The settings, the measurements behind them and the deadlock a reentrant write
+reports are in
+[Note: Workspace storage](../../implementation/context/workspace-storage.md).
 
 ### Reading from a write-restricted sandbox
 
 A check may run where it can read the workspace and not write it: a restricted
 sandbox, a read-only mount, a workspace owned by another account. Under WAL that
-is not a read-only act, because SQLite creates the write-ahead log's
-shared-memory index beside the database on the first connection.
+counts as a write, because SQLite creates the write-ahead log's shared-memory
+index beside the database on the first connection.
 
-`storage.OpenReadOnly` answers it in two steps. It first opens the database where
-it is, with the journal-mode switch skipped and every connection carrying
-`PRAGMA query_only=ON`. If SQLite still cannot open it, the database and its log
-are copied to a writable temporary directory and the copy is opened, and the
-copy is deleted when the handle closes. The workspace then reports itself
-read-only, answers reads, and refuses a write with `workspace.ErrReadOnly`
-rather than losing it somewhere the caller cannot see.
+`storage.OpenReadOnly` answers it: the database is opened where it is with
+writes disabled, and where SQLite refuses that, it and its log are copied to a
+writable temporary directory that is deleted when the handle closes. The
+workspace then reports itself read-only, answers reads, and refuses a write with
+`workspace.ErrReadOnly` rather than losing it somewhere the caller cannot see.
 
 ### A synchronized folder is refused
 
@@ -355,23 +283,21 @@ Both pools are **indexes**, and every row in them is reconstructible from:
   document;
 - the content files themselves, source and target.
 
-Delete either database and a re-run rebuilds it from those. The one exception is
-the same one it has always been, and it is now in the workspace rather than the
-checkout: between a decision being recorded and `kapi commit` materializing it,
-the ledger holds its only copy.
+Delete either database and a re-run rebuilds it from those. One thing stands
+outside that rule and lives in the workspace: between a decision being recorded
+and `kapi commit` materializing it, the ledger holds its only copy.
 
-### `.kapi/work/` is free to delete again
+### `.kapi/work/` is free to delete
 
-`.kapi/work/cache/` means *free to delete*: the parse cache, extraction batches,
-collection overlays. `.kapi/work/store.db` now qualifies too. What made it not
-qualify was the decision ledger: between a decision being recorded and `kapi
-commit` writing it to `.kapi/state/`, the ledger holds the only copy of it, and
-the ledger is in the workspace. Deleting the whole of `.kapi/work/` costs a
-re-extraction.
+Everything under `.kapi/work/` is derived from the working tree: the parse
+cache, extraction batches, collection overlays, and `store.db` itself. Deleting
+the whole of it costs a re-extraction.
 
-That responsibility moved rather than disappearing, and the workspace now
-carries it: deleting `<DataDir>/workspaces/` costs every decision recorded since
-the last `kapi commit`, in every project.
+The one thing that exists in a single place is the decision ledger, and it sits
+in the workspace: between a decision being recorded and `kapi commit` writing it
+to `.kapi/state/`, the ledger holds the only copy. So deleting
+`<DataDir>/workspaces/` costs every decision recorded since the last `kapi
+commit`, in every project.
 
 The redaction vault ([C-10](c-10-redaction.md)) at `.kapi/work/vault/` is the
 one thing under `work/` that is still a loss rather than a rebuild: it holds
@@ -631,9 +557,9 @@ sets `$KAPI_DATA_DIR` as part of the isolation contract.
 - **A git worktree is a checkout, not a second project.** Decisions recorded in
   one are in force in the other, and switching branches moves no authored
   context.
-- **Cross-subsystem questions are ordinary SQL within a pool, and `ATTACH`
-  across them.** Term coverage per collection, the blocks behind a coordinate,
-  the units a term change puts at risk.
+- **Cross-subsystem questions are one query within a pool, and one join across
+  them.** Term coverage per collection, the blocks behind a coordinate, the
+  units a term change puts at risk.
 - **One transaction still covers a decision and the wording it blesses.** Both
   are in the context pool, which is why they are in the same file.
 - **Store paths are not a user surface.** The recipe binds *sources*
@@ -661,4 +587,8 @@ sets `$KAPI_DATA_DIR` as part of the isolation contract.
   implements.
 - [C-06: Context retrieval](c-06-retrieval.md): the primitives these tables
   answer.
+- [C-11: Context operations](c-11-context-operations.md): the operation log and
+  the widened rules the workspace holds.
+- [Note: Workspace storage](../../implementation/context/workspace-storage.md):
+  the files, the tables, the write settings and the contention measurements.
 - [The project store](/kapi/project-store): the end-user view.
