@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -92,6 +93,62 @@ func TestAgentWiringWritesEachHostsOwnSpelling(t *testing.T) {
 
 	_, err := os.Stat(filepath.Join(root, ".agents/skills/kapi/SKILL.md"))
 	require.NoError(t, err, "the cross-client skills directory gets the same skill")
+}
+
+// TestAgentWiringWritesCodexTOML is issue #2911. Codex reads a repository's own
+// .codex/config.toml, so the entry goes there rather than into anything under
+// the person's home directory.
+func TestAgentWiringWritesCodexTOML(t *testing.T) {
+	root, res := wire(t, []host.AgentHost{host.AgentHostCodex})
+
+	written, err := os.ReadFile(filepath.Join(root, ".codex/config.toml"))
+	require.NoError(t, err)
+	assert.Equal(t, "[mcp_servers.kapi]\ncommand = \"kapi\"\nargs = [\"mcp\", \"--project\", \"kapi.yaml\"]\n",
+		string(written))
+
+	require.Len(t, res.Files, 1, "Codex takes the server entry; the skill reaches it through .agents")
+	assert.Equal(t, ".codex/config.toml", res.Files[0].Path)
+	assert.Equal(t, host.AgentWiringCreated, res.Files[0].Action)
+}
+
+// TestAgentWiringAppendsToAPersonsCodexConfig: the file carries their sandbox,
+// hook and model settings for this repository, so the entry is appended and
+// everything else is left byte for byte.
+func TestAgentWiringAppendsToAPersonsCodexConfig(t *testing.T) {
+	root := t.TempDir()
+	held := "# the sandbox this repository runs under\n[sandbox_workspace_write]\nnetwork_access = true\n"
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".codex"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".codex/config.toml"), []byte(held), 0o644))
+
+	res, err := host.WriteAgentWiring(host.AgentWiringOptions{
+		Root: root, Hosts: []host.AgentHost{host.AgentHostCodex},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, host.AgentWiringUpdated, res.Files[0].Action)
+
+	written, err := os.ReadFile(filepath.Join(root, ".codex/config.toml"))
+	require.NoError(t, err)
+	assert.True(t, strings.HasPrefix(string(written), held), "what was there is untouched")
+	assert.Contains(t, string(written), "[mcp_servers.kapi]")
+}
+
+// TestAgentWiringKeepsACodexEntrySomeoneElseWrote: whatever it says, somebody
+// put it there.
+func TestAgentWiringKeepsACodexEntrySomeoneElseWrote(t *testing.T) {
+	root := t.TempDir()
+	held := "[mcp_servers.kapi]\ncommand = \"/usr/local/bin/kapi\"\nargs = [\"mcp\"]\n"
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".codex"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".codex/config.toml"), []byte(held), 0o644))
+
+	res, err := host.WriteAgentWiring(host.AgentWiringOptions{
+		Root: root, Hosts: []host.AgentHost{host.AgentHostCodex},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, host.AgentWiringKept, res.Files[0].Action)
+
+	written, err := os.ReadFile(filepath.Join(root, ".codex/config.toml"))
+	require.NoError(t, err)
+	assert.Equal(t, held, string(written))
 }
 
 func TestAgentWiringIsIdempotent(t *testing.T) {
@@ -264,8 +321,11 @@ func TestDetectAgentHostsFollowsWhatTheProjectAlreadyKeeps(t *testing.T) {
 	used := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(used, ".cursor"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(used, ".vscode"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(used, ".codex"), 0o755))
 	assert.Equal(t,
-		[]host.AgentHost{host.AgentHostClaudeCode, host.AgentHostCursor, host.AgentHostVSCode},
+		[]host.AgentHost{
+			host.AgentHostClaudeCode, host.AgentHostCursor, host.AgentHostVSCode, host.AgentHostCodex,
+		},
 		host.DetectAgentHosts(used))
 }
 
