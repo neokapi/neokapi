@@ -195,7 +195,7 @@ func TestCheckTextMCPDestinationFailsClosed(t *testing.T) {
 }
 
 // TestCheckTextMCPReadsNoContextFile: the context a check applies comes from the
-// project store, so a context file in the checkout that no longer parses leaves
+// project store, so a context file in the checkout that fails to parse leaves
 // the check exactly as it was. The reader of those files is the import, and that
 // is where the fault is reported.
 func TestCheckTextMCPReadsNoContextFile(t *testing.T) {
