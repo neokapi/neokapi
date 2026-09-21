@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import type { KapiProject, FlowSpec, WorkspaceHome } from "../types/api";
+import type { ContextAwaiting, KapiProject, FlowSpec, WorkspaceHome } from "../types/api";
 import { ProjectErrorBoundary } from "./ProjectErrorBoundary";
 import type { TabState } from "../hooks/useTabManager";
 import type { ProjectHistory } from "../hooks/useProjectHistory";
@@ -65,6 +65,8 @@ interface ViewSwitchProps {
   // Home page props
   workspace: WorkspaceHome | null;
   workspaceError?: unknown;
+  /** Candidates awaiting a decision, per project. */
+  awaiting?: ContextAwaiting[] | null;
   samplesDismissed: boolean;
   /** Open a project from one of its checkouts, by recipe path. */
   onOpenCheckout: (recipe: string) => void;
@@ -92,6 +94,7 @@ export function ViewSwitch({
   updateTab,
   workspace,
   workspaceError,
+  awaiting,
   samplesDismissed,
   onOpenCheckout,
   onOpenContext,
@@ -191,6 +194,7 @@ export function ViewSwitch({
       <AppHome
         workspace={workspace}
         workspaceError={workspaceError}
+        awaiting={awaiting}
         samplesDismissed={samplesDismissed}
         onOpenCheckout={onOpenCheckout}
         onOpenContext={onOpenContext}

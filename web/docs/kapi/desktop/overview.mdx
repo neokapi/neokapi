@@ -67,6 +67,9 @@ The **Context** hub is where the graph is legible:
   point it resolves to, the voice in force, the terms that apply, and the body
   the agent reads, word for word. It is the same answer `kapi context <path>`
   prints.
+- **Recorded** is what you and the agents working in the project have noticed,
+  proposed and decided. See [Working beside an
+  agent](#working-beside-an-agent).
 - **Voice** renders the profile that actually governs a point: tone, style
   rules, vocabulary with severities, examples, and the overrides that apply.
   Where a binding was skipped because its window had closed, the page says so
@@ -76,6 +79,50 @@ The **Context** hub is where the graph is legible:
   status, and their translations.
 - **Content Memory** is the record of prior wording, searchable with its
   provenance intact.
+
+## Working beside an agent
+
+Keep the app open while an agent works in one of your projects. The agent runs
+in its own process, through the kapi CLI or its MCP server, and what it records
+about terms, voice and wording arrives here within a second or two. Nothing
+connects the two: both read and write the same project context on this machine.
+
+**Recorded** on the home screen carries every project's work; the same section
+inside a project's Context hub carries that project's. Each entry says what was
+done, who did it and on which machine, what the rule or the wording was, and
+the evidence behind it: the file, the unit and the sentence it was seen in. The
+evidence is on the card for anything waiting on you, because it is what the
+decision rests on.
+
+A proposal advises from the moment it is recorded and binds only once you
+confirm it. Until then it is reported by a check as a proposal and fails
+nothing, so an agent's suggestion never stops your work.
+
+For each entry waiting on you:
+
+- **Confirm** writes the rule into the project's terms, voice profile or
+  content memory, where `git diff` shows it and every check reads it.
+- **Edit** changes what the rule says to write instead, and how hard it bites,
+  before you accept it. Minor and neutral report a violation; major and
+  critical fail a check.
+- **Discard** rejects it. It stops advising at once.
+- **Undo** takes a confirmed rule back out, and **Undo session** does that for
+  everything one agent session recorded. The confirmation names how many
+  operations go.
+
+The keys are the review session's: `j` and `k` move, `a` confirms, `r`
+discards, `e` edits.
+
+A confirmed rule can be **widened**: out to every project in your workspace, or
+past one axis of the point it was learned at, so it answers more widely in its
+own project. You see where it would reach before you accept. The count of files
+it would touch is not part of that; run a check afterwards to see what it
+reports.
+
+A count beside a project says how many decisions are waiting there. It is
+absent when there are none. Deciding writes into the project's files, so it
+needs a copy of the project on this machine: a project you have only ever
+opened elsewhere can be read here and not decided on.
 
 ## Collections and formats
 

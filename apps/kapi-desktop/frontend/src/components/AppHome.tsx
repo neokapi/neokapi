@@ -3,15 +3,27 @@ import { FolderKanban, FolderOpen, Sparkles, Workflow, X } from "lucide-react";
 import { Button, ErrorNotice, SimpleTooltip } from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
 import { ConnectAICard } from "./ConnectAICard";
+import { ContextFeedHint } from "./ContextFeed";
+import { ContextFeedPanel } from "./ContextFeedPanel";
 import { RemoveProjectDialog } from "./RemoveProjectDialog";
 import { WorkspaceProjectRow } from "./WorkspaceProjectRow";
-import type { AIDetectionResult, WorkspaceHome, WorkspaceProject } from "../types/api";
+import type {
+  AIDetectionResult,
+  ContextAwaiting,
+  ContextFeed,
+  WorkspaceHome,
+  WorkspaceProject,
+} from "../types/api";
 
 interface AppHomeProps {
   /** The workspace and the projects it holds, null while it is being read. */
   workspace: WorkspaceHome | null;
   /** Why the workspace could not be read, when it could not. */
   workspaceError?: unknown;
+  /** Candidates awaiting a decision, per project. */
+  awaiting?: ContextAwaiting[] | null;
+  /** Pre-loaded feed for Storybook and tests, which reach no backend. */
+  feed?: ContextFeed;
   samplesDismissed: boolean;
   /** Open a project from one of its checkouts, by recipe path. */
   onOpenCheckout: (recipe: string) => void;
@@ -38,6 +50,8 @@ interface AppHomeProps {
 export function AppHome({
   workspace,
   workspaceError,
+  awaiting,
+  feed,
   samplesDismissed,
   onOpenCheckout,
   onOpenContext,
@@ -52,6 +66,7 @@ export function AppHome({
   const shortenHome = useShortenHome();
   const [removing, setRemoving] = useState<WorkspaceProject | null>(null);
   const projects = workspace?.projects ?? [];
+  const awaitingByProject = new Map((awaiting ?? []).map((row) => [row.project_key, row.count]));
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-8 flex items-center gap-4">
@@ -95,9 +110,7 @@ export function AppHome({
         </div>
       </section>
 
-      {/* The workspace: every project kapi has run in, from any surface. A feed
-          of what agents have recorded belongs directly below this list, once
-          there is one to show. */}
+      {/* The workspace: every project kapi has run in, from any surface. */}
       <section className="mb-8">
         <div className="mb-3 flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -120,6 +133,7 @@ export function AppHome({
               <WorkspaceProjectRow
                 key={project.key}
                 project={project}
+                awaiting={awaitingByProject.get(project.key) ?? 0}
                 onOpenCheckout={onOpenCheckout}
                 onOpenContext={onOpenContext}
                 onRemove={setRemoving}
@@ -139,6 +153,19 @@ export function AppHome({
             This workspace is open for reading only, so nothing new registers here.
           </p>
         )}
+      </section>
+
+      {/* What has been recorded about context, across every project. An agent
+          works in another process; this is where its proposals arrive and
+          where they are decided. */}
+      <section className="mb-8">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Recorded
+          </h2>
+          <ContextFeedHint />
+        </div>
+        <ContextFeedPanel feed={feed} />
       </section>
 
       <RemoveProjectDialog

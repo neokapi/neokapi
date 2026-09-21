@@ -48,6 +48,13 @@ import type {
   AgentContextView,
   WorkspaceHome,
   WorkspaceRemoval,
+  ContextFeed,
+  ContextFeedEntry,
+  ContextAwaiting,
+  ContextDecisionRequest,
+  ContextRevertRequest,
+  ContextRevertSummary,
+  ContextWidenPreview,
 } from "../types/api";
 import type { FlowTrace } from "@neokapi/flow-editor";
 
@@ -437,6 +444,36 @@ export const api = {
       tabID,
       dimension,
     ),
+
+  // Context operations: what a person and the agents beside them have
+  // recorded, and the decisions made on it. Reads fold the workspace's
+  // operation log; every decision goes through the host's own policy.
+  /** The whole workspace's feed, or one project's when a key is given. */
+  contextFeed: (projectKey: string, limit: number) =>
+    call<ContextFeed>("ContextFeed", projectKey, limit),
+  /** The feed of the project a tab holds. */
+  projectContextFeed: (tabID: string, limit: number) =>
+    call<ContextFeed>("ProjectContextFeed", tabID, limit),
+  /** How many candidates each project has awaiting a decision. */
+  contextAwaitingCounts: () => call<ContextAwaiting[]>("ContextAwaitingCounts"),
+  /** Make a candidate binding, with whatever edit and widening was asked for. */
+  confirmContextCandidate: (req: ContextDecisionRequest) =>
+    call<ContextFeedEntry>("ConfirmContextCandidate", req),
+  /** Reject a candidate. It stops answering at once. */
+  discardContextCandidate: (req: ContextDecisionRequest) =>
+    call<ContextFeedEntry>("DiscardContextCandidate", req),
+  /** What reverting would undo, for the confirmation read first. */
+  contextRevertScope: (req: ContextRevertRequest) =>
+    call<ContextRevertSummary>("ContextRevertScope", req),
+  /** Undo one operation, or everything one session recorded. */
+  revertContextOperations: (req: ContextRevertRequest) =>
+    call<ContextRevertSummary>("RevertContextOperations", req),
+  /** Where a rule would answer once widened. */
+  contextWidenReach: (projectKey: string, id: string, to: string) =>
+    call<ContextWidenPreview>("ContextWidenReach", projectKey, id, to),
+  /** Move a confirmed rule to a broader point. */
+  widenContextRule: (req: ContextDecisionRequest) =>
+    call<ContextFeedEntry>("WidenContextRule", req),
 
   // Settings
   getSettings: () =>

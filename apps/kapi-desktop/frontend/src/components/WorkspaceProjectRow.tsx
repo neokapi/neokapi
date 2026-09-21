@@ -2,10 +2,13 @@ import { FolderKanban, FolderOpen, FolderX, Library } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import { Badge, Button, SimpleTooltip, When } from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
+import { AwaitingBadge } from "./ContextFeed";
 import type { WorkspaceProject } from "../types/api";
 
 interface WorkspaceProjectRowProps {
   project: WorkspaceProject;
+  /** Candidates in this project awaiting a decision. Zero shows nothing. */
+  awaiting?: number;
   /** Open the project from one of its checkouts, by recipe path. */
   onOpenCheckout: (recipe: string) => void;
   /** Open a project no checkout here carries, on its context alone. */
@@ -24,6 +27,7 @@ interface WorkspaceProjectRowProps {
  */
 export function WorkspaceProjectRow({
   project,
+  awaiting = 0,
   onOpenCheckout,
   onOpenContext,
   onRemove,
@@ -43,6 +47,7 @@ export function WorkspaceProjectRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <span className="truncate text-sm font-medium">{project.name}</span>
+            <AwaitingBadge count={awaiting} />
             {project.last_active && (
               <When
                 iso={project.last_active}
