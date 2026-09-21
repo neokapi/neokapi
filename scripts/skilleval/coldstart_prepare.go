@@ -823,12 +823,12 @@ func probeColdStartCodexWiring(ctx context.Context, p ColdStartPrepared) (*ColdS
 			continue
 		}
 		if !server.Enabled {
-			return wiring, errors.New("Codex holds the kapi server disabled")
+			return wiring, errors.New("the kapi server reaches Codex disabled")
 		}
 		wiring.Command, wiring.Args, wiring.EnvVars = server.Transport.Command, server.Transport.Args, server.Transport.EnvVars
 	}
 	if wiring.Command == "" {
-		return wiring, errors.New("Codex names no kapi server in the fixture, so the project configuration was not read")
+		return wiring, errors.New("no kapi server reaches Codex in the fixture, so the project configuration went unread")
 	}
 	resolved, err := coldStartResolveOnPath(wiring.Command, p.Paths.Bin)
 	if err != nil {
@@ -838,7 +838,7 @@ func probeColdStartCodexWiring(ctx context.Context, p ColdStartPrepared) (*ColdS
 	wiring.UnderTest = resolved == p.KapiBin
 	for _, name := range []string{"KAPI_DATA_DIR", "KAPI_CONFIG_DIR", "KAPI_PLUGINS_DIR_ONLY", "XDG_DATA_HOME"} {
 		if !slices.Contains(wiring.EnvVars, name) {
-			return wiring, fmt.Errorf("Codex forwards no %s to the server, so the cell's kapi roots would not reach it", name)
+			return wiring, fmt.Errorf("the launch forwards no %s, so the cell's kapi roots would not reach the server", name)
 		}
 	}
 	return wiring, nil
