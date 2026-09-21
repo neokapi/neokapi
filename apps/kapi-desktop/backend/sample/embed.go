@@ -125,7 +125,11 @@ func seedStore(targetDir string) error {
 	}
 
 	// The concepts are spread across the history the sample models, so a fresh
-	// scaffold looks like a project that has been worked on.
+	// scaffold looks like a project that has been worked on. The content-memory
+	// entries keep the timestamps their bundle carries: each one matches the
+	// decision in `.kapi/state` that approved that unit, and a reshuffle would
+	// give the memory a different account of when the work happened than the
+	// ledger has.
 	spreadTimestamps(db.Terms().DB(), "tb_concepts", 90)
 	return nil
 }
@@ -144,12 +148,6 @@ var (
 // The bulk import path skips the per-row FTS5 inserts, leaving the search and
 // fuzzy side-tables empty until they are rebuilt set-wise. Exact lookup works
 // without this; search and fuzzy lookup return nothing and report no error.
-//
-// The entries keep the timestamps the bundle carries. They are spread across
-// the history the sample models, and each one matches the decision in
-// `.kapi/state` that approved that unit, so a scaffold-time reshuffle would
-// give the memory a different account of when the work happened than the
-// ledger has.
 func indexMemory(ctx context.Context, tm *memory.SQLiteStore) error {
 	if tm == nil {
 		return nil
