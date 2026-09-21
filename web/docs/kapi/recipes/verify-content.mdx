@@ -49,7 +49,7 @@ kapi check content/*.md --pack marketing-blog          # built-in starter pack
 kapi check blog-post.md --profile-file brand/voice.yaml
 ```
 
-`--json` emits the structured `kapi.check/v1` Report: pass, a 0–100 score, a gate, one finding per stable rule id, each anchored to a block:
+`--json` emits the structured `kapi.check/v1` Report: pass, a 0–100 score, a gate, one finding per stable rule id, each anchored to a block, and the state the run was evaluated against:
 
 ```json
 {
@@ -64,9 +64,17 @@ kapi check blog-post.md --profile-file brand/voice.yaml
       "message": "Block exceeds the 120-character limit (148 chars).",
       "location": { "file": "src/locales/en.json", "block": "onboarding.welcome" }
     }
-  ]
+  ],
+  "evaluation": {
+    "at": "2026-03-17T09:45:00Z",
+    "context": { "project": "prj_aaaabbbbccccddddeeee", "name": "Acme Documentation", "revision": 412, "stale": false },
+    "tool": { "name": "kapi", "version": "1.3.0", "commit": "b1a3033dc" },
+    "analyzers": [{ "id": "hygiene", "ran": 2 }]
+  }
 }
 ```
+
+**What the run was evaluated against:** the terms, voice rules and decisions a check enforces live in your workspace, outside the repository, and they move as work goes on. `evaluation.context.revision` is the position that workspace had reached, so two results carrying one revision were checked against one state of the context, and `stale` says the blocks kapi holds were read from files that have since changed. Beside it, `evaluation.tool` and `evaluation.plugins` name the versions that ran, and `evaluation.analyzers` says which analyzers covered the content and which did not, with the reason. The record reports: it never changes the verdict, the score or the exit code. A check of files outside a project carries no `context`.
 
 Field-by-field, the Report is documented in [Checks](/framework/checks); the flags in the [`check` reference](/reference/commands/check).
 

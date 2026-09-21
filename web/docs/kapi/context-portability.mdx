@@ -12,7 +12,9 @@ import { RoundTripDiagram } from "@neokapi/docs-shared";
 A project's context is the terms it has agreed on, the voice profiles that
 govern how it writes, the wording it has already approved, and the record of who
 approved what. It lives in two places at once: as files under `.kapi/` that git
-tracks, and in the project store that every command reads.
+tracks, and in the [project store](/kapi/project-store) that every command
+reads, which sits outside your checkout and is shared by every clone of the
+project.
 
 Four verbs move it between those places, and out of the project altogether.
 
@@ -74,8 +76,13 @@ service, and keeps the originals in a vault on the machine that read them
 export, and there is no flag that puts it in either. If you move a project to
 another machine, the placeholders come with it and the originals do not.
 
-The rest of `.kapi/work/` is excluded too. It is the store itself and the caches
-kapi rebuilds, none of which is context.
+The rest of `.kapi/work/` is excluded too. Everything there is what kapi read
+out of your own files, rebuilt on the next run, and none of it is context.
+
+The record of how the context got there stays where it is as well: every
+observation, proposal and decision with its evidence
+([Growing context](/kapi/context-decisions)) belongs to this computer's
+workspace. What travels is the context those decisions produced.
 
 ## Reading context in
 

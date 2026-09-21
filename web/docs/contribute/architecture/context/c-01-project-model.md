@@ -2,8 +2,8 @@
 id: c-01-project-model
 sidebar_position: 1
 title: "C-01: The project model"
-description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root and a committed .kapi/ directory holding the project's context. Machine state is confined to one internal directory, .kapi/work/, which is the only ignored path."
-keywords: [kapi project, kapi.yaml, .kapi, YAML recipe, project model, context, store.db, architecture decision, neokapi]
+description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root and a committed .kapi/ directory holding the sources its context is authored in. Machine state is confined to one internal directory, .kapi/work/; the stores those sources compile into sit in a per-user workspace outside every checkout."
+keywords: [kapi project, kapi.yaml, .kapi, YAML recipe, project model, context, workspace, store.db, architecture decision, neokapi]
 ---
 
 # C-01: The project model
@@ -16,10 +16,16 @@ sibling `.kapi/` directory. The recipe captures the user's declarative intent
 blocks a plugin has registered a schema for.
 
 `.kapi/` is the one directory kapi owns, and it is **committed**: it holds the
-project's context (terms, content memory, voice profiles, the unit-state record)
-alongside the manifest and the reader configuration. Machine state is confined
-to one internal directory, `.kapi/work/`, which is ignored. This is the model
-git itself uses: `.git` is the tool's directory and its index lives inside it.
+sources a project's context is authored in (the terms bundle, the
+content-memory bundles, the voice profiles, the unit-state record) alongside
+the manifest, the flow definitions and the reader configuration. Machine state
+is confined to one internal directory, `.kapi/work/`, which is ignored. This is
+the model git itself uses: `.git` is the tool's directory and its index lives
+inside it.
+
+The stores those sources compile into sit in a per-user **workspace** outside
+every checkout, one database per project, reached by every clone and worktree of
+it ([C-03](c-03-context-store-and-graph.md)).
 
 A `ProjectContext` resolves the recipe into a runtime configuration, and a
 `Store` interface with pluggable providers gives tools random-access storage
@@ -68,6 +74,7 @@ my-app/
 │   ├── voice.yaml              ← the voice profile (C-07)
 │   ├── memory/                 ← content-memory bundles (C-09)
 │   │   └── <surface>.memory.json
+│   ├── flows/                  ← file-per-flow definitions (E-04)
 │   ├── profiles/               ← per-profile governance overrides (C-02)
 │   │   └── <profile>/
 │   │       ├── voice.yaml
@@ -101,8 +108,8 @@ Ownership, zone by zone:
   `jq`, diffs and highlighting keep working while the name stays self-describing.
   Only `.kpz`, a binary zip nobody hand-edits, keeps a dedicated extension.
 
-- **`.kapi/`** is the project's context, authored and reviewed in a pull request,
-  and it sits **flat**: everything committed here is context, so an umbrella
+- **`.kapi/`** holds the sources its context is authored in, reviewed in a pull
+  request, and it sits **flat**: everything committed here is context, so an umbrella
   directory saying so would appear in every path and distinguish none of them.
   `terms.json` is the terms source ([C-08](c-08-terms.md)) bound by
   `defaults.terms_source`; `memory/` holds the content-memory bundles
@@ -129,11 +136,10 @@ Ownership, zone by zone:
   ([C-03](c-03-context-store-and-graph.md)). Beside it sit the caches and the
   redaction vault ([C-10](c-10-redaction.md)).
 
-  The project's authored context is not here. Its terms, voice profiles,
-  content memory and recorded decisions live in the user's workspace, one
-  database per project, shared by every checkout of that project. A second clone
-  and a git worktree each keep a `work/` of their own and reach one context
-  store.
+  The stores the committed sources compile into sit in the user's workspace,
+  one database per project, reached by every checkout of that project. A second
+  clone and a git worktree each keep a `work/` of their own and share one
+  context store.
 
 - **`src/**`** is user-authored content. Referenced by the recipe; never moved
   into `.kapi/`.
@@ -285,10 +291,11 @@ case-insensitive and free of every character that needs quoting in YAML, a URL
 or a shell word (`core/project.NewID`, checked on load by `ValidateID`).
 
 Everything kapi records about a project locally is keyed on
-`KapiProject.Identity()`, the id when the recipe carries one. The context
-graph's scope tuple ([C-03](c-03-context-store-and-graph.md)) is the first such
-key: `host.ProjectScope` writes every node and edge id under it. What a project
-can do without disturbing that key follows directly:
+`KapiProject.Identity()`, the id when the recipe carries one. Two keys derive
+from it: the workspace's `ProjectKey`, which decides which context store the
+project reaches ([C-03](c-03-context-store-and-graph.md)), and the context
+graph's scope tuple, which `host.ProjectScope` writes every node and edge id
+under. What a project can do without disturbing either follows directly:
 
 - Rename it. The label is one line in the recipe, and editing it leaves every
   derived key where it stands.
@@ -301,9 +308,11 @@ can do without disturbing that key follows directly:
 project keeps working with the name as its key and no warning about it, and
 `kapi init --mint-id` writes an id into it through the ordinary recipe setter
 (`project.SetField`, saved over `core/yamledit`), so the file keeps its
-comments, its blank lines and its key order. A recipe stating neither leaves
-the scope's project dimension empty, which is the honest answer where there is
-no identity to state.
+comments, its blank lines and its key order. A recipe stating neither is keyed
+by the checkout it was found at (`workspace.KeyForCheckout`, an `at_` prefix
+over a digest of the normalized path), so it still has a context store of its
+own, and a second checkout of it gets a second one. Minting an `id:` is what
+joins them.
 
 Setting the id is one-way. The setter refuses to clear it, and refuses to write
 a second one over the first, because either strands everything already recorded
@@ -581,8 +590,9 @@ right extraction without guessing from its name.
   are slow against a remote store.
 - The recipe is always free of credentials, so it is safe to commit and to share.
 - The recipe binds *sources* (`defaults.terms_source`, `defaults.memory_source`,
-  `defaults.voice`) and never a derived artifact; the state record and the
-  database that stages it are both fixed by the layout.
+  `defaults.voice`) and never a derived artifact. The committed state record is
+  fixed by the layout, and the database holding the ledger it exports is fixed
+  by the workspace.
 
 ## See also
 

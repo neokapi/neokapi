@@ -66,6 +66,12 @@ func main() {
 		pairedLive        = flag.Bool("paired-live", false, "explicitly allow subscription-backed agent sessions")
 		pairedMaxAttempts = flag.Int("paired-max-attempts", 6, "persistent ceiling across live phases, including failed attempts")
 		pairedSessions    = flag.String("paired-sessions", "", "comma-separated session IDs to select; does not reset the attempt ceiling")
+		coldManifest      = flag.String("coldstart-manifest", "", "cold-start drill manifest; selects the separate cold-start runner")
+		coldPhase         = flag.String("coldstart-phase", "preflight", "cold-start phase: preflight, smoke, session-one, review, session-two or report")
+		coldDir           = flag.String("coldstart-dir", "harness/out/coldstart", "private directory for immutable cold-start evidence")
+		coldLive          = flag.Bool("coldstart-live", false, "explicitly allow subscription-backed agent sessions")
+		coldMaxAttempts   = flag.Int("coldstart-max-attempts", 2, "persistent ceiling across live cold-start phases, including failed attempts")
+		coldSessions      = flag.String("coldstart-sessions", "", "comma-separated cold-start session IDs to select; does not reset the attempt ceiling")
 		mode              = flag.String("mode", modeTrigger, "trigger or completion")
 		surface           = flag.String("surface", "", "limit to one surface: skill or mcp")
 		out               = flag.String("out", DefaultOut, "where to write the dataset")
@@ -102,6 +108,28 @@ func main() {
 	}
 	if *pairedLive {
 		fail("paired-live requires paired-manifest")
+	}
+
+	// The cold-start drill is a third entry point: one project whose context is
+	// empty, an ordinary writing task, and the shipped skill and MCP server.
+	if *coldManifest != "" {
+		root, err := repoRoot()
+		if err != nil {
+			fail(err.Error())
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+		defer cancel()
+		err = executeColdStart(ctx, ColdStartOptions{
+			ManifestPath: *coldManifest, Phase: *coldPhase, Dir: *coldDir, RepoRoot: root,
+			Live: *coldLive, MaxAttempts: *coldMaxAttempts, Sessions: *coldSessions,
+		})
+		if err != nil {
+			fail(err.Error())
+		}
+		return
+	}
+	if *coldLive {
+		fail("coldstart-live requires coldstart-manifest")
 	}
 
 	if *mode != modeTrigger && *mode != modeCompletion {

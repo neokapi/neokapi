@@ -54,6 +54,24 @@ in another: the old name may be allowed in the migration guide and nowhere else.
 When a check flags something that reads as correct in context, surface it to the
 user instead of silently rewriting.
 
+## Say what you checked against
+
+`evaluation` names the state the run was evaluated against. Quote it when you
+report a result, so the verdict can be read again later:
+`evaluation.context.project` and `evaluation.context.revision` (the workspace
+position the terms, voice rules and decisions were read at),
+`evaluation.tool.version`, and `evaluation.analyzers`, which says which
+analyzers covered the content and which did not.
+
+`evaluation.context.stale` means the blocks kapi holds were read from files that
+have since changed, so anything counted over content is out of date. Run
+`kapi up` to read the files again, then check again. Report the finding as
+measured against files as they were if you cannot.
+
+A missing `evaluation.context` means the check ran on files outside any project:
+no voice profile, terms or recorded decisions applied. Run the check from inside
+the project, or with `-p`, before treating a pass as governed.
+
 ## Exit 4 is never a pass
 
 Exit 4 means the check did not run. Read `did_not_run_cause` before you

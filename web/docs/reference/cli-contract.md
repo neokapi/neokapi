@@ -210,6 +210,22 @@ it. Explicit voice overrides retain their behavior and are identified as
 `override`; MCP field descriptions state that omitting overrides preserves
 file-scoped project guidance. See [Checks](/framework/checks) for interpretation.
 
+The optional `evaluation` object is additive to `kapi.check/v1` and says what
+the run was evaluated against. It contains `at` (RFC 3339 in UTC), `tool`
+(`name`, `version`, `commit`) and `analyzers`, an entry per analyzer with `id`,
+`ran` and, for the inputs it produced no usable result for, `not_run` entries
+carrying `status`, `reason` and `inputs`. A run inside a project also carries
+`context` (`project`, `name`, `revision`, `stale`, `stale_reason`), the same
+shape the MCP context replies carry as `provenance`, and a run a plugin served
+carries `plugins` (`name`, `version`, `serves`). `Decide` never reads the
+record, so it leaves `pass`, `verdict`, `summary`, `gate` and the exit code as
+they are, and the human output carries none of it. Every producer of a
+`kapi.check/v1` Report supplies it: `kapi check` whole or scoped to a diff, the
+report `kapi apply` returns for a comment edit it re-checked, and the MCP
+`check_file` and `check_text` tools. `kapi check --ship` reports gates rather
+than a Report and carries no evaluation record, and neither does the findings
+roll-up of `kapi exec <check>`. See [Checks](/framework/checks) for the fields.
+
 The optional `warnings` array is also additive to `kapi.check/v1`, and the
 `kapi check --ship` result carries the same array at its top level. Each entry
 contains `code`, `message`, `source` and, when the warning concerns one key,

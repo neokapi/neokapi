@@ -145,6 +145,42 @@ code. Fix the configuration they name. `kapi check` prints them after the
 verdict, `kapi check --ship` carries the same array, and the MCP check tools
 return it in their report.
 
+### What the run was evaluated against
+
+Much of what a check enforces lives outside the repository: the terms someone
+confirmed, the voice rules in force, the decisions recorded about a project. A
+verdict is read long after the run that produced it, from a CI log, an agent
+transcript or a bug report, so the Report carries an optional `evaluation`
+object naming the state it was reached from:
+
+- `at`: when the run was evaluated, RFC 3339 in UTC, read once per run so every
+  field of the record shares one instant.
+- `context`: the project the run read its governance from. `project` is the
+  project's stable identity, `name` the label a person recognises, and
+  `revision` the position the workspace's operation log had reached. Two results
+  carrying one revision were checked against one state of the context. `stale`
+  and `stale_reason` report that the blocks kapi holds were read from files that
+  have since changed. A check of files outside any project carries no `context`
+  at all, and neither does a `check_text` draft with no `context_path`, which no
+  project governed.
+- `tool`: the `name`, `version` and `commit` of the build that ran the check.
+- `plugins`: each plugin that served the run, with the `version` its manifest
+  declares and a sorted `serves` list naming what it did, such as `format:pdf`,
+  `comments:python` or `analyzer:voice.similarity`. A run every part of which
+  kapi handled itself carries no `plugins`.
+- `analyzers`: coverage, one entry per analyzer, sorted by `id`. `ran` counts
+  the inputs the analyzer evaluated, and `not_run` groups the rest by the
+  `status` and `reason` already recorded in `execution.analyzers`, with `inputs`
+  counting each group. An analyzer that missed its canary is grouped under
+  status `invalid`, because what it reported cannot be read as a result.
+
+The record reports and gates nothing: an absent workspace, a project whose
+context is still empty and a projection that has drifted all leave the verdict,
+the score and the gate as they would be without it, and none of them appears in
+the human output. Every producer of a `kapi.check/v1` Report carries the
+record. `kapi check --ship` reports gates rather than a Report, so it carries
+none.
+
 For a project file, omit MCP `profile_file` and `profile_pack` to retain its
 applicable profile and channel. An explicit profile replaces that voice
 selection, while project terms still apply. Check the reported scope before

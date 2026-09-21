@@ -361,7 +361,7 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   content memory are indexed from. `kapi apply` edits the source and reindexes
   it, so the source is written by exactly one path and `git diff` is the review
   surface. Both keys bind any path; the conventional homes are inside the
-  committed context graph. `terms_source` left unset falls back to
+  committed `.kapi/` directory. `terms_source` left unset falls back to
   `<root>/.kapi/terms.json`, then `<root>/terms.json`; `memory_source`
   has no such fallback, because a project has one terms source but many memory
   bundles (one per content surface), leaving nothing single for a convention to
@@ -377,9 +377,11 @@ holds the terms, the content memory, the voice profiles and the decision ledger,
 all derived from the committed sources (`terms_source`, `memory_source`, the
 voice profiles, the record under `.kapi/state/`) apart from a decision recorded
 since the last `kapi commit`. The property graph sits in the workspace database
-beside the project registry. See
+beside the project registry, the operation log, the widened rules and the agent
+sessions. See
 [C-03](/contribute/architecture/context/c-03-context-store-and-graph) for the stores'
-shape and their rebuild guarantees.
+shape and their rebuild guarantees, and
+[Workspace storage](./workspace-storage.md) for the files and tables.
 
 ## Extensions and the venue
 

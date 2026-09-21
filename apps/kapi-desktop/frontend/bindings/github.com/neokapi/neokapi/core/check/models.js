@@ -11,6 +11,85 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as model$0 from "../model/models.js";
 
 /**
+ * ContextProvenance says which project an answer came from and what state its
+ * context was in when the answer was read.
+ * 
+ * A retrieval answer is quoted, acted on and sometimes committed, often an
+ * hour after it was read and by a process that has since asked the same
+ * question of another project. A check verdict is read the same way. Three
+ * facts make one answer distinguishable from another: which project answered,
+ * where the workspace's record of that project had got to, and whether the
+ * blocks kapi holds still match the files on disk.
+ */
+export class ContextProvenance {
+    /**
+     * Creates a new ContextProvenance instance.
+     * @param {Partial<ContextProvenance>} [$$source = {}] - The source object to create the ContextProvenance.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Project is the project's stable identity: the recipe's `id:`, or its
+             * `name:` where the recipe carries no id. It is the key everything kapi
+             * records about the project is filed under.
+             * @member
+             * @type {string | undefined}
+             */
+            this["project"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Name is the recipe's `name:`, the label a person recognises. It is left
+             * out when it is the identity as well.
+             * @member
+             * @type {string | undefined}
+             */
+            this["name"] = undefined;
+        }
+        if (!("revision" in $$source)) {
+            /**
+             * Revision is the position the workspace's operation log had reached when
+             * this answer was read. Two answers carrying one revision were read from
+             * one state of the context.
+             * @member
+             * @type {number}
+             */
+            this["revision"] = 0;
+        }
+        if (!("stale" in $$source)) {
+            /**
+             * Stale reports that the blocks this project holds were read from files
+             * that have since changed, so anything counted over content (a term's use
+             * count, a coverage figure) describes the files as they were.
+             * @member
+             * @type {boolean}
+             */
+            this["stale"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * StaleReason says what moved, in the wording an answer's note carries.
+             * @member
+             * @type {string | undefined}
+             */
+            this["stale_reason"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextProvenance instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextProvenance}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ContextProvenance(/** @type {Partial<ContextProvenance>} */($$parsedSource));
+    }
+}
+
+/**
  * Finding is a single content-verification result. It is producer-agnostic: a
  * deterministic rule, a small ML model, and an LLM judge all emit this struct
  * into the same scoring and annotation pipeline.

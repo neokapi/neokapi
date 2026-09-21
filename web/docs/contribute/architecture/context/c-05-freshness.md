@@ -64,13 +64,16 @@ type Ref struct {
 - **`context`** identifies the governing context: which collections exist, the
   point each occupies, and the voice profile governing it.
 - **`terms`** identifies the governed terminology in force.
-- **`decisions`** identifies the decisions in the committed record: every
-  record that carries a review state, a reviewed or signed-off rung, a parked
-  unit, an assignee or a note. A record that says only what was produced for a
-  unit, its target and the source it was written for, is left out. A producer
-  writes one for every unit it drafts, and a run on the venue writes thousands
-  between a client's pull and its push, none of them a decision that client
-  missed.
+- **`decisions`** identifies the decisions this checkout holds: every record
+  that carries a review state, a reviewed or signed-off rung, a parked unit, an
+  assignee or a note. The source is the checkout's own view of the ledger, read
+  after its committed shards have been imported, so a decision a `git pull`
+  brought in and one recorded here since the last `kapi commit` both count
+  ([C-04](c-04-unit-state-and-decisions.md)). A record that says only what was
+  produced for a unit, its target and the source it was written for, is left
+  out. A producer writes one for every unit it drafts, and a run on the venue
+  writes thousands between a client's pull and its push, none of them a decision
+  that client missed.
 
 Comparison is `ref.Compare(local, remote) → ref.Divergence`, one
 `ComponentDiff` per component:
@@ -255,7 +258,7 @@ is nothing to be behind.
 - [C-02: Coordinates and governance](c-02-coordinates-and-governance.md): the
   governance point the staleness gate resolves at.
 - [C-04: Unit state and the decision record](c-04-unit-state-and-decisions.md):
-  the committed record the `decisions` component identifies.
+  the ledger and the checkout view the `decisions` component folds.
 - [C-06: Context retrieval](c-06-retrieval.md): the answers that carry a
   staleness note.
 - [C-08: Terms](c-08-terms.md): the terminology the `terms` component

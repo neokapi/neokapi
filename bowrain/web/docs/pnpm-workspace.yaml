@@ -17,6 +17,8 @@ packages: []
 packageManagerRegistries:
   default: https://registry.npmjs.org/
 
-# core-js' install script only prints a funding banner — not needed.
+# core-js' install script only prints a funding banner, so it is skipped. The
+# value has to be a boolean: pnpm reads anything else as no answer, refuses the
+# install with ERR_PNPM_IGNORED_BUILDS, and the site never builds.
 allowBuilds:
-  core-js: set this to true or false
+  core-js: false
