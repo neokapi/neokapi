@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T11:08:25Z",
+  "generatedAt": "2026-09-21T13:34:57Z",
   "commands": [
     {
       "id": "add",
@@ -5493,6 +5493,11 @@
       "long": "Opprett et nytt kapi-prosjekt med en kapi.yaml-oppskrift og en\ntilhørende .kapi/-tilstandskatalog.\n\nSom standard setter kapi init opp et innholdsprosjekt som holder kilden i\nstemme — en stemmeprofil, prosjektets termbutikk og en kontrollflyt, uten\nmålspråk. Send --target-locale (eller --framework) for å gjøre det til et\noversettelsesprosjekt i stedet.\n\nProsjekt-ID-en er som standard gjeldende katalogs basisnavn og kildelokaliteten\ner en. Overstyr med --name, --source-locale, --target-locale\n(gjentakbar).\n\n--preset \u003cname\u003e (alias: --framework) forhåndsutfyller innholdstilordningen for en kjent\nstabelens i18n-kataloger: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular — og setter opp oversettelsesprosjektet. List opp alle forhåndsinnstillinger (rammeverk-\noppsett pluss per-format parsingsforhåndsinnstillinger) med --list-presets.",
       "groupID": "work",
       "flags": [
+        {
+          "name": "agents",
+          "usage": "Coding agents to wire this project for: a comma-separated list of claude-code, cursor, vscode, agents; 'all'; or 'none' (default: claude-code plus every host already used here)",
+          "type": "string"
+        },
         {
           "name": "dir",
           "usage": "Directory to scaffold in (default: current directory)",

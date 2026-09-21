@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -79,9 +80,10 @@ type ContextAnswer struct {
 	// because it has none.
 	Scope ContextScope `json:"scope"`
 	// Coverage grades how much of the project's context stands behind the
-	// answer: the voice profile in force and the terms bound here, counted.
-	// A caller reading the JSON branches on this rather than on the shape of
-	// the lists below.
+	// answer: the voice profile in force, the terms bound here and the rules
+	// confirmed here, counted, with a candidate awaiting a decision counting
+	// for less than any of them. A caller reading the JSON branches on this
+	// rather than on the shape of the lists below.
 	Coverage ContextCoverage `json:"coverage"`
 	// Provenance says which project answered, at which workspace revision, and
 	// whether the content kapi holds still matches the files on disk. nil when
@@ -166,6 +168,11 @@ type ContextPointSources struct {
 	// it as the latter tells a caller the project has no voice when in fact it
 	// has one nobody can read.
 	VoiceErr error
+	// Rules are what the project's context operations add at this point: the
+	// confirmed rules widened to the workspace, and the candidates awaiting a
+	// decision (C-11). Read through App.ContextRulesAt, the seam a check
+	// resolves them with.
+	Rules contextop.Resolution
 	// Concepts are the terms bound at the point, read through the same
 	// resolution `kapi check` enforces with — so the terms reported here are the
 	// terms a check at this location holds content to.
@@ -325,6 +332,14 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 		src.Concepts = concepts
 	}
 
+	// What the project's context operations add at this point: rules confirmed
+	// and widened, and the candidates nobody has decided on yet
+	// (C-11). Read through ContextRulesAt, the same seam a check resolves them
+	// with, so a candidate an answer mentions is a candidate a check reports.
+	if rules, rerr := a.ContextRulesAt(ctx, projectPath, point); rerr == nil {
+		src.Rules = rules
+	}
+
 	src.Freshness = a.governanceNotes(cmd)
 	src.Provenance = a.contextProvenance(cmd, proj)
 	return src, noop
@@ -458,8 +473,10 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	}
 
 	res := &ContextAnswer{
-		Scope:      scope,
-		Coverage:   coverageOf(src.Voice != nil, len(hits) > 0),
+		Scope: scope,
+		Coverage: coverageOf(
+			countKinds(src.Voice != nil, len(hits) > 0, len(src.Rules.Binding) > 0),
+			len(src.Rules.Advisory) > 0),
 		Provenance: src.Provenance,
 		Point:      ContextPoint{Path: src.Path, Collection: src.Collection},
 	}
@@ -487,7 +504,7 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	// Then the coverage, for a thin answer. A caller that reads no further has
 	// still been told the two things that matter here: how much stands behind
 	// this, and what to watch for while it works.
-	if note := contextPointCoverageNote(res.Coverage); note != "" {
+	if note := contextPointCoverageNote(res.Coverage, len(src.Rules.Advisory)); note != "" {
 		res.Notes = append(res.Notes, note)
 	}
 	if src.Provenance != nil && src.Provenance.StaleReason != "" {

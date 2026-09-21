@@ -170,25 +170,35 @@ answer for a location in one is short. It was once so short that an assistant
 read it as *there is nothing to do here* and worked without the project's
 context for the rest of the session.
 
-So every answer carries a `coverage` grade, counting the two kinds of material
-that can stand behind it:
+So every answer carries a `coverage` grade, counting the kinds of material in
+force behind it:
 
-| Primitive | The two kinds |
+| Primitive | What is counted |
 | --- | --- |
-| By location | the voice profile in force at the point; the terms bound there and in force |
+| By location | the voice profile in force at the point; the terms bound there and in force; the rules confirmed and widened at it ([C-11](c-11-context-operations.md)) |
 | By content | the terms the query matched; the prior wording it found |
 
-Two of two is `covered`, one is `thin`, none is `empty`. Two kinds and three
-grades, because the grade is read by a model deciding how much to lean on the
-answer, and a finer scale would be a number nobody could act on differently.
-The grade describes **the answer**, so a search for a word the project has
-never written about is empty whatever else the project holds.
+Two or more is `covered`, one is `thin`, none is `empty`. Three grades, because
+the grade is read by a model deciding how much to lean on the answer, and a
+finer scale would be a number nobody could act on differently. The grade
+describes **the answer**, so a search for a word the project has never written
+about is empty whatever else the project holds.
+
+**A candidate counts for less than anything in force.** A proposal nobody has
+decided on holds no content to anything, so it never makes an answer `covered`.
+It does lift `empty` to `thin`, because a candidate is evidence that someone
+looked here, and `empty` then means what it says: nothing at all has been
+recorded at this point. The by-location answer reads them through
+`App.ContextRulesAt`, the seam a check resolves them with, so a candidate an
+answer mentions is a candidate a check reports.
 
 A thin or empty by-location answer adds one note: that this project records
 nothing here yet, and what is worth noticing while the work is done (the names
 the project gives its own things, the spellings it keeps to, who the text
-addresses, how formal it is). It **states no rule**, because there are none,
-and inventing one is the only outcome worse than saying nothing.
+addresses, how formal it is). Where candidates stand behind a thin answer, the
+note counts them and says they are waiting to be confirmed or discarded. It
+**states no rule**, because none is in force, and handing a writer a proposal
+the project has not agreed to is the one outcome worse than saying nothing.
 
 The by-content answer carries that note when it found nothing at all and on no
 other grade. A search graded thin found the word and answered the question

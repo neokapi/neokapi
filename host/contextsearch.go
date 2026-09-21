@@ -571,7 +571,9 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	// freshness notes, ahead of the caveats about which store answered. A
 	// caller that reads two notes reads the two that change what it should do
 	// next.
-	res.Coverage = coverageOf(len(res.Terms) > 0, len(res.Precedent) > 0)
+	// The by-content answer reads stores rather than the operation log, so it
+	// counts what it found and reports no candidates.
+	res.Coverage = coverageOf(countKinds(len(res.Terms) > 0, len(res.Precedent) > 0), false)
 	res.Provenance = src.Provenance
 	var lead []string
 	if note := contextSearchCoverageNote(res.Coverage, strconv.Quote(req.Query)); note != "" {

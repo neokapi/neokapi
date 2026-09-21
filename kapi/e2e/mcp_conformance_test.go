@@ -958,6 +958,30 @@ func TestMCPConformanceEmptyContextTeaches(t *testing.T) {
 		assert.Contains(t, notes, teaches)
 	})
 
+	t.Run("a candidate lifts an empty answer to thin", func(t *testing.T) {
+		// A proposal nobody has decided on holds no content to anything, so it
+		// never makes an answer covered. It does say that someone looked here,
+		// which is what keeps `empty` meaning nothing at all.
+		proposed, proposedRecipe := writeBareProject(t, "proposed")
+		kapi(t, "context", "propose", "utilise", "--use", "use",
+			"--seen-in", "docs/guide.md", "-p", proposedRecipe)
+
+		body, _ := readResource(t, ctx, session, "context://docs/guide.md?format=json&project="+proposed)
+		var got map[string]any
+		require.NoError(t, json.Unmarshal([]byte(body), &got))
+
+		assert.Equal(t, "thin", got["coverage"])
+		notes := strings.Join(noteStrings(got), "\n")
+		assert.Contains(t, notes, "1 candidate rule")
+		assert.Contains(t, notes, "confirmed or discarded",
+			"a candidate is named as a candidate, never as a rule in force")
+		assert.NotContains(t, notes, "records nothing for this location")
+
+		want := kapiJSON(t, "context", "docs/guide.md", "-p", proposedRecipe, "--json")
+		assert.Equal(t, want["coverage"], got["coverage"], "both surfaces grade it the same way")
+		assert.Equal(t, want["notes"], got["notes"])
+	})
+
 	t.Run("by content, on a query the project has written about", func(t *testing.T) {
 		got := callTool(t, ctx, session, "context_search", map[string]any{
 			"query": seeded.Forbidden, "project": seeded.Root,

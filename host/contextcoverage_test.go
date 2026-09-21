@@ -7,11 +7,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 )
+
+// candidateRules is one proposal the project has accumulated and nobody has
+// decided on.
+func candidateRules() []coreprofile.TermRule {
+	return []coreprofile.TermRule{{Term: "utilise", Replacement: "use"}}
+}
 
 // What an answer with nothing in it says.
 //
@@ -50,6 +58,34 @@ func TestContextPointCoverageCountsWhatStandsBehindTheAnswer(t *testing.T) {
 			src:  host.ContextPointSources{Voice: pointVoice(), Concepts: pointConcepts()},
 			want: host.CoverageCovered,
 		},
+		{
+			// A candidate is evidence that someone looked here, so the answer
+			// stops saying nothing has been recorded. It confirms nothing, so
+			// it never reaches covered on its own.
+			name: "candidates alone lift empty to thin",
+			src: host.ContextPointSources{
+				Rules: contextop.Resolution{Advisory: candidateRules()},
+			},
+			want: host.CoverageThin,
+		},
+		{
+			name: "candidates beside a voice stay thin",
+			src: host.ContextPointSources{
+				Voice: pointVoice(),
+				Rules: contextop.Resolution{Advisory: candidateRules()},
+			},
+			want: host.CoverageThin,
+		},
+		{
+			// A confirmed rule was decided on and holds, so it counts like the
+			// terms store does.
+			name: "a confirmed rule beside a voice is covered",
+			src: host.ContextPointSources{
+				Voice: pointVoice(),
+				Rules: contextop.Resolution{Binding: candidateRules()},
+			},
+			want: host.CoverageCovered,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -81,6 +117,22 @@ func TestContextPointTeachesWhenItIsEmpty(t *testing.T) {
 	text := renderAnswer(t, res)
 	assert.Contains(t, text, "records nothing for this location",
 		"the text rendering carries the same statement as the JSON")
+}
+
+// TestContextPointNamesACandidateAsACandidate: an answer that mentioned a
+// proposal beside the rules in force would be handing a writer a rule the
+// project has not agreed to.
+func TestContextPointNamesACandidateAsACandidate(t *testing.T) {
+	proj := pointRecipe(t, "")
+	res := resolveAt(t, proj, host.ContextPointRequest{Path: "docs/guide.md"},
+		host.ContextPointSources{Rules: contextop.Resolution{Advisory: candidateRules()}})
+
+	require.Equal(t, host.CoverageThin, res.Coverage,
+		"a candidate is evidence someone looked, so the answer is no longer empty")
+	notes := strings.Join(res.Notes, "\n")
+	assert.Contains(t, notes, "1 candidate rule")
+	assert.Contains(t, notes, "confirmed or discarded")
+	assert.NotContains(t, notes, "records nothing for this location")
 }
 
 func TestContextPointSaysNothingExtraWhenItIsCovered(t *testing.T) {

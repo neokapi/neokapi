@@ -159,9 +159,10 @@ export class ContextAnswer {
         if (!("coverage" in $$source)) {
             /**
              * Coverage grades how much of the project's context stands behind the
-             * answer: the voice profile in force and the terms bound here, counted.
-             * A caller reading the JSON branches on this rather than on the shape of
-             * the lists below.
+             * answer: the voice profile in force, the terms bound here and the rules
+             * confirmed here, counted, with a candidate awaiting a decision counting
+             * for less than any of them. A caller reading the JSON branches on this
+             * rather than on the shape of the lists below.
              * @member
              * @type {ContextCoverage}
              */

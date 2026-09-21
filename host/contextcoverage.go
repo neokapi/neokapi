@@ -1,5 +1,7 @@
 package host
 
+import "fmt"
+
 // What an answer with nothing in it has to say.
 //
 // Most projects meet kapi with no voice profile and no terms. The honest
@@ -25,23 +27,42 @@ const (
 	CoverageCovered ContextCoverage = "covered"
 )
 
-// coverageOf grades an answer by how many of its two kinds of material it
-// carries. The by-location answer counts the voice profile in force and the
-// terms bound at the point; the by-content answer counts the terms it matched
-// and the prior wording it found.
+// coverageOf grades an answer by how many kinds of material stand behind it,
+// and separately by whether anything unconfirmed does.
 //
-// Two kinds and three grades, because the grade is read by a model deciding
-// how much to lean on the answer, and a finer scale would be a number nobody
-// could act on differently.
-func coverageOf(first, second bool) ContextCoverage {
+// kinds counts what is in force: for a location, the voice profile, the terms
+// bound at the point, and the rules the project has confirmed and widened
+// (C-11); for a query, the terms it matched and the prior wording it found.
+// Two or more is `covered`, one is `thin`.
+//
+// candidates are proposals nobody has decided on. They hold nothing to
+// anything, so they never make an answer `covered`. They do lift `empty` to
+// `thin`, because a candidate is evidence that someone looked here: `empty`
+// then means what it says, that nothing at all has been recorded.
+//
+// Three grades, because the grade is read by a model deciding how much to lean
+// on the answer, and a finer scale would be a number nobody could act on
+// differently.
+func coverageOf(kinds int, candidates bool) ContextCoverage {
 	switch {
-	case first && second:
+	case kinds >= 2:
 		return CoverageCovered
-	case first || second:
+	case kinds == 1 || candidates:
 		return CoverageThin
 	default:
 		return CoverageEmpty
 	}
+}
+
+// countKinds counts the kinds of material present.
+func countKinds(present ...bool) int {
+	n := 0
+	for _, p := range present {
+		if p {
+			n++
+		}
+	}
+	return n
 }
 
 // coverageAdvice is the second half of a thin answer: what to notice while
@@ -50,16 +71,41 @@ const coverageAdvice = "Notice as you work what this project calls its own thing
 	"which spellings it keeps to, who the text addresses, and how formal it is."
 
 // contextPointCoverageNote is the note a thin by-location answer carries.
-// Empty for an answer with both kinds of material behind it.
-func contextPointCoverageNote(c ContextCoverage) string {
+// Empty for an answer with two kinds of material behind it.
+//
+// A candidate is named as a candidate. It holds nothing to anything until
+// someone confirms it, and an answer that listed it beside the rules in force
+// would be handing a writer a rule the project has not agreed to.
+func contextPointCoverageNote(c ContextCoverage, candidates int) string {
 	switch c {
 	case CoverageEmpty:
 		return "This project records nothing for this location yet. " + coverageAdvice
 	case CoverageThin:
+		if candidates > 0 {
+			return fmt.Sprintf(
+				"This project records little for this location, and %s here %s waiting to be confirmed or discarded (`kapi context log`). %s",
+				plural(candidates, "candidate rule", "candidate rules"), verb(candidates, "is", "are"), coverageAdvice)
+		}
 		return "This project records little for this location. " + coverageAdvice
 	default:
 		return ""
 	}
+}
+
+// plural renders a count with the noun that agrees with it.
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, one)
+	}
+	return fmt.Sprintf("%d %s", n, many)
+}
+
+// verb picks the verb form that agrees with a count.
+func verb(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }
 
 // contextSearchCoverageNote is the note a by-content answer carries when it
