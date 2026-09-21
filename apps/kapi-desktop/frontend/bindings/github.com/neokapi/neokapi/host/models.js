@@ -630,74 +630,24 @@ export const ContextProfileHit = review$0.ProfileValidity;
 /**
  * ContextProvenance says which project a retrieval answer came from and what
  * state it was read at.
+ * 
+ * The type is declared in core/check, because a check result carries the same
+ * three facts about the context it was evaluated against and the report it
+ * carries them in is framework-level. One declaration keeps a retrieval answer
+ * and a check result reporting one shape under one set of field names.
  */
-export class ContextProvenance {
-    /**
-     * Creates a new ContextProvenance instance.
-     * @param {Partial<ContextProvenance>} [$$source = {}] - The source object to create the ContextProvenance.
-     */
-    constructor($$source = {}) {
-        if (/** @type {any} */(false)) {
-            /**
-             * Project is the project's stable identity: the recipe's `id:`, or its
-             * `name:` where the recipe carries no id. It is the key everything kapi
-             * records about the project is filed under.
-             * @member
-             * @type {string | undefined}
-             */
-            this["project"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Name is the recipe's `name:`, the label a person recognises. It is left
-             * out when it is the identity as well.
-             * @member
-             * @type {string | undefined}
-             */
-            this["name"] = undefined;
-        }
-        if (!("revision" in $$source)) {
-            /**
-             * Revision is the position the workspace's operation log had reached when
-             * this answer was read. Two answers carrying one revision were read from
-             * one state of the context.
-             * @member
-             * @type {number}
-             */
-            this["revision"] = 0;
-        }
-        if (!("stale" in $$source)) {
-            /**
-             * Stale reports that the blocks this project holds were read from files
-             * that have since changed, so anything counted over content (a term's use
-             * count, a coverage figure) describes the files as they were.
-             * @member
-             * @type {boolean}
-             */
-            this["stale"] = false;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * StaleReason says what moved, in the wording an answer's note carries.
-             * @member
-             * @type {string | undefined}
-             */
-            this["stale_reason"] = undefined;
-        }
+export const ContextProvenance = check$0.ContextProvenance;
 
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ContextProvenance instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {ContextProvenance}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ContextProvenance(/** @type {Partial<ContextProvenance>} */($$parsedSource));
-    }
-}
+/**
+ * ContextProvenance says which project a retrieval answer came from and what
+ * state it was read at.
+ * 
+ * The type is declared in core/check, because a check result carries the same
+ * three facts about the context it was evaluated against and the report it
+ * carries them in is framework-level. One declaration keeps a retrieval answer
+ * and a check result reporting one shape under one set of field names.
+ * @typedef {check$0.ContextProvenance} ContextProvenance
+ */
 
 /**
  * ContextScope names how much of the graph a result set could have come from.
@@ -1967,7 +1917,7 @@ export class UpPlanScope {
 const $$createType0 = profile$0.ConstraintResolution.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = ContextPoint.createFrom;
-const $$createType3 = ContextProvenance.createFrom;
+const $$createType3 = check$0.ContextProvenance.createFrom;
 const $$createType4 = $Create.Nullable($$createType3);
 const $$createType5 = review$0.Voice.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
