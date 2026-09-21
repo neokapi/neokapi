@@ -52,6 +52,7 @@ style:
 `)
 	carries = write("docs/carries.md", "A seamless page.\n\nStart free trial today.\n")
 	missing = write("docs/missing.md", "A seamless page.\n\nNothing asks the reader to act.\n")
+	readProjectContext(t, root)
 	return root, carries, missing
 }
 

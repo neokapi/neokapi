@@ -6,9 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -61,7 +64,7 @@ profiles:
     channels: [docs, reference]
   northsea-record:
     channels: [reference]
-    termstore: .kapi/profiles/northsea-record/terms.json
+    termstore: vocab/northsea-record.db
 collections:
   - name: northsea-docs
     channel: northsea/docs
@@ -105,24 +108,24 @@ tone:
 }
 `)
 	// The reference surface's own vocabulary: the retired name is admitted here,
-	// because the published contract keeps it.
-	write(".kapi/profiles/northsea-record/terms.json", `{
-  "schemaVersion": "1.0",
-  "kind": "kapi-terms",
-  "concepts": [
-    {
-      "id": "c-berth-record",
-      "definition": "The place a vessel is secured alongside, as the contract names it.",
-      "domain": "operations",
-      "terms": [
-        {"text": "mooring", "locale": "en-GB", "status": "admitted"}
-      ],
-      "created_at": "2026-01-01T00:00:00Z",
-      "updated_at": "2026-01-01T00:00:00Z"
-    }
-  ]
-}
-`)
+	// because the published contract keeps it. A profile binds terms of its own
+	// by naming a store, which governs that point alone; a bundle under
+	// `.kapi/` is an export artifact an import folds into the one project
+	// vocabulary, which governs everywhere.
+	require.NoError(t, os.MkdirAll(filepath.Join(real, "vocab"), 0o755))
+	recordTerms, err := terms.NewSQLiteStore(filepath.Join(real, "vocab", "northsea-record.db"))
+	require.NoError(t, err)
+	stamp := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	require.NoError(t, recordTerms.AddConcept(t.Context(), terms.Concept{
+		ID:         "c-berth-record",
+		Definition: "The place a vessel is secured alongside, as the contract names it.",
+		Domain:     "operations",
+		Terms:      []terms.Term{{Text: "mooring", Locale: "en-GB", Status: model.TermAdmitted}},
+		CreatedAt:  stamp,
+		UpdatedAt:  stamp,
+	}))
+	require.NoError(t, recordTerms.Close())
+
 	write("docs/berths.md", `# Berths
 
 Release a mooring earlier than the plan allows.
@@ -132,7 +135,9 @@ Release a mooring earlier than the plan allows.
 The mooring_id field names the place alongside, and every mooring keeps it.
 `)
 
-	return filepath.Join(real, project.RecipeFileName), real
+	recipe = filepath.Join(real, project.RecipeFileName)
+	readContextAt(t, recipe)
+	return recipe, real
 }
 
 // upThenCheck converges the project and returns the check output.
