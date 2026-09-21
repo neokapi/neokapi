@@ -19,11 +19,12 @@ lives in `.kapi/work/`, which is gitignored.
   both a source and a destination: the workspace's approved term decisions are
   merged back into it by the nightly's concept pull, upsert-only, so a concept
   it does not mention survives.
-- `state/*.jsonl`: the committed decision record. `kapi commit` writes here
-  from what a pull staged: one shard per scope, a row per unit carrying its
-  review state and the hash of the target it applies to. This is where a
-  reviewer's approval is recorded, and it is the only file under this directory
-  that a human never writes by hand.
+- `state/*.jsonl`: the committed decision record. `kapi commit` writes here from
+  the decisions this checkout holds, including the ones a pull brought back from
+  the server: one shard per scope, a row per unit carrying its review state and
+  the hash of the target it applies to. This is where a reviewer's approval is
+  recorded, and it is the only file under this directory that a human never
+  writes by hand.
 - `memory/<surface>-<lang>.memory.json`: reviewed pairs, one bundle per
   surface and locale (e.g. `builtins-nb.memory.json`). They are **read-only
   accelerants**: `kapi up` compiles every bundle here into the project store so

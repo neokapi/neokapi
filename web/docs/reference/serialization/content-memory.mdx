@@ -22,8 +22,9 @@ content memory: the multilingual entries kapi reuses to avoid re-translating
 text it has already seen, together with where each entry came from.
 
 It is a **bundle** rather than a store. The working store is SQLite: inside a
-project, the memory tables of the shared `.kapi/work/store.db` (`.kapi/` is
-committed; `.kapi/work/` is ignored), and `memory.db` for a standalone store. A
+project, the memory tables of the [project store](/kapi/project-store), which
+sits outside the checkout and outside git, and `memory.db` for a standalone
+store. A
 bundle is what you get when you export that store into a single reviewable,
 hashable file, and the bundle the recipe binds with `defaults.memory_source` is
 the committed record the store is compiled from. See the

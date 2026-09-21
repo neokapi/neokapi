@@ -95,7 +95,7 @@ func TestDiffCheck_RealCommitDeletionBesideABlock(t *testing.T) {
 
 	app := &App{SourceLang: "en"}
 	app.InitRegistries()
-	postRead, err := app.readWithExtents(t.Context(), "runbook.md", post, "markdown", nil)
+	postRead, err := app.readWithExtents(t.Context(), "runbook.md", post, "markdown", nil, "en")
 	require.NoError(t, err)
 	require.NoError(t, postRead.unlocated)
 
@@ -111,7 +111,7 @@ func TestDiffCheck_RealCommitDeletionBesideABlock(t *testing.T) {
 	rebuilt, err := f.PreImage(post)
 	require.NoError(t, err)
 	require.Equal(t, string(pre), string(rebuilt))
-	preRead, err := app.readWithExtents(t.Context(), "runbook.md", rebuilt, "markdown", nil)
+	preRead, err := app.readWithExtents(t.Context(), "runbook.md", rebuilt, "markdown", nil, "en")
 	require.NoError(t, err)
 	require.NoError(t, preRead.unlocated)
 	assert.Empty(t, diffscope.Settle(f, post, touched, rebuilt, preRead.extents))
@@ -120,7 +120,7 @@ func TestDiffCheck_RealCommitDeletionBesideABlock(t *testing.T) {
 	// would not match it and the item would stay in scope.
 	reworded := bytes.Replace(rebuilt, []byte("a path the app never used."), []byte("a path nobody used."), 1)
 	require.NotEqual(t, rebuilt, reworded)
-	rewordedRead, err := app.readWithExtents(t.Context(), "runbook.md", reworded, "markdown", nil)
+	rewordedRead, err := app.readWithExtents(t.Context(), "runbook.md", reworded, "markdown", nil, "en")
 	require.NoError(t, err)
 	assert.Len(t, diffscope.Settle(f, post, touched, reworded, rewordedRead.extents), 1)
 

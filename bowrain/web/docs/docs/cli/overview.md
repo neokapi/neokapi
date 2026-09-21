@@ -32,10 +32,13 @@ A connected project is a kapi project whose recipe declares a `bowrain:` block:
   flows, plugins, the voice binding, and the server connection
 - **`.kapi/terms.json`, `.kapi/memory/memory.json`**: the context sources the recipe
   binds (committed)
-- **`.kapi/state/*.jsonl`**: the unit-state record (committed)
+- **`.kapi/state/*.jsonl`**: the decision record (committed)
 - **`.kapi/flows/`**: optional file-per-flow definitions (committed)
-- **`.kapi/work/store.db`**: the local index over all of the above (gitignored,
-  rebuilt from them)
+- **`.kapi/work/store.db`**: this checkout's projection of its working tree
+  (gitignored, rebuilt from the content files)
+- **the project's context store**: the terms, content memory, voice profiles and
+  decisions, in a workspace under your data directory, shared by every checkout
+  and rebuilt from the committed sources above
 - **`.kapi/work/cache/sync-cache.json`**: sync state (gitignored, local only)
 
 The CLI searches upward from the current directory, the way git finds a

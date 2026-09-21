@@ -369,15 +369,17 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
 
 ## The project store
 
-The recipe binds sources; the sources are the truth. A project keeps one local
-database, `.kapi/work/store.db`: a derived index over the committed sources
-(`terms_source`, `memory_source`, the voice profiles), the unit-state record
-under `.kapi/state/`, and the content files themselves, plus the working set of
-unit state staged since the last `kapi commit`. Every subsystem's tables live in
-that one file: block cache, terms store, content memory, voice store, working
-set, and the property graph. See
-[C-03](/contribute/architecture/context/c-03-context-store-and-graph) for the store's
-shape and its rebuild guarantees.
+The recipe binds sources; the sources are the truth. A project keeps two
+databases. `.kapi/work/store.db` is the checkout's projection of its working
+tree: the block cache, the overlays a flow wrote, the extraction stamps. The
+project's context store, in the user's workspace and shared by every checkout,
+holds the terms, the content memory, the voice profiles and the decision ledger,
+all derived from the committed sources (`terms_source`, `memory_source`, the
+voice profiles, the record under `.kapi/state/`) apart from a decision recorded
+since the last `kapi commit`. The property graph sits in the workspace database
+beside the project registry. See
+[C-03](/contribute/architecture/context/c-03-context-store-and-graph) for the stores'
+shape and their rebuild guarantees.
 
 ## Extensions and the venue
 

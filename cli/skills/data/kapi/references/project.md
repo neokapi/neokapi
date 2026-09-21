@@ -37,12 +37,18 @@ assistant limited to `CLAUDE.md` through an import line, `@AGENTS.md`.
 - **`.kapi/`**: the context graph, all committed and flat: `terms.json`,
   `voice.yaml`, `memory/` (the content-memory bundles, `memory.json` the
   primary), `profiles/<name>/` (what a profile overrides), and `state/*.jsonl`,
-  the unit-state record (one shard per document). `kapi commit` publishes staged
-  unit state into `state/`; then `git add` it like any other source file.
-- **`.kapi/work/`**: everything derived, and the only gitignored path.
-  `store.db` is the local index over the recipe, the context sources and the
-  content files. Never read or write it directly and never commit it; go through
-  kapi commands, which are what keep it consistent with the sources.
+  the decision record (one shard per document). `kapi commit` writes the
+  decisions this checkout holds into `state/`; then `git add` it like any other
+  source file.
+- **`.kapi/work/`**: everything this checkout derives, and the only gitignored
+  path. `store.db` is its projection of the working tree: the block cache, the
+  overlays a run wrote, the extraction stamps.
+- **The workspace**, under the user's data directory
+  (`<data dir>/workspaces/default/`), holds one context store per project: the
+  terms, the voice profiles, the content memory and the decision ledger, shared
+  by every checkout of that project. Never read or write either database
+  directly and never commit one; go through kapi commands, which are what keep
+  them consistent with the sources.
 
 The ignore rule `kapi init` writes is `.kapi/.gitignore` with two lines, `work/`
 and `filters.local.json` (a developer's personal reader settings). If you see
@@ -52,11 +58,13 @@ Deleting:
 
 - `rm -rf .kapi/work/cache` is **always** safe; everything under it rebuilds on
   the next run.
-- `rm -rf .kapi/work` costs two things. Review unit state staged since the last
-  `kapi commit` live only in `store.db`; run `kapi commit` first. And if the
-  project uses redaction, `.kapi/work/vault/` holds the withheld originals, which
-  are local-only by design and rebuild from nothing: merge any batch that is out
-  with a translator before clearing it.
+- `rm -rf .kapi/work` costs a re-extraction. If the project uses redaction,
+  `.kapi/work/vault/` holds the withheld originals, which are local-only by
+  design and rebuild from nothing: merge any batch that is out with a translator
+  before clearing it. Decisions are in the workspace and survive it.
+- Deleting the workspace costs every decision recorded since the last `kapi
+  commit`, in every project. Run `kapi commit` first, or take a copy with
+  `kapi context export`.
 
 ## What the recipe binds
 

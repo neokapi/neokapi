@@ -64,8 +64,9 @@ derived stores** a runtime builds from this content.
 
 A second observation shaped the design. The project layout already separates
 **authoritative content** (the committed sources and the unit-state record)
-from everything a run derives from them: the project's one database and the
-free-to-delete cache ([C-03](../context/c-03-context-store-and-graph.md)). The
+from everything a run derives from them: the checkout's projection, the
+project's context store and the free-to-delete cache
+([C-03](../context/c-03-context-store-and-graph.md)). The
 thing worth packaging is the authoritative content, never the derived stores or
 the secrets.
 
@@ -106,10 +107,10 @@ hash over the sorted member hashes gives the package a stable content identity
 independent of zip framing. Unmarshalling validates the envelope, every member
 checksum, and the root hash.
 
-Membership is decided **per table, not per file**. Because every subsystem
-shares one database, "does this project have terms?" is a question about rows,
-so a pack carries only the parts that hold something: an empty subsystem
-contributes no member, exactly as an absent one would.
+Membership is decided **per table, not per file**. A subsystem's presence is a
+question about rows rather than about a file, so a pack carries only the parts
+that hold something: an empty subsystem contributes no member, exactly as an
+absent one would.
 
 ## Two tiers: native and interchange
 

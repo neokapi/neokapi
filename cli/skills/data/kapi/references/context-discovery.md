@@ -133,7 +133,7 @@ Materialize the terminology seed, now that the project exists:
 
 ```bash
 # preferred: term entries: maintains the committed .kapi/terms.json
-# source and reindexes it into .kapi/work/store.db in one verb
+# source and reindexes it into the project's terms store in one verb
 kapi apply terms.jsonl
 # bulk path for a handed-over term list (csv, tsv, json, tbx, bundle):
 kapi terms import terms.csv -s en -t fr --header

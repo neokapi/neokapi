@@ -104,6 +104,16 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 	if err != nil {
 		return nil, check.Report{}, err
 	}
+	// The draft is read in the language the call's project writes its source in.
+	// A call naming none reads it in the server's, which is what opts answers
+	// with when it carries no language of its own.
+	if in.Project != "" {
+		recipe, rerr := a.ResolveMCPCallProject(in.Project)
+		if rerr != nil {
+			return nil, check.Report{}, rerr
+		}
+		opts.sourceLocale = a.mcpCallSourceLocale(recipe)
+	}
 	if in.ContextPath != "" {
 		if err := a.resolveTextCheckContext(ctx, in.Project, in.ContextPath, &opts); err != nil {
 			return nil, check.Report{}, err
@@ -194,6 +204,9 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	if err != nil {
 		return nil, check.Report{}, err
 	}
+	// The file is read in the language its own project writes source in, which
+	// is what every vocabulary and terminology lookup below keys on.
+	opts.sourceLocale = a.mcpCallSourceLocale(recipe)
 	var voice *checkVoice
 	if opts.profile == nil {
 		if voice, err = a.newCheckVoice(cmd, opts.execution.warningSink()); err != nil {
@@ -267,7 +280,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		if terr != nil {
 			return nil, check.Report{}, terr
 		}
-		biDiags, bderr := a.collectBilingualDiagnostics(ctx, blocks, in.File, model.LocaleID(lang), in.DNT, termRules, execution)
+		biDiags, bderr := a.collectBilingualDiagnostics(ctx, blocks, in.File, model.LocaleID(lang), in.DNT, termRules, opts)
 		if bderr != nil {
 			return nil, check.Report{}, bderr
 		}

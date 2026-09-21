@@ -256,7 +256,7 @@ venue is not a reason to refuse the run.
 `kapi voice` resolves a profile from one of three mutually exclusive sources:
 
 - `--profile <name>`: a profile in the voice store. Inside a project that store
-  is the `voice_profiles` table of the project pool, `.kapi/work/store.db`
+  is the `voice_profiles` table of the project's context store
   ([C-03](c-03-context-store-and-graph.md)), so the same recipe resolves the
   same profile from any directory in the tree; an explicit `--name`, `--local`
   or `--file` selects a standalone store file instead, mirroring the terms

@@ -254,7 +254,7 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		fmt.Printf("pulled %d blocks across %d locales; wrote %d files\n",
 			resp.GetBlocksPulled(), resp.GetLocalesCount(), resp.GetFilesWritten())
 		if n := resp.GetDecisionsStaged(); n > 0 {
-			fmt.Printf("staged %d unit-state update(s) from the server ledger. `kapi commit` publishes them\n", n)
+			fmt.Printf("recorded %d unit-state update(s) from the server ledger. `kapi commit` writes them to .kapi/state/\n", n)
 		}
 		printPullExtras(resp)
 		if te := resp.GetTerminologyError(); te != "" {
@@ -300,11 +300,11 @@ func printPushExtras(resp *pb.PushResponse) {
 
 // printPullExtras reports what a pull carried besides blocks: the terminology
 // snapshot, the collections the server governs differently, and any decision it
-// could not stage.
+// could not record.
 func printPullExtras(resp *pb.PullResponse) {
 	if n := resp.GetDecisionsSkipped(); n > 0 {
 		fmt.Fprintf(os.Stderr,
-			"warning: %d server decision(s) could not be read and were not staged; the server does not offer them again\n", n)
+			"warning: %d server decision(s) could not be read and were not recorded; the server does not offer them again\n", n)
 	}
 	if c, r := resp.GetConceptsPulled(), resp.GetConceptRelationsPulled(); c > 0 || r > 0 {
 		fmt.Printf("snapshotted %d concept(s) and %d relation(s) from the workspace terminology\n", c, r)
