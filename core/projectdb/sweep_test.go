@@ -239,10 +239,11 @@ func TestFold_MovesCommittedRecordIntoUnitState(t *testing.T) {
 	assert.Equal(t, before, after, "the committed record moves byte-identical")
 	assert.NoDirExists(t, flatDecisionsDir(layout), "an emptied source directory goes")
 
-	// And it is a record, not just a file: the working store seeded from it,
-	// which is why the fold has to precede the open.
+	// And it is a record, not just a file: an import reads it from where the
+	// fold put it, which is why the fold has to precede the open.
+	require.NoError(t, db.Work().Import(t.Context()))
 	_, ok := db.Work().Get(t.Context(), state.Key{Scope: "d-intro", Unit: "u-flat", Variant: model.Variant("nb")})
-	assert.True(t, ok, "the moved record seeded the working set on this same open")
+	assert.True(t, ok, "an import reads the moved record")
 }
 
 // The vault holds the only copy of a withheld original. It moves for the same
@@ -463,8 +464,9 @@ func TestFold_LiftsContextUmbrella(t *testing.T) {
 	shards, err := os.ReadDir(layout.Export().UnitStateDir())
 	require.NoError(t, err)
 	require.Len(t, shards, 1)
+	require.NoError(t, db.Work().Import(t.Context()))
 	_, ok := db.Work().Get(t.Context(), state.Key{Scope: "d-intro", Unit: "u-umbrella", Variant: model.Variant("nb")})
-	assert.True(t, ok, "the lifted record seeded the working set on this same open")
+	assert.True(t, ok, "an import reads the lifted record")
 
 	assert.NoDirExists(t, umbrella, "an emptied umbrella goes")
 }

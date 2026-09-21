@@ -42,9 +42,9 @@ func TestOpenWorkFromDB_SameBehaviourAsItsOwnFile(t *testing.T) {
 	assert.Equal(t, "u1", onDisk[0].Unit)
 }
 
-// An adopted store imports the committed record just as one that opened its own
+// An adopted store reads the committed record just as one that opened its own
 // file does. The shards are the import source however the ledger is stored.
-func TestOpenWorkFromDB_SeedsFromCommitted(t *testing.T) {
+func TestOpenWorkFromDB_ImportsTheCommittedRecord(t *testing.T) {
 	committed := filepath.Join(t.TempDir(), "units")
 	require.NoError(t, state.WriteCommitted(committed, []state.UnitState{
 		unit("u1", "d-intro", "Alpha"),
@@ -53,6 +53,7 @@ func TestOpenWorkFromDB_SeedsFromCommitted(t *testing.T) {
 
 	w, err := state.OpenWorkFromDB(t.Context(), sharedDB(t), committed)
 	require.NoError(t, err)
+	require.NoError(t, w.Import(t.Context()))
 
 	all, err := w.All(t.Context())
 	require.NoError(t, err)

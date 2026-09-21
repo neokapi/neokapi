@@ -248,9 +248,9 @@ func TestConverge_SeedsAPulledSourceEdit(t *testing.T) {
 	require.NoError(t, os.WriteFile(
 		filepath.Join(project.LayoutAt(root).Export().MemoryDir(), "app-nb.memory.json"), data, 0o644))
 
-	seeded, err := a.SeedProjectContext(context.Background(), recipe)
+	seeded, err := a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
-	assert.Equal(t, 1, seeded.MemoryFiles, "the pulled edit recompiled")
+	assert.Equal(t, 1, seeded.Entries, "the pulled edit was read in")
 
 	db, err := a.ProjectDB(context.Background(), root)
 	require.NoError(t, err)

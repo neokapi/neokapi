@@ -125,7 +125,7 @@ func TestSeedSkipsCommittedTargetsWithNoReader(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(recipe), "src", "nb.json"),
 		[]byte(`{"greeting":"Hei verden"}`), 0o644))
 
-	res, err := a.SeedProjectContext(context.Background(), recipe)
+	res, err := a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	assert.Positive(t, res.Record.Documents, "the readable committed translation was read")
 }
@@ -156,7 +156,7 @@ func TestUpPlanSetsAsideCollectionsWithNoReader(t *testing.T) {
 
 	// The plan path seeds an existing store before it prices, and the seed
 	// reads the committed layout target.
-	_, err = a.SeedProjectContext(context.Background(), recipe)
+	_, err = a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	require.NoError(t, cmd.Flags().Set("plan", "true"))
 	var planOut bytes.Buffer

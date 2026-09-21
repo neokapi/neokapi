@@ -203,7 +203,7 @@ func TestAbsorbCommittedRecord_ReadsTheGoverningContextFromTheRecord(t *testing.
 			rewritten.GoverningFingerprint = "fp-stale"
 			require.NoError(t, st.Put(ctx, rewritten))
 
-			res, err := a.SeedProjectContext(ctx, recipe)
+			res, err := a.seedContext(ctx, recipe)
 			require.NoError(t, err)
 			require.Equal(t, 3, res.Record.Learned)
 
@@ -252,11 +252,11 @@ func writeGoverningBundle(t *testing.T, root string, fingerprint string, pairs m
 	require.NoError(t, os.WriteFile(filepath.Join(dir, kmb.ConventionalName), data, 0o644))
 }
 
-// TestSeedProjectContext_CarriesTheBundlesGoverningContextOntoTheRecord: a
+// TestSeedContext_CarriesTheBundlesGoverningContextOntoTheRecord: a
 // re-seed writes the bundle's fingerprint onto the record row for the unit it
 // answers, when the row holds none and is about that translation, and makes
 // the row durable in the committed shards.
-func TestSeedProjectContext_CarriesTheBundlesGoverningContextOntoTheRecord(t *testing.T) {
+func TestSeedContext_CarriesTheBundlesGoverningContextOntoTheRecord(t *testing.T) {
 	a, root, recipe := newRecordProject(t, ".json")
 	writeDoc(t, root, "src/en.json", `{"greeting":"source of greeting","farewell":"source of farewell","ok":"source of ok"}`)
 	ctx := context.Background()
@@ -281,7 +281,7 @@ func TestSeedProjectContext_CarriesTheBundlesGoverningContextOntoTheRecord(t *te
 		"ok":       "Alt klart",
 	})
 
-	_, err = a.SeedProjectContext(ctx, recipe)
+	_, err = a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 
 	get := func(unit string) state.UnitState {

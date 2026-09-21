@@ -104,6 +104,7 @@ func TestWorkStore_RebuildsFromTheCommittedRecord(t *testing.T) {
 	reopened, err := state.OpenWork(t.Context(), dbPath, committed)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = reopened.Close() })
+	require.NoError(t, reopened.Import(t.Context()))
 
 	got, ok := reopened.Get(t.Context(), nbKey("d-intro", "u1"))
 	require.True(t, ok, "a written decision survives losing the store")
@@ -127,6 +128,7 @@ func TestWorkStore_ImportIsIdempotent(t *testing.T) {
 	w, err := state.OpenWork(t.Context(), dbPath, committed)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = w.Close() })
+	require.NoError(t, w.Import(t.Context()))
 
 	entries, err := w.Entries(t.Context(), nbKey("d-intro", "u1"))
 	require.NoError(t, err)

@@ -222,7 +222,7 @@ func TestLayout_CommittedSourcesAreFlat(t *testing.T) {
 
 // EnsureLayout scaffolds both halves, so a fresh project has somewhere to put
 // authored context and somewhere to put derived state before either is written.
-func TestEnsureLayout_createsCommittedAndWork(t *testing.T) {
+func TestEnsureLayout_createsTheStateAndWorkDirs(t *testing.T) {
 	root := t.TempDir()
 	recipe := filepath.Join(root, "kapi.yaml")
 	require.NoError(t, os.WriteFile(recipe, []byte("name: my-app\n"), 0o644))
@@ -231,8 +231,11 @@ func TestEnsureLayout_createsCommittedAndWork(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, project.EnsureLayout(layout))
 
-	assert.DirExists(t, layout.Export().MemoryDir())
-	assert.DirExists(t, layout.Export().UnitStateDir())
+	assert.DirExists(t, layout.StateDir)
 	assert.DirExists(t, layout.CacheDir())
 	assert.DirExists(t, layout.WorkDir())
+	// A scaffold creates no place for a context file: the context lives in the
+	// workspace, and an export creates what it writes.
+	assert.NoDirExists(t, layout.Export().MemoryDir())
+	assert.NoDirExists(t, layout.Export().UnitStateDir())
 }

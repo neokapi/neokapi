@@ -43,10 +43,13 @@ func (c *twoCheckouts) git(dir string, args ...string) {
 func (c *twoCheckouts) openMain() *state.WorkStore    { return c.open(c.main) }
 func (c *twoCheckouts) openFeature() *state.WorkStore { return c.open(c.feature) }
 
+// open binds a checkout to the shared ledger and reads its record in, which is
+// what `kapi context import` does in that checkout. Opening alone reads nothing.
 func (c *twoCheckouts) open(record string) *state.WorkStore {
 	c.t.Helper()
 	w, err := state.OpenWorkFromDB(c.t.Context(), c.db, record)
 	require.NoError(c.t, err)
+	require.NoError(c.t, w.Import(c.t.Context()))
 	return w
 }
 
@@ -218,6 +221,7 @@ func TestTwoCheckouts_AFreshCloneRestoresFromTheShards(t *testing.T) {
 	w, err := state.OpenWorkFromDB(t.Context(), db, filepath.Join(clone, ".kapi", "state"))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = w.Close() })
+	require.NoError(t, w.Import(t.Context()))
 
 	got, ok := w.Get(t.Context(), nbKey("d-intro", "u1"))
 	require.True(t, ok, "a clone with no store of its own reads its record back")

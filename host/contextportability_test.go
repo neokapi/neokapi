@@ -153,7 +153,7 @@ func seedPortable(t *testing.T, a *App, root, recipe string) {
 		GoverningFingerprint: "fp-portable",
 	}))
 
-	_, err = a.SeedProjectContext(ctx, recipe)
+	_, err = a.seedContext(ctx, recipe)
 	require.NoError(t, err)
 }
 

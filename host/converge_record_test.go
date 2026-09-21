@@ -137,7 +137,7 @@ func TestConverge_DoesNotAbsorbItsOwnOutput(t *testing.T) {
 	require.FileExists(t, filepath.Join(filepath.Dir(recipe), "new", "nb.json"),
 		"the run materialized a target that did not exist when it started")
 
-	res, err := a.SeedProjectContext(context.Background(), recipe)
+	res, err := a.seedContext(context.Background(), recipe)
 	require.NoError(t, err)
 	assert.Zero(t, res.Record.Documents, "nothing the run wrote is read back")
 	assert.Equal(t, 2, res.Record.Skipped, "both targets are stamped as already absorbed")
