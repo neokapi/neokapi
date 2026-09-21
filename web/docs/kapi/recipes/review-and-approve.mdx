@@ -120,10 +120,10 @@ kapi status --review --lang en        # the source-language units
 Review page of Kapi Desktop, which writes it to the same project store under
 the source locale.
 
-Address the unit exactly as the worklist lists it. `status` is `"reviewed"` by default; `"signed-off"` is the optional final rung for contractual or regulated content. The state record lands in the [project store](/kapi/project-store)'s working set; `kapi commit` writes it into the unit-state record under `.kapi/state/`, which you **commit with your sources** so it travels with the project:
+Address the unit exactly as the worklist lists it. `status` is `"reviewed"` by default; `"signed-off"` is the optional final rung for contractual or regulated content. The decision is recorded in the [project store](/kapi/project-store) and is durable at once; `kapi commit` writes it into the record under `.kapi/state/`, which you **commit with your sources** so it travels with the project:
 
 ```bash
-kapi status                 # what is staged but not yet committed
+kapi commit --dry-run       # what the record is missing, without writing it
 kapi commit                 # → .kapi/state/*.jsonl
 git add .kapi/state/
 ```
@@ -141,4 +141,4 @@ This recipe's worklist lives in your checkout and its unit state in the committe
 
 - [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): the `reviewed` thresholds this state satisfies.
 - [The kapi loop](/kapi/convergence): produce / promote / release, kept separate.
-- [The project store](/kapi/project-store): why the unit-state record is the committed half and `store.db` the derived one.
+- [The project store](/kapi/project-store): why the decision record is the committed half and the two databases the derived one.

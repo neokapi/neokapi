@@ -126,9 +126,10 @@ So the split is source versus projection, not a two-way sync:
   pull request, and versioned with the code. It is plain JSON under a compound
   suffix, so a reviewer reads it in a browser diff and `jq` reads it on the
   command line.
-- the **terms tables inside `.kapi/work/store.db` are a rebuildable projection**
-  of it ([C-03](c-03-context-store-and-graph.md)), ignored by version control and
-  rebuilt when the committed source changes, guarded by its content digest.
+- the **terms tables inside the project's context store are a rebuildable
+  projection** of it ([C-03](c-03-context-store-and-graph.md)), outside version
+  control and rebuilt when the committed source changes, guarded by its content
+  digest.
   Discard them, rebuild from the source, lose nothing: **nothing authoritative
   ever lives only in the database.** Committing the binary database would be
   hostile to review and would defeat interchange in any case.

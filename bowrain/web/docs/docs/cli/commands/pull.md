@@ -68,9 +68,9 @@ committed or pulled (the protocol is described once, on
 - **Content.** Targets produced by runs and promoted by review land in the
   target files the recipe's `collections:` name, with the format's own writer.
   A file whose targets did not change is left untouched.
-- **Decisions.** Review decisions made on the server are staged into the
-  project's working store; `kapi commit` publishes them into the committed
-  record under `.kapi/state/`.
+- **Decisions.** Review decisions made on the server are recorded in the
+  project's decision ledger, where they take effect at once; `kapi commit`
+  writes them into the committed record under `.kapi/state/`.
 - **Governed terms.** When the project is claimed into a workspace, pull
   snapshots the workspace's concepts and their relations into the project's
   terms store and records a baseline, so a later

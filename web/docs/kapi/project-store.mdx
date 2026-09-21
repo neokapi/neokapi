@@ -1,8 +1,8 @@
 ---
 sidebar_position: 2
 title: The project store
-description: "Where a kapi project's work lives: one local database at .kapi/work/store.db, a free-to-delete cache, and the committed record of unit state, terms and memory. The recipe is config, the store is work, the files are the deliverable."
-keywords: [kapi, project store, store.db, context graph, units, kapi commit, review, coverage, cache, working state, ship state]
+description: "Where a kapi project's work lives: a projection of your files at .kapi/work/store.db, the context store in a workspace outside the checkout, and the committed record of decisions, terms and memory. The recipe is config, the store is work, the files are the deliverable."
+keywords: [kapi, project store, store.db, workspace, context store, context graph, units, kapi commit, review, coverage, cache, ship state]
 ---
 
 # The project store
@@ -11,44 +11,61 @@ A kapi project has three things, and it helps to keep them straight:
 
 - the **recipe** (`kapi.yaml`), your *config*: content, governance bindings, flows, defaults, languages;
 - the **files**, your *deliverable*: the source and target files on disk;
-- the **project store**, your *work*: what kapi derives under `.kapi/work/`
-  while you build, plus the committed record of the reviews you make along the
-  way.
+- the **project store**, your *work*: what kapi derives from your files, plus
+  the context the project works under and the decisions people record in it.
 
 This page is about the third one. The guiding rule:
 
-> **Files and the committed context are the source of truth. `.kapi/work/store.db`
-> is a derived index over them, plus the unit state you have staged but not yet
-> committed.**
+> **Your files and the committed context under `.kapi/` are the source of truth.
+> Everything kapi keeps is derived from them, apart from a decision recorded
+> since the last `kapi commit`.**
 
 ## What's in the store
 
+The store is two databases with different lifetimes.
+
 | Layer | Lives in | Kind | Lose it? |
 |---|---|---|---|
-| **committed context** | `.kapi/`: the terms and memory bundles, the voice profile, and `state/*.jsonl` | **authored**: unit state, approved terms, memory pairs | **committed; keep it in git** |
-| local store | `.kapi/work/store.db` | **derived index** over the committed context and your content, **plus** the working set of staged unit state | rebuilds, except unit state staged since the last `kapi commit` |
-| cache | `.kapi/work/cache/` | **derived**: parse cache, extractions, collections, sync cache | rebuilds on next run |
+| **committed context** | `.kapi/`: the terms and memory bundles, the voice profiles, and `state/*.jsonl` | **authored**: decisions, approved terms, memory pairs | **committed; keep it in git** |
+| context store | a workspace under your data directory | the context in force: terms, voice profiles, content memory, recorded decisions | rebuilds from `.kapi/`, apart from a decision recorded since the last `kapi commit` |
+| projection | `.kapi/work/store.db` | **derived from your files**: the block cache, the overlays a run wrote, the extraction stamps | rebuilds on the next run |
+| cache | `.kapi/work/cache/` | **derived**: parse cache, extractions, collections, sync cache | rebuilds on the next run |
 
-A project keeps **one** local database. `.kapi/work/store.db` holds every subsystem's
-tables in a single SQLite file, on a single connection, each with its own
-migration ledger: the block cache, the terms store, the content memory, the
-voice store, the unit-state working set, and the property graph
-(`graph_nodes` / `graph_edges`)
-that links a term to the blocks that use it, a state record to the unit it blesses,
-and both to their
-[context coordinates](/kapi/context#the-context-space).
+### The projection stays with your checkout
 
-It sits at the **top** of `.kapi/work/` rather than under `cache/`, and the
-distinction matters: `rm -rf .kapi/work/cache` is completely free, while
-`store.db` carries the working set. Between a review landing and `kapi
-commit`, that working set holds the only copy of the staged unit state. Delete
-`store.db` and you lose at most what you staged since the last commit;
-everything else is rebuilt from the committed context and your files.
+`.kapi/work/store.db` holds what kapi read out of the working tree: the parsed
+blocks, the translations a run produced before you merged them, and the stamps
+that let the next run skip a file it has already read. A second checkout of the
+project keeps one of its own, because each describes the tree beside it.
+
+### The context store sits outside your checkout
+
+The terms, the voice profiles, the content memory and the record of who
+approved what live in a **workspace** under your per-user data directory, one
+database per project:
+
+```text
+<data directory>/workspaces/default/
+  workspace.db          the project registry and the context graph
+  projects/<key>.db     one project's terms, voice profiles, memory and decisions
+```
+
+The data directory is `$KAPI_DATA_DIR` when you set it, `$XDG_DATA_HOME/kapi`
+when that is set, and otherwise the platform's own: `~/Library/Application Support/kapi`
+on macOS, `%LocalAppData%\kapi` on Windows, `~/.local/share/kapi` elsewhere.
+kapi creates the workspace on first use, and the recipe binds nothing to it.
+
+kapi keys a project by the `id:` its recipe carries, which `kapi init` mints, so
+every checkout of one project reaches the same context store. A second clone
+opens with the terms, the voice profiles, the content memory and the decisions
+already in force, and re-extracts its own projection. A git worktree is a
+checkout rather than a second project: a decision you record in one is in force
+in the other, and switching branches moves no context.
 
 The committed side is plain text, and it is what a person reads in a pull
 request:
 
-- `.kapi/state/*.jsonl`: the unit-state record, one JSON Lines shard per document
+- `.kapi/state/*.jsonl`: the decision record, one JSON Lines shard per document
   ([serialization](/reference/serialization/project-state));
 - the terms bundle the recipe binds with `defaults.terms_source` (a
   `.terms.json`) and the content-memory bundle it binds with
@@ -57,6 +74,10 @@ request:
   bind any path;
 - the voice profile, `.kapi/voice.yaml`;
 - the content files themselves.
+
+Opening the project reads all of it into the context store, so a fresh clone
+and a `git pull` that brought a colleague's approvals both take effect on the
+next command.
 
 ## What to commit, and what to ignore
 
@@ -77,21 +98,28 @@ Deleting is worth being precise about:
 
 - **`rm -rf .kapi/work/cache` is always safe.** Everything under it is rebuilt on
   the next run.
-- **`rm -rf .kapi/work` costs two things.** Any unit state you staged since the
-  last `kapi commit` lives only in `store.db`. And if you use
-  [redaction](/framework/redaction), the vault under `.kapi/work/vault/` holds
-  the withheld originals, deliberately local-only, never committed and never
-  synced, so no copy exists anywhere else. Merge the batches you have in flight
-  before you clear it.
+- **`rm -rf .kapi/work` costs a re-extraction**, and, if you use
+  [redaction](/framework/redaction), the vault under `.kapi/work/vault/`. The
+  vault holds the withheld originals, deliberately local-only, never committed
+  and never synced, so no copy exists anywhere else. Merge the batches you have
+  in flight before you clear it. Your terms, your voice profiles, your content
+  memory and your decisions are in the workspace and stay where they are.
+- **Deleting the workspace costs every decision recorded since the last `kapi
+  commit`,** in every project on the machine. Run `kapi commit` first, or take a
+  copy with [`kapi context export`](/kapi/context-portability). Everything else
+  in it is derived from `.kapi/` and comes back on the next run.
 
-## One local context graph
+## One context graph
 
-Because the graph tables live beside the block, terms and memory tables, a
-project answers graph questions without a server: which blocks use this term,
-in which collection, at which coordinate. A connected project answers the same
-query shapes server-side across more dimensions; locally they are fixed to a
-single value. See
-[C-03: The Local Context Graph Store](/contribute/architecture/context/c-03-context-store-and-graph).
+The workspace keeps a property graph (`graph_nodes` / `graph_edges`) that links
+a term to the blocks that use it, a decision to the unit it blesses, and both to
+their [context coordinates](/kapi/context#the-context-space). A project answers
+graph questions without a server: which blocks use this term, in which
+collection, at which coordinate. Because the graph spans the projects you have
+opened, *which projects use this concept* is a question you can ask locally too.
+A connected project answers the same query shapes server-side across more
+dimensions. See
+[C-03: The context store and graph](/contribute/architecture/context/c-03-context-store-and-graph).
 
 ## Two stages: working, then ship
 
@@ -109,49 +137,54 @@ pre-merge) and "what's in the files and reviewed" (ship). In Kapi Desktop, the
 project home's **Content** axis is the working reading; `kapi status` reports
 the ship reading.
 
-## Unit state is staged, then committed
+## A decision is recorded, then written to the record
 
-Approving a translation writes *unit state*, and publishing it is explicit, like a git
-commit. When you approve a unit (see [Review](/kapi/convergence#review-the-state-record)),
-the state record lands in the working set inside `store.db`. `kapi status` reports
-what is pending, and `kapi commit` materializes the working set into
-`.kapi/state/`, where you commit it with your sources. The record is bound to
-the **content hash** of the translation it blesses, so editing that translation
-later drops the unit back below *reviewed*; an approval can't silently outlive
-the text it approved.
+Approving a translation records a **decision**, and it is durable the moment you
+record it (see [Review](/kapi/convergence#review-the-state-record)). There is no
+second step that makes it count. `kapi commit` writes the record out in the form
+git tracks: for each unit this checkout holds, what was decided about the source
+and the translation it holds now. You commit those shards with your sources.
+
+The decision is bound to the **content hash** of the translation it blesses and
+to the source it blessed it for, so editing either one later drops the unit back
+below *reviewed*. An approval can't silently outlive the text it approved.
 
 ```bash
 kapi status --review        # the worklist: units awaiting approval
 kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"reviewed"}'
-kapi status                 # staged unit state, not yet committed
+kapi commit --dry-run       # what the record is missing, without writing it
 kapi commit                 # → .kapi/state/*.jsonl, ready for git
 ```
 
+Running `kapi commit` twice over an unchanged project writes the same bytes and
+leaves the files alone.
+
 The same model maps to a server-backed project: with the server plugin
-installed, instead of committing shards it **pushes** its unit state to a remote
-(`kapi push`) and **pulls** it back (`kapi pull`), the same record with a
+installed, instead of committing shards it **pushes** its decisions to a remote
+(`kapi push`) and **pulls** them back (`kapi pull`), the same record with a
 different sink.
 
 ## An empty subsystem is an absent store
 
-Presence is table-level. A `store.db` whose terms tables are empty behaves
+Presence is table-level. A context store whose terms tables are empty behaves
 exactly as though there were no terms store at all: on a fresh checkout the
 terminology gate reads the committed `.terms.json` directly, `kapi up --plan`
 never creates state, and `kapi pack` carries only the parts that hold
-something. The file's presence conjures nothing into existence.
+something. A database's existence conjures nothing into it.
 
 In the browser, the same model runs without SQLite: the memory and terms
-backends are in-memory, blocks are keyed by path in memory, and the working set
-persists to a JSON sidecar at `.kapi/work/store.json`.
+backends are in-memory, blocks are keyed by path in memory, and the decisions
+persist to a JSON sidecar at `.kapi/work/store.json`. The browser holds one
+project and nothing outlives the tab, so there is no workspace there.
 
 ## What the store is *not*
 
 - It is **not** the content memory. The `.memory.json` bundle (`defaults.memory_source`) is a
   **recycle** corpus: `kapi apply` with `kind:"memory"` adds leverage for future
-  translation and records no review. Review state lives in the
-  unit-state record. See [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
+  translation and records no review. A review outcome lives in the
+  decision record. See [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
 - It is **not** authoritative for your translations; the **files** are. The store
-  indexes and stages; the deliverable is the source of truth.
+  indexes what the files hold; the deliverable is the source of truth.
 
 ## See also
 

@@ -333,7 +333,8 @@ terms source ([C-08](c-08-terms.md)), which is *source*, the memory is **state,
 kept out of version control**:
 
 - its home is a store outside the working tree: locally the memory tables inside
-  `.kapi/work/store.db` ([C-03](c-03-context-store-and-graph.md)); in CI whatever
+  the project's context store
+  ([C-03](c-03-context-store-and-graph.md)); in CI whatever
   the job restores; and a shared backend where a team needs one authoritative,
   accumulating store. One continuum, larger backend. The `memory/schema` package
   carries the table definitions in a second SQL dialect beside SQLite's, so such

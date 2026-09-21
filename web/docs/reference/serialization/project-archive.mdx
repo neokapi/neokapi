@@ -83,7 +83,7 @@ lookup ladder. `.kapi/` is committed (only `.kapi/work/` is ignored), so the
 bundle shows up in a diff and goes through review like any other source. A
 bundle at the repository root, `terms.json`, is the next rung, for a project
 that keeps its context outside `.kapi/`. The bundle is the committed source;
-the terms tables in `.kapi/work/store.db` are the derived index it compiles
+the terms tables in the project store are the derived index it compiles
 into. The [terms page](/reference/serialization/terms#the-lookup-ladder)
 specifies the ladder.
 

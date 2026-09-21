@@ -33,10 +33,11 @@ the cache; a review outcome is recorded as unit state in the project store.
 A content memory pair (kind:"memory") is recycle leverage for future translation. It does not
 promote a unit to reviewed. To approve a translated unit, use a kind:"review"
 entry addressed by its file/id/locale (as 'kapi status --review' lists it), with
-status "reviewed" (default) or "signed-off"; the unit state is staged in the
-project store and is bound to the translation's content hash, so a later edit
-drops the unit back below reviewed. 'kapi commit' writes it into the committed
-record under .kapi/state/.
+status "reviewed" (default) or "signed-off"; the decision is recorded in the
+project's decision ledger and is bound to the translation's content hash, so a
+later edit drops the unit back below reviewed. Recording it is durable at once.
+'kapi commit' exports what this checkout holds into the committed record under
+.kapi/state/, so it travels with your sources.
 
 A comment edit (kind:"comment") rewrites one code comment, addressed by its file
 and the id 'kapi check' reports for it, such as func/Parse, in Go and in the

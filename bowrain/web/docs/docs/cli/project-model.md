@@ -28,7 +28,7 @@ my-app/
 │   ├── state/                  # the unit-state record, one shard per document
 │   │   └── src-locales-en-messages.jsonl
 │   └── work/                   # gitignored; everything derived
-│       ├── store.db            # the local index over everything committed
+│       ├── store.db            # this checkout's projection of its working tree
 │       ├── vault/              # withheld redaction originals (local-only)
 │       └── cache/              # free to delete, always
 │           ├── sync-cache.json  # the tree last declared to the server
@@ -46,12 +46,13 @@ Ownership zones at the project root:
 
 - **`kapi.yaml`**: hand-edited, committed to git. The recipe is the single source of truth for project configuration. Its fixed, conventional filename means every editor and code host (GitHub, GitLab) applies YAML syntax highlighting to diffs and previews with no configuration. One thing writes it besides you: an axis approved on the server arrives as a [`kapi pull`](/cli/commands/pull) that edits `defaults.coordinates`, for review in git.
 - **`.kapi/`**: the committed context graph, flat: `terms.json`, `memory/` and `voice.yaml`, with per-profile overrides under `profiles/<name>/`, reviewed through `git diff` like any other source file. `.kapi/` is committed in full; only `.kapi/work/` is gitignored.
-- **`.kapi/state/*.jsonl`**: the unit-state record, committed. `kapi commit` publishes staged unit state into it.
-- **`.kapi/work/store.db`**: kapi-owned, gitignored. One SQLite file holding every subsystem's tables: block cache, terms store, content memory, the working set of unit state staged since the last `kapi commit`, and the project's context graph. It is an index over the committed sources above and rebuilds from them.
+- **`.kapi/state/*.jsonl`**: the decision record, committed. `kapi commit` writes the decisions this checkout holds into it.
+- **`.kapi/work/store.db`**: kapi-owned, gitignored. This checkout's projection of its working tree: the block cache, the overlays a run wrote, the extraction stamps. It rebuilds from the content files.
+- **The project's context store**: kapi-owned, in a workspace under your data directory rather than in the checkout. It holds the terms, the content memory, the voice profiles and the decision ledger, and every checkout of the project shares it. Everything in it rebuilds from the committed sources above, apart from a decision recorded since the last `kapi commit`.
 - **`.kapi/work/cache/`**: CLI-owned, gitignored. Everything cheaply regenerable: the tree last declared to the server, extraction intermediates, overlay layers. Safe to delete at any time.
 - **`.kapi/flows/*.yaml`**: optional file-per-flow definitions, hand-edited, committed. Bowrain reads these in addition to inline `flows:` declared on the recipe.
 
-Local and server converge in shape. Bowrain answers graph questions over one database spanning workspaces, projects and streams; a project answers the same query shapes over `store.db` with those dimensions fixed to one value, so which blocks use a given term, by collection and coordinate, is answerable with no server.
+Local and server converge in shape. Bowrain answers graph questions over one database spanning workspaces, projects and streams; a project answers the same query shapes over its own workspace graph with those dimensions fixed to one value, so which blocks use a given term, by collection and coordinate, is answerable with no server.
 
 ## Recipe schema
 
@@ -396,7 +397,7 @@ All commands work from any subdirectory within the project. A directory holds at
 - `.kapi/work/`: everything derived: `store.db`, the caches, and the redaction vault
 - `.kapi/filters.local.json`: your personal reader overrides
 
-Deleting `.kapi/work/cache/` costs nothing. Deleting `.kapi/work/` costs two things: the review unit state staged since the last `kapi commit`, which lives only in `store.db` (run `kapi commit` before you remove it), and, if the project uses redaction, the withheld originals in `.kapi/work/vault/`, which are local-only by design and rebuild from nothing.
+Deleting `.kapi/work/cache/` costs nothing. Deleting `.kapi/work/` costs a re-extraction, and, if the project uses redaction, the withheld originals in `.kapi/work/vault/`, which are local-only by design and rebuild from nothing. Your decisions are in the workspace and survive it; deleting the workspace costs every decision recorded since the last `kapi commit`, so run `kapi commit` before you remove that.
 
 ## Initialization
 

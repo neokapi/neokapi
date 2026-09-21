@@ -343,12 +343,12 @@ server venue. Everything else must isolate itself per the contract in CLAUDE.md.
 
 Three steps sit between `kapi up` and delivery, in this order.
 
-`kapi commit` is the loop's return leg for unit decisions. The pull stages the
-server's approved decisions in the project's working store, and `kapi commit` is
-the only door from there into the committed record under `.kapi/state/` that git
-tracks: recording a decision and publishing it stay separate acts, so `up` does
-not do it. Nothing staged is a no-op that exits 0. The terminology return leg
-needs no step: the concept pull merges approved term decisions into
+`kapi commit` is the loop's return leg for unit decisions. The pull records the
+server's approved decisions in the project's decision ledger, and `kapi commit`
+is the only door from there into the committed record under `.kapi/state/` that
+git tracks: recording a decision and writing the record out stay separate acts,
+so `up` does not do it. A record with nothing missing is a no-op that exits 0.
+The terminology return leg needs no step: the concept pull merges approved term decisions into
 `.kapi/terms.json` itself, upsert-only and byte-stable, so a night with no new
 decisions writes nothing.
 

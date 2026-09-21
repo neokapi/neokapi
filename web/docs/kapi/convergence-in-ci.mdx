@@ -227,11 +227,12 @@ include:
   holds the keys instead, and the job authenticates with a server token.
 - **A gate-only job needs no keys at all**: `check --ship` and `up --plan`
   read the working tree.
-- **Unit state travels with the repo**: a `reviewed` threshold reads the
-  committed unit-state record under `.kapi/state/`; commit it in the PR or the runner
-  sees no approvals. A job that makes decisions runs `kapi commit` and commits
-  the shards it produces, alongside the translated files. It never commits
-  `.kapi/work/store.db`.
+- **Decisions travel with the repo**: a `reviewed` threshold reads the
+  committed record under `.kapi/state/`; commit it in the PR or the runner
+  sees no approvals. A runner starts with no context of its own, so what a job
+  reads is what `.kapi/` carries. A job that makes decisions runs `kapi commit`
+  and commits the shards it produces, alongside the translated files. It never
+  commits `.kapi/work/store.db`.
 - **The parse cache is the part to carry between runs**: `.kapi/work/cache/docs`
   is gitignored, rebuilt on a fresh runner, and keyed by each file's path and
   content, the parse configuration, the recipe and the kapi build, so a restored
@@ -255,13 +256,13 @@ include:
       restore-keys: kapi-parse-${{ runner.os }}-
   ```
 
-  **Cache nothing else under `.kapi/work`.** `store.db` holds the unit state
-  staged since the last commit, and a restored copy changes what a run reports:
-  on a fixture project it turned a failing `check --ship` into a passing one and
-  a locale's coverage from 0% to 100%. The other entries under `cache/`, such as
-  the extraction batches, the redaction record and the sync state, belong to the
-  checkout that wrote them. Server-connected projects skip the cache entirely;
-  the project's context lives on the server.
+  **Cache nothing else under `.kapi/work`.** `store.db` is this checkout's
+  projection of its working tree, and a restored copy changes what a run
+  reports: on a fixture project it turned a failing `check --ship` into a
+  passing one and a locale's coverage from 0% to 100%. The other entries under
+  `cache/`, such as the extraction batches, the redaction record and the sync
+  state, belong to the checkout that wrote them. Server-connected projects skip
+  the cache entirely; the project's context lives on the server.
 
 :::note[Works with Bowrain]
 Everything on this page runs the loop inside your own CI. A project whose recipe declares a `bowrain:` block runs the same loop on a Bowrain server instead: `kapi up` pushes, the server catches every locale up against the workspace's shared memory and terminology, and the run streams back, with review handled in the Bowrain web app rather than in your checkout. See the [Bowrain documentation](https://bowrain.cloud/docs/).

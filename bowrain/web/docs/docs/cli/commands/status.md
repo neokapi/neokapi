@@ -5,10 +5,10 @@ sidebar_position: 2
 
 # kapi status
 
-Show where the project stands: per-scope coverage against the ship gates,
-what is staged locally, and, on a connected project, the server delta and the
-venue `kapi up` would run on. `kapi status` always exits `0`; a locale that is
-behind is pending work, not an error.
+Show where the project stands: per-scope coverage against the ship gates and,
+on a connected project, the server delta and the venue `kapi up` would run on.
+`kapi status` always exits `0`; a locale that is behind is pending work rather
+than an error.
 
 ## Usage
 
@@ -34,12 +34,6 @@ Under the grid, two basis lines report what a percentage cannot: how many
 units carry a decision made against content that has since changed, and how
 many have never been judged. A project that names no target language reports
 itself as monolingual rather than as empty.
-
-### Staged decisions
-
-Decisions recorded locally but not yet written to the committed record under
-`.kapi/state/` are counted as staged; `kapi commit` publishes them. A clean
-project prints nothing here.
 
 ### The server section
 
