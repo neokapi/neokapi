@@ -133,6 +133,7 @@ func newGovernedReviewProject(t *testing.T, app *App) (*TabInfo, string) {
 	}
 	path := filepath.Join(root, project.RecipeFileName)
 	require.NoError(t, project.Save(path, proj))
+	readProjectContext(t, root)
 
 	tab, oerr := app.OpenProject(path)
 	require.NoError(t, oerr)

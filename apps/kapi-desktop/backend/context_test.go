@@ -165,6 +165,7 @@ func newContextProject(t *testing.T, app *App) (*TabInfo, string) {
 	}
 	path := filepath.Join(root, "kapi.yaml")
 	require.NoError(t, project.Save(path, proj))
+	readProjectContext(t, root)
 
 	tab, err := app.OpenProject(path)
 	require.NoError(t, err)
@@ -172,8 +173,8 @@ func newContextProject(t *testing.T, app *App) (*TabInfo, string) {
 	return tab, root
 }
 
-// writeVoice puts a voice profile on disk at a location the resolution ladder
-// consults, creating its directory.
+// writeVoice puts a voice profile on disk at a layout location an import reads,
+// creating its directory.
 func writeVoice(t *testing.T, path, body string) {
 	t.Helper()
 	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))

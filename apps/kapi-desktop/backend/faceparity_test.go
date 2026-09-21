@@ -17,10 +17,13 @@ import (
 // one fixture written from one description, one set of answers, three faces
 // asked their own way. Agreeing with the record is agreeing with each other.
 
-// openFixture writes the conformance project and opens it in a tab.
+// openFixture writes the conformance project, reads its context into the
+// project's store, and opens it in a tab. The voice profile the fixture writes
+// under `.kapi/` reaches a gate only through that read.
 func openFixture(t *testing.T) (*App, *TabInfo, facetest.Project) {
 	t.Helper()
 	p := facetest.Write(t)
+	readProjectContext(t, p.Root)
 	app := NewApp()
 	tab, err := app.OpenProject(p.Recipe)
 	require.NoError(t, err)

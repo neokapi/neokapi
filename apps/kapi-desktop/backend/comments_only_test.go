@@ -50,6 +50,7 @@ vocabulary:
 	}
 	path := filepath.Join(root, "project.kapi")
 	require.NoError(t, project.Save(path, proj))
+	readContextAt(t, path)
 	tab, err := app.OpenProject(path)
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
