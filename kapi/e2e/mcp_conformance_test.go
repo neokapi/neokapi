@@ -1114,11 +1114,20 @@ func TestMCPConformanceContextGrowthTools(t *testing.T) {
 	})
 
 	t.Run("propose with no evidence is refused", func(t *testing.T) {
-		res := rawCallTool(t, ctx, session, "context_propose", map[string]any{
+		// Twice over: the schema requires the argument, and the handler
+		// refuses an empty one, so neither a client that omits it nor one that
+		// sends a blank gets a rule nobody can check.
+		omitted := rawCallTool(t, ctx, session, "context_propose", map[string]any{
 			"term": "leverage", "use": "use",
 		})
-		require.True(t, res.IsError, "must fail: a rule with nothing behind it was recorded")
-		assert.Contains(t, resultText(res), "evidence")
+		require.True(t, omitted.IsError, "must fail: a rule with nothing behind it was recorded")
+		assert.Contains(t, resultText(omitted), "path")
+
+		blank := rawCallTool(t, ctx, session, "context_propose", map[string]any{
+			"term": "leverage", "use": "use", "path": "  ",
+		})
+		require.True(t, blank.IsError, "must fail: a rule with a blank location was recorded")
+		assert.Contains(t, resultText(blank), "evidence")
 	})
 
 	t.Run("correct records both wordings", func(t *testing.T) {
@@ -1144,24 +1153,35 @@ func TestMCPConformanceContextGrowthTools(t *testing.T) {
 
 	t.Run("a call naming a project that holds none is refused by name", func(t *testing.T) {
 		outside := t.TempDir()
-		for _, tool := range []string{"context_observe", "context_propose", "context_correct", "context_session_summary"} {
-			res := rawCallTool(t, ctx, session, tool, map[string]any{
-				"project": outside,
-				"text":    "a fact", "term": "utilise", "use": "use",
-				"from": "sign in", "to": "log in", "path": "docs/clean.md",
-			})
+		for tool, args := range map[string]map[string]any{
+			"context_observe":         {"text": "a fact", "path": "docs/clean.md"},
+			"context_propose":         {"term": "utilise", "use": "use", "path": "docs/clean.md"},
+			"context_correct":         {"from": "sign in", "to": "log in", "path": "docs/clean.md"},
+			"context_session_summary": {},
+		} {
+			args["project"] = outside
+			res := rawCallTool(t, ctx, session, tool, args)
 			require.Truef(t, res.IsError, "must fail: %s accepted a path holding no project", tool)
 			assert.Contains(t, resultText(res), outside, "%s names the path the call sent", tool)
 		}
 	})
 
-	t.Run("the actor is the agent, whatever the caller says", func(t *testing.T) {
+	t.Run("the caller is not allowed to say who it is", func(t *testing.T) {
+		// An MCP client that could record as a person would be claiming the
+		// rights the policy reserves for one. The tools declare no actor
+		// argument, and an argument they do not declare is refused.
+		res := rawCallTool(t, ctx, session, "context_observe", map[string]any{
+			"text": "a fact", "path": "docs/clean.md",
+			"actor": "person", "session": "somebody-elses",
+		})
+		require.True(t, res.IsError, "must fail: a caller chose its own actor")
+		assert.Contains(t, resultText(res), "actor")
+	})
+
+	t.Run("every operation is recorded as an agent", func(t *testing.T) {
 		got := callTool(t, ctx, session, "context_observe", map[string]any{
 			"text": "the release notes are written in the past tense",
 			"path": "docs/clean.md",
-			// A caller claiming to be a person would be claiming a person's
-			// rights. The tools take no actor at all, so this is ignored.
-			"actor": "person", "actor_kind": "person", "session": "somebody-elses",
 		})
 		id, _ := got["operation"].(string)
 		require.NotEmpty(t, id)
@@ -1180,9 +1200,9 @@ func TestMCPConformanceContextGrowthTools(t *testing.T) {
 			require.True(t, ok, "every operation records who did it")
 			assert.Equal(t, "agent", actor["kind"],
 				"must fail: a call recorded itself as something other than an agent")
-			assert.NotEqual(t, "somebody-elses", actor["session"],
-				"must fail: the caller chose its own session id")
 			assert.NotEmpty(t, actor["session"], "the server mints one session per process")
+			assert.Equal(t, got["session"], actor["session"],
+				"the session the tool reported is the session the log holds")
 		}
 		assert.True(t, found, "the operation the tool reported is in `kapi context log`")
 	})
@@ -1241,10 +1261,20 @@ func TestMCPConformanceAgentCannotDecide(t *testing.T) {
 		t.Run(name+" is not on the surface", func(t *testing.T) {
 			assert.False(t, listed[name],
 				"must fail: deciding is a person's, and %s is listed for an agent", name)
-			res := rawCallTool(t, ctx, session, name, map[string]any{"id": "1"})
-			assert.True(t, res.IsError, "must fail: %s answered a call", name)
+			assert.False(t, toolAnswers(ctx, session, name), "must fail: %s answered a call", name)
 		})
 	}
+}
+
+// toolAnswers reports whether a tool answered a call at all. A name the server
+// does not serve is refused by the protocol rather than by a handler, so the
+// two refusals read differently on the wire and mean the same thing here.
+func toolAnswers(ctx context.Context, s *mcp.ClientSession, name string) bool {
+	res, err := s.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: json.RawMessage(`{"id":"1"}`)})
+	if err != nil {
+		return false
+	}
+	return !res.IsError
 }
 
 // TestMCPConformanceCandidateCrossesProcesses: a candidate one agent recorded
@@ -1322,7 +1352,7 @@ func TestMCPConformanceCandidateCrossesProcesses(t *testing.T) {
 		assert.Contains(t, text, "kapi context confirm")
 	})
 
-	t.Run("a candidate never fails a check", func(t *testing.T) {
+	t.Run("a candidate is reported and fails nothing", func(t *testing.T) {
 		// The document uses the word the candidate retires, so a candidate
 		// that could fail a check would fail this one.
 		violating := filepath.Join(proj.Root, "docs", "candidate.md")
@@ -1331,13 +1361,28 @@ func TestMCPConformanceCandidateCrossesProcesses(t *testing.T) {
 		t.Cleanup(func() { _ = os.Remove(violating) })
 
 		report := callTool(t, ctx, second, "check_file", map[string]any{"file": violating})
-		assert.Empty(t, findings(report),
-			"must fail: a rule nobody has confirmed produced a finding that counts")
+		reported := findings(report)
+		require.NotEmpty(t, reported, "a candidate is reported wherever a rule would be")
+		for _, item := range reported {
+			f, ok := item.(map[string]any)
+			require.True(t, ok)
+			assert.Equal(t, true, f["advisory"],
+				"must fail: a rule nobody has confirmed was reported as a verdict")
+			assert.Equal(t, "neutral", f["severity"],
+				"must fail: a candidate was raised above the severity every gate ignores")
+			assert.Contains(t, f["message"], "not yet confirmed")
+		}
 
 		want := kapiJSON(t, "check", violating, "-p", proj.Recipe, "--json")
-		assert.Equal(t, findings(want), findings(report),
+		assert.Equal(t, findings(want), reported,
 			"check_file must report what `kapi check` reports")
 		assert.Equal(t, want["summary"], report["summary"])
+
+		// And the check itself passes, which is the property the advisory
+		// severity exists to guarantee.
+		cmd := exec.CommandContext(ctx, kapiBin, "check", violating, "-p", proj.Recipe, "--json")
+		cmd.Env = append(os.Environ(), isoEnv...)
+		assert.NoError(t, cmd.Run(), "must fail: a check failed on a rule nobody had confirmed")
 	})
 }
 
