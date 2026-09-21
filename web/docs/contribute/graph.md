@@ -31,9 +31,9 @@ The graph store library (`core/graph/`) provides a backend-agnostic graph databa
 />
 
 Inside a kapi project the `graph_nodes` / `graph_edges` tables live in the
-shared `.kapi/work/store.db` beside the content memory and the terms store (see
-[Project store](/kapi/project-store)); a standalone `graph.db` is the
-library example on this page.
+workspace database beside the project registry, and their node ids carry the
+project they belong to (see [Project store](/kapi/project-store)); a standalone
+`graph.db` is the library example on this page.
 
 Two record types travel through that interface. A **node** carries an ID, a
 label, and a map of properties. An **edge** joins two nodes under a label and

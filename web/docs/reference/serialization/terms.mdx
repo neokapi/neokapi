@@ -24,8 +24,8 @@ the relations between them.
 A terms bundle is a **committed, git-tracked file**, like the content-memory
 bundle the recipe binds. It is the review surface, the artifact a person reads
 in a pull request when a term changes. The terms tables in the [project
-store](/kapi/project-store) (`.kapi/work/store.db`) are the gitignored index the
-bundle compiles into, never the other way round.
+store](/kapi/project-store) are the index the bundle compiles into, kept outside
+git, never the other way round.
 
 Implemented in Go at
 [`terms/ktb`](https://github.com/neokapi/neokapi/tree/main/terms/ktb).
@@ -125,7 +125,7 @@ Reach for `bundle` whenever the file is staying inside kapi.
 
 ## What is deliberately not in it
 
-- **The compiled SQLite tables.** The terms tables in `.kapi/work/store.db` are
+- **The compiled SQLite tables.** The terms tables in the project store are
   derived from the bundle and rebuilt on import.
 - **Match state.** Which blocks a term was found in is a check result rather
   than a property of the terminology; `kapi terms occurrences` reads it from

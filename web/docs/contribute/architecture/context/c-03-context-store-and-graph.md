@@ -161,10 +161,10 @@ until the project is opened somewhere else.
 | terms | `terms/` ([C-08](c-08-terms.md)) | context | the committed terms source |
 | content memory | `memory/` ([C-09](c-09-content-memory.md)) | context | the committed targets plus the `.memory.json` seeds |
 | voice profiles | `voice/` ([C-07](c-07-voice-profiles.md)) | context | the committed `voice.yaml` files |
-| unit decision ledger, and one view per checkout | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | the committed `.kapi/state/*.jsonl` shards, plus what each checkout has recorded since |
-| `graph_nodes`, `graph_edges` | `host/storage/graph`, vocabulary in `core/contextgraph` | the rows above, plus the recipe |
-| `workspace_projects`, `workspace_checkouts` | `core/workspace` | what has been opened |
-| `workspace_ops` | `core/workspace` | its own log |
+| unit decision ledger, and one view per checkout | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | context | the committed `.kapi/state/*.jsonl` shards, plus what each checkout has recorded since |
+| `graph_nodes`, `graph_edges` | `host/storage/graph`, vocabulary in `core/contextgraph` | workspace | the rows above, plus the recipe |
+| `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace | what has been opened |
+| `workspace_ops` | `core/workspace` | workspace | its own log |
 
 Each subsystem owns its own schema and its own migration ledger
 (`storage.Migrate(db, "<subsystem>", …)`), so a subsystem evolves without

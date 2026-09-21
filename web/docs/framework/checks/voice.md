@@ -252,7 +252,7 @@ type Store interface {
 The framework ships a SQLite backend (`voice/sqlite.go`) built on
 the shared `core/storage` migration system, with JSON columns for the complex
 tone/style/vocabulary fields. Inside a project the voice tables live in the
-shared `.kapi/work/store.db`; a standalone store is `voice.db`. The interface
+project's own store; a standalone store is `voice.db`. The interface
 is designed for extension: server deployments can add a scope-partitioned
 PostgreSQL backend.
 

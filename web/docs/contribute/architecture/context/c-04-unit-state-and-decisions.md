@@ -66,8 +66,8 @@ two are separated:
 
 | Kind | Examples | Home | Authoritative? |
 | --- | --- | --- | --- |
-| Derived | parsed blocks, coverage, rungs reachable from content | `.kapi/work/cache/`, and the derived tables of `.kapi/work/store.db` | no: rebuildable, ignored |
-| Authored unit state | approvals, sign-off, parking, reviewer, notes | the decision ledger (`core/state`), exported to `.kapi/state/` | yes |
+| Derived | parsed blocks, coverage, rungs reachable from content | `.kapi/work/cache/`, and the checkout's projection at `.kapi/work/store.db` | no: rebuildable, ignored |
+| Authored unit state | approvals, sign-off, parking, reviewer, notes | the decision ledger (`core/state`) in the project's context store, exported to `.kapi/state/` | yes |
 
 The cache may *mirror* authored state in transit, but it never *owns* it. A
 decision is durable in the ledger the moment it is recorded, and the only window
@@ -155,11 +155,14 @@ magnitude more bytes than it writes. A line per unit makes an approval a one-lin
 diff; a shard per document keeps a documentation edit from churning the shard
 holding the interface strings.
 
-The ledger itself lives in the project's one database
-([C-03](c-03-context-store-and-graph.md)), which gives a decision and the wording
-the content memory learns from it one transaction on one connection pool.
-Committing a binary database as the reviewable record would be hostile to review
-(opaque, conflict-prone) and would defeat exchange, so the shards stay text.
+The ledger itself lives in the project's context store
+([C-03](c-03-context-store-and-graph.md)), beside the content memory, which
+gives a decision and the wording the content memory learns from it one
+transaction on one connection pool. That store sits in the workspace rather than
+in the checkout, so every checkout of the project records into one ledger and
+each answers from its own view of it. Committing a binary database as the
+reviewable record would be hostile to review (opaque, conflict-prone) and would
+defeat exchange, so the shards stay text.
 
 In the browser, where there is no SQLite, the ledger and the view persist to a
 JSON sidecar, `.kapi/work/store.json`; the model is unchanged.
@@ -568,7 +571,8 @@ re-exports the core types through aliases so downstream code sees one import.
   content-memory properties.
 - **Exchange and parcels carry state**, so a hand-off does not drop it.
 - **The recipe stays clean.** It binds sources, never a derived artifact; the
-  state record and the database holding the ledger are both fixed by the layout.
+  committed record is fixed by the project layout, and the database holding the
+  ledger is fixed by the workspace ([C-03](c-03-context-store-and-graph.md)).
 
 ## See also
 

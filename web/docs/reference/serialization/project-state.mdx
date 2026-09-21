@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: Project state
-description: "The committed unit-state record under .kapi/state/ (JSON Lines, one shard per document, one line per unit), the working set that stages changes until kapi commit, and the unit state fields."
+description: "The committed decision record under .kapi/state/ (JSON Lines, one shard per document, one line per unit), the ledger kapi commit exports it from, and the unit state fields."
 keywords:
   [
     project state,
@@ -24,23 +24,25 @@ is the artifact that lets a review survive a fresh clone.
 Implemented in Go at
 [`core/state`](https://github.com/neokapi/neokapi/tree/main/core/state).
 
-## The working set stages, the record commits
+## The ledger records, `kapi commit` exports
 
-A change is recorded into a **working set** (the unit-state tables of
-[`.kapi/work/store.db`](/kapi/project-store)) and stays there until `kapi commit`
-materializes it into the committed record under `.kapi/state/`. The model is
-deliberately the one you already know from git: unit state behaves like staged
-changes, and you publish deliberately. `kapi status` reports what is staged, so
-nothing is lost silently.
+A decision is appended to the project's **decision ledger**, which lives in the
+[project store](/kapi/project-store), and it is durable the moment it is
+recorded. `kapi commit` writes the record out in the form git tracks: for each
+unit this checkout holds, what was decided about the source and the translation
+it holds now.
 
 The consequences follow from that:
 
-- The working set is a derived index over the record and can be discarded. Only
-  **uncommitted** state is lost, exactly like uncommitted changes.
-- Committing is a no-op when nothing changed, which keeps a CI step from
+- The two directions agree. `kapi commit` exports the shards; opening the
+  project reads them back in, so a fresh clone and a `git pull` both pick up
+  what the shards carry.
+- Reading a shard twice costs nothing. A line the ledger already holds is left
+  alone, and a line older than what applies at its pairing is left out.
+- Committing writes nothing when nothing changed, which keeps a CI step from
   producing an empty commit.
 - A server-backed project has a different sink for the same record:
-  `kapi push` sends them to the remote instead of writing shards.
+  `kapi push` sends the decisions to the remote instead of writing shards.
 
 ## One shard per document
 
@@ -77,9 +79,9 @@ from escaping the directory.
 ## Why the record is committed and the store is not
 
 `.kapi/state/` sits inside `.kapi/`, which is committed in full; only
-`.kapi/work/` is ignored, and that is where the store and its caches live. A
-record of who approved what must be reviewable and must survive a clone; the
-database that indexes it is rebuildable and belongs to one machine. The record
+`.kapi/work/` is ignored, and that is where the checkout's derived projection
+and its caches live. A record of who approved what must be reviewable and must
+survive a clone; the databases that index it belong to one machine. The record
 sits beside the terms and the content memory it makes claims about, because it is
 one node of the same context graph.
 
@@ -139,11 +141,12 @@ approval remain distinguishable in the record.
   deliverable or in a [content bundle](/reference/serialization/content-bundle).
 - **Anything derivable.** Coverage percentages and review queues are computed
   from these shards plus the content rather than stored alongside.
-- **Uncommitted state.** By construction; that is what `kapi commit` is
-  for.
+- **A decision this checkout does not hold.** The shards are what this checkout
+  holds now; the ledger keeps the rest, including the history of a unit that has
+  been decided more than once.
 
 ## See also
 
-- [The project store](/kapi/project-store): the committed record, the local store, and the cache.
+- [The project store](/kapi/project-store): the committed record, the two databases, and the cache.
 - [Overview](/reference/serialization/overview): store, bundle, and committed state.
 - [Terms](/reference/serialization/terms): the other committed artifact a reviewer reads.

@@ -46,8 +46,8 @@ func (a *App) WarnStoreLocaleDrift(cmd Command, projectPath string) {
 
 // StoreLocaleDriftWarning is the line a command prints for the drift it found:
 // which rows carry which spelling, and the rebuild that re-derives the store
-// from its committed sources while keeping the staged decisions only the store
-// holds.
+// from its committed sources while keeping the decisions the record does not
+// yet carry.
 func StoreLocaleDriftWarning(drift []projectdb.LocaleDrift, layout project.Layout) string {
 	parts := make([]string, 0, len(drift))
 	for _, d := range drift {
@@ -59,5 +59,5 @@ func StoreLocaleDriftWarning(drift []projectdb.LocaleDrift, layout project.Layou
 	}
 	return fmt.Sprintf("warning: the project store holds rows keyed by a locale spelling no lookup asks for (%s). "+
 		"They are never matched. Rebuild the store from the committed sources: run `kapi commit` to write "+
-		"staged decisions, delete %s, then run `kapi up`.", strings.Join(parts, "; "), store)
+		"the decision record, delete %s, then run `kapi up`.", strings.Join(parts, "; "), store)
 }

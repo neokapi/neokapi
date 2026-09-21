@@ -31,12 +31,13 @@ family.
 The most useful distinction in this family is between three roles a file can
 play.
 
-**A store is working state.** One SQLite database at `.kapi/work/store.db`,
-whose tables hold the content memory, the terms, the voice store, the block
-cache and the unit-state working set, plus the skeleton and parse caches beside
-it. It is fast, indexed, mutable, and **rebuildable**: a projection of
-what the project commits, never its truth. See
-[the project store](/kapi/project-store).
+**A store is working state.** Two SQLite databases: the projection of the
+working tree at `.kapi/work/store.db`, holding the block cache and the overlays
+a run wrote, with the skeleton and parse caches beside it; and the project's
+context store in a workspace outside the checkout, holding the content memory,
+the terms, the voice profiles and the decision ledger. Both are fast, indexed,
+mutable and **rebuildable**: a projection of what the project commits, never its
+truth. See [the project store](/kapi/project-store).
 
 **A bundle is a portable serialization.** One reviewable, hashable, diff-able
 file carrying the same content losslessly: a
@@ -56,10 +57,10 @@ review surface, the files a person reads in a pull request.
 
 Artifacts that must be reviewed are **committed**, and never the database. They
 share one home: `.kapi/` holds the terms bundle, the memory seeds, the
-voice profile and the unit-state record (`state/*.jsonl`), and the whole of `.kapi/`
-is committed. Only `.kapi/work/`, where the store and its caches are derived, is
-ignored. Nothing in the review surface would survive a fresh clone, or ever
-appear in a diff, if it were part of the derived store.
+voice profile and the decision record (`state/*.jsonl`), and the whole of `.kapi/`
+is committed. Only `.kapi/work/`, where the checkout's projection and its caches
+are derived, is ignored. Nothing in the review surface would survive a fresh
+clone, or ever appear in a diff, if it were part of a derived store.
 
 **If a person needs to review it, it does not belong in a rebuildable index.**
 

@@ -169,8 +169,8 @@ What deleting costs, stated exactly:
   `.kapi/work/vault/` holds withheld originals that are **local-only and not
   regenerable** ([C-10](c-10-redaction.md)): never committed, never synced, so
   nothing anywhere else has a copy. Everything else under `work/` is derived
-  from the working tree, including `store.db`. Unit state staged since the last
-  `kapi commit` is in the workspace, not here
+  from the working tree, including `store.db`. A decision recorded since the
+  last `kapi commit` lives in the workspace
   ([C-03](c-03-context-store-and-graph.md)).
 
 ### Recipe schema

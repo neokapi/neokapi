@@ -544,10 +544,10 @@ defaults:
 ## Review: the state record {#review-the-state-record}
 
 A machine takes a unit to *translated*; a person takes it to *reviewed*. That
-approval is authored **unit state** (who signed off on which exact translation),
-so it lands in the [project store](/kapi/project-store)'s working set, and
-`kapi commit` publishes it to the committed unit-state record under `.kapi/state/`.
-The content memory holds none of it.
+approval is an authored **decision** (who signed off on which exact
+translation), so it is recorded in the [project store](/kapi/project-store) and
+is durable at once, and `kapi commit` writes it into the committed record under
+`.kapi/state/`. The content memory holds none of it.
 
 `kapi status --review` is the worklist: one queue of the units awaiting a
 person, each belonging to a language, and the source language is one of them

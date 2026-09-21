@@ -159,8 +159,10 @@ type PullOutput struct {
 	// ItemsRetired: the server still streams these items but their source is
 	// gone from this checkout; skipped rather than wedging the cursor.
 	ItemsRetired int `json:"items_retired,omitempty"`
-	// DecisionsStaged is how many server-ledger decisions the pull staged
-	// into the working store (kapi commit publishes them).
+	// DecisionsStaged is how many server-ledger decisions the pull recorded
+	// into the project's decision ledger. The field name is a rename
+	// boundary: the wire keeps it. A recorded decision is durable at once,
+	// and kapi commit exports the record to .kapi/state/.
 	DecisionsStaged int    `json:"decisions_staged,omitempty"`
 	Stream          string `json:"stream,omitempty"`
 	DryRun          bool   `json:"dry_run,omitempty"`
@@ -201,7 +203,7 @@ func (o PullOutput) FormatText(w io.Writer) error {
 			fmt.Fprintf(w, "Updated %d file(s)\n", o.FilesWritten)
 		}
 		if o.DecisionsStaged > 0 {
-			fmt.Fprintf(w, "Staged %d unit-state update(s) from the server ledger. `kapi commit` publishes them\n", o.DecisionsStaged)
+			fmt.Fprintf(w, "Recorded %d unit-state update(s) from the server ledger. `kapi commit` writes them to .kapi/state/\n", o.DecisionsStaged)
 		}
 		if o.ItemsRetired > 0 {
 			fmt.Fprintf(w, "Skipped %d retired item(s): the server still holds them, this checkout no longer does\n", o.ItemsRetired)

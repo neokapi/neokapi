@@ -236,7 +236,7 @@ entry discriminated by `kind`, and every one lands through `kapi apply`:
 | `term` | a term | the committed terms source → import → the terms tables of the project store |
 | `memory` | a content-memory pair | the committed memory source → import → the memory tables of the project store |
 | `voice` | a voice vocabulary rule | the committed voice profile → voice-store import ([C-07](../context/c-07-voice-profiles.md)) |
-| `review` | a unit's review outcome | staged in the working set, published by `kapi commit` ([C-04](../context/c-04-unit-state-and-decisions.md)) |
+| `review` | a unit's review outcome | appended to the decision ledger, exported by `kapi commit` ([C-04](../context/c-04-unit-state-and-decisions.md)) |
 | `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load and save |
 
 Two properties make this one verb rather than six.
@@ -262,7 +262,7 @@ A review decision is the one write that also has verbs of its own. On MCP,
 `approve_unit`, `reject_unit` and `sign_off_unit` record a unit's outcome
 through the same host decision path the CLI uses, with the agent's identity
 attached; `apply_edits` with a `review` entry reaches the same record. Both
-land in the working set and are published by `kapi commit`.
+append to the decision ledger, and `kapi commit` exports it.
 
 ### Format editability is declarative
 

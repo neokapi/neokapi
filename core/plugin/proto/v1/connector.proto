@@ -175,12 +175,13 @@ message PullResponse {
   int32 blocks_pulled = 1;
   int32 files_written = 2;
   int32 locales_count = 3;
-  // Server-ledger decisions the pull staged into the working store —
-  // reported so an arriving decision is never invisible; `kapi commit`
-  // publishes them into the tracked record.
+  // Server-ledger decisions the pull recorded into the project's decision
+  // ledger, reported so an arriving decision is never invisible. The field
+  // name is a rename boundary: the wire keeps it. `kapi commit` exports the
+  // record to `.kapi/state/`.
   int32 decisions_staged = 4;
 
-  // Decisions the pull could not stage because their variant did not parse.
+  // Decisions the pull could not record because their variant did not parse.
   // Named rather than dropped: the server's cursor is forward-only, so a
   // decision skipped here is not offered again.
   int32 decisions_skipped = 5;
