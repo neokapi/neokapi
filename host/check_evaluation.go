@@ -61,7 +61,15 @@ func buildEvaluation(prov *check.ContextProvenance, plugins []check.EvaluationPl
 // checkProvenance is the project a run read its governance from and the state
 // that project's context was in. A run outside any project reads no context,
 // and carries none.
+//
+// A run that threads no command read no project's governance either, whatever
+// its working directory sits in: that is how an ungoverned draft check reaches
+// here, and naming a project for it would claim a governance that applied to
+// nothing.
 func (a *App) checkProvenance(ctx context.Context, cmd Command) *check.ContextProvenance {
+	if cmd == nil {
+		return nil
+	}
 	path, err := ResolveProjectPath(cmd)
 	if err != nil || path == "" {
 		return nil

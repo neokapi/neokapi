@@ -161,7 +161,8 @@ object naming the state it was reached from:
   carrying one revision were checked against one state of the context. `stale`
   and `stale_reason` report that the blocks kapi holds were read from files that
   have since changed. A check of files outside any project carries no `context`
-  at all.
+  at all, and neither does a `check_text` draft with no `context_path`, which no
+  project governed.
 - `tool`: the `name`, `version` and `commit` of the build that ran the check.
 - `plugins`: each plugin that served the run, with the `version` its manifest
   declares and a sorted `serves` list naming what it did, such as `format:pdf`,

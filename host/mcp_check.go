@@ -133,10 +133,17 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 		diags[i].Location.File = ""
 	}
 	target := check.Target{Kind: "text", Blocks: 1, ContextPath: in.ContextPath}
-	// The evaluation record names the project the draft was checked against,
-	// which for an MCP call is the call's own project rather than the server's
-	// working directory. A call that resolves none carries no record of one.
-	cmd, _, _ := a.mcpCallCommand(ctx, "check_text", in.Project)
+	// A draft named for a destination is held to the voice and terms in force
+	// there, so the evaluation record names the project they came from: the
+	// call's own project, rather than whatever the server's working directory
+	// sits in. A draft checked on its own is held to the call's options alone,
+	// and the record names no project.
+	var cmd Command
+	if in.ContextPath != "" {
+		if c, _, cerr := a.mcpCallCommand(ctx, "check_text", in.Project); cerr == nil && c != nil {
+			cmd = c
+		}
+	}
 	return nil, execution.report(ctx, a, cmd, target, diags, check.DefaultGate()), nil
 }
 
