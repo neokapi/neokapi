@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -77,6 +79,15 @@ type ContextSearchResult struct {
 	// readable: a project scope that finds nothing has not consulted a concept
 	// graph, because it has none.
 	Scope ContextScope `json:"scope"`
+	// Coverage grades how much stood behind this answer: the terms it matched
+	// and the prior wording it found, counted. It describes the answer, so a
+	// query the project has never written about reports an empty one whatever
+	// else the project holds.
+	Coverage ContextCoverage `json:"coverage"`
+	// Provenance says which project answered, at which workspace revision, and
+	// whether the content kapi holds still matches the files on disk. nil when
+	// no project stands behind the answer.
+	Provenance *ContextProvenance `json:"provenance,omitempty"`
 	// Terms are concepts whose terms or definition match — what the project
 	// calls this, and whether it is discouraged.
 	Terms []ContextTermHit `json:"terms,omitempty"`
@@ -207,6 +218,10 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 			}
 			fmt.Fprintf(w, "%s (%s)\n", line, p.State)
 		}
+	}
+
+	if line := provenanceLine(r.Provenance); line != "" {
+		fmt.Fprintf(w, "\n%s\n", line)
 	}
 
 	// Notes last and always: they are what makes an empty or partial answer
@@ -358,6 +373,10 @@ type ContextSearchSources struct {
 	// not stale, they are simply unread.
 	Freshness []string
 
+	// Provenance says which project these stores belong to and what state it
+	// was read at. nil for a standalone-store query with no project in scope.
+	Provenance *ContextProvenance
+
 	// Unseeded reports a project whose committed context sources have never been
 	// compiled into the store this search reads — a fresh clone, before anything
 	// ran. Its stores answer, and answer empty, which is indistinguishable from
@@ -437,6 +456,7 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 			src.Unseeded = a.ContextSourcesUnseeded(ctxOrBackground(cmd.Context()), path)
 			a.bindContextGraph(ctxOrBackground(cmd.Context()), path, proj, &src)
 		}
+		src.Provenance = a.contextProvenance(cmd, src.Recipe)
 	}
 
 	// Whether the graph these stores hold has moved since this process last
@@ -546,6 +566,23 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 
 	flagRetiredPrecedent(res.Terms, res.Precedent)
 	res.Notes = append(res.Notes, countTermUses(ctx, src, res.Terms)...)
+
+	// The coverage and the projection's state sit directly behind the
+	// freshness notes, ahead of the caveats about which store answered. A
+	// caller that reads two notes reads the two that change what it should do
+	// next.
+	res.Coverage = coverageOf(len(res.Terms) > 0, len(res.Precedent) > 0)
+	res.Provenance = src.Provenance
+	var lead []string
+	if note := contextSearchCoverageNote(res.Coverage, strconv.Quote(req.Query)); note != "" {
+		lead = append(lead, note)
+	}
+	if src.Provenance != nil && src.Provenance.StaleReason != "" {
+		lead = append(lead, src.Provenance.StaleReason)
+	}
+	if len(lead) > 0 {
+		res.Notes = slices.Insert(res.Notes, len(src.Freshness), lead...)
+	}
 
 	if scope == ScopeProject {
 		res.Notes = append(res.Notes,

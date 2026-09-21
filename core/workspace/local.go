@@ -214,6 +214,20 @@ func (b *LocalBackend) Record(ctx context.Context, ops ...Op) ([]Op, error) {
 	return out, nil
 }
 
+// Head returns the highest sequence number the log holds, and zero for a log
+// with nothing in it.
+func (b *LocalBackend) Head(ctx context.Context) (int64, error) {
+	db, err := b.Registry(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var seq int64
+	if err := db.QueryRowContext(ctx, `SELECT COALESCE(MAX(seq), 0) FROM workspace_ops`).Scan(&seq); err != nil {
+		return 0, fmt.Errorf("workspace: read the operation log position: %w", err)
+	}
+	return seq, nil
+}
+
 // Since returns the operations after a sequence number, oldest first.
 func (b *LocalBackend) Since(ctx context.Context, after int64, limit int) ([]Op, error) {
 	db, err := b.Registry(ctx)

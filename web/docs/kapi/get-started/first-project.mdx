@@ -53,6 +53,8 @@ For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`, 
 
 A scaffolded project binds a starter voice, so `kapi init` also writes a short section into the project's assistant file: an existing `CLAUDE.md` or `AGENTS.md` at the root, or a new `CLAUDE.md`. The section says the voice is held by kapi and that `kapi voice guide` retrieves it, so an assistant working in the tree asks before it writes. It sits between `<!-- kapi:voice -->` markers and is replaced in place on every run; the rest of the file is yours. A section that landed in `AGENTS.md` reaches an assistant limited to `CLAUDE.md` through an import line, `@AGENTS.md`. `kapi init --no-pointer` skips it, and `kapi voice pointer` writes or refreshes it on an existing project.
 
+`kapi init` also wires the project for the coding agents that work in it, naming every file as it writes it: an MCP entry that starts `kapi mcp` for this project, and a copy of the kapi skill. Choose the agents with `--agents`, or opt out with `--agents none`. See [what `kapi init` wires up](/kapi/get-started/use-with-claude#what-kapi-init-wires-up).
+
 The recipe is plain YAML, and the governance a source-only project checks against is bound under `defaults:`:
 
 ```yaml title="kapi.yaml"

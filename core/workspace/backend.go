@@ -127,6 +127,12 @@ type Backend interface {
 	// operation.
 	Since(ctx context.Context, after int64, limit int) ([]Op, error)
 
+	// Head returns the sequence number of the last operation the log holds,
+	// and zero for an empty log. It is what a caller reports as the revision
+	// its answer was read at, so it has to cost one query rather than a walk
+	// of the log.
+	Head(ctx context.Context) (int64, error)
+
 	// Close releases every handle the backend opened. It is idempotent.
 	Close() error
 }

@@ -44,9 +44,11 @@ func RunConformance(t *testing.T, newBackend Factory) {
 		{"a project store keeps what is written to it", projectStoreKeepsWrites},
 		{"operations are numbered in the order they arrive", operationsAreNumbered},
 		{"operations read back from a position", operationsReadBackFromAPosition},
+		{"the head position follows what was recorded", headFollowsWhatWasRecorded},
 		{"an operation needs a kind", operationNeedsAKind},
 		{"the registry records a project", registryRecordsAProject},
 		{"re-registering updates the name and adds the checkout", reRegisteringUpdates},
+		{"re-opening an unchanged project moves nothing", reopeningRecordsNothing},
 		{"a project registers with no checkout", registersWithNoCheckout},
 		{"two projects register in one workspace", twoProjectsRegister},
 		{"a project with no registration is not found", unregisteredProjectIsNotFound},
@@ -172,6 +174,25 @@ func operationsReadBackFromAPosition(t *testing.T, b workspace.Backend) {
 	assert.Empty(t, none, "reading past the end returns nothing")
 }
 
+func headFollowsWhatWasRecorded(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	start, err := b.Head(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, start, "a workspace with an empty log is at position zero")
+
+	recorded, err := b.Record(ctx, workspace.Op{Kind: "one"}, workspace.Op{Kind: "two"})
+	require.NoError(t, err)
+	require.Len(t, recorded, 2)
+
+	head, err := b.Head(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, recorded[1].Seq, head, "the head is the last sequence number assigned")
+
+	again, err := b.Head(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, head, again, "reading the head records nothing")
+}
+
 func operationNeedsAKind(t *testing.T, b workspace.Backend) {
 	_, err := b.Record(t.Context(), workspace.Op{Project: "prj_a"})
 	assert.Error(t, err, "an operation with no kind is refused")
@@ -220,6 +241,37 @@ func reRegisteringUpdates(t *testing.T, b workspace.Backend) {
 	assert.Equal(t, "Documentation", again.Name, "registering without a name keeps the one on record")
 	assert.Equal(t, []string{"/fakehome/src/docs", "/fakehome/work/docs"}, again.Checkouts,
 		"a checkout already on record is not duplicated")
+}
+
+// reopeningRecordsNothing holds the log to what changed.
+//
+// Opening a project registers it, and opening one is the most frequent thing
+// that happens to a workspace. The log's position is what an answer reports as
+// the state of the context it was read from, so a re-open that changed nothing
+// leaves it where it was, and two reads of one unchanged workspace report one
+// revision.
+func reopeningRecordsNothing(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	w, err := workspace.Open(ctx, b)
+	require.NoError(t, err)
+
+	_, err = w.Register(ctx, "prj_reopened", "Docs", "/fakehome/src/docs")
+	require.NoError(t, err)
+	first, err := b.Head(ctx)
+	require.NoError(t, err)
+	assert.NotZero(t, first, "registering a project for the first time is recorded")
+
+	_, err = w.Register(ctx, "prj_reopened", "Docs", "/fakehome/src/docs")
+	require.NoError(t, err)
+	again, err := b.Head(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, first, again, "re-opening the same project from the same checkout records nothing")
+
+	_, err = w.Register(ctx, "prj_reopened", "Documentation", "/fakehome/src/docs")
+	require.NoError(t, err)
+	renamed, err := b.Head(ctx)
+	require.NoError(t, err)
+	assert.Greater(t, renamed, again, "a changed display name is recorded")
 }
 
 // registersWithNoCheckout covers the project a workspace knows and this

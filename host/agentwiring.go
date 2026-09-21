@@ -1,0 +1,492 @@
+package host
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"path"
+	"path/filepath"
+	"slices"
+	"sort"
+	"strings"
+
+	"github.com/neokapi/neokapi/core/project"
+)
+
+// Wiring a project up for the coding agents that work in it.
+//
+// A project has a voice, terms and a check gate long before anyone tells an
+// assistant they exist. The voice pointer (host/voicepointer.go) says so in
+// prose; this says so in the files an agent host reads as configuration: the
+// MCP server entry that starts `kapi mcp` for this project, and a copy of the
+// kapi skill in the directory the host scans for skills.
+//
+// Three rules hold for every file written here.
+//
+// PROJECT SCOPE ONLY. Every path is under the project root. Nothing under the
+// user's home directory and nothing machine-wide is read or written, because a
+// project is the thing being wired and a person's own configuration is theirs.
+//
+// A COMMAND, AND NOTHING ELSE. An MCP entry carries the kapi binary, the `mcp`
+// verb and the project it answers for. No shell, no environment, no
+// credentials: these files are loaded as configuration by a program that runs
+// what they say, and they are committed and shared with everyone on the
+// project.
+//
+// AN EXISTING ENTRY IS LEFT ALONE. A config file that already names a server
+// called kapi is read and not written, whatever it says, because someone chose
+// what is in it. The skill directory is kapi's own, so the files the binary
+// ships are refreshed there and anything else in it is left in place.
+
+// AgentHost names one coding-agent host a project can be wired for.
+type AgentHost string
+
+const (
+	// AgentHostClaudeCode is Claude Code: `.mcp.json` at the project root, and
+	// project skills under `.claude/skills/`.
+	AgentHostClaudeCode AgentHost = "claude-code"
+	// AgentHostCursor is Cursor: `.cursor/mcp.json`.
+	AgentHostCursor AgentHost = "cursor"
+	// AgentHostVSCode is Visual Studio Code: `.vscode/mcp.json`, whose servers
+	// sit under `servers` rather than `mcpServers`.
+	AgentHostVSCode AgentHost = "vscode"
+	// AgentHostAgents is the cross-client skills convention, `.agents/skills/`,
+	// which several hosts scan alongside their own directory.
+	AgentHostAgents AgentHost = "agents"
+)
+
+// agentHostOrder is every host kapi knows, in the order a result lists them.
+var agentHostOrder = []AgentHost{AgentHostClaudeCode, AgentHostCursor, AgentHostVSCode, AgentHostAgents}
+
+// AgentHosts returns every host kapi can wire a project for.
+func AgentHosts() []AgentHost {
+	out := make([]AgentHost, len(agentHostOrder))
+	copy(out, agentHostOrder)
+	return out
+}
+
+// agentHostDirs are the directories whose presence at a project root says the
+// host is already in use here. Claude Code is absent on purpose: it is wired
+// whether or not the project has met it, which is what makes a fresh `kapi
+// init` enough on its own.
+var agentHostDirs = map[AgentHost]string{
+	AgentHostCursor: ".cursor",
+	AgentHostVSCode: ".vscode",
+	AgentHostAgents: ".agents",
+}
+
+// AgentWiringAction is what writing one file did.
+type AgentWiringAction string
+
+const (
+	// AgentWiringCreated: the file did not exist and now holds kapi's entry.
+	AgentWiringCreated AgentWiringAction = "created"
+	// AgentWiringUpdated: an existing file gained kapi's entry, or a file the
+	// skill ships was refreshed.
+	AgentWiringUpdated AgentWiringAction = "updated"
+	// AgentWiringUnchanged: the file already held exactly this.
+	AgentWiringUnchanged AgentWiringAction = "unchanged"
+	// AgentWiringKept: the file already names a server called kapi, so it was
+	// read and left as it is.
+	AgentWiringKept AgentWiringAction = "kept"
+)
+
+// AgentWiringKind says what an entry is, because the two answer different
+// questions for whoever reads the output: a server an agent host starts, or
+// guidance it loads.
+type AgentWiringKind string
+
+const (
+	// AgentWiringMCP is an MCP configuration file.
+	AgentWiringMCP AgentWiringKind = "mcp"
+	// AgentWiringSkill is one skill's directory.
+	AgentWiringSkill AgentWiringKind = "skill"
+)
+
+// AgentWiringFile is one file, or one skill directory, the wiring touched.
+type AgentWiringFile struct {
+	// Kind says whether this is an MCP configuration file or a skill.
+	Kind AgentWiringKind `json:"kind"`
+	// Host is the agent host this file is read by.
+	Host AgentHost `json:"host"`
+	// Path is project-relative and slash-separated, so it reads the same on
+	// every machine.
+	Path string `json:"path"`
+	// Action is what happened to it.
+	Action AgentWiringAction `json:"action"`
+	// Detail says what is in it, for a line a person reads: the server command
+	// for a config file, the file count for a skill directory.
+	Detail string `json:"detail,omitempty"`
+}
+
+// AgentWiringResult reports what WriteAgentWiring did.
+type AgentWiringResult struct {
+	// Hosts are the hosts that were wired, in agentHostOrder.
+	Hosts []AgentHost `json:"hosts,omitempty"`
+	// Files lists every file and skill directory touched, in the order they
+	// were written.
+	Files []AgentWiringFile `json:"files,omitempty"`
+}
+
+// AgentWiringOptions configures WriteAgentWiring.
+type AgentWiringOptions struct {
+	// Root is the project root. Every path written is under it.
+	Root string
+	// Hosts are the hosts to wire. Empty writes nothing at all.
+	Hosts []AgentHost
+	// Recipe is the project's recipe file. Only its name is used, because the
+	// entry that carries it is committed and read relative to Root. Empty
+	// means the conventional name.
+	Recipe string
+	// Skills is the skill tree to copy into each host's skills directory: one
+	// directory per skill, each holding a SKILL.md. nil writes no skill, which
+	// is what a caller with no embedded copy passes.
+	Skills fs.FS
+}
+
+// ErrUnknownAgentHost reports a host name kapi does not wire.
+var ErrUnknownAgentHost = errors.New("unknown agent host")
+
+// agentHostNone is the spelling that opts out, and agentHostAll the one that
+// asks for every host kapi knows.
+const (
+	agentHostNone = "none"
+	agentHostAll  = "all"
+)
+
+// ParseAgentHosts reads the `--agents` value into the hosts it names.
+//
+// An empty value asks for detection (DetectAgentHosts), which is what a caller
+// that passed no flag gets; explicit reports which of the two happened, so the
+// caller does not have to compare the result with the default to find out.
+func ParseAgentHosts(spec string) (hosts []AgentHost, explicit bool, err error) {
+	spec = strings.TrimSpace(spec)
+	switch spec {
+	case "":
+		return nil, false, nil
+	case agentHostNone:
+		return nil, true, nil
+	case agentHostAll:
+		return AgentHosts(), true, nil
+	}
+
+	known := map[AgentHost]bool{}
+	for _, h := range agentHostOrder {
+		known[h] = true
+	}
+	seen := map[AgentHost]bool{}
+	for part := range strings.SplitSeq(spec, ",") {
+		name := AgentHost(strings.ToLower(strings.TrimSpace(part)))
+		if name == "" {
+			continue
+		}
+		if !known[name] {
+			return nil, false, fmt.Errorf("%w %q: kapi wires %s, or %s for every one of them, or %s",
+				ErrUnknownAgentHost, name, agentHostNames(), agentHostAll, agentHostNone)
+		}
+		seen[name] = true
+	}
+	for _, h := range agentHostOrder {
+		if seen[h] {
+			hosts = append(hosts, h)
+		}
+	}
+	return hosts, true, nil
+}
+
+// agentHostNames renders the host names for a message.
+func agentHostNames() string {
+	names := make([]string, 0, len(agentHostOrder))
+	for _, h := range agentHostOrder {
+		names = append(names, string(h))
+	}
+	return strings.Join(names, ", ")
+}
+
+// DetectAgentHosts reports the hosts a project at root is wired for when the
+// caller names none: Claude Code, plus every other host that already keeps a
+// directory here.
+//
+// Claude Code is unconditional because its project MCP file sits at the root
+// and it reads project skills from a directory kapi creates, so there is no
+// prior directory to detect and a project that has never been opened in it
+// would otherwise get nothing. The others are wired where they are in use,
+// since writing `.vscode/` into a repository whose author does not use VS Code
+// adds a directory nobody asked for.
+func DetectAgentHosts(root string) []AgentHost {
+	hosts := []AgentHost{AgentHostClaudeCode}
+	for _, h := range agentHostOrder {
+		dir, ok := agentHostDirs[h]
+		if !ok {
+			continue
+		}
+		if info, err := os.Stat(filepath.Join(root, dir)); err == nil && info.IsDir() {
+			hosts = append(hosts, h)
+		}
+	}
+	return hosts
+}
+
+// mcpServerName is the key kapi's entry takes in an MCP configuration file.
+const mcpServerName = "kapi"
+
+// mcpServerEntry is one stdio MCP server as every host spells it: a type, a
+// command and its arguments. Nothing else is written.
+type mcpServerEntry struct {
+	Type    string   `json:"type"`
+	Command string   `json:"command"`
+	Args    []string `json:"args"`
+}
+
+// mcpConfigFile is one host's MCP configuration: where it lives under the
+// project root, and the key its servers sit under. Claude Code and Cursor read
+// `mcpServers`; VS Code reads `servers`.
+type mcpConfigFile struct {
+	path       string
+	serversKey string
+}
+
+var agentMCPConfigs = map[AgentHost]mcpConfigFile{
+	AgentHostClaudeCode: {path: ".mcp.json", serversKey: "mcpServers"},
+	AgentHostCursor:     {path: ".cursor/mcp.json", serversKey: "mcpServers"},
+	AgentHostVSCode:     {path: ".vscode/mcp.json", serversKey: "servers"},
+}
+
+// agentSkillDirs are the directories each host scans for project skills.
+var agentSkillDirs = map[AgentHost]string{
+	AgentHostClaudeCode: ".claude/skills",
+	AgentHostAgents:     ".agents/skills",
+}
+
+// WriteAgentWiring puts the project's kapi wiring into the files each named
+// host reads, and reports what it wrote.
+//
+// It is idempotent: a second run over an unchanged project writes nothing and
+// reports every file as unchanged or kept.
+func WriteAgentWiring(opts AgentWiringOptions) (*AgentWiringResult, error) {
+	if opts.Root == "" {
+		return nil, errors.New("agent wiring: name the project root")
+	}
+	// The recipe's own name, and never a path to it. The entry is committed
+	// and shared with everyone on the project, so a directory that resolves on
+	// one machine has no business in it; the recipe sits at the project root,
+	// which is the directory every one of these files is read relative to.
+	recipe := filepath.Base(opts.Recipe)
+	if opts.Recipe == "" {
+		recipe = project.RecipeFileName
+	}
+	entry := mcpServerEntry{
+		Type:    "stdio",
+		Command: "kapi",
+		Args:    []string{"mcp", "--project", recipe},
+	}
+
+	res := &AgentWiringResult{}
+	for _, host := range agentHostOrder {
+		if !slices.Contains(opts.Hosts, host) {
+			continue
+		}
+		res.Hosts = append(res.Hosts, host)
+
+		if cfg, ok := agentMCPConfigs[host]; ok {
+			file, err := upsertMCPServerEntry(filepath.Join(opts.Root, filepath.FromSlash(cfg.path)), cfg.serversKey, entry)
+			if err != nil {
+				return nil, err
+			}
+			file.Kind, file.Host, file.Path = AgentWiringMCP, host, cfg.path
+			res.Files = append(res.Files, file)
+		}
+
+		dir, ok := agentSkillDirs[host]
+		if !ok || opts.Skills == nil {
+			continue
+		}
+		files, err := writeSkillTree(filepath.Join(opts.Root, filepath.FromSlash(dir)), opts.Skills)
+		if err != nil {
+			return nil, err
+		}
+		for i := range files {
+			files[i].Kind, files[i].Host = AgentWiringSkill, host
+			files[i].Path = path.Join(dir, files[i].Path)
+		}
+		res.Files = append(res.Files, files...)
+	}
+	return res, nil
+}
+
+// upsertMCPServerEntry adds kapi's server to an MCP configuration file without
+// disturbing anything else in it.
+//
+// The file is decoded as raw JSON members rather than into a struct, so every
+// key kapi does not know about survives the round trip. A file that already
+// names a server called kapi is left byte for byte as it is: whatever it says,
+// someone put it there.
+func upsertMCPServerEntry(path, serversKey string, entry mcpServerEntry) (AgentWiringFile, error) {
+	out := AgentWiringFile{Detail: describeMCPEntry(entry)}
+
+	raw, err := os.ReadFile(path)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		doc, merr := marshalMCPConfig(map[string]json.RawMessage{}, serversKey, map[string]json.RawMessage{}, entry)
+		if merr != nil {
+			return out, merr
+		}
+		if werr := writeProjectFile(path, doc); werr != nil {
+			return out, werr
+		}
+		out.Action = AgentWiringCreated
+		return out, nil
+	case err != nil:
+		return out, fmt.Errorf("read %s: %w", path, err)
+	}
+
+	var doc map[string]json.RawMessage
+	if jerr := json.Unmarshal(raw, &doc); jerr != nil {
+		return out, fmt.Errorf("%s holds JSON kapi could not read, so it was left alone: %w", path, jerr)
+	}
+	servers := map[string]json.RawMessage{}
+	if held, ok := doc[serversKey]; ok {
+		if jerr := json.Unmarshal(held, &servers); jerr != nil {
+			return out, fmt.Errorf("%s holds a %s that is not an object, so it was left alone: %w", path, serversKey, jerr)
+		}
+	}
+	if _, held := servers[mcpServerName]; held {
+		out.Action = AgentWiringKept
+		out.Detail = "already names a server called " + mcpServerName
+		return out, nil
+	}
+
+	updated, merr := marshalMCPConfig(doc, serversKey, servers, entry)
+	if merr != nil {
+		return out, merr
+	}
+	if werr := writeProjectFile(path, updated); werr != nil {
+		return out, werr
+	}
+	out.Action = AgentWiringUpdated
+	return out, nil
+}
+
+// marshalMCPConfig renders the document with kapi's server added under
+// serversKey.
+func marshalMCPConfig(doc map[string]json.RawMessage, serversKey string, servers map[string]json.RawMessage, entry mcpServerEntry) ([]byte, error) {
+	encoded, err := json.Marshal(entry)
+	if err != nil {
+		return nil, fmt.Errorf("encode the kapi MCP server entry: %w", err)
+	}
+	servers[mcpServerName] = encoded
+	block, err := json.Marshal(servers)
+	if err != nil {
+		return nil, fmt.Errorf("encode the MCP server list: %w", err)
+	}
+	doc[serversKey] = block
+	out, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("encode the MCP configuration: %w", err)
+	}
+	return append(out, '\n'), nil
+}
+
+// describeMCPEntry renders the entry as the command line it launches, which is
+// the whole of what the file asks a host to run.
+func describeMCPEntry(entry mcpServerEntry) string {
+	return strings.TrimSpace(entry.Command + " " + strings.Join(entry.Args, " "))
+}
+
+// writeSkillTree copies the skill tree into a host's skills directory and
+// reports one entry per skill.
+//
+// The directory named for a skill belongs to that skill, so the files the
+// binary ships are written there whatever was in them: they are a copy of what
+// this binary documents, and a copy that lags the binary names commands the
+// binary may no longer have. Files nobody ships are left where they are.
+func writeSkillTree(dir string, tree fs.FS) ([]AgentWiringFile, error) {
+	names, err := fs.ReadDir(tree, ".")
+	if err != nil {
+		return nil, fmt.Errorf("read the embedded skill tree: %w", err)
+	}
+	var out []AgentWiringFile
+	for _, name := range names {
+		if !name.IsDir() {
+			continue
+		}
+		sub, serr := fs.Sub(tree, name.Name())
+		if serr != nil {
+			return nil, fmt.Errorf("read the embedded skill %s: %w", name.Name(), serr)
+		}
+		file, werr := writeOneSkill(filepath.Join(dir, name.Name()), sub)
+		if werr != nil {
+			return nil, werr
+		}
+		file.Path = name.Name()
+		out = append(out, file)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out, nil
+}
+
+// writeOneSkill copies one skill's files into dir and reports what changed.
+func writeOneSkill(dir string, skill fs.FS) (AgentWiringFile, error) {
+	var (
+		out     AgentWiringFile
+		count   int
+		created int
+		updated int
+	)
+	err := fs.WalkDir(skill, ".", func(rel string, d fs.DirEntry, werr error) error {
+		if werr != nil {
+			return werr
+		}
+		if d.IsDir() {
+			return nil
+		}
+		body, rerr := fs.ReadFile(skill, rel)
+		if rerr != nil {
+			return fmt.Errorf("read the embedded skill file %s: %w", rel, rerr)
+		}
+		count++
+		target := filepath.Join(dir, filepath.FromSlash(rel))
+		held, herr := os.ReadFile(target)
+		switch {
+		case errors.Is(herr, fs.ErrNotExist):
+			created++
+		case herr != nil:
+			return fmt.Errorf("read %s: %w", target, herr)
+		case string(held) == string(body):
+			return nil
+		default:
+			updated++
+		}
+		return writeProjectFile(target, body)
+	})
+	if err != nil {
+		return out, err
+	}
+
+	out.Detail = fmt.Sprintf("%d files", count)
+	if count == 1 {
+		out.Detail = "1 file"
+	}
+	switch {
+	case created > 0:
+		out.Action = AgentWiringCreated
+	case updated > 0:
+		out.Action = AgentWiringUpdated
+	default:
+		out.Action = AgentWiringUnchanged
+	}
+	return out, nil
+}
+
+// writeProjectFile writes one file, creating the directories above it.
+func writeProjectFile(path string, body []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create %s: %w", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, body, 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
+}

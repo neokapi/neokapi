@@ -49,9 +49,13 @@ surface nobody chose is how it grew to fifty-one tools.
 				AllTools: all || allTools,
 				AllFlows: all || allFlows,
 			}
+			// The instructions reach every client at initialize, ahead of the
+			// tool list and whether or not the host loads a skill. They are
+			// the same for every binary that serves this surface, because
+			// what they describe is the surface rather than the binary.
 			server := mcp.NewServer(
 				&mcp.Implementation{Name: implName, Version: version.Version},
-				nil,
+				&mcp.ServerOptions{Instructions: host.MCPInstructions()},
 			)
 			ApplyMCPToolFactories(server, a)
 			// host.CmdContext, not cmd.Context: a caller that builds this

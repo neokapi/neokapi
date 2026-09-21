@@ -78,6 +78,15 @@ type ContextAnswer struct {
 	// a project scope that reports no rules has not consulted a concept graph,
 	// because it has none.
 	Scope ContextScope `json:"scope"`
+	// Coverage grades how much of the project's context stands behind the
+	// answer: the voice profile in force and the terms bound here, counted.
+	// A caller reading the JSON branches on this rather than on the shape of
+	// the lists below.
+	Coverage ContextCoverage `json:"coverage"`
+	// Provenance says which project answered, at which workspace revision, and
+	// whether the content kapi holds still matches the files on disk. nil when
+	// no project stands behind the answer.
+	Provenance *ContextProvenance `json:"provenance,omitempty"`
 	// Voice is the profile in force and its rendered guidance, nil when no voice
 	// is bound at this point.
 	Voice *ContextVoice `json:"voice,omitempty"`
@@ -169,6 +178,9 @@ type ContextPointSources struct {
 	// from, resolved by the caller (host/freshness.go) because it is a property
 	// of the reader's history rather than of any store.
 	Freshness []string
+	// Provenance says which project these materials came from and what state
+	// it was read at. nil when no project stands behind them.
+	Provenance *ContextProvenance
 	// Scope names how much of the graph could have been read.
 	Scope ContextScope
 	// At is the instant governance is read at.
@@ -314,6 +326,7 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	}
 
 	src.Freshness = a.governanceNotes(cmd)
+	src.Provenance = a.contextProvenance(cmd, proj)
 	return src, noop
 }
 
@@ -433,7 +446,23 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 		scope = ScopeProject
 	}
 
-	res := &ContextAnswer{Scope: scope, Point: ContextPoint{Path: src.Path, Collection: src.Collection}}
+	// The terms are resolved before the notes are written, because whether
+	// there are any is half of the answer's coverage and the coverage note
+	// leads the thin ones.
+	var (
+		hits  []ContextTermHit
+		total int
+	)
+	if src.ConceptsErr == nil {
+		hits, total = termsInForce(src.Concepts, req.Locale, src.At, limit)
+	}
+
+	res := &ContextAnswer{
+		Scope:      scope,
+		Coverage:   coverageOf(src.Voice != nil, len(hits) > 0),
+		Provenance: src.Provenance,
+		Point:      ContextPoint{Path: src.Path, Collection: src.Collection},
+	}
 	switch {
 	case src.Governance != nil:
 		res.Point.Profile = src.Governance.Profile
@@ -455,6 +484,15 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	// Freshness leads the notes: it is the only note that says the rest of the
 	// answer may already describe a graph that has moved.
 	res.Notes = append(res.Notes, src.Freshness...)
+	// Then the coverage, for a thin answer. A caller that reads no further has
+	// still been told the two things that matter here: how much stands behind
+	// this, and what to watch for while it works.
+	if note := contextPointCoverageNote(res.Coverage); note != "" {
+		res.Notes = append(res.Notes, note)
+	}
+	if src.Provenance != nil && src.Provenance.StaleReason != "" {
+		res.Notes = append(res.Notes, src.Provenance.StaleReason)
+	}
 	for _, n := range src.Notes {
 		if n != "" {
 			res.Notes = append(res.Notes, n)
@@ -490,7 +528,7 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 		// A capped list is stated by Terms against TermsTotal, so a caller
 		// that draws the list draws the count beside it; the text rendering
 		// below says where the rest are.
-		res.Terms, res.TermsTotal = termsInForce(src.Concepts, req.Locale, src.At, limit)
+		res.Terms, res.TermsTotal = hits, total
 	case scope == ScopeProject:
 		res.Notes = append(res.Notes, "no terms are bound at this point, so terminology was not consulted")
 	}
@@ -586,6 +624,9 @@ func (r *ContextAnswer) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "%s\n", r.voiceLine())
 	}
 	fmt.Fprintf(w, "%s\n", r.scopeLine())
+	if line := provenanceLine(r.Provenance); line != "" {
+		fmt.Fprintf(w, "%s\n", line)
+	}
 
 	if r.Voice != nil && r.Voice.Guide != "" {
 		// The guide renders its own headings from `# Voice Guide: …` down; one

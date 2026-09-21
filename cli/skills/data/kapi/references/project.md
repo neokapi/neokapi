@@ -34,6 +34,13 @@ you bind a voice under `defaults.voice`, and tell the user which file it went
 into, since they commit it. A section that landed in `AGENTS.md` reaches an
 assistant limited to `CLAUDE.md` through an import line, `@AGENTS.md`.
 
+`kapi init` also writes the MCP entry that starts `kapi mcp` for this project
+(`.mcp.json` for Claude Code, `.cursor/mcp.json`, `.vscode/mcp.json`) and a copy
+of this skill in the host's skills directory. It names every file it writes,
+leaves an entry someone else put there alone, and writes nothing on a re-run.
+`--agents <list|all|none>` chooses; tell the user which files landed, since they
+commit them.
+
 - **`.kapi/`**: the context graph, all committed and flat: `terms.json`,
   `voice.yaml`, `memory/` (the content-memory bundles, `memory.json` the
   primary), `profiles/<name>/` (what a profile overrides), and `state/*.jsonl`,

@@ -41,6 +41,11 @@ func registerContextMCPTools(server *mcp.Server, a *App) {
 			"Search before writing; read the context://<project-relative-path> resource for the full " +
 			"guidance at your destination. After saving edits, use check_file on the changed files. " +
 			"Results are grouped by kind, and say what could not be reached. " +
+			"`coverage` grades what stood behind the answer (empty, thin or covered); an empty one " +
+			"means this project has recorded nothing about the query, and its notes say what is " +
+			"worth noticing while you work. `provenance` names the project that answered, the " +
+			"workspace revision it was read at, and whether the content kapi holds still matches " +
+			"the files on disk. " +
 			"Each term carries how often the project's extracted content uses it, as of the last " +
 			"extraction (the last `kapi up`) rather than of the working tree.",
 	}, a.handleContextSearch)
@@ -66,7 +71,12 @@ func registerContextResources(server *mcp.Server, a *App) {
 	const description = "What this project's context says applies at one place: the voice profile " +
 		"in force with its full guidance, the terms bound there, and the governance windows " +
 		"around them. Read this BEFORE writing or editing content at that location. " +
-		"Returns markdown by default; append `?format=json` for the structured shape."
+		"An answer with nothing in it says so and says what is worth noticing while you work, " +
+		"so a project that has recorded nothing yet is still worth asking. Every answer names " +
+		"the project it came from, the workspace revision it was read at, and whether the " +
+		"content kapi holds still matches the files on disk. " +
+		"Returns markdown by default; append `?format=json` for the structured shape, " +
+		"where `coverage` grades what stood behind it (empty, thin or covered)."
 
 	server.AddResourceTemplate(&mcp.ResourceTemplate{
 		Name:        "context-at-location",

@@ -163,6 +163,63 @@ behind it.
 Half an answer plus a statement of what was unreachable is more useful than an
 answer that quietly omits a store it could not open.
 
+### An answer with nothing in it teaches
+
+Most projects meet kapi with no voice profile and no terms, and the honest
+answer for a location in one is short. It was once so short that an assistant
+read it as *there is nothing to do here* and worked without the project's
+context for the rest of the session.
+
+So every answer carries a `coverage` grade, counting the two kinds of material
+that can stand behind it:
+
+| Primitive | The two kinds |
+| --- | --- |
+| By location | the voice profile in force at the point; the terms bound there and in force |
+| By content | the terms the query matched; the prior wording it found |
+
+Two of two is `covered`, one is `thin`, none is `empty`. Two kinds and three
+grades, because the grade is read by a model deciding how much to lean on the
+answer, and a finer scale would be a number nobody could act on differently.
+The grade describes **the answer**, so a search for a word the project has
+never written about is empty whatever else the project holds.
+
+A thin or empty by-location answer adds one note: that this project records
+nothing here yet, and what is worth noticing while the work is done (the names
+the project gives its own things, the spellings it keeps to, who the text
+addresses, how formal it is). It **states no rule**, because there are none,
+and inventing one is the only outcome worse than saying nothing.
+
+The by-content answer carries that note when it found nothing at all and on no
+other grade. A search graded thin found the word and answered the question
+asked, so the same sentence would be a lecture delivered on a successful call.
+
+### Every answer says what it read
+
+An answer is quoted, acted on, and sometimes committed, often an hour after it
+was read and by a process that has since asked the same question of another
+project. So every answer carries a `provenance`: the project's stable identity
+([C-01](c-01-project-model.md)), the position the workspace's operation log had
+reached, and whether the content kapi holds still matches the files on disk.
+
+The three are one fact each, and each is needed for a different reason. The
+identity says which project answered, for a caller that moves between them. The
+**revision** is a position: two answers carrying one revision were read from
+one state of the context, which is what makes them comparable. Opening a
+project is the most frequent thing that happens to a workspace, so it records
+an operation only when the registration changed, and a re-open leaves the
+position where it was.
+
+The **projection's state** compares the extract-time stamps the block store
+already holds against the files on disk, one stat each and a hash only where
+the stat moved. It costs no walk of the tree, which matters on a path an agent
+hits repeatedly inside one thought, and it is what tells a caller that a term's
+use count describes the files as they were rather than as they are.
+
+This reports position on every answer. The staleness note beside it
+([C-05](c-05-freshness.md)) reports movement, once, to the answer that first
+spans it. Neither resolves.
+
 ### Results are grouped, never merged into one ranking
 
 A term match and a memory match are not comparable scores. Results are grouped by
@@ -214,6 +271,11 @@ registry tool regardless.
   where the answer lives is ours to change.
 - **A stale answer is visible to the caller holding it**, rather than being a
   read with no memory.
+- **A project that has recorded nothing is still worth asking.** The first hour
+  of a project gets an answer that says it is empty and what to watch for,
+  rather than one an assistant reads as permission to stop asking.
+- **Two answers can be compared without either having watched the other**,
+  because each carries the project and the revision it was read at.
 - **Partial answers stop reading as whole ones**, the failure that makes a
   store-shaped retrieval tool actively misleading rather than merely narrow.
 - **A new registry tool does not become an agent tool by accident.** Exposure is
