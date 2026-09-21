@@ -424,10 +424,15 @@ func runDesktopChild(ctx context.Context, checkout string, cfg config) error {
 			return emitReport(rec.all())
 		case <-tick.C:
 		}
+		// The two reads a window redraws from: how much this checkout has
+		// recorded and not yet written to the record, and what the workspace
+		// holds. Both are spelled as SQL rather than taken through core/state,
+		// because RecordDiff imports first and this process is the run's one
+		// reader.
 		_ = rec.observe(nWSPoll, func() error {
-			var staged int
+			var unwritten int
 			if err := db.Raw().QueryRowContext(runCtx,
-				`SELECT COUNT(*) FROM unit_state WHERE staged = 1`).Scan(&staged); err != nil {
+				`SELECT COUNT(*) FROM unit_view WHERE exported = 0`).Scan(&unwritten); err != nil {
 				return err
 			}
 			var projects int

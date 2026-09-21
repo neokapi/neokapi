@@ -281,15 +281,15 @@ second and promoting wording into the content memory every tenth round:
 
 | Workload | ops | failed | p50 ms | p95 ms | p99 ms | max ms |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| agent: decision put | 1894 | 0 | 0.38 | 9.14 | 31.84 | 53.50 |
-| agent: register in workspace | 16 | 0 | 0.40 | 0.87 | 0.87 | 0.87 |
-| agent: content-memory promotion | 198 | 0 | 33.47 | 60.31 | 88.77 | 104.30 |
-| desktop: poll for change | 599 | 0 | 0.18 | 0.83 | 1.02 | 4.88 |
-| CLI: projection purge+refill | 11 | 0 | 86.19 | 108.26 | 108.26 | 108.26 |
-| CLI: context write | 11 | 0 | 30.83 | 51.66 | 51.66 | 51.66 |
+| agent: decision put | 1895 | 0 | 0.68 | 4.80 | 30.19 | 76.99 |
+| agent: register in workspace | 16 | 0 | 0.33 | 0.53 | 0.53 | 0.53 |
+| agent: content-memory promotion | 198 | 0 | 33.19 | 48.78 | 90.98 | 105.36 |
+| desktop: poll for change | 599 | 0 | 16.36 | 25.44 | 29.89 | 33.47 |
+| CLI: projection purge+refill | 11 | 0 | 74.81 | 93.26 | 93.26 | 93.26 |
+| CLI: context write | 11 | 0 | 32.13 | 44.07 | 44.07 | 44.07 |
 
-The CLI's projection transaction runs for 86 to 108 ms throughout, and the
-agent writes beside it do not move. That is the claim the split makes, measured.
+The CLI's projection transaction runs for 75 to 93 ms throughout, and the agent
+writes beside it do not move. That is the claim the split makes, measured.
 
 Two rows are reported rather than gated, and the second is the reason.
 
