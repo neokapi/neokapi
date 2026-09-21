@@ -80,27 +80,33 @@ var agentRunSession = sync.OnceValue(func() string {
 func AgentRunSession() string { return agentRunSession() }
 
 // agentHostProcess finds the process that started the shell this command runs
-// in.
-//
-// The walk climbs out of the shells: from pid upward, an ancestor whose
+// in, reading the tree through the platform.
+func agentHostProcess(pid int) (processInfo, error) {
+	return walkToAgentHost(pid, parentProcess)
+}
+
+// walkToAgentHost climbs out of the shells: from pid upward, an ancestor whose
 // executable is a shell is passed over, and the first that is not is the agent
 // host. It answers the same whether the shell forked to run kapi or replaced
 // itself with it, because both leave the same process above.
-func agentHostProcess(pid int) (processInfo, error) {
+//
+// parent reads one process's parent, which is the platform's part of the job
+// and the seam a test drives a tree of its own through.
+func walkToAgentHost(pid int, parent func(int) (processInfo, error)) (processInfo, error) {
 	for range maxProcessWalk {
-		parent, err := parentProcess(pid)
+		above, err := parent(pid)
 		if err != nil {
 			return processInfo{}, err
 		}
 		// pid 1 is the machine rather than a run, and so is anything that
 		// reports no parent.
-		if parent.PID <= 1 {
+		if above.PID <= 1 {
 			return processInfo{}, errNoAgentHostProcess
 		}
-		if !isShellProcess(parent.Name) {
-			return parent, nil
+		if !isShellProcess(above.Name) {
+			return above, nil
 		}
-		pid = parent.PID
+		pid = above.PID
 	}
 	return processInfo{}, errNoAgentHostProcess
 }

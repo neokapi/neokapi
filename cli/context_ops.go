@@ -192,10 +192,12 @@ about and where it stands: a candidate nobody has decided on, a confirmed rule
 in force, or one that was discarded or reverted.
 
 The id is what the other verbs take. Narrow the list with --status to see what
-is waiting for a decision, or with --session to see what one agent run did.`,
+is waiting for a decision, or with --session to see what one agent run did.
+"--session this" is that run reading back its own work.`,
 		Example: "  kapi context log\n" +
 			"  kapi context log --status candidate\n" +
 			"  kapi context log --session 0ab4e399 --json\n" +
+			"  kapi context log --session this\n" +
 			"  kapi context log --actor agent --since 2026-09-01",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -235,7 +237,7 @@ is waiting for a decision, or with --session to see what one agent run did.`,
 			return output.Print(cmd, res)
 		},
 	}
-	cmd.Flags().String("session", "", "only what one agent session recorded")
+	cmd.Flags().String("session", "", "only what one agent session recorded, or \"this\" for the session this run records under")
 	cmd.Flags().String("status", "", "only operations at one status: candidate, confirmed, discarded or reverted")
 	cmd.Flags().String("actor", "", "only one actor, by name or by kind")
 	cmd.Flags().String("since", "", "only what happened after a date (2006-01-02) or instant")
