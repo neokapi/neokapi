@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/state"
@@ -18,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 )
 
@@ -148,42 +150,95 @@ func (a *App) ExportProjectContext(ctx context.Context, projectPath, out string)
 	}
 	res.Committed = commit.Committed
 
-	pkg := &kpz.Package{
-		Kind:      kpz.KindContext,
-		Generator: &kpz.GeneratorInfo{ID: contextBundleGenerator, Version: version.Version},
+	stores := contextStoresOf(ctx, db)
+	if st := db.Work(); st != nil {
+		if stores.units, err = st.All(ctx); err != nil {
+			return res, err
+		}
 	}
-	if pkg.Terms, err = bundleTerms(ctx, db); err != nil {
-		return res, err
-	}
-	if pkg.Memory, err = bundleMemory(ctx, db); err != nil {
-		return res, err
-	}
-	if pkg.Voice, err = bundleVoice(ctx, db); err != nil {
-		return res, err
-	}
-	if pkg.Decisions, err = bundleDecisions(ctx, db); err != nil {
+	pkg, err := contextPackage(ctx, stores)
+	if err != nil {
 		return res, err
 	}
 	if !pkg.HasContent() {
 		return res, errors.New("this project's store holds no context to export")
 	}
+	written, err := writeContextBundle(pkg, out)
+	written.Committed = res.Committed
+	return written, err
+}
 
-	data, err := pkg.Marshal()
+// contextStoresOf names a project store's authored subsystems.
+//
+// A handle the build has none of is left out rather than assigned: the
+// accessors return concrete pointers, and a nil pointer in an interface field
+// is not a nil interface, so every reader of one would call through it. The
+// browser build has no file-backed store and returns nil from all three.
+func contextStoresOf(ctx context.Context, db *projectdb.DB) contextStores {
+	s := contextStores{bindings: loadVoiceBindings(ctx, db)}
+	if tb := db.Terms(); tb != nil {
+		s.terms = tb
+	}
+	if tm := db.Memory(); tm != nil {
+		s.memory = tm
+	}
+	if vc := db.Voice(); vc != nil {
+		s.voice = vc
+	}
+	return s
+}
+
+// contextStores is what a context bundle is built from: the subsystems of one
+// project that hold authored context, and where each voice profile is authored.
+//
+// The handles are named rather than a *projectdb.DB, because a whole-workspace
+// export reads a project's context store straight out of the workspace and has
+// no checkout to open a project store against.
+type contextStores struct {
+	terms    terms.Terminology
+	memory   memory.Store
+	voice    coreprofile.Store
+	bindings map[string]string
+	// units is the decision record the bundle carries.
+	units []state.UnitState
+}
+
+// contextPackage assembles the context profile of the container from a
+// project's stores.
+func contextPackage(ctx context.Context, s contextStores) (*kpz.Package, error) {
+	pkg := &kpz.Package{
+		Kind:      kpz.KindContext,
+		Generator: &kpz.GeneratorInfo{ID: contextBundleGenerator, Version: version.Version},
+	}
+	var err error
+	if pkg.Terms, err = bundleTerms(ctx, s.terms); err != nil {
+		return nil, err
+	}
+	if pkg.Memory, err = bundleMemory(ctx, s.memory); err != nil {
+		return nil, err
+	}
+	if pkg.Voice, err = bundleVoice(ctx, s.voice, s.bindings); err != nil {
+		return nil, err
+	}
+	if pkg.Decisions, err = bundleDecisions(s.units); err != nil {
+		return nil, err
+	}
+	return pkg, nil
+}
+
+// writeContextBundle writes a package to out and reports what it holds.
+func writeContextBundle(pkg *kpz.Package, out string) (ContextExport, error) {
+	var res ContextExport
+	n, err := writePackage(pkg, out)
 	if err != nil {
-		return res, fmt.Errorf("write context bundle: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
-		return res, fmt.Errorf("create %s: %w", filepath.Dir(out), err)
-	}
-	if err := os.WriteFile(out, data, 0o644); err != nil {
-		return res, fmt.Errorf("write %s: %w", out, err)
+		return res, err
 	}
 	hash, err := pkg.RootHash()
 	if err != nil {
 		return res, err
 	}
 	res.Path = out
-	res.Bytes = len(data)
+	res.Bytes = int(n)
 	res.RootHash = hash
 	res.Concepts = len(pkg.Terms.Concepts)
 	res.Entries = len(pkg.Memory.Entries)
@@ -192,11 +247,32 @@ func (a *App) ExportProjectContext(ctx context.Context, projectPath, out string)
 	return res, nil
 }
 
+// writePackage streams a package into a file, creating the directory it names.
+// The archive is written member by member, so the size of what is being packed
+// never decides whether the write fits in memory.
+func writePackage(pkg *kpz.Package, out string) (int64, error) {
+	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+		return 0, fmt.Errorf("create %s: %w", filepath.Dir(out), err)
+	}
+	f, err := os.Create(out)
+	if err != nil {
+		return 0, fmt.Errorf("write %s: %w", out, err)
+	}
+	n, err := pkg.WriteTo(f)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		_ = os.Remove(out)
+		return 0, fmt.Errorf("write %s: %w", out, err)
+	}
+	return n, nil
+}
+
 // bundleTerms reads the terms store through the same exporter that writes the
 // committed bundle, so a member and a snapshot's terms.json carry the same
 // bytes.
-func bundleTerms(ctx context.Context, db *projectdb.DB) (*ktb.File, error) {
-	tb := db.Terms()
+func bundleTerms(ctx context.Context, tb terms.Terminology) (*ktb.File, error) {
 	if tb == nil {
 		return ktb.FromConcepts(nil), nil
 	}
@@ -209,8 +285,7 @@ func bundleTerms(ctx context.Context, db *projectdb.DB) (*ktb.File, error) {
 
 // bundleMemory reads the content memory through the same exporter that writes
 // the committed bundle.
-func bundleMemory(ctx context.Context, db *projectdb.DB) (*kmb.File, error) {
-	tm := db.Memory()
+func bundleMemory(ctx context.Context, tm memory.Store) (*kmb.File, error) {
 	if tm == nil {
 		return kmb.FromModel(nil, nil), nil
 	}
@@ -223,8 +298,8 @@ func bundleMemory(ctx context.Context, db *projectdb.DB) (*kmb.File, error) {
 
 // bundleVoice reads every voice profile the store holds, each carrying the id
 // it is stored under and the path it is authored at.
-func bundleVoice(ctx context.Context, db *projectdb.DB) ([]kpz.VoiceDoc, error) {
-	profiles, err := storedVoiceProfiles(ctx, db)
+func bundleVoice(ctx context.Context, store coreprofile.Store, bindings map[string]string) ([]kpz.VoiceDoc, error) {
+	profiles, err := boundVoiceProfiles(ctx, store, bindings)
 	if err != nil {
 		return nil, err
 	}
@@ -248,15 +323,7 @@ func bundleVoice(ctx context.Context, db *projectdb.DB) ([]kpz.VoiceDoc, error) 
 // so a bundle holds what the project decided and not what happens to be on
 // disk beside it. They are written to a directory that exists for the length of
 // the call, because the serializer's unit is a directory of shards.
-func bundleDecisions(ctx context.Context, db *projectdb.DB) ([]kpz.DecisionDoc, error) {
-	st := db.Work()
-	if st == nil {
-		return nil, nil
-	}
-	units, err := st.All(ctx)
-	if err != nil {
-		return nil, err
-	}
+func bundleDecisions(units []state.UnitState) ([]kpz.DecisionDoc, error) {
 	if len(units) == 0 {
 		return nil, nil
 	}
@@ -318,7 +385,15 @@ func (a *App) RestoreProjectContext(ctx context.Context, projectPath, bundlePath
 	if err != nil {
 		return res, err
 	}
-	held, err := projectHoldsContext(ctx, db)
+	stores := contextStoresOf(ctx, db)
+	target := contextTarget{
+		terms:    stores.terms,
+		memory:   stores.memory,
+		voice:    stores.voice,
+		work:     db.Work(),
+		bindings: stores.bindings,
+	}
+	held, err := target.holdsContext(ctx)
 	if err != nil {
 		return res, err
 	}
@@ -328,22 +403,48 @@ func (a *App) RestoreProjectContext(ctx context.Context, projectPath, bundlePath
 	case mode == RestoreRefuse:
 		return res, fmt.Errorf("this project's store already holds context: restore with --merge to upsert %s over it, or --replace to put it in place of it", filepath.Base(bundlePath))
 	case mode == RestoreReplace:
-		if err := a.clearProjectContext(ctx, db); err != nil {
+		if err := target.clear(ctx); err != nil {
 			return res, err
 		}
 		res.Cleared = true
 	}
 
-	if err := a.restoreTerms(ctx, db, pkg, &res); err != nil {
+	if err := a.restoreInto(ctx, target, pkg, &res); err != nil {
 		return res, err
 	}
-	if err := a.restoreMemory(ctx, db, pkg, &res); err != nil {
-		return res, err
+	// The bindings the bundle carried are recorded where the project reads them
+	// back from, which a workspace holds no room for and a checkout does.
+	return res, saveVoiceBindings(ctx, db, target.bindings)
+}
+
+// contextTarget is where a restore writes: the subsystems of one project that
+// hold authored context, named rather than reached through a *projectdb.DB, so
+// a whole-workspace restore can write into a project's context store without a
+// checkout of that project on this machine.
+type contextTarget struct {
+	terms  terms.Terminology
+	memory memory.Store
+	voice  coreprofile.Store
+	work   *state.WorkStore
+	// bindings records where each voice profile in the store is authored. A
+	// restore adds what the bundle carried; the caller that supplied the map
+	// persists it where the project reads it back from.
+	bindings map[string]string
+}
+
+// restoreInto writes a context package into a target, through the importers a
+// committed bundle already goes through, so every identity is preserved.
+func (a *App) restoreInto(ctx context.Context, t contextTarget, pkg *kpz.Package, res *ContextRestore) error {
+	if err := restoreTerms(ctx, t, pkg, res); err != nil {
+		return err
 	}
-	if err := a.restoreVoice(ctx, db, pkg, &res); err != nil {
-		return res, err
+	if err := a.restoreMemory(ctx, t, pkg, res); err != nil {
+		return err
 	}
-	return res, a.restoreDecisions(ctx, db, pkg, &res)
+	if err := restoreVoice(ctx, t, pkg, res); err != nil {
+		return err
+	}
+	return a.restoreDecisions(ctx, t, pkg, res)
 }
 
 // refusedBundle turns a container's refusal into a sentence naming the file and
@@ -358,22 +459,39 @@ func refusedBundle(path string, err error) error {
 	return fmt.Errorf("read %s: %w", filepath.Base(path), err)
 }
 
-// projectHoldsContext reports whether any of the project's context stores has
-// anything in it.
-func projectHoldsContext(ctx context.Context, db *projectdb.DB) (bool, error) {
-	for _, probe := range []func(context.Context) (bool, error){
-		db.HasTerms, db.HasMemory, db.HasVoice,
-	} {
-		has, err := probe(ctx)
+// holdsContext reports whether any of the target's stores has anything in it.
+func (t contextTarget) holdsContext(ctx context.Context) (bool, error) {
+	if t.terms != nil {
+		concepts, err := t.terms.Concepts(ctx)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("read terms: %w", err)
 		}
-		if has {
+		if len(concepts) > 0 {
 			return true, nil
 		}
 	}
-	if st := db.Work(); st != nil {
-		units, err := st.All(ctx)
+	if t.memory != nil {
+		// One row answers the question, and a project's content memory is the
+		// one store that grows without a bound anybody set.
+		page, _, err := t.memory.SearchEntries(ctx, memory.SearchParams{Limit: 1})
+		if err != nil {
+			return false, fmt.Errorf("read content memory: %w", err)
+		}
+		if len(page) > 0 {
+			return true, nil
+		}
+	}
+	if t.voice != nil {
+		profiles, err := t.voice.ListProfiles(ctx, LocalScope)
+		if err != nil {
+			return false, fmt.Errorf("read voice profiles: %w", err)
+		}
+		if len(profiles) > 0 {
+			return true, nil
+		}
+	}
+	if t.work != nil {
+		units, err := t.work.Ledger(ctx)
 		if err != nil {
 			return false, err
 		}
@@ -384,57 +502,53 @@ func projectHoldsContext(ctx context.Context, db *projectdb.DB) (bool, error) {
 
 // restoreTerms writes the bundle's concepts and relations through the same
 // importer a committed bundle goes through, so identities are preserved.
-func (a *App) restoreTerms(ctx context.Context, db *projectdb.DB, pkg *kpz.Package, res *ContextRestore) error {
+func restoreTerms(ctx context.Context, t contextTarget, pkg *kpz.Package, res *ContextRestore) error {
 	if pkg.Terms == nil || len(pkg.Terms.Concepts) == 0 {
 		return nil
 	}
-	tb := db.Terms()
-	if tb == nil {
+	if t.terms == nil {
 		return fmt.Errorf("restore terms: %w", projectdb.ErrNoStore)
 	}
 	data, err := ktb.Marshal(pkg.Terms)
 	if err != nil {
 		return fmt.Errorf("restore terms: %w", err)
 	}
-	n, err := ImportKTBFile(ctx, tb, bytes.NewReader(data))
+	n, err := ImportKTBFile(ctx, t.terms, bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("restore terms: %w", err)
 	}
-	res.Concepts = n
+	res.Concepts += n
 	return nil
 }
 
 // restoreMemory writes the bundle's entries and import sessions through the
 // same importer a committed bundle goes through.
-func (a *App) restoreMemory(ctx context.Context, db *projectdb.DB, pkg *kpz.Package, res *ContextRestore) error {
+func (a *App) restoreMemory(ctx context.Context, t contextTarget, pkg *kpz.Package, res *ContextRestore) error {
 	if pkg.Memory == nil || len(pkg.Memory.Entries) == 0 {
 		return nil
 	}
-	tm := db.Memory()
-	if tm == nil {
+	if t.memory == nil {
 		return fmt.Errorf("restore content memory: %w", projectdb.ErrNoStore)
 	}
-	n, err := importKMB(ctx, tm, "the context bundle", pkg.Memory)
+	n, err := importKMB(ctx, t.memory, "the context bundle", pkg.Memory)
 	if err != nil {
 		return fmt.Errorf("restore content memory: %w", err)
 	}
-	a.RebuildMemorySearchIndexes(ctx, tm)
-	res.Entries = n
+	a.RebuildMemorySearchIndexes(ctx, t.memory)
+	res.Entries += n
 	return nil
 }
 
 // restoreVoice writes the bundle's voice profiles into the store and records
 // where each one is authored, so a later snapshot puts it back at the path
 // governance resolves it from.
-func (a *App) restoreVoice(ctx context.Context, db *projectdb.DB, pkg *kpz.Package, res *ContextRestore) error {
+func restoreVoice(ctx context.Context, t contextTarget, pkg *kpz.Package, res *ContextRestore) error {
 	if len(pkg.Voice) == 0 {
 		return nil
 	}
-	store := db.Voice()
-	if store == nil {
+	if t.voice == nil {
 		return fmt.Errorf("restore voice profiles: %w", projectdb.ErrNoStore)
 	}
-	bindings := loadVoiceBindings(ctx, db)
 	for _, doc := range pkg.Voice {
 		prof := doc.Profile
 		if prof == nil {
@@ -447,20 +561,20 @@ func (a *App) restoreVoice(ctx context.Context, db *projectdb.DB, pkg *kpz.Packa
 			prof.ID = slugify(prof.Name)
 		}
 		prof.Scope = LocalScope
-		if err := upsertVoiceProfile(ctx, store, prof); err != nil {
+		if err := upsertVoiceProfile(ctx, t.voice, prof); err != nil {
 			return fmt.Errorf("restore voice profiles: %w", err)
 		}
-		if doc.Binding != "" {
-			bindings[doc.Binding] = prof.ID
+		if doc.Binding != "" && t.bindings != nil {
+			t.bindings[doc.Binding] = prof.ID
 		}
 		res.VoiceProfiles++
 	}
-	return saveVoiceBindings(ctx, db, bindings)
+	return nil
 }
 
 // restoreDecisions writes the bundle's decision record into the project's
-// working set and makes it durable, through the reader core/state owns.
-func (a *App) restoreDecisions(ctx context.Context, db *projectdb.DB, pkg *kpz.Package, res *ContextRestore) error {
+// ledger and makes it durable, through the reader core/state owns.
+func (a *App) restoreDecisions(ctx context.Context, t contextTarget, pkg *kpz.Package, res *ContextRestore) error {
 	if len(pkg.Decisions) == 0 {
 		return nil
 	}
@@ -475,62 +589,60 @@ func (a *App) restoreDecisions(ctx context.Context, db *projectdb.DB, pkg *kpz.P
 			return fmt.Errorf("stage %s: %w", name, err)
 		}
 	}
-	n, err := a.importDecisionRecord(ctx, db, dir)
+	n, err := importDecisionRecord(ctx, t.work, dir)
 	if err != nil {
 		return fmt.Errorf("restore the decision record: %w", err)
 	}
-	res.Decisions = n
+	res.Decisions += n
 	return nil
 }
 
-// clearProjectContext empties every context store, for a restore that was
-// asked to put a bundle in place of what is there rather than over it.
+// clear empties every context store, for a restore that was asked to put a
+// bundle in place of what is there rather than over it.
 //
 // The content memory is emptied a page at a time. It is the one store in a
 // project that grows without a bound anybody set, and reading the whole of it
 // to delete it would make the size of a project decide whether the command
 // finishes.
-func (a *App) clearProjectContext(ctx context.Context, db *projectdb.DB) error {
-	if tb := db.Terms(); tb != nil {
-		concepts, err := tb.Concepts(ctx)
+func (t contextTarget) clear(ctx context.Context) error {
+	if t.terms != nil {
+		concepts, err := t.terms.Concepts(ctx)
 		if err != nil {
 			return fmt.Errorf("clear terms: %w", err)
 		}
 		for _, c := range concepts {
-			if err := tb.DeleteConcept(ctx, c.ID); err != nil {
+			if err := t.terms.DeleteConcept(ctx, c.ID); err != nil {
 				return fmt.Errorf("clear terms: %w", err)
 			}
 		}
 	}
-	if tm := db.Memory(); tm != nil {
-		if err := clearContentMemory(ctx, tm); err != nil {
+	if t.memory != nil {
+		if err := clearContentMemory(ctx, t.memory); err != nil {
 			return err
 		}
 	}
-	if vs := db.Voice(); vs != nil {
-		profiles, err := vs.ListProfiles(ctx, LocalScope)
+	if t.voice != nil {
+		profiles, err := t.voice.ListProfiles(ctx, LocalScope)
 		if err != nil {
 			return fmt.Errorf("clear voice profiles: %w", err)
 		}
 		for _, p := range profiles {
-			if err := vs.DeleteProfile(ctx, p.ID); err != nil {
+			if err := t.voice.DeleteProfile(ctx, p.ID); err != nil {
 				return fmt.Errorf("clear voice profiles: %w", err)
 			}
 		}
-		if err := saveVoiceBindings(ctx, db, map[string]string{}); err != nil {
-			return err
-		}
+		clear(t.bindings)
 	}
-	if st := db.Work(); st != nil {
+	if t.work != nil {
 		// The checkout stops holding any unit state; the ledger keeps every
 		// entry it ever recorded. A decision the bundle carries is recorded
 		// again a moment later and answers for its unit once more, and one the
 		// bundle does not carry stops answering here without being erased from
 		// the record of what was decided.
-		if err := st.ClearView(ctx); err != nil {
+		if err := t.work.ClearView(ctx); err != nil {
 			return fmt.Errorf("clear the decision record: %w", err)
 		}
-		if err := st.PersistRecords(ctx); err != nil {
+		if err := t.work.PersistRecords(ctx); err != nil {
 			return err
 		}
 	}

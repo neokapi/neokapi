@@ -47,6 +47,7 @@ func RunConformance(t *testing.T, newBackend Factory) {
 		{"an operation needs a kind", operationNeedsAKind},
 		{"the registry records a project", registryRecordsAProject},
 		{"re-registering updates the name and adds the checkout", reRegisteringUpdates},
+		{"a project registers with no checkout", registersWithNoCheckout},
 		{"two projects register in one workspace", twoProjectsRegister},
 		{"a project with no registration is not found", unregisteredProjectIsNotFound},
 		{"close is idempotent", closeIsIdempotent},
@@ -219,6 +220,38 @@ func reRegisteringUpdates(t *testing.T, b workspace.Backend) {
 	assert.Equal(t, "Documentation", again.Name, "registering without a name keeps the one on record")
 	assert.Equal(t, []string{"/fakehome/src/docs", "/fakehome/work/docs"}, again.Checkouts,
 		"a checkout already on record is not duplicated")
+}
+
+// registersWithNoCheckout covers the project a workspace knows and this
+// machine has no working tree for.
+//
+// It is how a restored backup puts a project back: the bundle carries the
+// identity and the display name, and the directories the project was worked in
+// belong to the machine it came from. Such a project is listed and has a
+// context store like any other, and it collects checkout paths when something
+// here opens it.
+func registersWithNoCheckout(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	w, err := workspace.Open(ctx, b)
+	require.NoError(t, err)
+
+	reg, err := w.Register(ctx, "prj_restored", "Restored", "")
+	require.NoError(t, err)
+	assert.Equal(t, "Restored", reg.Name)
+	assert.Empty(t, reg.Checkouts, "a project with no working tree here records no path")
+
+	projects, err := w.Projects(ctx)
+	require.NoError(t, err)
+	require.Len(t, projects, 1, "a project with no checkout is still a project the workspace holds")
+	assert.Equal(t, workspace.ProjectKey("prj_restored"), projects[0].Key)
+
+	_, err = w.Context(ctx, "prj_restored")
+	require.NoError(t, err, "its context store opens like any other")
+
+	found, err := w.Register(ctx, "prj_restored", "Restored", "/fakehome/src/restored")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"/fakehome/src/restored"}, found.Checkouts,
+		"opening it here adds the checkout to the one it already had")
 }
 
 func twoProjectsRegister(t *testing.T, b workspace.Backend) {

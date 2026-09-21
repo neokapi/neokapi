@@ -1,8 +1,8 @@
 ---
 sidebar_position: 4
 title: Moving context
-description: "Four verbs that move a project's context: import reads the committed files into the store, snapshot writes the store back out as files, export packs the whole of it into one file, and restore reads that file into another project."
-keywords: [kapi, context, import, snapshot, export, restore, backup, migration, terms, voice profile, content memory, decision record, kpz]
+description: "Four verbs that move a project's context: import reads the committed files into the store, snapshot writes the store back out as files, export packs the whole of it into one file, and restore reads that file into another project. With --workspace the last two carry every project you work on here."
+keywords: [kapi, context, import, snapshot, export, restore, backup, workspace, migration, terms, voice profile, content memory, decision record, kpz]
 ---
 
 import { RoundTripDiagram } from "@neokapi/docs-shared";
@@ -22,6 +22,10 @@ Four verbs move it between those places, and out of the project altogether.
 | `kapi context snapshot` | store → files | put the context in git, or hand it to a clean clone |
 | `kapi context export` | store → one file | back the context up, or carry it to another machine |
 | `kapi context restore` | one file → store | put a backup back, here or somewhere else |
+
+Export and restore also take `--workspace`, which carries every project you work
+on here rather than the one in front of you. See [backing up every project at
+once](#backing-up-every-project-at-once).
 
 Import and snapshot are the two directions between the files and the store.
 Export and restore are the same two directions against a single archive.
@@ -162,6 +166,57 @@ the file and nothing else.
 A file written by a later kapi than the one reading it is refused by name, with
 the version that could not read it, rather than read halfway.
 
+## Backing up every project at once
+
+Your projects share one place for their context on this computer, and git does
+not track it. Losing it loses the terms, the voice profiles, the approved
+wording and the recorded decisions of every project you work on here. Two flags
+back up the whole of it.
+
+Start by seeing what you have:
+
+```bash
+kapi context export --workspace --dry-run
+```
+
+That writes nothing. It lists every project, what its context holds, and which
+of them still have a working copy on this computer. Then write the file:
+
+```bash
+kapi context export --workspace -o everything.kpz
+```
+
+A project travels whether or not you still have it checked out here, which is
+the point: a repository you deleted a year ago keeps the terms and approvals it
+earned, and they come back with it. Each project inside the file is a complete
+context file of its own, so unzipping the backup gives you one `.kpz` per
+project that `kapi context restore` reads on its own.
+
+Reading it back needs no checkouts at all:
+
+```bash
+kapi context restore --workspace everything.kpz
+```
+
+Every project comes back under the name and identity it had. Clone a repository
+afterwards and the first command you run there finds its context waiting.
+
+A computer that already has projects of its own stops and asks which you meant,
+the same way a single project does:
+
+```bash
+kapi context restore --workspace everything.kpz --merge     # read it over what is there
+kapi context restore --workspace everything.kpz --replace   # put it in place of what is there
+```
+
+`--replace` lists every project whose context it is about to empty before it
+empties any of them, so a backup aimed at the wrong computer is something you
+read rather than something you discover.
+
+Withheld originals are not in a workspace backup either, and neither are the
+directories your projects live in. Those name folders on one computer and mean
+nothing on the next.
+
 ## Which one to use
 
 - Bringing an old project in, or keeping part of your context authored in git:
@@ -170,6 +225,8 @@ the version that could not read it, rather than read halfway.
   to converge: **snapshot**.
 - A backup before a risky change, or moving a project between machines:
   **export**, then **restore**.
+- Everything you have worked on here, before a reinstall or a new laptop:
+  **export `--workspace`**, then **restore `--workspace`**.
 
 ## Related
 

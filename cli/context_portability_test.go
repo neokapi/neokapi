@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -128,6 +129,90 @@ func TestContextPortability_RefusesTwoAnswersToOneQuestion(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "--merge")
 	assert.Contains(t, err.Error(), "--replace")
+}
+
+// TestContextPortability_WorkspaceCarriesEveryProject: --workspace moves the
+// context of every project worked on here rather than the one in scope, and
+// --dry-run reports what that file would hold without writing it.
+func TestContextPortability_WorkspaceCarriesEveryProject(t *testing.T) {
+	a := &App{}
+	a.InitRegistries()
+	a.SetWorkspaceRoot(t.TempDir())
+	t.Cleanup(a.Shutdown)
+
+	// Two projects, each opened once so the workspace registers it.
+	recipes := make([]string, 0, 2)
+	for _, name := range []string{"alpha-cli", "beta-cli"} {
+		root := writePortableCLIProject(t)
+		recipe := filepath.Join(root, "kapi.yaml")
+		body, err := os.ReadFile(recipe)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(recipe,
+			[]byte(strings.Replace(string(body), "name: portable-cli", "name: "+name, 1)), 0o644))
+		runContext(t, a, "import", "-p", recipe, "--json")
+		recipes = append(recipes, recipe)
+	}
+
+	out := runContext(t, a, "export", "--workspace", "--dry-run", "--json")
+	var listed struct {
+		Path     string `json:"path"`
+		Projects []struct {
+			Key      string `json:"key"`
+			Concepts int    `json:"concepts"`
+		} `json:"projects"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &listed))
+	assert.Empty(t, listed.Path, "a listing writes nothing")
+	require.Len(t, listed.Projects, 2)
+	assert.Equal(t, "alpha-cli", listed.Projects[0].Key)
+	assert.Equal(t, 1, listed.Projects[0].Concepts)
+
+	bundle := filepath.Join(t.TempDir(), "workspace.kpz")
+	out = runContext(t, a, "export", "--workspace", "-o", bundle, "--json")
+	var exported struct {
+		RootHash string `json:"rootHash"`
+		Projects []struct {
+			Key string `json:"key"`
+		} `json:"projects"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &exported))
+	assert.NotEmpty(t, exported.RootHash)
+	assert.Len(t, exported.Projects, 2)
+
+	// The project verb and the workspace verb read different archives, and each
+	// says which one it wanted.
+	_, err := runContextE(t, a, "restore", bundle, "-p", recipes[0], "--merge")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "kapi-workspace")
+
+	// A workspace already holding projects is left alone until the caller says
+	// what should happen to it.
+	_, err = runContextE(t, a, "restore", "--workspace", bundle)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--merge")
+
+	out = runContext(t, a, "restore", "--workspace", bundle, "--merge", "--json")
+	var restored struct {
+		Projects []struct {
+			Key      string `json:"key"`
+			Concepts int    `json:"concepts"`
+		} `json:"projects"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &restored))
+	require.Len(t, restored.Projects, 2)
+	assert.Equal(t, 1, restored.Projects[0].Concepts)
+}
+
+// TestContextPortability_DryRunBelongsToTheWorkspaceExport: a flag that only
+// means something with --workspace says so rather than being ignored.
+func TestContextPortability_DryRunBelongsToTheWorkspaceExport(t *testing.T) {
+	root := writePortableCLIProject(t)
+	recipe := filepath.Join(root, "kapi.yaml")
+
+	_, err := runContextE(t, &App{}, "export", "-p", recipe, "-o", "unused.kpz", "--dry-run")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--workspace")
+	assert.NoFileExists(t, "unused.kpz")
 }
 
 // TestContextPortability_TextFormIsTheResultsOwnRender: the text a reader sees

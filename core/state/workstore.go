@@ -246,6 +246,28 @@ func OpenWorkFromDB(ctx context.Context, db *storage.DB, committedPath string) (
 	return w, nil
 }
 
+// OpenLedger adopts an already-open context database to read and write the
+// decision ledger with no checkout in hand.
+//
+// A workspace keeps one context store per project, outside every checkout, and
+// a project registered there may have no checkout on this machine at all. A
+// whole-workspace export or restore therefore reaches the ledger directly:
+// this handle registers no checkout, reads no committed record, and points no
+// view at what it records. Ledger is what it reads, and a decision it writes
+// answers for a checkout as soon as one opens the store and imports its own
+// record.
+//
+// The returned store does not own db; its owner closes the pool.
+func OpenLedger(_ context.Context, db *storage.DB) (*WorkStore, error) {
+	if db == nil {
+		return nil, errors.New("state: open ledger: nil database")
+	}
+	if err := storage.Migrate(db, "state", workMigrations); err != nil {
+		return nil, fmt.Errorf("state: migrate work store: %w", err)
+	}
+	return newStore(db, ""), nil
+}
+
 // OpenWorkSidecar opens the JSON-sidecar store at sidecarPath: the browser
 // build's ledger, and the only form it takes where there is no file-backed
 // SQLite driver. Callers on a build with a driver reach it only to read a
@@ -291,7 +313,13 @@ func (w *WorkStore) start(ctx context.Context) error {
 // its committed record directory. Two worktrees, two clones and two branches
 // checked out side by side each have their own record directory, so each has
 // its own view of one ledger.
+//
+// A handle opened with no committed record directory (OpenLedger) names no
+// view. It reads and writes the ledger and leaves every checkout's view alone.
 func checkoutID(committedPath string) string {
+	if committedPath == "" {
+		return ""
+	}
 	abs, err := filepath.Abs(committedPath)
 	if err != nil {
 		abs = committedPath
@@ -380,6 +408,10 @@ ON CONFLICT(id) DO UPDATE SET path = excluded.path`, w.checkout, filepath.Clean(
 // process holding the store open across a branch switch exports the record this
 // checkout holds.
 func (w *WorkStore) Import(ctx context.Context) error {
+	if w.committed == "" {
+		// A handle with no checkout (OpenLedger) has no record to read.
+		return nil
+	}
 	digest, err := CommittedDigest(w.committed)
 	if err != nil {
 		return err
@@ -590,7 +622,7 @@ func (w *WorkStore) append(ctx context.Context, u UnitState, actor string, origi
 	if err := insertEntry(ctx, tx, u, actor, origin, revoked, stamp, true); err != nil {
 		return err
 	}
-	if !revoked {
+	if !revoked && w.checkout != "" {
 		if err := putView(ctx, tx, w.checkout, p, false); err != nil {
 			return err
 		}
@@ -766,6 +798,50 @@ func (w *WorkStore) Get(ctx context.Context, k Key) (UnitState, bool) {
 // identity key so a serialization of it is stable.
 func (w *WorkStore) All(ctx context.Context) ([]UnitState, error) {
 	return w.resolveView(ctx, "")
+}
+
+// Ledger returns the entry in force at every pairing the ledger holds,
+// whatever checkout recorded it and whether or not a view still points at it.
+// A pairing whose most recent entry revokes it is left out. Ordered by
+// identity, so a serialization of the result is stable.
+//
+// It is what a backup of a project's decisions carries. A view belongs to one
+// checkout, and a workspace holds projects whose checkouts sit on another
+// machine or nowhere, so the ledger is the only reading of "what this project
+// has decided" that does not need a working tree in hand.
+func (w *WorkStore) Ledger(ctx context.Context) ([]UnitState, error) {
+	if w.mem != nil {
+		out := make([]UnitState, 0, len(w.mem.latest))
+		for p := range w.mem.latest {
+			if u, ok := w.mem.applies(p); ok {
+				out = append(out, u)
+			}
+		}
+		sortUnits(out)
+		return out, nil
+	}
+	const query = `
+WITH latest AS (
+  SELECT scope, unit, variant, payload, revoked,
+         ROW_NUMBER() OVER (
+             PARTITION BY scope, unit, variant, content_hash, target_hash
+             ORDER BY recorded_at DESC, rowid DESC) AS nth
+    FROM unit_decision
+)
+SELECT payload FROM latest
+ WHERE nth = 1 AND revoked = 0
+ ORDER BY scope, unit, variant`
+	rows, err := w.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("state: read the decision ledger: %w", err)
+	}
+	defer rows.Close()
+	units, err := scanUnits(rows)
+	if err != nil {
+		return nil, err
+	}
+	sortUnits(units)
+	return units, nil
 }
 
 // Priors returns the identity signals for every unit in a document, which is
@@ -996,6 +1072,11 @@ func (w *WorkStore) Staged(ctx context.Context) ([]UnitState, error) {
 // ones in this checkout's view, and the shards it removes are the ones that
 // view no longer names.
 func (w *WorkStore) Commit(ctx context.Context) error {
+	if w.committed == "" {
+		// A handle with no checkout (OpenLedger) has no record to write, and
+		// the directory it would write into is the process's own.
+		return nil
+	}
 	if err := w.Import(ctx); err != nil {
 		return err
 	}
@@ -1368,7 +1449,12 @@ func sortUnits(units []UnitState) {
 }
 
 // unitLess is the one ordering over unit records: the identity key, field by
-// field.
+// field, then the pairing's hashes.
+//
+// The hashes settle an order the key alone leaves open. A checkout's view holds
+// one row per key, so they never decide anything there; the ledger holds an
+// entry per PAIRING, so one unit can appear under several, and a serialization
+// of the ledger needs a total order to be stable.
 func unitLess(a, b UnitState) bool {
 	if a.Scope != b.Scope {
 		return a.Scope < b.Scope
@@ -1378,5 +1464,11 @@ func unitLess(a, b UnitState) bool {
 	}
 	ka, _ := a.Variant.MarshalText()
 	kb, _ := b.Variant.MarshalText()
-	return string(ka) < string(kb)
+	if string(ka) != string(kb) {
+		return string(ka) < string(kb)
+	}
+	if a.ContentHash != b.ContentHash {
+		return a.ContentHash < b.ContentHash
+	}
+	return a.TargetHash < b.TargetHash
 }
