@@ -62,6 +62,12 @@ func provenanceLine(p *ContextProvenance) string {
 // that will not open or a store that will not answer costs the caller the
 // fields it could not fill, never the answer.
 func (a *App) contextProvenance(cmd Command, proj *project.KapiProject) *ContextProvenance {
+	return a.contextProvenanceAt(CmdContext(cmd), cmd, proj)
+}
+
+// contextProvenanceAt is contextProvenance for a caller that already holds the
+// operation's context, such as a check assembling its evaluation record.
+func (a *App) contextProvenanceAt(ctx context.Context, cmd Command, proj *project.KapiProject) *ContextProvenance {
 	recipePath, err := ResolveProjectPath(cmd)
 	if err != nil || recipePath == "" {
 		return nil
@@ -76,7 +82,6 @@ func (a *App) contextProvenance(cmd Command, proj *project.KapiProject) *Context
 		}
 	}
 
-	ctx := CmdContext(cmd)
 	if ws, werr := a.Workspace(ctx); werr == nil && ws != nil {
 		// The operation log's head, the same number the desktop polls to learn
 		// that something changed. One query, on a path an agent hits

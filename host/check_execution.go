@@ -1,6 +1,7 @@
 package host
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -136,7 +137,7 @@ func (e *checkExecution) completed(id, file string, findings int, start time.Tim
 // report assembles the Report one operation produces. Every check surface goes
 // through it, so the evaluation record is attached here rather than at each
 // caller: a surface added later carries it without being told to.
-func (e *checkExecution) report(a *App, cmd Command, target check.Target, diags []check.Diagnostic, gate check.Gate) check.Report {
+func (e *checkExecution) report(ctx context.Context, a *App, cmd Command, target check.Target, diags []check.Diagnostic, gate check.Gate) check.Report {
 	start := time.Now()
 	report := check.BuildReport(target, diags, gate)
 	if e != nil {
@@ -146,7 +147,7 @@ func (e *checkExecution) report(a *App, cmd Command, target check.Target, diags 
 		report.Execution = &e.Execution
 		report.Decide()
 	}
-	report.Evaluation = a.checkEvaluation(cmd, e)
+	report.Evaluation = a.checkEvaluation(ctx, cmd, e)
 	return report
 }
 

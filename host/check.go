@@ -536,7 +536,7 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 	target.Blocks = totalBlocks
 
 	gate := gateFromFlags(cmd)
-	report := execution.report(a, cmd, target, diags, gate)
+	report := execution.report(ctx, a, cmd, target, diags, gate)
 	if validateMode == format.ValidationStrict {
 		applyStrictValidationGate(&report)
 	}

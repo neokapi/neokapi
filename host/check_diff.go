@@ -272,7 +272,7 @@ func (a *App) runDiffCheck(ctx context.Context, run diffCheckRun) (check.Report,
 		scope.Files = append(scope.Files, entry)
 	}
 
-	report := run.opts.execution.report(a, run.cmd, check.Target{Kind: "diff", File: run.src.label, Blocks: checked}, diags, run.gate)
+	report := run.opts.execution.report(ctx, a, run.cmd, check.Target{Kind: "diff", File: run.src.label, Blocks: checked}, diags, run.gate)
 	report.Scope = scope
 	report.Decide()
 	// A formatter that would rewrite a touched comment fails the check as it does

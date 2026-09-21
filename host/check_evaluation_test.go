@@ -43,9 +43,9 @@ func compareEvaluationGolden(t *testing.T, name string, got []byte) {
 		return
 	}
 	want, err := os.ReadFile(path)
-	require.NoError(t, err, "golden file missing — run with KAPI_UPDATE_GOLDEN=1 to create it")
+	require.NoError(t, err, "golden file missing; run with KAPI_UPDATE_GOLDEN=1 to create it")
 	assert.Equal(t, string(want), string(got),
-		"evaluation record drift in %s — if intentional, regenerate with KAPI_UPDATE_GOLDEN=1 and update the docs that name its fields", path)
+		"evaluation record drift in %s. If intentional, regenerate with KAPI_UPDATE_GOLDEN=1 and update the docs that name its fields", path)
 }
 
 // TestCheckEvaluationRecord pins the document `kapi check --json` carries under

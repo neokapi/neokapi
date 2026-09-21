@@ -115,8 +115,8 @@ func voiceSimilarityFindings(blocks []*model.Block, refs []string, t voiceTransp
 // dialVoicePlugin discovers and starts the kapi-check plugin, returning a
 // transport and the version the plugin's manifest declares, which the
 // evaluation record names as the analyzer's provider. It fails closed with
-// guidance when the plugin is not installed — no silent download, the
-// deterministic checks still ran.
+// guidance when the plugin is not installed, downloading nothing on its own;
+// the deterministic checks still ran.
 func dialVoicePlugin(ctx context.Context) (voiceTransport, func(), string, error) {
 	plugins := pluginhost.Discover(pluginhost.DiscoverOptions{
 		EnvPluginsDir: os.Getenv("KAPI_PLUGINS_DIR"),

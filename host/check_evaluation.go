@@ -1,6 +1,7 @@
 package host
 
 import (
+	"context"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -33,12 +34,12 @@ var evaluationClock = time.Now
 // checkEvaluation assembles the record for one run: the project it read its
 // governance from, the build and plugins that ran it, and what each analyzer
 // covered.
-func (a *App) checkEvaluation(cmd Command, e *checkExecution) *check.Evaluation {
+func (a *App) checkEvaluation(ctx context.Context, cmd Command, e *checkExecution) *check.Evaluation {
 	var analyzers []check.AnalyzerExecution
 	if e != nil {
 		analyzers = e.Analyzers
 	}
-	return buildEvaluation(a.checkProvenance(cmd), a.evaluationPlugins(e), analyzers)
+	return buildEvaluation(a.checkProvenance(ctx, cmd), a.evaluationPlugins(e), analyzers)
 }
 
 // buildEvaluation is the whole shape of the record, assembled from the facts a
@@ -61,7 +62,7 @@ func buildEvaluation(prov *check.ContextProvenance, plugins []check.EvaluationPl
 // checkProvenance is the project a run read its governance from and the state
 // that project's context was in. A run outside any project reads no context,
 // and carries none.
-func (a *App) checkProvenance(cmd Command) *check.ContextProvenance {
+func (a *App) checkProvenance(ctx context.Context, cmd Command) *check.ContextProvenance {
 	path, err := ResolveProjectPath(cmd)
 	if err != nil || path == "" {
 		return nil
@@ -69,7 +70,7 @@ func (a *App) checkProvenance(cmd Command) *check.ContextProvenance {
 	// A recipe that will not load leaves the identity out rather than guessing
 	// one. The workspace revision and the projection's state stand on their own.
 	proj, _ := project.LoadWithOptions(path, project.LoadOptions{SkipRequiresCheck: true})
-	return a.contextProvenance(cmd, proj)
+	return a.contextProvenanceAt(ctx, cmd, proj)
 }
 
 // evaluationPlugins names the plugins that served the run, with the version
