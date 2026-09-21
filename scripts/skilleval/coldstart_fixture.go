@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -218,7 +219,7 @@ func coldStartRecipeMapping(recipe []byte) ([]byte, error) {
 		return nil, fmt.Errorf("scaffolded recipe no longer holds %q, so the fixture's content mapping was not written", emptyCollections)
 	}
 	if !strings.Contains(body, starterPack) {
-		return nil, fmt.Errorf("scaffolded recipe no longer binds a starter voice pack, so the drill cannot establish an empty context")
+		return nil, errors.New("scaffolded recipe no longer binds a starter voice pack, so the drill cannot establish an empty context")
 	}
 	mapping := "collections:\n" +
 		"  - path: \"README.md\"\n    format: markdown\n" +

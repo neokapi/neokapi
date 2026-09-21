@@ -33,9 +33,9 @@ type ColdStartRow struct {
 	// Two is the second session, empty until it has run.
 	Two ColdStartStageRow `json:"two"`
 	// Confirmed and Discarded are a person's decisions on this cell.
-	Confirmed int `json:"confirmed"`
-	Discarded int `json:"discarded"`
-	Pending   int `json:"pending"`
+	Confirmed int  `json:"confirmed"`
+	Discarded int  `json:"discarded"`
+	Pending   int  `json:"pending"`
 	Reviewed  bool `json:"reviewed"`
 }
 
@@ -59,16 +59,16 @@ type ColdStartStageRow struct {
 
 // ColdStartReport is the whole drill as saved evidence describes it.
 type ColdStartReport struct {
-	Schema      int            `json:"schema"`
-	CreatedAt   time.Time      `json:"created_at"`
-	Study       string         `json:"study"`
-	Fingerprint string         `json:"fingerprint"`
-	KapiVersion string         `json:"kapi_version"`
-	KapiCommit  string         `json:"kapi_commit"`
-	Hosts       []string       `json:"hosts"`
+	Schema      int               `json:"schema"`
+	CreatedAt   time.Time         `json:"created_at"`
+	Study       string            `json:"study"`
+	Fingerprint string            `json:"fingerprint"`
+	KapiVersion string            `json:"kapi_version"`
+	KapiCommit  string            `json:"kapi_commit"`
+	Hosts       []string          `json:"hosts"`
 	HostVersion map[string]string `json:"host_versions"`
-	Attempts    int            `json:"attempts"`
-	Rows        []ColdStartRow `json:"rows"`
+	Attempts    int               `json:"attempts"`
+	Rows        []ColdStartRow    `json:"rows"`
 	// Gaps are places the shipped first run left the harness to complete, one
 	// line each, so the report says what it had to wire by hand.
 	Gaps           []string `json:"gaps"`
@@ -168,8 +168,22 @@ func coldStartStageRow(dir string, attempt coldStartAttempt) (ColdStartStageRow,
 		return stage, err
 	}
 	stage.Status, stage.Identity, stage.Error = result.Status, result.IdentityStatus, result.Error
-	stage.KapiTools = coldStartToolNames(result.Transcript.kapiCalls())
-	stage.AskedFirst, stage.SkillLoaded = result.Transcript.AskedBeforeWriting, result.Transcript.SkillLoaded
+	// Score the saved stream rather than the reading taken when it ran, so a
+	// change to the scoring rules reaches sessions already run. The store counts
+	// stay as they were read live: a later session moved the store on.
+	transcript := result.Transcript
+	if rescored, err := scanColdStartTranscript(filepath.Join(dir, "transcript.jsonl"), attempt.Session.Host.Host); err == nil {
+		coldStartRecoverIdentity(&rescored, attempt.Prepared)
+		transcript = rescored
+	}
+	stage.KapiTools = coldStartToolNames(transcript.kapiCalls())
+	stage.AskedFirst, stage.SkillLoaded = transcript.AskedBeforeWriting, transcript.SkillLoaded
+	if transcript.ActualModel != "" && attempt.Session.Host.Model != "" {
+		stage.Identity = "verified"
+		if transcript.ActualModel != attempt.Session.Host.Model {
+			stage.Identity = "mismatch"
+		}
+	}
 	stage.Changed, stage.Check, stage.Isolated = result.Changed, result.Check, result.UserDataUntouched
 	stage.ByKind = coldStartGrowth(result.StoreBefore, result.StoreAfter)
 	for _, count := range stage.ByKind {

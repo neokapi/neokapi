@@ -120,7 +120,7 @@ func executeColdStartWith(ctx context.Context, opts ColdStartOptions, deps coldS
 		return err
 	}
 	opts.KapiBin = findKapi(opts.RepoRoot)
-	record, err := makeColdStartStudyRecord(opts)
+	record, err := makeColdStartStudyRecord(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func executeColdStartWith(ctx context.Context, opts ColdStartOptions, deps coldS
 	return runColdStartSchedule(ctx, opts, record, schedule, deps)
 }
 
-func makeColdStartStudyRecord(opts ColdStartOptions) (coldStartStudyRecord, error) {
+func makeColdStartStudyRecord(ctx context.Context, opts ColdStartOptions) (coldStartStudyRecord, error) {
 	record := coldStartStudyRecord{Schema: coldStartSchema, Manifest: opts.Manifest, CreatedAt: time.Now().UTC(),
 		UserDataRoot: coldStartUserDataRoot()}
 	var err error
@@ -189,13 +189,13 @@ func makeColdStartStudyRecord(opts ColdStartOptions) (coldStartStudyRecord, erro
 		if record.KapiHash, err = pairedFileHash(opts.KapiBin); err != nil {
 			return record, err
 		}
-		record.KapiVersion = firstLine(run(opts.KapiBin, "--version"))
+		record.KapiVersion = firstLine(coldStartProbe(ctx, opts.KapiBin, "--version"))
 	}
 	// The commit is provenance. It stays out of the fingerprint, which binds the
 	// inputs a drill actually runs on: the manifest, the fixture and its
 	// prompts, the runner's source, the shipped skill and the binary. A commit
 	// elsewhere in the checkout changes neither.
-	record.KapiCommit = firstLine(run("git", "-C", opts.RepoRoot, "rev-parse", "HEAD"))
+	record.KapiCommit = firstLine(coldStartProbe(ctx, "git", "-C", opts.RepoRoot, "rev-parse", "HEAD"))
 	record.Fingerprint, err = pairedHash(struct {
 		Manifest                   ColdStartManifest
 		Fixture, Code, Skill, Kapi string
@@ -209,6 +209,18 @@ func makeColdStartStudyRecord(opts ColdStartOptions) (coldStartStudyRecord, erro
 	// never share one.
 	record.SandboxRoot = filepath.Join(os.TempDir(), "kapi-coldstart-"+opts.Manifest.Study+"-"+record.Fingerprint[:12])
 	return record, nil
+}
+
+// coldStartProbe captures a short command's stdout for a provenance field. A
+// failure leaves the field blank rather than stopping the drill.
+func coldStartProbe(ctx context.Context, name string, args ...string) string {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, name, args...).Output()
+	if err != nil {
+		return ""
+	}
+	return string(out)
 }
 
 func ensureColdStartStudy(dir string, record coldStartStudyRecord) error {
@@ -514,6 +526,7 @@ func runColdStartAgent(ctx context.Context, prepared ColdStartPrepared) (ColdSta
 	waitErr := command.Wait()
 	transcript, scanErr := scanColdStartTranscript(path, prepared.Session.Host.Host)
 	transcript.FinalText = pairedRedactText(transcript.FinalText, prepared.Env)
+	coldStartRecoverIdentity(&transcript, prepared)
 	switch {
 	case ctx.Err() != nil:
 		return transcript, ctx.Err()
@@ -530,6 +543,18 @@ func runColdStartAgent(ctx context.Context, prepared ColdStartPrepared) (ColdSta
 		return transcript, waitErr
 	}
 	return transcript, nil
+}
+
+// coldStartRecoverIdentity fills in the model a host's stream left out. Codex
+// records the turn's model in the rollout file it keeps beside the session, so
+// identity is established from the host's own record rather than left unknown.
+func coldStartRecoverIdentity(transcript *ColdStartTranscript, prepared ColdStartPrepared) {
+	if transcript.ActualModel != "" || transcript.Host != "codex" || transcript.SessionID == "" {
+		return
+	}
+	if model, err := pairedCodexRolloutModel(prepared.Paths.State, transcript.SessionID); err == nil {
+		transcript.ActualModel = model
+	}
 }
 
 // coldStartTranscriptPath reads the recording path off the attempt environment,

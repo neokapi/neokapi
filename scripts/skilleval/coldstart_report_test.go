@@ -48,7 +48,7 @@ func TestReportColdStartRendersThreeMeasures(t *testing.T) {
 	writeColdStartAttempt(t, dir, coldStartPhaseSmoke, coldStartAttempt{
 		Schema: coldStartSchema, Session: session, Phase: coldStartPhaseSmoke, Fingerprint: record.Fingerprint,
 		HostVersion: "2.1.278 (Claude Code)",
-		Prepared: ColdStartPrepared{Wiring: ColdStartWiring{Harness: []string{"codex config.toml: the kapi server copied across"}}},
+		Prepared:    ColdStartPrepared{Wiring: ColdStartWiring{Harness: []string{"codex config.toml: the kapi server copied across"}}},
 	}, &coldStartAttemptResult{
 		Status: "completed", IdentityStatus: "verified", UserDataUntouched: true,
 		StoreBefore: coldStartStore(map[string]int{}, 0, 0),

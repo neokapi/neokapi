@@ -341,12 +341,17 @@ func coldStartSubcommandWord(word string) bool {
 func (t *ColdStartTranscript) add(surface, tool, detail string) {
 	t.Calls = append(t.Calls, ColdStartCall{
 		Order: len(t.Calls) + 1, Surface: surface, Tool: tool,
-		Kind: coldStartCallKind(surface, tool), Detail: detail,
+		Kind: coldStartCallKind(surface, tool, detail), Detail: detail,
 	})
 }
 
 // coldStartCallKind places a call among the four habits, or outside them.
-func coldStartCallKind(surface, tool string) string {
+// A command line asking for help reads its own documentation, so it counts as
+// neither a write nor an ask however the command would otherwise be read.
+func coldStartCallKind(surface, tool, detail string) string {
+	if surface == "cli" && strings.Contains(detail, tool+" --help") {
+		return coldStartKindOther
+	}
 	switch surface {
 	case "mcp":
 		switch tool {

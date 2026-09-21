@@ -132,7 +132,7 @@ func TestMaterializeColdStartRepo(t *testing.T) {
 
 	for _, name := range []string{"README.md", "docs/getting-started.md", "docs/billing.md", "docs/troubleshooting.md", "ui/strings.json", "emails/welcome.md"} {
 		_, err := os.Stat(filepath.Join(dir, filepath.FromSlash(name)))
-		assert.NoError(t, err, "the fixture ships %s", name)
+		require.NoError(t, err, "the fixture ships %s", name)
 	}
 	for _, name := range []string{"kapi.yaml", ".mcp.json", ".kapi"} {
 		_, err := os.Stat(filepath.Join(dir, name))
