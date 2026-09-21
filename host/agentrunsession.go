@@ -15,17 +15,16 @@ import (
 // The session an agent run records under when nothing in the environment names
 // one.
 //
-// A session has one job: to group everything one agent run recorded, so a
-// person can read it back with `kapi context log --session` and take the whole
-// of it out again with `kapi context revert --session`. That asks two things of
-// an id. It holds still across the separate kapi processes of one run, and it
-// differs between runs.
+// A session groups everything one agent run recorded, so a person can read it
+// back with `kapi context log --session` and take the whole of it out again
+// with `kapi context revert --session`. An id that does that holds still across
+// the separate kapi processes of one run and differs between runs.
 //
-// The obvious handles fail the first test. Every command an agent host runs
-// gets a shell of its own, so kapi's pid and its parent's change between two
-// calls of one run. The host's own process does not: it started when the run
-// started and it is an ancestor of every command the run makes. So the session
-// is a digest of that process, found by climbing out of the shells.
+// An agent host gives each command it runs a shell of its own, so kapi's pid
+// and its parent's differ between two calls of one run. The host's own process
+// holds still: it started when the run started, and it is an ancestor of every
+// command the run makes. The session is a digest of that process, found by
+// climbing out of the shells.
 
 // processInfo is one process, as much of it as a session needs.
 type processInfo struct {
@@ -48,7 +47,8 @@ var errNoAgentHostProcess = errors.New("host: no agent host process above this o
 const maxProcessWalk = 32
 
 // shellNames are the executables the walk climbs past. An agent host starts one
-// of these for each command it runs, so a shell is never the run.
+// of these for each command it runs, so a shell belongs to the command rather
+// than to the run.
 var shellNames = []string{
 	"ash", "bash", "busybox", "cmd.exe", "csh", "dash", "fish", "ksh",
 	"powershell.exe", "pwsh", "pwsh.exe", "sh", "tcsh", "zsh",
