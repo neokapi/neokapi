@@ -54,8 +54,9 @@ model that does not exist.
 Retrieval is addressed **by location** or **by content**, never by store.
 
 **By location** answers *what applies here*: the point the location resolves to,
-the profile in force, its rendered guidance, the terms bound at that point, and
-the governance windows around them. It resolves through
+the profile in force, its rendered guidance, the terms bound at that point, the
+candidates nobody has decided on, and the governance windows around them. It
+resolves through
 `KapiProject.ResolveGovernanceFor` ([C-02](c-02-coordinates-and-governance.md)),
 the seam a run, a check and a push resolve through, so the voice a writer reads
 for a file is the voice a run applies to it, including a content item's own
@@ -192,6 +193,19 @@ recorded at this point. The by-location answer reads them through
 `App.ContextRulesAt`, the seam a check resolves them with, so a candidate an
 answer mentions is a candidate a check reports.
 
+**Candidates are listed, apart from everything in force.** The answer carries a
+`candidates` list beside `voice` and `terms`: each entry says it is a candidate,
+what it proposes, who recorded it, in which session, and the evidence behind it,
+with the operation id a person confirms it by. The rules in it are the ones the
+resolution holds at the point, so the list and a check cannot disagree, and the
+operation log supplies the provenance a reader judges one by. The prose
+rendering puts them under a heading that says they are not decided.
+
+A second agent reading a location therefore builds on what the first one
+recorded rather than working the same facts out again, and cannot mistake either
+for a rule in force. Neither can it act on them: deciding is a person's
+([C-11](c-11-context-operations.md)).
+
 A thin or empty by-location answer adds one note: that this project records
 nothing here yet, and what is worth noticing while the work is done (the names
 the project gives its own things, the spellings it keeps to, who the text
@@ -258,10 +272,12 @@ in its place) as a note.
 
 MCP exposes a **curated** set by default: the two retrieval primitives, the check
 tools (`check_text`, `check_file`), `stats`, the convergence verbs (`up`,
-`up_plan`), the write verb (`apply_edits`), the two offline voice tools, and
-three registry tools that have no porcelain equivalent (`translate`,
-`term-check`, `redact`). `kapi mcp --all-tools` restores the full generated
-surface for debugging and power use.
+`up_plan`), the write verb (`apply_edits`), the two offline voice tools, the
+three context write tools and the session read (`context_observe`,
+`context_propose`, `context_correct`, `context_session_summary`,
+[C-11](c-11-context-operations.md)), and three registry tools that have no
+porcelain equivalent (`translate`, `term-check`, `redact`). `kapi mcp
+--all-tools` restores the full generated surface for debugging and power use.
 
 **The tools that execute arbitrary commands and scripts are not part of that
 flag.** *Show me every tool* and *let a caller run anything* are different classes

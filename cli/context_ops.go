@@ -13,15 +13,113 @@ import (
 
 // The decision half of the context surface (AD C-11).
 //
-// A project's context grows out of ordinary work. Something is proposed, a
-// person decides about it, and both statements are recorded so either can be
-// looked at again or taken back. These six verbs are that loop from the command
-// line: propose, log, confirm, discard, revert, widen.
+// A project's context grows out of ordinary work. Something is noticed or
+// proposed, a person decides about it, and both statements are recorded so
+// either can be looked at again or taken back. These verbs are that loop from
+// the command line: observe, propose, correct, log, confirm, discard, revert,
+// widen.
+//
+// The first three are what an agent reaches for mid-task, and they exist here
+// as well as over MCP because the skill drives the command line. A habit an
+// assistant can only keep on one of the two surfaces is a habit half the
+// assistants do not have.
 //
 // A proposal advises from the moment it is recorded. A check reports it and no
 // check fails on it. Confirming is what makes it bind, and confirming writes
 // the rule into the committed source the recipe binds, so the change shows up
 // in `git diff` like any other.
+
+func newContextObserveCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "observe <what you noticed>",
+		Short: "Record a fact about how this project writes",
+		Long: `Record something you noticed about how this project writes: a
+product name as it spells it, a spelling it is consistent about, who its text
+addresses, the register it keeps.
+
+An observation states no rule. Nothing about a check changes, and nobody has to
+decide anything about it. It is the material a rule is proposed from later, and
+recording it costs less than working the same fact out twice.
+
+Say where you saw it with --seen-in and --quote.`,
+		Example: "  kapi context observe \"the docs address the reader as you\"\n" +
+			"  kapi context observe \"the product is written Kapi Desktop, never KapiDesktop\" \\\n" +
+			"    --seen-in docs/guide.md --quote \"Open Kapi Desktop and pick a project.\"",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			projectPath, err := RequireProjectPath(cmd)
+			if err != nil {
+				return err
+			}
+			seenIn, _ := cmd.Flags().GetStringSlice("seen-in")
+			quote, _ := cmd.Flags().GetString("quote")
+			res, err := a.RecordContextObservation(cmd.Context(), host.ContextObserveRequest{
+				Project:  projectPath,
+				Text:     args[0],
+				Evidence: evidenceFrom(seenIn, quote),
+			})
+			if err != nil {
+				return err
+			}
+			return output.Print(cmd, res)
+		},
+	}
+	cmd.Flags().StringSlice("seen-in", nil, "a file you saw it in (repeatable)")
+	cmd.Flags().String("quote", "", "the wording you saw")
+	AddProjectFlag(cmd)
+	return cmd
+}
+
+func newContextCorrectCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "correct <from> <to>",
+		Short: "Record that wording was changed at a place",
+		Long: `Record that somebody changed wording: what was there, what replaced
+it, and where.
+
+A correction is evidence about how this project writes, and the cheapest there
+is, because the judgement has already been made. On its own it records the
+change and nothing else.
+
+With --propose it also records the rule the change implies, so the next use of
+the old wording is reported. That rule is a candidate: checks report it and none
+of them fails on it until someone confirms it.`,
+		Example: "  kapi context correct \"sign in\" \"log in\" --seen-in web/src/auth.tsx\n" +
+			"  kapi context correct utilise use --seen-in docs/guide.md --propose --severity minor",
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			projectPath, err := RequireProjectPath(cmd)
+			if err != nil {
+				return err
+			}
+			seenIn, _ := cmd.Flags().GetStringSlice("seen-in")
+			quote, _ := cmd.Flags().GetString("quote")
+			propose, _ := cmd.Flags().GetBool("propose")
+			severity, _ := cmd.Flags().GetString("severity")
+			note, _ := cmd.Flags().GetString("note")
+			res, err := a.RecordContextCorrection(cmd.Context(), host.ContextCorrectRequest{
+				Project:  projectPath,
+				From:     args[0],
+				To:       args[1],
+				Evidence: evidenceFrom(seenIn, quote),
+				Propose:  propose,
+				Severity: severity,
+				Note:     note,
+			})
+			if err != nil {
+				return err
+			}
+			return output.Print(cmd, res)
+		},
+	}
+	cmd.Flags().StringSlice("seen-in", nil, "a file the change was made in (repeatable)")
+	cmd.Flags().String("quote", "", "the sentence the change was made in")
+	cmd.Flags().Bool("propose", false, "also record the rule the change implies, as a candidate")
+	cmd.Flags().String("severity", "", "how hard that rule bites once confirmed: minor or neutral report, anything else fails a check")
+	cmd.Flags().String("note", "", "why")
+	AddProjectFlag(cmd)
+	return cmd
+}
 
 func newContextProposeCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{

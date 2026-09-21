@@ -211,7 +211,25 @@ sources and the context bundles, which carry no operation ids.
 
 ## Surfaces
 
-`kapi context propose`, `log`, `confirm`, `discard`, `revert` and `widen` are
-the command-line half. The host API (`host/contextops.go`) is typed requests and
-results with no flag sets, so the agent tools and the desktop drive the same
-loop.
+`kapi context observe`, `propose`, `correct`, `log`, `confirm`, `discard`,
+`revert` and `widen` are the command-line half. The host API
+(`host/contextops.go`) is typed requests and results with no flag sets, so the
+agent tools and the desktop drive the same loop.
+
+The agent surface is the first three and a read, one tool per habit:
+`context_observe`, `context_propose`, `context_correct` and
+`context_session_summary`, which reports what one session recorded and what
+became of it. Each wraps one host call and adds no rule of its own. There is no
+tool for confirming, discarding, reverting or widening, because those are a
+person's and a tool that is always refused is one an assistant keeps trying
+([S-03](../surfaces/s-03-agent-surfaces.md)).
+
+The actor rides on the call rather than in it. An MCP tool takes no actor
+argument and refuses one: the kind is `agent`, the name comes from the client's
+own `initialize`, and the session is minted once per server process, so
+everything one run recorded reads back and reverts together. A command line
+records as the person running it, which is what a command line is.
+
+Evidence is required where a rule is stated. `context_propose` and
+`context_correct` declare the path as a required argument and refuse a blank
+one, so a rule nobody can check never reaches the log.

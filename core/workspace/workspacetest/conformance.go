@@ -55,6 +55,7 @@ func RunConformance(t *testing.T, newBackend Factory) {
 		{"forgetting a project removes it and its store", forgettingRemovesTheProject},
 		{"forgetting a project needs a key", forgettingNeedsAKey},
 		{"a widened rule is held for the whole workspace", widenedRulesAreHeldForTheWorkspace},
+		{"an agent session is noted and ages out", agentSessionsAreNotedAndAgeOut},
 		{"close is idempotent", closeIsIdempotent},
 	}
 	for _, tc := range cases {
@@ -472,6 +473,74 @@ func widenedRulesAreHeldForTheWorkspace(t *testing.T, b workspace.Backend) {
 	require.NoError(t, w.NarrowRule(ctx, "rule_vocabulary"), "narrowing a rule the workspace does not hold is not an error")
 
 	assert.ErrorIs(t, w.WidenRule(ctx, workspace.Rule{Kind: "vocabulary"}), workspace.ErrNoRuleID)
+}
+
+// agentSessionsAreNotedAndAgeOut covers what one process tells the others:
+// that an agent is at work in a project right now.
+//
+// The note carries no work of its own, so a session that stops leaves a row
+// that stops moving. The next write prunes whatever has gone quiet for longer
+// than the retention window, which is what keeps the listing a picture of who
+// is working rather than a history of everyone who ever did.
+func agentSessionsAreNotedAndAgeOut(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	w, err := workspace.Open(ctx, b)
+	require.NoError(t, err)
+
+	started := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
+	require.NoError(t, w.NoteAgentSession(ctx, workspace.AgentSession{
+		ID: "ses_writing", Project: "prj_docs", Agent: "claude-code",
+		Started: started, LastSeen: started,
+	}))
+
+	held, err := w.AgentSessions(ctx, "prj_docs", 0)
+	require.NoError(t, err)
+	require.Len(t, held, 1)
+	assert.Equal(t, "ses_writing", held[0].ID)
+	assert.Equal(t, "claude-code", held[0].Agent, "the session says which client it belongs to")
+	assert.Equal(t, started, held[0].Started)
+
+	// Noting the same session again moves last-seen forward and keeps the
+	// moment it began, so a surface can say how long it has been working.
+	seen := started.Add(30 * time.Minute)
+	require.NoError(t, w.NoteAgentSession(ctx, workspace.AgentSession{
+		ID: "ses_writing", Project: "prj_docs", LastSeen: seen,
+	}))
+	held, err = w.AgentSessions(ctx, "prj_docs", 0)
+	require.NoError(t, err)
+	require.Len(t, held, 1, "one session in one project is one row")
+	assert.Equal(t, seen, held[0].LastSeen)
+	assert.Equal(t, started, held[0].Started, "the start is kept")
+	assert.Equal(t, "claude-code", held[0].Agent, "a note with no name keeps the one already recorded")
+
+	// One session working in two projects is two rows, because what a surface
+	// shows is who is working here.
+	require.NoError(t, w.NoteAgentSession(ctx, workspace.AgentSession{
+		ID: "ses_writing", Project: "prj_site", LastSeen: seen,
+	}))
+	held, err = w.AgentSessions(ctx, "prj_docs", 0)
+	require.NoError(t, err)
+	assert.Len(t, held, 1, "a listing narrowed to one project holds only that project")
+	all, err := w.AgentSessions(ctx, "", 0)
+	require.NoError(t, err)
+	assert.Len(t, all, 2)
+
+	// A window keeps the sessions seen inside it and nothing else.
+	active, err := w.AgentSessions(ctx, "", time.Minute)
+	require.NoError(t, err)
+	assert.Empty(t, active, "a session last seen half an hour ago is not working now")
+
+	// A later write prunes whatever has been quiet past the retention window.
+	require.NoError(t, w.NoteAgentSession(ctx, workspace.AgentSession{
+		ID: "ses_later", Project: "prj_docs",
+		LastSeen: seen.Add(workspace.AgentSessionRetention + time.Hour),
+	}))
+	all, err = w.AgentSessions(ctx, "", 0)
+	require.NoError(t, err)
+	require.Len(t, all, 1, "the quiet sessions were pruned by the write")
+	assert.Equal(t, "ses_later", all[0].ID)
+
+	assert.ErrorIs(t, w.NoteAgentSession(ctx, workspace.AgentSession{Project: "prj_docs"}), workspace.ErrNoSessionID)
 }
 
 func closeIsIdempotent(t *testing.T, b workspace.Backend) {

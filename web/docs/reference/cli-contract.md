@@ -233,6 +233,26 @@ reads as a person, which is what someone running `kapi apply` is; an entry that
 names an agent is refused, because an agent proposes rather than decides. See
 [Growing context](/kapi/context-decisions).
 
+Four tools record and read a project's context history: `context_observe`,
+`context_propose`, `context_correct` and `context_session_summary`. Each wraps
+one call in the host's context-operations API and takes the same optional
+`project` as every other project-scoped tool.
+
+None of them takes an actor. The kind is `agent`, the name is the client's own
+`initialize` name, and the session is minted once per server process, so an
+argument naming an actor or a session is refused by the schema. Evidence is
+required where a rule is stated: `context_propose` and `context_correct` declare
+`path` as required and refuse a blank one. A recorded operation is a candidate,
+so a check reports it at `neutral` severity with `advisory: true` and no gate
+counts it.
+
+There is no MCP tool for confirming, discarding, reverting or widening, and
+none is planned: the policy reserves those for a person, and a tool that is
+always refused is one an assistant keeps trying. The `candidates` array on a
+by-location context answer is additive, and the CLI verbs `kapi context observe`
+and `kapi context correct` are new. See
+[Growing context](/kapi/context-decisions).
+
 The registry tools on that surface are exactly the CLI-visible ones: a built-in tool appears under `kapi exec`, in `kapi tools list`, and as an MCP tool when it registers a config factory and does not declare itself internal (`registry.ToolRegistry.CLITools`). Wiring a factory for a tool that lacked one is therefore an additive surface change: it adds the tool to all three at once, and the snapshot moves. `whitespace-correct` gained one this way, and `dnt-check`, `placeholder-check`, `xml-validation`, `create-target`, `remove-target`, `inline-codes-remove` and `external-command` followed.
 
 The `up` tool takes an optional `local` field, mirroring `kapi up --local`: in a project connected to a server the run happens at that venue by default (the same decision the command makes) and `local` keeps the loop on this machine, pushing the results afterwards.

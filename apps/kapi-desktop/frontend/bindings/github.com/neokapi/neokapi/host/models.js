@@ -11,6 +11,9 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as check$0 from "../core/check/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as contextop$0 from "../core/contextop/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as convergence$0 from "../core/convergence/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -207,6 +210,19 @@ export class ContextAnswer {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Candidates are what earlier sessions proposed and noticed at this point
+             * and nobody has decided on. They are reported apart from Voice and Terms
+             * because they bind nothing: a check reports each one and no check fails on
+             * it. A writer reads them as the project's own unfinished thinking, and an
+             * agent building on another session's work reads them rather than
+             * rediscovering the same facts.
+             * @member
+             * @type {ContextCandidate[] | undefined}
+             */
+            this["candidates"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Profiles are the governance profiles whose validity is bounded, read
              * against the answer's instant — which voice is in force, and until when.
              * The same shape the by-content answer reports, because it is the same fact.
@@ -241,7 +257,8 @@ export class ContextAnswer {
         const $$createField5_0 = $$createType6;
         const $$createField6_0 = $$createType8;
         const $$createField8_0 = $$createType10;
-        const $$createField9_0 = $$createType11;
+        const $$createField9_0 = $$createType12;
+        const $$createField10_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField0_0($$parsedSource["constraints"]);
@@ -258,13 +275,156 @@ export class ContextAnswer {
         if ("terms" in $$parsedSource) {
             $$parsedSource["terms"] = $$createField6_0($$parsedSource["terms"]);
         }
+        if ("candidates" in $$parsedSource) {
+            $$parsedSource["candidates"] = $$createField8_0($$parsedSource["candidates"]);
+        }
         if ("profiles" in $$parsedSource) {
-            $$parsedSource["profiles"] = $$createField8_0($$parsedSource["profiles"]);
+            $$parsedSource["profiles"] = $$createField9_0($$parsedSource["profiles"]);
         }
         if ("notes" in $$parsedSource) {
-            $$parsedSource["notes"] = $$createField9_0($$parsedSource["notes"]);
+            $$parsedSource["notes"] = $$createField10_0($$parsedSource["notes"]);
         }
         return new ContextAnswer(/** @type {Partial<ContextAnswer>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextCandidate is one operation nobody has decided on, as an answer reports
+ * it: the rule or the fact it states, who recorded it, and where they saw it.
+ * 
+ * Status is always `candidate`, in the vocabulary the operation log uses
+ * (contextop.StatusCandidate). It is carried on every entry so a caller reading
+ * the JSON has the standing of the entry in the entry, rather than in the name
+ * of the list it arrived in.
+ */
+export class ContextCandidate {
+    /**
+     * Creates a new ContextCandidate instance.
+     * @param {Partial<ContextCandidate>} [$$source = {}] - The source object to create the ContextCandidate.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Operation is the id, which is what `kapi context confirm` takes.
+             * @member
+             * @type {string | undefined}
+             */
+            this["operation"] = undefined;
+        }
+        if (!("kind" in $$source)) {
+            /**
+             * Kind is what the candidate is about: `term`, `voice` or `note`.
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (!("status" in $$source)) {
+            /**
+             * Status is what it counts as, and is always `candidate`.
+             * @member
+             * @type {string}
+             */
+            this["status"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Term is the word a term or voice candidate is about, and Replacement what
+             * it proposes writing instead. Both are empty for a note.
+             * @member
+             * @type {string | undefined}
+             */
+            this["term"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["replacement"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * List is the voice-profile vocabulary list a voice candidate sits in.
+             * @member
+             * @type {string | undefined}
+             */
+            this["list"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Severity is how hard the rule would bite once a person confirms it. It
+             * decides nothing while the operation is a candidate.
+             * @member
+             * @type {string | undefined}
+             */
+            this["severity"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Text is the prose of a note.
+             * @member
+             * @type {string | undefined}
+             */
+            this["text"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Note is whatever the actor said about it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ProposedBy is the actor, and Session the run it belonged to, so a person
+             * can review or revert a whole session.
+             * @member
+             * @type {string | undefined}
+             */
+            this["proposed_by"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["session"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * At is when it was recorded, RFC 3339.
+             * @member
+             * @type {string | undefined}
+             */
+            this["at"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Evidence is where it was seen. A candidate with evidence can be argued
+             * with; one without is a preference somebody typed.
+             * @member
+             * @type {contextop$0.Evidence[] | undefined}
+             */
+            this["evidence"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextCandidate instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextCandidate}
+     */
+    static createFrom($$source = {}) {
+        const $$createField12_0 = $$createType15;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("evidence" in $$parsedSource) {
+            $$parsedSource["evidence"] = $$createField12_0($$parsedSource["evidence"]);
+        }
+        return new ContextCandidate(/** @type {Partial<ContextCandidate>} */($$parsedSource));
     }
 }
 
@@ -376,7 +536,7 @@ export class ContextPoint {
      * @returns {ContextPoint}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType12;
+        const $$createField5_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coordinates" in $$parsedSource) {
             $$parsedSource["coordinates"] = $$createField5_0($$parsedSource["coordinates"]);
@@ -444,7 +604,7 @@ export class ContextPrecedentHit {
      * @returns {ContextPrecedentHit}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType11;
+        const $$createField4_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("discouraged" in $$parsedSource) {
             $$parsedSource["discouraged"] = $$createField4_0($$parsedSource["discouraged"]);
@@ -682,9 +842,9 @@ export class ContextSearchResult {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType4;
         const $$createField4_0 = $$createType8;
-        const $$createField5_0 = $$createType14;
-        const $$createField6_0 = $$createType10;
-        const $$createField7_0 = $$createType11;
+        const $$createField5_0 = $$createType18;
+        const $$createField6_0 = $$createType12;
+        const $$createField7_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("provenance" in $$parsedSource) {
             $$parsedSource["provenance"] = $$createField3_0($$parsedSource["provenance"]);
@@ -841,7 +1001,7 @@ export class ContextTermHit {
      * @returns {ContextTermHit}
      */
     static createFrom($$source = {}) {
-        const $$createField12_0 = $$createType16;
+        const $$createField12_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("top_uses" in $$parsedSource) {
             $$parsedSource["top_uses"] = $$createField12_0($$parsedSource["top_uses"]);
@@ -1183,7 +1343,7 @@ export class ConvergeLocaleResult {
      * @returns {ConvergeLocaleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType17;
+        const $$createField4_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField4_0($$parsedSource["pct"]);
@@ -1364,9 +1524,9 @@ export class ConvergeOutput {
      * @returns {ConvergeOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType19;
-        const $$createField4_0 = $$createType21;
-        const $$createField15_0 = $$createType23;
+        const $$createField3_0 = $$createType23;
+        const $$createField4_0 = $$createType25;
+        const $$createField15_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -1615,9 +1775,9 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType25;
-        const $$createField4_0 = $$createType24;
-        const $$createField8_0 = $$createType23;
+        const $$createField3_0 = $$createType29;
+        const $$createField4_0 = $$createType28;
+        const $$createField8_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -1813,20 +1973,24 @@ const $$createType5 = review$0.Voice.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
 const $$createType7 = ContextTermHit.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = review$0.ProfileValidity.createFrom;
+const $$createType9 = ContextCandidate.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = $Create.Array($Create.Any);
-const $$createType12 = $Create.Map($Create.Any, $Create.Any);
-const $$createType13 = ContextPrecedentHit.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = ContextTermUse.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = $Create.Map($Create.Any, $Create.Any);
-const $$createType18 = ConvergeLocaleResult.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = ParkedScope.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = check$0.Warning.createFrom;
+const $$createType11 = review$0.ProfileValidity.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = $Create.Array($Create.Any);
+const $$createType14 = contextop$0.Evidence.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = $Create.Map($Create.Any, $Create.Any);
+const $$createType17 = ContextPrecedentHit.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = ContextTermUse.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = $Create.Map($Create.Any, $Create.Any);
+const $$createType22 = ConvergeLocaleResult.createFrom;
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = UpPlanScope.createFrom;
+const $$createType24 = ParkedScope.createFrom;
 const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = check$0.Warning.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = UpPlanScope.createFrom;
+const $$createType29 = $Create.Array($$createType28);

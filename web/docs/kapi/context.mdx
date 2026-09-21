@@ -256,8 +256,9 @@ the answer.
 
 Point `kapi context` at a file and it answers for the place that file sits: the
 point it resolved to, the voice profile in force with its full guidance, the
-terms bound there, and the governance windows around them. It is one document,
-written to be read by a person or dropped into a model's context.
+terms bound there, the candidates nobody has decided on, and the governance
+windows around them. It is one document, written to be read by a person or
+dropped into a model's context.
 
 ```bash
 kapi context docs/guide.md
@@ -374,9 +375,15 @@ Context works on both sides of the moment content is written:
   stores, with an exit code, so the rules hold in the editing loop and again in
   CI with no assistant present.
 
-Rules an agent proposes (a new forbidden term, a newly approved translation)
-land through `kapi apply` as typed change-set entries in the committed stores,
-so the review surface for the _rules_ is `git diff`, exactly as for code.
+- **During**: what an agent notices while it works is recorded as it goes, so
+  the context grows out of ordinary work instead of waiting for a session set
+  aside for it. See [Growing context](context-decisions.mdx).
+
+A rule an agent proposes is a **candidate**. It is reported by checks, it fails
+none of them, and it binds when you confirm it. Confirming writes it into the
+committed store through the same route `kapi apply` takes, so the review surface
+for the _rules_ is `git diff`, exactly as for code. Where the decisions are
+already made, `kapi apply` lands them as typed change-set entries directly.
 
 ## One more axis: language
 

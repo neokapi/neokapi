@@ -30,13 +30,19 @@ Targets: **~100% trigger on positives, 0 false-triggers on negatives.** A miss o
 a positive is fixed by adding the missing trigger phrasing to the `description`;
 a false-trigger on a negative is fixed by narrowing it. Re-run after any change.
 
-**Before "fixing" a missed positive, check the fixture.** The `description`
-scopes the skill to formats an editor *can't* open directly. A scenario whose
-files are all plain text the editor handles natively (`.md`, `.txt`) will
-correctly *not* trigger — native grep/Edit is the better tool there, and
-broadening the `description` to catch it pushes toward "any find/replace",
-which false-triggers the code-edit negatives. That is a mis-specified scenario,
-not a `description` bug: give the scenario a file the skill actually owns.
+**Before "fixing" a missed positive, check the fixture.** Two things put a
+scenario in scope, and a scenario that has neither will correctly not trigger:
+
+- **A format an editor cannot open directly** (`.docx`, `.pptx`, `.xlf`, a
+  catalog). Here the skill owns the reading and the writing.
+- **A kapi project around the file.** Prose in a project is in scope whatever
+  its format, because the project holds the wording that governs it. A `.md`
+  file in a bare directory is not: native grep and Edit are the better tools
+  there, and broadening the `description` to catch that case pushes toward "any
+  find/replace", which false-triggers the code-edit negatives.
+
+A scenario with neither is mis-specified rather than evidence of a
+`description` bug: give it a file the skill owns, or a project around it.
 
 ## Positive — must trigger
 
@@ -67,6 +73,10 @@ catalogs; the app is not booted, so in-locale *rendering* is not verified here
 | 15 | "Localize this Android app into French." | i18n (androidxml, --format flag) | yes | yes — `check --ship` green, fr 100%, `values-fr/` created |
 | 16 | "Set up our brand from this repo and connect the project to Bowrain." (fixture: a fresh repo with a README + a few marketing `.md`/`.docx` files) | context discovery (onboard) | — | — (not yet run) |
 | 17 | "We renamed Tidewatch to Tideguard and launched a support site — refresh our context." (fixture: a copy of `samples/northsea` with a `support/` directory added and the new name used only there) | context discovery (refresh) | — | — (not yet run) |
+| 18 | "Rewrite the intro of `docs/guide.md` so it reads better." (fixture: a kapi project with a bound voice profile) | habit 1, retrieve before writing | — | — (not yet run) |
+| 19 | "Read through `docs/` and tell me what you make of how we write." (fixture: a kapi project with an empty context) | habit 2, record what you notice | — | — (not yet run) |
+| 20 | "Say 'log in', not 'sign in'." (as a correction, in a session where the assistant has just written "sign in" into a project file) | habit 3, record the correction | — | — (not yet run) |
+| 21 | "Update the release notes for 1.3 and tell me when you're done." (fixture: a kapi project whose release notes are declared content) | habit 4, check and report | — | — (not yet run) |
 
 Completion summary: **12/15 green** at catalog-gate depth, **2 partial** (#7
 terms fixture gap, #12 didn't surface grades), **2 blocked** on the
@@ -102,6 +112,33 @@ empty. Its acceptance path runs as a test — `TestRefresh_NorthseaDrift` in
 `cli/refresh_northsea_test.go` drives the same fixture through the CLI, so this
 row scores the assistant's judgement rather than the verbs.
 
+Scenarios 18 to 21 are the four habits, and they are scored differently from
+every row above: the task in the prompt is ordinary writing, and what is being
+measured is what the assistant did **around** it. None of them asks for kapi.
+
+- **18** passes when the assistant read the context for that file
+  (`kapi context docs/guide.md`, or the `context://` resource) before writing a
+  word, and its rewrite respects what came back. It fails when it writes first
+  and checks afterwards.
+- **19** passes when the assistant recorded what it noticed
+  (`kapi context observe`, `context_observe`), one call per fact, with
+  `--seen-in`. Reading `docs/` and reporting a summary to the user alone is the
+  failure this row catches: the next session starts from nothing again.
+- **20** passes when the assistant recorded the correction
+  (`kapi context correct "sign in" "log in" --seen-in <file>`) as well as making
+  the edit. A rule it proposed and then described to the user as now in force is
+  a **fail**: a candidate advises, and only a person confirms.
+- **21** passes when the assistant ran the check on what it changed and ended
+  its report with what the session recorded and how to review it
+  (`kapi context log --session`, or `context_session_summary`). A green gate with
+  no report of what was recorded is a partial.
+
+Run 18 to 21 on both surfaces. Over MCP the tools are `context_observe`,
+`context_propose`, `context_correct` and `context_session_summary`; from the
+command line they are `kapi context observe`, `propose` and `correct`, and
+`kapi context log`. The MCP half is the `mcp-eval` target's surface, and a habit
+kept on one surface and not the other is the drift these rows exist to find.
+
 Scenario 4 is the cross-format sweep, and its fixture carries the whole point:
 `grep` cannot see inside a `.docx`, so a `docs/` of plain `.md` alone tests
 nothing (the assistant reaches for native grep/Edit, and is right to). With an
@@ -117,6 +154,8 @@ opaque file in the mix the assistant notices grep can't read it, reaches for
 | 3 | "Fix the failing unit test in `auth_test.go`." | code/test task | no |
 | 4 | "What's the capital of France?" | general knowledge | no |
 | 5 | "Format this date according to the user's locale." | locale-aware *code*, not content/catalog work | no |
+| 6 | "Rename this variable everywhere it is used." (inside a kapi project) | a code edit, in a project whose prose the skill does own | — (not yet run) |
+| 7 | "Why is this build failing?" (inside a kapi project) | diagnosis, no content written | — (not yet run) |
 
 ## Notes
 

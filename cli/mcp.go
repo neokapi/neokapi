@@ -58,6 +58,13 @@ surface nobody chose is how it grew to fifty-one tools.
 				&mcp.ServerOptions{Instructions: host.MCPInstructions()},
 			)
 			ApplyMCPToolFactories(server, a)
+			// One row in the workspace saying an agent is at work here, moved
+			// forward on every request the server answers, so the desktop and
+			// anything else watching the workspace can show it. Noted before
+			// the first request as well: a server that starts and reads
+			// nothing is still a session somebody may want to review.
+			server.AddReceivingMiddleware(a.MCPSessionMiddleware())
+			a.NoteMCPSession(host.CmdContext(cmd), a.MCPRecipePath(), "")
 			// host.CmdContext, not cmd.Context: a caller that builds this
 			// command and invokes RunE directly (the kapi-bowrain plugin's
 			// mcp-server does) never went through cobra's Execute, so its

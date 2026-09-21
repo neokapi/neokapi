@@ -199,8 +199,13 @@ so it is a **resource**:
 The two addresses are one primitive. A path answers *what applies here*; a
 profile name answers the same question for a caller with no file in hand (an
 ad-hoc run, or a starter pack). Both return the point the location resolved to,
-the voice profile in force with its full guidance, the terms bound there, and
-the governance windows around them.
+the voice profile in force with its full guidance, the terms bound there, the
+candidates nobody has decided on, and the governance windows around them.
+
+The `candidates` list is reported apart from everything in force. Each entry
+says it is a candidate, what it proposes, who recorded it, in which session and
+the evidence behind it, with the operation id a person confirms it by. A check
+reports every candidate and fails on none of them.
 
 **The rendering is a property of the read.** `?format=json`
 returns the same answer as `application/json` (the document `kapi context <path>
@@ -297,6 +302,40 @@ target-language decisions.
 
 <McpToolParams name="context_search" />
 
+### context_observe
+
+Record one fact about how the project writes, noticed while reading it. It
+states no rule and changes no check. `path` and `quote` are what let a person
+judge the fact later.
+
+<McpToolParams name="context_observe" />
+
+### context_propose
+
+Propose a rule about one word. The result is a **candidate**: every check
+reports it, and no check can fail on it until a person confirms it with
+`kapi context confirm <id>`. Evidence is required, so `path` is not optional.
+
+<McpToolParams name="context_propose" />
+
+### context_correct
+
+Record that the person changed some wording: what was there, what replaced it,
+and where. `propose` also records the rule the change implies.
+
+<McpToolParams name="context_correct" />
+
+### context_session_summary
+
+What this session recorded, proposed and had confirmed, with the sentence to
+end a task report on and the command that reviews the session.
+
+<McpToolParams name="context_session_summary" />
+
+There is no tool for confirming, discarding, reverting or widening. Those are a
+person's, on the command line or in the desktop. See
+[Growing context](/kapi/context-decisions).
+
 ### extract_content
 
 <McpToolParams name="extract_content" />
@@ -381,7 +420,8 @@ down when the session ends.
 :::note
 Most tools here are rule-based and need no API key: `context_search`,
 `check_text`, `check_file`, `voice_check`, `voice_rewrite`, `stats`,
-`extract_content`, `apply_edits`, and the review verbs all run offline. The
+`extract_content`, `apply_edits`, the context write tools and the review verbs
+all run offline. The
 ones that reach a language model (`translate`, and `up` when there is work the
 content memory cannot cover) need a provider credential, which they read from
 the same credential store the CLI uses (`kapi credentials add`).
