@@ -166,8 +166,11 @@ func (a *App) nameBoundVoice(ctx context.Context, root string, rc *project.Resol
 			return
 		}
 	}
+	// Both a `profile:` name and a `profile_file:` path are answered by the
+	// project's voice store, so open it for either. A `pack:` is the one
+	// binding the store has no part in.
 	var store coreprofile.Store
-	if bv.Profile != "" {
+	if bv.Profile != "" || bv.ProfileFile != "" {
 		s, release, serr := a.ProjectVoiceStore(ctx, root)
 		if serr != nil {
 			info.Problem = serr

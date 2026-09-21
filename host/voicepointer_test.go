@@ -39,6 +39,9 @@ func TestWriteVoicePointer(t *testing.T) {
 		// recipe and files set the project up; the test then writes once.
 		recipe string
 		files  map[string]string
+		// read runs the explicit import, which is how a profile the recipe
+		// binds by path reaches the store the pointer names it from.
+		read bool
 		// wantFile is the assistant file, relative to root; empty when
 		// nothing is written.
 		wantFile   string
@@ -88,6 +91,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			name:       "a profile file binding names the profile",
 			recipe:     fileRecipe,
 			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			read:       true,
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
@@ -114,6 +118,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			recipe: fileRecipe + "profiles:\n  acme:\n    channels: [docs]\n    voice: brand/acme.yaml\n" +
 				"collections:\n  - name: acme-docs\n    channel: acme/docs\n    content:\n      - path: \"docs/**/*.md\"\n",
 			files:      map[string]string{"brand/voice.yaml": houseVoice, "brand/acme.yaml": "name: Acme\n"},
+			read:       true,
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
@@ -126,6 +131,7 @@ func TestWriteVoicePointer(t *testing.T) {
 				"profiles:\n  source:\n    channels: [comments]\n" +
 				"collections:\n  - name: code\n    content:\n      - path: \"code/*.go\"\n        comments: true\n",
 			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			read:       true,
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
@@ -136,6 +142,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			recipe: fileRecipe + "profiles:\n  source:\n    channels: [comments]\n" +
 				"collections:\n  - name: code\n    content:\n      - path: \"code/*.go\"\n        comments:\n          channel: source/comments\n",
 			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			read:       true,
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
@@ -146,6 +153,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			recipe: fileRecipe + "collections:\n  - name: workflows\n    source_only: true\n    content:\n" +
 				"      - path: \".github/workflows/*.yaml\"\n        comments:\n          only: true\n",
 			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			read:       true,
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
@@ -156,6 +164,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			recipe: fileRecipe + "collections:\n  - name: code\n    content:\n" +
 				"      - path: \"code/*.go\"\n        comments: true\n",
 			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			read:       true,
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
 			wantVoice:  "House Voice",
@@ -186,6 +195,9 @@ func TestWriteVoicePointer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			root := pointerProject(t, tt.recipe, tt.files)
+			if tt.read {
+				readProjectContext(t, root)
+			}
 			a := &App{}
 
 			res, err := a.WriteVoicePointer(context.Background(), root)
@@ -272,18 +284,24 @@ func TestWriteVoicePointer_IdempotentAndUpdatedInPlace(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(got, coreprofile.VoicePointerStart))
 }
 
-// A binding that exists but does not load is still pointed at, and the reason
-// travels on the result rather than failing the write.
-func TestWriteVoicePointer_ReportsAnUnloadableBinding(t *testing.T) {
+// A binding whose file the store has not been given is still pointed at, and
+// the section goes in unnamed rather than failing the write. The pointer names
+// the voice out of the store, so a file that never reached it has no name to
+// carry.
+func TestWriteVoicePointer_PointsAtAnUnreadBindingUnnamed(t *testing.T) {
 	root := pointerProject(t, fileRecipe, map[string]string{
-		"brand/voice.yaml": "name: [not a string\n",
+		"brand/voice.yaml": "name: House Voice\n",
 	})
 	a := &App{}
 	res, err := a.WriteVoicePointer(context.Background(), root)
 	require.NoError(t, err)
 	assert.Equal(t, VoicePointerCreated, res.Action)
 	assert.Empty(t, res.Voice)
-	assert.Contains(t, res.Warning, "brand/voice.yaml")
+	assert.Empty(t, res.Warning)
+
+	body, err := os.ReadFile(filepath.Join(root, "CLAUDE.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "This project's voice is held by kapi")
 }
 
 // A file whose section has no end marker is left alone and named.
