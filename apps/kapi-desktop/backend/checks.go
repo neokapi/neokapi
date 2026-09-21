@@ -384,10 +384,13 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	}
 
 	// The configuration warnings of each profile the run resolved, once each,
-	// as `kapi check` reports them.
+	// as `kapi check` reports them. A profile the run named from the store is
+	// read back out of it, so the panel reports on the profile that governed.
+	voiceStore, releaseVoiceStore := points.store(ctx)
+	defer releaseVoiceStore()
 	var warnings []check.Warning
 	for _, source := range points.loadedSources() {
-		found, werr := capp.VoiceProfileWarnings(ctx, nil, source)
+		found, werr := capp.VoiceProfileWarnings(ctx, voiceStore, source)
 		if werr != nil {
 			return nil, fmt.Errorf("voice profile warnings: %w", werr)
 		}
@@ -696,8 +699,15 @@ func (v *pointResolver) load(ctx context.Context, pt project.GovernancePoint) *c
 		v.app.checksMu.Lock()
 		defer v.app.checksMu.Unlock()
 	}
-	p, source, ok, err := v.app.checksCLI().ResolveVoiceProfile(
-		ctx, v.proj, v.root, host.VoiceResolveOptions{Point: pt},
+	engine := v.app.checksCLI()
+	store, release, serr := engine.ProjectVoiceStore(ctx, v.root)
+	if serr != nil {
+		v.err = serr
+		return nil
+	}
+	defer release()
+	p, source, ok, err := engine.ResolveVoiceProfile(
+		ctx, v.proj, v.root, host.VoiceResolveOptions{Point: pt, Store: store},
 	)
 	if err != nil {
 		v.err = err
@@ -710,6 +720,23 @@ func (v *pointResolver) load(ctx context.Context, pt project.GovernancePoint) *c
 		v.sources = append(v.sources, source)
 	}
 	return p
+}
+
+// store returns the project's voice store, for a caller that reports on a
+// profile the resolver loaded. A recipe binds a voice by name or by the path
+// `kapi context import` filed it under, and the store answers for either.
+// Best-effort: a store this build cannot open reads as nil.
+func (v *pointResolver) store(ctx context.Context) (coreprofile.Store, func()) {
+	noop := func() {}
+	if v == nil {
+		return nil, noop
+	}
+	store, release, err := v.app.checksCLI().ProjectVoiceStore(ctx, v.root)
+	if err != nil {
+		v.err = err
+		return nil, noop
+	}
+	return store, release
 }
 
 // loadedSources are where the profiles the resolver loaded came from, each once,

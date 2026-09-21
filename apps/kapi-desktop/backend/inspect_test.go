@@ -17,9 +17,10 @@ import (
 )
 
 // setupInspectProject writes a project with one JSON source file (and optionally
-// a translated target file), a convention voice.yaml (forbidden term "utilize"),
-// and seeded project terms (term "dashboard" → "tableau de bord"). It
-// opens the project and returns the tab id and the source file path.
+// a translated target file), a bound voice.yaml (forbidden term "utilize"), and
+// project terms in the store (term "dashboard" → "tableau de bord"). It reads
+// the project's context in, opens the project, and returns the tab id and the
+// source file path.
 func setupInspectProject(t *testing.T, app *App, sourceJSON, targetJSON string) (tabID, srcPath string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -32,7 +33,7 @@ func setupInspectProject(t *testing.T, app *App, sourceJSON, targetJSON string) 
 		require.NoError(t, os.WriteFile(filepath.Join(srcDir, "fr.json"), []byte(targetJSON), 0o644))
 	}
 
-	// Convention voice profile: forbidden term "utilize" → "use".
+	// The project's voice profile: forbidden term "utilize" → "use".
 	voiceYAML := `id: house
 name: House Style
 vocabulary:
@@ -65,6 +66,7 @@ vocabulary:
 		Defaults: project.Defaults{
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{model.LocaleID("fr")},
+			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
 		},
 		Collections: []project.Collection{
 			{Path: "locales/en.json", Target: "locales/{lang}.json"},
@@ -72,6 +74,7 @@ vocabulary:
 	}
 	projPath := filepath.Join(dir, "proj.kapi")
 	require.NoError(t, project.Save(projPath, proj))
+	readContextAt(t, projPath)
 
 	tab, err := app.OpenProject(projPath)
 	require.NoError(t, err)

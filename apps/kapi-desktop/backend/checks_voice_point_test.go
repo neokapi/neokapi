@@ -80,6 +80,7 @@ func newTwoPointProject(t *testing.T, app *App) (*TabInfo, string) {
 	}
 	path := filepath.Join(root, "kapi.yaml")
 	require.NoError(t, project.Save(path, proj))
+	readProjectContext(t, root)
 
 	tab, err := app.OpenProject(path)
 	require.NoError(t, err)

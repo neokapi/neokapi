@@ -108,6 +108,7 @@ func writeCommentsProject(t *testing.T) string {
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 		require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
 	}
+	readProjectContext(t, root)
 	return root
 }
 

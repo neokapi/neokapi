@@ -49,6 +49,7 @@ vocabulary:
 				Profiles:    map[string]project.Profile{"site": {Channels: []project.Channel{{ID: "web"}}}},
 				Collections: collections,
 			}))
+			readContextAt(t, recipe)
 
 			app := NewApp()
 			tab, err := app.OpenProject(recipe)

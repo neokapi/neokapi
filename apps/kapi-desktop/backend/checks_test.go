@@ -14,10 +14,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// setupCheckProject writes a project with one JSON content file, a voice.yaml
-// convention profile (forbidden term "utilize" → "use"), and opens it. Returns
-// the tab ID and the absolute path of the source JSON file.
+// houseVoiceYAML is the fixture profile: one forbidden term, "utilize" → "use".
+const houseVoiceYAML = `id: house
+name: House Style
+vocabulary:
+  forbidden_terms:
+    - term: utilize
+      replacement: use
+      severity: major
+`
+
+// setupCheckProject writes a project with one JSON content file and the house
+// voice profile bound as the project default, reads its context in, and opens
+// it. Returns the tab ID and the absolute path of the source JSON file.
 func setupCheckProject(t *testing.T, app *App, sourceJSON string) (tabID, srcPath string) {
+	t.Helper()
+	return setupCheckProjectVoiced(t, app, sourceJSON, houseVoiceYAML)
+}
+
+// setupCheckProjectVoiced is setupCheckProject with the profile the project
+// binds spelled out. An empty voiceYAML binds no voice at all, for the runs
+// that assert a project with nothing to check against.
+//
+// The profile is written to the checkout and then read into the project's
+// store, which is where a gate resolves it from.
+func setupCheckProjectVoiced(t *testing.T, app *App, sourceJSON, voiceYAML string) (tabID, srcPath string) {
 	t.Helper()
 	dir := t.TempDir()
 	srcDir := filepath.Join(dir, "locales")
@@ -26,17 +47,6 @@ func setupCheckProject(t *testing.T, app *App, sourceJSON string) (tabID, srcPat
 	srcPath = filepath.Join(srcDir, "en.json")
 	require.NoError(t, os.WriteFile(srcPath, []byte(sourceJSON), 0o644))
 
-	// Convention voice profile at the project root.
-	voiceYAML := `id: house
-name: House Style
-vocabulary:
-  forbidden_terms:
-    - term: utilize
-      replacement: use
-      severity: major
-`
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "voice.yaml"), []byte(voiceYAML), 0o644))
-
 	proj := &project.KapiProject{
 		Version:  project.CurrentVersion,
 		Defaults: project.Defaults{SourceLanguage: "en"},
@@ -44,8 +54,13 @@ vocabulary:
 			{Path: "locales/en.json", Target: "locales/{lang}.json"},
 		},
 	}
+	if voiceYAML != "" {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "voice.yaml"), []byte(voiceYAML), 0o644))
+		proj.Defaults.Voice = &project.VoiceBinding{ProfileFile: "voice.yaml"}
+	}
 	projPath := filepath.Join(dir, "proj.kapi")
 	require.NoError(t, project.Save(projPath, proj))
+	readContextAt(t, projPath)
 
 	tab, err := app.OpenProject(projPath)
 	require.NoError(t, err)
@@ -339,8 +354,12 @@ func TestResolveTargetPathNoTemplate(t *testing.T) {
 	assert.Empty(t, app.resolveTargetPath(project.ResolvedFile{Relative: "a.json", Item: &project.ContentItem{Path: "a.json"}}, op, "fr"))
 }
 
+// TestRunChecksOperationalFailuresReturnNoResult covers the failures a run can
+// meet while reading what it checks. The voice profile is not among them: the
+// run resolves it from the project's store, so the bytes in the checkout are
+// never parsed and a malformed copy of them reaches no gate.
 func TestRunChecksOperationalFailuresReturnNoResult(t *testing.T) {
-	for _, failure := range []string{"source", "target", "profile", "terms"} {
+	for _, failure := range []string{"source", "target", "terms"} {
 		t.Run(failure, func(t *testing.T) {
 			app := NewApp()
 			tabID, src := setupCheckProject(t, app, `{"greeting":"Hello world"}`)
@@ -356,8 +375,6 @@ func TestRunChecksOperationalFailuresReturnNoResult(t *testing.T) {
 				target := filepath.Join(filepath.Dir(src), "fr.json")
 				require.NoError(t, os.Mkdir(target, 0o755))
 				filter.Languages = []string{"fr"}
-			case "profile":
-				require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(filepath.Dir(src)), "voice.yaml"), []byte(`tone: [`), 0o644))
 			case "terms":
 				app.getOpenProject(tabID).tbHandle = "unavailable-store"
 			}
@@ -366,6 +383,64 @@ func TestRunChecksOperationalFailuresReturnNoResult(t *testing.T) {
 			assert.Nil(t, result, "incomplete execution must not publish a passing score")
 		})
 	}
+}
+
+// TestRunChecksResolvesAVoiceBoundByName: a recipe that names its profile
+// instead of pointing at a file has nothing in the checkout to fall back on,
+// so the panel produces vocabulary findings only when the run asks the
+// project's voice store for the profile the recipe names.
+func TestRunChecksResolvesAVoiceBoundByName(t *testing.T) {
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "locales")
+	require.NoError(t, os.MkdirAll(srcDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "en.json"),
+		[]byte(`{"greeting":"Please utilize the dashboard"}`), 0o644))
+
+	// The profile reaches the store through the layout an import reads; the
+	// recipe then selects it by the id it was filed under.
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(dir, project.RelStatePath("voice.yaml")), []byte(houseVoiceYAML), 0o644))
+
+	projPath := filepath.Join(dir, "proj.kapi")
+	require.NoError(t, project.Save(projPath, &project.KapiProject{
+		Version: project.CurrentVersion,
+		Defaults: project.Defaults{
+			SourceLanguage: "en",
+			Voice:          &project.VoiceBinding{Profile: "house"},
+		},
+		Collections: []project.Collection{
+			{Path: "locales/en.json", Target: "locales/{lang}.json"},
+		},
+	}))
+	readContextAt(t, projPath)
+
+	app := NewApp()
+	tab, err := app.OpenProject(projPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+
+	res, err := app.RunChecks(tab.ID, ProjectFilter{})
+	require.NoError(t, err)
+	require.Len(t, res.Files, 1)
+	require.NotEmpty(t, res.Files[0].Findings, "the named profile governs the file")
+	assert.Equal(t, "utilize", res.Files[0].Findings[0].Rule)
+}
+
+// TestRunChecksIgnoresAMalformedProfileInTheCheckout: a gate answers from the
+// store, so a voice profile the checkout cannot parse changes nothing about
+// the run.
+func TestRunChecksIgnoresAMalformedProfileInTheCheckout(t *testing.T) {
+	app := NewApp()
+	tabID, src := setupCheckProject(t, app, `{"greeting":"Please utilize the dashboard"}`)
+	require.NoError(t, os.WriteFile(
+		filepath.Join(filepath.Dir(filepath.Dir(src)), "voice.yaml"), []byte(`tone: [`), 0o644))
+
+	res, err := app.RunChecks(tabID, ProjectFilter{})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Len(t, res.Files, 1)
+	assert.NotEmpty(t, res.Files[0].Findings, "the stored profile still governs the file")
 }
 
 func TestRunChecksAbsentTargetRemainsPendingWork(t *testing.T) {
@@ -405,8 +480,7 @@ func TestRunChecksNeverPassesOverNothing(t *testing.T) {
 
 	t.Run("no voice profile and no languages", func(t *testing.T) {
 		app := NewApp()
-		tabID, src := setupCheckProject(t, app, `{"greeting":"Hello world"}`)
-		require.NoError(t, os.Remove(filepath.Join(filepath.Dir(filepath.Dir(src)), "voice.yaml")))
+		tabID, _ := setupCheckProjectVoiced(t, app, `{"greeting":"Hello world"}`, "")
 		res, err := app.RunChecks(tabID, ProjectFilter{})
 		require.NoError(t, err)
 		assert.Equal(t, "did_not_run", res.Verdict)
@@ -416,8 +490,8 @@ func TestRunChecksNeverPassesOverNothing(t *testing.T) {
 
 	t.Run("a voice profile with nothing to catch", func(t *testing.T) {
 		app := NewApp()
-		tabID, src := setupCheckProject(t, app, `{"greeting":"Hello world"}`)
-		require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(filepath.Dir(src)), "voice.yaml"), []byte("id: house\nname: House Style\n"), 0o644))
+		tabID, _ := setupCheckProjectVoiced(t, app, `{"greeting":"Hello world"}`,
+			"id: house\nname: House Style\n")
 		res, err := app.RunChecks(tabID, ProjectFilter{})
 		require.NoError(t, err)
 		assert.Equal(t, "did_not_run", res.Verdict)

@@ -74,7 +74,9 @@ func TestSaveVoiceProfileWritesTheBoundFile(t *testing.T) {
 	assert.Empty(t, saved.Problems)
 	assert.Contains(t, saved.Guide, "Lead with what changed.")
 
-	// The loop reads the change back through the same ladder that resolved it.
+	// The editor writes the bound file; the project's store is what a
+	// resolution reads, so the change reaches the next read through an import.
+	readProjectContext(t, root)
 	again, err := app.ProjectVoice(tab.ID)
 	require.NoError(t, err)
 	reread := pointOf(t, again, "project default")
@@ -88,6 +90,10 @@ func TestSaveVoiceProfileWritesTheBoundFile(t *testing.T) {
 	assert.Contains(t, string(body), "Lead with what changed.")
 }
 
+// TestSaveVoiceProfileIsByteStable: the editor writes the profile the store
+// holds, so the first save also lands the identity and version the store keeps.
+// A second save of the same profile says what the file already says and leaves
+// it alone.
 func TestSaveVoiceProfileIsByteStable(t *testing.T) {
 	app := NewApp()
 	tab, _ := newContextProject(t, app)
@@ -98,8 +104,12 @@ func TestSaveVoiceProfileIsByteStable(t *testing.T) {
 
 	saved, err := app.SaveVoiceProfile(tab.ID, "", profile)
 	require.NoError(t, err)
-	assert.True(t, saved.Saved)
-	assert.False(t, saved.Changed, "a save that says what the file says does not touch it")
+	require.True(t, saved.Saved)
+
+	again, err := app.SaveVoiceProfile(tab.ID, "", profile)
+	require.NoError(t, err)
+	assert.True(t, again.Saved)
+	assert.False(t, again.Changed, "a save that says what the file says does not touch it")
 }
 
 func TestSaveVoiceProfileRefusesABlockingProblem(t *testing.T) {
@@ -248,9 +258,13 @@ func TestSaveVoiceProfileWritesTheAssistantPointer(t *testing.T) {
 	assert.False(t, again.Pointer.Created)
 }
 
+// An editor that sends no constraints keeps the ones the bound file carries;
+// an editor that sends an empty list clears them. Each save is read back
+// through an import, which is how a written file reaches the store a
+// resolution answers from.
 func TestSaveVoiceProfilePreservesOmittedConstraints(t *testing.T) {
 	app := NewApp()
-	tab, _ := newContextProject(t, app)
+	tab, root := newContextProject(t, app)
 	res, err := app.ProjectVoice(tab.ID)
 	require.NoError(t, err)
 	profile := *pointOf(t, res, "project default").Profile
@@ -263,14 +277,18 @@ func TestSaveVoiceProfilePreservesOmittedConstraints(t *testing.T) {
 	saved, err = app.SaveVoiceProfile(tab.ID, "", profile)
 	require.NoError(t, err)
 	require.True(t, saved.Saved)
+	readProjectContext(t, root)
 	res, err = app.ProjectVoice(tab.ID)
 	require.NoError(t, err)
 	require.Len(t, pointOf(t, res, "project default").Profile.Constraints, 1)
+
+	// An explicit empty list is the editor saying the profile has none, and the
+	// file it writes says so too.
 	profile.Constraints = []coreprofile.Constraint{}
 	saved, err = app.SaveVoiceProfile(tab.ID, "", profile)
 	require.NoError(t, err)
 	require.True(t, saved.Saved)
-	res, err = app.ProjectVoice(tab.ID)
-	require.NoError(t, err)
-	assert.Empty(t, pointOf(t, res, "project default").Profile.Constraints)
+	body, rerr := os.ReadFile(filepath.Join(root, ".kapi", "voice.yaml"))
+	require.NoError(t, rerr)
+	assert.NotContains(t, string(body), "constraints:")
 }
