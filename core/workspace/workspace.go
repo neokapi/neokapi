@@ -67,6 +67,11 @@ type Workspace struct {
 	// projects never widened anything pays nothing for the table.
 	rulesOnce sync.Once
 	rulesErr  error
+
+	// sessionsOnce guards the agent-session schema on the same terms: a
+	// workspace no agent has ever worked in pays nothing for the table.
+	sessionsOnce sync.Once
+	sessionsErr  error
 }
 
 // Open prepares a workspace over a backend: it opens the workspace-wide

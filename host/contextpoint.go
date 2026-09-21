@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -98,6 +99,13 @@ type ContextAnswer struct {
 	// TermsTotal is how many terms the point binds in all, so a capped list says
 	// what it is a part of.
 	TermsTotal int `json:"terms_total,omitempty"`
+	// Candidates are what earlier sessions proposed and noticed at this point
+	// and nobody has decided on. They are reported apart from Voice and Terms
+	// because they bind nothing: a check reports each one and no check fails on
+	// it. A writer reads them as the project's own unfinished thinking, and an
+	// agent building on another session's work reads them rather than
+	// rediscovering the same facts.
+	Candidates []ContextCandidate `json:"candidates,omitempty"`
 	// Profiles are the governance profiles whose validity is bounded, read
 	// against the answer's instant — which voice is in force, and until when.
 	// The same shape the by-content answer reports, because it is the same fact.
@@ -128,6 +136,44 @@ type ContextPoint struct {
 	// Default reports that resolution fell through to the project's default
 	// point — a real answer, and a different one from "no profile exists".
 	Default bool `json:"default"`
+}
+
+// ContextCandidate is one operation nobody has decided on, as an answer reports
+// it: the rule or the fact it states, who recorded it, and where they saw it.
+//
+// Status is always `candidate`, in the vocabulary the operation log uses
+// (contextop.StatusCandidate). It is carried on every entry so a caller reading
+// the JSON has the standing of the entry in the entry, rather than in the name
+// of the list it arrived in.
+type ContextCandidate struct {
+	// Operation is the id, which is what `kapi context confirm` takes.
+	Operation string `json:"operation,omitempty"`
+	// Kind is what the candidate is about: `term`, `voice` or `note`.
+	Kind string `json:"kind"`
+	// Status is what it counts as, and is always `candidate`.
+	Status string `json:"status"`
+	// Term is the word a term or voice candidate is about, and Replacement what
+	// it proposes writing instead. Both are empty for a note.
+	Term        string `json:"term,omitempty"`
+	Replacement string `json:"replacement,omitempty"`
+	// List is the voice-profile vocabulary list a voice candidate sits in.
+	List string `json:"list,omitempty"`
+	// Severity is how hard the rule would bite once a person confirms it. It
+	// decides nothing while the operation is a candidate.
+	Severity string `json:"severity,omitempty"`
+	// Text is the prose of a note.
+	Text string `json:"text,omitempty"`
+	// Note is whatever the actor said about it.
+	Note string `json:"note,omitempty"`
+	// ProposedBy is the actor, and Session the run it belonged to, so a person
+	// can review or revert a whole session.
+	ProposedBy string `json:"proposed_by,omitempty"`
+	Session    string `json:"session,omitempty"`
+	// At is when it was recorded, RFC 3339.
+	At string `json:"at,omitempty"`
+	// Evidence is where it was seen. A candidate with evidence can be argued
+	// with; one without is a preference somebody typed.
+	Evidence []contextop.Evidence `json:"evidence,omitempty"`
 }
 
 // ContextVoice is the voice in force at a point, with the guidance it renders.
@@ -173,6 +219,11 @@ type ContextPointSources struct {
 	// decision (C-11). Read through App.ContextRulesAt, the seam a check
 	// resolves them with.
 	Rules contextop.Resolution
+	// Candidates are this project's undecided operations, newest first, as the
+	// operation log holds them. Rules answers what holds at the point; these
+	// carry the provenance a reader needs to judge one: who proposed it, in
+	// which session, and where they saw it.
+	Candidates []contextop.Record
 	// Concepts are the terms bound at the point, read through the same
 	// resolution `kapi check` enforces with — so the terms reported here are the
 	// terms a check at this location holds content to.
@@ -339,6 +390,17 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	if rules, rerr := a.ContextRulesAt(ctx, projectPath, point); rerr == nil {
 		src.Rules = rules
 	}
+	// The operations behind those candidates, for the provenance a reader
+	// judges one by. A workspace that cannot be read leaves the answer without
+	// them rather than failing it, the same as every other store here.
+	if log, lerr := a.ContextOperations(ctx, ContextLogRequest{
+		Project: projectPath, Status: contextop.StatusCandidate, Subjects: true,
+	}); lerr == nil {
+		src.Candidates = make([]contextop.Record, 0, len(log.Operations))
+		for _, op := range log.Operations {
+			src.Candidates = append(src.Candidates, op.Record)
+		}
+	}
 
 	src.Freshness = a.governanceNotes(cmd)
 	src.Provenance = a.contextProvenance(cmd, proj)
@@ -498,6 +560,12 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 		res.Point.Profile = req.Profile
 	}
 
+	// The candidates at this point, apart from the rules in force. The rules
+	// come from the resolution a check reads, so an answer can never mention a
+	// rule candidate a check would not report; the operation log supplies who
+	// proposed each one and where they saw it.
+	res.Candidates = contextCandidates(src.Rules.Advisory, src.Candidates, res.Point.Coordinates)
+
 	// Freshness leads the notes: it is the only note that says the rest of the
 	// answer may already describe a graph that has moved.
 	res.Notes = append(res.Notes, src.Freshness...)
@@ -559,6 +627,102 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 
 	return res, nil
 }
+
+// contextCandidates renders the undecided operations an answer reports.
+//
+// Two sources, joined here. The advisory rules are what the resolution says
+// holds at this point, already scoped, deduplicated and ordered, and they are
+// the list a check reports; the log supplies the operation behind each one. The
+// notes are facts somebody recorded that state no rule, so no resolution
+// carries them and they are scoped here against the point's own coordinates.
+//
+// A rule widened out of another project has no operation in this project's log,
+// so it is reported with its rule and no provenance rather than dropped.
+func contextCandidates(advisory []coreprofile.TermRule, records []contextop.Record, coordinates map[string]string) []ContextCandidate {
+	if len(advisory) == 0 && len(records) == 0 {
+		return nil
+	}
+	// Records arrive newest first, so the first one about a term is the latest
+	// statement of it, which is the one the resolution kept.
+	byTerm := make(map[string]contextop.Record, len(records))
+	for _, r := range records {
+		rule, ok := r.Rule()
+		if !ok {
+			continue
+		}
+		key := candidateKey(rule.Term)
+		if key == "" {
+			continue
+		}
+		if _, held := byTerm[key]; !held {
+			byTerm[key] = r
+		}
+	}
+
+	out := make([]ContextCandidate, 0, len(advisory)+len(records))
+	for _, rule := range advisory {
+		entry := ContextCandidate{
+			Kind:        string(contextop.SubjectTerm),
+			Status:      string(contextop.StatusCandidate),
+			Term:        rule.Term,
+			Replacement: rule.Replacement,
+			Severity:    rule.Severity,
+			Note:        rule.Note,
+		}
+		if r, held := byTerm[candidateKey(rule.Term)]; held {
+			entry.Operation = r.ID
+			entry.Kind = string(r.Subject.Kind)
+			if r.Subject.Kind == contextop.SubjectVoice && r.Subject.Voice != nil {
+				entry.List = r.Subject.Voice.List
+			}
+			entry.ProposedBy = r.Actor.Name
+			if entry.ProposedBy == "" {
+				entry.ProposedBy = string(r.Actor.Kind)
+			}
+			entry.Session = r.Actor.Session
+			entry.Evidence = r.Evidence
+			if !r.At.IsZero() {
+				entry.At = r.At.UTC().Format(time.RFC3339)
+			}
+		}
+		out = append(out, entry)
+	}
+
+	for _, r := range records {
+		if r.Subject.Kind != contextop.SubjectNote || r.Subject.Text == "" {
+			continue
+		}
+		if !r.Scope.Covers(coordinates) {
+			continue
+		}
+		entry := ContextCandidate{
+			Operation:  r.ID,
+			Kind:       string(contextop.SubjectNote),
+			Status:     string(contextop.StatusCandidate),
+			Text:       r.Subject.Text,
+			Note:       r.Note,
+			ProposedBy: r.Actor.Name,
+			Session:    r.Actor.Session,
+			Evidence:   r.Evidence,
+		}
+		if entry.ProposedBy == "" {
+			entry.ProposedBy = string(r.Actor.Kind)
+		}
+		if !r.At.IsZero() {
+			entry.At = r.At.UTC().Format(time.RFC3339)
+		}
+		out = append(out, entry)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// candidateKey folds a term for comparison the way the resolution folds it, so
+// a rule and the operation that proposed it are matched on the same reading of
+// the word.
+func candidateKey(term string) string { return strings.ToLower(strings.TrimSpace(term)) }
 
 // termsInForce projects the concepts bound at a point into the answer's hits:
 // the terms whose own window covers the instant, discouraged ones first, capped
@@ -661,6 +825,16 @@ func (r *ContextAnswer) FormatText(w io.Writer) error {
 			fmt.Fprintf(w, "\nShowing %d of %d terms bound here. `kapi context search <word>` finds one by name.\n",
 				len(r.Terms), r.TermsTotal)
 		}
+	}
+
+	if len(r.Candidates) > 0 {
+		fmt.Fprintln(w, "\n## Candidates, not yet decided")
+		fmt.Fprintln(w, "\nProposed here and awaiting a person's decision. A check reports each of these and"+
+			" none of them can fail one. Build on them; do not write them up as rules in force.")
+		for _, c := range r.Candidates {
+			fmt.Fprintf(w, "%s\n", candidateLine(c))
+		}
+		fmt.Fprintln(w, "\n`kapi context log --status candidate` lists them, `kapi context confirm <id>` makes one binding.")
 	}
 
 	if len(r.Profiles) > 0 {
@@ -794,6 +968,52 @@ func termLine(t ContextTermHit) string {
 	}
 	if t.Definition != "" {
 		fmt.Fprintf(&b, ": %s", t.Definition)
+	}
+	return b.String()
+}
+
+// candidateLine renders one candidate as the answer shows it: what it says
+// first, then who recorded it and where they saw it, then the id a person acts
+// on it by.
+func candidateLine(c ContextCandidate) string {
+	var b strings.Builder
+	switch {
+	case c.Kind == string(contextop.SubjectNote):
+		fmt.Fprintf(&b, "- %s", c.Text)
+	case c.Replacement != "":
+		fmt.Fprintf(&b, "- ~~%s~~ → say **%s**", c.Term, c.Replacement)
+	default:
+		fmt.Fprintf(&b, "- **%s**", c.Term)
+	}
+	if c.List != "" {
+		fmt.Fprintf(&b, " (voice `%s`)", c.List)
+	}
+	if c.Note != "" && c.Note != c.Text {
+		fmt.Fprintf(&b, ": %s", c.Note)
+	}
+	var seen []string
+	for _, e := range c.Evidence {
+		switch {
+		case e.Path != "" && e.Quote != "":
+			seen = append(seen, fmt.Sprintf("%s (%q)", e.Path, e.Quote))
+		case e.Path != "":
+			seen = append(seen, e.Path)
+		case e.Quote != "":
+			seen = append(seen, strconv.Quote(e.Quote))
+		}
+	}
+	if len(seen) > 0 {
+		fmt.Fprintf(&b, " — seen in %s", strings.Join(seen, ", "))
+	}
+	var by []string
+	if c.ProposedBy != "" {
+		by = append(by, c.ProposedBy)
+	}
+	if c.Operation != "" {
+		by = append(by, "#"+c.Operation)
+	}
+	if len(by) > 0 {
+		fmt.Fprintf(&b, " [%s]", strings.Join(by, " "))
 	}
 	return b.String()
 }

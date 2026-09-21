@@ -44,5 +44,27 @@ func TestMCPInstructionsSayWhatAnEmptyAnswerMeans(t *testing.T) {
 func TestMCPInstructionsReadAsInstructions(t *testing.T) {
 	text := MCPInstructions()
 	assert.NotContains(t, text, "—", "no em dash in agent-facing prose")
-	assert.Less(t, len(text), 1400, "the instructions are read into every session's context; keep them short")
+	// The budget covers four habits, one paragraph each, plus the sentence on
+	// per-call project scope. It is a ceiling on the text a client reads into
+	// every session, so a fifth paragraph is a decision rather than a drift.
+	assert.Less(t, len(text), 1800, "the instructions are read into every session's context; keep them short")
+}
+
+// TestMCPInstructionsCarryTheFourHabits holds the text to the habits the skill
+// leads with. A client that loads no skill reads this and nothing else, so a
+// habit missing here is a habit that surface does not have.
+func TestMCPInstructionsCarryTheFourHabits(t *testing.T) {
+	text := MCPInstructions()
+	for habit, name := range map[string]string{
+		"ask what applies before writing":       "context://",
+		"record what you notice while reading":  "context_observe",
+		"propose a rule with the evidence":      "context_propose",
+		"record the person's correction":        "context_correct",
+		"check what you changed before saying done": "check_file",
+		"report what the session recorded":      "context_session_summary",
+	} {
+		assert.Containsf(t, text, name, "the instructions carry the habit: %s", habit)
+	}
+	assert.Contains(t, text, "advises until a person confirms it",
+		"an agent that reports a candidate as a rule in force is the failure this sentence prevents")
 }
