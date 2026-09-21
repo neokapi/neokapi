@@ -89,11 +89,17 @@ vocabulary:
 // way.
 func readProjectContext(t *testing.T, root string) {
 	t.Helper()
+	readContextAt(t, filepath.Join(root, project.RecipeFileName))
+}
+
+// readContextAt is readProjectContext for a recipe that is not named
+// `kapi.yaml`.
+func readContextAt(t *testing.T, recipe string) {
+	t.Helper()
 	a := &host.App{}
 	a.InitRegistries()
 	defer a.Shutdown()
-	_, err := a.ImportProjectContext(context.Background(),
-		filepath.Join(root, project.RecipeFileName), host.ContextImportRequest{})
+	_, err := a.ImportProjectContext(context.Background(), recipe, host.ContextImportRequest{})
 	require.NoError(t, err)
 }
 
@@ -256,6 +262,9 @@ func TestContextMCPRetainsExplicitRecipeWithoutDiscovery(t *testing.T) {
 	require.NoError(t, os.WriteFile(profilePath, profile, 0o600))
 	recipe := filepath.Join(root, "governed-content.yaml")
 	require.NoError(t, os.Rename(filepath.Join(root, "kapi.yaml"), recipe))
+	// The channel guidance was appended to the profile after the fixture read
+	// it, so the store is given the edited profile.
+	readContextAt(t, recipe)
 	t.Setenv("KAPI_PROJECT", "")
 	t.Setenv("KAPI_NO_PROJECT", "1")
 	app := &host.App{}

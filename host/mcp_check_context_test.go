@@ -182,15 +182,41 @@ func TestCheckTextMCPDestinationValidationPrecedesOverrides(t *testing.T) {
 	assert.Empty(t, report.Schema)
 }
 
+// TestCheckTextMCPDestinationFailsClosed: a check reads the recipe, so a recipe
+// it cannot parse stops the check rather than leaving it ungoverned.
 func TestCheckTextMCPDestinationFailsClosed(t *testing.T) {
-	for _, unavailable := range []string{"kapi.yaml", ".kapi/voice.yaml", ".kapi/terms.json"} {
-		t.Run(unavailable, func(t *testing.T) {
+	app, root := scopedTextCheckFixture(t)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte("invalid: ["), 0o600))
+
+	_, report, err := app.checkTextMCP(t.Context(), checkTextInput{Text: "Ready.", ContextPath: "child/new.json"})
+	require.Error(t, err, "a recipe fault cannot silently omit a gate")
+	assert.Empty(t, report.Schema)
+	assert.False(t, report.Pass)
+}
+
+// TestCheckTextMCPReadsNoContextFile: the context a check applies comes from the
+// project store, so a context file in the checkout that no longer parses leaves
+// the check exactly as it was. The reader of those files is the import, and that
+// is where the fault is reported.
+func TestCheckTextMCPReadsNoContextFile(t *testing.T) {
+	for _, damaged := range []string{".kapi/voice.yaml", ".kapi/terms.json"} {
+		t.Run(damaged, func(t *testing.T) {
 			app, root := scopedTextCheckFixture(t)
-			require.NoError(t, os.WriteFile(filepath.Join(root, unavailable), []byte("invalid: ["), 0o600))
-			_, report, err := app.checkTextMCP(t.Context(), checkTextInput{Text: "Ready.", ContextPath: "child/new.json"})
-			require.Error(t, err, "bound context faults cannot silently omit a gate")
-			assert.Empty(t, report.Schema)
-			assert.False(t, report.Pass)
+			text := "Utilize the risk-free old-route."
+			before, _, err := app.checkTextMCP(t.Context(), checkTextInput{Text: text, ContextPath: "child/new.json"})
+			require.NoError(t, err)
+
+			require.NoError(t, os.WriteFile(filepath.Join(root, damaged), []byte("invalid: ["), 0o600))
+
+			after, report, err := app.checkTextMCP(t.Context(), checkTextInput{Text: text, ContextPath: "child/new.json"})
+			require.NoError(t, err, "a check opens no context file, so it has none to trip over")
+			assert.Equal(t, "kapi.check/v1", report.Schema)
+			assert.Equal(t, before, after, "the same store answers the same way")
+
+			// The import is what reads them, and it says so.
+			_, err = (&App{}).ImportProjectContext(t.Context(), filepath.Join(root, "kapi.yaml"), ContextImportRequest{})
+			require.Error(t, err, "the reader of a context file reports a file it cannot read")
+			assert.Contains(t, err.Error(), filepath.Base(damaged))
 		})
 	}
 }

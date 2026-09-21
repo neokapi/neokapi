@@ -91,6 +91,7 @@ version: 2
 tone:
   formality: formal
 `), 0o644))
+	readProjectContext(t, root)
 	moved := governingNow(t, a, recipe, root)
 	require.NotEqual(t, want, moved)
 
