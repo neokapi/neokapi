@@ -150,6 +150,11 @@ type Diagnostic struct {
 	Point *Point `json:"point,omitempty"`
 	// Metadata carries checker-specific detail (limit, count, matched rule id).
 	Metadata map[string]string `json:"metadata,omitempty"`
+	// Advisory marks a diagnostic raised against a rule nobody has confirmed.
+	// It is always SeverityNeutral, so it lands in Summary.Neutral, weighs
+	// nothing in the score and trips no gate limit. A surface reads it to show
+	// the finding as a proposal awaiting a decision.
+	Advisory bool `json:"advisory,omitempty"`
 }
 
 // Point is a governance point a project resolved for checked blocks: the
@@ -205,6 +210,7 @@ func DiagnosticFrom(f Finding, checkFamily string, loc Location) Diagnostic {
 		Suggestion: f.Suggestion,
 		Location:   loc,
 		Metadata:   f.Metadata,
+		Advisory:   f.Advisory,
 	}
 	if !f.Position.IsZero() {
 		rr := f.Position

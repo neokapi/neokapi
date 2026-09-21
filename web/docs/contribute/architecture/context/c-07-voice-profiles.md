@@ -346,6 +346,14 @@ compiled cache written by the one importer. The operation is idempotent. A
 binding that points at a starter pack or a store profile rather than a file is
 rejected: `apply` edits a committed file, not a pack or a stored row.
 
+A rule proposed rather than applied takes the same route once someone confirms
+it. `kapi context propose --list forbidden` records a candidate, which checks
+report at `neutral` severity and fail nothing on; confirming it builds this same
+change-set entry and runs this same applier, so a confirmed rule reaches the
+committed YAML and the store by the one path. Withdrawing it removes the rule
+from the YAML and re-imports the profile, which replaces the stored copy
+wholesale. See [C-11](c-11-context-operations.md).
+
 ### Built-in starter packs
 
 The framework embeds a small set of starter packs (`core/profile/packs`, embedded

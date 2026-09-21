@@ -287,6 +287,15 @@ convention: the coordinate a collection is `governed_by` in the graph, the
 coordinates on the wire, and the answer `kapi context <path>` gives are the same
 resolution.
 
+It is also where a learned rule is scoped. A context operation records the
+merged point its evidence was seen at, and its rule answers only where that
+point is covered ([C-11](c-11-context-operations.md)). A rule proposed from a
+file at `brand: northsea, mode: reference` says nothing about a tutorial, and
+widening it is a person naming the axis it should stop being specific about, or
+asking for the whole workspace. A project with no declared axes resolves the
+empty point, so everything it learns holds across the project, which is the
+right answer for a project that has not yet split.
+
 ### Validation happens at load
 
 Every collection and every item is resolved once when the recipe loads, so a

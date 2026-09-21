@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/neokapi/neokapi/core/storage"
@@ -59,6 +60,12 @@ type Registration struct {
 type Workspace struct {
 	backend  Backend
 	registry *storage.DB
+
+	// rulesOnce guards the widened-rule schema, which is brought up to date on
+	// the first call that needs it rather than at Open: a workspace whose
+	// projects never widened anything pays nothing for the table.
+	rulesOnce sync.Once
+	rulesErr  error
 }
 
 // Open prepares a workspace over a backend: it opens the workspace-wide

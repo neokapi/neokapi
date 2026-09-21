@@ -14,6 +14,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
@@ -693,6 +694,10 @@ type checkRunOptions struct {
 	// the run resolved none of its own, and the App's language answers (see
 	// the source method).
 	sourceLocale string
+	// context is what the project's context operations add at this point: rules
+	// widened to the whole workspace, which bind, and candidates nobody has
+	// decided on, which are reported and fail nothing (core/contextop).
+	context contextop.Resolution
 	// terms is the project's terms store, when it binds one: the vocabulary the
 	// project decided, enforced beside the profile's own lists. nil for a run
 	// with no project or no terminology.
@@ -816,10 +821,21 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	groups := opts.pointGroups(blocks, docBlocks)
 	for _, g := range groups {
 		mark := opts.execution.analyzerCount()
+		// Candidates advise. They run outside the analyzer, before it, so the
+		// gate never counts them and a point with nothing but candidates is
+		// still reported on. See advisoryDiagnostics.
+		if advisory := g.at.context.Advisory; len(advisory) > 0 {
+			sets := contextop.Resolution{Advisory: advisory}.RuleSets()
+			for _, b := range g.blocks {
+				loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
+				diags = append(diags, advisoryDiagnostics(sets, b.SourceText(), b.SourceRuns(), loc)...)
+			}
+		}
+		binding := contextop.Resolution{Binding: g.at.context.Binding}.RuleSets()
 		switch {
-		case g.at.profile == nil && g.at.terms == nil:
+		case g.at.profile == nil && g.at.terms == nil && len(binding) == 0:
 			opts.execution.skipped("voice.rules", file, "No voice profile or project terms were bound.")
-		case g.at.terms == nil && commentLimitsOnly(g.at.profile, g.blocks):
+		case g.at.terms == nil && len(binding) == 0 && commentLimitsOnly(g.at.profile, g.blocks):
 			// The comment analyzers below hold these comments to the profile's
 			// limits and decide the verdict for them.
 			opts.execution.notApplicable("voice.rules", file,
@@ -828,7 +844,9 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		default:
 			start = time.Now()
 			before := len(diags)
-			vocab := coretools.NewVoiceVocabCheckTool(g.at.profile, g.at.terms).InSourceLocale(model.LocaleID(opts.source(a)))
+			vocab := coretools.NewVoiceVocabCheckTool(g.at.profile, g.at.terms).
+				InSourceLocale(model.LocaleID(opts.source(a))).
+				Holding(binding...)
 			for _, b := range g.blocks {
 				if err := RunCheckTool(ctx, vocab, b); err != nil {
 					return nil, fmt.Errorf("voice vocabulary check %s: %w", DisplayName(file), err)
@@ -1343,6 +1361,10 @@ type checkTerms struct {
 	proj  *project.KapiProject
 	root  string
 	cache map[string]terms.Terminology
+	// rules is what the project's context operations add at a point: the rules
+	// a person widened to the whole workspace, and the candidates nobody has
+	// decided on. nil when the project has recorded none.
+	rules *contextRules
 }
 
 // newCheckTerms builds the resolver for one run. Outside a project there is no
@@ -1358,7 +1380,19 @@ func (a *App) newCheckTerms(cmd Command) (*checkTerms, error) {
 		return nil, fmt.Errorf("load project for terms: %w", lerr)
 	}
 	t.proj, t.root = proj, filepath.Dir(projectPath)
+	// A candidate is advice, and advice is not worth failing a check to
+	// produce: a workspace a sandbox cannot open, or a log this build cannot
+	// read, leaves the run with the vocabulary the project's own stores carry.
+	t.rules, _ = a.newContextRules(cmd, projectPath)
 	return t, nil
+}
+
+// contextAt is what the project's context operations add at a point.
+func (t *checkTerms) contextAt(point project.GovernancePoint) (contextop.Resolution, error) {
+	if t == nil || t.rules == nil {
+		return contextop.Resolution{}, nil
+	}
+	return t.rules.at(point)
 }
 
 // ProjectTermsForFile resolves the vocabulary the project decided for one file:
