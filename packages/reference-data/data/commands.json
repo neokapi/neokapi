@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T18:33:30Z",
+  "generatedAt": "2026-09-21T20:17:38Z",
   "commands": [
     {
       "id": "add",
@@ -905,7 +905,7 @@
       ],
       "use": "log",
       "short": "Show how this project's context came to be",
-      "long": "List what has been proposed, corrected and decided about this\nproject's context, newest first.\n\nEach line carries an operation's id, when it happened, who did it, what it was\nabout and where it stands: a candidate nobody has decided on, a confirmed rule\nin force, or one that was discarded or reverted.\n\nThe id is what the other verbs take. Narrow the list with --status to see what\nis waiting for a decision, or with --session to see what one agent run did.",
+      "long": "List what has been proposed, corrected and decided about this\nproject's context, newest first.\n\nEach line carries an operation's id, when it happened, who did it, what it was\nabout and where it stands: a candidate nobody has decided on, a confirmed rule\nin force, or one that was discarded or reverted.\n\nThe id is what the other verbs take. Narrow the list with --status to see what\nis waiting for a decision, or with --session to see what one agent run did.\n\"--session this\" is that run reading back its own work.",
       "flags": [
         {
           "name": "actor",
@@ -926,7 +926,7 @@
         },
         {
           "name": "session",
-          "usage": "only what one agent session recorded",
+          "usage": "only what one agent session recorded, or \"this\" for the session this run records under",
           "type": "string"
         },
         {
@@ -950,6 +950,7 @@
         "kapi context log",
         "kapi context log --status candidate",
         "kapi context log --session 0ab4e399 --json",
+        "kapi context log --session this",
         "kapi context log --actor agent --since 2026-09-01"
       ],
       "offlineCapable": true,
@@ -5611,12 +5612,12 @@
       ],
       "use": "init",
       "short": "Scaffold a new kapi project in the current directory",
-      "long": "Create a new kapi project with a kapi.yaml recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source in\nvoice: a voice profile, the project terms store, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project name defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\nEvery project kapi scaffolds is given a stable id under 'id:' in the recipe.\nIt survives a rename, a move and a clone, and everything kapi records about\nthe project is keyed on it. A recipe written before this and carrying no id\nkeeps working, identified by its name; --mint-id writes one into it, leaving\nthe rest of the file exactly as it is.\n\n--preset \u003cname\u003e (alias: --framework) pre-fills the content mapping for a known\nstack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular, and scaffolds the translation project. List every preset (framework\nscaffolds plus per-format parsing presets) with --list-presets.\n\nWhen the project binds a voice profile, kapi init also writes a short section\ninto the project's assistant file, so an assistant working in the tree knows\nthe voice is held by kapi and retrieves it with 'kapi voice guide' before\nwriting. An existing CLAUDE.md or AGENTS.md at the root takes the section\n(CLAUDE.md when both exist); with neither, kapi init creates CLAUDE.md.\nRe-running replaces the section in place and leaves the rest of the file\nalone. --no-pointer skips it; 'kapi voice pointer' writes it later.\n\nkapi init also wires the project up for the coding agents that work in it, so\nan agent opened here finds kapi with no further setup: an MCP server entry that\nstarts 'kapi mcp' for this project, and a copy of the kapi skill in the\ndirectory the agent reads skills from. Claude Code is always wired; Cursor and\nVS Code are wired where the project already keeps their directory. --agents\ntakes a comma-separated list (claude-code, cursor, vscode, agents), 'all', or\n'none'. Every path written is inside the project, an entry someone else put\nthere is left as it is, and re-running writes nothing new. Running kapi init on\na project that already has a recipe is how an existing project gets the same\nwiring.",
+      "long": "Create a new kapi project with a kapi.yaml recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source in\nvoice: a voice profile, the project terms store, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project name defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\nEvery project kapi scaffolds is given a stable id under 'id:' in the recipe.\nIt survives a rename, a move and a clone, and everything kapi records about\nthe project is keyed on it. A recipe written before this and carrying no id\nkeeps working, identified by its name; --mint-id writes one into it, leaving\nthe rest of the file exactly as it is.\n\n--preset \u003cname\u003e (alias: --framework) pre-fills the content mapping for a known\nstack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular, and scaffolds the translation project. List every preset (framework\nscaffolds plus per-format parsing presets) with --list-presets.\n\nWhen the project binds a voice profile, kapi init also writes a short section\ninto the project's assistant file, so an assistant working in the tree knows\nthe voice is held by kapi and retrieves it with 'kapi voice guide' before\nwriting. An existing CLAUDE.md or AGENTS.md at the root takes the section\n(CLAUDE.md when both exist); with neither, kapi init creates CLAUDE.md.\nRe-running replaces the section in place and leaves the rest of the file\nalone. --no-pointer skips it; 'kapi voice pointer' writes it later.\n\nkapi init also wires the project up for the coding agents that work in it, so\nan agent opened here finds kapi with no further setup: an MCP server entry that\nstarts 'kapi mcp' for this project, and a copy of the kapi skill in the\ndirectory the agent reads skills from. Claude Code is always wired; Cursor,\nVS Code and Codex are wired where the project already keeps their directory.\n--agents takes a comma-separated list (claude-code, cursor, vscode, codex,\nagents), 'all', or 'none'. Every path written is inside the project, an entry\nsomeone else put there is left as it is, and re-running writes nothing new.\nCodex reads the entry in .codex/config.toml once you trust this repository\nthere. Running kapi init on a project that already has a recipe is how an\nexisting project gets the same wiring.",
       "groupID": "work",
       "flags": [
         {
           "name": "agents",
-          "usage": "Coding agents to wire this project for: a comma-separated list of claude-code, cursor, vscode, agents; 'all'; or 'none' (default: claude-code plus every host already used here)",
+          "usage": "Coding agents to wire this project for: a comma-separated list of claude-code, cursor, vscode, codex, agents; 'all'; or 'none' (default: claude-code plus every host already used here)",
           "type": "string"
         },
         {

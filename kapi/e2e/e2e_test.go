@@ -17,6 +17,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/host"
 )
 
 var (
@@ -69,6 +71,16 @@ func TestMain(m *testing.M) {
 		// system plugin roots (Homebrew, /usr/share) still leak in.
 		"KAPI_PLUGINS_DIR_ONLY=1",
 	}
+	// A context operation records the agent host it was driven from, read off
+	// the marker variable that host exports (host/contextactor.go). A suite run
+	// from an agent's own shell inherits those markers, so an entry a test
+	// recorded would read as the agent on a developer's machine and as a person
+	// in CI. Clearing them makes every test say which it means, and
+	// context_actor_test.go sets its own.
+	for _, row := range host.AgentHostMarkers() {
+		isoEnv = append(isoEnv, row.Marker+"=", row.Session+"=")
+	}
+	isoEnv = append(isoEnv, "KAPI_ACTOR=", "KAPI_AGENT_NAME=", "KAPI_AGENT_SESSION=")
 
 	code := m.Run()
 	_ = os.RemoveAll(iso)

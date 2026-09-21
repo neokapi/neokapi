@@ -22,6 +22,11 @@
 // Every transition goes through core/contextop's policy. Today an agent may
 // observe, propose and record a correction; only a person confirms, edits,
 // discards another actor's work, withdraws a confirmed rule or widens one.
+//
+// A caller that states an actor kind is taken at its word: the MCP tools state
+// the agent, and the desktop states the person. A request that states none came
+// from a command line, where the environment answers
+// (host/contextactor.go).
 package host
 
 import (
@@ -67,8 +72,8 @@ type ContextRevertResult struct {
 
 // ContextObserveRequest records a fact somebody noticed, with no rule implied.
 type ContextObserveRequest struct {
-	// Actor is who is acting. An empty Kind reads as a person, which is what a
-	// command line is.
+	// Actor is who is acting. An empty Kind is a command line, where the
+	// environment answers (host/contextactor.go).
 	Actor contextop.Actor
 	// Project is the recipe path of the project the observation is about.
 	Project string
@@ -81,8 +86,8 @@ type ContextObserveRequest struct {
 // ContextProposeRequest proposes a candidate rule. Exactly one of Term, Voice
 // and Memory is set.
 type ContextProposeRequest struct {
-	// Actor is who is acting. An empty Kind reads as a person, which is what a
-	// command line is.
+	// Actor is who is acting. An empty Kind is a command line, where the
+	// environment answers (host/contextactor.go).
 	Actor contextop.Actor
 	// Project is the recipe path of the project the proposal is about.
 	Project string
@@ -104,8 +109,8 @@ type ContextProposeRequest struct {
 // correction is evidence first; Propose asks for the rule it implies to be
 // recorded with it.
 type ContextCorrectRequest struct {
-	// Actor is who is acting. An empty Kind reads as a person, which is what a
-	// command line is.
+	// Actor is who is acting. An empty Kind is a command line, where the
+	// environment answers (host/contextactor.go).
 	Actor contextop.Actor
 	// Project is the recipe path of the project the correction is in.
 	Project string
@@ -147,8 +152,8 @@ type ContextLogRequest struct {
 // ContextConfirmRequest makes a candidate binding, optionally editing it and
 // optionally widening it in the same step.
 type ContextConfirmRequest struct {
-	// Actor is who is acting. An empty Kind reads as a person, which is what a
-	// command line is.
+	// Actor is who is acting. An empty Kind is a command line, where the
+	// environment answers (host/contextactor.go).
 	Actor contextop.Actor
 	// Project is the recipe path.
 	Project string
@@ -170,7 +175,8 @@ type ContextConfirmRequest struct {
 
 // ContextDiscardRequest rejects a candidate.
 type ContextDiscardRequest struct {
-	// Actor is who is acting. An empty Kind reads as a person.
+	// Actor is who is acting. An empty Kind is a command line, where the
+	// environment answers (host/contextactor.go).
 	Actor   contextop.Actor
 	Project string
 	ID      string
@@ -179,7 +185,8 @@ type ContextDiscardRequest struct {
 
 // ContextRevertRequest undoes one operation, or everything one session did.
 type ContextRevertRequest struct {
-	// Actor is who is acting. An empty Kind reads as a person.
+	// Actor is who is acting. An empty Kind is a command line, where the
+	// environment answers (host/contextactor.go).
 	Actor   contextop.Actor
 	Project string
 	// ID is the operation to undo. Empty when Session names a whole session.
@@ -191,7 +198,8 @@ type ContextRevertRequest struct {
 
 // ContextWidenRequest moves a confirmed rule to a broader point.
 type ContextWidenRequest struct {
-	// Actor is who is acting. An empty Kind reads as a person.
+	// Actor is who is acting. An empty Kind is a command line, where the
+	// environment answers (host/contextactor.go).
 	Actor   contextop.Actor
 	Project string
 	ID      string
@@ -211,6 +219,68 @@ type ContextSessionRequest struct {
 // the workspace.
 const WidenToWorkspace = "workspace"
 
+// ContextLogSessionSelf is the value ContextLogRequest.Session takes for the
+// session this run records under. An agent that reached kapi from a shell
+// learns its session from the environment rather than from a flag, so this is
+// how it reads its own work back without being told the id.
+const ContextLogSessionSelf = "this"
+
+// actorFor resolves who a request belongs to and folds the resolution into the
+// note the operation carries.
+//
+// A caller that states a kind is taken at its word, and states its own session
+// where it has one: the MCP tools do both. An empty kind is a command line,
+// where the environment answers and the session is noted here, so the desktop
+// feed and `kapi context log --session` see one kind of agent session whichever
+// surface recorded it.
+func (s *contextOpsSession) actorFor(ctx context.Context, stated contextop.Actor, note string) (contextop.Actor, string, error) {
+	if stated.Kind != "" {
+		return stated, note, nil
+	}
+	resolved, err := s.app.commandActor()
+	if err != nil {
+		return contextop.Actor{}, "", err
+	}
+	s.noteAgentSession(ctx, resolved.Actor)
+	return resolved.Actor, resolved.NoteWith(note), nil
+}
+
+// noteAgentSession records that an agent is at work in this project.
+//
+// Every failure is swallowed, for the reason NoteMCPSession gives: the note is
+// something the workspace offers other surfaces, and an agent mid-task has
+// nothing to do about a workspace that will not take one.
+func (s *contextOpsSession) noteAgentSession(ctx context.Context, actor contextop.Actor) {
+	if actor.Kind != contextop.ActorAgent || actor.Session == "" {
+		return
+	}
+	ws, err := s.app.Workspace(ctx)
+	if err != nil || ws == nil {
+		return
+	}
+	now := time.Now().UTC()
+	_ = ws.NoteAgentSession(ctx, workspace.AgentSession{
+		ID:       actor.Session,
+		Project:  s.key,
+		Agent:    actor.Name,
+		Started:  now,
+		LastSeen: now,
+	})
+}
+
+// teachRefusal answers a policy refusal with what to do instead.
+//
+// Only a non-person is ever refused, so the reader is an agent mid-task, and
+// the useful next move is to put the candidates in front of the person rather
+// than to try the command again.
+func teachRefusal(err error) error {
+	if err == nil || !errors.Is(err, contextop.ErrRefused) {
+		return err
+	}
+	return fmt.Errorf("%w\ndeciding belongs to the person working here: "+
+		"show them what is waiting with `kapi context log --status candidate` and let them decide", err)
+}
+
 // RecordContextObservation records a fact somebody noticed. It implies no rule,
 // so nothing about a check changes; it is the material a proposal is later
 // drawn from.
@@ -222,14 +292,19 @@ func (a *App) RecordContextObservation(ctx context.Context, req ContextObserveRe
 	if req.Text == "" {
 		return ContextOperation{}, errors.New("an observation needs something to say")
 	}
+	actor, note, err := s.actorFor(ctx, req.Actor, "")
+	if err != nil {
+		return ContextOperation{}, err
+	}
 	record, err := s.ledger.Append(ctx, s.stamp(contextop.Record{
-		Actor:    req.Actor,
+		Actor:    actor,
 		Kind:     contextop.KindObserve,
 		Subject:  contextop.Subject{Kind: contextop.SubjectNote, Text: req.Text},
 		Evidence: req.Evidence,
+		Note:     note,
 	}, req.Evidence))
 	if err != nil {
-		return ContextOperation{}, err
+		return ContextOperation{}, teachRefusal(err)
 	}
 	return ContextOperation{Record: record}, nil
 }
@@ -247,15 +322,19 @@ func (a *App) ProposeContextRule(ctx context.Context, req ContextProposeRequest)
 	if err != nil {
 		return ContextOperation{}, err
 	}
+	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
+	if err != nil {
+		return ContextOperation{}, err
+	}
 	record, err := s.ledger.Append(ctx, s.stamp(contextop.Record{
-		Actor:    req.Actor,
+		Actor:    actor,
 		Kind:     contextop.KindPropose,
 		Subject:  subject,
 		Evidence: req.Evidence,
-		Note:     req.Note,
+		Note:     note,
 	}, req.Evidence))
 	if err != nil {
-		return ContextOperation{}, err
+		return ContextOperation{}, teachRefusal(err)
 	}
 	return ContextOperation{Record: record}, nil
 }
@@ -305,12 +384,16 @@ func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectReq
 	if req.From == "" || req.To == "" {
 		return ContextOperation{}, errors.New("a correction needs the wording that was there and the wording that replaced it")
 	}
+	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
+	if err != nil {
+		return ContextOperation{}, err
+	}
 	record := contextop.Record{
-		Actor:      req.Actor,
+		Actor:      actor,
 		Kind:       contextop.KindCorrect,
 		Correction: &contextop.Correction{From: req.From, To: req.To},
 		Evidence:   req.Evidence,
-		Note:       req.Note,
+		Note:       note,
 	}
 	if req.Propose {
 		record.Subject = contextop.Subject{Kind: contextop.SubjectTerm, Term: &profile.TermRule{
@@ -322,7 +405,7 @@ func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectReq
 	}
 	written, err := s.ledger.Append(ctx, s.stamp(record, req.Evidence))
 	if err != nil {
-		return ContextOperation{}, err
+		return ContextOperation{}, teachRefusal(err)
 	}
 	return ContextOperation{Record: written}, nil
 }
@@ -333,9 +416,13 @@ func (a *App) ContextOperations(ctx context.Context, req ContextLogRequest) (Con
 	if err != nil {
 		return ContextOperationList{}, err
 	}
+	session, err := a.logSession(req.Session)
+	if err != nil {
+		return ContextOperationList{}, err
+	}
 	records, err := s.ledger.Records(ctx, contextop.Filter{
 		Project:  s.key,
-		Session:  req.Session,
+		Session:  session,
 		Status:   req.Status,
 		Actor:    req.Actor,
 		Since:    req.Since,
@@ -350,6 +437,24 @@ func (a *App) ContextOperations(ctx context.Context, req ContextLogRequest) (Con
 		out.Operations = append(out.Operations, ContextOperation{Record: r})
 	}
 	return out, nil
+}
+
+// logSession reads the session a log request narrows to, answering
+// ContextLogSessionSelf with the session this run records under.
+func (a *App) logSession(session string) (string, error) {
+	if session != ContextLogSessionSelf {
+		return session, nil
+	}
+	resolved, err := a.commandActor()
+	if err != nil {
+		return "", err
+	}
+	if resolved.Actor.Session == "" {
+		return "", fmt.Errorf(
+			"%q is the session an agent run records under, and this one is a %s with no session: name a session id, or leave --session out",
+			ContextLogSessionSelf, resolved.Actor.Kind)
+	}
+	return resolved.Actor.Session, nil
 }
 
 // ConfirmContextOperation makes a candidate binding.
@@ -373,12 +478,16 @@ func (a *App) ConfirmContextOperation(ctx context.Context, req ContextConfirmReq
 		return ContextOperation{}, fmt.Errorf("operation %s states no rule to confirm", target.ID)
 	}
 
+	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
+	if err != nil {
+		return ContextOperation{}, err
+	}
 	confirm := contextop.Record{
-		Actor:   req.Actor,
+		Actor:   actor,
 		Kind:    contextop.KindConfirm,
 		Target:  target.ID,
 		Project: target.Project,
-		Note:    req.Note,
+		Note:    note,
 		Scope:   target.Scope,
 	}
 	if edited, changed := editSubject(target.Subject, req.Replacement, req.Severity); changed {
@@ -399,7 +508,7 @@ func (a *App) ConfirmContextOperation(ctx context.Context, req ContextConfirmReq
 	// asked for it is the thing nobody can act on.
 	written, err := s.ledger.Append(ctx, confirm)
 	if err != nil {
-		return ContextOperation{}, err
+		return ContextOperation{}, teachRefusal(err)
 	}
 	target.Status = contextop.StatusConfirmed
 	landed, err := s.land(ctx, target)
@@ -475,15 +584,19 @@ func (a *App) DiscardContextOperation(ctx context.Context, req ContextDiscardReq
 	if err != nil {
 		return ContextOperation{}, err
 	}
+	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
+	if err != nil {
+		return ContextOperation{}, err
+	}
 	written, err := s.ledger.Append(ctx, contextop.Record{
-		Actor:   req.Actor,
+		Actor:   actor,
 		Kind:    contextop.KindDiscard,
 		Target:  target.ID,
 		Project: target.Project,
-		Note:    req.Note,
+		Note:    note,
 	})
 	if err != nil {
-		return ContextOperation{}, err
+		return ContextOperation{}, teachRefusal(err)
 	}
 	retracted, err := s.retract(ctx, target)
 	if err != nil {
@@ -506,8 +619,13 @@ func (a *App) RevertContextOperations(ctx context.Context, req ContextRevertRequ
 		return ContextRevertResult{}, errors.New("revert names an operation or a session, not both and not neither")
 	}
 
+	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
+	if err != nil {
+		return ContextRevertResult{}, err
+	}
+
 	var targets []contextop.Record
-	revert := contextop.Record{Actor: req.Actor, Kind: contextop.KindRevert, Note: req.Note, Project: s.key}
+	revert := contextop.Record{Actor: actor, Kind: contextop.KindRevert, Note: note, Project: s.key}
 	if req.ID != "" {
 		target, terr := s.ledger.Subject(ctx, req.ID)
 		if terr != nil {
@@ -525,7 +643,7 @@ func (a *App) RevertContextOperations(ctx context.Context, req ContextRevertRequ
 	}
 
 	if _, err := s.ledger.Append(ctx, revert); err != nil {
-		return ContextRevertResult{}, err
+		return ContextRevertResult{}, teachRefusal(err)
 	}
 
 	out := ContextRevertResult{Session: req.Session}
@@ -561,16 +679,20 @@ func (a *App) WidenContextOperation(ctx context.Context, req ContextWidenRequest
 	if err != nil {
 		return ContextOperation{}, err
 	}
+	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
+	if err != nil {
+		return ContextOperation{}, err
+	}
 	written, err := s.ledger.Append(ctx, contextop.Record{
-		Actor:   req.Actor,
+		Actor:   actor,
 		Kind:    contextop.KindWiden,
 		Target:  target.ID,
 		Project: target.Project,
 		Scope:   widened,
-		Note:    req.Note,
+		Note:    note,
 	})
 	if err != nil {
-		return ContextOperation{}, err
+		return ContextOperation{}, teachRefusal(err)
 	}
 	target.Scope = widened
 	landed, err := s.land(ctx, target)

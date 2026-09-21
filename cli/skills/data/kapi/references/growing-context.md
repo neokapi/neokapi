@@ -52,10 +52,27 @@ a single sentence, and do not wait until the end of the task to record them.
 A `kapi context <path>` answer lists the candidates at that point, so a later
 session builds on what an earlier one recorded instead of working it out again.
 
+## What the entry says about you
+
+Every operation carries who recorded it and, for an agent, a session that groups
+one run. kapi works both out for itself: it recognises the common agent hosts
+from the environment they put a command in, and over MCP the server knows. So
+these calls take no flag naming you, and an entry you record reads back under
+`kapi context log --actor agent`.
+
+In a host kapi does not recognise, set `KAPI_AGENT_NAME` to what you are called
+and `KAPI_AGENT_SESSION` to an id that holds still for this task and differs
+from the last one.
+
+Read your own run back with `kapi context log --session this`, which is the
+session this command resolves for itself. End your task report with what it
+says.
+
 ## Reviewing and undoing
 
 ```bash
 kapi context log --status candidate       # what is waiting for a decision
+kapi context log --session this --json    # what this run recorded
 kapi context log --session s4f1c2 --json  # what one agent run recorded
 kapi context confirm 7                    # make a rule binding, and write it
 kapi context discard 7                    # reject it
@@ -64,9 +81,11 @@ kapi context widen 7 --to workspace       # put a confirmed rule in force everyw
 ```
 
 Confirming, discarding someone else's proposal, reverting and widening belong to
-a person. An agent that tries is refused, and told so. Over MCP there is no tool
-for any of them at all: end your task by reporting what you recorded and the
-command above for reviewing it, and let the user decide.
+a person. An agent that tries is refused, and told so. You may still withdraw a
+candidate you recorded in this session, which is how a run cleans up after
+itself. Over MCP there is no tool for any of the decisions at all: end your task
+by reporting what you recorded and the command above for reviewing it, and let
+the user decide.
 
 ---
 

@@ -10,7 +10,10 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
+
+	"github.com/pelletier/go-toml/v2"
 
 	"github.com/neokapi/neokapi/core/project"
 )
@@ -52,13 +55,20 @@ const (
 	// AgentHostVSCode is Visual Studio Code: `.vscode/mcp.json`, whose servers
 	// sit under `servers` rather than `mcpServers`.
 	AgentHostVSCode AgentHost = "vscode"
+	// AgentHostCodex is Codex: `.codex/config.toml`, the repository's own layer
+	// of the configuration Codex reads, whose servers sit under `mcp_servers`.
+	// Codex loads that layer for a repository the person has trusted, so the
+	// entry starts answering the first time they open the project there.
+	AgentHostCodex AgentHost = "codex"
 	// AgentHostAgents is the cross-client skills convention, `.agents/skills/`,
 	// which several hosts scan alongside their own directory.
 	AgentHostAgents AgentHost = "agents"
 )
 
 // agentHostOrder is every host kapi knows, in the order a result lists them.
-var agentHostOrder = []AgentHost{AgentHostClaudeCode, AgentHostCursor, AgentHostVSCode, AgentHostAgents}
+var agentHostOrder = []AgentHost{
+	AgentHostClaudeCode, AgentHostCursor, AgentHostVSCode, AgentHostCodex, AgentHostAgents,
+}
 
 // AgentHosts returns every host kapi can wire a project for.
 func AgentHosts() []AgentHost {
@@ -74,6 +84,7 @@ func AgentHosts() []AgentHost {
 var agentHostDirs = map[AgentHost]string{
 	AgentHostCursor: ".cursor",
 	AgentHostVSCode: ".vscode",
+	AgentHostCodex:  ".codex",
 	AgentHostAgents: ".agents",
 }
 
@@ -299,6 +310,15 @@ func WriteAgentWiring(opts AgentWiringOptions) (*AgentWiringResult, error) {
 			res.Files = append(res.Files, file)
 		}
 
+		if host == AgentHostCodex {
+			file, err := upsertCodexMCPServerEntry(filepath.Join(opts.Root, filepath.FromSlash(codexMCPConfigPath)), entry)
+			if err != nil {
+				return nil, err
+			}
+			file.Kind, file.Host, file.Path = AgentWiringMCP, host, codexMCPConfigPath
+			res.Files = append(res.Files, file)
+		}
+
 		dir, ok := agentSkillDirs[host]
 		if !ok || opts.Skills == nil {
 			continue
@@ -387,6 +407,76 @@ func marshalMCPConfig(doc map[string]json.RawMessage, serversKey string, servers
 		return nil, fmt.Errorf("encode the MCP configuration: %w", err)
 	}
 	return append(out, '\n'), nil
+}
+
+// codexMCPConfigPath is the repository's own layer of the configuration Codex
+// reads, and codexMCPServersTable the table its servers sit in.
+const (
+	codexMCPConfigPath   = ".codex/config.toml"
+	codexMCPServersTable = "mcp_servers"
+)
+
+// upsertCodexMCPServerEntry adds kapi's server to the project's Codex
+// configuration.
+//
+// The file is TOML, and it is a person's to edit: it carries their sandbox,
+// hook and model settings for this repository beside its servers. So the entry
+// is appended as text and the rest of the file is never rewritten, which leaves
+// comments, ordering and spacing exactly as they were. Reading it back as TOML
+// answers the one question that has to be settled before writing, which is
+// whether a server called kapi is already there.
+func upsertCodexMCPServerEntry(path string, entry mcpServerEntry) (AgentWiringFile, error) {
+	out := AgentWiringFile{Detail: describeMCPEntry(entry)}
+	block := codexMCPServerBlock(entry)
+
+	raw, err := os.ReadFile(path)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		if werr := writeProjectFile(path, []byte(block)); werr != nil {
+			return out, werr
+		}
+		out.Action = AgentWiringCreated
+		return out, nil
+	case err != nil:
+		return out, fmt.Errorf("read %s: %w", path, err)
+	}
+
+	var doc map[string]any
+	if terr := toml.Unmarshal(raw, &doc); terr != nil {
+		return out, fmt.Errorf("%s holds TOML kapi could not read, so it was left alone: %w", path, terr)
+	}
+	if servers, ok := doc[codexMCPServersTable].(map[string]any); ok {
+		if _, held := servers[mcpServerName]; held {
+			out.Action = AgentWiringKept
+			out.Detail = "already names a server called " + mcpServerName
+			return out, nil
+		}
+	}
+
+	held := string(raw)
+	if held != "" && !strings.HasSuffix(held, "\n") {
+		held += "\n"
+	}
+	if held != "" {
+		held += "\n"
+	}
+	if werr := writeProjectFile(path, []byte(held+block)); werr != nil {
+		return out, werr
+	}
+	out.Action = AgentWiringUpdated
+	return out, nil
+}
+
+// codexMCPServerBlock renders kapi's server as the table Codex reads. Codex
+// takes a server with a `command` as a stdio server, so the entry carries the
+// command and its arguments and nothing else.
+func codexMCPServerBlock(entry mcpServerEntry) string {
+	args := make([]string, 0, len(entry.Args))
+	for _, arg := range entry.Args {
+		args = append(args, strconv.Quote(arg))
+	}
+	return fmt.Sprintf("[%s.%s]\ncommand = %s\nargs = [%s]\n",
+		codexMCPServersTable, mcpServerName, strconv.Quote(entry.Command), strings.Join(args, ", "))
 }
 
 // describeMCPEntry renders the entry as the command line it launches, which is

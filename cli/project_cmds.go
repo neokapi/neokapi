@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -66,13 +67,14 @@ alone. --no-pointer skips it; 'kapi voice pointer' writes it later.
 kapi init also wires the project up for the coding agents that work in it, so
 an agent opened here finds kapi with no further setup: an MCP server entry that
 starts 'kapi mcp' for this project, and a copy of the kapi skill in the
-directory the agent reads skills from. Claude Code is always wired; Cursor and
-VS Code are wired where the project already keeps their directory. --agents
-takes a comma-separated list (claude-code, cursor, vscode, agents), 'all', or
-'none'. Every path written is inside the project, an entry someone else put
-there is left as it is, and re-running writes nothing new. Running kapi init on
-a project that already has a recipe is how an existing project gets the same
-wiring.`,
+directory the agent reads skills from. Claude Code is always wired; Cursor,
+VS Code and Codex are wired where the project already keeps their directory.
+--agents takes a comma-separated list (claude-code, cursor, vscode, codex,
+agents), 'all', or 'none'. Every path written is inside the project, an entry
+someone else put there is left as it is, and re-running writes nothing new.
+Codex reads the entry in .codex/config.toml once you trust this repository
+there. Running kapi init on a project that already has a recipe is how an
+existing project gets the same wiring.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// --list-presets: print the preset catalog and exit (absorbs the
 			// former `kapi presets list`, #1078 C1).
@@ -174,7 +176,7 @@ wiring.`,
 	cmd.Flags().BoolVar(&listPresets, "list-presets", false, "List available presets (framework scaffolds and per-format parsing presets) and exit")
 	cmd.Flags().BoolVar(&noPointer, "no-pointer", false, "Do not write the voice pointer into CLAUDE.md or AGENTS.md")
 	cmd.Flags().BoolVar(&mintID, "mint-id", false, "Write a stable project id into a recipe that has none, and print the id")
-	cmd.Flags().StringVar(&agents, "agents", "", "Coding agents to wire this project for: a comma-separated list of claude-code, cursor, vscode, agents; 'all'; or 'none' (default: claude-code plus every host already used here)")
+	cmd.Flags().StringVar(&agents, "agents", "", "Coding agents to wire this project for: a comma-separated list of claude-code, cursor, vscode, codex, agents; 'all'; or 'none' (default: claude-code plus every host already used here)")
 	cmd.MarkFlagsMutuallyExclusive("preset", "framework")
 	return cmd
 }
@@ -206,6 +208,12 @@ func printAgentWiring(cmd *cobra.Command, res *AgentWiringResult) {
 			line += ": " + file.Detail
 		}
 		fmt.Fprintln(w, line+")")
+	}
+	// Codex reads a repository's own configuration layer for a repository the
+	// person has trusted, so the file kapi wrote starts answering on the first
+	// session they open here rather than on the next command.
+	if slices.Contains(res.Hosts, AgentHostCodex) {
+		fmt.Fprintln(w, "  note:   Codex reads .codex/config.toml once you trust this repository there")
 	}
 }
 

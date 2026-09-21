@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T18:33:30Z",
+  "generatedAt": "2026-09-21T20:17:38Z",
   "commands": [
     {
       "id": "add",
@@ -905,7 +905,7 @@
       ],
       "use": "log",
       "short": "Show how this project's context came to be",
-      "long": "List what has been proposed, corrected and decided about this\nproject's context, newest first.\n\nEach line carries an operation's id, when it happened, who did it, what it was\nabout and where it stands: a candidate nobody has decided on, a confirmed rule\nin force, or one that was discarded or reverted.\n\nThe id is what the other verbs take. Narrow the list with --status to see what\nis waiting for a decision, or with --session to see what one agent run did.",
+      "long": "List what has been proposed, corrected and decided about this\nproject's context, newest first.\n\nEach line carries an operation's id, when it happened, who did it, what it was\nabout and where it stands: a candidate nobody has decided on, a confirmed rule\nin force, or one that was discarded or reverted.\n\nThe id is what the other verbs take. Narrow the list with --status to see what\nis waiting for a decision, or with --session to see what one agent run did.\n\"--session this\" is that run reading back its own work.",
       "flags": [
         {
           "name": "actor",
@@ -926,7 +926,7 @@
         },
         {
           "name": "session",
-          "usage": "only what one agent session recorded",
+          "usage": "only what one agent session recorded, or \"this\" for the session this run records under",
           "type": "string"
         },
         {
@@ -950,6 +950,7 @@
         "kapi context log",
         "kapi context log --status candidate",
         "kapi context log --session 0ab4e399 --json",
+        "kapi context log --session this",
         "kapi context log --actor agent --since 2026-09-01"
       ],
       "offlineCapable": true,
@@ -5616,7 +5617,7 @@
       "flags": [
         {
           "name": "agents",
-          "usage": "Coding agents to wire this project for: a comma-separated list of claude-code, cursor, vscode, agents; 'all'; or 'none' (default: claude-code plus every host already used here)",
+          "usage": "Coding agents to wire this project for: a comma-separated list of claude-code, cursor, vscode, codex, agents; 'all'; or 'none' (default: claude-code plus every host already used here)",
           "type": "string"
         },
         {
