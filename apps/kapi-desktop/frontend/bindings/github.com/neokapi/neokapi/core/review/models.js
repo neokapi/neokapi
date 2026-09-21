@@ -136,15 +136,15 @@ export class History {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Unseeded reports a project whose committed context sources have never
-             * been compiled into the store this history reads: a fresh clone, before
-             * anything ran. The store answers, and answers empty, which a reviewer
-             * cannot tell from a memory that genuinely holds nothing close. `kapi up`
-             * compiles the sources; until it has, an empty Match means unread.
+             * Unread reports a checkout carrying context files whose project store has
+             * never held context: a clone, before anyone read its layout in. The store
+             * answers, and answers empty, which a reviewer cannot tell from a memory
+             * that genuinely holds nothing close. `kapi context import` reads the
+             * files; until then, an empty Match means unread.
              * @member
              * @type {boolean | undefined}
              */
-            this["unseeded"] = undefined;
+            this["unread"] = undefined;
         }
 
         Object.assign(this, $$source);
