@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T22:23:59Z",
+  "generatedAt": "2026-09-21T07:12:49Z",
   "commands": [
     {
       "id": "add",
@@ -605,7 +605,7 @@
       ],
       "use": "context [path]",
       "short": "Ask what this project's content context says",
-      "long": "Retrieve the content context this project goes by: the terms, the\nvoice and the rules that hold, without needing to know which store holds the\nanswer.\n\nTwo questions, and every asset-shaped lookup is one of them:\n\n  kapi context \u003cpath\u003e          what applies HERE: the voice in force at that\n                               location, its guidance, the terms bound there\n  kapi context --profile \u003cn\u003e   the same answer for a named profile, when you\n                               have no file in hand\n  kapi context search \u003cquery\u003e  what we know about THIS: terms, prior wording\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says before you write, rather than learning it from a failing check\nafterwards.",
+      "long": "Retrieve the content context this project goes by: the terms, the\nvoice and the rules that hold, without needing to know which store holds the\nanswer.\n\nTwo questions, and every asset-shaped lookup is one of them:\n\n  kapi context \u003cpath\u003e          what applies HERE: the voice in force at that\n                               location, its guidance, the terms bound there\n  kapi context --profile \u003cn\u003e   the same answer for a named profile, when you\n                               have no file in hand\n  kapi context search \u003cquery\u003e  what we know about THIS: terms, prior wording\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says before you write, rather than learning it from a failing check\nafterwards.\n\nFour more verbs move the context itself: import and snapshot carry it between\nthe project's files and its store, export and restore carry the whole of it as\none file.",
       "groupID": "work",
       "flags": [
         {
@@ -652,7 +652,109 @@
         "kapi context docs/guide.md",
         "kapi context docs/guide.md --json",
         "kapi context --profile marketing",
-        "kapi context search widget"
+        "kapi context search widget",
+        "kapi context snapshot --out build/context"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.export",
+      "path": [
+        "context",
+        "export"
+      ],
+      "use": "export",
+      "short": "Write this project's whole context to one file",
+      "long": "Write everything this project's store holds as context into a\nsingle file: the terms, the voice profiles, the wording already approved, and\nthe decision record.\n\nIt is the backup, and the way to move a project's context to another machine.\nNothing is lost and nothing is flattened: every part travels in the form kapi\nreads it back from, and \"kapi context restore\" puts it into a store with the\nsame identities it left with.\n\nWithheld originals are never in it. They stay on the machine that redacted them,\nand no flag puts them in a file meant to be copied.\n\nDecisions waiting to be committed are published into the record first, the same\nwrite \"kapi commit\" makes.",
+      "flags": [
+        {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "file to write",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context export -o context.kpz",
+        "kapi context export -o backups/acme-context.kpz --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.import",
+      "path": [
+        "context",
+        "import"
+      ],
+      "use": "import [path]",
+      "short": "Read committed context files into this project's store",
+      "long": "Read a project's committed context into its store: the terms, the\nvoice profiles, the wording already approved, and the record of who approved it.\n\nWith no path it reads the project's own \".kapi\" directory, which is what a run\ndoes for you on every \"kapi up\". Name a path to read another checkout's\ndirectory instead, when you are bringing an existing project's context across.\n\nRunning it twice changes nothing. Everything is matched by the identity the file\ncarries, so a second read finds the store already holding what the file says.\nA file whose bytes have not moved since the last read is skipped; --force reads\nit anyway.",
+      "flags": [
+        {
+          "name": "force",
+          "usage": "read every file, including ones whose bytes have not moved",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context import",
+        "kapi context import ../other-project/.kapi",
+        "kapi context import --force"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.restore",
+      "path": [
+        "context",
+        "restore"
+      ],
+      "use": "restore \u003cbundle\u003e",
+      "short": "Read a context file back into this project's store",
+      "long": "Read a file written by \"kapi context export\" into this project's\nstore, with every identity it left with.\n\nA store that already holds context is left alone until you say what should\nhappen to it. --merge reads the file over what is there, which is idempotent:\nrestoring the same file twice leaves the same store. --replace puts the file in\nplace of what is there, so what is left is the file and nothing else.",
+      "flags": [
+        {
+          "name": "merge",
+          "usage": "read the file over the context the store already holds",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "replace",
+          "usage": "put the file in place of the context the store already holds",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "examples": [
+        "kapi context restore context.kpz",
+        "kapi context restore context.kpz --merge",
+        "kapi context restore context.kpz --replace"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -707,6 +809,37 @@
         "kapi context search widget",
         "kapi context search \"sign in\" --locale en",
         "kapi context search widget --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.snapshot",
+      "path": [
+        "context",
+        "snapshot"
+      ],
+      "use": "snapshot",
+      "short": "Write this project's context back out as files",
+      "long": "Write the context in force for this project into a \".kapi\"\ndirectory: the terms, the voice profiles at the paths they are bound from, the\napproved wording, and the decision record.\n\nThe files it writes are generated. Edit the project's context and snapshot\nagain rather than editing them by hand, the way you would with any other\ngenerated artifact.\n\nWith no --out it writes the project's own \".kapi\" directory. A clean clone that\nholds only what a snapshot wrote governs its content exactly as the project that\nwrote it does.\n\nTwo things never travel. Withheld originals stay on the machine that redacted\nthem, and nothing kapi keeps for its own use is written.\n\nDecisions waiting to be committed are published into the record first, the same\nwrite \"kapi commit\" makes, so the record in the snapshot is the project's.",
+      "flags": [
+        {
+          "name": "out",
+          "usage": "directory to write the layout into (default: the project's own)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context snapshot",
+        "kapi context snapshot --out build/context",
+        "kapi context snapshot --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
