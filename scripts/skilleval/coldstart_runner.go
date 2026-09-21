@@ -124,7 +124,16 @@ func executeColdStartWith(ctx context.Context, opts ColdStartOptions, deps coldS
 	if err != nil {
 		return err
 	}
+	// An evidence directory that already holds a study keeps its own cells, so
+	// review and report read the sandbox a live phase created rather than one
+	// derived from the current source.
 	opts.SandboxRoot = record.SandboxRoot
+	var existing coldStartStudyRecord
+	if err := readPairedJSON(filepath.Join(opts.Dir, "study.json"), &existing); err == nil && existing.SandboxRoot != "" {
+		opts.SandboxRoot = existing.SandboxRoot
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
 	if err := os.MkdirAll(opts.SandboxRoot, 0o700); err != nil {
 		return err
 	}
@@ -132,9 +141,9 @@ func executeColdStartWith(ctx context.Context, opts ColdStartOptions, deps coldS
 	case coldStartPhaseReport:
 		return reportColdStart(ctx, opts)
 	case coldStartPhaseReview:
-		if err := ensureColdStartStudy(opts.Dir, record); err != nil {
-			return err
-		}
+		// Reading the store and printing a sheet makes no model call and writes
+		// nothing to a cell, so it answers for evidence the current source did
+		// not produce.
 		return reviewColdStart(ctx, opts)
 	case coldStartPhasePreflight:
 		return preflightColdStart(ctx, opts, deps)
@@ -182,12 +191,16 @@ func makeColdStartStudyRecord(opts ColdStartOptions) (coldStartStudyRecord, erro
 		}
 		record.KapiVersion = firstLine(run(opts.KapiBin, "--version"))
 	}
+	// The commit is provenance. It stays out of the fingerprint, which binds the
+	// inputs a drill actually runs on: the manifest, the fixture and its
+	// prompts, the runner's source, the shipped skill and the binary. A commit
+	// elsewhere in the checkout changes neither.
 	record.KapiCommit = firstLine(run("git", "-C", opts.RepoRoot, "rev-parse", "HEAD"))
 	record.Fingerprint, err = pairedHash(struct {
-		Manifest                        ColdStartManifest
-		Fixture, Code, Skill, Kapi, Git string
+		Manifest                   ColdStartManifest
+		Fixture, Code, Skill, Kapi string
 	}{Manifest: opts.Manifest, Fixture: record.FixtureHash, Code: record.CodeHash,
-		Skill: record.SkillHash, Kapi: record.KapiHash, Git: record.KapiCommit})
+		Skill: record.SkillHash, Kapi: record.KapiHash})
 	if err != nil {
 		return record, err
 	}
