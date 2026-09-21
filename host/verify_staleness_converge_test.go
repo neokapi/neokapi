@@ -106,6 +106,7 @@ func newConvergedStalenessProject(t *testing.T) (*App, string, string) {
 	recipe := filepath.Join(root, project.RecipeFileName)
 	require.NoError(t, project.Save(recipe, proj))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
+	readProjectContext(t, root)
 	t.Chdir(root)
 
 	a := &App{}
@@ -199,8 +200,10 @@ func TestStalenessGate_TermsMoveUnderAConvergedProject(t *testing.T) {
 	assert.Empty(t, gate.Findings)
 
 	// The wording approved for fr changes. The voice profile is untouched, so
-	// terminology is what moved.
+	// terminology is what moved. Reading the bundle in is what puts the new
+	// wording in force.
 	writeStalenessTerms(t, root, "mémoire du contenu")
+	readProjectContext(t, root)
 
 	a, cmd, proj, units = freshStalenessCheck(t, recipe, root)
 	gate, judged, err = a.verifyStaleness(cmd, proj, root, units, nil)
@@ -221,6 +224,7 @@ func TestStalenessGate_TermsMoveUnderAConvergedProject(t *testing.T) {
 func TestStalenessGate_CheckPrintsTheSupersededTargets(t *testing.T) {
 	_, recipe, root := newConvergedStalenessProject(t)
 	writeStalenessTerms(t, root, "mémoire du contenu")
+	readProjectContext(t, root)
 
 	a := &App{SourceLang: "en"}
 	a.InitRegistries()

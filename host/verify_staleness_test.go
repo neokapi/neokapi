@@ -224,6 +224,7 @@ vocabulary:
       severity: critical
 `
 	require.NoError(t, os.WriteFile(filepath.Join(f.root, "voice.yaml"), []byte(moved), 0o644))
+	readProjectContext(t, f.root)
 
 	// A fresh App: the fingerprints are resolved once per run, which is what
 	// makes a long convergence self-consistent, and what makes a re-check a

@@ -387,8 +387,9 @@ type VoiceResolveOptions struct {
 //     starter pack).
 //  2. defaults.voice, in the same two forms.
 //
-// A binding that names a `profile_file:` selects nothing: the file is an
-// export artifact, read into the store by `kapi context import`.
+// A binding that names a `profile_file:` names WHICH profile applies, and the
+// store answers for it under the id `kapi context import` filed that path
+// under. The file itself stays closed.
 //
 // What the recipe binds is *loaded* here and then handed to the framework's one
 // resolution chain (coreprofile.ResolveProfileFromContext) at the collection tier,
