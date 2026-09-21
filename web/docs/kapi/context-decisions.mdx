@@ -41,8 +41,8 @@ Everything it records is a candidate under a **session** of its own, so you can
 read a run's whole contribution in one place, or undo it in one command:
 
 ```bash
-kapi context log --session s4f1c2      # what one run recorded
-kapi context revert --session s4f1c2   # undo all of it
+kapi context log --session s4980103f5148      # what one run recorded
+kapi context revert --session s4980103f5148   # undo all of it
 ```
 
 It ends its report with the same session id. Nothing it recorded is in force
@@ -59,8 +59,11 @@ kapi context propose utilise --use use --seen-in docs/guide.md
 From that moment a check reports the word wherever it appears:
 
 ```
-docs/guide.md  Proposed rule about "utilise", not yet confirmed
-               Use "use" instead
+  severity  rule              location                         message
+  NEUTRAL   voice.vocabulary  docs/guide.md:getting-started/p  Proposed rule about "utilise", not yet confirmed
+                                                               ↳ Use "use" instead
+
+PASS configured checks: score 100/100 · 1 finding(s) (0 critical, 0 major, 0 minor)
 ```
 
 The finding is a note. It carries no penalty, it does not lower a score, and it
@@ -84,16 +87,21 @@ kapi context log --status candidate
 ```
 
 ```
-#12  2026-09-21T09:14:03Z  agent claude/s-nightly  propose  term "utilise", use "use"  [candidate]
-  seen in docs/guide.md greeting: "We utilise the widget"
-#9   2026-09-20T16:02:11Z  person asgeir  correct  "widget" became "component"  [candidate]
-  seen in docs/guide.md
+#5  2026-09-21T19:36:17Z  agent claude-code/s8d7fb12ba4c7  correct  term "widget", use "component"  "widget" became "component"  [candidate]
+  seen in docs/guide.md getting-started/p: "We utilise the widget to configure your account."
+#2  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  note "The product is written \"Acme Widget\" in headings and \"the widget\" in running text."  [candidate]
+  seen in docs/guide.md: "We utilise the widget to configure your account."
 ```
 
-Then decide:
+Then decide, by the id in the first column:
 
 ```bash
-kapi context confirm 12
+kapi context confirm 5
+```
+
+```
+#7  2026-09-21T19:37:02Z  person  confirm  of #5
+  written to terms.json
 ```
 
 Confirming writes the rule into the file your recipe binds, so `git diff` shows
@@ -104,10 +112,10 @@ carries: `minor` and `neutral` report, and anything else fails a check.
 Change the rule as you confirm it:
 
 ```bash
-kapi context confirm 12 --use "employ" --severity critical
+kapi context confirm 5 --use "module" --severity critical
 ```
 
-Reject it instead with `kapi context discard 12`. Either way the record stays in
+Reject it instead with `kapi context discard 5`. Either way the record stays in
 the log, so the same suggestion is recognisable the next time somebody makes it.
 
 ## Undoing
@@ -115,7 +123,7 @@ the log, so the same suggestion is recognisable the next time somebody makes it.
 An agent run can propose a great deal in an evening. Undo all of it at once:
 
 ```bash
-kapi context revert --session s-nightly
+kapi context revert --session s4980103f5148
 ```
 
 Everything that run recorded stops answering, and any rule it got confirmed is
@@ -123,7 +131,7 @@ taken back out of your terms, your voice profile or your content memory, and out
 of the committed file it was written into. What a check said before that run and
 what it says after the revert are the same answer.
 
-Undo one operation with `kapi context revert 12`.
+Undo one operation with `kapi context revert 5`.
 
 Nothing is erased. Reverted operations stay in the log, marked reverted.
 
@@ -137,7 +145,7 @@ company.
 When it is one thing, say so:
 
 ```bash
-kapi context widen 12 --to workspace
+kapi context widen 5 --to workspace
 ```
 
 That rule is then in force in every project you work on here. A project that has
@@ -148,7 +156,7 @@ You can also widen past a single axis of the point the rule sits at, which keeps
 it specific about everything else:
 
 ```bash
-kapi context widen 12 --to mode
+kapi context widen 5 --to mode
 ```
 
 ## Who may do what
@@ -170,8 +178,8 @@ The asset entries of `kapi apply` are decisions about the same context, so they
 appear in the same log:
 
 ```
-#5  2026-09-21T11:02:16Z  person  confirm  of #4
-#4  2026-09-21T11:02:16Z  person  propose  term "utilise", use "use"  [confirmed]
+#9  2026-09-21T19:37:31Z  person  confirm  of #8
+#8  2026-09-21T19:37:31Z  person  propose  term "leverage", use "use"  [confirmed]
   applied with `kapi apply`
 ```
 

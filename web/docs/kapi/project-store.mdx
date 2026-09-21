@@ -22,12 +22,15 @@ This page is about the third one. The guiding rule:
 
 ## What's in the store
 
-The store is two databases with different lifetimes.
+The store is two databases with different lifetimes: one beside your checkout
+for what kapi read out of your files, and one in a per-user workspace for the
+context your project goes by.
 
 | Layer | Lives in | Kind | Lose it? |
 |---|---|---|---|
 | **committed context** | `.kapi/`: the terms and memory bundles, the voice profiles, and `state/*.jsonl` | **authored**: decisions, approved terms, memory pairs | **committed; keep it in git** |
 | context store | a workspace under your data directory | the context in force: terms, voice profiles, content memory, recorded decisions | rebuilds from `.kapi/`, apart from a decision recorded since the last `kapi commit` |
+| the record of how it got there | the same workspace | every observation, proposal and decision, with the evidence behind each ([Growing context](/kapi/context-decisions)) | stays on this machine; a rule you confirmed is in `.kapi/` and survives |
 | projection | `.kapi/work/store.db` | **derived from your files**: the block cache, the overlays a run wrote, the extraction stamps | rebuilds on the next run |
 | cache | `.kapi/work/cache/` | **derived**: parse cache, extractions, collections, sync cache | rebuilds on the next run |
 
@@ -46,7 +49,8 @@ database per project:
 
 ```text
 <data directory>/workspaces/default/
-  workspace.db          the project registry and the context graph
+  workspace.db          the project registry, the context graph, and the record
+                        of what people and agents have recorded and decided
   projects/<key>.db     one project's terms, voice profiles, memory and decisions
 ```
 
@@ -81,10 +85,10 @@ next command.
 
 ## What to commit, and what to ignore
 
-`.kapi/` is committed. It is your project's context, and it belongs in review
-like the rest of your source. The one thing kapi keeps out of git is
-`.kapi/work/`, where everything it derives goes, which makes the ignore rule two
-lines, with no exceptions to remember:
+`.kapi/` is committed. It holds the files your context is written into, and they
+belong in review like the rest of your source. The one thing kapi keeps out of
+git is `.kapi/work/`, where everything it derives goes, which makes the ignore
+rule two lines, with no exceptions to remember:
 
 ```gitignore
 /.kapi/work/
@@ -135,14 +139,13 @@ the next `kapi up` reads your files again.
 
 ## One context graph
 
-The workspace keeps a property graph (`graph_nodes` / `graph_edges`) that links
-a term to the blocks that use it, a decision to the unit it blesses, and both to
-their [context coordinates](/kapi/context#the-context-space). A project answers
-graph questions without a server: which blocks use this term, in which
-collection, at which coordinate. Because the graph spans the projects you have
-opened, *which projects use this concept* is a question you can ask locally too.
-A connected project answers the same query shapes server-side across more
-dimensions. See
+The workspace keeps a graph that links a term to the blocks that use it, a
+decision to the unit it blesses, and both to their
+[context coordinates](/kapi/context#the-context-space). A project answers graph
+questions without a server: which blocks use this term, in which collection, at
+which coordinate. Because the graph spans the projects you have opened, *which
+projects use this concept* is a question you can ask locally too. A connected
+project answers the same query shapes server-side across more dimensions. See
 [C-03: The context store and graph](/contribute/architecture/context/c-03-context-store-and-graph).
 
 ## Two stages: working, then ship
@@ -196,10 +199,10 @@ terminology gate reads the committed `.terms.json` directly, `kapi up --plan`
 never creates state, and `kapi pack` carries only the parts that hold
 something. A database's existence conjures nothing into it.
 
-In the browser, the same model runs without SQLite: the memory and terms
-backends are in-memory, blocks are keyed by path in memory, and the decisions
-persist to a JSON sidecar at `.kapi/work/store.json`. The browser holds one
-project and nothing outlives the tab, so there is no workspace there.
+The same model runs in the browser, where everything is held in memory and the
+decisions persist to a sidecar file beside the projection. A browser tab holds
+one project and nothing outlives it, so it keeps its context beside its
+projection rather than in a workspace.
 
 ## What the store is *not*
 
