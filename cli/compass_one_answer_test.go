@@ -23,11 +23,12 @@ import (
 // documents, because that is the input the disagreement was found on and the
 // one a reader follows.
 
-// compassCopy copies the committed sample into a throwaway directory and
+// compassCheckout copies the committed sample into a throwaway directory and
 // returns the recipe path and root, under the dogfood isolation contract
 // (CLAUDE.md): every root this run could otherwise inherit is pinned to a
-// throwaway dir and project discovery is off.
-func compassCopy(t *testing.T) (recipe, root string) {
+// throwaway dir and project discovery is off. The copy is what git carries:
+// the context files and no store.
+func compassCheckout(t *testing.T) (recipe, root string) {
 	t.Helper()
 	src, err := filepath.Abs(filepath.Join("..", "samples", "compass"))
 	require.NoError(t, err)
@@ -45,10 +46,16 @@ func compassCopy(t *testing.T) (recipe, root string) {
 	t.Setenv("KAPI_PLUGINS_DIR", t.TempDir())
 	t.Setenv("KAPI_NO_PROJECT", "1")
 
-	// The sample commits its terms, its voice profile, its content memory and
-	// its decision record. A checkout is read into the store by `kapi context
-	// import`, and the journey starts where a person who has run it starts.
-	recipe = filepath.Join(root, "kapi.yaml")
+	return filepath.Join(root, "kapi.yaml"), root
+}
+
+// compassCopy is compassCheckout with the sample's committed context read into
+// the project store: its terms, its voice profile, its content memory and its
+// decision record. That is where a person who has run `kapi context import`
+// stands, and where the sample's documented journey begins.
+func compassCopy(t *testing.T) (recipe, root string) {
+	t.Helper()
+	recipe, root = compassCheckout(t)
 	readContextAt(t, recipe)
 	return recipe, root
 }
