@@ -30,8 +30,8 @@ func TestApplyFrameworkPreset_NeokapiI18nCleanLayout(t *testing.T) {
 	assert.Equal(t, "i18n/terms.json", recipe.Defaults.TermsSource)
 
 	// Full init round-trip: the recipe writes, the state dir scaffolds with its
-	// ignored work/, and the generated .gitignore is the two-line rule — no
-	// globs, nothing to negate back out.
+	// ignored work/, and the generated .gitignore is the two-line rule, with no
+	// globs and nothing to negate back out.
 	dir := t.TempDir()
 	proj, err := project.InitProject(dir, recipe)
 	require.NoError(t, err)
