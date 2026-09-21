@@ -5,12 +5,42 @@ are content, the voice profile, the terms store, the declared coordinates, and
 the source and target locales) so that ordinary requests need no flags. kapi
 finds the project by walking up from the current directory, like git.
 
+## Before a command: what do you need on this machine
+
+- The `kapi` binary on PATH (`kapi version`).
+- No AI provider credential when you write, edit or translate the text yourself
+  within kapi's guardrails, including editing through `kapi apply`, which
+  applies your edits with no model. A saved credential (`kapi credentials add`)
+  is only needed for kapi to call a provider itself: unattended translation
+  (`kapi translate`) or the optional `--ai` checks. The rule-based voice and
+  terminology checks need none.
+- `kapi formats --json` reports whether a format is editable and round-trips
+  faithfully. Check that before relying on preservation.
+
 ## When to set one up
 
-Set up a project when the work is ongoing: many files or a whole app, the same
-target locales repeatedly, a voice profile or terminology to keep consistent, recurring
-runs (CI, re-translate on change), or content memory to reuse. For a true
-one-off, skip it and run the command directly.
+Judge whether the work is a one-off or ongoing before reaching for a command:
+
+- **Ad hoc**: one file or a snippet, a one-time read, check or edit,
+  exploration, one or no target language. Run the command; no setup. kapi works
+  without a project.
+- **Project**: many files or a whole app, the same target locales repeatedly, a
+  voice profile or terminology to keep consistent, recurring runs (CI,
+  re-translate on change), or content memory to reuse. Bind that context once,
+  then issue plain requests: kapi applies the project's locales, content, voice
+  profile and terms with no flags.
+
+If a project already exists, use it. If the task is project-shaped and there is
+none, offer to set one up; do not impose a project on a genuine one-off.
+
+## The layers under the porcelain
+
+The porcelain verbs compose a lower layer you can drive directly. `kapi exec
+<tool>` runs one registry tool with nothing around it, `kapi run <flow>` runs one
+named flow for one pass, and `kapi extract`/`kapi merge` carry the translator
+hand-off. Reach for them only when a task needs exactly one tool or one custom
+pipeline; the layer model is
+[Understanding the CLI layers](https://neokapi.github.io/kapi/direct-execution-layer).
 
 ## Create it
 

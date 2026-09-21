@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T17:13:57Z",
+  "generatedAt": "2026-09-21T18:33:30Z",
   "commands": [
     {
       "id": "add",
@@ -707,6 +707,58 @@
       "demoMode": false
     },
     {
+      "id": "context.correct",
+      "path": [
+        "context",
+        "correct"
+      ],
+      "use": "correct \u003cfrom\u003e \u003cto\u003e",
+      "short": "▒ Ŕéçöŕđ ţĥàţ ŵöŕđîñĝ ŵàš çĥàñĝéđ àţ à þļàçé ▒",
+      "long": "▒ Ŕéçöŕđ ţĥàţ šöḿéƃöđý çĥàñĝéđ ŵöŕđîñĝ: ŵĥàţ ŵàš ţĥéŕé, ŵĥàţ ŕéþļàçéđ\nîţ, àñđ ŵĥéŕé.\n\nÀ çöŕŕéçţîöñ îš éṽîđéñçé àƃöüţ ĥöŵ ţĥîš þŕöĵéçţ ŵŕîţéš, àñđ ţĥé çĥéàþéšţ ţĥéŕé\nîš, ƃéçàüšé ţĥé ĵüđĝéḿéñţ ĥàš àļŕéàđý ƃééñ ḿàđé. Öñ îţš öŵñ îţ ŕéçöŕđš ţĥé\nçĥàñĝé àñđ ñöţĥîñĝ éļšé.\n\nŴîţĥ --þŕöþöšé îţ àļšö ŕéçöŕđš ţĥé ŕüļé ţĥé çĥàñĝé îḿþļîéš, šö ţĥé ñéẋţ üšé öƒ\nţĥé öļđ ŵöŕđîñĝ îš ŕéþöŕţéđ. Ţĥàţ ŕüļé îš à çàñđîđàţé: çĥéçķš ŕéþöŕţ îţ àñđ ñöñé\nöƒ ţĥéḿ ƒàîļš öñ îţ üñţîļ šöḿéöñé çöñƒîŕḿš îţ. ▒",
+      "flags": [
+        {
+          "name": "note",
+          "usage": "▒ ŵĥý ▒",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "▒ þàţĥ ţö à ķàþî.ýàḿļ þŕöĵéçţ ŕéçîþé öŕ îţš đîŕéçţöŕý (àüţö-đîšçöṽéŕéđ ƒŕöḿ çŵđ îƒ öḿîţţéđ) ▒",
+          "type": "string"
+        },
+        {
+          "name": "propose",
+          "usage": "▒ àļšö ŕéçöŕđ ţĥé ŕüļé ţĥé çĥàñĝé îḿþļîéš, àš à çàñđîđàţé ▒",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "quote",
+          "usage": "▒ ţĥé šéñţéñçé ţĥé çĥàñĝé ŵàš ḿàđé îñ ▒",
+          "type": "string"
+        },
+        {
+          "name": "seen-in",
+          "usage": "▒ à ƒîļé ţĥé çĥàñĝé ŵàš ḿàđé îñ (ŕéþéàţàƃļé) ▒",
+          "default": "[]",
+          "type": "stringSlice"
+        },
+        {
+          "name": "severity",
+          "usage": "▒ ĥöŵ ĥàŕđ ţĥàţ ŕüļé ƃîţéš öñçé çöñƒîŕḿéđ: ḿîñöŕ öŕ ñéüţŕàļ ŕéþöŕţ, àñýţĥîñĝ éļšé ƒàîļš à çĥéçķ ▒",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context correct \"sign in\" \"log in\" --seen-in web/src/auth.tsx",
+        "kapi context correct utilise use --seen-in docs/guide.md --propose --severity minor"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "context.discard",
       "path": [
         "context",
@@ -899,6 +951,43 @@
         "kapi context log --status candidate",
         "kapi context log --session 0ab4e399 --json",
         "kapi context log --actor agent --since 2026-09-01"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.observe",
+      "path": [
+        "context",
+        "observe"
+      ],
+      "use": "observe \u003cwhat you noticed\u003e",
+      "short": "▒ Ŕéçöŕđ à ƒàçţ àƃöüţ ĥöŵ ţĥîš þŕöĵéçţ ŵŕîţéš ▒",
+      "long": "▒ Ŕéçöŕđ šöḿéţĥîñĝ ýöü ñöţîçéđ àƃöüţ ĥöŵ ţĥîš þŕöĵéçţ ŵŕîţéš: à\nþŕöđüçţ ñàḿé àš îţ šþéļļš îţ, à šþéļļîñĝ îţ îš çöñšîšţéñţ àƃöüţ, ŵĥö îţš ţéẋţ\nàđđŕéššéš, ţĥé ŕéĝîšţéŕ îţ ķééþš.\n\nÀñ öƃšéŕṽàţîöñ šţàţéš ñö ŕüļé. Ñöţĥîñĝ àƃöüţ à çĥéçķ çĥàñĝéš, àñđ ñöƃöđý ĥàš ţö\nđéçîđé àñýţĥîñĝ àƃöüţ îţ. Îţ îš ţĥé ḿàţéŕîàļ à ŕüļé îš þŕöþöšéđ ƒŕöḿ ļàţéŕ, àñđ\nŕéçöŕđîñĝ îţ çöšţš ļéšš ţĥàñ ŵöŕķîñĝ ţĥé šàḿé ƒàçţ öüţ ţŵîçé.\n\nŠàý ŵĥéŕé ýöü šàŵ îţ ŵîţĥ --šééñ-îñ àñđ --ǫüöţé. ▒",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "▒ þàţĥ ţö à ķàþî.ýàḿļ þŕöĵéçţ ŕéçîþé öŕ îţš đîŕéçţöŕý (àüţö-đîšçöṽéŕéđ ƒŕöḿ çŵđ îƒ öḿîţţéđ) ▒",
+          "type": "string"
+        },
+        {
+          "name": "quote",
+          "usage": "▒ ţĥé ŵöŕđîñĝ ýöü šàŵ ▒",
+          "type": "string"
+        },
+        {
+          "name": "seen-in",
+          "usage": "▒ à ƒîļé ýöü šàŵ îţ îñ (ŕéþéàţàƃļé) ▒",
+          "default": "[]",
+          "type": "stringSlice"
+        }
+      ],
+      "examples": [
+        "kapi context observe \"the docs address the reader as you\"",
+        "kapi context observe \"the product is written Kapi Desktop, never KapiDesktop\" \\",
+        "--seen-in docs/guide.md --quote \"Open Kapi Desktop and pick a project.\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

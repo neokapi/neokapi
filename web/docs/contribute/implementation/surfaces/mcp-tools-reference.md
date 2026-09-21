@@ -88,6 +88,7 @@ for analyzer scope and timing boundaries.
 | Handlers | Where |
 | --- | --- |
 | `context_search`, the `context://` resources | `host/mcp_context.go` |
+| `context_observe`, `context_propose`, `context_correct`, `context_session_summary` | `host/mcp_grow.go` (each wraps one call in `host/contextops.go`) |
 | `up`, `up_plan` | `host/mcp_up.go` |
 | `check_text`, `check_file` | `host/mcp_check.go` |
 | `apply_edits` | `host/mcp_edit.go` (change-set kinds in `host/apply.go`) |
@@ -144,6 +145,8 @@ read it rather than a prose copy.
 | `list_formats`, `list_flows`, `list_tools` | `mcptools.ListFormatsOutput`, `ListFlowsOutput`, `ListToolsOutput` |
 | Review verbs | `mcptools.ReviewQueueOutput`, `ReviewUnitOutput`, `ReviewDecisionOutput` |
 | `check_text`, `check_file` | a `kapi.check/v1` Report; see [the JSON contract](/reference/cli-contract) |
+| `context_observe`, `context_propose`, `context_correct` | `host.contextRecordOutput`: the operation id, its kind and status, the session, what was recorded, the command that reviews it, and what happens to it next |
+| `context_session_summary` | `host.contextSessionOutput`: the counts by what was recorded and by what became of it, with the sentence to end a report on |
 | `stats` | the same document `kapi stats --json` emits |
 | A curated framework tool | `host.frameworkToolOutput`: target translations, rewritten source, properties, overlays, and annotations for the one processed block |
 

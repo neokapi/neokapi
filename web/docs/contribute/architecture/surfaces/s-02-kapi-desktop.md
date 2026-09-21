@@ -156,6 +156,7 @@ The stores are sections of one hub, beside the graph:
 | --- | --- |
 | **Explorer** | the context graph, through `@neokapi/context-explorer`; the governs pane renders the same guide the retrieval surface serves ([C-06](../context/c-06-retrieval.md)) |
 | **Agent View** | the resolved context for one file as an agent receives it: `AgentContextAt` calls the desktop's `ContextAt` and renders the answer's own `FormatText`, so the body on screen is the `context://` resource body rather than a second rendering of it |
+| **Recorded** | the project's context operations ([C-11](../context/c-11-context-operations.md)), grouped by session, with the evidence behind each and the decisions a person takes on them |
 | **Voice** | the whole resolved profile per point: tone, style patterns with severities and rates, term rules, examples, and the locale, channel and persona overrides as authored ([C-07](../context/c-07-voice-profiles.md)); the profile is edited here |
 | **Terms** | the terms store: search, facets, provenance, concept relations |
 | **Content Memory** | the content memory: search, facets, activity, provenance, the languages gate |
@@ -171,6 +172,57 @@ one from returning. The view ids the store tabs had before the hub stay
 routable so a
 persisted view still lands, and the ad-hoc rail keeps both stores, having no
 project to file them under.
+
+### The feed of recorded context operations
+
+The app is meant to sit open beside an agent that is working. The agent runs in
+another process, through the CLI or its MCP server, and records what it learns
+as context operations in this machine account's workspace log
+([C-11](../context/c-11-context-operations.md)). The desktop reads that log and
+shows it as a feed: on the workspace home across every project, and in a
+project's Context hub for that project alone.
+
+The feed groups by session. An agent session is the id its operations carry, so
+one run is one card however long it lasts. A person at a terminal and a tool
+record no session, so their operations group by actor and local day, which is
+the span a person recognises as their own work. Each card carries the counts a
+finished session reads out in one line, and says "still working" until nothing
+has been added for two minutes.
+
+Each operation shows its kind, its actor with the machine an agent ran on, the
+rule or wording it is about, its status, and its evidence: the file, the unit
+and the quotation. Evidence is on the card rather than behind a disclosure for
+anything awaiting a decision, because a decision taken without it is a guess.
+
+**Deciding goes through the host API and nothing else.** Confirm, confirm with
+an edit, discard, revert one operation, revert a session and widen are
+`host.App.ConfirmContextOperation` and its neighbours, which own the policy
+about who may do what; the desktop re-implements none of it. The acting actor is
+`contextop.Actor{Kind: ActorPerson}` with no name, because the app holds no
+account and the person at the keyboard is the one acting. Reading is
+`contextop.Ledger` over the workspace, because the host's reads resolve a
+project from a recipe path and the home screen spans projects, some of which
+have no checkout on this machine. A project with no readable checkout is read
+here and not decided on, and the card says so.
+
+Widening asks first. The preview names where the rule would answer: every
+registered project for a widening to the workspace, and the recipe's declared
+points the rule newly covers for a widening past one axis. It says in as many
+words that it has not counted the content the rule touches, since no API
+computes that and a number invented in the frontend would be a second answer
+about content the engine never gave.
+
+The keys are the review session's, so the two decision surfaces feel the same:
+`j`/`k` and the arrows move over the candidates, `a` confirms, `r` discards, `e`
+opens the edit, and a field with focus keeps its own keys. The workspace watcher
+is what keeps the feed current, so a proposal recorded elsewhere appears within
+a second. The previous answer stays mounted through the refetch, which is what
+keeps the scroll position and a half-typed edit through an agent recording in
+the middle of it.
+
+A count of candidates awaiting a decision sits beside each project on the home
+and on the hub's Recorded tab. It is absent at zero rather than shown as a
+zero.
 
 ### Governance editing
 

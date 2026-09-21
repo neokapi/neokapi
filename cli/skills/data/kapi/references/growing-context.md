@@ -1,9 +1,80 @@
-# Context discovery: from existing material to a governed project
+# Growing a project's context
 
-An empty context is worth nothing, and nobody will write one from a blank page.
-So the first act is **discovery**: turn the user's repo, site, and materials into
-a working content context, a voice profile, a terminology seed, and the checks
-that enforce both, and bind it to the content it governs.
+A project's context is what it has recorded about how it writes. Most projects
+have recorded little of it, and nobody will author one from a blank page.
+
+There is one mechanism for growing it, run at two speeds. Both record
+**operations** into the project's context log, both produce **candidates** a
+person decides on, and neither writes a governance file: confirming is what
+writes the rule into the terms source, the voice profile or the content memory,
+through the same appliers a person's own edit goes through.
+
+- **Everyday growth** is what you do inside other work. You notice a fact while
+  reading, you see the project is consistent about a word, the user changes your
+  wording. Three calls, seconds each, no interruption to the task.
+- **Deliberate discovery** is a session whose whole purpose is the context:
+  first visit, or a refresh after the material moved. Same operations, in bulk,
+  reviewed together.
+
+Discovery is the second half of this file. Read the everyday calls first,
+because a project where they are kept rarely needs a discovery session at all.
+
+## Everyday growth: three calls
+
+```bash
+kapi context observe "the docs address the reader as you" --seen-in docs/guide.md
+kapi context propose utilise --use use --seen-in docs/guide.md --quote "Utilise the editor"
+kapi context correct "sign in" "log in" --seen-in web/src/auth.tsx --propose
+```
+
+Over MCP the same three are `context_observe`, `context_propose` and
+`context_correct`.
+
+- **Observe** a fact that states no rule: a product name as the project spells
+  it, who its text addresses, a register it keeps. Nothing about a check
+  changes. It is the material a rule is proposed from later.
+- **Propose** a rule when the project is consistent about a word and nothing
+  records that. The rule is a **candidate**: every check reports it, and no
+  check can fail on it until a person confirms it. Never tell the user a rule is
+  in force because you proposed one.
+- **Correct** when the user changes your wording. The judgement has already been
+  made, which makes it the cheapest context there is. `--propose` records the
+  rule the change implies with it.
+
+**Evidence is what makes any of this reviewable.** `--seen-in` names the file
+and `--quote` the wording. A rule with evidence can be argued with; a rule
+without any is a preference somebody typed, and a person reading a list of them
+cannot tell the two apart. Proposing and correcting require it.
+
+One call records one thing. Do not batch a session's worth of observations into
+a single sentence, and do not wait until the end of the task to record them.
+
+A `kapi context <path>` answer lists the candidates at that point, so a later
+session builds on what an earlier one recorded instead of working it out again.
+
+## Reviewing and undoing
+
+```bash
+kapi context log --status candidate       # what is waiting for a decision
+kapi context log --session s4f1c2 --json  # what one agent run recorded
+kapi context confirm 7                    # make a rule binding, and write it
+kapi context discard 7                    # reject it
+kapi context revert --session s4f1c2      # undo everything one run recorded
+kapi context widen 7 --to workspace       # put a confirmed rule in force everywhere
+```
+
+Confirming, discarding someone else's proposal, reverting and widening belong to
+a person. An agent that tries is refused, and told so. Over MCP there is no tool
+for any of them at all: end your task by reporting what you recorded and the
+command above for reviewing it, and let the user decide.
+
+---
+
+# Deliberate discovery: from existing material to a governed project
+
+Turn the user's repo, site, and materials into a working content context: a
+voice profile, a terminology seed, and the checks that enforce both, bound to
+the content it governs.
 
 That is a complete journey in one language. Governing the source the user
 already has needs no second language, no server, and no provider credential.
@@ -15,9 +86,8 @@ is a prerequisite for any of the ones before it.
 The user corrects a first draft instead of authoring one. **You** do the reading
 and the drafting; kapi is the schema, the validator, and the gate.
 
-This is the same correction loop that keeps the context current afterwards, not
-a separate onboarding mode, so the second half of this file is the **refresh**
-flow: diffing new material against a context that already exists.
+The second half of this file is the **refresh** flow: diffing new material
+against a context that already exists.
 
 ## 1. Gather
 
@@ -64,6 +134,20 @@ Three artifacts, all plain files the user can review before anything binds:
   materializes in step 4; competitor names and banned phrasing belong in
   `voice.yaml`'s vocabulary lists instead (see [voice.md](voice.md)).
 
+  In a project that already exists, record each rule you read out of the
+  material as a candidate instead, one call per rule, with the file it came
+  from:
+
+  ```bash
+  kapi context propose "control panel" --use dashboard --seen-in docs/guide.md
+  kapi context propose Globex --use "our platform" --list competitor --severity major \
+    --seen-in web/src/pricing.tsx
+  ```
+
+  The user then reviews a list where every entry carries its evidence, and
+  confirming writes each one into the committed source. Tone, style and
+  `examples` carry no rule, so they stay an edit to the profile YAML.
+
 - **Content mapping**: which files the gates will watch: the `collections:` paths
   and formats, with `target:` patterns where translations already exist. Those
   existing translations need no import step, the loop recycles them as content memory
@@ -89,6 +173,15 @@ Get explicit sign-off on the forbidden/competitor lists and every
 `deprecated`/`forbidden` term, these will gate their builds. Fold feedback
 into `voice.yaml` and re-render until the user agrees. Never invent competitors
 or bans the user didn't confirm.
+
+Where you proposed candidates rather than drafting a file, the review list is
+the log, and the decisions are the log's verbs:
+
+```bash
+kapi context log --status candidate    # each entry with its evidence
+kapi context confirm 7 --use dashboard # confirm, editing the rule as you go
+kapi context discard 9
+```
 
 ## 4. Bind
 
@@ -319,12 +412,17 @@ a rewritten file loses the user's comments and buries the change.
 | What moved | Route | What the user reviews |
 | --- | --- | --- |
 | A surface appeared | `kapi add <pattern> --name <collection> --channel <profile/channel>` | the `kapi.yaml` diff |
-| A term, a name, a rename | `kapi apply` entry, `kind:"term"` | the terms source diff |
-| A word to forbid or prefer | `kapi apply` entry, `kind:"voice"` | the voice profile diff |
+| A term, a name, a rename | `kapi context propose`, or a `kapi apply` entry, `kind:"term"` | the candidate with its evidence, or the terms source diff |
+| A word to forbid or prefer | `kapi context propose --list <list>`, or a `kapi apply` entry, `kind:"voice"` | the candidate with its evidence, or the voice profile diff |
 | A brand or mode axis moved | `kapi apply` entry, `kind:"recipe"`, `path` `defaults.coordinates.<axis>` (or a collection's `coordinates`) and `value` | the `kapi.yaml` diff |
 | Tone, style, `examples` | an edit to the profile YAML | the file diff |
 
-Terms and voice rules go in one change-set file, applied atomically:
+Two routes for the same two kinds, and the difference is who decides.
+`kapi context propose` records a candidate the user confirms one at a time, each
+carrying the file it came from; a `kapi apply` change-set lands what the user has
+already approved, atomically. Reach for the first when you are reading material
+and proposing what it implies, and for the second when the decisions are already
+made. Terms and voice rules go in one change-set file:
 
 ```jsonl
 {"kind":"term","op":"upsert","term":"workspace","locale":"en","status":"preferred"}

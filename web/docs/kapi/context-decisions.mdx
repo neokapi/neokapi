@@ -1,8 +1,8 @@
 ---
 sidebar_position: 5
 title: Growing context
-description: "Six verbs that grow a project's context out of ordinary work: propose records a rule with the evidence behind it, log shows what has been proposed and decided, and confirm, discard, revert and widen are the decisions. A proposal is reported by checks and never fails one."
-keywords: [kapi, context, propose, confirm, discard, revert, widen, candidate, evidence, terms, voice profile, content memory]
+description: "Eight verbs that grow a project's context out of ordinary work: observe, propose and correct record what somebody noticed, with the evidence behind it, log shows what has been recorded, and confirm, discard, revert and widen are the decisions. A proposal is reported by checks and never fails one."
+keywords: [kapi, context, observe, propose, correct, confirm, discard, revert, widen, candidate, evidence, terms, voice profile, content memory, agent]
 ---
 
 # Growing context
@@ -16,16 +16,37 @@ written. A rule is proposed from a hundred pages that agree. You confirm it, and
 from then on checks hold new writing to it. When you correct a translation, that
 correction is evidence for the next rule.
 
-Six verbs are that loop.
+Eight verbs are that loop. The first three record; the rest are the decisions.
 
 | Verb | Does |
 | --- | --- |
+| `kapi context observe` | record a fact about how the project writes, with where you saw it |
 | `kapi context propose` | record a rule about a word, with where you saw it |
-| `kapi context log` | show what has been proposed, corrected and decided |
+| `kapi context correct` | record wording somebody changed, and the rule it implies |
+| `kapi context log` | show what has been recorded and decided |
 | `kapi context confirm` | make a proposed rule binding |
 | `kapi context discard` | reject one |
 | `kapi context revert` | undo an operation, or everything one agent run did |
 | `kapi context widen` | put a confirmed rule in force somewhere broader |
+
+## An agent records as it works
+
+A coding agent with kapi's [MCP server](/reference/mcp) keeps the first three as
+habits inside whatever else it is doing: `context_observe` while it reads the
+project, `context_propose` where the project is consistent about a word, and
+`context_correct` the moment you change its wording. One call, one thing,
+without stopping to ask you.
+
+Everything it records is a candidate under a **session** of its own, so you can
+read a run's whole contribution in one place, or undo it in one command:
+
+```bash
+kapi context log --session s4f1c2      # what one run recorded
+kapi context revert --session s4f1c2   # undo all of it
+```
+
+It ends its report with the same session id. Nothing it recorded is in force
+until you confirm it.
 
 ## A proposal never stops your work
 
@@ -132,12 +153,13 @@ kapi context widen 12 --to mode
 
 ## Who may do what
 
-Anyone may say what they saw. An agent proposes and records corrections, and
-everything it records is advice.
+Anyone may say what they saw. An agent observes, proposes and records
+corrections, and everything it records is advice.
 
 Deciding belongs to a person. Confirming a rule, editing what someone else
 proposed, rejecting it, withdrawing a rule already in force and widening one are
-all yours. An agent that tries is refused, and told so.
+all yours. An agent that tries is refused, and told so: its tools carry no verb
+for any of them.
 
 An agent may withdraw its own proposal while nobody has decided on it, which is
 how a run cleans up after itself.

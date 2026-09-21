@@ -6,6 +6,7 @@ export {
     AIModelOrigin,
     AIModelResolution,
     ContextAnswer,
+    ContextCandidate,
     ContextCoverage,
     ContextPoint,
     ContextPrecedentHit,

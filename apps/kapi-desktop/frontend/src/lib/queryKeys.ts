@@ -82,6 +82,18 @@ export const qk = {
   workspaceRemoval: (key: string) => ["workspace-removal", key] as const,
   /** The resolved context for one file, as an agent receives it. */
   agentContext: (tabID: string, path: string) => ["agent-context", tabID, path] as const,
+  /** Recorded context operations: the workspace's, or one project's. */
+  contextFeed: (projectKey: string) => ["context-feed", projectKey] as const,
+  /** The feed of the project a tab holds. */
+  projectContextFeed: (tabID: string) => ["context-feed", "tab", tabID] as const,
+  /** Per-project counts of candidates awaiting a decision. */
+  contextAwaiting: () => ["context-awaiting"] as const,
+  /** Where one rule would answer once widened. */
+  contextWidenReach: (projectKey: string, id: string, to: string) =>
+    ["context-widen-reach", projectKey, id, to] as const,
+  /** What reverting one operation or one session would undo. */
+  contextRevertScope: (projectKey: string, id: string, session: string) =>
+    ["context-revert-scope", projectKey, id, session] as const,
   /** The values one context dimension can take in a project. */
   contextOptions: (tabID: string, dimension: string) =>
     ["context-options", tabID, dimension] as const,

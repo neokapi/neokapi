@@ -21,7 +21,7 @@ You describe the outcome; Claude runs kapi. kapi supplies the guardrails (the fa
 | You work in… | Use | How it drives kapi |
 |---|---|---|
 | **Chat** (Claude Code, plain-language prompts) | the **Agent Skill** (`SKILL.md`) | Claude runs `kapi` commands itself and loops until the gates pass |
-| **IDE** (Claude Desktop, Cursor, Windsurf, VS Code) | the **MCP server** (`kapi mcp`) | structured tools: `extract_content`, `apply_edits`, `check_file`, `voice_check` |
+| **IDE** (Claude Desktop, Cursor, Windsurf, VS Code) | the **MCP server** (`kapi mcp`) | structured tools: `extract_content`, `apply_edits`, `check_file`, `voice_check`, and the context tools it records what it notices with |
 | **CI** (no assistant in the loop) | the **CLI** directly | `kapi check` / `kapi check --ship` exit non-zero, failing the build |
 
 <details>
@@ -84,7 +84,9 @@ An unreadable, empty, or malformed hook payload; a session directory kapi cannot
 
 The wire shapes are Claude Code's, and Claude Code versions its own hook schema; kapi does not add a version of its own. What is stable here is the policy in the table: fail open, and report the bypass.
 
-The loop, whichever door: Claude pulls your voice guide and approved terms first (`kapi voice guide`, `kapi terms lookup`), writes through the one write verb (`kapi apply`: structure preserved, drift-guarded by content hash), then gates out with `kapi check` until green. Bind the profile and the terms store in a [project](/kapi/get-started/first-project) and this happens automatically; your prompts stay short: "Set kapi up for this project", "Check `README.md` against our voice profile and fix what fails", "Translate the docs into French and German, then bring them to the ship gate".
+The loop, whichever door: Claude asks what applies at the file it is about to change (`kapi context <path>`), writes through the one write verb (`kapi apply`: structure preserved, drift-guarded by content hash), then gates out with `kapi check` until green. Bind the profile and the terms store in a [project](/kapi/get-started/first-project) and this happens automatically; your prompts stay short: "Set kapi up for this project", "Check `README.md` against our voice profile and fix what fails", "Translate the docs into French and German, then bring them to the ship gate".
+
+It also grows the context while it works. What it notices about how you write, and every wording you correct, is recorded as a **candidate** with the file it came from. Nothing it records is in force until you confirm it, checks report candidates and fail on none of them, and it ends its report with what the session recorded and the command that reviews it. See [Growing context](/kapi/context-decisions).
 
 The project also tells the assistant it has a voice. `kapi init` writes a short section into `CLAUDE.md`, the file Claude Code reads, naming the voice and the command that retrieves it, and `kapi voice pointer` writes or refreshes it on a project that bound its voice later. A root that holds `AGENTS.md` alone keeps the section there, and a line reading `@AGENTS.md` in a `CLAUDE.md` imports it. The section carries no guidance of its own, so a changed profile never leaves it stale.
 

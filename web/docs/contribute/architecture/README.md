@@ -75,6 +75,7 @@ file, never editing a list.
 | [C-08](context/c-08-terms.md) | Terms | the concept model, the committed source, tiered lookup, validity |
 | [C-09](context/c-09-content-memory.md) | Content memory | tiered matching, entity generalization, version chains and governed reuse, the two-stage rebuild |
 | [C-10](context/c-10-redaction.md) | Redaction and clearance | the placeholder model, the local vault, the three policy readers |
+| [C-11](context/c-11-context-operations.md) | Context operations | the append-only operation log, candidates that advise, the policy for who decides |
 
 ## S: Surfaces
 
@@ -82,7 +83,7 @@ file, never editing a list.
 | --- | --- | --- |
 | [S-01](surfaces/s-01-kapi-cli.md) | The kapi CLI | the command tree, output formats, the credential store, exit codes |
 | [S-02](surfaces/s-02-kapi-desktop.md) | Kapi Desktop | the desktop app, the project home and point map, the Context hub, governance editing, runs through the up venue |
-| [S-03](surfaces/s-03-agent-surfaces.md) | Agent surfaces: MCP and skills | the embedded skill, the curated MCP surface, `apply_edits` and the review verbs |
+| [S-03](surfaces/s-03-agent-surfaces.md) | Agent surfaces: MCP and skills | the embedded skill and its four habits, the curated MCP surface, the context write tools, `apply_edits` and the review verbs |
 | [S-04](surfaces/s-04-toolbox.md) | Toolbox utilities | the multi-call binary, block-text projection, exit codes |
 | [S-05](surfaces/s-05-i18n-runtime.md) | The i18n runtime for React | the runtime, build-time extraction, re-attach, in-context review |
 | [S-06](surfaces/s-06-visual-editor.md) | The visual editor data model | the render projection, the shared preview kit, the edit round-trip |
