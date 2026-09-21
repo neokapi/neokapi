@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "study": "kapi-cold-start",
+  "hosts": [
+    {"host": "claude", "model": "claude-sonnet-5", "effort": "high"},
+    {"host": "codex", "model": "gpt-5.6-terra", "effort": "medium"}
+  ],
+  "tasks": ["release-note", "trial-ending-email", "empty-export-section"],
+  "smoke_task": "empty-export-section",
+  "session_two_task": "plans-page",
+  "agents": "all",
+  "attempt_timeout_seconds": 900,
+  "max_turns": 40,
+  "billing": "subscription-only"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "trial-ending-email",
+  "stage": "one",
+  "correction": false,
+  "prompt": "Write a new email template at emails/trial-ending.md for someone whose trial has three days left. Follow the shape of emails/welcome.md: front matter with an id and a subject, then the body. Say what happens when the trial ends and how to pick a plan.",
+  "note": "An authoring task with a named model document. The conventions to carry across are the ones the welcome email keeps."
+}
