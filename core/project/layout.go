@@ -24,9 +24,14 @@ type Layout struct {
 }
 
 // StateDirName is the ONE kapi-owned directory in a project. It is committed
-// by default and holds the project's authored context alongside a single
-// internal machine-state directory — the git model, where `.git` keeps its
-// index inside itself rather than scattering siblings across the tree.
+// by default and holds the project's configuration alongside a single internal
+// machine-state directory — the git model, where `.git` keeps its index inside
+// itself rather than scattering siblings across the tree.
+//
+// The project's context — its terms, voice profiles, content memory and
+// recorded decisions — lives in the user's workspace. What sits here is what
+// `kapi context export` and `kapi context snapshot` wrote, addressed through
+// ExportLayout.
 //
 // Two lines of `.kapi/.gitignore` describe the whole rule: `work/` and
 // `filters.local.json`. Everything else under here is authored and reviewed.
@@ -43,9 +48,8 @@ const WorkDirName = "work"
 //
 // `work/` is machine state: the store, the caches, the vault. `filters.local.json`
 // is the one personal file that is not derived, so it cannot live under work/
-// and has to be named. Everything else — manifest.yaml, flows/, the terms
-// bundle, the memory bundles, the voice profile and the unit-state record — is
-// authored and committed.
+// and has to be named. Everything else — manifest.yaml, flows/, filters.json,
+// and whatever a context export wrote here — is committed.
 //
 // Every path method below has to land on one side of that boundary or the
 // other; a new one that needs an ignore pattern of its own is in the wrong
@@ -79,58 +83,22 @@ func RelStatePath(parts ...string) string {
 // The filesystem mirrors the recipe. A recipe states its default governance
 // under `defaults:` and its exceptions under `profiles:`; the default's files
 // therefore sit flat in `.kapi/` and each profile's sit in a directory of its
-// own. Governance binds to a point in the context space, and this directory is
-// that point's home on disk.
+// own.
 //
-// Only the differences belong here. A profile that does not override the
-// vocabulary keeps no `terms.json`, and resolution falls through to the flat
-// default.
-//
-// Governance is what splits by profile, and only governance. The content
-// memory and the unit-state record stay top-level: a recycled translation and
-// an approval are facts about a unit, true wherever the unit is governed from,
-// and sharding them by profile would fragment the loop's own memory.
+// An export writes a profile's overrides here and an explicit import reads
+// them, so the path sits on ExportLayout.
 const ProfilesDirName = "profiles"
 
-// ProfilesDir returns the absolute path of the per-profile override root.
-func (l Layout) ProfilesDir() string {
-	return filepath.Join(l.StateDir, ProfilesDirName)
-}
-
-// ProfileDir returns the absolute path of one profile's override directory.
-// The name is the profile's key under `profiles:`.
-func (l Layout) ProfileDir(name string) string {
-	return filepath.Join(l.ProfilesDir(), name)
-}
-
-// MemoryDirName holds the project's committed content-memory bundles.
+// MemoryDirName holds a project's exported content-memory bundles.
 //
 // A directory rather than a file because a project keeps as many bundles as it
-// has content surfaces — this repository commits one per surface — and the one
-// a recipe binds through `defaults.memory_source` is only the primary among
-// them. The terms bundle is a single file for the opposite reason: a project
-// has one vocabulary.
+// has content surfaces. The terms bundle is a single file for the opposite
+// reason: a project has one vocabulary. The path sits on ExportLayout.
 const MemoryDirName = "memory"
 
-// MemoryDir returns the absolute path of the committed content-memory bundles.
-func (l Layout) MemoryDir() string {
-	return filepath.Join(l.StateDir, MemoryDirName)
-}
-
-// UnitStateDirName holds the committed unit-state record — one JSON Lines
-// shard per document.
-//
-// It sits beside the terms bundle and the memory bundles rather than off on its
-// own, because it is the same kind of thing: authored context, reviewed in the
-// change that caused the drift, read on a fresh clone with no server. The
-// record is who approved which wording at which content hash; the working set
-// inside the store is only its staging area.
+// UnitStateDirName holds an exported decision record — one JSON Lines shard
+// per document. The path sits on ExportLayout.
 const UnitStateDirName = "state"
-
-// UnitStateDir returns the absolute path of the committed unit-state record.
-func (l Layout) UnitStateDir() string {
-	return filepath.Join(l.StateDir, UnitStateDirName)
-}
 
 // StoreFileName is this checkout's PROJECTION: one SQLite file holding the
 // block cache, the overlays a flow wrote and the extraction stamps, each
@@ -335,14 +303,15 @@ func LayoutFor(recipePath string) (Layout, error) {
 	}, nil
 }
 
-// EnsureLayout creates the `.kapi/` directory and the subdirectories that give
-// it its shape: the committed `memory/` and `state/`, and the ignored
-// `work/cache/`. Idempotent; safe to call on an existing project.
+// EnsureLayout creates the `.kapi/` directory and the ignored `work/cache/`
+// under it. Idempotent; safe to call on an existing project.
+//
+// It writes no context file and creates no directory for one. A project's
+// terms, voice profiles, content memory and decisions live in the workspace,
+// and `kapi context export` creates what it writes.
 func EnsureLayout(layout Layout) error {
 	for _, dir := range []string{
 		layout.StateDir,
-		layout.MemoryDir(),
-		layout.UnitStateDir(),
 		layout.CacheDir(),
 	} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {

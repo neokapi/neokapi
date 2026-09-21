@@ -412,21 +412,15 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	locales := contentTargetLocales(proj.Defaults, resolved)
 	monolingual := len(locales) == 0
 
-	// Self-seeding (AD-009/AD-010 custody): the committed context sources are the
-	// truth and the store is their projection, so they compile on the way in —
-	// before anything resolves a binding out of the store. Without this the store
-	// only ever holds what a previous write left in it: nothing at all on a fresh
-	// clone, and the pre-pull state after a `git pull` of an edited bundle. The
-	// compile is digest-keyed, so an unchanged source costs a read and no writes.
-	//
-	// A seeding failure is PROPAGATED. A run that silently proceeds on an empty
-	// store reports full coverage over a corpus it never had the terminology or
-	// the reviewed wording for, and spends a provider re-translating what git
-	// already carries.
-	if seeded, serr := a.SeedProjectContext(ctx, projectPath); serr != nil {
-		return fmt.Errorf("seed committed context: %w", serr)
-	} else if seeded.Compiled() && !a.Quiet {
-		fmt.Fprintln(cmd.ErrOrStderr(), formatSeedLine(seeded))
+	// The committed translations, before anything resolves out of the store:
+	// the target documents git carries are content, and the wording a reviewer
+	// approved in them supersedes whatever a provider produced. A run that
+	// skipped them would spend a provider re-translating what the working tree
+	// already answers, so a failure here is PROPAGATED.
+	if absorbed, aerr := a.absorbProjectRecord(ctx, proj, projectPath); aerr != nil {
+		return fmt.Errorf("absorb the committed record: %w", aerr)
+	} else if line := formatRecordLine(absorbed); line != "" && !a.Quiet {
+		fmt.Fprintln(cmd.ErrOrStderr(), line)
 	}
 
 	// Standing project context + bindings, so flow steps honor the voice

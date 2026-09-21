@@ -192,10 +192,10 @@ func TestLayout_WorkHoldsEveryDerivedPath(t *testing.T) {
 
 	committed := layout.StateDir + string(filepath.Separator)
 	for name, path := range map[string]string{
-		"memory":     layout.MemoryDir(),
-		"unit state": layout.UnitStateDir(),
-		"profiles":   layout.ProfilesDir(),
-		"profile":    layout.ProfileDir("bowrain"),
+		"memory":     layout.Export().MemoryDir(),
+		"unit state": layout.Export().UnitStateDir(),
+		"profiles":   layout.Export().ProfilesDir(),
+		"profile":    layout.Export().ProfileDir("bowrain"),
 		"filters":    layout.FiltersPath(),
 	} {
 		assert.True(t, strings.HasPrefix(path, committed), "%s must live under .kapi/: %s", name, path)
@@ -211,10 +211,10 @@ func TestLayout_WorkHoldsEveryDerivedPath(t *testing.T) {
 // directory groups what is already grouped by being committed at all.
 func TestLayout_CommittedSourcesAreFlat(t *testing.T) {
 	layout := testLayout(t)
-	assert.Equal(t, filepath.Join(layout.StateDir, "state"), layout.UnitStateDir())
-	assert.Equal(t, filepath.Join(layout.StateDir, "memory"), layout.MemoryDir())
-	assert.Equal(t, filepath.Join(layout.StateDir, "profiles"), layout.ProfilesDir())
-	assert.Equal(t, filepath.Join(layout.ProfilesDir(), "bowrain"), layout.ProfileDir("bowrain"))
+	assert.Equal(t, filepath.Join(layout.StateDir, "state"), layout.Export().UnitStateDir())
+	assert.Equal(t, filepath.Join(layout.StateDir, "memory"), layout.Export().MemoryDir())
+	assert.Equal(t, filepath.Join(layout.StateDir, "profiles"), layout.Export().ProfilesDir())
+	assert.Equal(t, filepath.Join(layout.Export().ProfilesDir(), "bowrain"), layout.Export().ProfileDir("bowrain"))
 	assert.Equal(t, filepath.Join(".kapi", "terms.json"), project.RelStatePath("terms.json"))
 	assert.Equal(t, filepath.Join(".kapi", "memory", "memory.json"),
 		project.RelStatePath(project.MemoryDirName, "memory.json"))
@@ -231,8 +231,8 @@ func TestEnsureLayout_createsCommittedAndWork(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, project.EnsureLayout(layout))
 
-	assert.DirExists(t, layout.MemoryDir())
-	assert.DirExists(t, layout.UnitStateDir())
+	assert.DirExists(t, layout.Export().MemoryDir())
+	assert.DirExists(t, layout.Export().UnitStateDir())
 	assert.DirExists(t, layout.CacheDir())
 	assert.DirExists(t, layout.WorkDir())
 }

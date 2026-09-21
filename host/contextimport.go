@@ -14,22 +14,14 @@ import (
 
 // Reading a `.kapi/` layout into a project's store.
 //
-// `kapi up` already does this on every run: it compiles the committed terms
-// bundle, the content-memory bundles and the voice profiles, skipping whatever
-// is unchanged. `kapi context import` is the same pass with a name, so a
-// project can be told to read its context now rather than as a side effect of
-// converging, and so a layout that belongs to another checkout can be read at
-// all. Both reach compileContextSources, and each committed file therefore has
-// exactly one reader.
+// `kapi context import` is the only reader of a context file in a checkout:
+// the terms bundle, the content-memory bundles, the voice profiles and the
+// decision record. A person runs it, and what it reads is in force from then
+// on because the store is what every other surface answers from.
 //
-// The two entry points differ in three places, and only there:
-//
-//   - The compile stamps are keyed by project-relative path, so a pass over a
-//     directory elsewhere records none and compiles everything.
-//   - The committed-record absorb reads the project's own target documents, so
-//     it runs only for a pass over the project's own layout.
-//   - A foreign layout's decision record is read explicitly; the project's own
-//     is what the store's ledger imports when it opens.
+// The layout it reads is the project's own, or one a caller names: a donor
+// checkout, a directory a colleague sent. The difference between the two is
+// the recipe, whose bindings add to what the project's own layout holds.
 
 // ContextImportRequest names the layout to read.
 type ContextImportRequest struct {
@@ -141,26 +133,22 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 		return res, err
 	}
 
-	opts := contextCompileOptions{layout: from, force: req.Force, stamp: own, absorb: own}
+	// The recipe's own bindings add to the conventional sources, and only for
+	// the project's own layout: a directory elsewhere is read as it stands.
+	var bindings *project.KapiProject
 	if own {
-		opts.proj = proj
-		opts.projectPath = projectPath
+		bindings = proj
 	}
-	seeded, err := a.compileContextSources(ctx, db, opts)
+	read, err := a.readContextLayout(ctx, db, from, bindings)
 	if err != nil {
 		return res, err
 	}
-	res.Concepts = seeded.Concepts
-	res.Entries = seeded.Entries
-	res.VoiceProfiles = seeded.VoiceFiles
-	res.Unchanged = seeded.Skipped
+	res.Concepts = read.Concepts
+	res.Entries = read.Entries
+	res.VoiceProfiles = read.VoiceFiles
+	res.Unchanged = read.Skipped
 
-	if own {
-		// The ledger imports this layout's record when the store opens, so
-		// there is nothing further to read.
-		return res, nil
-	}
-	n, err := importDecisionRecord(ctx, db.Work(), from.UnitStateDir())
+	n, err := importDecisionRecord(ctx, db.Work(), from.Export().UnitStateDir())
 	if err != nil {
 		return res, err
 	}

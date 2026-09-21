@@ -88,7 +88,7 @@ func writeMemoryBundle(t *testing.T, root, name string, pairs map[string]string)
 	}
 	data, err := kmb.Marshal(kmb.FromModel(entries, nil))
 	require.NoError(t, err)
-	dir := project.LayoutAt(root).MemoryDir()
+	dir := project.LayoutAt(root).Export().MemoryDir()
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, name+".memory.json"), data, 0o644))
 }
@@ -233,7 +233,7 @@ func TestSeedProjectContext_ForgetsDeletedSources(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, first.MemoryFiles)
 
-	bundle := filepath.Join(project.LayoutAt(root).MemoryDir(), "docs-nb.memory.json")
+	bundle := filepath.Join(project.LayoutAt(root).Export().MemoryDir(), "docs-nb.memory.json")
 	require.NoError(t, os.Remove(bundle))
 	gone, err := a.SeedProjectContext(ctx, recipe)
 	require.NoError(t, err)

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -101,6 +102,92 @@ type RecordAbsorbResult struct {
 
 // Absorbed reports whether the pass wrote anything into the store.
 func (r RecordAbsorbResult) Absorbed() bool { return r.Learned > 0 || r.Reconciled > 0 }
+
+// AbsorbProjectRecord reads the committed translations of the project at
+// projectPath into its content memory. projectPath is the recipe or the
+// project root; both resolve the way `-p` does.
+func (a *App) AbsorbProjectRecord(ctx context.Context, projectPath string) (RecordAbsorbResult, error) {
+	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return RecordAbsorbResult{}, fmt.Errorf("load project: %w", err)
+	}
+	return a.absorbProjectRecord(ctx, proj, projectPath)
+}
+
+// absorbProjectRecord reads the project's own committed translations into its
+// content memory. It is what a converge run does on the way in, with the
+// project already loaded.
+func (a *App) absorbProjectRecord(ctx context.Context, proj *project.KapiProject, projectPath string) (RecordAbsorbResult, error) {
+	layout, err := project.LayoutFor(projectPath)
+	if err != nil {
+		return RecordAbsorbResult{}, err
+	}
+	db, err := a.ProjectDB(ctx, layout.Root)
+	if err != nil {
+		return RecordAbsorbResult{}, err
+	}
+	return a.absorbCommittedRecord(ctx, db, proj, projectPath, layout)
+}
+
+// formatRecordLine renders what the committed translations taught the store, or
+// "" when they taught it nothing.
+func formatRecordLine(r RecordAbsorbResult) string {
+	// A pass that wrote nothing but declined a pairing the record contradicts
+	// still has something to say: that decline is why the unit beside it is
+	// about to be re-drafted rather than confirmed.
+	if !r.Absorbed() && r.Superseded == 0 {
+		return ""
+	}
+	line := fmt.Sprintf("absorbed: %d pair(s) from %d committed target document(s): %d learned, %d reconciled",
+		r.Pairs, r.Documents, r.Learned, r.Reconciled)
+	if r.Contested > 0 {
+		line += fmt.Sprintf("; %d source string(s) the record answers more than one way", r.Contested)
+	}
+	if r.Refused > 0 {
+		line += fmt.Sprintf("; %d pair(s) refused for dropped inline codes", r.Refused)
+	}
+	if r.Superseded > 0 {
+		line += fmt.Sprintf("; %d pair(s) whose source was rewritten since the translation was written", r.Superseded)
+	}
+	return line + formatContestedSources(r.ContestedSources)
+}
+
+// formatContestedSources names the sources the record answers more than one
+// way: each answer, where it was approved, and which of them governs there.
+//
+// The count alone was unauditable. Both candidates are real translations a
+// reader approved, so no gate tells them apart on quality and no reader can
+// look at a number; what settles them is where each was approved, and that is
+// exactly what a person needs in front of them to agree with the settlement or
+// to go and change one of the two decisions.
+func formatContestedSources(sources []ContestedSource) string {
+	if len(sources) == 0 {
+		return ""
+	}
+	ordered := slices.Clone(sources)
+	sort.Slice(ordered, func(i, j int) bool {
+		if ordered[i].Source != ordered[j].Source {
+			return ordered[i].Source < ordered[j].Source
+		}
+		return ordered[i].Locale < ordered[j].Locale
+	})
+	var b strings.Builder
+	for _, c := range ordered {
+		fmt.Fprintf(&b, "\n  contested: %q in %s", c.Source, c.Locale)
+		for _, a := range c.Answers {
+			at := a.Point
+			if at == "" {
+				at = "the project's default point"
+			}
+			mark := " "
+			if a.Governs {
+				mark = "*"
+			}
+			fmt.Fprintf(&b, "\n    %s %q approved at %s", mark, a.Target, at)
+		}
+	}
+	return b.String()
+}
 
 // recordUnit is one (source document, committed target document, locale) the
 // record absorber pairs.

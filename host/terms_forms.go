@@ -9,7 +9,6 @@ import (
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/project"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
@@ -32,13 +31,8 @@ type TermsFormsTarget struct {
 
 // OpenTermsFormsTarget resolves the concepts `kapi terms expand` and `kapi
 // terms validate` work on. In order: a bundle named on the command line; a
-// .terms.json named by --file; a store named by --name, --local or --file; the
-// project's committed terms source; otherwise the store every `kapi terms`
+// .terms.json named by --file; otherwise the store every `kapi terms`
 // subcommand uses.
-//
-// The committed source comes before the project store because the store is a
-// projection of it, rebuilt when the source changes, so forms written only to
-// the store would not last.
 func (a *App) OpenTermsFormsTarget(cmd Command, bundle string) (*TermsFormsTarget, error) {
 	file, _ := cmd.Flags().GetString("file")
 	if bundle == "" && ktb.IsBundlePath(file) {
@@ -49,18 +43,6 @@ func (a *App) OpenTermsFormsTarget(cmd Command, bundle string) (*TermsFormsTarge
 			return nil, fmt.Errorf("%s is not a terms bundle: expected a %s file", bundle, ktb.Ext)
 		}
 		return openBundleTarget(bundle)
-	}
-
-	name, _ := cmd.Flags().GetString("name")
-	local, _ := cmd.Flags().GetBool("local")
-	if a.TermsBackend == nil && name == "" && file == "" && !local {
-		src, err := a.resolveProjectTermsSourcePath(cmd, project.GovernancePoint{})
-		if err != nil {
-			return nil, err
-		}
-		if src != "" {
-			return openBundleTarget(src)
-		}
 	}
 
 	tb, label, release, err := a.OpenTermsSQLite(cmd)

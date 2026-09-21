@@ -83,7 +83,7 @@ func writePortableTree(t *testing.T, root string) string {
 	t.Helper()
 	layout := project.LayoutAt(root)
 	require.NoError(t, os.MkdirAll(layout.StateDir, 0o755))
-	require.NoError(t, os.MkdirAll(layout.ProfileDir("landing"), 0o755))
+	require.NoError(t, os.MkdirAll(layout.Export().ProfileDir("landing"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "nb"), 0o755))
 

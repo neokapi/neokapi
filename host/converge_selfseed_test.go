@@ -75,7 +75,7 @@ func newSelfSeedProject(t *testing.T) (*App, *EnvCommand, string) {
 		UpdatedAt: stamp,
 	}}, nil))
 	require.NoError(t, err)
-	memDir := project.LayoutAt(dir).MemoryDir()
+	memDir := project.LayoutAt(dir).Export().MemoryDir()
 	require.NoError(t, os.MkdirAll(memDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(memDir, "app-nb.memory.json"), data, 0o644))
 
@@ -246,7 +246,7 @@ func TestConverge_SeedsAPulledSourceEdit(t *testing.T) {
 	}}, nil))
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(
-		filepath.Join(project.LayoutAt(root).MemoryDir(), "app-nb.memory.json"), data, 0o644))
+		filepath.Join(project.LayoutAt(root).Export().MemoryDir(), "app-nb.memory.json"), data, 0o644))
 
 	seeded, err := a.SeedProjectContext(context.Background(), recipe)
 	require.NoError(t, err)

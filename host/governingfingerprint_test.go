@@ -247,7 +247,7 @@ func writeGoverningBundle(t *testing.T, root string, fingerprint string, pairs m
 	}
 	data, err := kmb.Marshal(kmb.FromModel(entries, nil))
 	require.NoError(t, err)
-	dir := project.LayoutAt(root).MemoryDir()
+	dir := project.LayoutAt(root).Export().MemoryDir()
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, kmb.ConventionalName), data, 0o644))
 }
@@ -294,7 +294,7 @@ func TestSeedProjectContext_CarriesTheBundlesGoverningContextOntoTheRecord(t *te
 	assert.Equal(t, "fp-own", get("ok").GoverningFingerprint, "the record's own fingerprint stands")
 	assert.Equal(t, "approved", get("greeting").Decision.ReviewState, "the decision itself is untouched")
 
-	committed, err := state.ReadCommitted(project.LayoutAt(root).UnitStateDir())
+	committed, err := state.ReadCommitted(project.LayoutAt(root).Export().UnitStateDir())
 	require.NoError(t, err)
 	var durable string
 	for _, u := range committed {

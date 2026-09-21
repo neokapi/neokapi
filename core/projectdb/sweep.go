@@ -43,7 +43,7 @@ import (
 // working store seeds itself from — folded afterwards, the first open of an
 // upgraded project would come up with an empty working set.
 func foldLayoutForward(layout project.Layout) {
-	moveDirContents(flatDecisionsDir(layout), layout.UnitStateDir())
+	moveDirContents(flatDecisionsDir(layout), layout.Export().UnitStateDir())
 	moveDirContents(flatVaultDir(layout), layout.VaultDir())
 	// Before the cache root is deleted, and that ordering is the whole point.
 	moveDirContents(flatRedactionDir(layout), currentRedactionDir(layout))
@@ -76,11 +76,11 @@ func foldContextUmbrella(layout project.Layout) {
 	if _, err := os.Stat(umbrella); err != nil {
 		return
 	}
-	moveDirContents(filepath.Join(umbrella, "decisions"), layout.UnitStateDir())
-	moveDirContents(filepath.Join(umbrella, "memory"), layout.MemoryDir())
+	moveDirContents(filepath.Join(umbrella, "decisions"), layout.Export().UnitStateDir())
+	moveDirContents(filepath.Join(umbrella, "memory"), layout.Export().MemoryDir())
 	// The single conventional bundle, which becomes the primary inside the
 	// bundle directory rather than a file of its own.
-	moveFile(filepath.Join(umbrella, "memory.json"), filepath.Join(layout.MemoryDir(), "memory.json"))
+	moveFile(filepath.Join(umbrella, "memory.json"), filepath.Join(layout.Export().MemoryDir(), "memory.json"))
 	moveDirContents(umbrella, layout.StateDir, "decisions", "memory", "memory.json")
 	foldGovernanceFiles(layout, umbrella)
 	_ = os.Remove(umbrella)
@@ -113,10 +113,10 @@ func foldGovernanceFiles(layout project.Layout, from string) {
 			moveFile(filepath.Join(from, name), filepath.Join(layout.StateDir, "voice.yaml"))
 		case strings.HasSuffix(name, "-voice.yaml"):
 			profile := strings.TrimSuffix(name, "-voice.yaml")
-			moveFile(filepath.Join(from, name), filepath.Join(layout.ProfileDir(profile), "voice.yaml"))
+			moveFile(filepath.Join(from, name), filepath.Join(layout.Export().ProfileDir(profile), "voice.yaml"))
 		case strings.HasSuffix(name, "-terms.json"):
 			profile := strings.TrimSuffix(name, "-terms.json")
-			moveFile(filepath.Join(from, name), filepath.Join(layout.ProfileDir(profile), "terms.json"))
+			moveFile(filepath.Join(from, name), filepath.Join(layout.Export().ProfileDir(profile), "terms.json"))
 		}
 	}
 }
@@ -329,14 +329,14 @@ func carryStagedForward(ctx context.Context, layout project.Layout, into *DB) {
 // that was not there.
 func openPredecessorWork(ctx context.Context, layout project.Layout) (*state.WorkStore, bool) {
 	if exists(oldWorkStorePath(layout)) {
-		w, err := state.OpenWork(ctx, oldWorkStorePath(layout), layout.UnitStateDir())
+		w, err := state.OpenWork(ctx, oldWorkStorePath(layout), layout.Export().UnitStateDir())
 		if err != nil {
 			return nil, false
 		}
 		return w, true
 	}
 	if sidecar := oldWorkSidecarPath(layout); exists(sidecar) {
-		w, err := state.OpenWorkSidecar(ctx, sidecar, layout.UnitStateDir())
+		w, err := state.OpenWorkSidecar(ctx, sidecar, layout.Export().UnitStateDir())
 		if err != nil {
 			return nil, false
 		}

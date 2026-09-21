@@ -297,8 +297,8 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	// load-bearing, not decoration: past the stat the store exists, so a failure
 	// to open it can only mean it exists and cannot be read — exactly the case
 	// that must not read as "no memory". An ABSENT store is a different fact: it
-	// says nothing about the corpus, only that nothing has projected it yet, and
-	// the branch below reads the committed bundles instead.
+	// says the project holds no content memory here yet, which prices the work
+	// as translating from scratch.
 	//
 	// It stats the store rather than opening it and asking, because opening
 	// CREATES it: the handle runs every subsystem's migrations at open. A plan
@@ -339,23 +339,6 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 		// live in the same store, and only there: past the stat above the store
 		// exists, so asking it creates nothing.
 		basis.store = a.storedTargetStore(ctx, layout.Root)
-	} else if basis.memory == nil {
-		// No store on disk — a fresh checkout, which is exactly the leg a
-		// pull-request CI job runs. The corpus a run recycles from is still
-		// there: the committed bundles under `.kapi/memory/`, which the run
-		// seeds into the store before it converges. Reading only the store here
-		// priced from scratch the work git already carries reviewed wording for.
-		//
-		// So the bundles are compiled into a corpus that exists only for this
-		// call and is discarded with it. The plan reads what the run will read,
-		// and the checkout is left as git wrote it — the promise the stat above
-		// exists to keep.
-		mem, release, merr := a.CommittedMemoryView(ctx, proj, layout)
-		if merr != nil {
-			return UpPlanOutput{}, merr
-		}
-		defer release()
-		basis.memory = mem
 	}
 
 	// A collection in a format no installed reader opens is left unpriced, and

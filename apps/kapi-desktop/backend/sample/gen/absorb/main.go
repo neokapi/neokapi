@@ -38,7 +38,7 @@ func run() int {
 	a.InitRegistries()
 	defer a.Shutdown()
 
-	res, err := a.SeedProjectContext(context.Background(), *project)
+	res, err := a.AbsorbProjectRecord(context.Background(), *project)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "kapimart-absorb: %v\n", err)
 		return 1
@@ -51,7 +51,7 @@ func run() int {
 	}
 	fmt.Println(string(out))
 
-	if res.Record.Learned == 0 && res.Record.Reconciled == 0 {
+	if res.Learned == 0 && res.Reconciled == 0 {
 		fmt.Fprintln(os.Stderr,
 			"kapimart-absorb: the record taught the memory nothing: every pair was already answered, "+
 				"already stamped, or refused. The seed corpus must be empty and the store rebuilt before this runs.")

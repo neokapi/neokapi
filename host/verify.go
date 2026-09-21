@@ -803,30 +803,21 @@ func (a *App) termsBindings(cmd Command, proj *project.KapiProject, root string)
 }
 
 // projectTermsBound reports whether terms are bound at the project's default
-// point: a --termstore flag, a committed defaults.terms_source (.terms.json)
-// resolved directly at check time, a terms bundle at a conventional location,
-// or concepts in the project's own store. It mirrors the resolution the gate
-// itself uses (ResolveTermsStore / resolveProjectTermsSourcePath), so "bound"
-// means the same thing here and there.
+// point: a --termstore flag, or concepts in the project's own store. It mirrors
+// the resolution the gate itself uses (ResolveTermsStore), so "bound" means the
+// same thing here and there.
 //
-// The project store is the case that changed shape: its vocabulary tables exist
-// from the store's first open, so their presence says nothing and "bound" can
-// only mean the store holds a concept. Otherwise every project would report a
-// terminology binding it does not have, and the gate would never be able to say
-// there is nothing to check.
+// The project store is a row question: its vocabulary tables exist from the
+// store's first open, so their presence says nothing and "bound" can only mean
+// the store holds a concept. Otherwise every project would report a terminology
+// binding it does not have, and the gate would never be able to say there is
+// nothing to check.
 func (a *App) projectTermsBound(cmd Command) (bool, error) {
 	sel, err := a.ResolveTermsStore(cmd, project.GovernancePoint{})
 	if err != nil {
 		return false, err
 	}
 	if sel.Path != "" {
-		return true, nil
-	}
-	srcPath, err := a.resolveProjectTermsSourcePath(cmd, project.GovernancePoint{})
-	if err != nil {
-		return false, err
-	}
-	if srcPath != "" {
 		return true, nil
 	}
 	if !sel.InProject() {

@@ -70,7 +70,7 @@ func yamlCommentsProject(t *testing.T, comments, remembered bool) (*App, *EnvCom
 			UpdatedAt: stamp,
 		}}, nil))
 		require.NoError(t, err)
-		memDir := project.LayoutAt(dir).MemoryDir()
+		memDir := project.LayoutAt(dir).Export().MemoryDir()
 		require.NoError(t, os.MkdirAll(memDir, 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(memDir, "app-nb.memory.json"), data, 0o644))
 	}

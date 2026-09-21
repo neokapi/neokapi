@@ -44,9 +44,9 @@ func (a *App) RunCommit(cmd Command, _ []string) error {
 	}
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
-	rel, relErr := filepath.Rel(root, layout.UnitStateDir())
+	rel, relErr := filepath.Rel(root, layout.Export().UnitStateDir())
 	if relErr != nil {
-		rel = layout.UnitStateDir()
+		rel = layout.Export().UnitStateDir()
 	}
 	if dryRun {
 		fmt.Fprintf(out, "Would commit %s to %s\n", pluralUnitStateChanges(res.Committed), rel)

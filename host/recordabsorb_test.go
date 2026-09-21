@@ -250,7 +250,7 @@ func TestAbsorbCommittedRecord_RecordSupersedesSeed(t *testing.T) {
 	entry := matches[0].Entry
 	assert.Equal(t, "Hei verden", entry.VariantText("nb"))
 
-	seed, err := os.ReadFile(filepath.Join(project.LayoutAt(root).MemoryDir(), "app-nb.memory.json"))
+	seed, err := os.ReadFile(filepath.Join(project.LayoutAt(root).Export().MemoryDir(), "app-nb.memory.json"))
 	require.NoError(t, err)
 	assert.Contains(t, string(seed), "Hallo verden",
 		"the committed seed is read-only — it is the store that moved, not the file")

@@ -37,8 +37,8 @@ func TestApplyFrameworkPreset_NeokapiI18nCleanLayout(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, writeStateGitignore(proj))
 
-	assert.DirExists(t, proj.Layout.MemoryDir(), "init scaffolds the committed memory bundles")
-	assert.DirExists(t, proj.Layout.UnitStateDir(), "init scaffolds the committed unit-state record")
+	assert.DirExists(t, proj.Layout.Export().MemoryDir(), "init scaffolds the committed memory bundles")
+	assert.DirExists(t, proj.Layout.Export().UnitStateDir(), "init scaffolds the committed unit-state record")
 
 	gi, err := os.ReadFile(filepath.Join(proj.StateDir(), ".gitignore"))
 	require.NoError(t, err)

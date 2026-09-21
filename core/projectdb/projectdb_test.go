@@ -224,7 +224,7 @@ func TestSubsystems_RoundTripThroughSharedPool(t *testing.T) {
 
 		require.NoError(t, db.Work().Commit(ctx))
 
-		committed, err := state.ReadCommitted(db.Layout().UnitStateDir())
+		committed, err := state.ReadCommitted(db.Layout().Export().UnitStateDir())
 		require.NoError(t, err)
 		require.Len(t, committed, 1, "Commit wrote the committed shard")
 		assert.Equal(t, "u1", committed[0].Unit)
