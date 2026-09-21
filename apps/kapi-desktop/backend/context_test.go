@@ -241,6 +241,26 @@ func TestContextAtRefusesAPathlessRequest(t *testing.T) {
 	assert.Error(t, err, "a collection has no location to resolve")
 }
 
+// TestContextGovernsNamesTheVoiceInForce: the panel answers from the project's
+// voice store, so a point governed by a profile's own voice names that one and
+// a point at the project default names the project's.
+func TestContextGovernsNamesTheVoiceInForce(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+
+	docs, err := app.ContextGoverns(tab.ID, "Docs", "", 0)
+	require.NoError(t, err)
+	require.NotNil(t, docs.Voice, "the support point keeps a voice of its own")
+	assert.Equal(t, "Northsea Support", docs.Voice.Name)
+	assert.Contains(t, docs.Voice.Guide, "Northsea Support")
+
+	appColl, err := app.ContextGoverns(tab.ID, "App", "", 0)
+	require.NoError(t, err)
+	require.NotNil(t, appColl.Voice, "the project default governs a collection that binds nothing")
+	assert.Equal(t, "Northsea", appColl.Voice.Name)
+	assert.Equal(t, "defaults.voice", appColl.Voice.Field)
+}
+
 func TestContextGovernsReportsAProfileWindow(t *testing.T) {
 	app := NewApp()
 	tab, _ := newContextProject(t, app)

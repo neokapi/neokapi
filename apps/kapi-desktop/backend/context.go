@@ -300,9 +300,20 @@ func (a *App) ContextGoverns(tabID, collection, relPath string, limit int) (*Con
 	}
 
 	root := filepath.Dir(op.Path)
+	// The voice comes from the project's store, whether the recipe names the
+	// profile or points at the file an import filed it under, so the store is
+	// what answers here as it does for the points list and the checks panel.
+	voiceStore, releaseVoice, vserr := a.hostEngine().ProjectVoiceStore(ctx, root)
+	if vserr != nil {
+		out.Notes = append(out.Notes, fmt.Sprintf("voice store: %v", vserr))
+	}
+	defer releaseVoice()
 	if profile, _, source, ok, verr := a.hostEngine().LoadCollectionVoice(
 		ctx, op.Project, root,
-		host.VoiceResolveOptions{Point: project.GovernancePoint{Collection: collection, Path: relPath, At: src.At}},
+		host.VoiceResolveOptions{
+			Store: voiceStore,
+			Point: project.GovernancePoint{Collection: collection, Path: relPath, At: src.At},
+		},
 	); verr == nil && ok && profile != nil {
 		out.Voice = &ContextVoiceDTO{
 			Name:   profile.Name,
