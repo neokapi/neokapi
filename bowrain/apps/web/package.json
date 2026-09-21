@@ -22,7 +22,7 @@
     "@neokapi/ui": "*",
     "@sentry/react": "^10.74.0",
     "@tailwindcss/vite": "^4.3.3",
-    "posthog-js": "^1.422.4",
+    "posthog-js": "^1.434.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3"
