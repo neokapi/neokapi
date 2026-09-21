@@ -401,7 +401,10 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 	}
 
 	execution.Timings.ContextMS += elapsedMS(contextStart)
-	opts := checkRunOptions{formats: formats, execution: execution}
+	// applyProjectSourceLang settled the language above, for this invocation and
+	// for nothing else; carrying it on the run keeps every collector below
+	// reading the one answer.
+	opts := checkRunOptions{formats: formats, execution: execution, sourceLocale: a.SourceLocale()}
 	opts.maxChars, _ = cmd.Flags().GetInt("max-chars")
 	opts.maxWords, _ = cmd.Flags().GetInt("max-words")
 	opts.forbid, _ = cmd.Flags().GetStringSlice("forbid")
@@ -476,7 +479,7 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 		if terr != nil {
 			return check.Report{}, terr
 		}
-		biDiags, berr := a.collectBilingualDiagnostics(ctx, blocks, sourcePath, model.LocaleID(targetLang), dnt, termRules, execution)
+		biDiags, berr := a.collectBilingualDiagnostics(ctx, blocks, sourcePath, model.LocaleID(targetLang), dnt, termRules, opts)
 		if berr != nil {
 			return check.Report{}, berr
 		}
@@ -559,7 +562,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 	extractionStart := time.Now()
 
 	if validateMode != format.ValidationOff {
-		bl, fdiags, rerr := a.readBlocksValidated(ctx, file, fmtName, fmtCfg, a.SourceLocale(), validateMode)
+		bl, fdiags, rerr := a.readBlocksValidated(ctx, file, fmtName, fmtCfg, opts.source(a), validateMode)
 		if rerr != nil {
 			return nil, nil, rerr
 		}
@@ -568,7 +571,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 			diags = append(diags, check.DiagnosticFromReader(fd, DisplayName(file)))
 		}
 	} else {
-		bl, rerr := a.readBlocksAs(ctx, file, fmtName, fmtCfg, a.SourceLocale())
+		bl, rerr := a.readBlocksAs(ctx, file, fmtName, fmtCfg, opts.source(a))
 		if rerr != nil {
 			// A read failure is operational in off mode: the lenient readers
 			// extract from imperfect inputs, so a hard error means the file
@@ -682,6 +685,14 @@ type checkRunOptions struct {
 	execution    *checkExecution
 	profile      *profile.VoiceProfile
 	voiceContext check.VoiceContext
+	// sourceLocale is the language this run reads and checks content in, the
+	// language of the project the run acts on. It travels with the run rather
+	// than sitting on the App because one MCP server answers calls for several
+	// projects at once, and a term lookup matches a locale exactly: content read
+	// in another project's language is held to no vocabulary at all. Empty means
+	// the run resolved none of its own, and the App's language answers (see
+	// the source method).
+	sourceLocale string
 	// terms is the project's terms store, when it binds one: the vocabulary the
 	// project decided, enforced beside the profile's own lists. nil for a run
 	// with no project or no terminology.
@@ -713,6 +724,16 @@ type checkRunOptions struct {
 	// lines its comment layer classified. It is nil in a whole-file check, and
 	// for a file no comment layer reads.
 	change *commentChange
+}
+
+// source is the language the run reads content in: the one it resolved for
+// itself, else the App's, which is what a command-line run resolves once for
+// the whole invocation.
+func (o checkRunOptions) source(a *App) string {
+	if o.sourceLocale != "" {
+		return o.sourceLocale
+	}
+	return a.SourceLocale()
 }
 
 // collectFileDiagnostics runs the source-side content checkset over one file's
@@ -807,7 +828,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		default:
 			start = time.Now()
 			before := len(diags)
-			vocab := coretools.NewVoiceVocabCheckTool(g.at.profile, g.at.terms).InSourceLocale(model.LocaleID(a.SourceLocale()))
+			vocab := coretools.NewVoiceVocabCheckTool(g.at.profile, g.at.terms).InSourceLocale(model.LocaleID(opts.source(a)))
 			for _, b := range g.blocks {
 				if err := RunCheckTool(ctx, vocab, b); err != nil {
 					return nil, fmt.Errorf("voice vocabulary check %s: %w", DisplayName(file), err)
@@ -840,7 +861,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		}
 		// The comments among the group's blocks are held to the comment limits
 		// of the group's voice.
-		limitDiags, err := a.checkCommentLimits(ctx, g.blocks, g.at, file, opts.change, opts.execution)
+		limitDiags, err := a.checkCommentLimits(ctx, g.blocks, g.at, file, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -919,11 +940,8 @@ func documentText(blocks []*model.Block) string {
 // A checker that could not run is an error, not an empty finding set: a silent
 // skip would report the file as passing placeholder integrity it was never
 // measured against.
-func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.Block, file string, loc model.LocaleID, dntTerms []string, termRules []profile.TermRule, executions ...*checkExecution) ([]check.Diagnostic, error) {
-	var execution *checkExecution
-	if len(executions) > 0 {
-		execution = executions[0]
-	}
+func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.Block, file string, loc model.LocaleID, dntTerms []string, termRules []profile.TermRule, opts checkRunOptions) ([]check.Diagnostic, error) {
+	execution := opts.execution
 	start := time.Now()
 	var diags []check.Diagnostic
 	// Seed the per-block delta counts from the findings already on each block:
@@ -954,7 +972,7 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 	if len(termRules) > 0 {
 		start = time.Now()
 		before := len(diags)
-		cfg := &coretools.TermCheckConfig{TermRules: termRules, SourceLocale: model.LocaleID(a.SourceLocale()), TargetLocale: loc}
+		cfg := &coretools.TermCheckConfig{TermRules: termRules, SourceLocale: model.LocaleID(opts.source(a)), TargetLocale: loc}
 		tc := coretools.NewTermCheckTool(cfg)
 		for _, b := range blocks {
 			if err := RunCheckTool(ctx, tc, b); err != nil {

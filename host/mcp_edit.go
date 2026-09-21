@@ -82,7 +82,7 @@ func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallT
 	// one the call named, else the one the server started in. A term or a
 	// content-memory pair is written into that project's store rather than into
 	// whichever project the server's working directory happens to sit in.
-	cmd, _, err := a.mcpCallCommand(ctx, "apply-edits", in.Project)
+	cmd, recipe, err := a.mcpCallCommand(ctx, "apply-edits", in.Project)
 	if err != nil {
 		return nil, applyEditsMCPOutput{}, err
 	}
@@ -122,8 +122,9 @@ func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallT
 	}
 	if len(comments) > 0 {
 		// The check of a written comment resolves governance from the call's
-		// project, as check_file does.
-		out.Comments = a.applyComments(ctx, cmd, comments, false, "", mcpFormatterTrust())
+		// project, as check_file does, and reads the file in that project's
+		// source language.
+		out.Comments = a.applyComments(ctx, cmd, comments, false, "", mcpFormatterTrust(), a.mcpCallSourceLocale(recipe))
 	}
 
 	return nil, applyEditsMCPOutput{

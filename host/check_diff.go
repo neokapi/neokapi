@@ -327,8 +327,9 @@ func (a *App) locatorFor(run diffCheckRun, path string) blockLocator {
 		}
 	}
 	declared := run.opts.formats.commentsFor(path)
+	source := run.opts.source(a)
 	return func(ctx context.Context, content []byte) (scopedRead, error) {
-		read, err := a.readWithExtents(ctx, path, content, fmtName, cfg)
+		read, err := a.readWithExtents(ctx, path, content, fmtName, cfg, source)
 		if err != nil || !declared {
 			return read, err
 		}
@@ -552,8 +553,9 @@ type scopedRead struct {
 }
 
 // readWithExtents reads content once with a skeleton store wired, returning the
-// translatable blocks and where each sits in content.
-func (a *App) readWithExtents(ctx context.Context, path string, content []byte, fmtName string, cfg map[string]any) (scopedRead, error) {
+// translatable blocks and where each sits in content. source is the language
+// the content is read in, the language of the project the check acts on.
+func (a *App) readWithExtents(ctx context.Context, path string, content []byte, fmtName string, cfg map[string]any, source string) (scopedRead, error) {
 	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
 	if err != nil {
 		return scopedRead{}, fmt.Errorf("no reader for %q: %w", fmtName, err)
@@ -569,7 +571,7 @@ func (a *App) readWithExtents(ctx context.Context, path string, content []byte, 
 	}
 	doc := &model.RawDocument{
 		URI:          path,
-		SourceLocale: model.LocaleID(a.SourceLocale()),
+		SourceLocale: model.LocaleID(source),
 		Encoding:     a.InputEncoding(),
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
@@ -707,10 +709,7 @@ func (a *App) declaredObjects(ctx context.Context, run diffCheckRun, proj *proje
 // a path a recipe resolves compare equal whichever spelling of one directory
 // each used (macOS /var and /private/var).
 func scopeKey(path string) string {
-	if abs, err := filepath.Abs(path); err == nil {
-		path = abs
-	}
-	return canonicalPath(path)
+	return NormalizeCheckoutPath(path)
 }
 
 // displayRelative names a path the way a user in the working directory would.

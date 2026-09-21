@@ -327,8 +327,8 @@ func (a *App) RunHookPreEdit(cmd Command) error {
 	// and a project under any symlinked path would mismatch otherwise. Reuse the
 	// canonical forms for the reason so its paths render relative consistently.
 	restore = silenceStderr()
-	root := canonicalPath(filepath.Dir(projectPath))
-	target := canonicalPath(abs)
+	root := NormalizeCheckoutPath(filepath.Dir(projectPath))
+	target := NormalizeCheckoutPath(abs)
 	source, locale, isTarget := matchTargetToSource(proj, root, target)
 	restore()
 
@@ -362,24 +362,6 @@ func preEditDenyReason(root, targetAbs, sourceAbs, locale string) string {
 			"To change the meaning for every language, edit the source %s instead and re-run the round-trip.",
 		target, source, locale, locale, locale, source,
 	)
-}
-
-// canonicalPath resolves symlinks in p so two paths to the same file compare
-// equal regardless of representation (e.g. macOS /var vs /private/var). When p
-// itself does not exist yet (a Write to a new target), it resolves the nearest
-// existing parent and rejoins the remainder, so the result is still canonical.
-func canonicalPath(p string) string {
-	if resolved, err := filepath.EvalSymlinks(p); err == nil {
-		return resolved
-	}
-	dir, base := filepath.Split(filepath.Clean(p))
-	if dir == "" {
-		return p
-	}
-	if resolvedDir, err := filepath.EvalSymlinks(filepath.Clean(dir)); err == nil {
-		return filepath.Join(resolvedDir, base)
-	}
-	return p
 }
 
 // relForReason renders abs relative to root for human-readable messages,

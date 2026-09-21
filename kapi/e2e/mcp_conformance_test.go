@@ -139,6 +139,86 @@ vocabulary:
 	return p
 }
 
+// sourceLangProject is one project written to exercise the source language a
+// call reads in. Two of them differ in `defaults.source_language` and in
+// nothing else, so the language is the only thing an answer can be coming from.
+type sourceLangProject struct {
+	Root   string
+	Recipe string
+	// Doc holds both deprecated terms, one in each language.
+	Doc string
+	// Lang is the project's source language, Deprecated the term its store
+	// retires in that language, and Foreign the term the store retires in the
+	// other one. A call reading this project's content reports Deprecated and
+	// never Foreign; reading it in the other language inverts both.
+	Lang       string
+	Deprecated string
+	Foreign    string
+}
+
+// sourceLangTerms is the terms store both projects import. One concept, with a
+// deprecated and a preferred term in each of two languages, so a lookup in
+// either language has something to find and the two answers are distinct.
+const sourceLangTerms = `{
+  "schemaVersion": "1.0",
+  "kind": "kapi-terms",
+  "concepts": [
+    {
+      "id": "c-handover",
+      "definition": "Moving a piece of work from one person to the next.",
+      "terms": [
+        {"text": "handover", "locale": "en", "status": "deprecated"},
+        {"text": "transfer", "locale": "en", "status": "preferred"},
+        {"text": "overlevering", "locale": "nb", "status": "deprecated"},
+        {"text": "overføring", "locale": "nb", "status": "preferred"}
+      ],
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  ]
+}
+`
+
+// writeSourceLangProject builds a project declaring lang as its source
+// language, with the shared terms store and a document holding a deprecated
+// term in each language. It binds no voice profile: the vocabulary rules a
+// profile declares match whatever the language, and the store lookup is the
+// part that keys on it.
+func writeSourceLangProject(t *testing.T, name, lang, deprecated, foreign, targetLang string) sourceLangProject {
+	t.Helper()
+	root := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		file := filepath.Join(root, filepath.FromSlash(rel))
+		require.NoError(t, os.MkdirAll(filepath.Dir(file), 0o755))
+		require.NoError(t, os.WriteFile(file, []byte(body), 0o644))
+	}
+	write("kapi.yaml", "version: v1\nname: "+name+`
+defaults:
+  source_language: `+lang+`
+  target_languages: [`+targetLang+`]
+  source_gate: none
+  terms_source: .kapi/terms.json
+collections:
+  - name: Docs
+    content:
+      - path: "docs/**/*.md"
+`)
+	write(".kapi/terms.json", sourceLangTerms)
+	write("docs/note.md", "# Note\n\nThe handover and the overlevering are recorded here.\n")
+
+	p := sourceLangProject{
+		Root:       root,
+		Recipe:     filepath.Join(root, "kapi.yaml"),
+		Doc:        filepath.Join(root, "docs", "note.md"),
+		Lang:       lang,
+		Deprecated: deprecated,
+		Foreign:    foreign,
+	}
+	kapi(t, "terms", "import", filepath.Join(root, ".kapi", "terms.json"), "-p", p.Recipe)
+	return p
+}
+
 // writeBilingual writes an XLIFF holding one source and one target, which is
 // what `kapi exec` reads for a bilingual tool. Over MCP the same pair arrives
 // as `text` and `target`.
@@ -466,6 +546,66 @@ func TestMCPConformanceTwoProjectsOneServer(t *testing.T) {
 		}
 		wg.Wait()
 	})
+}
+
+// TestMCPConformanceSourceLanguagePerCall holds one server process to two
+// projects whose source languages differ. A term lookup matches the locale
+// exactly, so content read in the other project's language is held to no
+// vocabulary at all, and a server that settled the language once at startup
+// answers for whichever project it started in.
+//
+// Each project's document holds a term its store retires in English and a term
+// it retires in Norwegian. The answer names one of them, and which one says
+// what language the call read in: swap the two and every assertion below
+// inverts, so neither direction can pass by reporting nothing.
+func TestMCPConformanceSourceLanguagePerCall(t *testing.T) {
+	const en, nb = "handover", "overlevering"
+	english := writeSourceLangProject(t, "english", "en", en, nb, "nb")
+	norwegian := writeSourceLangProject(t, "norwegian", "nb", nb, en, "en")
+	// Bound to the English project, so the Norwegian calls are the ones a
+	// start-time resolution gets wrong.
+	session, ctx := mcpServer(t, "-p", english.Recipe)
+
+	for name, proj := range map[string]sourceLangProject{
+		"the server's own project": english,
+		"the project on the call":  norwegian,
+	} {
+		t.Run(name, func(t *testing.T) {
+			args := map[string]any{"file": proj.Doc}
+			if proj.Recipe != english.Recipe {
+				args["project"] = proj.Recipe
+			}
+			got := messages(findings(callTool(t, ctx, session, "check_file", args)))
+			joined := strings.Join(got, "\n")
+			require.NotEmpty(t, got,
+				"must fail: %s reported nothing, so its content was read in another language", proj.Lang)
+			assert.Contains(t, joined, proj.Deprecated,
+				"the term retired in %s must be reported", proj.Lang)
+			assert.NotContains(t, joined, proj.Foreign,
+				"must fail: the term retired in the other language was reported, so the call read in it")
+
+			// The CLI resolves the same project's language for itself, which is
+			// the answer the MCP call has to match.
+			want := kapiJSON(t, "check", proj.Doc, "-p", proj.Recipe, "--json")
+			assert.Equal(t, messages(findings(want)), got,
+				"check_file must report what `kapi check -p %s` reports", proj.Recipe)
+		})
+
+		t.Run("a draft for "+name, func(t *testing.T) {
+			args := map[string]any{
+				"text":         "The " + en + " and the " + nb + " are recorded here.",
+				"context_path": "docs/draft.md",
+			}
+			if proj.Recipe != english.Recipe {
+				args["project"] = proj.Recipe
+			}
+			got := strings.Join(messages(findings(callTool(t, ctx, session, "check_text", args))), "\n")
+			assert.Contains(t, got, proj.Deprecated,
+				"a draft is checked in the language its destination's project writes")
+			assert.NotContains(t, got, proj.Foreign,
+				"must fail: the draft was read in the other project's language")
+		})
+	}
 }
 
 // ─── Parity: the check tools ────────────────────────────────────────────────

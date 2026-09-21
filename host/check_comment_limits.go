@@ -68,9 +68,10 @@ func addedLines(changes []diffscope.Change) []format.LineRange {
 // comment record nothing, and a profile that sets no comment limits records
 // each analyzer as not requested. A build without the sentence break records
 // the sentence-length analyzer as required and not run, so the check does not
-// pass on it. Density reads change, the file's change in a diff-scoped check;
-// with no change it is unsupported.
-func (a *App) checkCommentLimits(ctx context.Context, blocks []*model.Block, at atPoint, file string, change *commentChange, execution *checkExecution) ([]check.Diagnostic, error) {
+// pass on it. Density reads opts.change, the file's change in a diff-scoped
+// check; with no change it is unsupported.
+func (a *App) checkCommentLimits(ctx context.Context, blocks []*model.Block, at atPoint, file string, opts checkRunOptions) ([]check.Diagnostic, error) {
+	change, execution := opts.change, opts.execution
 	var comments []*model.Block
 	for _, b := range blocks {
 		if comment.IsBlock(b) {
@@ -88,7 +89,7 @@ func (a *App) checkCommentLimits(ctx context.Context, blocks []*model.Block, at 
 		return nil, nil
 	}
 	limits := at.profile.Style.Comments.Limits()
-	loc := model.LocaleID(a.SourceLocale())
+	loc := model.LocaleID(opts.source(a))
 	var diags []check.Diagnostic
 	add := func(b *model.Block, found []check.Finding) {
 		for _, f := range found {
