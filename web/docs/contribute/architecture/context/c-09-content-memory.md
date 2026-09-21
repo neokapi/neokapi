@@ -397,9 +397,19 @@ it in the store per collection that carries the string.
 
 Because the absorber's entries are reproducible from the committed translations
 by construction (that is what this stage does), a store written under an older
-entry identity is **re-learned rather than migrated**: the pass forgets the
-entries it minted and the stamps that would let it skip a document, and reads the
-record again. What the corpus learned elsewhere is not the record's to forget.
+entry identity is **re-learned rather than migrated**: the pass drops the stamps
+that would let it skip a document, reads the record again, and afterwards
+forgets the entries it had minted that the current identity no longer mints.
+What the corpus learned elsewhere is not the record's to forget.
+
+The forgetting comes after the pass rather than before it, and that ordering is
+what keeps an entry's own history intact. An entry the pass re-asserts with the
+same identity and the same wording is left exactly as it is, down to the three
+instants it records about itself: when this store first held it, when it last
+changed, and when each origin was added. Those instants travel in a snapshot and
+in a bundle, so a clean clone that reads one and then re-learns the same pairs
+from its own target documents keeps the donor's, and two snapshots of an
+unchanged project are byte-identical whatever the clock says.
 
 ### Fuzzy candidate retrieval
 

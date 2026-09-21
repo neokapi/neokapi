@@ -166,6 +166,16 @@ the file and nothing else.
 A file written by a later kapi than the one reading it is refused by name, with
 the version that could not read it, rather than read halfway.
 
+### Every branch's approvals, not just the one you are on
+
+Checkouts of one project share its decisions, and two of them on different
+branches can answer the same sentence differently. An export carries both.
+Restoring it puts both back, and each checkout then answers with the approval
+made against the text it actually holds, so a backup taken on one branch does
+not quietly lose what was approved on another. The `.kapi/state/` files a
+snapshot writes stay a picture of the branch you are on, because that is what
+the checkout reviews and commits.
+
 ## Backing up every project at once
 
 Your projects share one place for their context on this computer, and git does

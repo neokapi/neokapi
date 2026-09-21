@@ -142,7 +142,10 @@ and they agree:
    its pairing (by the `Updated` stamp both ends write) is left out, which is the
    same last-writer-wins rule a venue pull follows. A fresh clone restores its
    decisions this way, and so does a checkout picking up a colleague's after `git
-   pull`. `state.CommittedDigest`, over each shard's name and bytes and stamped
+   pull`. A record read in this way is recorded in the order that leaves this
+   checkout's view where it was: the lines whose pairing it already holds go
+   last, so a record carrying several branches' answers for one unit cannot
+   repoint it. `state.CommittedDigest`, over each shard's name and bytes and stamped
    per checkout in `state_meta`, is the fast path for an import that would find
    nothing: the same key-and-value shape the block cache uses for its extraction
    stamps ([C-03](c-03-context-store-and-graph.md)).
@@ -560,9 +563,18 @@ re-exports the core types through aliases so downstream code sees one import.
   basis, governing fingerprint, decision, updated), a `Key`, a `Pairing`, the
   `Stale`/`Fresh`/`Reviewed` ladder helpers, and `WorkStore`, the ledger and this
   checkout's view of it (`Lookup`/`Get`/`Put`/`Record`/`RecordEntry`/`Delete`/
-  `All`/`Priors`/`Entries`, `Commit` and `RecordDiff` for the export, `Import`
-  and `CommittedDigest` for the shards, `Documents` and `AdoptDocuments` for
-  document identity, and `SetPolicy` for who may record what).
+  `All`/`Priors`/`Entries`, `Ledger` for the whole of it, `Commit` and
+  `RecordDiff` for the export, `Import` and `CommittedDigest` for the shards,
+  `Documents` and `AdoptDocuments` for document identity, and `SetPolicy` for
+  who may record what).
+- **A backup reads the ledger, a commit reads the view.** `Ledger` answers with
+  the entry in force at every pairing, whichever checkout recorded it, and
+  `OpenLedger` reaches it with no checkout in hand. That is what
+  `kapi context export` carries, with and without `--workspace`
+  ([M-06](../multilingual/m-06-content-packages.md)): a project whose branches
+  answer one unit differently has decided both, and a backup built from one
+  checkout's view would drop the rest. The `.kapi/` shards keep carrying the
+  view, because they are what that checkout evaluates from.
 - **Approvals flow through one verb.** `kapi apply` with `kind:"review"` records
   the unit state in the project store, addressed by `(file, id, locale)` exactly
   as `kapi status --review` lists it. The desktop's approve action and the CLI

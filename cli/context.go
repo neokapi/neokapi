@@ -50,7 +50,10 @@ Six more grow it. Context accumulates out of ordinary work: propose records a
 rule with the evidence behind it, log shows what has been proposed and decided,
 and confirm, discard, revert and widen are the decisions. A proposal advises
 from the moment it is recorded and no check fails on one; confirming is what
-makes it bind.`,
+makes it bind.
+
+One reports on the store itself: locales says which locale each stored row is
+filed under, and files them the way lookups ask when one has drifted.`,
 		Example: "  kapi context docs/guide.md\n" +
 			"  kapi context docs/guide.md --json\n" +
 			"  kapi context --profile marketing\n" +
@@ -107,6 +110,7 @@ makes it bind.`,
 		newContextSnapshotCmd(a),
 		newContextExportCmd(a),
 		newContextRestoreCmd(a),
+		newContextLocalesCmd(a),
 		newContextProposeCmd(a),
 		newContextLogCmd(a),
 		newContextConfirmCmd(a),
@@ -339,6 +343,49 @@ project whose context it is about to empty before it empties any of them.`,
 	cmd.Flags().Bool("merge", false, "read the file over the context the store already holds")
 	cmd.Flags().Bool("replace", false, "put the file in place of the context the store already holds")
 	cmd.Flags().Bool("workspace", false, "read a whole-machine backup, every project in it")
+	AddProjectFlag(cmd)
+	return cmd
+}
+
+func newContextLocalesCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "locales",
+		Short: "Report the locale each stored row is filed under",
+		Long: `Report the locale spelling every stored row carries, and whether it
+is the one lookups ask in.
+
+A row filed under a spelling nothing asks for is never matched. The term, the
+approved wording or the overlay it holds reads as absent, which looks exactly
+like content nobody has worked on yet.
+
+--fix files the project's context rows under the spelling lookups ask in,
+without moving them out of the store. Terms, approved wording and voice
+profiles exist there and nowhere else, so nothing is thrown away: a row whose
+canonical spelling is free takes it, a row saying exactly what the canonical
+row says folds into it, and a row whose canonical spelling already answers
+differently is left alone and reported, for you to say which answer is right.
+
+The rows kapi read out of your own files are rebuilt rather than moved. The
+report names the file to delete, and the next "kapi up" reads your files
+again.`,
+		Example: "  kapi context locales\n" +
+			"  kapi context locales --json\n" +
+			"  kapi context locales --fix",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			projectPath, err := RequireProjectPath(cmd)
+			if err != nil {
+				return err
+			}
+			fix, _ := cmd.Flags().GetBool("fix")
+			res, err := a.ProjectStoreLocales(cmd.Context(), projectPath, fix)
+			if err != nil {
+				return err
+			}
+			return output.Print(cmd, res)
+		},
+	}
+	cmd.Flags().Bool("fix", false, "file the project's context rows under the spelling lookups ask in")
 	AddProjectFlag(cmd)
 	return cmd
 }

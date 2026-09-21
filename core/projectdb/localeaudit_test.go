@@ -53,10 +53,10 @@ func TestNonCanonicalLocales(t *testing.T) {
 	drift, err = db.NonCanonicalLocales(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, []LocaleDrift{
-		{Subsystem: "block cache", Locale: "targets/nb_NO", Canonical: "targets/nb-NO", Rows: 1},
-		{Subsystem: "content memory", Locale: "en_US", Canonical: "en-US", Rows: 1},
-		{Subsystem: "content memory", Locale: "nb_NO", Canonical: "nb-NO", Rows: 2},
-		{Subsystem: "terms", Locale: "NB-no", Canonical: "nb-NO", Rows: 1},
+		{Subsystem: "block cache", Pool: PoolProjection, Locale: "targets/nb_NO", Canonical: "targets/nb-NO", Rows: 1},
+		{Subsystem: "content memory", Pool: PoolContext, Locale: "en_US", Canonical: "en-US", Rows: 1},
+		{Subsystem: "content memory", Pool: PoolContext, Locale: "nb_NO", Canonical: "nb-NO", Rows: 2},
+		{Subsystem: "terms", Pool: PoolContext, Locale: "NB-no", Canonical: "nb-NO", Rows: 1},
 	}, drift)
 	assert.Equal(t, `terms: 1 row(s) under "NB-no" (lookups ask for "nb-NO")`, drift[3].String())
 }

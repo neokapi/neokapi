@@ -109,6 +109,30 @@ Deleting is worth being precise about:
   copy with [`kapi context export`](/kapi/context-portability). Everything else
   in it is derived from `.kapi/` and comes back on the next run.
 
+## Rows filed under an old language spelling
+
+Every row in the store is filed under one canonical spelling of its language,
+and every lookup asks in that spelling. A row an older kapi filed under `nb_NO`
+when lookups ask for `nb-NO` is never matched, so the term or the approved
+sentence it holds reads as absent, which looks exactly like content nobody has
+worked on yet. `kapi status` and `kapi up` say so once when they find one.
+
+```bash
+kapi context locales         # what each row is filed under
+kapi context locales --fix   # file the context rows the way lookups ask
+```
+
+`--fix` moves the rows in the context store where they stand, and throws none
+away. A row whose canonical spelling is free takes it. A row saying exactly what
+the canonical row already says folds into it, and the report counts the merge. A
+row whose canonical spelling already answers differently is left alone and
+named, because picking between two approvals is yours to do rather than a
+repair.
+
+Rows in the projection are what kapi read out of your own files, so they are
+rebuilt rather than moved: run `kapi commit`, delete `.kapi/work/store.db`, and
+the next `kapi up` reads your files again.
+
 ## One context graph
 
 The workspace keeps a property graph (`graph_nodes` / `graph_edges`) that links

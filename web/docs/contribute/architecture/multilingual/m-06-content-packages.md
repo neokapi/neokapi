@@ -188,6 +188,19 @@ Lines `core/state` writes, so the record travels in the one form every reader of
 it already parses. Both are content: they are in the root hash, and what a
 reviewer approved is the most expensive thing a project holds.
 
+The `decisions` members carry the project's **ledger**: the entry in force at
+every pairing, whichever checkout recorded it
+(`core/state.WorkStore.Ledger`). One ledger serves every checkout of a project,
+and two of them sit on different branches with different translations of one
+unit at the same time, so a bundle built from a checkout's view would be
+lossless for that checkout and lossy for the project. A unit several branches
+have answered therefore contributes a line per pairing, which is more than any
+one checkout's `.kapi/state/` shards hold, and a restore records each of them.
+The shards a project commits keep carrying the view, because they are what that
+checkout evaluates from. The member's bytes and its content type are the same
+either way, so a bundle written before the ledger travelled is read without a
+version to negotiate: it carries what it carries.
+
 The workspace profile adds two more. A `project` member is one project's whole
 context package, carried verbatim under `projects/`, and a `registry` member
 (`workspace.json`) says which project each one is: its key, its display name,
