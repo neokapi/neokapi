@@ -72,6 +72,8 @@ func main() {
 		coldLive          = flag.Bool("coldstart-live", false, "explicitly allow subscription-backed agent sessions")
 		coldMaxAttempts   = flag.Int("coldstart-max-attempts", 2, "persistent ceiling across live cold-start phases, including failed attempts")
 		coldSessions      = flag.String("coldstart-sessions", "", "comma-separated cold-start session IDs to select; does not reset the attempt ceiling")
+		coldCellsDir      = flag.String("coldstart-cells-dir", "", "directory the cold-start cells are generated in; empty uses the system temporary directory")
+		coldDesktopApp    = flag.String("coldstart-desktop-app", "", "Kapi Desktop the review sheet opens a cell's workspace with: an application name, or a path to a locally built bundle")
 		mode              = flag.String("mode", modeTrigger, "trigger or completion")
 		surface           = flag.String("surface", "", "limit to one surface: skill or mcp")
 		out               = flag.String("out", DefaultOut, "where to write the dataset")
@@ -121,6 +123,7 @@ func main() {
 		defer cancel()
 		err = executeColdStart(ctx, ColdStartOptions{
 			ManifestPath: *coldManifest, Phase: *coldPhase, Dir: *coldDir, RepoRoot: root,
+			CellsDir: *coldCellsDir, DesktopApp: *coldDesktopApp,
 			Live: *coldLive, MaxAttempts: *coldMaxAttempts, Sessions: *coldSessions,
 		})
 		if err != nil {

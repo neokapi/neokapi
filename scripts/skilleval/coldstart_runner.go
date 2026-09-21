@@ -33,12 +33,18 @@ type ColdStartOptions struct {
 	Manifest     ColdStartManifest
 	Phase        string
 	Dir          string
-	SandboxRoot  string
-	RepoRoot     string
-	KapiBin      string
-	Live         bool
-	MaxAttempts  int
-	Sessions     string
+	// CellsDir is where this drill's cells are generated. Empty puts them under
+	// the system temporary directory.
+	CellsDir    string
+	SandboxRoot string
+	RepoRoot    string
+	KapiBin     string
+	Live        bool
+	MaxAttempts int
+	Sessions    string
+	// DesktopApp is the Kapi Desktop the review sheet opens a cell's workspace
+	// with. Empty names the shipped bundle.
+	DesktopApp string
 }
 
 type coldStartDependencies struct {
@@ -207,8 +213,42 @@ func makeColdStartStudyRecord(ctx context.Context, opts ColdStartOptions) (coldS
 	// The fixture lives outside this repository, under a directory named for the
 	// study, so the cells of one drill survive between phases and two drills
 	// never share one.
-	record.SandboxRoot = filepath.Join(os.TempDir(), "kapi-coldstart-"+opts.Manifest.Study+"-"+record.Fingerprint[:12])
+	cells, err := coldStartCellsDir(opts)
+	if err != nil {
+		return record, err
+	}
+	record.SandboxRoot = filepath.Join(cells, "kapi-coldstart-"+opts.Manifest.Study+"-"+record.Fingerprint[:12])
 	return record, nil
+}
+
+// coldStartCellsDir answers where this drill's cells are generated.
+//
+// The default is the system temporary directory, which macOS sweeps after a few
+// days, and a person's review can come later than that. COLDSTART_CELLS_DIR
+// names a directory that survives instead. A path inside this checkout is
+// refused: an agent host walks up from its working directory looking for
+// CLAUDE.md and kapi walks up looking for kapi.yaml, so a cell there would bind
+// to neokapi's own project. What sits above the chosen directory is measured
+// per cell by coldStartAncestorFindings, which blocks the batch on a finding.
+func coldStartCellsDir(opts ColdStartOptions) (string, error) {
+	if strings.TrimSpace(opts.CellsDir) == "" {
+		return os.TempDir(), nil
+	}
+	dir, err := filepath.Abs(opts.CellsDir)
+	if err != nil {
+		return "", err
+	}
+	repo, err := filepath.Abs(opts.RepoRoot)
+	if err != nil {
+		return "", err
+	}
+	if opts.RepoRoot != "" {
+		inside, err := filepath.Rel(repo, dir)
+		if err == nil && inside != ".." && !strings.HasPrefix(inside, ".."+string(filepath.Separator)) {
+			return "", fmt.Errorf("cells directory %s sits inside this checkout; the drill generates its repositories outside the tree", dir)
+		}
+	}
+	return dir, nil
 }
 
 // coldStartProbe captures a short command's stdout for a provenance field. A
@@ -287,6 +327,11 @@ func preflightColdStart(ctx context.Context, opts ColdStartOptions, deps coldSta
 		if prepared.Server != nil {
 			fmt.Printf("  %s: server %s %s from %s (under test: %t)\n", prepared.Session.ID,
 				prepared.Server.Name, prepared.Server.Version, prepared.Server.Resolved, prepared.Server.UnderTest)
+		}
+		if prepared.Codex != nil {
+			fmt.Printf("  %s: codex sees %s from %s, forwarding %s\n", prepared.Session.ID,
+				coldStartToolList(prepared.Codex.Servers), prepared.Codex.Resolved,
+				coldStartToolList(prepared.Codex.EnvVars))
 		}
 	}
 	for _, blocker := range report.Blockers {

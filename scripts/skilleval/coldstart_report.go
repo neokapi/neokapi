@@ -41,12 +41,20 @@ type ColdStartRow struct {
 
 // ColdStartStageRow is what one session did.
 type ColdStartStageRow struct {
-	Ran             bool            `json:"ran"`
-	Status          string          `json:"status"`
-	Identity        string          `json:"identity"`
-	KapiTools       []string        `json:"kapi_tools"`
-	Recorded        int             `json:"recorded"`
-	ByKind          map[string]int  `json:"by_kind"`
+	Ran       bool           `json:"ran"`
+	Status    string         `json:"status"`
+	Identity  string         `json:"identity"`
+	KapiTools []string       `json:"kapi_tools"`
+	Recorded  int            `json:"recorded"`
+	ByKind    map[string]int `json:"by_kind"`
+	// ByAgent and ByPerson split what this session recorded by the actor kind
+	// the store holds. A session is an agent working, so an entry on ByPerson
+	// is one whose attribution the store lost.
+	ByAgent  int `json:"by_agent"`
+	ByPerson int `json:"by_person"`
+	// Actors are the agent names and sessions the store holds for this
+	// session's entries, one line each.
+	Actors          []string        `json:"actors"`
 	WithEvidence    int             `json:"with_evidence"`
 	WithoutEvidence int             `json:"without_evidence"`
 	AskedFirst      bool            `json:"asked_first"`
@@ -157,7 +165,8 @@ func reportColdStart(ctx context.Context, opts ColdStartOptions) error {
 // coldStartStageRow folds one saved attempt into a row. An attempt that was
 // reserved and never committed a result is kept as a row of its own.
 func coldStartStageRow(dir string, attempt coldStartAttempt) (ColdStartStageRow, error) {
-	stage := ColdStartStageRow{Ran: true, Status: "reserved", KapiTools: []string{}, ByKind: map[string]int{}, Changed: []string{}}
+	stage := ColdStartStageRow{Ran: true, Status: "reserved", KapiTools: []string{},
+		ByKind: map[string]int{}, Actors: []string{}, Changed: []string{}}
 	var result coldStartAttemptResult
 	err := readPairedJSON(filepath.Join(dir, "result.json"), &result)
 	if errors.Is(err, os.ErrNotExist) {
@@ -189,9 +198,26 @@ func coldStartStageRow(dir string, attempt coldStartAttempt) (ColdStartStageRow,
 	for _, count := range stage.ByKind {
 		stage.Recorded += count
 	}
+	stage.attribute(coldStartRecordedSince(result.StoreBefore, result.StoreAfter))
 	stage.WithEvidence = max(result.StoreAfter.WithEvidence-result.StoreBefore.WithEvidence, 0)
 	stage.WithoutEvidence = max(result.StoreAfter.WithoutEvidence-result.StoreBefore.WithoutEvidence, 0)
 	return stage, nil
+}
+
+// attribute folds who the store says recorded this session's entries. A
+// session is one agent working a task, so every entry it added is an agent's
+// work whatever the store holds, and the two counts say whether the store
+// agrees.
+func (s *ColdStartStageRow) attribute(added []ColdStartOperation) {
+	for _, op := range added {
+		switch op.Actor {
+		case coldStartActorAgent:
+			s.ByAgent++
+		default:
+			s.ByPerson++
+		}
+		s.Actors = pairedUnique(s.Actors, coldStartActorLabel(op))
+	}
 }
 
 // coldStartGrowth is what one session added, rather than what the store holds,
@@ -248,6 +274,30 @@ func renderColdStartReport(report ColdStartReport) string {
 			coldStartKinds(row.One.ByKind), row.One.WithEvidence, row.One.Recorded, coldStartYes(row.One.Isolated, row.One.Ran))
 	}
 
+	out.WriteString("\n## Who the store says recorded it\n\n")
+	out.WriteString("An entry a session added was recorded by an agent, so a count under \"a person\" is an\n" +
+		"entry whose attribution the store lost.\n\n")
+	out.WriteString("| Cell | First session | Second session | Agent name and session |\n|---|---|---|---|\n")
+	flagged := []string{}
+	for _, row := range report.Rows {
+		actors := row.One.Actors
+		for _, actor := range row.Two.Actors {
+			actors = pairedUnique(actors, actor)
+		}
+		fmt.Fprintf(&out, "| %s | %s | %s | %s |\n", row.Cell,
+			coldStartAttribution(row.One), coldStartAttribution(row.Two), coldStartCell(strings.Join(actors, "; ")))
+		if lost := row.One.ByPerson + row.Two.ByPerson; lost != 0 {
+			flagged = append(flagged, fmt.Sprintf("%s: %d of %d entries an agent recorded are attributed to a person",
+				row.Cell, lost, row.One.Recorded+row.Two.Recorded))
+		}
+	}
+	if len(flagged) != 0 {
+		out.WriteString("\nAttribution to settle before reading the rest:\n\n")
+		for _, line := range flagged {
+			out.WriteString("- " + line + "\n")
+		}
+	}
+
 	out.WriteString("\n## What a person confirmed\n\n")
 	out.WriteString("| Cell | Reviewed | Confirmed | Discarded | Still waiting |\n|---|---|---|---|---|\n")
 	for _, row := range report.Rows {
@@ -283,6 +333,23 @@ func coldStartStatus(stage ColdStartStageRow) string {
 		return stage.Status + " (" + coldStartCell(stage.Error) + ")"
 	}
 	return stage.Status
+}
+
+// coldStartAttribution renders one session's entries by the actor kind the
+// store holds.
+func coldStartAttribution(stage ColdStartStageRow) string {
+	switch {
+	case !stage.Ran:
+		return ""
+	case stage.ByAgent+stage.ByPerson == 0:
+		return "nothing"
+	case stage.ByPerson == 0:
+		return fmt.Sprintf("agent %d", stage.ByAgent)
+	case stage.ByAgent == 0:
+		return fmt.Sprintf("person %d", stage.ByPerson)
+	default:
+		return fmt.Sprintf("agent %d, person %d", stage.ByAgent, stage.ByPerson)
+	}
 }
 
 func coldStartToolList(names []string) string {
