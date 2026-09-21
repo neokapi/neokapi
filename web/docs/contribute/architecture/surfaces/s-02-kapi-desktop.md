@@ -127,9 +127,12 @@ all leave the project registered, because a context that disappears as a side
 effect of something else is the loss this separation exists to prevent.
 
 The home follows other processes without any channel to them. A CLI run and an
-agent's MCP server register into the same workspace, and every registration
-appends to its operation log, so `workspace.Head` is one indexed integer that
-says whether anything has happened. A goroutine started in `ServiceStartup`
+agent's MCP server write into the same workspace, and a registration that
+changed something appends to its operation log, as every context operation
+does, so `workspace.Head` is one indexed integer that says whether anything has
+happened. Re-opening a project nothing has changed about writes no operation,
+which is what keeps the head from moving whenever anyone looks at anything. A
+goroutine started in `ServiceStartup`
 reads it once a second and emits `workspace:changed` when it moves, which the
 frontend turns into a refetch. Polling rather than watching the files: a SQLite
 database in WAL mode changes three files in an order a filesystem event says
