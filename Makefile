@@ -2442,8 +2442,18 @@ paired-eval-score: ## Summarize saved paired attempts without model calls
 COLDSTART_MANIFEST ?= scripts/skilleval/testdata/coldstart-study.json
 COLDSTART_DIR ?= harness/out/coldstart
 COLDSTART_MAX_ATTEMPTS ?= 2
+# Where the cells are generated. Empty puts them under the system temporary
+# directory, which macOS sweeps after a few days; name a directory that
+# outlives that when a person's review comes later. It has to sit outside this
+# checkout, and nothing discoverable may sit above it.
+COLDSTART_CELLS_DIR ?=
+# The Kapi Desktop the review sheet opens a cell's workspace with: empty names
+# the shipped bundle, or point it at a locally built one.
+COLDSTART_DESKTOP_APP ?=
 COLDSTART_ARGS ?=
-COLDSTART_FLAGS = -coldstart-manifest "$(COLDSTART_MANIFEST)" -coldstart-dir "$(COLDSTART_DIR)" $(COLDSTART_ARGS)
+COLDSTART_FLAGS = -coldstart-manifest "$(COLDSTART_MANIFEST)" -coldstart-dir "$(COLDSTART_DIR)" \
+	$(if $(COLDSTART_CELLS_DIR),-coldstart-cells-dir "$(COLDSTART_CELLS_DIR)") \
+	$(if $(COLDSTART_DESKTOP_APP),-coldstart-desktop-app "$(COLDSTART_DESKTOP_APP)") $(COLDSTART_ARGS)
 .PHONY: coldstart-preflight coldstart-smoke coldstart-session-one coldstart-review coldstart-session-two coldstart-report
 
 coldstart-preflight: ## Build the cold-start fixture and establish its wiring without model calls (build kapi first)

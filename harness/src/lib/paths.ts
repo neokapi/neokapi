@@ -149,6 +149,9 @@ export function kapiIsolationEnv(): Record<string, string> {
     KAPI_PLUGINS_DIR: KAPI_ISO_PLUGINS,
     KAPI_PLUGINS_DIR_ONLY: "1",
     KAPI_NO_PROJECT: "1",
+    // A walkthrough depicts a person working, and kapi reads a coding agent's
+    // marker variables out of the shell this runs in.
+    KAPI_ACTOR: "person",
     // Demo recordings must never emit telemetry or show the first-run
     // notice, even against a keyed release build.
     KAPI_TELEMETRY: "0",

@@ -22,8 +22,11 @@ type ColdStartOperation struct {
 	Kind    string `json:"kind"`
 	Status  string `json:"status"`
 	Subject string `json:"subject"`
-	Actor   string `json:"actor"`
-	Session string `json:"session"`
+	// Actor is the actor kind the store holds: "agent" or "person".
+	Actor string `json:"actor"`
+	// AgentName is the agent the store names, empty on a person's entry.
+	AgentName string `json:"agent_name,omitempty"`
+	Session   string `json:"session"`
 	// Evidence is where the actor says it saw the wording. A candidate with
 	// none is the one a person cannot judge.
 	Evidence []string `json:"evidence"`
@@ -45,8 +48,10 @@ type ColdStartStore struct {
 	// Confirmed and Discarded count a person's decisions.
 	Confirmed int `json:"confirmed"`
 	Discarded int `json:"discarded"`
-	// AgentRecorded counts what an agent, rather than a person, recorded.
-	AgentRecorded int `json:"agent_recorded"`
+	// AgentRecorded and PersonRecorded split the subject-bearing operations by
+	// the actor kind the store holds.
+	AgentRecorded  int `json:"agent_recorded"`
+	PersonRecorded int `json:"person_recorded"`
 }
 
 // coldStartReadStore runs the shipped log command and folds the answer.
@@ -99,7 +104,7 @@ func coldStartReadStore(ctx context.Context, paths ColdStartPaths) (ColdStartSto
 	}
 	for _, op := range payload.Operations {
 		entry := ColdStartOperation{
-			ID: op.ID, Kind: op.Kind, Status: op.Status, Actor: op.Actor.Kind,
+			ID: op.ID, Kind: op.Kind, Status: op.Status, Actor: op.Actor.Kind, AgentName: op.Actor.Name,
 			Session: op.Actor.Session, Note: op.Note, At: op.At, Evidence: []string{},
 		}
 		for _, evidence := range op.Evidence {
@@ -127,6 +132,45 @@ func coldStartReadStore(ctx context.Context, paths ColdStartPaths) (ColdStartSto
 // which is what a person judges and what evidence belongs to.
 var coldStartBearingKinds = []string{"observe", "propose", "correct"}
 
+// The actor kinds the context log states, as `kapi context log --json` writes
+// them and `kapi context log --actor` matches them.
+const (
+	coldStartActorAgent  = "agent"
+	coldStartActorPerson = "person"
+)
+
+// coldStartRecordedSince lists the operations one session added, matched by id
+// rather than by count, so the report can say who each of them belongs to.
+func coldStartRecordedSince(before, after ColdStartStore) []ColdStartOperation {
+	held := map[string]bool{}
+	for _, op := range before.Operations {
+		held[op.ID] = true
+	}
+	added := []ColdStartOperation{}
+	for _, op := range after.Operations {
+		if !held[op.ID] {
+			added = append(added, op)
+		}
+	}
+	return added
+}
+
+// coldStartActorLabel renders one entry's attribution the way the store holds
+// it: the actor kind, the agent it names, and the session that groups the run.
+func coldStartActorLabel(op ColdStartOperation) string {
+	label := op.Actor
+	if label == "" {
+		label = "unstated"
+	}
+	if op.AgentName != "" {
+		label += " " + op.AgentName
+	}
+	if op.Session != "" {
+		label += ", session " + op.Session
+	}
+	return label
+}
+
 func (s *ColdStartStore) fold() {
 	for _, op := range s.Operations {
 		s.ByKind[op.Kind]++
@@ -136,8 +180,11 @@ func (s *ColdStartStore) fold() {
 			} else {
 				s.WithoutEvidence++
 			}
-			if op.Actor == "agent" {
+			switch op.Actor {
+			case coldStartActorAgent:
 				s.AgentRecorded++
+			case coldStartActorPerson:
+				s.PersonRecorded++
 			}
 		}
 		switch {

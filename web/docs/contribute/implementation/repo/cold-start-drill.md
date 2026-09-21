@@ -64,6 +64,13 @@ as completed ones and is never reset by re-running a command. There are no
 automatic retries. `COLDSTART_MANIFEST` and `COLDSTART_DIR` select the manifest
 and the evidence directory, which defaults to the ignored `harness/out/coldstart`.
 
+`COLDSTART_CELLS_DIR` says where the cells themselves are generated. The default
+is the system temporary directory, which macOS sweeps after a few days, and a
+person's review can come later than that, so a batch whose review is not
+immediate names a directory that outlives it. A path inside this checkout is
+refused, and whatever sits above the chosen directory is measured per cell the
+same way.
+
 ## The task set
 
 The manifest names at least three first-session tasks, and exactly one of them
@@ -86,15 +93,23 @@ same way, because the question is what the agent did rather than which door it
 used.
 
 **What a person confirmed.** `make coldstart-review` prints each cell's
-candidates with the exact commands to confirm or discard them, and the data root
-to point Kapi Desktop at. The harness confirms nothing itself and no judge model
-stands in for the person. Running the review phase again reads back what the
-store holds.
+candidates with the exact commands to confirm or discard them, and a command that
+opens Kapi Desktop on the cell's workspace. The harness confirms nothing itself
+and no judge model stands in for the person. Running the review phase again reads
+back what the store holds.
 
-The sheet names the actor on each row. An agent that reaches kapi over MCP is
-recorded as `agent`, and one that reaches the same habits from a shell is
-recorded as `person`, so a CLI row says less about who put it there than an MCP
-row does. See [#2912](https://github.com/neokapi/neokapi/issues/2912).
+macOS `open` hands an application the login session's environment rather than the
+calling shell's, so the desktop command carries the cell's roots in `--env`
+arguments and starts an instance of its own with `-n` to receive them.
+`COLDSTART_DESKTOP_APP` points that command at a locally built bundle; unset, it
+names the application the shipped bundle registers.
+
+Both surfaces name the actor the store holds on each entry, with the agent's name
+and the session that groups one run of it. The report counts a session's entries
+by actor kind, and a session is one agent working a task, so a count under a
+person is an entry whose attribution the store lost. That is what
+[#2912](https://github.com/neokapi/neokapi/issues/2912) was about, and why the
+report puts those cells in a list of their own.
 
 **What the second session did.** Whether a context read came before its first
 change to a file, and what `kapi check --diff-against HEAD --json` reported over
@@ -124,7 +139,8 @@ evidence that stays in ignored local output.
 
 ## What the harness completes, and why the report says so
 
-Two things `kapi init` leaves for a person, and one gap:
+Two things `kapi init` leaves for a person, the trust a person grants Codex, and
+one thing the cell's isolation asks for:
 
 - The scaffolded recipe holds an empty collection list, and its own comments say
   to point collections at the files to keep in voice. The harness writes that
@@ -132,11 +148,19 @@ Two things `kapi init` leaves for a person, and one gap:
 - The scaffold binds a starter voice pack, whose tone, style and vocabulary are
   its own. The harness removes it, because a drill run over a pack would measure
   the pack rather than a cold start.
-- `kapi init` wires Claude Code, Cursor and VS Code from project files. Codex
-  reads MCP servers from user-level configuration, so there is no project file
-  for `kapi init` to write, and the harness copies the entry from `.mcp.json`
-  into the cell's own Codex configuration. See
-  [#2911](https://github.com/neokapi/neokapi/issues/2911).
+- `kapi init` writes the kapi server into the repository's own
+  `.codex/config.toml`, and Codex reads that file for a repository the person has
+  trusted. The harness marks the fixture as a trusted project in the cell's own
+  `CODEX_HOME`, which stands for the trust prompt, and leaves the server entry as
+  the product wrote it. Preflight then asks Codex what it sees, with `codex mcp
+  list --json` under the cell environment and no model call, and blocks the batch
+  when the kapi server is missing or resolves to anything but the build under
+  test.
+- Codex starts a stdio MCP server with a filtered environment: `HOME`, `PATH` and
+  a few locale variables reach it and the rest are dropped. The cell's kapi roots
+  are therefore named on the launch itself, through the `env_vars` list Codex
+  forwards from its own environment, and preflight refuses a launch that would
+  leave them out.
 
 Each of these appears under "What the harness wired by hand" in the report, so a
 reader knows which part of the first run was shipped and which part was

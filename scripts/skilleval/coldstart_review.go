@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -30,7 +31,11 @@ type ColdStartReviewCell struct {
 	Recorded        int                  `json:"recorded"`
 	WithEvidence    int                  `json:"with_evidence"`
 	WithoutEvidence int                  `json:"without_evidence"`
-	Error           string               `json:"error,omitempty"`
+	// AgentRecorded and PersonRecorded are the actor kinds the store holds over
+	// everything this cell recorded.
+	AgentRecorded  int    `json:"agent_recorded"`
+	PersonRecorded int    `json:"person_recorded"`
+	Error          string `json:"error,omitempty"`
 }
 
 // ColdStartReview is every cell's sheet at one moment.
@@ -41,13 +46,17 @@ type ColdStartReview struct {
 	Cells     []ColdStartReviewCell `json:"cells"`
 	// Pending is the number of candidates still waiting for a decision.
 	Pending int `json:"pending"`
+	// DesktopApp is the application the sheet's desktop command opens: the name
+	// the shipped bundle registers, or a path to a locally built one.
+	DesktopApp string `json:"desktop_app"`
 }
 
 // reviewColdStart writes a review sheet for every cell that has run a first
 // session, and reads back the decisions already taken. Running it again after
 // a person decides is how the readback is refreshed.
 func reviewColdStart(ctx context.Context, opts ColdStartOptions) error {
-	review := ColdStartReview{Schema: coldStartSchema, CreatedAt: time.Now().UTC(), Study: opts.Manifest.Study, Cells: []ColdStartReviewCell{}}
+	review := ColdStartReview{Schema: coldStartSchema, CreatedAt: time.Now().UTC(), Study: opts.Manifest.Study,
+		Cells: []ColdStartReviewCell{}, DesktopApp: opts.DesktopApp}
 	for _, cell := range coldStartReviewedCells(opts) {
 		paths := coldStartPaths(filepath.Join(opts.SandboxRoot, cell.ID))
 		entry := ColdStartReviewCell{
@@ -64,6 +73,7 @@ func reviewColdStart(ctx context.Context, opts ColdStartOptions) error {
 		entry.Confirmed, entry.Discarded = store.Confirmed, store.Discarded
 		entry.Recorded = store.WithEvidence + store.WithoutEvidence
 		entry.WithEvidence, entry.WithoutEvidence = store.WithEvidence, store.WithoutEvidence
+		entry.AgentRecorded, entry.PersonRecorded = store.AgentRecorded, store.PersonRecorded
 		review.Pending += len(store.Candidates)
 		review.Cells = append(review.Cells, entry)
 	}
@@ -119,8 +129,9 @@ func renderColdStartReview(review ColdStartReview) string {
 			fmt.Fprintf(&out, "The store could not be read: %s\n\n", cell.Error)
 			continue
 		}
-		fmt.Fprintf(&out, "Recorded %d, of which %d carry evidence. Decided so far: %d confirmed, %d discarded.\n\n",
-			cell.Recorded, cell.WithEvidence, cell.Confirmed, cell.Discarded)
+		fmt.Fprintf(&out, "Recorded %d, of which %d carry evidence. Recorded by an agent: %d; by a person: %d.\n",
+			cell.Recorded, cell.WithEvidence, cell.AgentRecorded, cell.PersonRecorded)
+		fmt.Fprintf(&out, "Decided so far: %d confirmed, %d discarded.\n\n", cell.Confirmed, cell.Discarded)
 		if len(cell.Candidates) == 0 {
 			out.WriteString("Nothing is waiting for a decision.\n\n")
 			continue
@@ -132,32 +143,64 @@ func renderColdStartReview(review ColdStartReview) string {
 				evidence = "none"
 			}
 			fmt.Fprintf(&out, "| %s | %s | %s | %s | %s |\n",
-				candidate.ID, candidate.Kind, coldStartCell(candidate.Subject), coldStartCell(evidence), candidate.Actor)
+				candidate.ID, candidate.Kind, coldStartCell(candidate.Subject), coldStartCell(evidence),
+				coldStartCell(coldStartActorLabel(candidate)))
 		}
 		out.WriteString("\n```sh\ncd " + pairedShellQuote(cell.Repo) + "\n")
 		for _, candidate := range cell.Candidates {
 			fmt.Fprintf(&out, "%s context confirm %s   # or: discard %s\n",
 				coldStartReviewEnv(cell), candidate.ID, candidate.ID)
 		}
-		out.WriteString("```\n\nOr open Kapi Desktop against this cell's data root:\n\n```sh\nKAPI_DATA_DIR=" +
-			pairedShellQuote(cell.DataDir) + " open -a \"Kapi Desktop\"\n```\n\n")
+		out.WriteString("```\n\nOr open Kapi Desktop on this cell's workspace:\n\n```sh\n" +
+			coldStartDesktopCommand(cell, review.DesktopApp) + "\n```\n\n")
 	}
 	out.WriteString("Run the review phase again afterwards to read back what you decided.\n")
 	return out.String()
 }
 
-// coldStartReviewEnv renders the isolation prefix a person types in front of a
+// coldStartReviewIsolation renders the isolation a person carries in front of a
 // decision, so the command acts on the cell rather than on their own workspace.
-func coldStartReviewEnv(cell ColdStartReviewCell) string {
+func coldStartReviewIsolation(cell ColdStartReviewCell) []string {
 	root := filepath.Dir(cell.DataDir)
-	return strings.Join([]string{
+	return []string{
 		"KAPI_DATA_DIR=" + pairedShellQuote(cell.DataDir),
 		"KAPI_CONFIG_DIR=" + pairedShellQuote(filepath.Join(root, "kapi-config")),
 		"XDG_DATA_HOME=" + pairedShellQuote(filepath.Join(root, "xdg-data")),
 		"XDG_CACHE_HOME=" + pairedShellQuote(filepath.Join(root, "kapi-cache")),
 		"KAPI_PLUGINS_DIR_ONLY=1",
-		pairedShellQuote(filepath.Join(root, "bin", "kapi")),
-	}, " ")
+	}
+}
+
+// coldStartReviewEnv puts that isolation in front of the cell's own kapi.
+func coldStartReviewEnv(cell ColdStartReviewCell) string {
+	kapi := filepath.Join(filepath.Dir(cell.DataDir), "bin", "kapi")
+	return strings.Join(append(coldStartReviewIsolation(cell), pairedShellQuote(kapi)), " ")
+}
+
+// coldStartDesktopApp is the application the shipped bundle registers, from
+// `apps/kapi-desktop/build/config.yml`. A locally built bundle is named by its
+// path instead.
+const coldStartDesktopApp = "Kapi"
+
+// coldStartDesktopCommand opens Kapi Desktop on one cell's workspace.
+//
+// On macOS `open` hands the application the login session's environment rather
+// than the calling shell's, so the cell's roots travel as `--env` arguments and
+// `-n` starts an instance of its own to receive them. On every other platform
+// the bundle's own executable takes the environment in front of it.
+func coldStartDesktopCommand(cell ColdStartReviewCell, app string) string {
+	if strings.TrimSpace(app) == "" {
+		app = coldStartDesktopApp
+	}
+	isolation := coldStartReviewIsolation(cell)
+	if runtime.GOOS != "darwin" {
+		return strings.Join(append(isolation, pairedShellQuote(app)), " ")
+	}
+	command := []string{"open", "-n"}
+	for _, pair := range isolation {
+		command = append(command, "--env", pair)
+	}
+	return strings.Join(append(command, "-a", pairedShellQuote(app)), " ")
 }
 
 // coldStartCell keeps a table cell on one row.

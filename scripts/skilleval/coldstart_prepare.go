@@ -94,22 +94,24 @@ type ColdStartIsolation struct {
 // ColdStartPrepared is one session's launch description, prepared without any
 // model call. Blockers prohibit inference.
 type ColdStartPrepared struct {
-	Session    ColdStartSession   `json:"session"`
-	Paths      ColdStartPaths     `json:"paths"`
-	Wiring     ColdStartWiring    `json:"wiring"`
-	Server     *ColdStartServer   `json:"server,omitempty"`
-	Isolation  ColdStartIsolation `json:"isolation"`
-	Executable string             `json:"executable"`
-	Args       []string           `json:"args"`
-	Version    string             `json:"version"`
-	AuthMode   string             `json:"auth_mode"`
-	KapiBin    string             `json:"kapi_bin"`
-	Timeout    time.Duration      `json:"timeout"`
-	MaxTurns   int                `json:"max_turns"`
-	Blockers   []string           `json:"blockers"`
-	Notes      []string           `json:"notes"`
-	Env        []string           `json:"-"`
-	Prompt     string             `json:"-"`
+	Session ColdStartSession `json:"session"`
+	Paths   ColdStartPaths   `json:"paths"`
+	Wiring  ColdStartWiring  `json:"wiring"`
+	Server  *ColdStartServer `json:"server,omitempty"`
+	// Codex is what Codex itself says about this cell's wiring, on a Codex cell.
+	Codex      *ColdStartCodexWiring `json:"codex,omitempty"`
+	Isolation  ColdStartIsolation    `json:"isolation"`
+	Executable string                `json:"executable"`
+	Args       []string              `json:"args"`
+	Version    string                `json:"version"`
+	AuthMode   string                `json:"auth_mode"`
+	KapiBin    string                `json:"kapi_bin"`
+	Timeout    time.Duration         `json:"timeout"`
+	MaxTurns   int                   `json:"max_turns"`
+	Blockers   []string              `json:"blockers"`
+	Notes      []string              `json:"notes"`
+	Env        []string              `json:"-"`
+	Prompt     string                `json:"-"`
 }
 
 // coldStartEnv is the environment every process in a cell runs under: the agent
@@ -281,7 +283,7 @@ func coldStartToolPath(paths ColdStartPaths, kapiBin string) error {
 // record says which hosts `kapi init` reached.
 func coldStartWiringFiles(repo string) ([]string, error) {
 	candidates := []string{
-		".mcp.json", ".cursor/mcp.json", ".vscode/mcp.json",
+		".mcp.json", ".cursor/mcp.json", ".vscode/mcp.json", ".codex/config.toml",
 		".claude/skills/kapi/SKILL.md", ".agents/skills/kapi/SKILL.md",
 		"CLAUDE.md", "AGENTS.md", "kapi.yaml",
 	}
@@ -659,10 +661,19 @@ func prepareColdStartClaude(ctx context.Context, p *ColdStartPrepared) error {
 	return nil
 }
 
-// prepareColdStartCodex wires the same server for Codex in this cell's
-// configuration directory. Codex keeps MCP servers in user-level configuration,
-// so `kapi init` has no project file to write for it; the entry here is the one
-// `.mcp.json` declares, copied across by the harness.
+// prepareColdStartCodex brings this cell to the state a person's machine is in
+// after `kapi init --agents all`.
+//
+// `kapi init` writes the kapi server into the repository's own `.codex/
+// config.toml`, and Codex reads that file for a repository the person has
+// trusted. The harness marks the fixture as trusted in this cell's own
+// CODEX_HOME, which is the prompt a person accepts the first time they open the
+// repository there, and the server entry itself stays as the product wrote it.
+//
+// Codex starts a stdio MCP server with a filtered environment: HOME, PATH and a
+// few locale variables reach it and everything else is dropped. So this cell's
+// kapi roots are named on the launch itself, through the `env_vars` list Codex
+// forwards from its own environment.
 func prepareColdStartCodex(ctx context.Context, p *ColdStartPrepared) error {
 	originalHome, err := os.UserHomeDir()
 	if err != nil {
@@ -691,9 +702,33 @@ func prepareColdStartCodex(ctx context.Context, p *ColdStartPrepared) error {
 			p.AuthMode = "ChatGPT subscription"
 		}
 	}
-	if p.Server == nil || p.Server.Resolved == "" {
-		return errors.New("the wired server must be resolved before Codex is configured")
+	if err := os.WriteFile(filepath.Join(p.Paths.State, "codex", "config.toml"),
+		[]byte(coldStartCodexConfig(*p)), 0o600); err != nil {
+		return err
 	}
+	p.Wiring.Harness = append(p.Wiring.Harness,
+		"codex config.toml: this cell's own CODEX_HOME marks the fixture as a trusted project, which stands for the trust prompt a person accepts, and is what makes Codex read the .codex/config.toml `kapi init` wrote",
+		"codex mcp_servers.kapi.env_vars: the cell's kapi roots are forwarded to the server on the launch, because Codex hands a stdio MCP server HOME, PATH and locale variables and drops the rest")
+	p.Args = append([]string{"exec", "--strict-config", "--ignore-rules", "--json", "--skip-git-repo-check",
+		"-c", coldStartCodexForwardedEnv(p.Env)},
+		"--model", p.Session.Host.Model, "--cd", p.Paths.Repo, "-")
+	codex, err := probeColdStartCodexWiring(ctx, *p)
+	p.Codex = codex
+	switch {
+	case err != nil:
+		p.Blockers = append(p.Blockers, "Codex MCP wiring: "+err.Error())
+	case !codex.UnderTest:
+		p.Blockers = append(p.Blockers,
+			fmt.Sprintf("Codex starts %q from %s, which is not this checkout's build", codex.Command, codex.Resolved))
+	}
+	return nil
+}
+
+// coldStartCodexConfig is this cell's own Codex configuration: how a session
+// runs, the environment its shell tool sees, and the fixture marked as a
+// trusted project. It names no MCP server, because the repository's own
+// `.codex/config.toml` does.
+func coldStartCodexConfig(p ColdStartPrepared) string {
 	var config strings.Builder
 	config.WriteString("forced_login_method = \"chatgpt\"\napproval_policy = \"never\"\nsandbox_mode = \"danger-full-access\"\nweb_search = \"disabled\"\nallow_login_shell = false\nmodel_reasoning_effort = " + strconv.Quote(p.Session.Host.Effort) + "\n[features]\napps = false\nplugins = false\nhooks = false\nmulti_agent = false\nbrowser_use = false\ncomputer_use = false\nimage_generation = false\nshell_snapshot = false\n[shell_environment_policy]\ninherit = \"none\"\n[shell_environment_policy.set]\n")
 	for _, pair := range p.Env {
@@ -702,25 +737,109 @@ func prepareColdStartCodex(ctx context.Context, p *ColdStartPrepared) error {
 			config.WriteString(strconv.Quote(key) + " = " + strconv.Quote(value) + "\n")
 		}
 	}
-	config.WriteString("[mcp_servers.kapi]\ndefault_tools_approval_mode = \"approve\"\ncommand = " + strconv.Quote(p.Server.Resolved) + "\nargs = [")
-	for i, arg := range p.Server.Args {
-		if i > 0 {
-			config.WriteString(", ")
+	for _, path := range coldStartTrustedPaths(p.Paths.Repo) {
+		config.WriteString("[projects." + strconv.Quote(path) + "]\ntrust_level = \"trusted\"\n")
+	}
+	return config.String()
+}
+
+// coldStartTrustedPaths are the spellings of the fixture a trust entry has to
+// carry. Codex matches a project by the path it resolves, and a cells
+// directory reached through a symlink (`/tmp` on macOS) resolves to another
+// name, so both are named when they differ.
+func coldStartTrustedPaths(repo string) []string {
+	paths := []string{repo}
+	if resolved, err := filepath.EvalSymlinks(repo); err == nil && resolved != repo {
+		paths = append(paths, resolved)
+	}
+	return paths
+}
+
+// coldStartCodexForwardedEnv renders the `-c` override naming the cell
+// variables Codex forwards to the kapi server it starts.
+func coldStartCodexForwardedEnv(env []string) string {
+	names := []string{}
+	for _, pair := range env {
+		key, _, ok := strings.Cut(pair, "=")
+		if ok && (strings.HasPrefix(key, "KAPI_") || strings.HasPrefix(key, "XDG_")) {
+			names = pairedUnique(names, key)
 		}
-		config.WriteString(strconv.Quote(arg))
 	}
-	config.WriteString("]\n[mcp_servers.kapi.env]\n")
-	for _, pair := range p.Env {
-		key, value, ok := strings.Cut(pair, "=")
-		if ok && (strings.HasPrefix(key, "KAPI_") || strings.HasPrefix(key, "XDG_") || key == "PATH" || key == "HOME") {
-			config.WriteString(strconv.Quote(key) + " = " + strconv.Quote(value) + "\n")
+	sort.Strings(names)
+	quoted := make([]string, 0, len(names))
+	for _, name := range names {
+		quoted = append(quoted, strconv.Quote(name))
+	}
+	return "mcp_servers.kapi.env_vars=[" + strings.Join(quoted, ",") + "]"
+}
+
+// ColdStartCodexWiring is what Codex answers about this cell, read from its own
+// configuration with no model call.
+type ColdStartCodexWiring struct {
+	// Trusted are the fixture paths this cell's CODEX_HOME marks as trusted.
+	Trusted []string `json:"trusted"`
+	// Servers are the MCP servers Codex sees in the fixture.
+	Servers []string `json:"servers"`
+	// Command is what the kapi server entry names, and Resolved what that name
+	// resolves to on the cell's PATH.
+	Command   string   `json:"command"`
+	Args      []string `json:"args"`
+	Resolved  string   `json:"resolved"`
+	UnderTest bool     `json:"under_test"`
+	// EnvVars are the cell variables Codex forwards to the server.
+	EnvVars []string `json:"env_vars"`
+}
+
+// probeColdStartCodexWiring asks Codex what it sees in this cell, with the
+// launch's own configuration and no model call. It answers the question the
+// trust entry opens: whether the repository's `.codex/config.toml` is read at
+// all, and whether the kapi it names is the build under test.
+func probeColdStartCodexWiring(ctx context.Context, p ColdStartPrepared) (*ColdStartCodexWiring, error) {
+	wiring := &ColdStartCodexWiring{
+		Trusted: coldStartTrustedPaths(p.Paths.Repo), Servers: []string{}, Args: []string{}, EnvVars: []string{},
+	}
+	probe := exec.CommandContext(ctx, p.Executable, "mcp", "-c", coldStartCodexForwardedEnv(p.Env), "list", "--json")
+	probe.Dir = p.Paths.Repo
+	probe.Env = p.Env
+	out, err := probe.Output()
+	if err != nil {
+		return wiring, fmt.Errorf("codex mcp list: %w", err)
+	}
+	var servers []struct {
+		Name      string `json:"name"`
+		Enabled   bool   `json:"enabled"`
+		Transport struct {
+			Command string   `json:"command"`
+			Args    []string `json:"args"`
+			EnvVars []string `json:"env_vars"`
+		} `json:"transport"`
+	}
+	if err := json.Unmarshal(out, &servers); err != nil {
+		return wiring, fmt.Errorf("read what Codex sees: %w", err)
+	}
+	for _, server := range servers {
+		wiring.Servers = append(wiring.Servers, server.Name)
+		if server.Name != "kapi" {
+			continue
+		}
+		if !server.Enabled {
+			return wiring, errors.New("the kapi server reaches Codex disabled")
+		}
+		wiring.Command, wiring.Args, wiring.EnvVars = server.Transport.Command, server.Transport.Args, server.Transport.EnvVars
+	}
+	if wiring.Command == "" {
+		return wiring, errors.New("no kapi server reaches Codex in the fixture, so the project configuration went unread")
+	}
+	resolved, err := coldStartResolveOnPath(wiring.Command, p.Paths.Bin)
+	if err != nil {
+		return wiring, err
+	}
+	wiring.Resolved = resolved
+	wiring.UnderTest = resolved == p.KapiBin
+	for _, name := range []string{"KAPI_DATA_DIR", "KAPI_CONFIG_DIR", "KAPI_PLUGINS_DIR_ONLY", "XDG_DATA_HOME"} {
+		if !slices.Contains(wiring.EnvVars, name) {
+			return wiring, fmt.Errorf("the launch forwards no %s, so the cell's kapi roots would not reach the server", name)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(p.Paths.State, "codex", "config.toml"), []byte(config.String()), 0o600); err != nil {
-		return err
-	}
-	p.Wiring.Harness = append(p.Wiring.Harness,
-		"codex config.toml: the kapi server `kapi init` wrote into .mcp.json, copied into this cell's Codex configuration, because Codex reads MCP servers from user-level configuration and has no project file for kapi init to write")
-	p.Args = []string{"exec", "--strict-config", "--ignore-rules", "--json", "--skip-git-repo-check", "--model", p.Session.Host.Model, "--cd", p.Paths.Repo, "-"}
-	return nil
+	return wiring, nil
 }
