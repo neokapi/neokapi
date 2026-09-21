@@ -85,7 +85,7 @@ warnings, and the other ways to name a change (`--staged`, `--diff-range`,
 Then end your report with what this session recorded and how to review it:
 
 ```bash
-kapi context log --session <id>     # or --limit 10 for what you just recorded
+kapi context log --session this     # the session this run records under
 ```
 
 Over MCP: call `context_session_summary` and use the sentence it returns.

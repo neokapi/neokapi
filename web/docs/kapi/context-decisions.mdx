@@ -172,6 +172,40 @@ for any of them.
 An agent may withdraw its own proposal while nobody has decided on it, which is
 how a run cleans up after itself.
 
+## How kapi knows who recorded an entry
+
+Over the MCP server the answer comes with the call: that server is serving an
+agent, it has the client's name, and it groups its run under one session.
+
+From a shell kapi reads the environment. A coding agent host puts every command
+it runs into an environment of its own, and kapi recognises the common ones by
+the variable each of them sets, so an agent that reaches these verbs from a
+shell records as an agent, under a session, with no flag to pass. Its own run
+reads back with:
+
+```bash
+kapi context log --session this
+```
+
+Three variables cover the rest.
+
+| Variable | Says |
+| --- | --- |
+| `KAPI_ACTOR` | `agent` or `person`, for a shell kapi would otherwise read the other way |
+| `KAPI_AGENT_NAME` | what the agent is called, for a host kapi does not recognise |
+| `KAPI_AGENT_SESSION` | the id that groups this run, for the same case |
+
+A host that names no session of its own gets one derived from its process, so
+the separate kapi commands of one run share an id and a second run gets
+another. Where a machine keeps its process tree out of reach, which is the case
+on Windows, the id covers one command, and `KAPI_AGENT_SESSION` is how a host
+says otherwise there.
+
+kapi errs toward the agent. Reading a person as an agent costs one
+confirmation, which the entry was heading for anyway; reading an agent as a
+person would put an unreviewed rule on the record with your standing behind it,
+outside `--actor agent` and beyond the reach of `revert --session`.
+
 ## `kapi apply` writes the same history
 
 The asset entries of `kapi apply` are decisions about the same context, so they

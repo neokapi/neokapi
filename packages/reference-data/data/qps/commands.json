@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T18:33:30Z",
+  "generatedAt": "2026-09-21T20:17:38Z",
   "commands": [
     {
       "id": "add",
@@ -950,6 +950,7 @@
         "kapi context log",
         "kapi context log --status candidate",
         "kapi context log --session 0ab4e399 --json",
+        "kapi context log --session this",
         "kapi context log --actor agent --since 2026-09-01"
       ],
       "offlineCapable": true,
