@@ -93,8 +93,8 @@ catch up (`kapi up`), then surface the review queue (`kapi status --review`) —
 "completed" means it drove the gate, not just translated one file.
 
 Scenario 16 is context discovery. Its local leg completes in the
-sandbox with no server: "completed" there means the context files exist
-(`voice.yaml`, the recipe binding it, a committed term seed) and
+sandbox with no server: "completed" there means the project's context holds
+what the task asked for (a voice profile, the recipe binding it, a term) and
 `kapi voice check` passes on a repo sample. The push leg
 (`kapi init --server … --anonymous` → claim URL → `kapi push`) needs a
 sandboxed bowrain-server plus the kapi-bowrain plugin in the sandbox's plugin

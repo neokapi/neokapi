@@ -180,7 +180,7 @@ recognised as the term only when the term lists that form, and
 `kapi terms validate` warns about each target term in an inflecting language
 that lists none. `kapi terms expand` asks a model for the forms, drops any that
 do not open with the term's first three characters or that spell another term,
-and writes the rest into the committed terms bundle. Run it with `--dry-run`
+and writes the rest into the project's terms store. Run it with `--dry-run`
 first, then review the diff before committing: a wrong form makes a check accept
 a word it should not.
 

@@ -164,8 +164,9 @@ Three artifacts, all plain files the user can review before anything binds:
   ```
 
   The user then reviews a list where every entry carries its evidence, and
-  confirming writes each one into the committed source. Tone, style and
-  `examples` carry no rule, so they stay an edit to the profile YAML.
+  confirming writes each one into the project's store. Tone, style and
+  `examples` carry no rule, so they stay an edit the user makes with
+  `kapi voice edit`.
 
 - **Content mapping**: which files the gates will watch: the `collections:` paths
   and formats, with `target:` patterns where translations already exist. Those
@@ -216,8 +217,7 @@ Bind the context in the recipe:
 ```yaml
 defaults:
   voice:
-    profile_file: voice.yaml   # file binding, so `kapi apply` voice rules land in it
-  terms_source: .kapi/terms.json   # the committed terms source
+    profile: my-app-docs   # the id `kapi voice import` printed
 collections:
   - path: "docs/**/*.md"
     format: markdown
@@ -237,15 +237,15 @@ about how to write; the guide stays one command away. `kapi init` writes the sam
 when the scaffold it creates binds a voice, and the recipe edit above is what it
 names, so run it after the edit. The section sits between `<!-- kapi:voice -->`
 markers and is replaced in place; hand-written content around it is kept. Tell
-the user which file it went into: it is committed with the rest of the context,
-and a section that landed in `AGENTS.md` reaches an assistant limited to
-`CLAUDE.md` through an `@AGENTS.md` line.
+the user which file it went into: they commit it with the recipe, and a section
+that landed in `AGENTS.md` reaches an assistant limited to `CLAUDE.md` through
+an `@AGENTS.md` line.
 
 Materialize the terminology seed, now that the project exists:
 
 ```bash
-# preferred: term entries: maintains the committed .kapi/terms.json
-# source and reindexes it into the project's terms store in one verb
+# preferred: term entries write the project's terms store and record a
+# context operation for each, so `kapi context log` carries the decision
 kapi apply terms.jsonl
 # bulk path for a handed-over term list (csv, tsv, json, tbx, bundle):
 kapi terms import terms.csv -s en -t fr --header
@@ -257,12 +257,12 @@ kapi terms import vocab.csv -s en --monolingual --header
 {"kind":"term","op":"upsert","term":"control panel","locale":"en","status":"deprecated","replacement":"dashboard"}
 ```
 
-The `apply` route keeps a committed source of truth; a bulk `terms import`
-writes only the derived index, so commit the imported term list itself. Then
-compile the committed context and verify the whole thing locally:
+The `apply` route records each term as a decision the user can read back and
+undo; a bulk `terms import` writes the store without recording one. Then verify
+the whole thing locally:
 
 ```bash
-kapi up                      # reconcile the graph and the sources
+kapi up                      # reconcile the graph and the content
 kapi check --ship --json     # voice + terminology (+ rule-based) gates: all green
 ```
 
@@ -273,19 +273,21 @@ translation-coverage bar is an optional top-level `ship_gate:` (see
 each language as not gated rather than shippable. Say which of these the
 project's CI should run, and on what: a check nobody runs governs nothing.
 
-Commit the context: the recipe and all of `.kapi/`, the voice profile, the
-sources under `.kapi/`, any imported term list, and `.kapi/state/`. Only
-`.kapi/work/` stays gitignored. Committing is what makes the graph reviewable:
-it arrives as untracked files next to content that is already committed, and the
-user reads `git status` and `git diff` to decide.
+Commit the configuration: `kapi.yaml`, `.kapi/` apart from `.kapi/work/`, and
+the assistant file. The context itself is in the project's store and is not
+committed; `kapi context log` is where the user reads what was decided, and
+`kapi context export -o backup.kpz` is the backup. If the user wants the context
+reviewable in a pull request as well, tell them about `kapi context snapshot`
+and let them decide.
 
 ## 5. Hand back a loop
 
 End by telling the user, concretely:
 
-- **What exists**: `kapi.yaml`, the voice profile, the committed terms source,
-  the content mapping, and the assistant file (`CLAUDE.md`, or an `AGENTS.md`
-  already at the root) that points the next assistant at the voice.
+- **What exists**: `kapi.yaml`, the voice profile and terms in the project's
+  store, the content mapping, and the assistant file (`CLAUDE.md`, or an
+  `AGENTS.md` already at the root) that points the next assistant at the
+  voice.
 - **The standing instruction**: run `kapi check --ship` before shipping content
   and fix what it flags ([project.md](project.md)); in a translation project,
   `kapi up` catches locales up ([translate.md](translate.md)).
@@ -423,16 +425,15 @@ exact vocabulary lists.
 ## 2. Draft the change-set
 
 Five kinds of delta, each with a route that writes only what the entry names.
-Every route **edits** the committed file rather than re-emitting it (comments
-and key order survive) so the user reviews a diff the size of the decision.
-Never hand-write a governance file you could reach through one of these routes:
-a rewritten file loses the user's comments and buries the change.
+Every route changes one rule and records it, so the user reviews a decision
+rather than a rewritten file. Never hand-edit a project's context: the routes
+below are how it changes, and `kapi context log` is how the user reads it back.
 
 | What moved | Route | What the user reviews |
 | --- | --- | --- |
 | A surface appeared | `kapi add <pattern> --name <collection> --channel <profile/channel>` | the `kapi.yaml` diff |
-| A term, a name, a rename | `kapi context propose`, or a `kapi apply` entry, `kind:"term"` | the candidate with its evidence, or the terms source diff |
-| A word to forbid or prefer | `kapi context propose --list <list>`, or a `kapi apply` entry, `kind:"voice"` | the candidate with its evidence, or the voice profile diff |
+| A term, a name, a rename | `kapi context propose`, or a `kapi apply` entry, `kind:"term"` | the candidate with its evidence, in `kapi context log` |
+| A word to forbid or prefer | `kapi context propose --list <list>`, or a `kapi apply` entry, `kind:"voice"` | the candidate with its evidence, in `kapi context log` |
 | A brand or mode axis moved | `kapi apply` entry, `kind:"recipe"`, `path` `defaults.coordinates.<axis>` (or a collection's `coordinates`) and `value` | the `kapi.yaml` diff |
 | Tone, style, `examples` | an edit to the profile YAML | the file diff |
 
@@ -492,8 +493,7 @@ declined item into a later change-set "for consistency".
 
 ```bash
 kapi apply refresh.jsonl         # terms + voice rules land atomically
-kapi voice validate voice.yaml   # if you edited the profile directly
-kapi up                          # recompile the graph and re-extract the sources
+kapi up                          # reconcile the graph and re-extract the sources
 kapi check --ship --json         # the refreshed gates
 ```
 

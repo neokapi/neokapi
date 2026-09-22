@@ -105,15 +105,14 @@ kapi apply changeset.jsonl
 ```
 
 - The **content** entry rewrites the block through the faithful round-trip.
-- The **term** entry upserts the term itself: it is written into the project's
-  committed terms source (`.kapi/terms.json`) and reindexed into the local
-  store. `git diff` shows the one new term; the next `kapi check draft.md`
-  enforces it.
+- The **term** entry upserts the term itself into the project's terms store and
+  records the change, so `kapi context log` carries the one new term and the
+  next `kapi check draft.md` enforces it.
 
 The asset kinds `kapi apply` accepts (`term`, `memory`, `voice`, `recipe`) and
 their fields are summarized in [edit.md](edit.md); the voice-vocabulary case is
-detailed in [voice.md](voice.md). Asset entries require a kapi project (the
-committed source and recipe live there).
+detailed in [voice.md](voice.md). Asset entries require a kapi project, because
+the stores they write belong to one.
 
 After applying, run `kapi check draft.md --json` again to check the draft against
 the new rule.
