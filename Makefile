@@ -2890,8 +2890,13 @@ stage-sourcecode-plugin: build-sourcecode-plugin
 # is a gate that reports PASS and enforces nothing.
 #
 # It reads those files and leaves them as they are.
+#
+# KAPI_ACTOR=person because a context import is a person's decision and kapi
+# refuses an agent's. This build step is the repository's own, run against a
+# throwaway store, and a `make` invoked from a coding agent's shell inherits
+# that host's marker, which would fail every gate below it.
 import-dogfood-context: build ## Read the repository's own `.kapi/` layout into the isolated store the gates use
-	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi context import -p $(CURDIR)/kapi.yaml
+	$(KAPI_ISO_ENV) KAPI_ACTOR=person $(BIN_DIR)/kapi context import -p $(CURDIR)/kapi.yaml
 
 check-governed-prose: build stage-sourcecode-plugin import-dogfood-context ## Gate: the collections holding distribution prose pass `kapi check`
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'packaging/nfpm.yaml' \
