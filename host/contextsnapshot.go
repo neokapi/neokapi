@@ -65,9 +65,6 @@ type ContextSnapshot struct {
 	Entries       int `json:"entries"`
 	VoiceProfiles int `json:"voiceProfiles"`
 	Decisions     int `json:"decisions"`
-	// Committed counts the lines the write put into the committed record on
-	// the way, the same write `kapi commit` makes.
-	Committed int `json:"committed,omitempty"`
 	// Written lists the files whose bytes moved, relative to Dir, in path
 	// order. Empty when the snapshot already matched what was there.
 	Written []string `json:"written,omitempty"`
@@ -99,9 +96,9 @@ func (r ContextSnapshot) FormatText(w io.Writer) error {
 // SnapshotProjectContext writes the context in force for the project into a
 // `.kapi/` layout.
 //
-// The committed record is written first, through the same write the `kapi
-// commit` verb makes, so the record in the snapshot is the project's record
-// rather than a copy of it that has drifted.
+// Everything in it comes out of the store, the decision record included: the
+// snapshot is what the project knows, written as files, rather than a merge of
+// the store with whatever the checkout was already carrying.
 //
 // A directory that already holds hand-authored content-memory bundles keeps
 // them: a snapshot writes the store's one bundle beside them rather than
@@ -129,14 +126,6 @@ func (a *App) SnapshotProjectContext(ctx context.Context, projectPath string, re
 	if err != nil {
 		return res, err
 	}
-
-	// The record first, so a snapshot cannot carry a store whose decisions
-	// never reached the record it also carries.
-	commit, err := a.CommitProjectStateReport(ctx, layout.Root, false)
-	if err != nil {
-		return res, err
-	}
-	res.Committed = commit.Committed
 
 	writer := &snapshotWriter{dir: out}
 	if err := a.snapshotTerms(ctx, db, writer, &res); err != nil {
@@ -276,8 +265,8 @@ func renderSnapshotProfile(original []byte, prof *coreprofile.VoiceProfile) ([]b
 	return append([]byte(snapshotVoiceHeader), data...), nil
 }
 
-// snapshotRecord writes the decision record into the snapshot, through the
-// writer core/state owns.
+// snapshotRecord writes this checkout's view of the decision ledger into the
+// snapshot, through the writer core/state owns.
 //
 // That writer owns the whole directory: it replaces the shards it writes and
 // prunes the ones no unit is left in, which is what keeps a snapshot from

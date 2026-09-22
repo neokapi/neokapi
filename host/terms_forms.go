@@ -1,9 +1,11 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -61,6 +63,46 @@ func openBundleTarget(path string) (*TermsFormsTarget, error) {
 		return nil, err
 	}
 	return &TermsFormsTarget{Label: path, bundle: path, file: file}, nil
+}
+
+// loadKTBFile reads the terms bundle a person named on the command line. The
+// whole document is returned, concepts and relations, so a write of it
+// round-trips everything the file carried rather than only the part that moved.
+func loadKTBFile(path string) (*ktb.File, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return ktb.FromConcepts(nil), nil
+		}
+		return nil, fmt.Errorf("open terms bundle: %w", err)
+	}
+	defer f.Close()
+	file, err := ktb.Decode(f)
+	if err != nil {
+		return nil, fmt.Errorf("parse terms bundle: %w", err)
+	}
+	return file, nil
+}
+
+// writeKTB serializes a bundle to a deterministic document at the path a person
+// named, and reports whether the bytes on disk moved. A serialization identical
+// to what is already there leaves the file alone, so a run with nothing to say
+// puts nothing in a diff.
+func writeKTB(path string, file *ktb.File) (bool, error) {
+	data, err := ktb.Marshal(file)
+	if err != nil {
+		return false, fmt.Errorf("marshal terms bundle: %w", err)
+	}
+	if existing, rerr := os.ReadFile(path); rerr == nil && bytes.Equal(existing, data) {
+		return false, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return false, fmt.Errorf("create bundle dir: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return false, fmt.Errorf("write terms bundle: %w", err)
+	}
+	return true, nil
 }
 
 // Concepts returns the target's concepts. For a bundle they are the document's

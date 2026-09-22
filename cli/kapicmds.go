@@ -60,7 +60,6 @@ func KapiCommandSet(a *App) []*cobra.Command {
 	cmds = append(cmds, NewStatsCmd(a))
 	cmds = append(cmds,
 		NewStatusCmd(a),
-		NewCommitCmd(a),
 		NewCheckCmd(a),
 		NewHookCmd(a),
 		NewInitCmd(a),

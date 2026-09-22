@@ -101,13 +101,16 @@ func pluralUnit(n int, one, many string) string {
 	return fmt.Sprintf("%d %s", n, many)
 }
 
-// ImportProjectContext reads a `.kapi/` layout into the project's store.
+// ImportProjectContext reads a `.kapi/` layout into the project's store, and
+// records in the project's context history what it read.
 //
 // Running it twice changes nothing: every importer upserts by the identity the
 // file carries, so the second pass finds the store already holding what the
 // file says. Identities are preserved throughout — a concept keeps its id, an
 // entry keeps its id and its origins, a voice profile keeps the id it is stored
-// under, and a decision keeps the unit it is about.
+// under, and a decision keeps the unit it is about. A source whose bytes have
+// not moved since this checkout last read it is skipped outright, and `--force`
+// reads it again.
 //
 // projectPath is the recipe or the project root; both resolve the way `-p`
 // does.
@@ -139,20 +142,70 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 	if own {
 		bindings = proj
 	}
-	read, err := a.readContextLayout(ctx, db, from, bindings)
+	sources, err := committedContextSources(bindings, from)
 	if err != nil {
 		return res, err
 	}
-	res.Concepts = read.Concepts
-	res.Entries = read.Entries
-	res.VoiceProfiles = read.VoiceFiles
-	res.Unchanged = read.Skipped
 
-	n, err := importDecisionRecord(ctx, db.Work(), from.Export().UnitStateDir())
+	scribe, err := a.importScribe(ctx, layout.RecipePath)
+	if err != nil {
+		return res, err
+	}
+	stamps := loadImportStamps(ctx, db)
+	checkout := normalizedCheckout(layout.Root)
+	stamped := false
+
+	for _, src := range sources {
+		if !storeHolds(db, src.kind) {
+			// A build with no file-backed store for this subsystem (the browser
+			// build) has nothing to read into.
+			res.Unchanged++
+			continue
+		}
+		digest, derr := fileDigest(src.path)
+		if derr != nil {
+			return res, derr
+		}
+		key := importStampKey(checkout, src.rel)
+		if !req.Force && stamps[key] == digest {
+			res.Unchanged++
+			continue
+		}
+		n, rerr := a.readContextSource(ctx, db, from.Root, src)
+		if rerr != nil {
+			return res, rerr
+		}
+		switch src.kind {
+		case sourceKindTerms:
+			res.Concepts += n
+		case sourceKindMemory:
+			res.Entries += n
+		case sourceKindVoice:
+			res.VoiceProfiles++
+		}
+		stamps[key], stamped = digest, true
+		scribe.read(ctx, src, n, digest)
+	}
+	if stamped {
+		if err := saveImportStamps(ctx, db, stamps); err != nil {
+			return res, err
+		}
+	}
+	if res.Entries > 0 {
+		if tm := db.Memory(); tm != nil {
+			a.RebuildMemorySearchIndexes(ctx, tm)
+		}
+	}
+
+	recordDir := from.Export().UnitStateDir()
+	n, err := importDecisionRecord(ctx, db.Work(), recordDir)
 	if err != nil {
 		return res, err
 	}
 	res.Decisions = n
+	if n > 0 {
+		scribe.readRecord(ctx, relSlash(from.Root, recordDir), n)
+	}
 	return res, nil
 }
 
