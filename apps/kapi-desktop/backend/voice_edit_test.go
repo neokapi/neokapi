@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestVoiceEditTargetNamesTheBoundFile(t *testing.T) {
+func TestVoiceEditTargetNamesTheStoredProfile(t *testing.T) {
 	app := NewApp()
 	tab, _ := newContextProject(t, app)
 
@@ -20,12 +20,12 @@ func TestVoiceEditTargetNamesTheBoundFile(t *testing.T) {
 
 	def := pointOf(t, res, "project default")
 	assert.True(t, def.Edit.Writable)
-	assert.Equal(t, ".kapi/voice.yaml", def.Edit.Target)
+	assert.Equal(t, "northsea", def.Edit.Profile)
 	assert.True(t, def.Edit.Exists)
 	assert.False(t, def.Edit.Inherited)
 }
 
-func TestVoiceEditTargetNamesAProfilesConventionalFile(t *testing.T) {
+func TestVoiceEditTargetNamesAProfilesOwnStoredProfile(t *testing.T) {
 	app := NewApp()
 	tab, _ := newContextProject(t, app)
 
@@ -34,8 +34,9 @@ func TestVoiceEditTargetNamesAProfilesConventionalFile(t *testing.T) {
 
 	support := pointOf(t, res, "support")
 	assert.True(t, support.Edit.Writable)
-	assert.Equal(t, ".kapi/profiles/support/voice.yaml", support.Edit.Target)
-	assert.True(t, support.Edit.Exists, "the profile keeps its voice at the conventional path")
+	assert.Equal(t, "northsea-support", support.Edit.Profile)
+	assert.True(t, support.Edit.Exists, "the profile has a voice of its own in the store")
+	assert.False(t, support.Edit.Inherited)
 }
 
 func TestVoiceEditRefusesAPackBinding(t *testing.T) {
@@ -53,10 +54,10 @@ func TestVoiceEditRefusesAPackBinding(t *testing.T) {
 	assert.Contains(t, def.Edit.Reason, "starter pack")
 
 	_, serr := app.SaveVoiceProfile(tab.ID, "", coreprofile.VoiceProfile{Name: "Nope"})
-	assert.Error(t, serr, "a pack is not a file this surface can write over")
+	assert.Error(t, serr, "a starter pack is read-only")
 }
 
-func TestSaveVoiceProfileWritesTheBoundFile(t *testing.T) {
+func TestSaveVoiceProfileWritesTheStore(t *testing.T) {
 	app := NewApp()
 	tab, root := newContextProject(t, app)
 
@@ -71,12 +72,13 @@ func TestSaveVoiceProfileWritesTheBoundFile(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, saved.Saved)
 	assert.True(t, saved.Changed)
+	assert.Equal(t, "northsea", saved.Profile)
+	assert.NotEmpty(t, saved.Recorded, "the save is on the project's context record")
 	assert.Empty(t, saved.Problems)
 	assert.Contains(t, saved.Guide, "Lead with what changed.")
 
-	// The editor writes the bound file; the project's store is what a
-	// resolution reads, so the change reaches the next read through an import.
-	readProjectContext(t, root)
+	// The store is what a resolution reads, so the next read answers with what
+	// was saved and nothing has to be read in first.
 	again, err := app.ProjectVoice(tab.ID)
 	require.NoError(t, err)
 	reread := pointOf(t, again, "project default")
@@ -85,39 +87,42 @@ func TestSaveVoiceProfileWritesTheBoundFile(t *testing.T) {
 	require.Len(t, reread.Profile.Vocabulary.PreferredTerms, 2)
 	assert.Equal(t, "utilise", reread.Profile.Vocabulary.PreferredTerms[1].Term)
 
+	// The file the checkout carries is the import source and stays as it was.
 	body, rerr := os.ReadFile(filepath.Join(root, ".kapi", "voice.yaml"))
 	require.NoError(t, rerr)
-	assert.Contains(t, string(body), "Lead with what changed.")
+	assert.NotContains(t, string(body), "Lead with what changed.")
 }
 
-// TestSaveVoiceProfileIsByteStable: the editor writes the profile the store
-// holds, so the first save also lands the identity and version the store keeps.
-// A second save of the same profile says what the file already says and leaves
-// it alone.
-func TestSaveVoiceProfileIsByteStable(t *testing.T) {
+// A save the store already holds leaves the profile where it is, so a version
+// is kept for each edit a person actually made.
+func TestSaveVoiceProfileIsIdempotent(t *testing.T) {
 	app := NewApp()
 	tab, _ := newContextProject(t, app)
 
 	res, err := app.ProjectVoice(tab.ID)
 	require.NoError(t, err)
 	profile := *pointOf(t, res, "project default").Profile
+	profile.Tone.Guidelines = "Lead with what changed."
 
 	saved, err := app.SaveVoiceProfile(tab.ID, "", profile)
 	require.NoError(t, err)
 	require.True(t, saved.Saved)
+	require.True(t, saved.Changed)
 
 	again, err := app.SaveVoiceProfile(tab.ID, "", profile)
 	require.NoError(t, err)
 	assert.True(t, again.Saved)
-	assert.False(t, again.Changed, "a save that says what the file says does not touch it")
+	assert.False(t, again.Changed, "a save that says what the store says does not move it")
+	assert.Empty(t, again.Recorded, "and leaves nothing on the record")
 }
 
 func TestSaveVoiceProfileRefusesABlockingProblem(t *testing.T) {
 	app := NewApp()
-	tab, root := newContextProject(t, app)
+	tab, _ := newContextProject(t, app)
 
-	before, rerr := os.ReadFile(filepath.Join(root, ".kapi", "voice.yaml"))
-	require.NoError(t, rerr)
+	res, err := app.ProjectVoice(tab.ID)
+	require.NoError(t, err)
+	before := *pointOf(t, res, "project default").Profile
 
 	// person_pov is read by the offline check, so an unrecognised value is a
 	// rule that silently does nothing.
@@ -129,9 +134,10 @@ func TestSaveVoiceProfileRefusesABlockingProblem(t *testing.T) {
 	require.NotEmpty(t, saved.Problems)
 	assert.Equal(t, "style.person_pov", saved.Problems[0].Field)
 
-	after, rerr := os.ReadFile(filepath.Join(root, ".kapi", "voice.yaml"))
-	require.NoError(t, rerr)
-	assert.Equal(t, before, after, "a refused save leaves the file alone")
+	after, err := app.ProjectVoice(tab.ID)
+	require.NoError(t, err)
+	assert.Equal(t, before.Tone, pointOf(t, after, "project default").Profile.Tone,
+		"a refused save leaves the stored profile alone")
 }
 
 func TestSaveVoiceProfileKeepsAToneOutsideTheUsualValues(t *testing.T) {
@@ -151,21 +157,43 @@ func TestSaveVoiceProfileKeepsAToneOutsideTheUsualValues(t *testing.T) {
 	assert.Contains(t, saved.Guide, "calm and matter-of-fact")
 }
 
-func TestSaveVoiceProfileCreatesAProfilesOwnVoice(t *testing.T) {
+// A point reading the voice bound coarser gets one of its own when someone
+// saves there, and the recipe says which profile governs it from then on.
+func TestSaveVoiceProfileGivesAPointItsOwnVoice(t *testing.T) {
 	app := NewApp()
 	tab, root := newContextProject(t, app)
 
-	target := filepath.Join(root, ".kapi", "profiles", "campaign", "voice.yaml")
-	require.NoError(t, os.Remove(target))
+	op := app.getOpenProject(tab.ID)
+	op.Project.Profiles["field"] = project.Profile{Channels: []project.Channel{{ID: "notes"}}}
+	require.NoError(t, project.Save(filepath.Join(root, "kapi.yaml"), op.Project))
 
-	saved, err := app.SaveVoiceProfile(tab.ID, "campaign", coreprofile.VoiceProfile{
-		Name: "Northsea Campaign",
+	res, err := app.ProjectVoice(tab.ID)
+	require.NoError(t, err)
+	field := pointOf(t, res, "field")
+	assert.True(t, field.Edit.Writable)
+	assert.True(t, field.Edit.Inherited, "the point reads the voice bound coarser")
+	assert.False(t, field.Edit.Exists)
+
+	saved, err := app.SaveVoiceProfile(tab.ID, "field", coreprofile.VoiceProfile{
+		Name: "Northsea Field",
 		Tone: coreprofile.ToneProfile{Personality: []string{"energetic"}},
 	})
 	require.NoError(t, err)
 	assert.True(t, saved.Saved)
-	assert.Equal(t, ".kapi/profiles/campaign/voice.yaml", saved.Target)
-	assert.FileExists(t, target)
+	assert.Equal(t, "field", saved.Profile)
+
+	// The recipe says which profile governs the point from here on.
+	reloaded, err := project.Load(filepath.Join(root, "kapi.yaml"))
+	require.NoError(t, err)
+	require.NotNil(t, reloaded.Profiles["field"].Voice)
+	assert.Equal(t, "field", reloaded.Profiles["field"].Voice.Profile)
+
+	op.Project = reloaded
+	again, err := app.ProjectVoice(tab.ID)
+	require.NoError(t, err)
+	row := pointOf(t, again, "field")
+	require.NotNil(t, row.Profile)
+	assert.Equal(t, "Northsea Field", row.Profile.Name)
 }
 
 func TestValidateVoiceProfileMatchesTheCommand(t *testing.T) {
@@ -234,6 +262,7 @@ func TestSaveVoiceProfileWritesTheAssistantPointer(t *testing.T) {
 	res, err := app.ProjectVoice(tab.ID)
 	require.NoError(t, err)
 	profile := *pointOf(t, res, "project default").Profile
+	profile.Tone.Guidelines = "Lead with what changed."
 
 	saved, err := app.SaveVoiceProfile(tab.ID, "", profile)
 	require.NoError(t, err)
@@ -258,13 +287,11 @@ func TestSaveVoiceProfileWritesTheAssistantPointer(t *testing.T) {
 	assert.False(t, again.Pointer.Created)
 }
 
-// An editor that sends no constraints keeps the ones the bound file carries;
-// an editor that sends an empty list clears them. Each save is read back
-// through an import, which is how a written file reaches the store a
-// resolution answers from.
+// An editor that sends no constraints keeps the ones the stored profile
+// carries; an editor that sends an empty list clears them.
 func TestSaveVoiceProfilePreservesOmittedConstraints(t *testing.T) {
 	app := NewApp()
-	tab, root := newContextProject(t, app)
+	tab, _ := newContextProject(t, app)
 	res, err := app.ProjectVoice(tab.ID)
 	require.NoError(t, err)
 	profile := *pointOf(t, res, "project default").Profile
@@ -272,23 +299,22 @@ func TestSaveVoiceProfilePreservesOmittedConstraints(t *testing.T) {
 	saved, err := app.SaveVoiceProfile(tab.ID, "", profile)
 	require.NoError(t, err)
 	require.True(t, saved.Saved)
+
 	profile.Constraints = nil
 	profile.Description = "Older editor update"
 	saved, err = app.SaveVoiceProfile(tab.ID, "", profile)
 	require.NoError(t, err)
 	require.True(t, saved.Saved)
-	readProjectContext(t, root)
 	res, err = app.ProjectVoice(tab.ID)
 	require.NoError(t, err)
 	require.Len(t, pointOf(t, res, "project default").Profile.Constraints, 1)
 
-	// An explicit empty list is the editor saying the profile has none, and the
-	// file it writes says so too.
+	// An explicit empty list is the editor saying the profile has none.
 	profile.Constraints = []coreprofile.Constraint{}
 	saved, err = app.SaveVoiceProfile(tab.ID, "", profile)
 	require.NoError(t, err)
 	require.True(t, saved.Saved)
-	body, rerr := os.ReadFile(filepath.Join(root, ".kapi", "voice.yaml"))
-	require.NoError(t, rerr)
-	assert.NotContains(t, string(body), "constraints:")
+	res, err = app.ProjectVoice(tab.ID)
+	require.NoError(t, err)
+	assert.Empty(t, pointOf(t, res, "project default").Profile.Constraints)
 }

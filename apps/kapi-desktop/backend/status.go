@@ -53,6 +53,11 @@ type ProjectStatus struct {
 	// false for the "no data yet" shells (no store ⇒ nothing to be stale about).
 	Stale       bool               `json:"stale"`
 	Collections []CollectionStatus `json:"collections"`
+	// ContextFiles names the context files this checkout carries when the
+	// project's store has never held its context, and the command that reads
+	// them. nil the rest of the time, which is every project someone has
+	// already read in.
+	ContextFiles *ContextFilesNoticeDTO `json:"contextFiles,omitempty"`
 }
 
 // GetProjectStatus returns the current per-collection status for a project tab,
@@ -75,6 +80,7 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	}
 
 	out := &ProjectStatus{ProjectPath: op.Path}
+	out.ContextFiles = a.contextFilesNotice(op.Path)
 	if op.Project == nil {
 		return out, nil
 	}

@@ -71,10 +71,22 @@ func (a *App) VoiceProfileTargetAt(ctx context.Context, root string, point proje
 	store := db.Voice()
 	bound, own := voiceBindingAt(proj, point.Profile)
 
+	// A profile that binds no voice of its own is answered by the profile the
+	// store holds under its name, ahead of the project's, which is the ladder a
+	// resolution takes. A save at that point lands on the profile it reads.
+	if !own {
+		conv := project.RelStatePath(project.ProfilesDirName, point.Profile, VoiceConventionalName)
+		if id := a.voiceProfileIDForBinding(ctx, root, conv); id != "" && store != nil {
+			if _, gerr := lookupProfileIn(ctx, store, id); gerr == nil {
+				return VoiceProfileTarget{ID: id, Writable: true, Exists: true}, nil
+			}
+		}
+	}
+
 	target := VoiceProfileTarget{Writable: true, Inherited: !own}
 	switch {
-	case bound == nil:
-		target.ID = newVoiceProfileID(proj, root, point.Profile)
+	case bound == nil || !own:
+		target.ID = newVoiceProfileID(root, point.Profile)
 	case bound.Pack != "":
 		return VoiceProfileTarget{
 			Reason: fmt.Sprintf("%s binds the %q starter pack, which is read-only. Bind a profile of this project's own to edit the voice here.",
@@ -147,6 +159,9 @@ func (a *App) SaveVoiceProfileAt(
 		}
 		res.Created, res.Changed = true, true
 	} else {
+		// The store owns the version, so a caller holding an older copy of the
+		// profile is saying what to write rather than which version to write.
+		prof.Version = held.Version
 		same, cerr := sameAuthoredVoice(held, prof)
 		if cerr != nil {
 			return res, cerr
@@ -201,12 +216,10 @@ func voiceFieldName(profile string, own bool) string {
 }
 
 // newVoiceProfileID settles the id a save opens for a point that binds nothing:
-// the profile's own name, or the project's.
-func newVoiceProfileID(proj *project.KapiProject, root, profile string) string {
+// the profile's own name, or the directory the project sits in, which is the
+// name boundVoiceProfileForWrite opens a project's first profile under.
+func newVoiceProfileID(root, profile string) string {
 	name := profile
-	if name == "" {
-		name = proj.Name
-	}
 	if name == "" {
 		name = filepath.Base(root)
 	}

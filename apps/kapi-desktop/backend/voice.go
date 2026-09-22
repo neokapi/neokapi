@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -13,11 +12,11 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/graph"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/yamledit"
 	"github.com/neokapi/neokapi/host"
 )
 
@@ -95,14 +94,15 @@ type VoicePointDTO struct {
 	Edit VoiceEditTargetDTO `json:"edit"`
 }
 
-// VoiceEditTargetDTO is where a save at a point writes, and whether it may.
+// VoiceEditTargetDTO is the profile a save at a point writes, and whether it
+// may.
 type VoiceEditTargetDTO struct {
-	// Target is the project-relative file a save writes to.
-	Target string `json:"target,omitempty"`
-	// Writable is false when the binding names something no file edit can
-	// reach: a starter pack, or a profile held in the voice store.
+	// Profile is the id a save writes in the project's voice store.
+	Profile string `json:"profile,omitempty"`
+	// Writable is false when the binding names something a save cannot reach:
+	// a starter pack, or a profile file the store has never been given.
 	Writable bool `json:"writable"`
-	// Exists is false when a save would create the file.
+	// Exists is false when a save would create the profile.
 	Exists bool `json:"exists"`
 	// Inherited is true when the point has no voice of its own and reads the
 	// one bound coarser. Saving here gives the point its own profile rather
@@ -116,10 +116,13 @@ type VoiceEditTargetDTO struct {
 type VoiceSaveResult struct {
 	// Saved is false when validation refused the profile.
 	Saved bool `json:"saved"`
-	// Target is the project-relative file written.
-	Target string `json:"target,omitempty"`
-	// Changed is false when the file on disk already said this.
-	Changed  bool                         `json:"changed"`
+	// Profile is the id written in the project's voice store.
+	Profile string `json:"profile,omitempty"`
+	// Changed is false when the store already said this.
+	Changed bool `json:"changed"`
+	// Recorded is the id of the context operation the save left on the
+	// project's record, empty when the store already said this.
+	Recorded string                       `json:"recorded,omitempty"`
 	Problems []coreprofile.ProfileProblem `json:"problems"`
 	// Guide is the profile as a tool would read it, rendered from what was
 	// saved.
@@ -263,8 +266,23 @@ func (a *App) voicePoint(
 	} else {
 		row.Notes = append(row.Notes, "no voice profile binds at this point")
 	}
-	row.Edit = voiceEditTarget(declared, root, pt.Profile, source, found)
+	target, terr := a.hostEngine().VoiceProfileTargetAt(ctx, root, project.GovernancePoint{Profile: pt.Profile})
+	if terr != nil {
+		row.Notes = append(row.Notes, fmt.Sprintf("where a save lands: %v", terr))
+	}
+	row.Edit = voiceEditTargetDTO(target)
 	return row, nil
+}
+
+// voiceEditTargetDTO renders where a save at a point lands for the editor.
+func voiceEditTargetDTO(t host.VoiceProfileTarget) VoiceEditTargetDTO {
+	return VoiceEditTargetDTO{
+		Profile:   t.ID,
+		Writable:  t.Writable,
+		Exists:    t.Exists,
+		Inherited: t.Inherited,
+		Reason:    t.Reason,
+	}
 }
 
 // relSource makes a voice-profile source project-relative for display. A
@@ -282,87 +300,6 @@ func relSource(root, source string) string {
 		return source
 	}
 	return rel
-}
-
-// voiceEditTarget resolves the file a save at a point writes to.
-//
-// It inverts the load ladder: the point's own `voice: profile_file` if it has
-// one, otherwise the conventional location for that point, which is where the
-// loader would look next. A binding naming a starter pack or a stored profile
-// has no file to write, and says so rather than inventing one.
-func voiceEditTarget(
-	declared *project.ResolvedGovernance,
-	root, profileName, loadedFrom string,
-	found bool,
-) VoiceEditTargetDTO {
-	own := declared != nil && declared.Voice != nil &&
-		(profileName == "" || declared.VoiceField != project.DefaultVoiceField)
-
-	if own {
-		switch {
-		case declared.Voice.Pack != "":
-			return VoiceEditTargetDTO{
-				Reason: fmt.Sprintf(
-					"%s binds the %q starter pack. Bind a profile file to edit the voice here.",
-					declared.VoiceField, declared.Voice.Pack),
-			}
-		case declared.Voice.Profile != "":
-			return VoiceEditTargetDTO{
-				Reason: fmt.Sprintf(
-					"%s binds %q from the voice store, which no file edit reaches.",
-					declared.VoiceField, declared.Voice.Profile),
-			}
-		case declared.Voice.ProfileFile != "":
-			rel := filepath.ToSlash(declared.Voice.ProfileFile)
-			return VoiceEditTargetDTO{
-				Target:   rel,
-				Writable: true,
-				Exists:   fileExists(filepath.Join(root, filepath.FromSlash(rel))),
-			}
-		}
-	}
-
-	// Nothing bound at this point: the conventional location for it is where
-	// the loader looks, so it is where a save belongs.
-	var rel string
-	if profileName == "" {
-		rel = project.RelStatePath(host.VoiceConventionalName)
-		for _, conv := range host.VoiceProfileConventions(root) {
-			if fileExists(conv) {
-				if r, err := filepath.Rel(root, conv); err == nil {
-					rel = r
-				}
-				break
-			}
-		}
-	} else {
-		rel = project.RelStatePath(project.ProfilesDirName, profileName, host.VoiceConventionalName)
-	}
-	abs := filepath.Join(root, filepath.FromSlash(rel))
-	exists := fileExists(abs)
-	return VoiceEditTargetDTO{
-		Target:   filepath.ToSlash(rel),
-		Writable: true,
-		Exists:   exists,
-		// A point reading a profile loaded from somewhere else has no voice of
-		// its own; saving here creates one that shadows what it inherits.
-		Inherited: found && !exists && !sameFile(loadedFrom, abs),
-	}
-}
-
-// fileExists reports whether a regular file sits at path.
-func fileExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && !info.IsDir()
-}
-
-// sameFile compares two paths after cleaning, so a source and a target that
-// name one file are not read as two.
-func sameFile(a, b string) bool {
-	if a == "" || b == "" {
-		return false
-	}
-	return filepath.Clean(a) == filepath.Clean(b)
 }
 
 // ValidateVoiceProfile reports what `kapi voice validate` would report for this
@@ -395,14 +332,15 @@ func (a *App) VoiceStarterPack(name string) (*coreprofile.VoiceProfile, error) {
 	return packs.Load(name)
 }
 
-// SaveVoiceProfile writes a voice profile to the file the point resolves to.
+// SaveVoiceProfile writes a voice profile into the project's voice store at the
+// point it was edited at, and records the write on the project's context
+// record.
 //
-// Validation runs first and a blocking problem refuses the write, so the file a
-// run reads is never one the loader would reject. Warnings do not refuse: a
-// tone the usual list does not name is kept and rendered as written.
+// Validation runs first and a blocking problem refuses the write, so a run
+// never reads a profile the loader would reject. Warnings do not refuse: a tone
+// the usual list does not name is kept and rendered as written.
 //
-// The write goes through the comment-preserving writer, so an author's
-// reasoning and key order survive an edit made here.
+// A person is at the keyboard, so the operation is recorded as theirs.
 func (a *App) SaveVoiceProfile(tabID, profileName string, profile coreprofile.VoiceProfile) (*VoiceSaveResult, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -412,46 +350,31 @@ func (a *App) SaveVoiceProfile(tabID, profileName string, profile coreprofile.Vo
 		return nil, errors.New("the tab has no project recipe on disk")
 	}
 	root := filepath.Dir(op.Path)
-
-	declared, err := op.Project.ResolveGovernanceFor(project.GovernancePoint{Profile: profileName})
-	if err != nil {
-		return nil, err
-	}
-	target := voiceEditTarget(declared, root, profileName, "", false)
-	if !target.Writable {
-		return nil, errors.New(target.Reason)
-	}
-
-	path := filepath.Join(root, filepath.FromSlash(target.Target))
-	if profile.Constraints == nil {
-		body, readErr := os.ReadFile(path)
-		if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
-			return nil, readErr
-		}
-		if readErr == nil {
-			existing, loadErr := coreprofile.LoadProfileYAML(bytes.NewReader(body))
-			if loadErr != nil {
-				return nil, loadErr
-			}
-			profile.Constraints = existing.Constraints
-		}
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), contextExplorerTimeout)
+	defer cancel()
 
 	probs, err := validateVoiceProfile(&profile)
 	if err != nil {
 		return nil, err
 	}
-	out := &VoiceSaveResult{Target: target.Target, Problems: probs}
+	out := &VoiceSaveResult{Problems: probs}
 	if len(coreprofile.Blocking(probs)) > 0 {
 		return out, nil
 	}
 
-	changed, werr := yamledit.WriteFile(path, &profile, 0o644)
-	if werr != nil {
-		return nil, werr
+	saved, err := a.hostEngine().SaveVoiceProfileAt(
+		ctx, root,
+		project.GovernancePoint{Profile: profileName},
+		contextop.Actor{Kind: contextop.ActorPerson},
+		&profile,
+	)
+	if err != nil {
+		return nil, err
 	}
 	out.Saved = true
-	out.Changed = changed
+	out.Profile = saved.ID
+	out.Changed = saved.Changed
+	out.Recorded = saved.Recorded
 	out.Guide = coreprofile.RenderVoiceGuide(&profile)
 
 	// The project has a voice from this point on, so the assistant file says
@@ -518,9 +441,9 @@ type RecipeGovernanceDTO struct {
 	Channels []string `json:"channels"`
 	// Profiles are the declared profile names.
 	Profiles []string `json:"profiles"`
-	// VoiceFiles are the profile files already on disk under the state
-	// directory, offered when binding defaults.voice.
-	VoiceFiles []string `json:"voice_files"`
+	// VoiceProfiles are the profiles this project's voice store holds,
+	// offered when binding defaults.voice.
+	VoiceProfiles []string `json:"voice_profiles"`
 	// Packs are the starter profiles a binding can name instead of a file.
 	Packs []string `json:"packs"`
 }
@@ -543,10 +466,10 @@ func (a *App) RecipeGovernance(tabID string) (*RecipeGovernanceDTO, error) {
 	proj := op.Project
 
 	out := &RecipeGovernanceDTO{
-		Channels:   []string{},
-		Profiles:   []string{},
-		VoiceFiles: []string{},
-		Packs:      []string{},
+		Channels:      []string{},
+		Profiles:      []string{},
+		VoiceProfiles: []string{},
+		Packs:         []string{},
 	}
 
 	seen := map[string]bool{}
@@ -589,7 +512,9 @@ func (a *App) RecipeGovernance(tabID string) (*RecipeGovernanceDTO, error) {
 	}
 
 	if op.Path != "" {
-		out.VoiceFiles = discoverVoiceFiles(filepath.Dir(op.Path))
+		ctx, cancel := context.WithTimeout(context.Background(), contextExplorerTimeout)
+		defer cancel()
+		out.VoiceProfiles = a.storedVoiceProfiles(ctx, filepath.Dir(op.Path))
 	}
 	if names, perr := packs.List(); perr == nil {
 		out.Packs = names
@@ -597,33 +522,29 @@ func (a *App) RecipeGovernance(tabID string) (*RecipeGovernanceDTO, error) {
 	return out, nil
 }
 
-// discoverVoiceFiles lists the profile files under the project's state
-// directory, project-relative, so a binding can be picked rather than typed.
-func discoverVoiceFiles(root string) []string {
-	stateDir := filepath.Join(root, project.StateDirName)
-	var out []string
-	_ = filepath.WalkDir(stateDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
+// storedVoiceProfiles lists the profiles the project's voice store holds, by id,
+// so a binding can be picked rather than typed. A project whose store holds none
+// offers none.
+func (a *App) storedVoiceProfiles(ctx context.Context, root string) []string {
+	store, release, err := a.hostEngine().ProjectVoiceStore(ctx, root)
+	if err != nil {
+		return []string{}
+	}
+	defer release()
+	if store == nil {
+		return []string{}
+	}
+	held, err := store.ListProfiles(ctx, host.LocalScope)
+	if err != nil {
+		return []string{}
+	}
+	out := make([]string, 0, len(held))
+	for _, p := range held {
+		if p.ID == "" {
+			continue
 		}
-		if d.IsDir() {
-			// Generated state is not authored source, so nothing under it is a
-			// profile a person would bind.
-			if d.Name() == "work" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if filepath.Ext(path) != ".yaml" && filepath.Ext(path) != ".yml" {
-			return nil
-		}
-		rel, rerr := filepath.Rel(root, path)
-		if rerr != nil {
-			return nil
-		}
-		out = append(out, filepath.ToSlash(rel))
-		return nil
-	})
+		out = append(out, p.ID)
+	}
 	sort.Strings(out)
 	return out
 }
