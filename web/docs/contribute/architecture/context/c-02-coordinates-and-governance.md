@@ -55,10 +55,11 @@ per-collection override rather than a field repeated on every entry.
 profiles:
   northsea:
     channels: [docs, app]
-    voice: .kapi/voice.yaml
+    voice:
+      profile: northsea
   acme:
     channels: [docs, landing]
-    # no `voice:`; .kapi/profiles/acme/voice.yaml answers by convention
+    # no `voice:`; the profile the store holds under "acme" answers
 
 collections:
   - name: northsea-docs
@@ -135,19 +136,18 @@ than an enum. Correct style is a function of mode: hedging is wrong in a tutoria
 and right in an explanation, so one profile applied flatly across all four is
 wrong for at least one of them.
 
-### A profile's files mirror the recipe
+### A profile's name is a binding
 
-`.kapi/profiles/<name>/` holds what that profile overrides: `voice.yaml`, and
-`terms.json` where the vocabulary differs too, with `<name>` the profile's key
-under `profiles:`. The project default has no directory: its files are the flat
-ones in `.kapi/` itself. A profile that binds no `voice:`/`termstore:` of its
-own is answered by its directory before `defaults.voice` is, so a profile
-declaring only its channels is a complete profile.
+A profile that binds no `voice:` of its own is answered by the profile the
+project's voice store holds under its own key from `profiles:`, before
+`defaults.voice` is. So a profile declaring only its channels is a complete
+profile, and a project that names its voice profiles after its products states
+each binding once.
 
-This is the filesystem mirroring the recipe. A recipe states its default
-governance under `defaults:` and its per-product governance under `profiles:`;
-the default's files sit flat and each profile's sit in a directory of its own, so
-"which voice governs this product's docs" is answerable by looking. Governance is
+`kapi context snapshot` writes the same shape out as files: each profile's
+overrides under `.kapi/profiles/<name>/`, the project default flat in `.kapi/`,
+and `kapi context import` reads them back
+([C-11](c-11-context-operations.md)). Governance is
 the only thing that splits this way. The content memory and the unit-state
 record stay top-level ([C-01](c-01-project-model.md)), because a recycled
 translation and an approval are facts about a unit, true wherever it is governed
@@ -221,7 +221,7 @@ type ResolvedGovernance struct {
     Voice      *VoiceBinding      // the matched profile's, else defaults.voice
     TermStore  string             // a standalone terms store bound by the profile
     VoiceField string             // the recipe key Voice came from, for error messages
-    Profile    string             // the directory under .kapi/profiles/ to look in
+    Profile    string             // the profile's own key, a voice-store name
     Validity   *graph.Validity
     Fallback   *GovernanceFallback
 }
@@ -240,7 +240,8 @@ as a bare date or an RFC3339 instant:
 profiles:
   northsea-2025:
     channels: [landing]
-    voice: .kapi/profiles/northsea-2025/voice.yaml
+    voice:
+      profile: northsea-2025
     valid_from: 2025-09-01
     valid_to: 2026-03-01
 ```

@@ -130,26 +130,53 @@ the project's stores and every existing reader grades it from there.
 
 ### Confirmation writes through the existing appliers
 
-`kapi apply` is the one write verb, and its asset entries write into the
-committed source the recipe binds before the existing importer compiles that
-source into the store ([C-08](c-08-terms.md),
+`kapi apply` is the one write verb, and its asset entries write the project's
+terms store, voice store or content memory ([C-08](c-08-terms.md),
 [C-07](c-07-voice-profiles.md), [C-09](c-09-content-memory.md)). Confirming a
-rule builds the same change-set entry and runs the same applier. The rule
-therefore lands in `.kapi/terms.json`, `.kapi/voice.yaml` or
-`.kapi/memory/memory.json`, `git diff` shows the decision, and retrieval,
+rule builds the same change-set entry and runs the same applier, so retrieval,
 checks, drafting, the governing fingerprint and `kapi context snapshot` all see
-it with no second code path.
+it with no second code path. Every entry that lands this way records an
+operation, so `kapi context log` names the change and the evidence behind it.
 
-Withdrawing reverses it: the term is removed from the committed source, the
-concept is deleted from the store and re-imported from what the source still
-declares, and the voice profile is rewritten and re-imported. The re-import
-rather than an in-place edit is what keeps a concept's other terms standing when
-the confirmed rule had joined an existing concept.
+Withdrawing reverses it against the same stores: the term is deleted from the
+terms store, and the voice profile's rule is taken out and the profile written
+back whole. A concept's other terms stand, because the delete addresses the term
+the rule named rather than the concept that held it.
 
 `kapi apply` records the operation pair its own asset entries produce, a
 `propose` and the `confirm` of it, both by the person who ran the command.
 An entry naming an agent as its actor is refused by the policy before anything
 is written.
+
+### Reading a checkout's context files is an operation too
+
+`kapi context import` is the one command that opens a context file in a
+checkout ([C-01](c-01-project-model.md)). What it reads it records: one
+operation per file, `KindConfirm` with an actor of kind person, carrying the
+file's project-relative path and the SHA-256 of the bytes it read as evidence.
+`kapi context log` then shows an import beside every other change to the
+project's context, and a reader can tell which rules came from a file and which
+from a decision somebody took.
+
+A person runs it. The policy function below refuses an agent's import, naming
+the command for the person to run, because reading a checkout's files puts them
+in force for everyone working in the project. `kapi voice edit` records the same
+way: one operation whose note says the profile was edited whole.
+
+The skip stamps live in the workspace, keyed by the normalized checkout path and
+the file's project-relative path, so two checkouts of one project never skip
+each other's files and a second import of unmoved bytes reports that it read
+nothing. `--force` reads regardless.
+
+A checkout carrying context files whose project store has never held context is
+the **first meeting**, and `host.ContextFilesUnread` answers for it: it stats
+the layout, asks the store whether it holds a concept, a content-memory entry, a
+voice profile or a decision, and returns the file list with the command that
+reads them. It opens no context file, so a checkout carrying one cannot reach an
+answer through the notice either. Every surface renders that one value
+([S-02](../surfaces/s-02-kapi-desktop.md),
+[S-03](../surfaces/s-03-agent-surfaces.md)), and `kapi check` carries it as a
+configuration warning, which changes neither the score nor the gate.
 
 ### Scope is set by evidence, and widened deliberately
 
@@ -229,8 +256,9 @@ implementation that needs an index adds one behind `Ledger` without moving the
 model.
 
 Operation ids are workspace-local positions, so they are not portable between
-workspaces. Nothing needs them to be: confirmed rules travel in the committed
-sources and the context bundles, which carry no operation ids.
+workspaces. Nothing needs them to be: confirmed rules travel in the context
+bundles `kapi context export` and `kapi context snapshot` write, and those carry
+no operation ids.
 
 ## Surfaces
 

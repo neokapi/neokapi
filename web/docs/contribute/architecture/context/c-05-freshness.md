@@ -30,7 +30,7 @@ ask a person: cheap observation, explicit resolution.
 
 Governance and content move for different reasons and at different rates.
 Content moves continuously as work lands; the governing context, the terminology
-and the committed decisions move when someone decides something. Carrying both on
+and the recorded decisions move when someone decides something. Carrying both on
 one monotonic cursor conflates them: ordinary content traffic then looks like a
 governance change, and a writer nowhere near the governance gets a conflict it
 cannot act on.
@@ -66,10 +66,9 @@ type Ref struct {
 - **`terms`** identifies the governed terminology in force.
 - **`decisions`** identifies the decisions this checkout holds: every record
   that carries a review state, a reviewed or signed-off rung, a parked unit, an
-  assignee or a note. The source is the checkout's own view of the ledger, read
-  after its committed shards have been imported, so a decision a `git pull`
-  brought in and one recorded here since the last `kapi commit` both count
-  ([C-04](c-04-unit-state-and-decisions.md)). A record that says only what was
+  assignee or a note. The source is the checkout's own view of the ledger, so a
+  decision recorded in another checkout of the project and one recorded here both
+  count ([C-04](c-04-unit-state-and-decisions.md)). A record that says only what was
   produced for a unit, its target and the source it was written for, is left
   out. A producer writes one for every unit it drafts, and a run on the venue
   writes thousands between a client's pull and its push, none of them a decision
@@ -169,8 +168,8 @@ and drops every position when that identity changes (`Cache.BindStore`). The
 replay costs one pass over the change feed: it rewrites the same target files,
 and a decision the ledger already holds is held once, whatever route it came
 by. The governance
-identities stay, since they identify the committed record and what the venue
-published rather than anything the store holds.
+identities stay, since they identify the project's record and what the venue
+published rather than anything the projection holds.
 
 The decision ledger travels beside the position rather than on it. A venue
 serves its ledger in full with every page of changes, so a pull records what the
