@@ -11,8 +11,8 @@ defaults:
   materialize: on-converge
   flow: converge
   voice:
-    profile_file: .kapi/voice.yaml
-  terms_source: .kapi/terms.json
+    profile_file: context/voice.yaml
+  terms_source: context/terms.json
   memory:
     fuzzy_threshold: 75
   # Front matter is content: a reader sees the title in the sidebar and the
@@ -32,7 +32,7 @@ defaults:
 profiles:
   northsea:
     channels: [docs]
-    voice: .kapi/voice.yaml
+    voice: context/voice.yaml
 
 collections:
   - name: tidewatch-docs

@@ -17,6 +17,13 @@ Mart is content you can put through one.
 
 ## Conventions
 
+- **Context ships under `context/` and arrives through an import.** A project's
+  terms, voice profiles, content memory and recorded decisions live in the
+  workspace on the machine running kapi, so a sample carries them as files
+  under `context/` at its root and the first step in every sample README is
+  `kapi context import ./context`. Until that runs, the sample's gates answer
+  from an empty store, and kapi says so. `.kapi/` holds configuration: the
+  recipe's flows, the shared filters and the ignore rule.
 - **One fiction per sample, reused everywhere.** Northsea is also the fictional
   company in `scripts/contexteval/`, down to the product names and the domain
   vocabulary, so a term decision means the same thing in the eval corpus and in

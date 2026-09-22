@@ -282,7 +282,7 @@ func approveBadWording(t *testing.T, root string) {
 	insertAfter(t, filepath.Join(root, "site", "locales", "nb.json"),
 		`    "book": "Book en kaiplass",`, `    "`+newSourceKey+`": "`+badDecision+`",`)
 
-	path := filepath.Join(root, ".kapi", "memory", "compass-nb.memory.json")
+	path := filepath.Join(root, "context", "memory", "compass-nb.memory.json")
 	raw, err := os.ReadFile(path)
 	require.NoError(t, err)
 	var bundle map[string]any

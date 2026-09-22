@@ -101,8 +101,8 @@ func TestRefresh_NorthseaDrift(t *testing.T) {
 
 	governance := map[string]string{
 		recipe: readFile(t, recipe),
-		filepath.Join(root, ".kapi", "voice.yaml"): readFile(t, filepath.Join(root, ".kapi", "voice.yaml")),
-		filepath.Join(root, ".kapi", "terms.json"): readFile(t, filepath.Join(root, ".kapi", "terms.json")),
+		filepath.Join(root, "context", "voice.yaml"): readFile(t, filepath.Join(root, "context", "voice.yaml")),
+		filepath.Join(root, "context", "terms.json"): readFile(t, filepath.Join(root, "context", "terms.json")),
 	}
 
 	// --- Propose. Every read below is part of drafting the change-set.
@@ -167,14 +167,16 @@ func TestRefresh_NorthseaDrift(t *testing.T) {
 	assert.NotContains(t, applyOut, "error", applyOut)
 
 	// Written back out, the decisions are in the files a reviewer reads, and
-	// the profile still carries the commentary its author wrote.
-	runContext(t, a, "snapshot", "-p", recipe)
+	// the profile still carries the commentary its author wrote. The sample
+	// keeps its context files under context/, so that is where the snapshot
+	// goes.
+	runContext(t, a, "snapshot", "-p", recipe, "--out", filepath.Join(root, "context"))
 
-	terms := readFile(t, filepath.Join(root, ".kapi", "terms.json"))
+	terms := readFile(t, filepath.Join(root, "context", "terms.json"))
 	assert.Contains(t, terms, "Tideguard")
 	assert.Contains(t, terms, "deprecated")
 
-	voice := readFile(t, filepath.Join(root, ".kapi", "voice.yaml"))
+	voice := readFile(t, filepath.Join(root, "context", "voice.yaml"))
 	assert.Contains(t, voice, "Tideguard")
 	assert.Contains(t, voice, "# Northsea house voice.",
 		"the voice profile is edited rather than re-emitted, so its comments survive an approved change")

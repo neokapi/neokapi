@@ -15,8 +15,8 @@ defaults:
   materialize: on-converge
   flow: converge
   voice:
-    profile_file: .kapi/voice.yaml
-  terms_source: .kapi/terms.json
+    profile_file: context/voice.yaml
+  terms_source: context/terms.json
   memory:
     fuzzy_threshold: 75
   exclude:
@@ -26,7 +26,7 @@ defaults:
 profiles:
   northsea:
     channels: [app]
-    voice: .kapi/voice.yaml
+    voice: context/voice.yaml
 
 collections:
   # Compass interface strings. One block per leaf key; the key path is the block

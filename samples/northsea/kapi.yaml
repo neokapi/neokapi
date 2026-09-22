@@ -1,16 +1,17 @@
 # Northsea — one product, one language, three surfaces.
 #
-# Everything this recipe binds is a file in this repository. No server, no
-# provider credential: the gate runs from the committed context alone.
+# The context this recipe binds ships as files under context/, read in with
+# `kapi context import ./context`. No server, no provider credential: the gate
+# runs from what the import put in your workspace.
 version: v1
 name: northsea
 defaults:
   source_language: en-GB
   voice:
-    profile_file: .kapi/voice.yaml
-  # The committed vocabulary record. `kapi apply` writes term decisions here and
-  # recompiles them into .kapi/work/store.db, which is derived and gitignored.
-  terms_source: .kapi/terms.json
+    profile_file: context/voice.yaml
+  # The vocabulary this sample ships. An import reads it into the project's
+  # terms store, which is where `kapi apply` writes a term decision.
+  terms_source: context/terms.json
   exclude:
     - "**/node_modules/**"
     - "**/.git/**"
@@ -18,7 +19,7 @@ defaults:
 profiles:
   northsea:
     channels: [docs, app, landing, reference]
-    voice: .kapi/voice.yaml
+    voice: context/voice.yaml
 
 collections:
   # Operator documentation. The two historical surfaces below it — the API

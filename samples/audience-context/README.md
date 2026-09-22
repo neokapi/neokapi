@@ -19,7 +19,8 @@ make build
 node samples/audience-context/run.mjs --binary bin/kapi --output /tmp/audience-results.json
 ```
 
-The runner copies the sample to a temporary directory, disables project and
+The runner copies the sample to a temporary directory, reads its `context/`
+files into the store with `kapi context import ./context`, disables project and
 plugin discovery outside that fixture, and uses throwaway configuration and
 cache directories. It records the binary and source hashes, context answer,
 raw check output and process exit status. It fails if a critical wording
