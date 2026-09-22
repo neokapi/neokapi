@@ -106,12 +106,14 @@ func TestWriteVoicePointer(t *testing.T) {
 			wantNotIn:  []string{"voice, ,"},
 		},
 		{
-			name:       "a convention file counts as a voice",
+			// A voice profile sitting in the checkout governs nothing until a
+			// person reads it into the project's store, and the recipe is
+			// where the project says which profile applies.
+			name:       "a file in the checkout is not a voice on its own",
 			recipe:     bareRecipe,
 			files:      map[string]string{".kapi/voice.yaml": houseVoice},
-			wantFile:   "CLAUDE.md",
-			wantAction: VoicePointerCreated,
-			wantVoice:  "House Voice",
+			wantFile:   "",
+			wantAction: VoicePointerNone,
 		},
 		{
 			name: "declared profiles make the pointer per file",

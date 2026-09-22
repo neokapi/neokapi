@@ -96,8 +96,8 @@ type ProjectVoiceInfo struct {
 }
 
 // DescribeProjectVoice reports whether the project at root binds a voice, and
-// what the pointer can say about it. has is false when nothing binds one: no
-// defaults.voice, no convention file, and no profile with a voice of its own.
+// what the pointer can say about it. has is false when the recipe binds none at
+// the project's default point and no profile binds one of its own.
 func (a *App) DescribeProjectVoice(ctx context.Context, root string) (info ProjectVoiceInfo, has bool, err error) {
 	recipePath := filepath.Join(root, project.RecipeFileName)
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
@@ -121,29 +121,10 @@ func (a *App) DescribeProjectVoice(ctx context.Context, root string) (info Proje
 		return info, true, nil
 	}
 
-	for _, conv := range VoiceProfileConventions(root) {
-		p, lerr := loadProfileFile(conv)
-		if lerr != nil {
-			info.Problem = lerr
-			info.Source = conv
-			return info, true, nil
-		}
-		if p != nil {
-			info.Name = p.Name
-			info.Source = conv
-			return info, true, nil
-		}
-	}
-
-	// No default voice: the project still has one if any declared profile
-	// binds its own, or keeps one at its conventional path.
-	for name, pr := range proj.Profiles {
+	// No default voice: the project still has one if any declared profile binds
+	// its own.
+	for _, pr := range proj.Profiles {
 		if pr.Voice != nil {
-			info.PerFile = true
-			return info, true, nil
-		}
-		conv := filepath.Join(root, project.RelStatePath(project.ProfilesDirName, name, VoiceConventionalName))
-		if fi, serr := os.Stat(conv); serr == nil && !fi.IsDir() {
 			info.PerFile = true
 			return info, true, nil
 		}
