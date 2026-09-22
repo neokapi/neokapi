@@ -45,6 +45,10 @@ jobs:
       CDN_URL: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.DOCS_CDN_URL || '' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The preview's channel banner names the version from `git describe`,
+          # which needs the tags a shallow clone leaves behind.
+          fetch-depth: 0
       - uses: voidzero-dev/setup-vp@v1
         with:
           node-version: "22"
