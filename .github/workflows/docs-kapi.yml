@@ -198,6 +198,14 @@ jobs:
         with:
           ref: ${{ needs.resolve.outputs.ref }}
 
+      # The commit this run BUILT, which is github.sha for a push and the tip of
+      # the dispatched ref otherwise. It keys the wasm this run publishes to the
+      # CDN, so the two channels never write different bytes to one key: a
+      # production run dispatched from main carries main's github.sha while
+      # building docs/stable's tree.
+      - name: Record the commit being built
+        run: echo "BUILD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
       # The neokapi docs site is downstream-clean by contract: zero bowrain
       # references in user-facing pages/landing, no bowrain video assets staged
       # here. Fails fast before the (slow) build.
@@ -312,7 +320,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' && env.CDN_URL != '' }}
         env:
           CDN_BUCKET: ${{ vars.CDN_BUCKET }}
-          CDN_VERSION: ${{ github.sha }}
+          CDN_VERSION: ${{ env.BUILD_SHA }}
         run: |
           bash scripts/publish-cdn-assets.sh wasm
           rm -rf web/static/wasm
@@ -349,7 +357,7 @@ jobs:
           # (where the wasm publish step above ran). On PRs it stays empty, so
           # config.ts serves wasm same-origin while other assets use the CDN.
           DOCS_CDN_URL: ${{ env.CDN_URL }}
-          DOCS_CDN_VERSION: ${{ github.event_name != 'pull_request' && github.sha || '' }}
+          DOCS_CDN_VERSION: ${{ github.event_name != 'pull_request' && env.BUILD_SHA || '' }}
           # Cookieless analytics (see web/src/clientModules/analytics.ts). The
           # key is the PUBLIC client-side key already hardcoded in
           # _build-web.yml; set only on push so PR previews and forks never
