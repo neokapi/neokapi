@@ -9,6 +9,11 @@ asset embedded on the three public surfaces:
 | bowrain landing | `bowrain/web/landing` | committed in `bowrain/web/landing/public/` |
 | bowrain docs | `bowrain/web/docs` (baseUrl `/docs/`) | the S3 + CloudFront CDN (`bowrain/{video,img}/`) |
 
+Both docs sites also serve a second channel built from `main`, at `/next/` and
+`/docs/next/`. Assets are shared: a CDN object is referenced by URL from either
+channel. See [documentation release
+channels](docs-release-channels.md) for how the channels are built and deployed.
+
 **Landing pages** carry their own committed images; nothing to regenerate
 unless a screenshot in `public/` is replaced. Everything below is about the two
 Docusaurus docs sites, whose video/image assets are **gitignored** and published
@@ -82,8 +87,13 @@ cd ..
 
 # publish to the CDN (videos + images), then make it live
 make publish-cdn-videos publish-cdn-images
-gh workflow run docs-kapi.yml --ref main   # pages-deploy.yml deploys on its success
+gh workflow run docs-kapi.yml --ref main                     # the /next/ channel
+gh workflow run docs-kapi.yml --ref main -f ref=docs/stable  # production
 ```
+
+Both dispatches deploy through `pages-deploy.yml` on success. A CDN object is
+referenced by URL from either channel, so publishing it once covers both; the
+two dispatches rebuild the pages that point at it.
 
 The harness publish stage writes `<publishAs>-{light,dark}.webm` + `.jpg`
 posters straight into `web/static/video/kapi/`.
@@ -144,7 +154,8 @@ commit the scene files.
 
 ```bash
 make publish-cdn-bowrain-videos publish-cdn-bowrain-images
-gh workflow run deploy-landing.yml --ref main   # Deploy Landing + Docs (bowrain.cloud)
+gh workflow run deploy-landing.yml --ref main                     # landing + /docs/next/
+gh workflow run deploy-landing.yml --ref main -f ref=docs/stable  # /docs/
 ```
 
 `docs-bowrain.yml` builds pull-request previews only; production is

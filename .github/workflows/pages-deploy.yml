@@ -6,9 +6,17 @@ name: Pages Deploy
 # distribution, NOT into git:
 #
 #   PRODUCTION (committed to neokapi.github.io)
-#     /                        kapi/framework Docusaurus site (SITE ROOT)
+#     /                        kapi/framework Docusaurus site, STABLE channel
+#     /next/                   the same site built from main, NEXT channel
 #     /storybook/kapi/         kapi storybook
 #     /storybook/bowrain/      bowrain storybook
+#
+#   The kapi site's two channels arrive as two differently NAMED artifacts —
+#   kapi-site (stable, built from the docs/stable branch) and kapi-site-next
+#   (built from main) — and each is slotted only into its own subtree. A stable
+#   deploy cleans the repo root but keeps /next/, and a next deploy replaces
+#   /next/ alone, so neither channel can overwrite the other. See docs-kapi.yml
+#   and docs/internals/docs-release-channels.md.
 #
 #   The bowrain landing + docs PRODUCTION site moved off GitHub Pages to
 #   https://bowrain.cloud (S3+CloudFront) — published by deploy-landing.yml. The
@@ -129,6 +137,7 @@ jobs:
             {
               echo "bowrain_app_dest=web/bowrain"
               echo "kapi_docs_dest=."
+              echo "kapi_next_dest=next"
               echo "bowrain_docs_dest=web/bowrain/docs"
               echo "kapi_storybook_dest=storybook/kapi"
               echo "bowrain_storybook_dest=storybook/bowrain"
@@ -185,7 +194,7 @@ jobs:
           set -euo pipefail
           names=$(gh api "repos/${REPO}/actions/runs/${RUN_ID}/artifacts" --paginate --jq '.artifacts[].name' | tr '\n' ' ')
           echo "artifacts present in run ${RUN_ID}: ${names}"
-          for slot in bowrain-web kapi-site bowrain-site kapi-storybook bowrain-storybook; do
+          for slot in bowrain-web kapi-site kapi-site-next bowrain-site kapi-storybook bowrain-storybook; do
             key="has_${slot//-/_}"
             if printf ' %s ' "${names}" | grep -q " ${slot} "; then
               echo "${key}=true"
@@ -249,8 +258,13 @@ jobs:
             # index.html, assets/, img/, etc. — none collide with the keep-list.
             # (The legacy /web/neokapi/ copy under web/ is intentionally left in
             # place so old deep links keep resolving.)
+            #
+            # `next` is on the keep-list because it is the OTHER channel, built
+            # from main and deployed by the step below. A stable deploy that
+            # swept it would take the next channel offline until the next push
+            # to main rebuilt it.
             (cd pages && find . -mindepth 1 -maxdepth 1 \
-              ! -name web ! -name storybook ! -name .git \
+              ! -name web ! -name storybook ! -name next ! -name .git \
               ! -name README.md ! -name CNAME ! -name .nojekyll \
               -exec rm -rf {} +)
             cp -r artifacts/kapi-site/* pages/
@@ -263,6 +277,31 @@ jobs:
             mkdir -p "pages/${DEST}"
             cp -r artifacts/kapi-site/* "pages/${DEST}/"
           fi
+
+      # The next channel: the kapi site built from main, mounted at /next/. It is
+      # a production-only slot (a pull request gets its own preview instead), and
+      # it replaces /next/ alone, so the stable site at the root is untouched.
+      - name: Download kapi-site-next artifact
+        if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.is_pr == 'false' && steps.target.outputs.skip != 'true' && steps.arts.outputs.has_kapi_site_next != 'false' }}
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: kapi-site-next
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: artifacts/kapi-site-next
+
+      - name: Slot kapi Docusaurus next channel at /next/
+        if: ${{ steps.target.outputs.is_pr == 'false' && steps.target.outputs.skip != 'true' }}
+        env:
+          DEST: ${{ steps.target.outputs.kapi_next_dest }}
+        run: |
+          if [ ! -d artifacts/kapi-site-next ] || [ -z "$(ls -A artifacts/kapi-site-next 2>/dev/null)" ]; then
+            echo "no kapi-site-next artifact — skipping"; exit 0
+          fi
+          rm -rf "pages/${DEST}"
+          mkdir -p "pages/${DEST}"
+          cp -r artifacts/kapi-site-next/* "pages/${DEST}/"
 
       - name: Download bowrain-site artifact
         if: ${{ github.event_name == 'workflow_run' && steps.target.outputs.skip != 'true' && steps.arts.outputs.has_bowrain_site != 'false' }}

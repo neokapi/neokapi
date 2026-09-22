@@ -1,0 +1,31 @@
+/* The next-channel banner sits above the navbar (rendered from theme/Root), so
+   it is styled from Infima's warning tokens, which carry their own dark-mode
+   values. */
+.banner {
+  background: var(--ifm-color-warning-contrast-background);
+  color: var(--ifm-color-warning-contrast-foreground);
+  border-bottom: 1px solid var(--ifm-color-warning-dark);
+  padding: 0.65rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.banner a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* Infima opens a hoverable dropdown on hover alone. Keyboard focus opens it
+   too, so the switch is reachable by tabbing to it. */
+.switch:focus-within :global(.dropdown__menu) {
+  opacity: 1;
+  pointer-events: all;
+  transform: translateY(-0.5rem);
+  visibility: visible;
+}
+
+.mobileHeading {
+  font-weight: var(--ifm-font-weight-semibold);
+  cursor: default;
+}

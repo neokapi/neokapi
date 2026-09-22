@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import KapiModalMount from "@site/src/components/KapiPlayground/KapiModalMount";
+import { DocsChannelBanner } from "@site/src/components/DocsChannel";
 
 const STORAGE_KEY = "neokapi-banner-dismissed";
 
@@ -63,6 +64,10 @@ function ExperimentalBanner() {
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
     <>
+      {/* Rendered during SSR, so the channel is visible in the static HTML
+          and to a reader with scripting off. The stable channel renders
+          nothing here. */}
+      <DocsChannelBanner />
       <BrowserOnly>{() => <ExperimentalBanner />}</BrowserOnly>
       {children}
       {/* One shared kapi playground modal for the whole site. Opened

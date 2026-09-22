@@ -1,9 +1,32 @@
 name: Docs — kapi
 
+# Two channels, one site.
+#
+#   PRODUCTION  built from the `docs/stable` branch — which a GA release moves
+#               to its tag (release-docs.yml) and a person cherry-picks docs
+#               fixes onto — and deployed at the site ROOT of neokapi.github.io.
+#   NEXT        built from every push to main and deployed under /next/, with a
+#               banner naming the release in progress.
+#
+# The channel follows the ref being built, so `workflow_dispatch` takes a `ref`
+# input: run this workflow from main with `ref: docs/stable` and it checks out
+# that branch and publishes production. That keeps the workflow definition on
+# main alone, so a `docs/stable` branch cut from an older tag still deploys with
+# the current steps.
+#
+# pages-deploy.yml routes by ARTIFACT NAME (kapi-site → root, kapi-site-next →
+# /next/), so a production deploy and a next deploy can never land in each
+# other's slot.
+
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or tag to build. Empty builds this run's ref; docs/stable builds production."
+        required: false
+        default: ""
   push:
-    branches: [main]
+    branches: [main, docs/stable]
     paths:
       - "web/**"
       - "packages/docs-shared/**"
@@ -46,19 +69,92 @@ on:
       - "scripts/pseudo-docs-i18n.sh"
       - ".github/workflows/docs-kapi.yml"
 
-# Cancel superseded PR runs; never cancel a push to main.
+# Cancel superseded PR runs; never cancel a push to main. Grouped by the ref
+# being BUILT, so a production run dispatched from main with `ref: docs/stable`
+# does not queue behind a main push.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ inputs.ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
+  # Which channel this run publishes, which ref it builds, where the site is
+  # mounted, and which versions the banner and the switch name. Resolved once so
+  # the two build jobs and the deploy agree.
+  resolve:
+    name: Resolve channel
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.c.outputs.ref }}
+      channel: ${{ steps.c.outputs.channel }}
+      base: ${{ steps.c.outputs.base }}
+      artifact: ${{ steps.c.outputs.artifact }}
+      stable_tag: ${{ steps.c.outputs.stable_tag }}
+      stable_version: ${{ steps.c.outputs.stable_version }}
+      channel_version: ${{ steps.c.outputs.channel_version }}
+    steps:
+      - id: c
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # The dispatch input reaches actions/checkout's `ref`, so hold it to a
+          # git-ref charset before anything else sees it.
+          ref="${INPUT_REF:-}"
+          if [ -n "$ref" ] && printf '%s' "$ref" | grep -qE '[^A-Za-z0-9._/-]'; then
+            echo "::error::refusing suspicious ref '$ref'"; exit 1
+          fi
+
+          branch="${ref:-$REF_NAME}"
+          if [ "$branch" = "docs/stable" ]; then
+            # Production: the site ROOT of neokapi.github.io.
+            channel=stable; base=/; artifact=kapi-site
+          elif [ "$EVENT" = "pull_request" ] && [ -n "$PR_NUMBER" ]; then
+            # A preview keeps the /web/prs/<N>/neokapi/docs/ slot pages-deploy.yml
+            # writes. It carries the next channel's banner, so a reviewer sees it.
+            channel=next; base="/web/prs/${PR_NUMBER}/neokapi/docs/"; artifact=kapi-site
+          else
+            channel=next; base=/next/; artifact=kapi-site-next
+          fi
+
+          # Versions come from the published releases rather than from tags in
+          # the checkout, so the build jobs stay shallow clones. The site config
+          # falls back to `git describe` where these are unset (a local build).
+          releases="$(gh release list --repo "$GH_REPO" --exclude-drafts --limit 60 \
+            --json tagName,isPrerelease --jq 'map(select(.tagName|test("^v[0-9]")))')"
+          stable_tag="$(printf '%s' "$releases" | jq -r 'map(select(.isPrerelease==false))[0].tagName // ""')"
+          latest_tag="$(printf '%s' "$releases" | jq -r '.[0].tagName // ""')"
+          if [ "$channel" = "stable" ]; then
+            channel_tag="$stable_tag"
+          else
+            channel_tag="$latest_tag"
+          fi
+
+          {
+            echo "ref=$ref"
+            echo "channel=$channel"
+            echo "base=$base"
+            echo "artifact=$artifact"
+            echo "stable_tag=$stable_tag"
+            echo "stable_version=${stable_tag#v}"
+            echo "channel_version=${channel_tag#v}"
+          } >> "$GITHUB_OUTPUT"
+
   build-wasm:
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.ref }}
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.0"
@@ -78,7 +174,7 @@ jobs:
           retention-days: 7
 
   build:
-    needs: build-wasm
+    needs: [resolve, build-wasm]
     runs-on: ubuntu-latest
     # id-token: write lets the push-to-main wasm publish assume the AWS OIDC
     # deploy role (configure-aws-credentials); contents: read for checkout.
@@ -99,12 +195,46 @@ jobs:
       CDN_URL: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.DOCS_CDN_URL || '' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.ref }}
+
+      # The commit this run BUILT, which is github.sha for a push and the tip of
+      # the dispatched ref otherwise. It keys the wasm this run publishes to the
+      # CDN, so the two channels never write different bytes to one key: a
+      # production run dispatched from main carries main's github.sha while
+      # building docs/stable's tree.
+      - name: Record the commit being built
+        run: echo "BUILD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       # The neokapi docs site is downstream-clean by contract: zero bowrain
       # references in user-facing pages/landing, no bowrain video assets staged
       # here. Fails fast before the (slow) build.
       - name: Guard — neokapi docs must stay bowrain-clean
         run: ./scripts/check-docs-bowrain-clean.sh
+
+      # The production channel advertises the release it is built from, spliced
+      # here from that release's actual assets rather than carried as committed
+      # markdown. release-docs.yml still opens its rolling PR against main, so
+      # the next channel's committed page keeps up; production reads the release
+      # directly and so cannot drift from it.
+      #
+      # The script refuses when a platform has no asset on the release yet (the
+      # Windows binaries are signed out of band the morning after a release) and
+      # leaves the page untouched. The page then serves the links it carries and
+      # the next run picks the rest up. Runs before the pseudo-locale step, which
+      # reads the pages.
+      - name: Splice the stable release's download links
+        if: ${{ needs.resolve.outputs.channel == 'stable' && needs.resolve.outputs.stable_tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STABLE_TAG: ${{ needs.resolve.outputs.stable_tag }}
+        run: |
+          set -euo pipefail
+          if bash scripts/update-website-downloads.sh "$STABLE_TAG"; then
+            echo "installation page refreshed for ${STABLE_TAG}"
+          else
+            echo "::warning::${STABLE_TAG} is missing assets for at least one platform; the installation page keeps its committed links"
+          fi
 
       - uses: voidzero-dev/setup-vp@v1
         with:
@@ -190,7 +320,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' && env.CDN_URL != '' }}
         env:
           CDN_BUCKET: ${{ vars.CDN_BUCKET }}
-          CDN_VERSION: ${{ github.sha }}
+          CDN_VERSION: ${{ env.BUILD_SHA }}
         run: |
           bash scripts/publish-cdn-assets.sh wasm
           rm -rf web/static/wasm
@@ -200,26 +330,6 @@ jobs:
       # build clones nothing and generates nothing from an external plugin repo
       # (#1073) — a third-party plugin documents its own formats in its own
       # repository.
-
-      # web is a pnpm workspace member; its deps (and the @neokapi/*
-      # workspace packages it consumes) are installed by the `vp install` above.
-      - name: Determine base URL (production vs PR preview)
-        id: base
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          # Production serves the docs at the SITE ROOT ("/") of
-          # neokapi.github.io (the docs home is the product landing page). PR
-          # previews keep the /web/prs/<N>/neokapi/docs/ slot, because the deploy
-          # step (pages-deploy.yml) runs as a workflow_run from the DEFAULT
-          # branch and slots PR docs there — the build base must match that slot
-          # or the preview's assets 404. The two paths are each internally
-          # consistent.
-          if [ "${{ github.event_name }}" = "pull_request" ] && [ -n "$PR_NUMBER" ]; then
-            echo "docs_base=/web/prs/${PR_NUMBER}/neokapi/docs/" >> "$GITHUB_OUTPUT"
-          else
-            echo "docs_base=/" >> "$GITHUB_OUTPUT"
-          fi
 
       # The qps pseudo-locale is generated here, not committed — see
       # .github/actions/pseudo-locale for why. It must run BEFORE the build that
@@ -233,14 +343,21 @@ jobs:
         run: vp run build
         working-directory: web
         env:
-          DOCS_BASE_URL: ${{ steps.base.outputs.docs_base }}
+          DOCS_BASE_URL: ${{ needs.resolve.outputs.base }}
+          # Production ("stable") carries no banner; every other build is the
+          # next channel and says so on every page.
+          DOCS_CHANNEL: ${{ needs.resolve.outputs.channel }}
+          # Resolved from the published releases above, because the checkout is
+          # shallow and carries no tags for the config to describe.
+          DOCS_CHANNEL_VERSION: ${{ needs.resolve.outputs.channel_version }}
+          DOCS_STABLE_VERSION: ${{ needs.resolve.outputs.stable_version }}
           # Empty CDN_URL → assets resolve same-origin (unchanged). Set → vision
           # models, videos, and images load from the CDN. DOCS_CDN_VERSION points
           # wasm at /kapi/wasm/<sha>/ on the CDN and is set ONLY on push-to-main
           # (where the wasm publish step above ran). On PRs it stays empty, so
           # config.ts serves wasm same-origin while other assets use the CDN.
           DOCS_CDN_URL: ${{ env.CDN_URL }}
-          DOCS_CDN_VERSION: ${{ github.event_name != 'pull_request' && github.sha || '' }}
+          DOCS_CDN_VERSION: ${{ github.event_name != 'pull_request' && env.BUILD_SHA || '' }}
           # Cookieless analytics (see web/src/clientModules/analytics.ts). The
           # key is the PUBLIC client-side key already hardcoded in
           # _build-web.yml; set only on push so PR previews and forks never
@@ -249,9 +366,12 @@ jobs:
           POSTHOG_KEY: ${{ github.event_name != 'pull_request' && 'phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD' || '' }}
           POSTHOG_HOST: https://eu.i.posthog.com
 
+      # The artifact NAME carries the channel: pages-deploy.yml slots kapi-site
+      # at the site root and kapi-site-next under /next/, so neither deploy can
+      # reach the other's tree.
       - name: Upload kapi site artifact
         uses: actions/upload-artifact@v7
         with:
-          name: kapi-site
+          name: ${{ needs.resolve.outputs.artifact }}
           path: web/build
           retention-days: 7
