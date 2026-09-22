@@ -306,7 +306,10 @@ func TestRunAIPreReview_EmptyScope(t *testing.T) {
 // connection pool on the file the app is holding open.
 func commitAndReadUnits(t *testing.T, app *App, root string) []state.UnitState {
 	t.Helper()
-	_, err := app.hostEngine().SnapshotProjectContext(t.Context(), root, host.ContextSnapshotRequest{})
+	// The fixture's recipe is named for the project rather than `kapi.yaml`,
+	// so the snapshot is asked for by the recipe it holds.
+	recipe := filepath.Join(root, "project.kapi")
+	_, err := app.hostEngine().SnapshotProjectContext(t.Context(), recipe, host.ContextSnapshotRequest{})
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
