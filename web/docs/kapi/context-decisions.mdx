@@ -101,13 +101,13 @@ kapi context confirm 5
 
 ```
 #7  2026-09-21T19:37:02Z  person  confirm  of #5
-  written to terms.json
+  written to the project's terms store
 ```
 
-Confirming writes the rule into the file your recipe binds, so `git diff` shows
-the decision like any other change, and every command that reads your project's
-context sees it from there. From now on the rule bites at the severity it
-carries: `minor` and `neutral` report, and anything else fails a check.
+Confirming writes the rule into the project's store, where every command that
+reads your project's context sees it, on any branch and in any worktree. From
+now on the rule bites at the severity it carries: `minor` and `neutral` report,
+and anything else fails a check.
 
 Change the rule as you confirm it:
 
@@ -127,9 +127,9 @@ kapi context revert --session s4980103f5148
 ```
 
 Everything that run recorded stops answering, and any rule it got confirmed is
-taken back out of your terms, your voice profile or your content memory, and out
-of the committed file it was written into. What a check said before that run and
-what it says after the revert are the same answer.
+taken back out of your terms, your voice profile or your content memory. What a
+check said before that run and what it says after the revert are the same
+answer.
 
 Undo one operation with `kapi context revert 5`.
 
@@ -221,7 +221,7 @@ They are confirmed the moment they land, because you ran the command.
 
 ## What to read next
 
-- [Moving context](./context-portability.mdx) carries a project's context
-  between its files, its store and a backup file.
+- [Moving context](./context-portability.mdx) carries a project's context in and
+  out of its store, as a directory of files or as one backup file.
 - [Asking what applies](./context.mdx) answers what governs one place before
   you write there.
