@@ -564,24 +564,6 @@ func (a *App) loadBoundVoiceProfile(ctx context.Context, bv *project.VoiceBindin
 	return nil, "", false, nil
 }
 
-// loadProfileFile loads a VoiceProfile YAML from path. Returns (nil, nil) when
-// the file does not exist so callers can fall through to other sources.
-func loadProfileFile(path string) (*coreprofile.VoiceProfile, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("open profile %q: %w", path, err)
-	}
-	defer f.Close()
-	p, err := coreprofile.LoadProfileYAML(f)
-	if err != nil {
-		return nil, fmt.Errorf("load profile %q: %w", path, err)
-	}
-	return p, nil
-}
-
 // lookupStoreProfile finds a profile in the voice store this command resolves,
 // by ID or by name.
 func (a *App) lookupStoreProfile(cmd Command, name string) (*coreprofile.VoiceProfile, error) {
