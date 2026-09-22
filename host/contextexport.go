@@ -87,9 +87,6 @@ type ContextExport struct {
 	Entries       int `json:"entries"`
 	VoiceProfiles int `json:"voiceProfiles"`
 	Decisions     int `json:"decisions"`
-	// Committed counts the lines the write put into the committed record on
-	// the way, the same write `kapi commit` makes.
-	Committed int `json:"committed,omitempty"`
 }
 
 // FormatText renders the export for a reader.
@@ -136,9 +133,8 @@ func (r ContextRestore) FormatText(w io.Writer) error {
 
 // ExportProjectContext writes the project's whole context to one bundle.
 //
-// The committed record is written first, the same write `kapi context snapshot`
-// makes, so the bundle carries the project's record rather than a divergent
-// copy of it.
+// Everything in the bundle comes out of the store, so the export reads no file
+// in the checkout and writes none but the bundle itself.
 func (a *App) ExportProjectContext(ctx context.Context, projectPath, out string) (ContextExport, error) {
 	var res ContextExport
 
@@ -153,12 +149,6 @@ func (a *App) ExportProjectContext(ctx context.Context, projectPath, out string)
 	if err != nil {
 		return res, err
 	}
-	commit, err := a.CommitProjectStateReport(ctx, layout.Root, false)
-	if err != nil {
-		return res, err
-	}
-	res.Committed = commit.Committed
-
 	stores := contextStoresOf(ctx, db)
 	if st := db.Work(); st != nil {
 		// The ledger, not this checkout's view of it: a project whose branches
@@ -175,9 +165,7 @@ func (a *App) ExportProjectContext(ctx context.Context, projectPath, out string)
 	if !pkg.HasContent() {
 		return res, errors.New("this project's store holds no context to export")
 	}
-	written, err := writeContextBundle(pkg, out)
-	written.Committed = res.Committed
-	return written, err
+	return writeContextBundle(pkg, out)
 }
 
 // contextStoresOf names a project store's authored subsystems.

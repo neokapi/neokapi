@@ -346,15 +346,6 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		if cres != nil {
 			conn.ObserveTermsRef(cres.TermsRef)
 		}
-		// The terminology return leg: reviewed decisions the pull brought back
-		// are merged into the committed terms source, so they are reviewable in
-		// `git diff` rather than living only in the gitignored store. Silence
-		// when the merge changed nothing, which is the ordinary night.
-		if cres != nil && !app.Quiet && !jsonOut {
-			if line := cli.FormatTermsProjection(cres.Projection); line != "" {
-				fmt.Fprintln(stderr, line)
-			}
-		}
 	}
 
 	// Recipe post-pull automations run after the pull (sync parity: e.g.

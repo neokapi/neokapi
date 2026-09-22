@@ -156,9 +156,19 @@ func TestRefresh_NorthseaDrift(t *testing.T) {
 			`{"kind":"term","op":"upsert","term":"Tidewatch","locale":"en-GB","status":"deprecated","replacement":"Tideguard"}`+"\n"+
 			`{"kind":"voice","op":"add-rule","list":"preferred","term":"Tideguard"}`+"\n"), 0o644))
 
+	// The profile the recipe binds is read into the store before a rule can
+	// land in it: the file in the checkout is an artifact, and one command
+	// reads it.
+	importOut := runContext(t, a, "import", "-p", recipe)
+	assert.Contains(t, importOut, "voice profile")
+
 	applyOut, err := runCLI(t, NewApplyCmd(a), changeset, "--project", recipe)
 	require.NoError(t, err, applyOut)
 	assert.NotContains(t, applyOut, "error", applyOut)
+
+	// Written back out, the decisions are in the files a reviewer reads, and
+	// the profile still carries the commentary its author wrote.
+	runContext(t, a, "snapshot", "-p", recipe)
 
 	terms := readFile(t, filepath.Join(root, ".kapi", "terms.json"))
 	assert.Contains(t, terms, "Tideguard")

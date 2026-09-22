@@ -161,8 +161,8 @@ type PullOutput struct {
 	ItemsRetired int `json:"items_retired,omitempty"`
 	// DecisionsStaged is how many server-ledger decisions the pull recorded
 	// into the project's decision ledger. The field name is a rename
-	// boundary: the wire keeps it. A recorded decision is durable at once,
-	// and kapi commit exports the record to .kapi/state/.
+	// boundary: the wire keeps it. A recorded decision is durable the moment
+	// it arrives, and `kapi context snapshot` writes the record out as files.
 	DecisionsStaged int    `json:"decisions_staged,omitempty"`
 	Stream          string `json:"stream,omitempty"`
 	DryRun          bool   `json:"dry_run,omitempty"`
@@ -171,11 +171,6 @@ type PullOutput struct {
 	// Concept sync (governed terminology pulled into the local terms).
 	ConceptsPulled         int `json:"concepts_pulled,omitempty"`
 	ConceptRelationsPulled int `json:"concept_relations_pulled,omitempty"`
-	// TermsProjection is the one-line report of the return leg into the
-	// committed terms source, empty when the merge changed nothing. Nothing
-	// changing is the ordinary outcome and must read as silence, not as a
-	// zero-valued line a reader could mistake for work.
-	TermsProjection string `json:"terms_projection,omitempty"`
 
 	// Context sync. CollectionsObserved is how many collections the server
 	// reported; GovernanceDiverged names the recipe-owned ones the server
@@ -203,7 +198,7 @@ func (o PullOutput) FormatText(w io.Writer) error {
 			fmt.Fprintf(w, "Updated %d file(s)\n", o.FilesWritten)
 		}
 		if o.DecisionsStaged > 0 {
-			fmt.Fprintf(w, "Recorded %d unit-state update(s) from the server ledger. `kapi commit` writes them to .kapi/state/\n", o.DecisionsStaged)
+			fmt.Fprintf(w, "Recorded %d unit-state update(s) from the server ledger\n", o.DecisionsStaged)
 		}
 		if o.ItemsRetired > 0 {
 			fmt.Fprintf(w, "Skipped %d retired item(s): the server still holds them, this checkout no longer does\n", o.ItemsRetired)
@@ -216,9 +211,6 @@ func (o PullOutput) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintf(w, "%s %d governed concept(s), %d relation(s) into the local terms\n",
 			verb, o.ConceptsPulled, o.ConceptRelationsPulled)
-	}
-	if o.TermsProjection != "" {
-		fmt.Fprintln(w, o.TermsProjection)
 	}
 	if len(o.GovernanceDiverged) > 0 {
 		// The detail names the differing part; the bare names are the fallback

@@ -3,23 +3,22 @@ package host
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
-	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/core/project"
 )
 
 // land writes a confirmed rule where the subsystems that read context already
 // look.
 //
 // A project-scoped rule goes through the same appliers `kapi apply` uses: into
-// the committed source the recipe binds, and from there into the project's
-// terms store, voice profile or content memory. Every reader downstream, from a
-// check to `kapi context snapshot` to the governing fingerprint, sees it
-// without being taught anything new, and `git diff` shows what changed.
+// the project's terms store, the voice profile the recipe binds by name, or the
+// project's content memory. Every reader downstream, from a check to the
+// governing fingerprint, sees it without being taught anything new. The log is
+// the history, and the store is where the rule lives.
 //
 // A rule widened to the workspace has no project to live in, so it goes into
 // the workspace's rule store instead, and the project copy is taken back out:
@@ -61,8 +60,7 @@ func (s *contextOpsSession) retract(ctx context.Context, r contextop.Record) (st
 	return s.retractFromProject(ctx, r)
 }
 
-// retractFromProject removes a rule from the committed source the recipe binds
-// and from the store that source compiles into.
+// retractFromProject removes a rule from the store a confirmation wrote it to.
 func (s *contextOpsSession) retractFromProject(ctx context.Context, r contextop.Record) (string, error) {
 	switch r.Subject.Kind {
 	case contextop.SubjectTerm:
@@ -122,63 +120,59 @@ func (s *contextOpsSession) sourceLocale() string {
 	return "en"
 }
 
-// retractTerm removes a term from the committed terms source and rebuilds the
-// concept it sat in.
+// retractTerm removes a term from the project's terms store.
 //
-// The concept is deleted from the store and re-imported from the source rather
-// than edited in place: a term added to a concept that already existed must
-// leave that concept's other terms standing, and re-importing what the source
-// still declares is the only way to be sure of that.
+// The term goes and the concept stands, because a term confirmed into a concept
+// that already existed must leave that concept's other terms where they are. A
+// concept the term was alone in goes with it.
 func (s *contextOpsSession) retractTerm(ctx context.Context, rule coreprofile.TermRule) (string, error) {
-	srcPath, err := s.app.ensureTermsSourceBinding(s.recipe, s.root)
-	if err != nil {
-		return "", err
-	}
-	file, err := loadKTBFile(srcPath)
-	if err != nil {
-		return "", err
-	}
-	locale := model.NormalizeLocale(model.LocaleID(s.sourceLocale()))
-	ci := indexOfTerm(file.Concepts, rule.Term, locale)
-	if ci < 0 {
-		return "", nil
-	}
-	conceptID := file.Concepts[ci].ID
-	ti := termIndex(&file.Concepts[ci], rule.Term, locale)
-	file.Concepts[ci].Terms = append(file.Concepts[ci].Terms[:ti], file.Concepts[ci].Terms[ti+1:]...)
-	if len(file.Concepts[ci].Terms) == 0 {
-		file.Concepts = append(file.Concepts[:ci], file.Concepts[ci+1:]...)
-	}
-	if _, err := writeKTB(srcPath, file); err != nil {
-		return "", err
-	}
-
 	db, err := s.app.ProjectDB(ctx, s.root)
 	if err != nil {
 		return "", err
 	}
-	if store := db.Terms(); store != nil {
+	store := db.Terms()
+	if store == nil {
+		return "", nil
+	}
+	concepts, err := store.Concepts(ctx)
+	if err != nil {
+		return "", fmt.Errorf("read the project's terms: %w", err)
+	}
+	locale := model.NormalizeLocale(model.LocaleID(s.sourceLocale()))
+	ci := indexOfTerm(concepts, rule.Term, locale)
+	if ci < 0 {
+		return "", nil
+	}
+	concept := concepts[ci]
+	ti := termIndex(&concept, rule.Term, locale)
+	concept.Terms = append(concept.Terms[:ti], concept.Terms[ti+1:]...)
+	if len(concept.Terms) == 0 {
 		// A concept the store never held is what a retraction of a rule someone
-		// removed by hand meets, and the source is already correct.
-		if err := store.DeleteConcept(ctx, conceptID); err != nil && !strings.Contains(err.Error(), "concept not found") {
+		// removed by hand meets.
+		if err := store.DeleteConcept(ctx, concept.ID); err != nil && !strings.Contains(err.Error(), "concept not found") {
 			return "", fmt.Errorf("retract term %q: %w", rule.Term, err)
 		}
+		return landedTerms, nil
 	}
-	if err := s.app.compileTermsSource(ctx, s.root, srcPath); err != nil {
-		return "", err
+	if err := store.AddConcept(ctx, concept); err != nil {
+		return "", fmt.Errorf("retract term %q: %w", rule.Term, err)
 	}
-	return filepath.Base(srcPath), nil
+	return landedTerms, nil
 }
 
-// retractVoiceRule removes a rule from the committed voice profile and
-// re-imports the profile, which replaces the stored copy wholesale.
+// retractVoiceRule removes a rule from the voice profile the recipe binds. A
+// project that binds no profile holds no rule to take out.
 func (s *contextOpsSession) retractVoiceRule(ctx context.Context, voice contextop.VoiceRule) (string, error) {
-	profilePath, err := s.app.ensureVoiceProfileBinding(s.recipe, s.root)
+	db, err := s.app.ProjectDB(ctx, s.root)
 	if err != nil {
 		return "", err
 	}
-	prof, err := loadOrInitProfile(profilePath, s.root)
-	if err != nil {
+	store := db.Voice()
+	if store == nil {
+		return "", nil
+	}
+	prof, _, found, err := s.app.loadVoiceAtGovernance(ctx, s.root, store, s.defaultGovernance())
+	if err != nil || !found || prof == nil {
 		return "", err
 	}
 	list := voiceRuleList(prof, voice.List)
@@ -195,57 +189,44 @@ func (s *contextOpsSession) retractVoiceRule(ctx context.Context, voice contexto
 		return "", nil
 	}
 	*list = kept
-	if err := writeProfileYAML(profilePath, prof); err != nil {
-		return "", err
+	if err := store.UpdateProfile(ctx, prof); err != nil {
+		return "", fmt.Errorf("retract voice rule %q: %w", voice.Rule.Term, err)
 	}
-	if err := s.app.compileVoiceProfile(ctx, s.cmd, profilePath); err != nil {
-		return "", err
-	}
-	return filepath.Base(profilePath), nil
+	return landedVoice + prof.ID, nil
 }
 
-// retractMemoryPair removes a pair from the committed memory bundle and from
-// the project's content memory.
+// defaultGovernance resolves what governs the project as a whole, which is the
+// point a project-scoped rule was confirmed at.
+func (s *contextOpsSession) defaultGovernance() *project.ResolvedGovernance {
+	rc, err := s.proj.ResolveGovernanceFor(project.GovernancePoint{At: s.app.GovernanceInstant()})
+	if err != nil {
+		return nil
+	}
+	return rc
+}
+
+// retractMemoryPair removes a pair from the project's content memory.
 func (s *contextOpsSession) retractMemoryPair(ctx context.Context, pair contextop.MemoryPair) (string, error) {
-	srcPath, err := s.app.ensureMemorySourceBinding(s.recipe, s.root)
+	db, err := s.app.ProjectDB(ctx, s.root)
 	if err != nil {
 		return "", err
 	}
-	entries, err := loadKMBEntries(srcPath)
-	if err != nil {
-		return "", err
+	store := db.Memory()
+	if store == nil {
+		return "", nil
 	}
 	srcLocale := model.NormalizeLocale(model.LocaleID(pair.SourceLocale))
 	if srcLocale == "" {
 		srcLocale = model.NormalizeLocale(model.LocaleID(s.sourceLocale()))
 	}
 	id := memoryEntryID(pair.Source, srcLocale, model.LocaleID(pair.TargetLocale))
-	kept := make([]memory.Entry, 0, len(entries))
-	removed := false
-	for _, e := range entries {
-		if e.ID == id {
-			removed = true
-			continue
-		}
-		kept = append(kept, e)
-	}
-	if !removed {
+	if _, held, err := store.GetEntry(ctx, id); err != nil {
+		return "", fmt.Errorf("read the project's content memory: %w", err)
+	} else if !held {
 		return "", nil
 	}
-	if err := writeKMB(srcPath, kept); err != nil {
-		return "", err
+	if err := store.Delete(ctx, id); err != nil {
+		return "", fmt.Errorf("retract content-memory pair: %w", err)
 	}
-	db, err := s.app.ProjectDB(ctx, s.root)
-	if err != nil {
-		return "", err
-	}
-	if store := db.Memory(); store != nil {
-		if err := store.Delete(ctx, id); err != nil {
-			return "", fmt.Errorf("retract content-memory pair: %w", err)
-		}
-	}
-	if err := s.app.compileMemorySource(ctx, s.root, srcPath); err != nil {
-		return "", err
-	}
-	return filepath.Base(srcPath), nil
+	return landedMemory, nil
 }

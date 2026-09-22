@@ -11,7 +11,6 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
-	"github.com/neokapi/neokapi/terms/ktb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,8 +40,8 @@ func newApplyAssetProject(t *testing.T) (a *App, cmd *EnvCommand, root, recipe s
 	return a, cmd, dir, recipe
 }
 
-func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
-	a, cmd, root, recipe := newApplyAssetProject(t)
+func TestApplyTermEntry_LandsInTheTermsStore(t *testing.T) {
+	a, cmd, root, _ := newApplyAssetProject(t)
 	ctx := context.Background()
 
 	e := changeEntry{
@@ -57,56 +56,34 @@ func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	res := a.applyAssetEntry(ctx, cmd, e)
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
-	// 1. The committed .terms.json source was written and bound in the recipe.
-	srcPath := filepath.Join(root, project.RelStatePath("terms.json"))
-	require.FileExists(t, srcPath)
-
-	proj, err := project.Load(recipe)
-	require.NoError(t, err)
-	require.Equal(t, project.RelStatePath("terms.json"), proj.Defaults.TermsSource)
-
-	data, err := os.ReadFile(srcPath)
-	require.NoError(t, err)
-	file, err := ktb.Unmarshal(data)
-	require.NoError(t, err)
-	require.Len(t, file.Concepts, 1)
-	require.Len(t, file.Concepts[0].Terms, 1)
-	assert.Equal(t, "sign in", file.Concepts[0].Terms[0].Text)
-	assert.Equal(t, model.TermPreferred, file.Concepts[0].Terms[0].Status)
-
-	// 2. The project store's vocabulary was compiled from the source. There is
-	// no second file to point at any more, so the assertion is on the store the
-	// App already holds — the same one every term-aware command reads.
-	require.FileExists(t, project.LayoutAt(root).StorePath())
+	// The project's terms store holds the decision, and it is the only place
+	// that does: no bundle is written and none is bound.
+	assert.NoFileExists(t, filepath.Join(root, project.RelStatePath("terms.json")))
 	db, err := a.ProjectDB(ctx, root)
 	require.NoError(t, err)
-	n, err := db.Terms().Count(ctx)
+	concepts, err := db.Terms().Concepts(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, 1, n)
+	require.Len(t, concepts, 1)
+	require.Len(t, concepts[0].Terms, 1)
+	assert.Equal(t, "sign in", concepts[0].Terms[0].Text)
+	assert.Equal(t, model.TermPreferred, concepts[0].Terms[0].Status)
 
-	// 3. Idempotent re-run → skipped, no rewrite.
-	before, err := os.ReadFile(srcPath)
-	require.NoError(t, err)
+	// Idempotent re-run.
 	res2 := a.applyAssetEntry(ctx, cmd, e)
 	assert.Equal(t, "skipped", res2.Status)
-	after, err := os.ReadFile(srcPath)
-	require.NoError(t, err)
-	assert.Equal(t, before, after, "skipped re-run must not rewrite the source")
 
-	// 4. A second, different term upserts → applied, two concepts.
+	// A second, different term upserts into a concept of its own.
 	res3 := a.applyAssetEntry(ctx, cmd, changeEntry{
 		Kind: kindTerm, Op: "upsert", Term: "dashboard", Locale: "en", Status: "preferred",
 	})
 	require.Equal(t, "applied", res3.Status, "detail: %s", res3.Detail)
-	data, err = os.ReadFile(srcPath)
+	concepts, err = db.Terms().Concepts(ctx)
 	require.NoError(t, err)
-	file, err = ktb.Unmarshal(data)
-	require.NoError(t, err)
-	assert.Len(t, file.Concepts, 2)
+	assert.Len(t, concepts, 2)
 }
 
-func TestApplyMemoryEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
-	a, cmd, root, recipe := newApplyAssetProject(t)
+func TestApplyMemoryEntry_LandsInTheContentMemory(t *testing.T) {
+	a, cmd, root, _ := newApplyAssetProject(t)
 	ctx := context.Background()
 
 	e := changeEntry{
@@ -121,15 +98,7 @@ func TestApplyMemoryEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	res := a.applyAssetEntry(ctx, cmd, e)
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
-	srcPath := filepath.Join(root, project.RelStatePath(project.MemoryDirName, "memory.json"))
-	require.FileExists(t, srcPath)
-
-	proj, err := project.Load(recipe)
-	require.NoError(t, err)
-	require.Equal(t, project.RelStatePath(project.MemoryDirName, "memory.json"), proj.Defaults.MemorySource)
-
-	// Compiled into the project store, which now holds the pair.
-	require.FileExists(t, project.LayoutAt(root).StorePath())
+	assert.NoDirExists(t, filepath.Join(root, project.RelStatePath(project.MemoryDirName)))
 	db, err := a.ProjectDB(ctx, root)
 	require.NoError(t, err)
 	got := lookupMemoryTarget(t, ctx, db.Memory(), "Welcome back", "en", "fr")
@@ -159,7 +128,7 @@ func TestApplyMemoryEntry_reviewStatus(t *testing.T) {
 	assert.Contains(t, res2.Detail, "status")
 }
 
-func TestApplyVoiceEntry_writesProfileCompilesStore(t *testing.T) {
+func TestApplyVoiceEntry_LandsInTheVoiceStore(t *testing.T) {
 	a, cmd, root, recipe := newApplyAssetProject(t)
 	ctx := context.Background()
 
@@ -175,13 +144,23 @@ func TestApplyVoiceEntry_writesProfileCompilesStore(t *testing.T) {
 	res := a.applyAssetEntry(ctx, cmd, e)
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
-	profilePath := filepath.Join(root, project.RelStatePath("voice.yaml"))
-	require.FileExists(t, profilePath)
-
+	// The rule is in the store, and the recipe binds the profile by NAME: a
+	// project with no voice gets one of its own, which is configuration.
+	assert.NoFileExists(t, filepath.Join(root, project.RelStatePath("voice.yaml")))
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	require.NotNil(t, proj.Defaults.Voice)
-	assert.Equal(t, project.RelStatePath("voice.yaml"), proj.Defaults.Voice.ProfileFile)
+	require.NotEmpty(t, proj.Defaults.Voice.Profile)
+	assert.Empty(t, proj.Defaults.Voice.ProfileFile, "nothing binds a path")
+
+	store, release, err := a.ProjectVoiceStore(ctx, root)
+	require.NoError(t, err)
+	defer release()
+	prof, err := store.GetProfile(ctx, proj.Defaults.Voice.Profile)
+	require.NoError(t, err)
+	require.Len(t, prof.Vocabulary.ForbiddenTerms, 1)
+	assert.Equal(t, "utilize", prof.Vocabulary.ForbiddenTerms[0].Term)
+	assert.Equal(t, "use", prof.Vocabulary.ForbiddenTerms[0].Replacement)
 
 	// Idempotent re-run.
 	res2 := a.applyAssetEntry(ctx, cmd, e)
@@ -331,7 +310,7 @@ func TestUpsertTerm_JoinsTheConceptItAnswers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, changed := upsertTerm(tt.concepts, tt.decision)
+			got, _, changed := upsertTerm(tt.concepts, tt.decision)
 			assert.Equal(t, tt.wantChanged, changed)
 
 			idx := -1
@@ -349,7 +328,7 @@ func TestUpsertTerm_JoinsTheConceptItAnswers(t *testing.T) {
 			assert.Equal(t, tt.wantTerms, have)
 
 			// Re-applying the same decision is a no-op, whichever way it landed.
-			_, again := upsertTerm(got, tt.decision)
+			_, _, again := upsertTerm(got, tt.decision)
 			assert.False(t, again, "apply must be idempotent")
 		})
 	}
@@ -364,7 +343,7 @@ func TestUpsertTerm_ReplacementIsNeverDeclaredTwice(t *testing.T) {
 		{ID: "c-dock", Terms: []terms.Term{{Text: "dock", Locale: "en-GB", Status: model.TermProposed}}},
 	}
 
-	got, changed := upsertTerm(concepts, termDecision{
+	got, _, changed := upsertTerm(concepts, termDecision{
 		Text: "dock", Locale: "en-GB", Status: model.TermForbidden, Replacement: "berth",
 	})
 	require.True(t, changed)

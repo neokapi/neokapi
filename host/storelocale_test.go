@@ -53,7 +53,6 @@ func TestStatus_WarnsWhenTheStoreHoldsNonCanonicalLocales(t *testing.T) {
 	stderr := runStatusStderr(t, p)
 	assert.Contains(t, stderr, `block cache: 1 row(s) under "targets/nb_NO" (lookups ask for "targets/nb-NO")`)
 	assert.Contains(t, stderr, "delete .kapi/work/store.db, then run `kapi up`")
-	assert.Contains(t, stderr, "`kapi commit`")
 	assert.NotContains(t, stderr, "kapi context locales",
 		"a projection row is rebuilt, and the verb that moves authored rows is not offered for it")
 	assert.Equal(t, 1, countOf(stderr, "locale spelling"), "said once")

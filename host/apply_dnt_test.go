@@ -8,15 +8,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/terms/ktb"
 )
 
 // TestApplyTermEntry_SetsDoNotTranslate: a term entry that names
-// do_not_translate sets the flag on its concept in the committed terms source,
-// and the store compiled from it agrees. An entry that omits the flag leaves it,
-// and one that names false clears it.
+// do_not_translate sets the flag on its concept in the project's terms store.
+// An entry that omits the flag leaves it, and one that names false clears it.
 func TestApplyTermEntry_SetsDoNotTranslate(t *testing.T) {
 	a, cmd, root, _ := newApplyAssetProject(t)
 	ctx := context.Background()
@@ -30,18 +26,12 @@ func TestApplyTermEntry_SetsDoNotTranslate(t *testing.T) {
 	}
 	flag := func() bool {
 		t.Helper()
-		data, err := os.ReadFile(filepath.Join(root, project.RelStatePath(ktb.ConventionalName)))
-		require.NoError(t, err)
-		file, err := ktb.Unmarshal(data)
-		require.NoError(t, err)
-		require.Len(t, file.Concepts, 1)
 		db, err := a.ProjectDB(ctx, root)
 		require.NoError(t, err)
-		stored, ok, err := db.Terms().GetConcept(ctx, file.Concepts[0].ID)
+		concepts, err := db.Terms().Concepts(ctx)
 		require.NoError(t, err)
-		require.True(t, ok)
-		assert.Equal(t, file.Concepts[0].DoNotTranslate, stored.DoNotTranslate, "the store compiles the committed flag")
-		return file.Concepts[0].DoNotTranslate
+		require.Len(t, concepts, 1)
+		return concepts[0].DoNotTranslate
 	}
 
 	apply(`{"kind": "term", "op": "upsert", "term": "kapi", "locale": "en", "status": "preferred", "do_not_translate": true}`)

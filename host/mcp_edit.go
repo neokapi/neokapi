@@ -49,8 +49,8 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and " +
 			"hashes with extract_content. The replacement field is for voice rules. Content edits land through the " +
 			"byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); " +
-			"asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their " +
-			"committed source and compiled into the cache. No AI provider is used. Read the " +
+			"asset edits (terms entry, content memory pair, voice rule) are written to the project's stores and " +
+			"recorded in its context history, and a recipe field is written to kapi.yaml. No AI provider is used. Read the " +
 			"context://<project-relative-path> resource before editing content, then run check_file on " +
 			"each changed file to review findings and analyzer coverage. For a code comment, an entry uses kind=comment, file, " +
 			"id and lines (as check_file reports them, such as func/Parse), comment_sha256 (the fingerprint check_file reports " +
@@ -100,7 +100,7 @@ func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallT
 		case kindComment:
 			comments = append(comments, e)
 		case kindTerm, kindMemory, kindVoice, kindRecipe:
-			out.Assets = append(out.Assets, a.applyAssetEntry(ctx, cmd, e))
+			out.Assets = append(out.Assets, a.applyRecordedAssetEntry(ctx, cmd, e))
 		case "":
 			return nil, applyEditsMCPOutput{}, errors.New("change-set entry has no \"kind\"")
 		default:

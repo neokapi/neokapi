@@ -241,6 +241,17 @@ export class ContextAnswer {
              */
             this["notes"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Notice names the context files this checkout carries whose project store
+             * has never held context, and the command that reads them. An answer
+             * carrying one is thin because nothing has been read in, which a caller
+             * cannot otherwise tell from a project that governs nothing here.
+             * @member
+             * @type {ContextFilesNotice | null | undefined}
+             */
+            this["notice"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -259,6 +270,7 @@ export class ContextAnswer {
         const $$createField8_0 = $$createType10;
         const $$createField9_0 = $$createType12;
         const $$createField10_0 = $$createType13;
+        const $$createField11_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField0_0($$parsedSource["constraints"]);
@@ -283,6 +295,9 @@ export class ContextAnswer {
         }
         if ("notes" in $$parsedSource) {
             $$parsedSource["notes"] = $$createField10_0($$parsedSource["notes"]);
+        }
+        if ("notice" in $$parsedSource) {
+            $$parsedSource["notice"] = $$createField11_0($$parsedSource["notice"]);
         }
         return new ContextAnswer(/** @type {Partial<ContextAnswer>} */($$parsedSource));
     }
@@ -419,7 +434,7 @@ export class ContextCandidate {
      * @returns {ContextCandidate}
      */
     static createFrom($$source = {}) {
-        const $$createField12_0 = $$createType15;
+        const $$createField12_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("evidence" in $$parsedSource) {
             $$parsedSource["evidence"] = $$createField12_0($$parsedSource["evidence"]);
@@ -456,6 +471,52 @@ export const ContextCoverage = {
      */
     CoverageCovered: "covered",
 };
+
+/**
+ * ContextFilesNotice names the context files a checkout holds and the command
+ * that reads them.
+ */
+export class ContextFilesNotice {
+    /**
+     * Creates a new ContextFilesNotice instance.
+     * @param {Partial<ContextFilesNotice>} [$$source = {}] - The source object to create the ContextFilesNotice.
+     */
+    constructor($$source = {}) {
+        if (!("files" in $$source)) {
+            /**
+             * Files are project-relative and sorted. A file outside the project is
+             * named by its own path.
+             * @member
+             * @type {string[]}
+             */
+            this["files"] = [];
+        }
+        if (!("command" in $$source)) {
+            /**
+             * Command is what reads them.
+             * @member
+             * @type {string}
+             */
+            this["command"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextFilesNotice instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextFilesNotice}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType13;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
+        }
+        return new ContextFilesNotice(/** @type {Partial<ContextFilesNotice>} */($$parsedSource));
+    }
+}
 
 /**
  * ContextPoint is the coordinate an answer is about.
@@ -536,7 +597,7 @@ export class ContextPoint {
      * @returns {ContextPoint}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType16;
+        const $$createField5_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coordinates" in $$parsedSource) {
             $$parsedSource["coordinates"] = $$createField5_0($$parsedSource["coordinates"]);
@@ -737,6 +798,17 @@ export class ContextSearchResult {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Notice names the context files this checkout carries whose project store
+             * has never held context, and the command that reads them. An answer
+             * carrying one is empty because nothing has been read in, which a caller
+             * cannot otherwise tell from a project that holds nothing.
+             * @member
+             * @type {ContextFilesNotice | null | undefined}
+             */
+            this["notice"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Terms are concepts whose terms or definition match — what the project
              * calls this, and whether it is discouraged.
              * @member
@@ -791,25 +863,29 @@ export class ContextSearchResult {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType4;
-        const $$createField4_0 = $$createType8;
-        const $$createField5_0 = $$createType18;
-        const $$createField6_0 = $$createType12;
-        const $$createField7_0 = $$createType13;
+        const $$createField4_0 = $$createType15;
+        const $$createField5_0 = $$createType8;
+        const $$createField6_0 = $$createType20;
+        const $$createField7_0 = $$createType12;
+        const $$createField8_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("provenance" in $$parsedSource) {
             $$parsedSource["provenance"] = $$createField3_0($$parsedSource["provenance"]);
         }
+        if ("notice" in $$parsedSource) {
+            $$parsedSource["notice"] = $$createField4_0($$parsedSource["notice"]);
+        }
         if ("terms" in $$parsedSource) {
-            $$parsedSource["terms"] = $$createField4_0($$parsedSource["terms"]);
+            $$parsedSource["terms"] = $$createField5_0($$parsedSource["terms"]);
         }
         if ("precedent" in $$parsedSource) {
-            $$parsedSource["precedent"] = $$createField5_0($$parsedSource["precedent"]);
+            $$parsedSource["precedent"] = $$createField6_0($$parsedSource["precedent"]);
         }
         if ("profiles" in $$parsedSource) {
-            $$parsedSource["profiles"] = $$createField6_0($$parsedSource["profiles"]);
+            $$parsedSource["profiles"] = $$createField7_0($$parsedSource["profiles"]);
         }
         if ("notes" in $$parsedSource) {
-            $$parsedSource["notes"] = $$createField7_0($$parsedSource["notes"]);
+            $$parsedSource["notes"] = $$createField8_0($$parsedSource["notes"]);
         }
         return new ContextSearchResult(/** @type {Partial<ContextSearchResult>} */($$parsedSource));
     }
@@ -951,7 +1027,7 @@ export class ContextTermHit {
      * @returns {ContextTermHit}
      */
     static createFrom($$source = {}) {
-        const $$createField12_0 = $$createType20;
+        const $$createField12_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("top_uses" in $$parsedSource) {
             $$parsedSource["top_uses"] = $$createField12_0($$parsedSource["top_uses"]);
@@ -1293,7 +1369,7 @@ export class ConvergeLocaleResult {
      * @returns {ConvergeLocaleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType21;
+        const $$createField4_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField4_0($$parsedSource["pct"]);
@@ -1474,9 +1550,9 @@ export class ConvergeOutput {
      * @returns {ConvergeOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType23;
-        const $$createField4_0 = $$createType25;
-        const $$createField15_0 = $$createType27;
+        const $$createField3_0 = $$createType25;
+        const $$createField4_0 = $$createType27;
+        const $$createField15_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -1725,9 +1801,9 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType29;
-        const $$createField4_0 = $$createType28;
-        const $$createField8_0 = $$createType27;
+        const $$createField3_0 = $$createType31;
+        const $$createField4_0 = $$createType30;
+        const $$createField8_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -1928,19 +2004,21 @@ const $$createType10 = $Create.Array($$createType9);
 const $$createType11 = review$0.ProfileValidity.createFrom;
 const $$createType12 = $Create.Array($$createType11);
 const $$createType13 = $Create.Array($Create.Any);
-const $$createType14 = contextop$0.Evidence.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = $Create.Map($Create.Any, $Create.Any);
-const $$createType17 = ContextPrecedentHit.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = ContextTermUse.createFrom;
+const $$createType14 = ContextFilesNotice.createFrom;
+const $$createType15 = $Create.Nullable($$createType14);
+const $$createType16 = contextop$0.Evidence.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = $Create.Map($Create.Any, $Create.Any);
+const $$createType19 = ContextPrecedentHit.createFrom;
 const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = $Create.Map($Create.Any, $Create.Any);
-const $$createType22 = ConvergeLocaleResult.createFrom;
-const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = ParkedScope.createFrom;
+const $$createType21 = ContextTermUse.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = $Create.Map($Create.Any, $Create.Any);
+const $$createType24 = ConvergeLocaleResult.createFrom;
 const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = check$0.Warning.createFrom;
+const $$createType26 = ParkedScope.createFrom;
 const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = UpPlanScope.createFrom;
+const $$createType28 = check$0.Warning.createFrom;
 const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = UpPlanScope.createFrom;
+const $$createType31 = $Create.Array($$createType30);

@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/contextop"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	bproject "github.com/neokapi/neokapi/host/venue/project"
 	"github.com/neokapi/neokapi/terms"
@@ -59,15 +60,20 @@ func returnLegServer(t *testing.T) *httptest.Server {
 	return srv
 }
 
-// newReturnLegProject writes a workspace-connected project whose committed terms
-// source already carries an authored concept the workspace has never seen.
+// newReturnLegProject writes a workspace-connected project whose checkout still
+// carries a terms bundle from the old layout, so a test can watch the pull
+// leave it alone.
 func newReturnLegProject(t *testing.T, srvURL string) (*bproject.Project, string) {
 	t.Helper()
 	root := t.TempDir()
-	proj, err := bproject.InitProject(root, &bproject.Recipe{
-		Defaults: coreproj.Defaults{
-			SourceLanguage: "en",
-			TermsSource:    coreproj.RelStatePath(ktb.ConventionalName),
+	proj, err := bproject.InitProject(root, &bproject.Recipe{ //nolint:modernize // the embedded type is named, so the recipe's two halves read as two things
+		KapiProject: coreproj.KapiProject{
+			ID:   "prj_returnleg22222222222222",
+			Name: "return leg",
+			Defaults: coreproj.Defaults{
+				SourceLanguage: "en",
+				TermsSource:    coreproj.RelStatePath(ktb.ConventionalName),
+			},
 		},
 		Server: &bproject.ServerSpec{URL: srvURL + "/acme/proj1", Stream: "main"},
 	})
@@ -87,84 +93,98 @@ func newReturnLegProject(t *testing.T, srvURL string) (*bproject.Project, string
 	return proj, srcPath
 }
 
-func readTermsSource(t *testing.T, path string) *ktb.File {
+// returnLegApp installs a host App for the duration of one test, so the pull
+// reaches a project store and a context log of its own.
+func returnLegApp(t *testing.T) {
 	t.Helper()
-	data, err := os.ReadFile(path)
-	require.NoError(t, err)
-	file, err := ktb.Unmarshal(data)
-	require.NoError(t, err)
-	return file
-}
-
-func hasConcept(f *ktb.File, id string) bool {
-	for _, c := range f.Concepts {
-		if c.ID == id {
-			return true
-		}
-	}
-	return false
-}
-
-// TestConceptPull_ProjectsReviewedDecisionsIntoGit is the terminology return
-// leg end to end: a pull writes the workspace's vocabulary into the store as it
-// always did, AND merges the reviewed decisions among it into the committed
-// terms source — without touching the authored concept the workspace does not
-// have, and without adopting the draft nobody approved.
-func TestConceptPull_ProjectsReviewedDecisionsIntoGit(t *testing.T) {
-	t.Setenv("BOWRAIN_AUTH_TOKEN", "tok")
+	// A workspace of its own, so one test's record is not another's.
+	t.Setenv("KAPI_DATA_DIR", t.TempDir())
 	prev := app
 	app = &cli.App{}
 	t.Cleanup(func() {
 		app.Shutdown()
 		app = prev
 	})
+}
+
+// storedConceptIDs reads back what the project's terms store holds.
+func storedConceptIDs(t *testing.T, proj *bproject.Project) []string {
+	t.Helper()
+	tb, err := projectTerms(t.Context(), proj)
+	require.NoError(t, err)
+	held, err := tb.Concepts(t.Context())
+	require.NoError(t, err)
+	ids := make([]string, 0, len(held))
+	for _, c := range held {
+		ids = append(ids, c.ID)
+	}
+	return ids
+}
+
+// contextLog reads the project's recorded operations, newest first.
+func contextLog(t *testing.T, proj *bproject.Project) []host.ContextOperation {
+	t.Helper()
+	list, err := app.ContextOperations(t.Context(), host.ContextLogRequest{Project: proj.Layout.RecipePath})
+	require.NoError(t, err)
+	return list.Operations
+}
+
+// TestConceptPull_WritesTheStoreAndRecordsTheArrival: a pull puts the
+// workspace's terminology in the project's terms store, leaves every file in
+// the checkout alone, and says on the project's record where the terminology
+// came from.
+func TestConceptPull_WritesTheStoreAndRecordsTheArrival(t *testing.T) {
+	t.Setenv("BOWRAIN_AUTH_TOKEN", "tok")
+	returnLegApp(t)
 
 	srv := returnLegServer(t)
 	proj, srcPath := newReturnLegProject(t, srv.URL)
+	before, err := os.ReadFile(srcPath)
+	require.NoError(t, err)
 
-	res, baseline, err := conceptPull(context.Background(), proj, false)
+	res, baseline, err := conceptPull(t.Context(), proj, false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.NotNil(t, baseline)
 	assert.Equal(t, 2, res.Concepts, "both workspace concepts reached the store")
+	assert.ElementsMatch(t, []string{"c-terms", "c-draft"}, storedConceptIDs(t, proj))
 
-	assert.True(t, res.Projection.Written, "the reviewed decision reached the committed source")
-	assert.Equal(t, 1, res.Projection.Added)
-	assert.Equal(t, 1, res.Projection.Considered, "only the governed concept carried a decision")
+	after, err := os.ReadFile(srcPath)
+	require.NoError(t, err)
+	assert.Equal(t, string(before), string(after), "the pull writes the store and no file")
 
-	file := readTermsSource(t, srcPath)
-	assert.True(t, hasConcept(file, "c-authored"), "the authored concept survived")
-	assert.True(t, hasConcept(file, "c-terms"), "the reviewed decision landed")
-	assert.False(t, hasConcept(file, "c-draft"), "raw workspace state stayed out of git")
+	ops := contextLog(t, proj)
+	require.Len(t, ops, 1, "the arrival is one line on the record")
+	assert.Equal(t, res.Recorded, ops[0].ID)
+	assert.Equal(t, contextop.ActorTool, ops[0].Actor.Kind, "nobody at this keyboard decided it")
+	assert.Equal(t, "acme", ops[0].Actor.Name, "the workspace it came from")
+	assert.Equal(t, contextop.KindObserve, ops[0].Kind)
+	assert.Contains(t, ops[0].Subject.Text, "2 concepts")
 }
 
-// TestConceptPull_SecondPullWritesNothing: the nightly runs this every night,
-// and a night with no new decisions must leave the working tree byte-identical.
-// A file that churned on its own would manufacture `.kapi/` backing for derived
-// artifacts nothing decided.
-func TestConceptPull_SecondPullWritesNothing(t *testing.T) {
+// TestConceptPull_SecondPullRecordsNothing: the nightly runs this every night,
+// and a night with no new terminology must leave the record where it stood. A
+// log growing a line a night would bury the entries a person wants to read.
+func TestConceptPull_SecondPullRecordsNothing(t *testing.T) {
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "tok")
-	prev := app
-	app = &cli.App{}
-	t.Cleanup(func() {
-		app.Shutdown()
-		app = prev
-	})
+	returnLegApp(t)
 
 	srv := returnLegServer(t)
-	proj, srcPath := newReturnLegProject(t, srv.URL)
+	proj, _ := newReturnLegProject(t, srv.URL)
 
-	_, _, err := conceptPull(context.Background(), proj, false)
+	first, baseline, err := conceptPull(t.Context(), proj, false)
 	require.NoError(t, err)
-	first, err := os.ReadFile(srcPath)
-	require.NoError(t, err)
+	require.NotNil(t, baseline)
+	assert.NotEmpty(t, first.Recorded)
 
-	res, _, err := conceptPull(context.Background(), proj, false)
-	require.NoError(t, err)
-	assert.False(t, res.Projection.Written, "the second pull wrote nothing")
-	assert.Empty(t, cli.FormatTermsProjection(res.Projection), "and reported nothing")
+	// The connector persists the baseline on Close, which nothing here opens,
+	// so the second pull is handed the same baseline the first one produced.
+	cache := bproject.LoadSyncCache(proj.Layout)
+	cache.ConceptBaseline = baseline
+	require.NoError(t, cache.Save(proj.Layout))
 
-	second, err := os.ReadFile(srcPath)
+	second, _, err := conceptPull(t.Context(), proj, false)
 	require.NoError(t, err)
-	assert.Equal(t, string(first), string(second))
+	assert.Empty(t, second.Recorded, "the second pull recorded nothing")
+	assert.Len(t, contextLog(t, proj), 1, "and left the record where it stood")
 }

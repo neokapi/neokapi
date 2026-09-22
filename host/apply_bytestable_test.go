@@ -14,18 +14,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The committed governance files `kapi apply` edits are human-authored source.
-// Two properties hold over every write to them: the comments and key order
-// survive a change, and a change that decides nothing writes nothing at all.
+// The recipe `kapi apply` edits is human-authored source, and so is a voice
+// profile somebody wrote by hand. Two properties hold over every write: the
+// comments and key order survive a change, and a change that decides nothing
+// writes nothing at all.
 //
-// The second is not tidiness. `scripts/check-sync-backed.sh` classifies a
-// convergence run's tree into backing (`.kapi/` minus `.kapi/work`), derived and
-// foreign, and asks for backing over the run as a WHOLE — one backing entry
-// explains every derived change in that run. A `kapi apply` that rewrote
-// `.kapi/voice.yaml` only to reformat it would therefore manufacture backing for
-// artifacts nothing decided, which is the failure the gate exists to prevent.
-// The recipe fails the other way: at the repo root it is foreign, so a run that
-// rewrote it is refused by name even with backing present.
+// The second is a gate, not tidiness. `scripts/check-sync-backed.sh` classifies
+// a convergence run's tree into backing (`.kapi/` minus `.kapi/work`), derived
+// and foreign, and asks for backing over the run as a WHOLE: one backing entry
+// explains every derived change in that run. A `kapi apply` that rewrote a file
+// under `.kapi/` only to reformat it would manufacture backing for artifacts
+// nothing decided, which is the failure the gate exists to prevent. The recipe
+// fails the other way: at the repo root it is foreign, so a run that rewrote it
+// is refused by name even with backing present.
+//
+// An asset apply writes the project's stores, so the profile is reached through
+// `kapi context import` and written back out by `kapi context snapshot`, which
+// is where the commentary has to survive.
 
 const commentedVoiceYAML = `# The voice the harbour docs are written in.
 # Authored by hand: every line here is a decision someone made.
@@ -89,10 +94,21 @@ func digestOf(t *testing.T, path string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// readGovernanceContext reads the fixture's authored profile into the project's
+// store, which is what a person does once per checkout before anything in the
+// file is in force.
+func readGovernanceContext(t *testing.T, a *App, recipe string) {
+	t.Helper()
+	res, err := a.ImportProjectContext(context.Background(), recipe, ContextImportRequest{})
+	require.NoError(t, err)
+	require.Equal(t, 1, res.VoiceProfiles, "the authored profile reached the store")
+}
+
 // TestApplyVoiceRule_NoOpIsByteStable: applying a rule the profile already
 // carries decides nothing, so neither governance file may move a byte.
 func TestApplyVoiceRule_NoOpIsByteStable(t *testing.T) {
 	a, cmd, _, recipe, voice := newGovernanceProject(t)
+	readGovernanceContext(t, a, recipe)
 	voiceBefore, recipeBefore := digestOf(t, voice), digestOf(t, recipe)
 
 	res := a.applyAssetEntry(context.Background(), cmd, changeEntry{
@@ -109,12 +125,13 @@ func TestApplyVoiceRule_NoOpIsByteStable(t *testing.T) {
 	assert.Equal(t, recipeBefore, digestOf(t, recipe), "an applied no-op rewrote the recipe")
 }
 
-// TestApplyVoiceRule_KeepsTheCommentary: a rule that does land keeps every
-// comment and the authored key order. A decision that changes three lines of
-// vocabulary and also deletes the file's explanation of itself is not a
-// reviewable diff.
-func TestApplyVoiceRule_KeepsTheCommentary(t *testing.T) {
-	a, cmd, _, _, voice := newGovernanceProject(t)
+// TestSnapshotVoiceProfile_KeepsTheCommentary: a rule that lands in the store
+// and is written back out keeps every comment and the authored key order. A
+// decision that changes three lines of vocabulary and also deletes the file's
+// explanation of itself is not a reviewable diff.
+func TestSnapshotVoiceProfile_KeepsTheCommentary(t *testing.T) {
+	a, cmd, _, recipe, voice := newGovernanceProject(t)
+	readGovernanceContext(t, a, recipe)
 
 	res := a.applyAssetEntry(context.Background(), cmd, changeEntry{
 		Kind:        kindVoice,
@@ -125,6 +142,9 @@ func TestApplyVoiceRule_KeepsTheCommentary(t *testing.T) {
 		Severity:    "major",
 	})
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
+
+	_, err := a.SnapshotProjectContext(context.Background(), recipe, ContextSnapshotRequest{})
+	require.NoError(t, err)
 
 	after, err := os.ReadFile(voice)
 	require.NoError(t, err)
@@ -221,17 +241,29 @@ collections:
 // changed file under `.kapi/` at all, so it cannot stand as the backing that
 // lets a run's derived artifacts through.
 func TestApplyNoOp_LeavesNoBackingUnderKapi(t *testing.T) {
-	a, cmd, root, _, _ := newGovernanceProject(t)
+	a, cmd, root, recipe, _ := newGovernanceProject(t)
+	readGovernanceContext(t, a, recipe)
 	stateDir := filepath.Join(root, project.StateDirName)
 
-	before := map[string]string{}
-	require.NoError(t, filepath.WalkDir(stateDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		before[path] = digestOf(t, path)
-		return nil
-	}))
+	// The derived store under `.kapi/work` is not backing (the gate excludes
+	// it), and opening a project legitimately touches it.
+	backing := func() map[string]string {
+		t.Helper()
+		out := map[string]string{}
+		require.NoError(t, filepath.WalkDir(stateDir, func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			if rel, rerr := filepath.Rel(stateDir, path); rerr == nil && strings.HasPrefix(rel, "work") {
+				return nil
+			}
+			out[path] = digestOf(t, path)
+			return nil
+		}))
+		return out
+	}
+
+	before := backing()
 	require.NotEmpty(t, before, "the fixture must have something under .kapi to be able to see it move")
 
 	res := a.applyAssetEntry(context.Background(), cmd, changeEntry{
@@ -244,19 +276,5 @@ func TestApplyNoOp_LeavesNoBackingUnderKapi(t *testing.T) {
 	})
 	require.Equal(t, "skipped", res.Status, "detail: %s", res.Detail)
 
-	after := map[string]string{}
-	require.NoError(t, filepath.WalkDir(stateDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		// The derived store under `.kapi/work` is not backing (the gate excludes
-		// it), and a compile legitimately touches it.
-		if rel, rerr := filepath.Rel(stateDir, path); rerr == nil && strings.HasPrefix(rel, "work") {
-			return nil
-		}
-		after[path] = digestOf(t, path)
-		return nil
-	}))
-
-	assert.Equal(t, before, after, "a no-op apply manufactured backing under .kapi")
+	assert.Equal(t, before, backing(), "a no-op apply manufactured backing under .kapi")
 }

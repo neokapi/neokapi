@@ -80,7 +80,7 @@ func TestConceptSync_DoNotTranslateTravelsGoverned(t *testing.T) {
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
 	tb := newProjectTerms(t)
 
-	_, baseline, err := PullConcepts(ctx, client, tb, "", false)
+	_, baseline, err := PullConcepts(ctx, client, tb, false)
 	require.NoError(t, err)
 	pulled, ok, err := tb.GetConcept(ctx, "c-kapi")
 	require.NoError(t, err)

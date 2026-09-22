@@ -8,6 +8,7 @@ export {
     ContextAnswer,
     ContextCandidate,
     ContextCoverage,
+    ContextFilesNotice,
     ContextPoint,
     ContextPrecedentHit,
     ContextProfileHit,

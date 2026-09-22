@@ -72,6 +72,11 @@ type Workspace struct {
 	// workspace no agent has ever worked in pays nothing for the table.
 	sessionsOnce sync.Once
 	sessionsErr  error
+
+	// importsOnce guards the import-stamp schema on the same terms: a workspace
+	// whose projects have read no context file pays nothing for the table.
+	importsOnce sync.Once
+	importsErr  error
 }
 
 // Open prepares a workspace over a backend: it opens the workspace-wide

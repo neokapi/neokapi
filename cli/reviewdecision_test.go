@@ -199,17 +199,17 @@ collections:
 // commitAndReadUnits commits the project's staged decisions and reads the
 // resulting record.
 //
-// Recording no longer writes the committed record: a decision is staged, and
-// `kapi commit` publishes it. So a test that asserts what the record holds has
-// to commit first — which is also what pins that the decision made it into the
-// working store at all.
+// A decision is durable in the ledger from the moment it is made. Writing the
+// record out as files is `kapi context snapshot`, so a test that asserts what
+// the record holds snapshots first, which also pins that the decision reached
+// the working store at all.
 func commitAndReadUnits(t *testing.T, root string) []state.UnitState {
 	t.Helper()
 	// A fresh App: the store is owned per App, and this one exists only to
-	// publish what the App under test staged into the same file.
-	committer := &host.App{}
-	defer committer.Shutdown()
-	_, err := committer.CommitProjectState(t.Context(), root)
+	// write out what the App under test recorded into the same file.
+	writer := &host.App{}
+	defer writer.Shutdown()
+	_, err := writer.SnapshotProjectContext(t.Context(), root, host.ContextSnapshotRequest{})
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}

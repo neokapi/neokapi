@@ -35,9 +35,8 @@ promote a unit to reviewed. To approve a translated unit, use a kind:"review"
 entry addressed by its file/id/locale (as 'kapi status --review' lists it), with
 status "reviewed" (default) or "signed-off"; the decision is recorded in the
 project's decision ledger and is bound to the translation's content hash, so a
-later edit drops the unit back below reviewed. Recording it is durable at once.
-'kapi commit' exports what this checkout holds into the committed record under
-.kapi/state/, so it travels with your sources.
+later edit drops the unit back below reviewed. Recording it is durable at once,
+and 'kapi context snapshot' writes the record out as files.
 
 A comment edit (kind:"comment") rewrites one code comment, addressed by its file
 and the id 'kapi check' reports for it, such as func/Parse, in Go and in the

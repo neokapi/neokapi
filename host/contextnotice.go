@@ -73,6 +73,11 @@ func (a *App) ContextFilesUnread(ctx context.Context, projectPath string) (Conte
 	if len(files) == 0 {
 		return ContextFilesNotice{}, false
 	}
+	if !projectStoreExists(layout.RecipePath) {
+		// A store nobody has opened holds nothing, and asking by opening one
+		// would put a database in the checkout of a command that only reads.
+		return ContextFilesNotice{Files: files, Command: ContextImportCommand}, true
+	}
 	db, err := a.ProjectDB(ctx, layout.Root)
 	if err != nil {
 		return ContextFilesNotice{}, false

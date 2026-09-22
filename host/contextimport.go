@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/workspace"
 )
 
 // Reading a `.kapi/` layout into a project's store.
@@ -46,6 +47,10 @@ type ContextImport struct {
 	// Unchanged counts the sources already in the store at their current
 	// bytes, which is what a second run of the same import reports.
 	Unchanged int `json:"unchanged,omitempty"`
+	// Unrecorded reports a project whose recipe carries neither an id nor a
+	// name. Its context has nowhere to be logged, so the import read the files
+	// and left no history behind.
+	Unrecorded bool `json:"unrecorded,omitempty"`
 }
 
 // Read reports whether the import put anything into the store.
@@ -90,6 +95,11 @@ func (r ContextImport) FormatText(w io.Writer) error {
 			return err
 		}
 	}
+	if r.Unrecorded {
+		if _, err := fmt.Fprintf(w, "Give the recipe a `name:` for this to appear in `kapi context log`.\n"); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -101,13 +111,16 @@ func pluralUnit(n int, one, many string) string {
 	return fmt.Sprintf("%d %s", n, many)
 }
 
-// ImportProjectContext reads a `.kapi/` layout into the project's store.
+// ImportProjectContext reads a `.kapi/` layout into the project's store, and
+// records in the project's context history what it read.
 //
 // Running it twice changes nothing: every importer upserts by the identity the
 // file carries, so the second pass finds the store already holding what the
 // file says. Identities are preserved throughout — a concept keeps its id, an
 // entry keeps its id and its origins, a voice profile keeps the id it is stored
-// under, and a decision keeps the unit it is about.
+// under, and a decision keeps the unit it is about. A source whose bytes have
+// not moved since this checkout last read it is skipped outright, and `--force`
+// reads it again.
 //
 // projectPath is the recipe or the project root; both resolve the way `-p`
 // does.
@@ -139,20 +152,80 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 	if own {
 		bindings = proj
 	}
-	read, err := a.readContextLayout(ctx, db, from, bindings)
+	sources, err := committedContextSources(bindings, from)
 	if err != nil {
 		return res, err
 	}
-	res.Concepts = read.Concepts
-	res.Entries = read.Entries
-	res.VoiceProfiles = read.VoiceFiles
-	res.Unchanged = read.Skipped
 
-	n, err := importDecisionRecord(ctx, db.Work(), from.Export().UnitStateDir())
+	scribe, err := a.importScribe(ctx, layout.RecipePath)
+	if err != nil {
+		return res, err
+	}
+	res.Unrecorded = !scribe.records()
+	checkout := normalizedCheckout(layout.Root)
+	identity, _ := recipeIdentity(layout.RecipePath)
+	projectKey := workspace.ProjectKey(identity)
+	stamps, err := a.loadImportStamps(ctx, projectKey, checkout)
+	if err != nil {
+		return res, err
+	}
+	stamped := false
+
+	for _, src := range sources {
+		if !storeHolds(db, src.kind) {
+			// A build with no file-backed store for this subsystem (the browser
+			// build) has nothing to read into.
+			res.Unchanged++
+			continue
+		}
+		digest, derr := fileDigest(src.path)
+		if derr != nil {
+			return res, derr
+		}
+		key := importStampKey(projectKey, checkout, src.rel)
+		if !req.Force && stamps[key] == digest {
+			res.Unchanged++
+			continue
+		}
+		n, rerr := a.readContextSource(ctx, db, from.Root, src)
+		if rerr != nil {
+			return res, rerr
+		}
+		switch src.kind {
+		case sourceKindTerms:
+			res.Concepts += n
+		case sourceKindMemory:
+			res.Entries += n
+		case sourceKindVoice:
+			res.VoiceProfiles++
+		}
+		stamps[key], stamped = digest, true
+		if err := scribe.read(ctx, src, n, digest); err != nil {
+			return res, err
+		}
+	}
+	if stamped {
+		if err := a.saveImportStamps(ctx, stamps); err != nil {
+			return res, err
+		}
+	}
+	if res.Entries > 0 {
+		if tm := db.Memory(); tm != nil {
+			a.RebuildMemorySearchIndexes(ctx, tm)
+		}
+	}
+
+	recordDir := from.Export().UnitStateDir()
+	n, err := importDecisionRecord(ctx, db.Work(), recordDir)
 	if err != nil {
 		return res, err
 	}
 	res.Decisions = n
+	if n > 0 {
+		if err := scribe.readRecord(ctx, relSlash(from.Root, recordDir), n); err != nil {
+			return res, err
+		}
+	}
 	return res, nil
 }
 
