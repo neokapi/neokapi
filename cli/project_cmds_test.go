@@ -253,15 +253,20 @@ func TestInitCmd_mintID(t *testing.T) {
 	assert.Equal(t, string(body), string(after), "a second mint writes nothing")
 }
 
-// kapi init points an assistant at the voice it just bound: the content
-// scaffold binds a pack, so a fresh project gets a CLAUDE.md section naming
-// it; an AGENTS.md already at the root takes the section instead; --no-pointer
-// and a scaffold without a voice write nothing.
+// kapi init points an assistant at the voice the project binds: a recipe
+// carrying one gets a CLAUDE.md section naming it, and an AGENTS.md already at
+// the root takes the section instead. A scaffolded recipe binds no voice, so
+// both scaffolds and --no-pointer write nothing.
 func TestInitCmd_voicePointer(t *testing.T) {
+	const packRecipe = "version: v1\nname: my-app\ndefaults:\n  source_language: en\n  voice:\n    pack: professional-b2b\n"
+
 	tests := []struct {
-		name  string
-		args  []string
-		files map[string]string
+		name string
+		args []string
+		// recipe pre-seeds kapi.yaml, so init adopts a project that already
+		// binds a voice. Empty scaffolds one.
+		recipe string
+		files  map[string]string
 		// wantFile is the assistant file expected to hold the section,
 		// relative to the project dir; empty when none may exist.
 		wantFile string
@@ -270,8 +275,9 @@ func TestInitCmd_voicePointer(t *testing.T) {
 		wantNotOut string
 	}{
 		{
-			name:       "content scaffold creates CLAUDE.md",
+			name:       "a bound voice creates CLAUDE.md",
 			args:       []string{"--name", "my-app"},
+			recipe:     packRecipe,
 			wantFile:   "CLAUDE.md",
 			wantOut:    "agents: ",
 			wantNotOut: "@AGENTS.md",
@@ -279,6 +285,7 @@ func TestInitCmd_voicePointer(t *testing.T) {
 		{
 			name:     "an existing CLAUDE.md takes the section",
 			args:     []string{"--name", "my-app"},
+			recipe:   packRecipe,
 			files:    map[string]string{"CLAUDE.md": "# Rules\n"},
 			wantFile: "CLAUDE.md",
 			wantOut:  "voice pointer written",
@@ -286,13 +293,19 @@ func TestInitCmd_voicePointer(t *testing.T) {
 		{
 			name:     "an AGENTS.md alone takes the section and earns the import hint",
 			args:     []string{"--name", "my-app"},
+			recipe:   packRecipe,
 			files:    map[string]string{"AGENTS.md": "# Agents\n"},
 			wantFile: "AGENTS.md",
 			wantOut:  "@AGENTS.md",
 		},
 		{
-			name: "--no-pointer skips it",
-			args: []string{"--name", "my-app", "--no-pointer"},
+			name:   "--no-pointer skips it",
+			args:   []string{"--name", "my-app", "--no-pointer"},
+			recipe: packRecipe,
+		},
+		{
+			name: "the content scaffold binds no voice and writes nothing",
+			args: []string{"--name", "my-app"},
 		},
 		{
 			name: "a translation scaffold binds no voice and writes nothing",
@@ -303,6 +316,10 @@ func TestInitCmd_voicePointer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			app := newAppForTest(t)
 			dir := t.TempDir()
+			if tt.recipe != "" {
+				require.NoError(t, os.WriteFile(
+					filepath.Join(dir, project.RecipeFileName), []byte(tt.recipe), 0o644))
+			}
 			for rel, body := range tt.files {
 				require.NoError(t, os.WriteFile(filepath.Join(dir, rel), []byte(body), 0o644))
 			}
@@ -343,6 +360,8 @@ func TestInitCmd_voicePointer(t *testing.T) {
 func TestInitCmd_voicePointerOnRerun(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
+	recipe := filepath.Join(dir, project.RecipeFileName)
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: my-app\ndefaults:\n  source_language: en\n  voice:\n    pack: professional-b2b\n"), 0o644))
 
 	run := func() string {
 		cmd := NewInitCmd(app)
@@ -357,6 +376,7 @@ func TestInitCmd_voicePointerOnRerun(t *testing.T) {
 	run()
 	first, err := os.ReadFile(filepath.Join(dir, "CLAUDE.md"))
 	require.NoError(t, err)
+	assert.Contains(t, string(first), "voice, Professional B2B, is held by kapi")
 
 	out := run()
 	assert.Contains(t, out, "already initialized")
@@ -365,7 +385,6 @@ func TestInitCmd_voicePointerOnRerun(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, string(first), string(second))
 
-	recipe := filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: my-app\ndefaults:\n  source_language: en\n  voice:\n    pack: technical-docs\n"), 0o644))
 	out = run()
 	assert.Contains(t, out, "voice pointer written")
