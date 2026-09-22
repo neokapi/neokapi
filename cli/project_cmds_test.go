@@ -54,16 +54,16 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	assert.Equal(t, "my-app", state.Project.ID)
 
 	// Default init scaffolds an on-brand content project: source language set,
-	// no target languages, a voice pack bound under defaults:, and a check
-	// flow on the deterministic voice-vocabulary check. Terminology needs no
-	// binding — the vocabulary lives in the project's own store.
+	// no target languages, and a check flow on the deterministic
+	// voice-vocabulary check. Neither a voice nor terminology is bound: a new
+	// project has no voice yet, and the vocabulary lives in the project's own
+	// store.
 	p, err := project.Load(recipe)
 	require.NoError(t, err)
 	assert.Equal(t, "en", string(p.Defaults.SourceLanguage))
 	assert.Empty(t, p.Defaults.TargetLanguages)
 
-	require.NotNil(t, p.Defaults.Voice)
-	assert.Equal(t, "professional-b2b", p.Defaults.Voice.Pack)
+	assert.Nil(t, p.Defaults.Voice, "a scaffolded project binds no voice")
 
 	require.Contains(t, p.Flows, "check")
 	require.NotNil(t, p.Flows["check"])

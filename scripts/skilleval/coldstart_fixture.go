@@ -5,7 +5,6 @@ import (
 	"embed"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -202,31 +201,23 @@ func coldStartAncestorFindings(dir string) ([]string, error) {
 }
 
 // coldStartRecipeMapping completes the content mapping `kapi init` leaves for
-// the person: the scaffolded recipe holds an empty collection list and a
-// starter voice pack, and its own comments say to point collections at the
-// files to keep in voice.
+// the person: the scaffolded recipe holds an empty collection list, and its own
+// comments say to point collections at the files to keep in voice.
 //
-// The pack goes because the drill starts from an empty context. A pack states
-// tone, style and a vocabulary of its own, so a session run over one would be
-// measured against wording the fixture never used.
+// The scaffold binds no voice, which is the empty context the drill measures
+// from: a session run against a bound profile would be scored on tone, style
+// and a vocabulary the fixture never used.
 func coldStartRecipeMapping(recipe []byte) ([]byte, error) {
-	const (
-		emptyCollections = "collections: []"
-		starterPack      = "  voice:\n    pack: professional-b2b\n"
-	)
+	const emptyCollections = "collections: []"
 	body := string(recipe)
 	if !strings.Contains(body, emptyCollections) {
 		return nil, fmt.Errorf("scaffolded recipe no longer holds %q, so the fixture's content mapping was not written", emptyCollections)
-	}
-	if !strings.Contains(body, starterPack) {
-		return nil, errors.New("scaffolded recipe no longer binds a starter voice pack, so the drill cannot establish an empty context")
 	}
 	mapping := "collections:\n" +
 		"  - path: \"README.md\"\n    format: markdown\n" +
 		"  - path: \"docs/**/*.md\"\n    format: markdown\n" +
 		"  - path: \"emails/**/*.md\"\n    format: markdown\n" +
 		"  - path: \"ui/strings.json\"\n    format: json"
-	body = strings.Replace(body, starterPack, "", 1)
 	body = strings.Replace(body, emptyCollections, mapping, 1)
 	return []byte(body), nil
 }

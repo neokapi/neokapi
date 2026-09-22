@@ -370,9 +370,7 @@ flows: {}
 
 // ScaffoldContentRecipe builds the default content recipe: a project whose job
 // is keeping its source content in voice and on-terminology, with no target
-// languages. It binds a voice profile (a built-in starter pack) under
-// defaults: so the project-scoped voice check needs no flags, and
-// ships a `check` flow that scores content with the deterministic
+// languages. It ships a `check` flow that scores content with the deterministic
 // voice-vocabulary check. Passing --target-locale or --framework scaffolds a
 // translation project (ScaffoldRecipe) instead.
 func ScaffoldContentRecipe(name, id, sourceLocale string) []byte {
@@ -385,13 +383,12 @@ func ScaffoldContentRecipe(name, id, sourceLocale string) []byte {
 	b.WriteString("  source_language: ")
 	b.WriteString(sourceLocale)
 	b.WriteByte('\n')
-	// voice is a framework binding under defaults: — standing project context
-	// for the voice check. Terminology needs no binding: the vocabulary lives
-	// in the project's own store, which every term-aware command reads with no
-	// flag and no recipe entry. No target_languages: this project governs its
-	// source content, it does not translate it.
-	b.WriteString("  voice:\n")
-	b.WriteString("    pack: professional-b2b\n")
+	// The recipe binds no voice: a new project has one once someone writes it
+	// or names a pack, and `kapi context` says the coverage is empty until
+	// then. Terminology needs no binding either: the vocabulary lives in the
+	// project's own store, which every term-aware command reads with no flag
+	// and no recipe entry. No target_languages: this project governs its source
+	// content, it does not translate it.
 	b.WriteString(`
 # Content project: no target_languages. Point collections at the source files
 # to keep in voice, then run 'kapi check' to score them. Block state lives
@@ -401,10 +398,8 @@ func ScaffoldContentRecipe(name, id, sourceLocale string) []byte {
 #   - path: "src/**/*.md"
 #     format: markdown
 #
-# Swap the starter pack for your own profile: 'kapi voice new -o voice.yaml',
-# fill it in, 'kapi voice import voice.yaml', then set
-# defaults.voice.profile instead of pack. The profile lives in your
-# workspace from there on, and 'kapi voice edit' opens it again.
+# A voice is bound by name: 'defaults.voice.profile' names one this project's
+# store holds, and 'defaults.voice.pack' names a built-in starter pack.
 collections: []
 
 # The check flow scores content against the voice vocabulary (deterministic,
