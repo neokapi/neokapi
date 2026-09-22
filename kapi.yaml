@@ -64,6 +64,9 @@
 # docs/internals/l10n-ci.md. The context graph this project is governed by —
 # voice profile, terms, reviewed content memory — is committed under .kapi/.
 version: v1
+# This project's stable identity. It survives a rename, a move and a clone,
+# and everything kapi records about the project is keyed on it. Keep it.
+id: prj_6x7ttpbbrhisq4m63uqjrm7uki
 name: neokapi
 defaults:
   source_language: en
