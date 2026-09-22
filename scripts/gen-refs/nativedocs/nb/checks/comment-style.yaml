@@ -1,0 +1,40 @@
+# Native reference doc for the `comment-style` source-side check.
+# Source: core/check/comments.go (CommentSentenceFindings, CommentLengthFindings,
+# CommentLimits); the limits come from core/profile/comments.go (CommentRules),
+# and host/check_comment_limits.go runs the analyzers.
+# A check, not a registry tool: the voice profile at a comment's point configures it.
+description: Hold kommentarene i kildefiler til setnings- og kommentarordgrensene en voice-profil setter for dem.
+overview: |
+  **Comment Style**-kontrollen leser kommentarene et kommentarlag finner og
+  holder dem til grensene under `style.comments` i voice-profilen på det
+  punktet kommentarene befinner seg. En profil uten den seksjonen krever ingenting,
+  og kontrollen rapporterer analysatorene sine som ikke forespurt.
+
+  - `comment.sentence-length`: en setning over den mindre ordgrensen er et mindre
+    funn, og én over den større grensen er et større funn. Funnet peker på
+    setningen inne i kommentaren og siterer den.
+  - `comment.length`: en kommentar over ordgrensen for det den dokumenterer er et
+    større funn. Doc-kommentaren til en pakke eller modul, doc-kommentaren til en deklarasjon og alle andre kommentarer har hver sin grense.
+  - `comment.density`: i en kontroll avgrenset til en diff er en endring som legger til minst
+    minimumsantallet kommentarlinjer i en fil, og flere kommentarlinjer for
+    hver kodelinje enn forholdet tillater, et større funn. En linje som bare inneholder en
+    kommentar er en kommentarlinje, en linje som inneholder noe utenfor
+    en kommentar er en kodelinje, og pakke-doc-kommentaren, et direktiv og en
+    blank linje teller som ingen av delene.
+
+  En setning finnes med UAX #29 sentence break over kommentarens prosa.
+  Linjene en kommentar bretter en setning over, slås først sammen, fordi
+  sentence break avslutter en setning ved hvert linjeskift. En blank linje, en linje med
+  kode og en skillerlinje som `── Section ──` avslutter en setning, og
+  en skillers tittel er en setning for seg. En overskrift, et listeelement og en
+  dokumentasjonstagg som `@param` starter hver sin. Et ord inneholder en bokstav eller et
+  sifter, så et kodeinnslag, en referanse, en lenke eller en bindestrek som står alene telles aldri.
+limitations:
+  - Leser kun kommentarer; blokkene et formatleser trekker ut holdes aldri til kommentargrenser.
+  - "Krever UAX 29 sentence break, som en bygg uten ICU mangler. Setningskontrollen kjørte da ikke, og kjøringen er ikke en godkjenning."
+  - "Teller ord etter blanktegn, så et språk skrevet uten mellomrom mellom ord holdes til grensene som ett langt ord per strekk."
+processingNotes:
+  - "Hver analysator fanger kanariefugler bygget fra grensene som gjelder ved siden av hver fil. Kanariefuglen for wrapped sentence er én setning over tre linjer, så en kontroll som avslutter en setning ved et linjeskift, oppdager den ikke."
+  - I en kontroll avgrenset til en diff gjelder grensene for kommentarene endringen berørte.
+  - "Density teller linjer fra der kommentarleseren plasserer hver kommentar, aldri fra kommentarmarkører, og dens kanariefugl er en blokkkommentar ingen markør åpner. En kontroll over hele filer rapporterer density som ikke støttet."
+  - "Funn teller mot samme alvorlighetsgrense som alle andre funn. `kapi check` feiler på et kritisk funn som standard, og `kapi check --ship` feiler checks-grensen på et større funn."

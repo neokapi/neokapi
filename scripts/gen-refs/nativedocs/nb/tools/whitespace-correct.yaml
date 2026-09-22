@@ -1,0 +1,89 @@
+# Native reference doc for the built-in `whitespace-correct` tool.
+# Schema source: core/tools/whitespacecorrect.go (WhitespaceCorrectConfig).
+description: "Normaliser og fiks blanktegnproblemer i måloversettelser, inkludert tegnsettingsavstand."
+overview: |
+  Verktøyet **Whitespace Correct** rydder opp i blanktegn i måloversettelsesr.
+  Det kan slå sammen gjentatte mellomrom, trimme innledende og etterfølgende blanktegn, kopiere
+  kildespråkets innledende/etterfølgende blanktegn til målteksten, fjerne tegn med null bredde
+  og fjerne blanktegn etter spesifikke tegnsettingstegn. Det siste
+  er særlig nyttig ved oversettelse fra et mellomromsavgrenset språk til et
+  ikke-mellomromsavgrenset språk som kinesisk eller japansk.
+
+  Verktøyet opererer kun på målteksten, så en målspråkkode er påkrevd, og
+  kun blokker som allerede har en måltekst for den aktuelle språkkoden, behandles.
+parameters:
+  targetLocale:
+    description: Målspråkkode for behandling.
+    help: |
+      Språkkoden hvis måltekst korrigeres. Obligatorisk; bare blokker med et eksisterende mål for denne språkkoden berøres.
+    values: "BCP-47 språkkode (obligatorisk)"
+  normalizeSpaces:
+    description: Slå sammen sekvenser av flere mellomrom til ett.
+    help: "Når dette er aktivert, reduseres påfølgende mellomrom til ett enkelt mellomrom."
+    values: "`true` / `false` (standard `true`)"
+  trimLeading:
+    description: Fjern ledende blanktegn fra målteksten.
+    help: "Når aktivert, fjernes blanktegn i starten av målteksten."
+    values: "`true` / `false` (standard `false`)"
+  trimTrailing:
+    description: Fjern etterfølgende blanktegn fra målteksten.
+    help: "Når dette er aktivert, fjernes blanktegn på slutten av målteksten."
+    values: "`true` / `false` (standard `false`)"
+  matchSourceWhitespace:
+    description: Kopier kildespråkets innledende/etterfølgende blanktegn til målspråket.
+    help: |
+      Når dette er aktivert, fjernes eksisterende ledende og etterfølgende blanktegn i målteksten og erstattes med kildetekstens, slik at målteksten speiler kildetekstens kantblanktegn.
+    values: "`true` / `false` (standard `true`)"
+  removeZeroWidthChars:
+    description: Fjern tegn med null bredde og sammenbindingstegn.
+    help: |
+      Når dette er aktivert, fjernes tegn med null bredde og bindere (samt ikke-brytende mellomrom med null bredde) fra målteksten.
+    values: "`true` / `false` (standard `true`)"
+  correctFullStop:
+    description: Korriger blanktegn etter punktum.
+    help: |
+      Når dette er aktivert, fjernes blanktegn etter et punktum (ASCII `.` eller full bredde
+      `．`), i henhold til de inkluderte blanktegntypene.
+    values: "`true` / `false` (standard `true`)"
+  correctComma:
+    description: Korriger blanktegn etter kommaer.
+    help: |
+      Når aktivert, fjernes blanktegn etter et komma (ASCII `,` eller helbredds `，`)
+      i henhold til inkluderte blanktegntyper.
+    values: "`true` / `false` (standard `true`)"
+  correctExclamation:
+    description: Korriger blanktegn etter utropstegn.
+    help: |
+      Når aktivert, fjernes blanktegn etter utropstegn (ASCII `!` eller fullbredde `！`), i henhold til de inkluderte blanktegntypene.
+    values: "`true` / `false` (standard `true`)"
+  correctQuestion:
+    description: Korriger blanktegn etter spørsmålstegn.
+    help: |
+      Når aktivert, fjernes blanktegn etter et spørsmålstegn (ASCII `?` eller
+      helbredds `？`), i henhold til inkluderte blanktegntyper.
+    values: "`true` / `false` (standard `true`)"
+  includeVerticalWS:
+    description: Inkluder vertikale blanktegn i korrigeringer.
+    help: |
+      Når dette er aktivert, behandles vertikale blanktegn (linjeskift og vognretur) som fjernbare etter tegnsetting.
+    values: "`true` / `false` (standard `true`)"
+  includeHorizontalWS:
+    description: Inkluder horisontale tabulatorer i korrigeringer.
+    help: |
+      Når dette er aktivert, behandles horisontale tabulatortegn som fjernbare etter
+      tegnsetting.
+    values: "`true` / `false` (standard `true`)"
+processingNotes:
+  - "Opererer kun på målteksten; en målspråkkode er påkrevd, og kun eksisterende måltekster behandles."
+  - "Tegnsettingskorrigering fjerner blanktegnet som umiddelbart følger hvert aktiverte tegnsettingstegn, begrenset til de inkluderte blanktegntypene."
+examples:
+  - title: Normaliser avstand for en språkkode
+    description: Bruk standard blanktegnopprydding på en måltekst.
+    config: |
+      targetLocale: fr
+  - title: Rydde CJK-tegnsettingsavstand
+    description: Fjern mellomrom etter tegnsetting for et målspråk uten mellomromsavgrensning.
+    config: |
+      targetLocale: zh-Hans
+      correctFullStop: true
+      correctComma: true

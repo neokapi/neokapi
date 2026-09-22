@@ -1,0 +1,80 @@
+# Native reference doc for the built-in `html` format.
+# Schema source: core/formats/html/config.go (Config) + schema.go.
+# Mirrors the Okapi okf_html filter; element/attribute rule model.
+description: "Trekk ut og sett inn tekst fra HTML, med regler for uttrekk av elementer og attributter."
+overview: |
+  **HTML**-formatet leser HTML-dokumenter, trekker ut elementtekst og
+  attributtverdier, og skriver oversettelsene tilbake mens det omgivende
+  markeringsspråket bevares. Inline-elementer (som `b`, `i`, `a`) blir inline-koder
+  inom en blokk, slik at formatering og koblinger overlever oversettelsen.
+
+  Leseren leveres med fornuftige standardverdier for hvilke elementer som inneholder innhold,
+  hvilke som er inline, og hvilke attributter (som `alt` og `title`) som
+  trekkes ut. Tilordningene `elements` og `attributes` lar deg overstyre eller utvide
+  disse reglene per element og per attributt, i tråd med okf_html-bro-
+  konfigurasjonen. Parseradferd (håndtering av blanktegn) er gruppert under
+  `parser`.
+parameters:
+  parser.preserveWhitespace:
+    description: Bevar blanktegn i trukket ut tekst i stedet for å slå det sammen.
+    help: |
+      Når dette er aktivert, bevares det opprinnelige blanktegnet i tekstinnhold. Som
+      standard slås blanktegn sammen, i tråd med hvordan nettlesere gjengir HTML.
+      Gruppert under `parser`-objektet i konfigurasjonen.
+    values: "`true` / `false` (standard `false`)"
+  elements:
+    description: Uttrekksregler per element.
+    help: |
+      En tilordning fra elementnavn til et regelobjekt som styrer hvordan elementet
+      behandles. En regel kan inneholde `ruleTypes` (`TEXTUNIT`, `INLINE`,
+      `EXCLUDE`, `INCLUDE`, `ATTRIBUTES_ONLY`, `PRESERVE_WHITESPACE`, `GROUP`),
+      en `conditions`-triplett, `idAttributes` og en `translatableAttributes`-
+      tilordning. Disse overstyrer eller utvider den innebygde elementhåndteringen.
+    values: "Tilordning av elementnavn → regelobjekt (standard: innebygde regler)"
+    examples:
+      - "`{ summary: { ruleTypes: [TEXTUNIT] } }` trekker ut tekst fra `summary`-elementet"
+  attributes:
+    description: Uttrekksregler per attributt.
+    help: |
+      En tilordning fra attributtnavn til et regelobjekt. En regel kan inneholde `ruleTypes`
+      (`ATTRIBUTE_TRANS`, `ATTRIBUTE_ID`, `ATTRIBUTE_WRITABLE`,
+      `ATTRIBUTE_READONLY`), et elementomfang via `onlyTheseElements` eller
+      `allElementsExcept`, og en `conditions`-triplett.
+    values: "Tilordning av attributtnavn → regelobjekt (standard: innebygde regler)"
+    examples:
+      - "`{ alt: { ruleTypes: [ATTRIBUTE_TRANS] } }` trekker ut alle `alt`-verdier"
+  useCodeFinder:
+    description: Aktiver regex-basert inline-kode-deteksjon.
+    help: |
+      Aktiverer regex-basert deteksjon av inline-koder (plassholdere, variabler,
+      tagger) i uttrukket tekst, utover de inline HTML-elementene som allerede
+      gjenkjennes. Mønstrene angis via `codeFinderRules`.
+    values: "`true` / `false` (standard `false`)"
+  codeFinderRules:
+    description: Regex-mønstre som samsvarer med inline-koder i tekst.
+    help: |
+      Et array av regulære uttrykk; tekst som samsvarer med noen av dem, behandles
+      som inline-kode i stedet for oversettbare ord. Brukes bare når
+      `useCodeFinder` er aktivert.
+    values: Array av regulære uttrykk (standard tom)
+    dependsOn:
+      - property: useCodeFinder
+        condition: må være aktivert for at disse mønstrene skal gjelde
+limitations:
+  - Leseren bruker innebygde standardverdier for elementer/attributter; tilordningene `elements` og `attributes` justerer dem i stedet for å erstatte hele regelsettet.
+processingNotes:
+  - Inline-elementer blir inline-koder innom blokker; elementer på blokknivå danner den omgivende strukturen.
+  - Oversettbare attributter (som `alt` og `title`) trekkes ut som egne enheter.
+examples:
+  - title: Bevar blanktegn
+    description: Behold betydningsfulle blanktegn i tekstnoder i stedet for å komprimere dem.
+    config: |
+      parser:
+        preserveWhitespace: true
+  - title: Gjør et egendefinert element oversettbart
+    description: Trekk ut teksten fra et egendefinert <summary>-element.
+    config: |
+      elements:
+        summary:
+          ruleTypes:
+            - TEXTUNIT

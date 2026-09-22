@@ -1,0 +1,24 @@
+# Native reference doc for the built-in `encoding-detect` tool.
+# Schema source: core/tools/encodingdetect.go (EncodingDetectConfig, no parameters).
+description: "Klassifiser kildeteksten til hver blokk som ASCII, UTF-8 eller ukjent."
+overview: |
+  Verktøyet **Encoding Detect** undersøker kildeteksten til hver oversettelsesblokkk
+  og registrerer dens kodingsegenskaper i blokkkens egenskaper: en
+  registrert etikett (`ascii`, `utf-8` eller `unknown`) pluss boolske flagg for om
+  teksten er gyldig UTF-8 og om den kun inneholder ASCII-tegn. Tekst som kun inneholder ASCII-tegn
+  får etiketten `ascii`; ellers får gyldig UTF-8 etiketten `utf-8`; alt annet får
+  etiketten `unknown`.
+
+  Verktøyet tar ingen konfigurasjon. Det er nyttig for å oppdage ikke-ASCII-innhold
+  som kan kreve særskilt behandling i nedstrømsformater eller skrifter, og for å
+  bekrefte at teksten er velformet UTF-8.
+limitations:
+  - Undersøker kun kildetekst; måloversettelster klassifiseres ikke.
+  - "Deteksjon er begrenset til ASCII / UTF-8-gyldighet, ikke en fullstendig tegnsett-deteksjonsheuristikk."
+processingNotes:
+  - Opererer på oversettelsesblokkker; ikke-oversettbar struktur passerer gjennom uendret.
+examples:
+  - title: Registrer kildekoding
+    description: Verktøyet tar ingen parametere; legg det til i en flyt med en tom konfigurasjon.
+    config: |
+      {}

@@ -1,0 +1,31 @@
+# Native reference doc for the built-in `applestrings` format.
+# Schema source: core/formats/applestrings/config.go (Config) + schema.go.
+# Legacy Apple string resources; .xcstrings (see xcstrings) is the modern successor.
+description: Trekk ut og oppdater oversettelser i eldre Apple .strings- og .stringsdict-ressursfiler.
+overview: |
+  **Apple Strings**-formatet leser begge eldre Apple-filtyper for strengressurser i ett format: de linjebaserte `.strings`-nøkkel/verdi-tabellene og `.stringsdict`-plist-XML-flertallsordbøkene (gruppert etter `.lproj`-katalog etter språkkode).
+
+  I `.strings` blir en kommentar som står foran en oppføring en oversetternote, og printf-spesifikatorer (`%@`, `%lld`, `%1$@`) beskyttes som inline-koder. I `.stringsdict` modelleres hver `NSStringLocalizedFormatKey` og alle CLDR-flertallskategorier (`zero`/`one`/`two`/`few`/`many`/`other`) som en blokk, med `%#@var@`-tokens beskyttet. Ved skriving settes bare endrede verdier tilbake, slik at filen forblir byte-tro, og kodingene UTF-8 og UTF-16 (LE/BE) bevares. Den moderne `.xcstrings` String Catalog håndteres av det separate `xcstrings`-formatet.
+parameters:
+  extractComments:
+    description: Legg ved en foregående kommentar som en oversetternotat (.strings).
+    help: |
+      Når dette er aktivert (standard), knyttes en `/* … */`- eller `// …`-kommentar som går
+      foran en `.strings`-oppføring til blokken som et oversetternotat.
+    values: "`true` / `false` (standard `true`)"
+  protectPlaceholders:
+    description: Beskytt printf- og %#@var@-token som inline-koder.
+    help: |
+      Når dette er aktivert (standard), løftes printf-spesifikatorer (`%@`, `%lld`, `%1$@`)
+      og `.stringsdict` `%#@var@`-substitusjonstoken inn i ugjennomsiktige
+      inline-koder slik at de aldri endres ved oversetting.
+    values: "`true` / `false` (standard `true`)"
+processingNotes:
+  - "`.strings` og `.stringsdict` oppdages via utvidelsene sine; en strøm uten en slik klassifiseres etter innhold."
+  - "Flertallskategorier i `.stringsdict` modelleres som separate blokker, som i strengkatalogen."
+  - Binær-plist `.strings` er utenfor omfang; UTF-8- og UTF-16-tekstkodinger bevares ved rundtur.
+examples:
+  - title: La plassholderene inline
+    description: Ikke beskytt printf/%#@var@-token som koder.
+    config: |
+      protectPlaceholders: false

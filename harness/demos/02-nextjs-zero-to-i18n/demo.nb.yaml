@@ -1,0 +1,78 @@
+id: 02-nextjs-zero-to-i18n
+title: "Den samme JSX-en, nå på japansk"
+subtitle: "Ett import, én katalog, og komponentene forblir slik de ble skrevet."
+kind: framework
+publishAs: claude-app-i18n
+aspects:
+  - i18n setup
+  - neokapi-i18n
+  - pseudo-translate
+  - multilingual
+needsAi: true
+model: sonnet
+captureTimeoutSec: 900
+outro:
+  line: "Legg det til i appen din, og be om et språk."
+  pointer: npm install -D @neokapi/i18n-react
+
+# A complete English app with base deps installed, but neokapi-i18n is NOT installed
+# or wired, so Claude adopts it. `npm install -D @neokapi/i18n-react` resolves from the
+# public npm registry, which is the command the outro card tells the reader to run.
+setup:
+  - npm install --no-audit --no-fund --loglevel=error
+
+prompt: >
+  We're taking Lumen Notes to Japan. Can you set up i18n with neokapi-i18n and add a Japanese
+  translation?
+
+artifacts:
+  - id: source
+    caption: "Before and after: the same JSX, with an import added and only the data strings wrapped"
+    source: codediff
+    reportTitle: "src/app/page.tsx before and after neokapi-i18n"
+    reportSub: "Plain JSX text is auto-extracted at build time; only strings that live in data get t()"
+    path: src/app/page.tsx
+    width: 1800
+    height: 1000
+  - id: japanese
+    caption: "The same app in Japanese, layout untouched, placeholders intact"
+    source: url
+    serve: "npm run dev -- -p 4600"
+    port: 4600
+    path: "/?lang=ja"
+    settleMs: 3500
+    serveTimeoutMs: 220000
+    width: 1200
+    height: 820
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      En React-app kan sendes på et annet språk med JSX-en uendret. Se Claude legge til japansk i en Next.js-app: ett import, én katalog og de samme komponentene.
+  - id: source
+    kind: artifact
+    artifact: source
+    caption: Ett import lagt til. Markup-teksten er uendret.
+    text: >-
+      Dette er hele endringen i kilden. Ett import, og en wrapper rundt den håndfull strenger som lever i data fremfor i markup. Alt leseren ser forblir ren JSX, som er det bygget trekker ut.
+  - id: work
+    kind: terminal
+    caption: Strengene forlater komponentene som en katalog.
+    text: >-
+      Claude installerer pakken, kobler til byggetillegget og kjører uttrekket. Hver tekststreng i grensesnittet havner i en katalog nøklet på den engelske teksten, så komponentene trenger ingen meldings-ID-er.
+  - id: translate
+    kind: terminal
+    caption: "Først pseudooversett, deretter japansk, deretter kompilert."
+    text: >-
+      En pseudooversettelse kjøres først og avgjør om appen tåler lengre tekst og omplasserte plassholdere. Deretter oversetter kapi katalogen til japansk, beholder navn-plassholderen der koden forventer den, og kompilerer den til ordboken appen laster inn.
+  - id: japanese
+    kind: artifact
+    artifact: japanese
+    caption: "Japansk, på layouten som allerede var der."
+    text: >-
+      Og appen på japansk. Layouten er den komponentene beskriver, og maskinutdataene her har ingen person lest – i et prosjekt er det det gjennomgangskøen er til.
+  - id: outro
+    kind: outro
+    text: >-
+      Installer pakken i din egen app, kjør uttrekket én gang, og be om språket du trenger.

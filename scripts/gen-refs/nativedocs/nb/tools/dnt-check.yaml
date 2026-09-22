@@ -1,0 +1,37 @@
+# Native reference doc for the built-in `dnt-check` tool.
+# Schema source: core/tools/dntcheck.go (DNTCheckConfig, terms set programmatically).
+description: Verifiser at do-not-translate-termer overlever ordrett inn i målteksten.
+overview: |
+  Verktøyet **Ikke-oversett-kontroll** vokter termer som må nå målet
+  uendret: produktnavn, varemerker, kodeidentifikatorer. For hver konfigurert
+  term som forekommer i kilden som et helt ord, verifiserer det at termen er
+  tilstede ordrett i målet; når den mangler, flagges blokken med et
+  kritisk funn (tilfellet «KI-en oversatte produktnavnet ditt»). Den er
+  skrivebeskyttet: den kommenterer funn og omskriver aldri innhold.
+
+  Listen over beskyttede termer leveres programmatisk, ikke som et
+  skemafelt. Et prosjekt, en oppskrift eller et kontrollsett leverer dem, og termlageret
+  kan bidra med flere. En målspråkkode er påkrevd; blokker uten et mål for
+  den språkkoden hoppes over. Det eneste alternativet på skjemanivå styrer om et
+  versalfoldet treff i målet godtas.
+parameters:
+  caseInsensitive:
+    description: Godta et treff med endret store/små bokstaver i målteksten i stedet for å kreve eksakt samsvar.
+    help: |
+      Av som standard, fordi ikke-oversett er vanligvis versalfølsom:
+      "iPhone" må ikke bli "Iphone". Når aktivert, godtar kontrollen et
+      versaluavhengig treff i målet.
+    values: "`true` / `false` (standard `false`)"
+limitations:
+  - Listen over beskyttede termer konfigureres programmatisk; den er ikke eksponert som en skjemaparameter.
+  - En term kontrolleres kun når den forekommer i kildeteksten som et helt ord; delstrenger av større ord ignoreres.
+  - "Når en term mangler i målet, registrerer funnet den eksakte termen som skal bevares, men foreslår ingen automatisk erstatning. Et treff som mangler krever en menneskelig vurdering eller en ny oversettelse – ikke en blind delstrengserstatning."
+  - Krever en konfigurert målspråkkode; blokker uten en måltekst for den språkkoden hoppes over.
+processingNotes:
+  - Opererer på oversettbare blokker som har en måltekst for den konfigurerte språkkoden; andre deler passerer uendret gjennom.
+  - Funn rapporteres i kategorien «do-not-translate» med kritisk alvorlighetsgrad.
+examples:
+  - title: Bevaring uten skille mellom store og små bokstaver
+    description: Godta et treff med endret store/små bokstaver for beskyttede termer i målteksten.
+    config: |
+      caseInsensitive: true

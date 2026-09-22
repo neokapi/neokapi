@@ -1,0 +1,74 @@
+# Native reference doc for the built-in `segmentation` tool.
+# Schema source: core/tools/segmentation.go (SegmentationConfig).
+description: Del blokkens tekst opp i segmenter på setningsnivå ved hjelp av SRX-stilregler.
+overview: |
+  **Segmentering**-verktøyet deler en blokks tekst opp i segmenter på setningsnivå.
+  Segmentering bestemmer oversettelsesenheten og grunnlaget for oversettelsesminne-treff,
+  så konsekvent segmentering er viktig for gjenbruk og gjennomgang.
+  Som standard segmenterer verktøyet kildetekst ved hjelp av innebygde SRX-stilregler som
+  håndterer vanlige setningsgrenser og forkortelser; regler kan også lastes inn
+  fra en SRX-fil.
+
+  Antall segmenter som produseres, registreres på hver blokk. Allerede segmentert
+  tekst berøres ikke med mindre resegmentering er forespurt. Måltekst kan
+  segmenteres uavhengig, med sin egen regelfil.
+parameters:
+  segmentSource:
+    description: Segmenter kildeteksten.
+    help: |
+      Når aktivert, deles kildeteksten inn i segmenter ved hjelp av kildereglene.
+      Hvis verken kilde- eller målsegmentering er aktivert, brukes
+      kildesegmentering som standard.
+    values: "`true` / `false` (standard `true`)"
+  segmentTarget:
+    description: Segmenter eksisterende måltekst.
+    help: |
+      Når aktivert, deles eksisterende måltekst for den konfigurerte språkkoden
+      inn i segmenter ved hjelp av målreglene.
+    values: "`true` / `false` (standard `false`)"
+  sourceSrxPath:
+    description: Bane til en SRX-regelfil for kilden.
+    help: |
+      Sti til en SRX-segmenteringsregelfil som brukes for kildeteksten. Når
+      feltet er tomt, brukes de innebygde standardreglene.
+    values: "filbane"
+  targetSrxPath:
+    description: Bane til en SRX-regelfil for målet.
+    help: |
+      Sti til en SRX-segmenteringsregelfil som brukes for målteksten. Når
+      feltet er tomt, brukes de innebygde standardreglene.
+    values: "filbane"
+  overwriteSegmentation:
+    description: Resegmenter allerede segmentert tekst.
+    help: |
+      Som standard forblir tekst som allerede har mer enn ett segment uendret.
+      Aktiver dette for å forkaste den eksisterende segmenteringen og segmentere på nytt.
+    values: "`true` / `false` (standard `false`)"
+  treatIsolatedCodesAsWhitespace:
+    description: Behandle isolerte inline-koder som blanktegn under segmentering.
+    help: |
+      Når dette er aktivert, behandles en isolert inline-kode som blanktegn ved
+      fastsettelse av segmentgrenser.
+    values: "`true` / `false` (standard `false`)"
+  renumberCodes:
+    description: Omnummerer inline-kode-ID-er innenfor hvert segment.
+    help: |
+      Når dette er aktivert, renummereres inline-kode-ID-er slik at de starter på 1 i hvert
+      resulterende segment.
+    values: "`true` / `false` (standard `false`)"
+limitations:
+  - Det innebygde regelsettet er rettet mot vanlige setningsgrenser i latinskriftspråk; ikke-latinske skriftsystemer kan trenge en egendefinert SRX-fil.
+processingNotes:
+  - Opererer kun på oversettbare blokker; ikke-oversettbare blokker passerer uendret gjennom.
+  - Det resulterende segmentantallet skrives til en blokk-egenskap.
+examples:
+  - title: Segmenter kildetekst med standardregler
+    description: Del kilde opp i setninger ved hjelp av de innebygde reglene.
+    config: |
+      segmentSource: true
+  - title: Resegmenter med en egendefinert SRX-fil
+    description: Erstatt eksisterende segmentering med prosjektspesifikke regler.
+    config: |
+      segmentSource: true
+      overwriteSegmentation: true
+      sourceSrxPath: ./rules/segmentation.srx

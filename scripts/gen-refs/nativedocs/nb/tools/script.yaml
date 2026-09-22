@@ -1,0 +1,54 @@
+# Native reference doc for the built-in `script` tool.
+# Schema source: core/tools/script.go (ScriptConfig).
+description: Kjør et brukerdefinert ES5 JavaScript-skript over hver del for å inspisere eller endre blokktekst.
+overview: |
+  **Script**-verktøyet kjører et brukerlevert ES5 JavaScript-program for hver del i strømmen. Skriptet mottar den gjeldende delen som et `part`-objekt og kan lese og endre kildetekst og måltekst i blokker. Det er en nødutgang for skreddersydde transformasjoner som ingen innebygd verktøy dekker.
+
+  Inne i skriptet identifiserer `part.type` delen, og `part.block` eksponerer blokken (med `id`, `translatable`, `source` og `targets`). Hjelpefunksjoner er tilgjengelige: `emit(part)` videresender en del, `skip()` forkaster den gjeldende delen, og `log(msg)` skriver en melding til standard feil. Når skriptet verken emitter eller skipper, passerer delen gjennom med eventuelle tekstredigeringer på plass. Skriptet oppgis inline eller leses fra en `.js`-fil.
+
+  **Dette verktøyet kjører kode som oppskriften velger, og er derfor portvokt.** Det er exec-klasse: skriptet leveres av oppskriften, `file` leser en sti som oppskriften angir, og en oppskrift bindes ved å gå inn i en katalog. kapi spør derfor én gang per prosjekt, før noe annet skjer med det, og husker svaret; en uovervåket kjøring uten noen å spørre nekter heller enn å anta. `KAPI_TRUST_EXEC=1` gir tilgang der pipeline-forfatteren bestemmer det, i stedet for at det avgjøres av repositoriet som behandles. Den samme klassifiseringen holder dette verktøyet borte fra agentflaten, fra motor-API-et og fra alle oppskrifter som ankommer inne i en `.kpz`. Se [E-06](/contribute/architecture/engine/e-06-execution-trust).
+parameters:
+  source:
+    description: Hvor skriptet kommer fra.
+    help: |
+      `inline` kjører skriptet som er oppgitt i `code`-feltet; `file` laster skriptet
+      fra stien i `scriptFile`.
+    values: "`inline` / `file` (standard `inline`)"
+  code:
+    description: Inline ES5 JavaScript-kilde.
+    help: |
+      Skriptkroppen, brukes når `source` er `inline`. Påkrevd i den modusen.
+    values: "streng"
+    dependsOn:
+      - property: source
+        condition: brukes når source er `inline`
+  scriptFile:
+    description: Sti til en JavaScript-fil.
+    help: |
+      Sti til en `.js`-fil som skal lastes og kjøres, brukes når `source` er `file`.
+      Påkrevd i den modusen.
+    values: "filsti"
+    dependsOn:
+      - property: source
+        condition: brukes når source er `file`
+limitations:
+  - Motoren støtter bare ES5 JavaScript.
+  - Bare endringer i blokk-kildetekst og -måltekst tas tilbake; andre endringer i delen lagres ikke.
+processingNotes:
+  - Hver verktøyinstans eier sin egen kjøretid og kjører entrådet over inndata.
+  - En del passerer uendret når skriptet verken sender ut en del eller kaller skip.
+examples:
+  - title: Fjern etterfølgende blanktegn fra kildetekst
+    description: Endre kildetekst på stedet med et inline-skript.
+    config: |
+      source: inline
+      code: |
+        if (part.type === 'block') {
+          var s = part.block.source[0].content.text;
+          part.block.source[0].content.text = s.replace(/\s+$/, '');
+        }
+  - title: Last inn et skript fra en fil
+    description: Kjør et skript lagret ved siden av prosjektet.
+    config: |
+      source: file
+      scriptFile: ./scripts/transform.js

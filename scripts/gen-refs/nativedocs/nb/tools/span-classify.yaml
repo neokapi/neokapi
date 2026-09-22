@@ -1,0 +1,13 @@
+# Native reference doc for the built-in `span-classify` tool.
+# Schema source: core/tools/span_classify.go (SpanClassifyConfig, no parameters).
+description: Omklassifiser generiske markup-inline-koder til semantiske vokabulartyper.
+overview: |
+  **Span Classify**-verktøyet omklassifiserer generiske `code:markup` inline-koder (plassholderere og parvise åpne/lukke-koder) til riktige semantiske vokabulartyper som fet, kursiv, hyperkobling eller bilde. Det er ment å kjøres etter lesere som sender ut generiske markup-koder (for eksempel bridge-XLIFF- eller Okapi-lesere), slik at senere verktøy og redigerere ser meningsfulle inline-kodetyper i stedet for ugjennomsiktig markup.
+
+  Klassifiseringen bruker to strategier: et kart over kjente Okapi-kode-undertyper, og, hvis det ikke gir resultat, HTML-elementnavnet som parses fra kodens rådata. Når en semantisk type er bestemt, bruker verktøyet også vokabularets visningsform, ekvivalenstekst og redigeringsbegrensninger. Koder det ikke kan klassifisere, forblir uendret. Verktøyet har ingen konfigurerbare parametere.
+limitations:
+  - Klassifisering dekker kjente Okapi-undertyper og vanlige HTML-elementer; ukjente koder forblir uendret.
+  - Har ingen konfigurerbare parametere.
+processingNotes:
+  - Opererer på inline-kode-kjøringer i både kilde- og målsegmenter.
+  - Rekurserer inn i flertalls- og select-konstruksjoner slik at koder inni dem også klassifiseres.

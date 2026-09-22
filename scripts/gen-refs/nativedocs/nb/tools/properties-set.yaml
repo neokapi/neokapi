@@ -1,0 +1,43 @@
+# Native reference doc for the built-in `properties-set` tool.
+# Schema source: core/tools/propertiesset.go (PropertiesSetConfig).
+description: Angi eller endre nøkkel-verdi-egenskaper på blokker.
+overview: |
+  **Properties Set**-verktøyet skriver et fast sett med nøkkel-verdi-egenskaper til
+  blokker. Egenskaper er metadata som følger med en blokk og kan påvirke
+  nedstrømsverktøy og skrivere. Bruk det til å merke innhold – for eksempel ved å markere et
+  sett med blokker med en arbeidsflytsstatus eller et rutingshint.
+
+  Minst én egenskap må konfigureres. Som standard overskriver verktøyet
+  eksisterende egenskaper med samme nøkkel og gjelder bare blokker med tekst.
+parameters:
+  properties:
+    description: Nøkkel-verdi-parene som skal angis på hver blokk.
+    help: |
+      Et kart over egenskapsnavn til verdier. Hver oppført egenskap skrives på
+      hver behandlede blokk. Minst én oppføring er påkrevd.
+    values: "objekt med strengnøkler til strengverdier (påkrevd)"
+  overwrite:
+    description: Overskriv eksisterende egenskaper med samme nøkkel.
+    help: |
+      Når dette er aktivert, erstattes en egenskap hvis nøkkel allerede finnes på blokken.
+      Når dette er deaktivert, beholdes eksisterende egenskaper og bare manglende
+      nøkler legges til.
+    values: "`true` / `false` (standard `true`)"
+  onlyTranslatable:
+    description: Angi bare egenskaper på oversettbare blokker.
+    help: |
+      Når dette er aktivert, hoppes ikke-oversettbare blokker over. Deaktiver det for å angi
+      egenskaper på alle blokker uavhengig av oversettbarhet.
+    values: "`true` / `false` (standard `true`)"
+examples:
+  - title: Tagg blokker med en status
+    description: Angi en arbeidsflyt-egenskap på alle oversettbare blokker.
+    config: |
+      properties:
+        status: review
+  - title: Legg til metadata uten å overskrive
+    description: Legg bare til en nøkkel når blokken ikke allerede har den.
+    config: |
+      properties:
+        origin: import
+      overwrite: false

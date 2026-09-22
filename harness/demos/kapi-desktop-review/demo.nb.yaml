@@ -1,0 +1,82 @@
+id: kapi-desktop-review
+title: Vurdert der den befinner seg
+subtitle: "Fem lag under én enhet, og et tastetrykk for å avgjøre."
+kind: use-case
+publishAs: kapi-desktop-review
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - One review queue
+  - The point a unit sits at
+  - Prior decisions and approved wording
+  - Findings anchored in the runs
+outro:
+  line: Åpne Review og trykk A på en ren enhet.
+  pointer: kapi status --review
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      En oversettelse vurderes der den befinner seg: ved sitt punkt, ved siden av naboene, mot det som ble godkjent tidligere.
+  - id: queue
+    kind: desktop
+    beat: queue
+    caption: "Én liste, alle språk, to måter å begrense den på."
+    text: >-
+      Review er én kø. Alle språk er i samme liste, med en telling per språk og chips for hva en kontroll flagget.
+  - id: open-unit
+    kind: desktop
+    beat: open-unit
+    caption: "Kildetekst, måltekst og lagene under dem."
+    text: >-
+      Å åpne en enhet viser kilden og oversettelsen, med det som formet dem stablet nedenunder.
+  - id: point
+    kind: desktop
+    beat: point
+    caption: Hva gjelder her?
+    crop: { selector: '[data-slot="review-point"]' }
+    text: >-
+      Det første laget er punktet dette innholdet befinner seg på: koordinatene, voice-profilen som gjelder der, og termreglene knyttet til det.
+  - id: neighbourhood
+    kind: desktop
+    beat: neighbourhood
+    caption: Hva befinner seg på hver side av den?
+    crop: { selector: '[data-slot="review-neighbourhood"]' }
+    text: >-
+      Det andre er nabolaget: blokkene på hver side av den, slik at en setning leses der en leser vil møte den.
+  - id: history
+    kind: desktop
+    beat: history
+    caption: Hva ble avgjort tidligere?
+    crop: { selector: '[data-slot="review-history"]' }
+    text: >-
+      Det tredje er hva som ble avgjort tidligere: versjonen som ble godkjent sist, ved siden av treffet memory tilbyr nå.
+  - id: findings
+    kind: desktop
+    beat: findings
+    caption: "Hva fant kontrollene, og hvor?"
+    crop: { selector: '[data-slot="review-findings"]' }
+    highlight: { selector: '[data-slot="review-finding"]' }
+    text: >-
+      Det fjerde er kontrollene. Et funn er forankret i kjøringen det navngir, slik at en klage på en plassholder peker på plassholderen.
+  - id: provenance
+    kind: desktop
+    beat: provenance
+    caption: "Hvem avgjorde, og når?"
+    crop: { selector: '[data-slot="review-provenance"]' }
+    text: >-
+      Det femte er opphav: hvem som skrev det, hvem som avgjorde det, og om teksten har endret seg siden. Denne har ingen.
+  - id: decide
+    kind: desktop
+    beat: decide
+    caption: "Én tastetrykk, deretter de rene samlet."
+    text: >-
+      Med det lest er beslutningen et tastetrykk bundet til teksten det vurderte, og enhetene ingen kontroll flagget samles.
+  - id: outro
+    kind: outro
+    text: >-
+      Hver beslutning her er posten kommandolinjen leser og skriver, så overflaten du jobber fra er en preferanse.

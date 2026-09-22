@@ -1,0 +1,57 @@
+id: kapi-desktop-explorer
+title: Hva ble vi enige om for dette ordet?
+subtitle: "Termer og content memory, søkt på det prosjektet som godkjente dem."
+kind: use-case
+publishAs: kapi-desktop-explorer
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - Terms
+  - Content memory
+  - Multi-locale terms
+  - Inline formatting
+  - Entity placeholders
+
+# A "desktop" demo replays the recorded Kapi Desktop screencast (public/<id>/
+# screencast.{json,webm}) inside the macOS window frame. Each narration scene of
+# kind "desktop" names a `beat` from screencast.json.
+outro:
+  line: De samme to storene svarer fra en terminal.
+  pointer: kapi terms search cart
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Ordene et prosjekt har blitt enige om, og formuleringene det allerede har godkjent, er beslutninger. Begge tilhører prosjektet, og begge svarer på et søk.
+  - id: search-term
+    kind: desktop
+    beat: search-term
+    caption: "Ett ord skrevet, og listen innsnevres til det."
+    text: >-
+      Dette er termene prosjektet har godkjent, i den første av sine to storer. Skriving innsnevrer listen løpende, ikke ved et tastetrykk, så det tar ett ord og et øyeblikk å finne hva selskapet kaller noe.
+  - id: concept
+    kind: desktop
+    beat: concept
+    caption: "Godkjente termer, språk for språk."
+    text: >-
+      Et konsept inneholder en definisjon og den godkjente termen for det på alle språk prosjektet leverer. Et statusmerke markerer den foretrukne formuleringen og flagger de som er utgått.
+  - id: search-tm
+    kind: desktop
+    beat: search-tm
+    caption: "Alle strenger som nevner checkout, i én spørring."
+    text: >-
+      Content memory fungerer på samme måte, én seksjon bortover. Det holder alle oversettelser dette prosjektet har godkjent, og et søk i det svarer med strengene et ord faktisk forekommer i.
+  - id: inspect-tm
+    kind: desktop
+    beat: inspect-tm
+    caption: "Formatering beholdt som tagger, navn beholdt som plassholdere."
+    text: >-
+      En oppføring kobler en kildestreng med oversettelsene av den. Fet tekst og lenker beholdes som tagger i stedet for som bokstavelig markup, og et navn holdes som en plassholder, slik at oppføringen kan gjenbrukes med et annet navn i den.
+  - id: outro
+    kind: outro
+    text: >-
+      Begge storene svarer på de samme spørsmålene fra en terminal i samme mappe, fordi begge tilhører prosjektet, ikke appen.

@@ -1,0 +1,33 @@
+# Native reference doc for the built-in `mo` format.
+# Schema source: core/formats/mo/{config.go,schema.go,reader.go,writer.go}.
+# Upstream analogue: gettext PO/MO tooling (msgfmt). The MO catalog is the
+# compiled runtime form of a PO file.
+description: "Skriver kompilerte GNU gettext MO-kataloger, den binære kjøretidsformen av en PO-fil."
+overview: |
+  MO (Machine Object) er den kompilerte binærkatalogen som GNU gettext laster inn
+  ved kjøretid. Den lagrer én oppføring per `(msgctxt, msgid)`-par sammen med
+  oversettelsen, indeksert for oppslag av gettext-biblioteker. Der en PO-fil
+  er den redigerbare kildefilen, er MO-filen artefakten en applikasjon
+  leverer og leser.
+
+  neokapi tilbyr MO som **kun skriver**. Pipelinen bruker tekst-blokker og skriver ut en binær katalog for én enkelt målspråkkode. `msgctxt` hentes
+  fra hver blokk i denne rekkefølgen: `Properties["context"]`, deretter `Name`, deretter
+  `ID`. Blokker produsert av PO-leseren (som setter kontekstegenskapen)
+  og blokker produsert av JSON-leseren med fulle nøkkelbaner (som setter
+  blokknavnet) kompileres begge til MO uten ekstra konfigurasjon. Uoversatte
+  oppføringer utelates, siden en kjøretidskatalog forventes å inneholde bare
+  oversettelser, og den påkrevde tomme `msgid`-metadatahodeopprøringen skrives alltid.
+
+  MO kan ikke leses tilbake gjennom pipelinen. Selv om formatet registrerer en
+  leser slik at `.mo` gjenkjennes for utdataruting og utvidelsesdeteksjon,
+  returnerer åpning av en MO-fil som kilde en feil som ber deg om å
+  laste kompilerte kataloger med et gettext-kjøretidsbibliotek i stedet.
+limitations:
+  - Kun skriving i pipelinen; MO-filer kan ikke analyseres som en oversettelseskilde.
+  - Sender ut en katalog for én enkelt målspråkkode; uoversatte oppføringer utelates.
+  - "Utdata er en binær katalog, ikke den redigerbare PO-kilden, så behold PO-filen som redigerbar form."
+processingNotes:
+  - "Én MO-oppføring sendes ut per oversatt Blokk, nøklet av `(msgctxt, msgid)`."
+  - "`msgctxt` hentes fra `Block.Properties[\"context\"]`, med `Block.Name` som reservealternativ, deretter `Block.ID`."
+  - Den tomme-`msgid`-metadatahoderoppføringen skrives alltid.
+wikiUrl: "https://www.gnu.org/software/gettext/manual/html_node/MO-Files.html"

@@ -1,0 +1,59 @@
+id: bowrain-desktop-automations
+title: Ingen trenger å huske å oversette noe
+subtitle: "En regel utløses ved push, og en kjøring oppdaterer prosjektet."
+tagline: the server-side platform companion to kapi
+kind: use-case
+publishAs: bowrain-desktop-automations
+terminal: desktop
+target: bowrain-desktop
+brand: bowrain
+needsAi: false
+oneshot: true
+outro:
+  line: "Det samme passet, startet fra en terminal."
+  pointer: kapi up
+aspects:
+  - Standing rules per project
+  - A run started on camera
+  - Parked work waits in review
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Ingen trenger å huske å oversette noe. En regel på prosjektet kjører løkken på serveren hver gang innhold pushes.
+  - id: rule
+    kind: desktop
+    beat: rule
+    caption: "Hva som utløses, og på hva."
+    hold: 15
+    text: >-
+      Reglene er et prosjekts faste instruksjoner: hva som utløses, og på hva. Push innhold fra et repositorium eller en kobling, så kjører serveren løkken uten at noen åpner dette skjermbildet eller sender inn en forespørsel om det.
+  - id: run-now
+    kind: desktop
+    beat: run-now
+    caption: "Et pass, startet manuelt."
+    hold: 15
+    crop: { selector: '[data-testid="runs-list"]' }
+    text: >-
+      Kjør nå starter neste pass manuelt. Velg omfang, så starter en reell kjøring på serveren – med teamets nøkler og teamets porter – og den vises øverst i tabellen med det samme.
+  - id: settled
+    kind: desktop
+    beat: settled
+    caption: "Oppdatert, eller parkert med en begrunnelse."
+    hold: 16
+    crop: { selector: '[data-testid="run-row"]' }
+    highlight: { selector: '[data-testid="run-row"]' }
+    text: >-
+      Hver kjøring oppdaterer prosjektet og stabiliserer seg. Raden viser hva hvert språk fikk ut av passet, og alt som krever en person parkeres i stedet for å sendes – det er den ærlige siden av å kjøre dette automatisk.
+  - id: parked
+    kind: desktop
+    beat: parked
+    caption: Parkert arbeid er allerede til gjennomgang.
+    hold: 14
+    text: >-
+      Parkert er ikke en blindvei. Det arbeidet ligger allerede i gjennomgangskøen og venter på noen med rettighet for det aktuelle språket, og neste kjøring fortsetter der denne stoppet.
+  - id: outro
+    kind: outro
+    text: >-
+      Det samme passet kjøres fra en terminal, med én kommando.

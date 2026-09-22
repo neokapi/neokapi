@@ -16,7 +16,7 @@
       "contextWindow": 1000000,
       "status": "active",
       "introduced": "2026-08-27",
-      "note": "1M context is standard, with no long-context surcharge."
+      "note": "1M kontekst er standard, uten tillegg for lang kontekst."
     },
     {
       "id": "claude-opus-4-8",
@@ -29,7 +29,7 @@
       "status": "superseded",
       "introduced": "2026-07-14",
       "supersededBy": "claude-opus-5",
-      "note": "1M context is standard, with no long-context surcharge."
+      "note": "1M kontekst er standard, uten tillegg for lang kontekst."
     },
     {
       "id": "claude-sonnet-5",
@@ -87,7 +87,7 @@
       "status": "superseded",
       "introduced": "2026-04-03",
       "supersededBy": "claude-sonnet-5",
-      "note": "Reached in production through the Bedrock inference profile eu.anthropic.claude-sonnet-4-6."
+      "note": "Nås i produksjon via Bedrock-inferansprofilen eu.anthropic.claude-sonnet-4-6."
     },
     {
       "id": "claude-opus-4",
@@ -126,7 +126,7 @@
       "contextWindow": 1050000,
       "status": "active",
       "introduced": "2026-07-14",
-      "note": "The default id is gpt-5.6-sol, which resolves to this family."
+      "note": "Standard-ID-en er gpt-5.6-sol, som løses til denne familien."
     },
     {
       "id": "gpt-5",
@@ -166,7 +166,7 @@
       "status": "superseded",
       "introduced": "2026-04-03",
       "supersededBy": "gpt-5.6",
-      "note": "Superseded on the OpenAI API, but still the Azure OpenAI default, because Azure deployments lag the public API and the default is deliberately conservative."
+      "note": "Erstattet i OpenAI API, men fortsatt standard for Azure OpenAI, fordi Azure-distribusjoner henger etter det offentlige API-et og standarden er bevisst konservativ."
     },
     {
       "id": "o3",
@@ -178,7 +178,7 @@
       "contextWindow": 200000,
       "status": "active",
       "introduced": "2026-06-22",
-      "note": "Reasoning model; kept for callers who name it explicitly."
+      "note": "Resonneringsmodell; beholdt for kallere som navngir den eksplisitt."
     },
     {
       "id": "gpt-4-",
@@ -191,7 +191,7 @@
       "status": "superseded",
       "introduced": "2026-07-14",
       "supersededBy": "gpt-5.6",
-      "note": "The trailing dash keeps this prefix from matching gpt-4o or gpt-4.1."
+      "note": "Den etterfølgende bindestreken hindrer dette prefikset fra å matche gpt-4o eller gpt-4.1."
     },
     {
       "id": "gpt-3.5",
@@ -229,7 +229,7 @@
       "contextWindow": 1048576,
       "status": "active",
       "introduced": "2026-07-14",
-      "note": "Prompts over 200k input tokens are billed at a higher tier."
+      "note": "Spørringer over 200 000 input-token faktureres på et høyere nivå."
     },
     {
       "id": "gemini-3.1-flash-lite",
@@ -264,7 +264,7 @@
       "contextWindow": 1048576,
       "status": "active",
       "introduced": "2026-04-03",
-      "note": "Fallback ceilings for any Gemini 3.x id without a more specific entry."
+      "note": "Reservetak for alle Gemini 3.x-id-er uten en mer spesifikk oppføring."
     },
     {
       "id": "gemini-2",
@@ -289,7 +289,7 @@
       "recommended": true,
       "status": "active",
       "introduced": "2026-06-22",
-      "note": "Runs locally through Ollama; ceilings depend on the pulled quantisation, so none are pinned here."
+      "note": "Kjører lokalt via Ollama; grensene avhenger av den nedlastede kvantiseringen, så ingen er fastsatt her."
     }
   ]
 }

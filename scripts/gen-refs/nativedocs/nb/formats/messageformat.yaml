@@ -1,0 +1,24 @@
+# Native reference doc for the built-in `messageformat` format.
+# Source: core/formats/messageformat/{reader.go,writer.go,parser.go,config.go,spec.yaml}.
+# Mirrors Okapi's MessageFormat filter (okf_messageformat). No configurable parameters today.
+description: "Les og skriv ICU MessageFormat-mønstre, og trekk ut hver gren av plural- og select-velgere separat."
+overview: |
+  ICU MessageFormat er mønsteret som brukes av ICU og mange i18n-biblioteker for å uttrykke meldinger med plassholdere og grammatisk variasjon. Dette formatet behandler hver inndatalinje som ett uavhengig MessageFormat-mønster.
+
+  Et rent tekstmønster trekkes ut som én enkelt oversettbar blokk. Et mønster med enkle plassholdere (`{0}`, `{name}`, `{name, type}`, `{name, type, style}`) trekkes også ut som én enkelt blokk, der plassholderene bæres som innebygde sekvenser rundt den bokstavelige teksten slik at de ikke ved et uhell kan oversettes eller omordnes. Et mønster med en plural-, select- eller selectordinal-velger deles inn i én blokk per greninnhold, slik at hver grammatisk form kan oversettes uavhengig; velgerens rammeverk (`{count, plural, …}`, `{gender, select, …}`) og eventuell tekst utenfor velgeren bevares gjennom skjelettet i stedet for å trekkes ut. ICU-anførselsmerker dekodes før uttrekk: `''` blir et bokstavelig apostrof og `'{…}'` beskytter en passasje med bokstavelige klammeparenteser. Javas avviklede `choice`-format avvises med en feil.
+limitations:
+  - Hver linje tolkes som et selvstendig mønster; et enkelt mønster som strekker seg over flere linjer støttes ikke.
+  - Det utdaterte ICU `choice`-formatet støttes ikke og rapporteres som en feil.
+  - Det finnes ingen konfigurerbare parametere; oppstrøms utdataalternativer som pluralformutvidelse eller pen utskrift er ikke eksponert.
+processingNotes:
+  - "Enkle mønstre og mønstre med enkle plassholdere trekkes ut som én blokk per linje; plural-, select- og selectordinal-mønstre trekker ut én blokk per greninnhold."
+  - "Plassholdere representeres som inline-kjøringer (`icu:argument`, `icu:number` for `#`), slik at de overlever oversettelsen intakt."
+  - Tomme linjer og etterfølgende linjeskift gjennomgår rundtur som skjelett; med et aktivt skjelettlager er utdata byte-nøyaktig.
+examples:
+  - title: Oversett ICU-mønstre
+    description: |
+      Ingen konfigurasjon er nødvendig. Angi formatet for å trekke ut hver linje som et mønster, og del plural- og select-grener inn i separate blokker.
+    config: |
+      format:
+        name: messageformat
+wikiUrl: https://unicode-org.github.io/icu/userguide/format_parse/messages/

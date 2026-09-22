@@ -1,0 +1,59 @@
+id: bowrain-cli-auth-and-workspaces
+title: Bryt layouten før en oversetter ser den
+subtitle: "Pseudooversett lokalt, og sjekk deretter hvor innholdet havner."
+tagline: the bowrain plugin handles the server; kapi handles the files.
+kind: use-case
+publishAs: bowrain-cli-auth-and-workspaces
+terminal: shell
+brand: bowrain
+cwd: ~/bowmart/help-center
+needsAi: false
+captureTimeoutSec: 180
+outro:
+  line: Logg inn hvis det første svaret er tomt.
+  pointer: kapi auth login
+aspects:
+  - Pseudo-translate before you send
+  - Server and account at a glance
+  - Every workspace you can push to
+
+script:
+  - comment: Before sending anything for real translation, pseudo-translate locally.
+  - command: kapi pseudo-translate src/locales/en.json
+  - comment: Padded, accented copy (qps) surfaces truncation and layout bugs early.
+  - command: cat src/locales/en_qps.json
+  - comment: Which server and account is this checkout connected to?
+  - command: kapi auth status
+  - comment: List the workspaces you can push projects to.
+  - command: kapi workspace list
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Tre spørsmål et tilkoblet utsjekket prosjekt besvarer fra terminalen: er innholdet mitt klart, hvilken server og konto bruker dette, og hvor kan jeg pushe.
+  - id: pseudo
+    kind: terminal
+    through: 4
+    caption: "Paddet, aksentuert og fortsatt lesbar engelsk."
+    hold: 20
+    text: >-
+      Pseudooversetting skriver om katalogen til paddet, aksentuert kopi. Hver streng vokser slik en ekte oversettelse gjør, og aksentene gjør en uoversatt streng synlig – slik at avkutting og ødelagt layout dukker opp på din egen skjerm, ikke i en fil en oversetter allerede er betalt for å fylle ut.
+  - id: auth
+    kind: terminal
+    through: 6
+    caption: Serveren og kontoen dette utsjekkede prosjektet bruker.
+    hold: 12
+    text: >-
+      kapi auth status viser serveren og kontoen dette utsjekkede prosjektet er koblet til – noe som begynner å ha betydning i det øyeblikket du jobber mot mer enn én Bowrain-server.
+  - id: workspace
+    kind: terminal
+    through: 8
+    caption: Hvor et prosjekt kan pushes.
+    hold: 17
+    text: >-
+      kapi workspace list viser alle arbeidsområder du kan pushe et prosjekt til. Hvert arbeidsområde har sine egne prosjekter, sitt eget content memory og sine egne termer, så CLI-en besvarer spørsmålet om du pusher til feil sted – før du gjør det.
+  - id: outro
+    kind: outro
+    text: >-
+      Logg inn hvis det første av disse svarene er tomt.

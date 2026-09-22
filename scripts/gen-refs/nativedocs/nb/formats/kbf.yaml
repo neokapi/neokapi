@@ -1,0 +1,40 @@
+# Native reference doc for the built-in `kbf` format.
+# Source: core/formats/jsx/{jsx.go,spec.yaml} (the package predates the format's
+# name; it registers under jsx.FormatName == "kbf"); KBF wire schema in
+# core/kbf/README.md.
+# Native-only: reads/writes the Kapi Bundle Format (.kbf.json). No configurable parameters.
+description: "Les og skriv Kapi Bundle Format (.kbf.json), JSON-konvolutten for strenger trukket ut fra kildekode."
+overview: |
+  Dette formatet leser og skriver Kapi Bundle Format (`.kbf.json`), en
+  strukturert JSON-konvolutt for tekst trukket ut
+  fra kildekode som JSX/React-komponenter. Et KBF-dokument er en
+  `kind: kapi-bundle`-konvolutt som inneholder ett eller flere
+  dokumenter, der hvert dokument bærer blokker. Hver blokk har en strukturert kjøresekvens:
+  tekst pluss plassholderere, parvise inline-koder, flertallsformer og
+  selects.
+
+  Ved lesing blir hver KBF-blokk én oversettbar blokk. Kildeteksten
+  er den flattede kjøresekvensen: plassholderere bidrar med sin
+  ekvivalent (innpakket i klammeparenteser), parvise koder utelater sine innpakkere, og
+  flertallsformer kollapses til `other`-grenen. Blokk-ID-en overføres
+  ordrett, og den fullstendige strukturerte kjøregrafen følger med i en
+  annotasjon slik at skriveren kan sette sammen det opprinnelige dokumentet igjen. Skriveren
+  reverserer prosessen; en blokk som ankommer uten den
+  annotasjonen (for eksempel én som er satt inn av et mellomliggende verktøy) skrives
+  som en minimal tekstbasert kjøresekvens slik at filen forblir
+  velforberedt.
+limitations:
+  - Dette er et neokapi-spesifikt utvekslingsformat; okapi-bridge-daemonen leveres uten tilsvarende filter.
+  - "Blokker som mister sin strukturerte kjøreannotasjon i pipeline-en skrives tilbake som ren tekst, uten den opprinnelige plassholder- eller paret-kode-strukturen."
+processingNotes:
+  - Én oversettbar blokk per KBF-blokk; blokk-ID-en bevares ordrett.
+  - "Kildeteksten er den flattede kjøresekvensen, der plassholderene blir brace-innpakkede ekvivalenter, parvise koder utelater sine innpakkere, og flertallsformer kollapses til `other`-grenen."
+  - "Kontekst rettet mot oversetteren (fil, komponent, element, JSX-sti, linje, notater) og de strukturerte kjøringene følger med i en blokkannotasjon for pålitelig rundtur."
+  - "Et katalog trukket ut av `@neokapi/i18n-react` 1.2.3 har suffikset `.klf` og den versjonens egen rotmarkør. Det leses som enhver annen pakke, og det gjeldende `kapi-bundle`-konvoluttet skrives tilbake."
+examples:
+  - title: Rundtur for et KBF-dokument
+    description: |
+      Ingen konfigurasjon er nødvendig. Deklarer formatet for å lese en `.kbf.json`-konvolutt og skrive den tilbake etter oversettelse.
+    config: |
+      format:
+        name: jsx

@@ -1,0 +1,69 @@
+id: 03-translate-docx
+title: Et Word-dokument ingen åpnet
+subtitle: "Oversatt til japansk med alle overskrifter, lister og fete datoer på plass."
+kind: use-case
+publishAs: claude-translate-document
+aspects:
+  - document formats
+  - translation
+  - structure-preserving
+needsAi: true
+model: sonnet
+captureTimeoutSec: 240
+outro:
+  line: Sett en person på det før det sendes ut.
+  pointer: kapi status --review
+
+prompt: >
+  Can you translate announcement.docx into Japanese?
+
+artifacts:
+  - id: before
+    caption: "announcement.docx: the original English document"
+    source: docx
+    path: announcement.docx
+    from: fixture
+    reportTitle: "announcement.docx"
+    reportSub: "English, the original Word document"
+    width: 1100
+    height: 860
+  - id: after
+    caption: "announcement.ja.docx: translated, structure and formatting intact"
+    source: docx
+    path: announcement.ja.docx
+    reportTitle: "announcement.ja.docx"
+    reportSub: "kapi · Japanese, headings / lists / bold preserved"
+    width: 1100
+    height: 860
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Et Word-dokument kan oversettes uten at noen åpner Word. Én forespørsel til Claude, og kapi leser filen, oversetter teksten og skriver et nytt dokument med alle overskrifter og fete datoer på plass.
+  - id: before
+    kind: artifact
+    artifact: before
+    caption: "Overskrifter, en punktliste, fete datoer og en kontaktlinje."
+    text: >-
+      Her er originalen. Overskrifter, en punktliste, fete datoer og en kontaktlinje – den delen av et dokument som tåler kopiering og innliming dårligst.
+  - id: read
+    kind: terminal
+    caption: "Lest som et dokument, med lister og fet tekst intakt."
+    text: >-
+      Claude gir filen til kapi, som åpner Word-formatet direkte og trekker ut avsnittene, listeelementene og de fete tekstdelene i dem. Ingenting konverteres til ren tekst underveis.
+  - id: write
+    kind: terminal
+    caption: "Et nytt dokument, skrevet fra den samme strukturen."
+    text: >-
+      Teksten sendes til den konfigurerte leverandøren, og det som kommer tilbake skrives inn i et nytt dokument som beholder den opprinnelige strukturen. Den samme kommandoen leser alle dokumentformater kapi støtter.
+  - id: after
+    kind: artifact
+    artifact: after
+    caption: Japansk tekst i det engelske dokumentets form.
+    text: >-
+      Og den japanske versjonen. Overskriftene er fortsatt overskrifter, listen er fortsatt en liste, datoene er fortsatt fete, og produktnavnet er fortsatt produktnavnet.
+  - id: outro
+    kind: outro
+    text: >-
+      Dette er en ren maskinoversettelse. Kjør gjennomgangskøen over den, og kapi lister opp hva en person bør lese før det sendes ut.

@@ -1,0 +1,76 @@
+# Native reference doc for the built-in `voice-infer` tool.
+# Schema source: core/ai/tools/voiceinfer.go (VoiceInferConfig, InferOptions).
+description: "Lag en kladd av en merkevarestemme-profil fra eksisterende innhold med en LLM, med per-felt-sikkerhet og kildenotater."
+overview: |
+  Verktøyet **AI Voice Inference** leser et innholdskorpus og foreslår hvilken
+  stemmeprofilinnholdet allerede er skrevet i – det motsatte av `voice-check`,
+  som holder innhold opp mot en eksisterende profil. Det er startpunktet ved
+  onboarding: et prosjekt som har skrevet i et konsistent register i årevis har
+  en profil, og dette verktøyet leser den ut av korpuset i stedet for å be noen
+  skrive den ned.
+
+  Inferens skjer på korpusnivå, ikke per blokk. Alle deler passerer gjennom
+  uendret mens verktøyet samler kildeteksten fra hver blokk, og én inferens
+  kjører når innstrømmen avsluttes. Korpuset avkortes på en rune-grense før det
+  sendes, slik at et stort dokumentsett koster én avgrenset forespørsel.
+  En tom strøm gir ingenting å inferere fra, så verktøyet rapporterer suksess og
+  produserer ingen kladd.
+
+  Resultatet er en kladd i den ordinære stemmeprofil-formen (tone, stil,
+  vokabular og eksempler med før/etter), lest fra `Draft()` etter at flyten
+  fullfører, sammen med en evidenssidecar som bærer modellens konfidens og en
+  kort kildenotat for hvert felt på øverste nivå. Evidensen ligger ved siden av
+  profilen, ikke inni den, slik at kladden gjennomfører en rundtur via samme
+  `profile.yaml` som en forfatter redigerer for hånd. Behandle utdataene som en
+  kladd: det er et forslag til gjennomgang og godkjenning, ikke en ferdig profil.
+parameters:
+  provider:
+    description: LLM-leverandør-backend som skal brukes.
+    help: |
+      Velger hvilken modell-backend som utfører uttrekket.
+    values: "`anthropic` (standard), `openai`, `gemini`, `azureopenai`, `ollama` (lokal, ingen nøkkel)"
+  apiKey:
+    description: API-nøkkel for AI-leverandøren.
+    help: |
+      Legitimasjon for den valgte leverandøren. En lokal leverandør som Ollama trenger
+      skjøns ikke noen. Foretrekk legitimasjonslageret eller miljøvariabelen fremfor å skrive en
+      nøkkel inn i en oppskrift.
+    values: "streng"
+  model:
+    description: Modellnavnet som skal forespørres fra leverandøren.
+    help: |
+      Den leverandørspesifikke modellidentifikatoren. Utelatt, brukes leverandørens standardmodell.
+    values: "streng"
+  profileName:
+    description: Navn for den utarbeidede profilen.
+    help: |
+      Navnet kladden får. Utelatt, får kladden navnet «Inferred Voice».
+    values: "streng"
+  domain:
+    description: Emnedomene-hint vevd inn i prompten.
+    help: |
+      Et kort hint om emneområdet ("medisin", "utviklerverktøy", "offentlig
+      sektor") som styrer registeret modellen leser korpuset som. Utelates det,
+      taler korpuset for seg selv.
+    values: "string"
+  maxExamples:
+    description: Antall før/etter-eksempler kladden kan inneholde.
+    help: |
+      Begrenser omskrivingseksemplene som forespørres fra modellen og holdes utenfor dens
+      svar. Standard er 3.
+    values: "heltall ≥ 1 (standard `3`)"
+limitations:
+  - Krever leverandørlegitimasjon og gjør ett eksternt API-kall per kjøring.
+  - "Korpuset avkortes før det sendes, slik at et svært stort innholdssett utledes fra begynnelsen."
+  - "Resultatet er et utkast til gjennomgang; konfidensen er modellens egen estimering, ikke en måling."
+processingNotes:
+  - Alle deler passerer gjennom uendret; verktøyet kommenterer ingenting på innholdet.
+  - "Korpuset er kildeteksten til hver blokk, akkumulert over hele strømmen; inferens kjøres én gang, når strømmen avsluttes."
+  - Et tomt eller blanktegn-bare korpus gir ingen kladd i stedet for en feil.
+examples:
+  - title: Lag et utkast til en profil fra et dokumentasjonssett
+    description: Gi kladden et navn og hint om emnedomenet; korpuset er det flyten leser.
+    config: |
+      provider: anthropic
+      profileName: House Style
+      domain: developer tools

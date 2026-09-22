@@ -1,0 +1,30 @@
+# Native reference doc for the built-in `epub` format.
+# Schema source: core/formats/epub/{reader.go,writer.go,config.go,spec.yaml}.
+# Upstream analogue: Okapi EPUBFilter (electronic publication). The
+# okapi-bridge ships no okf_epub filter, so this is a native-only format.
+# Config is empty (no schema), so no `parameters`/`examples` blocks.
+description: Trekk ut tekst fra EPUB-e-bøker ved å gå gjennom leseordenen i spine.
+overview: |
+  EPUB er det åpne e-bokformatet: en ZIP-beholder (OCF) som pakker XHTML- og
+  SVG-innholdsdokumenter sammen med et pakkedokument (OPF) som lister opp
+  manifestet og leseordenen i spine. neokapi leser
+  `META-INF/container.xml`-oppføringen for å finne OPF-en, analyserer OPF-en for å løse opp
+  spine, og går gjennom hvert spine-element som et underordnet lag i dokumentet.
+
+  neokapi leser og skriver EPUB og utfører rundtur med beholderen slik at
+  oversatt utdata forblir en gyldig e-bok. Innholdsdokumenter analyseres som
+  innebygd XHTML: når en HTML-underformat-leser er koblet inn, delegeres hvert spine-element
+  til den; ellers faller neokapi tilbake til en direkte XHTML-gjennomgang som
+  behandler vanlige blokkelementer (avsnitt, overskrifter, listeelementer, tabellceller,
+  figur- og tabell-undertekster, blokksitaterer og dokumenttittelen) som
+  oversettbare. OPF-en, beholdermetadata og ikke-innholdsressurser
+  bevares som skjelett. Dette formatet har ingen konfigurerbar JSON-schema i denne
+  referansen.
+limitations:
+  - Den alternative XHTML-gjennomgangen trekker ut et fast sett med blokkelementer; rikere uttrekk avhenger av at en HTML-underformat-leser er koblet inn i pipelinen.
+  - "Spine-elementer som ikke er oppført i OPF-leseordenen, blir ikke gjennomgått."
+processingNotes:
+  - "OPF-en lokaliseres via `META-INF/container.xml`; spine-elementer gjennomgås i leseorden, hvert som et underordnet lag."
+  - "Innholdsdokumenter behandles som innebygd XHTML, enten via en HTML-underformat-leser eller en direkte token-gjennomgang."
+  - "Beholderstrukturen, OPF-en og ikke-innholdsressurser bevares som skjelett for rundturer."
+wikiUrl: "https://www.w3.org/TR/epub-33/"

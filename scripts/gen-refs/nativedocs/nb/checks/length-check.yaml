@@ -1,0 +1,45 @@
+# Native reference doc for the `length-check` source-side check.
+# Source: core/check/sourcechecks.go (NewSourceLengthTool,
+# absoluteLengthFindings); flags in cli/check.go.
+# A check, not a registry tool: it is configured by CLI flags, not a schema.
+description: Hold hver kildeblokk til en absolutt tegn- eller ordgrense.
+overview: |
+  **Lengdekontrollen** holder kildeteksten til hver oversettbare blokk til et
+  absolutt tak: `--max-chars` for tegn og `--max-words` for ord,
+  hver rapportert som `length.max-chars-exceeded` eller `length.max-words-exceeded` med
+  alvorlig alvorlighetsgrad.
+
+  Begge er av med mindre de etterspørres, og en grense på `0` er måten å la én være av.
+  En negativ grense avvises snarere enn ignoreres, slik at en skrivefeil i en oppskrift eller et
+  skript er en feil der den er skrevet.
+
+  Tegn telles som runer, slik at en grense betyr det samme uavhengig av
+  hvilket skrift innholdet er på, og et ord telles slik resten av motoren
+  teller ord.
+
+  Målestokken er *kilde*teksten, noe som gjør dette til en kildeside-kontroll: den
+  svarer på «er det vi skrev kort nok», spørsmålet en UI-streng eller et push-
+  varsel har før noen oversettelse eksisterer. Om en oversettelse passer
+  der kilden gjorde er et annet spørsmål, stilt av den tospråklige `qa`-
+  kontrollen, som sammenligner de to.
+parameters:
+  --max-chars:
+    description: Maksimalt antall tegn en kildeblokk kan inneholde.
+    help: |
+      Rapporterer en blokk hvis kilde er lengre enn dette mange tegn. Telt
+      i runer. Slås av med `0`, som er standarden.
+    values: "heltall ≥ 0 (standard `0`, av)"
+  --max-words:
+    description: Maksimalt antall ord en kildeblokk kan inneholde.
+    help: |
+      Rapporterer en blokk hvis kilde inneholder flere ord enn dette. Slås av med
+      `0`, som er standarden.
+    values: "heltall ≥ 0 (standard `0`, av)"
+limitations:
+  - Måler kun kilden; den sammenligner ikke en oversettelse med kilden.
+  - "Et absolutt tak, ikke et forholdstall; det finnes ingen prosent-av-kilde-modell her."
+  - Grensen er ett tall for hele kjøringen; et tak per samling eller per nøkkel er et oppskriftsnivå-anliggende.
+processingNotes:
+  - "Av med mindre en grense er gitt, slik at en vanlig kontrollkjøring rapporterer ingenting fra den."
+  - Kjører over oversettbare blokker; innhold en leser ser som struktur eller kode måles aldri.
+  - En negativ grense er en feil snarere enn en stille deaktivert kontroll.

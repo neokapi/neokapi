@@ -1,0 +1,52 @@
+# Native reference doc for the built-in `pseudo-translate` tool.
+# Schema source: core/tools/pseudo.go (PseudoConfig).
+description: Generer deterministiske pseudooversettelser for testing av oversettelsesklarhet.
+overview: |
+  **Pseudooversett**-verktøyet produserer falske oversettelser som tester et
+  produkts håndtering av oversatt tekst uten en ekte oversetter. Det erstatter
+  ASCII-bokstaver med aksenterte likemenn, pakker hvert segment inn i merketegn
+  og kan fylle ut teksten for å simulere lengdeveksten i en ekte
+  oversettelse. Resultatet avslører hardkodede strenger, avklipte oppsett og
+  kodingsproblemer før oversettelsen begynner. Et målspråk er påkrevd
+  (den konvensjonelle pseudo-språkkoden er `qps`).
+
+  Inline-koder og plassholdere er beskyttet: tekst inne i `{...}`-merker og
+  ikke-tekstsekvenser passerer uendret gjennom, slik at kjøretidsmiljøet fortsatt kan erstatte
+  parametere. Transformasjonen er deterministisk, så den samme inndataen gir alltid
+  det samme resultatet.
+parameters:
+  prefix:
+    description: Tegn som settes foran hvert oversatt segment.
+    help: |
+      Et merke som plasseres før den pseudooversatte teksten. Standard skyggemerket
+      gjør segmentgrensen synlig, slik at uoversatte, sammenkoblede
+      eller avklipte strenger skiller seg ut.
+    values: "streng (standard `▒ `)"
+  suffix:
+    description: Tegn som legges til etter hvert oversatt segment.
+    help: |
+      Et merke som plasseres etter den pseudooversatte teksten, som speiler prefikset.
+    values: "streng (standard ` ▒`)"
+  expansionPercent:
+    description: Ekstra utfylling for å simulere oversettelsesvekst.
+    help: |
+      Legger til utfyllingstegn proporsjonalt med tekstlengden, slik at utdata blir
+      lengre enn kildeteksten – en vanlig effekt av reell oversettelse. Verdien 0
+      legger ikke til noe utfylling.
+    values: "heltall ≥ 0 (standard `0`)"
+limitations:
+  - "Bare ASCII-bokstaver aksentueres; andre tegn og innhold inne i `{...}`-plassholder-merker passerer uendret gjennom."
+processingNotes:
+  - Opererer på oversettbare blokker med en ikke-tom kilde; andre deler passerer uendret gjennom.
+  - Inline-koder og plassholdere bevares; prefiks/suffiks pakker hele segmentet inn én gang.
+  - "Med en øktbuffer gjenbrukes allerede pseudooversatte mål, og nye resultater skrives tilbake."
+examples:
+  - title: Standard pseudooversettelse
+    description: Pseudooversett til den konvensjonelle qps-språkkoden.
+    config: |
+      prefix: "▒ "
+      suffix: " ▒"
+  - title: Simuler 30 % vekst
+    description: Fyll ut resultatet for å avdekke avklipping i oppsettet.
+    config: |
+      expansionPercent: 30

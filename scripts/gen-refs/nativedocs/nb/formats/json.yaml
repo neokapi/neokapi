@@ -1,0 +1,192 @@
+# Native reference doc for the built-in `json` format.
+# Schema source: core/formats/json/config.go (Config) + schema.go.
+# Mirrors the Okapi okf_json filter.
+description: "Trekk ut og sett inn igjen oversettbare verdier fra JSON-filer, med nøkkelbasert filtrering, navngivning og underfiltre."
+overview: |
+  **JSON**-formatet leser JSON-dokumenter, trekker ut strengverdier som
+  blokker og skriver de oversatte verdiene tilbake til den samme
+  strukturen. Det er det vanlige formatet for web- og applikasjonsressursfiler
+  (i18next, Chrome-utvidelsesmeldinger, generiske nøkkel/verdi-kataloger).
+
+  Som standard trekkes alle nøkkel/verdi-strengpar ut. Derfra kan du
+  begrense uttrekket med et nøkkelunntak eller uttrekksmønster, styre hvordan
+  blikknavn utledes fra nøkler, rute bestemte nøkler til notater, ID-er eller
+  metadata, og sende innebygd markup (HTML inne i en verdi) til et underfilter.
+  To forhåndsinnstillinger er tilgjengelige (*Chrome Extension* og *i18next*) som
+  startpunkter for disse oppsettene.
+parameters:
+  extractAllPairs:
+    description: Trekk ut alle nøkkel/verdi-strengpar for oversettelse.
+    help: |
+      Når dette er aktivert (standard), trekkes alle strengverdier tilknyttet en nøkkel ut. Når det er deaktivert, trekkes ingenting ut med mindre en nøkkel samsvarer med `exceptions`-mønsteret (betydningen av `exceptions` inverteres; se nedenfor), eller et `extractionRules`-mønster er angitt.
+    values: "`true` / `false` (standard `true`)"
+  exceptions:
+    description: Regex over nøkkelnavn hvis effekt avhenger av `extractAllPairs`.
+    help: |
+      Et regulært uttrykk som matches mot nøkkelnavn. Når `extractAllPairs`
+      er `true`, **utelates** nøkler som matcher dette mønsteret fra uttrekk.
+      Når `extractAllPairs` er `false`, **inkluderes** bare nøkler som matcher dette mønsteret.
+      Matchingen anvendes på den umiddelbare nøkkelen, eller på den fullstendige
+      nøkkelstien når `useFullKeyPath` er aktivert.
+    values: Regulært uttrykk (standard tomt)
+    examples:
+      - "`^message$` med `extractAllPairs: false` trekker bare ut `message`-nøkkelen"
+    dependsOn:
+      - property: extractAllPairs
+        condition: bestemmer om treff ekskluderes (true) eller inkluderes (false)
+  extractIsolatedStrings:
+    description: Trekk ut frittstående strengverdier inne i arrayer.
+    help: |
+      Strengverdier som forekommer direkte i arrays, uten en tilknyttet
+      nøkkel, trekkes ikke ut som standard. Aktiver dette for å behandle slike isolerte
+      strenger som blokker.
+    values: "`true` / `false` (standard `false`)"
+  extractionRules:
+    description: Regex som begrenser hvilke nøkkelstier som trekkes ut.
+    help: |
+      Et regulært uttrykk matchet mot nøkkelnavn (eller fullstendige nøkkelstier når
+      `useFullKeyPath` er aktivert). Når angitt, trekkes kun samsvarende nøkler ut
+      og det overstyrer `extractAllPairs`.
+    values: Regulært uttrykk (standard tom)
+    examples:
+      - "`/messages/.*|/labels/.*` trekker bare ut nøkler under `messages` eller `labels`"
+  useKeyAsName:
+    description: Bruk JSON-nøkkelen som blokknavn.
+    help: |
+      Når aktivert (standard), brukes JSON-nøkkelen som blokkens navn
+      (resname), slik at oversettere og nedstrømsverktøy kan referere til hver enhet.
+    values: "`true` / `false` (standard `true`)"
+  useFullKeyPath:
+    description: Bruk den fullstendige hierarkiske nøkkelstien som blokk-navn.
+    help: |
+      Når aktivert, er blokk-navnet den fullstendige stien gjennom nestede objekter
+      (for eksempel `parent/child`) i stedet for bare den umiddelbare nøkkelen. Den
+      samme stien brukes deretter ved matching av regelbaserte regex-mønstre.
+    values: "`true` / `false` (standard `false`)"
+  useLeadingSlashOnKeyPath:
+    description: Prefiks fullstendige nøkkelstier med en innledende skråstrek.
+    help: |
+      Når `useFullKeyPath` er aktivert, kontrollerer dette om banen begynner med en innledende `/` (for eksempel `/parent/child`). Aktivert som standard.
+    values: "`true` / `false` (standard `true`)"
+    dependsOn:
+      - property: useFullKeyPath
+        condition: påvirker bare navn når fullstendige nøkkelstier brukes
+  useIdStack:
+    description: Bygg blokk-ID-er fra den nestede nøkkelstakken.
+    help: |
+      Når aktivert, settes blokk-ID-en sammen fra stakken av omsluttende nøkler,
+      og produserer en sammensatt identifikator for nestede strukturer.
+    values: "`true` / `false` (standard `false`)"
+  idRules:
+    description: Regex over nøkkelnavn hvis verdier blir blokk-ID-er.
+    help: |
+      Et regulært uttrykk som matches mot nøkkelnavn. Verdien til en matchende
+      nøkkel brukes som navn/ID for den neste oversettbare blokken, og overstyrer
+      `useKeyAsName`.
+    values: Regulært uttrykk (standard tom)
+    examples:
+      - "`/id|/key` bruker verdien til et `id`- eller `key`-felt som blokk-ID"
+  noteRules:
+    description: Regex over nøkkelnavn hvis verdier blir oversetternotater.
+    help: |
+      Et regulært uttrykk matchet mot nøkkelnavn. Verdien til en samsvarende
+      nøkkel legges ved som et oversetternotat til den neste oversettbare blokken.
+    values: Regulært uttrykk (standard tom)
+    examples:
+      - "`/description|/comment` legger ved en `description`- eller `comment`-verdi som et notat"
+  genericMetaRules:
+    description: Regex over nøkkelnavn hvis verdier blir generiske metadata.
+    help: |
+      Et regulært uttrykk som matches mot nøkkelnavn. Verdien til en matchende
+      nøkkel registreres som en generisk metadata-annotering på den neste
+      oversettbare blokken, i stedet for å trekkes ut som innhold.
+    values: Regulært uttrykk (standard tom)
+  maxwidthRules:
+    description: Regex over nøkkelnavn hvis numeriske verdier setter en maks-bredde-begrensning.
+    help: |
+      Et regulært uttrykk som matches mot nøkkelnavn. Den numeriske verdien til en
+      matchende nøkkel setter en maks-bredde-egenskap på neste oversettbare
+      blokk, brukt av arbeidsflyter med lengdebegrensning.
+    values: Regulært uttrykk (standard tom)
+    dependsOn:
+      - property: maxwidthSizeUnit
+        condition: verdien tolkes i denne enheten
+  maxwidthSizeUnit:
+    description: Enhet for maks-bredde-begrensningen.
+    help: |
+      Enheten som verdiene i `maxwidthRules` tolkes i: `pixel` eller
+      `char`.
+    values: "`pixel` / `char` (standard `pixel`)"
+  subfilter:
+    description: Globalt underfilter-format brukt på uttrukne verdier.
+    help: |
+      Navnet på et format som brukes som underfilter (for eksempel `html`) for å analysere
+      innebygd markup inne i uttrukne strengverdier. Når det er angitt, gjelder det for
+      alle uttrukne verdier med mindre `subfilterRules` begrenser det til spesifikke
+      nøkler.
+    values: Formatnavn (standard tom)
+    examples:
+      - "`html` parser HTML inne i JSON-strengverdier"
+  subfilterRules:
+    description: Regex over nøkkelnavn som velger hvilke verdier som underfiltreres.
+    help: |
+      Et regulært uttrykk som matches mot nøkkelnavn. Bare verdier hvis nøkkel
+      matches behandles av underfilteret. Brukes sammen med `subfilter`;
+      når det utelates, gjelder underfilteret for alle uttrukne verdier.
+    values: Regulært uttrykk (standard tom)
+    dependsOn:
+      - property: subfilter
+        condition: trer bare i kraft når et underfilter-format er angitt
+    examples:
+      - "`_html$` bruker underfilter bare på nøkler som slutter på `_html`"
+  subfilters:
+    description: Per-mønster underfilter-tilordninger for innebygd innhold.
+    help: |
+      En matrise av `{pattern, format}`-objekter som tilordner nøkkelmønstre til format-
+      navn, for å rute forskjellige nøkler til forskjellige underfiltre. Hver tilordning
+      krever både et ikke-tomt `pattern` og et ikke-tomt `format`.
+    values: "Array av `{pattern, format}`-objekter (standard tom)"
+  escapeForwardSlashes:
+    description: Escape fremoverskråstrek i JSON-utdata.
+    help: |
+      Når aktivert (standard), skrives skråstreker fremover som `\/` i
+      utdata-JSON, i tråd med den konservative escaping-en noen JSON-produsenter bruker.
+      Deaktiver for å sende ut bare `/`-tegn.
+    values: "`true` / `false` (standard `true`)"
+  useCodeFinder:
+    description: Aktiver mønsterbasert deteksjon av inline-kode.
+    help: |
+      Aktiverer regex-basert gjenkjenning av inline-kode (plassholdere, variabler, tagger) inne i trukket ut tekst. Mønstrene angis via `codeFinderRules`.
+    values: "`true` / `false` (standard `false`)"
+  codeFinderRules:
+    description: Regex-mønstre som samsvarer med inline-kode i verdier.
+    help: |
+      Et array av regulære uttrykk; tekst som matcher noen av dem behandles
+      som inline-kode i stedet for oversettbare ord. Brukes bare når
+      `useCodeFinder` er aktivert.
+    values: Array av regulære uttrykk (standard tom)
+    dependsOn:
+      - property: useCodeFinder
+        condition: må være aktivert for at disse mønstrene skal gjelde
+limitations:
+  - "Treffmålet for regelbaserte regex-mønstre er enten den umiddelbare nøkkelen eller den fullstendige nøkkelstien, avhengig av `useFullKeyPath` – aldri begge."
+processingNotes:
+  - "Strengverdier blir oversettbare blokker; objekter, arrays og ikke-strenge skalarer danner den omkringliggende ikke-oversettbare strukturen."
+  - "Note-, ID-, generisk-metadata- og maks-bredde-regler knyttes til den neste oversettbare blokken i stedet for å produsere eget innhold."
+examples:
+  - title: Trekk ut et delsett av nøkler
+    description: Oversett bare nøkler under objektene messages og labels.
+    config: |
+      extractionRules: "/messages/.*|/labels/.*"
+  - title: Notater fra beskrivelses-nøkler
+    description: Legg ved beskrindelsesverdier som oversetternotater (Chrome-utvidelse-stil).
+    config: |
+      extractAllPairs: false
+      exceptions: "^message$"
+      noteRules: "^description$"
+  - title: HTML inne i verdier
+    description: Analyser HTML-markup i verdier hvis nøkkel slutter på _html (i18next-stil).
+    config: |
+      subfilter: html
+      subfilterRules: "_html$"
+      useFullKeyPath: true

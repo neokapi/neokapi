@@ -1,0 +1,74 @@
+id: 04-i18n-react-catalogs
+title: To nye språk i mappen du allerede har
+subtitle: "En react-i18next-katalog får fransk og tysk, med plassholdere intakt."
+kind: framework
+aspects:
+  - i18n setup
+  - react-i18next
+  - placeholders & plurals
+needsAi: true
+model: sonnet
+captureTimeoutSec: 360
+outro:
+  line: Pek kapi mot katalogen du allerede har.
+  pointer: kapi translate --target-lang fr
+
+# The English catalog is a fixture, so the prompt's claim about it is true and
+# the run is the same every time: the placeholders and the plural keys the
+# checks beat reads are the ones committed here, not ones a model invented.
+prompt: >
+  This is a React app that uses react-i18next, with its English strings in
+  public/locales/en/translation.json. Can you add French and German?
+
+artifacts:
+  - id: fr
+    caption: "public/locales/fr/translation.json"
+    source: report
+    report: catalog
+    reportTitle: "public/locales/fr/translation.json"
+    reportSub: "kapi · placeholders and plural keys preserved"
+    path: public/locales/fr/translation.json
+    width: 1120
+    height: 720
+  - id: checks
+    caption: "kapi check over the French catalog"
+    source: command
+    command: kapi check public/locales/en/translation.json --target public/locales/fr/translation.json --target-lang fr --json
+    report: json
+    reportTitle: "kapi check --json"
+    reportSub: "every placeholder and plural key, read against the English"
+    width: 1120
+    height: 760
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      De fleste apper har allerede en katalogmappe. Jobben er å fylle den uten å ødelegge en plassholder eller et flertall, og det er den delen en kontroll kan svare på for deg.
+  - id: preflight
+    kind: terminal
+    caption: Forhåndskontrollen svarer på om den engelske teksten er klar.
+    highlight: pseudo
+    text: >-
+      Claude kjører en pseudooversettelse først. Den utvider hver engelske streng og omorganiserer ingenting annet, slik at en plassholder katalogen staver feil eller en flertallsnøkkel rammeverket ikke godtar, dukker opp her – før en leverandør betales for noe som helst.
+  - id: translate
+    kind: terminal
+    caption: "Fransk og tysk, fra formatet kapi leste."
+    text: >-
+      Deretter kjører oversettelsen for begge språk. kapi leser filen som en i18next-katalog, ikke som JSON, slik at interpolasjonsplassholderen og flertallssuffiksene er struktur den bærer med seg – ikke tekst den kan omskrive.
+  - id: fr
+    kind: artifact
+    artifact: fr
+    caption: Nøklene er den engelske teksten. Ingenting i koden flyttes.
+    text: >-
+      Her er den franske. Navn- og antall-plassholerne sitter der koden forventer dem, flertallsnøklene er fullstendige, og nøkkelen til hver oppføring er fortsatt den engelske setningen.
+  - id: checks
+    kind: artifact
+    artifact: checks
+    caption: "Plassholdere og flertall, verifisert mot kildeteksten."
+    text: >-
+      Og dette er kontrollen som bekrefter det, kjørt over paret. Den leser den franske mot den engelske og rapporterer om hver plassholder og hver flertallsform – det svaret du vil ha før en release, ikke etter.
+  - id: outro
+    kind: outro
+    text: >-
+      Kjør samme kommando mot katalogen appen allerede leverer, og legg til neste språk på samme måte.

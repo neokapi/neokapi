@@ -1,0 +1,84 @@
+id: 09-toolbox-find-replace
+title: grep stopper ved bytene
+subtitle: "kcat, kgrep og ksed leser ordene inne i en Word-fil eller et regneark."
+kind: use-case
+publishAs: toolbox-explainer
+# A scripted plain-shell demo (no Claude): the toolbox is deterministic, so the
+# commands run for real and their output is recorded exactly.
+terminal: shell
+brand: kapi
+cwd: ~/sales
+needsAi: false
+captureTimeoutSec: 120
+aspects:
+  - format-aware
+  - kcat · kgrep · ksed
+  - docx + xlsx + markdown
+  - one pass, in place
+outro:
+  line: Legg alle tre til PATH.
+  pointer: brew install neokapi/tap/kapi-cli-beta
+
+# The search opens the demo, because one pattern crossing three formats is the
+# thing to see. Wildcards fan a pattern or a substitution across every file,
+# whatever each one is.
+script:
+  - comment: "A sales team's collateral: one product name, three formats."
+  - command: ls
+  - comment: kgrep every "SalesPilot" across all three files at once.
+  - command: kgrep -n SalesPilot *
+  - comment: kcat the Word proposal, and its prose comes out as plain lines.
+  - command: kcat proposal.docx
+  - comment: kcat the Excel price list, one cell per line.
+  - command: kcat pricing.xlsx
+  - comment: ksed renames SalesPilot to Northstar, in place, in all three.
+  - command: ksed -i 's/SalesPilot/Northstar/g' *
+  - comment: kgrep the new name to confirm the same matches, renamed.
+  - command: kgrep -c Northstar *
+
+artifacts:
+  - id: after
+    caption: "proposal.docx: renamed to Northstar, heading and bold intact"
+    source: docx
+    path: proposal.docx
+    reportTitle: "proposal.docx"
+    reportSub: "still a valid Word document, with only the words changed"
+    width: 1100
+    height: 760
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      grep, sed og cat stopper ved bytene i en Word-fil. kcat, kgrep og ksed leser ordene inne i den.
+  - id: grep
+    kind: terminal
+    through: 4
+    highlight: { text: [SalesPilot] }
+    caption: "Ett mønster, tre formater, linjenummer på alle."
+    text: >-
+      Et Markdown-pitch, et Word-forslag og en Excel-prisliste – og ett søk på tvers av alle tre. Hvert treff på produktnavnet kommer tilbake med linjenummer, inkludert de inne i de to binærfilene.
+  - id: cat
+    kind: terminal
+    through: 8
+    highlight: { text: [SalesPilot] }
+    caption: "Dokumentet lest som prosa, regnearket som celler."
+    text: >-
+      Det fungerer fordi kcat leser hver fil som det den er. Word-dokumentet kommer ut som avsnittene en leser ser, og regnearket som én celle per linje – slik har et vanlig tekstverktøy noe å matche mot.
+  - id: sed
+    kind: terminal
+    through: 12
+    highlight: { text: [Northstar] }
+    caption: "Omdøpt på stedet, og antallet er det samme."
+    text: >-
+      Én erstatning omdøper produktet overalt, på stedet, og hver fil skrives tilbake i sitt eget format. Et bekreftende søk finner de samme treffene under det nye navnet.
+  - id: after
+    kind: artifact
+    artifact: after
+    caption: Fortsatt et Word-dokument. Bare ordene ble flyttet.
+    text: >-
+      Forslaget er fortsatt et gyldig Word-dokument. Overskriften er en overskrift, fet skrift er fet skrift, og det som endret seg er produktnavnet.
+  - id: outro
+    kind: outro
+    text: >-
+      Installer kommandolinjen, så ligger alle tre i PATH og er klare til å kjøre mot det teamet ditt oppbevarer teksten sin i.

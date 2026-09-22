@@ -1,0 +1,97 @@
+id: s2-tidewatch-ci
+title: Bygget publiseres uten språket
+subtitle: "Dekning rapporteres på pull requesten, og bare kilden settes som port."
+kind: use-case
+publishAs: docs-coverage-in-ci
+# A scripted plain-shell demo: every command is deterministic and offline. The AI
+# leg is the built-in `demo` provider, which needs no key and no network and
+# marks its own output, so a take costs nothing and claims nothing.
+terminal: shell
+brand: kapi
+cwd: ~/tidewatch-docs
+needsAi: false
+# The sandbox IS the Tidewatch docs sample, copied from samples/tidewatch-docs so
+# the recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/tidewatch-docs
+project: true
+# The sample ships its context as files, and a fresh sandbox has a store that
+# has never held them, so the take starts where a reader does.
+setup:
+  - kapi context import ./context
+captureTimeoutSec: 300
+aspects:
+  - coverage, not a verdict
+  - the source gate
+  - the build never waits for a language
+outro:
+  line: "Rapporter dekning, og sett bare kilden som port."
+  pointer: kapi status --json
+
+script:
+  - comment: The same documentation site, brought up to date. Norwegian ships; Dutch is behind.
+  - command: kapi up
+  - command: kapi status
+  - comment: This is what the pull-request job posts. Coverage per language, in machine shape.
+  - command: >-
+      kapi status --json --jq '.locales[]|"\(.locale)  translated \(.pct.translated)%  reviewed \(.pct.reviewed)%  \(if .shippable then "ready" else "pending" end)"'
+  - comment: While a language was behind, nothing failed. The source gate is what a pull request is held to, and it is about the source.
+  - command: kapi check --strict
+  - comment: One advisory finding, and it is the API reference keeping a name the vocabulary retired. Reported, never blocking.
+
+artifacts:
+  - id: coverage
+    caption: "kapi status --json: coverage per language, what CI reads"
+    source: command
+    # Artifact commands run under the harness's kapi isolation, which turns
+    # recipe discovery off, so the recipe is named rather than walked to.
+    command: kapi status -p kapi.yaml --json
+    report: json
+    reportTitle: "kapi status --json"
+    reportSub: "per language: how much is there, how much a person has read"
+    width: 1200
+    height: 900
+  - id: workflow
+    caption: ".github/workflows/kapi.yml: the build job depends on neither"
+    source: report
+    report: code
+    path: .github/workflows/kapi.yml
+    reportTitle: ".github/workflows/kapi.yml"
+    reportSub: "a dry run and a comment on a pull request; a converge on the default branch"
+    width: 1200
+    height: 1000
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Et nettstedsbygg må aldri feile fordi en oversettelse henger etter. Det er kilden en pull request holdes til, og hvor langt hvert språk har kommet rapporteres ved siden av.
+  - id: coverage-run
+    kind: terminal
+    through: 5
+    highlight: { text: [nb, nl] }
+    caption: "Én linje per språk, uten noen dom i den."
+    text: >-
+      Én linje per språk: hvor mye som er oversatt, hvor mye en person har lest, og om det passerer terskelen for å bli tilbudt. Nederlandsk henger etter, og det er det ordinære løpende arbeidet snarere enn en feil noe sted.
+  - id: coverage
+    kind: artifact
+    artifact: coverage
+    caption: En rapport som jobben poster. Den kan ikke feile bygget.
+    text: >-
+      Dette er hva kontinuerlig-integrasjonsjobben poster på en pull request. Det er en rapport, og jobben som poster den har ingen mulighet til å feile bygget – noe som er poenget med å skille de to fra hverandre.
+  - id: gate
+    kind: terminal
+    through: 8
+    highlight: { text: [MINOR] }
+    caption: "Kildens port passerer, med ett rådgivende funn."
+    text: >-
+      Gjennom alt dette er det engelsk pull requesten holdes til, og kildens port passerer med ett rådgivende funn: en API-referanse som beholder et feltnavn vokabularet har lagt til side.
+  - id: workflow
+    kind: artifact
+    artifact: workflow
+    caption: Konvergeringsjobben committer; byggejobben kjører uansett.
+    text: >-
+      Arbeidsflyten sier det rett ut. En pull request får en tørrkjøring og en dekningskommentar, standardgrenen konvergerer og committer det som endret seg, og jobben som bygger nettstedet er avhengig av ingen av dem.
+  - id: outro
+    kind: outro
+    text: >-
+      Post dekning på pull requesten og sett bare kilden som port. Et språk som henger etter er pågående arbeid, og nettstedet publiseres uten det.

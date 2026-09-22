@@ -1,0 +1,59 @@
+# Native reference doc for the built-in `term-extract` tool.
+# Schema source: core/ai/tools/terminology.go (AITerminologyConfig).
+description: Trekk ut kandidatterminologi fra kildetekst ved hjelp av en LLM-leverandør.
+overview: |
+  **Term Extract**-verktøyet sender kildeteksten til hver blokk til en
+  konfigurert LLM-leverandør og ber den returnere bemerkelsesverdige termer, hver med en kort
+  definisjon og et domene. De trukket ut oppføringene registreres på blokkens
+  egenskaper som en terminologiliste. Blokker der kilden er tom hoppes over, og
+  blokker der ingen termer ble funnet forblir uendret.
+
+  Ettersom verktøyet kaller en ekstern modell, krever det leverandørlegitimasjon. Et
+  valgfritt fagdomene kan oppgis for å vri uttrekket mot det feltet
+  (for eksempel medisinsk, juridisk eller teknologisk terminologi). Resultatene er
+  kandidattermer beregnet på gjennomgang og kurering i et termbase, ikke
+  autoritativ terminologi.
+parameters:
+  provider:
+    description: LLM-leverandør-backend som skal brukes.
+    help: |
+      Velger hvilken modell-backend som utfører uttrekket.
+    values: "`anthropic` (standard), `openai`, `gemini`, `azureopenai`, `ollama` (lokal, ingen nøkkel)"
+  apiKey:
+    description: API-nøkkel for AI-leverandøren.
+    help: |
+      Legitimasjon for den valgte leverandøren. Lokale leverandører som Ollama
+      krever kanskje ikke en nøkkel. Foretrekk å oppgi legitimasjon via legitimasjonslageret
+      eller miljøet fremfor å lagre dem i en oppskrift.
+    values: "streng"
+  model:
+    description: Modellnavnet som skal forespørres fra leverandøren.
+    help: |
+      Den leverandørspesifikke modellidentifikatoren. Når den utelates, brukes
+      leverandørens standardmodell.
+    values: "streng"
+  domain:
+    description: Fagdomene for å vri terminologiuttrekket.
+    help: |
+      Et valgfritt hint som angir fagområdet (for eksempel `medical`, `legal` eller
+      `technology`). Når det er angitt, inkluderes det i ledeteksten slik at modellen foretrekker
+      termer som er relevante for det domenet.
+    values: "streng"
+limitations:
+  - Krever AI-leverandørlegitimasjon og utfører et eksternt API-kall per blokk.
+  - Trukket ut termer er modellutdata og bør gjennomgås før de behandles som autoritative.
+  - Opererer kun på kildetekst.
+processingNotes:
+  - Opererer på blokker; blokker med tom kildetekst hoppes over.
+  - Blokker behandles parallelt som standard for gjennomstrømning.
+examples:
+  - title: Trekk ut domenespesifikk terminologi
+    description: Vri uttrekket mot et bestemt fagområde.
+    config: |
+      provider: anthropic
+      domain: medical
+  - title: Bruk en lokal Ollama-modell
+    description: Kjør uttrekk mot en lokalt hostet modell.
+    config: |
+      provider: ollama
+      model: llama3

@@ -1,0 +1,36 @@
+# Native reference doc for the built-in `placeholder-check` tool.
+# Schema source: core/tools/placeholdercheck.go (PlaceholderCheckConfig).
+description: Verifiser at interpolasjonsplassholdere og nummererte tagger er bevart i målet.
+overview: |
+  Verktøyet **Plassholderkontroll** verifiserer at hver interpolasjonsplassholder
+  i kilden overlever, etter antall, i målet. En tapt `{count}` eller en
+  ubalansert `<0>` er typen feil som krasjer et oversatt program ved
+  kjøretid, så en plassholder som forekommer færre ganger i målet enn i kilden
+  flagges som kritisk. Det er skrivebeskyttet: det annoterer funn og omskriver aldri
+  innhold.
+
+  Plassholdere oppdages med et innebygd mønster som dekker de vanlige
+  interpolasjonsstilene: `{{name}}`, `${name}`, `%(name)s` (Python),
+  `%1$s` (posisjonsbasert), `%s` / `%d` / `%@` (printf / Objective-C),
+  `{name}` / `{0}` (ICU / .NET), og nummererte tagger som `<0>…</0>`. En
+  målspråkkode er påkrevd; blokker uten et mål for den språkkoden hoppes over.
+parameters:
+  flagExtra:
+    description: "Rapporter plassholdere som finnes i målet, men som mangler i kilden."
+    help: |
+      Når dette er aktivert (standard), rapporteres en plassholder som finnes i målet men
+      ikke i kilden – vanligvis et løst token – som et alvorlig problem, i tillegg
+      til den alltid-kritiske rapporten om plassholdere som er utelatt fra målet.
+    values: "`true` / `false` (standard `true`)"
+limitations:
+  - Oppdagelse er mønsterbasert og dekker de vanlige interpolasjonsstilene nevnt ovenfor; plassholdersyntakser utenfor dette settet gjenkjennes ikke.
+  - "Kontrollen sammenligner antall plassholdere, ikke posisjoner; en plassholder som forekommer riktig antall ganger, men i feil rekkefølge, flagges ikke."
+  - Krever en konfigurert målspråkkode; blokker uten et mål for den språkkoden hoppes over.
+processingNotes:
+  - Opererer på oversettbare blokker som har et mål for den konfigurerte språkkoden; andre deler passerer uendret gjennom.
+  - Tapte plassholdere rapporteres med kritisk alvorlighetsgrad; ekstra plassholdere (når flagExtra er aktivert) med alvorlig alvorlighetsgrad.
+examples:
+  - title: Rapporter kun tapte plassholdere
+    description: Deaktiver rapportering av ekstra plassholdere og flagg kun plassholdere som mangler fra målet.
+    config: |
+      flagExtra: false

@@ -1,0 +1,71 @@
+id: bowrain-web-review
+title: Ingen godkjenner sin egen oversettelse
+subtitle: "Én kø, to personer og en regel serveren anvender."
+tagline: the server-side platform companion to kapi
+kind: use-case
+publishAs: bowrain-web-review
+terminal: desktop
+target: web
+brand: bowrain
+needsAi: false
+# One continuous narration read: uniform voice across scenes.
+oneshot: true
+outro:
+  line: Angi policyen under Medlemmer og roller.
+  pointer: kapi pull
+aspects:
+  - One queue per project
+  - A verdict against every bar
+  - Separation of duties, enforced
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      To personer, én kø og en regel serveren anvender: ingen godkjenner sin egen oversettelse. Se én godkjenning gå gjennom, og én bli avvist.
+  - id: queue
+    kind: desktop
+    beat: queue
+    caption: Alt oversatt og ennå ikke avgjort.
+    hold: 14
+    crop: { x: 0.14, y: 0.05, w: 0.28, h: 0.45 }
+    text: >-
+      Arbeidsområdets innboks samler alle prosjekter som venter på noen. Inne i ett viser køen alt som er oversatt og ennå ikke avgjort, avgrenset til ett målspråk med kilden markert.
+  - id: focus
+    kind: desktop
+    beat: focus
+    caption: "Dommen, før noen avgjør."
+    hold: 14
+    crop: { selector: '[data-slot="reviewer-unit-header"]' }
+    highlight: { selector: '[data-testid="reviewer-verdict-passing"]' }
+    text: >-
+      En enhet i fokus åpnes med sin dom. Kontroller, termer og stemmeprofilen er de tre serveren anvender når noen trykker godkjenn, så indikatoren viser på forhånd om en godkjenning vil holde.
+  - id: approve
+    kind: desktop
+    beat: approve
+    caption: "Godkjent, og køen går videre."
+    hold: 13
+    crop: { selector: '[data-slot="review-session-header"]' }
+    text: >-
+      Dette målspråkinnholdet skrev en kollega, og det passerer alle kontroller. Å godkjenne registrerer beslutningen mot arbeidsområdet fremfor en fil på én enkelt laptop, og køen går til neste enhet.
+  - id: duties
+    kind: desktop
+    beat: duties
+    caption: "Avvist: forfatteren kan ikke være gjennomgåeren."
+    hold: 15
+    crop: { selector: '[data-testid="error-notice"]' }
+    highlight: { selector: '[data-testid="error-notice"]' }
+    text: >-
+      Denne oversatte hun selv. Serveren avslår godkjenningen og skriver sin egen begrunnelse: ansvarsfordeling er satt til å blokkere, så forfatteren av en oversettelse er aldri den som signerer den.
+  - id: second-reviewer
+    kind: desktop
+    beat: second-reviewer
+    caption: "En kollega avgjør det, og antallet synker."
+    hold: 13
+    crop: { selector: '[data-slot="review-session-header"]' }
+    text: >-
+      En kollega med gjennomgangstillatelse for det aktuelle målspråket avgjør det i stedet, og antall ventende synker. To personer, én registrering og en regel ingen overflate kan omgå.
+  - id: outro
+    kind: outro
+    text: >-
+      Gjennomgått på serveren, deretter trukket tilbake til repositoriet det kom fra.

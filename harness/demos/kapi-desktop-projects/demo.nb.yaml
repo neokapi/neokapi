@@ -1,0 +1,56 @@
+id: kapi-desktop-projects
+title: En oppskrift skrevet for deg
+subtitle: "Gi et prosjekt et navn, tildel det et språk, pek det mot innhold, og les planen."
+kind: use-case
+publishAs: kapi-desktop-projects
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - Projects
+  - Source & target languages
+  - Content patterns
+  - The catch-up plan
+outro:
+  line: "Opprett ett, legg til et språk, les planen."
+  pointer: kapi up --plan
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Et kapi-prosjekt er en oppskrift ved siden av filene dine, og kapi-desktop skriver den for deg. Gi det et navn, tildel det et språk, pek det mot innhold, og se hva ett klikk ville gjøre.
+  - id: new-project
+    kind: desktop
+    beat: new-project
+    caption: "Opprettet, og styrer ingenting ennå."
+    text: >-
+      Et nytt prosjekt ber om et navn og en struktur, og ingenting annet. Det som vises når det åpnes, er statusen – som på dette tidspunktet er tom: ingen målspråk, ingen lest innhold, ingenting å ligge etter på.
+  - id: add-language
+    kind: desktop
+    beat: add-language
+    caption: Ett språk valgt og lagret i oppskriften.
+    zoom: 1.4
+    text: >-
+      Prosjektinnstillinger er der kildespråket og målspråkene du oversetter til, deklareres. Velger du fransk, legges det til, og lagring skriver én linje inn i oppskriften ved siden av filene dine.
+  - id: add-collection
+    kind: desktop
+    beat: add-collection
+    caption: "Et navn og ett glob, talt mens du skriver."
+    crop: { selector: ['[data-slot="code-input"]', '[data-testid="pattern-match-count"]'] }
+    text: >-
+      En samling er et navn og mønstrene som definerer den. Editoren teller hva hvert mønster matchet mens du skriver det, så et glob som ikke finner noe, sier fra før du lagrer – ikke etter en kjøring.
+  - id: plan
+    kind: desktop
+    beat: plan
+    caption: "En tørrkjøring. Ingenting skrives, ingen leverandør kalles."
+    crop: { x: 0.38, y: 0.05, w: 0.24, h: 0.3 }
+    hold: 10
+    text: >-
+      På et prosjekt som allerede har innhold, leser planen hva som venter før noe kjøres. Enheter uten målspråk, hva prosjektets egen memory kan svare på, og et estimat for resten – alt beregnet på denne maskinen.
+  - id: outro
+    kind: outro
+    text: >-
+      Opprett et prosjekt, deklarer et språk og et mønster, les deretter planen før du trykker på den ene knappen som gjør jobben.

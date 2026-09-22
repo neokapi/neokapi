@@ -1,0 +1,26 @@
+# Native reference doc for the built-in `ts` format.
+# Source: core/formats/ts/{reader.go,writer.go,config.go,spec.yaml}.
+# Mirrors Okapi's TS filter (okf_ts). No configurable parameters today.
+description: "Les og skriv Qt Linguist TS (.ts)-filer, det tospråklige XML-formatet som brukes av Qts lupdate og lrelease."
+overview: |
+  Qt Linguist TS er det tospråklige XML-formatet som brukes av Qts `lupdate`- og `lrelease`-verktøy til å lagre UI-oversettelser. Et `<TS>`-dokument grupperer ett eller flere `<context>`-elementer; hvert kontekstnivå grupperer `<message>`-oppføringer med en `<source>` og en `<translation>`. Oversettelsesstatus er kodet i `type`-attributtet på `<translation>`-elementet: ingen type betyr godkjent, `unfinished` betyr til gjennomgang, og `obsolete` betyr at oppføringen ikke er i bruk. Flertallsmeldinger (`numerus="yes"`) inneholder én `<numerusform>` per flertallsform for språkkoden. Innebygde ikke-XML-byte vises som `<byte value="…"/>`-elementer.
+
+  Leseren trekker ut kildeteksten fra hver melding som en blokk, matcher den med eksisterende oversettelse, og bevarer kontekst- og meldingsstrukturen for skriveren. Formatet oppdages ved å lete etter et `<TS>` … `</TS>`-dokument, ikke ved filendelsen `.ts`, som kolliderer med TypeScript.
+limitations:
+  - Formatet oppdages ikke automatisk via `.ts`-filutvidelsen (den er i konflikt med TypeScript); oppdaging baserer seg på å undersøke `<TS>`-rotelementet eller en eksplisitt formatdeklarasjon.
+  - Ikke-XML-byte (`<byte value="…"/>`-elementer) presenteres som inline-plassholderkjøringer og bevares gjennom utveksling; de dekodes ikke til sine rå tegnmotstykker ved lesing.
+  - Det finnes ingen konfigurerbare parametere; atferden følger standardkontrakten.
+processingNotes:
+  - Én oversettbar blokk per `<message>`; kontekst- og meldingsstruktur rundtur som skjelett.
+  - Flertallsmeldinger har én `<numerusform>` per flertallsform for språkkoden.
+  - Oversettelsestilstand (godkjent / uferdig / foreldet) leses fra `<translation>`-`type`-attributtet.
+examples:
+  - title: Oversett en Qt UI-katalog
+    description: |
+      Ingen konfigurasjon er nødvendig. Deklarer formatet for å trekke ut hver
+      `<message>`-kilde og flett oversettelser tilbake inn i `.ts`-
+      dokumentet.
+    config: |
+      format:
+        name: ts
+wikiUrl: https://doc.qt.io/qt-6/linguist-ts-file-format.html

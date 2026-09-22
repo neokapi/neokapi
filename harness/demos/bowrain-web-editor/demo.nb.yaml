@@ -1,0 +1,66 @@
+id: bowrain-web-editor
+title: Oversett en side der leseren ser den
+subtitle: "Et redigeringskort over siden, på alle målspråk."
+tagline: the server-side platform companion to kapi
+kind: use-case
+publishAs: bowrain-web-editor
+terminal: desktop
+target: web
+brand: bowrain
+needsAi: false
+# One continuous narration read: uniform voice across scenes.
+oneshot: true
+outro:
+  line: Filer ankommer fra en kobling eller et push.
+  pointer: kapi push
+aspects:
+  - An editing card over the document
+  - A live preview of the page
+  - The memory and terms, one click away
+  - Every target language in one file
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Oversett en side der leseren ser den. Redigeringskortet ligger over det rendrede dokumentet, og siden tegnes på nytt mens du skriver.
+  - id: split
+    kind: desktop
+    beat: split
+    caption: "Kortet, over siden det oversetter."
+    hold: 16
+    crop: { selector: '[data-testid="visual-editor-card"]' }
+    text: >-
+      Dette er én fil i Oversett-arbeidsbenken. Visningsvisningen plasserer et redigeringskort over selve dokumentet, med fremdriften for hele filen ved siden av, slik at en blokk aldri redigeres uten kontekst.
+  - id: edit
+    kind: desktop
+    beat: edit
+    caption: "Lagret, og siden tegnes på nytt."
+    hold: 22
+    crop: { selector: '[data-testid="visual-editor-card"]' }
+    highlight: { selector: '[data-testid="target-display"]' }
+    text: >-
+      Skriv inn en oversettelse i blokken og lagre den. Forhåndsvisningen ved siden av kortet rendrer siden på nytt med den nye ordlyden, slik at en setning vurderes der leseren møter den – ikke som en rad i en liste med strenger. En linje som flyter over knappen sin, vises her, ikke etter at den er sendt ut.
+  - id: memory
+    kind: desktop
+    beat: memory
+    caption: "Den godkjente ordlyden, anvendt med ett klikk."
+    hold: 14
+    crop: { selector: '[data-testid="context-panel"]' }
+    text: >-
+      Workspace-innholdets memory svarer allerede på noen av disse strengene. Ett klikk anvender ordlyden teamet godkjente, og termene som gjelder denne blokken ligger i samme panel ved siden av.
+  - id: locale
+    kind: desktop
+    beat: locale
+    caption: "Den samme filen, neste målspråk."
+    hold: 11
+    crop:
+      selector:
+        - '[data-testid="locale-selector"]'
+        - '[data-testid="visual-editor-card"]'
+    text: >-
+      Én editor betjener alle målspråk. Bytt fra fransk til tysk, og kortet, memory-treffene og forhåndsvisningen følger med – uten at du forlater dokumentet.
+  - id: outro
+    kind: outro
+    text: >-
+      Filer ankommer fra en kobling eller et push, og redigeringene går tilbake på samme måte.

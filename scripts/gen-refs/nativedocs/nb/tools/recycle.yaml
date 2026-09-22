@@ -1,0 +1,92 @@
+# Native reference doc for the built-in `recycle` tool (content-memory leverage).
+# Schema source: core/tools/memoryleverage.go (MemoryLeverageConfig).
+description: Forhåndsoversett fra et oversettelsesminne ved hjelp av eksakte treff og fuzzy-treff.
+overview: |
+  **Recycle**-verktøyet spør et oversettelsesminne (Memory) for kildeteksten i hver blokk
+  og forhåndsutfyller målteksten med det beste treffet. Det forsøker først et eksakt treff,
+  deretter et fuzzy-treff over en konfigurerbar terskel, og registrerer
+  treff-scoren og typen (`exact` eller `fuzzy`) på blokken. Det krever et målspråk
+  og en oversettelsesminne-leverandør; uten et oversettelsesminne har verktøyet ingenting å gjenbruke.
+
+  Om et treff skrives inn i målteksten styres av en fyll-terskel
+  og et «bare hvis tom»-alternativ, slik at treff med høy sikkerhet kan brukes
+  mens svakere treff registreres men overlates til gjennomgang. En ingen-spørring-terskel lar
+  verktøyet hoppe over oppslaget i oversettelsesminnet når en eksisterende kandidat allerede scorer høyt nok.
+  Valgfritt kan alle gjenbrukte treff skrives til en TMX-fil.
+parameters:
+  fuzzyThreshold:
+    description: Minimumsscore for at et fuzzy-treff skal vurderes.
+    help: |
+      Den laveste fuzzy-treff-scoren (0-100) som oversettelsesminne-oppslaget vil returnere. Treff
+      under denne scoren ignoreres.
+    values: "heltall 0–100 (standard `70`)"
+  fillTarget:
+    description: Kopier det beste treffet inn i målteksten.
+    help: |
+      Når aktivert, skrives det best kvalifiserende treffet inn i blokkens
+      målinnhold. Når deaktivert, scores og registreres treff, men
+      målet fylles ikke inn.
+    values: "`true` / `false` (standard `true`)"
+  fillTargetThreshold:
+    description: Minimum treff-score kreves for å fylle inn i målet.
+    help: |
+      Et treff må ha minst denne scoren for å bli skrevet inn i målet.
+      Treff mellom fuzzy-terskelen og denne verdien registreres, men
+      fylles ikke inn.
+    values: "heltall 0–100 (standard `95`)"
+    dependsOn:
+      - property: fillTarget
+        condition: utfylling må være aktivert for at denne terskelen skal gjelde
+  fillIfTargetIsEmpty:
+    description: Fyll bare inn i målet når det ikke har noe eksisterende innhold.
+    help: |
+      Når aktivert, skrives et treff kun inn hvis blokkens mål for øyeblikket
+      er tomt, slik at eksisterende oversettelser aldri overskrives.
+    values: "`true` / `false` (standard `false`)"
+  noQueryThreshold:
+    description: Hopp over oversettelsesminne-spørringen når en eksisterende kandidat scorer høyt nok.
+    help: |
+      Hvis blokken allerede har en treff-score på eller over denne verdien, hoppes
+      oppslaget i oversettelsesminnet over. Standardverdien 101 betyr at oversettelsesminnet alltid spørres.
+    values: "heltall 0-101 (standard `101`)"
+  makeTmx:
+    description: Generer et TMX-dokument over gjenbrukte treff.
+    help: |
+      Når aktivert, skrives alle gjenbrukte treff til en TMX-fil på den
+      konfigurerte utdatabanen.
+    values: "`true` / `false` (standard `false`)"
+    dependsOn:
+      - property: tmxPath
+        condition: angi utgangsstien ved generering av TMX
+  tmxPath:
+    description: Utgangssti for det genererte TMX-dokumentet.
+    help: Filbane der TMX-dokumentet skrives når TMX-generering er aktivert.
+    values: "filbane"
+    dependsOn:
+      - property: makeTmx
+        condition: TMX-generering må være aktivert
+  downgradeIdenticalBestMatches:
+    description: Reduser scoren når det finnes flere identiske eksakte treff.
+    help: |
+      Når dette er aktivert, gis et eksakt treff scoren 99 i stedet for 100 hvis oversettelsesminnet
+      returnerer flere identiske beste treff, og markerer tvetydigheten for gjennomgang.
+    values: "`true` / `false` (standard `false`)"
+limitations:
+  - Krever et målspråk og en oversettelsesminne-leverandør; uten noe memory er det ingenting å gjenbruke.
+processingNotes:
+  - Behandler oversettbare blokker med ikke-tom kildetekst; andre deler sendes uendret videre.
+  - Eksakte treff forsøkes før fuzzy-treff; treff-scoren og typen registreres som blokk-egenskaper.
+  - "Med en strukturbevisst oversettelsesminne-leverandør kjøres samsvar mot blokkens inline-kode-struktur, og innfyllinger bærer med seg den matchede oppføringens kjøringer, slik at markup-plassholdere overlever innfyllingen; et 100 %-treff betyr at tekst og struktur stemmer overens."
+  - "Tvetydige treff (flere oppføringer med full score, men ulike mål) registreres, men fyller aldri inn målet. Valget sendes til gjennomgang i stedet for å bli avgjort av lagringsrekkefølgen."
+examples:
+  - title: Bruk bare treff med høy sikkerhet
+    description: Fyll ut målteksten fra treff med score 95 eller høyere.
+    config: |
+      fillTarget: true
+      fillTargetThreshold: 95
+  - title: Gjenbruk og eksporter til TMX
+    description: Senk fuzzy-terskelen og skriv treff til en TMX-fil.
+    config: |
+      fuzzyThreshold: 60
+      makeTmx: true
+      tmxPath: ./leverage.tmx

@@ -1,0 +1,13 @@
+# Native reference doc for the built-in `mdx` format.
+# Schema source: core/formats/mdx/config.go (Config, forwards markdown params) + schema.go.
+# Reuses the markdown reader for prose; MDX-specific constructs are opaque.
+description: "Trekk ut og oppdater oversettbar prosa i MDX-filer (.mdx) samtidig som JSX, ESM og uttrykk bevares."
+overview: |
+  **MDX**-formatet leser `.mdx`-filer – CommonMark Markdown utvidet med JSX-komponenter, ESM `import`/`export`-setninger og `{expression}`-klammeparenteser. Det er forfatterformatet til moderne dokumentasjons- og innholdssider (Docusaurus, Next.js, Astro).
+
+  Markdown-prosa som skal oversettes, trekkes ut med samme maskineri og konfigurasjon som Markdown-formatet (avsnitt, overskrifter, listeelementer, lenke- og bildetekst, innebygd formatering). MDX-spesifikke konstruksjoner (ESM-setninger, JSX-tagger med attributter og barn, `{expression}`-blokker på toppnivå og GFM-tabeller) bevares byte-for-byte og oversettes aldri – komponentnavn, attributtverdier, importstier og uttrykk forblir urørte. Les→skriv reproduserer virkelige `.mdx`-filer nøyaktig når ingenting er oversatt; leseren selvverifiserer hver prosaregion og faller tilbake til ugjennomsiktig bevaring dersom en region ikke ville overleve en byte-tro rundtur.
+parameters: {}
+processingNotes:
+  - "Markdown-prosa er oversettbar; ESM, JSX (inkludert barn, i denne versjonen), uttrykk og GFM-tabeller er ugjennomsiktige og bevares ordrett."
+  - Konfigurasjonsparametere speiler Markdown-formatet (f.eks. håndtering av frontmatter og kodeblokker).
+  - Gjenkjenning skjer via den unike `.mdx`-utvidelsen.
