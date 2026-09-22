@@ -40,19 +40,20 @@ with the same committable `kapi.yaml` recipe you would get from `kapi init`.
    shows each pattern beside the real files it matches and the format kapi
    detected for each.
 3. **Bind governance.** In **Project Settings**, choose the voice profile the
-   project goes by (a file in the project, a profile from the local store, or a
-   starter pack), set the **default point** on the declared axes (a `brand`, and
-   any axis you add), and declare **profiles** for a product that ships on
-   several channels. The **Context** hub then shows what resolved: the voice at
-   each point, the terms and the content memory the committed `.kapi/` files
-   bind.
+   project goes by (one from the project's voice store, or a starter pack), set
+   the **default point** on the declared axes (a `brand`, and any axis you add),
+   and declare **profiles** for a product that ships on several channels. The
+   **Context** hub then shows what resolved: the voice at each point, and the
+   terms and content memory the project holds.
 4. **Declare languages, if you translate.** Add target languages in **Project
    Settings**. The home then shows per-language coverage, and **Bring up to
    date** runs the project's default flow to the ship gates, the same loop as
    `kapi up`. A project that translates nothing is complete without this step.
-5. **Commit the recipe.** The `kapi.yaml` recipe and the committed `.kapi/`
-   files are portable; commit them, and the project runs identically from the
-   CLI and for teammates.
+5. **Commit the recipe.** The `kapi.yaml` recipe and `.kapi/` are the project's
+   configuration; commit them, and the project runs identically from the CLI.
+   What the project has learned lives in your workspace, and
+   [`kapi context export`](/kapi/context-portability) is how it reaches another
+   machine or a teammate.
 
 ## Why the desktop
 

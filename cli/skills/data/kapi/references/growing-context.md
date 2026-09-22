@@ -274,8 +274,8 @@ each language as not gated rather than shippable. Say which of these the
 project's CI should run, and on what: a check nobody runs governs nothing.
 
 Commit the configuration: `kapi.yaml`, `.kapi/` apart from `.kapi/work/`, and
-the assistant file. The context itself is in the project's store and is not
-committed; `kapi context log` is where the user reads what was decided, and
+the assistant file. The context itself stays in the project's store, where every
+checkout reads it; `kapi context log` is where the user reads what was decided, and
 `kapi context export -o backup.kpz` is the backup. If the user wants the context
 reviewable in a pull request as well, tell them about `kapi context snapshot`
 and let them decide.
