@@ -125,11 +125,11 @@ ok(
   !!queue?.pending?.find((u: any) => u.key === "greeting" && u.locale === "fr" && u.file === "messages.fr.json"),
 );
 
-// ── 3. apply kind:"review": the unit state is staged in the working store ──────
-// apply has no -p flag — it discovers the project from cwd (/project, above).
-// The state record is staged, not yet committed: in the browser the working set
-// persists as a JSON sidecar through the sandbox FS, so it must survive into
-// the next command exactly as the SQLite working store does natively.
+// ── 3. apply kind:"review": the decision lands in the working store ──────────
+// apply has no -p flag, so it discovers the project from cwd (/project, above).
+// In the browser the working set persists as a JSON sidecar through the sandbox
+// FS, so it must survive into the next command exactly as the SQLite working
+// store does natively.
 const s3 = await run(["apply", "review.jsonl"]);
 ok("apply review exits 0 in wasm", s3.code === 0, `code=${s3.code}`);
 
@@ -170,8 +170,8 @@ try {
 } catch {
   /* leave empty */
 }
-ok("the snapshot wrote the committed record (.kapi/state/*.jsonl)", shards.length > 0, `shards=${shards.length}`);
-const committedUnits: any[] = shards.flatMap((n) =>
+ok("the snapshot wrote the decision record (.kapi/state/*.jsonl)", shards.length > 0, `shards=${shards.length}`);
+const recordedUnits: any[] = shards.flatMap((n) =>
   dec
     .decode(mem.vol.readFile("/project/.kapi/state/" + n))
     .split("\n")
@@ -179,8 +179,8 @@ const committedUnits: any[] = shards.flatMap((n) =>
     .map((l) => JSON.parse(l)),
 );
 ok(
-  "committed record holds the reviewed unit with a targetHash",
-  !!committedUnits.find((u: any) => u.status === "reviewed" && u.targetHash),
+  "the written record holds the reviewed unit with a targetHash",
+  !!recordedUnits.find((u: any) => u.status === "reviewed" && u.targetHash),
 );
 
 console.log(failures === 0 ? "\nALL REVIEW SMOKE CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
