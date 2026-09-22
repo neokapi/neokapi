@@ -41,4 +41,3 @@ func (a *App) OpenProjectState(ctx context.Context, root string) (*state.WorkSto
 func targetHash(text string) string {
 	return state.TargetHash(text)
 }
-

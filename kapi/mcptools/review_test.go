@@ -170,14 +170,14 @@ func TestHandleReviewDecision_ApproveRejectSignOff(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, queue.Total)
 
-	// Identities and the note reach the committed record via the explicit
-	// commit — decisions stage in the working store, and `kapi commit` is the
-	// only door into the git-tracked shards under .kapi/state/.
+	// Identities and the note reach the record when it is written out:
+	// decisions are durable in the ledger from the moment they are made, and
+	// `kapi context snapshot` is the door to the shards under .kapi/state/.
 	// A fresh App: the project store is owned per App, and this one exists only
-	// to publish what the App under test staged into the same file.
-	committer := &host.App{}
-	defer committer.Shutdown()
-	_, err = committer.CommitProjectState(t.Context(), root)
+	// to write out what the App under test recorded into the same file.
+	writer := &host.App{}
+	defer writer.Shutdown()
+	_, err = writer.SnapshotProjectContext(t.Context(), root, host.ContextSnapshotRequest{})
 	require.NoError(t, err)
 	units, err := state.ReadCommitted(project.LayoutAt(root).Export().UnitStateDir())
 	require.NoError(t, err)
