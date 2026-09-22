@@ -491,7 +491,6 @@ func (d *daemonService) Pull(ctx context.Context, req *pb.PullRequest) (*pb.Pull
 		entry.connector.ObserveTermsRef(cres.TermsRef)
 		resp.ConceptsPulled = int32(cres.Concepts)
 		resp.ConceptRelationsPulled = int32(cres.Relations)
-		resp.TermsProjection = cli.FormatTermsProjection(cres.Projection)
 	}
 	return resp, nil
 }

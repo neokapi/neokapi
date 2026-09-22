@@ -5,15 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/ref/refcache"
+	"github.com/neokapi/neokapi/host"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/config"
 	bproject "github.com/neokapi/neokapi/host/venue/project"
@@ -103,17 +105,16 @@ type relationAddPayload struct {
 // Results
 // ---------------------------------------------------------------------------
 
-// PullConceptsResult holds the counts a concept pull reports, plus what the
-// return leg into the committed terms source amounted to.
+// PullConceptsResult holds the counts a concept pull reports, plus what it
+// left on the project's context record.
 type PullConceptsResult struct {
 	Concepts  int
 	Terms     int
 	Relations int
-	// Projection reports the merge of the workspace's reviewed decisions into
-	// the project's committed terms source. Zero-valued when the project has no
-	// recipe path to project into, and Written is false whenever the merge
-	// produced the bytes already in git.
-	Projection cli.TermsProjectionResult
+	// Recorded is the id of the context operation the pull left in the
+	// project's history, empty when the workspace's terminology stood where
+	// this checkout last saw it.
+	Recorded string
 	// TermsRef is the terms component of the ref the server published for this
 	// workspace at the moment of the pull. It is what a later governed push
 	// asserts, and what replaces asking a timestamp whether a snapshot is
@@ -155,20 +156,17 @@ func (r *PushConceptsResult) changed() bool {
 
 // PullConcepts paginates the workspace concept search, fetches the typed
 // relations touching the pulled concepts, writes them into tb (refreshing by
-// concept ID), projects the reviewed decisions among them into the project's
-// committed terms source, and returns the counts plus a baseline snapshot the
-// caller records in the sync cache so a later push can diff against it. When
-// dryRun is set it fetches and counts but writes nothing.
+// concept ID), and returns the counts plus a baseline snapshot the caller
+// records in the sync cache so a later push can diff against it. When dryRun is
+// set it fetches and counts but writes nothing.
 //
-// The projection is the return leg's other half. Without it a pull writes the
-// workspace's vocabulary into the gitignored store and stops there, so a
-// decision a reviewer approved on the server can never reach the repository
-// that asked for it. recipePath names the project to project into; empty skips
-// the projection (a caller with no recipe in hand).
+// The store is where terminology arrives and where every term-aware command
+// reads it, so the pull ends there. The project's context history gets a line
+// for the arrival, which conceptPull records once it has the project in hand.
 //
 // tb is the project's terms store, handed in rather than opened: it is a schema
 // of the project's one store, and the handle belongs to the caller's App.
-func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *terms.SQLiteStore, recipePath string, dryRun bool) (*PullConceptsResult, *bproject.ConceptBaseline, error) {
+func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *terms.SQLiteStore, dryRun bool) (*PullConceptsResult, *bproject.ConceptBaseline, error) {
 	concepts, kept, err := fetchServerConcepts(ctx, client)
 	if err != nil {
 		return nil, nil, err
@@ -183,13 +181,6 @@ func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *term
 	if !dryRun {
 		if err := writeConceptsToTerms(ctx, tb, concepts, kept); err != nil {
 			return nil, nil, err
-		}
-		if recipePath != "" && app != nil {
-			proj, perr := app.ProjectReviewedConcepts(ctx, recipePath, concepts, kept)
-			if perr != nil {
-				return nil, nil, fmt.Errorf("project reviewed terminology: %w", perr)
-			}
-			res.Projection = proj
 		}
 		// The terms component the workspace stands at, taken from the server
 		// rather than folded from what was just fetched. The two ought to
@@ -778,14 +769,86 @@ func conceptPull(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pul
 	if err != nil {
 		return nil, nil, err
 	}
-	res, baseline, err := PullConcepts(ctx, client, tb, proj.Layout.RecipePath, dryRun)
+	before := bproject.LoadSyncCache(proj.Layout).ConceptBaseline
+	res, baseline, err := PullConcepts(ctx, client, tb, dryRun)
 	if err != nil {
 		return nil, nil, err
 	}
 	if dryRun {
 		return res, nil, nil
 	}
+	if err := recordConceptArrival(ctx, proj, res, before, baseline); err != nil {
+		return nil, nil, err
+	}
 	return res, baseline, nil
+}
+
+// recordConceptArrival puts a line in the project's context history saying that
+// the workspace's terminology arrived in the project's terms store.
+//
+// The actor is the workspace it came from, recorded as a tool: nobody at this
+// keyboard decided any of it, and the decisions behind it were taken where the
+// terminology is reviewed. A person reading `kapi context log` sees the arrival
+// beside their own work and can tell the two apart.
+//
+// A pull that brought what the checkout already had records nothing. The
+// nightly runs this every night, and a log growing a line a night for a
+// workspace nobody edited would bury the entries a person wants to read.
+func recordConceptArrival(ctx context.Context, proj *bproject.Project, res *PullConceptsResult, before, after *bproject.ConceptBaseline) error {
+	if app == nil || res == nil || res.Concepts == 0 || proj.Layout.RecipePath == "" {
+		return nil
+	}
+	if sameBaseline(before, after) {
+		return nil
+	}
+	origin := proj.Recipe.Server.Workspace()
+	op, err := app.RecordContextObservation(ctx, host.ContextObserveRequest{
+		Actor:   contextop.Actor{Kind: contextop.ActorTool, Name: origin},
+		Project: proj.Layout.RecipePath,
+		Text: fmt.Sprintf("terminology from %s: %s in the project's terms store",
+			origin, plural(res.Concepts, "concept", "concepts")),
+	})
+	if err != nil {
+		return fmt.Errorf("record the terminology that arrived: %w", err)
+	}
+	res.Recorded = op.ID
+	return nil
+}
+
+// sameBaseline reports whether two snapshots of a workspace's terminology say
+// the same thing.
+//
+// Entry by entry rather than whole: the cached snapshot has been through JSON,
+// where an empty map and an absent one are the same bytes, so a structural
+// comparison would call two identical nights different.
+func sameBaseline(a, b *bproject.ConceptBaseline) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	if len(a.Concepts) != len(b.Concepts) || len(a.Relations) != len(b.Relations) {
+		return false
+	}
+	for id, want := range a.Concepts {
+		held, ok := b.Concepts[id]
+		if !ok || !reflect.DeepEqual(want, held) {
+			return false
+		}
+	}
+	for id, want := range a.Relations {
+		held, ok := b.Relations[id]
+		if !ok || !reflect.DeepEqual(want, held) {
+			return false
+		}
+	}
+	return true
+}
+
+// plural renders a count with the right noun.
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return "1 " + one
+	}
+	return fmt.Sprintf("%d %s", n, many)
 }
 
 // conceptPush runs the project-level concept push: it builds the workspace
