@@ -2,7 +2,7 @@
 id: c-09-content-memory
 sidebar_position: 9
 title: "C-09: Content memory"
-description: "Architecture decision: the content memory stores multilingual entries as Run sequences with inline markup, matches in tiers (generalized, structural, plain, then fuzzy), keeps a governed version chain per block, and rebuilds from the committed seeds and the committed translations rather than living in version control."
+description: "Architecture decision: the content memory stores multilingual entries as Run sequences with inline markup, matches in tiers (generalized, structural, plain, then fuzzy), keeps a governed version chain per block, and lives in the project's store, which a run tops up from each committed translation it reads."
 keywords: [content memory, runs, multilingual, matching tiers, version chain, governed reuse, SQLite, recycle, TMX, architecture decision, neokapi]
 ---
 
@@ -339,51 +339,48 @@ kept out of version control**:
   accumulating store. One continuum, larger backend. The `memory/schema` package
   carries the table definitions in a second SQL dialect beside SQLite's, so such
   a backend builds the same tables from the same declaration.
-- it is **rebuildable**, which makes it softer than most machine state: the
-  leverage reconstructs from the committed translations plus the human-curated,
-  **read-only** committed seeds. A cold or clobbered store is a performance hit,
-  not data loss.
-- because it is additive and rebuildable it needs **no locking**: it tolerates
-  last-write-wins and per-branch cache keys.
+- it is **additive**: every pass tops it up from the translations it reads, so a
+  store that has seen a project's history answers more than a fresh one and
+  neither answers wrongly.
+- because it is additive it needs **no locking**: it tolerates last-write-wins
+  and per-branch cache keys.
 
-Consequently **CI never commits the memory**: it builds the tables from the
-committed sources, leverages and accumulates during the run, and discards them.
-The translation *output* is what is committed. This is why a new terms source
-arriving while a memory is in play is not a reconciliation problem: no store
-lives in version control to conflict.
+The store lives in the user's workspace, one per project
+([C-03](c-03-context-store-and-graph.md)), so a CI runner starts with an empty
+one. A job whose leverage matters reads the project's bundles in with
+`kapi context import` first, and the translation *output* is what the job
+commits.
 
 A project accumulates **many** memory bundles, not one (one per content surface
 under `.kapi/memory/*.memory.json`), so the suffix, not the location, identifies
-a seed. That is why the memory has no conventional-location fallback where the
-terms source does: a conventional single name would force a project with a bundle
-per surface to nominate one of them arbitrarily. A seed is named by
-`defaults.memory_source` or by an explicit path; there is nothing sensible to
+a bundle. That is why the memory has no single conventional filename where the
+terms bundle has one: it would force a project with a bundle per surface to
+nominate one of them arbitrarily. An import reads every bundle in the directory,
+`defaults.memory_source` names one elsewhere, and there is nothing sensible to
 guess.
 
-### The rebuild, in two stages
+### Absorbing the committed translations
 
-Both stages run on the read path, keyed by content digest, so an unchanged input
-costs a read and no writes:
+A run tops the store up from the working tree on the read path, keyed by content
+digest, so an unchanged input costs a read and no writes. Each collection's
+per-locale target document is paired with its source through the collection's own
+binding (the same reader and format config on both sides) and absorbed as
+source→target pairs.
 
-1. **The seeds**: every committed bundle under `.kapi/memory/`, not only the
-   primary one bound by `defaults.memory_source`.
-2. **The committed translations**: each collection's per-locale target document,
-   paired with its source through the collection's own binding (the same reader
-   and format config on both sides) and absorbed as source→target pairs.
+This is the half that carries wording no bundle holds. A translation approved
+somewhere reaches version control as the target artifact, and without reading it
+back the reviewed wording lives in exactly one place nothing in the pipeline can
+see. The absorption reports what it did: pairs seen, documents read, pairs
+learned, pairs reconciled, pairs contested, pairs refused.
 
-The second stage is the half that carries wording no bundle holds. A translation
-approved somewhere reaches version control as the target artifact, and without
-reading it back the reviewed wording lives in exactly one place nothing in the
-pipeline can see. The absorption reports what it did: pairs seen, documents read,
-pairs learned, pairs reconciled, pairs contested, pairs refused.
+The digest decides what is applied again: only an artifact whose bytes moved,
+which is what lets a pulled decision or an approval stand rather than being
+overwritten by an unchanged file. A run stamps the targets it writes itself, so
+a convergence never reads its own output back as if a person had written it.
 
-The record is absorbed **after** the seeds, so on the pass that compiles both (a
-fresh checkout) the committed translation supersedes the accelerant. Afterwards
-each input has had its say and the digest decides: only an artifact whose bytes
-moved is applied again, which is what lets a later seed edit, a pulled decision
-or an approval stand rather than being overwritten by an unchanged file. A run
-stamps the targets it writes itself, so a convergence never reads its own output
-back as if a person had committed it.
+A bundle read by `kapi context import` lands in the same tables through the same
+importer ([C-11](c-11-context-operations.md)), so a project seeded from bundles
+and one grown from its own translations hold the same shape of entry.
 
 Two rules keep the absorbed record honest. A pair whose target does not carry its
 source's inline codes is refused rather than stored, the same predicate
@@ -396,8 +393,8 @@ agrees on is not a decision about a place, and giving it one would put a copy of
 it in the store per collection that carries the string.
 
 Because the absorber's entries are reproducible from the committed translations
-by construction (that is what this stage does), a store written under an older
-entry identity is **re-learned rather than migrated**: the pass drops the stamps
+by construction (that is what this stage does), an entry written under an older
+identity is **re-learned rather than migrated**: the pass drops the stamps
 that would let it skip a document, reads the record again, and afterwards
 forgets the entries it had minted that the current identity no longer mints.
 What the corpus learned elsewhere is not the record's to forget.

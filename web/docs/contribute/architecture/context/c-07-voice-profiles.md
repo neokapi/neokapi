@@ -239,8 +239,7 @@ A recipe is an **authoring surface**, not a second runtime source. It is
 version-controlled and authoritative over what the governance *is*; at any moment
 exactly one venue *applies* it: the recipe when the project runs on its own, a
 service's stored rows when it runs connected. Two live sources would mean a voice
-that depends on where the loop happened to run, and someone quietly editing over
-a committed profile.
+that depends on where the loop happened to run.
 
 What crosses a push is every declared collection, the point it sits at and the
 voice governing it, so both venues resolve the same voice for the same content.
@@ -267,10 +266,8 @@ venue is not a reason to refuse the run.
 
 With no source flag, resolution falls back to the project in scope: the voice
 governing the content collection that claims the file, else the recipe's
-`defaults.voice` (a binding selecting a profile file, a store profile or a pack,
-resolved relative to the project root), then the convention file at
-`.kapi/voice.yaml`, or `voice.yaml` at the project root for a project that keeps
-it there. This lets `kapi voice check DRAFT.md` work flag-free inside a project.
+`defaults.voice`. Every rung answers out of the project's voice store, and
+`kapi voice check DRAFT.md` therefore works flag-free inside a project.
 Locale and channel overrides apply on top via `--locale`/`--channel`; an explicit
 `--channel` wins over the channel the recipe declares.
 
@@ -338,21 +335,34 @@ apply` change-set, alongside the content fix that justifies it:
 ```
 
 The entry adds a term rule to the named vocabulary list (`forbidden`,
-`competitor` or `preferred`) of the **committed** profile YAML the recipe binds,
-creating and binding one if none exists, then re-imports that profile into the
-voice store through the same `profile.LoadProfileYAML` path. The committed YAML
-is the single source of truth and the diff is the review surface; the store is a
-compiled cache written by the one importer. The operation is idempotent. A
-binding that points at a starter pack or a store profile rather than a file is
-rejected: `apply` edits a committed file, not a pack or a stored row.
+`competitor` or `preferred`) of the profile the recipe binds, inside the
+project's voice store, and records a context operation for it. The operation is
+idempotent. A binding that points at a starter pack is rejected: a pack is
+embedded in the binary and a project that wants to change one imports it first.
 
 A rule proposed rather than applied takes the same route once someone confirms
 it. `kapi context propose --list forbidden` records a candidate, which checks
 report at `neutral` severity and fail nothing on; confirming it builds this same
-change-set entry and runs this same applier, so a confirmed rule reaches the
-committed YAML and the store by the one path. Withdrawing it removes the rule
-from the YAML and re-imports the profile, which replaces the stored copy
-wholesale. See [C-11](c-11-context-operations.md).
+change-set entry and runs this same applier. Withdrawing it takes the rule back
+out and writes the profile whole. See [C-11](c-11-context-operations.md).
+
+### Authoring a profile
+
+`kapi voice new` scaffolds a commented, schema-valid YAML file and
+`kapi voice import` files it in the project's voice store, which is the
+bootstrap. After that `kapi voice edit` is the authoring surface: it writes the
+stored profile to a temporary file through the snapshot serializer, opens
+`$VISUAL` or `$EDITOR`, validates what comes back the way `kapi voice validate`
+validates a file, and reads it into the store as one recorded change. The
+document states the profile entire, so a section deleted in the editor is
+deleted from the profile; an editor that exits with an error, and a document
+saved unchanged, both leave the store as it was.
+
+`kapi context snapshot` writes every stored profile back out as YAML at the path
+the recipe binds it from, and `kapi context import` reads those files back
+([C-11](c-11-context-operations.md)). The store metadata key
+`context.voiceBindings` ties a stored profile's id to the path a layout keys it
+by, which is the one place the two are joined.
 
 ### Built-in starter packs
 
