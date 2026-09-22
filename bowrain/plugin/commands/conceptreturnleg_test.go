@@ -66,7 +66,7 @@ func returnLegServer(t *testing.T) *httptest.Server {
 func newReturnLegProject(t *testing.T, srvURL string) (*bproject.Project, string) {
 	t.Helper()
 	root := t.TempDir()
-	proj, err := bproject.InitProject(root, &bproject.Recipe{
+	proj, err := bproject.InitProject(root, &bproject.Recipe{ //nolint:modernize // the embedded type is named, so the recipe's two halves read as two things
 		KapiProject: coreproj.KapiProject{
 			ID:   "prj_returnleg22222222222222",
 			Name: "return leg",

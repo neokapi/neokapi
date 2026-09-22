@@ -157,18 +157,20 @@ ok(
   !queue2?.pending?.find((u: any) => u.key === "greeting"),
 );
 
-// ── 6. commit: the staged unit state lands in the committed record ─────────────
-// The committed record is per-document JSONL shards under .kapi/state/ (one
-// line per unit), written through the sandbox FS.
-const s6 = await run(["commit"]);
-ok("commit exits 0 in wasm", s6.code === 0, `code=${s6.code}`);
+// ── 6. snapshot: the recorded decisions are written out as the record ─────────
+// A decision is durable in the ledger the moment it is made. `kapi context
+// snapshot` writes the project's context out as files, the record among them:
+// per-document JSONL shards under .kapi/state/ (one line per unit), written
+// through the sandbox FS.
+const s6 = await run(["context", "snapshot", "-p", P]);
+ok("context snapshot exits 0 in wasm", s6.code === 0, `code=${s6.code}`);
 let shards: string[] = [];
 try {
   shards = mem.vol.readdir("/project/.kapi/state/").filter((n) => n.endsWith(".jsonl"));
 } catch {
   /* leave empty */
 }
-ok("commit wrote the committed record (.kapi/state/*.jsonl)", shards.length > 0, `shards=${shards.length}`);
+ok("the snapshot wrote the committed record (.kapi/state/*.jsonl)", shards.length > 0, `shards=${shards.length}`);
 const committedUnits: any[] = shards.flatMap((n) =>
   dec
     .decode(mem.vol.readFile("/project/.kapi/state/" + n))

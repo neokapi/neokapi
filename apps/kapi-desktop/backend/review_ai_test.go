@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/host"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -296,16 +297,16 @@ func TestRunAIPreReview_EmptyScope(t *testing.T) {
 // ledger and reads them back.
 //
 // Recording puts a decision in the ledger, where it is durable at once. Writing
-// the shards in the checkout is a separate act (`kapi commit`), so a test that
-// asserts what the committed record holds does that first, which also pins that
-// the decision reached the ledger at all.
+// the shards in the checkout is a separate act (`kapi context snapshot`), so a
+// test that asserts what the committed record holds does that first, which also
+// pins that the decision reached the ledger at all.
 //
-// It commits through the app's own engine. The working store is a schema of the
-// project's one store, so committing from an App of its own would be a second
+// It writes through the app's own engine. The working store is a schema of the
+// project's one store, so writing from an App of its own would be a second
 // connection pool on the file the app is holding open.
 func commitAndReadUnits(t *testing.T, app *App, root string) []state.UnitState {
 	t.Helper()
-	_, err := app.hostEngine().CommitProjectState(t.Context(), root)
+	_, err := app.hostEngine().SnapshotProjectContext(t.Context(), root, host.ContextSnapshotRequest{})
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
