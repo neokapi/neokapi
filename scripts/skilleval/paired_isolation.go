@@ -36,6 +36,11 @@ func preparePairedAgent(ctx context.Context, launch PairedLaunch) (PairedPrepare
 			return p, err
 		}
 	}
+	// The fixture's context reaches a gate through the store, so it is read in
+	// before the agent starts and every arm works from the same context.
+	if err := readPairedContext(ctx, launch.Workspace, launch.KapiBin); err != nil {
+		return p, err
+	}
 	preparePairedMCPReadiness(ctx, &p)
 	executable, err := exec.LookPath(launch.Agent.Host)
 	if err != nil {

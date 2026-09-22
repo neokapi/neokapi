@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -198,6 +199,7 @@ func materializePairedLaunch(opts PairedOptions, m PairedManifest, s PairedSessi
 	if err := materializePairedTask(workspace, task); err != nil {
 		return PairedLaunch{}, err
 	}
+	kapiBin := findKapi(opts.RepoRoot)
 	prompt := task.Prompt
 	if opts.Phase == "diagnostic" {
 		prompt += "\n\n" + pairedDiagnosticInstruction(s.Condition)
@@ -207,10 +209,39 @@ func materializePairedLaunch(opts PairedOptions, m PairedManifest, s PairedSessi
 	}
 	return PairedLaunch{
 		Agent: s.Agent, Condition: s.Condition, Workspace: workspace,
-		StateDir: filepath.Join(dir, "state"), RepoRoot: opts.RepoRoot, KapiBin: findKapi(opts.RepoRoot),
+		StateDir: filepath.Join(dir, "state"), RepoRoot: opts.RepoRoot, KapiBin: kapiBin,
 		Prompt: prompt, TranscriptPath: filepath.Join(dir, "transcript.jsonl"),
 		Timeout: m.attemptTimeout(), MaxTurns: m.MaxTurns,
 	}, nil
+}
+
+// readPairedContext puts the fixture's voice profile and vocabulary into the
+// store the workspace's kapi answers from.
+//
+// The fixture ships them as files, and a file in a checkout governs nothing
+// until somebody reads it in, so every arm of the study starts from the same
+// context rather than from an empty one. It runs as the person setting the
+// study up, because a context import is a person's decision.
+//
+// A study run without a built kapi has no store to fill and nothing to do.
+func readPairedContext(ctx context.Context, workspace, kapiBin string) error {
+	if kapiBin == "" {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, kapiBin, "context", "import",
+		"-p", filepath.Join(workspace, "kapi.yaml"))
+	cmd.Dir = workspace
+	cmd.Env = append([]string{
+		"PATH=" + os.Getenv("PATH"),
+		"HOME=" + workspace,
+		"KAPI_ACTOR=person",
+	}, isolationEnv(workspace)...)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("read the fixture's context: %w\n%s", err, out)
+	}
+	return nil
 }
 
 func findPairedTask(id string) (PairedTask, error) {
