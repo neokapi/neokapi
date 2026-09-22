@@ -2,7 +2,7 @@
 id: c-01-project-model
 sidebar_position: 1
 title: "C-01: The project model"
-description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root and a committed .kapi/ directory holding the sources its context is authored in. Machine state is confined to one internal directory, .kapi/work/; the stores those sources compile into sit in a per-user workspace outside every checkout."
+description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root and a committed .kapi/ directory holding its configuration. Machine state is confined to one internal directory, .kapi/work/; the project's context lives in a per-user workspace outside every checkout."
 keywords: [kapi project, kapi.yaml, .kapi, YAML recipe, project model, context, workspace, store.db, architecture decision, neokapi]
 ---
 
@@ -16,16 +16,17 @@ sibling `.kapi/` directory. The recipe captures the user's declarative intent
 blocks a plugin has registered a schema for.
 
 `.kapi/` is the one directory kapi owns, and it is **committed**: it holds the
-sources a project's context is authored in (the terms bundle, the
-content-memory bundles, the voice profiles, the unit-state record) alongside
-the manifest, the flow definitions and the reader configuration. Machine state
-is confined to one internal directory, `.kapi/work/`, which is ignored. This is
-the model git itself uses: `.git` is the tool's directory and its index lives
-inside it.
+project's configuration (the manifest, the flow definitions, the shared reader
+configuration). Machine state is confined to one internal directory,
+`.kapi/work/`, which is ignored. This is the model git itself uses: `.git` is
+the tool's directory and its index lives inside it.
 
-The stores those sources compile into sit in a per-user **workspace** outside
-every checkout, one database per project, reached by every clone and worktree of
-it ([C-03](c-03-context-store-and-graph.md)).
+The project's **context** lives somewhere else entirely: a per-user workspace
+outside every checkout, one database per project, reached by every clone and
+worktree of it ([C-03](c-03-context-store-and-graph.md)). `.kapi/` may also hold
+the artifact form of that context, written by `kapi context snapshot` and read
+by `kapi context import`, which is how a team puts its terms and approvals in a
+pull request. Those files are read by that one command and by nothing else.
 
 A `ProjectContext` resolves the recipe into a runtime configuration, and a
 `Store` interface with pluggable providers gives tools random-access storage
@@ -65,22 +66,25 @@ Ownership zones at the project root:
 ```
 my-app/
 ├── kapi.yaml                   ← RECIPE (user edits; a conventional YAML config file)
-├── .kapi/                      ← COMMITTED (authored, reviewed in a pull request)
+├── .kapi/                      ← COMMITTED (configuration, reviewed in a pull request)
 │   ├── .gitignore              ← the two-line ignore rule, written by kapi init
 │   ├── manifest.yaml           ← bookkeeping written by kapi init
 │   ├── filters.json            ← shared reader/writer configuration
 │   ├── filters.local.json      ← personal overrides (ignored)
-│   ├── terms.json              ← the terms source (C-08)
-│   ├── voice.yaml              ← the voice profile (C-07)
+│   ├── flows/                  ← file-per-flow definitions (E-04)
+│   │
+│   │   ── the context snapshot, when a team keeps one (optional) ──
+│   ├── terms.json              ← a terms bundle (C-08)
+│   ├── voice.yaml              ← a voice profile (C-07)
 │   ├── memory/                 ← content-memory bundles (C-09)
 │   │   └── <surface>.memory.json
-│   ├── flows/                  ← file-per-flow definitions (E-04)
-│   ├── profiles/               ← per-profile governance overrides (C-02)
+│   ├── profiles/               ← per-profile overrides (C-02)
 │   │   └── <profile>/
 │   │       ├── voice.yaml
 │   │       └── terms.json
-│   ├── state/                  ← the committed unit-state record (C-04)
+│   ├── state/                  ← the unit-state record (C-04)
 │   │   └── <document>.jsonl
+│   │
 │   └── work/                   ← WHAT THIS CHECKOUT DERIVES (ignored)
 │       ├── store.db            ← this checkout's projection (C-03)
 │       ├── vault/              ← withheld originals (C-10), local-only
@@ -101,34 +105,37 @@ Ownership, zone by zone:
   and diff apply YAML highlighting with no custom file-type registration. Wide,
   zero-config recognition was chosen over a branded document type.
 
-  The same reasoning governs every other committed artifact: each ends in the
-  suffix of the serialization it actually is. Where a file also needs to say
+  The same reasoning governs every other artifact kapi writes here: each ends in
+  the suffix of the serialization it actually is. Where a file also needs to say
   *which* document of that serialization it is, the marker goes in a segment
   ahead of the suffix (`.kbf.json`, `.memory.json`, `.overlays.jsonl`), so
   `jq`, diffs and highlighting keep working while the name stays self-describing.
   Only `.kpz`, a binary zip nobody hand-edits, keeps a dedicated extension.
 
-- **`.kapi/`** holds the sources its context is authored in, reviewed in a pull
-  request, and it sits **flat**: everything committed here is context, so an umbrella
-  directory saying so would appear in every path and distinguish none of them.
-  `terms.json` is the terms source ([C-08](c-08-terms.md)) bound by
-  `defaults.terms_source`; `memory/` holds the content-memory bundles
-  ([C-09](c-09-content-memory.md)); `voice.yaml` is the voice profile
-  ([C-07](c-07-voice-profiles.md)). All three recipe keys bind any path. These
-  are the conventional homes, not the only ones.
+- **`.kapi/`** holds the project's configuration, reviewed in a pull request,
+  and it sits **flat**: an umbrella directory would appear in every path and
+  distinguish none of them. `flows/` holds the flow definitions
+  ([E-04](../engine/e-04-flows-and-io-binding.md)) and `filters.json` the shared
+  reader configuration.
 
-- **`.kapi/profiles/<profile>/`** holds what one profile overrides, and nothing
-  else. Governance binds to a point ([C-02](c-02-coordinates-and-governance.md)),
-  so the flat files are the project default and a profile's differences sit in a
-  directory named for it. The directory name *is* the profile's key under
-  `profiles:`. Only governance splits this way: the content memory and the state
-  record stay top-level, because a recycled translation and an approval are facts
-  about a unit, true wherever it is governed from.
+- **The context files under `.kapi/`** are a snapshot rather than a source.
+  `kapi context snapshot` writes them from the project's stores and
+  `kapi context import` reads them back ([C-11](c-11-context-operations.md));
+  a gate, a lookup and a retrieval all answer from the store. `terms.json` is a
+  terms bundle ([C-08](c-08-terms.md)), `memory/` holds content-memory bundles
+  ([C-09](c-09-content-memory.md)), `voice.yaml` is a voice profile
+  ([C-07](c-07-voice-profiles.md)), and `profiles/<profile>/` holds what one
+  profile overrides, named for its key under `profiles:`. The recipe keys
+  `defaults.terms_source`, `defaults.memory_source` and `profile_file` move any
+  of them elsewhere; these are the conventional places, not the only ones.
 
-- **`.kapi/state/`** is the committed record of per-unit state: where each unit
+  A project whose team backs its context up with `kapi context export` instead
+  keeps none of these files, and every gate answers exactly the same.
+
+- **`.kapi/state/`** is the artifact form of per-unit state: where each unit
   stands on the review ladder, which a plain target file cannot hold. JSON Lines,
   one shard per document ([C-04](c-04-unit-state-and-decisions.md)). Written by
-  `kapi commit`, not hand-edited, so the record travels with the project.
+  the snapshot, not hand-edited.
 
 - **`.kapi/work/`** is everything THIS CHECKOUT derives, and the only thing kapi
   keeps out of version control. `store.db` is the projection of the working
@@ -136,10 +143,9 @@ Ownership, zone by zone:
   ([C-03](c-03-context-store-and-graph.md)). Beside it sit the caches and the
   redaction vault ([C-10](c-10-redaction.md)).
 
-  The stores the committed sources compile into sit in the user's workspace,
-  one database per project, reached by every checkout of that project. A second
-  clone and a git worktree each keep a `work/` of their own and share one
-  context store.
+  The project's context stores sit in the user's workspace, one database per
+  project, reached by every checkout of that project. A second clone and a git
+  worktree each keep a `work/` of their own and share one context store.
 
 - **`src/**`** is user-authored content. Referenced by the recipe; never moved
   into `.kapi/`.
@@ -163,7 +169,7 @@ filters.local.json
 The second line is the personal reader overlay: a developer's own settings,
 which are theirs and not the project's. Nothing else in `.kapi/` is ignored, and
 nothing ignored has to be excepted back in. Confining derivation to one
-subdirectory removes the question a scattered layout raises, where a committed
+subdirectory removes the question a scattered layout raises, where a tracked
 path has to be rescued by a negation that version control only honours if the
 parent was never ignored.
 
@@ -175,8 +181,8 @@ What deleting costs, stated exactly:
   `.kapi/work/vault/` holds withheld originals that are **local-only and not
   regenerable** ([C-10](c-10-redaction.md)): never committed, never synced, so
   nothing anywhere else has a copy. Everything else under `work/` is derived
-  from the working tree, including `store.db`. A decision recorded since the
-  last `kapi commit` lives in the workspace
+  from the working tree, including `store.db`. The project's terms, voice
+  profiles, content memory and decisions are in the workspace and stay
   ([C-03](c-03-context-store-and-graph.md)).
 
 ### Recipe schema
@@ -192,7 +198,8 @@ name: Northsea App
 profiles:
   northsea:
     channels: [app, docs]
-    voice: .kapi/voice.yaml
+    voice:
+      profile: northsea
 
 collections:
   - name: ui
@@ -589,10 +596,11 @@ right extraction without guessing from its name.
 - Transaction semantics vary per provider, and tools calling `GetBlock` per block
   are slow against a remote store.
 - The recipe is always free of credentials, so it is safe to commit and to share.
-- The recipe binds *sources* (`defaults.terms_source`, `defaults.memory_source`,
-  `defaults.voice`) and never a derived artifact. The committed state record is
-  fixed by the layout, and the database holding the ledger it exports is fixed
-  by the workspace.
+- The recipe binds by name what governs a point (`defaults.voice`,
+  `profiles.<n>.termstore`) and by path what an import reads
+  (`defaults.terms_source`, `defaults.memory_source`). Neither kind of binding
+  reaches a checkout on a read path, so two branches of one project answer the
+  same question the same way.
 
 ## See also
 
@@ -601,7 +609,7 @@ right extraction without guessing from its name.
 - [C-03: The context store and graph](c-03-context-store-and-graph.md):
   `.kapi/work/store.db` and the workspace holding the other half.
 - [C-04: Unit state and the decision record](c-04-unit-state-and-decisions.md):
-  `.kapi/state/`.
+  the ledger and the shards a snapshot writes.
 - [E-01: Processing Engine](../engine/e-01-processing-engine.md): flow
   execution.
 - [E-03: Tool System](../engine/e-03-tool-system.md): the `Tool` and
