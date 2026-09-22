@@ -112,6 +112,13 @@ to pick the rest up.
 A prerelease leaves the branch alone. Release candidates are what `/next/`
 already serves.
 
+The job runs on the release event and on the `workflow_dispatch` the Windows
+signing step already fires (`scripts/publish-windows-signed.sh` runs
+`gh workflow run release-docs.yml -f tag=<tag>` once the signed assets are on
+the release). Two independent triggers reach it, and the second one also
+refreshes the download links now that the Windows rows resolve. Both are
+idempotent: a branch already at the tag exits early.
+
 ## Backport a docs fix to the stable site
 
 Land the fix on `main` first, so the next channel and the following release
