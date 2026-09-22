@@ -205,18 +205,19 @@ before it binds the subsystems, because binding creates those tables. A workspac
 supplied with an empty context store and a projection that still carries context
 tables is adopted.
 
-Only what no committed source reproduces moves: `core/state.WorkStore.Staged`
-reports the records this checkout holds that its committed shards do not carry,
-and each is recorded in the new store. The old store's own migration runs first,
-so a project that predates the ledger has its rows carried into one before they
-are read.
+Every context row moves, because nothing reproduces one: the terms, the content
+memory, the voice profiles and every record in the decision ledger are read out
+of the old store and recorded in the new one. The old store's own migration runs
+first, so a project that predates the ledger has its rows carried into one before
+they are read.
 
 What is dropped afterwards is computed rather than listed. An empty projection is
 built in memory, its tables are what a projection is entitled to hold, and every
 other table in the file belonged to a subsystem that has moved out. Virtual
 tables are dropped first, since they take their shadow tables with them. The
 whole pass is best-effort: a project that cannot be adopted keeps both copies and
-works from the context store, which the committed sources re-seed.
+works from the context store, which `kapi context import` fills from the
+checkout's own files.
 
 ## Related
 

@@ -62,10 +62,10 @@ move it between machines, seed a fresh working copy, or build a deterministic
 test fixture, and a lossy serialization cannot faithfully **regenerate the
 derived stores** a runtime builds from this content.
 
-A second observation shaped the design. The project layout already separates
-**authoritative content** (the committed sources and the unit-state record)
-from everything a run derives from them: the checkout's projection, the
-project's context store and the free-to-delete cache
+A second observation shaped the design. The project already separates
+**authoritative content** (the content files, and the context its store holds)
+from everything a run derives from them: the checkout's projection and the
+free-to-delete cache
 ([C-03](../context/c-03-context-store-and-graph.md)). The
 thing worth packaging is the authoritative content, never the derived stores or
 the secrets.
@@ -180,7 +180,7 @@ manifest kind:
 All four profiles are parcels rather than workspaces.
 
 The context profile adds two member kinds. A `voice` member is one profile's
-YAML, written through the comment-preserving writer every committed voice
+YAML, written through the comment-preserving writer every exported voice
 profile goes through, with its store identity and its authoring path recorded
 in the manifest so a restore puts it back where governance resolves it from. A
 `decisions` member is one shard of the decision record, carried as the JSON
@@ -195,9 +195,9 @@ and two of them sit on different branches with different translations of one
 unit at the same time, so a bundle built from a checkout's view would be
 lossless for that checkout and lossy for the project. A unit several branches
 have answered therefore contributes a line per pairing, which is more than any
-one checkout's `.kapi/state/` shards hold, and a restore records each of them.
-The shards a project commits keep carrying the view, because they are what that
-checkout evaluates from. The member's bytes and its content type are the same
+one checkout's snapshot shards hold, and a restore records each of them. A
+snapshot keeps carrying the view, because that is what the checkout under it
+evaluates from. The member's bytes and its content type are the same
 either way, so a bundle written before the ledger travelled is read without a
 version to negotiate: it carries what it carries.
 
@@ -318,8 +318,8 @@ wholly in the overlays.
 ## What a package carries
 
 A `.kpz` is the portable twin of a project, so it carries the project's
-**portable authoritative state**, both its content and its committed intent,
-and nothing environment-specific. One principle decides membership:
+**portable authoritative state**, both its content and the intent recorded
+about it, and nothing environment-specific. One principle decides membership:
 
 > Pack authoritative state, not caches or secrets. **Content** defines the
 > package identity (the Merkle root hash); the **recipe** is metadata, excluded
@@ -361,9 +361,9 @@ whose logical path would escape the project root is refused rather than written.
 | defaults, content, preset | recipe | recipe | travels |
 | side-effecting extension blocks at any scope | recipe extras | recipe extras | travels **inert** |
 | path-valued recipe fields | recipe | recipe | travels **contained** |
-| content memory / terms | committed bundle sources | `memory.json` / `terms.json` | travels (lossless) |
+| content memory / terms | the project's context store | `memory.json` / `terms.json` | travels (lossless) |
 | blocks, targets, overlays | block tables (derived) | bundle + overlay members (authoritative) | travels |
-| unit state | committed state records | the bilingual profile ([M-01](m-01-bilingual-interop.md)) | travels |
+| unit state | the decision ledger | the bilingual profile ([M-01](m-01-bilingual-interop.md)) | travels |
 | source identity | working tree | the manifest | travels |
 | source skeleton | extraction cache | `skeletons/<id>` | travels |
 | raw source bytes | working tree | `source/<name>` | opt-in |

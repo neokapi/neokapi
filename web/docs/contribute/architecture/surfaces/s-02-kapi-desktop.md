@@ -303,8 +303,8 @@ nodes, because the binding is a property of the run rather than of the flow
 ### The sample project
 
 A first-run sample project is scaffolded from `backend/sample/`: a governed
-recipe, committed context, and a content memory seeded from a committed
-`.memory.json` bundle, the native serialization
+recipe, and context read into the project's stores from a `.terms.json` bundle,
+a voice profile and a `.memory.json` bundle, the native serializations
 ([M-06](../multilingual/m-06-content-packages.md)), loaded with the same reader
 the rest of the tree uses. Seeding bulk-loads the entries and then rebuilds the
 search and fuzzy side-tables, so the sample's memory answers search as well as
@@ -313,7 +313,7 @@ exact lookup.
 ### Three faces, one record
 
 kapi answers the same questions from the CLI, over MCP, and from the desktop.
-A face parity suite holds the three to one committed record: `host/facetest`
+A face parity suite holds the three to one recorded answer: `host/facetest`
 writes one fixture from one description and embeds one set of answers, and
 each face's own suite builds the fixture and compares its reply, the desktop's
 through its backend methods. The shapes are projections rather than the faces'

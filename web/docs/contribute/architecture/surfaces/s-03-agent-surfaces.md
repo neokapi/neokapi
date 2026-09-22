@@ -312,20 +312,22 @@ entry discriminated by `kind`, and every one lands through `kapi apply`:
 | --- | --- | --- |
 | `content` | a block's text in a named `file` | byte-faithful round-trip, drift- and inline-code guarded |
 | `comment` | one comment's prose in a named `file`, pinned by `comment_sha256` | the same round-trip, through the collection that governs comments |
-| `term` | a term | the committed terms source → import → the terms tables of the project store |
-| `memory` | a content-memory pair | the committed memory source → import → the memory tables of the project store |
-| `voice` | a voice vocabulary rule | the committed voice profile → voice-store import ([C-07](../context/c-07-voice-profiles.md)) |
-| `review` | a unit's review outcome | appended to the decision ledger, exported by `kapi commit` ([C-04](../context/c-04-unit-state-and-decisions.md)) |
+| `term` | a term | the terms tables of the project store, with a context operation recorded |
+| `memory` | a content-memory pair | the memory tables of the project store, with a context operation recorded |
+| `voice` | a voice vocabulary rule | the project's voice store ([C-07](../context/c-07-voice-profiles.md)) |
+| `review` | a unit's review outcome | appended to the decision ledger ([C-04](../context/c-04-unit-state-and-decisions.md)) |
 | `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load and save |
 
 Two properties make this one verb rather than six.
 
-**An asset edit writes the committed source, then compiles the projection.** The
-edit lands in the git-tracked artifact the recipe binds (the terms or memory
-bundle, the voice profile, the recipe) and the *existing* importer refreshes the
-gitignored database from it. The backing store therefore has exactly one writer,
-`git diff` is the uniform review surface for every kind, and the operation is
-idempotent, so re-running a partly-applied change-set is safe.
+**An asset edit writes the project's store and records what it did.** The edit
+lands in the terms store, the content memory or the voice store, and the same
+call appends a context operation carrying the actor and the evidence
+([C-11](../context/c-11-context-operations.md)). Each store therefore has
+exactly one writer, `kapi context log` is the uniform review surface for every
+kind, and the operation is idempotent, so re-running a partly-applied change-set
+is safe. The `recipe` kind is the exception that proves it: the recipe is
+configuration, so that entry writes `kapi.yaml` in the checkout.
 
 **A content edit carries its own guards.** Each `content` entry pins a
 `content_hash`; if the block drifted since it was inspected, the edit is *stale*
@@ -341,7 +343,7 @@ A review decision is the one write that also has verbs of its own. On MCP,
 `approve_unit`, `reject_unit` and `sign_off_unit` record a unit's outcome
 through the same host decision path the CLI uses, with the agent's identity
 attached; `apply_edits` with a `review` entry reaches the same record. Both
-append to the decision ledger, and `kapi commit` exports it.
+append to the decision ledger, which every checkout of the project reads.
 
 ### Format editability is declarative
 
