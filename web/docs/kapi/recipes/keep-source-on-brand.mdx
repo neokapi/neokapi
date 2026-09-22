@@ -14,7 +14,7 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 The video below walks the whole path on one repository, in one language. A
 drafted context graph (recipe, voice profile, vocabulary) is reviewed and
-committed; `kapi check --strict` runs as a gate over operator documentation,
+confirmed; `kapi check --strict` runs as a gate over operator documentation,
 interface strings and a marketing page; the failures are corrected three ways in
 the source and once as a vocabulary decision the graph keeps, so the next check
 enforces what the last one passed. No server, no model, no second language.
@@ -43,7 +43,7 @@ Ask for the sweep:
 
 > Check `blog/` against our voice profile and fix anything off-brand.
 
-The assistant loads the voice first (`kapi voice guide`, injected into its context so it rewrites on-voice rather than merely rule-compliant), runs `check_file`, rewrites each flagged block, and lands the edits with `apply_edits` (structure intact, no second model). When a term recurs, it proposes a `voice` change-set entry that adds the vocabulary rule to your committed profile; `git diff` is the review surface. It re-checks until the gate is green.
+The assistant loads the voice first (`kapi voice guide`, injected into its context so it rewrites on-voice rather than merely rule-compliant), runs `check_file`, rewrites each flagged block, and lands the edits with `apply_edits` (structure intact, no second model). When a term recurs, it proposes a `voice` change-set entry that adds the vocabulary rule to your profile; `kapi context log` is the review surface. It re-checks until the gate is green.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -73,14 +73,14 @@ An edit whose content hash drifted, or that would corrupt an inline code, is lef
 {"kind":"voice","op":"add-rule","list":"forbidden","term":"leverage","replacement":"use","severity":"minor"}
 ```
 
-The `voice` entry lands in the committed profile YAML the recipe binds and compiles into the local store, so the next check enforces it (requires a kapi project).
+The `voice` entry lands in the profile the recipe binds, inside the project's voice store, so the next check enforces it (requires a kapi project).
 
 </TabItem>
 </Tabs>
 
 ## In a project
 
-Bind the profile once (`defaults.voice.profile_file`) and every surface picks it up: the Checks view, the assistant's loop, bare `kapi check`, and the [ship gate](/kapi/recipes/ship-gates-and-ci)'s voice gate. When translating, a bound voice is also injected into the translation prompt, so target-language output starts on-brand.
+Bind the profile once (`defaults.voice.profile`, naming the profile in the project's voice store) and every surface picks it up: the Checks view, the assistant's loop, bare `kapi check`, and the [ship gate](/kapi/recipes/ship-gates-and-ci)'s voice gate. When translating, a bound voice is also injected into the translation prompt, so target-language output starts on-brand.
 
 ## Next
 

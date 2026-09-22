@@ -31,7 +31,7 @@ kapi keeps terms in a [terms bundle](/reference/serialization/terms) (`terms.jso
 
 **Context → Terms** is where that list lives:
 
-1. **Bring in the list.** Import the CSV from the CLI (`kapi terms import`, below) or land entries through `kapi apply`; both write the committed record the recipe binds with `defaults.terms_source`. The view lists terms by language pair and domain, ready to browse and search.
+1. **Bring in the list.** Import the CSV from the CLI (`kapi terms import`, below) or land entries through `kapi apply`; both write the project's terms store. The view lists terms by language pair and domain, ready to browse and search.
 2. **Spot-check a term.** Look up an entry to confirm the approved target before a full pass, and open its occurrences to see where the project uses it.
 3. **Enforce it.** With the terms store in the project, term findings surface in the **Checks** view, in the terminology gate of `check --ship`, and against each unit in the [Review queue](/kapi/recipes/review-and-approve): the same drift, caught wherever you look.
 
@@ -42,7 +42,7 @@ Ask for enforcement, or for curation:
 
 > Check the French files against our approved terms and fix what drifts.
 
-The assistant looks up approved terms before it writes (`kapi terms lookup`), runs `term-check` after, and fixes flagged targets through the round-trip. It can also grow the list: candidate terms it spots (or `kapi exec term-extract` surfaces) land as `kind:"term"` change-set entries through `kapi apply`, written to the committed terms source the recipe binds with `defaults.terms_source`, for you to approve in `git diff`.
+The assistant looks up approved terms before it writes (`kapi terms lookup`), runs `term-check` after, and fixes flagged targets through the round-trip. It can also grow the list: candidate terms it spots (or `kapi exec term-extract` surfaces) land as `kind:"term"` change-set entries through `kapi apply`, written to the project's terms store as candidates for you to confirm, each with the evidence behind it in `kapi context log`.
 
 </TabItem>
 <TabItem value="cli" label="CLI">

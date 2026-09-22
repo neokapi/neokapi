@@ -95,10 +95,11 @@ kapi check --ship --locale de   # scope to one market
 kapi check --ship --json        # structured result for a job summary
 ```
 
-Two things the runner needs: the committed
-[unit-state record](/kapi/project-store) (`.kapi/state/`) in the checkout
-(`reviewed` thresholds read their decisions from it), and nothing else, since
-gate evaluation makes no provider calls. The workflow wiring is
+One step comes first on a runner. `reviewed` thresholds read their decisions
+from the [project store](/kapi/project-store), which starts empty on a fresh
+machine, so `kapi context import` reads the repository's context files in before
+the gate runs. Nothing else is needed, since gate evaluation makes no provider
+calls. The workflow wiring is
 [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
 ## Next

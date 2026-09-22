@@ -11,13 +11,15 @@ import TabItem from "@theme/TabItem";
 
 # Content governance for AI
 
-**Goal:** when AI writes most of your content, the bottleneck moves to review. Governance turns your content rules into artifacts a machine enforces, so agent output arrives *already compliant*, and humans read exceptions instead of everything. The artifacts are the [context](/kapi/context) a point in your project binds; this page is the how-to for authoring and gating on them. Three artifacts, all committed to git, all versioned like code:
+**Goal:** when AI writes most of your content, the bottleneck moves to review. Governance turns your content rules into artifacts a machine enforces, so agent output arrives *already compliant*, and humans read exceptions instead of everything. The artifacts are the [context](/kapi/context) a point in your project binds; this page is the how-to for authoring and gating on them. Three artifacts, each bound by name in the recipe:
 
-| Artifact | Encodes | Enforced by |
-|---|---|---|
-| **Voice profile** (YAML) | tone, forbidden/preferred vocabulary, competitor terms | the `voice` gate in every check |
-| **Terms store** | approved terms, per language | `term-check` and the terminology gate |
-| **Checkset** | length budgets, required/forbidden patterns, hygiene | `kapi check`, in the loop and in CI |
+| Artifact | Encodes | Lives in | Enforced by |
+|---|---|---|---|
+| **Voice profile** | tone, forbidden/preferred vocabulary, competitor terms | the project's voice store | the `voice` gate in every check |
+| **Terms store** | approved terms, per language | the project's terms store | `term-check` and the terminology gate |
+| **Checkset** | length budgets, required/forbidden patterns, hygiene | the recipe, in git | `kapi check`, in the loop and in CI |
+
+The first two live in your [workspace](/kapi/project-store), one set per project, shared by every checkout. `kapi context export` backs them up and [`kapi context snapshot`](/kapi/context-portability#writing-context-out) writes them out as files for a team that wants them in git.
 
 The rules run in **two directions** around the agent: injected *before* it writes (the voice guide and approved terms go into its context, so drafts start compliant) and gated *after* (`kapi check` scores the result, block by block, exit code and all). Style linters for prose stop at regex over plain text; kapi's checks are format-aware and block-anchored: they read the content inside `.docx`, JSON catalogs, and HTML, locate each finding to an addressable block an agent can fix, and extend across every target language.
 
@@ -37,7 +39,7 @@ With the rules bound in the project, governance is automatic: the [skill](/kapi/
 
 > Extract candidate terms from `docs/` and add the ones I approve to our terms store.
 
-With the Claude Code plugin, the Stop hook makes the gate a guarantee: Claude cannot declare a task finished while `kapi check --ship` fails. Rules the agent proposes (a new forbidden term, a new approved term) land through `kapi apply` as change-set entries in the committed artifacts; `git diff` is the review surface for the *rules*, exactly as for code.
+With the Claude Code plugin, the Stop hook makes the gate a guarantee: Claude cannot declare a task finished while `kapi check --ship` fails. Rules the agent proposes (a new forbidden term, a new approved term) land through `kapi apply` as change-set entries in the project's stores, each recorded with the evidence behind it; `kapi context log` is the review surface for the *rules*, and [Growing context](/kapi/context-decisions) covers confirming and undoing them.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -46,21 +48,24 @@ Author the artifacts, bind them once, and gate on them everywhere:
 
 ```bash
 kapi voice new --pack technical-docs -o brand/voice.yaml   # scaffold, then edit
+kapi voice import brand/voice.yaml                         # into the project's voice store
 kapi terms import terms.csv -s en --monolingual --header   # into the project's terms
-kapi check docs/*.md --profile-file brand/voice.yaml       # the loop's gate
+kapi check docs/*.md                                       # the loop's gate
 kapi check --ship                                          # the release bar, in CI
 ```
 
-Bind in the recipe so no invocation needs flags. The voice profile is a file the
-recipe points at; the terms are compiled from the committed record `terms_source`
-names, which `kapi terms import` and `kapi apply` write:
+Bind in the recipe so no invocation needs flags. The import prints the id it
+filed the profile under, and `defaults.voice.profile` names that id:
 
 ```yaml title="kapi.yaml"
 defaults:
   voice:
-    profile_file: brand/voice.yaml
-  terms_source: .kapi/terms.json
+    profile: acme-docs
 ```
+
+From then on `kapi voice edit` opens the stored profile in your editor and reads
+your changes back as one recorded change, so the profile is authored in one
+place and every check reads it from there.
 
 `kapi check` exits non-zero on a gate failure, so the same rules hold in CI with no assistant in the loop; see [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
