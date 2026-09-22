@@ -3,13 +3,38 @@ name: Deploy Landing + Docs
 # Publishes the bowrain public site to the apex (https://bowrain.cloud): the
 # Vite landing at "/" and the Docusaurus docs under "/docs/", into one S3 origin
 # behind CloudFront (module.apex-site in bowrain-infra). PR previews are a
-# separate path (Web Landing / Docs — bowrain → pages-deploy → R2); this
+# separate path (Web Landing / Docs — bowrain → pages-deploy → S3); this
 # workflow is production only.
+#
+# The docs ship on two channels:
+#
+#   /docs/       STABLE — built from the `docs/stable` branch, which a GA
+#                release moves to its tag (release-docs.yml) and a person
+#                cherry-picks docs fixes onto.
+#   /docs/next/  NEXT — built from every push to main, with a banner naming the
+#                release in progress.
+#
+# The LANDING keeps deploying from main on either channel's schedule: it is the
+# product's front page, not release documentation. A stable run publishes the
+# docs alone.
+#
+# The channel follows the ref being built, so `workflow_dispatch` takes a `ref`
+# input: run this workflow from main with `ref: docs/stable` and it checks out
+# that branch and publishes production. The steps therefore live on main alone,
+# and a `docs/stable` branch cut from an older tag still deploys with them.
+#
+# Each channel's S3 sync is scoped to its own prefix, so neither deletes the
+# other. See docs/internals/docs-release-channels.md.
 
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or tag to build. Empty builds this run's ref; docs/stable builds production."
+        required: false
+        default: ""
   push:
-    branches: [main]
+    branches: [main, docs/stable]
     paths:
       - "bowrain/web/landing/**"
       - "bowrain/web/docs/**"
@@ -27,22 +52,82 @@ on:
       - ".github/workflows/deploy-landing.yml"
 
 concurrency:
-  group: deploy-landing-${{ github.ref }}
+  group: deploy-landing-${{ inputs.ref || github.ref }}
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
+  # Which channel this run publishes, which ref it builds, where the docs are
+  # mounted, and which versions the banner and the switch name.
+  resolve:
+    name: Resolve channel
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.c.outputs.ref }}
+      channel: ${{ steps.c.outputs.channel }}
+      base: ${{ steps.c.outputs.base }}
+      stable_version: ${{ steps.c.outputs.stable_version }}
+      channel_version: ${{ steps.c.outputs.channel_version }}
+    steps:
+      - id: c
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+          REF_NAME: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # The dispatch input reaches actions/checkout's `ref`, so hold it to a
+          # git-ref charset before anything else sees it.
+          ref="${INPUT_REF:-}"
+          if [ -n "$ref" ] && printf '%s' "$ref" | grep -qE '[^A-Za-z0-9._/-]'; then
+            echo "::error::refusing suspicious ref '$ref'"; exit 1
+          fi
+
+          branch="${ref:-$REF_NAME}"
+          if [ "$branch" = "docs/stable" ]; then
+            channel=stable; base=/docs/
+          else
+            channel=next; base=/docs/next/
+          fi
+
+          # Versions come from the published releases rather than from tags in
+          # the checkout, so the build job stays a shallow clone. The site config
+          # falls back to `git describe` where these are unset (a local build).
+          releases="$(gh release list --repo "$GH_REPO" --exclude-drafts --limit 60 \
+            --json tagName,isPrerelease --jq 'map(select(.tagName|test("^bowrain-v[0-9]")))')"
+          stable_tag="$(printf '%s' "$releases" | jq -r 'map(select(.isPrerelease==false))[0].tagName // ""')"
+          latest_tag="$(printf '%s' "$releases" | jq -r '.[0].tagName // ""')"
+          if [ "$channel" = "stable" ]; then
+            channel_tag="$stable_tag"
+          else
+            channel_tag="$latest_tag"
+          fi
+
+          {
+            echo "ref=$ref"
+            echo "channel=$channel"
+            echo "base=$base"
+            echo "stable_version=${stable_tag#bowrain-v}"
+            echo "channel_version=${channel_tag#bowrain-v}"
+          } >> "$GITHUB_OUTPUT"
+
   build:
+    needs: resolve
     runs-on: ubuntu-latest
     env:
       # The docs reference videos/screenshots from the CDN (cdn.bowrain.cloud) by
       # URL, so nothing large is baked into the bundle. Same repo var the docs
       # build already uses.
       CDN_URL: ${{ vars.DOCS_CDN_URL }}
+      CHANNEL: ${{ needs.resolve.outputs.channel }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.ref }}
 
       - uses: voidzero-dev/setup-vp@v1
         with:
@@ -64,7 +149,10 @@ jobs:
       # yet resolve, and nb is target-language drift (English is authoritative) —
       # PR previews still build it via web-landing.yml. VITE_POSTHOG_KEY is the
       # PUBLIC client-side key (same as _build-web.yml); prod always has analytics.
+      #
+      # The landing belongs to main, so a stable docs run leaves it alone.
       - name: Build bowrain-web-landing (apex root)
+        if: ${{ env.CHANNEL == 'next' }}
         working-directory: bowrain/web/landing
         env:
           VITE_BASE: /
@@ -81,6 +169,7 @@ jobs:
       # noindex is applied by vite.config.ts for this locale, and qps is absent
       # from the hreflang set, so it never competes with the English page.
       - name: Build bowrain-web-landing (pseudo-locale at /qps/)
+        if: ${{ env.CHANNEL == 'next' }}
         working-directory: bowrain/web/landing
         env:
           VITE_BASE: /
@@ -94,10 +183,10 @@ jobs:
         run: corepack pnpm install --ignore-workspace --config.strict-dep-builds=false
 
       # Every locale in docusaurus.config.ts's i18n.locales, in one build: en at
-      # /docs/ and qps at /docs/qps/. A single-locale build cannot do this —
-      # `--locale qps` leaves baseUrl alone and emits a switcher whose sibling
-      # links all point at the locale being built, so English became unreachable
-      # from the pseudo page.
+      # the channel root and qps one level under it. A single-locale build cannot
+      # do this — `--locale qps` leaves baseUrl alone and emits a switcher whose
+      # sibling links all point at the locale being built, so English became
+      # unreachable from the pseudo page.
       #
       # nb is deliberately absent from i18n.locales: with no Norwegian content
       # Docusaurus would emit the ENGLISH pages at /docs/nb/ while the switcher
@@ -110,29 +199,52 @@ jobs:
         with:
           site: bowrain/web/docs
 
-      - name: Build bowrain Docusaurus site (/docs/, /docs/qps/)
+      - name: Build bowrain Docusaurus site
         working-directory: bowrain/web/docs
         env:
-          DOCS_BASE_URL: /docs/
+          DOCS_BASE_URL: ${{ needs.resolve.outputs.base }}
+          # Production ("stable") carries no banner; every other build is the
+          # next channel and says so on every page.
+          DOCS_CHANNEL: ${{ needs.resolve.outputs.channel }}
+          # Resolved from the published releases above, because the checkout is
+          # shallow and carries no tags for the config to describe.
+          DOCS_CHANNEL_VERSION: ${{ needs.resolve.outputs.channel_version }}
+          DOCS_STABLE_VERSION: ${{ needs.resolve.outputs.stable_version }}
           DOCS_CDN_URL: ${{ env.CDN_URL }}
           POSTHOG_KEY: phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD
           POSTHOG_HOST: https://eu.i.posthog.com
         run: vpx docusaurus build
 
-      - name: Assemble site tree (landing at /, docs at /docs/)
+      - name: Assemble site tree
         run: |
           set -euo pipefail
-          rm -rf site && mkdir -p site
-          cp -r bowrain/web/landing/dist/. site/
-          mkdir -p site/docs
-          cp -r bowrain/web/docs/build/. site/docs/
-          # Both locale trees are subdirectories of their build output, so the
-          # copies above already placed them. Assert rather than assume: a
-          # missing pseudo-locale is invisible until someone goes looking for
-          # it. These run AFTER both copies — an assertion ahead of the thing it
-          # asserts fails every time, which is how this step first broke.
-          test -f site/qps/index.html || { echo "::error::landing qps build missing from the site tree"; exit 1; }
-          test -f site/docs/qps/index.html || { echo "::error::docs qps build missing from the site tree"; exit 1; }
+          rm -rf site && mkdir -p site/docs
+          if [ "$CHANNEL" = "stable" ]; then
+            cp -r bowrain/web/docs/build/. site/docs/
+            # Both locale trees are subdirectories of the build output, so the
+            # copy above already placed them. Assert rather than assume: a
+            # missing pseudo-locale is invisible until someone goes looking for
+            # it. This runs AFTER the copy — an assertion ahead of the thing it
+            # asserts fails every time, which is how this step first broke.
+            test -f site/docs/qps/index.html || { echo "::error::docs qps build missing from the site tree"; exit 1; }
+          else
+            cp -r bowrain/web/landing/dist/. site/
+            mkdir -p site/docs/next
+            cp -r bowrain/web/docs/build/. site/docs/next/
+            test -f site/qps/index.html || { echo "::error::landing qps build missing from the site tree"; exit 1; }
+            test -f site/docs/next/qps/index.html || { echo "::error::docs qps build missing from the site tree"; exit 1; }
+
+            # The apex CloudFront router resolves a clean URL under /docs/ by
+            # appending ".html" (the docs site is trailingSlash:false), and it
+            # answers the two DIRECTORY roots it knows — /docs/ and /docs/<locale>/
+            # — from an explicit rule. /docs/next/ and /docs/next/qps/ are roots
+            # the router does not know, so it asks S3 for /docs/next.html and
+            # /docs/next/qps.html. Write those two files and the channel resolves
+            # with no change to the edge. Every page below them already resolves,
+            # because appending ".html" is exactly right for them.
+            cp site/docs/next/index.html site/docs/next.html
+            cp site/docs/next/qps/index.html site/docs/next/qps.html
+          fi
 
       - name: Upload site artifact
         uses: actions/upload-artifact@v7
@@ -146,7 +258,7 @@ jobs:
     # No-op until the apex bucket exists: with LANDING_BUCKET unset the job is
     # skipped and the workflow stays green (build + artifact only).
     if: ${{ vars.LANDING_BUCKET != '' }}
-    needs: [build]
+    needs: [resolve, build]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -167,19 +279,46 @@ jobs:
 
       # Sync fingerprinted assets long-cached-immutable; re-put HTML/JSON/XML with
       # no-cache so a new release is picked up immediately (the final CloudFront
-      # invalidation purges the edge). One bucket holds both the landing at / and
-      # the docs at /docs/. Rollback = re-run this workflow from an older commit.
+      # invalidation purges the edge). One bucket holds the landing at /, the
+      # stable docs at /docs/ and the next docs at /docs/next/, so every sync
+      # below is scoped to its own prefix: --delete then prunes that prefix alone
+      # and a channel can never remove the other's pages. Rollback = re-run this
+      # workflow from an older commit.
       - name: Sync to S3 and invalidate CloudFront
         env:
           BUCKET: ${{ vars.LANDING_BUCKET }}
           DISTRIBUTION_ID: ${{ vars.LANDING_DISTRIBUTION_ID }}
+          CHANNEL: ${{ needs.resolve.outputs.channel }}
         run: |
           set -euo pipefail
-          aws s3 sync site "s3://$BUCKET" --delete \
-            --cache-control "public,max-age=31536000,immutable" \
-            --exclude "*.html" --exclude "*.xml" --exclude "*.txt" --exclude "*.json"
-          aws s3 sync site "s3://$BUCKET" \
-            --cache-control "no-cache" \
-            --exclude "*" --include "*.html" --include "*.xml" --include "*.txt" --include "*.json"
+
+          # Two passes over one tree: fingerprinted assets immutable, then the
+          # documents re-put with no-cache. Filters passed by the caller come
+          # last, so they win over the extension filters above them.
+          sync_tree() { # <local dir> <s3 uri> [extra filters…]
+            local src="$1" dst="$2"; shift 2
+            aws s3 sync "$src" "$dst" --delete \
+              --cache-control "public,max-age=31536000,immutable" \
+              --exclude "*.html" --exclude "*.xml" --exclude "*.txt" --exclude "*.json" "$@"
+            aws s3 sync "$src" "$dst" \
+              --cache-control "no-cache" \
+              --exclude "*" --include "*.html" --include "*.xml" --include "*.txt" --include "*.json" "$@"
+          }
+
+          if [ "$CHANNEL" = "stable" ]; then
+            # The stable docs own /docs/ apart from the next channel's subtree
+            # and its channel-root page.
+            sync_tree site/docs "s3://$BUCKET/docs" --exclude "next/*" --exclude "next.html"
+            paths=("/docs" "/docs/*")
+          else
+            # The landing owns the root apart from /docs/, which belongs to the
+            # two docs channels.
+            sync_tree site "s3://$BUCKET" --exclude "docs/*"
+            sync_tree site/docs/next "s3://$BUCKET/docs/next"
+            # The channel-root page the router asks for (see the assemble step).
+            aws s3 cp site/docs/next.html "s3://$BUCKET/docs/next.html" --cache-control "no-cache"
+            paths=("/" "/*")
+          fi
+
           aws cloudfront create-invalidation \
-            --distribution-id "$DISTRIBUTION_ID" --paths "/*" > /dev/null
+            --distribution-id "$DISTRIBUTION_ID" --paths "${paths[@]}" > /dev/null

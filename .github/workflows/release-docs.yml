@@ -1,8 +1,21 @@
-name: Refresh website download links
+name: Release docs
 
-# Splice the real, per-platform download links for a release into the docs
-# installation pages (scripts/update-website-downloads.sh) and open a rolling
-# auto-PR with the result — never a direct push to the default branch.
+# What a release does to the documentation sites. Two jobs, both keyed off the
+# tag family:
+#
+#   update         Splice the real, per-platform download links for a release
+#                  into the docs installation pages
+#                  (scripts/update-website-downloads.sh) and open a rolling
+#                  auto-PR with the result — never a direct push to the default
+#                  branch. That PR keeps the NEXT channel's committed page
+#                  current; the stable site splices the same script at build
+#                  time, so it reads the release rather than a commit.
+#   stable-branch  On a GA tag, fast-forward `docs/stable` to it and redeploy
+#                  production from it. One branch serves both sites: the two
+#                  products version together and their GA tags have been cut on
+#                  the same commit, and the two docs builds share the packages,
+#                  the pseudo-locale action and the recipe that live beside
+#                  them. See docs/internals/docs-release-channels.md.
 #
 # Why a separate workflow (not part of release.yml)? The links must reflect the
 # assets ACTUALLY on the release, and the Windows binaries are Authenticode-
@@ -49,6 +62,7 @@ jobs:
     outputs:
       tag: ${{ steps.r.outputs.tag }}
       track: ${{ steps.r.outputs.track }}
+      pre: ${{ steps.r.outputs.pre }}
       should_run: ${{ steps.r.outputs.should_run }}
     steps:
       - id: r
@@ -107,8 +121,91 @@ jobs:
           {
             echo "tag=$tag"
             echo "track=$track"
+            echo "pre=$pre"
             echo "should_run=$should_run"
           } >> "$GITHUB_OUTPUT"
+
+  # A GA release is what production documentation is built from, so the tag
+  # moves the branch the two docs workflows read and then redeploys both sites
+  # from it. A prerelease leaves the branch where it is: the release candidates
+  # are what the /next/ channel already serves.
+  stable-branch:
+    name: Move docs/stable to the GA tag
+    needs: resolve
+    if: ${{ needs.resolve.outputs.track != '' && needs.resolve.outputs.pre == 'false' }}
+    runs-on: ubuntu-latest
+    permissions:
+      # contents: write pushes the branch; actions: write dispatches the two
+      # docs workflows. The `docs/*` refs carry no ruleset, so GITHUB_TOKEN is
+      # enough and no deploy key is involved — the same credential release.yml
+      # publishes releases with.
+      contents: write
+      actions: write
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward docs/stable to ${{ needs.resolve.outputs.tag }}
+        run: |
+          set -euo pipefail
+          target="$(git rev-parse "refs/tags/${TAG}^{commit}")"
+          current="$(git ls-remote origin refs/heads/docs/stable | cut -f1)"
+
+          if [ -z "$current" ]; then
+            echo "::notice::docs/stable does not exist; creating it at ${TAG}"
+          elif [ "$current" = "$target" ]; then
+            echo "docs/stable is already at ${TAG} (${target})"
+            exit 0
+          else
+            git fetch --no-tags --quiet origin "+refs/heads/docs/stable:refs/remotes/origin/docs/stable"
+            # A cherry-picked docs fix sits on top of the previous tag, so the
+            # branch is normally ahead of it and behind this one. Anything else
+            # means someone put work on the branch that this tag would discard.
+            if ! git merge-base --is-ancestor "$current" "$target"; then
+              echo "::error::docs/stable (${current}) is not an ancestor of ${TAG} (${target}). Move it by hand, then redeploy."
+              exit 1
+            fi
+          fi
+
+          git push origin "${target}:refs/heads/docs/stable"
+          echo "docs/stable → ${TAG} (${target})"
+
+      - name: Redeploy production documentation
+        run: |
+          set -euo pipefail
+          # workflow_dispatch is one of the two events GITHUB_TOKEN may raise
+          # that still start a run. The workflow files live on the default
+          # branch and take the branch to build as an input, so a docs/stable
+          # cut from an older tag builds with the current steps.
+          failed=0
+          for wf in docs-kapi.yml deploy-landing.yml; do
+            if gh workflow run "$wf" --repo "$GITHUB_REPOSITORY" \
+                 --ref "$DEFAULT_BRANCH" -f ref=docs/stable; then
+              echo "dispatched ${wf}"
+            else
+              failed=1
+              echo "::warning::could not dispatch ${wf}"
+            fi
+          done
+          {
+            echo "### Production documentation"
+            echo
+            echo "\`docs/stable\` now points at \`${TAG}\`."
+            if [ "$failed" = "1" ]; then
+              echo
+              echo "A redeploy did not start. Run it by hand:"
+              echo
+              echo '```'
+              echo "gh workflow run docs-kapi.yml --ref ${DEFAULT_BRANCH} -f ref=docs/stable"
+              echo "gh workflow run deploy-landing.yml --ref ${DEFAULT_BRANCH} -f ref=docs/stable"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   update:
     name: Splice links and open PR
