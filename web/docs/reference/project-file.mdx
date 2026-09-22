@@ -66,8 +66,8 @@ defaults:
     fuzzy_threshold: 75
   segmentation:
     source: true
-  terms_source: .kapi/terms.json
-  memory_source: .kapi/memory/memory.json
+  voice:
+    profile: acme-docs
 ```
 
 ## Fields
@@ -286,13 +286,15 @@ section is the schema.
 profiles:
   console:
     channels: [app, docs]
-    voice: .kapi/profiles/console/voice.yaml
+    voice:
+      profile: console-voice
   sdk:
     channels:
       - id: docs
         concept: term:9a1c0f42b7
       - cli
-    voice: .kapi/voice.yaml
+    voice:
+      profile: acme-docs
     valid_to: 2026-12-01
 
 collections:
@@ -318,9 +320,9 @@ collections:
 | `valid_to`   | string            | Date or RFC3339 instant it stops, exclusive. Unset is unbounded                                    |
 
 The map key is the profile's name: the product-axis value its collections carry,
-and the directory under `.kapi/profiles/<name>/` holding the files it overrides.
-A profile that binds neither a voice nor a vocabulary is still a profile: the
-directory is the binding.
+and the name the project's voice store answers under when the profile binds no
+`voice:` of its own. A profile that binds neither a voice nor a vocabulary is
+still a profile, governed by the project defaults.
 
 Profile names and channels are slugs: lowercase letters, digits and hyphens,
 starting with a letter or digit. They are machine identifiers (stable, never
@@ -347,16 +349,23 @@ the content's coordinates, so both venues resolve the same voice for the same
 content. A profile's `termstore:` does not: it is a path into the local project, and
 a connected run warns that the binding applies locally only.
 
-#### Conventional files
+#### Resolution order
 
-A profile's own directory answers before the project default does, so overrides
-kept in the conventional place need no line in the recipe. Resolution for a
+A profile's own binding answers before the project default does. Resolution for a
 collection's point, most specific first:
 
 | Store | Order                                                                                   |
 | ----- | --------------------------------------------------------------------------------------- |
-| voice | `profiles.<name>.voice` → `.kapi/profiles/<name>/voice.yaml` → `defaults.voice` → `.kapi/voice.yaml` → `voice.yaml` |
-| terms | `--termstore` → `profiles.<name>.termstore` → `.kapi/profiles/<name>/terms.json` (when the file exists) → the project's own store |
+| voice | `profiles.<name>.voice` → the profile the store holds under `<name>` → `defaults.voice` |
+| terms | `--termstore` → `profiles.<name>.termstore` → the project's own terms |
+
+Every rung above answers out of a store. Nothing on this path opens a file in
+the checkout: a branch carrying a different copy of a profile would otherwise
+enforce a voice the project never agreed on.
+[`kapi context import`](/reference/commands/context-import) is what reads a
+checkout's context files, and it records which path each stored profile came
+from, so a recipe that binds `profile_file: brand/voice.yaml` resolves the
+profile the store filed under that path.
 
 The channel then refines the voice that resolved: a matching entry under the
 voice profile's own `channels:` replaces its tone, its style, or both, and can
@@ -441,8 +450,8 @@ bounded profile against the current time and labels it `active`, `upcoming` or
 | `comments`         | map                 | `directives`: markers your own tools read at the start of a comment line, set aside wherever kapi reads the project's comments. `channel`: the point, a qualified `profile/channel`, at which every declared item's comments sit unless the item names its own (see [Comments in source code](/kapi/recipes/verify-content#comments-in-source-code)) |
 | `voice`            | VoiceBinding        | Bind a voice profile as standing project context (see [voice](#voice)). A profile's own `voice:` overrides it for that product's content |
 | `coordinates`      | map                 | The project's default point on the declared axes (`brand`, `mode`), inherited by every collection; `product` and `channel` are derived from `channel:` and rejected here (see [Declared axes](#declared-axes)) |
-| `terms_source`     | string              | Committed, git-tracked native source bundle (a `.terms.json`) the project's terms are compiled from; `kapi apply` edits it and re-imports into the [project store](/kapi/project-store), so `git diff` is the review surface. Binds any path. Unset, kapi falls back to `<root>/.kapi/terms.json` (the conventional home in the committed context graph), then `<root>/terms.json` |
-| `memory_source`    | string              | Committed, git-tracked native source bundle (a `.memory.json`) the project content memory is compiled from, the content-memory analogue of `terms_source`. It has no conventional-location fallback: a project has one approved term list but many memory bundles (one per content surface), so a seed is always named |
+| `terms_source`     | string              | A terms bundle (a `.terms.json`) in the checkout, read by [`kapi context import`](/reference/commands/context-import) and written by `kapi context snapshot`. Gates and lookups read the project's terms store rather than this file (see [Context files a recipe names](#context-files-a-recipe-names)). Binds any path; unset, the import reads `<root>/.kapi/terms.json` |
+| `memory_source`    | string              | A content-memory bundle (a `.memory.json`) in the checkout, on the same footing as `terms_source`: an import reads it and a snapshot writes it, and nothing on a read path opens it |
 | `tools`            | map                 | Project-level tool presets, keyed by tool name: config applied wherever that tool runs in a project flow. A step's own `config` overrides a preset per key. `term_rules:` is the key `term-check`, `translate`, `recycle`, `dnt-check` and `pseudo-translate` take here (one term, what to use instead, and a severity; see the [voice profile reference](/reference/serialization/voice-profile#term-rules)) |
 | `locales`          | map                 | Per-target-language overrides keyed by locale. Each entry's `tools:` presets merge over `defaults.tools` and under a step's own config whenever a flow runs for that locale, so one locale can enable redaction or a different model without forking the flow (see [the kapi loop](/kapi/convergence)) |
 | `flow`             | string              | The project's default flow, the composed flow `kapi up` runs to catch up every locale. A built-in name (e.g. `translate`) or a key in `flows:`. Empty runs the built-in default (recycle → translate) |
@@ -554,15 +563,38 @@ The sensitive term list lives in a separate rules file referenced by `rules` (so
 
 #### voice
 
-Bind a voice profile under `defaults.voice`. Exactly one source is expected. The
-short form is the profile file itself, `voice: .kapi/voice.yaml`, which is what
-a recipe writes when the profile is a file in the project, as it usually is.
+Bind a voice profile under `defaults.voice`. Exactly one source is expected, and
+`profile:` is the form to write: it names a profile in the project's voice store,
+which is the id [`kapi voice import`](/reference/commands/voice-import) prints
+when it files one.
 
 | Field          | Type   | Description                                                             |
 | -------------- | ------ | ----------------------------------------------------------------------- |
-| `profile_file` | string | Path to a standalone profile YAML, resolved relative to the project root |
-| `profile`      | string | Name of a profile in the local voice store                              |
+| `profile`      | string | Name of a profile in the project's voice store                          |
 | `pack`         | string | Name of a built-in starter pack                                         |
+| `profile_file` | string | A profile YAML's path in the checkout. It selects the profile the store filed under that path; the file itself stays closed |
+
+A scalar is read as `profile_file`, so `voice: brand/voice.yaml` and
+`voice: {profile_file: brand/voice.yaml}` say the same thing.
+
+#### Context files a recipe names
+
+`terms_source`, `memory_source` and `profile_file` name files in the checkout.
+A project's context lives in the store, so those keys address the import and the
+snapshot rather than a read: `kapi context import` reads each named file into the
+store, and `kapi context snapshot` writes the store back out at the same paths.
+
+A recipe that names one of them in a checkout whose store has never held this
+project's context gets a notice on every command, naming the files and the one
+command that reads them:
+
+```
+note: this project carries context files (.kapi/memory/memory.json, .kapi/terms.json) and its store holds no context yet. They are read by `kapi context import`, and until then nothing in them is in force
+```
+
+`kapi check` carries the same line as a configuration warning, which changes
+neither the score nor the gate. See
+[Moving context](/kapi/context-portability).
 
 ### Flow Steps
 

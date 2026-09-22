@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: Overview
-description: "The formats kapi writes for itself: the store, bundle and committed-state distinction, the compound suffix convention, the shared version contract, and the two ways a file says what it is."
+description: "The formats kapi writes for itself: the projection, context-store and bundle distinction, the compound suffix convention, the shared version contract, and the two ways a file says what it is."
 keywords:
   [
     kapi serialization formats,
@@ -31,38 +31,37 @@ family.
 The most useful distinction in this family is between three roles a file can
 play.
 
-**A store is working state.** Two SQLite databases: the projection of the
-working tree at `.kapi/work/store.db`, holding the block cache and the overlays
-a run wrote, with the skeleton and parse caches beside it; and the project's
-context store in a workspace outside the checkout, holding the content memory,
-the terms, the voice profiles and the decision ledger. Both are fast, indexed,
-mutable and **rebuildable**: a projection of what the project commits, never its
-truth. See [the project store](/kapi/project-store).
+**A projection is derived working state.** `.kapi/work/store.db` holds what
+kapi read out of the working tree: the block cache, the overlays a run wrote,
+the skeleton and parse caches beside it. It is fast, indexed, mutable and
+**rebuildable**, a picture of files that are themselves the truth.
+
+**A context store is authored state.** The project's own store, in a workspace
+outside the checkout, holds the content memory, the terms, the voice profiles
+and the decision ledger. Every checkout of the project reads it, nothing
+rebuilds it, and `kapi context export` is its backup. See
+[the project store](/kapi/project-store).
 
 **A bundle is a portable serialization.** One reviewable, hashable, diff-able
 file carrying the same content losslessly: a
 [content bundle](/reference/serialization/content-bundle), a
 [content-memory bundle](/reference/serialization/content-memory), a
-[terms bundle](/reference/serialization/terms), or a whole
-[project archive](/reference/serialization/project-archive). Bundles move: they
-are what you commit, hand over, or ship.
-
-**Committed state is an authored or decided record.** A
-[terms bundle](/reference/serialization/terms) kept as the project terminology, a
+[terms bundle](/reference/serialization/terms), a
 [voice profile](/reference/serialization/voice-profile), a
-[project unit-state record](/reference/serialization/project-state). These are the
-review surface, the files a person reads in a pull request.
+[project unit-state record](/reference/serialization/project-state), or a whole
+[project archive](/reference/serialization/project-archive). Bundles move: they
+are what you hand over, ship, or put in a pull request.
 
 ### The rule this produces
 
-Artifacts that must be reviewed are **committed**, and never the database. They
-share one home: `.kapi/` holds the terms bundle, the memory seeds, the
-voice profile and the decision record (`state/*.jsonl`), and the whole of `.kapi/`
-is committed. Only `.kapi/work/`, where the checkout's projection and its caches
-are derived, is ignored. Nothing in the review surface would survive a fresh
-clone, or ever appear in a diff, if it were part of a derived store.
-
-**If a person needs to review it, it does not belong in a rebuildable index.**
+**Anything a person authored or decided is in the context store, and anything
+derived from your files rebuilds.** A bundle is the third thing: the shape
+authored state takes when it leaves the store.
+[`kapi context snapshot`](/kapi/context-portability#writing-context-out) writes
+that shape into `.kapi/`, `kapi context import` reads it back, and a team that
+wants its terms and approvals reviewable in git keeps the snapshot committed.
+Only `.kapi/work/`, where the projection and its caches are derived, is ignored
+outright.
 
 ## The formats
 

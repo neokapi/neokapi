@@ -51,8 +51,7 @@ plural/select constructs serialize identically.
 
 ## One bundle per store
 
-Each store has exactly one native spelling, the bundle, and a project commits
-it:
+Each store has exactly one native spelling, the bundle:
 
 ```bash
 kapi memory export -o .kapi/memory/cli-nb.memory.json
@@ -71,27 +70,24 @@ whole project that needs to travel is a `.kpz`, and a single bundle that needs t
 travel small is what `zip` and `gzip` are for.
 
 The suffix identifies a bundle wherever it sits: a project puts one
-wherever it likes and may keep several. Which bundle a given project uses is set
-by the recipe
-([`defaults.terms_source` / `defaults.memory_source`](/reference/project-file)) or
-by an explicit `-o` path.
+wherever it likes and may keep several. Which bundle an import reads and a
+snapshot writes is set by the recipe
+([`defaults.terms_source` / `defaults.memory_source`](/reference/project-file#context-files-a-recipe-names)),
+and an explicit `-o` path names one outright.
 
-### Where terms live when nothing is bound
+### Where a bundle sits when nothing binds it
 
-Your terms bundle belongs at **`.kapi/terms.json`**, the first rung of the
-lookup ladder. `.kapi/` is committed (only `.kapi/work/` is ignored), so the
-bundle shows up in a diff and goes through review like any other source. A
-bundle at the repository root, `terms.json`, is the next rung, for a project
-that keeps its context outside `.kapi/`. The bundle is the committed source;
-the terms tables in the project store are the derived index it compiles
-into. The [terms page](/reference/serialization/terms#the-lookup-ladder)
-specifies the ladder.
+A terms bundle written for a project belongs at **`.kapi/terms.json`**, which
+is where [`kapi context import`](/reference/commands/context-import) looks with
+no path and where `kapi context snapshot` writes one. A bundle kept there shows
+up in a diff and goes through review like any other source. The
+[terms page](/reference/serialization/terms#where-an-import-looks-for-one) says
+what the recipe can bind instead.
 
-Content memory has no matching convention: **a project has one terms bundle but
+Content memory has no matching single name: **a project has one terms bundle but
 many content-memory bundles**, typically one per content surface. This
-repository's own dogfood commits a bundle per surface under `.kapi/memory/`
-against a single `.kapi/terms.json`, so a memory seed is always named rather
-than guessed.
+repository's own dogfood keeps a bundle per surface under `.kapi/memory/`
+against a single `.kapi/terms.json`, and an import reads every one of them.
 
 ## The `.kpz` package
 
