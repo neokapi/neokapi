@@ -42,6 +42,7 @@ export {
     ContextFeed,
     ContextFeedEntry,
     ContextFeedGroup,
+    ContextFilesNoticeDTO,
     ContextGovernsResult,
     ContextItemDTO,
     ContextLivesResult,

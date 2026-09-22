@@ -27,7 +27,7 @@ const governance: RecipeGovernance = {
   ],
   channels: ["campaign/promo", "support/docs"],
   profiles: ["campaign", "support"],
-  voice_files: [".kapi/voice.yaml", ".kapi/profiles/support/voice.yaml"],
+  voice_profiles: ["northsea", "northsea-support"],
   packs: ["technical-docs", "friendly-dtc"],
 };
 
@@ -132,7 +132,7 @@ describe("GovernanceSettings", () => {
           axes: governance.axes,
           channels: [],
           profiles: [],
-          voice_files: [],
+          voice_profiles: [],
           packs: [],
         }}
       />,

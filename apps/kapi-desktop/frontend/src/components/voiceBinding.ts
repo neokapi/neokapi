@@ -27,13 +27,14 @@ export function decodeVoiceBinding(key: string | undefined): VoiceBindingSpec | 
   return { profile: value };
 }
 
-/** The profiles a recipe can bind: its voice files, then the starter packs. */
+/** The profiles a recipe can bind: the ones its store holds, then the starter
+ * packs. */
 export function voiceBindingOptions(governance: RecipeGovernance): VoiceBindingOption[] {
   return [
-    ...governance.voice_files.map((f) => ({
-      value: `file:${f}`,
-      label: f,
-      group: t("Files"),
+    ...governance.voice_profiles.map((p) => ({
+      value: `store:${p}`,
+      label: p,
+      group: t("Voice profiles"),
     })),
     ...governance.packs.map((p) => ({
       value: `pack:${p}`,

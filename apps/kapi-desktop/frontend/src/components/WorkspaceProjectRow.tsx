@@ -59,6 +59,18 @@ export function WorkspaceProjectRow({
           <div className="truncate font-mono text-[11px] text-muted-foreground/70">
             {project.key}
           </div>
+          {project.context_files && (
+            <p
+              data-testid="workspace-context-files"
+              className="mt-1 text-[11px] text-amber-700 dark:text-amber-500"
+            >
+              {t("Context files in the checkout, unread. Run")}{" "}
+              <code className="font-mono" translate="no">
+                {project.context_files.command}
+              </code>
+              .
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {single && (

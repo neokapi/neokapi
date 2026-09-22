@@ -46,7 +46,8 @@ export interface RecipeGovernance {
   axes: RecipeAxis[];
   channels: string[];
   profiles: string[];
-  voice_files: string[];
+  /** The profiles this project's voice store holds, by id. */
+  voice_profiles: string[];
   packs: string[];
 }
 
@@ -72,7 +73,7 @@ export function GovernanceSettings({
     enabled: !injected && !!tabID,
   });
   const governance: RecipeGovernance = injected ??
-    query.data ?? { axes: [], channels: [], profiles: [], voice_files: [], packs: [] };
+    query.data ?? { axes: [], channels: [], profiles: [], voice_profiles: [], packs: [] };
 
   const defaults = project.defaults ?? {};
   const updateDefaults = (patch: Partial<ProjectDefaults>) =>

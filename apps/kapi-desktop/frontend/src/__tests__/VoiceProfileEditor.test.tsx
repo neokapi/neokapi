@@ -5,13 +5,13 @@ import { VoiceProfileEditor } from "../components/voice/VoiceProfileEditor";
 import { valueSetsFixture, voiceFixture } from "./voiceFixture";
 import type { VoiceProfile, VoiceSaveResult } from "../types/voice";
 
-const target = { target: ".kapi/voice.yaml", writable: true, exists: true, inherited: false };
+const target = { profile: "northsea", writable: true, exists: true, inherited: false };
 
 function renderEditor(overrides: Partial<React.ComponentProps<typeof VoiceProfileEditor>> = {}) {
   const save = vi.fn<(p: VoiceProfile) => Promise<VoiceSaveResult | null>>().mockResolvedValue({
     saved: true,
     changed: true,
-    target: ".kapi/voice.yaml",
+    profile: "northsea",
     problems: [],
   });
   const onSaved = vi.fn();
@@ -32,13 +32,13 @@ function renderEditor(overrides: Partial<React.ComponentProps<typeof VoiceProfil
 }
 
 describe("VoiceProfileEditor", () => {
-  it("says which file a save lands in", () => {
+  it("says which profile a save lands in", () => {
     renderEditor();
-    expect(screen.getByTestId("voice-editor")).toHaveTextContent(".kapi/voice.yaml");
+    expect(screen.getByTestId("voice-editor")).toHaveTextContent("northsea");
     expect(screen.getByTestId("voice-editor")).toHaveTextContent("Editing");
   });
 
-  it("says a save creates the file when none is there yet", () => {
+  it("says a save creates the profile when the store holds none", () => {
     renderEditor({ target: { ...target, exists: false } });
     expect(screen.getByTestId("voice-editor")).toHaveTextContent("Creating");
   });

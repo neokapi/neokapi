@@ -257,11 +257,11 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
         <EmptyHint
           title={t("No voice profile binds at this point")}
           description={
-            edit?.writable && edit.target
-              ? t("Create one at {target}, and checks here will apply it.", {
-                  target: edit.target,
+            edit?.writable && edit.profile
+              ? t("Write one as {profile}, and checks here will apply it.", {
+                  profile: edit.profile,
                 })
-              : t("Bind one with defaults.voice, or put a profile at .kapi/voice.yaml.")
+              : t("Bind one with defaults.voice, naming a profile this project's store holds.")
           }
         />
       ) : (

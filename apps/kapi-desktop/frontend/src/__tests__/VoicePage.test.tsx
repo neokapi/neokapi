@@ -83,10 +83,10 @@ describe("VoicePage", () => {
     expect(screen.getByText("No voice profile binds at this point")).toBeInTheDocument();
   });
 
-  it("offers to edit the file the point resolves to", async () => {
+  it("offers to edit the profile the point resolves to", async () => {
     render(<VoicePage tabID="t1" result={voiceFixture} valueSets={valueSetsFixture} />);
     await userEvent.click(screen.getByTestId("voice-edit"));
-    expect(screen.getByTestId("voice-editor")).toHaveTextContent(".kapi/voice.yaml");
+    expect(screen.getByTestId("voice-editor")).toHaveTextContent("northsea");
   });
 
   it("offers to give an inheriting point its own voice", async () => {

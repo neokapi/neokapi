@@ -36,7 +36,7 @@ export const voiceFixture: ProjectVoiceResult = {
       binding: { kind: "profile_file", value: ".kapi/voice.yaml" },
       termstore: ".kapi/terms.json",
       guide: "Write as Northsea: say the useful thing first.",
-      edit: { target: ".kapi/voice.yaml", writable: true, exists: true, inherited: false },
+      edit: { profile: "northsea", writable: true, exists: true, inherited: false },
       profile: {
         name: "Northsea",
         description: "How Northsea writes to everyone.",
@@ -120,7 +120,7 @@ export const voiceFixture: ProjectVoiceResult = {
       },
       guide: "Write as Northsea: say the useful thing first.",
       edit: {
-        target: ".kapi/profiles/campaign/voice.yaml",
+        profile: "northsea-campaign",
         writable: true,
         exists: false,
         inherited: true,
@@ -135,7 +135,7 @@ export const voiceFixture: ProjectVoiceResult = {
       collections: ["Docs"],
       field: "profiles.support.voice",
       edit: {
-        target: ".kapi/profiles/support/voice.yaml",
+        profile: "northsea-support",
         writable: true,
         exists: false,
         inherited: false,
