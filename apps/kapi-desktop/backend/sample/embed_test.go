@@ -139,7 +139,7 @@ func TestScaffoldShipsTheUnitStateLedger(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, Scaffold("kapimart", dir))
 
-	shards, err := filepath.Glob(filepath.Join(dir, project.StateDirName, "state", "*.jsonl"))
+	shards, err := filepath.Glob(filepath.Join(dir, ContextDirName, "state", "*.jsonl"))
 	require.NoError(t, err)
 	require.NotEmpty(t, shards, "the sample must ship its unit-state record")
 
@@ -176,7 +176,7 @@ func TestScaffoldLeavesTheMessageCatalogueUnreviewed(t *testing.T) {
 	require.NoError(t, Scaffold("kapimart", dir))
 
 	decided := map[string]bool{}
-	shards, err := filepath.Glob(filepath.Join(dir, project.StateDirName, "state", "*.jsonl"))
+	shards, err := filepath.Glob(filepath.Join(dir, ContextDirName, "state", "*.jsonl"))
 	require.NoError(t, err)
 	for _, shard := range shards {
 		data, rerr := os.ReadFile(shard)

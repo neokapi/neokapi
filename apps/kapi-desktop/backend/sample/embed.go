@@ -1,7 +1,7 @@
 // Package sample provides the embedded sample project for the kapi-desktop
 // app: KapiMart, a governed multi-collection project in the natural per-area
 // layout (web/src/legal/marketing with locale dirs beside source), shipping the
-// committed context its recipe binds.
+// context its recipe binds as files under context/.
 package sample
 
 import (
@@ -22,12 +22,16 @@ import (
 	"github.com/neokapi/neokapi/terms/ktb"
 )
 
-// `all:` is required: the sample commits its `.kapi/` context — the voice
-// profile, the terms record, the content memory and the unit-state ledger — and
-// a plain pattern excludes every name beginning with a dot.
+// `all:` is required: the sample ships a `.kapi/.gitignore` beside its recipe,
+// and a plain pattern excludes every name beginning with a dot.
 //
 //go:embed all:kapimart
 var assetsFS embed.FS
+
+// ContextDirName is where the sample keeps the context files a scaffold reads
+// into the project's store: the voice profile, the vocabulary, the content
+// memory and the decision record.
+const ContextDirName = "context"
 
 // DisplayName maps an internal sample name to its user-facing name.
 var DisplayName = map[string]string{
@@ -55,12 +59,17 @@ func Scaffold(name, targetDir string) error {
 		}
 	}
 
-	// Copy the committed context: the voice profile, the terms record and the
-	// content memory the recipe binds. They land on disk as authored files, the
-	// same ones `git diff` would review in a real project, and the store is
-	// compiled from them below rather than from a second copy.
-	if err := copyEmbeddedDir("kapimart/"+project.StateDirName, filepath.Join(targetDir, project.StateDirName)); err != nil {
+	// Copy the context files: the voice profile, the vocabulary, the content
+	// memory and the decision record. They land on disk as authored files, the
+	// same ones a colleague would send, and seedStore below reads them into the
+	// project's store the way `kapi context import` does for a person.
+	if err := copyEmbeddedDir("kapimart/"+ContextDirName, filepath.Join(targetDir, ContextDirName)); err != nil {
 		return fmt.Errorf("copy context files: %w", err)
+	}
+	// The ignore rule, so a first `git add` in the scaffolded project keeps the
+	// store and the caches out.
+	if err := copyEmbeddedDir("kapimart/"+project.StateDirName, filepath.Join(targetDir, project.StateDirName)); err != nil {
+		return fmt.Errorf("copy the state directory: %w", err)
 	}
 
 	// Copy the project recipe (kapi.yaml).
@@ -117,8 +126,10 @@ func seedStore(targetDir string) error {
 		return fmt.Errorf("open sample project store: %w", err)
 	}
 	recipe := filepath.Join(targetDir, project.RecipeFileName)
-	if _, err := app.ImportProjectContext(ctx, recipe, host.ContextImportRequest{}); err != nil {
-		return fmt.Errorf("read the sample's committed context: %w", err)
+	if _, err := app.ImportProjectContext(ctx, recipe, host.ContextImportRequest{
+		Dir: filepath.Join(targetDir, ContextDirName),
+	}); err != nil {
+		return fmt.Errorf("read the sample's context: %w", err)
 	}
 	if err := indexMemory(ctx, db.Memory()); err != nil {
 		return fmt.Errorf("seed content memory: %w", err)
@@ -134,13 +145,13 @@ func seedStore(targetDir string) error {
 	return nil
 }
 
-// MemorySourceRel and TermsSourceRel are where the committed context sources
-// sit inside a scaffolded project. They are the paths `kapi.yaml` binds under
-// defaults.memory_source and defaults.terms_source, so the store is compiled
-// from the same files the recipe names.
+// MemorySourceRel and TermsSourceRel are where the context sources sit inside a
+// scaffolded project. They are the paths `kapi.yaml` binds under
+// defaults.memory_source and defaults.terms_source, so the import reads the
+// same files the recipe names.
 var (
-	MemorySourceRel = filepath.Join(project.StateDirName, project.MemoryDirName, kmb.ConventionalName)
-	TermsSourceRel  = filepath.Join(project.StateDirName, ktb.ConventionalName)
+	MemorySourceRel = filepath.Join(ContextDirName, project.MemoryDirName, kmb.ConventionalName)
+	TermsSourceRel  = filepath.Join(ContextDirName, ktb.ConventionalName)
 )
 
 // indexMemory rebuilds the content memory's search side-tables.
