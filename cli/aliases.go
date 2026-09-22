@@ -75,7 +75,6 @@ type (
 	StatsOutput                   = host.StatsOutput
 	StatusOutput                  = host.StatusOutput
 	StopHookDecision              = host.StopHookDecision
-	TermsProjectionResult         = host.TermsProjectionResult
 	ToolRunConfig                 = host.ToolRunConfig
 	UpOptions                     = host.UpOptions
 	UpPlanOutput                  = host.UpPlanOutput

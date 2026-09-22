@@ -151,8 +151,11 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 	if err != nil {
 		return res, err
 	}
-	stamps := loadImportStamps(ctx, db)
 	checkout := normalizedCheckout(layout.Root)
+	stamps, err := a.loadImportStamps(ctx, checkout)
+	if err != nil {
+		return res, err
+	}
 	stamped := false
 
 	for _, src := range sources {
@@ -184,10 +187,12 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 			res.VoiceProfiles++
 		}
 		stamps[key], stamped = digest, true
-		scribe.read(ctx, src, n, digest)
+		if err := scribe.read(ctx, src, n, digest); err != nil {
+			return res, err
+		}
 	}
 	if stamped {
-		if err := saveImportStamps(ctx, db, stamps); err != nil {
+		if err := a.saveImportStamps(ctx, stamps); err != nil {
 			return res, err
 		}
 	}
@@ -204,7 +209,9 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 	}
 	res.Decisions = n
 	if n > 0 {
-		scribe.readRecord(ctx, relSlash(from.Root, recordDir), n)
+		if err := scribe.readRecord(ctx, relSlash(from.Root, recordDir), n); err != nil {
+			return res, err
+		}
 	}
 	return res, nil
 }
