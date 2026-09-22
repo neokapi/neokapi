@@ -58,15 +58,15 @@ EXCLUDE_DIRS=(
 
 PATTERN='kapi commit|\.kapi/(terms\.json|voice\.yaml|memory/|state/|profiles/)|commit \.kapi|committed context|context files'
 
-# Each entry is `path:line` followed by why that line stays. A passage that
-# moves takes its entry with it, and the self-test below proves the matcher
-# still catches an unlisted one.
+# Each entry is a file, under a comment saying what it names those paths for. A
+# file whose last such passage goes comes off the list, and the self-test below
+# proves the matcher still catches a spelling nothing has listed.
 ALLOWLIST=(
   # The four verbs' own page: it documents the artifact layout each one writes
   # and reads, which is the whole subject.
   "web/docs/kapi/context-portability.mdx"
-  # The start page and the store page name the artifact once each, pointing at
-  # the import.
+  # The store page and the context page name the artifact once each, pointing
+  # at the import.
   "web/docs/kapi/project-store.mdx"
   "web/docs/kapi/context.mdx"
   # The recipe and serialization references document the file shapes.
@@ -75,8 +75,6 @@ ALLOWLIST=(
   "web/docs/reference/serialization/project-state.mdx"
   "web/docs/reference/serialization/project-archive.mdx"
   "web/docs/reference/serialization/overview.mdx"
-  "web/docs/reference/serialization/content-memory.mdx"
-  "web/docs/reference/serialization/voice-profile.mdx"
   "web/docs/reference/serialization/choosing.mdx"
   # The ADs state where each artifact sits in the layout and which command
   # writes or reads it.
@@ -88,17 +86,13 @@ ALLOWLIST=(
   "web/docs/contribute/architecture/context/c-11-context-operations.md"
   "web/docs/contribute/architecture/multilingual/m-06-content-packages.md"
   "web/docs/contribute/implementation/context/kapi-project-file.md"
-  "web/docs/contribute/architecture/context/c-03-context-store-and-graph.md"
   # The CI pages name the one import step a runner needs before a gate.
-  "web/docs/kapi/convergence-in-ci.mdx"
   "web/docs/kapi/recipes/ship-gates-and-ci.mdx"
   "web/docs/kapi/recipes/machine-ship-strategy.mdx"
   # The storage recipe walks import, snapshot, export and restore.
   "web/docs/kapi/recipes/memory-and-terms-storage.mdx"
-  # The agent skill names the snapshot layout so an agent can tell a person
-  # which files an import will read, and SKILL.md tells an agent that reading
-  # them is the person's to do.
-  "cli/skills/data/kapi/references/project.md"
+  # SKILL.md tells an agent that reading a checkout's context files is the
+  # person's to do.
   "cli/skills/data/kapi/SKILL.md"
   # The dogfood loop runs the RELEASED kapi, which still compiles these files on
   # every run. Both documents say so and say what changes after the next
