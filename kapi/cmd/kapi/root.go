@@ -81,6 +81,10 @@ func init() {
 	cli.AddPersistentFlags(app, rootCmd)
 	cli.AddCommandGroups(app, rootCmd)
 
+	// Say once, on standard error, when this checkout carries context files
+	// nothing has read into the project's store.
+	cli.AttachContextNotice(app, rootCmd)
+
 	// Built-in command set, shared with the cli/i18n help-string generator
 	// (cli.KapiCommandSet is the single source of truth for what `kapi`
 	// exposes, so the localization inventory can never drift from the
