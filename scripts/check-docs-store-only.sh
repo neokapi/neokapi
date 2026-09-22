@@ -39,13 +39,14 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 # The trees this sweeps: the published docs, the shipped agent skill, the repo's
-# own internals, the two front-door READMEs and the platform's CLI docs.
+# own internals, the front-door READMEs and the platform's CLI docs.
 TREES=(
   web/docs
   cli/skills
   docs/internals
   README.md
   CONTRIBUTING.md
+  .kapi/README.md
   bowrain/web/docs
 )
 
