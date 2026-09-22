@@ -26,6 +26,10 @@ import (
 // other's have been read.
 
 // importScribe writes an import's operations into the project's context log.
+//
+// ops is nil for a recipe carrying neither an id nor a name. Such a project has
+// no context log to write to, so the import reads its files and says on the
+// result that nothing was recorded.
 type importScribe struct {
 	ops   *contextOpsSession
 	actor contextop.Actor
@@ -35,24 +39,32 @@ type importScribe struct {
 // importScribe opens the log an import records into, and settles who is
 // recording before anything is read.
 //
-// A person runs an import. The context policy says so for the confirm each
-// file is recorded as, and asking here means an import an agent started leaves
-// the store as it found it rather than stopping part way through.
+// A person runs an import. The context policy says so for the confirm each file
+// is recorded as, and asking here means an import an agent started leaves the
+// store as it found it rather than stopping part way through.
 func (a *App) importScribe(ctx context.Context, recipePath string) (*importScribe, error) {
+	resolved, err := a.commandActor()
+	if err != nil {
+		return nil, err
+	}
+	if resolved.Actor.Kind != contextop.ActorPerson {
+		return nil, fmt.Errorf("%s may not import context: reading a checkout's context files puts them in force for everyone working in this project, which a person decides: ask the person working here to run `kapi context import`: %w",
+			resolved.Actor.String(), contextop.ErrRefused)
+	}
+	scribe := &importScribe{actor: resolved.Actor, note: resolved.NoteWith("")}
+	if identity, _ := recipeIdentity(recipePath); identity == "" {
+		return scribe, nil
+	}
 	ops, err := a.contextOps(ctx, recipePath)
 	if err != nil {
 		return nil, err
 	}
-	actor, note, err := ops.actorFor(ctx, contextop.Actor{}, "")
-	if err != nil {
-		return nil, err
-	}
-	if actor.Kind != contextop.ActorPerson {
-		return nil, fmt.Errorf("%s may not import context: reading a checkout's context files puts them in force for everyone working in this project, which a person decides: ask the person working here to run `kapi context import`: %w",
-			actor.String(), contextop.ErrRefused)
-	}
-	return &importScribe{ops: ops, actor: actor, note: note}, nil
+	scribe.ops = ops
+	return scribe, nil
 }
+
+// records reports whether the import has a log to write to.
+func (s *importScribe) records() bool { return s != nil && s.ops != nil }
 
 // read records one context file the import put into the store, naming what the
 // file holds and the bytes it held.
@@ -73,6 +85,9 @@ func (s *importScribe) readRecord(ctx context.Context, rel string, n int) error 
 // file, the SHA-256 of the bytes that were read, so a reader of the log can
 // tell which version of a file is in force.
 func (s *importScribe) record(ctx context.Context, rel, digest, subject string) error {
+	if !s.records() {
+		return nil
+	}
 	evidence := []contextop.Evidence{{Path: rel}}
 	if digest != "" {
 		evidence[0].Quote = "sha256:" + digest
@@ -107,16 +122,17 @@ func importSubjectText(src contextSource, n int) string {
 // it.
 type importStamps map[importStampID]string
 
-// importStampID addresses one stamp: the checkout that read the file, and the
-// file inside it.
+// importStampID addresses one stamp: the project whose store the file was read
+// into, the checkout that read it, and the file inside that checkout.
 type importStampID struct {
+	project  workspace.ProjectKey
 	checkout string
 	path     string
 }
 
 // importStampKey addresses the stamp for one file in one checkout.
-func importStampKey(checkout, rel string) importStampID {
-	return importStampID{checkout: checkout, path: rel}
+func importStampKey(project workspace.ProjectKey, checkout, rel string) importStampID {
+	return importStampID{project: project, checkout: checkout, path: rel}
 }
 
 // normalizedCheckout spells a checkout root the way every stamp keyed by it is
@@ -124,8 +140,9 @@ func importStampKey(checkout, rel string) importStampID {
 // itself.
 func normalizedCheckout(root string) string { return NormalizeCheckoutPath(root) }
 
-// loadImportStamps reads what this checkout has already read.
-func (a *App) loadImportStamps(ctx context.Context, checkout string) (importStamps, error) {
+// loadImportStamps reads what this checkout has already read into this
+// project's store.
+func (a *App) loadImportStamps(ctx context.Context, project workspace.ProjectKey, checkout string) (importStamps, error) {
 	stamps := importStamps{}
 	ws, err := a.Workspace(ctx)
 	if err != nil {
@@ -134,12 +151,12 @@ func (a *App) loadImportStamps(ctx context.Context, checkout string) (importStam
 	if ws == nil {
 		return stamps, nil
 	}
-	held, err := ws.ContextImports(ctx, checkout)
+	held, err := ws.ContextImports(ctx, project, checkout)
 	if err != nil {
 		return nil, err
 	}
 	for _, s := range held {
-		stamps[importStampKey(s.Checkout, s.Path)] = s.Digest
+		stamps[importStampKey(s.Project, s.Checkout, s.Path)] = s.Digest
 	}
 	return stamps, nil
 }
@@ -160,6 +177,7 @@ func (a *App) saveImportStamps(ctx context.Context, stamps importStamps) error {
 	rows := make([]workspace.ContextImportStamp, 0, len(stamps))
 	for id, digest := range stamps {
 		rows = append(rows, workspace.ContextImportStamp{
+			Project:  id.project,
 			Checkout: id.checkout,
 			Path:     id.path,
 			Digest:   digest,

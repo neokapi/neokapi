@@ -140,6 +140,7 @@ func TestConfirm_ChangesNoFileAndReachesBothCheckouts(t *testing.T) {
 // file but the recipe, and leaves each one on the project's record.
 func TestApply_LandsInTheStoreAndIsRecorded(t *testing.T) {
 	a, cmd, root, recipe := newApplyAssetProject(t)
+	ownWorkspace(t, a)
 	ctx := context.Background()
 	_, err := a.ProjectDB(ctx, root)
 	require.NoError(t, err)
@@ -185,6 +186,7 @@ func TestApply_LandsInTheStoreAndIsRecorded(t *testing.T) {
 // a script, the way a person drives it with their own.
 func TestVoiceEdit_ReadsTheEditedProfileBackAsOneOperation(t *testing.T) {
 	a, cmd, root, recipe := newApplyAssetProject(t)
+	ownWorkspace(t, a)
 	ctx := context.Background()
 	seedVoiceProfile(t, a, cmd)
 
@@ -215,6 +217,7 @@ func TestVoiceEdit_ReadsTheEditedProfileBackAsOneOperation(t *testing.T) {
 // and so does an editor that exits with an error.
 func TestVoiceEdit_AnUnchangedDocumentChangesNothing(t *testing.T) {
 	a, cmd, _, recipe := newApplyAssetProject(t)
+	ownWorkspace(t, a)
 	ctx := context.Background()
 	seedVoiceProfile(t, a, cmd)
 	held := len(recordedOps(t, a, recipe))
@@ -237,6 +240,7 @@ func TestVoiceEdit_AnUnchangedDocumentChangesNothing(t *testing.T) {
 // where their edit is.
 func TestVoiceEdit_RefusesADocumentThatDoesNotCheckOut(t *testing.T) {
 	a, cmd, _, _ := newApplyAssetProject(t)
+	ownWorkspace(t, a)
 	ctx := context.Background()
 	seedVoiceProfile(t, a, cmd)
 
@@ -253,6 +257,7 @@ func TestVoiceEdit_RefusesADocumentThatDoesNotCheckOut(t *testing.T) {
 // the person deleted is gone.
 func TestVoiceEdit_ClearsConstraintsTheEditDropped(t *testing.T) {
 	a, cmd, root, _ := newApplyAssetProject(t)
+	ownWorkspace(t, a)
 	ctx := context.Background()
 	seedVoiceProfile(t, a, cmd)
 
@@ -282,6 +287,15 @@ func TestVoiceEdit_ClearsConstraintsTheEditDropped(t *testing.T) {
 	after, err := store.GetProfile(ctx, res.ID)
 	require.NoError(t, err)
 	assert.Empty(t, after.Constraints, "the constraints the edit dropped are gone")
+}
+
+// ownWorkspace gives a test its own workspace, so the operations it records
+// are the only ones its project's log holds. Every project scaffolded by
+// newApplyAssetProject carries one name, and one workspace would key them all
+// to one log.
+func ownWorkspace(t *testing.T, a *App) {
+	t.Helper()
+	a.SetWorkspaceRoot(t.TempDir())
 }
 
 // seedVoiceProfile gives the project a voice profile to edit, put there the

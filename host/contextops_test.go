@@ -155,9 +155,9 @@ func TestCandidateAdvisesAndConfirmedBinds(t *testing.T) {
 		ID:      proposed.ID,
 	})
 	require.NoError(t, err)
-	assert.NotEmpty(t, confirmed.Landed, "confirming writes the rule into the committed source")
-	assert.FileExists(t, filepath.Join(root, ".kapi", "terms.json"),
-		"the rule lands where the terms importer already reads it")
+	assert.NotEmpty(t, confirmed.Landed, "confirming writes the rule into the project's store")
+	assert.NoFileExists(t, filepath.Join(root, ".kapi", "terms.json"),
+		"the rule lands in the store the gate reads, and in no file")
 
 	bound := checkWith(t, app, root, true)
 	found = vocabularyFindings(bound)

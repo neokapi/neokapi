@@ -294,14 +294,14 @@ func TestImportProjectContext_IsIdempotent(t *testing.T) {
 
 	assertSameTree(t, afterFirst, afterSecond, "a second read leaves the store saying the same thing")
 
-	// A third read reports the same counts: every importer upserts by the
-	// identity the file carries, so reading is repeatable rather than additive.
+	// A third read without --force reads nothing at all: this checkout has
+	// already read these sources at these bytes, and the store says so.
 	third, err := a.ImportProjectContext(ctx, recipe, ContextImportRequest{})
 	require.NoError(t, err)
-	assert.Equal(t, first.Concepts, third.Concepts)
-	assert.Equal(t, first.VoiceProfiles, third.VoiceProfiles)
+	assert.False(t, third.Read(), "a source at bytes this checkout has read is skipped")
+	assert.Positive(t, third.Unchanged)
 	afterThird, _ := snapshotInto(t, a, recipe)
-	assertSameTree(t, afterFirst, afterThird, "and so does a third")
+	assertSameTree(t, afterFirst, afterThird, "and the store still says the same thing")
 }
 
 // TestContextSnapshot_RoundTripsThroughAnEmptyStore: importing a snapshot into

@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/workspace"
 )
 
 // Reading a `.kapi/` layout into a project's store.
@@ -46,6 +47,10 @@ type ContextImport struct {
 	// Unchanged counts the sources already in the store at their current
 	// bytes, which is what a second run of the same import reports.
 	Unchanged int `json:"unchanged,omitempty"`
+	// Unrecorded reports a project whose recipe carries neither an id nor a
+	// name. Its context has nowhere to be logged, so the import read the files
+	// and left no history behind.
+	Unrecorded bool `json:"unrecorded,omitempty"`
 }
 
 // Read reports whether the import put anything into the store.
@@ -87,6 +92,11 @@ func (r ContextImport) FormatText(w io.Writer) error {
 	if r.Unchanged > 0 {
 		if _, err := fmt.Fprintf(w, "  %s already at these bytes\n",
 			pluralUnit(r.Unchanged, "source", "sources")); err != nil {
+			return err
+		}
+	}
+	if r.Unrecorded {
+		if _, err := fmt.Fprintf(w, "Give the recipe a `name:` for this to appear in `kapi context log`.\n"); err != nil {
 			return err
 		}
 	}
@@ -151,8 +161,11 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 	if err != nil {
 		return res, err
 	}
+	res.Unrecorded = !scribe.records()
 	checkout := normalizedCheckout(layout.Root)
-	stamps, err := a.loadImportStamps(ctx, checkout)
+	identity, _ := recipeIdentity(layout.RecipePath)
+	projectKey := workspace.ProjectKey(identity)
+	stamps, err := a.loadImportStamps(ctx, projectKey, checkout)
 	if err != nil {
 		return res, err
 	}
@@ -169,7 +182,7 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 		if derr != nil {
 			return res, derr
 		}
-		key := importStampKey(checkout, src.rel)
+		key := importStampKey(projectKey, checkout, src.rel)
 		if !req.Force && stamps[key] == digest {
 			res.Unchanged++
 			continue

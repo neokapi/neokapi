@@ -551,11 +551,11 @@ func importStampsAreKeptPerCheckout(t *testing.T, b workspace.Backend) {
 
 	read := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
 	require.NoError(t, w.NoteContextImports(ctx,
-		workspace.ContextImportStamp{Checkout: "/w/main", Path: ".kapi/terms.json", Digest: "aa", At: read},
-		workspace.ContextImportStamp{Checkout: "/w/main", Path: ".kapi/voice.yaml", Digest: "bb", At: read},
+		workspace.ContextImportStamp{Project: "prj_docs", Checkout: "/w/main", Path: ".kapi/terms.json", Digest: "aa", At: read},
+		workspace.ContextImportStamp{Project: "prj_docs", Checkout: "/w/main", Path: ".kapi/voice.yaml", Digest: "bb", At: read},
 	))
 
-	held, err := w.ContextImports(ctx, "/w/main")
+	held, err := w.ContextImports(ctx, "prj_docs", "/w/main")
 	require.NoError(t, err)
 	require.Len(t, held, 2)
 	assert.Equal(t, ".kapi/terms.json", held[0].Path, "stamps read back in path order")
@@ -564,13 +564,19 @@ func importStampsAreKeptPerCheckout(t *testing.T, b workspace.Backend) {
 
 	// A second checkout of the same project reads its own files, so a stamp one
 	// clone wrote says nothing about another's.
-	other, err := w.ContextImports(ctx, "/w/branch")
+	other, err := w.ContextImports(ctx, "prj_docs", "/w/branch")
 	require.NoError(t, err)
 	assert.Empty(t, other, "a checkout that has read nothing has no stamps")
 
+	// A checkout whose recipe names another project reads its files into that
+	// project's store rather than skipping them.
+	elsewhere, err := w.ContextImports(ctx, "prj_site", "/w/main")
+	require.NoError(t, err)
+	assert.Empty(t, elsewhere, "a stamp belongs to the project it was read into")
+
 	require.NoError(t, w.NoteContextImports(ctx,
-		workspace.ContextImportStamp{Checkout: "/w/branch", Path: ".kapi/terms.json", Digest: "cc", At: read}))
-	other, err = w.ContextImports(ctx, "/w/branch")
+		workspace.ContextImportStamp{Project: "prj_docs", Checkout: "/w/branch", Path: ".kapi/terms.json", Digest: "cc", At: read}))
+	other, err = w.ContextImports(ctx, "prj_docs", "/w/branch")
 	require.NoError(t, err)
 	require.Len(t, other, 1)
 	assert.Equal(t, "cc", other[0].Digest)
@@ -578,8 +584,8 @@ func importStampsAreKeptPerCheckout(t *testing.T, b workspace.Backend) {
 	// Reading the same file again at different bytes replaces the stamp.
 	later := read.Add(time.Hour)
 	require.NoError(t, w.NoteContextImports(ctx,
-		workspace.ContextImportStamp{Checkout: "/w/main", Path: ".kapi/terms.json", Digest: "dd", At: later}))
-	held, err = w.ContextImports(ctx, "/w/main")
+		workspace.ContextImportStamp{Project: "prj_docs", Checkout: "/w/main", Path: ".kapi/terms.json", Digest: "dd", At: later}))
+	held, err = w.ContextImports(ctx, "prj_docs", "/w/main")
 	require.NoError(t, err)
 	require.Len(t, held, 2, "one file in one checkout is one row")
 	assert.Equal(t, "dd", held[0].Digest)
@@ -590,7 +596,7 @@ func importStampsAreKeptPerCheckout(t *testing.T, b workspace.Backend) {
 		workspace.ContextImportStamp{Path: ".kapi/terms.json"}), workspace.ErrNoImportStamp)
 	assert.ErrorIs(t, w.NoteContextImports(ctx,
 		workspace.ContextImportStamp{Checkout: "/w/main"}), workspace.ErrNoImportStamp)
-	_, err = w.ContextImports(ctx, "")
+	_, err = w.ContextImports(ctx, "prj_docs", "")
 	assert.ErrorIs(t, err, workspace.ErrNoImportStamp)
 }
 

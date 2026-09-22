@@ -20,11 +20,12 @@ var importsMigrations = []storage.Migration{{
 	Description: "context files a checkout has read into the workspace",
 	SQL: `
 CREATE TABLE IF NOT EXISTS workspace_context_imports (
+    project  TEXT NOT NULL,
     checkout TEXT NOT NULL,
     path     TEXT NOT NULL,
     digest   TEXT NOT NULL,
     read_at  TEXT NOT NULL,
-    PRIMARY KEY (checkout, path)
+    PRIMARY KEY (project, checkout, path)
 );`,
 }}
 
@@ -38,9 +39,13 @@ CREATE TABLE IF NOT EXISTS workspace_context_imports (
 // decide that another clone's file has already been read, which is how a second
 // branch's wording went missing (#2918).
 //
-// The checkout is part of the key, so two clones of one project each read their
-// own files once and neither skips the other's.
+// The project and the checkout are both part of the key. Two clones of one
+// project each read their own files once and neither skips the other's, and a
+// checkout whose recipe comes to name a different project reads its files into
+// that project's store rather than skipping them.
 type ContextImportStamp struct {
+	// Project is the project whose store the file was read into.
+	Project ProjectKey
 	// Checkout is the absolute path of the checkout root, normalized by
 	// whatever wrote the stamp.
 	Checkout string
@@ -97,20 +102,20 @@ func (w *Workspace) NoteContextImports(ctx context.Context, stamps ...ContextImp
 			at = time.Now()
 		}
 		if _, err := db.ExecContext(ctx, `
-INSERT INTO workspace_context_imports (checkout, path, digest, read_at) VALUES (?, ?, ?, ?)
-ON CONFLICT(checkout, path) DO UPDATE SET
+INSERT INTO workspace_context_imports (project, checkout, path, digest, read_at) VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(project, checkout, path) DO UPDATE SET
     digest = excluded.digest,
     read_at = excluded.read_at`,
-			s.Checkout, s.Path, s.Digest, at.UTC().Format(time.RFC3339Nano)); err != nil {
+			string(s.Project), s.Checkout, s.Path, s.Digest, at.UTC().Format(time.RFC3339Nano)); err != nil {
 			return fmt.Errorf("workspace: note import of %s: %w", s.Path, err)
 		}
 	}
 	return nil
 }
 
-// ContextImports reports what one checkout has read, in path order. A checkout
-// that has read nothing reports nothing.
-func (w *Workspace) ContextImports(ctx context.Context, checkout string) ([]ContextImportStamp, error) {
+// ContextImports reports what one checkout has read into one project, in path
+// order. A checkout that has read nothing reports nothing.
+func (w *Workspace) ContextImports(ctx context.Context, project ProjectKey, checkout string) ([]ContextImportStamp, error) {
 	if checkout == "" {
 		return nil, ErrNoImportStamp
 	}
@@ -124,8 +129,8 @@ func (w *Workspace) ContextImports(ctx context.Context, checkout string) ([]Cont
 		return nil, nil
 	}
 	rows, err := db.QueryContext(ctx, `
-SELECT checkout, path, digest, read_at FROM workspace_context_imports
-WHERE checkout = ? ORDER BY path`, checkout)
+SELECT project, checkout, path, digest, read_at FROM workspace_context_imports
+WHERE project = ? AND checkout = ? ORDER BY path`, string(project), checkout)
 	if err != nil {
 		return nil, fmt.Errorf("workspace: list import stamps: %w", err)
 	}
@@ -135,11 +140,13 @@ WHERE checkout = ? ORDER BY path`, checkout)
 	for rows.Next() {
 		var (
 			s    ContextImportStamp
+			key  string
 			read string
 		)
-		if err := rows.Scan(&s.Checkout, &s.Path, &s.Digest, &read); err != nil {
+		if err := rows.Scan(&key, &s.Checkout, &s.Path, &s.Digest, &read); err != nil {
 			return nil, fmt.Errorf("workspace: list import stamps: %w", err)
 		}
+		s.Project = ProjectKey(key)
 		s.At = parseSessionTime(read)
 		out = append(out, s)
 	}
