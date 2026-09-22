@@ -15,32 +15,30 @@ repository keeps in git.
 [i18n-toil.md](i18n-toil.md) is a different document: the rubric kapi grades
 *other* frameworks with.
 
-## What the released binary reads, and what changes
+## Where the loop's context comes from
 
-This loop runs the **system-installed** kapi, a released build, and that build
-reads the repository's own `.kapi/` on every run. So this repository keeps its
-terms bundle, its content-memory bundles, its voice profiles and its decision
-record in git, and the nightly writes them back. Everything above describes that
-arrangement.
+This loop runs the **system-installed** kapi, a released build. A project's
+context lives in the user's workspace, and kapi reads it from there and from
+nowhere else: the terms, the voice profiles, the wording already approved and
+the record of who approved it.
 
-A project's context lives in the user's workspace, and kapi on `main` reads it
-from there and from nowhere else. One command opens a checkout's context files,
-`kapi context import`, and a person runs it. Two things follow once this loop
-moves to a release carrying that change:
+A runner's workspace starts empty, so the job reads this repository's own
+`.kapi/` into it with `kapi context import`, one step before `kapi up`. Reading
+those files puts them in force, which a person decides and kapi refuses an
+agent, so that step carries `KAPI_ACTOR=person`: the repository's own nightly,
+on its own checkout. A second run finds the store already holding what the files
+say.
 
-- **The files stay, as an export.** `kapi context snapshot` writes exactly the
-  layout the nightly already delivers, so the pull request a reviewer reads does
-  not change shape. What changes is their role: they become the artifact the
-  import reads, rather than the thing a run seeds itself from.
-- **The job gains one step.** `kapi context import` runs before `kapi up`, so
-  the runner's empty store holds what the repository carries. Every gate that
-  reads the project's voice or terms needs it, which is why
-  `make import-dogfood-context` already runs it for the prose gates.
+The files stay in git as an export. `kapi context snapshot` writes the same
+layout the nightly delivers, so the pull request a reviewer reads keeps its
+shape, and the export is what the import opens. Two make targets run the same
+read locally: `make import-dogfood-context` for the prose gates, against the
+throwaway store `$(KAPI_ISO_ENV)` points them at, and
+`make l10n-context-import` for the loop's own stages.
 
-Until then this repository is the one place in the tree where `.kapi/` context
-files are read on a run, and the isolation contract in
-[CLAUDE.md](../../CLAUDE.md) is what keeps every other in-repo invocation away
-from them.
+This repository is the one place in the tree where a checkout's `.kapi/` layout
+is read on a run, and the isolation contract in [CLAUDE.md](../../CLAUDE.md) is
+what keeps every other in-repo invocation away from it.
 
 ## One verb, between two build stages
 
@@ -67,11 +65,10 @@ E-06 is ever revisited, both stages become recipe declarations and this
 document loses half its content.
 
 Stage 2 is one `kapi up`, and it is the same verb the nightly runs and the same
-verb the product tells a customer to run. The released binary this loop runs
-seeds itself from the repository's own `.kapi/` on the way in, keyed by each
-file's content digest, so an unchanged bundle costs a read. Then it re-extracts the block store
-from the working tree, runs the recipe's flow over every collection and locale,
-and materializes the targets (`defaults.materialize: on-converge`).
+verb the product tells a customer to run. It runs over the context the import
+put in the store: it re-extracts the block store from the working tree, runs the
+recipe's flow over every collection and locale, and materializes the targets
+(`defaults.materialize: on-converge`).
 
 Nothing wipes the store. The store is the union of what git carries and what a
 venue pull brought home, so a wipe deletes precisely the half git does not
@@ -307,10 +304,13 @@ bowrain.cloud, nightly and on demand. It is deliberately unremarkable:
 ```yaml
 - uses: neokapi/setup-kapi@v1
   with:
-    version: "1.2.0"
-    plugins: bowrain@1.2.0
+    version: "1.3.0-rc1"
+    plugins: bowrain@1.3.0-rc1
     auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
 - run: make l10n-extract
+- run: kapi context import
+  env:
+    KAPI_ACTOR: person
 - uses: neokapi/kapi-action@v1
   with:
     command: up
@@ -370,14 +370,24 @@ server venue. Everything else must isolate itself per the contract in CLAUDE.md.
 
 Three steps sit between `kapi up` and delivery, in this order.
 
-`kapi commit` is the loop's return leg for unit decisions. The pull records the
-server's approved decisions in the project's decision ledger, and `kapi commit`
-is the only door from there into the record under `.kapi/state/` that git
-tracks: recording a decision and writing the record out stay separate acts, so
-`up` does not do it. A record with nothing missing is a no-op that exits 0.
+`kapi context snapshot` is the loop's return leg for unit decisions. The pull
+records the server's approved decisions in the project's decision ledger, and
+the snapshot writes what the store holds back out as files: recording a decision
+and writing the record out stay separate acts, so `up` leaves this to its own
+step.
+
+A snapshot renders the whole store, and only the decision record travels back
+into this repository. The export keeps a hand-authored terms bundle and one
+content-memory bundle per surface, which a snapshot would replace with its own
+serialization and one aggregate bundle beside them. So the step writes the
+snapshot to `RUNNER_TEMP` and copies `state/` in, whole, because the writer
+prunes the shards a deleted document left behind. A store holding no decisions
+writes no `state/` at all, and the step leaves the record as it is rather than
+erasing every approval this repository carries on a run that read nothing.
+
 The terminology return leg needs no step: the concept pull merges approved term
-decisions into `.kapi/terms.json` itself, upsert-only and byte-stable, so a
-night with no new decisions writes nothing.
+decisions into the terms bundle itself, upsert-only and byte-stable, so a night
+with no new decisions writes nothing.
 
 `make l10n-compile` is the pipeline's third stage, and it runs here rather than
 only on a developer's machine because no runtime loads a catalog: the SPAs and
@@ -448,6 +458,7 @@ reversibly.
 | Piece | One-line justification |
 | --- | --- |
 | `l10n-extract` (and the extractors under it) | E-06: a recipe may not name a subprocess |
+| `l10n-context-import` | the store answers every retrieval and every gate, and one command opens a checkout's `.kapi/` layout into it |
 | `l10n-compile` | same; no runtime loads a catalog directly: the SPAs load compiled dictionaries, the emails rendered HTML, the Go binaries embedded MO |
 | `l10n-converge` | the loop itself, one `kapi up` over the whole recipe |
 | `l10n-build` | the build tier with no loop in it: what the byte gate regenerates and what a pull request may safely have committed back |

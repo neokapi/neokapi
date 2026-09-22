@@ -7,14 +7,16 @@ a pull request. Everything derived from the working tree lives in
 `.kapi/work/`, which is gitignored.
 
 A project's context lives in the user's workspace, and kapi reads it from there.
-This export is kept because [the dogfood loop](../docs/internals/l10n-ci.md)
-runs the **system-installed** kapi, a released build that still compiles these
-files on every run, and because a repository that ships a content engine is a
-useful place to review its own terms. Once the loop moves to a release that
-reads the store only, the files stay and their role changes: `kapi context
-snapshot` writes this layout and `kapi context import` reads it, one step before
-the loop's `kapi up`. `make import-dogfood-context` already does exactly that
-for the prose gates.
+This export is kept because a runner and a fresh clone each start with an empty
+store, and because a repository that ships a content engine is a useful place to
+review its own terms. `kapi context import` reads this layout into the store,
+one step before [the dogfood loop](../docs/internals/l10n-ci.md)'s `kapi up`;
+`make import-dogfood-context` runs the same read for the prose gates and
+`make l10n-context-import` for the loop's own stages.
+
+`kapi context snapshot` writes the layout back out, and the loop takes `state/`
+from it and nothing else. A snapshot renders everything the store holds, while
+the terms bundle and the per-surface memory bundles below are authored here.
 
 - `voice.yaml`: the machine-readable encoding of
   [docs/internals/brand-communication.md](../docs/internals/brand-communication.md),
