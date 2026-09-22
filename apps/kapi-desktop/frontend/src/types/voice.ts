@@ -200,10 +200,12 @@ export interface VoicePoint {
   edit: VoiceEditTarget;
 }
 
-/** Where a save at a point writes, and whether it may. */
+/** The profile a save at a point writes, and whether it may. */
 export interface VoiceEditTarget {
-  target?: string;
+  /** The id a save writes in the project's voice store. */
+  profile?: string;
   writable: boolean;
+  /** False when a save would create the profile. */
   exists: boolean;
   /** True when the point reads a voice bound coarser than itself. */
   inherited: boolean;
@@ -234,8 +236,11 @@ export interface VoicePointerDTO {
 /** The result of a save. */
 export interface VoiceSaveResult {
   saved: boolean;
-  target?: string;
+  /** The id written in the project's voice store. */
+  profile?: string;
   changed: boolean;
+  /** The context operation the save left on the project's record. */
+  recorded?: string;
   problems: ProfileProblem[];
   guide?: string;
   /** Absent when the profile was refused. */

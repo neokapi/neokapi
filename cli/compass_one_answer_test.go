@@ -49,14 +49,15 @@ func compassCheckout(t *testing.T) (recipe, root string) {
 	return filepath.Join(root, "kapi.yaml"), root
 }
 
-// compassCopy is compassCheckout with the sample's committed context read into
+// compassCopy is compassCheckout with the sample's shipped context read into
 // the project store: its terms, its voice profile, its content memory and its
-// decision record. That is where a person who has run `kapi context import`
-// stands, and where the sample's documented journey begins.
+// decision record. That is where a person who has run
+// `kapi context import ./context` stands, and where the sample's documented
+// journey begins.
 func compassCopy(t *testing.T) (recipe, root string) {
 	t.Helper()
 	recipe, root = compassCheckout(t)
-	readContextAt(t, recipe)
+	readContextFrom(t, recipe, filepath.Join(root, "context"))
 	return recipe, root
 }
 
@@ -282,7 +283,7 @@ func approveBadWording(t *testing.T, root string) {
 	insertAfter(t, filepath.Join(root, "site", "locales", "nb.json"),
 		`    "book": "Book en kaiplass",`, `    "`+newSourceKey+`": "`+badDecision+`",`)
 
-	path := filepath.Join(root, ".kapi", "memory", "compass-nb.memory.json")
+	path := filepath.Join(root, "context", "memory", "compass-nb.memory.json")
 	raw, err := os.ReadFile(path)
 	require.NoError(t, err)
 	var bundle map[string]any

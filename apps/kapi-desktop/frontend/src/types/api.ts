@@ -634,6 +634,9 @@ export interface WorkspaceProject {
    * opened elsewhere. Several worktrees or clones are several rows here.
    */
   checkouts: WorkspaceCheckout[];
+  /** Set while a checkout carries context files this project's store has never
+   *  held: the files, and the command that reads them. */
+  context_files?: ContextFilesNotice;
 }
 
 /** The workspace and the projects it holds: the app's first screen. */
@@ -928,6 +931,18 @@ export interface ProjectStatus {
    *  "re-extract" affordance rather than showing stale numbers as authoritative. */
   stale?: boolean;
   collections: CollectionStatus[];
+  /** Set while this checkout carries context files the project's store has
+   *  never held: the files, and the command that reads them. */
+  contextFiles?: ContextFilesNotice;
+}
+
+/** Context files a checkout carries, and the command that reads them into the
+ *  project's store. */
+export interface ContextFilesNotice {
+  files: string[];
+  command: string;
+  /** The line to show, worded by kapi so the app and the terminal agree. */
+  message: string;
 }
 
 // --- Convergence (the derived state model: cli.ConvergenceReport) ---

@@ -121,7 +121,7 @@ const governance = {
   ],
   channels: ["campaign/promo", "support/docs"],
   profiles: ["campaign", "support"],
-  voice_files: [".kapi/voice.yaml", ".kapi/profiles/support/voice.yaml"],
+  voice_profiles: ["northsea", "northsea-support"],
   packs: ["technical-docs", "friendly-dtc"],
 };
 

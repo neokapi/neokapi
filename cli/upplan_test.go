@@ -126,9 +126,9 @@ func TestUpPlan_NeverCreatesTheProjectStore(t *testing.T) {
 	assert.NoFileExists(t, storePath+"-wal", "nor a journal for one")
 }
 
-// TestUpPlan_LeverageComesFromTheStore: a clone's committed `.kapi/memory/`
-// bundles price nothing until `kapi context import` reads them, and price the
-// run once it has. The plan answers from the project store alone, so two
+// TestUpPlan_LeverageComesFromTheStore: a clone's content-memory bundles price
+// nothing until `kapi context import` reads them, and price the run once it
+// has. The plan answers from the project store alone, so two
 // checkouts of one project quote the same work whatever their branches carry
 // (#1866).
 func TestUpPlan_LeverageComesFromTheStore(t *testing.T) {
@@ -154,7 +154,7 @@ func TestUpPlan_LeverageComesFromTheStore(t *testing.T) {
 	assert.NoFileExists(t, storePath, "and a dry run materialized no store")
 	assert.NoFileExists(t, storePath+"-wal", "nor a journal for one")
 
-	readContextAt(t, recipe)
+	readContextFrom(t, recipe, filepath.Join(root, "context"))
 
 	assert.Positive(t, planTotals(t).MemoryExact,
 		"once read, the bundles answer units git already carries reviewed wording for")

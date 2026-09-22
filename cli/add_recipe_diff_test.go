@@ -59,7 +59,7 @@ func TestAdd_WritesOnlyTheLinesItAdds(t *testing.T) {
 	assert.True(t, strings.HasPrefix(strings.TrimSpace(block), "- name: northsea-support"),
 		"every line the write added belongs to the new collection, and this one does not: %q", block)
 
-	assert.Contains(t, after, "  voice:\n    profile_file: .kapi/voice.yaml\n",
+	assert.Contains(t, after, "  voice:\n    profile_file: context/voice.yaml\n",
 		"a binding the add never touched keeps the form it was authored in")
 	assert.Contains(t, after, "\n\ncollections:\n", "the blank line above a section survives the write")
 	assert.Contains(t, after, "\n\n  # Compass interface strings. One block per key.\n",

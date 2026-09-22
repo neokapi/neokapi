@@ -64,6 +64,11 @@ type WorkspaceProject struct {
 	// checkouts of one repository (a second clone, a git worktree) are several
 	// rows under one project.
 	Checkouts []WorkspaceCheckout `json:"checkouts"`
+	// ContextFiles names the context files a checkout carries when this
+	// project's store has never held its context, and the command that reads
+	// them. The first readable checkout answers, since the rest carry their
+	// own branch's copy of the same files.
+	ContextFiles *ContextFilesNoticeDTO `json:"context_files,omitempty"`
 }
 
 // WorkspaceHome is the first screen: where this machine account's workspace is
@@ -113,7 +118,17 @@ func (a *App) ListWorkspaceProjects() (*WorkspaceHome, error) {
 		return nil, err
 	}
 	for _, reg := range regs {
-		home.Projects = append(home.Projects, workspaceProjectOf(reg))
+		row := workspaceProjectOf(reg)
+		for _, checkout := range row.Checkouts {
+			if checkout.Missing {
+				continue
+			}
+			if notice := a.contextFilesNotice(checkout.Recipe); notice != nil {
+				row.ContextFiles = notice
+			}
+			break
+		}
+		home.Projects = append(home.Projects, row)
 	}
 	return home, nil
 }

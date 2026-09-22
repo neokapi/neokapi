@@ -27,9 +27,17 @@ func readProjectContext(t *testing.T, root string) {
 // `kapi.yaml`.
 func readContextAt(t *testing.T, recipe string) {
 	t.Helper()
+	readContextFrom(t, recipe, "")
+}
+
+// readContextFrom reads one directory of context files into a project's store,
+// which is `kapi context import <dir>`. A sample keeps its context under
+// `context/` at the project root, so that is the directory its fixtures name.
+func readContextFrom(t *testing.T, recipe, dir string) {
+	t.Helper()
 	a := &App{}
 	a.InitRegistries()
 	defer a.Shutdown()
-	_, err := a.ImportProjectContext(context.Background(), recipe, host.ContextImportRequest{})
+	_, err := a.ImportProjectContext(context.Background(), recipe, host.ContextImportRequest{Dir: dir})
 	require.NoError(t, err)
 }

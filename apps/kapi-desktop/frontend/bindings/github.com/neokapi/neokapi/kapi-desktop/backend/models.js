@@ -2555,6 +2555,60 @@ export class ContextFeedGroup {
 }
 
 /**
+ * ContextFilesNoticeDTO names the context files a checkout holds and the
+ * command that reads them into the project's store.
+ */
+export class ContextFilesNoticeDTO {
+    /**
+     * Creates a new ContextFilesNoticeDTO instance.
+     * @param {Partial<ContextFilesNoticeDTO>} [$$source = {}] - The source object to create the ContextFilesNoticeDTO.
+     */
+    constructor($$source = {}) {
+        if (!("files" in $$source)) {
+            /**
+             * Files are project-relative and sorted.
+             * @member
+             * @type {string[]}
+             */
+            this["files"] = [];
+        }
+        if (!("command" in $$source)) {
+            /**
+             * Command is what reads them.
+             * @member
+             * @type {string}
+             */
+            this["command"] = "";
+        }
+        if (!("message" in $$source)) {
+            /**
+             * Message is the line a surface shows, rendered by host so the app and the
+             * terminal say the same thing.
+             * @member
+             * @type {string}
+             */
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextFilesNoticeDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextFilesNoticeDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("files" in $$parsedSource) {
+            $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
+        }
+        return new ContextFilesNoticeDTO(/** @type {Partial<ContextFilesNoticeDTO>} */($$parsedSource));
+    }
+}
+
+/**
  * ContextGovernsResult answers "what governs here".
  * 
  * Concepts are the project's vocabulary as the terms store holds it, not a
@@ -6869,6 +6923,17 @@ export class ProjectStatus {
              */
             this["collections"] = [];
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * ContextFiles names the context files this checkout carries when the
+             * project's store has never held its context, and the command that reads
+             * them. nil the rest of the time, which is every project someone has
+             * already read in.
+             * @member
+             * @type {ContextFilesNoticeDTO | null | undefined}
+             */
+            this["contextFiles"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -6880,9 +6945,13 @@ export class ProjectStatus {
      */
     static createFrom($$source = {}) {
         const $$createField4_0 = $$createType119;
+        const $$createField5_0 = $$createType121;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("collections" in $$parsedSource) {
             $$parsedSource["collections"] = $$createField4_0($$parsedSource["collections"]);
+        }
+        if ("contextFiles" in $$parsedSource) {
+            $$parsedSource["contextFiles"] = $$createField5_0($$parsedSource["contextFiles"]);
         }
         return new ProjectStatus(/** @type {Partial<ProjectStatus>} */($$parsedSource));
     }
@@ -6929,7 +6998,7 @@ export class ProjectVoiceResult {
      * @returns {ProjectVoiceResult}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType121;
+        const $$createField1_0 = $$createType123;
         const $$createField2_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("points" in $$parsedSource) {
@@ -7243,14 +7312,14 @@ export class RecipeGovernanceDTO {
              */
             this["profiles"] = [];
         }
-        if (!("voice_files" in $$source)) {
+        if (!("voice_profiles" in $$source)) {
             /**
-             * VoiceFiles are the profile files already on disk under the state
-             * directory, offered when binding defaults.voice.
+             * VoiceProfiles are the profiles this project's voice store holds,
+             * offered when binding defaults.voice.
              * @member
              * @type {string[]}
              */
-            this["voice_files"] = [];
+            this["voice_profiles"] = [];
         }
         if (!("packs" in $$source)) {
             /**
@@ -7270,7 +7339,7 @@ export class RecipeGovernanceDTO {
      * @returns {RecipeGovernanceDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType123;
+        const $$createField0_0 = $$createType125;
         const $$createField1_0 = $$createType6;
         const $$createField2_0 = $$createType6;
         const $$createField3_0 = $$createType6;
@@ -7285,8 +7354,8 @@ export class RecipeGovernanceDTO {
         if ("profiles" in $$parsedSource) {
             $$parsedSource["profiles"] = $$createField2_0($$parsedSource["profiles"]);
         }
-        if ("voice_files" in $$parsedSource) {
-            $$parsedSource["voice_files"] = $$createField3_0($$parsedSource["voice_files"]);
+        if ("voice_profiles" in $$parsedSource) {
+            $$parsedSource["voice_profiles"] = $$createField3_0($$parsedSource["voice_profiles"]);
         }
         if ("packs" in $$parsedSource) {
             $$parsedSource["packs"] = $$createField4_0($$parsedSource["packs"]);
@@ -7357,7 +7426,7 @@ export class RelationDTO {
      * @returns {RelationDTO}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType125;
+        const $$createField5_0 = $$createType127;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("validity" in $$parsedSource) {
             $$parsedSource["validity"] = $$createField5_0($$parsedSource["validity"]);
@@ -7641,9 +7710,9 @@ export class ReviewUnitDetail {
      * @returns {ReviewUnitDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField10_0 = $$createType127;
+        const $$createField10_0 = $$createType129;
         const $$createField12_0 = $$createType25;
-        const $$createField16_0 = $$createType129;
+        const $$createField16_0 = $$createType131;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("origin" in $$parsedSource) {
             $$parsedSource["origin"] = $$createField10_0($$parsedSource["origin"]);
@@ -7746,7 +7815,7 @@ export class RunError {
      * @returns {RunError}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType131;
+        const $$createField3_0 = $$createType133;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actions" in $$parsedSource) {
             $$parsedSource["actions"] = $$createField3_0($$parsedSource["actions"]);
@@ -8025,10 +8094,10 @@ export class RunEvent {
      * @returns {RunEvent}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType133;
-        const $$createField8_0 = $$createType135;
-        const $$createField11_0 = $$createType137;
-        const $$createField12_0 = $$createType139;
+        const $$createField4_0 = $$createType135;
+        const $$createField8_0 = $$createType137;
+        const $$createField11_0 = $$createType139;
+        const $$createField12_0 = $$createType141;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("error" in $$parsedSource) {
             $$parsedSource["error"] = $$createField4_0($$parsedSource["error"]);
@@ -8150,8 +8219,8 @@ export class RunTraces {
      * @returns {RunTraces}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType141;
-        const $$createField2_0 = $$createType143;
+        const $$createField1_0 = $$createType143;
+        const $$createField2_0 = $$createType145;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField1_0($$parsedSource["steps"]);
@@ -8277,7 +8346,7 @@ export class SaveUserFlowRequest {
      * @returns {SaveUserFlowRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType141;
+        const $$createField3_0 = $$createType143;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
@@ -8557,7 +8626,7 @@ export class TermDTO {
      */
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType6;
-        const $$createField8_0 = $$createType125;
+        const $$createField8_0 = $$createType127;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField6_0($$parsedSource["forms"]);
@@ -8786,8 +8855,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField6_0 = $$createType6;
         const $$createField7_0 = $$createType6;
-        const $$createField10_0 = $$createType145;
-        const $$createField11_0 = $$createType145;
+        const $$createField10_0 = $$createType147;
+        const $$createField11_0 = $$createType147;
         const $$createField12_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
@@ -9001,7 +9070,7 @@ export class UserFlowDetail {
      * @returns {UserFlowDetail}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType141;
+        const $$createField4_0 = $$createType143;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
@@ -9321,7 +9390,8 @@ export class VoiceBindingDTO {
 }
 
 /**
- * VoiceEditTargetDTO is where a save at a point writes, and whether it may.
+ * VoiceEditTargetDTO is the profile a save at a point writes, and whether it
+ * may.
  */
 export class VoiceEditTargetDTO {
     /**
@@ -9331,16 +9401,16 @@ export class VoiceEditTargetDTO {
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
             /**
-             * Target is the project-relative file a save writes to.
+             * Profile is the id a save writes in the project's voice store.
              * @member
              * @type {string | undefined}
              */
-            this["target"] = undefined;
+            this["profile"] = undefined;
         }
         if (!("writable" in $$source)) {
             /**
-             * Writable is false when the binding names something no file edit can
-             * reach: a starter pack, or a profile held in the voice store.
+             * Writable is false when the binding names something a save cannot reach:
+             * a starter pack, or a profile file the store has never been given.
              * @member
              * @type {boolean}
              */
@@ -9348,7 +9418,7 @@ export class VoiceEditTargetDTO {
         }
         if (!("exists" in $$source)) {
             /**
-             * Exists is false when a save would create the file.
+             * Exists is false when a save would create the profile.
              * @member
              * @type {boolean}
              */
@@ -9588,12 +9658,12 @@ export class VoicePointDTO {
         const $$createField2_0 = $$createType13;
         const $$createField3_0 = $$createType6;
         const $$createField4_0 = $$createType6;
-        const $$createField7_0 = $$createType147;
-        const $$createField9_0 = $$createType149;
+        const $$createField7_0 = $$createType149;
+        const $$createField9_0 = $$createType151;
         const $$createField11_0 = $$createType113;
         const $$createField12_0 = $$createType115;
         const $$createField13_0 = $$createType6;
-        const $$createField14_0 = $$createType150;
+        const $$createField14_0 = $$createType152;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("point" in $$parsedSource) {
             $$parsedSource["point"] = $$createField0_0($$parsedSource["point"]);
@@ -9706,19 +9776,28 @@ export class VoiceSaveResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Target is the project-relative file written.
+             * Profile is the id written in the project's voice store.
              * @member
              * @type {string | undefined}
              */
-            this["target"] = undefined;
+            this["profile"] = undefined;
         }
         if (!("changed" in $$source)) {
             /**
-             * Changed is false when the file on disk already said this.
+             * Changed is false when the store already said this.
              * @member
              * @type {boolean}
              */
             this["changed"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Recorded is the id of the context operation the save left on the
+             * project's record, empty when the store already said this.
+             * @member
+             * @type {string | undefined}
+             */
+            this["recorded"] = undefined;
         }
         if (!("problems" in $$source)) {
             /**
@@ -9757,14 +9836,14 @@ export class VoiceSaveResult {
      * @returns {VoiceSaveResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType152;
-        const $$createField5_0 = $$createType154;
+        const $$createField4_0 = $$createType154;
+        const $$createField6_0 = $$createType156;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
-            $$parsedSource["problems"] = $$createField3_0($$parsedSource["problems"]);
+            $$parsedSource["problems"] = $$createField4_0($$parsedSource["problems"]);
         }
         if ("pointer" in $$parsedSource) {
-            $$parsedSource["pointer"] = $$createField5_0($$parsedSource["pointer"]);
+            $$parsedSource["pointer"] = $$createField6_0($$parsedSource["pointer"]);
         }
         return new VoiceSaveResult(/** @type {Partial<VoiceSaveResult>} */($$parsedSource));
     }
@@ -9916,7 +9995,7 @@ export class WorkspaceHome {
      * @returns {WorkspaceHome}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType156;
+        const $$createField2_0 = $$createType158;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField2_0($$parsedSource["projects"]);
@@ -9970,6 +10049,17 @@ export class WorkspaceProject {
              */
             this["checkouts"] = [];
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * ContextFiles names the context files a checkout carries when this
+             * project's store has never held its context, and the command that reads
+             * them. The first readable checkout answers, since the rest carry their
+             * own branch's copy of the same files.
+             * @member
+             * @type {ContextFilesNoticeDTO | null | undefined}
+             */
+            this["context_files"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -9980,10 +10070,14 @@ export class WorkspaceProject {
      * @returns {WorkspaceProject}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType158;
+        const $$createField3_0 = $$createType160;
+        const $$createField4_0 = $$createType121;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("checkouts" in $$parsedSource) {
             $$parsedSource["checkouts"] = $$createField3_0($$parsedSource["checkouts"]);
+        }
+        if ("context_files" in $$parsedSource) {
+            $$parsedSource["context_files"] = $$createField4_0($$parsedSource["context_files"]);
         }
         return new WorkspaceProject(/** @type {Partial<WorkspaceProject>} */($$parsedSource));
     }
@@ -10173,42 +10267,44 @@ const $$createType116 = ProjectPointDTO.createFrom;
 const $$createType117 = $Create.Array($$createType116);
 const $$createType118 = CollectionStatus.createFrom;
 const $$createType119 = $Create.Array($$createType118);
-const $$createType120 = VoicePointDTO.createFrom;
-const $$createType121 = $Create.Array($$createType120);
-const $$createType122 = RecipeAxisDTO.createFrom;
+const $$createType120 = ContextFilesNoticeDTO.createFrom;
+const $$createType121 = $Create.Nullable($$createType120);
+const $$createType122 = VoicePointDTO.createFrom;
 const $$createType123 = $Create.Array($$createType122);
-const $$createType124 = ValidityDTO.createFrom;
-const $$createType125 = $Create.Nullable($$createType124);
-const $$createType126 = model$0.Origin.createFrom;
+const $$createType124 = RecipeAxisDTO.createFrom;
+const $$createType125 = $Create.Array($$createType124);
+const $$createType126 = ValidityDTO.createFrom;
 const $$createType127 = $Create.Nullable($$createType126);
-const $$createType128 = review$0.Context.createFrom;
+const $$createType128 = model$0.Origin.createFrom;
 const $$createType129 = $Create.Nullable($$createType128);
-const $$createType130 = RunErrorAction.createFrom;
-const $$createType131 = $Create.Array($$createType130);
-const $$createType132 = RunError.createFrom;
-const $$createType133 = $Create.Nullable($$createType132);
-const $$createType134 = flow$0.StepSnapshot.createFrom;
-const $$createType135 = $Create.Array($$createType134);
-const $$createType136 = convergence$0.Event.createFrom;
-const $$createType137 = $Create.Nullable($$createType136);
-const $$createType138 = host$0.ConvergeOutput.createFrom;
+const $$createType130 = review$0.Context.createFrom;
+const $$createType131 = $Create.Nullable($$createType130);
+const $$createType132 = RunErrorAction.createFrom;
+const $$createType133 = $Create.Array($$createType132);
+const $$createType134 = RunError.createFrom;
+const $$createType135 = $Create.Nullable($$createType134);
+const $$createType136 = flow$0.StepSnapshot.createFrom;
+const $$createType137 = $Create.Array($$createType136);
+const $$createType138 = convergence$0.Event.createFrom;
 const $$createType139 = $Create.Nullable($$createType138);
-const $$createType140 = flow$0.FlowStep.createFrom;
-const $$createType141 = $Create.Array($$createType140);
-const $$createType142 = RunTraceFile.createFrom;
+const $$createType140 = host$0.ConvergeOutput.createFrom;
+const $$createType141 = $Create.Nullable($$createType140);
+const $$createType142 = flow$0.FlowStep.createFrom;
 const $$createType143 = $Create.Array($$createType142);
-const $$createType144 = IOPort.createFrom;
+const $$createType144 = RunTraceFile.createFrom;
 const $$createType145 = $Create.Array($$createType144);
-const $$createType146 = VoiceBindingDTO.createFrom;
-const $$createType147 = $Create.Nullable($$createType146);
-const $$createType148 = profile$0.VoiceProfile.createFrom;
+const $$createType146 = IOPort.createFrom;
+const $$createType147 = $Create.Array($$createType146);
+const $$createType148 = VoiceBindingDTO.createFrom;
 const $$createType149 = $Create.Nullable($$createType148);
-const $$createType150 = VoiceEditTargetDTO.createFrom;
-const $$createType151 = profile$0.ProfileProblem.createFrom;
-const $$createType152 = $Create.Array($$createType151);
-const $$createType153 = VoicePointerDTO.createFrom;
-const $$createType154 = $Create.Nullable($$createType153);
-const $$createType155 = WorkspaceProject.createFrom;
-const $$createType156 = $Create.Array($$createType155);
-const $$createType157 = WorkspaceCheckout.createFrom;
+const $$createType150 = profile$0.VoiceProfile.createFrom;
+const $$createType151 = $Create.Nullable($$createType150);
+const $$createType152 = VoiceEditTargetDTO.createFrom;
+const $$createType153 = profile$0.ProfileProblem.createFrom;
+const $$createType154 = $Create.Array($$createType153);
+const $$createType155 = VoicePointerDTO.createFrom;
+const $$createType156 = $Create.Nullable($$createType155);
+const $$createType157 = WorkspaceProject.createFrom;
 const $$createType158 = $Create.Array($$createType157);
+const $$createType159 = WorkspaceCheckout.createFrom;
+const $$createType160 = $Create.Array($$createType159);

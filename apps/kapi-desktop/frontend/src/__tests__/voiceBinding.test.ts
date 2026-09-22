@@ -27,15 +27,15 @@ describe("voice binding keys", () => {
     expect(decodeVoiceBinding("file:C:/voice.yaml")).toEqual({ profile_file: "C:/voice.yaml" });
   });
 
-  it("offers the recipe's files first, then the packs as read-only", () => {
+  it("offers the stored profiles first, then the packs as read-only", () => {
     const options = voiceBindingOptions({
       axes: [],
       channels: [],
       profiles: ["support"],
-      voice_files: [".kapi/voice.yaml"],
+      voice_profiles: ["northsea"],
       packs: ["technical-docs"],
     });
-    expect(options.map((o) => o.value)).toEqual(["file:.kapi/voice.yaml", "pack:technical-docs"]);
+    expect(options.map((o) => o.value)).toEqual(["store:northsea", "pack:technical-docs"]);
     expect(options[1].hint).toBe("read-only");
   });
 });

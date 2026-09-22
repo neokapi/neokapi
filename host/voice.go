@@ -520,19 +520,6 @@ func (a *App) loadVoiceAtGovernance(ctx context.Context, root string, store core
 // that profile's. A per-profile scope belongs in the path, not in the filename.
 const VoiceConventionalName = "voice.yaml"
 
-// VoiceProfileConventions lists the well-known profile locations under a
-// project root, `.kapi/` first.
-//
-// An export writes a profile at the first of them and an import reads either.
-// Governance resolves a voice from the project's voice store, so nothing on a
-// read path calls this.
-func VoiceProfileConventions(root string) []string {
-	return []string{
-		filepath.Join(root, project.RelStatePath(VoiceConventionalName)),
-		filepath.Join(root, VoiceConventionalName),
-	}
-}
-
 // loadBoundVoiceProfile turns a resolved voice binding into a VoiceProfile,
 // out of the project's voice store. Returns found=false when the binding is nil
 // (nothing bound at this point, nor project-wide) and when the store holds no
@@ -575,24 +562,6 @@ func (a *App) loadBoundVoiceProfile(ctx context.Context, bv *project.VoiceBindin
 		return p, "store:" + id, true, nil
 	}
 	return nil, "", false, nil
-}
-
-// loadProfileFile loads a VoiceProfile YAML from path. Returns (nil, nil) when
-// the file does not exist so callers can fall through to other sources.
-func loadProfileFile(path string) (*coreprofile.VoiceProfile, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("open profile %q: %w", path, err)
-	}
-	defer f.Close()
-	p, err := coreprofile.LoadProfileYAML(f)
-	if err != nil {
-		return nil, fmt.Errorf("load profile %q: %w", path, err)
-	}
-	return p, nil
 }
 
 // lookupStoreProfile finds a profile in the voice store this command resolves,

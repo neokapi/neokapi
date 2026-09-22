@@ -179,11 +179,27 @@ func readEditedProfile(data []byte) (*coreprofile.VoiceProfile, error) {
 // recordVoiceEdit puts the edit on the project's context record, as the person
 // who made it.
 func (a *App) recordVoiceEdit(ctx context.Context, recipePath string, prof *coreprofile.VoiceProfile) (string, error) {
+	return a.recordVoiceWrite(ctx, recipePath, contextop.Actor{}, prof,
+		"edited whole", "edited with `kapi voice edit`")
+}
+
+// recordVoiceWrite puts a whole-profile write on the project's context record.
+//
+// actor says who wrote it. An empty kind leaves the environment to answer, the
+// way a command line does; a surface a person drives states the person. what
+// says what happened to the profile and how says where it came from.
+func (a *App) recordVoiceWrite(
+	ctx context.Context,
+	recipePath string,
+	actor contextop.Actor,
+	prof *coreprofile.VoiceProfile,
+	what, how string,
+) (string, error) {
 	s, err := a.contextOps(ctx, recipePath)
 	if err != nil {
 		return "", err
 	}
-	actor, note, err := s.actorFor(ctx, contextop.Actor{}, "edited with `kapi voice edit`")
+	actor, note, err := s.actorFor(ctx, actor, how)
 	if err != nil {
 		return "", err
 	}
@@ -192,7 +208,7 @@ func (a *App) recordVoiceEdit(ctx context.Context, recipePath string, prof *core
 		Kind:  contextop.KindConfirm,
 		Subject: contextop.Subject{
 			Kind: contextop.SubjectNote,
-			Text: "voice profile " + prof.ID + " edited whole",
+			Text: "voice profile " + prof.ID + " " + what,
 		},
 		Note: note,
 	}, nil))

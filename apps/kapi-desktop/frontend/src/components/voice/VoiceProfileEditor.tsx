@@ -183,7 +183,9 @@ export function VoiceProfileEditor({
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">
             {target.exists ? t("Editing") : t("Creating")}{" "}
-            <code className="font-mono text-[11px] text-muted-foreground">{target.target}</code>
+            <code className="font-mono text-[11px] text-muted-foreground" translate="no">
+              {target.profile}
+            </code>
           </p>
           {target.inherited && (
             <p className="text-xs text-muted-foreground">
@@ -369,7 +371,7 @@ export function VoiceProfileEditor({
           onChange={(auto_promote_at_count) => update({ autonomy: { auto_promote_at_count } })}
         />
         <Badge variant="outline" className="font-normal text-muted-foreground">
-          {t("Saved to {target}", { target: target.target ?? "" })}
+          {t("Saved into the voice profile {profile}", { profile: target.profile ?? "" })}
         </Badge>
       </section>
     </div>

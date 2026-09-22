@@ -332,10 +332,14 @@ func ScaffoldRecipe(name, id, sourceLocale string, targetLocales []string, conte
 # and its base: is the directory it lives in. Every path and target below is
 # written relative to that base and joined onto it:
 #
+# A voice: binding names a profile this project's store holds. Terms, voice
+# profiles, content memory and recorded decisions live in your workspace, and
+# 'kapi context import' reads a checkout's context files into it.
+#
 # profiles:
 #   acme:
 #     channels: [docs]
-#     voice: .kapi/profiles/acme/voice.yaml
+#     voice: acme-docs
 #
 # collections:
 #   - name: acme-docs
@@ -399,7 +403,8 @@ func ScaffoldContentRecipe(name, id, sourceLocale string) []byte {
 #
 # Swap the starter pack for your own profile: 'kapi voice new -o voice.yaml',
 # fill it in, 'kapi voice import voice.yaml', then set
-# defaults.voice.profile instead of pack.
+# defaults.voice.profile instead of pack. The profile lives in your
+# workspace from there on, and 'kapi voice edit' opens it again.
 collections: []
 
 # The check flow scores content against the voice vocabulary (deterministic,

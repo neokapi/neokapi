@@ -19,6 +19,9 @@ outro:
   line: Inspect the applicable guidance and the checks that actually ran.
   pointer: kapi context <path>
 setup:
+  # The sample ships its context as files, and a fresh sandbox has a store that
+  # has never held them.
+  - kapi context import ./context
   - mkdir -p .lab-original
   - cp site/locales/en/*.json .lab-original/
 script:

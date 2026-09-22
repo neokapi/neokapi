@@ -19,7 +19,7 @@ func TestScaffoldShipsCommittedContext(t *testing.T) {
 	require.NoError(t, Scaffold("kapimart", dir))
 
 	for _, rel := range []string{
-		filepath.Join(project.StateDirName, "voice.yaml"),
+		filepath.Join(ContextDirName, "voice.yaml"),
 		TermsSourceRel,
 		MemorySourceRel,
 		filepath.Join(project.StateDirName, project.StateGitignoreFilename),
@@ -114,7 +114,7 @@ func TestCommittedVoiceProfileValidates(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, Scaffold("kapimart", dir))
 
-	f, err := os.Open(filepath.Join(dir, project.StateDirName, "voice.yaml"))
+	f, err := os.Open(filepath.Join(dir, ContextDirName, "voice.yaml"))
 	require.NoError(t, err)
 	defer f.Close()
 

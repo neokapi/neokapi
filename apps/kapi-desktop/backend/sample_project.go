@@ -38,11 +38,10 @@ func (a *App) CreateSampleProject(name string) (*TabInfo, error) {
 		}
 		a.logger.Printf("sample %q recipe is stale/unparseable, re-scaffolding", name)
 		// Drop the store first: one left by an older app version carries an
-		// incompatible migration history, so re-seeding into it fails ("apply
-		// migration N: no such table ..."). Deleting it is enough and costs
-		// nothing — every subsystem in there is a projection of committed sources.
-		// The rest of `.kapi/` stays, so the committed unit record survives; the
-		// user's input/ and output/ were never at risk.
+		// incompatible migration history, so scaffolding into it fails ("apply
+		// migration N: no such table ..."). Deleting it costs nothing, because
+		// the scaffold reads the sample's context/ files back in. The user's
+		// input/ and output/ were never at risk.
 		if err := a.resetProjectStore(targetDir); err != nil {
 			return nil, fmt.Errorf("reset stale sample state: %w", err)
 		}

@@ -2537,14 +2537,15 @@ export function SaveUserFlow(req) {
 }
 
 /**
- * SaveVoiceProfile writes a voice profile to the file the point resolves to.
+ * SaveVoiceProfile writes a voice profile into the project's voice store at the
+ * point it was edited at, and records the write on the project's context
+ * record.
  * 
- * Validation runs first and a blocking problem refuses the write, so the file a
- * run reads is never one the loader would reject. Warnings do not refuse: a
- * tone the usual list does not name is kept and rendered as written.
+ * Validation runs first and a blocking problem refuses the write, so a run
+ * never reads a profile the loader would reject. Warnings do not refuse: a tone
+ * the usual list does not name is kept and rendered as written.
  * 
- * The write goes through the comment-preserving writer, so an author's
- * reasoning and key order survive an edit made here.
+ * A person is at the keyboard, so the operation is recorded as theirs.
  * @param {string} tabID
  * @param {string} profileName
  * @param {profile$0.VoiceProfile} profile

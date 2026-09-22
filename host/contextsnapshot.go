@@ -127,7 +127,7 @@ func (a *App) SnapshotProjectContext(ctx context.Context, projectPath string, re
 		return res, err
 	}
 
-	writer := &snapshotWriter{dir: out}
+	writer := &snapshotWriter{dir: out, stands: relSlash(layout.Root, out)}
 	if err := a.snapshotTerms(ctx, db, writer, &res); err != nil {
 		return res, err
 	}
@@ -148,7 +148,13 @@ func (a *App) SnapshotProjectContext(ctx context.Context, projectPath string, re
 // snapshotWriter writes files under one directory and remembers which ones
 // moved.
 type snapshotWriter struct {
-	dir     string
+	dir string
+	// stands is the project-relative directory this snapshot stands in for,
+	// `.kapi` for the project's own layout and whatever `--out` named inside
+	// the project otherwise. A binding under it is written at the path it has
+	// there, so a project keeping its context files in one directory snapshots
+	// back over them.
+	stands  string
 	written []string
 }
 
@@ -224,7 +230,7 @@ func (a *App) snapshotVoice(ctx context.Context, db *projectdb.DB, w *snapshotWr
 		return err
 	}
 	for _, bp := range profiles {
-		rel := voiceSnapshotRel(bp.binding)
+		rel := voiceSnapshotRel(bp.binding, w.stands)
 		data, err := renderSnapshotProfile(w.existing(rel), bp.profile)
 		if err != nil {
 			return fmt.Errorf("render voice profile %s: %w", bp.profile.ID, err)
@@ -238,16 +244,23 @@ func (a *App) snapshotVoice(ctx context.Context, db *projectdb.DB, w *snapshotWr
 }
 
 // voiceSnapshotRel turns a project-relative binding into a path under the
-// snapshot directory, which stands in for `.kapi/`. A binding outside the
-// state directory (a recipe pointing at a profile elsewhere in the tree) is
-// filed under the profile directory instead, so a snapshot never writes above
-// the directory it was given.
-func voiceSnapshotRel(binding string) string {
-	prefix := project.StateDirName + "/"
-	if len(binding) > len(prefix) && binding[:len(prefix)] == prefix {
-		return binding[len(prefix):]
+// snapshot directory. stands is the directory the snapshot stands in for, and a
+// binding under it, or under `.kapi/`, keeps the path it has there. Anything
+// else (a recipe pointing at a profile elsewhere in the tree) is filed under
+// the profile directory, so a snapshot never writes above the directory it was
+// given.
+func voiceSnapshotRel(binding, stands string) string {
+	binding = filepath.ToSlash(binding)
+	for _, dir := range []string{stands, project.StateDirName} {
+		if dir == "" || dir == "." {
+			continue
+		}
+		prefix := dir + "/"
+		if len(binding) > len(prefix) && binding[:len(prefix)] == prefix {
+			return binding[len(prefix):]
+		}
 	}
-	return project.ProfilesDirName + "/" + filepath.ToSlash(binding)
+	return project.ProfilesDirName + "/" + binding
 }
 
 // renderSnapshotProfile serializes a voice profile for the snapshot. A document

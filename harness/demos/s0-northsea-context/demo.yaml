@@ -22,7 +22,7 @@ outro:
   line: Ask your own repository the same two questions.
   pointer: kapi context search <word>
 
-# The sample ships the context graph as the assistant drafted it, untracked,
+# The sample ships its context files as the assistant drafted them, untracked,
 # next to content that is already committed. That is the state a review starts
 # from, so the first beat can be the review rather than a re-enactment of it.
 setup:
@@ -39,7 +39,9 @@ script:
   - command: git status --short
   - comment: Commit the prepared guidance so its changes can be inspected in version control.
   - command: git add -A && git commit -qm "Adopt the context graph" && git log --oneline -1
-  - comment: One verb reconciles the committed graph and the sources. No target languages, no provider, nothing to ask for.
+  - comment: The files are a proposal until somebody reads them in. One command puts them in force for this project.
+  - command: kapi context import ./context
+  - comment: One verb reconciles the project's context and the sources. No target languages, no provider, nothing to ask for.
   - command: kapi up
   - comment: The first question an agent asks. Where am I, and what governs here?
   - command: kapi context docs/berths.md
@@ -66,12 +68,13 @@ narration:
 
   - id: adopt
     kind: terminal
-    through: 8
-    caption: Prepared guidance, committed and reconciled.
+    through: 10
+    caption: Prepared guidance, read in and reconciled.
     text: >-
       This demonstration starts with a prepared recipe, voice profile and terms.
-      We commit them and run kapi up to reconcile them with the source files.
-      The recording does not stand in for a human review of the guidance.
+      We commit them, read them into the project's context with one command, and
+      run kapi up to reconcile them with the source files. The recording does not
+      stand in for a human review of the guidance.
 
   - id: landing
     kind: artifact
@@ -84,7 +87,7 @@ narration:
 
   - id: where
     kind: terminal
-    through: 12
+    through: 14
     highlight: { text: [northsea/docs, northsea/landing] }
     caption: Two paths, two points, one voice.
     text: >-
@@ -94,7 +97,7 @@ narration:
 
   - id: search
     kind: terminal
-    through: 14
+    through: 16
     highlight: { text: [mooring, berth] }
     caption: The decision, and every place it lands.
     text: >-

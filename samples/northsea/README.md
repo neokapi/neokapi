@@ -5,8 +5,9 @@ and passes its own gates in **one language**. It exists to show that the first
 journey, govern the content you already have, stands on its own, with no
 second language, no server, and no provider credential anywhere in it.
 
-Everything here runs offline from the committed files. `kapi check` reads
-`kapi.yaml`, `.kapi/voice.yaml` and `.kapi/terms.json`, and nothing else.
+Everything here runs offline. The sample ships its context as files under
+`context/`, and `kapi context import ./context` reads them into your workspace,
+where `kapi check` answers from. No network, no credential.
 
 This README follows the project's own register
 ([brand-communication.md](../../docs/internals/brand-communication.md)); the
@@ -35,10 +36,11 @@ here means the same thing there.
 ```
 samples/northsea/
 ├── kapi.yaml                 # the recipe: one profile, four channels
-├── .kapi/
+├── context/                  # read in with `kapi context import ./context`
 │   ├── voice.yaml            # the house voice, with a per-channel register
-│   ├── terms.json            # the committed vocabulary record
-│   └── .gitignore            # work/ is derived; everything else is committed
+│   └── terms.json            # the vocabulary this sample ships
+├── .kapi/
+│   └── .gitignore            # work/ is derived; the rest of .kapi/ is config
 ├── docs/                     # northsea/docs — operator documentation
 │   ├── index.md
 │   ├── berths.md
@@ -76,7 +78,7 @@ channel, which is the finest point the recipe can declare.
 ## The rename, and where it stops
 
 Northsea renamed a place alongside from **mooring** to **berth** on 2026-01-20.
-The decision is in `.kapi/terms.json` as one concept carrying both terms,
+The decision is in `context/terms.json` as one concept carrying both terms,
 `berth` preferred and `mooring` deprecated, plus a second concept for the API
 field `mooring_id`, which is `admitted` because the wire contract keeps the name
 the vocabulary retired.
@@ -103,11 +105,9 @@ project declared, so the field name is not read as a use of the word it
 contains.
 
 What a recipe still cannot say is *permitted in this passage*: an exception
-finer than a file. A file-scoped exception is declarable today, through a profile with
-its own `terms:` (or the conventional
-`.kapi/profiles/<name>/terms.json`) governs exactly the files its channels
-carry, because `kapi check` resolves the vocabulary per file the way it resolves
-the voice. Below the file there is no point to bind, which is the open case
+finer than a file. A file-scoped exception is declarable today: a profile with
+its own `termstore:` governs exactly the files its channels carry, because
+`kapi check` resolves the vocabulary per file the way it resolves the voice. Below the file there is no point to bind, which is the open case
 named at the end of
 [C-02](../../web/docs/contribute/architecture/context/c-02-coordinates-and-governance.md).
 Until it exists, the advisory severity is what makes the arrangement liveable.
@@ -118,8 +118,8 @@ Two rules, from two sources, and the sample ships one violation of each:
 
 | Rule | Source | Severity | Where the sample violates it | Point |
 | --- | --- | --- | --- | --- |
-| `seamless` → `unified` | `.kapi/voice.yaml` | major | `landing/index.html`, Compass section | `northsea/landing` |
-| `ship` → `vessel` | `.kapi/terms.json` (deprecated) | minor | `app/strings.en.json`, `fleet.search.placeholder` | `northsea/app` |
+| `seamless` → `unified` | `context/voice.yaml` | major | `landing/index.html`, Compass section | `northsea/landing` |
+| `ship` → `vessel` | `context/terms.json` (deprecated) | minor | `app/strings.en.json`, `fleet.search.placeholder` | `northsea/app` |
 
 The severity difference is the point. A word the voice profile forbids is a
 defect; a word the vocabulary retired is a migration, and a migration that fails
@@ -134,17 +134,18 @@ walkthrough, and the next check enforces the decision.
 From a copy of this directory (the commands assume kapi on `PATH`):
 
 ```bash
-kapi voice validate .kapi/voice.yaml      # the drafted profile is schema-valid
+kapi voice validate context/voice.yaml    # the drafted profile is schema-valid
+kapi context import ./context             # read the sample's context into your workspace
 kapi up                                   # reconcile the graph and the sources
 kapi context docs/berths.md               # where am I, and what governs here
 kapi context search mooring               # what do we call this, and everywhere it lands
-kapi check --strict                       # exit 3 — one major, the rest advisory
+kapi check --strict                       # exit 3, one major and the rest advisory
 ```
 
-`kapi up` comes before the two questions on purpose: it is what compiles the
-committed terms into the store and builds the occurrence graph, so
-`kapi context search` can answer *where* a word is used and not only what it
-means.
+The import comes first: until it runs, the files under `context/` are a copy
+somebody sent you, and every gate answers from an empty store. `kapi up` then
+builds the occurrence graph, so `kapi context search` can answer *where* a word
+is used and not only what it means.
 
 Correct the wording the source got wrong, then teach the graph a word it has
 never been told about:
@@ -222,9 +223,10 @@ kapi up
 kapi check --strict
 ```
 
-Both writes edit the committed file rather than re-emitting it: `kapi.yaml` and
-`.kapi/terms.json` keep their comments and their key order, so `git diff` is
-small enough to read as a decision. The check that follows reports the retired
+The term decisions land in the project's terms store, and `kapi.yaml` is edited
+rather than re-emitted, so its comments and key order survive. Write the store
+back out with `kapi context snapshot --out ./context` to review the decisions as
+a diff. The check that follows reports the retired
 name wherever the documentation still carries it, each finding naming Tideguard
 as the fix, advisory as a retirement always is, and exactly the sweep the
 decision created.

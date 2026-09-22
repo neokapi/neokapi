@@ -126,7 +126,7 @@ func TestAGateDoesNotEndTheShell(t *testing.T) {
 //
 // A gate that globs the working directory misses what the agent put where the
 // tool's own convention puts it. gateUsableVoiceProfile globbed `*.yaml` while
-// kapi writes `.kapi/voice.yaml`, so the agent that did exactly the right thing
+// a profile as often sits under `.kapi/`, so the agent that did exactly the right thing
 // failed. Anything looking for a file the agent chose the location of searches
 // with find.
 func TestGatesSearchTheWholeWorkspace(t *testing.T) {
@@ -137,7 +137,7 @@ func TestGatesSearchTheWholeWorkspace(t *testing.T) {
 		}
 		t.Run(sc.ID, func(t *testing.T) {
 			assert.Contains(t, g, "find ",
-				"this gate globs for YAML in the working directory; kapi's own convention is .kapi/voice.yaml")
+				"this gate globs for YAML in the working directory; a profile as often sits under .kapi/")
 		})
 	}
 }

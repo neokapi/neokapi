@@ -158,9 +158,9 @@ sign in,se connecter,anmelden,
 // load as a profile and score 100/100 "on brand". validate is the command with
 // an opinion, and it rejects both for a missing name. See issue #2224.
 //
-// It globbed `*.yaml` in the working directory only, while kapi's own
-// convention puts the profile at `.kapi/voice.yaml`. The agent that did exactly
-// the right thing was scored a failure for it.
+// It globbed `*.yaml` in the working directory only, while a project's voice
+// profile is as likely to sit under `.kapi/`, where an export writes one. The
+// agent that did exactly the right thing was scored a failure for it.
 //
 // It ended in `exit 1`, so composing it with `&&` produced a gate whose second
 // half could never run: `…; exit 1 && test -n "$(find …)"` terminates at the
@@ -179,9 +179,9 @@ const gateReadableProject = `test -f kapi.yaml && kapi status -p . >/dev/null 2>
 //
 // This is what the loop changes. Looking for a target file instead would ask
 // about delivery: Defaults.Materialize is `manual` unless the recipe opts in,
-// so a fully converged project writes no nb.json and the state lives in
-// .kapi/. Checked in both directions on the p11 fixture — 1 before `kapi up`,
-// 0 after, with the run served locally by ollama.
+// so a fully converged project writes no nb.json and its state is in the
+// project store. Checked in both directions on the p11 fixture: 1 before
+// `kapi up`, 0 after, with the run served locally by ollama.
 const gateLocaleTranslated = `kapi status -p . --json 2>/dev/null | ` +
 	`python3 -c 'import json,sys;d=json.load(sys.stdin);` +
 	`sys.exit(0 if any(l["pct"].get("translated",0)>0 for l in d.get("locales",[])) else 1)'`

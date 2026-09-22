@@ -54,11 +54,21 @@ const invoke = (command) => {
 };
 
 try {
-  for (const path of [".kapi", "kapi.yaml", "site", "service-facts.md"]) {
+  for (const path of ["context", "kapi.yaml", "site", "service-facts.md"]) {
     cpSync(join(here, path), join(sandbox, path), { recursive: true });
   }
   version = invoke(["--version"]);
   if (version.exitCode !== 0) throw new Error(version.stderr);
+  // The sample's context is files until somebody reads them in, and a person
+  // is who does that, so the run says so rather than being read as an agent.
+  const imported = spawnSync(binary, ["context", "import", "./context", "-p", "kapi.yaml"], {
+    cwd: sandbox,
+    env: { ...env, KAPI_ACTOR: "person" },
+    encoding: "utf8",
+    timeout: 60_000,
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  if (imported.status !== 0) throw new Error(imported.stderr || "context import failed");
   const cases = [
     { id: "clean", text: null, expected: 0 },
     { id: "assurance", text: "A video appointment is risk-free.", expected: 1 },
@@ -109,7 +119,7 @@ try {
     sourceDirty: optional(() => git("status", "--porcelain", "--untracked-files=no") !== ""),
     sourceDiffSha256: optional(() => hash(git("diff", "HEAD"))),
     binarySha256: optional(() => hash(readFileSync(binary))), binaryVersion: version?.stdout.trim(),
-    profileSha256: optional(() => hash(readFileSync(join(here, ".kapi/voice.yaml")))),
+    profileSha256: optional(() => hash(readFileSync(join(here, "context/voice.yaml")))),
     recipeSha256: optional(() => hash(readFileSync(join(here, "kapi.yaml")))),
     scope: "Offline deterministic checks; no model, remote binding or authenticated review.",
     limitations: [

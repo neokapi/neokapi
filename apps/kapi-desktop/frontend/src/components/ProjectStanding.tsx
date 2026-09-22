@@ -206,6 +206,24 @@ export function ProjectStanding({
               <Fact muted>{targets.join(", ")}</Fact>
             </Axis>
           )}
+
+          {status?.contextFiles && (
+            <p
+              data-slot="standing-context-files"
+              data-testid="standing-context-files"
+              className="mt-2 rounded-md border border-amber-500/40 px-3 py-2 text-xs text-amber-700 dark:text-amber-500"
+            >
+              {t("This checkout carries context files nobody has read in:")}{" "}
+              <span className="font-mono" translate="no">
+                {status.contextFiles.files.join(", ")}
+              </span>
+              . {t("Read them into this project with")}{" "}
+              <code className="font-mono" translate="no">
+                {status.contextFiles.command}
+              </code>
+              .
+            </p>
+          )}
         </CardContent>
       </Card>
 

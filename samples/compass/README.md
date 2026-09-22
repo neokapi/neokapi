@@ -35,14 +35,15 @@ German and Dutch.
 ```
 samples/compass/
 ├── kapi.yaml                 # the recipe: one point, three target languages, two gates
-├── .kapi/
+├── context/                  # read in with `kapi context import ./context`
 │   ├── voice.yaml            # the Northsea voice, cut to the one channel this ships on
-│   ├── terms.json            # the committed vocabulary record
-│   ├── memory/               # approved wording, per language — the recycle corpus
+│   ├── terms.json            # the vocabulary this sample ships
+│   ├── memory/               # approved wording, per language, the recycle corpus
 │   │   ├── compass-nb.memory.json
 │   │   └── compass-de.memory.json
-│   ├── state/                # the committed review record: who approved what, and of which text
-│   └── .gitignore            # work/ is derived; everything else is committed
+│   └── state/                # the review record: who approved what, and of which text
+├── .kapi/
+│   └── .gitignore            # work/ is derived; the rest of .kapi/ is config
 └── site/
     ├── index.html            # the deployable page
     ├── language-picker.js    # the picker, built from ship.json
@@ -126,10 +127,15 @@ hold every language behind the ship gate, which is the honest answer.
 From a copy of this directory (the commands assume kapi on `PATH`):
 
 ```bash
+kapi context import ./context                     # read the sample's context into your workspace
 kapi status                                       # both axes, on one screen
 kapi context site/locales/en-GB.json              # the point, and what governs here
 kapi status --ship --emit site/ship.json          # what the site may offer today
 ```
+
+The import comes first. The voice profile, the vocabulary, the approved wording
+and the review record ship here as files, and until somebody reads them in they
+govern nothing.
 
 Converge. Approved wording is recycled first; the remainder is drafted by the
 `demo` provider, whose output is deliberately and visibly synthetic:
@@ -162,8 +168,7 @@ approves the Dutch a person wrote and leaves what the stub drafted:
 kapi status --review --json --jq '.pending[]
   | select(.locale == "nl" and (.target | startswith("⟦") | not))
   | {kind: "review", op: "add", file, id: .key, locale, status: "reviewed"}' > dutch.json
-kapi apply dutch.json
-kapi commit                                       # into .kapi/state — attributable, committed
+kapi apply dutch.json                             # each decision lands in the record, attributable
 kapi status --ship --emit site/ship.json          # Dutch is offered now, marked AI
 ```
 
@@ -174,7 +179,6 @@ kapi status --review --json --jq '.pending[]
   | select(.locale == "nb")
   | {kind: "review", op: "add", file, id: .key, locale, status: "reviewed"}' > norwegian.json
 kapi apply norwegian.json
-kapi commit
 kapi status --ship --emit site/ship.json          # nb: shippable and verified
 ```
 
@@ -191,10 +195,10 @@ The seven points the shaped samples are held to, as this sample meets them.
 
 | # | Point | Standing |
 | --- | --- | --- |
-| 1 | Onboarded through the discovery path, so the graph arrives as reviewable files | **MET**: `kapi.yaml`, `.kapi/voice.yaml` and `.kapi/terms.json` are the drafted-then-corrected artifacts the monolingual sample established, carried forward rather than re-authored |
-| 2 | Governance bound at the point from day one; review workflow on | **MET**: `profiles.northsea` binds voice and channel; `.kapi/state/` carries 54 committed decisions before the loop is ever run |
+| 1 | Onboarded through the discovery path, so the graph arrives as reviewable files | **MET**: `kapi.yaml`, `context/voice.yaml` and `context/terms.json` are the drafted-then-corrected artifacts the monolingual sample established, carried forward rather than re-authored |
+| 2 | Governance bound at the point from day one; review workflow on | **MET**: `profiles.northsea` binds voice and channel; `context/state/` carries 54 decisions the import reads in before the loop is ever run |
 | 3 | First converge shows recycle numbers and an estimate before it spends | **MET**: `plan: 26 unit(s) missing · drafting 2 unit(s) the content memory does not answer · 5 exact-content memory · 23 AI · ≈241 tokens`, then per-locale `(content memory N · AI M)` summing to the same 23. No credential is spent: the AI leg is the `demo` provider |
-| 4 | Governed review exercised, with a decision that changes an outcome | **MET**: the Dutch review moves `nl` from withheld to offered, and the Norwegian review removes its AI marker. Both are `kapi apply` + `kapi commit` round-trips landing in `.kapi/state/` |
+| 4 | Governed review exercised, with a decision that changes an outcome | **MET**: the Dutch review moves `nl` from withheld to offered, and the Norwegian review removes its AI marker. Both are `kapi apply` round-trips landing in the project's record |
 | 5 | Delivery proven | **MET**: `kapi up` materializes into `site/locales/`, `kapi status --ship --emit` writes `site/ship.json`, and the deployed page reads both. No copy step, no second pipeline |
 | 6 | Recorded as a harness walkthrough | **PARTIAL**: `harness/demos/s1-compass-converge/` and `harness/demos/s1-compass-ship-gate/` are authored and neither has been recorded since the split; nothing has been rendered or published for English, and the Norwegian render is held by [#2032](https://github.com/neokapi/neokapi/issues/2032) |
 | 7 | Carries no internal information; lives where a reader can clone it | **MET**: one fictional company, in-repo under `samples/` per the sample conventions |
@@ -227,8 +231,8 @@ produced unit by whether a target file exists while the pass drafts whatever the
 content memory does not answer, so a rewrite quoted one provider call and spent
 three ([#1974](https://github.com/neokapi/neokapi/issues/1974)); `kapi apply` refusing
 the indented change-set that `kapi status --review --json --jq` prints, so the
-review round-trip did not compose; and `kapi commit` writing absolute machine
-paths into `.kapi/state/` when the recipe was named by a relative `-p`.
+review round-trip did not compose; and a decision record written with absolute
+machine paths in it when the recipe was named by a relative `-p`.
 
 ## Where it is used
 

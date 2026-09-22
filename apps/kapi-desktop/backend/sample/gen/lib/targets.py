@@ -261,7 +261,7 @@ def _approved_at(unit):
 
 def settle(work):
     """Replace every generated timestamp with one derived from the unit."""
-    bundle_path = os.path.join(work, ".kapi", "memory", "memory.json")
+    bundle_path = os.path.join(work, "context", "memory", "memory.json")
     bundle = json.load(open(bundle_path, encoding="utf-8"))
     for entry in bundle.get("entries", []):
         at = _approved_at(entry.get("unit") or entry.get("id", ""))
@@ -276,7 +276,7 @@ def settle(work):
               ensure_ascii=False, indent=2, sort_keys=True)
     open(bundle_path, "a", encoding="utf-8").write("\n")
 
-    state_dir = os.path.join(work, ".kapi", "state")
+    state_dir = os.path.join(work, "context", "state")
     for name in sorted(os.listdir(state_dir)):
         path = os.path.join(state_dir, name)
         rows = []
@@ -315,11 +315,11 @@ def install(work, sample, spec_path):
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copyfile(src, dst)
 
-    shutil.copyfile(os.path.join(work, ".kapi", "memory", "memory.json"),
-                    os.path.join(sample, ".kapi", "memory", "memory.json"))
+    shutil.copyfile(os.path.join(work, "context", "memory", "memory.json"),
+                    os.path.join(sample, "context", "memory", "memory.json"))
 
-    _install_state(os.path.join(work, ".kapi", "state"),
-                   os.path.join(sample, ".kapi", "state"))
+    _install_state(os.path.join(work, "context", "state"),
+                   os.path.join(sample, "context", "state"))
 
 
 def _install_state(state_src, state_dst):
@@ -358,10 +358,10 @@ def _install_state(state_src, state_dst):
 
 
 def summary(sample):
-    bundle = json.load(open(os.path.join(sample, ".kapi", "memory", "memory.json"),
+    bundle = json.load(open(os.path.join(sample, "context", "memory", "memory.json"),
                             encoding="utf-8"))
     entries = bundle.get("entries", [])
-    state_dir = os.path.join(sample, ".kapi", "state")
+    state_dir = os.path.join(sample, "context", "state")
     rows = sum(1 for name in os.listdir(state_dir)
                for line in open(os.path.join(state_dir, name), encoding="utf-8")
                if line.strip())

@@ -24,12 +24,13 @@ samples/tidewatch-docs/
 ├── docusaurus.config.ts      # the i18n block, and the source-strict/target-warn line
 ├── .gitignore                # i18n/ is build output
 ├── .github/workflows/kapi.yml # the CI leg: plan on a PR, converge on main, build regardless
-├── .kapi/
+├── context/                  # read in with `kapi context import ./context`
 │   ├── voice.yaml            # the Northsea voice, cut to the docs channel
-│   ├── terms.json            # the committed vocabulary record
-│   ├── memory/               # approved Norwegian wording — the recycle corpus
-│   ├── state/                # the committed review record
-│   └── .gitignore
+│   ├── terms.json            # the vocabulary this sample ships
+│   ├── memory/               # approved Norwegian wording, the recycle corpus
+│   └── state/                # the review record
+├── .kapi/
+│   └── .gitignore            # work/ is derived; the rest of .kapi/ is config
 └── docs/
     ├── index.md              # what Tidewatch reads and produces
     ├── berths.md             # declaring a berth; constraints changing mid-window
@@ -45,12 +46,12 @@ the point of having both:
 | | `compass/` | `tidewatch-docs/` |
 | --- | --- | --- |
 | The target | `site/locales/<lang>.json`, **committed** | `i18n/<lang>/…`, **gitignored** |
-| Why | the app's catalogs are the record a reviewer diffs | a Docusaurus i18n tree is build output, regenerated from the source plus the committed context |
-| The committed record is | the catalogs plus `.kapi/state/` | `.kapi/memory/` plus `.kapi/state/` |
+| Why | the app's catalogs are the record a reviewer diffs | a Docusaurus i18n tree is build output, regenerated from the source plus the project's context |
+| The reviewable record is | the catalogs, plus the decisions | the approved wording, plus the decisions |
 
 Both are real conventions. This repository's own docs collections are arranged
-the second way. What matters is that the record is committed somewhere and that
-generated translations never arrive in a pull-request diff.
+the second way. What matters is that generated translations never arrive in a
+pull-request diff.
 
 ## Front matter is content
 
@@ -85,7 +86,7 @@ Three jobs, and the relationship between them is the whole arrangement:
 | Job | On | What it does |
 | --- | --- | --- |
 | `plan` | pull request | a dry run: what is pending, what recycles, what the remainder would cost, posted as one sticky comment, plus a coverage summary |
-| `converge` | push to `main` | runs the loop and commits what moved under `.kapi/` |
+| `converge` | push to `main` | runs the loop and commits the content it moved |
 | `build` | both | builds the site, and **depends on neither of the other two** |
 
 `fail-on-parked` stays `false`, deliberately. *Parked* means work remains that the
@@ -115,6 +116,7 @@ Three independent mechanisms, all visible in this sample:
 ## Running the journey
 
 ```bash
+kapi context import ./context             # read the sample's context into your workspace
 kapi up                                   # converge; writes the i18n tree
 kapi status                               # coverage on both axes
 head -6 i18n/nb/docusaurus-plugin-content-docs/current/index.md
@@ -134,9 +136,8 @@ kapi status --review --json --jq '.pending[]
   | select(.locale == "nb")
   | {kind: "review", op: "add", file, id: .key, locale, status: "reviewed"}' > nb.json
 kapi apply nb.json
-kapi commit
 kapi status
-kapi check --strict                       # PASS — the source is what a PR is held to
+kapi check --strict                       # PASS: the source is what a PR is held to
 ```
 
 Dutch takes the same route, from the drafts in the project store. Nothing under
@@ -148,7 +149,6 @@ kapi status --review --json --jq '.pending[]
   | select(.locale == "nl")
   | {kind: "review", op: "add", file, id: .key, locale, status: "reviewed"}' > nl.json
 kapi apply nl.json
-kapi commit
 kapi up                                   # 0 passes, 8 files materialized
 ls i18n/nl
 ```
@@ -158,9 +158,9 @@ ls i18n/nl
 | # | Point | Standing |
 | --- | --- | --- |
 | 1 | Onboarded through the discovery path, so the graph arrives as reviewable files | **MET**: recipe, voice profile and vocabulary carried forward from the monolingual sample rather than re-authored |
-| 2 | Governance bound at the point day one; review workflow on | **MET**: `profiles.northsea` binds voice and channel; the review round-trip runs offline through `apply` + `commit` |
+| 2 | Governance bound at the point day one; review workflow on | **MET**: `profiles.northsea` binds voice and channel; the review round-trip runs offline through `kapi apply` |
 | 3 | First converge shows recycle numbers and an estimate before it spends | **MET**: `plan: 96 unit(s) missing · 15 exact-content memory · 81 AI · ≈2k tokens`, then per-locale `(content memory 23 · AI 37)`. No credential spent |
-| 4 | Governed review exercised, with a decision that changes an outcome | **MET**: 60 decisions committed to `.kapi/state/`, moving `nb` from `blocked: review` to `ready` while `nl` stays pending until its own drafts are reviewed |
+| 4 | Governed review exercised, with a decision that changes an outcome | **MET**: 60 decisions in `context/state/`, moving `nb` from `blocked: review` to `ready` while `nl` stays pending until its own drafts are reviewed |
 | 5 | Delivery proven, the CI leg | **PARTIAL**: the workflow is authored against the published actions and every kapi command in it is verified locally; it is not executed, because a sample workflow inside `samples/` is not a repository workflow and running it would mean a public sample repository, which this stream does not create |
 | 6 | Recorded as a harness walkthrough | **PARTIAL**: `harness/demos/s2-tidewatch-build-output/` and `harness/demos/s2-tidewatch-ci/` are authored and neither has been recorded since the split; nothing has been rendered or published for English, and the Norwegian render is held by [#2032](https://github.com/neokapi/neokapi/issues/2032) |
 | 7 | Carries no internal information; lives where a reader can clone it | **MET**: one fictional company, in-repo under `samples/` |

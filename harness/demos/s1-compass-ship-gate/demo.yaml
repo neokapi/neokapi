@@ -14,6 +14,10 @@ needsAi: false
 # recording and the sample a reader clones cannot drift apart.
 fixturesFrom: samples/compass
 project: true
+# The sample ships its context as files, and a fresh sandbox has a store that
+# has never held them, so the take starts where a reader does.
+setup:
+  - kapi context import ./context
 captureTimeoutSec: 240
 aspects:
   - review moves the edge
@@ -34,8 +38,7 @@ script:
       kapi status --review --json --jq '.pending[]|select(.locale=="nl" and (.target|startswith("⟦")|not))|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > dutch.json
   # The per-entry report goes to stderr, so the tail has to see stderr to trim it.
   - command: kapi apply dutch.json 2>&1 | tail -3
-  - comment: Approvals are staged until they are committed. Then they are in the record, attributable, in git.
-  - command: kapi commit
+  - comment: Each approval is in the record as it is made, attributable, and reviewable in the context log.
   - comment: A decision unparks the language, so run the loop again. The drafts it already made are recycled, so the provider is asked for nothing a second time.
   - command: kapi up
   - comment: Dutch is offered now, carrying the marker, because it is not signed off end to end.
@@ -45,7 +48,6 @@ script:
   - command: >-
       kapi status --review --json --jq '.pending[]|select(.locale=="nb")|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > norwegian.json
   - command: kapi apply norwegian.json 2>&1 | tail -2
-  - command: kapi commit
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
 
@@ -82,17 +84,17 @@ narration:
 
   - id: review
     kind: terminal
-    through: 11
-    caption: Twenty decisions, one commit, and the loop drafts nothing.
+    through: 10
+    caption: Twenty decisions, on the record, and the loop drafts nothing.
     text: >-
       The queue comes back in the shape of a change-set, and this filter takes
       the Dutch a person wrote and leaves what the stub drafted. Twenty
-      approvals stage, then commit into the record. Running the loop again asks
+      approvals land in the record as they are made. Running the loop again asks
       the provider for nothing.
 
   - id: offered
     kind: terminal
-    through: 21
+    through: 19
     highlight: { text: [nl, nb] }
     caption: Dutch offered and marked. Norwegian drops its marker.
     text: >-

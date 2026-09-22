@@ -64,15 +64,15 @@ func TestRecipeGovernanceListsTheDeclaredChannels(t *testing.T) {
 	assert.Equal(t, []string{"campaign", "support"}, res.Profiles)
 }
 
-func TestRecipeGovernanceOffersTheProfileFilesOnDisk(t *testing.T) {
+func TestRecipeGovernanceOffersTheProfilesTheStoreHolds(t *testing.T) {
 	app := NewApp()
 	tab, _ := newContextProject(t, app)
 
 	res, err := app.RecipeGovernance(tab.ID)
 	require.NoError(t, err)
-	assert.Contains(t, res.VoiceFiles, ".kapi/voice.yaml")
-	assert.Contains(t, res.VoiceFiles, ".kapi/profiles/support/voice.yaml")
-	assert.NotEmpty(t, res.Packs, "a binding can name a starter pack instead of a file")
+	assert.Contains(t, res.VoiceProfiles, "northsea")
+	assert.Contains(t, res.VoiceProfiles, "northsea-support")
+	assert.NotEmpty(t, res.Packs, "a binding can name a starter pack instead of a profile")
 }
 
 func TestRecipeGovernanceRejectsAnUnknownTab(t *testing.T) {

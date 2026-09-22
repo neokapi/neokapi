@@ -1,9 +1,9 @@
 # KapiMart — one product, four surfaces, five languages.
 #
-# Everything this recipe binds is a file in this directory: the voice profile,
-# the terms record and the content memory are all committed and reviewable, so
-# the project opens with its governance already in place and no server or
-# provider credential involved.
+# The context this recipe binds ships as files under context/: the voice
+# profile, the vocabulary and the content memory. Scaffolding the sample reads
+# them into this machine's workspace, so the project opens governed with no
+# server and no provider credential involved.
 version: v1
 name: KapiMart
 defaults:
@@ -16,13 +16,13 @@ defaults:
     - ar
   # The house voice. Bound here as well as on the profile below, so the default
   # point is governed too rather than falling through to nothing.
-  voice: .kapi/voice.yaml
-  # The committed vocabulary record. `kapi apply` writes term decisions here and
-  # recompiles them into .kapi/work/store.db, which is derived and gitignored.
-  terms_source: .kapi/terms.json
-  # The committed content memory, in the same relationship to the store: the
-  # authored artifact `git diff` reviews, compiled into the store on open.
-  memory_source: .kapi/memory/memory.json
+  voice: context/voice.yaml
+  # The vocabulary this sample ships. An import reads it into the project's
+  # terms store, which is where `kapi apply` writes a term decision.
+  terms_source: context/terms.json
+  # The approved wording this sample ships, read into the project's content
+  # memory by the same import.
+  memory_source: context/memory/memory.json
   coordinates:
     # A declared axis. The structural axes (product, channel) are derived from a
     # collection's channel: and are never written here.
@@ -34,7 +34,7 @@ profiles:
     # a part of it: an API page and a release note are a published record, and
     # the register that suits a walkthrough does not suit either.
     channels: [web, reference, store, legal, marketing]
-    voice: .kapi/voice.yaml
+    voice: context/voice.yaml
 
 collections:
   # Product documentation. The two historical surfaces — the API reference and

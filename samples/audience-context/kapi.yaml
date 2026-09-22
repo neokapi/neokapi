@@ -3,9 +3,9 @@ name: audience-context
 
 defaults:
   source_language: en
-  terms_source: .kapi/terms.json
+  terms_source: context/terms.json
   voice:
-    profile_file: .kapi/voice.yaml
+    profile_file: context/voice.yaml
   coordinates:
     service: harbor-help
     topic: video-appointments
@@ -15,7 +15,7 @@ defaults:
 profiles:
   harbor-help:
     channels: [child, teen, adult, older-adult]
-    voice: .kapi/voice.yaml
+    voice: context/voice.yaml
 
 collections:
   - name: child-page

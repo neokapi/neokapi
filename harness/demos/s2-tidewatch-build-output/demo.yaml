@@ -14,6 +14,10 @@ needsAi: false
 # the recording and the sample a reader clones cannot drift apart.
 fixturesFrom: samples/tidewatch-docs
 project: true
+# The sample ships its context as files, and a fresh sandbox has a store that
+# has never held them, so the take starts where a reader does.
+setup:
+  - kapi context import ./context
 captureTimeoutSec: 300
 aspects:
   - the i18n tree is build output
