@@ -113,6 +113,12 @@ const config: Config = {
   // would bake the production prefix and 404 every asset.
   baseUrl: docsBaseUrl,
 
+  // The stable channel is the canonical copy of every page, so the next channel
+  // carries `noindex, nofollow` and a search engine ranks one of the two. The
+  // qps pseudo-locale is kept out of the index the same way, for the same
+  // reason. A PR preview is a next build and is covered by this as well.
+  noIndex: channel === "next",
+
   organizationName: "neokapi",
   projectName: "neokapi",
   trailingSlash: false,
