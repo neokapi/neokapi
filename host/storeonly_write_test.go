@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -343,8 +344,8 @@ func recordedOps(t *testing.T, a *App, recipe string) []ContextOperation {
 	list, err := a.ContextOperations(context.Background(), ContextLogRequest{Project: recipe})
 	require.NoError(t, err)
 	out := make([]ContextOperation, 0, len(list.Operations))
-	for i := len(list.Operations) - 1; i >= 0; i-- {
-		out = append(out, list.Operations[i])
+	for _, op := range slices.Backward(list.Operations) {
+		out = append(out, op)
 	}
 	return out
 }

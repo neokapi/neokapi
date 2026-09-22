@@ -591,13 +591,13 @@ func importStampsAreKeptPerCheckout(t *testing.T, b workspace.Backend) {
 	assert.Equal(t, "dd", held[0].Digest)
 	assert.Equal(t, later, held[0].At)
 
-	assert.NoError(t, w.NoteContextImports(ctx), "noting nothing is not an error")
-	assert.ErrorIs(t, w.NoteContextImports(ctx,
+	require.NoError(t, w.NoteContextImports(ctx), "noting nothing is not an error")
+	require.ErrorIs(t, w.NoteContextImports(ctx,
 		workspace.ContextImportStamp{Path: ".kapi/terms.json"}), workspace.ErrNoImportStamp)
-	assert.ErrorIs(t, w.NoteContextImports(ctx,
+	require.ErrorIs(t, w.NoteContextImports(ctx,
 		workspace.ContextImportStamp{Checkout: "/w/main"}), workspace.ErrNoImportStamp)
 	_, err = w.ContextImports(ctx, "prj_docs", "")
-	assert.ErrorIs(t, err, workspace.ErrNoImportStamp)
+	require.ErrorIs(t, err, workspace.ErrNoImportStamp)
 }
 
 func closeIsIdempotent(t *testing.T, b workspace.Backend) {
