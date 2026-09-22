@@ -75,10 +75,10 @@ connected, ask for the project:
 
 Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known
 i18n layout) and adds the content patterns it finds. What it writes is
-committed: a recipe binding a starter voice profile, and a section in
-`CLAUDE.md` saying the voice is held by kapi, so the next session asks for it
-before writing. From there your prompts stay short; "check this is on brand"
-needs no flags, because the recipe carries them.
+committed: a recipe saying which files count as content, and the wiring that
+lets the next session reach kapi. From there your prompts stay short; "check
+this is on brand" needs no flags, because the project carries what the check
+reads.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -99,20 +99,20 @@ Initialized kapi project "acme-docs"
   state:  /path/to/acme-docs/.kapi
   mcp:    .mcp.json (created: kapi mcp --project kapi.yaml)
   skill:  .claude/skills/kapi (created: 24 files)
-  agents: /path/to/acme-docs/CLAUDE.md (voice pointer for assistants)
 ```
 
-The last three lines are the wiring: an MCP entry that starts `kapi mcp` for
-this project, a copy of the kapi skill, and a short section in `CLAUDE.md`
-pointing an assistant at the voice. Choose the agents with `--agents`, or opt
-out with `--agents none`. See
+The last two lines are the wiring: an MCP entry that starts `kapi mcp` for this
+project, and a copy of the kapi skill. Once the project binds a voice, `kapi
+init` adds a short section to `CLAUDE.md` pointing an assistant at it, and
+`kapi voice pointer` writes that section on its own. Choose the agents with
+`--agents`, or opt out with `--agents none`. See
 [what `kapi init` wires up](/kapi/get-started/use-with-claude#what-kapi-init-wires-up).
 
 For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`,
 …) pre-fills the content mapping; `kapi init --list-presets` lists them.
 
-The recipe is plain YAML, and what governs a source-only project sits under
-`defaults:`:
+The recipe is plain YAML. `defaults:` carries what applies to every collection,
+and `collections:` names the content:
 
 ```yaml title="kapi.yaml"
 version: v1
@@ -120,8 +120,6 @@ id: prj_fbqdv5uoovvpkaarpy5vnexhaq
 name: acme-docs
 defaults:
   source_language: en
-  voice:
-    pack: professional-b2b
 collections:
   - path: "docs/**/*.md"
 ```
@@ -239,7 +237,7 @@ Before you confirmed anything, the proposal read as a note and the check passed:
 
 PASS configured checks: score 100/100 · 2 finding(s) (0 critical, 0 major, 0 minor)
   Coverage: 2 completed, 5 not run or unsupported. Score covers reported findings only.
-  Context: docs/guide.md; voice Professional B2B (project); source pack:professional-b2b; terms none loaded
+  Context: docs/guide.md; voice none (project); terms none loaded
 ```
 
 The `Context:` line says what the check was evaluated against: the voice profile
@@ -256,7 +254,7 @@ carries:
 
 PASS configured checks: score 90/100 · 2 finding(s) (0 critical, 2 major, 0 minor)
   Coverage: 2 completed, 5 not run or unsupported. Score covers reported findings only.
-  Context: docs/guide.md; voice Professional B2B (project); source pack:professional-b2b; terms loaded
+  Context: docs/guide.md; voice none (project); terms loaded
 ```
 
 Run `kapi check` with no path to check the whole project, and `kapi check

@@ -228,8 +228,7 @@ func prepareColdStartCell(ctx context.Context, opts ColdStartOptions, cell ColdS
 		return paths, wiring, err
 	}
 	wiring.Harness = append(wiring.Harness,
-		"kapi.yaml: collections point at the fixture's prose, completing the content mapping the scaffold leaves for the person",
-		"kapi.yaml: the scaffold's starter voice pack is removed, so the drill starts from a context that holds nothing")
+		"kapi.yaml: collections point at the fixture's prose, completing the content mapping the scaffold leaves for the person")
 	if err := coldStartGitCommit(ctx, paths, "Wire the project for kapi"); err != nil {
 		return paths, wiring, err
 	}

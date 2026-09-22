@@ -1580,11 +1580,11 @@ i18n-react-build: ## Build @neokapi/i18n-react (runtime + vite plugin + CLI) int
 # The extractors and the catalog compilers stay outside the recipe, because a
 # recipe may not name a subprocess (AD-038: "a recipe is trusted" is the
 # assumption execution trust exists to disprove). Everything between them is
-# one `kapi up`: it compiles the committed context under `.kapi/` into the
-# project store itself — keyed by each bundle's content digest, so an unchanged
-# bundle costs a read and a pulled edit recompiles exactly itself — re-extracts
-# the block store from the working tree, runs the recipe's flow over every
-# collection and locale, and writes the targets. There are no per-surface
+# one `kapi up`, over the context `l10n-context-import` put in the workspace
+# store: it re-extracts the block store from the working tree, runs the
+# recipe's flow over every collection and locale, and writes the targets. The
+# import is a prerequisite of every stage that reads that context, so a clone
+# converges from what git carries. There are no per-surface
 # targets, because a per-surface target would be a hand-rolled subset of what
 # the recipe already declares; `kapi up --plan` reports the pending work per
 # (collection, locale) without running anything, and `kapi up --passes 1` is a
@@ -1861,7 +1861,22 @@ check-extract-fixtures: ## Guard: no test/story file is extracted, and each surf
 check-vocab-packs: ## Guard: the vocabulary packs have exactly two homes (Go embed + one TS copy) and they agree
 	@node scripts/format-ops/check-vocab-packs.mjs
 
-l10n-review-export: bin/kapi ## Emit disposable TMX/CSV review views of the project store → l10n/review/
+# The stages below read the project's context from the workspace store, and
+# this is the one command that opens the files this repository commits under
+# `.kapi/`. Running it first is what lets a fresh clone converge, check and
+# export from what git carries.
+#
+# KAPI_ACTOR=person because reading those files puts them in force for everyone
+# working in the project, which a person decides and kapi refuses an agent.
+# This is the repository's own build step, and a `make` invoked from a coding
+# agent's shell inherits that host's marker.
+#
+# A second run finds the store already holding what the files say, so every
+# stage may declare it.
+l10n-context-import: bin/kapi ## Read the repository's own `.kapi/` layout into the workspace store the loop reads
+	$(KAPI_LOOP_ENV) KAPI_ACTOR=person ./bin/kapi context import
+
+l10n-review-export: bin/kapi l10n-context-import ## Emit disposable TMX/CSV review views of the project store → l10n/review/
 	@mkdir -p l10n/review
 	./bin/kapi memory export --format tmx -o l10n/review/tm-all.tmx
 	./bin/kapi terms export --format csv -s en -t nb -o l10n/review/terms-en-nb.csv
@@ -1873,18 +1888,19 @@ l10n-review-export: bin/kapi ## Emit disposable TMX/CSV review views of the proj
 # every collection is covered by construction — add a collection to kapi.yaml
 # and it is converged with no Makefile change.
 #
-# The recipe binds `flow: tm-recycle` — exact-match content-memory leverage and
-# nothing else: no AI, no provider credentials, no network. So this stage is the
-# committed context plus whatever the store already learned, and a fresh clone
-# converges from git alone. AI convergence is the server venue's (the nightly),
-# or a deliberate local `kapi run translate-ai`.
+# The recipe binds `flow: tm-recycle`: exact-match content-memory leverage and
+# nothing else, with no AI, no provider credentials and no network. So this
+# stage runs on what the import above put in the store plus whatever a venue
+# pull brought home, and a fresh clone converges from git alone. AI convergence
+# is the server venue's (the nightly), or a deliberate local
+# `kapi run translate-ai`.
 #
-# The store is never wiped. `up` compiles the committed sources by content
-# digest, so an unchanged bundle costs a read; and wording a venue pull brought
-# home lives in the store beside what git carries. A wipe would delete exactly
-# the half git does not hold.
+# The store is never wiped. An import upserts by the identity each file
+# carries, so a second read costs a digest comparison; and wording a venue pull
+# brought home lives in the store beside what git carries. A wipe would delete
+# exactly the half git does not hold.
 
-l10n-converge: l10n-extract bin/kapi ## Stage 2: the whole recipe, one `kapi up`
+l10n-converge: l10n-extract l10n-context-import bin/kapi ## Stage 2: the whole recipe, one `kapi up`
 	$(KAPI_LOOP_ENV) ./bin/kapi up
 	@# A narration sidecar byte-identical to its source carries nothing — the
 	@# harness already falls back to English. Dropping it keeps the committed
@@ -3288,6 +3304,7 @@ help: ## Show this help
         l10n l10n-build l10n-extract l10n-converge l10n-pseudo l10n-compile \
         l10n-verify l10n-derived-paths l10n-loop-owned-paths l10n-owned-paths \
         l10n-extract-globs l10n-extract-warnings-check l10n-extract-warnings-baseline l10n-review-export \
+        l10n-context-import \
         l10n-collapse-check l10n-report l10n-content-pairs l10n-content-check \
         l10n-orphans l10n-orphans-report l10n-stale-report \
         check-extract-fixtures \

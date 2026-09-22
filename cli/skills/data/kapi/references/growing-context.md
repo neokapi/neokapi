@@ -208,7 +208,7 @@ kapi context discard 9
 Create the project (or adopt the existing recipe, `kapi init` is idempotent):
 
 ```bash
-kapi init --name my-app                                        # content project: voice + terms + check flow
+kapi init --name my-app                                        # content project: terms + check flow
 kapi init --name my-app --target-locale fr --target-locale de  # translation project
 ```
 

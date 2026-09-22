@@ -1,9 +1,10 @@
 # Customer #1 dogfood — neokapi's own content, converged on bowrain.cloud.
 #
 # This is the workflow the product tells everyone else to write, run against the
-# repository that builds the product: install the CLI with setup-kapi, run the
-# convergence verb with kapi-action, carry the run's decisions home, and open a
-# pull request with what came back once the committed context explains it.
+# repository that builds the product: install the CLI with setup-kapi, read the
+# committed context into the run's store, run the convergence verb with
+# kapi-action, carry the run's decisions home, and open a pull request with what
+# came back once the committed context explains it.
 # Nothing in it is bespoke: a step here that a customer could not copy is a step
 # the product is missing.
 #
@@ -62,7 +63,10 @@ jobs:
         with:
           # The CLI and the plugin are cut at one version, so this pair is the
           # pair that was released together. A pin rather than `latest` keeps a
-          # scheduled run on a known pair when a newer release lands.
+          # scheduled run on a known pair when a newer release lands, and a
+          # release candidate is reachable from a pin alone: `latest` resolves
+          # stable tags, and setup-kapi sends a plugin ref carrying a
+          # prerelease suffix to the beta channel on its own.
           #
           # The plugin is the client of the push protocol, so the version here
           # decides which endpoints the run calls. The deployed server routes
@@ -70,8 +74,8 @@ jobs:
           # those routes existed posts to `/push/diff` and receives a 404 for
           # every file it sends. Bump both lines together whenever the push
           # protocol changes.
-          version: 1.2.0
-          plugins: bowrain@1.2.0
+          version: 1.3.0-rc1
+          plugins: bowrain@1.3.0-rc1
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
 
       # The one thing kapi cannot do for itself. Five collections declare
@@ -99,6 +103,23 @@ jobs:
       - name: Extract the source catalogs the loop carries
         run: make l10n-extract
 
+      # The context this repository governs its content by lives in the
+      # workspace store, and a runner's store starts empty. This reads the
+      # committed export under `.kapi/` into it: the terms, the voice profiles,
+      # the wording already approved and the record of who approved it. Every
+      # gate and every retrieval below answers from the store, so a run without
+      # this step converges against a project that knows nothing.
+      #
+      # Reading those files puts them in force, which a person decides, so kapi
+      # refuses an agent's import. The marker says who is running here: the
+      # repository's own nightly, on its own checkout.
+      #
+      # A second run finds the store already holding what the files say.
+      - name: Read the committed context into this run's store
+        env:
+          KAPI_ACTOR: person
+        run: kapi context import
+
       # `kapi up` is the whole loop: the recipe declares the languages, the flow
       # and the ship gates, and the run pushes, converges on the server against
       # the workspace's shared content memory and terms, and pulls the results
@@ -110,31 +131,47 @@ jobs:
           command: up
           plan: ${{ inputs.plan || 'false' }}
 
-      # The loop's return leg. `kapi up` pulls the server's ledger and stages
-      # every approved decision in the project's working store; `kapi commit` is
-      # the only door from there into the committed record under .kapi/state/
-      # that git tracks. Without it the run's target artifacts are wording no
-      # committed context explains, which is what the gate below refuses — the
-      # approvals reached the tree and nothing carried them home.
+      # The loop's return leg. `kapi up` pulls the server's ledger into the
+      # project's decision ledger, and `kapi context snapshot` writes what the
+      # store holds back out as files. Without it the run's target artifacts are
+      # wording no committed context explains, which is what the gate below
+      # refuses: the approvals reached the tree and nothing carried them home.
       #
-      # Recording and publishing stay separate acts, so this is not something
-      # `up` does on its own. Nothing staged is a no-op and exits 0, so the
-      # exit code says nothing about whether the return leg carried anything;
-      # what it printed does, and the pull request's note reports it.
-      - name: Commit the decisions the run brought home
-        id: commit
+      # Recording a decision and writing the record out stay separate acts, so
+      # `up` leaves this step to say what travels.
+      #
+      # A snapshot renders the whole store, and only the decision record travels
+      # back into this repository. The committed export keeps a hand-authored
+      # terms bundle and one content-memory bundle per surface, which a snapshot
+      # would replace with its own serialization and one aggregate bundle beside
+      # them. So the snapshot is written to RUNNER_TEMP and `state/` is the one
+      # directory copied in. It is also the one part of `.kapi/` that nobody
+      # edits by hand (see .kapi/README.md).
+      #
+      # The whole directory is replaced rather than merged, because the writer
+      # prunes the shards a deleted document left behind. A store holding no
+      # decisions at all writes no `state/`, and the committed record is left as
+      # it is: an erasure of every approval this repository carries would
+      # otherwise ride a run that read nothing.
+      - name: Write the decisions the run brought home
+        id: record
         if: ${{ !inputs.plan }}
         run: |
           set -euo pipefail
           # RUNNER_TEMP, not the workspace: the gate below classifies everything
           # the run left in the tree and refuses a file the loop does not own.
-          log="$RUNNER_TEMP/kapi-commit.log"
-          kapi commit | tee "$log"
-          if grep -q '^Nothing staged' "$log"; then
-            # shellcheck disable=SC2016  # backticks are markdown for the note
-            note='`kapi commit` staged nothing: the committed record under `.kapi/state/` was already up to date.'
+          snapshot="$RUNNER_TEMP/kapi-context"
+          log="$RUNNER_TEMP/kapi-snapshot.log"
+          kapi context snapshot --out "$snapshot" | tee "$log"
+          if [ -d "$snapshot/state" ]; then
+            rm -rf .kapi/state
+            cp -R "$snapshot/state" .kapi/state
+          fi
+          decisions="$(sed -n 's/.*, \([0-9][0-9]*\) recorded decision.*/\1/p' "$log")"
+          if [ -n "$(git status --porcelain -- .kapi/state)" ]; then
+            note="\`kapi context snapshot\` wrote the ${decisions:-0} decision(s) this run holds into \`.kapi/state/\`."
           else
-            note="\`kapi commit\` wrote the decisions it brought home into \`.kapi/state/\` ($(head -n 1 "$log"))."
+            note="\`kapi context snapshot\` read ${decisions:-0} decision(s); \`.kapi/state/\` already held them."
           fi
           echo "note=$note" >> "$GITHUB_OUTPUT"
 
@@ -186,8 +223,8 @@ jobs:
 
       # The action reports; delivery is this workflow's own step, and it is a
       # pull request rather than a push to main. Approved wording is content
-      # someone decided, so a human reads the diff before it ships — the same
-      # explicit-commit intent `kapi commit` carries one layer down.
+      # someone decided, so a human reads the diff before it ships, the same way
+      # the return leg above makes writing the record its own step.
       #
       # One rolling bot branch: an unmerged pull request is refreshed rather
       # than joined by a sibling, and a night with nothing pending pushes
@@ -200,15 +237,15 @@ jobs:
       # has-changes was computed before it ran.
       #
       # The note reports what this run produced rather than what a run of this
-      # shape does: the return leg's own account of whether it staged anything,
-      # and the gate's count of what it classified. A reviewer reads the note as
+      # shape does: the return leg's own account of what it wrote, and the
+      # gate's count of what it classified. A reviewer reads the note as
       # the summary of the run, so a sentence it cannot support is a sentence
       # that misreads the diff for them.
       - name: Open a pull request with what the loop brought home
         if: ${{ !inputs.plan }}
         env:
           GH_TOKEN: ${{ github.token }}
-          COMMIT_NOTE: ${{ steps.commit.outputs.note }}
+          RECORD_NOTE: ${{ steps.record.outputs.note }}
           DERIVED: ${{ steps.gate.outputs.derived }}
           BACKING: ${{ steps.gate.outputs.backing }}
           DECISIONS: ${{ steps.gate.outputs.decisions }}
@@ -231,7 +268,7 @@ jobs:
             echo "::error title=Delivery refused::the derived set is empty — refusing to deliver a partial tree"
             exit 1
           fi
-          AUTO_PR_NOTE="\`kapi up\` converged this repository's content on bowrain.cloud. ${COMMIT_NOTE} The content gate read ${DERIVED:-0} derived change(s) and found them sound; \`.kapi/\` moved in ${BACKING:-0} file(s), ${DECISIONS:-0} of which carry a decision rather than a re-serialization."
+          AUTO_PR_NOTE="\`kapi up\` converged this repository's content on bowrain.cloud. ${RECORD_NOTE} The content gate read ${DERIVED:-0} derived change(s) and found them sound; \`.kapi/\` moved in ${BACKING:-0} file(s), ${DECISIONS:-0} of which carry a decision rather than a re-serialization."
           # What the gate withheld is named here rather than counted. A reviewer
           # deciding whether to merge the night needs to know which string each
           # surface is still missing and why it was refused, and the diff cannot

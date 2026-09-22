@@ -93,20 +93,17 @@ func TestColdStartWitnessOfAnAbsentRoot(t *testing.T) {
 }
 
 func TestColdStartRecipeMapping(t *testing.T) {
-	scaffolded := "version: v1\nname: fernwell-ledger\ndefaults:\n  source_language: en\n  voice:\n    pack: professional-b2b\n\ncollections: []\n\nflows:\n  check:\n    steps:\n      - tool: voice-vocab-check\n"
+	scaffolded := "version: v1\nname: fernwell-ledger\ndefaults:\n  source_language: en\n\ncollections: []\n\nflows:\n  check:\n    steps:\n      - tool: voice-vocab-check\n"
 
 	mapped, err := coldStartRecipeMapping([]byte(scaffolded))
 	require.NoError(t, err)
 	body := string(mapped)
-	assert.NotContains(t, body, "professional-b2b", "the drill starts from a context that holds nothing")
+	assert.NotContains(t, body, "voice:", "the drill starts from a context that holds nothing")
 	assert.NotContains(t, body, "collections: []")
 	assert.Contains(t, body, `- path: "docs/**/*.md"`)
 	assert.Contains(t, body, "voice-vocab-check", "the scaffolded check flow stays as it was")
 
-	_, err = coldStartRecipeMapping([]byte("version: v1\ncollections: []\n"))
-	require.ErrorContains(t, err, "starter voice pack")
-
-	_, err = coldStartRecipeMapping([]byte("version: v1\n  voice:\n    pack: professional-b2b\n"))
+	_, err = coldStartRecipeMapping([]byte("version: v1\nname: fernwell-ledger\n"))
 	require.ErrorContains(t, err, "collections: []")
 }
 

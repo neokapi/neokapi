@@ -95,9 +95,9 @@ ALLOWLIST=(
   # SKILL.md tells an agent that reading a checkout's context files is the
   # person's to do.
   "cli/skills/data/kapi/SKILL.md"
-  # The dogfood loop runs the RELEASED kapi, which still compiles these files on
-  # every run. Both documents say so and say what changes after the next
-  # release. See docs/internals/l10n-ci.md.
+  # The dogfood loop's own documents. They describe the export this repository
+  # keeps in git, the import that reads it into the store one step before
+  # `kapi up`, and the snapshot that writes it back out.
   "docs/internals/l10n-ci.md"
   "docs/internals/brand-communication.md"
   ".kapi/README.md"
