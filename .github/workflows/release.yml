@@ -905,6 +905,12 @@ jobs:
           VITE_POSTHOG_HOST: https://eu.i.posthog.com
         run: vp run build:dev
 
+      # The bundle that ships. A chunk that fails to load turns every backend
+      # call into null and the app renders empty, with no error to see.
+      - name: Check the Kapi Desktop bundle loads its bindings
+        shell: bash
+        run: make check-kapi-desktop-bundle
+
       - name: Generate icons
         working-directory: apps/kapi-desktop/build
         run: wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico

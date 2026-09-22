@@ -757,6 +757,12 @@ jobs:
           VITE_POSTHOG_HOST: https://eu.i.posthog.com
         run: vp run build
 
+      # The bundle that ships. A chunk that fails to load turns every backend
+      # call into null and the app renders empty, with no error to see.
+      - name: Check the Bowrain Desktop bundle loads its bindings
+        shell: bash
+        run: make check-bowrain-desktop-bundle
+
       - name: Generate icons
         working-directory: bowrain/apps/bowrain/build
         run: wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico

@@ -23,6 +23,19 @@ export default defineConfig({
   ],
   build: {
     outDir: "dist",
+    rolldownOptions: {
+      output: {
+        // The Wails runtime and the generated bindings share one chunk. Left
+        // to the default splitting, the runtime's modules land in two chunks
+        // that import each other, and the bindings chunk reads a runtime
+        // binding at load time before the other chunk has assigned it. The
+        // load fails, the lazy import in useApi swallows it, and every backend
+        // call returns null: the app renders with empty lists and no error.
+        advancedChunks: {
+          groups: [{ name: "wails", test: /@wailsio[\/]runtime|[\/]bindings[\/]/ }],
+        },
+      },
+    },
   },
   server: {
     // Bind IPv4 loopback explicitly. "localhost" resolves to IPv6 (::1) on

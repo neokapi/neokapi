@@ -679,6 +679,9 @@ ci-kapi-desktop-frontend: ## Mirror the CI `kapi-desktop` job's frontend half (G
 	cd apps/kapi-desktop/frontend && vp check
 	cd packages/flow-editor && vp test
 	cd apps/kapi-desktop/frontend && vp test
+	# The production bundle, which nothing above evaluates.
+	cd apps/kapi-desktop/frontend && vp build
+	$(MAKE) check-kapi-desktop-bundle
 	cd storybook && vpx storybook build -o storybook-static
 
 ci-bowrain-desktop-frontend: ## Mirror the CI `bowrain-desktop` job's frontend half (Go backend test is a separate step)
@@ -690,6 +693,9 @@ ci-bowrain-desktop-frontend: ## Mirror the CI `bowrain-desktop` job's frontend h
 	# @neokapi/{ui,flow-editor} components the desktop frontend pulls in.
 	cd packages/i18n-react && vp run build
 	cd bowrain/apps/bowrain/frontend && vp test
+	# The production bundle, which nothing above evaluates.
+	cd bowrain/apps/bowrain/frontend && vp build
+	$(MAKE) check-bowrain-desktop-bundle
 
 ci-i18n-react: ## Mirror the CI `neokapi-i18n` job: typecheck/validate/test/build kapi-format + neokapi-i18n
 	cd packages/kapi-format && vp run typecheck
@@ -1551,6 +1557,17 @@ kapi-desktop-frontend-dev: kapi-desktop-frontend-deps ## Start Kapi Desktop fron
 
 kapi-desktop-frontend-build: kapi-desktop-frontend-deps ## Build Kapi Desktop frontend for production
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp build
+	$(MAKE) check-kapi-desktop-bundle
+
+# The production bundle is the only place a chunk cycle shows: a typecheck and
+# a jsdom test never evaluate the chunks the build emits, and the desktop's
+# lazy bindings import turns a chunk that fails to load into null from every
+# backend call, so the app renders with empty lists and no error.
+check-kapi-desktop-bundle: ## Guard: the Kapi Desktop production bundle loads its Wails bindings (build the frontend first)
+	node scripts/check-desktop-bundle.mjs $(KAPI_DESKTOP_DIR)/frontend/dist ListWorkspaceProjects
+
+check-bowrain-desktop-bundle: ## Guard: the Bowrain Desktop production bundle loads its Wails bindings (build the frontend first)
+	node scripts/check-desktop-bundle.mjs bowrain/apps/bowrain/frontend/dist AbandonChangeset
 
 kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop frontend tests
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp test
