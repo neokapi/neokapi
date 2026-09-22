@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Terms
-description: "The .terms.json terminology bundle: envelope, concepts and relations, the lookup ladder and why it is ordered that way, and how it differs from the lossy JSON and TBX exports."
+description: "The .terms.json terminology bundle: envelope, concepts and relations, where an import looks for one, and how it differs from the lossy JSON and TBX exports."
 keywords:
   [
     terms,
@@ -21,11 +21,10 @@ A terms bundle is the portable, lossless serialization of a project's
 terminology: the concepts a project has agreed on, their terms per locale, and
 the relations between them.
 
-A terms bundle is a **committed, git-tracked file**, like the content-memory
-bundle the recipe binds. It is the review surface, the artifact a person reads
-in a pull request when a term changes. The terms tables in the [project
-store](/kapi/project-store) are the index the bundle compiles into, kept outside
-git, never the other way round.
+A terms bundle is an **artifact**: the shape a project's terms take when they
+leave the [project store](/kapi/project-store), and the shape they are read back
+from. `kapi context snapshot` writes one, `kapi context import` reads one, and
+the store is what every lookup and every gate answers from.
 
 Implemented in Go at
 [`terms/ktb`](https://github.com/neokapi/neokapi/tree/main/terms/ktb).
@@ -40,35 +39,21 @@ Implemented in Go at
 `bundle` is lossless; the rest are covered under
 [what the other formats drop](#what-the-other-formats-drop).
 
-## The lookup ladder
+## Where an import looks for one
 
-When a flow needs a project's terms and the recipe does not bind one
-explicitly, kapi looks for a conventional bundle in this order:
+A flow needing a project's terms reads the project's terms store; no flow opens
+a bundle. [`kapi context import`](/reference/commands/context-import) is what
+reads one, and with no path it looks at `<project-root>/.kapi/terms.json`, the
+conventional place beside the rest of a project's context files. Setting
+`terms_source` in `kapi.yaml` names a bundle elsewhere, and the import reads
+that one too; it binds any path.
 
-1. `<project-root>/.kapi/terms.json`
-2. `<project-root>/terms.json`
-
-**The context graph first.** `.kapi/` is where the rest of a project's
-governance lives (the voice profile, the memory seeds, the unit-state record), and
-terms are one node of that graph rather than a loose file beside it. It is
-committed, so a bundle kept there appears in a diff, gets reviewed, and survives
-a fresh clone. The root rung is for a project that would rather keep its terms at
-the top level; both are committed, so the ordering is about where a reader
-expects to look.
-
-The recipe binding wins over both. Setting `terms_source` in `kapi.yaml`
-names the file explicitly and skips the ladder entirely; it binds any path.
-
-## Content memory has no equivalent ladder
+## Content memory has no single conventional file
 
 A project has one terms bundle, so a single conventional filename is
 meaningful. Content memory is plural: this repository's own dogfood recipe
-keeps a separate memory bundle per surface. A single well-known
-`memory.json` at the project root would force every project into one bundle,
-and a ladder that resolved to "whichever one is first" would silently pick the
-wrong one.
-
-So terms gets a ladder and content memory does not.
+keeps a separate memory bundle per surface. So an import reads every bundle in
+`.kapi/memory/` rather than one well-known name.
 
 ## Envelope
 
@@ -125,14 +110,14 @@ Reach for `bundle` whenever the file is staying inside kapi.
 
 ## What is deliberately not in it
 
-- **The compiled SQLite tables.** The terms tables in the project store are
-  derived from the bundle and rebuilt on import.
+- **The store's own tables.** A bundle carries the concepts and relations; the
+  terms tables in the project store are what an import writes them into.
 - **Match state.** Which blocks a term was found in is a check result rather
   than a property of the terminology; `kapi terms occurrences` reads it from
   the project's block cache.
 
 ## See also
 
-- [Overview](/reference/serialization/overview): store, bundle, and committed state.
-- [Content memory](/reference/serialization/content-memory): the peer bundle, and why it has no ladder.
+- [Overview](/reference/serialization/overview): store, bundle, and exported artifact.
+- [Content memory](/reference/serialization/content-memory): the peer bundle.
 - [Choosing a format](/reference/serialization/choosing): native versus interchange.

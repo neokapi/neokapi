@@ -12,8 +12,8 @@ YAML (`--profile-file`), or the local store (`--profile`). List options with
 `technical-docs`, `marketing-blog`, `customer-support`.
 
 **Inside a project, the profile is part of the context; don't pass a flag.** When
-the project binds a voice profile (a `defaults.voice` recipe entry, or a
-`.kapi/voice.yaml`, or a `voice.yaml` at the project root), run `kapi voice check
+the project binds a voice profile (a `defaults.voice` recipe entry, or a profile
+the store holds under a profile's own name), run `kapi voice check
 <file>` and `kapi voice guide` with **no**
 `--profile`/`--profile-file`/`--pack`: kapi resolves the project's voice. Pass a
 flag only for a one-off outside a project, or to override the bound profile. See
@@ -57,17 +57,24 @@ kapi voice expand --profile-file voice.yaml --language nb   # write forms for No
 kapi voice expand --profile-file voice.yaml --dry-run       # print what would be added
 ```
 
-Rules that already carry forms are left alone unless `--overwrite` is given; the
-result is authoring-time work you review in the diff. Then save and verify:
+Rules that already carry forms are left alone unless `--overwrite` is given.
+Then file the profile and verify:
 
 ```bash
-kapi voice import voice.yaml                 # into the local store
-kapi voice guide --profile-file voice.yaml   # confirm it renders as intended
-echo "We utilize synergies." | kapi voice check --profile-file voice.yaml --json
+kapi voice import voice.yaml                 # into the store; prints the profile's id
+kapi voice guide                             # confirm it renders as intended
+echo "We utilize synergies." | kapi voice check --json
 ```
 
+Bind the id it printed under `defaults.voice.profile` in the recipe. The scratch
+`voice.yaml` has done its job; from then on **`kapi voice edit`** is how the
+profile changes. It opens the stored profile in the user's editor as the same
+YAML, validates what they save, and reads it back as one recorded change. The
+document states the profile entire, so a section deleted in the editor is
+deleted from the profile.
+
 Show the user the rendered guide and a check on one of their own samples, then
-refine the YAML from their feedback. Once the profile is bound in a project,
+refine from their feedback. Once the profile is bound in a project,
 `kapi voice pointer` writes the section in `CLAUDE.md` (or an `AGENTS.md`
 already at the root) that tells the next assistant the voice is held by kapi and
 where to ask for it ([project.md](project.md)).
@@ -147,12 +154,12 @@ land together, atomically:
 kapi apply changeset.jsonl
 ```
 
-The `voice` entry is written into the project's committed voice profile
-YAML (the `defaults.voice.profile_file` the recipe binds), and the existing
-import compiles it into the local voice store. `git diff` shows the one new rule;
-the next `kapi voice check` / `kapi check --ship` enforces it. `list` is `forbidden`,
-`competitor`, or `preferred`; the entry requires a `.kapi` project. (Add an
-approved term instead with a `term` entry; see [create.md](create.md).)
+The `voice` entry is written into the profile the recipe binds, inside the
+project's voice store, and the change is recorded, so `kapi context log` carries
+the one new rule and the next `kapi voice check` / `kapi check --ship` enforces
+it. `list` is `forbidden`, `competitor`, or `preferred`; the entry requires a
+kapi project. (Add an approved term instead with a `term` entry; see
+[create.md](create.md).)
 
 ### Offline term substitution
 

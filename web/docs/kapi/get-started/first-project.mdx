@@ -21,6 +21,11 @@ words a project cares about are the ones it turns out to use. The context fills
 as you and your agents work: an agent records what it notices, you confirm what
 is right, and from then on `kapi check` holds new writing to it.
 
+That context lives in your workspace on this machine, one store per project,
+and every checkout, worktree and clone of the project reads the same one. The
+files in the repository say what counts as content and what governs it; what
+the project has learned is held beside them.
+
 A new project is source-only, so the loop below is about your own writing.
 [Add languages](/kapi/get-started/add-languages) when you want them.
 
@@ -70,10 +75,10 @@ connected, ask for the project:
 
 Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known
 i18n layout) and adds the content patterns it finds. What it writes is
-committed: a recipe, a starter voice profile, and a section in `CLAUDE.md`
-saying the voice is held by kapi, so the next session asks for it before
-writing. From there your prompts stay short; "check this is on brand" needs no
-flags, because the recipe carries them.
+committed: a recipe binding a starter voice profile, and a section in
+`CLAUDE.md` saying the voice is held by kapi, so the next session asks for it
+before writing. From there your prompts stay short; "check this is on brand"
+needs no flags, because the recipe carries them.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -82,7 +87,7 @@ flags, because the recipe carries them.
 directory:
 
 ```bash
-kapi init                      # scaffold kapi.yaml + .kapi/, and wire your agents
+kapi init                      # write kapi.yaml, and wire your agents
 kapi add "docs/**/*.md"        # declare the content; format auto-detected
 ```
 
@@ -124,13 +129,19 @@ collections:
 `id:` is the project's identity. It survives a rename, a move and a clone, and
 it is what joins two checkouts of one repository to one context. Keep it.
 
-Commit the recipe **and `.kapi/`**. That directory holds the files your context
-is written into as you confirm things: the terms, the voice profile, the
-content-memory bundles and the record of where each unit stands in review. They
-belong in review like the rest of your source. `kapi init` writes a two-line
-ignore rule for the one part that is not, `.kapi/work/`, where
+Commit the recipe and `.kapi/`. Both are configuration: the recipe says what
+counts as content and what governs it, and `.kapi/` holds the flows you write
+and the saved readers you share. `kapi init` writes a two-line ignore rule for
+the part that belongs to your machine alone, `.kapi/work/`, where
 [everything derived from your files](/kapi/project-store) goes, plus
 `.kapi/filters.local.json` for your personal reader settings.
+
+What the project learns goes elsewhere. The terms, the voice profiles, the
+wording you approve and the record of who approved it are held in your
+workspace, keyed on the `id:` above, so a rule you confirm on one branch holds
+on every branch and in every worktree. See
+[Context portability](/kapi/context-portability) for moving that context to
+another machine or handing it to somebody else.
 
 Every kapi command run anywhere in the tree finds the project by walking up,
 like git. See the [project file reference](/reference/project-file) for the full
@@ -197,14 +208,14 @@ kapi context confirm 3
 
 ```
 #4  2026-09-21T19:23:01Z  person  confirm  of #3
-  written to terms.json
+  written to the project's terms store
 ```
 
-Confirming writes the rule into the file your recipe binds, so `git diff` shows
-the decision like any other change. Change it as you confirm it with `--use` and
-`--severity`, or turn it down with `kapi context discard 3`. Either way the
-record stays in the log, so the same suggestion is recognisable the next time
-somebody makes it.
+Confirming puts the rule in the project's terms store, where every checkout
+reads it and `kapi context log` keeps the decision beside the evidence it rested
+on. Change it as you confirm it with `--use` and `--severity`, or turn it down
+with `kapi context discard 3`. Either way the record stays in the log, so the
+same suggestion is recognisable the next time somebody makes it.
 
 Deciding is yours. An agent observes, proposes and records corrections, and it
 has no verb for confirming, discarding someone else's work, reverting or
@@ -227,9 +238,14 @@ Before you confirmed anything, the proposal read as a note and the check passed:
                                                                           ↳ Use "use" instead
 
 PASS configured checks: score 100/100 · 2 finding(s) (0 critical, 0 major, 0 minor)
+  Coverage: 2 completed, 5 not run or unsupported. Score covers reported findings only.
+  Context: docs/guide.md; voice Professional B2B (project); source pack:professional-b2b; terms none loaded
 ```
 
-After confirming, the same word is a rule and bites at the severity it carries:
+The `Context:` line says what the check was evaluated against: the voice profile
+in force at that file, and whether the project's terms store had anything to
+say. After confirming, the same word is a rule and bites at the severity it
+carries:
 
 ```
   severity  rule              location                                    message
@@ -239,6 +255,8 @@ After confirming, the same word is a rule and bites at the severity it carries:
                                                                           ↳ Use "use" instead
 
 PASS configured checks: score 90/100 · 2 finding(s) (0 critical, 2 major, 0 minor)
+  Coverage: 2 completed, 5 not run or unsupported. Score covers reported findings only.
+  Context: docs/guide.md; voice Professional B2B (project); source pack:professional-b2b; terms loaded
 ```
 
 Run `kapi check` with no path to check the whole project, and `kapi check

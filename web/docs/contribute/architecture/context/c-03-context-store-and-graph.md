@@ -164,10 +164,10 @@ until the project is opened somewhere else.
 | --- | --- | --- | --- |
 | block cache, overlays | `core/blockstore` ([C-01](c-01-project-model.md)) | projection | the content files |
 | `store_meta` | `core/projectdb` | projection | the last extraction |
-| terms | `terms/` ([C-08](c-08-terms.md)) | context | the committed terms source |
-| content memory | `memory/` ([C-09](c-09-content-memory.md)) | context | the committed targets plus the `.memory.json` seeds |
-| voice profiles | `voice/` ([C-07](c-07-voice-profiles.md)) | context | the committed `voice.yaml` files |
-| unit decision ledger, and one view per checkout | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | context | the committed `.kapi/state/*.jsonl` shards, plus what each checkout has recorded since |
+| terms | `terms/` ([C-08](c-08-terms.md)) | context | authored; nothing reproduces it |
+| content memory | `memory/` ([C-09](c-09-content-memory.md)) | context | authored, plus what a merge banked |
+| voice profiles | `voice/` ([C-07](c-07-voice-profiles.md)) | context | authored; nothing reproduces it |
+| unit decision ledger, and one view per checkout | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | context | authored; every checkout records into one ledger |
 | `graph_nodes`, `graph_edges` | `host/storage/graph`, vocabulary in `core/contextgraph` | workspace | the rows above, plus the recipe |
 | `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace | what has been opened |
 | `workspace_ops` | `core/workspace` | workspace | its own log |
@@ -201,12 +201,9 @@ inside the framework that names one.
 The first open of a project WITH a workspace, where the context store is new and
 the projection still carries context tables, carries the project across.
 
-Only what no committed source reproduces moves. Everything else in those tables
-is a projection of a file under `.kapi/`, and the next command derives it again
-into the context store. Between a decision being recorded and `kapi commit`
-writing it to `.kapi/state/`, the ledger holds its only copy, so those records
-are read out of the old store and recorded in the new one first, and nothing is
-dropped unless that succeeded.
+Every context row moves, because nothing reproduces one. They are read out of
+the old store and written into the new one first, and nothing is dropped unless
+that succeeded.
 
 What is dropped afterwards is computed rather than listed: an empty projection
 is built in memory, its tables are what a projection is entitled to hold, and
@@ -272,20 +269,24 @@ corruption long after the copy, in a process that did nothing wrong. The cost of
 the rule is a false positive on a directory that merely carries one of those
 names.
 
-### The committed sources are the truth
+### One pool is derived and one is authored
 
-Both pools are **indexes**, and every row in them is reconstructible from:
+The **projection** is an index. Every row in it is a reading of the content
+files, source and target, so deleting it costs a re-extraction and nothing else.
 
-- `.kapi/terms.json`, the terms source, bound by `defaults.terms_source`;
-- `.kapi/memory/*.memory.json`, the content-memory seeds;
-- `.kapi/voice.yaml` and `.kapi/profiles/*/voice.yaml`, the voice profiles;
-- `.kapi/state/*.jsonl`, the committed unit-state record, one shard per
-  document;
-- the content files themselves, source and target.
+The **context store** is the truth for what a project has agreed: its terms
+([C-08](c-08-terms.md)), its voice profiles ([C-07](c-07-voice-profiles.md)),
+its content memory ([C-09](c-09-content-memory.md)) and its decision ledger
+([C-04](c-04-unit-state-and-decisions.md)). Nothing reproduces a row in it, and
+no read path opens a file in the checkout to answer for one. A checkout may
+carry a snapshot of the same content under `.kapi/`, written by
+`kapi context snapshot`; `kapi context import` is the one command that reads it
+back, and `kapi context export` is the backup ([C-11](c-11-context-operations.md)).
 
-Delete either database and a re-run rebuilds it from those. One thing stands
-outside that rule and lives in the workspace: between a decision being recorded
-and `kapi commit` materializing it, the ledger holds its only copy.
+Two consequences follow, and both are the point. A branch carrying an older copy
+of a terms bundle enforces the terms the project agreed on rather than the ones
+its branch happens to hold. And a project whose team keeps no snapshot at all
+governs its content exactly as one that does.
 
 ### `.kapi/work/` is free to delete
 
@@ -293,11 +294,10 @@ Everything under `.kapi/work/` is derived from the working tree: the parse
 cache, extraction batches, collection overlays, and `store.db` itself. Deleting
 the whole of it costs a re-extraction.
 
-The one thing that exists in a single place is the decision ledger, and it sits
-in the workspace: between a decision being recorded and `kapi commit` writing it
-to `.kapi/state/`, the ledger holds the only copy. So deleting
-`<DataDir>/workspaces/` costs every decision recorded since the last `kapi
-commit`, in every project.
+What exists in a single place is the context store, and it sits in the
+workspace. Deleting `<DataDir>/workspaces/` costs the terms, the voice profiles,
+the content memory and the decisions of every project on the machine, which is
+what `kapi context export --workspace` exists to prevent.
 
 The redaction vault ([C-10](c-10-redaction.md)) at `.kapi/work/vault/` is the
 one thing under `work/` that is still a loss rather than a rebuild: it holds
@@ -319,8 +319,7 @@ report once with the remedy for that pool named.
 
 The two pools take different remedies, because a row in one is derived and a
 row in the other is authored. The projection is a reading of the working tree,
-so writing the decision record with `kapi commit`, deleting the database and
-running `kapi up` derives every row in it again. The context store holds terms,
+so deleting the database and running `kapi up` derives every row in it again. The context store holds terms,
 approved wording and voice profiles that exist there and nowhere else, so
 `projectdb.RekeyContextLocales` keys its rows canonically where they stand, in
 one transaction over the context store, and `kapi context locales --fix` is the
@@ -336,9 +335,9 @@ from.
 
 An empty subsystem inside an existing database behaves exactly as an absent
 store does. A database's existence is not a signal, so nothing has to guard
-against a file being there: the terminology gate reads the committed terms
-source directly on a fresh checkout whether or not a database exists
-([C-08](c-08-terms.md)), `kapi up --plan` never creates state, and `kapi pack`
+against a file being there: the terminology gate enforces nothing on a project
+whose terms tables are empty ([C-08](c-08-terms.md)), `kapi up --plan` never
+creates state, and `kapi pack`
 carries only non-empty parts
 ([M-06](../multilingual/m-06-content-packages.md)). `projectdb.DB.DetectStoreDrift`
 reads "store missing" as *the block cache holds no blocks*, not as *the file is
@@ -562,19 +561,22 @@ sets `$KAPI_DATA_DIR` as part of the isolation contract.
   units a term change puts at risk.
 - **One transaction still covers a decision and the wording it blesses.** Both
   are in the context pool, which is why they are in the same file.
-- **Store paths are not a user surface.** The recipe binds *sources*
-  (`defaults.terms_source`, `defaults.memory_source`); it names neither derived
-  database and carries no workspace binding. Standalone stores outside a project
-  keep their own selectors (`--termstore`, `--memory`); those address a file the
-  user owns, which is a different thing.
+- **Store paths are not a user surface.** The recipe binds what governs a point
+  by name and names no database, and it carries no workspace binding.
+  `defaults.terms_source` and `defaults.memory_source` address the import and
+  the snapshot rather than a read. Standalone stores outside a project keep
+  their own selectors (`--termstore`, `--memory`); those address a file the user
+  owns, which is a different thing.
 - **CI caches `.kapi/work/cache/docs`, and nothing else under `work/`.** The
   parse cache is keyed by content, configuration and build, so a restored entry
   changes no result, and `setup-kapi` carries it by default. The remaining
   entries under `cache/` belong to the checkout that wrote them
   ([Convergence in CI](/kapi/convergence-in-ci)).
 - **A machine's context is one directory.** Backing up
-  `<DataDir>/workspaces/default/` backs up every project's authored context;
-  deleting it costs every decision recorded since the last `kapi commit`.
+  `<DataDir>/workspaces/default/` backs up every project's authored context, and
+  `kapi context export --workspace` writes the same thing as one file. Deleting
+  it costs every project's terms, voice profiles, content memory and
+  decisions.
 
 ## See also
 

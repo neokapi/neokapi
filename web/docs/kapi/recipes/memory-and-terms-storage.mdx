@@ -90,10 +90,18 @@ rather than in the checkout, so every clone of the project reads the same one.
 The project is found by walking up the directory tree from the current
 directory, git-style.
 
-Those tables are a projection of what the project commits: the terms bundle the
-recipe binds with `defaults.terms_source` and the content-memory bundle it binds
-with `defaults.memory_source`. Edit the bundle, and the store follows; delete
-the store, and it is rebuilt. See [the project store](/kapi/project-store).
+Those tables are the project's own record, and git holds no copy of them. Four
+verbs carry them in and out
+([Moving context](/kapi/context-portability)): `kapi context import` reads a
+checkout's context files into the store, `kapi context snapshot` writes the
+store back out as files, and `kapi context export` and `restore` carry the whole
+of it as one file, which is the backup this store needs. See
+[the project store](/kapi/project-store).
+
+Putting a snapshot in git is a team's choice about what a pull request should
+show, rather than something kapi needs. A team that makes it keeps the snapshot
+current and runs `kapi context import` on a fresh clone and on a runner; a team
+that does not backs the store up with `kapi context export` instead.
 
 The store is what [`kapi extract`](/reference/commands/extract) pre-fills from,
 what [`kapi merge`](/reference/commands/merge) writes back to, and what
@@ -152,7 +160,7 @@ The project content memory is a **recycle** corpus: source→target pairs reused
 to pre-fill and leverage future translation. It is *not* where a review decision
 lands. Whether a person has approved or signed off a particular target is a
 workflow decision, recorded in the [project store](/kapi/project-store)'s
-decision ledger and written to `.kapi/state/*.jsonl` by `kapi commit`. Approving a unit
+decision ledger. Approving a unit
 (`kapi apply` with `kind:"review"`) writes that record; adding a memory pair
 (`kapi apply` with `kind:"memory"`) is recycle leverage and does **not** promote
 a unit to *reviewed*.

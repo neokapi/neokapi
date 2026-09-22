@@ -2,7 +2,7 @@
 id: c-08-terms
 sidebar_position: 8
 title: "C-08: Terms"
-description: "Architecture decision: terminology is concept-oriented (a Concept groups terms across locales with per-term status, part of speech and validity), the committed JSON source is the truth while the store is a rebuildable projection, and one pass locates every declared term in a text."
+description: "Architecture decision: terminology is concept-oriented (a Concept groups terms across locales with per-term status, part of speech and validity), the project's terms store is the truth while a .terms.json bundle is the artifact it travels as, and one pass locates every declared term in a text."
 keywords: [terms, terminology, Concept, TBX, terms store, concept-oriented, validity, term rules, architecture decision, neokapi]
 ---
 
@@ -17,8 +17,8 @@ per-term metadata (status, part of speech, grammatical gender, validity). The
 `Terminology` interface (`terms/`) supports in-memory and SQLite backends, a
 tiered lookup pipeline, and TBX import and export.
 
-The committed JSON source is the truth and the store is a rebuildable projection
-of it. Terms flow through the streaming pipeline as first-class annotation types
+The project's terms store is the truth, and a `.terms.json` bundle is the
+artifact it travels as. Terms flow through the streaming pipeline as first-class annotation types
 whose positions are run-anchored, so a match survives run-preserving edits. One
 pass, `terms.Locate`, finds every declared term in a text, whether it was
 declared in a voice profile, in a tool's `term_rules:` or in the store.
@@ -113,61 +113,51 @@ same form, so a term recorded under `en_US` is the term a check running in
 `en-US` finds. The concept id `kapi apply` mints for a term decided outside any
 concept, `term:<locale>:<slug>`, embeds the locale in that form.
 
-### Terms are source; the store is a rebuildable projection
+### The terms store is the truth; a bundle is how it travels
 
 Terminology is **authored content, not derived state**. A person decides which
-terms are do-not-translate and what the preferred wording is, and those decisions
-belong in review and version control alongside the recipe and the voice profile.
-So the split is source versus projection, not a two-way sync:
+terms are do-not-translate and what the preferred wording is, and those
+decisions have to be kept. They are kept in the project's terms store, in the
+user's workspace ([C-03](c-03-context-store-and-graph.md)), where every
+checkout, branch and worktree of the project reads them:
 
-- the committed **terms source is the truth**: a diff-friendly, mergeable JSON
-  document (`kind: "kapi-terms"`) bound by `defaults.terms_source`, edited
-  directly (`kapi apply` with `kind:"term"` writes the file first), reviewed in a
-  pull request, and versioned with the code. It is plain JSON under a compound
-  suffix, so a reviewer reads it in a browser diff and `jq` reads it on the
-  command line.
-- the **terms tables inside the project's context store are a rebuildable
-  projection** of it ([C-03](c-03-context-store-and-graph.md)), outside version
-  control and rebuilt when the committed source changes, guarded by its content
-  digest.
-  Discard them, rebuild from the source, lose nothing: **nothing authoritative
-  ever lives only in the database.** Committing the binary database would be
-  hostile to review and would defeat interchange in any case.
+- every read goes there. The terminology gate, `kapi terms lookup`, the
+  retrieval an agent calls and the governing fingerprint all ask the same store
+  and get the same answer, whichever branch the checkout is on;
+- every write goes there too. `kapi apply` with `kind:"term"` writes the store
+  and records a context operation ([C-11](c-11-context-operations.md)), so
+  `kapi context log` carries the change and the evidence behind it.
 
-A project that binds nothing still resolves, through a fallback ladder:
-`.kapi/terms.json`, the conventional home inside the committed context, then
-`terms.json` at the project root for a project that keeps its terms there. An
-explicit `defaults.terms_source` wins over both and binds any path. The
-conventional home comes first because that is where the rest of the project's
-context lives, and terms are one node of it rather than a loose file beside it.
-Both rungs are committed and both reach review, which is the one thing the terms
-source exists to do.
+A **terms bundle** (`kind: "kapi-terms"`) is the artifact the store travels as:
+a diff-friendly, mergeable JSON document under a compound suffix, so a reviewer
+reads it in a browser diff and `jq` reads it on the command line.
+`kapi context snapshot` writes one, `kapi context import` reads one, and
+`kapi context export` packs the same content into a `.kpz`. A team that wants
+its vocabulary reviewable in a pull request keeps the snapshot committed; a team
+that does not backs the store up instead, and both govern identically.
 
-That ladder works here because **a project has exactly one set of terms**. The
-content memory has no equivalent convention: a project accumulates *many* memory
-bundles, one per content surface ([C-09](c-09-content-memory.md)), so there is
-no single bundle for a fallback to name. The asymmetry is a consequence of what
-each store is.
+An import with no path reads `.kapi/terms.json`, the conventional place, and
+`defaults.terms_source` names a bundle elsewhere. That single convention works
+because **a project has exactly one set of terms**. The content memory has no
+equivalent: a project accumulates *many* memory bundles, one per content surface
+([C-09](c-09-content-memory.md)), so an import reads every bundle in a directory
+rather than one well-known name.
 
-Read-only consumers read the committed source directly. The terminology gate
-decodes it without materializing any tables, which is why it holds on a fresh CI
-checkout. Presence is table-level, so the gate behaves identically whether the
-project's database is absent, present with empty terms tables, or fully populated
-([C-03](c-03-context-store-and-graph.md)); the tables earn their keep only for
-the heavy indexed lookups during translation.
-
-**The projection is rebuilt on the read path, not only by an edit.** The
-convergence loop compiles the bound source into the store before it runs, keyed
-by the file's content digest, so a fresh checkout converges against the committed
-vocabulary and a pulled change to the source reaches the store with no explicit
-import. An unchanged source costs a read and no writes.
+Presence is table-level, so a project whose terms tables are empty enforces
+nothing, whether or not a database file exists
+([C-03](c-03-context-store-and-graph.md)). A checkout carrying a terms bundle
+against such a store is the first meeting, and every surface says so and names
+`kapi context import` ([C-11](c-11-context-operations.md)). Nothing reads the
+bundle until a person runs it, which is what stops a branch's copy of a file
+from deciding what a gate enforces.
 
 ### The return leg: reviewed decisions come home
 
 Terminology is often decided where the reviewers are, which may not be a working
-tree. Decisions have to travel back into version control or they exist only in a
-store nobody diffs. After a concept pull, the reviewed decisions among the pulled
-concepts are **merged** into the committed source.
+tree. Those decisions have to reach the project or they govern nothing locally.
+After a concept pull, the reviewed decisions among the pulled concepts are
+**merged** into the project's terms store, and the pull records a context
+operation whose actor is the venue.
 
 Two properties make that safe to run unattended:
 
@@ -483,7 +473,7 @@ contain *varsel*.
 forms of each term in the term's own language, one language at a time and in
 batches, and keeps a proposal only when it opens with the term's first three
 characters and is spelled differently from every other term in that language.
-What survives is written onto the terms of the committed bundle, where a
+What survives is written onto the terms in the store, where a
 reviewer reads it in the diff, so the matching that consumes the forms stays
 deterministic and free of model calls. By default it asks about target terms and
 leaves terms that already declare forms alone. `kapi terms validate` reports the
@@ -509,7 +499,8 @@ a language that inflects and about a form spelled the same as another term.
 
 ## See also
 
-- [C-01: The project model](c-01-project-model.md): `defaults.terms_source`.
+- [C-01: The project model](c-01-project-model.md): where a bundle sits in the
+  layout.
 - [C-03: The context store and graph](c-03-context-store-and-graph.md): where
   the projection lives and how occurrence is indexed.
 - [C-07: Voice profiles](c-07-voice-profiles.md): the `TermRule` shape and the

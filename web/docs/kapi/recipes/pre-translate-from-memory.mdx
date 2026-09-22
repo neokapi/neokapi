@@ -20,7 +20,7 @@ import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed
 
 The **Content Memory** view is where the project's memory lives:
 
-1. **Bring in past work.** Load a content-memory bundle (or, coming from another system, a TMX export) with `kapi memory import`, or commit the bundle the recipe binds with `defaults.memory_source`; the view lists entries and language pairs as they land.
+1. **Bring in past work.** Load a content-memory bundle (or, coming from another system, a TMX export) with `kapi memory import`, or read a checkout's bundle in with `kapi context import`; the view lists entries and language pairs as they land.
 2. **Run the flow.** A project flow whose first step is `recycle` fills every exact match from memory before any translate step runs; **Bring up to date** applies it across locales, and only the misses go forward.
 3. **Watch leverage accumulate.** Every finished run absorbs its results, so the next release starts warmer.
 

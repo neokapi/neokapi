@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: Project state
-description: "The committed decision record under .kapi/state/ (JSON Lines, one shard per document, one line per unit), the ledger kapi commit exports it from, and the unit state fields."
+description: "The decision record kapi context snapshot writes under .kapi/state/ (JSON Lines, one shard per document, one line per unit), the ledger it is written from, and the unit state fields."
 keywords:
   [
     project state,
@@ -18,35 +18,39 @@ keywords:
 # Project state (`.kapi/state/*.jsonl`)
 
 Project state records **where each unit stands**: what has been
-reviewed, what was approved and by whom, what status a target has reached. It
-is the artifact that lets a review survive a fresh clone.
+reviewed, what was approved and by whom, what status a target has reached. It is
+the artifact form of the decisions a project holds, the shape they take when
+they leave the store and the shape they are read back from.
 
 Implemented in Go at
 [`core/state`](https://github.com/neokapi/neokapi/tree/main/core/state).
 
-## The ledger records, `kapi commit` exports
+## The ledger records, a snapshot writes it out
 
 A decision is appended to the project's **decision ledger**, which lives in the
 [project store](/kapi/project-store), and it is durable the moment it is
-recorded. `kapi commit` writes the record out in the form git tracks: for each
+recorded. Every checkout of the project reads the ledger, so the decision is in
+force at once and on every branch.
+
+`kapi context snapshot` writes the ledger out in the form git tracks: for each
 unit this checkout holds, what was decided about the source and the translation
-it holds now.
+it holds now. `kapi context import` reads that shape back in, and
+`kapi context export` carries the same record inside a `.kpz`.
 
 The consequences follow from that:
 
-- The two directions agree. `kapi commit` exports the shards; opening the
-  project reads them back in, so a fresh clone and a `git pull` both pick up
-  what the shards carry.
+- The two directions agree. A snapshot writes the shards and an import reads
+  them, so a clone that runs the import picks up what the shards carry.
 - Reading a shard twice costs nothing. A line the ledger already holds is left
   alone, and a line older than what applies at its pairing is left out.
-- Committing writes nothing when nothing changed, which keeps a CI step from
+- A snapshot with nothing to say writes nothing, which keeps a CI step from
   producing an empty commit.
 - A server-backed project has a different sink for the same record:
   `kapi push` sends the decisions to the remote instead of writing shards.
 
 ## One shard per document
 
-The committed record is a directory of JSON Lines files, one per document
+The record is a directory of JSON Lines files, one per document
 scope, each line a single unit:
 
 ```
@@ -76,17 +80,19 @@ it. A scope is the document's resolved **key**, never its path (so renaming a
 file does not orphan its state), and deriving the filename keeps an opaque key
 from escaping the directory.
 
-## Why the record is committed and the store is not
+## Why the shards are an artifact
 
-`.kapi/state/` sits inside `.kapi/`, which is committed in full; only
-`.kapi/work/` is ignored, and that is where the checkout's derived projection
-and its caches live. A record of who approved what must be reviewable and must
-survive a clone; the databases that index it belong to one machine. The record
-sits beside the terms and the content memory it makes claims about, because it is
-one node of the same context graph.
+The decisions themselves live in the project's store, where every checkout
+reads them and a `git checkout` of another branch changes nothing about them.
+The shards are what those decisions look like as reviewable text: a team that
+wants its approvals in a pull request writes them there with
+`kapi context snapshot` and reads them back with `kapi context import`, and the
+shards sit beside the terms and the content memory they make claims about,
+because all three are nodes of one context graph.
 
 The [overview](/reference/serialization/overview) states the general rule, and
-[the project store](/kapi/project-store) covers the split in full.
+[Moving context](/kapi/context-portability) covers the four verbs that carry
+context between the store and files.
 
 ## Unit state
 
@@ -147,6 +153,6 @@ approval remain distinguishable in the record.
 
 ## See also
 
-- [The project store](/kapi/project-store): the committed record, the two databases, and the cache.
-- [Overview](/reference/serialization/overview): store, bundle, and committed state.
-- [Terms](/reference/serialization/terms): the other committed artifact a reviewer reads.
+- [The project store](/kapi/project-store): the context store that holds the ledger, and the projection that rebuilds.
+- [Overview](/reference/serialization/overview): store, bundle, and exported artifact.
+- [Terms](/reference/serialization/terms): the other artifact a reviewer reads.

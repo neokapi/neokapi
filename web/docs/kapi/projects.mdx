@@ -59,7 +59,7 @@ Kapi has one set of commands, and what changes between ad-hoc and project use is
 - **Ad-hoc** = the `file` binding: you name `-i`/`-o`.
 - **In a project**, the default *sink* is the **store** (a *process-only* run); an explicit `-o` forces a file instead.
 
-A process-only run persists only *working* output: target overlays in the block tables of `.kapi/work/store.db`, pre-merge. A review **decision** is a different thing: `kapi apply` records one, `kapi commit` writes the record to `.kapi/state/`, and a flow's sink never writes them. The projection rebuilds from what the project commits; the decisions are the authored part. See [the project store](/kapi/project-store).
+A process-only run persists only *working* output: target overlays in the block tables of `.kapi/work/store.db`, pre-merge. A review **decision** is a different thing: `kapi apply` records one in the project's context store, and a flow's sink never writes them. The projection rebuilds from your files; the decisions are the authored part. See [the project store](/kapi/project-store).
 
 `--explain` prints the resolved binding without running:
 

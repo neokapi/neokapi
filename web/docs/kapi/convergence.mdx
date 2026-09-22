@@ -545,9 +545,9 @@ defaults:
 
 A machine takes a unit to *translated*; a person takes it to *reviewed*. That
 approval is an authored **decision** (who signed off on which exact
-translation), so it is recorded in the [project store](/kapi/project-store) and
-is durable at once, and `kapi commit` writes it into the committed record under
-`.kapi/state/`. The content memory holds none of it.
+translation), so it is recorded in the [project store](/kapi/project-store),
+where it is durable at once and every checkout of the project reads it. The
+content memory holds none of it.
 
 `kapi status --review` is the worklist: one queue of the units awaiting a
 person, each belonging to a language, and the source language is one of them
@@ -589,8 +589,8 @@ records a basis.
   nodes={[
     { label: "approve", sub: "kapi apply · kind: review", role: "annotate" },
     {
-      label: "state record + both hashes",
-      sub: ".kapi/state/*.jsonl",
+      label: "decision + both hashes",
+      sub: "the project's store",
       role: "io",
       edge: "records hash(translation) + hash(source)",
     },
@@ -605,13 +605,15 @@ records a basis.
   caption="An approval binds to the pairing it blesses (the translation, and the source it was approved for): edit either and the unit falls below reviewed until someone approves the new pair."
 />
 
-The shards are committed with your sources, so the record travels
-with the project (a server-connected project pushes it to the remote instead,
-where parked units enter the team's assignment and review queue).
+The record travels with the project through
+[`kapi context export`](/kapi/context-portability), and a team that wants it
+reviewable in git writes it there with `kapi context snapshot`. A
+server-connected project pushes it to the remote instead, where parked units
+enter the team's assignment and review queue.
 
-This is distinct from the content memory: `kapi apply` with `kind:"memory"` adds a
-source→target pair to the **recycle** corpus (`defaults.memory_source`) for future
-leverage and never promotes a unit to *reviewed*.
+This is distinct from the content memory: `kapi apply` with `kind:"memory"` adds
+a source→target pair to the **recycle** corpus for future leverage and never
+promotes a unit to *reviewed*.
 
 Run the loop yourself: this is the real kapi compiled to WebAssembly, working on
 an in-memory project. `status` shows the translated-but-unreviewed state,

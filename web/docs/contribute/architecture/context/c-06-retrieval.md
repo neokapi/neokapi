@@ -253,7 +253,7 @@ order that means nothing.
 ### Every answer reports its own freshness
 
 The first of an answer's notes says whether the governing context, the
-terminology or the committed decisions moved since this process last read them.
+terminology or the recorded decisions moved since this process last read them.
 The comparison is against the freshness ref this project last observed, held on
 disk ([C-05](c-05-freshness.md)), so a retrieval costs no round trip, and the
 baseline is per process and advances on every read.

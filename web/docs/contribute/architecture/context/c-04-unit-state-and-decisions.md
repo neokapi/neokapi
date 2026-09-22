@@ -2,7 +2,7 @@
 id: c-04-unit-state-and-decisions
 sidebar_position: 4
 title: "C-04: Unit state and the decision record"
-description: "Architecture decision: a project's authored unit state (the review ladder, approvals, sign-off, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies where the pairing it blessed appears, so one ledger serves every checkout of a project; the committed .kapi/state/ shards are a checkout's export of it and an import source for it."
+description: "Architecture decision: a project's authored unit state (the review ladder, approvals, sign-off, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies where the pairing it blessed appears, so one ledger serves every checkout of a project; the .kapi/state/ shards are what a snapshot writes and an import reads."
 keywords: [project state, decision ledger, core/state, review, approval, convergence, append-only, content-addressed, commit, targetHash, architecture decision, neokapi]
 ---
 
@@ -67,12 +67,11 @@ two are separated:
 | Kind | Examples | Home | Authoritative? |
 | --- | --- | --- | --- |
 | Derived | parsed blocks, coverage, rungs reachable from content | `.kapi/work/cache/`, and the checkout's projection at `.kapi/work/store.db` | no: rebuildable, ignored |
-| Authored unit state | approvals, sign-off, parking, reviewer, notes | the decision ledger (`core/state`) in the project's context store, exported to `.kapi/state/` | yes |
+| Authored unit state | approvals, sign-off, parking, reviewer, notes | the decision ledger (`core/state`) in the project's context store | yes |
 
 The cache may *mirror* authored state in transit, but it never *owns* it. A
-decision is durable in the ledger the moment it is recorded, and the only window
-in which it exists nowhere a reviewer can read it is between the recording and
-the next `kapi commit`.
+decision is durable in the ledger the moment it is recorded, and every checkout
+of the project reads it from there.
 
 ### Content memory is recycle, not the state carrier
 
@@ -116,36 +115,35 @@ cannot reach another's record. Two checkouts that hold the same source and the
 same translation hold the same answer, and neither had to copy it.
 
 Each checkout keeps a **view**: the pairing each unit has in it. The view is
-derived, rebuilt from that checkout's committed shards whenever they move, which
-is what a branch switch does to them. A row recorded here and not yet written out
-survives that rebuild, because no record supplies it, and the entry behind it
-still answers only where its pairing appears. Emptying the view
+derived, rebuilt from the content this checkout holds whenever it moves, which
+is what a branch switch does to it. The entry behind a row still answers only
+where its pairing appears. Emptying the view
 (`WorkStore.ClearView`, what restoring a context bundle over a project does to
 the decisions half) leaves every entry in the ledger, so a pairing that comes
 back comes back to what was decided about it.
 
-### Recording is durable; writing the record is an export
+### Recording is durable; the shards are an artifact
 
 `Put`, `Record` and `RecordEntry` append to the ledger and are durable at once.
 Nothing has to be published for a decision to count, and no tier sits between
 making one and keeping it.
 
-Two directions connect the ledger to the git-tracked shards under `.kapi/state/`,
-and they agree:
+Two directions connect the ledger to the shards under `.kapi/state/`, for a team
+that keeps them in version control, and they agree:
 
-1. **Export.** `kapi commit` writes, for each unit this checkout holds, the entry
-   that applies to its current pairing. Lines are sorted within a shard, a shard
-   whose bytes are unchanged is left untouched, and the payload is the record as
-   it was decided, so running it twice over an unchanged project writes the same
-   bytes and leaves the same files. It prunes only shards this checkout's view no
-   longer names. `kapi commit --dry-run` reports what it would write and writes
-   nothing.
-2. **Import.** Opening the store reads the shards into the ledger. A line the
+1. **Snapshot.** `kapi context snapshot` writes, for each unit this checkout
+   holds, the entry that applies to its current pairing. Lines are sorted within
+   a shard, a shard whose bytes are unchanged is left untouched, and the payload
+   is the record as it was decided, so running it twice over an unchanged
+   project writes the same bytes and leaves the same files. It prunes only
+   shards this checkout's view no longer names.
+2. **Import.** `kapi context import` reads the shards into the ledger, and a
+   person runs it ([C-11](c-11-context-operations.md)). A line the
    ledger already holds costs nothing, and a line older than the entry in force at
    its pairing (by the `Updated` stamp both ends write) is left out, which is the
-   same last-writer-wins rule a venue pull follows. A fresh clone restores its
-   decisions this way, and so does a checkout picking up a colleague's after `git
-   pull`. A record read in this way is recorded in the order that leaves this
+   same last-writer-wins rule a venue pull follows. A fresh clone picks up the
+   project's decisions this way when its store has never held them. A record read
+   in this way is recorded in the order that leaves this
    checkout's view where it was: the lines whose pairing it already holds go
    last, so a record carrying several branches' answers for one unit cannot
    repoint it. `state.CommittedDigest`, over each shard's name and bytes and stamped
@@ -341,11 +339,10 @@ Staleness is one reason a produced unit is work, and the plan carries the others
 on their own axis. What a pass spends a provider call on is decided by the
 content memory, not by a target file: the pipeline reads the source documents,
 `recycle` fills what the corpus answers, and `translate` drafts the remainder. So
-`kapi up --plan` asks the corpus about every unit it counts, including on a
-checkout whose store does not exist yet, where the committed content-memory
-bundles are compiled into a corpus that lives only for that call, so a dry run
-prices the recycling a run would do without creating the state a dry run must
-not. A produced unit the record does not pair with its source (a rewrite, an
+`kapi up --plan` asks the corpus about every unit it counts, reading the
+project's content memory without writing anything, so a dry run prices the
+recycling a run would do without creating the state a dry run must not. A
+produced unit the record does not pair with its source (a rewrite, an
 identical pair no approval stands behind, a pair refused for asymmetric inline
 codes) is reported as **unanswered** and priced. It is kept apart from `stale`:
 stale means a decision's basis moved, which also drives the review worklist and
@@ -480,7 +477,7 @@ and findings, bound to the translation it judged so that an edit invalidates it
 
 ### A venue is authoritative for what it accepts
 
-The committed record is the project's. What a venue does with it is the venue's.
+The record is the project's. What a venue does with it is the venue's.
 A push sends the record whole, so it can carry an approval the venue declines:
 the pusher may hold no review permission for that language, or the workspace may
 refuse a verdict on work its author wrote. The venue keeps such a record as the
@@ -517,27 +514,27 @@ path again lands on that entry, with the decision still recorded against it. Wha
 the venue reports as content leaves that entry out, so a project is never asked
 to account for a file it does not have.
 
-### The committed location is fixed
+### The shards' location is fixed
 
-The record lives at `.kapi/state/`, derived from the project layout: inside the
-committed context, beside the terms and the content memory it makes claims about.
-`kapi status` and `kapi commit` take no path, and the recipe binds nothing: the
-record is a directory whose contents kapi owns and prunes, so pointing it at an
-arbitrary location would invite a project to aim it somewhere kapi deletes from.
-That is the difference from `terms_source` and `memory_source`, which bind any
-path because a person authors those files.
+A snapshot writes the record at `.kapi/state/`, derived from the project layout,
+beside the terms and the content memory it makes claims about. The recipe binds
+nothing: the record is a directory whose contents kapi owns and prunes, so
+pointing it at an arbitrary location would invite a project to aim it somewhere
+kapi deletes from. That is the difference from `terms_source` and
+`memory_source`, which bind any path because a person may already keep those
+files elsewhere.
 
 Getting the record *out* of kapi's own layout is a job for exchange rather than
 relocation (`kapi merge`, XLIFF `<target state=…>`, the `.kpz` bilingual
 profile), which converts the record into a format a third party can read instead
 of moving it.
 
-### Why the committed record stays, whatever else exists
+### Why a project keeps its own record, whatever else exists
 
 A hosted layer can coordinate review: concurrent reviewers, assignment, queues,
 and a place for reviews done by people with no checkout. That is coordination
-*around* the record rather than a replacement for it, and the committed record
-keeps properties no live database can:
+*around* the record rather than a replacement for it, and a project's own record
+keeps properties no live service can:
 
 - **kapi runs on its own.** If unit state required a service, a plain kapi
   project could not converge at all.
@@ -567,12 +564,13 @@ re-exports the core types through aliases so downstream code sees one import.
   `Stale`/`Fresh`/`Reviewed` ladder helpers, and `WorkStore`, the ledger and this
   checkout's view of it (`Lookup`/`Get`/`Put`/`Record`/`RecordEntry`/`Delete`/
   `All`/`Priors`/`Entries`, `Ledger` for the whole of it, `Commit` and
-  `RecordDiff` for the export, `Import` and `CommittedDigest` for the shards,
+  `RecordDiff` for writing the shards, `Import` and `CommittedDigest` for
+  reading them,
   `ClearView` for emptying this checkout's view while every entry stands,
   `Documents` and `AdoptDocuments` for document identity, and `SetPolicy` for
   who may record what).
-- **A backup reads the ledger, a commit reads the view.** `Ledger` answers with
-  the entry in force at every pairing, whichever checkout recorded it, and
+- **A backup reads the ledger, a snapshot reads the view.** `Ledger` answers
+  with the entry in force at every pairing, whichever checkout recorded it, and
   `OpenLedger` reaches it with no checkout in hand. That is what
   `kapi context export` carries, with and without `--workspace`
   ([M-06](../multilingual/m-06-content-packages.md)): a project whose branches
@@ -586,14 +584,15 @@ re-exports the core types through aliases so downstream code sees one import.
 - **Coverage derives from the state store plus the target files**, never from
   content-memory properties.
 - **Exchange and parcels carry state**, so a hand-off does not drop it.
-- **The recipe stays clean.** It binds sources, never a derived artifact; the
-  committed record is fixed by the project layout, and the database holding the
-  ledger is fixed by the workspace ([C-03](c-03-context-store-and-graph.md)).
+- **The recipe stays clean.** It binds what governs a point by name and never a
+  store path; the shards' location is fixed by the project layout, and the
+  database holding the ledger is fixed by the workspace
+  ([C-03](c-03-context-store-and-graph.md)).
 
 ## See also
 
-- [C-01: The project model](c-01-project-model.md): where `.kapi/state/` sits
-  among the ownership zones.
+- [C-01: The project model](c-01-project-model.md): where the snapshot's shards
+  sit among the ownership zones.
 - [C-03: The context store and graph](c-03-context-store-and-graph.md): the
   database the ledger sits in, and the `blesses` edge.
 - [C-09: Content memory](c-09-content-memory.md): the recycle corpus this store

@@ -1,10 +1,20 @@
 # The dogfood context graph
 
-This directory is the committed context graph of the root `kapi.yaml` recipe:
-the voice profile, terms and reviewed content memory neokapi translates its own
-surfaces with. It is tracked in git, reviewed like any other source, and `kapi
-up` compiles it into the project store on every run. Everything derived from it
-lives in `.kapi/work/`, which is gitignored.
+This directory is the **exported** context of the root `kapi.yaml` recipe: the
+voice profile, terms and reviewed content memory neokapi translates its own
+surfaces with, written out as files and kept in git so a reviewer reads them in
+a pull request. Everything derived from the working tree lives in
+`.kapi/work/`, which is gitignored.
+
+A project's context lives in the user's workspace, and kapi reads it from there.
+This export is kept because [the dogfood loop](../docs/internals/l10n-ci.md)
+runs the **system-installed** kapi, a released build that still compiles these
+files on every run, and because a repository that ships a content engine is a
+useful place to review its own terms. Once the loop moves to a release that
+reads the store only, the files stay and their role changes: `kapi context
+snapshot` writes this layout and `kapi context import` reads it, one step before
+the loop's `kapi up`. `make import-dogfood-context` already does exactly that
+for the prose gates.
 
 - `voice.yaml`: the machine-readable encoding of
   [docs/internals/brand-communication.md](../docs/internals/brand-communication.md),
@@ -19,15 +29,14 @@ lives in `.kapi/work/`, which is gitignored.
   both a source and a destination: the workspace's approved term decisions are
   merged back into it by the nightly's concept pull, upsert-only, so a concept
   it does not mention survives.
-- `state/*.jsonl`: the committed decision record. `kapi commit` writes here from
-  the decisions this checkout holds, including the ones a pull brought back from
-  the server: one shard per scope, a row per unit carrying its review state and
+- `state/*.jsonl`: the decision record, written from the decisions this
+  checkout holds, including the ones a pull brought back from the server: one shard per scope, a row per unit carrying its review state and
   the hash of the target it applies to. This is where a reviewer's approval is
   recorded, and it is the only file under this directory that a human never
   writes by hand.
 - `memory/<surface>-<lang>.memory.json`: reviewed pairs, one bundle per
   surface and locale (e.g. `builtins-nb.memory.json`). They are **read-only
-  accelerants**: `kapi up` compiles every bundle here into the project store so
+  accelerants**: every bundle here is read into the project's content memory so
   a checkout with no credentials converges from git alone, and nothing in the
   loop writes back to them. Bundle filenames are their own naming, independent
   of the collection names in `kapi.yaml`: the compile globs the directory, and
@@ -68,8 +77,9 @@ travel one path:
 
 1. Fix it where it is read: the review queue on the server, or `kapi apply`
    locally for a term edit (which writes `terms.json` and recompiles it).
-2. `kapi up` pulls the approved decisions into the project store on the next
-   run, and `kapi commit` writes them into `.kapi/state/`, which git tracks.
+2. `kapi up` pulls the approved decisions into the project's decision ledger on
+   the next run, and the loop's return leg writes them into `.kapi/state/`,
+   which git tracks.
 3. The next convergence materializes the target from a store that now holds the
    approval.
 

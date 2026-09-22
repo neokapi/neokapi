@@ -65,14 +65,14 @@ file, never editing a list.
 
 | AD | Title | Scope |
 | --- | --- | --- |
-| [C-01](context/c-01-project-model.md) | The project model | the `kapi.yaml` recipe, the committed `.kapi/` layout, the store interface, `ProjectContext` |
+| [C-01](context/c-01-project-model.md) | The project model | the `kapi.yaml` recipe, the `.kapi/` layout, the store interface, `ProjectContext` |
 | [C-02](context/c-02-coordinates-and-governance.md) | Coordinates and governance | the product × channel space and the declared axes, per-file resolution, validity windows |
 | [C-03](context/c-03-context-store-and-graph.md) | The context store and graph | the checkout's projection at `.kapi/work/store.db`, the workspace holding each project's context store, the property graph and its query shapes |
-| [C-04](context/c-04-unit-state-and-decisions.md) | Unit state and the decision record | `.kapi/state/`, the decision ledger, document identity, `kapi commit`, basis and target-hash staleness |
+| [C-04](context/c-04-unit-state-and-decisions.md) | Unit state and the decision record | the decision ledger, document identity, the shards a snapshot writes, basis and target-hash staleness |
 | [C-05](context/c-05-freshness.md) | Freshness and the composite ref | one ref per stream, compare-and-swap per component, the staleness gate |
 | [C-06](context/c-06-retrieval.md) | Context retrieval | by location and by content, on the CLI and over MCP |
 | [C-07](context/c-07-voice-profiles.md) | Voice profiles | the profile model, starter packs, the vocabulary and voice checks, scoring |
-| [C-08](context/c-08-terms.md) | Terms | the concept model, the committed source, tiered lookup, validity |
+| [C-08](context/c-08-terms.md) | Terms | the concept model, the terms store, tiered lookup, validity |
 | [C-09](context/c-09-content-memory.md) | Content memory | tiered matching, entity generalization, version chains and governed reuse, the two-stage rebuild |
 | [C-10](context/c-10-redaction.md) | Redaction and clearance | the placeholder model, the local vault, the three policy readers |
 | [C-11](context/c-11-context-operations.md) | Context operations | the append-only operation log, candidates that advise, the policy for who decides |

@@ -89,6 +89,11 @@ run_check "Documentation palettes are fresh" make check-docs-palette
 # text", and it fails by showing less content rather than by failing. ~1s.
 run_check "Run projections are declared" ./scripts/check-run-projection.sh
 
+# Ungated: prose describing a project's context as a file is written wherever
+# someone reaches for a path, and it teaches the habit the store-only model
+# exists to end. ~1s.
+run_check "The written record is store-only" ./scripts/check-docs-store-only.sh
+
 # Ungated: a directory added anywhere can hold files whose comments no
 # kapi.yaml collection reaches, and only this guard notices.
 run_check "Comment coverage" make check-comment-coverage

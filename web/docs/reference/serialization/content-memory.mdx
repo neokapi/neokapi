@@ -26,9 +26,9 @@ project, the memory tables of the [project store](/kapi/project-store), which
 sits outside the checkout and outside git, and `memory.db` for a standalone
 store. A
 bundle is what you get when you export that store into a single reviewable,
-hashable file, and the bundle the recipe binds with `defaults.memory_source` is
-the committed record the store is compiled from. See the
-[overview](/reference/serialization/overview) for why kapi keeps that
+hashable file. `kapi context snapshot` writes one and `kapi context import`
+reads one, which is how a project's content memory travels between machines.
+See the [overview](/reference/serialization/overview) for why kapi keeps that
 distinction.
 
 Implemented in Go at
@@ -159,6 +159,6 @@ trade-off in full.
 
 ## See also
 
-- [Overview](/reference/serialization/overview): store, bundle, and committed state.
+- [Overview](/reference/serialization/overview): store, bundle, and exported artifact.
 - [Terms](/reference/serialization/terms): the terminology bundle and its lookup ladder.
 - [Project archive](/reference/serialization/project-archive): the `.kpz` that carries a memory bundle as a member.

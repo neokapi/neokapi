@@ -158,8 +158,8 @@ change-set.
 
 ## The voice binding
 
-When the recipe binds a voice profile (`defaults.voice`, conventionally
-`.kapi/voice.yaml`, or a profile's own `voice:`), push carries it into the
+When the recipe binds a voice profile (`defaults.voice`, or a profile's own
+`voice:`), push carries it into the
 workspace [Context](/server/context) hub, matched by profile name: created on
 first push, a no-op when the content is unchanged, and otherwise applied as a
 **new profile version**. The previous server-side state is archived in the

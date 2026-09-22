@@ -12,8 +12,10 @@ runs the project's declared checks. You do the writing, editing and translating.
 
 A project's **context** is what it has recorded about how it writes: the voice
 in force at a location, the terms bound there, wording already approved, and the
-decisions behind all of it. Most projects have recorded little of it. Four
-habits keep you working from that context and growing it as you go.
+decisions behind all of it. It lives in the user's workspace, one store per
+project, so it holds on every branch and needs no file in the checkout. Most
+projects have recorded little of it. Four habits keep you working from that
+context and growing it as you go.
 
 ## 1. Before you write, ask what applies here
 
@@ -92,6 +94,11 @@ Over MCP: call `context_session_summary` and use the sentence it returns.
 Deciding is the user's: there is no tool for confirming, discarding, reverting
 or widening on the agent surface, and an agent that tries the command is
 refused.
+
+Reading a checkout's context files is the user's too. An answer that carries a
+`notice`, and a command that prints one, mean this checkout holds context files
+nothing has read in. Tell the user to run `kapi context import`; kapi refuses it
+from you.
 
 ## Then read the reference that matches the task
 

@@ -49,8 +49,11 @@ kapi init --name my-app --source-locale en --target-locale fr --target-locale de
 # --framework <preset>  pre-fills content paths; kapi init --list-presets shows them all
 ```
 
-This writes `kapi.yaml` (the recipe) and a `.kapi/` directory. **`.kapi/` is
-committed**: it is the project's context rather than scratch space. Git it like source.
+This writes `kapi.yaml` (the recipe) and a `.kapi/` directory. Both are
+configuration and both are committed. The project's **context** (its terms, its
+voice profiles, its content memory and its decisions) lives in the user's
+workspace, one store per project, shared by every checkout. Never tell the user
+to commit their context.
 
 When the project binds a voice (the default scaffold binds a starter pack),
 `kapi init` also writes a short section into the project's assistant file: an
@@ -71,21 +74,22 @@ leaves an entry someone else put there alone, and writes nothing on a re-run.
 `--agents <list|all|none>` chooses; tell the user which files landed, since they
 commit them.
 
-- **`.kapi/`**: the context graph, all committed and flat: `terms.json`,
-  `voice.yaml`, `memory/` (the content-memory bundles, `memory.json` the
-  primary), `profiles/<name>/` (what a profile overrides), and `state/*.jsonl`,
-  the decision record (one shard per document). `kapi commit` writes the
-  decisions this checkout holds into `state/`; then `git add` it like any other
-  source file.
+- **`.kapi/`**: configuration, committed: `flows/` (file-per-flow definitions)
+  and `filters.json` (shared reader settings). A project may also keep a
+  snapshot of its context here, written by `kapi context snapshot`:
+  `terms.json`, `voice.yaml`, `memory/*.memory.json`, `profiles/<name>/` and
+  `state/*.jsonl`. Those files are read by `kapi context import` and by nothing
+  else.
 - **`.kapi/work/`**: everything this checkout derives, and the only gitignored
   path. `store.db` is its projection of the working tree: the block cache, the
   overlays a run wrote, the extraction stamps.
 - **The workspace**, under the user's data directory
   (`<data dir>/workspaces/default/`), holds one context store per project: the
   terms, the voice profiles, the content memory and the decision ledger, shared
-  by every checkout of that project. Never read or write either database
-  directly and never commit one; go through kapi commands, which are what keep
-  them consistent with the sources.
+  by every checkout of that project. This is where every read goes: a gate, a
+  lookup and `kapi context <path>` all answer from it, on any branch. Never read
+  or write either database directly and never commit one; go through kapi
+  commands.
 
 The ignore rule `kapi init` writes is `.kapi/.gitignore` with two lines, `work/`
 and `filters.local.json` (a developer's personal reader settings). If you see
@@ -99,9 +103,9 @@ Deleting:
   `.kapi/work/vault/` holds the withheld originals, which are local-only by
   design and rebuild from nothing: merge any batch that is out with a translator
   before clearing it. Decisions are in the workspace and survive it.
-- Deleting the workspace costs every decision recorded since the last `kapi
-  commit`, in every project. Run `kapi commit` first, or take a copy with
-  `kapi context export`.
+- Deleting the workspace costs every project's terms, voice profiles, content
+  memory and decisions. Tell the user to take a copy first with
+  `kapi context export --workspace -o backup.kpz`.
 
 ## What the recipe binds
 
@@ -112,9 +116,8 @@ defaults:
   source_language: en
   target_languages: [fr, de]
   voice:
-    profile_file: .kapi/voice.yaml   # or: profile: <store name> | pack: marketing-blog
-  terms_source: .kapi/terms.json    # the committed terms source
-  memory_source: .kapi/memory/memory.json  # the committed content memory
+    profile: my-app-docs            # a profile in the project's voice store
+                                    # or: pack: marketing-blog
   coordinates:
     brand: my-app                   # a declared axis; product/channel are never written here
 collections:
@@ -128,10 +131,11 @@ collections:
         format: { name: sourcecode, config: { language: ruby, nodePathPatterns: [desc, caveats] } }
 ```
 
-- **Voice profile**: bind it under `defaults.voice`, or just keep a
-  `.kapi/voice.yaml` (or a `voice.yaml` at the project root); `kapi
-  voice check <file>`, `voice rewrite`, and `voice guide` then resolve it with no
-  flag. Then `kapi voice pointer`, so the assistant file names the voice.
+- **Voice profile**: `kapi voice import <file.yaml>` files one in the project's
+  voice store and prints its id; bind that id under `defaults.voice.profile`.
+  `kapi voice check <file>`, `voice rewrite` and `voice guide` then resolve it
+  with no flag, and `kapi voice edit` is how the user changes it afterwards.
+  Then `kapi voice pointer`, so the assistant file names the voice.
 - **More than one voice in one repo**: declare one profile per product under
   `profiles:`, list the channels that product ships on, and bind each *named*
   collection to one of them with `channel:`. Runs split per distinct resolution,
@@ -142,10 +146,10 @@ collections:
   profiles:
     framework:
       channels: [docs]
-      voice: .kapi/voice.yaml
-    platform:                        # .kapi/profiles/platform/voice.yaml and
-      channels: [docs, landing]      # terms.json answer by convention; bind
-                                     # `voice:`/`termstore:` only to override them
+      voice:
+        profile: framework-docs
+    platform:                        # no `voice:`; the profile the store holds
+      channels: [docs, landing]      # under "platform" answers
 
   collections:
     - name: platform-docs
@@ -158,8 +162,9 @@ collections:
         - path: platform/web/pages/*.tsx
   ```
 
-  Profile names and channels are slugs. The profile name is also the directory
-  under `.kapi/profiles/<name>/`. An explicit `--profile` still beats the recipe.
+  Profile names and channels are slugs. A profile that binds no `voice:` is
+  answered by the profile the store holds under its own name. An explicit
+  `--profile` still beats the recipe.
   The channel additionally picks the override inside the selected profile's
   voice (its tone, its style, and vocabulary rules that add to the profile's),
   so a landing register lives beside the voice it varies rather than in a

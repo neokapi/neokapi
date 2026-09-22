@@ -1,7 +1,7 @@
 ---
 sidebar_position: 8
 title: Voice profile
-description: "The voice profile: a YAML document describing tone, style, vocabulary and worked examples, its three-rung resolution ladder, the pattern and term-rule fields, and the locale, channel and persona overrides."
+description: "The voice profile: a YAML document describing tone, style, vocabulary and worked examples, how the recipe binds one, the pattern and term-rule fields, and the locale, channel and persona overrides."
 keywords:
   [
     voice profile,
@@ -39,25 +39,26 @@ YAML carries multi-line prose without escaping it, allows comments explaining
 *why* a rule exists, and diffs a reworded paragraph legibly. JSON does none of
 those well. The type also carries JSON tags, so the same profile serializes to
 JSON when it moves over an API or into a store; the YAML is the authoring
-form.
+form. `kapi voice edit` opens the stored profile as this YAML, validates what
+you save, and reads it back into the store as one recorded change.
 
 ## Resolution ladder
 
 When a command needs a profile and no `--profile`, `--profile-file`, or
 `--pack` flag is given, kapi resolves one in this order:
 
-1. **The recipe binding**: `defaults.voice` in `kapi.yaml`, which may
-   name a `profile_file`, a `pack`, or a profile in the local voice store.
-   A profile under `profiles:` binds its own `voice:` for the product it
-   governs, and its conventional `.kapi/profiles/<name>/voice.yaml` answers
-   before the project default does; see [Context](/kapi/context#how-a-point-resolves).
-2. `<project-root>/.kapi/voice.yaml`: the profile's home in the
-   committed context graph, beside the terms and the content memory.
-3. `<project-root>/voice.yaml`
+1. **The recipe binding**: `defaults.voice` in `kapi.yaml`, naming a `profile`
+   in the project's voice store, a `pack`, or a `profile_file` whose stored
+   profile the import filed under that path.
+2. **The profile's own name**: a profile under `profiles:` that binds no
+   `voice:` of its own is answered by the profile the store holds under its
+   name, before the project default is; see
+   [Context](/kapi/context#how-a-point-resolves).
 
-The binding wins. Rungs 2 and 3 are conventions that make
-`kapi voice check DRAFT.md` work flag-free inside a project; a project that has
-bound a profile never reaches them.
+Every rung answers out of the project's voice store. A `voice.yaml` in the
+checkout is what `kapi context snapshot` writes and
+[`kapi context import`](/reference/commands/context-import) reads; no command
+that resolves a profile opens one.
 
 `--profile`, `--profile-file`, and `--pack` are mutually exclusive; passing
 more than one is an error rather than a silent precedence.
@@ -248,7 +249,7 @@ voice" once and then vary it (terser in a push notification, more formal in
 document per variant.
 
 Resolution applies the requested locale, channel, and persona to produce one
-effective profile; the file itself stays the single authored source.
+effective profile; the stored profile stays the single authored source.
 
 A **locale override** (`locales.<locale>`) carries:
 
@@ -315,15 +316,15 @@ historical scores stay comparable.
 
 - **Scores and findings.** Those are check results computed against the
   profile, stored with the content or the run, and never written back here.
-- **The compiled voice store.** The store is derived (`voice.db` for a
-  standalone store; inside a project, the voice tables of the [project
-  store](/kapi/project-store)); the profile is the source.
+- **The store it came from.** A profile document is one profile; the voice store
+  holds every profile a project has (`voice.db` for a standalone store; inside a
+  project, the voice tables of the [project store](/kapi/project-store)).
 - **Locale-specific *content*.** Overrides adjust voice, never copy. Translated
   strings belong in the deliverable.
 
 ## See also
 
 - [Overview](/reference/serialization/overview): how this fits the wider family.
-- [Terms](/reference/serialization/terms): the other authored, committed artifact.
+- [Terms](/reference/serialization/terms): the other authored artifact.
 - [Voice profile](/framework/checks/voice): scoring, packs and the Go API.
 - [Set up your brand guide in 10 minutes](/kapi/recipes/brand-guide-in-10-minutes): the how-to.

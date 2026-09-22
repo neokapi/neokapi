@@ -438,7 +438,7 @@ comments the files hold.
 The voice profile at the comments' point can hold them to word limits of their
 own under `style.comments`:
 
-```yaml title=".kapi/profiles/acme/voice.yaml"
+```yaml title="the acme profile"
 name: Acme comments
 style:
   sentence_length: short
@@ -466,7 +466,7 @@ Prohibited patterns in the same profile hold comments to a writing style. These
 report phrasings that read as machine-written or that narrate a change instead
 of describing the code:
 
-```yaml title=".kapi/profiles/acme/voice.yaml"
+```yaml title="the acme profile"
 style:
   prohibited_patterns:
     - regex: "\u2014"

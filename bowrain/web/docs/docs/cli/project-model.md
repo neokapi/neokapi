@@ -45,10 +45,10 @@ my-app/
 Ownership zones at the project root:
 
 - **`kapi.yaml`**: hand-edited, committed to git. The recipe is the single source of truth for project configuration. Its fixed, conventional filename means every editor and code host (GitHub, GitLab) applies YAML syntax highlighting to diffs and previews with no configuration. One thing writes it besides you: an axis approved on the server arrives as a [`kapi pull`](/cli/commands/pull) that edits `defaults.coordinates`, for review in git.
-- **`.kapi/`**: the committed context graph, flat: `terms.json`, `memory/` and `voice.yaml`, with per-profile overrides under `profiles/<name>/`, reviewed through `git diff` like any other source file. `.kapi/` is committed in full; only `.kapi/work/` is gitignored.
-- **`.kapi/state/*.jsonl`**: the decision record, committed. `kapi commit` writes the decisions this checkout holds into it.
+- **`.kapi/`**: the project's configuration (`flows/`, `filters.json`), committed. A project may also keep a snapshot of its context here, written by `kapi context snapshot`: `terms.json`, `memory/`, `voice.yaml` and per-profile overrides under `profiles/<name>/`. `kapi context import` is what reads those files back. Only `.kapi/work/` is gitignored.
+- **`.kapi/state/*.jsonl`**: the decision record, as a snapshot writes it: the decisions this checkout holds, one shard per document.
 - **`.kapi/work/store.db`**: kapi-owned, gitignored. This checkout's projection of its working tree: the block cache, the overlays a run wrote, the extraction stamps. It rebuilds from the content files.
-- **The project's context store**: kapi-owned, in a workspace under your data directory rather than in the checkout. It holds the terms, the content memory, the voice profiles and the decision ledger, and every checkout of the project shares it. Everything in it rebuilds from the committed sources above, apart from a decision recorded since the last `kapi commit`.
+- **The project's context store**: kapi-owned, in a workspace under your data directory rather than in the checkout. It holds the terms, the content memory, the voice profiles and the decision ledger, every checkout of the project shares it, and every gate and lookup answers from it. Nothing reproduces a row in it; `kapi context export` is the backup.
 - **`.kapi/work/cache/`**: CLI-owned, gitignored. Everything cheaply regenerable: the tree last declared to the server, extraction intermediates, overlay layers. Safe to delete at any time.
 - **`.kapi/flows/*.yaml`**: optional file-per-flow definitions, hand-edited, committed. Bowrain reads these in addition to inline `flows:` declared on the recipe.
 
@@ -69,9 +69,8 @@ defaults:
   exclude:
     - "**/*.test.json"
     - "node_modules/**"
-  terms_source: .kapi/terms.json
-  memory_source: .kapi/memory/memory.json
-  voice: .kapi/voice.yaml
+  voice:
+    profile: acme-docs
   coordinates:
     brand: acme              # a declared axis, inherited by every collection
 
@@ -162,9 +161,9 @@ assets:
 | `collection`       | string | Default collection name for organizing content           |
 | `exclude`          | list   | Glob patterns to skip during scanning                    |
 | `formats`          | map    | Per-format default presets and config overrides          |
-| `terms_source`     | string | Path to the committed terms source (for example `.kapi/terms.json`) |
-| `memory_source`    | string | Path to the committed content memory source (for example `.kapi/memory/memory.json`) |
-| `voice`            | string | Path to the voice profile every collection is governed by unless a profile binds another (conventionally `.kapi/voice.yaml`) |
+| `terms_source`     | string | Path to a terms bundle `kapi context import` reads and `kapi context snapshot` writes (for example `.kapi/terms.json`) |
+| `memory_source`    | string | Path to a content-memory bundle an import reads and a snapshot writes (for example `.kapi/memory/memory.json`) |
+| `voice`            | binding | The voice profile every collection is governed by unless a profile binds another. `profile:` names one in the project's voice store |
 | `coordinates`      | map    | The declared axes every collection inherits, `brand` and `mode` among them; the structural axes `product` and `channel` are derived from `channel:` and never written here |
 | `materialize`      | string | When target files are written from the project store; `kapi up --materialize` forces `on-converge` |
 
@@ -271,11 +270,13 @@ Content is written for a point in the context space. Two of its axes are structu
 profiles:
   acme:
     channels: [app, docs]
-    voice: .kapi/voice.yaml
+    voice:
+      profile: acme-docs
   acme-labs:
     channels: [app]
-    voice: .kapi/profiles/acme-labs/voice.yaml
-    termstore: .kapi/profiles/acme-labs/terms.json
+    voice:
+      profile: acme-labs
+    termstore: acme-labs-terms.db
     valid_from: 2026-09-01
 
 collections:
@@ -297,7 +298,7 @@ collections:
 | `concept`    | A concept reference (`term:<id>`) the profile carries for display          |
 | `valid_from`, `valid_to` | The profile's validity window                                   |
 
-The profile name is also the directory under `.kapi/profiles/<name>/` holding what that profile overrides. Profile names and channels are slugs (lowercase letters, digits and hyphens): stable identifiers that cross the sync wire as the content's product and channel coordinates, never vocabulary. A bare `channel:` two profiles declare is a load error naming both qualified spellings; a collection binding no channel is governed by `defaults.voice` and the project's own terms.
+A profile that binds no `voice:` of its own is answered by the profile the store holds under its name. Profile names and channels are slugs (lowercase letters, digits and hyphens): stable identifiers that cross the sync wire as the content's product and channel coordinates, never vocabulary. A bare `channel:` two profiles declare is a load error naming both qualified spellings; a collection binding no channel is governed by `defaults.voice` and the project's own terms.
 
 A profile's `termstore:` is the one binding that does not cross to the server, which governs terms from the workspace vocabulary instead. A connected project that binds a terms store per profile warns on every run that the binding applies to local runs only.
 
@@ -380,7 +381,7 @@ All commands work from any subdirectory within the project. A directory holds at
 ### Commit to git
 
 - `kapi.yaml`: the recipe (single source of truth for configuration)
-- `.kapi/terms.json`, `.kapi/memory/memory.json`, `.kapi/voice.yaml`: the context sources the recipe binds
+- `.kapi/terms.json`, `.kapi/memory/memory.json`, `.kapi/voice.yaml`: the exported context files an import reads
 - `.kapi/state/*.jsonl`: the unit-state record
 - `.kapi/flows/*.yaml`: file-per-flow definitions, if you use them
 - `.kapi/manifest.yaml`, `.kapi/filters.json`: bookkeeping and shared reader configuration
@@ -397,7 +398,7 @@ All commands work from any subdirectory within the project. A directory holds at
 - `.kapi/work/`: everything derived: `store.db`, the caches, and the redaction vault
 - `.kapi/filters.local.json`: your personal reader overrides
 
-Deleting `.kapi/work/cache/` costs nothing. Deleting `.kapi/work/` costs a re-extraction, and, if the project uses redaction, the withheld originals in `.kapi/work/vault/`, which are local-only by design and rebuild from nothing. Your decisions are in the workspace and survive it; deleting the workspace costs every decision recorded since the last `kapi commit`, so run `kapi commit` before you remove that.
+Deleting `.kapi/work/cache/` costs nothing. Deleting `.kapi/work/` costs a re-extraction, and, if the project uses redaction, the withheld originals in `.kapi/work/vault/`, which are local-only by design and rebuild from nothing. Your context is in the workspace and survives it; deleting the workspace costs every project's terms, voice profiles, content memory and decisions, so take a copy with `kapi context export --workspace` before you remove that.
 
 ## Initialization
 

@@ -144,14 +144,15 @@ content sits at with one `channel:` reference:
 profiles:
   northsea:
     channels: [cli, docs]
-    voice: .kapi/voice.yaml                    # the project's default voice
+    # no `voice:`; the profile the store holds under "northsea" answers
   acme:
     channels:
       - id: docs
-        concept: term:9a1c0f42b7               # display only; never resolved
+        concept: term:9a1c0f42b7    # display only; never resolved
       - app
-    voice: .kapi/profiles/acme/voice.yaml      # == the conventional location
-    termstore: .kapi/profiles/acme/terms.json  # optional; the project's own store otherwise
+    voice:
+      profile: acme-app             # a profile in the project's voice store
+    termstore: acme-terms.db        # optional; the project's own terms otherwise
 
 collections:
   - name: acme-app
@@ -161,10 +162,9 @@ collections:
 ```
 
 The map key under `profiles:` is the profile's name: the product-axis value its
-collections carry, and the directory under `.kapi/profiles/<name>/` holding the
-files it overrides. A profile that binds neither a voice nor a vocabulary is
-still a profile: that directory is the binding, and a project keeping its
-overrides there should not have to restate every one of them in the recipe.
+collections carry, and the name the project's voice store answers under when the
+profile binds no `voice:` of its own. A profile that binds neither a voice nor a
+vocabulary is still a profile, governed by the project defaults.
 
 Profile names and channels are **slugs** (`^[a-z0-9][a-z0-9-]*$`): stable
 machine identifiers, never translated, comparable byte for byte. A profile and a
@@ -346,9 +346,11 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
 - `redaction` (`*RedactionSpec`): replace sensitive content with protected
   placeholders before processing and restore it afterwards. Overridable per
   `ContentItem.Redaction`.
-- `voice` (`*VoiceBinding`): bind a voice profile (one of
-  `profile_file`, `profile`, or `pack`, or a bare path) as standing project
-  context.
+- `voice` (`*VoiceBinding`): bind a voice profile as standing project context.
+  `profile` names one in the project's voice store, `pack` a built-in starter
+  pack, and `profile_file` (or a bare path, which parses as one) selects the
+  profile the store filed under that path. Every form resolves through the
+  store; the file itself is never opened on a read path.
 - `coordinates` (map): the declared axes of the project's default point (see
   above).
 - `tools` (map of tool name to config): project-level tool presets, applied
@@ -356,27 +358,24 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   per key.
 - `locales` (map of locale to `{tools}`): per-target-language presets that
   merge on top of `tools` and under a step's own config.
-- `terms_source` / `memory_source` (string): committed, git-tracked native
-  source bundles (`.terms.json` / `.memory.json`) the project's terms store and
-  content memory are indexed from. `kapi apply` edits the source and reindexes
-  it, so the source is written by exactly one path and `git diff` is the review
-  surface. Both keys bind any path; the conventional homes are inside the
-  committed `.kapi/` directory. `terms_source` left unset falls back to
-  `<root>/.kapi/terms.json`, then `<root>/terms.json`; `memory_source`
-  has no such fallback, because a project has one terms source but many memory
-  bundles (one per content surface), leaving nothing single for a convention to
-  name.
+- `terms_source` / `memory_source` (string): native bundles
+  (`.terms.json` / `.memory.json`) in the checkout that
+  [`kapi context import`](/reference/commands/context-import) reads and
+  `kapi context snapshot` writes. Neither is on a read path: gates and lookups
+  answer from the project's stores. Both keys bind any path; the conventional
+  places are inside `.kapi/`. `terms_source` left unset makes the import read
+  `<root>/.kapi/terms.json`; `memory_source` has no single fallback, because a
+  project has one terms bundle but many memory bundles (one per content
+  surface), so the import reads every bundle in `.kapi/memory/`.
 
 ## The project store
 
-The recipe binds sources; the sources are the truth. A project keeps two
-databases. `.kapi/work/store.db` is the checkout's projection of its working
-tree: the block cache, the overlays a flow wrote, the extraction stamps. The
-project's context store, in the user's workspace and shared by every checkout,
-holds the terms, the content memory, the voice profiles and the decision ledger,
-all derived from the committed sources (`terms_source`, `memory_source`, the
-voice profiles, the record under `.kapi/state/`) apart from a decision recorded
-since the last `kapi commit`. The property graph sits in the workspace database
+A project keeps two databases. `.kapi/work/store.db` is the checkout's
+projection of its working tree: the block cache, the overlays a flow wrote, the
+extraction stamps, all derived from the content files. The project's context
+store, in the user's workspace and shared by every checkout, holds the terms,
+the content memory, the voice profiles and the decision ledger, and nothing
+reproduces a row in it. The property graph sits in the workspace database
 beside the project registry, the operation log, the widened rules and the agent
 sessions. See
 [C-03](/contribute/architecture/context/c-03-context-store-and-graph) for the stores'
@@ -448,7 +447,7 @@ the full extension model.
     target`.
 - Every `profiles:` key is a slug, and so is every channel it declares; a channel
   is declared at most once per profile. A profile's `voice` is shape-checked
-  exactly like `defaults.voice` (one of `profile_file`, `profile`, `pack`, or a
+  exactly like `defaults.voice` (one of `profile`, `pack`, `profile_file`, or a
   bare path), a `concept` on the profile or on a channel must be
   whitespace-free, and `valid_from`/`valid_to` must parse as a date or an
   RFC3339 instant.
@@ -595,13 +594,14 @@ defaults:
     source: true
   coordinates:
     brand: acme
-  terms_source: .kapi/terms.json
-  memory_source: .kapi/memory/memory.json
+  voice:
+    profile: acme-docs
 
 profiles:
   acme:
     channels: [app, marketing]
-    voice: .kapi/voice.yaml
+    voice:
+      profile: acme-app
 
 collections:
   # Bare entry: single glob, languages inherited from defaults.
