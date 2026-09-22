@@ -180,8 +180,8 @@ const gateReadableProject = `test -f kapi.yaml && kapi status -p . >/dev/null 2>
 // This is what the loop changes. Looking for a target file instead would ask
 // about delivery: Defaults.Materialize is `manual` unless the recipe opts in,
 // so a fully converged project writes no nb.json and its state is in the
-// project store. Checked in both directions on the p11 fixture — 1 before `kapi up`,
-// 0 after, with the run served locally by ollama.
+// project store. Checked in both directions on the p11 fixture: 1 before
+// `kapi up`, 0 after, with the run served locally by ollama.
 const gateLocaleTranslated = `kapi status -p . --json 2>/dev/null | ` +
 	`python3 -c 'import json,sys;d=json.load(sys.stdin);` +
 	`sys.exit(0 if any(l["pct"].get("translated",0)>0 for l in d.get("locales",[])) else 1)'`

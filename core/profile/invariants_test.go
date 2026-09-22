@@ -18,7 +18,7 @@ import (
 // This asserts the property against the shipped sample rather than a fixture,
 // so an edit that moves the rule back into `style:` fails here.
 func TestAudienceSampleConstraintSurvivesEveryChannel(t *testing.T) {
-	path := filepath.Join("..", "..", "samples", "audience-context", ".kapi", "voice.yaml")
+	path := filepath.Join("..", "..", "samples", "audience-context", "context", "voice.yaml")
 	f, err := os.Open(path)
 	require.NoError(t, err, "the audience sample profile must exist")
 	defer func() { _ = f.Close() }()

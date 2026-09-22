@@ -42,7 +42,7 @@ func loadCorpus(root string) ([]Unit, error) {
 		units = append(units, compass...)
 	}
 
-	tidewatch, err := loadMemoryUnits("tidewatch", filepath.Join(root, "samples", "tidewatch-docs", ".kapi", "memory", "tidewatch-nb.memory.json"), "en-GB", "nb")
+	tidewatch, err := loadMemoryUnits("tidewatch", filepath.Join(root, "samples", "tidewatch-docs", "context", "memory", "tidewatch-nb.memory.json"), "en-GB", "nb")
 	if err != nil {
 		return nil, err
 	}
