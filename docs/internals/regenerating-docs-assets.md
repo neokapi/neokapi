@@ -9,6 +9,11 @@ asset embedded on the three public surfaces:
 | bowrain landing | `bowrain/web/landing` | committed in `bowrain/web/landing/public/` |
 | bowrain docs | `bowrain/web/docs` (baseUrl `/docs/`) | the S3 + CloudFront CDN (`bowrain/{video,img}/`) |
 
+Both docs sites also serve a second channel built from `main`, at `/next/` and
+`/docs/next/`. Assets are shared: a CDN object is referenced by URL from either
+channel. See [documentation release
+channels](docs-release-channels.md) for how the channels are built and deployed.
+
 **Landing pages** carry their own committed images; nothing to regenerate
 unless a screenshot in `public/` is replaced. Everything below is about the two
 Docusaurus docs sites, whose video/image assets are **gitignored** and published
