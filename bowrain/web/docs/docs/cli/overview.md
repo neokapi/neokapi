@@ -30,9 +30,9 @@ A connected project is a kapi project whose recipe declares a `bowrain:` block:
 
 - **`kapi.yaml`**: the recipe (committed): languages, content collections,
   flows, plugins, the voice binding, and the server connection
-- **`.kapi/terms.json`, `.kapi/memory/memory.json`**: the context sources the recipe
+- **`.kapi/terms.json`, `.kapi/memory/memory.json`**: the exported context files the recipe
   binds (committed)
-- **`.kapi/state/*.jsonl`**: the decision record (committed)
+- **`.kapi/state/*.jsonl`**: the decision record, as `kapi context snapshot` writes it
 - **`.kapi/flows/`**: optional file-per-flow definitions (committed)
 - **`.kapi/work/store.db`**: this checkout's projection of its working tree
   (gitignored, rebuilt from the content files)

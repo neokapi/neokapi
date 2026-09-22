@@ -177,8 +177,8 @@ kapi status  # finds kapi.yaml up the tree
 **Commit to git**: `kapi.yaml` and all of `.kapi/`:
 
 - `kapi.yaml`: the recipe (single source of truth)
-- `.kapi/terms.json`, `.kapi/memory/memory.json`, `.kapi/voice.yaml`: the context sources the recipe binds
-- `.kapi/state/*.jsonl`: the decision record, written by `kapi commit`
+- `.kapi/terms.json`, `.kapi/memory/memory.json`, `.kapi/voice.yaml`: the exported context files `kapi context import` reads
+- `.kapi/state/*.jsonl`: the decision record, written by `kapi context snapshot`
 - `.kapi/flows/*.yaml`: flow definitions you author
 - `.kapi/manifest.yaml`, `.kapi/filters.json`: bookkeeping and shared reader configuration
 
@@ -189,7 +189,7 @@ kapi status  # finds kapi.yaml up the tree
 
 Auth tokens are never written to the project. They live in the OS keychain (keys `bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`); non-secret metadata sits in `auth.json` in the bowrain config directory (`~/.config/bowrain` on Linux, `~/Library/Application Support/bowrain` on macOS).
 
-`kapi init` writes a two-line ignore rule, `/.kapi/work/` and `/.kapi/filters.local.json`, so everything else under `.kapi/`, including the committed record under `.kapi/state/`, stays tracked with no negation to remember.
+`kapi init` writes a two-line ignore rule, `/.kapi/work/` and `/.kapi/filters.local.json`, so everything else under `.kapi/` stays tracked with no negation to remember.
 
 ## Next steps
 

@@ -10,9 +10,37 @@ cannot be.
 
 Related: [CLAUDE.md](../../CLAUDE.md) for the isolation contract and the
 target-drift rule; the recipe itself (`kapi.yaml`) for what each collection is;
-[`.kapi/README.md`](../../.kapi/README.md) for the committed context itself.
+[`.kapi/README.md`](../../.kapi/README.md) for the exported context this
+repository keeps in git.
 [i18n-toil.md](i18n-toil.md) is a different document: the rubric kapi grades
 *other* frameworks with.
+
+## What the released binary reads, and what changes
+
+This loop runs the **system-installed** kapi, a released build, and that build
+reads the repository's own `.kapi/` on every run. So this repository keeps its
+terms bundle, its content-memory bundles, its voice profiles and its decision
+record in git, and the nightly writes them back. Everything above describes that
+arrangement.
+
+A project's context lives in the user's workspace, and kapi on `main` reads it
+from there and from nowhere else. One command opens a checkout's context files,
+`kapi context import`, and a person runs it. Two things follow once this loop
+moves to a release carrying that change:
+
+- **The files stay, as an export.** `kapi context snapshot` writes exactly the
+  layout the nightly already delivers, so the pull request a reviewer reads does
+  not change shape. What changes is their role: they become the artifact the
+  import reads, rather than the thing a run seeds itself from.
+- **The job gains one step.** `kapi context import` runs before `kapi up`, so
+  the runner's empty store holds what the repository carries. Every gate that
+  reads the project's voice or terms needs it, which is why
+  `make import-dogfood-context` already runs it for the prose gates.
+
+Until then this repository is the one place in the tree where `.kapi/` context
+files are read on a run, and the isolation contract in
+[CLAUDE.md](../../CLAUDE.md) is what keeps every other in-repo invocation away
+from them.
 
 ## One verb, between two build stages
 
@@ -39,11 +67,9 @@ E-06 is ever revisited, both stages become recipe declarations and this
 document loses half its content.
 
 Stage 2 is one `kapi up`, and it is the same verb the nightly runs and the same
-verb the product tells a customer to run. It seeds itself: the terms bundle
-bound by `defaults.terms_source` and every content-memory bundle under
-`.kapi/memory/` are compiled into the project store on the way in, keyed by each
-file's content digest, so an unchanged bundle costs a read and a `git pull` of
-an edited one recompiles exactly itself. Then it re-extracts the block store
+verb the product tells a customer to run. The released binary this loop runs
+seeds itself from the repository's own `.kapi/` on the way in, keyed by each
+file's content digest, so an unchanged bundle costs a read. Then it re-extracts the block store
 from the working tree, runs the recipe's flow over every collection and locale,
 and materializes the targets (`defaults.materialize: on-converge`).
 
@@ -81,7 +107,8 @@ the exclude list names carries its reason beside it in `kapi.yaml`.
 
 The recipe binds `flow: tm-recycle`: exact-match content-memory leverage and
 nothing else: no AI, no provider credentials, no network. A checkout with no
-credentials therefore converges from the committed context alone. AI convergence
+credentials therefore converges from the context this repository exports
+alone. AI convergence
 happens at the server venue, on the org's keys; a deliberate local AI pass is
 `kapi run translate-ai`. `make l10n` pins the local venue by discovering no
 plugins (`KAPI_PLUGINS_DIR_ONLY=1`), so an install that carries kapi-bowrain
@@ -345,12 +372,12 @@ Three steps sit between `kapi up` and delivery, in this order.
 
 `kapi commit` is the loop's return leg for unit decisions. The pull records the
 server's approved decisions in the project's decision ledger, and `kapi commit`
-is the only door from there into the committed record under `.kapi/state/` that
-git tracks: recording a decision and writing the record out stay separate acts,
-so `up` does not do it. A record with nothing missing is a no-op that exits 0.
-The terminology return leg needs no step: the concept pull merges approved term decisions into
-`.kapi/terms.json` itself, upsert-only and byte-stable, so a night with no new
-decisions writes nothing.
+is the only door from there into the record under `.kapi/state/` that git
+tracks: recording a decision and writing the record out stay separate acts, so
+`up` does not do it. A record with nothing missing is a no-op that exits 0.
+The terminology return leg needs no step: the concept pull merges approved term
+decisions into `.kapi/terms.json` itself, upsert-only and byte-stable, so a
+night with no new decisions writes nothing.
 
 `make l10n-compile` is the pipeline's third stage, and it runs here rather than
 only on a developer's machine because no runtime loads a catalog: the SPAs and
@@ -381,7 +408,7 @@ delivery would otherwise carry a source edit into main with no review and no CI.
 Two things it does *not* do, each for a reason the other half of this document
 gives.
 
-It does not require the committed context to have moved. A night that converged
+It does not require the exported context to have moved. A night that converged
 and approved nothing is the ordinary night for a repository whose source moves
 daily and whose reviewers approve in batches, and requiring backing made the
 nightly red on every one of them. What the context did is *reported* beside the
@@ -390,7 +417,7 @@ because a projection that re-sorted an array decided nothing and was once
 credited with backing forty-eight derived files.
 
 It does still require the context to explain a **removal**. A rewrite carries
-content to read; a deletion carries none, so there the committed context stays
+content to read; a deletion carries none, so there the exported context stays
 the authority: a catalog or a sidecar that disappeared is an erasure until a
 decision shard, a terms edit, a memory seed, the voice profile or a profile
 explains it. A re-serialization is not that.

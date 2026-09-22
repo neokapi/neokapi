@@ -42,8 +42,8 @@ name: Website
 defaults:
   source_language: en-US
   target_languages: [fr-FR, de-DE, ja-JP]
-  voice: .kapi/voice.yaml
-  terms_source: .kapi/terms.json
+  voice:
+    profile: acme-docs
 
 collections:
   - path: content/**/*.md
@@ -102,8 +102,8 @@ Tools and flows automatically process all files matching your recipe's `collecti
 ## Step 3: review
 
 Locally, `kapi status --review` lists the translated units awaiting a
-decision, and `kapi apply` records one; `kapi commit` writes the decisions
-into the committed record under `.kapi/state/`.
+decision, and `kapi apply` records one in the project's decision ledger, where
+every checkout reads it.
 
 For a reviewer who works in a browser, connect the project to a workspace
 (step 4) and use the [review session](/server/review): source and draft side

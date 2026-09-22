@@ -217,7 +217,7 @@ the source of truth. Specifics that have bitten us:
 
 ## Machine enforcement
 
-This guideline is encoded as the project's voice profile, `.kapi/voice.yaml`,
+This guideline is encoded as the project's voice profile, exported to `.kapi/voice.yaml`,
 bound project-wide by `defaults.voice` in the root `kapi.yaml`; keep the two in
 step. `make check-docs-prose` runs `kapi check` over both documentation sites,
 the READMEs and the site taglines under that profile, and
