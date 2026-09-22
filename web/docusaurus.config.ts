@@ -5,21 +5,26 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-// Build freshness stamp ("<YYYY-MM-DD HH:MM> UTC · <short-sha>"), appended to
-// the footer copyright so the deployed docs reveal when/from-what they built.
-const buildStamp = (() => {
-  let sha = process.env.GITHUB_SHA?.slice(0, 9) ?? "dev";
+// Read-only git, returning "" outside a checkout so every caller below has a
+// plain string to work with.
+const git = (args: string[]): string => {
   try {
-    sha = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
-      stdio: ["ignore", "pipe", "ignore"],
-    })
+    return execFileSync("git", args, { stdio: ["ignore", "pipe", "ignore"] })
       .toString()
       .trim();
   } catch {
-    /* not a git checkout — keep the env/dev fallback */
+    return "";
   }
+};
+
+// Build freshness stamp ("<YYYY-MM-DD HH:MM> UTC · <short-sha>"), appended to
+// the footer copyright so the deployed docs reveal when/from-what they built.
+const buildStamp = (() => {
+  const sha = git(["rev-parse", "--short", "HEAD"]) || process.env.GITHUB_SHA?.slice(0, 9) || "dev";
   return `${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC · ${sha}`;
 })();
+
+const siteUrl = "https://neokapi.github.io";
 
 // This Docusaurus instance IS the neokapi site: in production it sits at the
 // site root (/) of neokapi.github.io and its home page (src/pages/index.tsx)
@@ -33,6 +38,43 @@ const buildStamp = (() => {
 // DOCS_BASE_URL — without it, internal links would carry the wrong prefix
 // and navigate out of the preview.
 const baseUrl = process.env.DOCS_BASE_URL ?? "/";
+
+// The site ships on two channels. Production is built from the `docs/stable`
+// branch, which a GA release moves to its tag, and serves at the site root;
+// every push to main builds the same site at /next/. $DOCS_CHANNEL names which
+// build this is and defaults to "next", so a local build and a PR preview both
+// carry the banner and the switch.
+const channel = process.env.DOCS_CHANNEL === "stable" ? "stable" : "next";
+
+// Versions come from this checkout's tags: the nearest kapi tag describes what
+// the tree contains, the newest GA tag names the stable channel. The env
+// overrides cover a build with no tags to read (a fork, a shallow clone), and
+// with neither a tag nor an override the channel control stays off the page
+// rather than naming a blank version.
+const channelVersion = (
+  process.env.DOCS_CHANNEL_VERSION ||
+  git(["describe", "--tags", "--abbrev=0", "--match", "v[0-9]*"])
+).replace(/^v/, "");
+const stableVersion = (
+  process.env.DOCS_STABLE_VERSION ||
+  git(["tag", "--list", "v[0-9]*", "--sort=-v:refname"])
+    .split("\n")
+    .map((tag) => tag.trim())
+    .find((tag) => /^v\d+\.\d+\.\d+$/.test(tag)) ||
+  ""
+).replace(/^v/, "");
+
+const docsChannel =
+  channelVersion && stableVersion
+    ? {
+        channel,
+        version: channelVersion,
+        stableVersion,
+        stableUrl: `${siteUrl}/`,
+        nextUrl: `${siteUrl}/next/`,
+        installTo: "/kapi/get-started/installation#beta-channel",
+      }
+    : undefined;
 
 // Cookieless analytics (pageviews only on this site; see
 // src/clientModules/analytics.ts and @neokapi/docs-shared). Key-gated: with no
@@ -120,7 +162,7 @@ const config: Config = {
   tagline: brand.tagline,
   favicon: "img/favicon.png",
 
-  url: "https://neokapi.github.io",
+  url: siteUrl,
   baseUrl,
 
   organizationName: "neokapi",
@@ -162,6 +204,7 @@ const config: Config = {
   },
 
   customFields: {
+    docsChannel,
     cdnBaseUrl,
     cdnSitePrefix: "kapi",
     cdnWasmVersion,
@@ -1163,6 +1206,14 @@ const config: Config = {
           // this browser tab, with explicit per-plugin Download (custom type
           // registered in src/theme/NavbarItem/ComponentTypes.tsx).
           type: "custom-kapiStatus",
+          position: "right",
+        },
+        {
+          // Switch between the stable channel at the site root and the next
+          // channel at /next/, keeping the reader on the page they are on
+          // (src/components/DocsChannel). Renders nothing when the build found
+          // no version to name.
+          type: "custom-docsChannel",
           position: "right",
         },
         {
