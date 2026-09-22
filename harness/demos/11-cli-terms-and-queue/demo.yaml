@@ -15,6 +15,10 @@ needsAi: false
 # sandbox IS the project (a recipe at its root) and lives in os.tmpdir().
 fixturesFrom: harness/demos/10-cli-points-and-voice/fixtures
 project: true
+# The fixture's voice profile is a file until somebody reads it into this
+# machine's store, and the sandbox is a fresh one every take.
+setup:
+  - kapi context import
 captureTimeoutSec: 180
 aspects:
   - one list of term rules
@@ -39,8 +43,7 @@ script:
       kapi status --review --lang fr --json --jq '.pending[]|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > reviewed.json
   # The per-entry report goes to stderr, so the tail has to see stderr to trim it.
   - command: kapi apply reviewed.json 2>&1 | tail -3
-  - comment: Approvals stage until they are committed. Then they are in the record, attributable, in git.
-  - command: kapi commit
+  - comment: Each approval is in the record as it is made, attributable, and the queue says so.
   - command: kapi status --review --lang fr
   - comment: French is reviewed. The source rows stay open, because Voltway signs off its own wording before a translation ships from it.
   - command: kapi status
@@ -85,12 +88,12 @@ narration:
 
   - id: approve
     kind: terminal
-    through: 15
-    caption: Twenty rows, one pass, then committed.
+    through: 14
+    caption: Twenty rows, one pass, and the queue is French-free.
     text: >-
       The queue comes back in the shape of a change-set already, so approving is
-      one pass over it rather than twenty visits. Approvals stage, then commit,
-      and they land in the record with a name against them.
+      one pass over it rather than twenty visits. Each approval lands in the
+      record as it is made, with a name against it.
 
   - id: queue
     kind: artifact
