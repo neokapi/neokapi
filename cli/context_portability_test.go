@@ -228,8 +228,9 @@ func TestContextPortability_TextFormIsTheResultsOwnRender(t *testing.T) {
 	assert.Contains(t, got, "1 voice profile")
 
 	// The same run's --json carries the numbers the text spells out, which is
-	// what keeps a reader and a program describing one thing.
-	out := runContext(t, a, "import", "-p", recipe, "--json")
+	// what keeps a reader and a program describing one thing. It reads with
+	// --force, because this checkout has already read these bytes.
+	out := runContext(t, a, "import", "-p", recipe, "--force", "--json")
 	var imported struct {
 		Concepts      int `json:"concepts"`
 		VoiceProfiles int `json:"voiceProfiles"`

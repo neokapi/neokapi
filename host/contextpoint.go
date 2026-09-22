@@ -114,6 +114,11 @@ type ContextAnswer struct {
 	// is never ambiguous between "nothing applies here" and "nothing could be
 	// consulted".
 	Notes []string `json:"notes,omitempty"`
+	// Notice names the context files this checkout carries whose project store
+	// has never held context, and the command that reads them. An answer
+	// carrying one is thin because nothing has been read in, which a caller
+	// cannot otherwise tell from a project that governs nothing here.
+	Notice *ContextFilesNotice `json:"notice,omitempty"`
 }
 
 // ContextPoint is the coordinate an answer is about.
@@ -246,6 +251,9 @@ type ContextPointSources struct {
 	// Notes are caveats the assembly itself produced — a location outside the
 	// project, a profile no recipe declares.
 	Notes []string
+	// Unread names the context files a checkout holds whose project store has
+	// never held context, and the command that reads them.
+	Unread *ContextFilesNotice
 }
 
 // ResolveContextGovernance turns a by-location request into the governance in
@@ -404,6 +412,9 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 
 	src.Freshness = a.governanceNotes(cmd)
 	src.Provenance = a.contextProvenance(cmd, proj)
+	if notice, unread := a.ContextFilesUnread(ctx, projectPath); unread {
+		src.Unread = &notice
+	}
 	return src, noop
 }
 
@@ -577,6 +588,10 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	}
 	if src.Provenance != nil && src.Provenance.StaleReason != "" {
 		res.Notes = append(res.Notes, src.Provenance.StaleReason)
+	}
+	if src.Unread != nil {
+		res.Notice = src.Unread
+		res.Notes = append(res.Notes, src.Unread.Message())
 	}
 	for _, n := range src.Notes {
 		if n != "" {

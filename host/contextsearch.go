@@ -88,6 +88,11 @@ type ContextSearchResult struct {
 	// whether the content kapi holds still matches the files on disk. nil when
 	// no project stands behind the answer.
 	Provenance *ContextProvenance `json:"provenance,omitempty"`
+	// Notice names the context files this checkout carries whose project store
+	// has never held context, and the command that reads them. An answer
+	// carrying one is empty because nothing has been read in, which a caller
+	// cannot otherwise tell from a project that holds nothing.
+	Notice *ContextFilesNotice `json:"notice,omitempty"`
 	// Terms are concepts whose terms or definition match — what the project
 	// calls this, and whether it is discouraged.
 	Terms []ContextTermHit `json:"terms,omitempty"`
@@ -529,6 +534,7 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	// answering a question about a graph that has moved.
 	res.Notes = append(res.Notes, src.Freshness...)
 	if src.Unread != nil {
+		res.Notice = src.Unread
 		res.Notes = append(res.Notes, src.Unread.Message())
 	}
 

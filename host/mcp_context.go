@@ -47,7 +47,9 @@ func registerContextMCPTools(server *mcp.Server, a *App) {
 			"workspace revision it was read at, and whether the content kapi holds still matches " +
 			"the files on disk. " +
 			"Each term carries how often the project's extracted content uses it, as of the last " +
-			"extraction (the last `kapi up`) rather than of the working tree.",
+			"extraction (the last `kapi up`) rather than of the working tree. " +
+			"A `notice` names context files this checkout carries that nothing has read in, which " +
+			"is why the answer is empty; say so rather than working as though the project holds nothing.",
 	}, a.handleContextSearch)
 
 	registerContextResources(server, a)
@@ -76,7 +78,8 @@ func registerContextResources(server *mcp.Server, a *App) {
 		"the project it came from, the workspace revision it was read at, and whether the " +
 		"content kapi holds still matches the files on disk. " +
 		"Returns markdown by default; append `?format=json` for the structured shape, " +
-		"where `coverage` grades what stood behind it (empty, thin or covered)."
+		"where `coverage` grades what stood behind it (empty, thin or covered) and a `notice` " +
+		"names context files this checkout carries that nothing has read in."
 
 	server.AddResourceTemplate(&mcp.ResourceTemplate{
 		Name:        "context-at-location",

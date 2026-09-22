@@ -136,17 +136,24 @@ func newContextImportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "import [path]",
 		Short: "Read committed context files into this project's store",
-		Long: `Read a project's committed context into its store: the terms, the
-voice profiles, the wording already approved, and the record of who approved it.
+		Long: `Read a checkout's context files into this project's store: the terms,
+the voice profiles, the wording already approved, and the record of who approved
+it.
 
-With no path it reads the project's own ".kapi" directory, which is what a run
-does for you on every "kapi up". Name a path to read another checkout's
-directory instead, when you are bringing an existing project's context across.
+This is the one command that opens those files. Everything else answers from the
+store, so what you read here is in force for every checkout of this project on
+this machine, and for everyone else once they run it too. A person runs it: it
+is a decision about the project, and it appears in "kapi context log" with each
+file and the bytes that were read.
+
+With no path it reads the project's own ".kapi" directory. Name a path to read
+another checkout's directory instead, when you are bringing an existing
+project's context across.
 
 Running it twice changes nothing. Everything is matched by the identity the file
 carries, so a second read finds the store already holding what the file says.
-A file whose bytes have not moved since the last read is skipped; --force reads
-it anyway.`,
+A file whose bytes have not moved since this checkout read it is skipped;
+--force reads it anyway.`,
 		Example: "  kapi context import\n" +
 			"  kapi context import ../other-project/.kapi\n" +
 			"  kapi context import --force",

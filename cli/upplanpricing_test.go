@@ -60,8 +60,8 @@ func TestUpPlan_PricesWhatTheRunDrafts(t *testing.T) {
 
 	// A fresh clone. The store has read none of the committed translations, so
 	// the header names the units it declines to price and why, rather than
-	// quoting a zero it cannot stand behind. The run reads them first: every
-	// locale's "Apple" is recycled, and "Compass" is identical in all four
+	// quoting a zero it cannot stand behind. Every locale's "Apple" is
+	// recycled, and "Compass" is identical in all four
 	// languages with no approval behind it, so the record declines the pairing
 	// and the pass drafts it.
 	first := demoProviderApp(t)
@@ -71,7 +71,7 @@ func TestUpPlan_PricesWhatTheRunDrafts(t *testing.T) {
 	assert.Equal(t, 3, ai, "one draft per locale for the unit the record declines: %s", out)
 	assert.Contains(t, out, "6 produced unit(s) not priced",
 		"the header says what it cannot price yet: %s", out)
-	assert.Contains(t, out, "this run reads them first")
+	assert.Contains(t, out, "this run drafts what the record declines")
 
 	// One locale's translation is approved, and then the source sentence it was
 	// written against is rewritten. The key survives, so every locale's old

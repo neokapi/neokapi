@@ -24,5 +24,7 @@ While you read, call context_observe on what you notice about how the project wr
 
 After saving a change, call check_file on each file you changed and fix what it reports before you say the work is done. Then call context_session_summary and end your report with what it says.
 
+A project's context lives in the person's workspace, and the files a checkout carries under ` + "`.kapi/`" + ` are artifacts of it. An answer carrying a ` + "`notice`" + ` names files this checkout holds that nothing has read in, which is why it is empty; ` + "`kapi context import`" + ` reads them, and a person runs it. Tell them, and work from what the store holds meanwhile.
+
 Every project-scoped tool takes an optional project argument, and the context resource takes ?project=: the project's kapi.yaml, its root directory, or any path inside it. Every answer says which project answered, the workspace revision it was read at, and whether what kapi holds still matches the files on disk.`
 }

@@ -32,7 +32,7 @@ func formatPlanLine(plan UpPlanOutput) string {
 	if t.MissingTarget == 0 && t.Stale == 0 && t.Unanswered == 0 {
 		if t.UnreadTargets > 0 {
 			return fmt.Sprintf("plan: %d produced unit(s) not priced: the store has not read their committed "+
-				"translations yet, and this run reads them first", t.UnreadTargets) + aside
+				"translations yet, so this run drafts what the record declines", t.UnreadTargets) + aside
 		}
 		if aside != "" {
 			return "plan: every unit it could read has a committed target the content memory answers, so this run verifies gates" + aside
