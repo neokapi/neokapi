@@ -1,0 +1,44 @@
+# Native reference doc for the built-in `case-transform` tool.
+# Schema source: core/tools/casetransform.go (CaseTransformConfig).
+description: "Endre bokstavstørrelsen i kilde- og/eller måltekst til store, små eller tittelbokstaver."
+overview: |
+  **Case Transform**-verktøyet skriver om store og små bokstaver i tekst i oversettbare blokker.
+  Det kan gjøre kildetekst, måltekst eller begge deler om til store bokstaver, små bokstaver eller tittelbokstaver. Det er nyttig for å normalisere visningsstrenger (for eksempel for å tvinge UI-etiketter til store bokstaver) eller for å forberede sammenligninger som er ufølsomme for store og små bokstaver.
+
+  Når verktøyet brukes på målteksten, må en målspråkkode være satt; verktøyet transformerer bare språkkoder som allerede har en måltekst. Blokker som ikke skal oversettes, sendes uendret videre.
+parameters:
+  mode:
+    description: Bokstavstransformasjonen som skal brukes.
+    help: |
+      Velger transformasjonen. `upper` konverterer tekst til store bokstaver, `lower`
+      til små bokstaver, og `title` til tittelbokstaver (hver bokstav gjøres stor, ved hjelp av
+      Unicodes tittelbokstav-mapping).
+    values: "`upper` / `lower` / `title` (standard `upper`)"
+  applySource:
+    description: Bruk transformasjonen på kildeteksten.
+    help: |
+      Når dette er aktivert, transformeres kildeteksten til hver oversettbar blokk.
+    values: "`true` / `false` (standard `true`)"
+  applyTarget:
+    description: Bruk transformasjonen på målteksten.
+    help: |
+      Når dette er aktivert, transformeres målteksten for den konfigurerte
+      målspråkkoden. En målspråkkode må være angitt; bare eksisterende mål berøres.
+    values: "`true` / `false` (standard `false`)"
+limitations:
+  - "Tittelbokstaver bruker Unicodes tittelbokstav-mapping på hver bokstav, ikke innledende stor bokstav per ord."
+processingNotes:
+  - Opererer kun på oversettbare blokker; ikke-oversettbare blokker passerer gjennom uendret.
+  - Måltransformasjon krever en målspråkkode og påvirker bare språkkoder som allerede har et mål.
+examples:
+  - title: Kildetekst med store bokstaver
+    description: Tving alle kildestrenger til store bokstaver.
+    config: |
+      mode: upper
+      applySource: true
+  - title: Gjør måloversettelsen om til små bokstaver
+    description: Normaliser måltekst til små bokstaver for en språkkode.
+    config: |
+      mode: lower
+      applySource: false
+      applyTarget: true

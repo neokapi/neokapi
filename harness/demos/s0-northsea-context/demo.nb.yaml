@@ -1,0 +1,95 @@
+id: s0-northsea-context
+title: Finn veiledningen for en fil
+subtitle: "To spørsmål en assistent trenger svar på, og filer i repositoriet som svarer på dem."
+kind: use-case
+publishAs: monolingual-context
+# A scripted plain-shell demo: every command is deterministic, so it runs for
+# real and its output is recorded exactly. Nothing here reaches a network.
+terminal: shell
+brand: kapi
+cwd: ~/northsea
+needsAi: false
+# The sandbox IS the Northsea sample project, copied from samples/northsea so
+# the recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/northsea
+project: true
+captureTimeoutSec: 180
+aspects:
+  - the graph is files
+  - by location
+  - by content
+outro:
+  line: Still ditt eget repositorium de samme to spørsmålene.
+  pointer: kapi context search <word>
+
+# The sample ships its context files as the assistant drafted them, untracked,
+# next to content that is already committed. That is the state a review starts
+# from, so the first beat can be the review rather than a re-enactment of it.
+setup:
+  - git init -q
+  - git config user.email ops@northsea.example
+  - git config user.name Northsea
+  - git add docs app landing README.md
+  - git commit -qm "Northsea documentation, interface strings and landing page"
+
+script:
+  - comment: A company repository. Operator documentation, interface strings, one marketing page. One language.
+  - command: ls
+  - comment: This sample includes prepared guidance files. Inspect what will be added to the repository.
+  - command: git status --short
+  - comment: Commit the prepared guidance so its changes can be inspected in version control.
+  - command: git add -A && git commit -qm "Adopt the context graph" && git log --oneline -1
+  - comment: The files are a proposal until somebody reads them in. One command puts them in force for this project.
+  - command: kapi context import ./context
+  - comment: One verb reconciles the project's context and the sources. No target languages, no provider, nothing to ask for.
+  - command: kapi up
+  - comment: The first question an agent asks. Where am I, and what governs here?
+  - command: kapi context docs/berths.md
+  - comment: The same question, three directories away, at a different point and in a different register.
+  - command: kapi context landing/index.html
+  - comment: The second question. What do we call this, and why?
+  - command: kapi context search mooring
+
+artifacts:
+  - id: landing
+    caption: "landing/index.html, the surface the landing channel governs"
+    source: html
+    path: landing/index.html
+    width: 1200
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      En assistent som arbeider i repositoriet ditt trenger to svar før den skriver: hvilken veiledning gjelder her, og hva kaller vi dette? kapi leser prosjektfilene som registrerer disse beslutningene.
+  - id: adopt
+    kind: terminal
+    through: 10
+    caption: "Forberedt veiledning, lest inn og avstemt."
+    text: >-
+      Denne demonstrasjonen starter med en forberedt oppskrift, voice profile og termer. Vi committer dem, leser dem inn i prosjektets kontekst med én kommando, og kjører kapi up for å avstemme dem mot kildefilene. Opptaket erstatter ikke en menneskelig gjennomgang av veiledningen.
+  - id: landing
+    kind: artifact
+    artifact: landing
+    caption: "Én av tre flater, og den varmeste registeret av dem."
+    text: >-
+      Dette er én av de tre flatene, markedsføringssiden. Den ligger på northsea slash landing, der registeret er varmere enn dokumentasjonens. Vokabularet er det samme uansett.
+  - id: where
+    kind: terminal
+    through: 14
+    highlight: { text: [northsea/docs, northsea/landing] }
+    caption: "To stier, to punkter, én stemme."
+    text: >-
+      Spør etter plassering og dokumentasjonen svarer med sitt eget punkt, landingssiden med et annet. Samme stempelprofil, ulikt register – og ingen av svarene kom fra katalogen filen tilfeldigvis ligger i.
+  - id: search
+    kind: terminal
+    through: 16
+    highlight: { text: [mooring, berth] }
+    caption: "Beslutningen, og hvert sted den lander."
+    text: >-
+      Spør etter innhold og du får beslutningen bak et ord. Northsea omdøpte et sted fra mooring til berth, og svaret bærer begge halvdeler: hva som skal sies, og det ene feltet på tråden som beholder det utgåtte navnet.
+  - id: outro
+    kind: outro
+    text: >-
+      Begge spørsmål kjøres offline mot filer du kan lese. Still dem til ditt eget repositorium før en assistent skriver en linje i det.

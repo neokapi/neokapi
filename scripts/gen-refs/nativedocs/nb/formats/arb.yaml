@@ -1,0 +1,25 @@
+# Native reference doc for the built-in `arb` format.
+# Schema source: core/formats/arb/config.go (Config) + schema.go.
+# No Okapi equivalent: ARB is Flutter/Dart specific.
+description: Trekk ut og oppdater oversettbare meldinger i Flutter Application Resource Bundle (.arb)-filer.
+overview: |
+  **Flutter ARB**-formatet leser `.arb`-filer – JSON-meldingsressursformatet som brukes av Flutters `gen-l10n`-verktøy og Dart-pakken `intl`. Hver fil er enspråklig: én språkkode (angitt av `@@locale`, eller utledet fra filnavnet), der ressursnøkler peker til ICU MessageFormat-meldingsstrenger.
+
+  Hver melding blir en blokk. Søskennøkler av typen `@<id>` beskriver en ressurs (dens `description` og `placeholders`), og `@@<global>`-nøkler inneholder filmetadata (`@@locale`, `@@last_modified`, `@@author`, `@@context`); begge bevares uendret og trekkes aldri ut. ICU-plassholere (`{name}`), flertallsformer (`{count, plural, …}`) og select/kjønn (`{g, select, …}`) beskyttes som ugjennomsiktig inline-kode, slik at syntaksen aldri oversettes. `@description` vises som en oversetternote. Utdata er byte-tro: nøkkelrekkefølge, JSON-escape og alle `@`/`@@`-metadata går gjennom rundturen uendret.
+parameters:
+  descriptionNotes:
+    description: Vis hver ressurs sin @description som et oversetternotat.
+    help: |
+      Når dette er aktivert (standard), knyttes `description`-feltet i en meldings
+      søskenelement `@<id>`-attributtobjekt til blokken som et
+      oversetternotat. Deaktiver for å ignorere beskrivelser.
+    values: "`true` / `false` (standard `true`)"
+processingNotes:
+  - Én fil = én språkkode; meldingsverdien er blokkens kildeinnhold.
+  - "`@<id>`-attributtobjekter og `@@<global>`-metadata bevares, men trekkes ikke ut som oversettbart innhold."
+  - "ICU MessageFormat-konstruksjoner (plassholere, flertall, select, kjønn) beskyttes som inline-koder, ikke oversettbar struktur."
+examples:
+  - title: Ignorer beskrivelser
+    description: Ikke gjør @description-verdier om til oversetternotater.
+    config: |
+      descriptionNotes: false

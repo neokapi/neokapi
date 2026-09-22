@@ -1,0 +1,97 @@
+id: 10-cli-points-and-voice
+title: Spør en fil hvor den befinner seg
+subtitle: "Tre flater, to merker og én kommando som svarer for hvilken som helst av dem."
+kind: use-case
+publishAs: cli-points-and-voice
+# A scripted plain-shell demo: every command is deterministic and offline, so it
+# runs for real and its output is recorded exactly.
+#
+# `fixtures/.kapi/voice.yaml` is what the recipe binds, and `setup:` reads it
+# into the sandbox's store, which is where the gate answers from. The forbidden
+# term in it is the one the partner page trips.
+#
+# One `kapi check --strict` run exits 3 on purpose (the failing gate is the
+# point of that beat) and declares it with `expectExit: 3`, so a take where the
+# gate silently passed would fail the capture instead of shipping.
+terminal: shell
+brand: kapi
+cwd: ~/voltway
+needsAi: false
+# The sandbox IS the project: a recipe at its root, so every command reads the
+# way a user types it. The sandbox lives in os.tmpdir(), outside the repo.
+project: true
+setup:
+  - kapi context import
+captureTimeoutSec: 180
+aspects:
+  - coordinates, not folders
+  - the voice in force here
+  - one gate over every surface
+outro:
+  line: Spør en fil i ditt eget repository hvor den befinner seg.
+  pointer: kapi context <path>
+
+script:
+  - comment: "Voltway sells metering software: operator documentation, console strings, and a portal that ships under a partner's brand."
+  - command: ls
+  - comment: The brand every collection inherits is a decision, so it is recorded as one rather than typed into the file.
+  - command: echo '{"kind":"recipe","op":"set","path":"defaults.coordinates.brand","value":"voltway"}' > coordinates.jsonl
+  - command: kapi apply coordinates.jsonl
+  - comment: Ask any file where it sits. The documentation answers with the docs channel.
+  - command: kapi context docs/quickstart.md
+  - comment: The partner page is three directories away, on another brand, and answers with the portal channel.
+  - command: kapi context partner/index.md
+  - comment: This is what an assistant is handed before it writes a portal page.
+  - command: kapi voice guide --profile-file .kapi/voice.yaml --channel portal
+  - comment: And this is the gate, over every surface, with no flags.
+  # The gate must fail here: the forbidden word on the partner page is the beat.
+  - command: kapi check --strict
+    expectExit: 3
+  - comment: One word, corrected at the source.
+  - command: ksed -i 's/Our seamless platform/Our unified platform/' partner/index.md
+  - command: kapi check --strict
+
+artifacts:
+  - id: recipe
+    caption: "kapi.yaml: each surface at a point, and one of them on another brand"
+    source: report
+    report: code
+    path: kapi.yaml
+    width: 1200
+    height: 1000
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Ett produkt leveres på tre flater, én av dem under et partnermerke. Fra en terminal kan hver fil si hvor den befinner seg og hvilken stemprofil som gjelder der.
+  - id: recipe
+    kind: artifact
+    artifact: recipe
+    caption: "Et punkt per flate, og én samling på et annet merke."
+    text: >-
+      Oppskriften knytter hver flate til et punkt: produktet og kanalen det leveres på. Portalsamlingen beveger seg på én akse alene, merket, og beholder produktet og kanalen den arver. Ingenting erklærer en mappetaksonomi ved siden av innholdet.
+  - id: where
+    kind: terminal
+    through: 9
+    highlight: { text: [portal, helios] }
+    caption: "To filer, tre kataloger fra hverandre, to svar."
+    text: >-
+      Spør dokumentasjonen hvor den befinner seg, og den svarer med docs-kanalen. Spør partnersiden, tre kataloger unna, og den svarer med portalkanalen og Helios-merket. Stien bestemte ingen av svarene – det gjorde oppskriften.
+  - id: voice
+    kind: terminal
+    through: 11
+    caption: Guiden en assistent får overlevert på det punktet.
+    text: >-
+      En stemprofil er en fil i repositoryet, og å skrive ut guiden for det punktet er måten du ser hva en assistent får overlevert før den skriver. Registeret tilhører portalen; vokabularet tilhører hele selskapet.
+  - id: gate
+    kind: terminal
+    through: 16
+    highlight: { text: [MAJOR, seamless] }
+    caption: "Ett ord får porten til å feile, deretter passerer den samme kommandoen."
+    text: >-
+      De konfigurerte kontrollene leser den samme profilen. Ett forbudt ord på partnersiden gjør at den feiler, kommandoen avsluttes med tre, og å rette kilden er nok til at den identiske kommandoen godkjennes. Resultatet dekker de konfigurerte ordlydreglene; det er ikke en generell vurdering av stemme eller faktanøyaktighet.
+  - id: outro
+    kind: outro
+    text: >-
+      Kjør det samme spørsmålet mot en fil i ditt eget repository, og svaret navngir punktet, stemprofilen og samlingen den tilhører.

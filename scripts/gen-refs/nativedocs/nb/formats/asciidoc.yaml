@@ -1,0 +1,42 @@
+# Native reference doc for the built-in `asciidoc` format.
+# Schema source: core/formats/asciidoc/config.go (Config) + schema.go.
+# No Okapi equivalent: the Okapi filter set ships no AsciiDoc filter (harvest
+# cohort). Ground truth is the Eclipse AsciiDoc Language spec effort and the
+# Asciidoctor reference documentation it formalizes.
+description: "Trekk ut og oppdater oversettbart innhold i AsciiDoc (.adoc)-dokumenter, mens struktur og inline-markering beholdes trofast gjennom rundturen."
+overview: |
+  **AsciiDoc**-formatet leser `.adoc`- og `.asciidoc`-dokumenter – det lette prosamarkeringsspråket som er mye brukt i teknisk dokumentasjon. Leseren trekker ut det logiske tekstinnholdet og bevarer alt annet byte for byte.
+
+  Overskrifter (dokumenttittelen `=` og seksjonsoverskrifter `==`…`======`), avsnitt, listeelementer (ordnede og uordnede, med nesting), blokktitler (`.Title`), admonition-tekst (`NOTE:`, `TIP:`, `WARNING:`, …) og tabellceller blir hver sin blokk med en normalisert strukturell rolle (heading, paragraph, list-item, caption, table-cell). Tabeller rekonstrueres som table/table-row-grupper slik at cellegeometrien bevares. Innebygd markup lineariseres til kanoniske inline-kode-sekvenser: `*bold*`, `_italic_`, `` `mono` ``, `^super^`/`~sub~`, URL- og `link:`-makroer, attributtreferanser `{name}` og krysskoblinger `<<id,text>>`. Den synlige teksten forblir oversettbar; markup lekker aldri inn i den.
+
+  Verbatim-blokker (listing/literal/source/passthrough), kommentarer, attributtoppføringer og dokumenthodet er ikke-oversettbare og går i rundtur som skjelett: et uendret dokument reproduseres byte for byte, og bare endrede verdier sys inn igjen.
+parameters:
+  extractBlockTitles:
+    description: Trekk ut AsciiDoc-blokktitler (`.Title`) som oversettbare blokker.
+    help: |
+      Når dette er aktivert (standard), sendes en blokktitellinje (`.My Caption`) knyttet til
+      en etterfølgende blokk ut som en oversettbar undertekst-blokk. Deaktiver for å
+      beholde blokktitler som ikke-oversettbart skjelett.
+    values: "`true` / `false` (standard `true`)"
+  extractTableCells:
+    description: Trekk ut `|===`-tabellceller som oversettbare blokker.
+    help: |
+      Når dette er aktivert (standard), sendes cellene i en PSV-tabell ut som blokker
+      gruppiert i tabell-/tabellrad-grupper (den første raden behandles som en overskrift
+      når en tom linje følger den). Deaktiver for å beholde hele tabellen som én
+      ikke-oversettbar blokk.
+    values: "`true` / `false` (standard `true`)"
+processingNotes:
+  - "Overskrifter bærer nivået sitt i Properties[\"level\"] (antallet `=`), slik at strukturen overlever oversettelse og eksport på tvers av formater."
+  - "Tabeller rekonstrueres som tabell-/tabellrad-grupper; overskriftsceller har rollen table-header, innholdsceller har rollen table-cell."
+  - "Inline-markering (fet/kursiv/mono/super/sub, lenker, attributtreferanser, kryssreferanser) beskyttes som inline-kode-sekvenser og må ikke oversettes."
+  - "Utdata er bytettro: et uendret dokument går gjennom en rundtur nøyaktig; kun endrede blokkverdier skrives om. Verbatim-blokker, kommentarer, attributtoppføringer og dokumenthodet bevares som skjelett."
+examples:
+  - title: Behold blokktitler uoversatt
+    description: Behandle `.Title`-linjer som skjelett i stedet for oversettbare undertekster.
+    config: |
+      extractBlockTitles: false
+  - title: Bevar tabeller verbatim
+    description: Ikke trekk ut tabellceller; la hele tabellen gå gjennom rundturen uendret.
+    config: |
+      extractTableCells: false

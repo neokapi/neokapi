@@ -1,0 +1,48 @@
+# Native reference doc for the built-in `voice-vocab-check` tool.
+# Schema source: core/tools/voicevocab.go (VoiceVocabConfig, in which the profile and the
+# terms store are supplied programmatically, so the tool declares no schema
+# properties).
+description: "Flagg forbudte, konkurrent- og pensjonerte formuleringer fra en stemprofil og prosjektets termer."
+overview: |
+  **Voice Vocabulary Check**-verktøyet er den deterministiske kontrollen en stempelprofil
+  bærer: de forbudte termene, konkurrenttermene og de forbudte stilmønstrene,
+  sjekket mot kildeteksten i hver blokk uten modell og uten nettverkskall.
+  En forbudt term rapporteres med alvorlighetsgrad «major» og en konkurrentterm med «critical»,
+  begge med standardverdier fra profilen og mulige å overstyre per regel; der regelen angir
+  en erstatning, følger den med funnet som forslag. Termer treffer på hel-ord-basis og
+  Unicode-bevisst, slik at `use` aldri slår ut inne i `user`; stilmønstre treffer som
+  det regulære uttrykket forfatteren skrev dem som.
+
+  Når prosjektet binder en termbase, håndhever verktøyet også det:
+  vokabularet prosjektet *besluttet*, sammen med listene profilen bærer. En
+  konkurrentoppføring rapporteres som «critical», en forbudt som «major» og en utgått som
+  «minor» – den mildere lesningen for et ord som var prosjektets eget frem til en
+  beslutning erstattet det. Alternativet hentes fra konseptet: den foretrukne
+  termen på samme språk, eller erstatningen termens notat angir. Oppslag
+  skjer på blokkens eget språk og, når det oppgir en region, på det rene
+  språket under det – slik at et prosjekt som skriver `en-GB` fortsatt holdes til en beslutning
+  registrert som `en`.
+
+  Funn og en samlet poengsum legges ved som en `voice`-annotasjon. Profilen
+  og termbasen leveres av verten, ikke av trinnkonfigurasjonen:
+  en oppskrift navngir dette verktøyet som et trinn (`kapi init` stiller opp akkurat det), og
+  prosjektets `defaults.voice`-binding bestemmer hva det håndhever. Den frittstående
+  kommandoen er `kapi check --profile`.
+
+  Dette er halvparten du bør kjøre før `voice-check`, dens LLM-baserte søsken: det
+  en regel kan avgjøre, bør ikke overlates til en modell.
+limitations:
+  - Profilen og termstoren leveres programmatisk; ingen av dem er en skjemaparameter.
+  - "Treff er leksikalske, helords- og ikke-skiller-mellom-store-og-små-bokstaver, uten hensyn til bøying eller morfologi."
+  - "Bedømmer kun kildetekst, og hopper over en blokk der kilden er tom eller bare inneholder blanktegn."
+  - "Påkrevde stilmønstre er et spørsmål på dokumentnivå og evalueres av kontrollstedet, ikke her."
+processingNotes:
+  - Opererer på blokker; en blokk uten funn forblir uannotert.
+  - "Enspråklig ved deklarasjon, fordi den leser kilden; en tospråklig deklarasjon gir ingen gjennomgang på et prosjekt uten målspråk."
+  - En term som er registrert både på et regionalt og et generelt språk er én beslutning og rapporteres én gang.
+  - "Hvert funn bærer kjøreområdet det samsvarte med, slik at en forhåndsvisning kan fremheve de eksakte ordene."
+examples:
+  - title: Legg til i en flyt
+    description: "Profilen og termene hentes fra prosjektbindingen, slik at trinnet ikke trenger egen konfigurasjon."
+    config: |
+      {}

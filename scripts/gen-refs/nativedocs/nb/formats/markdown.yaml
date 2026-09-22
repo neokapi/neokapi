@@ -1,0 +1,104 @@
+# Native reference doc for the built-in `markdown` format.
+# Schema source: core/formats/markdown/config.go (Config) + schema.go.
+# Mirrors the Okapi okf_markdown filter; CommonMark structural model.
+description: "Trekk ut og sett inn tekst fra Markdown på nytt, og behold overskrifter, lister, koblinger og kode intakt."
+overview: |
+  **Markdown**-formatet leser Markdown-dokumenter, trekker ut prosa som
+  blokker, og skriver oversettelsene tilbake mens det bevarer dokumentets
+  struktur: overskrifter, lister, uthevinger, lenker og kode. Inline-
+  markering (fet, kursiv, lenker, inline-kode) eksponeres som inline-koder inne i
+  hver blokk slik at den omkringliggende syntaksen overlever oversettelsen.
+
+  Som standard er avsnitt, overskrifter, listeelementer, blokksitering og bildetekst
+  blokker, mens kodeblokker, YAML-frontmatter, rå HTML-blokker og
+  lenke-/bilde-URLer behandles som ikke-oversettbar struktur. Hver av disse
+  kategoriene kan slås av og på, og innebygd HTML kan rutes til et underfilter.
+parameters:
+  translateCodeBlocks:
+    description: Gjør avgrensede og innrykkede kodeblokker oversettbare.
+    help: |
+      Når dette er aktivert, trekkes avgrensede og innrykkede kodeblokker ut som
+      oversettbart innhold. Som standard sendes de ut som ikke-oversettbare
+      data, siden kode sjelden oversettes.
+    values: "`true` / `false` (standard `false`)"
+  translateFrontMatter:
+    description: Gjør YAML-frontmaterverdier oversettbare.
+    help: |
+      Når dette er aktivert, trekkes verdier i dokumentets YAML-frontmater ut
+      som oversettbart innhold. Som standard sendes frontmater ut som
+      ikke-oversettbare data.
+    values: "`true` / `false` (standard `false`)"
+  translateImageAlt:
+    description: Inkluder bilde-alt-tekst i oversettbart innhold.
+    help: |
+      Når dette er aktivert (standard), inkluderes alt-teksten til bilder i det
+      oversettbare innholdet i blokken som inneholder bildet.
+    values: "`true` / `false` (standard `true`)"
+  translateURLs:
+    description: Gjør kobling- og bilde-URLer oversettbare.
+    help: |
+      Når dette er aktivert, trekkes URL-ene til koblinger og bilder ut som oversettbart
+      innhold (nyttig når ressurser eller sider per språkkode ligger på forskjellige stier).
+      Som standard forblir URL-er uoversatt.
+    values: "`true` / `false` (standard `false`)"
+  translateBlockQuotes:
+    description: Gjør innhold i blokksitatbokser oversettbart.
+    help: |
+      Når dette er aktivert (standard), er prosa inne i blokksitatene oversettbar.
+      Deaktiver det for å la sitert materiale forbli uoversatt.
+    values: "`true` / `false` (standard `true`)"
+  translateHTMLBlocks:
+    description: Gjør rå HTML-blokker oversettbare.
+    help: |
+      Når dette er aktivert, trekkes rå HTML-blokker innebygd i Markdown ut som
+      oversettbart innhold. Som standard sendes de ut som ikke-oversettbare
+      data; rut dem til et underfilter via `subfilter` for strukturert HTML-
+      behandling i stedet.
+    values: "`true` / `false` (standard `false`)"
+  unescapeBackslashCharacters:
+    description: Tolk tegnsetting med omvendt skråstrek i kilden.
+    help: |
+      Når dette er aktivert, tolkes tegnsetting med omvendt skråstrek i kildedokumentet (for
+      exempel `\*`) som escaped tegn i stedet for bokstavelige
+      omvendt skråstrek-sekvenser.
+    values: "`true` / `false` (standard `false`)"
+  subfilter:
+    description: Underfilterformat for HTML-innhold i Markdown.
+    help: |
+      Navnet på et format som brukes som underfilter (for eksempel `html`) for å analysere
+      HTML-innhold innebygd i Markdown, slik at HTML-merking håndteres
+      strukturelt i stedet for som ugjennomsiktig tekst.
+    values: Formatnavn (standard tom)
+    examples:
+      - "`html` behandler innebygd HTML gjennom HTML-formatet"
+  useCodeFinder:
+    description: Aktiver regex-basert inline-kode-deteksjon.
+    help: |
+      Aktiverer regex-basert deteksjon av ekstra inline-koder i
+      uttrukket tekst, utover den Markdown-inline-markeringen som allerede gjenkjennes.
+      Mønstrene leveres via `codeFinderRules`.
+    values: "`true` / `false` (standard `false`)"
+  codeFinderRules:
+    description: Regex-mønstre som matcher inline-kode i tekst.
+    help: |
+      En matrise med regulære uttrykk; tekst som samsvarer med noen av dem behandles
+      som inline-kode i stedet for oversettbare ord. Brukes kun når
+      `useCodeFinder` er aktivert.
+    values: Matrise med regulære uttrykk (standard tom)
+    dependsOn:
+      - property: useCodeFinder
+        condition: må være aktivert for at disse mønstrene skal gjelde
+limitations:
+  - "Kodeblokker, frontmater, rå HTML-blokker og URLer er ikke-oversettbare som standard; aktiver det tilsvarende alternativet for å trekke dem ut."
+processingNotes:
+  - "Inline-merking (uthevelse, koblinger, inline-kode) blir inline-koder inne i blokker, slik at den overlever oversettelse uendret."
+  - "Strukturelle elementer (gjerder, listeindikatorer, overskriftprefikser) danner det ikke-oversettbare skjelettet."
+examples:
+  - title: Oversett frontmater også
+    description: Inkluder YAML front matter-verdier sammen med prosaen.
+    config: |
+      translateFrontMatter: true
+  - title: Håndter innebygd HTML strukturelt
+    description: Rut inline- og blokk-HTML gjennom HTML-underfilteret.
+    config: |
+      subfilter: html

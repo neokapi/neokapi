@@ -1,0 +1,292 @@
+# Native reference doc for the built-in `openxml` format.
+# Schema source: core/formats/openxml/config.go (Config).
+# Behaviour grounded in core/formats/openxml/reader.go, writer.go and spec.yaml,
+# mirroring Okapi's OpenXML filter (okf_openxml) and ECMA-376 / ISO/IEC 29500.
+displayName: OpenXML (Office)
+description: "Trekk ut og skriv tekst fra Word-, Excel- og PowerPoint Office Open XML-filer."
+overview: |
+  OpenXML-formatet håndterer Microsoft Office Open XML-dokumenter: Word
+  (`.docx`), Excel (`.xlsx`) og PowerPoint (`.pptx`). Alle tre deler en
+  ZIP-og-XML-pakke, så ett filter betjener dem alle og oppdager
+  varianten automatisk fra pakkeinnholdet, i henhold til ECMA-376 / ISO/IEC 29500.
+
+  Uttrekk er selektivt: som standard trekker leseren ut hovedteksten
+  og delene som vanligvis er synlige for brukeren (dokumentegenskaper,
+  topp- og bunntekst, fotnoter, kommentarer og hyperkoblingstekst i Word;
+  delte strenger i Excel; og foredragsholdernotater i PowerPoint), mens
+  skjult, strukturelt eller sjelden oversatt innhold utelates med mindre du velger det inn.
+  Et sett med stil- og fargefiltre lar deg inkludere eller ekskludere kjøringer etter
+  avsnitts-/tegnstil eller uthevingsfarge. Dette speiler Okapis
+  OpenXML-filter, inkludert standardoppførselen med å godta sporede endringer
+  før uttrekk.
+parameters:
+  # ── Word options ──────────────────────────────────────────────────
+  translateDocProperties:
+    description: "Trekk ut dokumentegenskaper (tittel, emne, nøkkelord)."
+    help: |
+      Når dette er aktivert (standard), trekkes metadataene i `docProps/core.xml`
+      (tittel, emne, nøkkelord) ut for oversettelse. Deaktiver det
+      for å la dokumentegenskapene være urørt.
+    values: "`true` / `false` (standard `true`)"
+  translateHiddenText:
+    description: Trekk ut tekst merket med egenskapen skjult (vanish).
+    help: |
+      Når aktivert, trekkes kjøringer med egenskapen `w:vanish` (skjult) ut.
+      Når deaktivert (standard), hoppes skjult tekst over.
+    values: "`true` / `false` (standard `false`)"
+  translateHeadersFooters:
+    description: Trekk ut tekst fra topp- og bunntekster.
+    help: |
+      Når aktivert (standard), trekkes topp- og bunntekst i Word-dokumenter
+      ut. Deaktiver det for å la topp- og bunntekster forbli uoversatt.
+    values: "`true` / `false` (standard `true`)"
+  translateFootnotes:
+    description: Trekk ut fotnoter og sluttnoter.
+    help: |
+      Når aktivert (standard), trekkes fotnote- og sluttnotetekst i Word-
+      dokumenter ut. Deaktiver det for å hoppe over dem.
+    values: "`true` / `false` (standard `true`)"
+  translateComments:
+    description: Trekk ut kommentartekst fra Word-dokumenter.
+    help: |
+      Når dette er aktivert (standard), trekkes teksten i Word-gjennomgangskommentarer ut. Dette samsvarer med Okapi, som behandler `word/comments.xml` som en stilisert tekstdel ved siden av hoveddokumentet. Deaktiver det for å la kommentarer være uoversatt.
+    values: "`true` / `false` (standard `true`)"
+  translateHyperlinks:
+    description: Trekk ut visningsteksten til hyperkoblinger.
+    help: |
+      Når aktivert (standard), trekkes den synlige ankerteksten til hyperkoblinger ut
+      for oversettelse. Deaktiver for å la hyperkoblingstekst
+      stå uendret. (HYPERLINK-feltets bufrede visningstekst styres
+      separat av `complexFieldDefinitionsToExtract`.)
+    values: "`true` / `false` (standard `true`)"
+  automaticallyAcceptRevisions:
+    description: Godta sporede endringer før tekst trekkes ut.
+    help: |
+      Når aktivert (standard, i samsvar med Okapi), godtas sporede endringer før uttrekk: innsatte kjøringer beholdes og slettede kjøringer fjernes; tabellrader merket `<w:trPr><w:del/>` (ECMA-376
+      §17.13.5.13) fjernes helt, og rader merket
+      `<w:trPr><w:ins/>` (§17.13.5.16) beholdes. Deaktiver det for å trekke ut dokumentet slik det ble skrevet, med revisjonsmarkering intakt.
+    values: "`true` / `false` (standard `true`)"
+  # ── Excel options ─────────────────────────────────────────────────
+  translateSharedStrings:
+    description: Trekk ut delte strenger fra Excel-arbeidsbøker.
+    help: |
+      Når dette er aktivert (standard), trekkes celleteksten i arbeidsbokens
+      delte strengtabell ut, der mesteparten av Excel-teksten befinner seg.
+      Deaktiver det for å hoppe over celleinnhold.
+    values: "`true` / `false` (standard `true`)"
+  translateSheetNames:
+    description: Trekk ut regneark- (fane-)navn.
+    help: |
+      Når dette er aktivert, trekkes regnearksnavn ut for oversettelse. Når dette er deaktivert (standard), beholdes arknavnene som de er.
+    values: "`true` / `false` (standard `false`)"
+  excludedSheets:
+    description: Regnearksnavn som skal ekskluderes fra uttrekk.
+    help: |
+      En liste over regnearksnavn hvis innhold hoppes over fullstendig. Bruk den
+      til å la referanse- eller dataark stå uoversatt.
+    values: "Matrise av arknavnstrenger"
+    examples:
+      - "`[\"Data\", \"Lookups\"]`"
+  excludedColumns:
+    description: Kolonnebokstaver som skal utelates fra uttrekk.
+    help: |
+      En liste over kolonnebokstaver hvis celler hoppes over. Bruk den til å la
+      identifikator- eller numeriske kolonner stå uoversatt.
+    values: "Matrise av kolonnebokstav-strenger (f.eks. `A`, `C`, `AA`)"
+    examples:
+      - "`[\"A\", \"C\"]`"
+  # ── PowerPoint options ────────────────────────────────────────────
+  translateSlideNotes:
+    description: Trekk ut foredragsholdernotater fra PowerPoint-presentasjoner.
+    help: |
+      Når aktivert (standard), trekkes foredragsholdernotater-teksten fra lysbilder ut. Deaktiver det for å la notater være uoversatt.
+    values: "`true` / `false` (standard `true`)"
+  translateSlideMasters:
+    description: Trekk ut tekst fra lysbildemaler.
+    help: |
+      Når aktivert, trekkes tekst på lysbildemaler og oppsett ut.
+      Når deaktivert (standard), hoppes lysbildemaltekst over.
+    values: "`true` / `false` (standard `false`)"
+  translateHiddenSlides:
+    description: Trekk ut innhold fra skjulte lysbilder.
+    help: |
+      Når aktivert, trekkes innholdet i lysbilder merket som skjult ut. Når
+      deaktivert (standard), hoppes skjulte lysbilder over.
+    values: "`true` / `false` (standard `false`)"
+  translateCharts:
+    description: Trekk ut tekst fra innebygde diagrammer.
+    help: |
+      Når aktivert, trekkes strenger inne i innebygde diagrammer (titler, akseetiketter,
+      dataetiketter) ut. Når deaktivert (standard), hoppes diagramtekst
+      over.
+    values: "`true` / `false` (standard `false`)"
+  translateDiagrams:
+    description: Trekk ut tekst fra SmartArt-diagrammer.
+    help: |
+      Når aktivert, trekkes teksten i SmartArt-diagramdata ut.
+      Når deaktivert (standard), hoppes diagramtekst over.
+    values: "`true` / `false` (standard `false`)"
+  includedSlides:
+    description: Begrens uttrekk til bestemte lysbildenumre.
+    help: |
+      Når ikke-tom, trekkes kun de oppførte lysbildenumrene (1-basert) ut;
+      alle andre lysbilder hoppes over. La den være tom (standard)
+      for å trekke ut alle lysbilder.
+    values: "Array av 1-baserte lysbildenumre (standard: alle lysbilder)"
+    examples:
+      - "`[1, 2, 5]`"
+  # ── General ───────────────────────────────────────────────────────
+  aggressiveCleanup:
+    description: Fjern revisjons-ID-er og korrekturstøy før løp flettes.
+    help: |
+      Når aktivert (standard), fjernes støy som revisjons-IDer (`w:rsid*`),
+      rettskrivingsfeilmarkører og sist gjengitte sideskift
+      før tilstøtende kjøringer flettes, noe som gir renere og færre inline-
+      koder. Deaktiver for å beholde denne markeringen.
+    values: "`true` / `false` (standard `true`)"
+  tabAsCharacter:
+    description: Behandle tabulatorelementer som tabulatortegn i stedet for plassholder-spenn.
+    help: |
+      Når aktivert, trekkes `<w:tab/>`-elementer ut som litterale tabulatortegn
+      i teksten. Når deaktivert (standard), representeres de
+      som inline plassholder-spenner.
+    values: "`true` / `false` (standard `false`)"
+  ignoreSoftHyphenTag:
+    description: Ignorer myk-bindestrek-tagger i dokumentet.
+    help: |
+      Når aktivert, ignoreres myke bindestrek-tagger under uttrekk. Når
+      deaktivert (standard), beholdes de.
+    values: "`true` / `false` (standard `false`)"
+  replaceNoBreakHyphenTag:
+    description: Erstatt kode-bindestrek-tagger med det ikke-brytende bindestrek-tegnet.
+    help: |
+      Når dette er aktivert, erstattes koder for ikke-delende bindestrek med det faktiske ikke-delende bindestregtegnet i teksten. Når dette er deaktivert (standard), beholdes kodrepresentasjonen.
+    values: "`true` / `false` (standard `false`)"
+  # ── Style & colour filtering ──────────────────────────────────────
+  excludeColors:
+    description: Skriftfarger som skal ekskluderes fra uttrekk.
+    help: |
+      En liste over skriftfarger (hex RGB) hvis tekstsekvenser hoppes over. Bruk det for å la tekst i en bestemt farge (for eksempel interne merknader) være uoversatt.
+    values: "Array av hex-RGB-strenger (f.eks. `FF0000` for rød)"
+    examples:
+      - "`[\"FF0000\"]`"
+  excludeHighlightColors:
+    description: Uthevefarger som skal utelukkes fra uttrekk.
+    help: |
+      En liste over uthevingsfargernavn hvis tekstsekvenser hoppes over. Bruk det for å la uthevet tekst være uoversatt.
+    values: "Array med uthevingsfargenavn (f.eks. `yellow`, `red`)"
+    examples:
+      - "`[\"yellow\"]`"
+  includeHighlightColors:
+    description: Begrens uttrekk til tekst med disse utheving­sfargene.
+    help: |
+      Når denne ikke er tom, trekkes kun ut løp med én av de opplistede uthevingsfargene;
+      all annen tekst hoppes over. La den være tom (standard) for
+      å ikke anvende noen uthevingsbasert begrensning.
+    values: "Array med uthevingsfargenavn (standard: ingen begrensning)"
+    examples:
+      - "`[\"green\"]`"
+  excludeStyles:
+    description: Avsnitt- eller tegnstiler som skal utelates fra uttrekk.
+    help: |
+      En liste over avsnitt- eller tegnstilnavn hvis tekst hoppes over. Bruk det for å la kode-, undertekst- eller referansestiler være uoversatt.
+    values: "Matrise av stilnavnstrenger"
+    examples:
+      - "`[\"Code\", \"Caption\"]`"
+  includeStyles:
+    description: Begrens uttrekk til tekst i disse stilene.
+    help: |
+      Når ikke tom, trekkes kun tekst i en av de oppførte stilene ut;
+      all annen tekst hoppes over. La den være tom (standard) for å ikke bruke
+      noen stilbasert begrensning.
+    values: "Array av stilnavnstrenger (standard: ingen begrensning)"
+    examples:
+      - "`[\"Heading 1\", \"Normal\"]`"
+  # ── Inline codes ──────────────────────────────────────────────────
+  useCodeFinder:
+    description: Detekter inline-kode inne i tekst ved hjelp av regulære uttrykk.
+    help: |
+      Aktiverer mønsterbasert deteksjon av inline-koder (plassholdere,
+      variabler, tagger) i trukket ut tekst, ved hjelp av mønstrene i
+      `codeFinderRules`. Når deaktivert (standard), detekteres ingen mønsterbaserte
+      inline-koder.
+    values: "`true` / `false` (standard `false`)"
+  codeFinderRules:
+    description: Regulære uttrykksmønstre som samsvarer med inline-kode i tekst.
+    help: |
+      En liste over regulære uttrykk; hvert treff i den uttrukne teksten
+      beskytes som inline-kode i stedet for å oversettes. Har kun effekt
+      når `useCodeFinder` er aktivert.
+    values: "Array av regulære uttrykksstrenger"
+    examples:
+      - "`\\{[0-9]+\\}` beskytter nummererte plassholere som `{0}`"
+    dependsOn:
+      - property: useCodeFinder
+        condition: må være aktivert for at reglene skal tre i kraft
+  # ── Advanced ──────────────────────────────────────────────────────
+  complexFieldDefinitionsToExtract:
+    description: Feltinstruksjonsprefikser hvis bufrede visningstekst trekkes ut.
+    help: |
+      En liste over instruksjonsprefiks for komplekse felt der den bufrede visningsteksten
+      trekkes ut for oversettelse. Standarden er `["HYPERLINK"]`,
+      som samsvarer med Okapi. Uten dette ville den brukersynlige ankerteksten i HYPERLINK-felt
+      gå i rundtur på kildespråket. Legg til prefiks som
+      `REF` for å oversette visningsteksten til andre felttyper.
+    values: "Array med felt-prefiksstrenger (standard `[\"HYPERLINK\"]`)"
+    examples:
+      - "`[\"HYPERLINK\", \"REF\"]`"
+  fontMappings:
+    description: Tilordne skriftnavn til skriptgrupper.
+    help: |
+      Et kart fra fontnavn til skriptgruppe, brukt til å knytte løp til et
+      skript for videre behandling. Tom som standard.
+    values: "Objekt som tilordner skrifttypnavn til skriptgruppekode"
+    examples:
+      - "`{\"MS Gothic\": \"ja\"}`"
+  extractRunFontsInfo:
+    description: Send skriftmetadata som merknader på blokker.
+    help: |
+      Når dette er aktivert, legges skriftinformasjon for hver kjøring ved som
+      annotasjoner på den uttrukne blokken. Når det er deaktivert (standard), sendes ingen
+      fontmetadata.
+    values: "`true` / `false` (standard `false`)"
+  replaceLineSeparator:
+    description: Erstatt Unicode-linjeskilleren (U+2028) i utdata.
+    help: |
+      Når aktivert, erstattes Unicode-linjeseparatortegnet (U+2028)
+      i utdataene av `lineSeparatorReplacement`. Når deaktivert
+      (standard), beholdes det som det er.
+    values: "`true` / `false` (standard `false`)"
+  lineSeparatorReplacement:
+    description: Erstatningsstrengen for linjeskillertegn.
+    help: |
+      Strengen som erstatter Unicode-linjeseparatoren når `replaceLineSeparator` er aktivert. Standarden er et linjeskift (`\n`).
+    values: "Streng (standard `\\n`)"
+    dependsOn:
+      - property: replaceLineSeparator
+        condition: brukes kun når erstatning av linjeskilletegn er aktivert
+limitations:
+  - "Én filter dekker Word, Excel og PowerPoint; noen alternativer gjelder bare for den relevante varianten (for eksempel påvirker lysbildealternativene kun PowerPoint)."
+processingNotes:
+  - Dokumentvarianten (Word / Excel / PowerPoint) oppdages automatisk fra pakkeinnholdet.
+  - Skriveren er trofast som standard og bevarer kildeegenskaper for kjøringer inline i stedet for å skrive dem om til syntetiserte stiler.
+examples:
+  - title: Oversett alt i et Word-dokument
+    description: "Inkluder kommentarer, skjult tekst og lysbildemaler som er av som standard."
+    config: |
+      translateHiddenText: true
+      translateComments: true
+  - title: Begrens en Excel-arbeidsbok til valgte ark
+    description: Hopp over data- og oppslagsark under uttrekk.
+    config: |
+      excludedSheets:
+        - Data
+        - Lookups
+  - title: Trekk ut kun spesifikke PowerPoint-lysbilder
+    description: "Oversett lysbildene 1, 2 og 5, og hopp over resten."
+    config: |
+      includedSlides:
+        - 1
+        - 2
+        - 5
+wikiUrl: https://www.ecma-international.org/publications-and-standards/standards/ecma-376/

@@ -1,0 +1,51 @@
+id: bowrain-web-correction-loop
+title: Gjennomgå gjentatte korreksjoner før du oppretter en regel
+subtitle: Gjentatte korreksjoner blir kandidater for eksplisitt gjennomgang.
+tagline: the correction-learning loop on bowrain
+kind: use-case
+publishAs: bowrain-web-correction-loop
+terminal: desktop
+target: web
+brand: bowrain
+needsAi: false
+# One continuous narration read: uniform voice across scenes.
+oneshot: true
+outro:
+  line: Korreksjoner gjort via MCP teller også.
+  pointer: bowrain.cloud/docs/server/context-voice
+aspects:
+  - Corrections that recur become candidates
+  - The blast radius, before it lands
+  - Promoted into a versioned check
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Bowrain samler gjentatte korreksjoner som kandidater. En gjennomgåer undersøker effekten og fremmer eksplisitt en kandidat før den blir en versjonert kontroll.
+  - id: candidates
+    kind: desktop
+    beat: candidates
+    caption: En formulering teamet holdt på å korrigere.
+    hold: 18
+    text: >-
+      Dette er kandidatene. Hver er en formulering teamet holdt på å endre: ordet som ikke traff stemmeprofilen, hva de erstattet det med, og hvor mange separate korreksjoner som ligger bak det. Én korreksjon beviser ingenting, så under terskelen foreslås ingenting i det hele tatt.
+  - id: evaluate
+    kind: desktop
+    beat: evaluate
+    caption: Hvor mye innhold dette ville flagget på nytt.
+    hold: 17
+    crop: { selector: '[role="dialog"]' }
+    text: >-
+      Forhåndsvis konsekvensene før du fremmer noe. Dialogen teller opp hvor mye av innholdet som allerede finnes i prosjektet denne regelen ville flagget, slik at ingen fremmer en regel og oppdager kostnaden fra feilene den forårsaker neste morgen.
+  - id: promote
+    kind: desktop
+    beat: promote
+    caption: Fremmet og versjonert på profilen.
+    hold: 18
+    text: >-
+      Fremmer du den, blir korreksjonen en deterministisk kontroll, versjonert på stemme­profilen og brukt av senere kontroller styrt av den profilen – for både dem som skriver og AI-verktøyene. Kandidaten forlater køen, og etterlevelse overvåkes fra da av for avvik.
+  - id: outro
+    kind: outro
+    text: >-
+      Gjennomgå den gjentatte korreksjonen, undersøk omfanget, og fremme deretter kandidaten. Senere kontroller kan anvende den versjonerte regelen der den hører hjemme.

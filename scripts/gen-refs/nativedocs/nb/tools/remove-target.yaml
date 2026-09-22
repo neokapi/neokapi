@@ -1,0 +1,54 @@
+# Native reference doc for the built-in `remove-target` tool.
+# Schema source: core/tools/removetarget.go (RemoveTargetConfig).
+description: "Fjern målsegmenter fra blokker, etter språkkode eller etter valgte tekst-enhets-ID-er."
+overview: |
+  **Fjern mål**-verktøyet sletter målsegmenter fra blokker. Når en målspråkkode
+  er angitt, fjernes kun den språkkodens mål; uten språkkode fjernes
+  alle mål. Det er nyttig for å tilbakestille oversettelser før en ny kjøring, eller
+  for å tømme mål i en bestemt språkkode.
+
+  Fjerning kan begrenses til spesifikke tekstenheter etter ID, noe som avgrenser
+  operasjonen til en kommaseparert liste over blokk-ID-er. Eventuelt kan en blokk hvis
+  mål alle er fjernet, selv fjernes fra strømmen.
+parameters:
+  targetLocale:
+    description: Språkkoden hvis mål skal fjernes.
+    help: |
+      Språkkoden som skal tømmes. Når denne er tom, fjernes målene for alle språkkoder på
+      blokken.
+    values: "BCP-47 språkkode (tom = fjern alle mål)"
+  textUnitIDs:
+    description: Kommaseparerte tekst-enhets-ID-er for å begrense fjerningen til.
+    help: |
+      En kommaavgrenset liste over blokk (tekst-enhet) ID-er. Når denne er angitt og ID-
+      filtrering er aktivert, er det bare blokker hvis ID vises i listen som får sine
+      mål fjernet. La stå tom for å fjerne mål fra alle blokker.
+    values: "kommaseparert streng"
+    dependsOn:
+      - property: filterByIDs
+        condition: ID-filtrering må være aktivert for at denne listen skal gjelde
+  filterByIDs:
+    description: Filtrer tekstenheter etter ID fremfor kun etter språkkode.
+    help: |
+      Når aktivert, begrenses fjerningen til blokkene oppført i
+      `textUnitIDs`. Når deaktivert, styres fjerningen av målspråkkoden
+      på tvers av alle blokker.
+    values: "`true` / `false` (standard `true`)"
+  removeBlockIfEmpty:
+    description: Fjern en blokk når den ikke har noen gjenværende mål.
+    help: |
+      Når aktivert, fjernes en blokk som ikke har noen gjenværende målsegmenter etter fjerning
+      fra strømmen helt. Når deaktivert, beholdes den nå tomme blokken.
+    values: "`true` / `false` (standard `false`)"
+processingNotes:
+  - Opererer kun på oversettbare blokker; ikke-oversettbare blokker passerer gjennom uendret.
+examples:
+  - title: Tøm én språkkodes mål
+    description: Fjern de franske målene fra alle blokker.
+    config: |
+      targetLocale: fr
+  - title: Fjern mål for valgte tekstenheter
+    description: Begrens fjerningen til spesifikke blokk-ID-er.
+    config: |
+      filterByIDs: true
+      textUnitIDs: "intro.title, intro.body"

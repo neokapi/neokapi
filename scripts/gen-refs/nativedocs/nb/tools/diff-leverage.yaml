@@ -1,0 +1,38 @@
+# Native reference doc for the built-in `diff-leverage` tool.
+# Schema source: core/tools/diffleverage.go (DiffLeverageConfig).
+description: Gjenbruk oversettelser fra en tidligere dokumentversjon for uendrede kildeblokker.
+overview: |
+  **Diff-gjenbruk**-verktøyet sammenligner kildeteksten i hver blokk med den tilsvarende blokken i en tidligere versjon av dokumentet, og viderefører den forrige oversettelsen når kildeteksten er uendret. Det unngår å oversette innhold på nytt der ingenting har endret seg mellom versjonene, og merker hver blokk med diff-status: `new`, `unchanged`, `modified` eller `leveraged`. Målspråk er påkrevd.
+
+  Den forrige versjonens kilde- og måltekster leveres programmatisk (indeksert etter blokk-ID) og er ikke en del av det deklarative skjemaet. De to skjemasynlige alternativene styrer hvordan kildesammenligningen utføres.
+parameters:
+  caseSensitive:
+    description: Sammenlign kildetekster på en versalfølsom måte.
+    help: |
+      Når aktivert, må to kilder samsvare nøyaktig, inkludert bokstavstørrelse, for
+      å telle som uendret. Når deaktivert, ignorerer sammenligningen store og små bokstaver.
+    values: "`true` / `false` (standard `true`)"
+  fuzzyMatch:
+    description: Viderefør oversettelser for nært beslektede kilder.
+    help: |
+      Når aktivert, vil en endret kilde som er tilstrekkelig lik den
+      tidligere versjonen (over en intern likhetsterskelsverdi) fremdeles gjenbruke den
+      tidligere oversettelsen og merkes som `leveraged` med en likhetsscore.
+      Når deaktivert, gjenbrukes kun eksakte treff.
+    values: "`true` / `false` (standard `false`)"
+limitations:
+  - Krever et målspråk og et korpus fra en tidligere versjon (levert programmatisk); de tidligere tekstene kan ikke konfigureres via skjemaet.
+  - Fuzzy-treff bruker en fast intern likhetsterskelsverdi.
+processingNotes:
+  - Opererer kun på oversettbare blokker; ikke-oversettbare blokker passerer gjennom uendret.
+  - Hver blokk merkes med en diff-statusegenskap; gjenbrukte fuzzy-treff registrerer også en likhetsscore.
+examples:
+  - title: Gjenbruk kun eksakte treff
+    description: Viderefør oversettelser der kildeteksten er identisk.
+    config: |
+      caseSensitive: true
+  - title: Tillat fuzzy-gjenbruk
+    description: Gjenbruk også oversettelser for nært beslektede kilder.
+    config: |
+      fuzzyMatch: true
+      caseSensitive: false

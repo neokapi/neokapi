@@ -1,0 +1,35 @@
+# Native reference doc for the built-in `term-check` tool.
+# Schema source: core/tools/termcheck.go (TermCheckConfig, term pairs set programmatically).
+description: Verifiser at påkrevde måltermer forekommer når kildetermene deres er til stede.
+overview: |
+  **Terminologikontroll**-verktøyet kontrollerer hver oversettelse mot et sett med
+  kilde-/måltermspar. For hver oppføring, hvis kildetermen forekommer i
+  blokkers kildetekst, verifiserer verktøyet at den påkrevde måltermen forekommer i
+  oversettelsen; når den ikke gjør det, flagges blokken og de manglende
+  forventningene registreres på dens egenskaper. En målspråkkode er påkrevd, og en
+  termlagring leverer termparene.
+
+  Termparene leveres programmatisk snarere enn som et skjemafelt, så
+  verktøyet kobles typisk opp av vertsprogrammet eller et prosjekt som binder
+  en termlagring. Det eneste alternativet på skjemanivå styrer hvorvidt termtreff
+  respekterer bokstavstørrelse.
+parameters:
+  caseSensitive:
+    description: Hvorvidt termtreff er versalfølsomt.
+    help: |
+      Når aktivert, må kilde- og måltermer samsvare eksakt, inkludert
+      bokstavstørrelse. Når deaktivert, er treff versaluavhengig, slik at en term treffer
+      uavhengig av hvordan den er skrevet med store og små bokstaver i teksten.
+    values: "`true` / `false` (standard `false`)"
+limitations:
+  - Settet med termpar konfigureres programmatisk; det er ikke eksponert som en skjemaparameter.
+  - Treff er delstrengbasert; det tas ikke hensyn til bøyning eller morfologi.
+  - Krever en konfigurert målspråkkode og en termlagring; blokker uten oversettelse hoppes over.
+processingNotes:
+  - Opererer på oversettbare blokker; ikke-oversettbar struktur passerer gjennom uendret.
+  - Bare oppføringer der kildetermen er til stede i blokkens kilde kontrolleres.
+examples:
+  - title: Versaluavhengig termtreff
+    description: Treff på termer uavhengig av store og små bokstaver.
+    config: |
+      caseSensitive: false

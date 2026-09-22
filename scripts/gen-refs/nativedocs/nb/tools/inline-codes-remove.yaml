@@ -1,0 +1,58 @@
+# Native reference doc for the built-in `inline-codes-remove` tool.
+# Schema source: core/tools/inlinecodesremove.go (InlineCodesRemoveConfig).
+description: "Fjern inline-kode-sekvenser (plassholdere og parvise koder) fra segmenter, og etterlat ren tekst."
+overview: |
+  **Verktøyet Inline Codes Remove** fjerner inline-kode-sekvenser (plassholdere og parvise åpne/lukke-koder) fra segmentinnhold og lar den omgivende ren teksten stå igjen. Det er nyttig når en nedstrøms konsument trenger tekstinnholdet uten markup – for eksempel for å bygge en ren-tekst-referanse eller sende data til et verktøy som ikke håndterer kodet tekst.
+
+  Fjerningen går rekursivt inn i strukturerte plural- og select-konstruksjoner, slik at inline-koder inne i dem også strippes. Som standard gjelder det målteksten (en målspråkkode er påkrevd) og inkluderer ikke-oversettbare blokker. Linjeskift-koder kan eventuelt erstattes med et mellomrom slik at tilstøtende ord ikke flyter sammen.
+parameters:
+  applySource:
+    description: Fjern inline-koder fra kildesegmenter.
+    help: "Når dette er aktivert, fjernes inline-kode-sekvenser fra kildesegmentene."
+    values: "`true` / `false` (standard `false`)"
+  applyTarget:
+    description: Fjern inline-kode fra målsegmenter.
+    help: |
+      Når dette er aktivert, fjernes inline-kode-sekvenser fra målsegmentene til den
+      konfigurerte språkkoden.
+    values: "`true` / `false` (standard `true`)"
+    dependsOn:
+      - property: targetLocale
+        condition: påkrevd når applyTarget er aktivert
+  targetLocale:
+    description: Målspråkkode for behandling.
+    help: Språkkoden hvis målsegmenter behandles. Påkrevd når `applyTarget` er aktivert.
+    values: "BCP-47 språkkode"
+    dependsOn:
+      - property: applyTarget
+        condition: må være aktivert for at dette skal ha effekt
+  includeNonTranslatable:
+    description: Fjern også koder fra ikke-oversettbare blokker.
+    help: |
+      Når dette er aktivert, gjelder fjerningen også for blokker merket som ikke-oversettbare.
+      Deaktiver det for å la ikke-oversettbare blokker være urørte.
+    values: "`true` / `false` (standard `true`)"
+  replaceWithSpace:
+    description: Erstatt linjeskift-koder med et mellomrom i stedet for å fjerne dem.
+    help: |
+      Når dette er aktivert, erstattes plassholderkoder av linjeskift-type med et
+      enkeltstående mellomrom, slik at for eksempel `foo<br/>bar` blir `foo bar` i stedet
+      for `foobar`. Andre inline-koder fjernes fortsatt helt.
+    values: "`true` / `false` (standard `false`)"
+limitations:
+  - Minst én av applySource eller applyTarget må være aktivert.
+processingNotes:
+  - "Fjerning går rekursivt inn i flertalls- og valgkonstruksjoner, slik at inline-kode inne i dem også fjernes."
+  - Parvise åpne/lukke-koder slettes mens det indre tekstinnholdet beholdes.
+examples:
+  - title: Fjern koder fra målet
+    description: Produser ren måltekst for en språkkode.
+    config: |
+      applyTarget: true
+      targetLocale: fr
+  - title: Behold ordgrenser ved linjeskift
+    description: Erstatt linjeskift-koder med et mellomrom ved fjerning.
+    config: |
+      applyTarget: true
+      targetLocale: fr
+      replaceWithSpace: true

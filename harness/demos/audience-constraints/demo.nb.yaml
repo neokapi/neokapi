@@ -1,0 +1,82 @@
+id: audience-constraints
+title: "Endre forklaringen, behold den felles regelen"
+subtitle: "Fire lesesituasjoner, én kritisk formuleringsregel og eksplisitte grenser for hva som ble kontrollert."
+kind: use-case
+publishAs: audience-constraints
+terminal: shell
+brand: kapi
+cwd: ~/harbor-help
+needsAi: false
+fixturesFrom: samples/audience-context
+project: true
+captureTimeoutSec: 180
+# Script review only. Recording and narration generation are deferred.
+aspects:
+  - Shared constraints across audience treatments
+  - Provenance in the finding
+  - Factual guidance remains unverified
+outro:
+  line: Undersøk den gjeldende veiledningen og kontrollene som faktisk kjørte.
+  pointer: kapi context <path>
+setup:
+  # The sample ships its context as files, and a fresh sandbox has a store that
+  # has never held them.
+  - kapi context import ./context
+  - mkdir -p .lab-original
+  - cp site/locales/en/*.json .lab-original/
+script:
+  - comment: The same service has different explanations for different reading situations.
+  - command: kapi context site/locales/en/child.json --json
+  - command: kapi context site/locales/en/adult.json --json
+  - comment: The clean fixture passes its configured deterministic checks.
+  - command: kapi check site/locales/en/child.json site/locales/en/teen.json site/locales/en/adult.json site/locales/en/older-adult.json --json > before.json
+  - command: >-
+      node -e 'const fs=require("node:fs"); for (const name of ["child","teen","adult","older-adult"]) { const file=`site/locales/en/${name}.json`; const value=JSON.parse(fs.readFileSync(file,"utf8")); value.fact_body="A video appointment is risk-free."; fs.writeFileSync(file,JSON.stringify(value,null,2)+"\n"); }'
+  - command: kapi check site/locales/en/child.json site/locales/en/teen.json site/locales/en/adult.json site/locales/en/older-adult.json --json > violations.json
+    expectExit: 3
+  - command: >-
+      node -e 'const r=require("./violations.json"); const f=r.findings.filter(x=>x.metadata?.constraint_id==="harbor-help/no-unsupported-assurance"); if(f.length!==4 || r.pass) process.exit(1); console.log(JSON.stringify({pass:r.pass,findings:f},null,2));'
+  - comment: Restore the prepared originals. This repair is a fixture copy, not an agent-generated edit.
+  - command: cp .lab-original/*.json site/locales/en/
+  - command: kapi check site/locales/en/child.json site/locales/en/teen.json site/locales/en/adult.json site/locales/en/older-adult.json --json > repaired.json
+  - command: >-
+      node -e 'const r=require("./repaired.json"); if(!r.pass) process.exit(1); console.log(JSON.stringify({pass:r.pass,summary:r.summary,execution:r.execution},null,2));'
+  - comment: A different paragraph contradicts the service facts without using the prohibited wording.
+  - command: >-
+      node -e 'const fs=require("node:fs"); const file="site/locales/en/child.json"; const value=JSON.parse(fs.readFileSync(file,"utf8")); value.fact_body="A video appointment is recorded. Screen sharing starts automatically and you cannot stop it. Harbor Help can control your device and open all your files."; fs.writeFileSync(file,JSON.stringify(value,null,2)+"\n");'
+  - command: kapi check site/locales/en/child.json --json > unassessed.json
+  - command: >-
+      node -e 'const r=require("./unassessed.json"); if(!r.pass || !r.execution?.analyzers.some(x=>x.id==="voice.guidance" && x.status==="unsupported")) process.exit(1); console.log(JSON.stringify({pass:r.pass,execution:r.execution},null,2));'
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Forklaringen endres etter leser. Den felles regelen gjelder fortsatt. Dette eksemplet bruker fire lesesituasjoner og én kritisk formuleringsregel. Den faktabaserte veiledningen forblir et separat gjennomgangsansvar.
+  - id: context
+    kind: terminal
+    through: 5
+    caption: "Ulik veiledning per målgruppe, én felles begrensning."
+    text: >-
+      Undersøk barn- og voksensidene. Veiledningen deres er ulik, mens den samme begrensningen forbyr ustøttede forsikringer. Hver begrensning har en identifikator, kilde og versjon. Originalfilene består de konfigurerte kontrollene.
+  - id: violation
+    kind: terminal
+    through: 8
+    caption: Den forbudte frasen feiler for alle fire målgrupper.
+    text: >-
+      Sett inn den samme forbudte frasen på hver side. Kontrollen avsluttes på tre og returnerer fire funn. Hvert funn peker til sin fil og den samme felles regelen. Målgruppestil-overstyringer fjerner ikke den begrensningen.
+  - id: repair
+    kind: terminal
+    through: 12
+    caption: Klargjorte originaler gjenopprettet; konfigurerte kontroller består.
+    text: >-
+      Gjenopprett de klargjorte originalene og kjør kontrollene på nytt. Dette er en eksplisitt fikstur-reparasjon, ikke en agent som skriver en korreksjon. Rapporten lister opp analysatorene som kjørte, og de som ikke ble forespurt.
+  - id: boundary
+    kind: terminal
+    through: 16
+    caption: En deterministisk gjennomgang verifiserer ikke tjenestefaktaene.
+    text: >-
+      Sett nå inn et avsnitt som motsier tjenestefaktaene uten å bruke den forbudte frasen. Den deterministiske porten passerer, mens dekning av veiledning forblir ustøttet. Denne rapporten fastslår ikke faktanøyaktighet. Avsnittet trenger fortsatt en menneskelig eller en separat evaluert semantisk gjennomgang.
+  - id: outro
+    kind: outro
+    text: >-
+      Bruk den veiledningen som gjelder, og undersøk deretter hvilke kontroller som ble fullført. Hold de uverifiserte delene synlige i gjennomgangen.

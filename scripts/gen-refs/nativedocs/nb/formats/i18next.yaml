@@ -1,0 +1,26 @@
+# Native reference doc for the built-in `i18next` format.
+# Schema source: core/formats/i18next/config.go (Config) + schema.go.
+# Built on the json format; selected explicitly (-f i18next), not auto-detected.
+description: Trekk ut og oppdater oversettbare verdier i i18next / react-i18next JSON-ressurspakker.
+overview: |
+  **i18next JSON**-formatet leser i18next/react-i18next-ressurspakker etter konvensjonene til det dominerende i18n-biblioteket for nett. Det er bygget på JSON-formatet og velges eksplisitt (`-f i18next`), fordi i18next-filer bruker den generiske `.json`-utvidelsen som tilhører JSON-formatet og ikke kan skilles fra hverandre på en pålitelig måte automatisk.
+
+  Utover vanlig JSON-uttrekk beskytter det `{{interpolation}}`, `{{var, format}}` og `$t()`-nesting som inline-kode; annoterer v4 CLDR-flertallsnøkler for søskenoppføringer (`key_zero`/`key_one`/…/`key_other`, pluss eldre `key_plural` og `key_0`/`key_1`) med tilhørende grunnøkkel og flertallskategori; annoterer kontekstnøkler (`key_male`/`key_female`); og navngir blokker etter full namespace-nøkkelsti. Rundtur er byte-trofast.
+parameters:
+  subfilterHTMLValues:
+    description: Send verdier med nøkler som slutter på _html gjennom HTML-underfilteret.
+    help: |
+      Når dette er aktivert, behandles verdier under nøkler som slutter på `_html` av HTML-
+      underfilteret for taggbeskyttelse. Deaktivert som standard fordi HTML-
+      underfilteret normaliserer nakne markeringsfragmenter, noe som ville ødelegge byte-trofast
+      rundtur; aktiver det kun for arbeidsflyter med taggbeskyttelse.
+    values: "`true` / `false` (standard `false`)"
+processingNotes:
+  - "Flertalls-søskennøkler forblir 1:1-blokker (bevarer byte-trofaste rundturer), men annoteres med grunnleggende nøkkel + CLDR-kategori."
+  - "`{{interpolation}}` og `$t()`-nesting er beskyttet som inline-koder."
+  - Blokknavn bruker den fullstendige navnerom-nøkkelstien for nestede objekter.
+examples:
+  - title: Beskytt HTML i _html-verdier
+    description: Aktiver HTML-underfilteret for nøkler som slutter på _html.
+    config: |
+      subfilterHTMLValues: true

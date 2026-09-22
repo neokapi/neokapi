@@ -1,0 +1,33 @@
+# Native reference doc for the built-in `srt` format.
+# Source: core/formats/srt/{reader.go,writer.go,config.go,schema.go}.
+# Mirrors Okapi's SubRip filter (okf_subrip). No configurable parameters.
+description: "Les og skriv SubRip (.srt) undertekstfiler, og trekk ut teksten fra hver cue for oversettelse."
+overview: |
+  SubRip (`.srt`) er det linjeorienterte undertekstformatet som brukes av de fleste
+  videospillere. En fil er en sekvens av cuer, der hver består av et sekvensnummer,
+  en tidskodeperiode (`00:00:01,000 --> 00:00:04,000`) og én
+  eller flere linjer med undertekst, atskilt med en blank linje.
+
+  Leserens trekker ut undertekstteksten fra hver cue som en oversettbar blokk
+  og beholder sekvensnummeret og tidskoden som blokkegenskaper slik at
+  skriveren kan rekonstruere cuen. Sekvensnumre, tidskoder og
+  de blanke skillelinjene er ikke-oversettbar struktur: de
+  lagres i skjelettet og bevares uendret gjennom rundturen. Flerlinjede cuer
+  bevarer sine interne linjeskift i blokkteksten, slik at en ombrutt
+  undertekst forblir ombrutt.
+limitations:
+  - "Tidskoder bevares nøyaktig slik de er, ikke justert; retiming for en lengre eller kortere oversettelse er utenfor omfanget."
+  - "SubRip-stilkoder inne i cue-tekst (for eksempel `<i>…</i>` eller `{\\an8}`) bæres som en del av blokkteksten i stedet for å bli tolket som inline-koder."
+processingNotes:
+  - "Én oversettbar blokk per cue; sekvensnummeret og tidskoden følger med som blokkegenskaper (`sequence`, `timecode`)."
+  - "Når et skjeletlager er aktivt, lagres sekvensnumre, tidskoder og skilletegn som skjelettekst for byte-eksakte rundturer, inkludert de originale LF / CRLF-linjeavslutningene."
+examples:
+  - title: Oversett undertekster
+    description: |
+      SubRip krever ingen konfigurasjon. Deklarer formatet på en samling
+      for å trekke ut teksten fra hver cue; cue-nummereringen og tidskodene
+      bevares automatisk.
+    config: |
+      format:
+        name: srt
+wikiUrl: https://en.wikipedia.org/wiki/SubRip

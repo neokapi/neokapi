@@ -1,0 +1,83 @@
+# Native reference doc for the built-in `translate` tool.
+# Schema source: core/ai/tools/unified.go (TranslateSchema, over AITranslateConfig).
+description: Oversett blokkinnhold med en LLM-leverandør.
+overview: |
+  **Oversett**-verktøyet oversetter uoversatt blokkinnhold. En enkelt
+  `--provider` velger backend: en stor-språkmodell-leverandør (Anthropic,
+  OpenAI, Gemini, Azure OpenAI, Ollama) eller den nøkkelfrie offline demo-leverandøren.
+  Klassiske maskinoversettelses-motorer er ikke innebygd; et tillegg kan registrere
+  en, og den velges deretter på samme måte. Resultatet skrives som målteksten,
+  med en alternativ-oversettelses-annotering som registrerer den opprinnelige
+  leverandøren. Et målspråk er påkrevd, og legitimasjon er påkrevd for
+  vertsbaserte leverandører (lokal Ollama og offline-demo trenger ingen).
+
+  Blokker som inneholder inline-koder sendes gjennom en plassholder-bevarende
+  prompt slik at tagger overlever oversettelsen, og rekonstrueres deretter fra svaret.
+  Blokker kan oversettes én om gangen eller grupperes i batch-er som sendes i ett
+  enkelt strukturert kall; batch-er kan kjøres samtidig. Når det kjøres med en økt-
+  cache, gjenbrukes allerede-oversatte mål og ferske oversettelser skrives tilbake,
+  slik at gjentatte kjøringer hopper over arbeid som allerede er gjort.
+parameters:
+  provider:
+    description: Oversettelsesleverandøren som skal brukes.
+    help: |
+      Velger bakenden. LLM-leverandører (`anthropic`, `openai`, `gemini`,
+      `azureopenai`, `ollama`, `demo`) velges her, det samme gjelder enhver
+      tillegg-registrert MT-motor. Administrerte leverandører krever en API-nøkkel; Ollama
+      og demoleverandøren kjører lokalt. De tilgjengelige alternativene hentes
+      fra leverandørregisteret.
+    values: "`anthropic` / `openai` / `gemini` / `azureopenai` / `ollama` / `demo` (standard `anthropic`)"
+  apiKey:
+    description: API-nøkkel for leverandøren.
+    help: |
+      Legitimasjon for den valgte vertsbaserte leverandøren. Påkrevd for vertsbaserte leverandører;
+      ikke nødvendig for en lokal Ollama- eller demo-backend.
+    values: "streng"
+  model:
+    description: Modellnavnet som skal forespørres (LLM-leverandører).
+    help: |
+      Den leverandørspesifikke modellidentifikatoren for en LLM-leverandør. Når den utelates,
+      brukes leverandørens standardmodell.
+    values: "streng"
+  skipMatched:
+    description: Hopp over blokker som allerede har en måloversettelse.
+    help: |
+      Når dette er aktivert, blir en blokk som allerede har en målspråktekst for språkkoden stående
+      uberørt, slik at bare uoversatt innhold sendes til leverandøren.
+    values: "`true` / `false` (standard `false`)"
+  batchSize:
+    description: Antall blokker per LLM-kall.
+    help: |
+      Blokker grupperes i satser av denne størrelsen og oversettes i ett enkelt
+      strukturert kall per sats (LLM-leverandører). En verdi på 1 oversetter blokk for
+      blokk.
+    values: "heltall ≥ 1 (standard `100`)"
+  batchConcurrency:
+    description: Antall batch-kall som kjøres parallelt.
+    help: |
+      Hvor mange batch-er som oversettes samtidig. En verdi på 0 eller 1 kjører
+      batch-er sekvensielt.
+    values: "heltall ≥ 1 (standard `1`)"
+limitations:
+  - "Krever et målspråk og, for administrerte leverandører, gyldig legitimasjon."
+  - Administrerte leverandører foretar nettverks-API-kall; kostnad og ventetid skalerer med innholdsvolum.
+  - "Gjenbruk av økt-cache gjelder på blokk-for-blokk-banen; batch-banen skriver overlegg på utdata, men forhåndshoppes ikke via per-blokk-cachen."
+processingNotes:
+  - Opererer på oversettbare blokker med ikke-tom kildetekst; andre deler sendes uendret gjennom.
+  - Blokker med inline-koder oversettes gjennom en plassholder-bevarende prompt og rekonstrueres fra svaret.
+  - Hver oversettelse registreres som en alternativ-oversettelses-annotering merket med leverandøren.
+examples:
+  - title: Oversett med Anthropic
+    description: Oversett uoversatte blokker ved hjelp av en Anthropic-modell.
+    config: |
+      provider: anthropic
+      model: claude-sonnet-4-5
+  - title: Oversett offline med demo-leverandøren
+    description: "Produser nøkkelfri, tydelig merket illustrativ utdata for røyktester."
+    config: |
+      provider: demo
+  - title: Oversett bare nytt innhold
+    description: Hopp over blokker som allerede har en oversettelse.
+    config: |
+      provider: openai
+      skipMatched: true

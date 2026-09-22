@@ -1,0 +1,25 @@
+# Native reference doc for the built-in `batch` tool.
+# Schema source: core/tools/batch.go (BatchConfig).
+description: Samle blokker i grupper med fast størrelse før de sendes videre nedstrøms.
+overview: |
+  **Batch Collector** buffererer blokker og videresender dem i grupper av en konfigurert størrelse, i stedet for én om gangen. Dette gjør det mulig for et nedstrøms verktøy som er billigere å kalle i bulk (for eksempel en batch-oversettelsesforespørsel) å motta flere blokker samlet i stedet for blokk for blokk.
+
+  Ikke-blokk-elementer (lagmarkører, data, media) sendes videre umiddelbart og buffereres aldri. Blokker akkumuleres til batchen når den konfigurerte størrelsen og slippes deretter gjennom i rekkefølge; eventuelle gjenværende blokker tømmes når innstrømmen avsluttes. Rekkefølgen i strømmen bevares.
+parameters:
+  size:
+    description: Antall blokker som skal samles før en gruppe sendes videre.
+    help: |
+      Verktøyet bufrer blokker til dette antallet er akkumulert, og sender dem
+      deretter videre som en gruppe. En større størrelse betyr færre, større overleveringer til neste
+      verktøy; en størrelse på `1` sender i praksis hver blokk videre så snart den ankommer.
+    values: "heltall ≥ 1 (standard `10`)"
+limitations:
+  - Bare blokker grupperes; alle andre deltyper passerer uten bufring.
+processingNotes:
+  - Gjenværende bufrede blokker tømmes når innstrømmen lukkes.
+  - Blokkenes rekkefølge innenfor og på tvers av grupper bevares.
+examples:
+  - title: Samle blokker i grupper på 50
+    description: Buffer 50 blokker per overlevering for et bulk-vennlig nedstrøms verktøy.
+    config: |
+      size: 50

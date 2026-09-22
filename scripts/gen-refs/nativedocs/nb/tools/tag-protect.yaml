@@ -1,0 +1,42 @@
+# Native reference doc for the built-in `tag-protect` tool.
+# Schema source: core/tools/tagprotect.go (TagProtectConfig).
+description: Identifiser tagger og plassholdere i kildetekst og merk dem for beskyttelse nedstrøms.
+overview: |
+  Verktøyet **Tag Protect** finner tagger og plassholdere i kildetekst ved hjelp av
+  regulære uttrykksmønstre og registrerer dem som en annotering på blokken,
+  samt en tellingsegenskap. Nedstrømsverktøy (for eksempel et MT- eller AI-
+  oversettingstrinn) kan deretter lese annoteringen for å bevare disse tokenene
+  i stedet for å oversette eller omformatere dem.
+
+  Når ingen mønstre er konfigurert, brukes et innebygd standardsett som dekker
+  HTML/XML-tagger, plassholdere med krøllparenteser (ICU, Java, .NET), printf-stilte
+  plassholdere og `${...}`-maluttrykk. Verktøyet registrerer hva det
+  fant; å bevare treffene er den konsumerende verktøyets ansvar.
+parameters:
+  patterns:
+    description: Mønstre med regulære uttrykk for tagger og plassholdere som skal beskyttes.
+    help: |
+      En liste over regulære uttrykk; enhver delstreng i kilden som matcher et
+      mønster, registreres som en beskyttet tagg. Når listen er tom, brukes et
+      innebygd standardsett (HTML/XML-tagger, plassholdere med krøllparenteser,
+      printf-stil plassholdere og `${...}`-maluttrykk).
+    values: "matrise av regulære uttrykk (standard: innebygd sett)"
+    examples:
+      - "`<[^>]+>` matcher HTML/XML-tagger"
+      - "`\\{[^}]+\\}` matcher plassholderere med krøllparenteser"
+limitations:
+  - "Mønstre bruker Gos RE2-syntaks, som ikke støtter tilbakereferanser eller lookaround."
+  - Verktøyet registrerer beskyttede treff som en annotering; det forhindrer ikke i seg selv at de blir endret.
+processingNotes:
+  - Opererer kun på oversettbare blokker; ikke-oversettbare blokker passerer gjennom uendret.
+  - Treff registreres som en blokkannotering og antall treff som en blokkegeneskap; treff dedupliseres og sorteres etter offset.
+examples:
+  - title: Beskytt standard tokensett
+    description: Bruk innebygde mønstre for tagger og vanlige plassholdere.
+    config: |
+      patterns: []
+  - title: Beskytt kun HTML-tagger
+    description: Begrens beskyttelse til markeringstagger.
+    config: |
+      patterns:
+        - "<[^>]+>"

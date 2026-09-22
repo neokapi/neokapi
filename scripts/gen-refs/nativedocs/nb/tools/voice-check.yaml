@@ -1,0 +1,49 @@
+# Native reference doc for the built-in `voice-check` tool.
+# Schema source: core/ai/tools/voicecheck.go (VoiceCheckConfig).
+description: Vurder kildeteksten til hver blokk mot en stemmeprofil med en LLM og registrer funnene og en samsvarscore.
+overview: |
+  **AI Voice Check**-verktøyet sender kildeteksten fra hver blokk til en konfigurert LLM-leverandør sammen med retningslinjene en stemprofil inneholder, og leser tilbake strukturerte funn langs fire dimensjoner (tone, stil, klarhet og merkevareoverholdelse), hver med en alvorlighetsgrad, en melding og et foreslått omskrivingsforslag. Det beregner en samlet overholdelsesskår, registrerer skåren og eventuelle funn på blokkens egenskaper, og legger ved en `voice`-annotering som inneholder begge. En blokk der kildeteksten er tom eller bare inneholder mellomrom, hoppes over.
+
+  En stemprofil er konteksttypen som angir hvordan innhold skal leses; en merkevares tone of voice er den vanligste bruken av den. Profilen når dette verktøyet på tre måter: navngitt via `profileId` og hentet fra det lokale lageret, allerede hentet og levert av verten (`kapi voice`-kommandoen, eller et prosjekts `defaults.voice`-binding), eller hentet lazily fra organisasjonens konteksthierarki ved første bruk. Uten en profil inneholder prompten ingen retningslinjer, og modellen blir bedt om å vurdere uten noe å holde opp mot.
+
+  Dette er den vurderende halvdelen av et par. `voice-vocab-check` er den deterministiske halvdelen – profilens vokabular og stilmønstre sammenlignet som regler, uten behov for legitimasjon eller nettverk. Kjør den først, slik at modellen brukes på det regler ikke kan avgjøre.
+parameters:
+  provider:
+    description: LLM-leverandør-backend som skal brukes.
+    help: |
+      Velger hvilken modell-backend som utfører vurderingen.
+    values: "`anthropic` (standard), `openai`, `gemini`, `azureopenai`, `ollama` (lokal, ingen nøkkel)"
+  apiKey:
+    description: API-nøkkel for AI-leverandøren.
+    help: |
+      Legitimasjon for den valgte leverandøren. En lokal leverandør som Ollama trenger
+      kanskje ingen. Foretrekk legitimasjonslageret eller miljøet fremfor å skrive en
+      nøkkel inn i en oppskrift.
+    values: "streng"
+  model:
+    description: Modellnavnet som skal forespørres fra leverandøren.
+    help: |
+      Den leverandørspesifikke modellidentifikatoren. Utelatt brukes leverandørens
+      standardmodell.
+    values: "streng"
+  profileId:
+    description: Stemmeprofil som skal løses opp fra det lokale lageret.
+    help: |
+      Identifikatoren til profilen som teksten vurderes mot retningslinjene til.
+      Verten kan i stedet levere en ferdig oppløst profil, i så fall er ikke dette
+      nødvendig.
+    values: "streng"
+limitations:
+  - Krever leverandørlegitimasjon og foretar et eksternt API-kall per blokk.
+  - Funn er modellutdata; to kjøringer over samme tekst kan gi ulike resultater.
+  - "Vurderer kun kildetekst, og hopper over en blokk der kilden er tom eller kun inneholder blanktegn."
+processingNotes:
+  - Opererer på blokker; blokker vurderes parallelt som standard for gjennomstrømning.
+  - "Samsvarsscoren og eventuelle funn skrives til blokkers egenskaper, og en `voice`-annotering bærer begge deler."
+  - "En profil som ikke kan løses opp er ikke en feil, og kjøringen fortsetter uten retningslinjer i ledeteksten."
+examples:
+  - title: Vurder mot en lagret profil
+    description: Løs opp en profil etter navn fra det lokale lageret og vurder hver blokk mot den.
+    config: |
+      provider: anthropic
+      profileId: house-style

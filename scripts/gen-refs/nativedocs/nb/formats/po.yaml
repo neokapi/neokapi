@@ -1,0 +1,89 @@
+# Native reference doc for the built-in `po` format.
+# Schema source: core/formats/po/config.go (Config).
+# Behaviour grounded in core/formats/po/reader.go, writer.go and spec.yaml,
+# mirroring Okapi's PO filter (okf_po) and the GNU gettext PO format.
+description: "Les og skriv GNU gettext PO- og POT-kataloger, og trekk ut hver melding som en oversettbar blokk."
+overview: |
+  PO (Portable Object) er GNU gettext-katalogformatet. En `.po`-fil
+  kobler `msgid`-kildestrenger med `msgstr`-oversettelser, valgfritt
+  disambiguert av `msgctxt`, med flertallsformer via `msgid_plural` og
+  `msgstr[N]`, oversetter- og uttrukne kommentarer, kildereferanser og
+  `#, fuzzy`-flagg. `.pot`-maler har samme struktur med tomme
+  oversettelser.
+
+  Leseren sender ut én blokk per melding: i standard
+  bilingual-modus er `msgid` kildeteksten og `msgstr` er
+  målteksten. I monolingual-modus behandles `msgid` utelukkende som en
+  identifikator, og `msgstr` gir kildeteksten i stedet – den
+  formen som brukes av kataloger som leverer meldings-ID-er fremfor engelske
+  strenger. Kommentarer, kontekst og referanser bevares på blokken
+  og skrives tilbake. Dette speiler Okapis PO-filter.
+parameters:
+  bilingualMode:
+    description: Behandle msgid som kildetekst og msgstr som målet.
+    help: |
+      Når dette er aktivert (standard), leses hver melding bilingualt: `msgid`
+      er kildeteksten og `msgstr` er målteksten. Når det er deaktivert
+      (monolingual-modus), brukes `msgid` kun som en identifikator og `msgstr`
+      tolkes som kildeteksten – den formen som brukes av kataloger der
+      meldings-ID-ene er symbolske fremfor engelske.
+    values: "`true` / `false` (standard `true`)"
+  preserveUntranslated:
+    description: Send ut blokker for meldinger som har en tom msgstr.
+    help: |
+      Styrer om meldinger med en tom `msgstr` (uoversatte
+      oppføringer) sendes ut som blokker. Når aktivert (standard), beholdes
+      de slik at hele katalogen er synlig for oversetting. Når
+      deaktivert, hoppes uoversatte oppføringer over.
+    values: "`true` / `false` (standard `true`)"
+  wrapContent:
+    description: Bryt lange innholdslinjer i utdatakatalogen.
+    help: |
+      Et skrivesidealternativ. Når aktivert (standard), brytes lange `msgid`- og
+      `msgstr`-verdier over flere linjer ved omtrent 80
+      tegn, i tråd med konvensjonell gettext-formatering. Når deaktivert,
+      skrives hver verdi på én enkelt linje. Leseren ignorerer denne
+      innstillingen.
+    values: "`true` / `false` (standard `true`)"
+  allowEmptyOutputTarget:
+    description: Skriv et tomt mål når ingen oversettelse er tilgjengelig.
+    help: |
+      Et skrivesidealternativ. Når aktivert, skrives en melding uten tilgjengelig
+      oversettelse med en tom `msgstr` i stedet for å bli
+      utelatt eller fylt med kilden. Når deaktivert (standard),
+      sendes ikke tomme mål ut.
+    values: "`true` / `false` (standard `false`)"
+  useCodeFinder:
+    description: Oppdag inline-kode i meldingstekst ved hjelp av regulæruttrykk.
+    help: |
+      Aktiverer regex-basert deteksjon av inline-koder (plassholdere,
+      variabler, formatspesifikatorer) i meldingsteksten, ved hjelp av
+      mønstrene i `codeFinderRules`. Når deaktivert (standard), trekkes ingen
+      mønsterbaserte inline-koder ut.
+    values: "`true` / `false` (standard `false`)"
+  codeFinderRules:
+    description: Regulæruttrykk som samsvarer med inline-kode i meldingstekst.
+    help: |
+      En liste over regulæruttrykk; hvert treff i en oversettbar
+      blokk beskyttes som inline-kode i stedet for å bli oversatt. Brukes til
+      å beskytte gettext-plassholdere eller formatspesifikatorer. Trer bare i kraft
+      når `useCodeFinder` er aktivert; ugyldige mønstre hoppes over.
+    values: "Array av regulære-uttrykk-strenger"
+    examples:
+      - "`%[0-9]*[sd]` beskytter `printf`-formatspesifikatorer"
+      - "`\\{[0-9]+\\}` beskytter nummererte plassholderere som `{0}`"
+    dependsOn:
+      - property: useCodeFinder
+        condition: må være aktivert for at reglene skal tre i kraft
+processingNotes:
+  - "Én blokk sendes ut per melding; `msgctxt` lagres på blokkonteksten, og kommentarer og referanser bevares."
+  - "Flertallsformer (`msgid_plural` / `msgstr[N]`) og `#, fuzzy`-flagg gjenkjennes og rundtrippes."
+examples:
+  - title: Enspråklig katalog
+    description: Behandle msgid som en identifikator og msgstr som kildetekst.
+    config: |
+      bilingualMode: false
+  - title: Hopp over uoversatte oppføringer
+    description: Trekk kun ut meldinger som allerede har en oversettelse.
+    config: |
+      preserveUntranslated: false

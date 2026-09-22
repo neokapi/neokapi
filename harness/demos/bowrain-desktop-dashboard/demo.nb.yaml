@@ -1,0 +1,67 @@
+id: bowrain-desktop-dashboard
+title: Den fortsetter å fungere når nettverket faller ut
+subtitle: "Samme arbeidsområde, nativt, med en utboks i bakgrunnen."
+tagline: the server-side platform companion to kapi
+kind: use-case
+publishAs: bowrain-desktop-dashboard
+terminal: desktop
+target: bowrain-desktop
+brand: bowrain
+needsAi: false
+oneshot: true
+outro:
+  line: "Installer appen, logg inn, og fortsett arbeidet."
+  pointer: brew install --cask neokapi/tap/bowrain
+aspects:
+  - The same shared workspace
+  - Edits queue while offline
+  - Replayed in order on reconnect
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Skrivebordsappen er det samme arbeidsområdet som nettleseren, montert nativt, med én forskjell: den fortsetter å fungere når nettverket faller ut.
+  - id: projects
+    kind: desktop
+    beat: projects
+    caption: De samme prosjektene nettleseren åpner.
+    hold: 13
+    crop: { x: 0.03, y: 0.1, w: 0.94, h: 0.56 }
+    text: >-
+      Samme arbeidsområde, samme prosjekter, samme editor. Å logge inn på skrivebordsappen åpner nøyaktig det nettleseren åpner, fordi begge er klienter til én server – ikke to kopier av arbeidet.
+  - id: edit
+    kind: desktop
+    beat: edit
+    caption: Skrevet rett igjennom til serveren.
+    hold: 12
+    crop: { selector: '[data-testid="visual-editor-card"]' }
+    text: >-
+      Åpne en fil og oversett en blokk. Med serveren tilgjengelig skrives redigeringen rett igjennom, og alle andre i arbeidsområdet har den et øyeblikk senere.
+  - id: offline
+    kind: desktop
+    beat: offline
+    caption: "Frakoblet, med redigeringer som venter på å bli sendt."
+    hold: 18
+    crop:
+      selector:
+        - '[data-testid="offline-pending"]'
+        - '[data-testid="visual-editor-card"]'
+    highlight: { selector: '[data-testid="offline-pending"]' }
+    text: >-
+      Så faller tilkoblingen bort. Oversettingen fortsetter: redigeringene havner i en lokal utboks i stedet for på serveren, og nettleseren teller hva som venter. På et tog, eller på et konferansenettverk, er dette timen en nettleserfane ikke gir deg noe.
+  - id: replayed
+    kind: desktop
+    beat: replayed
+    caption: "Tilkoblet igjen, og køen tømte seg selv."
+    hold: 15
+    crop:
+      selector:
+        - '[data-testid="connection-status"]'
+        - '[data-testid="visual-editor-card"]'
+    text: >-
+      Når tilkoblingen kommer tilbake, spilles køen av i rekkefølge, på egen hånd. Det er ingenting å prøve på nytt manuelt, ingenting skrevet frakoblet går tapt, og arbeidsområdet ender opp i den tilstanden det uansett ville ha nådd.
+  - id: outro
+    kind: outro
+    text: >-
+      Det samme styrte arbeidsområdet, i en app som overlever nettverket.

@@ -1,0 +1,58 @@
+id: kapi-desktop-flows
+title: "Sett sammen flyten, kjør den hvor som helst"
+subtitle: Standardflyten dekker de fleste prosjekter; Verktøykassen er der du endrer den.
+kind: use-case
+publishAs: kapi-desktop-flows
+terminal: desktop
+brand: desktop
+needsAi: false
+# One continuous narration read: uniform voice speed and tone across scenes.
+oneshot: true
+aspects:
+  - The Toolbox pillar
+  - Project flows
+  - Pipelines of steps
+  - The project default
+outro:
+  line: "Sett den sammen her, kjør den fra begge flater."
+  pointer: kapi run translate-and-qa
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Et prosjekt trenger ingen flytdefinisjon for å oversette. Når standarden ikke er nok, er Verktøykassen stedet du setter sammen din egen, og det du lagrer der kjøres uendret fra kommandolinjen.
+  - id: open-flow
+    kind: desktop
+    beat: open-flow
+    caption: "To steg. Oversett, deretter kontroller."
+    crop: { x: 0.02, y: 0.16, w: 0.58, h: 0.34 }
+    text: >-
+      Verktøykassen er der et prosjekt holder det som kjøres over innholdet, og en flyt der er en navngitt sekvens av steg. Denne oversetter og kontrollerer deretter, som er formen på den innebygde standarden.
+  - id: add-step
+    kind: desktop
+    beat: add-step
+    caption: "Et tredje steg, fra verktøyene prosjektet har."
+    crop: { x: 0.02, y: 0.16, w: 0.58, h: 0.34 }
+    text: >-
+      Å legge til et steg er en velger over alle verktøy prosjektet kan nå. Gjenbruk er det som svarer fra prosjektets eget content memory, så leverandøren spørres bare om det memory ikke kan.
+  - id: reorder
+    kind: desktop
+    beat: reorder
+    caption: Flyttet foran oversettelsen det sparer.
+    crop: { x: 0.02, y: 0.16, w: 0.58, h: 0.34 }
+    highlight: { selector: '[data-testid="step-chips"]' }
+    text: >-
+      Rekkefølge er hele poenget med å legge det der. Gjenbruk må kjøre før oversettelse for at oversettelsen skal ha mindre å gjøre, så steget flyttes fremst og stripen i hodet følger det.
+  - id: default
+    kind: desktop
+    beat: default
+    caption: Merket som standard. Oppdater kjører denne.
+    crop: { x: 0.02, y: 0.16, w: 0.58, h: 0.34 }
+    highlight: { selector: '[data-testid="flow-default-badge"]' }
+    text: >-
+      Det som binder det er å merke det som prosjektets standard. Herfra kjører enkeltknappen på startsiden denne flyten, og det gjør også det samme flytnavnet fra en terminal i samme mappe.
+  - id: outro
+    kind: outro
+    text: >-
+      Sett sammen flyten der du kan se den, og kjør den fra den flaten du tilfeldigvis er i.

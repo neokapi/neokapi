@@ -1,0 +1,38 @@
+# Native reference doc for the built-in `archive` reader.
+# Schema source: core/formats/archive/{reader.go,config.go}, core/container/.
+# Upstream analogue: Okapi's Archive Filter (okf_archive). This is a READ-ONLY
+# reader; there is no archive writer (see overview).
+description: Se inne i en ZIP/TAR/TAR.GZ-beholder og vis det oversettbare innholdet i hver gjenkjent oppføring.
+overview: |
+  Et arkiv (ZIP, TAR eller gzip-komprimert TAR som `.tar.gz` / `.tgz`) er
+  en navnerom av indre dokumenter, ikke ett enkelt dokument. Denne leseren er
+  **inspeksjons**-siden av den modellen: den går gjennom containerens oppføringer og,
+  for hver neokapi gjenkjenner (JSON, Markdown, HTML, XML, `.po`, YAML, …), parser
+  den gjennom det formatets egen leser og viser innholdet som et barnlag,
+  slik at `kapi inspect` og analyseverktøy kan se inn i arkivet. Binære ressurser,
+  nestede containere og ukjente oppføringer listes som ugjennomsiktige datamedlemmer.
+
+  **Det finnes ingen arkivskriver.** Å oversette innholdet i en container
+  er *container-bindingen*, ikke en format-rundtur: når et ZIP/TAR-arkiv gis
+  til en kommando som produserer utdata (`kapi translate`, `kapi pseudo-translate`, en
+  flyt), kjøres hver kvalifisert oppføring som sin **egen fil** gjennom den vanlige
+  leseren og skriveren med full skjelett-rundtur, og resultatene pakkes
+  om i den opprinnelige containeren, mens alle andre medlemmer kopieres
+  byte-for-byte. Fordi hver oppføring er en ekte, frittstående filkjøring,
+  rundturer et skjeletbundet pakket format som DOCX, PPTX eller EPUB *inne i*
+  arkivet korrekt, og hver oppføring løser sin egen formatkonfigurasjon. Binære ressurser,
+  nestede containere og tospråklige utvekslingsfiler (XLIFF/PO/TMX) kopieres gjennom uendret.
+
+  Fordi den delte ZIP-signaturen også brukes av OOXML, ODF, IDML og EPUB,
+  løser deteksjon disse spesifikke formatene først (etter innhold) og faller tilbake til
+  den generiske arkivleseren for et vanlig ZIP/TAR-arkiv. Inspeksjonsomfanget kan
+  begrenses med `include` / `exclude` glob-mønstre matchet mot oppføringsstien.
+limitations:
+  - "Skrivebeskyttet, så dette formatet har ingen skriver; en container skrives gjennom container-bindingen, ikke ved å lese og skrive om et «arkivdokument»."
+  - "Under inspeksjon vises binære ressurser, nestede beholdere og ugjenkjente oppføringer som ugjennomsiktige datamedlemmer i stedet for å bli analysert."
+  - Arkivomfattende størrelses- og oppføringstellingsgrenser (zip-bombe-vakter) gjelder for hele beholderen og for hver oppføring.
+processingNotes:
+  - "Hver gjenkjent oppføring oppdages og analyseres gjennom sin egen format-leser, og vises som et underordnet lag i arkivdokumentet."
+  - "Utdata håndteres av container-bindingen i stedet for en arkivskriver, gjennom filkjøringer per oppføring med skjelett-rundtur etterfulgt av en atomisk repack."
+  - "`include` / `exclude`-glober (matchet mot den skråstrekk-separerte oppføringssstien) avgrenser hvilke oppføringer som inspiseres; `**` matcher på tvers av stiseparatorer."
+wikiUrl: "https://en.wikipedia.org/wiki/Archive_file"

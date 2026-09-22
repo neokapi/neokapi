@@ -1,0 +1,37 @@
+# Native reference doc for the built-in `xcstrings` format.
+# Schema source: core/formats/xcstrings/config.go (Config) + schema.go.
+# No Okapi equivalent: Apple String Catalogs postdate the Okapi filter set.
+description: Trekk ut og oppdater oversettelser i Apple String Catalog (.xcstrings)-filer brukt av Xcode 15+-prosjekter.
+overview: |
+  Formatet **Apple String Catalog** leser `.xcstrings`-filer, standardbeholderen for strengressurser i iOS-, macOS- og andre Apple-plattformprosjekter siden Xcode 15. I motsetning til eldre `.strings`/`.stringsdict` inneholder én katalog kildespråket og alle oversettelser i ett JSON-dokument, med tilstand per språkkode (`new`, `translated`, `needs_review`), utviklerkommentarer og variasjoner for flertall, enhet og substitusjon.
+
+  Hver tekstverdi på bladnivå blir en blokk. Kildeteksten (eller oppføringsnøkkelen, når kildespråket ikke har en egen oppføring) er kilden; `stringUnit`-verdier per språkkode er målene. Utvikler-`comment`er vises som oversetternotater, og `printf`-spesifikatorer (`%@`, `%lld`, `%1$@` og Apples `%arg`-substitusjonstoken) beskyttes som innebygde plassholdere slik at de aldri endres. Tilbakeskriving er byte-tro: bare endrede verdier og tilstander skrives om, og resten av katalogen forblir uendret.
+parameters:
+  extractStale:
+    description: Trekk ut oppføringer hvis extractionState er "stale".
+    help: |
+      Når aktivert (standard), sendes oppføringer merket som `stale` av Xcode (kildeteksten
+      vises ikke lenger i kodebasen) fortsatt ut som oversettbare blokker, siden de forblir oversettbare inntil de fjernes.
+      Deaktiver for å hoppe over foreldede oppføringer.
+    values: "`true` / `false` (standard `true`)"
+  markTranslatedState:
+    description: Tilstand som skrives når en tidligere uoversatt språkkode fylles ut.
+    help: |
+      `state`-verdien som skrives inn i en `stringUnit` når en måloversettelseoppgis for en språkkode som ikke hadde noen oppføring. Apple bruker `translated`.
+      Eksisterende tilstander bevares uendret ved rundtur; dette styrer kun
+      nylig befolkede språkkoder.
+    values: "Streng (standard `translated`)"
+processingNotes:
+  - "En katalog er flerspråklig, så én fil inneholder kildespråket og alle målspråk, og innlesing gir blokker med én kilde og flere målspråkkoder."
+  - "Flertall (CLDR-kategorier), enhet (iphone/ipad/mac/…) og substitusjonsvariasjoner utvides hver til sine egne løvblokker, nøklet etter variasjonssti."
+  - printf-spesifikatorer og Apples substitusjons-`%arg`-token trekkes ut som inline-plassholdere og skal ikke oversettes.
+  - "Utdata er byte-tro: en uendret katalog går gjennom rundtur nøyaktig; bare endrede verdier og tilstander skrives om."
+examples:
+  - title: Hopp over foreldede oppføringer
+    description: Ikke send ut oppføringer som Xcode har flagget som foreldede.
+    config: |
+      extractStale: false
+  - title: Merk nye oversettelser for gjennomgang
+    description: Skriv en needs_review-tilstand for nylig befolkede språkkoder i stedet for translated.
+    config: |
+      markTranslatedState: needs_review
