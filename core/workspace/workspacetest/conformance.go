@@ -56,6 +56,7 @@ func RunConformance(t *testing.T, newBackend Factory) {
 		{"forgetting a project needs a key", forgettingNeedsAKey},
 		{"a widened rule is held for the whole workspace", widenedRulesAreHeldForTheWorkspace},
 		{"an agent session is noted and ages out", agentSessionsAreNotedAndAgeOut},
+		{"an import stamp is kept per checkout", importStampsAreKeptPerCheckout},
 		{"close is idempotent", closeIsIdempotent},
 	}
 	for _, tc := range cases {
@@ -541,6 +542,56 @@ func agentSessionsAreNotedAndAgeOut(t *testing.T, b workspace.Backend) {
 	assert.Equal(t, "ses_later", all[0].ID)
 
 	assert.ErrorIs(t, w.NoteAgentSession(ctx, workspace.AgentSession{Project: "prj_docs"}), workspace.ErrNoSessionID)
+}
+
+func importStampsAreKeptPerCheckout(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	w, err := workspace.Open(ctx, b)
+	require.NoError(t, err)
+
+	read := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
+	require.NoError(t, w.NoteContextImports(ctx,
+		workspace.ContextImportStamp{Checkout: "/w/main", Path: ".kapi/terms.json", Digest: "aa", At: read},
+		workspace.ContextImportStamp{Checkout: "/w/main", Path: ".kapi/voice.yaml", Digest: "bb", At: read},
+	))
+
+	held, err := w.ContextImports(ctx, "/w/main")
+	require.NoError(t, err)
+	require.Len(t, held, 2)
+	assert.Equal(t, ".kapi/terms.json", held[0].Path, "stamps read back in path order")
+	assert.Equal(t, "aa", held[0].Digest)
+	assert.Equal(t, read, held[0].At)
+
+	// A second checkout of the same project reads its own files, so a stamp one
+	// clone wrote says nothing about another's.
+	other, err := w.ContextImports(ctx, "/w/branch")
+	require.NoError(t, err)
+	assert.Empty(t, other, "a checkout that has read nothing has no stamps")
+
+	require.NoError(t, w.NoteContextImports(ctx,
+		workspace.ContextImportStamp{Checkout: "/w/branch", Path: ".kapi/terms.json", Digest: "cc", At: read}))
+	other, err = w.ContextImports(ctx, "/w/branch")
+	require.NoError(t, err)
+	require.Len(t, other, 1)
+	assert.Equal(t, "cc", other[0].Digest)
+
+	// Reading the same file again at different bytes replaces the stamp.
+	later := read.Add(time.Hour)
+	require.NoError(t, w.NoteContextImports(ctx,
+		workspace.ContextImportStamp{Checkout: "/w/main", Path: ".kapi/terms.json", Digest: "dd", At: later}))
+	held, err = w.ContextImports(ctx, "/w/main")
+	require.NoError(t, err)
+	require.Len(t, held, 2, "one file in one checkout is one row")
+	assert.Equal(t, "dd", held[0].Digest)
+	assert.Equal(t, later, held[0].At)
+
+	assert.NoError(t, w.NoteContextImports(ctx), "noting nothing is not an error")
+	assert.ErrorIs(t, w.NoteContextImports(ctx,
+		workspace.ContextImportStamp{Path: ".kapi/terms.json"}), workspace.ErrNoImportStamp)
+	assert.ErrorIs(t, w.NoteContextImports(ctx,
+		workspace.ContextImportStamp{Checkout: "/w/main"}), workspace.ErrNoImportStamp)
+	_, err = w.ContextImports(ctx, "")
+	assert.ErrorIs(t, err, workspace.ErrNoImportStamp)
 }
 
 func closeIsIdempotent(t *testing.T, b workspace.Backend) {
