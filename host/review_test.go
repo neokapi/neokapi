@@ -290,14 +290,15 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 	assert.Equal(t, "skipped", res2.Status)
 }
 
-// assertCommittedUnits commits the project's staged decisions and asserts how
-// many units the committed record then holds.
+// assertCommittedUnits writes the project's record out and asserts how many
+// units it then holds.
 //
-// It commits because recording no longer does: a decision is staged, and
-// `kapi commit` publishes it.
+// A decision is durable in the ledger from the moment it is made. Writing the
+// record out as files is `kapi context snapshot`, which is what a team that
+// wants the shards in git runs, and what this asserts against.
 func assertCommittedUnits(t *testing.T, root string, want int, msg string) {
 	t.Helper()
-	_, err := (&App{}).CommitProjectState(t.Context(), root)
+	_, err := (&App{}).SnapshotProjectContext(t.Context(), root, ContextSnapshotRequest{})
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}

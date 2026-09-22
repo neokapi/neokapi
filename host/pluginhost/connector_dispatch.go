@@ -254,7 +254,7 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		fmt.Printf("pulled %d blocks across %d locales; wrote %d files\n",
 			resp.GetBlocksPulled(), resp.GetLocalesCount(), resp.GetFilesWritten())
 		if n := resp.GetDecisionsStaged(); n > 0 {
-			fmt.Printf("recorded %d unit-state update(s) from the server ledger. `kapi commit` writes them to .kapi/state/\n", n)
+			fmt.Printf("recorded %d unit-state update(s) from the server ledger\n", n)
 		}
 		printPullExtras(resp)
 		if te := resp.GetTerminologyError(); te != "" {

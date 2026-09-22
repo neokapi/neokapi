@@ -331,7 +331,7 @@ func TestUpsertTerm_JoinsTheConceptItAnswers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, changed := upsertTerm(tt.concepts, tt.decision)
+			got, _, changed := upsertTerm(tt.concepts, tt.decision)
 			assert.Equal(t, tt.wantChanged, changed)
 
 			idx := -1
@@ -349,7 +349,7 @@ func TestUpsertTerm_JoinsTheConceptItAnswers(t *testing.T) {
 			assert.Equal(t, tt.wantTerms, have)
 
 			// Re-applying the same decision is a no-op, whichever way it landed.
-			_, again := upsertTerm(got, tt.decision)
+			_, _, again := upsertTerm(got, tt.decision)
 			assert.False(t, again, "apply must be idempotent")
 		})
 	}
@@ -364,7 +364,7 @@ func TestUpsertTerm_ReplacementIsNeverDeclaredTwice(t *testing.T) {
 		{ID: "c-dock", Terms: []terms.Term{{Text: "dock", Locale: "en-GB", Status: model.TermProposed}}},
 	}
 
-	got, changed := upsertTerm(concepts, termDecision{
+	got, _, changed := upsertTerm(concepts, termDecision{
 		Text: "dock", Locale: "en-GB", Status: model.TermForbidden, Replacement: "berth",
 	})
 	require.True(t, changed)

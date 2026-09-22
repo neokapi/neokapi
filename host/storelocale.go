@@ -71,7 +71,7 @@ func StoreLocaleDriftWarning(drift []projectdb.LocaleDrift, layout project.Layou
 			strings.Join(authored, "; "))
 	}
 	if len(derived) > 0 {
-		fmt.Fprintf(&b, " In the projection (%s): run `kapi commit` to write the decision record, delete %s, then run `kapi up`, which reads your files again.",
+		fmt.Fprintf(&b, " In the projection (%s): delete %s, then run `kapi up`, which reads your files again.",
 			strings.Join(derived, "; "), projectionName(layout))
 	}
 	return b.String()

@@ -195,8 +195,8 @@ wrote it does.
 Two things never travel. Withheld originals stay on the machine that redacted
 them, and nothing kapi keeps for its own use is written.
 
-The project's committed record is written first, the same write "kapi commit"
-makes, so the record in the snapshot is the project's.`,
+The decision record in the snapshot is the project's own, written from what
+the ledger holds at the moment of the snapshot.`,
 		Example: "  kapi context snapshot\n" +
 			"  kapi context snapshot --out build/context\n" +
 			"  kapi context snapshot --json",
@@ -235,8 +235,8 @@ same identities it left with.
 Withheld originals are never in it. They stay on the machine that redacted them,
 and no flag puts them in a file meant to be copied.
 
-The project's committed record is written first, the same write "kapi commit"
-makes.
+The decision record in the file is the project's own, written from what the
+ledger holds at the moment of the export.
 
 With --workspace it writes every project you have worked on here instead of
 this one, which is the backup for the context of a whole machine. Add --dry-run

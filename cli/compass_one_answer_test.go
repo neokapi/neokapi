@@ -72,10 +72,9 @@ type reviewQueue struct {
 }
 
 // approveLocale performs one of the journey's review round-trips: read the
-// review queue, turn the units this reviewer accepts into a change-set, apply
-// it, and commit. `accept` is the reviewer's judgement — the README's Dutch
-// step declines what the offline stub drafted, the Norwegian step takes
-// everything.
+// review queue, turn the units this reviewer accepts into a change-set, and
+// apply it. `accept` is the reviewer's judgement: the README's Dutch step
+// declines what the offline stub drafted, the Norwegian step takes everything.
 func approveLocale(t *testing.T, a *App, recipe, root, locale string, accept func(target string) bool) int {
 	t.Helper()
 
@@ -104,9 +103,6 @@ func approveLocale(t *testing.T, a *App, recipe, root, locale string, accept fun
 	applyOut, err := runCLI(t, NewApplyCmd(a), changeset, "--project", recipe)
 	require.NoError(t, err, applyOut)
 	assert.NotContains(t, applyOut, "error", applyOut)
-
-	commitOut, err := runCLI(t, NewCommitCmd(a), "--project", recipe)
-	require.NoError(t, err, commitOut)
 	return len(lines)
 }
 

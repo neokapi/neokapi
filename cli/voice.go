@@ -13,6 +13,7 @@ import (
 
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/profile/packs"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -49,6 +50,7 @@ omitted or set to "-".`,
 		newVoiceProfilesCmd(a),
 		newVoiceShowCmd(a),
 		newVoiceImportCmd(a),
+		newVoiceEditCmd(a),
 		newVoicePackCmd(a),
 		newVoicePointerCmd(a),
 	)
@@ -469,6 +471,44 @@ func newVoiceImportCmd(a *App) *cobra.Command {
 		},
 	}
 	AddResourceFlags(cmd)
+	output.AddFlags(cmd.Flags())
+	return cmd
+}
+
+func newVoiceEditCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "edit",
+		Short: "Edit a voice profile in your editor",
+		Long: `Open a voice profile as YAML, edit it, and read it back into this
+project's store.
+
+The profile is written to a temporary file, your editor opens it, and what you
+save is checked the way 'kapi voice validate' checks a file. A profile that
+reads cleanly goes into the store as one recorded change, which 'kapi context
+log' shows beside everything else the project has learned. The temporary file
+goes; the store holds the result.
+
+The document states the profile entire, so a section you delete is gone from the
+profile, including 'constraints:'. An editor that exits with an error, and a
+document you save unchanged, both leave the store as it was.
+
+With no --profile it edits the profile the recipe binds. Your editor is $VISUAL,
+or $EDITOR when $VISUAL is unset.`,
+		Example: "  kapi voice edit\n" +
+			"  kapi voice edit --profile acme-docs\n" +
+			"  EDITOR=vim kapi voice edit",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			name, _ := cmd.Flags().GetString("profile")
+			res, err := a.EditVoiceProfile(cmd.Context(), cmd, host.VoiceEditRequest{Profile: name})
+			if err != nil {
+				return err
+			}
+			return output.Print(cmd, res)
+		},
+	}
+	cmd.Flags().String("profile", "", "profile in the project's voice store (default: the one the recipe binds)")
+	AddProjectFlag(cmd)
 	output.AddFlags(cmd.Flags())
 	return cmd
 }
