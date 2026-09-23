@@ -15,11 +15,12 @@ import (
 // Log is the workspace operation log this package writes to and reads back.
 // *workspace.Workspace satisfies it.
 type Log interface {
-	// Record appends operations and returns them with the sequence numbers the
-	// backend assigned.
+	// Record appends operations and returns them with the ids the backend
+	// assigned.
 	Record(ctx context.Context, ops ...workspace.Op) ([]workspace.Op, error)
-	// Ops returns the operations after a sequence number, oldest first. A limit
-	// of zero or less asks for every operation.
+	// Ops returns the operations this log received after a local position, in
+	// the order it received them. A limit of zero or less asks for every
+	// operation.
 	Ops(ctx context.Context, after int64, limit int) ([]workspace.Op, error)
 }
 
@@ -43,8 +44,10 @@ func NewLedger(log Log, policy Policy) *Ledger {
 	return &Ledger{log: log, policy: policy}
 }
 
-// ErrNotFound reports an operation id the log does not hold.
-var ErrNotFound = errors.New("contextop: no such operation")
+// ErrNotFound reports an operation id, or the start of one, that the log does
+// not hold. A prefix that starts more than one id is reported as a
+// *workspace.AmbiguousOpIDError listing them.
+var ErrNotFound = workspace.ErrNoOperation
 
 // Append records one operation, after the policy has allowed it.
 //
@@ -81,10 +84,11 @@ func (l *Ledger) Append(ctx context.Context, r Record) (Record, error) {
 		Editing:  r.Kind == KindKeep && r.Subject.Kind != SubjectNone,
 	}
 	if r.Target != "" {
-		target, ok := find(held, r.Target)
-		if !ok {
-			return Record{}, fmt.Errorf("%w: %s", ErrNotFound, r.Target)
+		target, err := find(held, r.Target)
+		if err != nil {
+			return Record{}, err
 		}
+		r.Target = target.ID
 		transition.Target, transition.Targeted = target, true
 	}
 	if err := l.policy(transition); err != nil {
@@ -102,8 +106,8 @@ func (l *Ledger) Append(ctx context.Context, r Record) (Record, error) {
 	if len(written) != 1 {
 		return Record{}, fmt.Errorf("contextop: the log accepted %d operations for one", len(written))
 	}
-	r.Seq = written[0].Seq
-	r.ID = FormatID(written[0].Seq)
+	r.ID = written[0].ID
+	r.Short = workspace.ShortOpID(r.ID)
 	r.At = written[0].At.UTC()
 	r.Status = statusAtBirth(r.Kind)
 	r.Established = r.Kind.Bears() && r.Status == StatusEstablished
@@ -188,11 +192,7 @@ func (l *Ledger) Get(ctx context.Context, id string) (Record, error) {
 	if err != nil {
 		return Record{}, err
 	}
-	r, ok := find(all, id)
-	if !ok {
-		return Record{}, fmt.Errorf("%w: %s", ErrNotFound, id)
-	}
-	return r, nil
+	return find(all, id)
 }
 
 // Subject resolves an id to the subject-bearing operation behind it: the
@@ -204,9 +204,9 @@ func (l *Ledger) Subject(ctx context.Context, id string) (Record, error) {
 	if err != nil {
 		return Record{}, err
 	}
-	r, ok := find(all, id)
-	if !ok {
-		return Record{}, fmt.Errorf("%w: %s", ErrNotFound, id)
+	r, err := find(all, id)
+	if err != nil {
+		return Record{}, err
 	}
 	resolved, ok := bearer(index(all), r)
 	if !ok {
@@ -235,8 +235,13 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 		r.Established = r.Kind.Bears() && r.Status == StatusEstablished
 		records = append(records, r)
 	}
-	// Sequence order, which is the order the operations happened in.
-	sort.SliceStable(records, func(i, j int) bool { return records[i].Seq < records[j].Seq })
+	// Id order, which is the order the operations were accepted in on every
+	// machine whose log has been merged into this one. The position in that
+	// order is what the fold compares.
+	sort.SliceStable(records, func(i, j int) bool { return records[i].ID < records[j].ID })
+	for i := range records {
+		records[i].Seq = int64(i + 1)
+	}
 
 	at := make(map[string]int, len(records))
 	for i, r := range records {
@@ -388,20 +393,32 @@ func index(records []Record) map[string]Record {
 	return out
 }
 
-// find looks one record up by id.
-func find(records []Record, id string) (Record, bool) {
+// find looks one record up by its id or an unambiguous prefix of it.
+func find(records []Record, typed string) (Record, error) {
+	ids := make([]string, len(records))
+	for i, r := range records {
+		ids[i] = r.ID
+	}
+	id, err := workspace.ResolveOpID(typed, ids)
+	if err != nil {
+		var ambiguous *workspace.AmbiguousOpIDError
+		if errors.As(err, &ambiguous) {
+			ambiguous.Candidates = ShortIDs(ambiguous.Candidates)
+		}
+		return Record{}, fmt.Errorf("contextop: %w", err)
+	}
 	for _, r := range records {
 		if r.ID == id {
-			return r, true
+			return r, nil
 		}
 	}
-	return Record{}, false
+	return Record{}, fmt.Errorf("contextop: %w: %s", ErrNotFound, typed)
 }
 
 // bearer walks from an acting operation to the subject-bearing operation it
 // ultimately acts on: reverting a keep reaches the suggestion the keep
-// established. The walk is bounded because a target always has a lower sequence
-// number than the operation naming it, so a chain cannot loop.
+// established. The walk is bounded by the number of records, so a chain that
+// loops (which only a hand-built log could hold) ends rather than spinning.
 func bearer(byID map[string]Record, r Record) (Record, bool) {
 	for range len(byID) + 1 {
 		if r.Kind.Bears() {
