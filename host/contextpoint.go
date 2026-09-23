@@ -335,6 +335,7 @@ func (a *App) ContextSourcesAt(cmd Command, req ContextPointRequest) (ContextPoi
 	root := filepath.Dir(projectPath)
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
+		src.Path = req.Path
 		src.Notes = append(src.Notes, "this project's recipe could not be read, so no point could be resolved: "+lerr.Error())
 		return src, noop
 	}
@@ -1011,6 +1012,10 @@ func (r *ContextAnswer) where() string {
 			return "No point resolved."
 		}
 		return "This location sits at the project's default point: no profile claims it."
+	}
+	if r.Point.Ref == "" {
+		// No recipe resolved a point, so there is no coordinate to state.
+		return "No point resolved."
 	}
 	var parts []string
 	if r.Point.Channel != "" {

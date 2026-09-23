@@ -1386,8 +1386,10 @@ func TestMCPConformanceCandidateCrossesProcesses(t *testing.T) {
 	t.Run("the prose rendering says it is not a rule", func(t *testing.T) {
 		text, mime := readResource(t, ctx, second, "context://docs/clean.md")
 		assert.Equal(t, "text/markdown", mime)
-		assert.Contains(t, text, "Suggested, not yet established:")
-		assert.NotContains(t, text, "Say this, not that:", "a suggestion is never listed with the rules in force")
+		established, suggested, found := strings.Cut(text, "Suggested, not yet established:")
+		require.True(t, found, text)
+		assert.Contains(t, suggested, "utilise", "the candidate is listed as a suggestion")
+		assert.NotContains(t, established, "utilise", "and never with the rules in force")
 	})
 
 	t.Run("a candidate is reported and fails nothing", func(t *testing.T) {
