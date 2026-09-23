@@ -59,10 +59,6 @@ batch are fine, and merge handles each input independently.`,
 	cmd.Flags().StringArrayP("input", "i", nil, "input XLIFF file, glob, or directory (repeatable)")
 	cmd.Flags().StringP("output", "o", "", "output directory or template when merging a .kpz workspace")
 	cmd.Flags().Bool("no-memory-update", false, "skip content-memory write-back")
-	// Retired spelling: accepted so existing scripts keep working, hidden so
-	// --help teaches only the current name.
-	cmd.Flags().Bool("no-tm-update", false, "skip content-memory write-back")
-	_ = cmd.Flags().MarkHidden("no-tm-update")
 	cmd.Flags().Bool("no-restore", false, "skip restoring redacted originals from the batch vault")
 	AddProgressFlag(cmd)
 	return cmd

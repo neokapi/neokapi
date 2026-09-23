@@ -51,7 +51,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     },
   },
   {
-    id: "tm-translate",
+    id: "memory-translate",
     get name() {
       return t("Content-Memory Leverage + Translate", "flow template name");
     },

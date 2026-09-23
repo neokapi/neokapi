@@ -74,7 +74,7 @@ type ExtractionGenerator struct {
 type ExtractionOptions struct {
 	Format       string `yaml:"format,omitempty" json:"format,omitempty"`
 	XLIFFVersion string `yaml:"xliffVersion,omitempty" json:"xliffVersion,omitempty"`
-	NoMemory     bool   `yaml:"noTM,omitempty" json:"noTM,omitempty"`
+	NoMemory     bool   `yaml:"noMemory,omitempty" json:"noMemory,omitempty"`
 	Only         string `yaml:"only,omitempty" json:"only,omitempty"`
 	Pattern      string `yaml:"pattern,omitempty" json:"pattern,omitempty"`
 	Segmentation bool   `yaml:"segmentation,omitempty" json:"segmentation,omitempty"`

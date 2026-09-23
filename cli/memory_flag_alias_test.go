@@ -8,10 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestContentMemoryFlagAliases pins the content-memory opt-out flags on the
-// public CLI surface: `--help` teaches the current name, and the retired
-// spelling still parses so existing invocations keep working.
-func TestContentMemoryFlagAliases(t *testing.T) {
+// TestContentMemoryFlags pins the content-memory opt-out flags on the public
+// CLI surface: `--help` teaches the current name, and the retired `tm`
+// spelling is gone rather than hidden (CLAUDE.md: a `tm` identifier is a
+// leftover).
+func TestContentMemoryFlags(t *testing.T) {
 	tests := []struct {
 		name    string
 		build   func(*App) *cobra.Command
@@ -39,17 +40,10 @@ func TestContentMemoryFlagAliases(t *testing.T) {
 			current := cmd.Flags().Lookup(tt.current)
 			require.NotNil(t, current, "--%s must exist", tt.current)
 			assert.False(t, current.Hidden, "--%s is the taught name", tt.current)
+			require.NoError(t, cmd.Flags().Parse([]string{"--" + tt.current}))
+			assert.True(t, BoolFlag(cmd, tt.current), "--%s must opt out of the content memory", tt.current)
 
-			retired := cmd.Flags().Lookup(tt.retired)
-			require.NotNil(t, retired, "--%s must stay accepted", tt.retired)
-			assert.True(t, retired.Hidden, "--%s must not appear in help", tt.retired)
-
-			for _, flag := range []string{tt.current, tt.retired} {
-				cmd := tt.build(&App{})
-				require.NoError(t, cmd.Flags().Parse([]string{"--" + flag}))
-				assert.True(t, BoolFlagAny(cmd, tt.current, tt.retired),
-					"--%s must opt out of the content memory", flag)
-			}
+			assert.Nil(t, cmd.Flags().Lookup(tt.retired), "--%s is retired", tt.retired)
 		})
 	}
 }

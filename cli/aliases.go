@@ -141,7 +141,6 @@ var (
 	MCPToolSetNames              = host.MCPToolSetNames
 	MCPToolSetTools              = host.MCPToolSetTools
 	BoolFlag                     = host.BoolFlag
-	BoolFlagAny                  = host.BoolFlagAny
 	BuildAISetupChoices          = host.BuildAISetupChoices
 	BuildModelRows               = host.BuildModelRows
 	BuiltinFlowNames             = host.BuiltinFlowNames

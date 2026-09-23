@@ -57,10 +57,6 @@ plus one bilingual file per source → target pair in --out-dir (default "out/")
 	cmd.Flags().String("format", ExtractFormatXLIFF2, "bilingual output format (xliff2 | po | kpz)")
 	cmd.Flags().String("xliff-version", "", "XLIFF 2.x version to emit (2.0, 2.1, 2.2; default 2.2)")
 	cmd.Flags().Bool("no-memory", false, "skip content-memory pre-fill on extract")
-	// Retired spelling: accepted so existing scripts keep working, hidden so
-	// --help teaches only the current name.
-	cmd.Flags().Bool("no-tm", false, "skip content-memory pre-fill on extract")
-	_ = cmd.Flags().MarkHidden("no-tm")
 	cmd.Flags().Bool("force", false, "re-extract every file, ignoring the incremental reuse of unchanged sources")
 	cmd.Flags().Bool("with-source", false, "embed raw source bytes in the .kpz (default: identity + skeleton only)")
 	cmd.Flags().String("out-dir", "out", "directory for emitted bilingual files (relative to project)")
