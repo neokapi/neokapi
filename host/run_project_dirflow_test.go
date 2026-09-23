@@ -163,6 +163,53 @@ func TestRunFromProject_RecipeFlowWinsOverTheFlowsDirectory(t *testing.T) {
 	assert.FileExists(t, out, "the recipe's flow ran; the file's tool does not exist")
 }
 
+// A project flow wins over the built-in flow of its name, inline or as a file,
+// so a recipe that declares `pseudo-translate` runs its own. The porcelain verb
+// of that name is kapi's own and still runs the built-in (RunCmdOptions.Builtin).
+func TestRunFromProject_ProjectFlowWinsOverABuiltIn(t *testing.T) {
+	const broken = "name: pseudo-translate\nsteps:\n  - tool: no-such-tool\n"
+
+	t.Run("a flows_dir file", func(t *testing.T) {
+		a, recipe, dir := dirFlowProject(t, "pseudo-translate", broken)
+		err := runProjectFlowCmd(t, a, "pseudo-translate", recipe, filepath.Join(dir, "page.qps.md"), "qps")
+		require.Error(t, err, "the file's flow ran; its tool does not exist")
+		assert.Contains(t, err.Error(), "no-such-tool")
+	})
+
+	t.Run("an inline flow", func(t *testing.T) {
+		a, recipe, dir := dirFlowProject(t, "other", pseudoDirFlow)
+		loaded, err := project.Load(recipe)
+		require.NoError(t, err)
+		loaded.Flows = map[string]*flow.StepsSpec{
+			"pseudo-translate": {Steps: []flow.FlowStep{{Tool: "no-such-tool"}}},
+		}
+		require.NoError(t, project.Save(recipe, loaded))
+		err = runProjectFlowCmd(t, a, "pseudo-translate", recipe, filepath.Join(dir, "page.qps.md"), "qps")
+		require.Error(t, err, "the recipe's flow ran; its tool does not exist")
+		assert.Contains(t, err.Error(), "no-such-tool")
+	})
+
+	t.Run("the porcelain verb runs the built-in", func(t *testing.T) {
+		a, recipe, dir := dirFlowProject(t, "pseudo-translate", broken)
+		out := filepath.Join(dir, "page.qps.md")
+		cmd := NewEnvCommand(context.Background(), "pseudo-translate")
+		fs := cmd.Flags()
+		for _, name := range []string{"target-lang", "source-lang", "output", "encoding", "trace", "format"} {
+			fs.String(name, "", "")
+		}
+		fs.StringSlice("input", nil, "")
+		fs.Int("concurrency", 0, "")
+		fs.Bool("explain", false, "")
+		require.NoError(t, fs.Set("output", out))
+		require.NoError(t, fs.Set("target-lang", "qps"))
+		a.TargetLang = "qps"
+		cmd.SetOut(&bytes.Buffer{})
+		cmd.SetErr(&bytes.Buffer{})
+		require.NoError(t, a.RunFromProject(cmd, "pseudo-translate", recipe, RunCmdOptions{Builtin: true}))
+		assert.FileExists(t, out)
+	})
+}
+
 // An unknown flow reports that the project has no such flow rather than trying
 // to open one.
 func TestRunFromProject_UnknownFlowIsReported(t *testing.T) {

@@ -146,6 +146,8 @@ var (
 	BuildModelRows               = host.BuildModelRows
 	BuiltinFlowNames             = host.BuiltinFlowNames
 	BuiltinComposedFlowNames     = host.BuiltinComposedFlowNames
+	FlowListing                  = host.FlowListing
+	ResolveProjectFlow           = host.ResolveProjectFlow
 	CmdContext                   = host.CmdContext
 	CollectAllPresets            = host.CollectAllPresets
 	CollectAuditRows             = host.CollectAuditRows

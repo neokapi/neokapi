@@ -25,6 +25,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/flowdef"
 )
 
@@ -354,9 +355,15 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, projectPath strin
 		}
 	}
 
-	// Resolve flow: check project flows first, then built-in.
+	// Resolve the flow as `kapi run` does: a built-in name runs the built-in,
+	// and any other name the recipe's inline flow, then its `flows_dir:` file.
 	flowName := input.FlowName
-	if spec := proj.Flow(flowName); spec != nil {
+	pf, err := host.ResolveProjectFlow(proj, pctx.ProjectDir, flowName, nil)
+	if err != nil {
+		return nil, RunFlowOutput{}, err
+	}
+	if pf != nil && pf.Source != host.FlowSourceBuiltin {
+		spec := pf.Spec
 		// Project flow — assemble the tool chain through the host so the
 		// AD-006 placement gate, per-step config resolution and project
 		// bindings all apply, exactly as they do on the CLI.
