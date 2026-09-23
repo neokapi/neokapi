@@ -30,17 +30,17 @@
     "fmt": "vp fmt"
   },
   "dependencies": {
-    "@embedpdf/pdfium": "^2.15.0",
+    "@embedpdf/pdfium": "^2.15.1",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
-    "@huggingface/transformers": "^4.2.0",
+    "@huggingface/transformers": "^4.3.0",
     "@mlc-ai/web-llm": "^0.2.79",
     "@neokapi/contract-types": "*",
     "@neokapi/engine": "*",
     "@neokapi/ui-primitives": "*",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "lucide-react": "^1.46.0",
+    "lucide-react": "^1.47.0",
     "onnxruntime-web": "^1.30.0"
   },
   "devDependencies": {
