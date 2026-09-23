@@ -26,9 +26,8 @@ export interface ProfileSpec {
   valid_to?: string;
 }
 
-/** A voice binding: exactly one of a file, a starter pack, or a stored name. */
+/** A voice binding: exactly one of a stored profile's name or a starter pack. */
 export interface VoiceBindingSpec {
-  profile_file?: string;
   profile?: string;
   pack?: string;
 }

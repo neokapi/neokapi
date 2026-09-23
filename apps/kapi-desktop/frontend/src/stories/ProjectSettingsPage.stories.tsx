@@ -132,7 +132,7 @@ const governed = {
     source_language: "en-US",
     target_languages: ["nb-NO", "de-DE"],
     coordinates: { brand: "northsea", mode: "reference" },
-    voice: { profile_file: ".kapi/voice.yaml" },
+    voice: { profile: "northsea" },
     flow: "translate",
     exclude: ["**/vendor/**"],
   },

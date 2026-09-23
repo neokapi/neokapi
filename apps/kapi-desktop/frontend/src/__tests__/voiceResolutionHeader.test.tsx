@@ -8,8 +8,8 @@ const clean: VoicePoint = {
   point: { default: true, ref: "defaults.voice" },
   collections: ["App"],
   field: "defaults.voice",
-  source: "/w/northsea/.kapi/voice.yaml",
-  binding: { kind: "profile_file", value: ".kapi/voice.yaml" },
+  source: "store:northsea",
+  binding: { kind: "profile", value: "northsea" },
   edit: { writable: true, exists: true, inherited: false },
   profile: { name: "Northsea" },
 };
@@ -19,7 +19,7 @@ const fellThrough: VoicePoint = {
   point: { profile: "campaign", default: false, ref: "defaults.voice" },
   collections: [],
   field: "defaults.voice",
-  binding: { kind: "profile_file", value: ".kapi/voice.yaml" },
+  binding: { kind: "profile", value: "northsea" },
   validity: { to: "2026-08-29T00:00:00Z", state: "expired" },
   fallback: {
     profile: "campaign",
@@ -39,8 +39,8 @@ describe("voice resolution header", () => {
 
     const plumbing = screen.getByTestId("voice-plumbing");
     expect(plumbing).toHaveTextContent("defaults.voice");
-    expect(plumbing).toHaveTextContent("profile_file");
-    expect(plumbing).toHaveTextContent(".kapi/voice.yaml");
+    expect(plumbing).toHaveTextContent("profile");
+    expect(plumbing).toHaveTextContent("northsea");
   });
 
   it("marks the superseded binding and the date its window closed", () => {

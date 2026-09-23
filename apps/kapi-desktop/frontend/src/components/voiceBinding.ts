@@ -1,9 +1,9 @@
 // The recipe's voice binding, as the shared picker's opaque key.
 //
-// `defaults.voice` takes one of three forms: a profile file in the tree, a
-// starter pack, or a named profile in the store. The shared VoiceBindingSelect
-// hands keys back and forth without reading them, so the three forms are
-// spelt into one key here and read back out.
+// `defaults.voice` takes one of two forms, both names: a profile the store
+// holds, or a starter pack. The shared VoiceBindingSelect hands keys back and
+// forth without reading them, so the two forms are spelt into one key here and
+// read back out.
 
 import { t } from "@neokapi/i18n-react/runtime";
 import type { VoiceBindingOption } from "@neokapi/ui-primitives";
@@ -11,7 +11,6 @@ import type { VoiceBindingSpec } from "../types/api";
 import type { RecipeGovernance } from "./GovernanceSettings";
 
 export function encodeVoiceBinding(binding: VoiceBindingSpec | undefined): string | undefined {
-  if (binding?.profile_file) return `file:${binding.profile_file}`;
   if (binding?.pack) return `pack:${binding.pack}`;
   if (binding?.profile) return `store:${binding.profile}`;
   return undefined;
@@ -22,7 +21,6 @@ export function decodeVoiceBinding(key: string | undefined): VoiceBindingSpec | 
   const sep = key.indexOf(":");
   const kind = sep === -1 ? "" : key.slice(0, sep);
   const value = sep === -1 ? key : key.slice(sep + 1);
-  if (kind === "file") return { profile_file: value };
   if (kind === "pack") return { pack: value };
   return { profile: value };
 }

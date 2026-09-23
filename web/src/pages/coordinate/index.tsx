@@ -722,9 +722,7 @@ function CoordinateMap({ points, axes }: { points: Point[]; axes: Axes }): React
                     {(p.collections ?? []).join(", ")}
                   </div>
                   <div style={styles.slug}>voice: {p.voice}</div>
-                  <div style={styles.slug}>
-                    terms: {p.termStore ?? "project default"}
-                  </div>
+                  <div style={styles.slug}>terms: {p.termStore ?? "project default"}</div>
                 </div>
               );
             })}
@@ -1301,8 +1299,8 @@ export default function Coordinate(): ReactElement {
         {fallback && (
           <p style={{ marginTop: "1rem", ...styles.prose }}>
             Content that declares no coordinate falls back to the project defaults:{" "}
-            <code>{fallback.voice}</code> and the project&rsquo;s own terms. Here
-            that is the <code>{(fallback.collections ?? []).join(", ")}</code> collection.
+            <code>{fallback.voice}</code> and the project&rsquo;s own terms. Here that is the{" "}
+            <code>{(fallback.collections ?? []).join(", ")}</code> collection.
           </p>
         )}
 

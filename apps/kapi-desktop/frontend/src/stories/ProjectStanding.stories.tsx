@@ -29,7 +29,7 @@ const manyPoints: ProjectPointsResult = {
       collections: ["App"],
       voice: "Northsea",
       voice_field: "defaults.voice",
-      termstore: ".kapi/terms.json",
+      termstore: "northsea-terms",
     },
     {
       ref: "support/docs",
