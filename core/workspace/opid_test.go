@@ -1,7 +1,6 @@
 package workspace_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -57,9 +56,9 @@ func TestResolveOpID(t *testing.T) {
 	assert.Contains(t, err.Error(), ids[0])
 
 	_, err = workspace.ResolveOpID("zz", ids)
-	assert.True(t, errors.Is(err, workspace.ErrNoOperation))
+	require.ErrorIs(t, err, workspace.ErrNoOperation)
 	_, err = workspace.ResolveOpID("  ", ids)
-	assert.True(t, errors.Is(err, workspace.ErrNoOperation))
+	assert.ErrorIs(t, err, workspace.ErrNoOperation)
 }
 
 func TestShortOpID(t *testing.T) {

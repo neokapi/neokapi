@@ -401,8 +401,7 @@ func find(records []Record, typed string) (Record, error) {
 	}
 	id, err := workspace.ResolveOpID(typed, ids)
 	if err != nil {
-		var ambiguous *workspace.AmbiguousOpIDError
-		if errors.As(err, &ambiguous) {
+		if ambiguous, ok := errors.AsType[*workspace.AmbiguousOpIDError](err); ok {
 			ambiguous.Candidates = ShortIDs(ambiguous.Candidates)
 		}
 		return Record{}, fmt.Errorf("contextop: %w", err)

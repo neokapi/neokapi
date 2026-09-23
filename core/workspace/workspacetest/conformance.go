@@ -13,6 +13,7 @@
 package workspacetest
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -85,7 +86,7 @@ func operationsCarryIDs(t *testing.T, b workspace.Backend) {
 	require.NoError(t, err)
 	second, err := b.Record(ctx, workspace.Op{Kind: "three"})
 	require.NoError(t, err)
-	all := append(first, second...)
+	all := slices.Concat(first, second)
 
 	seen := map[string]bool{}
 	for i, op := range all {
