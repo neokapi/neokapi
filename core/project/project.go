@@ -333,9 +333,11 @@ func (b *VoiceBinding) validate(field string) error {
 		return nil
 	}
 	if b.namedFile != "" {
-		return retiredFileBinding(field, b.namedFile,
-			"a recipe binds a voice by name",
-			"then bind the profile it holds with `voice: {profile: <id>}`, the id `kapi voice profiles` lists")
+		then := "then bind the profile it holds by name, `voice: {profile: <id>}` with the id `kapi voice profiles` lists"
+		if field == DefaultVoiceField {
+			then = "which binds the voice it brings here by name"
+		}
+		return retiredFileBinding(field, b.namedFile, "a recipe binds a voice by name", then)
 	}
 	switch {
 	case b.Profile == "" && b.Pack == "":
@@ -366,7 +368,7 @@ func namesFile(v string) bool {
 var retiredDefaultsKeys = map[string]struct{ binds, then string }{
 	"terms_source": {
 		"a recipe names no terms file",
-		"and the project's own terms govern with nothing bound; a profile binds a named store with `termstore: <name>`",
+		"and the project's own terms govern with nothing bound (a profile binds a named store with `termstore: <name>`)",
 	},
 	"memory_source": {
 		"a recipe names no content-memory file",
@@ -375,10 +377,11 @@ var retiredDefaultsKeys = map[string]struct{ binds, then string }{
 }
 
 // retiredFileBinding is the error for a recipe key that names a context file.
-// The fix is the same for every kind: read the file into the store once, and
-// let the store answer from then on.
+// The fix is the same for every kind: take the key out, read the file into the
+// store once, and let the store answer from then on. The key goes first,
+// because a recipe that still carries it does not load for the import either.
 func retiredFileBinding(field, path, binds, then string) error {
-	return fmt.Errorf("%s: %q names a file, and %s. Read the file into the store with `%s`, %s",
+	return fmt.Errorf("%s: %q names a file, and %s. Remove it and read the file into the store with `%s`, %s",
 		field, path, binds, importCommandFor(path), then)
 }
 

@@ -698,18 +698,19 @@ func TestLoad_RejectsFileBindings(t *testing.T) {
 			name: "voice as a bare path",
 			body: "defaults:\n  voice: context/voice.yaml\n",
 			want: []string{"defaults.voice:", `"context/voice.yaml" names a file`,
-				"`kapi context import context`", "voice: {profile: <id>}"},
+				"Remove it", "`kapi context import context`", "binds the voice it brings here by name"},
 		},
 		{
 			name: "voice.profile_file",
 			body: "defaults:\n  voice:\n    profile_file: .kapi/voice.yaml\n",
 			want: []string{"defaults.voice:", `".kapi/voice.yaml" names a file`,
-				"`kapi context import`,", "voice: {profile: <id>}"},
+				"`kapi context import`,"},
 		},
 		{
 			name: "a profile's voice as a bare path",
 			body: "profiles:\n  acme:\n    channels: [docs]\n    voice: .kapi/profiles/acme/voice.yaml\n",
-			want: []string{"profiles.acme.voice:", "`kapi context import .kapi/profiles/acme`"},
+			want: []string{"profiles.acme.voice:", "`kapi context import .kapi/profiles/acme`",
+				"voice: {profile: <id>}"},
 		},
 		{
 			name: "voice as a bare file name",
