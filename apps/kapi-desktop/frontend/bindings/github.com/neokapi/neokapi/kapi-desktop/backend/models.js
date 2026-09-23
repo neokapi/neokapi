@@ -2204,17 +2204,20 @@ export class ContextFeedEntry {
     constructor($$source = {}) {
         if (!("id" in $$source)) {
             /**
+             * ID names the operation; every action on it passes it back.
              * @member
              * @type {string}
              */
             this["id"] = "";
         }
-        if (!("seq" in $$source)) {
+        if (!("short" in $$source)) {
             /**
+             * Short is the id as a person reads and types it, the form `kapi context
+             * log` prints.
              * @member
-             * @type {number}
+             * @type {string}
              */
-            this["seq"] = 0;
+            this["short"] = "";
         }
         if (!("project_key" in $$source)) {
             /**
