@@ -254,22 +254,19 @@ func removeFilterFromFile(path, filterID string) {
 	_ = writeFiltersFile(path, ff)
 }
 
-// ensureLocalFiltersGitignored makes sure .kapi/.gitignore excludes the personal
-// filters file. project.EnsureLayout seeds the whole standard rule, so this is
-// the repair path for a state directory that predates it or has been edited
-// down: an absent file gets the full rule, an existing one gains the missing
-// line.
+// ensureLocalFiltersGitignored makes sure .kapi/.gitignore keeps the personal
+// filters file out of version control. project.EnsureLayout writes a rule that
+// ignores the whole directory; this is the repair path for a `.kapi/` that
+// carries a rule of its own, or none because it holds committed files. Either
+// way it only ever adds the one line naming the personal file.
 func ensureLocalFiltersGitignored(layout project.Layout) error {
 	path := filepath.Join(layout.StateDir, project.StateGitignoreFilename)
 	existing, _ := os.ReadFile(path)
 	content := string(existing)
-	if strings.Contains(content, project.LocalFiltersFilename) {
+	if project.GitignoreCovers(content, project.LocalFiltersFilename) {
 		return nil
 	}
-	if content == "" {
-		return os.WriteFile(path, []byte(project.StateGitignore), 0o644)
-	}
-	if !strings.HasSuffix(content, "\n") {
+	if content != "" && !strings.HasSuffix(content, "\n") {
 		content += "\n"
 	}
 	content += project.LocalFiltersFilename + "\n"

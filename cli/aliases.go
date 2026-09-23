@@ -34,6 +34,7 @@ type (
 	DiffOptions                   = host.DiffOptions
 	InitOptions                   = host.InitOptions
 	InitResult                    = host.InitResult
+	ProposedCollection            = host.ProposedCollection
 	PluginUpdateOverrides         = host.PluginUpdateOverrides
 	RegistryPluginEntry           = host.RegistryPluginEntry
 	EnvCommand                    = host.EnvCommand
@@ -171,8 +172,6 @@ var (
 	ExportKMB                    = host.ExportKMB
 	ExportKTB                    = host.ExportKTB
 	FilterFormats                = host.FilterFormats
-	FrameworkBindings            = host.FrameworkBindings
-	FrameworkContent             = host.FrameworkContent
 	FrameworkPresetEntry         = host.FrameworkPresetEntry
 	HasTag                       = host.HasTag
 	HumanBytes                   = host.HumanBytes
@@ -239,8 +238,8 @@ var (
 	RuleRewrite                  = host.RuleRewrite
 	RunBlockTool                 = host.RunBlockTool
 	RunVersionProbe              = host.RunVersionProbe
-	ScaffoldContentRecipe        = host.ScaffoldContentRecipe
 	ScaffoldRecipe               = host.ScaffoldRecipe
+	RenderCollections            = host.RenderCollections
 	SignalContext                = host.SignalContext
 	StrictDecodeProblems         = host.StrictDecodeProblems
 	ToFormatInfoParam            = host.ToFormatInfoParam

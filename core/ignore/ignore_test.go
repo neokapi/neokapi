@@ -42,6 +42,19 @@ func TestDirectoryOnlyPattern(t *testing.T) {
 	assert.False(t, m.Match("build", false), "file named build should not match")
 }
 
+// A leading slash anchors a pattern to the root, as in .gitignore: `/dist`
+// ignores the top-level directory and leaves `docs/dist` alone.
+func TestAnchoredPattern(t *testing.T) {
+	m := New()
+	m.AddPattern("/dist/")
+	m.AddPattern("/notes.md")
+
+	assert.True(t, m.Match("dist", true))
+	assert.False(t, m.Match("docs/dist", true))
+	assert.True(t, m.Match("notes.md", false))
+	assert.False(t, m.Match("docs/notes.md", false))
+}
+
 func TestNegation(t *testing.T) {
 	m := New()
 	m.AddPattern("*.log")
