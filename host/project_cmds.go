@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/preset"
@@ -178,14 +179,7 @@ func uncoveredProposals(proj *project.KapiProject, proposals []ProposedCollectio
 		if len(p.Files) == 0 {
 			continue
 		}
-		anyCovered := false
-		for _, f := range p.Files {
-			if covered(f) {
-				anyCovered = true
-				break
-			}
-		}
-		if !anyCovered {
+		if !slices.ContainsFunc(p.Files, covered) {
 			out = append(out, p)
 		}
 	}

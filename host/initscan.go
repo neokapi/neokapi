@@ -66,8 +66,9 @@ type ProposedCollection struct {
 type catalogSignal int
 
 const (
-	// signalFormat: the format is a catalog format by definition.
-	signalFormat catalogSignal = iota
+	// signalFormat (the zero value): the format is a catalog format by
+	// definition.
+	_ catalogSignal = iota
 	// signalDir: a directory on its path is named for the source language.
 	signalDir
 	// signalStem: its own name ends in the source language.
@@ -377,7 +378,7 @@ func catalogReason(p ProposedCollection, display, sourceLocale string) string {
 	count := plural(len(p.Files), display+" catalog", display+" catalogs")
 	switch p.signal {
 	case signalDir:
-		dir := p.Path[:strings.Index(p.Path, "/*")]
+		dir, _, _ := strings.Cut(p.Path, "/*")
 		return fmt.Sprintf("%s/: %s in the directory named for the source language (%s)", dir, count, sourceLocale)
 	case signalStem:
 		return fmt.Sprintf("%s: %s named for the source language (%s)", p.Path, count, sourceLocale)
