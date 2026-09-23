@@ -56,7 +56,7 @@ func TestEvalCellsDir(t *testing.T) {
 	defaulted, err := evalCellsDir(EvalOptions{RepoRoot: repo})
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Clean(os.TempDir()), filepath.Clean(defaulted),
-		"an unnamed cells directory stays where the drill has always put it")
+		"an unnamed cells directory is the system temporary directory")
 
 	named, err := evalCellsDir(EvalOptions{RepoRoot: repo, CellsDir: cells})
 	require.NoError(t, err)

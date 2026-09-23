@@ -123,7 +123,7 @@ func evalReviewGroups(key EvalKey, rows []EvalGrowRow) []evalReviewGroup {
 func renderEvalReviewSheet(report EvalReport) string {
 	var out strings.Builder
 	fmt.Fprintf(&out, "# Review sheet: %s\n\n", report.Study)
-	rows := report.growMeasured()
+	rows := report.Grow
 	total := 0
 	for _, row := range rows {
 		total += len(row.Score.Records)

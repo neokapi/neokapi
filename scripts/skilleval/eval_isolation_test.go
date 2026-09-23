@@ -38,7 +38,7 @@ func TestEvalEnvKeepsEveryRootInsideTheCell(t *testing.T) {
 		assert.Equal(t, want, evalEnvValue(t, env, name), "%s names this cell's own directory", name)
 	}
 	assert.NotContains(t, evalEnvNames(env), "KAPI_NO_PROJECT",
-		"the fixture's own recipe must be discoverable, which is part of what the drill measures")
+		"the fixture's own recipe must be discoverable, which is part of what is measured")
 	for _, name := range []string{"CLAUDE_CONFIG_DIR", "CODEX_HOME"} {
 		assert.True(t, strings.HasPrefix(evalEnvValue(t, env, name), paths.State),
 			"%s keeps the host out of the developer's own configuration", name)

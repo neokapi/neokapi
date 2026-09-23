@@ -139,7 +139,7 @@ var evalNameCues = []string{"name", "named", "called", "spell", "spelt", "writte
 func evalKey() EvalKey {
 	name := func(id, value string, variants ...string) EvalConvention {
 		c := EvalConvention{ID: id, Category: evalCategoryName,
-			Summary: fmt.Sprintf("%s is written %s, as one word", strings.ReplaceAll(id, "-", " "), value)}
+			Summary: fmt.Sprintf("The %s is written %s, as one word", strings.ReplaceAll(id, "-", " "), value)}
 		for _, variant := range variants {
 			c.Rules = append(c.Rules, EvalRule{Term: variant, Use: value})
 		}
@@ -197,7 +197,8 @@ func evalKey() EvalKey {
 				ID: "second-person", Category: evalCategoryHabit, Everywhere: true,
 				Summary: `addresses the reader as "you"`,
 				Rules:   []EvalRule{{"the user", "you"}, {"the user's", "your"}, {"users", "you"}},
-				Cues:    []string{"second person", "second-person", "address the reader", "addresses the reader", "the user"},
+				Cues: []string{"second person", "second-person", "address the reader", "addresses the reader",
+					"speaks directly to the reader", "speak directly to the reader", "addresses you", "the user"},
 			},
 			{
 				ID: "no-exclamation", Category: evalCategoryHabit, Everywhere: true,

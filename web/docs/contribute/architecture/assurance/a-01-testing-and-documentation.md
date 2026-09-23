@@ -250,6 +250,16 @@ ordinary tasks and retain their own phase in saved reports.
 See [Paired agent evaluation](../../implementation/repo/paired-agent-evaluation.md)
 for the manifest, execution stages and evidence records.
 
+The agent evaluation holds the integration fixed and measures what agents do
+with a project's context: whether they follow the rules a person holds, and
+whether what they record matches conventions the project keeps. It runs on a
+generated repository whose conventions, and one habit the project is
+inconsistent about, are written down as an answer key, and generation refuses
+pages that contradict the key. Scoring is deterministic and stated in code, a
+person's review of what agents recorded is collected as answers rather than
+inferred, and the parts that name product vocabulary sit in one place each. See
+[Agent evaluation](../../implementation/repo/agent-evaluation.md).
+
 Performance measurements distinguish fresh-process CLI work from persistent
 sessions and cold initialization from warm operation. Raw samples state their
 hardware, corpus, cache conditions and phase boundaries. Host timings exclude

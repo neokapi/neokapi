@@ -159,6 +159,10 @@ make mcp-eval               # does an agent pick the right MCP tool
 make skill-eval-completion  # does it finish the job (slow, 40-turn floor)
 ```
 
+The same program runs the agent evaluation, which scores whether agents apply
+and record a project's conventions against a generated fixture's answer key.
+Its phases and budget are in the [agent evaluation runbook](agent-evaluation.md).
+
 Four things about scenarios are worth knowing before writing one:
 
 - **The fixture is the scenario.** A prompt about `pitch.pptx` in an empty

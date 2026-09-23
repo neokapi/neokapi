@@ -127,7 +127,7 @@ func reportEval(opts EvalOptions) error {
 	}
 	stem := filepath.Join(opts.Dir, "report-"+pairedTimestamp())
 	sheet := stem + "-review.md"
-	if len(report.growMeasured()) != 0 {
+	if len(report.Grow) != 0 {
 		report.ReviewSheet = sheet
 		if err := writePairedExclusive(sheet, []byte(renderEvalReviewSheet(report))); err != nil {
 			return err
@@ -321,8 +321,12 @@ func evalGrowVerdict(host string, want int, rows []EvalGrowRow) EvalGrowHost {
 func renderEvalReport(report EvalReport) string {
 	var out strings.Builder
 	fmt.Fprintf(&out, "# Agent evaluation: %s\n\n", report.Study)
-	fmt.Fprintf(&out, "kapi %s (%s). Attempts reserved: %d. Scored from saved attempts; no model call.\n",
-		evalOr(strings.TrimSpace(report.KapiVersion), "version unrecorded"), evalOr(report.KapiCommit, "commit unrecorded"), report.Attempts)
+	commit := strings.TrimSpace(report.KapiCommit)
+	if len(commit) > 12 {
+		commit = commit[:12]
+	}
+	fmt.Fprintf(&out, "%s, from commit %s. Attempts reserved: %d. Scored from saved attempts; no model call.\n",
+		evalOr(strings.TrimSpace(report.KapiVersion), "kapi version unrecorded"), evalOr(commit, "unrecorded"), report.Attempts)
 	hosts := []string{}
 	for _, host := range report.Hosts {
 		hosts = append(hosts, host+" "+evalOr(report.HostVersion[host], "version unrecorded"))
@@ -398,7 +402,7 @@ func renderEvalReport(report EvalReport) string {
 		fmt.Fprintf(&out, "The review sheet is %s. No answers are recorded yet.\n\n", report.ReviewSheet)
 	default:
 		kept, total := 0, 0
-		for _, row := range report.growMeasured() {
+		for _, row := range report.Grow {
 			total += len(row.Score.Records)
 			kept += len(report.Review.Keep[row.Session])
 		}
