@@ -1751,7 +1751,7 @@ export class ContextActorDTO {
 }
 
 /**
- * ContextAwaiting is how many candidates one project has awaiting a decision.
+ * ContextAwaiting is how many suggestions one project has awaiting a decision.
  */
 export class ContextAwaiting {
     /**
@@ -2010,8 +2010,8 @@ export class ContextDecisionRequest {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Replacement and Severity edit the rule as it is confirmed. Empty leaves
-             * the rule as proposed.
+             * Replacement and Severity edit the rule as it is kept. Empty leaves the
+             * rule as suggested.
              * @member
              * @type {string | undefined}
              */
@@ -2129,7 +2129,7 @@ export class ContextFeed {
         }
         if (!("awaiting" in $$source)) {
             /**
-             * Awaiting is the per-project count of candidates awaiting a decision,
+             * Awaiting is the per-project count of suggestions awaiting a decision,
              * over the whole workspace whatever the feed was narrowed to, so the home
              * screen can show a count beside every project from one read.
              * @member
@@ -2147,7 +2147,7 @@ export class ContextFeed {
         }
         if (!("awaiting_here" in $$source)) {
             /**
-             * AwaitingHere counts the candidates awaiting a decision in what this feed
+             * AwaitingHere counts the suggestions awaiting a decision in what this feed
              * shows, which is the whole workspace when it was not narrowed.
              * @member
              * @type {number}
@@ -2233,8 +2233,8 @@ export class ContextFeedEntry {
         }
         if (!("kind" in $$source)) {
             /**
-             * Kind is "observe", "propose", "correct", "confirm", "discard", "revert"
-             * or "widen".
+             * Kind is "observe", "correct", "import", "edit", "keep", "drop",
+             * "withdraw", "revert" or "widen".
              * @member
              * @type {string}
              */
@@ -2242,11 +2242,21 @@ export class ContextFeedEntry {
         }
         if (!("status" in $$source)) {
             /**
-             * Status is "candidate", "confirmed", "discarded" or "reverted".
+             * Status is "suggested", "established", "contested", "withdrawn",
+             * "dropped" or "reverted".
              * @member
              * @type {string}
              */
             this["status"] = "";
+        }
+        if (!("contested_by" in $$source)) {
+            /**
+             * ContestedBy names the operations on the other side of a disagreement,
+             * for a contested entry.
+             * @member
+             * @type {string[]}
+             */
+            this["contested_by"] = [];
         }
         if (!("actor" in $$source)) {
             /**
@@ -2316,9 +2326,10 @@ export class ContextFeedEntry {
         }
         if (!("decidable" in $$source)) {
             /**
-             * Decidable reports a candidate carrying a rule a person can confirm or
-             * discard. A note and a correction that proposed nothing are recorded
-             * facts with nothing to decide.
+             * Decidable reports a suggestion carrying a rule a person can keep or
+             * drop. A note and a correction that suggested nothing are recorded facts
+             * with nothing to decide. A contested suggestion is decidable too, and
+             * keeping it waits until the other side is dropped.
              * @member
              * @type {boolean}
              */
@@ -2360,30 +2371,34 @@ export class ContextFeedEntry {
      * @returns {ContextFeedEntry}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType35;
-        const $$createField7_0 = $$createType36;
-        const $$createField8_0 = $$createType38;
-        const $$createField9_0 = $$createType40;
-        const $$createField10_0 = $$createType41;
-        const $$createField17_0 = $$createType6;
+        const $$createField6_0 = $$createType6;
+        const $$createField7_0 = $$createType35;
+        const $$createField8_0 = $$createType36;
+        const $$createField9_0 = $$createType38;
+        const $$createField10_0 = $$createType40;
+        const $$createField11_0 = $$createType41;
+        const $$createField18_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("contested_by" in $$parsedSource) {
+            $$parsedSource["contested_by"] = $$createField6_0($$parsedSource["contested_by"]);
+        }
         if ("actor" in $$parsedSource) {
-            $$parsedSource["actor"] = $$createField6_0($$parsedSource["actor"]);
+            $$parsedSource["actor"] = $$createField7_0($$parsedSource["actor"]);
         }
         if ("subject" in $$parsedSource) {
-            $$parsedSource["subject"] = $$createField7_0($$parsedSource["subject"]);
+            $$parsedSource["subject"] = $$createField8_0($$parsedSource["subject"]);
         }
         if ("correction" in $$parsedSource) {
-            $$parsedSource["correction"] = $$createField8_0($$parsedSource["correction"]);
+            $$parsedSource["correction"] = $$createField9_0($$parsedSource["correction"]);
         }
         if ("evidence" in $$parsedSource) {
-            $$parsedSource["evidence"] = $$createField9_0($$parsedSource["evidence"]);
+            $$parsedSource["evidence"] = $$createField10_0($$parsedSource["evidence"]);
         }
         if ("scope" in $$parsedSource) {
-            $$parsedSource["scope"] = $$createField10_0($$parsedSource["scope"]);
+            $$parsedSource["scope"] = $$createField11_0($$parsedSource["scope"]);
         }
         if ("widen_to" in $$parsedSource) {
-            $$parsedSource["widen_to"] = $$createField17_0($$parsedSource["widen_to"]);
+            $$parsedSource["widen_to"] = $$createField18_0($$parsedSource["widen_to"]);
         }
         return new ContextFeedEntry(/** @type {Partial<ContextFeedEntry>} */($$parsedSource));
     }
@@ -2472,7 +2487,7 @@ export class ContextFeedGroup {
         }
         if (!("awaiting" in $$source)) {
             /**
-             * Awaiting is how many of the group's candidates await a decision.
+             * Awaiting is how many of the group's suggestions await a decision.
              * @member
              * @type {number}
              */
@@ -2480,19 +2495,12 @@ export class ContextFeedGroup {
         }
         if (!("recorded" in $$source)) {
             /**
-             * Recorded, Proposed, Corrected and Confirmed are the counts a summary
-             * line reads out.
+             * Recorded, Corrected, Kept and Dropped are the counts a summary line
+             * reads out.
              * @member
              * @type {number}
              */
             this["recorded"] = 0;
-        }
-        if (!("proposed" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["proposed"] = 0;
         }
         if (!("corrected" in $$source)) {
             /**
@@ -2501,19 +2509,19 @@ export class ContextFeedGroup {
              */
             this["corrected"] = 0;
         }
-        if (!("confirmed" in $$source)) {
+        if (!("kept" in $$source)) {
             /**
              * @member
              * @type {number}
              */
-            this["confirmed"] = 0;
+            this["kept"] = 0;
         }
-        if (!("discarded" in $$source)) {
+        if (!("dropped" in $$source)) {
             /**
              * @member
              * @type {number}
              */
-            this["discarded"] = 0;
+            this["dropped"] = 0;
         }
         if (!("quiet" in $$source)) {
             /**
@@ -2542,13 +2550,13 @@ export class ContextFeedGroup {
      */
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType35;
-        const $$createField16_0 = $$createType43;
+        const $$createField15_0 = $$createType43;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("actor" in $$parsedSource) {
             $$parsedSource["actor"] = $$createField2_0($$parsedSource["actor"]);
         }
         if ("entries" in $$parsedSource) {
-            $$parsedSource["entries"] = $$createField16_0($$parsedSource["entries"]);
+            $$parsedSource["entries"] = $$createField15_0($$parsedSource["entries"]);
         }
         return new ContextFeedGroup(/** @type {Partial<ContextFeedGroup>} */($$parsedSource));
     }
@@ -3287,8 +3295,8 @@ export class ContextSubjectDTO {
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
             /**
-             * Kind is "term", "voice", "memory", "note", or empty for an operation
-             * that acts on another.
+             * Kind is "term", "memory", "note", or empty for an operation that acts
+             * on another.
              * @member
              * @type {string | undefined}
              */
@@ -3296,11 +3304,20 @@ export class ContextSubjectDTO {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Term, Replacement and Severity are the rule, for a term or voice subject.
+             * Term, Replacement and Severity are the rule, for a term subject: Term is
+             * the form to avoid, Forms the other forms it avoids, and Replacement the
+             * form to use.
              * @member
              * @type {string | undefined}
              */
             this["term"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["forms"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -3315,14 +3332,6 @@ export class ContextSubjectDTO {
              * @type {string | undefined}
              */
             this["severity"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * List is the voice profile's vocabulary list a voice rule sits in.
-             * @member
-             * @type {string | undefined}
-             */
-            this["list"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -3373,7 +3382,11 @@ export class ContextSubjectDTO {
      * @returns {ContextSubjectDTO}
      */
     static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("forms" in $$parsedSource) {
+            $$parsedSource["forms"] = $$createField2_0($$parsedSource["forms"]);
+        }
         return new ContextSubjectDTO(/** @type {Partial<ContextSubjectDTO>} */($$parsedSource));
     }
 }

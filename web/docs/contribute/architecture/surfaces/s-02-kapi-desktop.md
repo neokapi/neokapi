@@ -193,18 +193,21 @@ The feed groups by session. An agent session is the id its operations carry, so
 one run is one card however long it lasts. A person at a terminal and a tool
 record no session, so their operations group by actor and local day, which is
 the span a person recognises as their own work. Each card carries the counts a
-finished session reads out in one line, and says "still working" until nothing
-has been added for two minutes.
+finished session reads out in one line (recorded, corrected, kept and dropped),
+and says "still working" until nothing has been added for two minutes.
 
 Each operation shows its kind, its actor with the machine an agent ran on, the
-rule or wording it is about, its status, and its evidence: the file, the unit
-and the quotation. Evidence is on the card rather than behind a disclosure for
+rule or wording it is about, its status (`suggested`, `established`,
+`contested`, `withdrawn`, `dropped` or `reverted`, with a contested entry
+reading "Contested by #n"), and its evidence: the file, the unit and the
+quotation. Evidence is on the card rather than behind a disclosure for
 anything awaiting a decision, because a decision taken without it is a guess.
 
-**Deciding goes through the host API and nothing else.** Confirm, confirm with
-an edit, discard, revert one operation, revert a session and widen are
-`host.App.ConfirmContextOperation` and its neighbours, which own the policy
-about who may do what; the desktop re-implements none of it. The acting actor is
+**Deciding goes through the host API and nothing else.** Keep, keep with an
+edit, drop, revert one operation, revert a session and widen are the backend's
+`KeepContextSuggestion`, `DropContextSuggestion` and their neighbours, which
+call `host.App.KeepContextOperation` and the host's other context operations.
+The host owns the policy about who may do what; the desktop re-implements none of it. The acting actor is
 `contextop.Actor{Kind: ActorPerson}` with no name, because the app holds no
 account and the person at the keyboard is the one acting. Reading is
 `contextop.Ledger` over the workspace, because the host's reads resolve a
@@ -220,14 +223,15 @@ computes that and a number invented in the frontend would be a second answer
 about content the engine never gave.
 
 The keys are the review session's, so the two decision surfaces feel the same:
-`j`/`k` and the arrows move over the candidates, `a` confirms, `r` discards, `e`
-opens the edit, and a field with focus keeps its own keys. The workspace watcher
-is what keeps the feed current, so a proposal recorded elsewhere appears within
-a second. The previous answer stays mounted through the refetch, which is what
+`j`/`k` and the arrows move over the suggestions, `a` keeps, `r` drops, `e`
+opens the edit, and a field with focus keeps its own keys. A contested
+suggestion can be dropped at once and kept only after a person drops the other
+side. The workspace watcher is what keeps the feed current, so a suggestion
+recorded elsewhere appears within a second. The previous answer stays mounted through the refetch, which is what
 keeps the scroll position and a half-typed edit through an agent recording in
 the middle of it.
 
-A count of candidates awaiting a decision sits beside each project on the home
+A count of suggestions awaiting a decision sits beside each project on the home
 and on the hub's Recorded tab. It is absent at zero rather than shown as a
 zero.
 

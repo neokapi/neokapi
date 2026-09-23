@@ -55,7 +55,7 @@ Retrieval is addressed **by location** or **by content**, never by store.
 
 **By location** answers *what applies here*: the point the location resolves to,
 the profile in force, its rendered guidance, the terms bound at that point, the
-candidates nobody has decided on, and the governance windows around them. It
+suggestions nobody has decided on, and the governance windows around them. It
 resolves through
 `KapiProject.ResolveGovernanceFor` ([C-02](c-02-coordinates-and-governance.md)),
 the seam a run, a check and a push resolve through, so the voice a writer reads
@@ -119,10 +119,10 @@ nothing about how the answer was reached:
   then its patterns, comment limits, examples and shared constraints
   (`profile.RenderVoiceBrief`);
 - one list, **Say this, not that**, merging the terms in force at the point, the
-  rules confirmed across the workspace and the voice's vocabulary at render
+  rules established and widened to the workspace, and the voice's vocabulary at render
   time, keyed by the wording to use, so a rule held in two places is one line
   (`host/contextrules.go`); storage keeps the three apart;
-- the candidates under **Suggested, not yet established**, less any the list
+- the suggestions under **Suggested, not yet established**, less any the list
   already states;
 - a closing line naming `context_observe` (and `kapi context observe`), because
   what the writer notices while reading is how the next answer gets better.
@@ -202,7 +202,7 @@ force behind it:
 
 | Primitive | What is counted |
 | --- | --- |
-| By location | the voice profile in force at the point; the terms bound there and in force; the rules confirmed and widened at it ([C-11](c-11-context-operations.md)) |
+| By location | the voice profile in force at the point; the terms bound there and in force; the rules established and widened at it ([C-11](c-11-context-operations.md)) |
 | By content | the terms the query matched; the prior wording it found |
 
 Two or more is `covered`, one is `thin`, none is `empty`. Three grades, because
@@ -211,21 +211,29 @@ finer scale would be a number nobody could act on differently. The grade
 describes **the answer**, so a search for a word the project has never written
 about is empty whatever else the project holds.
 
-**A candidate counts for less than anything in force.** A proposal nobody has
-decided on holds no content to anything, so it never makes an answer `covered`.
-It does lift `empty` to `thin`, because a candidate is evidence that someone
-looked here, and `empty` then means what it says: nothing at all has been
-recorded at this point. The by-location answer reads them through
-`App.ContextRulesAt`, the seam a check resolves them with, so a candidate an
-answer mentions is a candidate a check reports.
+**A suggestion counts for less than anything in force.** A suggestion nobody
+has decided on holds no content to anything, so it never makes an answer
+`covered`. It does lift `empty` to `thin`, because a suggestion is evidence that
+someone looked here, and `empty` then means what it says: nothing at all has
+been recorded at this point. The by-location answer reads them through
+`App.ContextRulesAt`, the seam a check resolves them with, so a suggestion an
+answer mentions is a suggestion a check reports.
 
-**Candidates are listed, apart from everything in force.** The answer carries a
-`candidates` list beside `voice` and `terms`: each entry says it is a candidate,
-what it proposes, who recorded it, in which session, and the evidence behind it,
-with the operation id a person confirms it by. The rules in it are the ones the
-resolution holds at the point, so the list and a check cannot disagree, and the
-operation log supplies the provenance a reader judges one by. The prose
-rendering lists them under **Suggested, not yet established**.
+**Suggestions are listed, apart from everything in force.** The answer carries a
+`suggestions` list beside `voice` and `terms`. Each entry carries its status
+(`suggested`, or `contested` with `contested_by` naming the other side), the
+rule or note it states, who suggested it (`suggested_by`), in which session,
+and the evidence behind it, with the operation id a person keeps it by. The
+rules in it are the ones the resolution holds at the point, so the list and a
+check cannot disagree, and the operation log supplies the provenance a reader
+judges one by. The prose rendering lists them under **Suggested, not yet
+established**.
+
+The by-content answer carries the same `suggestions` list for the word it was
+asked about: suggested term rules whose forms or replacement contain it, and
+notes whose text does. A word an agent has just observed therefore reads as
+suggested rather than as nothing recorded, and the suggestion lifts an empty
+search to `thin` in the same way.
 
 A second agent reading a location therefore builds on what the first one
 recorded rather than working the same facts out again, and cannot mistake either
@@ -235,11 +243,11 @@ for a rule in force. Neither can it act on them: deciding is a person's
 A thin or empty by-location answer adds one note to the JSON: that this project
 records nothing here yet, and what is worth noticing while the work is done (the
 names the project gives its own things, the spellings it keeps to, who the text
-addresses, how formal it is). Where candidates stand behind a thin answer, the
-note counts them and says they are waiting to be confirmed or discarded. The
+addresses, how formal it is). Where suggestions stand behind a thin answer, the
+note counts them and says they are waiting to be kept or dropped. The
 prose says it in two sentences: nothing is recorded for this file yet, and
 record the names and spellings the project keeps to with `context_observe`. It
-**states no rule**, because none is in force, and handing a writer a proposal
+**states no rule**, because none is in force, and handing a writer a suggestion
 the project has not agreed to is the one outcome worse than saying nothing.
 
 The by-content answer carries that note when it found nothing at all and on no
@@ -303,10 +311,11 @@ in its place) as a note.
 ### The generated surface is opt-in
 
 MCP serves **tool sets** ([S-03](../surfaces/s-03-agent-surfaces.md)), and the
-writing set is the default: the two retrieval primitives, the context write
-tools and the session read (`context_observe`, `context_propose`,
-`context_correct`, `context_withdraw`, `context_session_summary`,
-[C-11](c-11-context-operations.md)), and `check_file`. The content, translation
+writing set is the default: the two retrieval primitives with `context_read`,
+the tool form of the by-location resource, then the context write tools and the
+session read (`context_observe`, `context_correct`, `context_withdraw`,
+`context_session_summary`, [C-11](c-11-context-operations.md)), and
+`check_file`. The content, translation
 and review sets carry the rest of the porcelain, with three registry tools that
 have no porcelain equivalent (`translate`, `term-check`, `redact`). `kapi mcp
 --all-tools` adds the full generated surface for debugging and power use.

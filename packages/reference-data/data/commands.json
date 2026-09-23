@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T21:59:46Z",
+  "generatedAt": "2026-09-23T22:59:02Z",
   "commands": [
     {
       "id": "add",
@@ -578,7 +578,7 @@
       ],
       "use": "context [path]",
       "short": "Ask what applies before you write a file",
-      "long": "Ask what this project keeps to before you write a file: the voice, the\nwords to use and to avoid, and what has been suggested but not yet established.\n\n  kapi context \u003cpath\u003e          what applies to that file\n  kapi context --profile \u003cn\u003e   the same answer for a named profile\n  kapi context search \u003cword\u003e   what the project says about one word\n\nThe answer is the same text an assistant reads from the context:// resource.\n--explain adds how it was reached: the point the file sits at, the recipe line\nthat bound the voice, and the project and revision that answered. --json gives\nall of it as data.\n\nThe subcommands record and decide. observe, propose and correct record what you\nnotice; log lists it; confirm, discard, revert and widen are a person's\ndecisions. import, snapshot, export and restore move the context between the\nstore and files, and locales reports how stored rows are filed.",
+      "long": "Ask what this project keeps to before you write a file: the voice, the\nwords to use and to avoid, and what has been suggested but not yet established.\n\n  kapi context \u003cpath\u003e          what applies to that file\n  kapi context --profile \u003cn\u003e   the same answer for a named profile\n  kapi context search \u003cword\u003e   what the project says about one word\n\nThe answer is the same text an assistant reads from the context:// resource.\n--explain adds how it was reached: the point the file sits at, the recipe line\nthat bound the voice, and the project and revision that answered. --json gives\nall of it as data.\n\nThe subcommands record and decide. observe and correct record what you notice,\nas suggestions; log lists them; keep, drop, revert and widen are a person's\ndecisions, and withdraw takes back a suggestion of your own. import, snapshot, export and restore move the context between the\nstore and files, and locales reports how stored rows are filed.",
       "groupID": "work",
       "flags": [
         {
@@ -639,53 +639,6 @@
       "demoMode": false
     },
     {
-      "id": "context.confirm",
-      "path": [
-        "context",
-        "confirm"
-      ],
-      "use": "confirm \u003cid\u003e",
-      "short": "Make a proposed rule binding",
-      "long": "Confirm a proposal, which makes its rule binding at the severity it\ncarries and writes it where the rest of kapi reads it: the project's terms, its\nvoice profile, or its content memory.\n\nThe write goes into the committed file the recipe binds, so \"git diff\" shows the\ndecision like any other change.\n\nEdit the rule as you confirm it with --use and --severity, and widen it past the\npoint its evidence was seen at with --widen-to.",
-      "flags": [
-        {
-          "name": "note",
-          "usage": "why",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
-          "type": "string"
-        },
-        {
-          "name": "severity",
-          "usage": "change how hard the rule bites: minor or neutral report, anything else fails a check",
-          "type": "string"
-        },
-        {
-          "name": "use",
-          "usage": "change what the rule says to write instead",
-          "type": "string"
-        },
-        {
-          "name": "widen-to",
-          "usage": "widen as you confirm: \"workspace\", or the name of an axis the rule should stop being specific about",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context confirm 7",
-        "kapi context confirm 7 --use \"content memory\"",
-        "kapi context confirm 7 --severity critical",
-        "kapi context confirm 7 --widen-to workspace"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
       "id": "context.correct",
       "path": [
         "context",
@@ -693,7 +646,7 @@
       ],
       "use": "correct \u003cfrom\u003e \u003cto\u003e",
       "short": "Record that wording was changed at a place",
-      "long": "Record that somebody changed wording: what was there, what replaced\nit, and where.\n\nA correction is evidence about how this project writes, and the cheapest there\nis, because the judgement has already been made. On its own it records the\nchange and nothing else.\n\nWith --propose it also records the rule the change implies, so the next use of\nthe old wording is reported. That rule is a candidate: checks report it and none\nof them fails on it until someone confirms it.",
+      "long": "Record that somebody changed wording: what was there, what replaced\nit, and where.\n\nA correction is evidence about how this project writes, and the cheapest there\nis, because the judgement has already been made. On its own it records the\nchange and nothing else.\n\nWith --suggest it also records the rule the change implies, so the next use of\nthe old wording is reported. That rule is a suggestion: checks report it and\nnone of them fails on it until a person keeps it.\n\nA person's correction that reverses an established rule contests the rule: it\nreports instead of failing until a person keeps it again or drops the\ncorrection, so your own edit never fails your build.",
       "flags": [
         {
           "name": "note",
@@ -705,12 +658,6 @@
           "shorthand": "p",
           "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
-        },
-        {
-          "name": "propose",
-          "usage": "also record the rule the change implies, as a candidate",
-          "default": "false",
-          "type": "bool"
         },
         {
           "name": "quote",
@@ -725,27 +672,33 @@
         },
         {
           "name": "severity",
-          "usage": "how hard that rule bites once confirmed: minor or neutral report, anything else fails a check",
+          "usage": "how hard that rule bites once kept: minor or neutral report, anything else fails a check",
           "type": "string"
+        },
+        {
+          "name": "suggest",
+          "usage": "also record the rule the change implies, as a suggestion",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
         "kapi context correct \"sign in\" \"log in\" --seen-in web/src/auth.tsx",
-        "kapi context correct utilise use --seen-in docs/guide.md --propose --severity minor"
+        "kapi context correct utilise use --seen-in docs/guide.md --suggest --severity minor"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
       "demoMode": false
     },
     {
-      "id": "context.discard",
+      "id": "context.drop",
       "path": [
         "context",
-        "discard"
+        "drop"
       ],
-      "use": "discard \u003cid\u003e",
-      "short": "Reject a proposed rule",
-      "long": "Discard a proposal. It stops being reported at once, and the record\nof it stays in the log so the same suggestion can be recognised next time.\n\nDiscarding a rule that was already confirmed takes it back out of the project's\nterms, voice profile or content memory, and out of the committed file it was\nwritten to.",
+      "use": "drop \u003cid\u003e",
+      "short": "Set a suggestion aside",
+      "long": "Drop a suggestion. It stops being reported at once, and the record\nof it stays in the log so the same suggestion can be recognised next time.\n\nDropping one side of a disagreement settles it: the other side is no longer\ncontested. An established rule is reverted rather than dropped.",
       "flags": [
         {
           "name": "note",
@@ -760,8 +713,8 @@
         }
       ],
       "examples": [
-        "kapi context discard 7",
-        "kapi context discard 7 --note \"we say it both ways on purpose\""
+        "kapi context drop 7",
+        "kapi context drop 7 --note \"we say it both ways on purpose\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -845,6 +798,60 @@
       "demoMode": false
     },
     {
+      "id": "context.keep",
+      "path": [
+        "context",
+        "keep"
+      ],
+      "use": "keep [id...]",
+      "short": "Establish suggestions as rules",
+      "long": "Keep suggestions, which establishes each rule at the severity it\ncarries and writes it where the rest of kapi reads it: the project's terms or\nits content memory.\n\nName one or more operations by id, or keep everything one agent session\nsuggested with --session. A contested suggestion disagrees with another rule,\nand waits until you choose: a session keep leaves it and says so, and naming it\nis refused with the other side named. Drop the side you do not want, then keep\nthe other.\n\nChange the rule as you keep it with --use and --severity, and widen it past the\npoint its evidence was seen at with --widen-to.",
+      "flags": [
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "session",
+          "usage": "keep everything one agent session suggested that nothing disagrees with",
+          "type": "string"
+        },
+        {
+          "name": "severity",
+          "usage": "change how hard the rule bites: minor or neutral report, anything else fails a check",
+          "type": "string"
+        },
+        {
+          "name": "use",
+          "usage": "change what the rule says to write instead (one id)",
+          "type": "string"
+        },
+        {
+          "name": "widen-to",
+          "usage": "widen as you keep: \"workspace\", or the name of an axis the rule should stop being specific about",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context keep 7",
+        "kapi context keep 7 9 12",
+        "kapi context keep --session s0ab4e399",
+        "kapi context keep 7 --use \"content memory\"",
+        "kapi context keep 7 --severity critical",
+        "kapi context keep 7 --widen-to workspace"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "context.locales",
       "path": [
         "context",
@@ -884,7 +891,7 @@
       ],
       "use": "log",
       "short": "Show how this project's context came to be",
-      "long": "List what has been proposed, corrected and decided about this\nproject's context, newest first.\n\nEach line carries an operation's id, when it happened, who did it, what it was\nabout and where it stands: a candidate nobody has decided on, a confirmed rule\nin force, or one that was discarded or reverted.\n\nThe id is what the other verbs take. Narrow the list with --status to see what\nis waiting for a decision, or with --session to see what one agent run did.\n\"--session this\" is that run reading back its own work.",
+      "long": "List what has been observed, corrected, imported and decided about\nthis project's context, newest first.\n\nEach line carries an operation's id, when it happened, who did it, what it was\nabout and where it stands: suggested and waiting for a person, established and\nin force, contested by another rule it names, or withdrawn, dropped or\nreverted.\n\nThe id is what the other verbs take. Narrow the list with --status to see what\nis waiting for a decision, or with --session to see what one agent run did.\n\"--session this\" is that run reading back its own work.",
       "flags": [
         {
           "name": "actor",
@@ -915,19 +922,20 @@
         },
         {
           "name": "status",
-          "usage": "only operations at one status: candidate, confirmed, discarded or reverted",
+          "usage": "only operations at one status: suggested, established, contested, withdrawn, dropped or reverted",
           "type": "string"
         },
         {
           "name": "subjects",
-          "usage": "only what was proposed, leaving out the decisions about it",
+          "usage": "only what was recorded, leaving out the decisions about it",
           "default": "false",
           "type": "bool"
         }
       ],
       "examples": [
         "kapi context log",
-        "kapi context log --status candidate",
+        "kapi context log --status suggested",
+        "kapi context log --status contested",
         "kapi context log --session 0ab4e399 --json",
         "kapi context log --session this",
         "kapi context log --actor agent --since 2026-09-01"
@@ -942,10 +950,16 @@
         "context",
         "observe"
       ],
-      "use": "observe \u003cwhat you noticed\u003e",
-      "short": "Record a fact about how this project writes",
-      "long": "Record something you noticed about how this project writes: a\nproduct name as it spells it, a spelling it is consistent about, who its text\naddresses, the register it keeps.\n\nAn observation states no rule. Nothing about a check changes, and nobody has to\ndecide anything about it. It is the material a rule is proposed from later, and\nrecording it costs less than working the same fact out twice.\n\nSay where you saw it with --seen-in and --quote.",
+      "use": "observe [what you noticed]",
+      "short": "Record something you noticed about how this project writes",
+      "long": "Record something you noticed about how this project writes: a\nproduct name as it spells it, a spelling it is consistent about, who its text\naddresses, the register it keeps.\n\nFor a name or spelling, pass --term with the form the project uses and\n--instead-of with a form it avoids. kapi derives the other forms to avoid: the\nspaced, hyphenated and closed spellings of a compound, each part capitalised,\nand the lower-case spelling of a capitalised term. \"--term Quickcast\n--instead-of 'Quick cast'\" avoids Quick cast, Quick-cast, QuickCast and\nquickcast. The parts of a closed word come from an --instead-of form that\nbreaks it, so a word with none varies only its case.\n\nEverything recorded is a suggestion. Checks report it wherever the word\nappears, no check fails on it, and it is established when a person keeps it\nwith \"kapi context keep\". Without --term an observation is a fact in prose.\n\nSay where you saw it with --seen-in and --quote.",
       "flags": [
+        {
+          "name": "instead-of",
+          "usage": "a form the project avoids for --term (repeatable)",
+          "default": "[]",
+          "type": "stringArray"
+        },
         {
           "name": "project",
           "shorthand": "p",
@@ -962,69 +976,18 @@
           "usage": "a file you saw it in (repeatable)",
           "default": "[]",
           "type": "stringSlice"
+        },
+        {
+          "name": "term",
+          "usage": "the form the project uses for a name or word",
+          "type": "string"
         }
       ],
       "examples": [
         "kapi context observe \"the docs address the reader as you\"",
-        "kapi context observe \"the product is written Kapi Desktop, never KapiDesktop\" \\",
-        "--seen-in docs/guide.md --quote \"Open Kapi Desktop and pick a project.\""
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.propose",
-      "path": [
-        "context",
-        "propose"
-      ],
-      "use": "propose \u003cterm\u003e",
-      "short": "Propose a rule about a word, for someone to confirm",
-      "long": "Propose a rule about a word: write this instead of that.\n\nA proposal takes effect at once as advice. Checks report it wherever the word\nappears, and no check fails on it, so a proposal never stops anyone's work. It\nstarts binding when someone confirms it with \"kapi context confirm\".\n\nSay where you saw the word with --seen-in. A rule with evidence behind it can be\nargued with later; a rule without any is a preference somebody typed.\n\nPropose a rule for the voice profile's vocabulary with --list, and one for the\nproject's terms without it.",
-      "flags": [
-        {
-          "name": "list",
-          "usage": "propose a voice-profile rule in this list instead of a project term: forbidden, competitor or preferred",
-          "type": "string"
-        },
-        {
-          "name": "note",
-          "usage": "why",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
-          "type": "string"
-        },
-        {
-          "name": "quote",
-          "usage": "the wording it was seen in",
-          "type": "string"
-        },
-        {
-          "name": "seen-in",
-          "usage": "a file the word was seen in (repeatable)",
-          "default": "[]",
-          "type": "stringSlice"
-        },
-        {
-          "name": "severity",
-          "usage": "how hard the rule bites once confirmed: minor or neutral report, anything else fails a check",
-          "type": "string"
-        },
-        {
-          "name": "use",
-          "usage": "what to write instead",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context propose utilise --use use",
-        "kapi context propose utilise --use use --seen-in docs/guide.md",
-        "kapi context propose Ripgrep --use ripgrep --list forbidden --severity major"
+        "kapi context observe --term Quickcast --instead-of \"Quick cast\" \\",
+        "--seen-in README.md --quote \"Quickcast forecasts the next hour.\"",
+        "kapi context observe \"we write use, never utilise\" --term use --instead-of utilise --instead-of utilize"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -1201,8 +1164,8 @@
         "widen"
       ],
       "use": "widen \u003cid\u003e",
-      "short": "Put a confirmed rule in force somewhere broader",
-      "long": "Widen a confirmed rule past the point its evidence was seen at.\n\nA rule learned in one place holds in that place. Widening says it holds more\nwidely: \"--to workspace\" puts it in force in every project you work on here, and\nnaming an axis drops that axis from the rule's point so it stops being specific\nabout it.\n\nA project that has its own decision about the word keeps it. The more specific\nanswer always wins.",
+      "short": "Put an established rule in force somewhere broader",
+      "long": "Widen an established rule past the point its evidence was seen at.\n\nA rule learned in one place holds in that place. Widening says it holds more\nwidely: \"--to workspace\" puts it in force in every project you work on here, and\nnaming an axis drops that axis from the rule's point so it stops being specific\nabout it.\n\nA project that has its own decision about the word keeps it. The more specific\nanswer always wins.",
       "flags": [
         {
           "name": "note",
@@ -1224,6 +1187,36 @@
       "examples": [
         "kapi context widen 7 --to workspace",
         "kapi context widen 7 --to mode"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.withdraw",
+      "path": [
+        "context",
+        "withdraw"
+      ],
+      "use": "withdraw \u003cid\u003e",
+      "short": "Take back a suggestion you recorded",
+      "long": "Withdraw a suggestion you recorded, such as a correction entered\nbackwards. Only its author can withdraw a suggestion, and an agent only in the\nsession that recorded it. It stops being reported at once, and the log keeps\nthe record of it.",
+      "flags": [
+        {
+          "name": "note",
+          "usage": "what was wrong with it",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context withdraw 7",
+        "kapi context withdraw 7 --note \"recorded the wrong way round\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -5772,7 +5765,7 @@
       ],
       "use": "mcp",
       "short": "Start an MCP server (stdio) for assistants writing in this project",
-      "long": "Start an MCP server over stdio.\n\n--tools picks the tool sets it serves, as a comma-separated list:\n\n  writing       (default) the context:// resources, context_search, the\n                recording tools (context_observe, context_propose,\n                context_correct, context_withdraw), context_session_summary\n                and check_file\n  content       check_text, voice_check, voice_rewrite, term-check,\n                extract_content, detect_format, apply_edits, redact\n  translation   translate, up, up_plan, stats\n  review        review_queue, review_unit, approve_unit, reject_unit,\n                sign_off_unit\n  all           every set\n\nTwo flags add what no set holds, for debugging:\n\n  --all-tools   every CLI-visible registry tool (pipeline steps, format\n                internals, one-off transforms)\n  --all-flows   the flow-running verbs\n  --all         every set and both of these",
+      "long": "Start an MCP server over stdio.\n\n--tools picks the tool sets it serves, as a comma-separated list:\n\n  writing       (default) context_read and the context:// resources,\n                context_search, the recording tools (context_observe,\n                context_correct, context_withdraw), context_session_summary\n                and check_file\n  content       check_text, voice_check, voice_rewrite, term-check,\n                extract_content, detect_format, apply_edits, redact\n  translation   translate, up, up_plan, stats\n  review        review_queue, review_unit, approve_unit, reject_unit,\n                sign_off_unit\n  all           every set\n\nTwo flags add what no set holds, for debugging:\n\n  --all-tools   every CLI-visible registry tool (pipeline steps, format\n                internals, one-off transforms)\n  --all-flows   the flow-running verbs\n  --all         every set and both of these",
       "groupID": "advanced",
       "flags": [
         {

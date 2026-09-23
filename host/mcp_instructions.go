@@ -17,14 +17,14 @@ package host
 // MCPInstructions is the server's introduction when it serves the writing
 // set, delivered to every client on initialize.
 //
-// It points at the CLI as well as the resource. Some clients list only
-// concrete resources and never a resource template, so a model there has no
-// way to find `context://` except this text, and the shell command gives it
-// the same answer whether or not its client can read resources.
+// It points at context_read rather than the resource. The server offers the
+// resource only as a template, and a client lists no resources from a
+// template, so a model working from its tool list reaches the answer through
+// the tool, which returns the same text.
 func MCPInstructions() string {
-	return "This project's writing rules are kept by kapi. Before you change a file, read `context://<path>` " +
-		"for it (a project-relative path). It gives the voice and the words to use there, or says nothing " +
-		"is recorded yet. Without resource support, `kapi context <path>` prints the same text.\n\n" +
+	return "This project's writing rules are kept by kapi. Before you change a file, call context_read " +
+		"with its project-relative path. It gives the voice and the words to use there, or says nothing " +
+		"is recorded yet.\n\n" +
 		"While you read, record the names and spellings the project keeps to with context_observe. When the " +
 		"person changes your wording, record it with context_correct. If you recorded something wrongly, " +
 		"take it back with context_withdraw. A person decides what becomes a rule.\n\n" +

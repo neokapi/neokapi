@@ -57,10 +57,10 @@ func TestContextAnswerTextIsTaskShaped(t *testing.T) {
 		Provenance: &ContextProvenance{Project: "prj_x", Revision: 3},
 		VoiceBrief: coreprofile.RenderVoiceBrief(voice),
 		Voice:      &ContextVoice{Name: "Fernwell"},
-		Candidates: []ContextCandidate{
-			{Kind: string(contextop.SubjectNote), Text: "Quickcast is the forecast feature, one word", ProposedBy: "claude-code",
+		Suggestions: []ContextSuggestion{
+			{Kind: string(contextop.SubjectNote), Text: "Quickcast is the forecast feature, one word", SuggestedBy: "claude-code",
 				Evidence: []contextop.Evidence{{Path: "README.md", Quote: "Quickcast"}}},
-			{Kind: string(contextop.SubjectTerm), Term: "seat", Replacement: "person", ProposedBy: "codex"},
+			{Kind: string(contextop.SubjectTerm), Term: "seat", Replacement: "person", SuggestedBy: "codex"},
 		},
 		Notes: []string{"project scope: concept relations, revisions and market scoping live in a connected workspace"},
 	}

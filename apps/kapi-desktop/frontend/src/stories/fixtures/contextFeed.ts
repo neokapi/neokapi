@@ -10,8 +10,8 @@ const PROJECT = { project_key: "kapimart", project_name: "KapiMart" };
 export function feedEntry(entry: Partial<ContextFeedEntry> & { id: string }): ContextFeedEntry {
   return {
     seq: Number(entry.id),
-    kind: "propose",
-    status: "candidate",
+    kind: "observe",
+    status: "suggested",
     actor: { kind: "agent", name: "claude", session: "sess-1", host: "studio" },
     subject: {},
     evidence: [],
@@ -35,10 +35,9 @@ export function feedGroup(group: Partial<ContextFeedGroup> & { id: string }): Co
     last: entries[0]?.at ?? "2026-09-21T09:00:00Z",
     awaiting: entries.filter((e) => e.decidable).length,
     recorded: 0,
-    proposed: 0,
     corrected: 0,
-    confirmed: 0,
-    discarded: 0,
+    kept: 0,
+    dropped: 0,
     quiet: true,
     ...PROJECT,
     recipe: "/fakehome/project/kapi.yaml",
@@ -50,8 +49,8 @@ export function feedGroup(group: Partial<ContextFeedGroup> & { id: string }): Co
 /** The candidate an agent proposed, with the evidence behind it. */
 export const CANDIDATE = feedEntry({
   id: "12",
-  kind: "propose",
-  status: "candidate",
+  kind: "observe",
+  status: "suggested",
   decidable: true,
   subject: {
     kind: "term",
@@ -77,14 +76,13 @@ export const CANDIDATE = feedEntry({
 /** A rule the person already accepted, which can be undone or widened. */
 export const IN_FORCE = feedEntry({
   id: "9",
-  kind: "propose",
-  status: "confirmed",
+  kind: "observe",
+  status: "established",
   revertible: true,
   widen_to: ["workspace", "brand", "product"],
   at: "2026-09-21T08:40:00Z",
   subject: {
-    kind: "voice",
-    list: "forbidden",
+    kind: "term",
     term: "utilise",
     replacement: "use",
     severity: "minor",
@@ -97,7 +95,7 @@ export const IN_FORCE = feedEntry({
 export const OBSERVATION = feedEntry({
   id: "4",
   kind: "observe",
-  status: "candidate",
+  status: "suggested",
   actor: { kind: "person", name: "asgeir" },
   at: "2026-09-21T07:30:00Z",
   subject: { kind: "note", text: "prices are written with no space before the currency" },
@@ -111,8 +109,8 @@ export const CONTEXT_FEED: ContextFeed = {
     feedGroup({
       id: "session:sess-1",
       session: "sess-1",
-      proposed: 2,
-      confirmed: 1,
+      recorded: 2,
+      kept: 1,
       quiet: true,
       entries: [CANDIDATE, IN_FORCE],
     }),

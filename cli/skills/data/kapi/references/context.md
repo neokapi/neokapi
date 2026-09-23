@@ -20,7 +20,7 @@ kapi context search "sign in" --json
 
 `kapi context <path>` answers for the place a file sits: the point it resolved
 to, the voice in force with its full guidance, the terms bound there, the
-candidates nobody has decided on, and the governance windows around them. Read
+suggestions nobody has established, and the governance windows around them. Read
 that one document before you touch the file.
 
 `kapi context search` answers for a word or a phrase, across every store the
@@ -59,15 +59,16 @@ store was unreachable rather than returning a confident empty result.
 - `scope` says how much could have been read, so you can tell "this project
   holds no answer" from "nothing that could hold one was consulted".
 
-## Candidates are not rules
+## Suggestions are not rules
 
-An answer lists `candidates` apart from the voice and the terms in force. Each
-is a rule or a fact somebody proposed and nobody has decided on, carrying the
-evidence behind it, who recorded it and in which session.
+An answer lists `suggestions` apart from the voice and the terms in force. Each
+is a rule or a fact somebody recorded and nobody has established, carrying the
+evidence behind it, who recorded it and in which session. A `contested` one
+disagrees with another rule, which `contested_by` names.
 
-A check reports every candidate and no check fails on one. Build on them, and
-report none of them to the user as a rule in force. `kapi context confirm <id>`
-is a person's decision, and the id is on the candidate.
+A check reports every suggestion and no check fails on one. Build on them, and
+report none of them to the user as a rule in force. `kapi context keep <id>`
+is a person's decision, and the id is on the suggestion.
 
 ## A retrieved answer goes stale
 

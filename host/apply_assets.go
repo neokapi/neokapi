@@ -61,8 +61,8 @@ func (a *App) applyAssetEntry(ctx context.Context, cmd Command, e changeEntry) a
 // An asset entry states a decision about the project's vocabulary or its
 // content memory, so it belongs in the same history as every other such
 // decision: `kapi context log` shows what `kapi apply` did beside what an agent
-// proposed and what a person confirmed. The operation is recorded as confirmed
-// the moment it lands, because a person ran the command.
+// suggested and what a person kept. The operation is recorded as an edit, which
+// is established the moment it lands, because a person ran the command.
 //
 // Every surface that applies a change-set comes through here, so an asset edit
 // is in the log whichever one made it.
@@ -79,10 +79,10 @@ func (a *App) applyRecordedAssetEntry(ctx context.Context, cmd Command, e change
 		}
 	}
 	subject, records := assetSubject(e)
-	if records {
+	if e.Kind != kindRecipe {
 		if err := contextop.PersonDecides(contextop.Transition{
 			Actor:   actor,
-			Kind:    contextop.KindConfirm,
+			Kind:    contextop.KindEdit,
 			Subject: subject.Kind,
 		}); err != nil {
 			return errResult(assetResult{Kind: e.Kind, Op: e.Op, Target: e.Term}, err.Error())
@@ -103,18 +103,14 @@ func (a *App) applyRecordedAssetEntry(ctx context.Context, cmd Command, e change
 
 // assetSubject reads an asset entry as the context subject it decides, and
 // reports whether the entry decides one. A recipe field is configuration rather
-// than context, so it records nothing.
+// than context, and a voice-profile vocabulary rule is recorded by the voice
+// profile's own history, so neither records an operation here.
 func assetSubject(e changeEntry) (contextop.Subject, bool) {
 	switch e.Kind {
 	case kindTerm:
 		return contextop.Subject{Kind: contextop.SubjectTerm, Term: &coreprofile.TermRule{
 			Term:        e.Term,
 			Replacement: e.Replacement,
-		}}, true
-	case kindVoice:
-		return contextop.Subject{Kind: contextop.SubjectVoice, Voice: &contextop.VoiceRule{
-			List: e.List,
-			Rule: coreprofile.TermRule{Term: e.Term, Replacement: e.Replacement, Severity: e.Severity},
 		}}, true
 	case kindMemory:
 		return contextop.Subject{Kind: contextop.SubjectMemory, Memory: &contextop.MemoryPair{
@@ -127,9 +123,9 @@ func assetSubject(e changeEntry) (contextop.Subject, bool) {
 	return contextop.Subject{}, false
 }
 
-// recordAppliedAsset writes the operation an applied asset entry produced: the
-// proposal and the confirmation of it, in one pair, because the person who ran
-// the command made both statements at once.
+// recordAppliedAsset writes the operation an applied asset entry produced: one
+// edit, established from the start, because the person who ran the command
+// wrote the rule directly.
 func (a *App) recordAppliedAsset(ctx context.Context, cmd Command, actor contextop.Actor, subject contextop.Subject, evidence []contextop.Evidence) error {
 	recipePath, err := ResolveProjectPath(cmd)
 	if err != nil || recipePath == "" {
@@ -139,23 +135,13 @@ func (a *App) recordAppliedAsset(ctx context.Context, cmd Command, actor context
 	if err != nil {
 		return err
 	}
-	proposed, err := s.ledger.Append(ctx, s.stamp(contextop.Record{
+	_, err = s.ledger.Append(ctx, s.stamp(contextop.Record{
 		Actor:    actor,
-		Kind:     contextop.KindPropose,
+		Kind:     contextop.KindEdit,
 		Subject:  subject,
 		Evidence: evidence,
 		Note:     "applied with `kapi apply`",
 	}, evidence))
-	if err != nil {
-		return err
-	}
-	_, err = s.ledger.Append(ctx, contextop.Record{
-		Actor:   actor,
-		Kind:    contextop.KindConfirm,
-		Target:  proposed.ID,
-		Project: proposed.Project,
-		Scope:   proposed.Scope,
-	})
 	return err
 }
 

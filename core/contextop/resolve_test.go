@@ -11,18 +11,18 @@ import (
 
 func TestResolve_CandidatesAnswerInTheirOwnProject(t *testing.T) {
 	here := contextop.Record{
-		ID: "1", Seq: 1, Project: "prj_docs", Kind: contextop.KindPropose,
-		Subject: termRule("utilise", "use", ""), Status: contextop.StatusCandidate,
+		ID: "1", Seq: 1, Project: "prj_docs", Kind: contextop.KindObserve,
+		Subject: termRule("utilise", "use", ""), Status: contextop.StatusSuggested,
 		Scope: contextop.Scope{Level: contextop.LevelProject},
 	}
 	elsewhere := contextop.Record{
-		ID: "2", Seq: 2, Project: "prj_web", Kind: contextop.KindPropose,
-		Subject: termRule("leverage", "use", ""), Status: contextop.StatusCandidate,
+		ID: "2", Seq: 2, Project: "prj_web", Kind: contextop.KindObserve,
+		Subject: termRule("leverage", "use", ""), Status: contextop.StatusSuggested,
 		Scope: contextop.Scope{Level: contextop.LevelProject},
 	}
 	widened := contextop.Record{
-		ID: "3", Seq: 3, Project: "prj_web", Kind: contextop.KindPropose,
-		Subject: termRule("synergy", "fit", ""), Status: contextop.StatusCandidate,
+		ID: "3", Seq: 3, Project: "prj_web", Kind: contextop.KindObserve,
+		Subject: termRule("synergy", "fit", ""), Status: contextop.StatusSuggested,
 		Scope: contextop.Scope{Level: contextop.LevelWorkspace},
 	}
 
@@ -38,15 +38,15 @@ func TestResolve_OnlyCandidatesAdvise(t *testing.T) {
 		status contextop.Status
 		advise bool
 	}{
-		{contextop.StatusCandidate, true},
-		{contextop.StatusConfirmed, false},
-		{contextop.StatusDiscarded, false},
+		{contextop.StatusSuggested, true},
+		{contextop.StatusEstablished, false},
+		{contextop.StatusDropped, false},
 		{contextop.StatusReverted, false},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.status), func(t *testing.T) {
 			r := contextop.Record{
-				ID: "1", Seq: 1, Project: "prj_docs", Kind: contextop.KindPropose,
+				ID: "1", Seq: 1, Project: "prj_docs", Kind: contextop.KindObserve,
 				Subject: termRule("utilise", "use", ""), Status: tt.status,
 			}
 			got := contextop.Resolve([]contextop.Record{r}, nil, contextop.ResolveRequest{Project: "prj_docs"})
@@ -58,8 +58,8 @@ func TestResolve_OnlyCandidatesAdvise(t *testing.T) {
 
 func TestResolve_ScopeCoordinatesNarrowWhereARuleAnswers(t *testing.T) {
 	scoped := contextop.Record{
-		ID: "1", Seq: 1, Project: "prj_docs", Kind: contextop.KindPropose,
-		Subject: termRule("utilise", "use", ""), Status: contextop.StatusCandidate,
+		ID: "1", Seq: 1, Project: "prj_docs", Kind: contextop.KindObserve,
+		Subject: termRule("utilise", "use", ""), Status: contextop.StatusSuggested,
 		Scope: contextop.Scope{
 			Level:       contextop.LevelProject,
 			Coordinates: map[string]string{"brand": "northsea", "mode": "reference"},
@@ -103,12 +103,12 @@ func TestResolve_TheProjectsOwnTermsHideAWidenedRule(t *testing.T) {
 
 func TestResolve_TheLatestStatementAboutATermAnswers(t *testing.T) {
 	older := contextop.Record{
-		ID: "1", Seq: 1, Project: "prj_docs", Kind: contextop.KindPropose,
-		Subject: termRule("utilise", "use", ""), Status: contextop.StatusCandidate,
+		ID: "1", Seq: 1, Project: "prj_docs", Kind: contextop.KindObserve,
+		Subject: termRule("utilise", "use", ""), Status: contextop.StatusSuggested,
 	}
 	newer := contextop.Record{
-		ID: "2", Seq: 2, Project: "prj_docs", Kind: contextop.KindPropose,
-		Subject: termRule("utilise", "employ", ""), Status: contextop.StatusCandidate,
+		ID: "2", Seq: 2, Project: "prj_docs", Kind: contextop.KindObserve,
+		Subject: termRule("utilise", "employ", ""), Status: contextop.StatusSuggested,
 	}
 	got := contextop.Resolve([]contextop.Record{older, newer}, nil, contextop.ResolveRequest{Project: "prj_docs"})
 	require.Len(t, got.Advisory, 1, "one rule per term")
@@ -154,8 +154,8 @@ func TestWidenAndNarrow(t *testing.T) {
 	ws := openWorkspace(t)
 
 	r := contextop.Record{
-		ID: "7", Seq: 7, Project: "prj_docs", Kind: contextop.KindPropose,
-		Subject: termRule("utilise", "use", "major"), Status: contextop.StatusConfirmed,
+		ID: "7", Seq: 7, Project: "prj_docs", Kind: contextop.KindObserve,
+		Subject: termRule("utilise", "use", "major"), Status: contextop.StatusEstablished,
 		Scope: contextop.Scope{Level: contextop.LevelWorkspace},
 	}
 	require.NoError(t, contextop.Widen(ctx, ws, r))

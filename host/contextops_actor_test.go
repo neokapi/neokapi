@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/contextop"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // The command line's half of the decision model.
@@ -45,9 +44,9 @@ func TestACommandLineAgentIsRecordedAsOne(t *testing.T) {
 	assert.Equal(t, "codex", observed.Actor.Name)
 	assert.Equal(t, "s-cli-1", observed.Actor.Session)
 
-	proposed, err := app.ProposeContextRule(t.Context(), ContextProposeRequest{
-		Project:  recipeOf(root),
-		Term:     &coreprofile.TermRule{Term: "utilise", Replacement: "use"},
+	proposed, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
+		Project: recipeOf(root),
+		Term:    "use", InsteadOf: []string{"utilise"},
 		Evidence: []contextop.Evidence{{Path: "config/app.yaml", Quote: "We utilise the widget"}},
 	})
 	require.NoError(t, err)
@@ -112,17 +111,17 @@ func TestACommandLineAgentIsRefusedEveryDecision(t *testing.T) {
 	proposed := proposeUtilise(t, app, root, person)
 	asAgent(t, "codex", "s-cli-2")
 
-	_, err := app.ConfirmContextOperation(t.Context(), ContextConfirmRequest{
+	_, err := app.KeepContextOperation(t.Context(), ContextKeepRequest{
 		Project: recipeOf(root), ID: proposed.ID,
 	})
 	require.ErrorIs(t, err, contextop.ErrRefused)
-	assert.Contains(t, err.Error(), "kapi context log --status candidate",
+	assert.Contains(t, err.Error(), "kapi context log --status suggested",
 		"the refusal teaches the move that is the agent's to make")
 
-	_, err = app.DiscardContextOperation(t.Context(), ContextDiscardRequest{
+	_, err = app.DropContextOperation(t.Context(), ContextDropRequest{
 		Project: recipeOf(root), ID: proposed.ID,
 	})
-	require.ErrorIs(t, err, contextop.ErrRefused, "a person's proposal is not an agent's to discard")
+	require.ErrorIs(t, err, contextop.ErrRefused, "a person's suggestion is not an agent's to drop")
 
 	_, err = app.RevertContextOperations(t.Context(), ContextRevertRequest{
 		Project: recipeOf(root), Session: "s-cli-2",
@@ -138,29 +137,29 @@ func TestACommandLineAgentIsRefusedEveryDecision(t *testing.T) {
 // TestACommandLineAgentWithdrawsItsOwnCandidate: the policy already lets an
 // actor clean up after itself inside its own session, and the command line
 // reaches that the same way the MCP tools do.
-func TestACommandLineAgentWithdrawsItsOwnCandidate(t *testing.T) {
+func TestACommandLineAgentWithdrawsItsOwnSuggestion(t *testing.T) {
 	app, _ := contextOpsApp(t)
 	root := contextOpsProject(t, "ctxops-cli-withdraw")
 	asAgent(t, "codex", "s-cli-3")
 
-	proposed, err := app.ProposeContextRule(t.Context(), ContextProposeRequest{
-		Project:  recipeOf(root),
-		Term:     &coreprofile.TermRule{Term: "utilise", Replacement: "use"},
+	proposed, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
+		Project: recipeOf(root),
+		Term:    "use", InsteadOf: []string{"utilise"},
 		Evidence: []contextop.Evidence{{Path: "config/app.yaml", Quote: "We utilise the widget"}},
 	})
 	require.NoError(t, err)
 
-	_, err = app.DiscardContextOperation(t.Context(), ContextDiscardRequest{
+	_, err = app.WithdrawContextOperation(t.Context(), ContextWithdrawRequest{
 		Project: recipeOf(root), ID: proposed.ID,
 	})
-	require.NoError(t, err, "an agent may withdraw what it proposed in this session")
+	require.NoError(t, err, "an agent may withdraw what it suggested in this session")
 
 	held, err := app.ContextOperations(t.Context(), ContextLogRequest{
 		Project: recipeOf(root), Subjects: true,
 	})
 	require.NoError(t, err)
 	require.Len(t, held.Operations, 1)
-	assert.Equal(t, contextop.StatusDiscarded, held.Operations[0].Status)
+	assert.Equal(t, contextop.StatusWithdrawn, held.Operations[0].Status)
 }
 
 // TestAPersonInAnAgentShellIsOnTheRecord: the override exists for a person
@@ -179,7 +178,7 @@ func TestAPersonInAnAgentShellIsOnTheRecord(t *testing.T) {
 	assert.Equal(t, contextop.ActorPerson, observed.Actor.Kind)
 	assert.Equal(t, "recorded as a person in a claude-code shell", observed.Note)
 
-	confirmed, err := app.ConfirmContextOperation(t.Context(), ContextConfirmRequest{
+	confirmed, err := app.KeepContextOperation(t.Context(), ContextKeepRequest{
 		Project: recipeOf(root),
 		ID:      proposeUtilise(t, app, root, person).ID,
 		Note:    "we say use everywhere",

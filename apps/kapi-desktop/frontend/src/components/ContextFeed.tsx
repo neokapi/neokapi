@@ -56,9 +56,9 @@ export interface ContextFeedProps {
   loading?: boolean;
   error?: unknown;
   /** Accept a candidate, with an edit when the person made one. */
-  onConfirm: (entry: ContextFeedEntry, edit?: ContextRuleEdit) => void | Promise<void>;
+  onKeep: (entry: ContextFeedEntry, edit?: ContextRuleEdit) => void | Promise<void>;
   /** Reject a candidate. */
-  onDiscard: (entry: ContextFeedEntry) => void | Promise<void>;
+  onDrop: (entry: ContextFeedEntry) => void | Promise<void>;
   /** Take a rule in force back out. */
   onRevert: (entry: ContextFeedEntry) => void;
   /** Undo everything one session recorded. */
@@ -77,10 +77,12 @@ const SEVERITIES = ["neutral", "minor", "major", "critical"] as const;
 /** What each operation kind did, for the line above the subject. */
 const KIND_LABELS: Record<string, string> = {
   observe: "recorded",
-  propose: "proposed",
   correct: "corrected",
-  confirm: "confirmed",
-  discard: "discarded",
+  import: "imported",
+  edit: "edited",
+  keep: "kept",
+  drop: "dropped",
+  withdraw: "withdrawn",
   revert: "reverted",
   widen: "widened",
 };
@@ -89,8 +91,8 @@ export function ContextFeedList({
   feed,
   loading,
   error,
-  onConfirm,
-  onDiscard,
+  onKeep,
+  onDrop,
   onRevert,
   onRevertSession,
   onWiden,
@@ -136,9 +138,9 @@ export function ContextFeedList({
       const edits = editing === entry.id ? edit : undefined;
       setEditing(null);
       setEdit({});
-      void onConfirm(entry, edits);
+      void onKeep(entry, edits);
     },
-    [edit, editing, onConfirm],
+    [edit, editing, onKeep],
   );
 
   useEffect(() => {
@@ -173,7 +175,7 @@ export function ContextFeedList({
         case "r":
           e.preventDefault();
           setEditing(null);
-          void onDiscard(active);
+          void onDrop(active);
           break;
         case "e":
           e.preventDefault();
@@ -186,7 +188,7 @@ export function ContextFeedList({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, candidates.length, confirm, keyboard, onDiscard, openEdit]);
+  }, [active, candidates.length, confirm, keyboard, onDrop, openEdit]);
 
   if (error) {
     return <ErrorNotice error={error} title="These recorded changes could not be read" />;
@@ -224,8 +226,8 @@ export function ContextFeedList({
           onEditChange={setEdit}
           onOpenEdit={openEdit}
           onCancelEdit={() => setEditing(null)}
-          onConfirm={confirm}
-          onDiscard={onDiscard}
+          onKeep={confirm}
+          onDrop={onDrop}
           onRevert={onRevert}
           onRevertSession={onRevertSession}
           onWiden={onWiden}
@@ -278,8 +280,8 @@ interface SessionCardProps {
   onEditChange: (edit: ContextRuleEdit) => void;
   onOpenEdit: (entry: ContextFeedEntry) => void;
   onCancelEdit: () => void;
-  onConfirm: (entry: ContextFeedEntry) => void;
-  onDiscard: (entry: ContextFeedEntry) => void | Promise<void>;
+  onKeep: (entry: ContextFeedEntry) => void;
+  onDrop: (entry: ContextFeedEntry) => void | Promise<void>;
   onRevert: (entry: ContextFeedEntry) => void;
   onRevertSession: (group: ContextFeedGroup) => void;
   onWiden: (entry: ContextFeedEntry, to: string) => void;
@@ -298,8 +300,8 @@ function SessionCard({
   onEditChange,
   onOpenEdit,
   onCancelEdit,
-  onConfirm,
-  onDiscard,
+  onKeep,
+  onDrop,
   onRevert,
   onRevertSession,
   onWiden,
@@ -371,8 +373,8 @@ function SessionCard({
                 onEditChange={onEditChange}
                 onOpenEdit={() => onOpenEdit(entry)}
                 onCancelEdit={onCancelEdit}
-                onConfirm={() => onConfirm(entry)}
-                onDiscard={() => void onDiscard(entry)}
+                onKeep={() => onKeep(entry)}
+                onDrop={() => void onDrop(entry)}
                 onRevert={() => onRevert(entry)}
                 onWiden={(to) => onWiden(entry, to)}
                 showProject={showProject}
@@ -389,10 +391,9 @@ function SessionCard({
 function SessionSummaryLine({ group }: { group: ContextFeedGroup }) {
   const parts: string[] = [];
   if (group.recorded > 0) parts.push(`${group.recorded} recorded`);
-  if (group.proposed > 0) parts.push(`${group.proposed} proposed`);
   if (group.corrected > 0) parts.push(`${group.corrected} corrected`);
-  if (group.confirmed > 0) parts.push(`${group.confirmed} confirmed`);
-  if (group.discarded > 0) parts.push(`${group.discarded} discarded`);
+  if (group.kept > 0) parts.push(`${group.kept} kept`);
+  if (group.dropped > 0) parts.push(`${group.dropped} dropped`);
   return (
     <>
       {parts.length > 0 ? parts.join(", ") : `${group.entries.length} operations`}
@@ -437,8 +438,8 @@ interface FeedEntryCardProps {
   onEditChange: (edit: ContextRuleEdit) => void;
   onOpenEdit: () => void;
   onCancelEdit: () => void;
-  onConfirm: () => void;
-  onDiscard: () => void;
+  onKeep: () => void;
+  onDrop: () => void;
   onRevert: () => void;
   onWiden: (to: string) => void;
   showProject?: boolean;
@@ -454,8 +455,8 @@ function FeedEntryCard({
   onEditChange,
   onOpenEdit,
   onCancelEdit,
-  onConfirm,
-  onDiscard,
+  onKeep,
+  onDrop,
   onRevert,
   onWiden,
   showProject,
@@ -471,7 +472,7 @@ function FeedEntryCard({
     >
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-muted-foreground">
         <span>{KIND_LABELS[entry.kind] ?? entry.kind}</span>
-        <StatusBadge status={entry.status} kind={entry.kind} />
+        <StatusBadge status={entry.status} kind={entry.kind} contestedBy={entry.contested_by} />
         {showProject && entry.project_name && <span translate="no">{entry.project_name}</span>}
         <When iso={entry.at} relative />
         <span className="font-mono text-[11px] text-muted-foreground/70" translate="no">
@@ -542,7 +543,7 @@ function FeedEntryCard({
           editRef={editRef}
           onChange={onEditChange}
           onCancel={onCancelEdit}
-          onConfirm={onConfirm}
+          onKeep={onKeep}
         />
       )}
 
@@ -550,8 +551,8 @@ function FeedEntryCard({
         <DecisionActions
           entry={entry}
           active={active}
-          onConfirm={onConfirm}
-          onDiscard={onDiscard}
+          onKeep={onKeep}
+          onDrop={onDrop}
           onOpenEdit={onOpenEdit}
         />
       )}
@@ -573,14 +574,14 @@ function FeedEntryCard({
 function DecisionActions({
   entry,
   active,
-  onConfirm,
-  onDiscard,
+  onKeep,
+  onDrop,
   onOpenEdit,
 }: {
   entry: ContextFeedEntry;
   active: boolean;
-  onConfirm: () => void;
-  onDiscard: () => void;
+  onKeep: () => void;
+  onDrop: () => void;
   onOpenEdit: () => void;
 }) {
   if (!entry.recipe) {
@@ -593,17 +594,17 @@ function DecisionActions({
   }
   return (
     <div data-slot="context-actions" className="mt-2 flex flex-wrap items-center gap-2">
-      <Button size="sm" data-slot="confirm-candidate" onClick={onConfirm}>
+      <Button size="sm" data-slot="keep-suggestion" onClick={onKeep}>
         <Check size={13} />
-        Confirm
+        Keep
         {active && <kbd className="ml-1 rounded border border-border/60 px-1 text-[10px]">a</kbd>}
       </Button>
-      <Button variant="outline" size="sm" data-slot="edit-candidate" onClick={onOpenEdit}>
+      <Button variant="outline" size="sm" data-slot="edit-suggestion" onClick={onOpenEdit}>
         Edit
         {active && <kbd className="ml-1 rounded border border-border/60 px-1 text-[10px]">e</kbd>}
       </Button>
-      <Button variant="ghost" size="sm" data-slot="discard-candidate" onClick={onDiscard}>
-        Discard
+      <Button variant="ghost" size="sm" data-slot="drop-suggestion" onClick={onDrop}>
+        Drop
         {active && <kbd className="ml-1 rounded border border-border/60 px-1 text-[10px]">r</kbd>}
       </Button>
     </div>
@@ -617,14 +618,14 @@ function EditForm({
   editRef,
   onChange,
   onCancel,
-  onConfirm,
+  onKeep,
 }: {
   entry: ContextFeedEntry;
   edit: ContextRuleEdit;
   editRef: React.RefObject<HTMLInputElement | null>;
   onChange: (edit: ContextRuleEdit) => void;
   onCancel: () => void;
-  onConfirm: () => void;
+  onKeep: () => void;
 }) {
   return (
     <div data-slot="context-edit" className="mt-2 space-y-2 rounded-md border border-border p-2">
@@ -641,7 +642,7 @@ function EditForm({
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                onConfirm();
+                onKeep();
               }
             }}
             className="mt-1 font-mono"
@@ -672,9 +673,9 @@ function EditForm({
         Minor and neutral report a violation. Major and critical fail a check.
       </p>
       <div className="flex items-center gap-2">
-        <Button size="sm" data-slot="confirm-edited" onClick={onConfirm}>
+        <Button size="sm" data-slot="keep-edited" onClick={onKeep}>
           <Check size={13} />
-          Confirm with this edit
+          Keep with this edit
         </Button>
         <Button variant="ghost" size="sm" onClick={onCancel}>
           Cancel
@@ -737,11 +738,11 @@ function SubjectLine({ entry }: { entry: ContextFeedEntry }) {
       </p>
     );
   }
-  if (subject.kind === "term" || subject.kind === "voice") {
+  if (subject.kind === "term") {
     return (
       <p className="flex flex-wrap items-baseline gap-2 text-sm">
         <span className="font-mono" translate="no">
-          {subject.term}
+          {[subject.term, ...(subject.forms ?? [])].join(", ")}
         </span>
         {subject.replacement && (
           <span className="text-muted-foreground">
@@ -750,11 +751,6 @@ function SubjectLine({ entry }: { entry: ContextFeedEntry }) {
               {subject.replacement}
             </span>
           </span>
-        )}
-        {subject.kind === "voice" && subject.list && (
-          <Badge variant="outline" className="text-xs" translate="no">
-            {subject.list}
-          </Badge>
         )}
         {subject.severity && (
           <Badge variant="outline" className="text-xs" translate="no">
@@ -795,18 +791,40 @@ function SubjectLine({ entry }: { entry: ContextFeedEntry }) {
 }
 
 /** What became of a subject-bearing operation. */
-function StatusBadge({ status, kind }: { status: string; kind: string }) {
-  if (kind === "confirm" || kind === "discard" || kind === "revert" || kind === "widen") {
+function StatusBadge({
+  status,
+  kind,
+  contestedBy,
+}: {
+  status: string;
+  kind: string;
+  contestedBy?: string[];
+}) {
+  if (
+    kind === "keep" ||
+    kind === "drop" ||
+    kind === "withdraw" ||
+    kind === "revert" ||
+    kind === "widen"
+  ) {
     return null;
   }
-  if (status === "candidate") {
+  if (status === "contested") {
+    const others = (contestedBy ?? []).map((id) => `#${id}`).join(", ");
+    return (
+      <Badge variant="secondary" className="text-xs">
+        {others ? `Contested by ${others}` : "Contested"}
+      </Badge>
+    );
+  }
+  if (status === "suggested") {
     return (
       <Badge variant="secondary" className="text-xs">
         Awaiting you
       </Badge>
     );
   }
-  if (status === "confirmed") {
+  if (status === "established") {
     return (
       <Badge variant="outline" className="text-xs">
         In force
@@ -815,12 +833,12 @@ function StatusBadge({ status, kind }: { status: string; kind: string }) {
   }
   return (
     <Badge variant="outline" className="text-xs text-muted-foreground">
-      {status === "discarded" ? "Discarded" : "Undone"}
+      {status === "dropped" ? "Dropped" : status === "withdrawn" ? "Withdrawn" : "Undone"}
     </Badge>
   );
 }
 
-/** A count of candidates, quiet at zero. */
+/** A count of suggestions, quiet at zero. */
 export function AwaitingBadge({ count, label }: { count: number; label?: string }) {
   if (count <= 0) return null;
   return (

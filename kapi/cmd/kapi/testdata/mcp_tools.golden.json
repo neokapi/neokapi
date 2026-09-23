@@ -392,17 +392,17 @@
           "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"
         },
-        "propose": {
-          "description": "also record the rule the change implies, so the next use of the old wording is reported",
-          "type": "boolean"
-        },
         "quote": {
           "description": "the sentence the change was made in",
           "type": "string"
         },
         "severity": {
-          "description": "how hard that rule bites once a person confirms it: minor and neutral report, anything else fails a check",
+          "description": "how hard that rule bites once a person keeps it: minor and neutral report, anything else fails a check",
           "type": "string"
+        },
+        "suggest": {
+          "description": "also record the rule the change implies, so the next use of the old wording is reported",
+          "type": "boolean"
         },
         "to": {
           "description": "the wording that replaced it",
@@ -426,6 +426,16 @@
     "input_schema": {
       "additionalProperties": false,
       "properties": {
+        "instead_of": {
+          "description": "forms the project avoids for term, e.g. Quick cast; spacing, hyphen and case variants are added for you",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        },
         "path": {
           "description": "the project-relative file you saw it in",
           "type": "string"
@@ -438,6 +448,10 @@
           "description": "the wording you saw, quoted from the file",
           "type": "string"
         },
+        "term": {
+          "description": "the form this project uses for a name or word, e.g. Quickcast",
+          "type": "string"
+        },
         "text": {
           "description": "the fact, in one sentence, in your own words",
           "type": "string"
@@ -447,56 +461,28 @@
           "type": "string"
         }
       },
-      "required": [
-        "text"
-      ],
       "type": "object"
     }
   },
   {
-    "name": "context_propose",
+    "name": "context_read",
     "input_schema": {
       "additionalProperties": false,
       "properties": {
-        "list": {
-          "description": "propose a voice-profile rule in this list instead of a project term: forbidden, competitor or preferred",
-          "type": "string"
-        },
-        "note": {
-          "description": "why you are proposing it",
+        "format": {
+          "description": "markdown (default) or json",
           "type": "string"
         },
         "path": {
-          "description": "the project-relative file you saw the wording in",
+          "description": "the project-relative file you are about to write, or profile/\u003cname\u003e",
           "type": "string"
         },
         "project": {
           "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
           "type": "string"
-        },
-        "quote": {
-          "description": "the wording as it stands there",
-          "type": "string"
-        },
-        "severity": {
-          "description": "how hard the rule bites once a person confirms it: minor and neutral report, anything else fails a check",
-          "type": "string"
-        },
-        "term": {
-          "description": "the word or phrase the rule is about",
-          "type": "string"
-        },
-        "unit": {
-          "description": "the block or unit id inside that file, when you have one",
-          "type": "string"
-        },
-        "use": {
-          "description": "what to write instead; a rule without one records the word and matches nothing",
-          "type": "string"
         }
       },
       "required": [
-        "term",
         "path"
       ],
       "type": "object"

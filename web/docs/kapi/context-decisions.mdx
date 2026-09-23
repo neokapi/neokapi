@@ -1,8 +1,8 @@
 ---
 sidebar_position: 5
 title: Growing context
-description: "Eight verbs that grow a project's context out of ordinary work: observe, propose and correct record what somebody noticed, with the evidence behind it, log shows what has been recorded, and confirm, discard, revert and widen are the decisions. A proposal is reported by checks and never fails one."
-keywords: [kapi, context, observe, propose, correct, confirm, discard, revert, widen, candidate, evidence, terms, voice profile, content memory, agent]
+description: "The verbs that grow a project's context out of ordinary work: observe and correct record what somebody noticed as suggestions, with the evidence behind them, log shows what has been recorded, and keep, drop, withdraw, revert and widen are the decisions. A suggestion is reported by checks and never fails one."
+keywords: [kapi, context, observe, correct, keep, drop, withdraw, revert, widen, suggestion, established, contested, evidence, terms, content memory, agent]
 ---
 
 # Growing context
@@ -12,124 +12,126 @@ wording, and it should not: the words a project cares about are the ones it
 turns out to use, and nobody knows those on the first day.
 
 Context grows out of the work instead. Someone notices how the product name is
-written. A rule is proposed from a hundred pages that agree. You confirm it, and
-from then on checks hold new writing to it. When you correct a translation, that
-correction is evidence for the next rule.
+written and records it as a suggestion. You keep it, and from then on it is an
+established rule that checks hold new writing to. When you correct a
+translation, that correction is evidence for the next rule.
 
-Eight verbs are that loop. The first three record; the rest are the decisions.
+These verbs are that loop. The first two record; the rest are the decisions.
 
 | Verb | Does |
 | --- | --- |
-| `kapi context observe` | record a fact about how the project writes, with where you saw it |
-| `kapi context propose` | record a rule about a word, with where you saw it |
+| `kapi context observe` | record something you noticed, such as the form the project uses for a name, with where you saw it |
 | `kapi context correct` | record wording somebody changed, and the rule it implies |
 | `kapi context log` | show what has been recorded and decided |
-| `kapi context confirm` | make a proposed rule binding |
-| `kapi context discard` | reject one |
+| `kapi context keep` | establish suggestions as rules |
+| `kapi context drop` | set a suggestion aside |
+| `kapi context withdraw` | take back a suggestion you recorded |
 | `kapi context revert` | undo an operation, or everything one agent run did |
-| `kapi context widen` | put a confirmed rule in force somewhere broader |
+| `kapi context widen` | put an established rule in force somewhere broader |
 
 ## An agent records as it works
 
-A coding agent with kapi's [MCP server](/reference/mcp) keeps the first three as
+A coding agent with kapi's [MCP server](/reference/mcp) keeps the first two as
 habits inside whatever else it is doing: `context_observe` while it reads the
-project, `context_propose` where the project is consistent about a word, and
+project, naming the form the project uses for a word where it is consistent, and
 `context_correct` the moment you change its wording. One call, one thing,
 without stopping to ask you.
 
-Everything it records is a candidate under a **session** of its own, so you can
-read a run's whole contribution in one place, or undo it in one command:
+Everything it records is a suggestion under a **session** of its own, so you can
+read a run's whole contribution in one place, keep it in one command, or undo
+it in one command:
 
 ```bash
 kapi context log --session s4980103f5148      # what one run recorded
+kapi context keep --session s4980103f5148     # keep all of it
 kapi context revert --session s4980103f5148   # undo all of it
 ```
 
 It ends its report with the same session id. Nothing it recorded is in force
-until you confirm it.
+until you keep it.
 
-## A proposal never stops your work
+## A suggestion never stops your work
 
-Propose a rule and say where you saw the word:
+Name the form the project uses, a form it avoids, and say where you saw it:
 
 ```bash
-kapi context propose utilise --use use --seen-in docs/guide.md
+kapi context observe --term Quickcast --instead-of "Quick cast" --seen-in docs/guide.md
 ```
 
-From that moment a check reports the word wherever it appears:
-
-```
-  severity  rule              location                         message
-  NEUTRAL   voice.vocabulary  docs/guide.md:getting-started/p  Proposed rule about "utilise", not yet confirmed
-                                                               ↳ Use "use" instead
-
-PASS configured checks: score 100/100 · 1 finding(s) (0 critical, 0 major, 0 minor)
-```
-
+kapi adds the other spellings a writer reaches for: the hyphenated and
+capitalised forms of a compound and the lower-case spelling of a capitalised
+name, so this suggestion avoids `Quick cast`, `Quick-cast`, `QuickCast` and
+`quickcast`. From that moment a check reports those forms wherever they appear.
 The finding is a note. It carries no penalty, it does not lower a score, and it
 cannot fail a check or a gate, not even under `--strict`. That is what makes it
-safe to let an agent propose rules while you work: whatever it suggests is
+safe to let an agent record suggestions while you work: whatever it suggests is
 visible and nothing it suggests can break a build.
 
-A rule about a word in the voice profile's vocabulary rather than the project's
-terms takes `--list`:
-
-```bash
-kapi context propose Ripgrep --use ripgrep --list forbidden --severity major
-```
-
-## Confirming is what makes a rule bind
+## Keeping is what makes a rule bind
 
 Read what is waiting:
 
 ```bash
-kapi context log --status candidate
+kapi context log --status suggested
 ```
 
 ```
-#5  2026-09-21T19:36:17Z  agent claude-code/s8d7fb12ba4c7  correct  term "widget", use "component"  "widget" became "component"  [candidate]
+#5  2026-09-21T19:36:17Z  agent claude-code/s8d7fb12ba4c7  correct  term "component", not "widget"  "widget" became "component"  [suggested]
   seen in docs/guide.md getting-started/p: "We utilise the widget to configure your account."
-#2  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  note "The product is written \"Acme Widget\" in headings and \"the widget\" in running text."  [candidate]
+#2  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  "The product is written \"Acme Widget\" in headings."  [suggested]
   seen in docs/guide.md: "We utilise the widget to configure your account."
 ```
 
-Then decide, by the id in the first column:
+Then decide, by the id in the first column. `keep` takes several ids at once:
 
 ```bash
-kapi context confirm 5
+kapi context keep 5
 ```
 
 ```
-#7  2026-09-21T19:37:02Z  person  confirm  of #5
+#7  2026-09-21T19:37:02Z  person  keep  of #5
   written to the project's terms store
 ```
 
-Confirming writes the rule into the project's store, where every command that
+Keeping writes the rule into the project's store, where every command that
 reads your project's context sees it, on any branch and in any worktree. From
 now on the rule bites at the severity it carries: `minor` and `neutral` report,
 and anything else fails a check.
 
-Change the rule as you confirm it:
+Change the rule as you keep it:
 
 ```bash
-kapi context confirm 5 --use "module" --severity critical
+kapi context keep 5 --use "module" --severity critical
 ```
 
-Reject it instead with `kapi context discard 5`. Either way the record stays in
+Set it aside instead with `kapi context drop 5`. Either way the record stays in
 the log, so the same suggestion is recognisable the next time somebody makes it.
+
+## When two rules disagree
+
+Two suggestions that name different forms for one word are **contested**. Both
+still advise, the log marks each `[contested by #n]` with the other side named,
+and neither can be kept until you choose: drop the one you do not want, then
+keep the other. `kapi context keep --session` leaves a contested suggestion
+where it is and says so.
+
+A suggestion that contradicts an established rule is contested too, and the
+rule stays in force. When you correct wording against an established rule
+yourself, the rule becomes contested: it reports instead of failing, so your
+own edit never fails your build. Keep the rule again, or drop your correction,
+to settle it.
 
 ## Undoing
 
-An agent run can propose a great deal in an evening. Undo all of it at once:
+An agent run can record a great deal in an evening. Undo all of it at once:
 
 ```bash
 kapi context revert --session s4980103f5148
 ```
 
-Everything that run recorded stops answering, and any rule it got confirmed is
-taken back out of your terms, your voice profile or your content memory. What a
-check said before that run and what it says after the revert are the same
-answer.
+Everything that run recorded stops answering, and any rule of it you kept is
+taken back out of your terms or your content memory. What a check said before
+that run and what it says after the revert are the same answer.
 
 Undo one operation with `kapi context revert 5`.
 
@@ -161,16 +163,16 @@ kapi context widen 5 --to mode
 
 ## Who may do what
 
-Anyone may say what they saw. An agent observes, proposes and records
-corrections, and everything it records is advice.
+Anyone may say what they saw. An agent observes and records corrections, and
+everything it records is a suggestion.
 
-Deciding belongs to a person. Confirming a rule, editing what someone else
-proposed, rejecting it, withdrawing a rule already in force and widening one are
-all yours. An agent that tries is refused, and told so: its tools carry no verb
-for any of them.
+Deciding belongs to a person. Keeping a suggestion, editing what someone else
+suggested, dropping it, reverting an established rule and widening one are all
+yours. An agent that tries is refused, and told so: its tools carry no verb for
+any of them.
 
-An agent may withdraw its own proposal while nobody has decided on it, which is
-how a run cleans up after itself.
+Whoever recorded a suggestion may withdraw it, and an agent only in the session
+that recorded it, which is how a run cleans up after itself.
 
 ## How kapi knows who recorded an entry
 
@@ -201,8 +203,8 @@ another. Where a machine keeps its process tree out of reach, which is the case
 on Windows, the id covers one command, and `KAPI_AGENT_SESSION` is how a host
 says otherwise there.
 
-kapi errs toward the agent. Reading a person as an agent costs one
-confirmation, which the entry was heading for anyway; reading an agent as a
+kapi errs toward the agent. Reading a person as an agent costs one keep,
+which the entry was heading for anyway; reading an agent as a
 person would put an unreviewed rule on the record with your standing behind it,
 outside `--actor agent` and beyond the reach of `revert --session`.
 
@@ -212,12 +214,13 @@ The asset entries of `kapi apply` are decisions about the same context, so they
 appear in the same log:
 
 ```
-#9  2026-09-21T19:37:31Z  person  confirm  of #8
-#8  2026-09-21T19:37:31Z  person  propose  term "leverage", use "use"  [confirmed]
+#8  2026-09-21T19:37:31Z  person  edit  term "use", not "leverage"  [established]
   applied with `kapi apply`
 ```
 
-They are confirmed the moment they land, because you ran the command.
+They are established the moment they land, because you ran the command. The
+same holds for `kapi context import`, which records one `import` per file it
+reads.
 
 ## What to read next
 

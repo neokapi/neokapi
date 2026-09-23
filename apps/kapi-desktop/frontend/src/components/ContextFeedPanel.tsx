@@ -76,7 +76,7 @@ export function ContextFeedPanel({
 
   const confirm = useMutation({
     mutationFn: ({ entry, edit }: { entry: ContextFeedEntry; edit?: ContextRuleEdit }) =>
-      api.confirmContextCandidate({
+      api.keepContextSuggestion({
         project: entry.project_key,
         id: entry.id,
         replacement: edit?.replacement,
@@ -86,7 +86,7 @@ export function ContextFeedPanel({
   });
   const discard = useMutation({
     mutationFn: (entry: ContextFeedEntry) =>
-      api.discardContextCandidate({ project: entry.project_key, id: entry.id }),
+      api.dropContextSuggestion({ project: entry.project_key, id: entry.id }),
     onSettled: refresh,
   });
   const revert = useMutation({
@@ -112,10 +112,10 @@ export function ContextFeedPanel({
         error={feedQuery.error}
         keyboard={keyboard}
         showProject={!projectKey && !tabID}
-        onConfirm={async (entry, edit) => {
+        onKeep={async (entry, edit) => {
           await confirm.mutateAsync({ entry, edit });
         }}
-        onDiscard={async (entry) => {
+        onDrop={async (entry) => {
           await discard.mutateAsync(entry);
         }}
         onRevert={(entry: ContextFeedEntry) =>

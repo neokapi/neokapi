@@ -75,9 +75,9 @@ func TestMCPAgentActorIsAlwaysAnAgent(t *testing.T) {
 	// surface asks.
 	for kind, refused := range map[contextop.Kind]bool{
 		contextop.KindObserve: false,
-		contextop.KindPropose: false,
 		contextop.KindCorrect: false,
-		contextop.KindConfirm: true,
+		contextop.KindKeep:    true,
+		contextop.KindDrop:    true,
 		contextop.KindWiden:   true,
 	} {
 		err := contextop.PersonDecides(contextop.Transition{Actor: actor, Kind: kind, Targeted: true})
@@ -95,9 +95,9 @@ func TestMCPEvidenceAndItsRequirement(t *testing.T) {
 		[]contextop.Evidence{{Path: "docs/guide.md", Unit: "u1", Quote: "Utilise the editor"}},
 		mcpEvidence(" docs/guide.md ", "u1", "Utilise the editor "))
 
-	require.Error(t, requireEvidence("context_propose", nil))
-	assert.Contains(t, requireEvidence("context_propose", nil).Error(), "evidence")
-	assert.NoError(t, requireEvidence("context_propose", mcpEvidence("docs/guide.md", "", "")))
+	require.Error(t, requireEvidence("context_observe", nil))
+	assert.Contains(t, requireEvidence("context_observe", nil).Error(), "evidence")
+	assert.NoError(t, requireEvidence("context_observe", mcpEvidence("docs/guide.md", "", "")))
 }
 
 // The sentence an agent ends its report with has to be usable as it stands: it
@@ -108,16 +108,17 @@ func TestSessionReportIsWhatAnAgentSays(t *testing.T) {
 		Session:    "s4f1c2",
 		Project:    workspace.ProjectKey("prj_docs"),
 		Operations: 3,
-		ByKind:     map[contextop.Kind]int{contextop.KindObserve: 2, contextop.KindPropose: 1},
-		ByStatus:   map[contextop.Status]int{contextop.StatusCandidate: 3},
+		ByKind:     map[contextop.Kind]int{contextop.KindObserve: 2, contextop.KindCorrect: 1},
+		ByStatus:   map[contextop.Status]int{contextop.StatusSuggested: 2, contextop.StatusContested: 1},
 	})
 	assert.Equal(t, 2, out.Observed)
-	assert.Equal(t, 1, out.Proposed)
-	assert.Equal(t, 3, out.Candidates)
+	assert.Equal(t, 1, out.Corrected)
+	assert.Equal(t, 2, out.Suggested)
+	assert.Equal(t, 1, out.Contested)
 	assert.Equal(t, "kapi context log --session s4f1c2", out.Review)
-	assert.Contains(t, out.Report, "2 facts observed")
-	assert.Contains(t, out.Report, "1 rule proposed")
-	assert.Contains(t, out.Report, "3 candidates are waiting for a decision")
+	assert.Contains(t, out.Report, "2 observations, 1 correction recorded")
+	assert.Contains(t, out.Report, "3 suggestions are waiting for a person, 1 of them contested")
+	assert.Contains(t, out.Report, "kapi context keep --session s4f1c2")
 	assert.Contains(t, out.Report, out.Review)
 
 	quiet := sessionOutput(contextop.SessionSummary{Session: "s0"})

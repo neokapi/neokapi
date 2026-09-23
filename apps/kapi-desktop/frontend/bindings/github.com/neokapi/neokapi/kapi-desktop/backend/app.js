@@ -384,18 +384,6 @@ export function CloseTerms(handle) {
 }
 
 /**
- * ConfirmContextCandidate makes a candidate binding, with whatever edit and
- * whatever widening the person asked for in the same step.
- * @param {$models.ContextDecisionRequest} req
- * @returns {$CancellablePromise<$models.ContextFeedEntry | null>}
- */
-export function ConfirmContextCandidate(req) {
-    return $Call.ByID(2066735052, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType17($result);
-    }));
-}
-
-/**
  * ContextAt answers "what governs here" for one FILE, through the same
  * by-location resolution `kapi context <path>` and the `context://` resource
  * serve.
@@ -411,18 +399,18 @@ export function ConfirmContextCandidate(req) {
  */
 export function ContextAt(tabID, relPath, limit) {
     return $Call.ByID(559423694, tabID, relPath, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType19($result);
+        return $$createType17($result);
     }));
 }
 
 /**
- * ContextAwaitingCounts reports how many candidates each project has awaiting a
+ * ContextAwaitingCounts reports how many suggestions each project has awaiting a
  * decision, for a home screen that shows the badge without reading the feed.
  * @returns {$CancellablePromise<$models.ContextAwaiting[]>}
  */
 export function ContextAwaitingCounts() {
     return $Call.ByID(3495827509).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType21($result);
+        return $$createType19($result);
     }));
 }
 
@@ -435,7 +423,7 @@ export function ContextAwaitingCounts() {
  */
 export function ContextFeed(projectKey, limit) {
     return $Call.ByID(3935960135, projectKey, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType23($result);
+        return $$createType21($result);
     }));
 }
 
@@ -453,7 +441,7 @@ export function ContextFeed(projectKey, limit) {
  */
 export function ContextGoverns(tabID, collection, relPath, limit) {
     return $Call.ByID(913007441, tabID, collection, relPath, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType25($result);
+        return $$createType23($result);
     }));
 }
 
@@ -473,7 +461,7 @@ export function ContextGoverns(tabID, collection, relPath, limit) {
  */
 export function ContextLives(tabID, collection, relPath, limit) {
     return $Call.ByID(1087024766, tabID, collection, relPath, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType27($result);
+        return $$createType25($result);
     }));
 }
 
@@ -489,7 +477,7 @@ export function ContextLives(tabID, collection, relPath, limit) {
  */
 export function ContextOptions(tabID, dimension) {
     return $Call.ByID(3731879103, tabID, dimension).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType29($result);
+        return $$createType27($result);
     }));
 }
 
@@ -509,7 +497,7 @@ export function ContextOptions(tabID, dimension) {
  */
 export function ContextRelates(tabID, kind, subject, limit) {
     return $Call.ByID(1791597391, tabID, kind, subject, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType31($result);
+        return $$createType29($result);
     }));
 }
 
@@ -521,7 +509,7 @@ export function ContextRelates(tabID, kind, subject, limit) {
  */
 export function ContextRevertScope(req) {
     return $Call.ByID(2121721019, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType33($result);
+        return $$createType31($result);
     }));
 }
 
@@ -540,7 +528,7 @@ export function ContextRevertScope(req) {
  */
 export function ContextSearch(tabID, query, locale, limit) {
     return $Call.ByID(3281430243, tabID, query, locale, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType35($result);
+        return $$createType33($result);
     }));
 }
 
@@ -560,7 +548,7 @@ export function ContextSearch(tabID, query, locale, limit) {
  */
 export function ContextWidenReach(projectKey, id, to) {
     return $Call.ByID(1993959141, projectKey, id, to).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType37($result);
+        return $$createType35($result);
     }));
 }
 
@@ -621,7 +609,7 @@ export function CreateNamedTerms(name) {
  */
 export function CreateSampleProject(name) {
     return $Call.ByID(2933587303, name).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType39($result);
+        return $$createType37($result);
     }));
 }
 
@@ -756,7 +744,7 @@ export function DeleteUserFlow(id) {
  */
 export function DetectAIProviders() {
     return $Call.ByID(3976206385).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType40($result);
+        return $$createType38($result);
     }));
 }
 
@@ -791,22 +779,22 @@ export function DetectProjectFormat(tabID, path) {
 }
 
 /**
- * DiscardContextCandidate rejects a candidate. It stops answering at once.
- * @param {$models.ContextDecisionRequest} req
- * @returns {$CancellablePromise<$models.ContextFeedEntry | null>}
- */
-export function DiscardContextCandidate(req) {
-    return $Call.ByID(865546354, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType17($result);
-    }));
-}
-
-/**
  * DismissSamples marks the sample project cards as dismissed.
  * @returns {$CancellablePromise<void>}
  */
 export function DismissSamples() {
     return $Call.ByID(2057214703);
+}
+
+/**
+ * DropContextSuggestion sets a suggestion aside. It stops answering at once.
+ * @param {$models.ContextDecisionRequest} req
+ * @returns {$CancellablePromise<$models.ContextFeedEntry | null>}
+ */
+export function DropContextSuggestion(req) {
+    return $Call.ByID(1752796008, req).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType40($result);
+    }));
 }
 
 /**
@@ -1580,6 +1568,18 @@ export function IsEmptyProject(tabID) {
 }
 
 /**
+ * KeepContextSuggestion establishes a suggestion, with whatever edit and
+ * whatever widening the person asked for in the same step.
+ * @param {$models.ContextDecisionRequest} req
+ * @returns {$CancellablePromise<$models.ContextFeedEntry | null>}
+ */
+export function KeepContextSuggestion(req) {
+    return $Call.ByID(45744676, req).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType40($result);
+    }));
+}
+
+/**
  * ListAIModels returns the model-first catalog for the picker: local Ollama
  * models (installed first, then recommended) followed by each cloud provider's
  * model (flagged when no credential is saved yet).
@@ -1916,7 +1916,7 @@ export function MediaDataURL(path) {
  */
 export function NewProject(name, sourceLang, targetLangs, savePath) {
     return $Call.ByID(2342405367, name, sourceLang, targetLangs, savePath).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType39($result);
+        return $$createType37($result);
     }));
 }
 
@@ -1953,7 +1953,7 @@ export function OpenMemoryDialog() {
  */
 export function OpenProject(path) {
     return $Call.ByID(2875711285, path).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType39($result);
+        return $$createType37($result);
     }));
 }
 
@@ -1965,7 +1965,7 @@ export function OpenProject(path) {
  */
 export function OpenProjectDialog() {
     return $Call.ByID(3150431689).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType39($result);
+        return $$createType37($result);
     }));
 }
 
@@ -2000,7 +2000,7 @@ export function OpenTermsDialog() {
  */
 export function OpenWorkspaceContext(key) {
     return $Call.ByID(3090130948, key).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType39($result);
+        return $$createType37($result);
     }));
 }
 
@@ -2028,7 +2028,7 @@ export function PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang)
  */
 export function ProjectContextFeed(tabID, limit) {
     return $Call.ByID(123060864, tabID, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType23($result);
+        return $$createType21($result);
     }));
 }
 
@@ -2203,7 +2203,7 @@ export function RenderFormatConfig(formatName, config, outputFormat) {
  */
 export function ResetSampleProject(tabID) {
     return $Call.ByID(2909880062, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType39($result);
+        return $$createType37($result);
     }));
 }
 
@@ -2230,7 +2230,7 @@ export function ResolveEntityConcepts(memoryHandle, tbHandle, entryIDs, force) {
  */
 export function RevertContextOperations(req) {
     return $Call.ByID(1700784851, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType33($result);
+        return $$createType31($result);
     }));
 }
 
@@ -2459,7 +2459,7 @@ export function SaveProjectAs(tabID, path) {
  */
 export function SaveProjectDialog(tabID) {
     return $Call.ByID(2439877550, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType39($result);
+        return $$createType37($result);
     }));
 }
 
@@ -2961,13 +2961,13 @@ export function VoiceStarterPacks() {
 }
 
 /**
- * WidenContextRule moves a confirmed rule to a broader point.
+ * WidenContextRule moves an established rule to a broader point.
  * @param {$models.ContextDecisionRequest} req
  * @returns {$CancellablePromise<$models.ContextFeedEntry | null>}
  */
 export function WidenContextRule(req) {
     return $Call.ByID(3294089428, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType17($result);
+        return $$createType40($result);
     }));
 }
 
@@ -3020,31 +3020,31 @@ const $$createType12 = $models.PluginUpdate.createFrom;
 const $$createType13 = $Create.Array($$createType12);
 const $$createType14 = project$0.PluginStatus.createFrom;
 const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = $models.ContextFeedEntry.createFrom;
+const $$createType16 = host$0.ContextAnswer.createFrom;
 const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = host$0.ContextAnswer.createFrom;
-const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = $models.ContextAwaiting.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = $models.ContextFeed.createFrom;
+const $$createType18 = $models.ContextAwaiting.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = $models.ContextFeed.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = $models.ContextGovernsResult.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = $models.ContextGovernsResult.createFrom;
+const $$createType24 = $models.ContextLivesResult.createFrom;
 const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = $models.ContextLivesResult.createFrom;
-const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = $models.ContextOptionDTO.createFrom;
-const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = $models.ContextRelatesResult.createFrom;
+const $$createType26 = $models.ContextOptionDTO.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = $models.ContextRelatesResult.createFrom;
+const $$createType29 = $Create.Nullable($$createType28);
+const $$createType30 = $models.ContextRevertSummary.createFrom;
 const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = $models.ContextRevertSummary.createFrom;
+const $$createType32 = $models.ContextSearchResult.createFrom;
 const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = $models.ContextSearchResult.createFrom;
+const $$createType34 = $models.ContextWidenPreview.createFrom;
 const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = $models.ContextWidenPreview.createFrom;
+const $$createType36 = $models.TabInfo.createFrom;
 const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = $models.TabInfo.createFrom;
-const $$createType39 = $Create.Nullable($$createType38);
-const $$createType40 = $models.AIDetectionResult.createFrom;
+const $$createType38 = $models.AIDetectionResult.createFrom;
+const $$createType39 = $models.ContextFeedEntry.createFrom;
+const $$createType40 = $Create.Nullable($$createType39);
 const $$createType41 = $models.AIActivityResult.createFrom;
 const $$createType42 = locale$0.LocaleInfo.createFrom;
 const $$createType43 = $Create.Array($$createType42);
@@ -3132,7 +3132,7 @@ const $$createType124 = $models.ProviderInfo.createFrom;
 const $$createType125 = $Create.Array($$createType124);
 const $$createType126 = $models.RunTraces.createFrom;
 const $$createType127 = $Create.Nullable($$createType126);
-const $$createType128 = $Create.Array($$createType38);
+const $$createType128 = $Create.Array($$createType36);
 const $$createType129 = $models.UserFlowInfo.createFrom;
 const $$createType130 = $Create.Array($$createType129);
 const $$createType131 = $models.WorkspaceHome.createFrom;

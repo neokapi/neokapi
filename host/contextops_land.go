@@ -8,15 +8,15 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
-	"github.com/neokapi/neokapi/core/project"
 )
 
-// land writes a confirmed rule where the subsystems that read context already
-// look.
+// land writes an established rule where the subsystems that read context
+// already look.
 //
 // A project-scoped rule goes through the same appliers `kapi apply` uses: into
-// the project's terms store, the voice profile the recipe binds by name, or the
-// project's content memory. Every reader downstream, from a check to the
+// the project's terms store or the project's content memory. A term rule with
+// several forms to avoid lands each form, and a form that differs from the
+// form to use only in case stays out of the store, which folds case. Every reader downstream, from a check to the
 // governing fingerprint, sees it without being taught anything new. The log is
 // the history, and the store is where the rule lives.
 //
@@ -33,22 +33,87 @@ func (s *contextOpsSession) land(ctx context.Context, r contextop.Record) (strin
 		}
 		return "the whole workspace", nil
 	}
-	entry, ok := s.assetEntry(r)
-	if !ok {
-		return "", nil
+	landed := ""
+	for _, entry := range s.assetEntries(r) {
+		res := s.app.applyAssetEntry(ctx, s.cmd, entry)
+		if res.Status == "error" {
+			return "", fmt.Errorf("keep %s: %s", r.ID, res.Detail)
+		}
+		if res.Detail != "" && res.Status == "applied" {
+			landed = res.Detail
+		}
 	}
-	res := s.app.applyAssetEntry(ctx, s.cmd, entry)
-	if res.Status == "error" {
-		return "", fmt.Errorf("confirm %s: %s", r.ID, res.Detail)
+	if landed == "" {
+		landed = landedTerms
+		if r.Subject.Kind == contextop.SubjectMemory {
+			landed = landedMemory
+		}
 	}
-	return res.Detail, nil
+	return landed, nil
 }
 
-// retract takes a rule back out of wherever confirming put it. A candidate
-// nobody confirmed put nothing anywhere, so retracting it is a no-op: the rule
+// settled returns an operation as the log now folds it, after settling what
+// recording it changed: a correction that contests an established rule takes
+// the rule out of force, and setting that correction aside puts it back.
+func (s *contextOpsSession) settled(ctx context.Context, written contextop.Record, before []contextop.Record) (ContextOperation, error) {
+	moved, err := s.reconcile(ctx, before)
+	if err != nil {
+		return ContextOperation{}, err
+	}
+	out := ContextOperation{Record: written, Landed: strings.Join(moved, "; ")}
+	if now, gerr := s.ledger.Get(ctx, written.ID); gerr == nil {
+		out.Status, out.ContestedBy, out.Established = now.Status, now.ContestedBy, now.Established
+	}
+	return out, nil
+}
+
+// reconcile brings the stores in line with the rules whose standing moved
+// since before was read. An established rule a correction now contests is
+// taken out of the store it was written to, so it advises instead of failing
+// a check; a contested rule that is established again is written back.
+func (s *contextOpsSession) reconcile(ctx context.Context, before []contextop.Record) ([]string, error) {
+	after, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
+	if err != nil {
+		return nil, err
+	}
+	was := make(map[string]contextop.Record, len(before))
+	for _, r := range before {
+		was[r.ID] = r
+	}
+	var moved []string
+	for _, r := range after {
+		prior, held := was[r.ID]
+		if !held || !r.Established || !prior.Established {
+			continue
+		}
+		binding := r.Status == contextop.StatusEstablished
+		wasBinding := prior.Status == contextop.StatusEstablished
+		switch {
+		case wasBinding && !binding:
+			r.Status = contextop.StatusEstablished
+			where, rerr := s.retract(ctx, r)
+			if rerr != nil {
+				return nil, rerr
+			}
+			if where != "" {
+				moved = append(moved, fmt.Sprintf("#%s is contested and taken out of %s", r.ID, where))
+			}
+		case !wasBinding && binding:
+			where, lerr := s.land(ctx, r)
+			if lerr != nil {
+				return nil, lerr
+			}
+			moved = append(moved, fmt.Sprintf("#%s is established again in %s", r.ID, where))
+		}
+	}
+	return moved, nil
+}
+
+// retract takes a rule back out of wherever keeping put it. A suggestion
+// nobody kept put nothing anywhere, so retracting it is a no-op: the rule
 // stops advising the moment the log says so.
 func (s *contextOpsSession) retract(ctx context.Context, r contextop.Record) (string, error) {
-	if r.Status != contextop.StatusConfirmed {
+	if r.Status != contextop.StatusEstablished {
 		return "", nil
 	}
 	if err := contextop.Narrow(ctx, s.ws, r.Project, r.ID); err != nil {
@@ -60,58 +125,89 @@ func (s *contextOpsSession) retract(ctx context.Context, r contextop.Record) (st
 	return s.retractFromProject(ctx, r)
 }
 
-// retractFromProject removes a rule from the store a confirmation wrote it to.
+// retractFromProject removes a rule from the store a keep wrote it to.
 func (s *contextOpsSession) retractFromProject(ctx context.Context, r contextop.Record) (string, error) {
-	switch r.Subject.Kind {
-	case contextop.SubjectTerm:
-		return s.retractTerm(ctx, *r.Subject.Term)
-	case contextop.SubjectVoice:
-		return s.retractVoiceRule(ctx, *r.Subject.Voice)
-	case contextop.SubjectMemory:
+	switch {
+	case r.Subject.Kind == contextop.SubjectTerm && r.Subject.Term != nil:
+		where := ""
+		for _, form := range storedForms(*r.Subject.Term) {
+			rule := *r.Subject.Term
+			rule.Term = form
+			out, err := s.retractTerm(ctx, rule)
+			if err != nil {
+				return "", err
+			}
+			if out != "" {
+				where = out
+			}
+		}
+		return where, nil
+	case r.Subject.Kind == contextop.SubjectMemory && r.Subject.Memory != nil:
 		return s.retractMemoryPair(ctx, *r.Subject.Memory)
 	}
 	return "", nil
 }
 
-// assetEntry renders a confirmed rule as the change-set entry `kapi apply`
-// takes, so confirming and applying reach the store by one path.
-func (s *contextOpsSession) assetEntry(r contextop.Record) (changeEntry, bool) {
-	switch r.Subject.Kind {
-	case contextop.SubjectTerm:
+// assetEntries renders an established rule as the change-set entries `kapi
+// apply` takes, so keeping and applying reach the store by one path: one entry
+// per form a term rule avoids, or the term alone as the form the project uses
+// when the rule avoids nothing.
+func (s *contextOpsSession) assetEntries(r contextop.Record) []changeEntry {
+	switch {
+	case r.Subject.Kind == contextop.SubjectTerm && r.Subject.Term != nil:
 		rule := *r.Subject.Term
-		return changeEntry{
-			Kind:        kindTerm,
-			Op:          "upsert",
-			Term:        rule.Term,
-			Replacement: rule.Replacement,
-			Locale:      s.sourceLocale(),
-			Status:      string(model.TermForbidden),
-		}, true
-	case contextop.SubjectVoice:
-		voice := *r.Subject.Voice
-		return changeEntry{
-			Kind:        kindVoice,
-			Op:          "add-rule",
-			List:        voice.List,
-			Term:        voice.Rule.Term,
-			Replacement: voice.Rule.Replacement,
-			Severity:    voice.Rule.Severity,
-		}, true
-	case contextop.SubjectMemory:
+		if rule.Replacement == "" {
+			return []changeEntry{{
+				Kind:   kindTerm,
+				Op:     "upsert",
+				Term:   rule.Term,
+				Locale: s.sourceLocale(),
+				Status: string(model.TermPreferred),
+			}}
+		}
+		forms := storedForms(rule)
+		out := make([]changeEntry, 0, len(forms))
+		for _, form := range forms {
+			out = append(out, changeEntry{
+				Kind:        kindTerm,
+				Op:          "upsert",
+				Term:        form,
+				Replacement: rule.Replacement,
+				Locale:      s.sourceLocale(),
+				Status:      string(model.TermForbidden),
+			})
+		}
+		return out
+	case r.Subject.Kind == contextop.SubjectMemory && r.Subject.Memory != nil:
 		pair := *r.Subject.Memory
-		return changeEntry{
+		return []changeEntry{{
 			Kind:         kindMemory,
 			Op:           "add",
 			Source:       pair.Source,
 			Target:       pair.Target,
 			SourceLocale: pair.SourceLocale,
 			TargetLocale: pair.TargetLocale,
-		}, true
+		}}
 	}
-	return changeEntry{}, false
+	return nil
 }
 
-// sourceLocale is the language a confirmed term is recorded in: the project's
+// storedForms lists the forms of a term rule the terms store can hold. The
+// store folds case, so a form that differs from the form to use only in case
+// would land on the preferred term itself; such a form stays in the rule and
+// out of the store.
+func storedForms(rule coreprofile.TermRule) []string {
+	var out []string
+	for _, form := range append([]string{rule.Term}, rule.Forms...) {
+		if form == "" || (rule.Replacement != "" && strings.EqualFold(form, rule.Replacement)) {
+			continue
+		}
+		out = append(out, form)
+	}
+	return out
+}
+
+// sourceLocale is the language an established term is recorded in: the project's
 // own, which is the language its source content is written in.
 func (s *contextOpsSession) sourceLocale() string {
 	if loc := s.app.SourceLocale(); loc != "" {
@@ -122,7 +218,7 @@ func (s *contextOpsSession) sourceLocale() string {
 
 // retractTerm removes a term from the project's terms store.
 //
-// The term goes and the concept stands, because a term confirmed into a concept
+// The term goes and the concept stands, because a term kept into a concept
 // that already existed must leave that concept's other terms where they are. A
 // concept the term was alone in goes with it.
 func (s *contextOpsSession) retractTerm(ctx context.Context, rule coreprofile.TermRule) (string, error) {
@@ -158,51 +254,6 @@ func (s *contextOpsSession) retractTerm(ctx context.Context, rule coreprofile.Te
 		return "", fmt.Errorf("retract term %q: %w", rule.Term, err)
 	}
 	return landedTerms, nil
-}
-
-// retractVoiceRule removes a rule from the voice profile the recipe binds. A
-// project that binds no profile holds no rule to take out.
-func (s *contextOpsSession) retractVoiceRule(ctx context.Context, voice contextop.VoiceRule) (string, error) {
-	db, err := s.app.ProjectDB(ctx, s.root)
-	if err != nil {
-		return "", err
-	}
-	store := db.Voice()
-	if store == nil {
-		return "", nil
-	}
-	prof, _, found, err := s.app.loadVoiceAtGovernance(ctx, s.root, store, s.defaultGovernance())
-	if err != nil || !found || prof == nil {
-		return "", err
-	}
-	list := voiceRuleList(prof, voice.List)
-	kept := make([]coreprofile.TermRule, 0, len(*list))
-	removed := false
-	for _, rule := range *list {
-		if strings.EqualFold(rule.Term, voice.Rule.Term) {
-			removed = true
-			continue
-		}
-		kept = append(kept, rule)
-	}
-	if !removed {
-		return "", nil
-	}
-	*list = kept
-	if err := store.UpdateProfile(ctx, prof); err != nil {
-		return "", fmt.Errorf("retract voice rule %q: %w", voice.Rule.Term, err)
-	}
-	return landedVoice + prof.ID, nil
-}
-
-// defaultGovernance resolves what governs the project as a whole, which is the
-// point a project-scoped rule was confirmed at.
-func (s *contextOpsSession) defaultGovernance() *project.ResolvedGovernance {
-	rc, err := s.proj.ResolveGovernanceFor(project.GovernancePoint{At: s.app.GovernanceInstant()})
-	if err != nil {
-		return nil
-	}
-	return rc
 }
 
 // retractMemoryPair removes a pair from the project's content memory.

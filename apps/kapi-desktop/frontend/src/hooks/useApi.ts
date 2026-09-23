@@ -457,11 +457,11 @@ export const api = {
   /** How many candidates each project has awaiting a decision. */
   contextAwaitingCounts: () => call<ContextAwaiting[]>("ContextAwaitingCounts"),
   /** Make a candidate binding, with whatever edit and widening was asked for. */
-  confirmContextCandidate: (req: ContextDecisionRequest) =>
-    call<ContextFeedEntry>("ConfirmContextCandidate", req),
+  keepContextSuggestion: (req: ContextDecisionRequest) =>
+    call<ContextFeedEntry>("KeepContextSuggestion", req),
   /** Reject a candidate. It stops answering at once. */
-  discardContextCandidate: (req: ContextDecisionRequest) =>
-    call<ContextFeedEntry>("DiscardContextCandidate", req),
+  dropContextSuggestion: (req: ContextDecisionRequest) =>
+    call<ContextFeedEntry>("DropContextSuggestion", req),
   /** What reverting would undo, for the confirmation read first. */
   contextRevertScope: (req: ContextRevertRequest) =>
     call<ContextRevertSummary>("ContextRevertScope", req),
@@ -471,7 +471,7 @@ export const api = {
   /** Where a rule would answer once widened. */
   contextWidenReach: (projectKey: string, id: string, to: string) =>
     call<ContextWidenPreview>("ContextWidenReach", projectKey, id, to),
-  /** Move a confirmed rule to a broader point. */
+  /** Move an established rule to a broader point. */
   widenContextRule: (req: ContextDecisionRequest) =>
     call<ContextFeedEntry>("WidenContextRule", req),
 

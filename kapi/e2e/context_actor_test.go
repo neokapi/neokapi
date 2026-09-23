@@ -73,6 +73,9 @@ type loggedOperation struct {
 		Name    string `json:"name"`
 		Session string `json:"session"`
 	} `json:"actor"`
+	Subject struct {
+		Kind string `json:"kind"`
+	} `json:"subject"`
 	Status string `json:"status"`
 	Note   string `json:"note"`
 }
@@ -98,7 +101,7 @@ func TestCommandLineAgentIsRecordedAndRefusedTheDecision(t *testing.T) {
 
 	kapiEnvOK(t, agent, "context", "observe", "the docs address the reader as you",
 		"--seen-in", "docs/guide.md", "-p", recipe)
-	kapiEnvOK(t, agent, "context", "propose", "utilise", "--use", "use",
+	kapiEnvOK(t, agent, "context", "observe", "--term", "use", "--instead-of", "utilise",
 		"--seen-in", "docs/guide.md", "--quote", "We utilise the widget", "-p", recipe)
 	kapi(t, "context", "observe", "the guide is written in the present tense", "-p", recipe)
 
@@ -126,23 +129,23 @@ func TestCommandLineAgentIsRecordedAndRefusedTheDecision(t *testing.T) {
 	// The decision is the person's, and the refusal says what to do instead.
 	var candidate string
 	for _, op := range byAgent {
-		if op.Kind == "propose" {
+		if op.Kind == "observe" && op.Subject.Kind == "term" {
 			candidate = op.ID
 		}
 	}
 	require.NotEmpty(t, candidate)
 
-	refused, err := kapiEnv(t, agent, "context", "confirm", candidate, "-p", recipe)
-	require.Error(t, err, "an agent confirming its own proposal:\n%s", refused)
-	assert.Contains(t, refused, "only a person confirms a rule")
-	assert.Contains(t, refused, "kapi context log --status candidate")
+	refused, err := kapiEnv(t, agent, "context", "keep", candidate, "-p", recipe)
+	require.Error(t, err, "an agent keeping its own suggestion:\n%s", refused)
+	assert.Contains(t, refused, "only a person keeps a suggestion")
+	assert.Contains(t, refused, "kapi context log --status suggested")
 
-	kapi(t, "context", "confirm", candidate, "-p", recipe)
+	kapi(t, "context", "keep", candidate, "-p", recipe)
 	after := readLog(t, nil, "context", "log", "--session", "s-e2e-one", "--subjects", "--json", "-p", recipe)
 	require.Len(t, after, 2)
 	var confirmed int
 	for _, op := range after {
-		if op.Status == "confirmed" {
+		if op.Status == "established" {
 			confirmed++
 		}
 	}

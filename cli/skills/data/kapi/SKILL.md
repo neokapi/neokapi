@@ -11,23 +11,22 @@ terms and the wording already approved at each location. Keep four habits.
 ## 1. Ask what applies before you write
 
 - CLI: `kapi context <file>`, and `kapi context search <word>`
-- MCP: read `context://<file>`, and call `context_search`
+- MCP: `context_read` with the file, and `context_search`
 
-Build on the answer. A proposed rule advises; only an established rule fails a
-check.
+A suggested rule advises; only an established rule fails a check.
 
 ## 2. Record what you notice
 
-- CLI: `kapi context observe "<fact>" --seen-in <file>`, and
-  `kapi context propose <term> --use <better> --seen-in <file> --quote "<text>"`
-- MCP: `context_observe`, `context_propose`
+- CLI: `kapi context observe "<fact>" --seen-in <file>`; for a name,
+  `kapi context observe --term <form used> --instead-of <form avoided> --seen-in <file>`
+- MCP: `context_observe`, with `term` and `instead_of` for a name
 
-Record one fact per call, as you read. Take back a proposal of yours that turns
-out wrong with `kapi context discard <id>` (MCP: `context_withdraw`).
+One thing per call, as you read. Take back your own mistake with
+`kapi context withdraw <id>` (MCP: `context_withdraw`).
 
 ## 3. Record the person's corrections
 
-- CLI: `kapi context correct "<yours>" "<theirs>" --seen-in <file> --propose`
+- CLI: `kapi context correct "<yours>" "<theirs>" --seen-in <file> --suggest`
 - MCP: `context_correct`
 
 ## 4. Check what you changed, then report the session

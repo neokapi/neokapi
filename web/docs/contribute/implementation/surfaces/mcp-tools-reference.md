@@ -50,7 +50,7 @@ into their synthetic host commands, so profile and terms resolution uses the
 bound project even when implicit discovery is disabled. Custom recipe filenames
 remain intact.
 
-The `context://` resources and `context_search` also use the server's bound
+The `context://` resources, `context_read` and `context_search` also use the server's bound
 recipe. Resource locations resolve relative to that recipe's root, including
 when the server runs from a subdirectory or outside the project. Explicit
 standalone store inputs on `context_search` retain their override semantics.
@@ -96,8 +96,8 @@ for analyzer scope and timing boundaries.
 
 | Handlers | Where |
 | --- | --- |
-| `context_search`, the `context://` resources | `host/mcp_context.go` |
-| `context_observe`, `context_propose`, `context_correct`, `context_session_summary` | `host/mcp_grow.go` (each wraps one call in `host/contextops.go`) |
+| `context_search`, `context_read`, the `context://` resources | `host/mcp_context.go` |
+| `context_observe`, `context_correct`, `context_withdraw`, `context_session_summary` | `host/mcp_grow.go` (each wraps one call in `host/contextops.go`) |
 | `up`, `up_plan` | `host/mcp_up.go` |
 | `check_text`, `check_file` | `host/mcp_check.go` |
 | `apply_edits` | `host/mcp_edit.go` (change-set kinds in `host/apply.go`) |
@@ -133,6 +133,11 @@ itself says which address form was asked for, so dispatch never depends on which
 template the SDK matched; both templates match `context://profile/x`, which
 would otherwise be a coin toss.
 
+A client lists no resources from a template, so an agent working from its tool
+list never finds these addresses. `context_read` is the same read as a tool: its
+handler builds the `context://<path>` URI from `path`, `format` and `project`
+and returns exactly the text the resource returns.
+
 The URI is split by hand rather than through `url.Parse`. Under `context://` the
 first path segment would be read as an authority and lowercased, silently
 renaming a location on a case-sensitive filesystem.
@@ -156,8 +161,8 @@ read it rather than a prose copy.
 | `list_formats`, `list_flows`, `list_tools` | `mcptools.ListFormatsOutput`, `ListFlowsOutput`, `ListToolsOutput` |
 | Review verbs | `mcptools.ReviewQueueOutput`, `ReviewUnitOutput`, `ReviewDecisionOutput` |
 | `check_text`, `check_file` | a `kapi.check/v1` Report; see [the JSON contract](/reference/cli-contract) |
-| `context_observe`, `context_propose`, `context_correct` | `host.contextRecordOutput`: the operation id, its kind and status, the session, what was recorded, the command that reviews it, and what happens to it next |
-| `context_session_summary` | `host.contextSessionOutput`: the counts by what was recorded and by what became of it, with the sentence to end a report on |
+| `context_observe`, `context_correct`, `context_withdraw` | `host.contextRecordOutput`: the operation id, its kind and status (`suggested` or `contested`, with `contested_by` naming the other side), the session, what was recorded, the command that reviews it, and what happens to it next |
+| `context_session_summary` | `host.contextSessionOutput`: the counts `observed`, `corrected`, `suggested`, `contested`, `established`, `withdrawn`, `dropped` and `reverted`, with the sentence to end a report on and the `kapi context keep --session <id>` command a person keeps the session's suggestions with |
 | `stats` | the same document `kapi stats --json` emits |
 | A curated framework tool | `host.frameworkToolOutput`: target translations, rewritten source, properties, overlays, and annotations for the one processed block |
 

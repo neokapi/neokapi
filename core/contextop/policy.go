@@ -23,7 +23,7 @@ type Transition struct {
 	Target   Record
 	Targeted bool
 	// Widening reports that the transition moves a rule to a broader point.
-	// Confirming and widening in one step sets it on the confirm.
+	// Keeping and widening in one step sets it on the keep.
 	Widening bool
 	// Editing reports that the transition changes the rule it acts on.
 	Editing bool
@@ -45,35 +45,43 @@ var ErrRefused = errors.New("refused by the context policy")
 
 // PersonDecides is the policy in force.
 //
-// Anyone may say what they saw. An agent or a tool observes, proposes and
-// records a correction, and each of those takes effect as advice that no check
-// can fail on. Only a person turns advice into a rule: confirming, editing what
-// another actor proposed, discarding another actor's proposal, reverting a
-// confirmed rule, and widening are all a person's.
+// Anyone may say what they saw. An agent or a tool observes and records a
+// correction, and each of those takes effect as a suggestion that no check can
+// fail on. Only a person establishes a rule: keeping a suggestion, editing
+// what another actor suggested, importing context, writing a rule directly,
+// dropping a suggestion, reverting an established rule, and widening are all a
+// person's.
 //
-// An actor may withdraw its own work: an agent that proposed something may
-// discard or revert its own proposal while it is still a candidate, which is
-// how a session cleans up after itself without asking anyone.
+// Anyone may withdraw their own suggestion in the session that recorded it,
+// which is how an agent cleans up after itself without asking anyone. A later
+// session has no standing to withdraw what an earlier one recorded.
 func PersonDecides(t Transition) error {
+	if t.Kind == KindWithdraw {
+		return withdrawable(t)
+	}
 	if t.Actor.Kind == ActorPerson {
 		return nil
 	}
 	switch t.Kind {
-	case KindObserve, KindPropose, KindCorrect:
+	case KindObserve, KindCorrect:
 		if t.Widening {
 			return refuse(t, "only a person widens a rule beyond the point its evidence was seen at")
 		}
 		return nil
-	case KindConfirm:
-		return refuse(t, "only a person confirms a rule")
+	case KindImport, KindEdit:
+		return refuse(t, "only a person imports context or writes a rule directly")
+	case KindKeep:
+		return refuse(t, "only a person keeps a suggestion")
+	case KindDrop:
+		return refuse(t, "only a person drops a suggestion; withdraw your own instead")
 	case KindWiden:
 		return refuse(t, "only a person widens a rule beyond the point its evidence was seen at")
-	case KindDiscard, KindRevert:
+	case KindRevert:
 		if !t.Targeted {
 			return refuse(t, "only a person reverts a whole session")
 		}
-		if t.Target.Status == StatusConfirmed {
-			return refuse(t, "only a person withdraws a confirmed rule")
+		if t.Target.Established {
+			return refuse(t, "only a person reverts an established rule")
 		}
 		if !sameActor(t.Actor, t.Target.Actor) {
 			return refuse(t, "only a person acts on another actor's operation")
@@ -81,6 +89,21 @@ func PersonDecides(t Transition) error {
 		return nil
 	}
 	return refuse(t, fmt.Sprintf("%q is not an operation kind", t.Kind))
+}
+
+// withdrawable decides a withdrawal, which is the same for every actor: its
+// author takes back a suggestion in the session that recorded it.
+func withdrawable(t Transition) error {
+	if !t.Targeted {
+		return refuse(t, "a withdrawal names one operation")
+	}
+	if !sameActor(t.Actor, t.Target.Actor) {
+		return refuse(t, "only its author withdraws a suggestion, in the session that recorded it")
+	}
+	if !t.Target.Status.Advises() || t.Target.Established {
+		return refuse(t, fmt.Sprintf("operation %s is %s, and only a suggestion can be withdrawn", t.Target.ID, t.Target.Status))
+	}
+	return nil
 }
 
 // refuse renders a policy refusal, naming the actor and what it tried.
@@ -96,7 +119,7 @@ func sameActor(a, b Actor) bool {
 	return a.Kind == b.Kind && a.Name == b.Name && a.Session == b.Session
 }
 
-// Allow records every transition, whoever proposes it. It is what a test
+// Allow records every transition, whoever records it. It is what a test
 // driving the log directly uses, and what an embedding that enforces its own
 // permissions elsewhere passes.
 func Allow(Transition) error { return nil }

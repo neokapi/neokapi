@@ -123,7 +123,7 @@ func TestContextPointTeachesWhenItIsEmpty(t *testing.T) {
 // TestContextPointNamesACandidateAsACandidate: an answer that mentioned a
 // proposal beside the rules in force would be handing a writer a rule the
 // project has not agreed to.
-func TestContextPointNamesACandidateAsACandidate(t *testing.T) {
+func TestContextPointNamesASuggestionAsASuggestion(t *testing.T) {
 	proj := pointRecipe(t, "")
 	res := resolveAt(t, proj, host.ContextPointRequest{Path: "docs/guide.md"},
 		host.ContextPointSources{Rules: contextop.Resolution{Advisory: candidateRules()}})
@@ -131,8 +131,8 @@ func TestContextPointNamesACandidateAsACandidate(t *testing.T) {
 	require.Equal(t, host.CoverageThin, res.Coverage,
 		"a candidate is evidence someone looked, so the answer is no longer empty")
 	notes := strings.Join(res.Notes, "\n")
-	assert.Contains(t, notes, "1 candidate rule")
-	assert.Contains(t, notes, "confirmed or discarded")
+	assert.Contains(t, notes, "1 suggested rule")
+	assert.Contains(t, notes, "kept or dropped")
 	assert.NotContains(t, notes, "records nothing for this location")
 }
 

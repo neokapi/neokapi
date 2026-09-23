@@ -84,12 +84,12 @@ task you set out to do.
 
 The `growing-context` reference is the second and third habits at their other
 speed. Everyday growth and a deliberate discovery session are one mechanism:
-both record operations that produce candidates, and neither writes a governance
-file, because confirming is what writes one ([C-11](../context/c-11-context-operations.md)).
+both record operations that produce suggestions, and neither writes a governance
+file, because a person keeping a suggestion is what writes one ([C-11](../context/c-11-context-operations.md)).
 The deliberate half covers two visits. On the first, the assistant assembles a
 project's context from the user's material. On a later one it diffs new material
-against what the project already holds and proposes a **refresh**: candidates
-the user confirms one at a time, or a change-set the user approves
+against what the project already holds and proposes a **refresh**: suggestions
+the user keeps one at a time, or a change-set the user approves
 (`kapi apply refresh.jsonl`) where the decisions are already made. Nothing is
 rewritten behind the user's back either way.
 
@@ -442,7 +442,7 @@ none:
 
 | Set | Serves |
 | --- | --- |
-| `writing` | the `context://` resources, `context_search`, `context_observe`, `context_propose`, `context_correct`, `context_withdraw`, `context_session_summary`, `check_file` |
+| `writing` | the `context://` resources, `context_read`, `context_search`, `context_observe`, `context_correct`, `context_withdraw`, `context_session_summary`, `check_file` |
 | `content` | `check_text`, `voice_check`, `voice_rewrite`, `term-check`, `extract_content`, `detect_format`, `apply_edits`, `redact` |
 | `translation` | `translate`, `up`, `up_plan`, `stats` |
 | `review` | `review_queue`, `review_unit`, `approve_unit`, `reject_unit`, `sign_off_unit` |
@@ -468,11 +468,11 @@ Three curation rules are asserted by tests rather than remembered:
   from the CLI: `kapi exec` still runs both.
 - **No curated tool shadows a porcelain one.** Two names for one job means the
   caller picks wrong half the time.
-- **Nothing a person decides is agent-facing.** `context_observe`,
-  `context_propose` and `context_correct` record what an agent may record, and
-  `context_withdraw` discards what the same session recorded wrongly and nothing
-  else; confirming, discarding another actor's work, reverting and widening are
-  a person's, and the surface carries no tool for them at all. The policy
+- **Nothing a person decides is agent-facing.** `context_observe` and
+  `context_correct` record what an agent may record, each as a suggestion, and
+  `context_withdraw` takes back what the same session recorded wrongly and
+  nothing else; keeping, dropping, reverting and widening are a person's, and
+  the surface carries no tool for them at all. The policy
   ([C-11](../context/c-11-context-operations.md)) would refuse such a call
   anyway, and a tool that is always refused is one an assistant keeps trying.
   The actor rides on the call rather than in it: kind `agent`, the name from
@@ -503,6 +503,11 @@ Making the rendering a property of the read, a MIME type, is what avoids a
 second entry point for the same question. One reserved path prefix carries the
 by-name form, so a single scheme carries both address forms. `?project=` names
 the project the read acts on, the way the tools take a `project` argument.
+
+The server offers both addresses as resource templates, and a client lists no
+resources from a template, so an agent that works from its tool list would never
+find one. `context_read` is the same read as a tool: it takes `path`, `format`
+and `project` and returns exactly the text `context://<path>` returns.
 
 Both MCP primitives are thin wrappers over the same host functions the `kapi
 context` verbs call. The skill drives the CLI, so a capability that existed on

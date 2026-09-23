@@ -1,40 +1,50 @@
 // Package contextop records how a project's context came to be.
 //
 // A project starts with no terms, no voice rules and an empty content memory,
-// and the context grows out of ordinary work. Someone notices a fact, proposes
-// a rule with the evidence behind it, a person confirms it, checks enforce it,
-// and the next correction is evidence for the rule after that. Every step is an
+// and the context grows out of ordinary work. Someone notices a fact or the
+// form the project uses for a word, a person keeps it, checks enforce it, and
+// the next correction is evidence for the rule after that. Every step is an
 // operation: who did it, what it was about, where the evidence was seen, what
 // governed at the time, and what became of it.
 //
 // # Append only
 //
 // Operations go into the workspace's operation log (core/workspace) and are
-// never edited. A status is not a column that moves: confirming a proposal
-// writes a `confirm` operation naming it, discarding writes a `discard`, and
-// reverting writes a `revert`. [Ledger.Records] reads the log and reports the status each
-// subject-bearing operation ended up with, so the history is the whole record
-// and a surface can replay it.
+// never edited. A status is not a column that moves: keeping a suggestion
+// writes a `keep` operation naming it, dropping writes a `drop`, withdrawing
+// writes a `withdraw` and reverting writes a `revert`. [Ledger.Records] reads
+// the log and reports the status each subject-bearing operation ended up with,
+// so the history is the whole record and a surface can replay it.
 //
-// # Candidates advise, confirmed rules bind
+// # Suggestions advise, established rules bind
 //
-// A proposal takes effect the moment it is recorded, as advice. [Resolve] and
-// [Resolution.RuleSets] project the candidates at a point into rule sets marked
-// advisory, which the
-// vocabulary matcher reports at neutral severity, below every gate threshold. A
-// candidate therefore shows up in a check and can never fail one. Confirming is
-// what makes a rule bind, at the severity the rule carries, and confirmation
-// writes it into the terms store, the voice profile or the content memory,
-// where every existing reader already looks. This log is the history and the
-// source of candidates, not a second home for confirmed rules.
+// Everything recorded about a project is a suggestion, and it advises the
+// moment it is recorded. [Resolve] and [Resolution.RuleSets] project the
+// suggestions at a point into rule sets marked advisory, which the vocabulary
+// matcher reports at neutral severity, below every gate threshold. A
+// suggestion therefore shows up in a check and can never fail one. A person
+// keeping it is what establishes it, and keeping writes the rule into the
+// terms store or the content memory, where every existing reader already
+// looks. What a person imports or edits directly is established from the
+// start. This log is the history and the source of suggestions, not a second
+// home for established rules.
+//
+// # Contested
+//
+// Two suggestions about one word that name different forms to use disagree:
+// both advise, both are marked contested, and neither can be kept until a
+// person chooses. A suggestion that contradicts an established rule is
+// contested and the rule stays in force. A person's own correction that
+// reverses an established rule contests the rule, which then reports instead
+// of failing, so a person's edit never fails their own build.
 //
 // # Scope
 //
 // What is learned is scoped to the point where its evidence was seen, which for
-// a new project is that project. Confirming is also the moment a person may
-// widen a rule to a broader point, or to the whole workspace, where it answers
-// in every project. [Resolve] puts workspace-wide rules beneath project ones,
-// so the most specific rule about a term wins.
+// a new project is that project. Keeping is also the moment a person may widen
+// a rule to a broader point, or to the whole workspace, where it answers in
+// every project. [Resolve] puts workspace-wide rules beneath project ones, so
+// the most specific rule about a term wins.
 package contextop
 
 import (
@@ -101,40 +111,46 @@ func (a Actor) String() string {
 type Kind string
 
 const (
-	// KindObserve records a fact somebody noticed, with no rule implied: a
-	// product name as it is written, a spelling the documents keep, who the
-	// text addresses.
+	// KindObserve records something somebody noticed: a fact in prose, or the
+	// form the project uses for a word with the forms it avoids, which is a
+	// term rule. It advises from the moment it is recorded.
 	KindObserve Kind = "observe"
-	// KindPropose records a candidate term rule or voice rule with the evidence
-	// behind it. It advises from the moment it is recorded.
-	KindPropose Kind = "propose"
 	// KindCorrect records that someone changed wording from one form to another
-	// at a location. It carries both wordings, and it may carry a proposal
+	// at a location. It carries both wordings, and it may carry the term rule
 	// drawn from them.
 	KindCorrect Kind = "correct"
-	// KindConfirm makes an earlier operation's rule binding, optionally with
-	// edits to the rule.
-	KindConfirm Kind = "confirm"
-	// KindDiscard rejects an earlier operation. Its subject stops answering.
-	KindDiscard Kind = "discard"
+	// KindImport records one context file a person read into the project's
+	// stores. What a person imports is established from the start.
+	KindImport Kind = "import"
+	// KindEdit records a rule or a store a person wrote directly, with `kapi
+	// apply` or an editor. It is established from the start.
+	KindEdit Kind = "edit"
+	// KindKeep establishes an earlier suggestion, optionally with edits to the
+	// rule. Only a person keeps.
+	KindKeep Kind = "keep"
+	// KindDrop is a person setting a suggestion aside. It stops answering.
+	KindDrop Kind = "drop"
+	// KindWithdraw is the author of a suggestion taking it back, in the session
+	// that recorded it. It stops answering.
+	KindWithdraw Kind = "withdraw"
 	// KindRevert undoes an earlier operation, or every operation one session
 	// recorded, and retracts whatever they put in force.
 	KindRevert Kind = "revert"
-	// KindWiden moves a confirmed rule to a broader point, or to the whole
+	// KindWiden moves an established rule to a broader point, or to the whole
 	// workspace.
 	KindWiden Kind = "widen"
 )
 
 // Kinds is every operation kind, in the order a reader meets them.
-var Kinds = []Kind{KindObserve, KindPropose, KindCorrect, KindConfirm, KindDiscard, KindRevert, KindWiden}
+var Kinds = []Kind{KindObserve, KindCorrect, KindImport, KindEdit, KindKeep, KindDrop, KindWithdraw, KindRevert, KindWiden}
 
 // Valid reports whether k is one of the declared kinds.
 func (k Kind) Valid() bool { return slices.Contains(Kinds, k) }
 
 // Bears reports whether an operation of this kind carries a subject of its own.
-// The three that do are what a status is folded onto; the rest act on them.
+// The kinds that do are what a status is folded onto; the rest act on them.
 func (k Kind) Bears() bool {
-	return k == KindObserve || k == KindPropose || k == KindCorrect
+	return k == KindObserve || k == KindCorrect || k == KindImport || k == KindEdit
 }
 
 // Status is what became of a subject-bearing operation. It is folded from the
@@ -142,29 +158,44 @@ func (k Kind) Bears() bool {
 type Status string
 
 const (
-	// StatusCandidate is an operation nothing has acted on. Its rule advises
+	// StatusSuggested is an operation nothing has acted on. Its rule advises
 	// and never fails a check.
-	StatusCandidate Status = "candidate"
-	// StatusConfirmed is a rule a person made binding. It is in force at the
-	// severity it carries.
-	StatusConfirmed Status = "confirmed"
-	// StatusDiscarded is a proposal somebody rejected. It stops answering.
-	StatusDiscarded Status = "discarded"
+	StatusSuggested Status = "suggested"
+	// StatusEstablished is a rule a person kept, imported or wrote. It is in
+	// force at the severity it carries.
+	StatusEstablished Status = "established"
+	// StatusContested is a rule that disagrees with another: two suggestions
+	// naming different forms for one word, a suggestion that contradicts an
+	// established rule, or an established rule a person's own correction
+	// reversed. It advises and fails no check until a person chooses.
+	// Record.ContestedBy names the other side.
+	StatusContested Status = "contested"
+	// StatusWithdrawn is a suggestion its author took back in the session that
+	// recorded it. It stops answering.
+	StatusWithdrawn Status = "withdrawn"
+	// StatusDropped is a suggestion a person set aside. It stops answering.
+	StatusDropped Status = "dropped"
 	// StatusReverted is an operation somebody undid, alone or with the rest of
 	// its session. It stops answering.
 	StatusReverted Status = "reverted"
 )
 
 // Statuses is every status a subject-bearing operation can hold.
-var Statuses = []Status{StatusCandidate, StatusConfirmed, StatusDiscarded, StatusReverted}
+var Statuses = []Status{StatusSuggested, StatusEstablished, StatusContested, StatusWithdrawn, StatusDropped, StatusReverted}
 
 // Valid reports whether s is one of the declared statuses.
 func (s Status) Valid() bool { return slices.Contains(Statuses, s) }
 
 // Answers reports whether a subject at this status still says anything: a
-// candidate advises, a confirmed rule binds, and the other two are silent.
+// suggestion and a contested rule advise, an established rule binds, and the
+// other three are silent.
 func (s Status) Answers() bool {
-	return s == StatusCandidate || s == StatusConfirmed
+	return s == StatusSuggested || s == StatusEstablished || s == StatusContested
+}
+
+// Advises reports whether a subject at this status advises without binding.
+func (s Status) Advises() bool {
+	return s == StatusSuggested || s == StatusContested
 }
 
 // SubjectKind names what an operation is about.
@@ -174,29 +205,14 @@ const (
 	// SubjectNone is an operation that acts on another rather than carrying a
 	// subject of its own.
 	SubjectNone SubjectKind = ""
-	// SubjectTerm is a term rule: one word, what to write instead, how hard it
-	// bites.
+	// SubjectTerm is a term rule: the form to avoid (and its other forms), what
+	// to write instead, how hard it bites.
 	SubjectTerm SubjectKind = "term"
-	// SubjectVoice is a rule in a voice profile's vocabulary.
-	SubjectVoice SubjectKind = "voice"
 	// SubjectMemory is a source and target pair for the content memory.
 	SubjectMemory SubjectKind = "memory"
 	// SubjectNote is prose: a fact worth recording that states no rule.
 	SubjectNote SubjectKind = "note"
 )
-
-// VoiceRule is one vocabulary rule of a voice profile: the list it sits in and
-// the rule itself. The lists are the ones `kapi apply` writes, so a confirmed
-// rule reaches the profile through the path a person's own edit takes.
-type VoiceRule struct {
-	// List is "forbidden", "competitor" or "preferred".
-	List string `json:"list"`
-	// Rule is the constraint on the word.
-	Rule profile.TermRule `json:"rule"`
-}
-
-// VoiceLists are the vocabulary lists a voice rule may name.
-var VoiceLists = []string{"forbidden", "competitor", "preferred"}
 
 // MemoryPair is a source and its translation, for the content memory.
 type MemoryPair struct {
@@ -211,44 +227,57 @@ type MemoryPair struct {
 type Subject struct {
 	Kind   SubjectKind       `json:"kind,omitempty"`
 	Term   *profile.TermRule `json:"term,omitempty"`
-	Voice  *VoiceRule        `json:"voice,omitempty"`
 	Memory *MemoryPair       `json:"memory,omitempty"`
-	// Text is the prose of a note.
+	// Text is the prose of a note, or what the observer said about a term rule
+	// in their own words.
 	Text string `json:"text,omitempty"`
 }
 
 // Rule returns the term rule this subject states, and whether it states one. A
-// voice rule and a term rule are the same constraint written in two places, so
-// both answer; a content-memory pair and a note answer with nothing.
+// content-memory pair and a note answer with nothing.
 func (s Subject) Rule() (profile.TermRule, bool) {
-	switch {
-	case s.Kind == SubjectTerm && s.Term != nil:
+	if s.Kind == SubjectTerm && s.Term != nil {
 		return *s.Term, true
-	case s.Kind == SubjectVoice && s.Voice != nil:
-		return s.Voice.Rule, true
 	}
 	return profile.TermRule{}, false
 }
 
 // Describe renders the subject as the one line a log prints for it.
 func (s Subject) Describe() string {
+	if s.Kind == SubjectNone {
+		return ""
+	}
+	if phrase := s.Phrase(); phrase != "" {
+		return string(s.Kind) + " " + phrase
+	}
+	return string(s.Kind)
+}
+
+// Phrase renders what the subject says without naming its kind, for a line
+// that names the kind elsewhere: `"Quickcast", not "Quick cast"` for a term
+// rule, the quoted prose of a note.
+func (s Subject) Phrase() string {
 	switch s.Kind {
-	case SubjectTerm, SubjectVoice:
+	case SubjectTerm:
 		rule, ok := s.Rule()
 		if !ok {
-			return string(s.Kind)
+			return ""
 		}
-		if rule.Replacement != "" {
-			return fmt.Sprintf("%s %q, use %q", s.Kind, rule.Term, rule.Replacement)
+		if rule.Replacement == "" {
+			return strconv.Quote(rule.Term)
 		}
-		return fmt.Sprintf("%s %q", s.Kind, rule.Term)
+		avoid := make([]string, 0, 1+len(rule.Forms))
+		for _, form := range append([]string{rule.Term}, rule.Forms...) {
+			avoid = append(avoid, strconv.Quote(form))
+		}
+		return fmt.Sprintf("%q, not %s", rule.Replacement, strings.Join(avoid, ", "))
 	case SubjectMemory:
 		if s.Memory == nil {
-			return string(s.Kind)
+			return ""
 		}
-		return fmt.Sprintf("memory %q into %s", s.Memory.Source, s.Memory.TargetLocale)
+		return fmt.Sprintf("%q into %s", s.Memory.Source, s.Memory.TargetLocale)
 	case SubjectNote:
-		return "note " + strconv.Quote(s.Text)
+		return strconv.Quote(s.Text)
 	}
 	return ""
 }
@@ -272,7 +301,7 @@ type Evidence struct {
 }
 
 // Basis is the governance in force when the operation was recorded. A rule
-// proposed under one voice profile and confirmed under another is a rule that
+// suggested under one voice profile and kept under another is a rule that
 // deserves a second look, and the basis is what makes that visible.
 type Basis struct {
 	// Profile and Channel are the point the project resolved.
@@ -345,7 +374,7 @@ func (s Scope) Describe() string {
 // Record is one operation as the log holds it.
 type Record struct {
 	// ID addresses the operation. It is the position the workspace log gave it,
-	// which is what a person types at `kapi context confirm`.
+	// which is what a person types at `kapi context keep`.
 	ID string `json:"id"`
 	// Seq is that position as a number, for ordering.
 	Seq int64 `json:"seq"`
@@ -377,9 +406,16 @@ type Record struct {
 	// At is Go's clock at the moment the log accepted it, in UTC.
 	At time.Time `json:"at"`
 	// Status is what became of the operation, folded from the operations that
-	// name it. An operation that acts on another carries StatusConfirmed unless
-	// something reverted it.
+	// name it. An operation that acts on another carries StatusEstablished
+	// unless something reverted it.
 	Status Status `json:"status"`
+	// ContestedBy names the operations on the other side of a disagreement,
+	// for a record at StatusContested.
+	ContestedBy []string `json:"contested_by,omitempty"`
+	// Established reports that a person established the subject: kept it,
+	// imported it or wrote it. It stays true while a correction contests the
+	// rule, which is what tells a contested rule from a contested suggestion.
+	Established bool `json:"established,omitempty"`
 }
 
 // Rule is the term rule this operation states, with the scope it answers at,

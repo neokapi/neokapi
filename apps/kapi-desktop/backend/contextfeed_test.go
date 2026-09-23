@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/contextop"
-	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
 )
@@ -60,14 +59,14 @@ func openFeedProject(t *testing.T, app *App, name string) (recipe, key string) {
 	return recipe, id
 }
 
-// agentPropose records a term rule the way an agent's MCP server does: an
+// agentSuggest records a term rule the way an agent's MCP server does: an
 // agent actor, a session id, and the evidence the rule came from.
-func agentPropose(t *testing.T, engine *host.App, recipe, session, term, replacement, path, quote string) host.ContextOperation {
+func agentSuggest(t *testing.T, engine *host.App, recipe, session, term, replacement, path, quote string) host.ContextOperation {
 	t.Helper()
-	op, err := engine.ProposeContextRule(context.Background(), host.ContextProposeRequest{
+	op, err := engine.RecordContextObservation(context.Background(), host.ContextObserveRequest{
 		Actor:   contextop.Actor{Kind: contextop.ActorAgent, Name: "claude@studio", Session: session},
 		Project: recipe,
-		Term:    &profile.TermRule{Term: term, Replacement: replacement, Severity: "major"},
+		Term:    replacement, InsteadOf: []string{term},
 		Evidence: []contextop.Evidence{{
 			Path: path, Unit: "unit-1", Quote: quote,
 		}},
@@ -84,7 +83,7 @@ func TestFeedCarriesWhatAnotherProcessRecorded(t *testing.T) {
 	recipe, key := openFeedProject(t, app, "KapiMart")
 	engine := agentProcess(t, app)
 
-	agentPropose(t, engine, recipe, "sess-1", "sign in", "log in", "docs/pricing.md", "Please sign in to continue.")
+	agentSuggest(t, engine, recipe, "sess-1", "sign in", "log in", "docs/pricing.md", "Please sign in to continue.")
 
 	feed, err := app.ContextFeed("", 0)
 	require.NoError(t, err)
@@ -97,13 +96,13 @@ func TestFeedCarriesWhatAnotherProcessRecorded(t *testing.T) {
 	assert.Equal(t, "claude", group.Actor.Name, "an actor named <client>@<host> shows the client")
 	assert.Equal(t, "studio", group.Actor.Host, "and the machine it ran on")
 	assert.Equal(t, "KapiMart", group.ProjectName)
-	assert.Equal(t, 1, group.Proposed)
+	assert.Equal(t, 1, group.Recorded)
 	assert.Equal(t, 1, group.Awaiting)
 
 	require.Len(t, group.Entries, 1)
 	entry := group.Entries[0]
-	assert.Equal(t, "propose", entry.Kind)
-	assert.Equal(t, "candidate", entry.Status)
+	assert.Equal(t, "observe", entry.Kind)
+	assert.Equal(t, "suggested", entry.Status)
 	assert.True(t, entry.Decidable)
 	assert.Equal(t, "sign in", entry.Subject.Term)
 	assert.Equal(t, "log in", entry.Subject.Replacement)
@@ -119,17 +118,17 @@ func TestFeedCarriesWhatAnotherProcessRecorded(t *testing.T) {
 	assert.Equal(t, 1, feed.AwaitingTotal)
 }
 
-// TestConfirmingWithAnEditIsWhatTheAgentReadsNext: the person changes the
+// TestKeepingWithAnEditIsWhatTheAgentReadsNext: the person changes the
 // replacement before accepting, and the agent's own process sees the edited
-// rule confirmed on its next read.
-func TestConfirmingWithAnEditIsWhatTheAgentReadsNext(t *testing.T) {
+// rule established on its next read.
+func TestKeepingWithAnEditIsWhatTheAgentReadsNext(t *testing.T) {
 	app := newWorkspaceApp(t)
 	recipe, key := openFeedProject(t, app, "KapiMart")
 	engine := agentProcess(t, app)
 
-	proposal := agentPropose(t, engine, recipe, "sess-1", "sign in", "log in", "docs/pricing.md", "Please sign in.")
+	proposal := agentSuggest(t, engine, recipe, "sess-1", "sign in", "log in", "docs/pricing.md", "Please sign in.")
 
-	_, err := app.ConfirmContextCandidate(ContextDecisionRequest{
+	_, err := app.KeepContextSuggestion(ContextDecisionRequest{
 		Project:     key,
 		ID:          proposal.ID,
 		Replacement: "sign in",
@@ -143,7 +142,7 @@ func TestConfirmingWithAnEditIsWhatTheAgentReadsNext(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, read.Operations, 1)
-	assert.Equal(t, contextop.StatusConfirmed, read.Operations[0].Status)
+	assert.Equal(t, contextop.StatusEstablished, read.Operations[0].Status)
 	rule, ok := read.Operations[0].Rule()
 	require.True(t, ok)
 	assert.Equal(t, "sign in", rule.Replacement, "the person's edit is the rule in force")
@@ -153,22 +152,22 @@ func TestConfirmingWithAnEditIsWhatTheAgentReadsNext(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, feed.AwaitingTotal, "a decided candidate awaits nobody")
 	confirmed := findFeedEntry(t, feed, proposal.ID)
-	assert.Equal(t, "confirmed", confirmed.Status)
+	assert.Equal(t, "established", confirmed.Status)
 	assert.True(t, confirmed.Revertible)
 	assert.Contains(t, confirmed.WidenTo, "workspace")
 	assert.Contains(t, confirmed.WidenTo, "brand")
 }
 
-// TestDiscardingStopsACandidateAnswering: a rejected proposal leaves the feed's
-// awaiting count and stays on the record as discarded.
-func TestDiscardingStopsACandidateAnswering(t *testing.T) {
+// TestDroppingStopsASuggestionAnswering: a dropped suggestion leaves the feed's
+// awaiting count and stays on the record as dropped.
+func TestDroppingStopsASuggestionAnswering(t *testing.T) {
 	app := newWorkspaceApp(t)
 	recipe, key := openFeedProject(t, app, "KapiMart")
 	engine := agentProcess(t, app)
 
-	proposal := agentPropose(t, engine, recipe, "sess-1", "utilise", "use", "docs/guide.md", "Utilise the store.")
+	proposal := agentSuggest(t, engine, recipe, "sess-1", "utilise", "use", "docs/guide.md", "Utilise the store.")
 
-	_, err := app.DiscardContextCandidate(ContextDecisionRequest{
+	_, err := app.DropContextSuggestion(ContextDecisionRequest{
 		Project: key, ID: proposal.ID, Note: "house style keeps utilise",
 	})
 	require.NoError(t, err)
@@ -176,7 +175,7 @@ func TestDiscardingStopsACandidateAnswering(t *testing.T) {
 	feed, err := app.ContextFeed(key, 0)
 	require.NoError(t, err)
 	assert.Zero(t, feed.AwaitingTotal)
-	assert.Equal(t, "discarded", findFeedEntry(t, feed, proposal.ID).Status)
+	assert.Equal(t, "dropped", findFeedEntry(t, feed, proposal.ID).Status)
 }
 
 // TestRevertingASessionNamesWhatItUndoes: the confirmation is read before
@@ -187,9 +186,9 @@ func TestRevertingASessionNamesWhatItUndoes(t *testing.T) {
 	recipe, key := openFeedProject(t, app, "KapiMart")
 	engine := agentProcess(t, app)
 
-	first := agentPropose(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in here.")
-	agentPropose(t, engine, recipe, "sess-1", "utilise", "use", "docs/b.md", "Utilise this.")
-	_, err := app.ConfirmContextCandidate(ContextDecisionRequest{Project: key, ID: first.ID})
+	first := agentSuggest(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in here.")
+	agentSuggest(t, engine, recipe, "sess-1", "utilise", "use", "docs/b.md", "Utilise this.")
+	_, err := app.KeepContextSuggestion(ContextDecisionRequest{Project: key, ID: first.ID})
 	require.NoError(t, err)
 
 	scope, err := app.ContextRevertScope(ContextRevertRequest{Project: key, Session: "sess-1"})
@@ -207,7 +206,7 @@ func TestRevertingASessionNamesWhatItUndoes(t *testing.T) {
 	assert.Zero(t, feed.AwaitingTotal)
 	for _, group := range feed.Groups {
 		for _, entry := range group.Entries {
-			if entry.Kind == "propose" {
+			if entry.Kind == "observe" {
 				assert.Equal(t, "reverted", entry.Status)
 			}
 		}
@@ -223,8 +222,8 @@ func TestWidenReachListsTheProjectsAndSaysWhatItDoesNotCompute(t *testing.T) {
 	_, second := openFeedProject(t, app, "BowMart")
 	engine := agentProcess(t, app)
 
-	proposal := agentPropose(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in here.")
-	_, err := app.ConfirmContextCandidate(ContextDecisionRequest{Project: key, ID: proposal.ID})
+	proposal := agentSuggest(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in here.")
+	_, err := app.KeepContextSuggestion(ContextDecisionRequest{Project: key, ID: proposal.ID})
 	require.NoError(t, err)
 
 	preview, err := app.ContextWidenReach(key, proposal.ID, host.WidenToWorkspace)
@@ -269,8 +268,8 @@ func TestWidenPastAnAxisNamesThePointsItWouldNewlyCover(t *testing.T) {
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
 
 	engine := agentProcess(t, app)
-	proposal := agentPropose(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in here.")
-	_, err = app.ConfirmContextCandidate(ContextDecisionRequest{Project: id, ID: proposal.ID})
+	proposal := agentSuggest(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in here.")
+	_, err = app.KeepContextSuggestion(ContextDecisionRequest{Project: id, ID: proposal.ID})
 	require.NoError(t, err)
 
 	preview, err := app.ContextWidenReach(id, proposal.ID, "product")
@@ -318,8 +317,8 @@ func TestFeedNarrowsToOneProjectAndStillCountsTheRest(t *testing.T) {
 	second, secondKey := openFeedProject(t, app, "BowMart")
 	engine := agentProcess(t, app)
 
-	agentPropose(t, engine, first, "sess-1", "sign in", "log in", "docs/a.md", "Sign in.")
-	agentPropose(t, engine, second, "sess-2", "utilise", "use", "docs/b.md", "Utilise.")
+	agentSuggest(t, engine, first, "sess-1", "sign in", "log in", "docs/a.md", "Sign in.")
+	agentSuggest(t, engine, second, "sess-2", "utilise", "use", "docs/b.md", "Utilise.")
 
 	feed, err := app.ContextFeed(firstKey, 0)
 	require.NoError(t, err)
@@ -343,7 +342,7 @@ func TestFeedNarrowsToOneProjectAndStillCountsTheRest(t *testing.T) {
 // says why.
 func TestDecidingNeedsACheckoutOnThisMachine(t *testing.T) {
 	app := newWorkspaceApp(t)
-	_, err := app.ConfirmContextCandidate(ContextDecisionRequest{Project: "absent", ID: "1"})
+	_, err := app.KeepContextSuggestion(ContextDecisionRequest{Project: "absent", ID: "1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "absent")
 }
@@ -355,9 +354,9 @@ func TestAQuietSessionIsSummarised(t *testing.T) {
 	recipe, key := openFeedProject(t, app, "KapiMart")
 	engine := agentProcess(t, app)
 
-	first := agentPropose(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in.")
-	agentPropose(t, engine, recipe, "sess-1", "utilise", "use", "docs/b.md", "Utilise.")
-	_, err := app.ConfirmContextCandidate(ContextDecisionRequest{Project: key, ID: first.ID})
+	first := agentSuggest(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in.")
+	agentSuggest(t, engine, recipe, "sess-1", "utilise", "use", "docs/b.md", "Utilise.")
+	_, err := app.KeepContextSuggestion(ContextDecisionRequest{Project: key, ID: first.ID})
 	require.NoError(t, err)
 
 	feed, err := app.ContextFeed(key, 0)
@@ -369,7 +368,7 @@ func TestAQuietSessionIsSummarised(t *testing.T) {
 		}
 	}
 	require.Equal(t, "sess-1", session.Session)
-	assert.Equal(t, 2, session.Proposed)
+	assert.Equal(t, 2, session.Recorded)
 	assert.Equal(t, 1, session.Awaiting)
 	assert.False(t, session.Quiet, "a session recorded a moment ago is still running")
 	assert.NotEmpty(t, session.First)

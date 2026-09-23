@@ -1,7 +1,7 @@
 // The confirmation for undoing recorded work.
 //
 // Undoing one rule takes it back out of the project's stores. Undoing a
-// session does that for everything the session got confirmed and stops every
+// session does that for everything of the session a person kept and stops every
 // candidate it recorded from advising. Either way the confirmation names how
 // many operations go and what they were about, because a session can hold more
 // than a reader remembers agreeing to.
@@ -70,7 +70,7 @@ export function ContextRevertDialog({
           </DialogTitle>
           <DialogDescription>
             {session
-              ? "Every rule the session got confirmed is removed from this project's terms, voice profile and content memory, and every candidate it recorded stops advising."
+              ? "Every rule of the session a person kept is removed from this project's terms and content memory, and every suggestion it recorded stops advising."
               : "The rule is removed from the project's stores and from the committed source the recipe binds. It stops answering at once."}
           </DialogDescription>
         </DialogHeader>

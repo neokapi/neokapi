@@ -12,7 +12,7 @@ package backend
 //
 // Reading goes through contextop.Ledger, which folds the log and reports the
 // status each subject-bearing operation ended up at. Deciding goes through
-// host.App, which owns the policy about who may confirm, discard, revert and
+// host.App, which owns the policy about who may keep, drop, revert and
 // widen. This file records no operation of its own.
 
 import (
@@ -69,15 +69,16 @@ type ContextEvidenceDTO struct {
 // ContextSubjectDTO is what an operation is about, flattened for a surface.
 // Kind says which fields carry anything.
 type ContextSubjectDTO struct {
-	// Kind is "term", "voice", "memory", "note", or empty for an operation
-	// that acts on another.
+	// Kind is "term", "memory", "note", or empty for an operation that acts
+	// on another.
 	Kind string `json:"kind,omitempty"`
-	// Term, Replacement and Severity are the rule, for a term or voice subject.
-	Term        string `json:"term,omitempty"`
-	Replacement string `json:"replacement,omitempty"`
-	Severity    string `json:"severity,omitempty"`
-	// List is the voice profile's vocabulary list a voice rule sits in.
-	List string `json:"list,omitempty"`
+	// Term, Replacement and Severity are the rule, for a term subject: Term is
+	// the form to avoid, Forms the other forms it avoids, and Replacement the
+	// form to use.
+	Term        string   `json:"term,omitempty"`
+	Forms       []string `json:"forms,omitempty"`
+	Replacement string   `json:"replacement,omitempty"`
+	Severity    string   `json:"severity,omitempty"`
 	// Source, Target and TargetLocale are the wording pair, for a content
 	// memory subject.
 	Source       string `json:"source,omitempty"`
@@ -112,16 +113,20 @@ type ContextFeedEntry struct {
 	// ProjectKey and ProjectName name the project whose work produced it.
 	ProjectKey  string `json:"project_key"`
 	ProjectName string `json:"project_name,omitempty"`
-	// Kind is "observe", "propose", "correct", "confirm", "discard", "revert"
-	// or "widen".
+	// Kind is "observe", "correct", "import", "edit", "keep", "drop",
+	// "withdraw", "revert" or "widen".
 	Kind string `json:"kind"`
-	// Status is "candidate", "confirmed", "discarded" or "reverted".
-	Status     string                `json:"status"`
-	Actor      ContextActorDTO       `json:"actor"`
-	Subject    ContextSubjectDTO     `json:"subject"`
-	Correction *ContextCorrectionDTO `json:"correction,omitempty"`
-	Evidence   []ContextEvidenceDTO  `json:"evidence"`
-	Scope      ContextScopeDTO       `json:"scope"`
+	// Status is "suggested", "established", "contested", "withdrawn",
+	// "dropped" or "reverted".
+	Status string `json:"status"`
+	// ContestedBy names the operations on the other side of a disagreement,
+	// for a contested entry.
+	ContestedBy []string              `json:"contested_by"`
+	Actor       ContextActorDTO       `json:"actor"`
+	Subject     ContextSubjectDTO     `json:"subject"`
+	Correction  *ContextCorrectionDTO `json:"correction,omitempty"`
+	Evidence    []ContextEvidenceDTO  `json:"evidence"`
+	Scope       ContextScopeDTO       `json:"scope"`
 	// Target is the operation this one acts on, and TargetSession the session
 	// a revert undid.
 	Target        string `json:"target,omitempty"`
@@ -129,9 +134,10 @@ type ContextFeedEntry struct {
 	Note          string `json:"note,omitempty"`
 	// At is when the log accepted it, RFC3339 in UTC.
 	At string `json:"at"`
-	// Decidable reports a candidate carrying a rule a person can confirm or
-	// discard. A note and a correction that proposed nothing are recorded
-	// facts with nothing to decide.
+	// Decidable reports a suggestion carrying a rule a person can keep or
+	// drop. A note and a correction that suggested nothing are recorded facts
+	// with nothing to decide. A contested suggestion is decidable too, and
+	// keeping it waits until the other side is dropped.
 	Decidable bool `json:"decidable"`
 	// Revertible reports a rule in force that a person can take back out.
 	Revertible bool `json:"revertible"`
@@ -163,22 +169,21 @@ type ContextFeedGroup struct {
 	// First and Last bound the group in time, RFC3339 in UTC.
 	First string `json:"first"`
 	Last  string `json:"last"`
-	// Awaiting is how many of the group's candidates await a decision.
+	// Awaiting is how many of the group's suggestions await a decision.
 	Awaiting int `json:"awaiting"`
-	// Recorded, Proposed, Corrected and Confirmed are the counts a summary
-	// line reads out.
+	// Recorded, Corrected, Kept and Dropped are the counts a summary line
+	// reads out.
 	Recorded  int `json:"recorded"`
-	Proposed  int `json:"proposed"`
 	Corrected int `json:"corrected"`
-	Confirmed int `json:"confirmed"`
-	Discarded int `json:"discarded"`
+	Kept      int `json:"kept"`
+	Dropped   int `json:"dropped"`
 	// Quiet reports a group nothing has been added to for a while, which is
 	// when its summary is a count of finished work.
 	Quiet   bool               `json:"quiet"`
 	Entries []ContextFeedEntry `json:"entries"`
 }
 
-// ContextAwaiting is how many candidates one project has awaiting a decision.
+// ContextAwaiting is how many suggestions one project has awaiting a decision.
 type ContextAwaiting struct {
 	ProjectKey  string `json:"project_key"`
 	ProjectName string `json:"project_name,omitempty"`
@@ -192,13 +197,13 @@ type ContextFeed struct {
 	ProjectKey string `json:"project_key,omitempty"`
 	// Groups are the sessions, newest first.
 	Groups []ContextFeedGroup `json:"groups"`
-	// Awaiting is the per-project count of candidates awaiting a decision,
+	// Awaiting is the per-project count of suggestions awaiting a decision,
 	// over the whole workspace whatever the feed was narrowed to, so the home
 	// screen can show a count beside every project from one read.
 	Awaiting []ContextAwaiting `json:"awaiting"`
 	// AwaitingTotal sums Awaiting over the workspace.
 	AwaitingTotal int `json:"awaiting_total"`
-	// AwaitingHere counts the candidates awaiting a decision in what this feed
+	// AwaitingHere counts the suggestions awaiting a decision in what this feed
 	// shows, which is the whole workspace when it was not narrowed.
 	AwaitingHere int `json:"awaiting_here"`
 	// Truncated reports that the limit cut the feed short.
@@ -214,8 +219,8 @@ type ContextDecisionRequest struct {
 	Project string `json:"project"`
 	// ID is the operation being decided.
 	ID string `json:"id"`
-	// Replacement and Severity edit the rule as it is confirmed. Empty leaves
-	// the rule as proposed.
+	// Replacement and Severity edit the rule as it is kept. Empty leaves the
+	// rule as suggested.
 	Replacement string `json:"replacement,omitempty"`
 	Severity    string `json:"severity,omitempty"`
 	// WidenTo widens the rule in the same step: "workspace", or an axis name
@@ -369,7 +374,7 @@ func (a *App) contextFeed(ctx context.Context, key workspace.ProjectKey, limit i
 	return out, nil
 }
 
-// ContextAwaitingCounts reports how many candidates each project has awaiting a
+// ContextAwaitingCounts reports how many suggestions each project has awaiting a
 // decision, for a home screen that shows the badge without reading the feed.
 func (a *App) ContextAwaitingCounts() ([]ContextAwaiting, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
@@ -400,9 +405,9 @@ func (a *App) ContextAwaitingCounts() ([]ContextAwaiting, error) {
 	return out, nil
 }
 
-// ConfirmContextCandidate makes a candidate binding, with whatever edit and
+// KeepContextSuggestion establishes a suggestion, with whatever edit and
 // whatever widening the person asked for in the same step.
-func (a *App) ConfirmContextCandidate(req ContextDecisionRequest) (*ContextFeedEntry, error) {
+func (a *App) KeepContextSuggestion(req ContextDecisionRequest) (*ContextFeedEntry, error) {
 	recipe, err := a.contextRecipeFor(req.Project)
 	if err != nil {
 		return nil, err
@@ -410,7 +415,7 @@ func (a *App) ConfirmContextCandidate(req ContextDecisionRequest) (*ContextFeedE
 	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
 	defer cancel()
 
-	written, err := a.hostEngine().ConfirmContextOperation(ctx, host.ContextConfirmRequest{
+	written, err := a.hostEngine().KeepContextOperation(ctx, host.ContextKeepRequest{
 		Actor:       deskPerson(),
 		Project:     recipe,
 		ID:          req.ID,
@@ -427,8 +432,8 @@ func (a *App) ConfirmContextCandidate(req ContextDecisionRequest) (*ContextFeedE
 	return &entry, nil
 }
 
-// DiscardContextCandidate rejects a candidate. It stops answering at once.
-func (a *App) DiscardContextCandidate(req ContextDecisionRequest) (*ContextFeedEntry, error) {
+// DropContextSuggestion sets a suggestion aside. It stops answering at once.
+func (a *App) DropContextSuggestion(req ContextDecisionRequest) (*ContextFeedEntry, error) {
 	recipe, err := a.contextRecipeFor(req.Project)
 	if err != nil {
 		return nil, err
@@ -436,7 +441,7 @@ func (a *App) DiscardContextCandidate(req ContextDecisionRequest) (*ContextFeedE
 	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
 	defer cancel()
 
-	written, err := a.hostEngine().DiscardContextOperation(ctx, host.ContextDiscardRequest{
+	written, err := a.hostEngine().DropContextOperation(ctx, host.ContextDropRequest{
 		Actor:   deskPerson(),
 		Project: recipe,
 		ID:      req.ID,
@@ -523,14 +528,14 @@ func (a *App) ContextRevertScope(req ContextRevertRequest) (*ContextRevertSummar
 		if line := target.Subject.Describe(); line != "" {
 			out.Subjects = append(out.Subjects, line)
 		}
-		if target.Status == contextop.StatusConfirmed {
+		if target.Established {
 			out.Rules = append(out.Rules, target.Subject.Describe())
 		}
 	}
 	return out, nil
 }
 
-// WidenContextRule moves a confirmed rule to a broader point.
+// WidenContextRule moves an established rule to a broader point.
 func (a *App) WidenContextRule(req ContextDecisionRequest) (*ContextFeedEntry, error) {
 	recipe, err := a.contextRecipeFor(req.Project)
 	if err != nil {
@@ -767,15 +772,15 @@ func deskPerson() contextop.Actor {
 	return contextop.Actor{Kind: contextop.ActorPerson}
 }
 
-// decidable reports a candidate a person can confirm or discard: one still
+// decidable reports a suggestion a person can keep or drop: one still
 // awaiting a decision that states a rule. A note and a correction that
-// proposed nothing are facts on the record with nothing to decide.
+// suggested nothing are facts on the record with nothing to decide.
 func decidable(r contextop.Record) bool {
-	if r.Status != contextop.StatusCandidate {
+	if !r.Status.Advises() || r.Established {
 		return false
 	}
 	switch r.Subject.Kind {
-	case contextop.SubjectTerm, contextop.SubjectVoice, contextop.SubjectMemory:
+	case contextop.SubjectTerm, contextop.SubjectMemory:
 		return true
 	}
 	return false
@@ -846,14 +851,12 @@ func countInto(group *ContextFeedGroup, r contextop.Record) {
 	switch r.Kind {
 	case contextop.KindObserve:
 		group.Recorded++
-	case contextop.KindPropose:
-		group.Proposed++
 	case contextop.KindCorrect:
 		group.Corrected++
-	case contextop.KindConfirm:
-		group.Confirmed++
-	case contextop.KindDiscard:
-		group.Discarded++
+	case contextop.KindKeep:
+		group.Kept++
+	case contextop.KindDrop:
+		group.Dropped++
 	}
 	if decidable(r) {
 		group.Awaiting++
@@ -877,6 +880,7 @@ func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFee
 		ProjectName:   projectName,
 		Kind:          string(r.Kind),
 		Status:        string(r.Status),
+		ContestedBy:   append([]string{}, r.ContestedBy...),
 		Actor:         actorDTO(r.Actor),
 		Subject:       subjectDTO(r.Subject),
 		Evidence:      []ContextEvidenceDTO{},
@@ -895,7 +899,7 @@ func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFee
 	for _, e := range r.Evidence {
 		out.Evidence = append(out.Evidence, ContextEvidenceDTO{Path: e.Path, Unit: e.Unit, Quote: e.Quote})
 	}
-	if r.Status == contextop.StatusConfirmed && r.Kind.Bears() {
+	if r.Established && r.Kind.Bears() {
 		out.Revertible = true
 		out.WidenTo = widenOptions(r.Scope)
 	}
@@ -938,12 +942,7 @@ func subjectDTO(s contextop.Subject) ContextSubjectDTO {
 	switch s.Kind {
 	case contextop.SubjectTerm:
 		if s.Term != nil {
-			out.Term, out.Replacement, out.Severity = s.Term.Term, s.Term.Replacement, s.Term.Severity
-		}
-	case contextop.SubjectVoice:
-		if s.Voice != nil {
-			out.List = s.Voice.List
-			out.Term, out.Replacement, out.Severity = s.Voice.Rule.Term, s.Voice.Rule.Replacement, s.Voice.Rule.Severity
+			out.Term, out.Forms, out.Replacement, out.Severity = s.Term.Term, s.Term.Forms, s.Term.Replacement, s.Term.Severity
 		}
 	case contextop.SubjectMemory:
 		if s.Memory != nil {
