@@ -56,11 +56,11 @@ func TestNeokapiI18nPresetCleanNestedLayout(t *testing.T) {
 	if m.TargetPath != "i18n/{lang}/{path}.kbf.json" {
 		t.Errorf("target template = %q, want i18n/{lang}/{path}.kbf.json", m.TargetPath)
 	}
-	if p.VoiceProfile != "i18n/voice.yaml" {
-		t.Errorf("voice profile = %q, want i18n/voice.yaml", p.VoiceProfile)
-	}
-	if p.TermsSource != "i18n/terms.json" {
-		t.Errorf("terms source = %q, want i18n/terms.json", p.TermsSource)
+	// A recipe binds a voice and terms by name, so the preset scaffolds no
+	// file for either.
+	if p.VoiceProfile != "" || p.TermsSource != "" {
+		t.Errorf("preset binds context files (voice %q, terms %q); a recipe binds by name",
+			p.VoiceProfile, p.TermsSource)
 	}
 }
 

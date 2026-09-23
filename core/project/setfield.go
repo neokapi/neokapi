@@ -102,28 +102,6 @@ func SetField(proj *KapiProject, path string, raw json.RawMessage) (bool, error)
 		proj.Defaults.Encoding = v
 		return true, nil
 
-	case "defaults.terms_source":
-		var v string
-		if err := decodeRecipeValue(path, raw, &v); err != nil {
-			return false, err
-		}
-		if proj.Defaults.TermsSource == v {
-			return false, nil
-		}
-		proj.Defaults.TermsSource = v
-		return true, nil
-
-	case "defaults.memory_source":
-		var v string
-		if err := decodeRecipeValue(path, raw, &v); err != nil {
-			return false, err
-		}
-		if proj.Defaults.MemorySource == v {
-			return false, nil
-		}
-		proj.Defaults.MemorySource = v
-		return true, nil
-
 	default:
 		return false, fmt.Errorf("recipe: unknown or unsettable path %q", path)
 	}

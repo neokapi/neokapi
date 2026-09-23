@@ -96,13 +96,12 @@ defaults:
   # built-in default flow ends in `translate`, and a fresh clone stops on a
   # missing provider credential having recycled nothing.
   flow: tm-recycle
+  # The voice is bound by name: the profile `kapi context import` reads from
+  # .kapi/voice.yaml into the project's store. The terms need no binding: the
+  # same import reads .kapi/terms.json into the project's own terms, which
+  # govern wherever a profile names no store of its own.
   voice:
-    profile_file: .kapi/voice.yaml
-  # terms_source is the committed, git-tracked terms document (the review
-  # surface `kapi apply` term-edits write to); it compiles into the project
-  # store (.kapi/work/store.db), which is derived. Source of truth lives in git,
-  # never in the store.
-  terms_source: .kapi/terms.json
+    profile: neokapi-documentation
   memory:
     fuzzy_threshold: 75
   # YAML surface = the harness demo scripts (the only yaml content items).
@@ -185,17 +184,20 @@ defaults:
 profiles:
   neokapi:
     channels: [cli, engine, desktop, docs, demos]
-    voice: .kapi/voice.yaml
+    voice:
+      profile: neokapi-documentation
   bowrain:
     channels: [app, ctrl, pulse, docs, email, landing]
-    voice: .kapi/profiles/bowrain/voice.yaml
+    voice:
+      profile: bowrain-platform
   # The code comments of both products. The comment voice holds them to its
   # length limits and to the writing tells a comment avoids. Its terms store is
   # empty: a comment names identifiers and standards that the product
   # vocabulary is not written for.
   source:
     channels: [comments]
-    voice: .kapi/profiles/source/voice.yaml
+    voice:
+      profile: source-comments
 
 # A channel is always bound as `<profile>/<channel>`: the product owns the
 # surface, and the binding reads as one.

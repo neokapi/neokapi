@@ -672,7 +672,7 @@ defaults:
   source_language: en
   target_languages: [fr]
   voice:
-    profile_file: voice.yaml
+    profile: fernwell
 `
 	dir := t.TempDir()
 	path := filepath.Join(dir, "brandy.kapi")
@@ -681,9 +681,85 @@ defaults:
 	loaded, err := Load(path)
 	require.NoError(t, err)
 	require.NotNil(t, loaded.Defaults.Voice)
-	assert.Equal(t, "voice.yaml", loaded.Defaults.Voice.ProfileFile)
-	assert.Empty(t, loaded.Defaults.Voice.Profile)
+	assert.Equal(t, "fernwell", loaded.Defaults.Voice.Profile)
 	assert.Empty(t, loaded.Defaults.Voice.Pack)
+}
+
+// TestLoad_RejectsFileBindings pins that a recipe binds context by name only.
+// Every form that names a file fails to load, and the message names the key,
+// the file, the import that reads it, and what to bind instead.
+func TestLoad_RejectsFileBindings(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want []string
+	}{
+		{
+			name: "voice as a bare path",
+			body: "defaults:\n  voice: context/voice.yaml\n",
+			want: []string{"defaults.voice:", `"context/voice.yaml" names a file`,
+				"`kapi context import context`", "voice: {profile: <id>}"},
+		},
+		{
+			name: "voice.profile_file",
+			body: "defaults:\n  voice:\n    profile_file: .kapi/voice.yaml\n",
+			want: []string{"defaults.voice:", `".kapi/voice.yaml" names a file`,
+				"`kapi context import`,", "voice: {profile: <id>}"},
+		},
+		{
+			name: "a profile's voice as a bare path",
+			body: "profiles:\n  acme:\n    channels: [docs]\n    voice: .kapi/profiles/acme/voice.yaml\n",
+			want: []string{"profiles.acme.voice:", "`kapi context import .kapi/profiles/acme`"},
+		},
+		{
+			name: "defaults.terms_source",
+			body: "defaults:\n  terms_source: context/terms.json\n",
+			want: []string{"defaults.terms_source:", `"context/terms.json" names a file`,
+				"`kapi context import context`", "termstore: <name>"},
+		},
+		{
+			name: "defaults.memory_source",
+			body: "defaults:\n  memory_source: context/memory/memory.json\n",
+			want: []string{"defaults.memory_source:", "`kapi context import context/memory`"},
+		},
+		{
+			name: "a termstore that is a path",
+			body: "profiles:\n  acme:\n    channels: [docs]\n    termstore: .kapi/profiles/acme/terms.json\n",
+			want: []string{"profiles.acme.termstore:", "names a file", "binds a terms store by name"},
+		},
+		{
+			name: "a termstore that is a database file",
+			body: "profiles:\n  acme:\n    channels: [docs]\n    termstore: acme-terms.db\n",
+			want: []string{"profiles.acme.termstore:", `"acme-terms.db" names a file`},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), RecipeFileName)
+			require.NoError(t, os.WriteFile(path, []byte("version: v1\nname: retired\n"+tt.body), 0o644))
+			_, err := Load(path)
+			require.Error(t, err)
+			for _, w := range tt.want {
+				assert.Contains(t, err.Error(), w)
+			}
+		})
+	}
+}
+
+// TestLoad_TermStoreByName pins the form a profile's terms binding keeps: the
+// name of a store, the one `--termstore` takes.
+func TestLoad_TermStoreByName(t *testing.T) {
+	path := filepath.Join(t.TempDir(), RecipeFileName)
+	require.NoError(t, os.WriteFile(path, []byte(`version: v1
+name: named
+profiles:
+  acme:
+    channels: [docs]
+    termstore: acme-labs
+`), 0o644))
+	loaded, err := Load(path)
+	require.NoError(t, err)
+	assert.Equal(t, "acme-labs", loaded.Profiles["acme"].TermStore)
 }
 
 func TestDefaults_Voice_RoundTrip(t *testing.T) {
@@ -714,11 +790,11 @@ func TestVoiceBinding_Validate(t *testing.T) {
 		wantErr bool
 	}{
 		{"nil is ok", nil, false},
-		{"profile_file only", &VoiceBinding{ProfileFile: "voice.yaml"}, false},
 		{"profile only", &VoiceBinding{Profile: "house"}, false},
 		{"pack only", &VoiceBinding{Pack: "professional-b2b"}, false},
 		{"none set", &VoiceBinding{}, true},
-		{"two set", &VoiceBinding{ProfileFile: "voice.yaml", Pack: "p"}, true},
+		{"two set", &VoiceBinding{Profile: "house", Pack: "p"}, true},
+		{"a file", &VoiceBinding{namedFile: "voice.yaml"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -793,7 +869,7 @@ brand_voice:
 func TestResolveGovernance_ProfileSelectsNotLayers(t *testing.T) {
 	proj := &KapiProject{
 		Version:  "v1",
-		Defaults: Defaults{Voice: &VoiceBinding{ProfileFile: "base.yaml"}},
+		Defaults: Defaults{Voice: &VoiceBinding{Profile: "base"}},
 		Profiles: map[string]Profile{
 			"bowrain": {Channels: []Channel{{ID: "app"}}},
 		},
@@ -807,12 +883,12 @@ func TestResolveGovernance_ProfileSelectsNotLayers(t *testing.T) {
 	plain, err := proj.ResolveGovernance("plain")
 	require.NoError(t, err)
 	assert.Empty(t, plain.Profile)
-	assert.Equal(t, "base.yaml", plain.Voice.ProfileFile)
+	assert.Equal(t, "base", plain.Voice.Profile)
 
 	platform, err := proj.ResolveGovernance("platform")
 	require.NoError(t, err)
 	assert.Equal(t, "bowrain", platform.Profile)
-	assert.Equal(t, "base.yaml", platform.Voice.ProfileFile)
+	assert.Equal(t, "base", platform.Voice.Profile)
 	assert.Equal(t, DefaultVoiceField, platform.VoiceField)
 	assert.Empty(t, platform.TermStore)
 }

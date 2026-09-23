@@ -21,14 +21,11 @@ type FrameworkPreset struct {
 	Flows         map[string]map[string]any // flow -> config defaults
 	Source        string                    // "built-in" or plugin name
 
-	// VoiceProfile, when non-empty, is scaffolded as
-	// defaults.voice.profile_file — a project-local voice profile
-	// the stack conventionally commits (e.g. i18n/voice.yaml).
+	// VoiceProfile and TermsSource name context files a stack commits. No
+	// built-in preset sets them: a recipe binds a voice and terms by name, and
+	// `kapi context import` is what reads such a file into the store.
 	VoiceProfile string
-	// TermsSource, when non-empty, is scaffolded as defaults.terms_source
-	// — the committed, git-tracked native terms the project compiles its
-	// terms from (e.g. i18n/terms.json).
-	TermsSource string
+	TermsSource  string
 }
 
 // MappingTemplate is a mapping entry from a framework preset.

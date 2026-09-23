@@ -84,8 +84,8 @@ type KapiProject struct {
 	// governs the wrong one half the time. Each profile declares the channels
 	// its product ships on, and a collection names the point its content sits
 	// at with one `channel:` reference (Collection.Channel). Empty means the
-	// whole project sits at one point, under defaults.voice /
-	// defaults.terms_source. See profiles.go.
+	// whole project sits at one point, under defaults.voice and
+	// the project's own terms. See profiles.go.
 	Profiles map[string]Profile `yaml:"profiles,omitempty" json:"profiles,omitempty"`
 
 	// Ship gates decide when localized content is shippable, as coverage
@@ -246,22 +246,6 @@ type Defaults struct {
 	// them would let a recipe contradict its own point. Declared axes only.
 	Coordinates map[string]string `yaml:"coordinates,omitempty" json:"coordinates,omitempty"`
 
-	// TermsSource binds the committed, git-tracked native source artifact
-	// (a .terms.json document) the project terms store is compiled from. This is the
-	// authored, reviewable form: `kapi apply` edits the .terms.json here and then
-	// re-imports it into the gitignored terms tables inside `.kapi/work/store.db`,
-	// so the store is written by exactly one path and `git diff` is the review
-	// surface. The path resolves relative to the project root. Empty means no
-	// bound source (whatever the store already holds is the only artifact).
-	TermsSource string `yaml:"terms_source,omitempty" json:"terms_source,omitempty"`
-
-	// MemorySource binds the committed, git-tracked native source artifact (a
-	// .memory.json document) the project content memory is compiled from, the content memory
-	// analogue of TermsSource. `kapi apply` edits the .memory.json here and
-	// re-imports it into the project store. The path resolves relative to the
-	// project root. Empty means no bound content memory source.
-	MemorySource string `yaml:"memory_source,omitempty" json:"memory_source,omitempty"`
-
 	// Tools holds project-level tool presets: per-tool config defaults applied
 	// wherever the tool runs in a project flow. A flow step's own config
 	// overrides the preset per key (step wins), so a project can pin, say,
@@ -293,71 +277,97 @@ type LocaleDefaults struct {
 	Tools map[string]map[string]any `yaml:"tools,omitempty" json:"tools,omitempty"`
 }
 
-// VoiceBinding binds a voice profile — to the project under `defaults.voice`,
-// or to a region of the context space under a profile's `voice:`. Exactly one
-// source is expected: a standalone profile YAML (ProfileFile, resolved relative
-// to the project root), a profile in the local voice store (Profile), or a
-// built-in starter pack (Pack).
+// VoiceBinding binds a voice profile by name: to the project under
+// `defaults.voice`, or to a region of the context space under a profile's
+// `voice:`. Exactly one source is expected: a profile the project's voice store
+// holds (Profile), or a built-in starter pack (Pack).
 //
-// The short form is the profile file itself — `voice: context/kapi-voice.yaml`
-// — which is what a recipe writes when the profile is a file in the project,
-// as it usually is.
+// A recipe never names a file. The store is what every surface answers from,
+// and `kapi context import` is what reads a profile file into it, so a binding
+// to the file would read as in force while the store held something else.
 type VoiceBinding struct {
-	// ProfileFile is the path to a standalone profile YAML, resolved
-	// relative to the project root.
-	ProfileFile string `yaml:"profile_file,omitempty" json:"profile_file,omitempty"`
-	// Profile names a profile in the local voice store.
+	// Profile names a profile in the project's voice store, by id or by name.
 	Profile string `yaml:"profile,omitempty" json:"profile,omitempty"`
 	// Pack names a built-in starter pack.
 	Pack string `yaml:"pack,omitempty" json:"pack,omitempty"`
+
+	// namedFile is the path a recipe gave in a form that names a file: the
+	// scalar `voice: <path>`, or `profile_file: <path>`. It is kept only so
+	// validate can reject the binding with the field it sits under.
+	namedFile string
 }
 
-// UnmarshalYAML accepts both forms: a scalar is the profile file, a mapping is
-// the full binding.
+// UnmarshalYAML reads the mapping form. A scalar, or a mapping carrying
+// `profile_file:`, names a file; the path is kept for validate to reject.
 func (b *VoiceBinding) UnmarshalYAML(node *yaml.Node) error {
 	if node.Kind == yaml.ScalarNode {
-		b.ProfileFile = node.Value
+		*b = VoiceBinding{namedFile: node.Value}
 		return nil
 	}
-	type voiceBindingAlias VoiceBinding
-	var alias voiceBindingAlias
-	if err := node.Decode(&alias); err != nil {
+	var mapping struct {
+		Profile     string `yaml:"profile"`
+		Pack        string `yaml:"pack"`
+		ProfileFile string `yaml:"profile_file"`
+	}
+	if err := node.Decode(&mapping); err != nil {
 		return err
 	}
-	*b = VoiceBinding(alias)
+	*b = VoiceBinding{Profile: mapping.Profile, Pack: mapping.Pack, namedFile: mapping.ProfileFile}
 	return nil
 }
 
-// MarshalYAML writes back the form the binding was authored in, so saving a
-// recipe does not expand a plain profile path into a mapping.
-func (b VoiceBinding) MarshalYAML() (any, error) {
-	if b.Profile == "" && b.Pack == "" {
-		return b.ProfileFile, nil
-	}
-	type voiceBindingAlias VoiceBinding
-	return voiceBindingAlias(b), nil
-}
-
-// validate checks that exactly one voice source is set. field names the recipe
-// key being validated (`defaults.voice`, or a profile's own `profiles[i].voice`),
-// so the message points at the binding at fault.
+// validate checks that exactly one voice source is set and that none names a
+// file. field names the recipe key being validated (`defaults.voice`, or a
+// profile's own `profiles.<name>.voice`), so the message points at the binding
+// at fault.
 func (b *VoiceBinding) validate(field string) error {
 	if b == nil {
 		return nil
 	}
-	count := 0
-	for _, v := range []string{b.ProfileFile, b.Profile, b.Pack} {
-		if v != "" {
-			count++
-		}
+	if b.namedFile != "" {
+		return retiredFileBinding(field, b.namedFile,
+			"a recipe binds a voice by name",
+			"then bind the profile it holds with `voice: {profile: <id>}`, the id `kapi voice profiles` lists")
 	}
-	if count == 0 {
-		return fmt.Errorf("%s: specify one of profile_file, profile, or pack", field)
-	}
-	if count > 1 {
-		return fmt.Errorf("%s: profile_file, profile, and pack are mutually exclusive", field)
+	switch {
+	case b.Profile == "" && b.Pack == "":
+		return fmt.Errorf("%s: specify one of profile or pack", field)
+	case b.Profile != "" && b.Pack != "":
+		return fmt.Errorf("%s: profile and pack are mutually exclusive", field)
 	}
 	return nil
+}
+
+// retiredDefaultsKeys are `defaults:` keys that named a context file. Each is
+// rejected with the fix rather than captured as an unknown extension, where it
+// would load and carry nothing.
+var retiredDefaultsKeys = map[string]struct{ binds, then string }{
+	"terms_source": {
+		"a recipe names no terms file",
+		"and the project's own terms govern with nothing bound; a profile binds a named store with `termstore: <name>`",
+	},
+	"memory_source": {
+		"a recipe names no content-memory file",
+		"and the project's content memory holds it with nothing bound",
+	},
+}
+
+// retiredFileBinding is the error for a recipe key that names a context file.
+// The fix is the same for every kind: read the file into the store once, and
+// let the store answer from then on.
+func retiredFileBinding(field, path, binds, then string) error {
+	return fmt.Errorf("%s: %q names a file, and %s. Read the file into the store with `%s`, %s",
+		field, path, binds, importCommandFor(path), then)
+}
+
+// importCommandFor is the import that reads a file at path: the project's own
+// `.kapi/` layout needs no argument, any other directory is named.
+func importCommandFor(path string) string {
+	dir := filepath.ToSlash(filepath.Dir(filepath.Clean(path)))
+	if dir == StateDirName {
+		return "kapi context import"
+	}
+	return "kapi context import " + dir
 }
 
 // RedactionSpec configures content redaction. The sensitive term list itself
@@ -1012,6 +1022,14 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	for _, key := range sortedKeys(p.Extras) {
 		if replacement, retired := retiredProjectKeys[key]; retired {
 			return fmt.Errorf("%s: is no longer a recipe key. Use %s", key, replacement)
+		}
+	}
+	for _, key := range sortedKeys(p.Defaults.Extras) {
+		if r, retired := retiredDefaultsKeys[key]; retired {
+			var path string
+			node := p.Defaults.Extras[key]
+			_ = node.Decode(&path)
+			return retiredFileBinding("defaults."+key, path, r.binds, r.then)
 		}
 	}
 	if err := p.Defaults.Merge.validate(); err != nil {

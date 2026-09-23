@@ -18,20 +18,20 @@ defaults:
   source_language: en
   target_languages: [nb]
   voice:
-    profile_file: .kapi/voice.yaml
+    profile: house
 profiles:
   promo:
     channels: [landing, legal]
-    voice: .kapi/profiles/promo/voice.yaml
+    voice: {profile: promo}
     valid_from: 2026-01-01
     valid_to: 2026-07-01
   upcoming:
     channels: [landing]
-    voice: .kapi/profiles/upcoming/voice.yaml
+    voice: {profile: upcoming}
     valid_from: 2026-09-01
   evergreen:
     channels: [docs, legal]
-    voice: .kapi/profiles/evergreen/voice.yaml
+    voice: {profile: evergreen}
 collections:
   - name: docs
     channel: evergreen/docs
@@ -72,71 +72,71 @@ func TestResolveGovernanceFor(t *testing.T) {
 			point:       GovernancePoint{Path: "docs/legal/terms.mdx", At: inWindow},
 			wantProfile: "promo",
 			wantChannel: "legal",
-			wantVoice:   ".kapi/profiles/promo/voice.yaml",
+			wantVoice:   "promo",
 		},
 		{
 			name:        "a sibling file keeps its collection's channel",
 			point:       GovernancePoint{Path: "docs/guide/intro.mdx", At: inWindow},
 			wantProfile: "evergreen",
 			wantChannel: "docs",
-			wantVoice:   ".kapi/profiles/evergreen/voice.yaml",
+			wantVoice:   "evergreen",
 		},
 		{
 			name:        "a collection resolves without a path",
 			point:       GovernancePoint{Collection: "landing", At: inWindow},
 			wantProfile: "promo",
 			wantChannel: "landing",
-			wantVoice:   ".kapi/profiles/promo/voice.yaml",
+			wantVoice:   "promo",
 		},
 		{
 			name:        "an unbounded profile is untouched by the instant",
 			point:       GovernancePoint{Path: "docs/guide/intro.mdx", At: afterWindow},
 			wantProfile: "evergreen",
 			wantChannel: "docs",
-			wantVoice:   ".kapi/profiles/evergreen/voice.yaml",
+			wantVoice:   "evergreen",
 		},
 		{
 			name:         "an expired item override falls through to the collection's channel",
 			point:        GovernancePoint{Path: "docs/legal/terms.mdx", At: afterWindow},
 			wantProfile:  "evergreen",
 			wantChannel:  "docs",
-			wantVoice:    ".kapi/profiles/evergreen/voice.yaml",
+			wantVoice:    "evergreen",
 			wantFallback: `profile "promo" expired 2026-07-01; governing with profile "evergreen"`,
 		},
 		{
 			name:         "an expired collection channel falls through to the project default",
 			point:        GovernancePoint{Collection: "landing", At: afterWindow},
-			wantVoice:    ".kapi/voice.yaml",
+			wantVoice:    "house",
 			wantFallback: `profile "promo" expired 2026-07-01; governing with the project default`,
 		},
 		{
 			name:         "a profile not yet in force does not govern either",
 			point:        GovernancePoint{Path: "site/index.mdx", At: beforeWindow},
-			wantVoice:    ".kapi/voice.yaml",
+			wantVoice:    "house",
 			wantFallback: `profile "promo" is not in force until 2026-01-01; governing with the project default`,
 		},
 		{
 			name:         "an upcoming profile reports its own boundary",
 			point:        GovernancePoint{Path: "soon/index.mdx", At: inWindow},
-			wantVoice:    ".kapi/voice.yaml",
+			wantVoice:    "house",
 			wantFallback: `profile "upcoming" is not in force until 2026-09-01; governing with the project default`,
 		},
 		{
 			name:      "a path no item claims sits at the default point",
 			point:     GovernancePoint{Path: "nothing/claims/this.md", At: inWindow},
-			wantVoice: ".kapi/voice.yaml",
+			wantVoice: "house",
 		},
 		{
 			name:        "a path no item claims still belongs to the collection the caller named",
 			point:       GovernancePoint{Collection: "landing", Path: "nothing/claims/this.md", At: inWindow},
 			wantProfile: "promo",
 			wantChannel: "landing",
-			wantVoice:   ".kapi/profiles/promo/voice.yaml",
+			wantVoice:   "promo",
 		},
 		{
 			name:      "the as-declared view applies no window",
 			point:     GovernancePoint{Collection: "landing"},
-			wantVoice: ".kapi/profiles/promo/voice.yaml", wantProfile: "promo", wantChannel: "landing",
+			wantVoice: "promo", wantProfile: "promo", wantChannel: "landing",
 		},
 	}
 
@@ -147,7 +147,7 @@ func TestResolveGovernanceFor(t *testing.T) {
 			assert.Equal(t, tt.wantProfile, rc.Profile, "profile")
 			assert.Equal(t, tt.wantChannel, rc.Channel, "channel")
 			require.NotNil(t, rc.Voice)
-			assert.Equal(t, tt.wantVoice, rc.Voice.ProfileFile, "voice")
+			assert.Equal(t, tt.wantVoice, rc.Voice.Profile, "voice")
 			if tt.wantFallback == "" {
 				assert.Nil(t, rc.Fallback, "no transition to report")
 				return

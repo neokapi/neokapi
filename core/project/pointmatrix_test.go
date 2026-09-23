@@ -38,15 +38,15 @@ defaults:
   source_language: en
   target_languages: [nb]
   voice:
-    profile_file: .kapi/voice.yaml
+    profile: house
 profiles:
   acme:
     channels: [web, support]
-    voice: .kapi/profiles/acme/voice.yaml
-    termstore: .kapi/profiles/acme/terms.json
+    voice: {profile: acme}
+    termstore: acme-terms
   other:
     channels: [web, email]
-    voice: .kapi/profiles/other/voice.yaml
+    voice: {profile: other}
 collections:
   - name: acme-web
     channel: acme/web
@@ -77,7 +77,7 @@ collections:
 type governanceAtPoint struct {
 	Profile    string
 	Channel    string
-	VoiceFile  string
+	Voice      string
 	VoiceField string
 	TermStore  string
 }
@@ -91,7 +91,7 @@ func resolvedAt(t *testing.T, rc *ResolvedGovernance) governanceAtPoint {
 		TermStore:  rc.TermStore,
 	}
 	if rc.Voice != nil {
-		got.VoiceFile = rc.Voice.ProfileFile
+		got.Voice = rc.Voice.Profile
 	}
 	return got
 }
@@ -102,7 +102,7 @@ func TestPointMatrix(t *testing.T) {
 	// The default point's answer, named once so the cases that expect it cannot
 	// drift apart from each other.
 	defaultPoint := governanceAtPoint{
-		VoiceFile:  ".kapi/voice.yaml",
+		Voice:      "house",
 		VoiceField: DefaultVoiceField,
 	}
 
@@ -117,9 +117,9 @@ func TestPointMatrix(t *testing.T) {
 			want: governanceAtPoint{
 				Profile:    "acme",
 				Channel:    "web",
-				VoiceFile:  ".kapi/profiles/acme/voice.yaml",
+				Voice:      "acme",
 				VoiceField: "profiles.acme.voice",
-				TermStore:  ".kapi/profiles/acme/terms.json",
+				TermStore:  "acme-terms",
 			},
 		},
 		{
@@ -131,9 +131,9 @@ func TestPointMatrix(t *testing.T) {
 			want: governanceAtPoint{
 				Profile:    "acme",
 				Channel:    "support",
-				VoiceFile:  ".kapi/profiles/acme/voice.yaml",
+				Voice:      "acme",
 				VoiceField: "profiles.acme.voice",
-				TermStore:  ".kapi/profiles/acme/terms.json",
+				TermStore:  "acme-terms",
 			},
 		},
 		{
@@ -145,7 +145,7 @@ func TestPointMatrix(t *testing.T) {
 			want: governanceAtPoint{
 				Profile:    "other",
 				Channel:    "web",
-				VoiceFile:  ".kapi/profiles/other/voice.yaml",
+				Voice:      "other",
 				VoiceField: "profiles.other.voice",
 				// `other` declares no termstore, so the project's own governs.
 				// Asserted empty rather than omitted: inheriting acme's here
@@ -189,9 +189,9 @@ func TestPointMatrixByPath(t *testing.T) {
 			want: governanceAtPoint{
 				Profile:    "acme",
 				Channel:    "web",
-				VoiceFile:  ".kapi/profiles/acme/voice.yaml",
+				Voice:      "acme",
 				VoiceField: "profiles.acme.voice",
-				TermStore:  ".kapi/profiles/acme/terms.json",
+				TermStore:  "acme-terms",
 			},
 		},
 		{
@@ -203,7 +203,7 @@ func TestPointMatrixByPath(t *testing.T) {
 			want: governanceAtPoint{
 				Profile:    "other",
 				Channel:    "email",
-				VoiceFile:  ".kapi/profiles/other/voice.yaml",
+				Voice:      "other",
 				VoiceField: "profiles.other.voice",
 				TermStore:  "",
 			},
@@ -212,7 +212,7 @@ func TestPointMatrixByPath(t *testing.T) {
 			name: "a path no item claims resolves the default point",
 			path: "somewhere/unclaimed.md",
 			want: governanceAtPoint{
-				VoiceFile:  ".kapi/voice.yaml",
+				Voice:      "house",
 				VoiceField: DefaultVoiceField,
 			},
 		},

@@ -16,14 +16,14 @@ defaults:
   source_language: en
   target_languages: [nb]
   voice:
-    profile_file: .kapi/voice.yaml
+    profile: house
 profiles:
   bowrain:
     channels: [app, docs]
-    voice: .kapi/profiles/bowrain/voice.yaml
+    voice: {profile: bowrain}
   neokapi:
     channels: [cli, docs]
-    voice: .kapi/profiles/neokapi/voice.yaml
+    voice: {profile: neokapi}
 collections:
   - name: docs
     channel: bowrain/docs
@@ -44,14 +44,14 @@ func TestKapiProject_ResolveGovernanceForPath(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "neokapi", rc.Profile, "the per-file channel override wins over the collection's")
 		assert.Equal(t, "docs", rc.Channel)
-		assert.Equal(t, ".kapi/profiles/neokapi/voice.yaml", rc.Voice.ProfileFile)
+		assert.Equal(t, "neokapi", rc.Voice.Profile)
 	})
 
 	t.Run("a sibling file keeps the collection's profile", func(t *testing.T) {
 		rc, err := p.ResolveGovernanceForPath("docs/guide/intro.mdx")
 		require.NoError(t, err)
 		assert.Equal(t, "bowrain", rc.Profile)
-		assert.Equal(t, ".kapi/profiles/bowrain/voice.yaml", rc.Voice.ProfileFile)
+		assert.Equal(t, "bowrain", rc.Voice.Profile)
 	})
 
 	t.Run("a path no item claims sits at the default point", func(t *testing.T) {
