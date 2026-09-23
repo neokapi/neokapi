@@ -178,27 +178,23 @@ A file whose bytes have not moved since this checkout read it is skipped;
 func newContextSnapshotCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "snapshot",
-		Short: "Write this project's context back out as files",
-		Long: `Write the context in force for this project into a ".kapi"
-directory: the terms, the voice profiles at the paths they are bound from, the
-approved wording, and the decision record.
+		Short: "Write this project's context out as files",
+		Long: `Write the context in force for this project into the directory --out
+names: the terms, the voice profiles, the approved wording, and the decision
+record, in the layout "kapi context import" reads.
 
 The files it writes are generated. Edit the project's context and snapshot
 again rather than editing them by hand, the way you would with any other
-generated artifact.
-
-With no --out it writes the project's own ".kapi" directory. A clean clone that
-holds only what a snapshot wrote governs its content exactly as the project that
-wrote it does.
+generated artifact. A clean checkout that imports what a snapshot wrote governs
+its content exactly as the project that wrote it does.
 
 Two things never travel. Withheld originals stay on the machine that redacted
 them, and nothing kapi keeps for its own use is written.
 
 The decision record in the snapshot is the project's own, written from what
 the ledger holds at the moment of the snapshot.`,
-		Example: "  kapi context snapshot\n" +
-			"  kapi context snapshot --out build/context\n" +
-			"  kapi context snapshot --json",
+		Example: "  kapi context snapshot --out build/context\n" +
+			"  kapi context snapshot --out build/context --json",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, err := RequireProjectPath(cmd)
@@ -213,7 +209,8 @@ the ledger holds at the moment of the snapshot.`,
 			return output.Print(cmd, res)
 		},
 	}
-	cmd.Flags().String("out", "", "directory to write the layout into (default: the project's own)")
+	cmd.Flags().String("out", "", "directory to write the layout into (required)")
+	_ = cmd.MarkFlagRequired("out")
 	AddProjectFlag(cmd)
 	return cmd
 }
