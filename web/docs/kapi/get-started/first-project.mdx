@@ -1,7 +1,7 @@
 ---
 title: Your first project
-description: "Create a kapi project in Kapi Desktop, from your AI assistant, or on the command line, then work as you normally would and confirm what your agent noticed."
-keywords: [kapi, project, first project, Kapi Desktop, kapi init, context, candidate, confirm, kapi check]
+description: "Create a kapi project in Kapi Desktop, from your AI assistant, or on the command line, then work as you normally would and keep what your agent noticed."
+keywords: [kapi, project, first project, Kapi Desktop, kapi init, context, suggestion, keep, kapi check]
 ---
 
 import Tabs from "@theme/Tabs";
@@ -18,7 +18,7 @@ your assistant, and the CLI.
 **Your project starts with an empty context**, and that is the normal state on
 day one. It has no terms, no approved wording and no house rules, because the
 words a project cares about are the ones it turns out to use. The context fills
-as you and your agents work: an agent records what it notices, you confirm what
+as you and your agents work: an agent records what it notices, you keep what
 is right, and from then on `kapi check` holds new writing to it.
 
 That context lives in your workspace on this machine, one store per project,
@@ -152,7 +152,7 @@ it costs a re-read of your files.
 
 What the project learns goes elsewhere. The terms, the voice profiles, the
 wording you approve and the record of who approved it are held in your
-workspace, keyed on the `id:` above, so a rule you confirm on one branch holds
+workspace, keyed on the `id:` above, so a rule you keep on one branch holds
 on every branch and in every worktree. See
 [Context portability](/kapi/context-portability) for moving that context to
 another machine or handing it to somebody else.
@@ -176,10 +176,10 @@ first time, so review `.mcp.json` the way you would any file a repository ships.
 While it works, the agent reads what applies at each file it touches and
 **records what it notices**: how you spell your own product, which word you use
 where two would do, and every wording you change in its draft. Each of those is
-recorded as a **candidate** with the file it came from. It ends its report with
+recorded as a **suggestion** with the file it came from. It ends its report with
 what the session recorded.
 
-Nothing it records is in force. Checks report candidates and fail on none of
+Nothing it records is in force. Checks report suggestions and fail on none of
 them, so an agent can keep recording while you work without any risk of
 stopping a build.
 
@@ -198,15 +198,15 @@ No context operations are recorded here yet.
 After a session:
 
 ```
-#3  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  propose  term "utilise", use "use"  [candidate]
+#3  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  term "use", not "utilise"  [suggested]
   seen in docs/guide.md: "We utilise the widget to configure your account."
   Every other page in docs/ says "use".
-#2  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  note "The product is written \"Acme Widget\" in headings and \"the widget\" in running text."  [candidate]
+#2  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  "The product is written \"Acme Widget\" in headings and \"the widget\" in running text."  [suggested]
   seen in docs/guide.md: "We utilise the widget to configure your account."
 ```
 
 Every line carries who recorded it, what it is about, where it stands, and the
-file and sentence it was seen in. `--status candidate` narrows the list to what
+file and sentence it was seen in. `--status suggested` narrows the list to what
 is waiting for you, and `--session <id>` to one agent run.
 
 In Kapi Desktop the same log is the **Recorded** feed: on the home screen across
@@ -214,26 +214,25 @@ every project, and in a project's **Context** hub for that project alone. It
 groups by session, and the evidence sits on the card, because a decision taken
 without it is a guess.
 
-## 4. Confirm what is right
+## 4. Keep what is right
 
 ```bash
-kapi context confirm 3
+kapi context keep 3
 ```
 
 ```
-#4  2026-09-21T19:23:01Z  person  confirm  of #3
+#4  2026-09-21T19:23:01Z  person  keep  of #3
   written to the project's terms store
 ```
 
-Confirming puts the rule in the project's terms store, where every checkout
-reads it and `kapi context log` keeps the decision beside the evidence it rested
-on. Change it as you confirm it with `--use` and `--severity`, or turn it down
-with `kapi context discard 3`. Either way the record stays in the log, so the
+Keeping establishes the rule and puts it in the project's terms store, where
+every checkout reads it and `kapi context log` holds the decision beside the
+evidence it rested on. Change it as you keep it with `--use` and `--severity`,
+or set it aside with `kapi context drop 3`. Either way the record stays in the log, so the
 same suggestion is recognisable the next time somebody makes it.
 
-Deciding is yours. An agent observes, proposes and records corrections, and it
-has no verb for confirming, discarding someone else's work, reverting or
-widening. [Growing context](/kapi/context-decisions) covers the whole set of
+Deciding is yours. An agent observes and records corrections, and it has no
+verb for keeping, dropping, reverting or widening. [Growing context](/kapi/context-decisions) covers the whole set of
 verbs, including undoing a whole agent session in one command.
 
 ## 5. Check
@@ -242,7 +241,7 @@ verbs, including undoing a whole agent session in one command.
 kapi check docs/guide.md
 ```
 
-Before you confirmed anything, the proposal read as a note and the check passed:
+Before you kept anything, the suggestion read as a note and the check passed:
 
 ```
   severity  rule              location                                    message
@@ -258,7 +257,7 @@ PASS configured checks: score 100/100 · 2 finding(s) (0 critical, 0 major, 0 mi
 
 The `Context:` line says what the check was evaluated against: the voice profile
 in force at that file, and whether the project's terms store had anything to
-say. After confirming, the same word is a rule and bites at the severity it
+say. After keeping, the same word is an established rule and bites at the severity it
 carries:
 
 ```

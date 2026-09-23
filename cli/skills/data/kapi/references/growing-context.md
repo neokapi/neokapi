@@ -4,14 +4,14 @@ A project's context is what it has recorded about how it writes. Most projects
 have recorded little of it, and nobody will author one from a blank page.
 
 There is one mechanism for growing it, run at two speeds. Both record
-**operations** into the project's context log, both produce **candidates** a
-person decides on, and neither writes a governance file: confirming is what
-writes the rule into the terms source, the voice profile or the content memory,
-through the same appliers a person's own edit goes through.
+**operations** into the project's context log, both produce **suggestions** a
+person decides on, and neither writes a governance file: keeping a suggestion
+is what establishes it and writes the rule into the terms store or the content
+memory, through the same appliers a person's own edit goes through.
 
 - **Everyday growth** is what you do inside other work. You notice a fact while
   reading, you see the project is consistent about a word, the user changes your
-  wording. Three calls, seconds each, no interruption to the task.
+  wording. Two calls, seconds each, no interruption to the task.
 - **Deliberate discovery** is a session whose whole purpose is the context:
   first visit, or a refresh after the material moved. Same operations, in bulk,
   reviewed together.
@@ -19,37 +19,42 @@ through the same appliers a person's own edit goes through.
 Discovery is the second half of this file. Read the everyday calls first,
 because a project where they are kept rarely needs a discovery session at all.
 
-## Everyday growth: three calls
+## Everyday growth: two calls
 
 ```bash
 kapi context observe "the docs address the reader as you" --seen-in docs/guide.md
-kapi context propose utilise --use use --seen-in docs/guide.md --quote "Utilise the editor"
-kapi context correct "sign in" "log in" --seen-in web/src/auth.tsx --propose
+kapi context observe --term Quickcast --instead-of "Quick cast" --seen-in README.md --quote "Quickcast forecasts the next hour"
+kapi context correct "sign in" "log in" --seen-in web/src/auth.tsx --suggest
 ```
 
-Over MCP the same three are `context_observe`, `context_propose` and
+Over MCP the same two are `context_observe` (with `term` and `instead_of`) and
 `context_correct`.
 
-- **Observe** a fact that states no rule: a product name as the project spells
-  it, who its text addresses, a register it keeps. Nothing about a check
-  changes. It is the material a rule is proposed from later.
-- **Propose** a rule when the project is consistent about a word and nothing
-  records that. The rule is a **candidate**: every check reports it, and no
-  check can fail on it until a person confirms it. Never tell the user a rule is
-  in force because you proposed one.
+- **Observe** what you notice. A fact in prose, such as who the text addresses
+  or the register it keeps, states no rule. A name or spelling the project keeps
+  to is a rule: pass `--term` with the form the project uses and `--instead-of`
+  with a form it avoids, and kapi adds the spacing, hyphen and case variants
+  (`Quickcast` avoids `Quick cast`, `Quick-cast`, `QuickCast` and `quickcast`).
+  Everything recorded is a **suggestion**: every check reports it, and no check
+  can fail on it until a person keeps it. Never tell the user a rule is in force
+  because you observed one.
 - **Correct** when the user changes your wording. The judgement has already been
-  made, which makes it the cheapest context there is. `--propose` records the
-  rule the change implies with it.
+  made, which makes it the cheapest context there is. `--suggest` records the
+  rule the change implies with it. A person's correction that reverses an
+  established rule contests that rule, which then reports instead of failing.
 
 **Evidence is what makes any of this reviewable.** `--seen-in` names the file
 and `--quote` the wording. A rule with evidence can be argued with; a rule
 without any is a preference somebody typed, and a person reading a list of them
-cannot tell the two apart. Proposing and correcting require it.
+cannot tell the two apart. A term rule and a correction require it.
+
+Two suggestions that name different forms for one word are **contested**: both
+advise, each names the other, and a person chooses by dropping one.
 
 One call records one thing. Do not batch a session's worth of observations into
 a single sentence, and do not wait until the end of the task to record them.
 
-A `kapi context <path>` answer lists the candidates at that point, so a later
+A `kapi context <path>` answer lists the suggestions at that point, so a later
 session builds on what an earlier one recorded instead of working it out again.
 
 ## What the entry says about you
@@ -71,19 +76,21 @@ says.
 ## Reviewing and undoing
 
 ```bash
-kapi context log --status candidate       # what is waiting for a decision
+kapi context log --status suggested       # what is waiting for a decision
+kapi context log --status contested       # what disagrees with another rule
 kapi context log --session this --json    # what this run recorded
 kapi context log --session s4f1c2 --json  # what one agent run recorded
-kapi context confirm 7                    # make a rule binding, and write it
-kapi context discard 7                    # reject it
+kapi context keep 7 9                     # establish rules, and write them
+kapi context keep --session s4f1c2        # keep everything one run suggested
+kapi context drop 7                       # set a suggestion aside
 kapi context revert --session s4f1c2      # undo everything one run recorded
-kapi context widen 7 --to workspace       # put a confirmed rule in force everywhere
+kapi context widen 7 --to workspace       # put an established rule in force everywhere
 ```
 
-Confirming, discarding someone else's proposal, reverting and widening belong to
-a person. An agent that tries is refused, and told so. You may still withdraw a
-proposal you recorded yourself when it turns out wrong: over the CLI with
-`kapi context discard <id>`, and over MCP with `context_withdraw`. That is how a
+Keeping, dropping, reverting and widening belong to a person. An agent that
+tries is refused, and told so. You may still withdraw a suggestion you recorded
+yourself when it turns out wrong: over the CLI with `kapi context withdraw
+<id>`, and over MCP with `context_withdraw`. That is how a
 run cleans up after itself. For everything else, end your task by reporting what
 you recorded and the command above for reviewing it, and let the user decide.
 
@@ -154,17 +161,16 @@ Three artifacts, all plain files the user can review before anything binds:
   `voice.yaml`'s vocabulary lists instead (see [voice.md](voice.md)).
 
   In a project that already exists, record each rule you read out of the
-  material as a candidate instead, one call per rule, with the file it came
+  material as a suggestion instead, one call per rule, with the file it came
   from:
 
   ```bash
-  kapi context propose "control panel" --use dashboard --seen-in docs/guide.md
-  kapi context propose Globex --use "our platform" --list competitor --severity major \
-    --seen-in web/src/pricing.tsx
+  kapi context observe --term dashboard --instead-of "control panel" --seen-in docs/guide.md
+  kapi context observe --term "our platform" --instead-of Globex --seen-in web/src/pricing.tsx
   ```
 
   The user then reviews a list where every entry carries its evidence, and
-  confirming writes each one into the project's store. Tone, style and
+  keeping writes each one into the project's store. Tone, style and
   `examples` carry no rule, so they stay an edit the user makes with
   `kapi voice edit`.
 
@@ -194,13 +200,13 @@ Get explicit sign-off on the forbidden/competitor lists and every
 into `voice.yaml` and re-render until the user agrees. Never invent competitors
 or bans the user didn't confirm.
 
-Where you proposed candidates rather than drafting a file, the review list is
+Where you recorded suggestions rather than drafting a file, the review list is
 the log, and the decisions are the log's verbs:
 
 ```bash
-kapi context log --status candidate    # each entry with its evidence
-kapi context confirm 7 --use dashboard # confirm, editing the rule as you go
-kapi context discard 9
+kapi context log --status suggested    # each entry with its evidence
+kapi context keep 7 --use dashboard    # keep, editing the rule as you go
+kapi context drop 9
 ```
 
 ## 4. Bind
@@ -433,16 +439,15 @@ below are how it changes, and `kapi context log` is how the user reads it back.
 | What moved | Route | What the user reviews |
 | --- | --- | --- |
 | A surface appeared | `kapi add <pattern> --name <collection> --channel <profile/channel>` | the `kapi.yaml` diff |
-| A term, a name, a rename | `kapi context propose`, or a `kapi apply` entry, `kind:"term"` | the candidate with its evidence, in `kapi context log` |
-| A word to forbid or prefer | `kapi context propose --list <list>`, or a `kapi apply` entry, `kind:"voice"` | the candidate with its evidence, in `kapi context log` |
+| A term, a name, a rename, a word to avoid | `kapi context observe --term`, or a `kapi apply` entry, `kind:"term"` | the suggestion with its evidence, in `kapi context log` |
 | A brand or mode axis moved | `kapi apply` entry, `kind:"recipe"`, `path` `defaults.coordinates.<axis>` (or a collection's `coordinates`) and `value` | the `kapi.yaml` diff |
 | Tone, style, `examples` | an edit to the profile YAML | the file diff |
 
 Two routes for the same two kinds, and the difference is who decides.
-`kapi context propose` records a candidate the user confirms one at a time, each
-carrying the file it came from; a `kapi apply` change-set lands what the user has
-already approved, atomically. Reach for the first when you are reading material
-and proposing what it implies, and for the second when the decisions are already
+`kapi context observe --term` records a suggestion the user keeps, each carrying
+the file it came from; a `kapi apply` change-set lands what the user has already
+approved, atomically. Reach for the first when you are reading material and
+suggesting what it implies, and for the second when the decisions are already
 made. Terms and voice rules go in one change-set file:
 
 ```jsonl
