@@ -23,6 +23,7 @@ type KapiProject struct {
     Collections []Collection               `yaml:"collections,omitempty"`
     Preset      string                     `yaml:"preset,omitempty"`
     Flows       map[string]*flow.StepsSpec `yaml:"flows,omitempty"`
+    FlowsDir    string                     `yaml:"flows_dir,omitempty"` // one YAML file per flow, relative to the recipe
     Profiles    map[string]Profile         `yaml:"profiles,omitempty"` // profile name → governance (see The context space)
 
     // Convergence gates (see the reference page, "Ship gates").
@@ -538,8 +539,9 @@ its own.
 With `-p`:
 
 - The flow name is matched against the built-in flows first; if it is not one of
-  those, it is looked up in the project's `flows` map (and finally the plugin
-  fallback)
+  those, it is looked up in the project's `flows` map, then as
+  `<flows_dir>/<name>.yaml` when the recipe names a `flows_dir`
+  (`core/project.LoadDirFlow`), and finally the plugin fallback
 - `defaults.source_language` and `defaults.target_languages[0]` provide
   defaults (CLI flags override)
 - For single-file flows, `--input` selects the file. The project's

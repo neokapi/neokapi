@@ -73,7 +73,8 @@ Only changed blocks transfer; sync is content-addressed.
 ## Running one flow
 
 For a specific composition (one named flow, one pass, no gate loop), define a
-flow in `.kapi/flows/` (or inline on the recipe) and run it:
+flow inline on the recipe, or in a file in the directory the recipe names
+with `flows_dir:`, and run it:
 
 ```bash
 kapi run my-flow          # a custom flow

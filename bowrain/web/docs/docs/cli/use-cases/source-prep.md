@@ -52,7 +52,7 @@ The `qa` tool validates:
 
 ### Term Consistency Check
 
-Create `.kapi/flows/source-checks.yaml`:
+Create `flows/source-checks.yaml`, with `flows_dir: flows` in `kapi.yaml`:
 
 Step config keys are the tool's own schema keys, in camelCase; see
 [the tool reference](https://neokapi.github.io/reference/tools/qa).

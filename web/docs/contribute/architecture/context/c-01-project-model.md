@@ -69,7 +69,6 @@ my-app/
 │   ├── .gitignore              ← `*`, written by kapi init
 │   ├── filters.json            ← saved reader filters
 │   ├── filters.local.json      ← personal saved filters
-│   ├── flows/                  ← file-per-flow definitions (E-04), when used
 │   └── work/
 │       ├── store.db            ← this checkout's projection (C-03)
 │       ├── vault/              ← withheld originals (C-10), local-only
@@ -78,6 +77,7 @@ my-app/
 │           ├── redaction/      ← per-batch vault sidecars (C-10)
 │           ├── refs.json       ← the observed freshness refs (C-05)
 │           └── collections/    ← overlay layers per collection
+├── flows/                      ← file-per-flow definitions named by flows_dir (E-04), when used
 ├── src/                        ← authored sources (user-owned)
 └── i18n/                       ← writer output (generated)
 ```
@@ -106,9 +106,10 @@ Ownership, zone by zone:
   overlays a flow wrote, the extraction stamps
   ([C-03](c-03-context-store-and-graph.md)). Beside it sit the caches, the
   redaction vault ([C-10](c-10-redaction.md)) and the saved reader filters.
-  `flows/` is read by `kapi run` for file-per-flow definitions
-  ([E-04](../engine/e-04-flows-and-io-binding.md)); a project that keeps flow
-  files there commits them under an ignore rule of its own.
+  Nothing authored lives here: a project's flow files sit in the committed
+  directory its recipe names with `flows_dir:`
+  ([E-04](../engine/e-04-flows-and-io-binding.md)), and kapi reads nothing
+  from `.kapi/flows/`.
   A second clone and a git worktree each keep a `.kapi/` of their own and share
   one context store.
 

@@ -90,6 +90,7 @@ defaults:
 | `plugins`  | map            | Plugin requirements keyed by name (e.g., `okapi: "^1.47.0"`)                                                 |
 | `requires` | map            | Plugin name → semver constraint that gates loading; the recipe refuses to load without a registered plugin  |
 | `flows`    | map            | Named flow definitions (see [Flow Steps](#flow-steps))                                                       |
+| `flows_dir` | string        | A directory, relative to the recipe, holding one YAML file per flow (see [Flow files](#flow-files)). No default |
 | `defaults` | Defaults       | Processing defaults (see [Defaults](#defaults); source/target languages live here)                          |
 | `ship_gate` | Gate          | A single catch-all ship gate (see [Ship gates](#ship-gates))                                                |
 | `ship_gates` | ShipGateRule[] | Scoped ship-gate rules; the most specific matching rule wins (see [Ship gates](#ship-gates))               |
@@ -628,6 +629,28 @@ flows:
             config:
               provider: anthropic
 ```
+
+### Flow files
+
+A project with many flows can keep each in its own YAML file, named for the flow, in a directory the recipe names with `flows_dir:`. The path is relative to the recipe, and a committed directory is the right place for it; kapi rejects a `flows_dir` under `.kapi/`, since that directory is a cache for one checkout.
+
+```yaml
+# kapi.yaml
+flows_dir: flows
+```
+
+```yaml
+# flows/guard.yaml, run with `kapi run guard`
+description: Check the do-not-translate list
+steps:
+  - tool: dnt-check
+    config:
+      terms: [Acme Cloud]
+```
+
+A flow file holds the same steps as an entry under `flows:`, plus an optional `description:`. Its steps name no input or output paths: `kapi run` takes the files from the recipe's collections, or from `--input`. When `flows:` and a file both define a flow of the same name, the recipe's entry runs.
+
+kapi reads no flow files from `.kapi/flows/`. When it finds some there, it prints one warning naming them; move them to a committed directory and set `flows_dir:`.
 
 ## Ship gates
 
