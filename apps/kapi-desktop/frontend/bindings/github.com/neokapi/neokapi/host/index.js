@@ -13,6 +13,7 @@ export {
     ContextPrecedentHit,
     ContextProfileHit,
     ContextProvenance,
+    ContextRule,
     ContextScope,
     ContextSearchResult,
     ContextTermHit,
