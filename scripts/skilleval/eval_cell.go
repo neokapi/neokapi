@@ -78,10 +78,10 @@ type EvalServer struct {
 	Name      string   `json:"server_name"`
 	Version   string   `json:"server_version"`
 	Tools     []string `json:"tools"`
-	// Missing are the tools the transcript reader classifies as recording or
-	// checking that this server does not offer, and Unclassified the tools it
-	// offers that the reader has no kind for. Both are reported rather than
-	// blocking a run: they say the reader and the product have moved apart.
+	// Missing are the habits the evaluation measures, recording and checking,
+	// for which this server offers no tool the reader knows, and Unclassified
+	// the tools it offers that the reader has no kind for. Both are reported
+	// rather than blocking a run: they say the reader and the product moved apart.
 	Missing      []string `json:"missing"`
 	Unclassified []string `json:"unclassified"`
 }
@@ -647,8 +647,7 @@ func prepareEvalSession(ctx context.Context, opts EvalOptions, session EvalSessi
 		prepared.Blockers = append(prepared.Blockers, "the wired MCP server offers no tools")
 	}
 	if server != nil && len(server.Missing) != 0 {
-		prepared.Notes = append(prepared.Notes, "the wired server offers none of "+strings.Join(server.Missing, ", ")+
-			", which the transcript reader counts as recording or checking")
+		prepared.Notes = append(prepared.Notes, "the wired server offers no tool the transcript reader counts as "+strings.Join(server.Missing, " or "))
 	}
 	if server != nil && len(server.Unclassified) != 0 {
 		prepared.Notes = append(prepared.Notes, "the transcript reader has no kind for "+strings.Join(server.Unclassified, ", "))

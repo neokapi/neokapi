@@ -389,6 +389,7 @@ var evalMCPToolKinds = map[string]string{
 	"context_observe":         evalKindRecord,
 	"context_propose":         evalKindRecord,
 	"context_correct":         evalKindRecord,
+	"context_withdraw":        evalKindRecord,
 	"context_search":          evalKindAsk,
 	"context_session_summary": evalKindAsk,
 	evalContextResource:       evalKindAsk,
@@ -399,21 +400,25 @@ var evalMCPToolKinds = map[string]string{
 }
 
 // evalToolCoverage compares a server's tool inventory with the reader: the
-// recording and checking tools the reader knows that the server lacks, and the
-// tools the server offers that the reader cannot place.
+// habits the evaluation measures, recording and checking, for which the server
+// offers no tool the reader knows, and the tools the server offers that the
+// reader cannot place.
 func evalToolCoverage(tools []string) (missing, unclassified []string) {
 	missing, unclassified = []string{}, []string{}
-	for name, kind := range evalMCPToolKinds {
-		if (kind == evalKindRecord || kind == evalKindCheck) && !slices.Contains(tools, name) {
-			missing = append(missing, name)
-		}
-	}
+	offered := map[string]bool{}
 	for _, name := range tools {
-		if _, ok := evalMCPToolKinds[name]; !ok {
+		kind, ok := evalMCPToolKinds[name]
+		if !ok {
 			unclassified = append(unclassified, name)
+			continue
+		}
+		offered[kind] = true
+	}
+	for _, kind := range []string{evalKindRecord, evalKindCheck} {
+		if !offered[kind] {
+			missing = append(missing, kind)
 		}
 	}
-	slices.Sort(missing)
 	slices.Sort(unclassified)
 	return missing, unclassified
 }
