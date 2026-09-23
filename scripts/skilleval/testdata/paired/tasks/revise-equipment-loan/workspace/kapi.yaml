@@ -2,9 +2,8 @@ version: v1
 name: alder-equipment-lending
 defaults:
   source_language: en
-  terms_source: .kapi/terms.json
   voice:
-    profile_file: .kapi/voice.yaml
+    profile: alder-library-equipment-lending
   coordinates:
     service: alder-library
   exclude:
@@ -12,7 +11,8 @@ defaults:
 profiles:
   alder-library:
     channels: [camera, telescope, archive, integration]
-    voice: .kapi/voice.yaml
+    voice:
+      profile: alder-library-equipment-lending
 collections:
   - name: camera-borrowing
     channel: alder-library/camera

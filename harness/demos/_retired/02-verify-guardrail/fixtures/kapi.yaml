@@ -4,7 +4,7 @@ defaults:
   source_language: en
   target_languages: [fr]
   voice:
-    profile_file: voice.yaml
+    profile: taskly
 collections:
   - path: src/en.json
     format: json

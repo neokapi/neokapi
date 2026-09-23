@@ -40,12 +40,15 @@ import (
 // writePulledProject): a real project would resolve the persona from where the
 // file sits, and one lab run is one point, so the resolution is done when the
 // workspace is built rather than left for the agent to name a flag for.
+//
+// The voice is bound by name, the id the profile carries (pullProfileID); the
+// store answers for it once `kapi context import` has read `.kapi/voice.yaml`.
 const pullProject = `version: v1
 name: ripgrep-docs
 defaults:
   source_language: en
   voice:
-    profile_file: .kapi/voice.yaml
+    profile: %s
 collections:
   - name: docs
     content:
@@ -140,7 +143,28 @@ func writePulledProject(tree string, profile *coreprofile.VoiceProfile) error {
 	if err := os.WriteFile(filepath.Join(tree, ".kapi", "voice.yaml"), body, 0o644); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(tree, "kapi.yaml"), []byte(pullProject), 0o644)
+	return os.WriteFile(filepath.Join(tree, "kapi.yaml"), fmt.Appendf(nil, pullProject, pullProfileID(profile)), 0o644)
+}
+
+// pullProfileID is the id an import stores the pulled profile under: the id it
+// declares, else a slug of its name.
+func pullProfileID(p *coreprofile.VoiceProfile) string {
+	if p.ID != "" {
+		return p.ID
+	}
+	var b strings.Builder
+	dash := false
+	for _, r := range strings.ToLower(p.Name) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			dash = false
+		case !dash && b.Len() > 0:
+			b.WriteByte('-')
+			dash = true
+		}
+	}
+	return strings.TrimSuffix(b.String(), "-")
 }
 
 // verifyPull runs the command the skill tells an assistant to run, and checks
