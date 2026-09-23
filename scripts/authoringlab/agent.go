@@ -149,6 +149,10 @@ func runAgent(ctx context.Context, opts AgentOpts) AgentRun {
 	cmd := exec.CommandContext(ctx, opts.ClaudeBin, args...)
 	cmd.Dir = tree
 	if opts.Arm.pull {
+		if err := importPulledContext(ctx, opts.KapiBin, home, tree); err != nil {
+			r.Err = err.Error()
+			return r
+		}
 		bin, err := kapiOnlyBin(home, opts.KapiBin)
 		if err != nil {
 			r.Err = err.Error()
@@ -554,6 +558,7 @@ func isolationEnv(home string) []string {
 		"KAPI_CONFIG_DIR=" + filepath.Join(home, "kapi-config"),
 		"XDG_DATA_HOME=" + filepath.Join(home, "xdg-data"),
 		"XDG_CACHE_HOME=" + filepath.Join(home, "xdg-cache"),
+		"KAPI_DATA_DIR=" + filepath.Join(home, "kapi-data"),
 		"KAPI_PLUGINS_DIR_ONLY=1",
 		"KAPI_PLUGINS_DIR=" + filepath.Join(home, "kapi-plugins"),
 	}

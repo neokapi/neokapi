@@ -192,7 +192,7 @@ func TestPullEnvNamesTheProjectInsteadOfDisablingDiscovery(t *testing.T) {
 			"KAPI_NO_PROJECT would opt out of the discovery this arm exists to measure")
 	}
 	// Everything else the contract asks for is still there.
-	for _, name := range []string{"KAPI_CONFIG_DIR", "XDG_DATA_HOME", "XDG_CACHE_HOME", "KAPI_PLUGINS_DIR_ONLY"} {
+	for _, name := range []string{"KAPI_CONFIG_DIR", "XDG_DATA_HOME", "XDG_CACHE_HOME", "KAPI_DATA_DIR", "KAPI_PLUGINS_DIR_ONLY"} {
 		assert.True(t, hasEnv(env, name), "%s is still part of the contract", name)
 	}
 }
