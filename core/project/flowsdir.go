@@ -42,7 +42,7 @@ func (p *KapiProject) validateFlowsDir() error {
 	if filepath.IsAbs(p.FlowsDir) {
 		return fmt.Errorf("flows_dir: %q is an absolute path. Name the directory relative to the recipe, so every checkout finds it", p.FlowsDir)
 	}
-	first := strings.Split(filepath.ToSlash(filepath.Clean(p.FlowsDir)), "/")[0]
+	first, _, _ := strings.Cut(filepath.ToSlash(filepath.Clean(p.FlowsDir)), "/")
 	if first == StateDirName {
 		return fmt.Errorf("flows_dir: %q sits under %s/, a disposable cache for one checkout. Keep flow files in a committed directory, such as flows/", p.FlowsDir, StateDirName)
 	}
