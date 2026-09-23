@@ -354,7 +354,7 @@ func preflightEval(ctx context.Context, opts EvalOptions, deps evalDependencies)
 			line += fmt.Sprintf(", %d rules held", len(prepared.Wiring.Held))
 		}
 		if prepared.Codex != nil {
-			line += fmt.Sprintf(", codex sees %s", evalToolList(prepared.Codex.Servers))
+			line += ", codex sees " + evalToolList(prepared.Codex.Servers)
 		}
 		fmt.Println(line)
 	}
@@ -363,6 +363,9 @@ func preflightEval(ctx context.Context, opts EvalOptions, deps evalDependencies)
 	}
 	for _, blocker := range report.Blockers {
 		fmt.Println("  blocker: " + blocker)
+	}
+	if len(report.Blockers) != 0 {
+		return fmt.Errorf("preflight found %d blockers; no live phase can run until they are cleared", len(report.Blockers))
 	}
 	return nil
 }

@@ -19,9 +19,6 @@ import (
 // evalHeldStatus is the status the context log gives a rule a person holds.
 const evalHeldStatus = "confirmed"
 
-// evalCandidateStatus is the status of a record nobody has decided on.
-const evalCandidateStatus = "candidate"
-
 // evalBearingKinds are the operations that carry a subject of their own, which
 // is what an agent records and what evidence belongs to.
 var evalBearingKinds = []string{"observe", "propose", "correct"}
@@ -64,8 +61,11 @@ func evalLoadHeldRules(ctx context.Context, paths EvalPaths, key EvalKey) ([]str
 			var proposed struct {
 				ID string `json:"id"`
 			}
-			if err := json.Unmarshal([]byte(out), &proposed); err != nil || proposed.ID == "" {
-				return loaded, fmt.Errorf("read the proposal of %q: %v: %s", rule.Term, err, strings.TrimSpace(out))
+			if err := json.Unmarshal([]byte(out), &proposed); err != nil {
+				return loaded, fmt.Errorf("read the proposal of %q: %w: %s", rule.Term, err, strings.TrimSpace(out))
+			}
+			if proposed.ID == "" {
+				return loaded, fmt.Errorf("the proposal of %q carries no id: %s", rule.Term, strings.TrimSpace(out))
 			}
 			if _, err := evalRunKapiAs(ctx, paths, evalActorPerson, "context", "confirm", proposed.ID, "--json"); err != nil {
 				return loaded, fmt.Errorf("confirm %q for %s: %w", rule.Term, convention.ID, err)

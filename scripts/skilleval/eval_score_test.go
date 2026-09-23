@@ -171,7 +171,7 @@ func TestEvalAddedText(t *testing.T) {
 	before := "# Title\n\nFirst paragraph.\n\nSecond paragraph.\n"
 	after := "# Title\n\nFirst paragraph.\n\nA new paragraph.\n\nSecond paragraph.\n"
 	assert.Equal(t, "A new paragraph.", evalAddedText(before, after))
-	assert.Equal(t, "", evalAddedText(before, before))
+	assert.Empty(t, evalAddedText(before, before))
 	assert.Equal(t, "# New\nBody.", evalAddedText("", "# New\n\nBody.\n"))
 	assert.Equal(t, "Same.", evalAddedText("Same.\n", "Same.\nSame.\n"), "a repeated line is new the second time")
 }

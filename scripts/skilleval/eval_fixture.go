@@ -658,7 +658,7 @@ func validateEvalFixture(f EvalFixture) []string {
 	names := f.evalFileNames()
 	for _, name := range names {
 		if leftover := strings.Index(string(f.Files[name]), "{"); leftover >= 0 {
-			problems = append(problems, fmt.Sprintf("%s holds an unreplaced token", name))
+			problems = append(problems, name+" holds an unreplaced token")
 		}
 		if strings.Contains(strings.ToLower(string(f.Files[name])), "kapi") {
 			problems = append(problems, name+" mentions kapi")

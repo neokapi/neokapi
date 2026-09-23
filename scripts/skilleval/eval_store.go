@@ -169,22 +169,6 @@ func evalRecordedSince(before, after EvalStore) []EvalOperation {
 	return added
 }
 
-// evalActorLabel renders one entry's attribution the way the store holds it:
-// the actor kind, the agent it names, and the session that groups the run.
-func evalActorLabel(op EvalOperation) string {
-	label := op.Actor
-	if label == "" {
-		label = "unstated"
-	}
-	if op.AgentName != "" {
-		label += " " + op.AgentName
-	}
-	if op.Session != "" {
-		label += ", session " + op.Session
-	}
-	return label
-}
-
 // EvalCheck is what `kapi check` reported over a version of a session's work.
 type EvalCheck struct {
 	Ran      bool               `json:"ran"`
