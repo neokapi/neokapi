@@ -74,7 +74,7 @@ flows:
               note: The invoice window has one French name, and the console and the documentation both use it
             - term: reading
               replacement: relevé
-              severity: minor
+              advisory: true
               note: Prefer relevé over lecture for a measurement taken from a meter
       - tool: term-check
         config:

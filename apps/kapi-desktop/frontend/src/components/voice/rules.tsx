@@ -9,21 +9,20 @@
 import { ArrowRight, Braces, Link2 } from "lucide-react";
 import { Badge, SimpleTooltip } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
-import { severityFails } from "../../types/voice";
+
 import type { Pattern, StyleRules, TermRule, VoiceProfile } from "../../types/voice";
 
 /**
- * A severity as a neutral chip.
+ * An advisory rule as a neutral chip.
  *
  * Colour is reserved for a judgement a person makes or a finding a check
  * raised (see `packages/ui/docs/judgement-colours.md`); a rule stating what a
- * violation would cost is neither, so the chip stays neutral and the tooltip
- * carries whether it fails or only reports. A rule resolved from a terms store
- * carries no severity, and then no chip is drawn.
+ * violation would cost is neither, so the chip stays neutral. A rule fails a
+ * check unless it is advisory, so only an advisory rule draws a chip.
  */
-export function SeverityChip({ severity }: { severity?: string }) {
-  if (!severity) return null;
-  const fails = severityFails(severity);
+export function AdvisoryChip({ advisory }: { advisory?: boolean }) {
+  if (!advisory) return null;
+  const fails = false;
   return (
     <SimpleTooltip
       content={fails ? t("A violation fails the check") : t("A violation is reported only")}
@@ -31,9 +30,9 @@ export function SeverityChip({ severity }: { severity?: string }) {
       <Badge
         variant="outline"
         className="font-normal text-muted-foreground"
-        data-testid="voice-severity"
+        data-testid="voice-advisory"
       >
-        {severity}
+        {t("reports only")}
       </Badge>
     </SimpleTooltip>
   );
@@ -77,7 +76,7 @@ export function PatternRuleRow({ pattern }: { pattern: Pattern }) {
         </Badge>
       )}
       {allowance && <span className="text-[11px] text-muted-foreground">{allowance}</span>}
-      <SeverityChip severity={pattern.severity} />
+      <AdvisoryChip advisory={pattern.advisory} />
     </li>
   );
 }
@@ -144,7 +143,7 @@ export function TermRuleRow({ rule }: { rule: TermRule }) {
           </span>
         </SimpleTooltip>
       )}
-      <SeverityChip severity={rule.severity} />
+      <AdvisoryChip advisory={rule.advisory} />
     </li>
   );
 }

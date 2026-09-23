@@ -211,7 +211,6 @@ type diffCheckRun struct {
 	// was named explicitly and opts already holds it.
 	voice *checkVoice
 	vocab *checkTerms
-	gate  check.Gate
 	// unread collects the changed files the recipe declares in a format no
 	// installed reader opens. It is nil when the check names its files.
 	unread *UnreadSet
@@ -272,14 +271,9 @@ func (a *App) runDiffCheck(ctx context.Context, run diffCheckRun) (check.Report,
 		scope.Files = append(scope.Files, entry)
 	}
 
-	report := run.opts.execution.report(ctx, a, run.cmd, check.Target{Kind: "diff", File: run.src.label, Blocks: checked}, diags, run.gate)
+	report := run.opts.execution.report(ctx, a, run.cmd, check.Target{Kind: "diff", File: run.src.label, Blocks: checked}, diags)
 	report.Scope = scope
 	report.Decide()
-	// A formatter that would rewrite a touched comment fails the check as it does
-	// in a whole-file check, and --lenient lifts it the same way.
-	if lenient, _ := run.cmd.Flags().GetBool("lenient"); !lenient {
-		ApplyFormatterGate(&report)
-	}
 	run.unread.Report(&report)
 	run.unread.warn(a, run.cmd)
 	return report, nil

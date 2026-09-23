@@ -35,7 +35,6 @@ vocabulary:
   forbidden_terms:
     - term: seamless
       replacement: unified
-      severity: major
 `), 0o644))
 
 	mdPath = filepath.Join(dir, "docs", "page.md")

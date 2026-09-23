@@ -19,7 +19,7 @@ func TestTermCheckTool_CodeSpanOnBothSides(t *testing.T) {
 	t.Parallel()
 	rules := []coreprofile.TermRule{
 		{Term: "check", Replacement: "kontroll"},
-		{Term: "kapi", DoNotTranslate: true, CaseSensitive: true},
+		{Term: "kapi", DoNotTranslate: true, CaseSensitive: new(true)},
 	}
 	tests := []struct {
 		name       string

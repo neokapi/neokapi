@@ -134,13 +134,13 @@ func styleLines(p *VoiceProfile) []string {
 	if len(p.Style.ProhibitedPatterns) > 0 {
 		lines = append(lines, "- Prohibited patterns:")
 		for _, pat := range p.Style.ProhibitedPatterns {
-			lines = append(lines, fmt.Sprintf("  - %s (severity: %s)", patternHint(pat), pat.Severity))
+			lines = append(lines, "  - "+patternHint(pat)+advisoryHint(pat.Advisory))
 		}
 	}
 	if len(p.Style.RequiredPatterns) > 0 {
 		lines = append(lines, "- Required in the document:")
 		for _, pat := range p.Style.RequiredPatterns {
-			lines = append(lines, fmt.Sprintf("  - %s (severity: %s)", patternHint(pat), pat.Severity))
+			lines = append(lines, "  - "+patternHint(pat)+advisoryHint(pat.Advisory))
 		}
 	}
 	lines = append(lines, commentLimitLines(p)...)
@@ -561,4 +561,12 @@ func termBans(p *VoiceProfile) []string {
 	add(p.Vocabulary.CompetitorTerms)
 	sort.Strings(bans)
 	return bans
+}
+
+// advisoryHint marks a rule that reports without failing a check.
+func advisoryHint(advisory bool) string {
+	if advisory {
+		return " (advisory)"
+	}
+	return ""
 }

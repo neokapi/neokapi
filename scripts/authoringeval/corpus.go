@@ -103,27 +103,20 @@ style:
     prohibited_patterns:
         - regex: '\b(?:is|are|was|were|be|been|being|may be|has been|have been)\s+\w+(?:ed|en)\b'
           description: passive construction
-          severity: major
         - regex: '(?i)\bit should be noted that\b'
           description: hedged filler
-          severity: minor
+          advisory: true
 vocabulary:
     forbidden_terms:
         - term: utilize
-          severity: major
           forms: [utilizes, utilized, utilizing]
         - term: leverage
-          severity: major
           forms: [leverages, leveraged, leveraging]
         - term: best-in-class
-          severity: major
         - term: seamless
-          severity: major
           forms: [seamlessly]
         - term: revolutionary
-          severity: major
         - term: game-changing
-          severity: major
 `
 
 // contrastProfile is the control for authoring-effect.
@@ -152,11 +145,8 @@ style:
 vocabulary:
     forbidden_terms:
         - term: you
-          severity: major
         - term: we
-          severity: major
         - term: let's
-          severity: major
 `
 
 // corpus is the whole synthesized set.

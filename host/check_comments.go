@@ -320,7 +320,7 @@ func formatterAnalyzer(file string, src []byte, located *comment.File, blocks []
 				diags = append(diags, check.Diagnostic{
 					Rule:       id,
 					Check:      formatterCheck,
-					Severity:   check.SeverityMajor,
+					Fails:      true,
 					Message:    f.FormatterName() + " would rewrite this comment",
 					Suggestion: d.Formatted,
 					Location:   check.Location{Block: key},
@@ -396,23 +396,4 @@ func (a *App) readSourceForCheck(ctx context.Context, u VerifyUnit, execution *c
 		return nil, nil, err
 	}
 	return append(blocks, layer.blocks...), diags, nil
-}
-
-// ApplyFormatterGate fails a report in which a formatter would rewrite a checked
-// comment. An edit the project's formatter reflows churns the next commit, so it
-// does not pass whatever the severity thresholds allow. --lenient turns every
-// limit off, and this one with them.
-func ApplyFormatterGate(report *check.Report) {
-	seen := map[string]bool{}
-	for _, f := range report.Findings {
-		if f.Check != formatterCheck {
-			continue
-		}
-		reason := fmt.Sprintf("%s: %s would rewrite a comment in %s", formatterCheck, f.Rule, f.Location.File)
-		if !seen[reason] {
-			seen[reason] = true
-			report.Gate.Failed = append(report.Gate.Failed, reason)
-		}
-	}
-	report.Decide()
 }

@@ -207,7 +207,7 @@ type contextCorrectInput struct {
 	Unit     string `json:"unit,omitempty" jsonschema:"the block or unit id inside that file, when you have one"`
 	Quote    string `json:"quote,omitempty" jsonschema:"the sentence the change was made in"`
 	Suggest  bool   `json:"suggest,omitempty" jsonschema:"also record the rule the change implies, so the next use of the old wording is reported"`
-	Severity string `json:"severity,omitempty" jsonschema:"how hard that rule bites once a person keeps it: minor and neutral report, anything else fails a check"`
+	Advisory bool   `json:"advisory,omitempty" jsonschema:"true when that rule should only report once a person keeps it; unset, a kept rule fails a check"`
 	Note     string `json:"note,omitempty" jsonschema:"what they said about the change"`
 	Project  string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 }
@@ -362,7 +362,7 @@ func (a *App) handleContextCorrect(ctx context.Context, req *mcp.CallToolRequest
 		To:       in.To,
 		Evidence: evidence,
 		Suggest:  in.Suggest,
-		Severity: in.Severity,
+		Advisory: in.Advisory,
 		Note:     in.Note,
 	})
 	if err != nil {

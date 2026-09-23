@@ -17,7 +17,7 @@ func TestWarningsNeverChangeTheOutcome(t *testing.T) {
 		Source:  ".kapi/voice.yaml",
 		Key:     "channels.docs.vocab",
 	}}
-	critical := []Diagnostic{{Rule: "voice.vocabulary", Check: "voice", Severity: SeverityCritical}}
+	critical := []Diagnostic{{Rule: "voice.vocabulary", Check: "voice", Fails: true}}
 	for _, tc := range []struct {
 		name    string
 		target  Target
@@ -29,8 +29,8 @@ func TestWarningsNeverChangeTheOutcome(t *testing.T) {
 		{name: "did not run", target: Target{Kind: "file"}, verdict: VerdictDidNotRun},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			without := BuildReport(tc.target, tc.diags, DefaultGate())
-			with := BuildReport(tc.target, tc.diags, DefaultGate())
+			without := BuildReport(tc.target, tc.diags)
+			with := BuildReport(tc.target, tc.diags)
 			with.Warnings = warnings
 			with.Decide()
 
@@ -40,14 +40,13 @@ func TestWarningsNeverChangeTheOutcome(t *testing.T) {
 			assert.Equal(t, without.DidNotRun, with.DidNotRun)
 			assert.Equal(t, without.DidNotRunCause, with.DidNotRunCause)
 			assert.Equal(t, without.Summary, with.Summary)
-			assert.Equal(t, without.Gate, with.Gate)
 			assert.Equal(t, warnings, with.Warnings)
 		})
 	}
 }
 
 func TestWarningsAreOmittedWhenThereAreNone(t *testing.T) {
-	body, err := json.Marshal(BuildReport(Target{Kind: "file", Blocks: 1}, nil, DefaultGate()))
+	body, err := json.Marshal(BuildReport(Target{Kind: "file", Blocks: 1}, nil))
 	require.NoError(t, err)
 	assert.NotContains(t, string(body), `"warnings"`)
 }

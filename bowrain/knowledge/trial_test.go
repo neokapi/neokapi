@@ -119,7 +119,7 @@ func TestTrialFindings_VoiceHalfCarriesSeverityAndReplacement(t *testing.T) {
 	assert.Equal(t, "voice", rep.Raised[0].Kind)
 	assert.Equal(t, "synergy", rep.Raised[0].Rule)
 	assert.Equal(t, "teamwork", rep.Raised[0].Replacement)
-	assert.NotEmpty(t, rep.Raised[0].Severity)
+	assert.True(t, rep.Raised[0].Fails)
 	assert.Contains(t, rep.Raised[0].Text, "synergy")
 }
 

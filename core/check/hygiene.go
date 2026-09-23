@@ -232,7 +232,6 @@ func HygieneOverlay(runs []model.Run) *model.Overlay {
 			Range: v.Range(r[0], r[1]),
 			Props: map[string]string{
 				"category": "double-spaces",
-				"severity": string(SeverityMinor),
 				"message":  "Source contains double spaces",
 			},
 		})
@@ -242,7 +241,6 @@ func HygieneOverlay(runs []model.Run) *model.Overlay {
 			Range: v.Range(r[0], r[1]),
 			Props: map[string]string{
 				"category": "doubled-word",
-				"severity": string(SeverityMinor),
 				"message":  fmt.Sprintf("Doubled word: %q", text[r[0]:r[1]]),
 			},
 		})

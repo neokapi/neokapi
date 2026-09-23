@@ -25,7 +25,7 @@ func TestPersistDraftVoiceScores(t *testing.T) {
 		Scope: "ws-1",
 		Name:  "Voice",
 		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{{Term: "synergy", Replacement: "teamwork", Severity: "critical"}},
+			ForbiddenTerms: []coreprofile.TermRule{{Term: "synergy", Replacement: "teamwork"}},
 		},
 	}
 	require.NoError(t, bs.CreateProfile(ctx, profile))

@@ -62,7 +62,7 @@ func TestFaceParity_CLIMatchesTheRecord(t *testing.T) {
 
 	t.Run("check", func(t *testing.T) {
 		out := runVerb(t, &App{}, NewCheckCmd, "check", p.CheckPath,
-			"--profile-file", ".kapi/voice.yaml", "--json")
+			"--profile-file", ".kapi/voice.yaml", "--json", "--no-fail")
 		var report check.Report
 		require.NoError(t, json.Unmarshal([]byte(out), &report))
 		assert.Equal(t, want.Check, facetest.CheckFactsFrom(report))

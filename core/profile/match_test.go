@@ -32,8 +32,8 @@ func TestMatchVocabulary(t *testing.T) {
 		name      string
 		profile   *VoiceProfile
 		text      string
-		wantTerms []string   // matched terms in order
-		wantSev   []Severity // parallel to wantTerms
+		wantTerms []string // matched terms in order
+		wantFails []bool   // parallel to wantTerms
 		wantKind  []VocabKind
 	}{
 		{
@@ -41,7 +41,7 @@ func TestMatchVocabulary(t *testing.T) {
 			profile:   profileWith([]TermRule{{Term: "utilize", Replacement: "use"}}, nil),
 			text:      "Please utilize the dashboard",
 			wantTerms: []string{"utilize"},
-			wantSev:   []Severity{SeverityMajor},
+			wantFails: []bool{true},
 			wantKind:  []VocabKind{VocabForbidden},
 		},
 		{
@@ -49,15 +49,15 @@ func TestMatchVocabulary(t *testing.T) {
 			profile:   profileWith(nil, []TermRule{{Term: "Globex"}}),
 			text:      "Unlike Globex, we ship faithfully",
 			wantTerms: []string{"Globex"},
-			wantSev:   []Severity{SeverityCritical},
+			wantFails: []bool{true},
 			wantKind:  []VocabKind{VocabCompetitor},
 		},
 		{
 			name:      "rule severity overrides the default",
-			profile:   profileWith([]TermRule{{Term: "synergy", Severity: "minor"}}, nil),
+			profile:   profileWith([]TermRule{{Term: "synergy", Advisory: true}}, nil),
 			text:      "We love synergy here",
 			wantTerms: []string{"synergy"},
-			wantSev:   []Severity{SeverityMinor},
+			wantFails: []bool{false},
 			wantKind:  []VocabKind{VocabForbidden},
 		},
 		{
@@ -71,7 +71,7 @@ func TestMatchVocabulary(t *testing.T) {
 			profile:   profileWith([]TermRule{{Term: "utilize"}}, nil),
 			text:      "Utilize it now",
 			wantTerms: []string{"utilize"},
-			wantSev:   []Severity{SeverityMajor},
+			wantFails: []bool{true},
 			wantKind:  []VocabKind{VocabForbidden},
 		},
 		{
@@ -79,7 +79,7 @@ func TestMatchVocabulary(t *testing.T) {
 			profile:   profileWith([]TermRule{{Term: "utilize"}}, nil),
 			text:      "utilize and utilize again",
 			wantTerms: []string{"utilize", "utilize"},
-			wantSev:   []Severity{SeverityMajor, SeverityMajor},
+			wantFails: []bool{true, true},
 			wantKind:  []VocabKind{VocabForbidden, VocabForbidden},
 		},
 		{
@@ -100,8 +100,8 @@ func TestMatchVocabulary(t *testing.T) {
 				if h.Term != tt.wantTerms[i] {
 					t.Errorf("hit %d: term = %q, want %q", i, h.Term, tt.wantTerms[i])
 				}
-				if h.Severity != tt.wantSev[i] {
-					t.Errorf("hit %d: severity = %v, want %v", i, h.Severity, tt.wantSev[i])
+				if h.Fails != tt.wantFails[i] {
+					t.Errorf("hit %d: fails = %v, want %v", i, h.Fails, tt.wantFails[i])
 				}
 				if h.Kind != tt.wantKind[i] {
 					t.Errorf("hit %d: kind = %v, want %v", i, h.Kind, tt.wantKind[i])
@@ -259,21 +259,37 @@ func TestHitsToFindings(t *testing.T) {
 	}
 }
 
-func TestSeverityForRule(t *testing.T) {
+func TestTermRuleMatchesCase(t *testing.T) {
 	cases := []struct {
-		in   string
-		want Severity
+		name string
+		rule TermRule
+		want bool
 	}{
-		{"", SeverityMajor}, // falls back to default
-		{"minor", SeverityMinor},
-		{"MAJOR", SeverityMajor},
-		{" critical ", SeverityCritical}, // surrounding whitespace is trimmed
-		{"neutral", SeverityNeutral},
-		{"bogus", SeverityMajor}, // unknown → default
+		{"a capitalised preferred form is a name", TermRule{Term: "QuickCast", Replacement: "Quickcast"}, true},
+		{"a lower-case preferred form folds", TermRule{Term: "utilize", Replacement: "use"}, false},
+		{"a rule about capitalisation alone", TermRule{Term: "Ripgrep", Replacement: "ripgrep"}, true},
+		{"a rule with no preferred form folds", TermRule{Term: "Globex"}, false},
+		{"the field overrides a capitalised preferred form", TermRule{Term: "QuickCast", Replacement: "Quickcast", CaseSensitive: new(false)}, false},
+		{"the field overrides a lower-case preferred form", TermRule{Term: "Utilize", Replacement: "use", CaseSensitive: new(true)}, true},
 	}
 	for _, c := range cases {
-		if got := severityForRule(c.in, SeverityMajor); got != c.want {
-			t.Errorf("severityForRule(%q) = %v, want %v", c.in, got, c.want)
-		}
+		assert.Equal(t, c.want, c.rule.MatchesCase(), c.name)
+	}
+}
+
+// A name rule matches in its own casing: "write Quickcast, not QuickCast"
+// fires on QuickCast and leaves a lower-case URL slug and the preferred form
+// alone.
+func TestMatchTermRules_NameRuleIsCaseSensitive(t *testing.T) {
+	sets := []TermRuleSet{{Rules: []TermRule{{Term: "QuickCast", Forms: []string{"Quick Cast"}, Replacement: "Quickcast"}}}}
+	text := "Open QuickCast at example.com/quickcast, or Quick Cast, or Quickcast."
+	hits := MatchTermRules(sets, text)
+	var got []string
+	for _, h := range hits {
+		got = append(got, text[h.Start:h.End])
+	}
+	assert.Equal(t, []string{"QuickCast", "Quick Cast"}, got)
+	for _, h := range hits {
+		assert.True(t, h.Fails, "an established rule fails unless advisory")
 	}
 }

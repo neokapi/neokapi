@@ -80,7 +80,7 @@ export function ContextFeedPanel({
         project: entry.project_key,
         id: entry.id,
         replacement: edit?.replacement,
-        severity: edit?.severity,
+        advisory: edit?.advisory,
       }),
     onSettled: refresh,
   });

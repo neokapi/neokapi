@@ -89,8 +89,8 @@ func TestRunBlockToolFindings(t *testing.T) {
 		t.Fatalf("expected 2 findings (forbidden + competitor), got %d: %+v", len(findings), findings)
 	}
 	score := profile.CalculateScore(findings)
-	// One major (5) + one critical (25) = 30 penalty → 70.
-	if score.Overall != 70 {
-		t.Errorf("expected score 70, got %d", score.Overall)
+	// Two failing findings at 25 each = 50 penalty → 50.
+	if score.Overall != 50 {
+		t.Errorf("expected score 50, got %d", score.Overall)
 	}
 }

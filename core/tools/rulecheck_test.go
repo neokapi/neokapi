@@ -64,7 +64,7 @@ func TestRuleCheckToolEmptyTarget(t *testing.T) {
 	findings := checkFindings(resultBlock)
 	require.Len(t, findings, 1)
 	assert.Equal(t, "empty-target", findings[0].Category)
-	assert.Equal(t, check.SeverityMajor, findings[0].Severity)
+	assert.True(t, findings[0].Fails)
 }
 
 func TestRuleCheckToolLeadingWhitespace(t *testing.T) {
@@ -80,7 +80,7 @@ func TestRuleCheckToolLeadingWhitespace(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	f, found := findFinding(checkFindings(resultBlock), "leading-whitespace")
 	require.True(t, found, "Expected leading-whitespace finding")
-	assert.Equal(t, check.SeverityMinor, f.Severity)
+	assert.False(t, f.Fails)
 }
 
 func TestRuleCheckToolTrailingWhitespace(t *testing.T) {
@@ -96,7 +96,7 @@ func TestRuleCheckToolTrailingWhitespace(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	f, found := findFinding(checkFindings(resultBlock), "trailing-whitespace")
 	require.True(t, found, "Expected trailing-whitespace finding")
-	assert.Equal(t, check.SeverityMinor, f.Severity)
+	assert.False(t, f.Fails)
 }
 
 func TestRuleCheckToolDoubleSpaces(t *testing.T) {
@@ -112,7 +112,7 @@ func TestRuleCheckToolDoubleSpaces(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	f, found := findFinding(checkFindings(resultBlock), "double-spaces")
 	require.True(t, found, "Expected double-spaces finding")
-	assert.Equal(t, check.SeverityMinor, f.Severity)
+	assert.False(t, f.Fails)
 }
 
 func TestRuleCheckToolTargetSameAsSource(t *testing.T) {
@@ -128,7 +128,7 @@ func TestRuleCheckToolTargetSameAsSource(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	f, found := findFinding(checkFindings(resultBlock), "target-same-as-source")
 	require.True(t, found, "Expected target-same-as-source finding")
-	assert.Equal(t, check.SeverityMinor, f.Severity)
+	assert.False(t, f.Fails)
 }
 
 func TestRuleCheckToolMultipleIssues(t *testing.T) {
@@ -244,7 +244,7 @@ func TestRuleCheckToolNonDeletableSpanMissing(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	f, found := findFinding(checkFindings(resultBlock), "non-deletable-span-missing")
 	require.True(t, found, "Expected non-deletable-span-missing finding")
-	assert.Equal(t, check.SeverityMajor, f.Severity)
+	assert.True(t, f.Fails)
 	assert.Contains(t, f.Message, "struct:break")
 }
 
@@ -287,7 +287,7 @@ func TestRuleCheckToolNonCloneableSpanDuplicated(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	f, found := findFinding(checkFindings(resultBlock), "non-cloneable-span-duplicated")
 	require.True(t, found, "Expected non-cloneable-span-duplicated finding")
-	assert.Equal(t, check.SeverityMajor, f.Severity)
+	assert.True(t, f.Fails)
 	assert.Contains(t, f.Message, "code:variable")
 }
 

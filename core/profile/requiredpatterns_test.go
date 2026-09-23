@@ -97,20 +97,20 @@ func nonEmpty(s []string) []string {
 
 func TestRequiredPatternFindings(t *testing.T) {
 	p := profileWithRequired(
-		Pattern{Regex: `(?i)\bstart free trial\b`, Description: "Every landing page carries the call to action", Severity: "critical"},
+		Pattern{Regex: `(?i)\bstart free trial\b`, Description: "Every landing page carries the call to action"},
 		Pattern{Regex: `©`},
 	)
 	findings := DocumentFindings(p, "A page with neither.")
 	require.Len(t, findings, 2)
 
 	assert.Equal(t, "Required pattern absent: Every landing page carries the call to action", findings[0].Message)
-	assert.Equal(t, SeverityCritical, findings[0].Severity)
+	assert.True(t, findings[0].Fails)
 	assert.Equal(t, string(DimensionStyle), findings[0].Category)
 	assert.Equal(t, `(?i)\bstart free trial\b`, findings[0].Metadata["pattern"])
 
 	// A rule with no description names its regex, so a finding is never anonymous.
 	assert.Equal(t, `Required pattern "©" is absent`, findings[1].Message)
-	assert.Equal(t, SeverityMajor, findings[1].Severity, "patterns default to major, as the prohibited half does")
+	assert.True(t, findings[1].Fails, "patterns default to major, as the prohibited half does")
 
 	// An absence sits nowhere: there is no offending text and no range to anchor.
 	for _, f := range findings {

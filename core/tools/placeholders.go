@@ -171,7 +171,7 @@ func placeholderFindings(locale model.LocaleID, source, target string) []check.F
 	for _, d := range missing {
 		findings = append(findings, check.Finding{
 			Category:     "placeholder",
-			Severity:     check.SeverityCritical,
+			Fails:        true,
 			Message:      d.missingMessage(locale),
 			Suggestion:   fmt.Sprintf("Keep %s in the target", d.Token),
 			OriginalText: d.Token,
@@ -180,7 +180,7 @@ func placeholderFindings(locale model.LocaleID, source, target string) []check.F
 	for _, d := range extra {
 		findings = append(findings, check.Finding{
 			Category:     "placeholder",
-			Severity:     check.SeverityMajor,
+			Fails:        true,
 			Message:      d.extraMessage(locale),
 			OriginalText: d.Token,
 		})

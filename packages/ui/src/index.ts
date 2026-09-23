@@ -210,6 +210,7 @@ export {
 // review surfaces. See packages/ui/docs/judgement-colours.md.
 export {
   findingSeverityTone,
+  findingOutcomeTone,
   findingFails,
   checkIssueTone,
   findingToneBadgeClass,

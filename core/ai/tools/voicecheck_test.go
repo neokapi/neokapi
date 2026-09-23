@@ -65,7 +65,7 @@ func TestVoiceCheckToolFindings(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, findings, 1)
 	assert.Equal(t, string(coreprofile.DimensionTone), findings[0].Category)
-	assert.Equal(t, coreprofile.SeverityMajor, findings[0].Severity)
+	assert.False(t, findings[0].Fails, "a judge's reading of tone reports and never fails")
 
 	// Check score.
 	scoreStr := resultBlock.Properties["voice-score"]
@@ -184,8 +184,8 @@ func TestVoiceCheckToolScoreCalculation(t *testing.T) {
 	err = json.Unmarshal([]byte(resultBlock.Properties["voice-score"]), &score)
 	require.NoError(t, err)
 
-	// minor=1, major=5, minor=1 → total penalty = 7 → overall = 93
-	assert.Equal(t, 93, score.Overall)
+	// Three reported findings at one point each → overall = 97
+	assert.Equal(t, 97, score.Overall)
 	assert.Equal(t, "score-test", score.ProfileID)
 	assert.Len(t, score.Findings, 3)
 }

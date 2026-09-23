@@ -39,7 +39,7 @@ caught in CI, or in an assistant's fix-loop, the same way a failing test is.
 By default, with no `--provider`, the `qa` tool runs a battery of
 deterministic rules over each block, comparing source and target. It needs no
 API key. It records each finding as a structured issue with a
-type and a severity (error or warning) and marks whether the block passed. The
+type and whether it fails, and marks whether the block passed. The
 checks span several concerns:
 
 | Concern             | Examples of what it catches                                                      |

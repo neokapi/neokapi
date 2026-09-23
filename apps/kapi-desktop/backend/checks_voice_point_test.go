@@ -24,7 +24,6 @@ vocabulary:
   forbidden_terms:
     - term: utilise
       replacement: use
-      severity: major
 `
 
 // promoPointVoice forbids "cheap" and says nothing about "utilise".
@@ -33,7 +32,6 @@ vocabulary:
   forbidden_terms:
     - term: cheap
       replacement: affordable
-      severity: major
 `
 
 // newTwoPointProject scaffolds two collections at two points, each with its own

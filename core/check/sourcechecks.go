@@ -75,7 +75,7 @@ func contentLintFindings(text string, isComment bool) []Finding {
 	if strings.TrimSpace(text) == "" {
 		return []Finding{{
 			Category: "empty",
-			Severity: SeverityMajor,
+			Fails:    true,
 			Message:  "Content is empty or whitespace-only",
 		}}
 	}
@@ -85,7 +85,6 @@ func contentLintFindings(text string, isComment bool) []Finding {
 	if LeadingWhitespace(text) != "" {
 		findings = append(findings, Finding{
 			Category: "leading-whitespace",
-			Severity: SeverityMinor,
 			Message:  "Content has leading whitespace",
 		})
 	}
@@ -97,21 +96,19 @@ func contentLintFindings(text string, isComment bool) []Finding {
 	if StrayTrailingWhitespace(text) != "" {
 		findings = append(findings, Finding{
 			Category: "trailing-whitespace",
-			Severity: SeverityMinor,
 			Message:  "Content has trailing whitespace",
 		})
 	}
 
 	// A comment reads a rule that leaves its layout out, so what it reports is a
-	// slip the reader sees, and major.
-	doubleSpaces, spaceSeverity := DoubleSpaces, SeverityMinor
+	// slip the reader sees rather than alignment.
+	doubleSpaces := DoubleSpaces
 	if isComment {
-		doubleSpaces, spaceSeverity = CommentDoubleSpaces, SeverityMajor
+		doubleSpaces = CommentDoubleSpaces
 	}
 	if doubleSpaces(text) {
 		findings = append(findings, Finding{
 			Category: "double-spaces",
-			Severity: spaceSeverity,
 			Message:  "Content contains consecutive spaces",
 		})
 	}
@@ -119,7 +116,6 @@ func contentLintFindings(text string, isComment bool) []Finding {
 	if word := DoubledWord(text, ""); word != "" {
 		findings = append(findings, Finding{
 			Category:     "doubled-word",
-			Severity:     SeverityMinor,
 			Message:      fmt.Sprintf("Content contains a doubled word: %q", word),
 			OriginalText: word,
 		})
@@ -128,7 +124,6 @@ func contentLintFindings(text string, isComment bool) []Finding {
 	if r, ok := firstControlChar(text); ok {
 		findings = append(findings, Finding{
 			Category: "control-char",
-			Severity: SeverityMinor,
 			Message:  fmt.Sprintf("Content contains a stray control character (U+%04X)", r),
 		})
 	}
@@ -170,7 +165,7 @@ func absoluteLengthFindings(text, subject string, maxChars, maxWords int) []Find
 		if charCount > maxChars {
 			findings = append(findings, Finding{
 				Category: "max-chars-exceeded",
-				Severity: SeverityMajor,
+				Fails:    true,
 				Message:  fmt.Sprintf("%s has %d characters, exceeds maximum of %d", subject, charCount, maxChars),
 			})
 		}
@@ -180,7 +175,7 @@ func absoluteLengthFindings(text, subject string, maxChars, maxWords int) []Find
 		if wordCount > maxWords {
 			findings = append(findings, Finding{
 				Category: "max-words-exceeded",
-				Severity: SeverityMajor,
+				Fails:    true,
 				Message:  fmt.Sprintf("%s has %d words, exceeds maximum of %d", subject, wordCount, maxWords),
 			})
 		}
@@ -235,7 +230,7 @@ func NewSourcePatternTool(rules []PatternRule) (*tool.BaseTool, error) {
 			if rule.MustMatch && !rule.re.MatchString(text) {
 				findings = append(findings, Finding{
 					Category: "pattern-missing",
-					Severity: SeverityMajor,
+					Fails:    true,
 					Message: fmt.Sprintf("Pattern %q (%s): required pattern not found in source",
 						rule.Name, rule.Pattern),
 				})
@@ -244,7 +239,7 @@ func NewSourcePatternTool(rules []PatternRule) (*tool.BaseTool, error) {
 				if loc := rule.re.FindString(text); loc != "" {
 					findings = append(findings, Finding{
 						Category: "forbidden-pattern",
-						Severity: SeverityMajor,
+						Fails:    true,
 						Message: fmt.Sprintf("Pattern %q (%s): forbidden pattern found in source",
 							rule.Name, rule.Pattern),
 						OriginalText: loc,

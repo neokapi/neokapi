@@ -193,9 +193,10 @@ type ContextSuggestion struct {
 	Term        string   `json:"term,omitempty"`
 	Forms       []string `json:"forms,omitempty"`
 	Replacement string   `json:"replacement,omitempty"`
-	// Severity is how hard the rule would bite once a person keeps it. It
-	// decides nothing while the operation is a suggestion.
-	Severity string `json:"severity,omitempty"`
+	// Advisory says the rule would report without failing a check once a
+	// person keeps it. It decides nothing while the operation is a
+	// suggestion.
+	Advisory bool `json:"advisory,omitempty"`
 	// Text is the prose of a note.
 	Text string `json:"text,omitempty"`
 	// Note is whatever the actor said about it.
@@ -739,7 +740,7 @@ func contextSuggestions(advisory []coreprofile.TermRule, records []contextop.Rec
 			Term:        rule.Term,
 			Forms:       rule.Forms,
 			Replacement: rule.Replacement,
-			Severity:    rule.Severity,
+			Advisory:    rule.Advisory,
 			Note:        rule.Note,
 		}
 		if r, held := byTerm[suggestionKey(rule.Term)]; held {

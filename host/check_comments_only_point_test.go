@@ -99,7 +99,6 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: major
 `
 
 // namedContentProject is commentPointProject with each item declared for its

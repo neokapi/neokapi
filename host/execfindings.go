@@ -21,7 +21,7 @@ import (
 //
 // findingsCollector closes it through the extension point the tool runner
 // already has: a tool whose IO contract declares a findings port gets one, and
-// RunToolOnFiles renders the aggregate as the same kapi.check/v1 report
+// RunToolOnFiles renders the aggregate as the same kapi.check/v2 report
 // `kapi check` prints — same table, same `--json` shape, same consumers. The
 // rule ids differ in their first segment by design: `kapi check` groups findings
 // into its own families (`dnt`, `placeholder`, `hygiene`), while an exec run
@@ -127,16 +127,15 @@ func (c *findingsCollector) Collect(_ context.Context, item *flow.Item, parts []
 func (c *findingsCollector) Result() (flow.CollectorResult, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	// The gate is open (every limit -1) because exec reports and `kapi check`
-	// gates, so the report carries no pass or fail. A run over no block is
-	// did_not_run all the same: that is coverage, and it holds whatever the gate.
-	gate := check.Gate{MaxCritical: -1, MaxMajor: -1, MaxMinor: -1}
-	report := check.BuildReport(check.Target{Kind: "file", Blocks: c.blocks}, c.diags, gate)
+	// Exec reports and `kapi check` gates, so the findings report carries no
+	// pass or fail. A run over no block is did_not_run all the same: that is
+	// coverage.
+	report := check.BuildReport(check.Target{Kind: "file", Blocks: c.blocks}, c.diags)
 	return flow.CollectorResult{Name: "findings", Data: newFindingsReport(report)}, nil
 }
 
 // findingsReport is what a run that is not the gate reports: the findings and
-// their roll-up, field-for-field as the kapi.check/v1 Report carries them, so
+// their roll-up, field-for-field as the kapi.check/v2 Report carries them, so
 // `.findings[]` and `.summary` read the same whichever command produced them.
 // `kapi exec <check>` emits it on its own; `kapi run <flow>` nests it under the
 // run's own output so one run stays one document.
@@ -153,7 +152,7 @@ type findingsReport struct {
 	Target   check.Target       `json:"target"`
 	Summary  check.Summary      `json:"summary"`
 	Findings []check.Diagnostic `json:"findings"`
-	// DidNotRun and DidNotRunCause are set as the kapi.check/v1 Report sets
+	// DidNotRun and DidNotRunCause are set as the kapi.check/v2 Report sets
 	// them, when the check read no content block.
 	DidNotRun      []string `json:"did_not_run,omitempty"`
 	DidNotRunCause string   `json:"did_not_run_cause,omitempty"`

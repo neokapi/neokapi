@@ -56,9 +56,9 @@ func TestEvaluateBlastRadius_PromotingForbiddenTerm(t *testing.T) {
 	if br.AffectedBlocks != 2 {
 		t.Errorf("AffectedBlocks = %d, want 2", br.AffectedBlocks)
 	}
-	// Forbidden terms are major (not critical).
-	if br.CriticalCount != 0 {
-		t.Errorf("CriticalCount = %d, want 0", br.CriticalCount)
+	// Forbidden terms fail.
+	if br.FailingCount != 3 {
+		t.Errorf("FailingCount = %d, want 3", br.FailingCount)
 	}
 	// New violations lower the score, so affected blocks degrade.
 	if br.DegradedBlocks != 2 {
@@ -121,7 +121,7 @@ func TestEvaluateBlastRadius_ResolvedAndImproved(t *testing.T) {
 	}
 }
 
-func TestEvaluateBlastRadius_CriticalCount(t *testing.T) {
+func TestEvaluateBlastRadius_FailingCount(t *testing.T) {
 	// Promoting a competitor term is critical severity.
 	baseline := profileWith(nil, nil)
 	candidate := profileWith(nil, []TermRule{{Term: "Globex"}})
@@ -130,8 +130,8 @@ func TestEvaluateBlastRadius_CriticalCount(t *testing.T) {
 	if br.NewViolations != 1 {
 		t.Errorf("NewViolations = %d, want 1", br.NewViolations)
 	}
-	if br.CriticalCount != 1 {
-		t.Errorf("CriticalCount = %d, want 1", br.CriticalCount)
+	if br.FailingCount != 1 {
+		t.Errorf("FailingCount = %d, want 1", br.FailingCount)
 	}
 }
 

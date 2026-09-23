@@ -17,30 +17,29 @@ style:
   prohibited_patterns:
     - regex: '\b(pursuant to|hereby|aforementioned)\b'
       description: Legalese and overly formal language
-      severity: major
     - regex: '\b(utilize|facilitate|implement)\b'
       description: Corporate verbs that feel stiff
-      severity: minor
+      advisory: true
 vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: minor
+      advisory: true
     - term: facilitate
       replacement: help
-      severity: minor
+      advisory: true
     - term: implement
       replacement: set up
-      severity: minor
+      advisory: true
     - term: purchase
       replacement: buy
-      severity: minor
+      advisory: true
     - term: commence
       replacement: start
-      severity: minor
+      advisory: true
     - term: inquire
       replacement: ask
-      severity: minor
+      advisory: true
   preferred_terms:
     - term: you
       note: Always address the customer directly

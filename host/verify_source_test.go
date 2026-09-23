@@ -155,7 +155,7 @@ func TestVerifyMixedProjectKeepsRealTargetChecks(t *testing.T) {
 	assert.Equal(t, verifyCoverage{Files: 2, Blocks: 3}, *qa.Coverage)
 	missingPlaceholder := false
 	for _, f := range qa.Findings {
-		if f.File == "fr.json" && f.Severity == "error" {
+		if f.File == "fr.json" && f.Fails {
 			missingPlaceholder = true
 		}
 	}

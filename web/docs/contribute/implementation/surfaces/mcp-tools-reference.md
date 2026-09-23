@@ -160,7 +160,7 @@ read it rather than a prose copy.
 | `run_flow`, `pseudo_translate` | `mcptools.RunFlowOutput` |
 | `list_formats`, `list_flows`, `list_tools` | `mcptools.ListFormatsOutput`, `ListFlowsOutput`, `ListToolsOutput` |
 | Review verbs | `mcptools.ReviewQueueOutput`, `ReviewUnitOutput`, `ReviewDecisionOutput` |
-| `check_text`, `check_file` | a `kapi.check/v1` Report; see [the JSON contract](/reference/cli-contract) |
+| `check_text`, `check_file` | a `kapi.check/v2` Report; see [the JSON contract](/reference/cli-contract) |
 | `context_observe`, `context_correct`, `context_withdraw` | `host.contextRecordOutput`: the operation id, its kind and status (`suggested` or `contested`, with `contested_by` naming the other side), the session, what was recorded, the command that reviews it, and what happens to it next |
 | `context_session_summary` | `host.contextSessionOutput`: the counts `observed`, `corrected`, `suggested`, `contested`, `established`, `withdrawn`, `dropped` and `reverted`, with the sentence to end a report on and the `kapi context keep --session <id>` command a person keeps the session's suggestions with |
 | `stats` | the same document `kapi stats --json` emits |
@@ -184,7 +184,7 @@ comment, or by the prose as read in `current_text`, and an entry with neither is
 rejected before any entry is applied. A comment whose bytes or prose differ is
 refused with the reason `changed`. `width` optionally sets the wrap column. Its outcome sits under `comments`, one record per file. Each edit is
 `written`, `unchanged`, `refused` or `did-not-run`, the last two with a `reason`
-and `detail`. `diff` is the change written, and `check` is a `kapi.check/v1`
+and `detail`. `diff` is the change written, and `check` is a `kapi.check/v2`
 Report scoped to that diff. `ok` is false when an edit was refused or did not
 run, or when that check did not pass. Before the first comment of a language is
 written, the write canary (`comment.VerifyRewriter`) runs, and a failed canary

@@ -234,13 +234,11 @@ func TestHygieneOverlay_SpanProps(t *testing.T) {
 
 	assert.Equal(t, map[string]string{
 		"category": "double-spaces",
-		"severity": "minor",
 		"message":  "Source contains double spaces",
 	}, ov.Spans[0].Props)
 
 	assert.Equal(t, map[string]string{
 		"category": "doubled-word",
-		"severity": "minor",
 		"message":  `Doubled word: "the"`,
 	}, ov.Spans[1].Props)
 }

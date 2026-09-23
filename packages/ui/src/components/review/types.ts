@@ -24,8 +24,10 @@ export interface ReviewFindingView {
   /** A stable id for the row, used as its test hook. */
   id?: string;
   category?: string;
-  /** The severity word the checker used, shown as given. */
+  /** The severity word a checker outside core/check used, shown as given. */
   severity?: string;
+  /** Whether a core/check finding fails the check. */
+  fails?: boolean;
   /** How hard it bites, on the shared scale. */
   tone: FindingTone;
   message: string;
@@ -43,6 +45,11 @@ export interface ReviewFindingView {
  */
 export interface CheckFindingLike {
   category?: string;
+  /** Whether the finding fails a check (core/check.Finding.fails). */
+  fails?: boolean;
+  /** Raised by a suggested rule nobody has settled. */
+  suggested?: boolean;
+  /** A severity word, from a checker outside core/check (an AI pre-review). */
   severity?: string;
   message: string;
   suggestion?: string;

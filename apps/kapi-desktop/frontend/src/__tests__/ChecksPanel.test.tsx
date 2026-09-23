@@ -15,7 +15,7 @@ const FAILING: CheckRunResult = {
       findings: [
         {
           category: "do-not-translate",
-          severity: "critical",
+          fails: true,
           message: 'Do-not-translate term "Acme Cloud" is missing from the de target',
           suggestion: 'Keep "Acme Cloud" verbatim in the target',
           original_text: "Acme Cloud",
@@ -25,7 +25,7 @@ const FAILING: CheckRunResult = {
         },
         {
           category: "vocabulary",
-          severity: "major",
+          fails: true,
           message: 'Forbidden term "utilize" found',
           suggestion: 'Use "use" instead',
           original_text: "utilize",
@@ -109,9 +109,8 @@ describe("ChecksPanel", () => {
     // Category badges.
     expect(screen.getByText("vocabulary")).toBeInTheDocument();
     expect(screen.getByText("do-not-translate")).toBeInTheDocument();
-    // Severity badges.
-    expect(screen.getByText("Critical")).toBeInTheDocument();
-    expect(screen.getByText("Major")).toBeInTheDocument();
+    // Outcome badges: both findings fail.
+    expect(screen.getAllByText("Fails")).toHaveLength(2);
     // Offending text + suggestion.
     expect(screen.getByText("utilize")).toBeInTheDocument();
     expect(screen.getByText('Use "use" instead')).toBeInTheDocument();
@@ -128,7 +127,7 @@ describe("ChecksPanel", () => {
           findings: [
             {
               category: "hygiene",
-              severity: "minor",
+              fails: false,
               message: 'Content contains a doubled word: "the"',
               block_id: "func/Parse",
               field: "source",
@@ -138,7 +137,7 @@ describe("ChecksPanel", () => {
             },
             {
               category: "voice",
-              severity: "major",
+              fails: true,
               message: "Prohibited pattern: Do not leave a FIXME without an owner.",
               block_id: "func/Retry",
               field: "source",
@@ -169,7 +168,7 @@ describe("ChecksPanel", () => {
           findings: [
             {
               category: "do-not-translate",
-              severity: "critical",
+              fails: true,
               message: 'Do-not-translate term "Acme Cloud" is missing from the ar target',
               original_text: "أكمي كلاود",
               block_id: "blk-1",

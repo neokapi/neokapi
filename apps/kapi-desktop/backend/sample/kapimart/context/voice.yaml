@@ -36,11 +36,10 @@ style:
     # register is the same whether a page is selling or explaining.
     - regex: '!(?:\s|$)'
       description: Exclamation in prose
-      severity: minor
+      advisory: true
       scope: prose
     - regex: '\b(?:blazing|effortless(?:ly)?|seamless(?:ly)?|world-class)\b'
       description: Marketing superlative
-      severity: major
       scope: prose
 vocabulary:
   preferred_terms:
@@ -56,7 +55,7 @@ vocabulary:
     # follow the rule back to the definition it came from.
     - term: cart
       replacement: shopping cart
-      severity: minor
+      advisory: true
       concept_id: km-001
       scope: prose
       note: >-
@@ -64,7 +63,7 @@ vocabulary:
         sense. Write it in full.
     - term: frequently asked questions
       replacement: FAQ
-      severity: minor
+      advisory: true
       concept_id: km-057
       note: The heading is the abbreviation; the expansion reads as filler.
   abbreviations:

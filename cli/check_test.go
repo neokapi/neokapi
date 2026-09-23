@@ -55,7 +55,7 @@ func TestCheck_BilingualFindings(t *testing.T) {
 	counts := ruleCounts(out)
 	assert.Positive(t, counts["placeholder.placeholder"], "should flag the dropped {name} placeholder: %+v", out.Findings)
 	assert.Positive(t, counts["dnt.do-not-translate"], "should flag the translated do-not-translate term: %+v", out.Findings)
-	assert.GreaterOrEqual(t, out.Summary.Critical, 2)
+	assert.GreaterOrEqual(t, out.Summary.Failing, 2)
 }
 
 // TestCheck_MonolingualSourceChecks runs `kapi check <source>` with no target
@@ -120,33 +120,22 @@ func TestCheck_HygieneAlwaysRuns(t *testing.T) {
 	assert.Positive(t, ruleCounts(out)["hygiene.doubled-word"], "the doubled word must be flagged by default: %+v", out.Findings)
 }
 
-// TestCheck_MonolingualGateOnMajor confirms that source-side findings (which are
-// SeverityMajor, not critical) clear the default critical-only gate but fail once
-// the caller tightens it with --max-major 0 — the way teams actually gate on
-// source quality.
-func TestCheck_MonolingualGateOnMajor(t *testing.T) {
+// TestCheck_MonolingualFailsOnAFailingFinding: a length limit the caller set
+// is a rule, so content over it fails the check, and --no-fail is the only way
+// to report without failing.
+func TestCheck_MonolingualFailsOnAFailingFinding(t *testing.T) {
 	t.Setenv("KAPI_NO_PROJECT", "1")
 	dir := t.TempDir()
 	src := filepath.Join(dir, "app.json")
 	require.NoError(t, os.WriteFile(src, []byte(`{"body": "This source string is far too long for the limit"}`), 0o644))
 
-	// Default gate is critical-only: a major length finding still passes.
 	a := &App{SourceLang: "en"}
-	def := NewCheckCmd(a)
-	require.NoError(t, def.Flags().Set("max-chars", "10"))
-	defOut, err := a.ComputeCheck(def, []string{src})
+	cmd := NewCheckCmd(a)
+	require.NoError(t, cmd.Flags().Set("max-chars", "10"))
+	out, err := a.ComputeCheck(cmd, []string{src})
 	require.NoError(t, err)
-	assert.Positive(t, defOut.Summary.Major, "the over-long body should be a major finding: %+v", defOut.Findings)
-	assert.Zero(t, defOut.Summary.Critical)
-	assert.True(t, defOut.Pass, "the default critical-only gate passes on a major finding")
-
-	// --max-major 0 tightens the gate: the same major finding now fails it.
-	gated := NewCheckCmd(a)
-	require.NoError(t, gated.Flags().Set("max-chars", "10"))
-	require.NoError(t, gated.Flags().Set("max-major", "0"))
-	gatedOut, err := a.ComputeCheck(gated, []string{src})
-	require.NoError(t, err)
-	assert.False(t, gatedOut.Pass, "--max-major 0 must gate on the major length finding")
+	assert.Equal(t, 1, out.Summary.Failing, "the over-long body is a failing finding: %+v", out.Findings)
+	assert.False(t, out.Pass, "a failing finding fails the check")
 }
 
 // TestCheck_BilingualKeepsSourceFamilyAttribution proves source-side findings
@@ -180,28 +169,12 @@ func TestCheck_BilingualKeepsSourceFamilyAttribution(t *testing.T) {
 	}
 }
 
-// TestCheck_StrictAndLenientPresets proves the gate presets: --strict fails on a
-// major finding the default gate passes, and --lenient never fails.
-func TestCheck_StrictAndLenientPresets(t *testing.T) {
-	t.Setenv("KAPI_NO_PROJECT", "1")
-	dir := t.TempDir()
-	src := filepath.Join(dir, "app.json")
-	require.NoError(t, os.WriteFile(src, []byte(`{"body": "This source string is far too long for the limit"}`), 0o644))
-
-	strict := NewCheckCmd(&App{SourceLang: "en"})
-	require.NoError(t, strict.Flags().Set("max-chars", "10"))
-	require.NoError(t, strict.Flags().Set("strict", "true"))
-	strictOut, err := (&App{SourceLang: "en"}).ComputeCheck(strict, []string{src})
-	require.NoError(t, err)
-	assert.False(t, strictOut.Pass, "--strict must fail on the major length finding")
-
-	lenient := NewCheckCmd(&App{SourceLang: "en"})
-	require.NoError(t, lenient.Flags().Set("max-chars", "10"))
-	require.NoError(t, lenient.Flags().Set("lenient", "true"))
-	lenientOut, err := (&App{SourceLang: "en"}).ComputeCheck(lenient, []string{src})
-	require.NoError(t, err)
-	assert.True(t, lenientOut.Pass, "--lenient must never fail the gate")
-	assert.Positive(t, lenientOut.Summary.Findings, "--lenient still reports the findings")
+// TestCheck_RetiredGateFlags: the severity thresholds are gone, and naming one
+// is an error rather than a flag that quietly does nothing.
+func TestCheck_RetiredGateFlags(t *testing.T) {
+	for _, flag := range []string{"max-critical", "max-major", "max-minor", "min-score", "strict", "lenient"} {
+		assert.Nil(t, NewCheckCmd(&App{}).Flags().Lookup(flag), "--%s is retired", flag)
+	}
 }
 
 // TestCheck_MarkdownContinuationIndentIsNotADoubleSpace is #1854 end to end: a
@@ -362,14 +335,14 @@ func TestCheck_ValidateFoldsStructureDiagnostic(t *testing.T) {
 	require.Error(t, err, "off mode keeps the opaque read error")
 
 	// --validate report: the structure problem folds into the Report as a
-	// located structure.json-syntax finding; the default gate still passes.
+	// located structure.json-syntax finding that reports without failing.
 	repCmd := NewCheckCmd(&App{SourceLang: "en"})
 	require.NoError(t, repCmd.Flags().Set("validate", "report"))
 	repOut, err := (&App{SourceLang: "en"}).ComputeCheck(repCmd, []string{src})
 	require.NoError(t, err, "report mode folds the structure problem instead of erroring")
 	counts := ruleCounts(repOut)
 	assert.Positive(t, counts["structure.json-syntax"], "should fold a structure.json-syntax finding: %+v", repOut.Findings)
-	assert.Empty(t, repOut.Gate.Failed, "report mode surfaces the finding but the default gate does not fail on it")
+	assert.Zero(t, repOut.Summary.Failing, "report mode surfaces the finding and does not fail on it")
 	// The read yielded no content, so nothing was checked: the report says it
 	// did not run rather than that the file passed.
 	assert.Equal(t, 0, repOut.Target.Blocks)
@@ -383,13 +356,13 @@ func TestCheck_ValidateFoldsStructureDiagnostic(t *testing.T) {
 		}
 	}
 
-	// --validate strict: the same Major structure finding fails the gate.
+	// --validate strict: the same major structure finding fails.
 	strictCmd := NewCheckCmd(&App{SourceLang: "en"})
 	require.NoError(t, strictCmd.Flags().Set("validate", "strict"))
 	strictOut, err := (&App{SourceLang: "en"}).ComputeCheck(strictCmd, []string{src})
 	require.NoError(t, err)
 	assert.False(t, strictOut.Pass, "strict mode gates on the structure problem")
-	assert.NotEmpty(t, strictOut.Gate.Failed)
+	assert.Positive(t, strictOut.Summary.Failing)
 }
 
 // TestCheck_ValidateReportCleanFile confirms --validate report adds no findings

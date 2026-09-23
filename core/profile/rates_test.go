@@ -17,7 +17,7 @@ import (
 
 func ratePattern(regex string, maxN, per int) *VoiceProfile {
 	return &VoiceProfile{Style: StyleRules{ProhibitedPatterns: []Pattern{{
-		Regex: regex, Description: "em dashes", Severity: "minor",
+		Regex: regex, Description: "em dashes", Advisory: true,
 		Rate: &PatternRate{Max: maxN, Per: per},
 	}}}}
 }
@@ -207,7 +207,7 @@ func TestTermRulesTakeAScopeToo(t *testing.T) {
 		Category: DimensionVocabulary,
 		Rules: []TermRule{
 			{Term: "endpoint", Scope: ScopeProse},
-			{Term: "Ripgrep", CaseSensitive: true},
+			{Term: "Ripgrep", CaseSensitive: new(true)},
 		},
 	}}
 

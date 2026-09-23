@@ -145,7 +145,7 @@ style:
   prohibited_patterns:
     - regex: "\\b(synergy|leverage)\\b"
       description: Corporate jargon
-      severity: minor        # minor | major | critical
+      advisory: true         # reports without failing a check; omit to fail
 
 vocabulary:
   preferred_terms:
@@ -154,11 +154,10 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: minor
+      advisory: true
   competitor_terms:
     - term: Globex
       replacement: our platform
-      severity: major
 
 examples:
   - before: We utilize cutting-edge technology to facilitate outcomes.

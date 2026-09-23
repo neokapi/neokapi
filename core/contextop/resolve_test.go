@@ -12,17 +12,17 @@ import (
 func TestResolve_CandidatesAnswerInTheirOwnProject(t *testing.T) {
 	here := contextop.Record{
 		ID: "1", Seq: 1, Project: "prj_docs", Kind: contextop.KindObserve,
-		Subject: termRule("utilise", "use", ""), Status: contextop.StatusSuggested,
+		Subject: termRule("utilise", "use", false), Status: contextop.StatusSuggested,
 		Scope: contextop.Scope{Level: contextop.LevelProject},
 	}
 	elsewhere := contextop.Record{
 		ID: "2", Seq: 2, Project: "prj_web", Kind: contextop.KindObserve,
-		Subject: termRule("leverage", "use", ""), Status: contextop.StatusSuggested,
+		Subject: termRule("leverage", "use", false), Status: contextop.StatusSuggested,
 		Scope: contextop.Scope{Level: contextop.LevelProject},
 	}
 	widened := contextop.Record{
 		ID: "3", Seq: 3, Project: "prj_web", Kind: contextop.KindObserve,
-		Subject: termRule("synergy", "fit", ""), Status: contextop.StatusSuggested,
+		Subject: termRule("synergy", "fit", false), Status: contextop.StatusSuggested,
 		Scope: contextop.Scope{Level: contextop.LevelWorkspace},
 	}
 
@@ -47,7 +47,7 @@ func TestResolve_OnlyCandidatesAdvise(t *testing.T) {
 		t.Run(string(tt.status), func(t *testing.T) {
 			r := contextop.Record{
 				ID: "1", Seq: 1, Project: "prj_docs", Kind: contextop.KindObserve,
-				Subject: termRule("utilise", "use", ""), Status: tt.status,
+				Subject: termRule("utilise", "use", false), Status: tt.status,
 			}
 			got := contextop.Resolve([]contextop.Record{r}, nil, contextop.ResolveRequest{Project: "prj_docs"})
 			assert.Equal(t, tt.advise, len(got.Advisory) == 1,
@@ -59,7 +59,7 @@ func TestResolve_OnlyCandidatesAdvise(t *testing.T) {
 func TestResolve_ScopeCoordinatesNarrowWhereARuleAnswers(t *testing.T) {
 	scoped := contextop.Record{
 		ID: "1", Seq: 1, Project: "prj_docs", Kind: contextop.KindObserve,
-		Subject: termRule("utilise", "use", ""), Status: contextop.StatusSuggested,
+		Subject: termRule("utilise", "use", false), Status: contextop.StatusSuggested,
 		Scope: contextop.Scope{
 			Level:       contextop.LevelProject,
 			Coordinates: map[string]string{"brand": "northsea", "mode": "reference"},
@@ -87,8 +87,8 @@ func TestResolve_ScopeCoordinatesNarrowWhereARuleAnswers(t *testing.T) {
 
 func TestResolve_TheProjectsOwnTermsHideAWidenedRule(t *testing.T) {
 	widened := []contextop.WidenedRule{
-		{Operation: "1", Subject: termRule("utilise", "use", "major")},
-		{Operation: "2", Subject: termRule("leverage", "use", "major")},
+		{Operation: "1", Subject: termRule("utilise", "use", false)},
+		{Operation: "2", Subject: termRule("leverage", "use", false)},
 	}
 
 	all := contextop.Resolve(nil, widened, contextop.ResolveRequest{Project: "prj_docs"})
@@ -104,11 +104,11 @@ func TestResolve_TheProjectsOwnTermsHideAWidenedRule(t *testing.T) {
 func TestResolve_TheLatestStatementAboutATermAnswers(t *testing.T) {
 	older := contextop.Record{
 		ID: "1", Seq: 1, Project: "prj_docs", Kind: contextop.KindObserve,
-		Subject: termRule("utilise", "use", ""), Status: contextop.StatusSuggested,
+		Subject: termRule("utilise", "use", false), Status: contextop.StatusSuggested,
 	}
 	newer := contextop.Record{
 		ID: "2", Seq: 2, Project: "prj_docs", Kind: contextop.KindObserve,
-		Subject: termRule("utilise", "employ", ""), Status: contextop.StatusSuggested,
+		Subject: termRule("utilise", "employ", false), Status: contextop.StatusSuggested,
 	}
 	got := contextop.Resolve([]contextop.Record{older, newer}, nil, contextop.ResolveRequest{Project: "prj_docs"})
 	require.Len(t, got.Advisory, 1, "one rule per term")
@@ -117,13 +117,13 @@ func TestResolve_TheLatestStatementAboutATermAnswers(t *testing.T) {
 
 func TestResolution_RuleSetsMarkCandidatesAdvisory(t *testing.T) {
 	resolution := contextop.Resolution{
-		Binding:  []profile.TermRule{{Term: "leverage", Replacement: "use", Severity: "critical"}},
-		Advisory: []profile.TermRule{{Term: "utilise", Replacement: "use", Severity: "critical"}},
+		Binding:  []profile.TermRule{{Term: "leverage", Replacement: "use"}},
+		Advisory: []profile.TermRule{{Term: "utilise", Replacement: "use"}},
 	}
 	sets := resolution.RuleSets()
 	require.Len(t, sets, 2)
-	assert.False(t, sets[0].Advisory, "a widened rule binds")
-	assert.True(t, sets[1].Advisory, "a candidate advises")
+	assert.False(t, sets[0].Suggested, "a widened rule binds")
+	assert.True(t, sets[1].Suggested, "a candidate advises")
 
 	hits := profile.MatchTermRules(sets, "we leverage and utilise it")
 	require.Len(t, hits, 2)
@@ -131,17 +131,16 @@ func TestResolution_RuleSetsMarkCandidatesAdvisory(t *testing.T) {
 	for _, h := range hits {
 		byTerm[h.Term] = h
 	}
-	assert.Equal(t, profile.SeverityCritical, byTerm["leverage"].Severity, "a binding rule keeps its severity")
-	assert.Equal(t, profile.SeverityNeutral, byTerm["utilise"].Severity,
-		"a candidate is held at neutral, which carries no penalty and trips no gate")
-	assert.True(t, byTerm["utilise"].Advisory)
+	assert.True(t, byTerm["leverage"].Fails, "a binding rule fails")
+	assert.False(t, byTerm["utilise"].Fails, "a candidate reports and never fails")
+	assert.True(t, byTerm["utilise"].Suggested)
 
 	findings := profile.HitsToFindings(hits, "we leverage and utilise it", nil)
 	require.Len(t, findings, 2)
 	for _, f := range findings {
-		if f.Advisory {
-			assert.Contains(t, f.Message, "Proposed rule")
-			assert.Equal(t, profile.SeverityNeutral, f.Severity)
+		if f.Suggested {
+			assert.Contains(t, f.Message, "Suggested rule")
+			assert.False(t, f.Fails)
 		}
 	}
 
@@ -155,7 +154,7 @@ func TestWidenAndNarrow(t *testing.T) {
 
 	r := contextop.Record{
 		ID: "7", Seq: 7, Project: "prj_docs", Kind: contextop.KindObserve,
-		Subject: termRule("utilise", "use", "major"), Status: contextop.StatusEstablished,
+		Subject: termRule("utilise", "use", false), Status: contextop.StatusEstablished,
 		Scope: contextop.Scope{Level: contextop.LevelWorkspace},
 	}
 	require.NoError(t, contextop.Widen(ctx, ws, r))
@@ -172,7 +171,7 @@ func TestWidenAndNarrow(t *testing.T) {
 	// Another project's operation 7 is a different rule.
 	other := r
 	other.Project = "prj_web"
-	other.Subject = termRule("leverage", "use", "major")
+	other.Subject = termRule("leverage", "use", false)
 	require.NoError(t, contextop.Widen(ctx, ws, other))
 	held, err = contextop.WidenedRules(ctx, ws)
 	require.NoError(t, err)

@@ -31,6 +31,9 @@
                   "object"
                 ]
               },
+              "advisory": {
+                "type": "boolean"
+              },
               "comment_sha256": {
                 "description": "for kind=comment: the comment_sha256 check_file reports for the comment; an edit to a comment whose bytes differ is refused as changed",
                 "type": "string"
@@ -122,9 +125,6 @@
                 "type": "string"
               },
               "replaces": {
-                "type": "string"
-              },
-              "severity": {
                 "type": "string"
               },
               "source": {
@@ -376,6 +376,10 @@
     "input_schema": {
       "additionalProperties": false,
       "properties": {
+        "advisory": {
+          "description": "true when that rule should only report once a person keeps it; unset, a kept rule fails a check",
+          "type": "boolean"
+        },
         "from": {
           "description": "the wording that was there",
           "type": "string"
@@ -394,10 +398,6 @@
         },
         "quote": {
           "description": "the sentence the change was made in",
-          "type": "string"
-        },
-        "severity": {
-          "description": "how hard that rule bites once a person keeps it: minor and neutral report, anything else fails a check",
           "type": "string"
         },
         "suggest": {

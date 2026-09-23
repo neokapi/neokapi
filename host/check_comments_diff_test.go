@@ -158,7 +158,7 @@ func TestDiffCheckGoCommentFormatter(t *testing.T) {
 		assert.Equal(t, 0, run.Findings)
 		require.NotNil(t, run.Canary)
 		assert.Equal(t, check.CanaryCaught, run.Canary.Status)
-		assert.Equal(t, check.VerdictPassed, report.Verdict, report.Gate.Failed)
+		assert.Equal(t, check.VerdictPassed, report.Verdict, report.Findings)
 	})
 
 	t.Run("must fail: a comment the change touched and gofmt rewrites fails the check", func(t *testing.T) {
@@ -173,15 +173,6 @@ func TestDiffCheckGoCommentFormatter(t *testing.T) {
 		assert.Equal(t, format.LineRange{First: 9, Last: 9}, *formatter[0].Location.Lines)
 		assert.Equal(t, 1, analyzerRun(t, report, "formatter.gofmt").Findings)
 		assert.Equal(t, check.VerdictFailed, report.Verdict)
-	})
-
-	t.Run("--lenient reports the touched disagreement without failing", func(t *testing.T) {
-		cmd := diffCommand(t)
-		cmd.Flags().Bool("lenient", true, "")
-		report := diffCheckFiles(t, cmd, map[string]string{"indent.go": indent},
-			"--- a/indent.go\n+++ b/indent.go\n@@ -9 +9 @@\n-  // Second.\n+  // Second comment.\n")
-		assert.Len(t, findingsOf(report, formatterCheck), 1)
-		assert.Empty(t, report.Gate.Failed)
 	})
 
 	t.Run("a formatter that cannot compare the file did not run", func(t *testing.T) {

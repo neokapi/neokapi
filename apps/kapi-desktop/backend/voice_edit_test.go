@@ -66,7 +66,7 @@ func TestSaveVoiceProfileWritesTheStore(t *testing.T) {
 	profile := *pointOf(t, res, "project default").Profile
 	profile.Tone.Guidelines = "Lead with what changed."
 	profile.Vocabulary.PreferredTerms = append(profile.Vocabulary.PreferredTerms,
-		coreprofile.TermRule{Term: "utilise", Replacement: "use", Severity: "minor"})
+		coreprofile.TermRule{Term: "utilise", Replacement: "use", Advisory: true})
 
 	saved, err := app.SaveVoiceProfile(tab.ID, "", profile)
 	require.NoError(t, err)
@@ -223,7 +223,7 @@ func TestVoiceFieldValuesMatchWhatValidationApplies(t *testing.T) {
 	assert.True(t, values["tone.formality"].Open, "a register outside the list is kept")
 	assert.False(t, values["style.person_pov"].Open, "style enums are read by code")
 	assert.Contains(t, values["style.person_pov"].Values, "second")
-	assert.Contains(t, values["severity"].Values, "critical")
+	assert.NotContains(t, values, "severity", "a rule is advisory or not; it carries no severity")
 
 	// Every closed set the editor offers must actually validate.
 	for _, pov := range values["style.person_pov"].Values {

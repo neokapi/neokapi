@@ -106,6 +106,7 @@ func TestCommentSentenceFindings(t *testing.T) {
 	seg := sentenceBreak(t)
 	ctx := context.Background()
 	limits := DefaultCommentLimits()
+	limits.Fails = true
 
 	t.Run("a wrapped sentence is graded by its words, with its exact place", func(t *testing.T) {
 		minor := words(51) + "."
@@ -117,12 +118,12 @@ func TestCommentSentenceFindings(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, got, 2)
 
-		assert.Equal(t, SeverityMinor, got[0].Severity)
+		assert.False(t, got[0].Fails)
 		assert.Equal(t, "51", got[0].Metadata["words"])
 		assert.Equal(t, "50", got[0].Metadata["limit"])
 		assert.Equal(t, minor, runeSlice(text, got[0].Position.Start.Offset, got[0].Position.End.Offset))
 
-		assert.Equal(t, SeverityMajor, got[1].Severity)
+		assert.True(t, got[1].Fails)
 		assert.Equal(t, "71", got[1].Metadata["words"])
 		assert.Equal(t, major, runeSlice(text, got[1].Position.Start.Offset, got[1].Position.End.Offset),
 			"the sentence runs across its line breaks")
@@ -238,7 +239,7 @@ func TestCommentLengthFindings(t *testing.T) {
 			over := CommentLengthFindings(commentBlock(tc.subject, tc.doc, model.TextR(words(tc.limit+1))), limits)
 			require.Len(t, over, 1)
 			assert.Equal(t, CategoryCommentLength, over[0].Category)
-			assert.Equal(t, SeverityMajor, over[0].Severity)
+			assert.Equal(t, limits.Fails, over[0].Fails)
 			assert.Equal(t, tc.message, over[0].Message)
 		})
 	}
@@ -257,6 +258,7 @@ func TestCommentCanaries(t *testing.T) {
 	seg := sentenceBreak(t)
 	ctx := context.Background()
 	limits := DefaultCommentLimits()
+	limits.Fails = true
 	sentences := func(b *model.Block) ([]Finding, error) { return CommentSentenceFindings(ctx, seg, b, limits, "en") }
 
 	caught, err := Probe(CommentSentenceCanaries(limits), "", sentences)
@@ -280,16 +282,16 @@ func TestCommentCanaries(t *testing.T) {
 	assert.Equal(t, CanaryMissed, missed.Status, "a sentence break that ends a sentence at each line break misses the wrapped canary")
 	assert.Equal(t, "a sentence of 71 words wrapped over three lines", missed.Missed)
 
-	minorOnly := func(b *model.Block) ([]Finding, error) {
+	reportOnly := func(b *model.Block) ([]Finding, error) {
 		found, err := sentences(b)
 		for i := range found {
-			found[i].Severity = SeverityMinor
+			found[i].Fails = false
 		}
 		return found, err
 	}
-	graded, err := Probe(CommentSentenceCanaries(limits), "", minorOnly)
+	graded, err := Probe(CommentSentenceCanaries(limits), "", reportOnly)
 	require.NoError(t, err)
-	assert.Equal(t, CanaryMissed, graded.Status, "a check that never grades a sentence major misses the major canary")
+	assert.Equal(t, CanaryMissed, graded.Status, "a check that never makes a long sentence fail misses the failing canary")
 
 	lengths := func(b *model.Block) ([]Finding, error) { return CommentLengthFindings(b, limits), nil }
 	caught, err = Probe(CommentLengthCanaries(limits), "", lengths)

@@ -37,13 +37,13 @@ describe("VoicePage", () => {
     expect(screen.getByTestId("voice-validity")).toHaveTextContent("expired");
   });
 
-  it("says a term rule's severity and whether it fails or reports", () => {
+  it("says a term rule's replacement, and marks only an advisory rule", () => {
     render(<VoicePage tabID="t1" result={voiceFixture} />);
     const rules = screen.getAllByTestId("voice-term-rule");
     const logIn = rules.find((r) => r.textContent?.includes("log in"));
     expect(logIn).toBeDefined();
     expect(logIn).toHaveTextContent("sign in");
-    expect(logIn).toHaveTextContent("major");
+    expect(logIn).not.toHaveTextContent("reports only");
 
     // A rule with no replacement is skipped by the tools, and says so.
     const bare = rules.find((r) => r.textContent?.includes("bulletproof"));

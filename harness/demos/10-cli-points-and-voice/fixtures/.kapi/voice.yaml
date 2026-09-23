@@ -37,7 +37,6 @@ vocabulary:
     - term: seamless
       replacement: unified
       note: Says nothing a reader can check against a reading
-      severity: major
 examples:
   - before: "Our seamless platform delivers billing you can trust."
     after: "Voltway stores every reading with the time it was taken, so a bill can be checked line by line."

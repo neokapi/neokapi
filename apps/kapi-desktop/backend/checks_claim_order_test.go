@@ -30,7 +30,6 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: major
 `)
 			collections := []project.Collection{
 				{Name: "config", Channel: "site/web", Content: []project.ContentItem{{Path: "config/*.yaml"}}},

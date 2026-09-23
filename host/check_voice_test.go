@@ -3,7 +3,6 @@ package host
 import (
 	"testing"
 
-	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,7 +34,7 @@ func TestVoiceSimilarityFindings(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, f, 1, "only the off-voice block is flagged")
 	assert.Equal(t, "voice", f[0].Category)
-	assert.Equal(t, check.SeverityMinor, f[0].Severity, "advisory, never a hard gate")
+	assert.False(t, f[0].Fails, "advisory, never a hard gate")
 	assert.Equal(t, "Off voice.", f[0].OriginalText)
 	assert.Equal(t, "0.500", f[0].Metadata["similarity"])
 }

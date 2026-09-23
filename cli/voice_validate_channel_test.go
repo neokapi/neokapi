@@ -17,7 +17,6 @@ channels:
       forbidden_terms:
         - term: utilize
           replacement: use
-          severity: major
 `)
 	out, runErr := runVoiceValidate(t, path)
 

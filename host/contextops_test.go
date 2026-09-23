@@ -78,14 +78,11 @@ func projectIDFor(name string) string {
 
 func recipeOf(root string) string { return filepath.Join(root, "kapi.yaml") }
 
-// checkWith runs the project check the way `kapi check --strict` does, which is
-// the gate a confirmed rule has to fail and a candidate must not.
-func checkWith(t *testing.T, app *App, root string, strict bool) check.Report {
+// checkWith runs the project check the way `kapi check` does, which a
+// confirmed rule has to fail and a candidate must not.
+func checkWith(t *testing.T, app *App, root string) check.Report {
 	t.Helper()
 	cmd := executionCommand(t)
-	cmd.Flags().Bool("strict", strict, "")
-	cmd.Flags().Bool("lenient", false, "")
-	cmd.Flags().Int("min-score", 0, "")
 	cmd.Flags().String(projectFlagName, recipeOf(root), "")
 	report, err := app.ComputeCheck(cmd, nil)
 	require.NoError(t, err)
@@ -130,24 +127,24 @@ func TestCandidateAdvisesAndConfirmedBinds(t *testing.T) {
 	app, _ := contextOpsApp(t)
 	root := contextOpsProject(t, "ctxops-advise")
 
-	clean := checkWith(t, app, root, true)
+	clean := checkWith(t, app, root)
 	require.Empty(t, vocabularyFindings(clean), "a project with no context says nothing about the word")
 	require.NotEqual(t, check.VerdictFailed, clean.Verdict)
 
 	proposed := proposeUtilise(t, app, root, person)
 	assert.Equal(t, contextop.StatusSuggested, proposed.Status)
 
-	advised := checkWith(t, app, root, true)
+	advised := checkWith(t, app, root)
 	found := vocabularyFindings(advised)
 	require.Len(t, found, 1, "a candidate is reported wherever the word appears")
-	assert.True(t, found[0].Advisory, "and it says it is a proposal")
-	assert.Equal(t, check.SeverityNeutral, found[0].Severity)
-	assert.Contains(t, found[0].Message, "Proposed rule")
+	assert.True(t, found[0].Suggested, "and it says it is a proposal")
+	assert.False(t, found[0].Fails)
+	assert.Contains(t, found[0].Message, "Suggested rule")
 	assert.NotEqual(t, check.VerdictFailed, advised.Verdict,
-		"must not fail: a rule nobody has confirmed can never fail a check, even under --strict")
-	assert.Empty(t, advised.Gate.Failed)
-	assert.Zero(t, advised.Summary.Major)
-	assert.Zero(t, advised.Summary.Critical)
+		"must not fail: a rule nobody has confirmed can never fail a check")
+	assert.Zero(t, advised.Summary.Failing)
+	assert.Zero(t, advised.Summary.Failing)
+	assert.Zero(t, advised.Summary.Failing)
 
 	confirmed, err := app.KeepContextOperation(t.Context(), ContextKeepRequest{
 		Actor:   person,
@@ -159,11 +156,11 @@ func TestCandidateAdvisesAndConfirmedBinds(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(root, ".kapi", "terms.json"),
 		"the rule lands in the store the gate reads, and in no file")
 
-	bound := checkWith(t, app, root, true)
+	bound := checkWith(t, app, root)
 	found = vocabularyFindings(bound)
 	require.NotEmpty(t, found, "a confirmed rule is enforced")
 	for _, d := range found {
-		assert.False(t, d.Advisory, "a confirmed rule is no longer a proposal")
+		assert.False(t, d.Suggested, "a confirmed rule is no longer a proposal")
 	}
 	assert.Equal(t, check.VerdictFailed, bound.Verdict, "and it fails the gate")
 }
@@ -218,12 +215,12 @@ func TestDiscardAndRevertStopARuleAnswering(t *testing.T) {
 				})
 				require.NoError(t, err)
 			}
-			require.NotEmpty(t, vocabularyFindings(checkWith(t, app, root, true)),
+			require.NotEmpty(t, vocabularyFindings(checkWith(t, app, root)),
 				"the rule answers before it is withdrawn")
 
 			tt.undo(t, app, root, proposed.ID)
 
-			after := checkWith(t, app, root, true)
+			after := checkWith(t, app, root)
 			assert.Empty(t, vocabularyFindings(after), "a withdrawn rule stops answering at once")
 			assert.NotEqual(t, check.VerdictFailed, after.Verdict)
 		})
@@ -237,7 +234,7 @@ func TestRevertingASessionRestoresTheCheckExactly(t *testing.T) {
 	app, _ := contextOpsApp(t)
 	root := contextOpsProject(t, "ctxops-session")
 
-	before := checkWith(t, app, root, true)
+	before := checkWith(t, app, root)
 
 	session := agentIn("s-nightly")
 	var recorded []string
@@ -264,7 +261,7 @@ func TestRevertingASessionRestoresTheCheckExactly(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	during := checkWith(t, app, root, true)
+	during := checkWith(t, app, root)
 	require.NotEqual(t, before.Findings, during.Findings, "the session changed what the check says")
 	require.Equal(t, check.VerdictFailed, during.Verdict)
 
@@ -285,10 +282,10 @@ func TestRevertingASessionRestoresTheCheckExactly(t *testing.T) {
 	assert.Len(t, reverted.Reverted, 3, "everything the session recorded")
 	assert.NotEmpty(t, reverted.Retracted, "and the rule it got confirmed is taken back out")
 
-	after := checkWith(t, app, root, true)
+	after := checkWith(t, app, root)
 	assert.Equal(t, before.Findings, after.Findings, "the same findings, not similar ones")
 	assert.Equal(t, before.Summary, after.Summary)
-	assert.Equal(t, before.Gate, after.Gate)
+	assert.Equal(t, before.Summary.Failing, after.Summary.Failing)
 	assert.Equal(t, before.Verdict, after.Verdict)
 }
 
@@ -313,10 +310,10 @@ func TestAnAgentCannotConfirm(t *testing.T) {
 	})
 	require.Error(t, err, "an unconfirmed rule cannot be widened, and an agent could not widen it anyway")
 
-	still := checkWith(t, app, root, true)
+	still := checkWith(t, app, root)
 	found := vocabularyFindings(still)
 	require.Len(t, found, 1)
-	assert.True(t, found[0].Advisory, "the refused confirmation left the rule a proposal")
+	assert.True(t, found[0].Suggested, "the refused confirmation left the rule a proposal")
 	assert.NotEqual(t, check.VerdictFailed, still.Verdict)
 
 	confirmed, err := app.KeepContextOperation(t.Context(), ContextKeepRequest{
@@ -341,7 +338,7 @@ func TestAWidenedRuleAnswersInASecondProject(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	require.Empty(t, vocabularyFindings(checkWith(t, app, second, true)),
+	require.Empty(t, vocabularyFindings(checkWith(t, app, second)),
 		"a rule confirmed in one project says nothing in another")
 
 	widened, err := app.WidenContextOperation(t.Context(), ContextWidenRequest{
@@ -351,11 +348,11 @@ func TestAWidenedRuleAnswersInASecondProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "the whole workspace", widened.Landed)
 
-	elsewhere := checkWith(t, app, second, true)
+	elsewhere := checkWith(t, app, second)
 	found := vocabularyFindings(elsewhere)
 	require.NotEmpty(t, found, "a widened rule answers in every project of the workspace")
 	for _, d := range found {
-		assert.False(t, d.Advisory, "a widened rule was confirmed, so it binds")
+		assert.False(t, d.Suggested, "a widened rule was confirmed, so it binds")
 	}
 	assert.Equal(t, check.VerdictFailed, elsewhere.Verdict)
 
@@ -365,7 +362,7 @@ func TestAWidenedRuleAnswersInASecondProject(t *testing.T) {
 		Project: recipeOf(first), ID: proposed.ID,
 	})
 	require.NoError(t, err)
-	assert.Empty(t, vocabularyFindings(checkWith(t, app, second, true)),
+	assert.Empty(t, vocabularyFindings(checkWith(t, app, second)),
 		"reverting a widened rule stops it answering everywhere")
 }
 
@@ -436,7 +433,7 @@ func TestContextLogFilters(t *testing.T) {
 	_, err = app.RecordContextCorrection(t.Context(), ContextCorrectRequest{
 		Actor:   agentIn("s1"),
 		Project: recipeOf(root),
-		From:    "widget", To: "component", Suggest: true, Severity: "minor",
+		From:    "widget", To: "component", Suggest: true, Advisory: true,
 		Evidence: []contextop.Evidence{{Path: "config/app.yaml", Unit: "greeting"}},
 	})
 	require.NoError(t, err)

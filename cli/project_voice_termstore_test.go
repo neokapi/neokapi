@@ -56,7 +56,7 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: minor
+      advisory: true
 `
 
 // TestResolveVoiceProfile_FromProjectBinding asserts that with no profile

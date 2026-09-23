@@ -227,7 +227,7 @@ kapi context keep 3
 
 Keeping establishes the rule and puts it in the project's terms store, where
 every checkout reads it and `kapi context log` holds the decision beside the
-evidence it rested on. Change it as you keep it with `--use` and `--severity`,
+evidence it rested on. Change it as you keep it with `--use` and `--advisory`,
 or set it aside with `kapi context drop 3`. Either way the record stays in the log, so the
 same suggestion is recognisable the next time somebody makes it.
 
@@ -244,36 +244,35 @@ kapi check docs/guide.md
 Before you kept anything, the suggestion read as a note and the check passed:
 
 ```
-  severity  rule              location                                    message
-  NEUTRAL   voice.vocabulary  docs/guide.md:getting-started/next-steps/p  Proposed rule about "utilise", not yet confirmed: Every other page in docs/ says "use".
-                                                                          ↳ Use "use" instead
-  NEUTRAL   voice.vocabulary  docs/guide.md:getting-started/p             Proposed rule about "utilise", not yet confirmed: Every other page in docs/ says "use".
-                                                                          ↳ Use "use" instead
+  outcome  rule              location                                    message
+  REPORTS  voice.vocabulary  docs/guide.md:getting-started/next-steps/p  Suggested rule about "utilise", not yet established: Every other page in docs/ says "use".
+                                                                         ↳ Use "use" instead
+  REPORTS  voice.vocabulary  docs/guide.md:getting-started/p             Suggested rule about "utilise", not yet established: Every other page in docs/ says "use".
+                                                                         ↳ Use "use" instead
 
-PASS configured checks: score 100/100 · 2 finding(s) (0 critical, 0 major, 0 minor)
+PASS configured checks: 0 failing, 2 reported · score 100/100
   Coverage: 2 analyzer runs completed.
   Context: docs/guide.md; voice none (project); terms none loaded
 ```
 
 The `Context:` line says what the check was evaluated against: the voice profile
 in force at that file, and whether the project's terms store had anything to
-say. After keeping, the same word is an established rule and bites at the severity it
-carries:
+say. After keeping, the same word is an established rule, and the check fails on it:
 
 ```
-  severity  rule              location                                    message
-  MAJOR     voice.vocabulary  docs/guide.md:getting-started/next-steps/p  Forbidden term "utilise" found in terms
-                                                                          ↳ Use "use" instead
-  MAJOR     voice.vocabulary  docs/guide.md:getting-started/p             Forbidden term "utilise" found in terms
-                                                                          ↳ Use "use" instead
+  outcome  rule              location                                    message
+  FAILS    voice.vocabulary  docs/guide.md:getting-started/next-steps/p  Forbidden term "utilise" found in terms
+                                                                         ↳ Use "use" instead
+  FAILS    voice.vocabulary  docs/guide.md:getting-started/p             Forbidden term "utilise" found in terms
+                                                                         ↳ Use "use" instead
 
-PASS configured checks: score 90/100 · 2 finding(s) (0 critical, 2 major, 0 minor)
+FAIL configured checks: 2 failing, 0 reported · score 50/100
   Coverage: 2 analyzer runs completed.
   Context: docs/guide.md; voice none (project); terms loaded
 ```
 
 Run `kapi check` with no path to check the whole project, and `kapi check
---ship` to enforce release policy. It exits `3` when a gate is unmet, which is
+--ship` to enforce release policy. Both exit `3` when a finding fails, which is
 what makes it a CI step: see [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
 Repeat steps 2 to 5 as you work. Each session adds to what the project holds,

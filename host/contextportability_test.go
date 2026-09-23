@@ -43,7 +43,7 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: minor
+      advisory: true
 `
 
 const portableProfileVoiceYAML = `name: Portable Landing Voice

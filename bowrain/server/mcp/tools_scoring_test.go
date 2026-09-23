@@ -211,7 +211,7 @@ func TestRewriteInVoice_ReportsSkipped(t *testing.T) {
 			Vocabulary: coreprofile.VocabularyRules{
 				ForbiddenTerms: []coreprofile.TermRule{
 					{Term: "utilize", Replacement: "use"},
-					{Term: "leverage", Severity: "major"},
+					{Term: "leverage"},
 				},
 				CompetitorTerms: []coreprofile.TermRule{{Term: "Globex"}},
 			},
@@ -229,11 +229,11 @@ func TestRewriteInVoice_ReportsSkipped(t *testing.T) {
 	require.Len(t, out.Skipped, 2)
 	assert.Equal(t, "leverage", out.Skipped[0].Term)
 	assert.Equal(t, "forbidden", out.Skipped[0].List)
-	assert.Equal(t, coreprofile.SeverityMajor, out.Skipped[0].Severity)
+	assert.True(t, out.Skipped[0].Fails)
 	assert.Equal(t, coreprofile.RewriteSkipNoReplacement, out.Skipped[0].Reason)
 	assert.Equal(t, "Globex", out.Skipped[1].Term)
 	assert.Equal(t, "competitor", out.Skipped[1].List)
-	assert.Equal(t, coreprofile.SeverityCritical, out.Skipped[1].Severity)
+	assert.True(t, out.Skipped[1].Fails)
 	assert.NotEmpty(t, out.Guide)
 }
 

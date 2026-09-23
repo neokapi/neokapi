@@ -41,7 +41,7 @@ func TestCorrectionBecomesEnforcedCheck(t *testing.T) {
 	// After promotion: the same content now fails the check, with the fix.
 	after := runVoiceVocab(t, p, text)
 	require.Len(t, after, 1)
-	assert.Equal(t, check.SeverityMajor, after[0].Severity)
+	assert.True(t, after[0].Fails)
 	assert.Equal(t, "utilize", after[0].OriginalText)
 	assert.Contains(t, after[0].Suggestion, "use")
 }

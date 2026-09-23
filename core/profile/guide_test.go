@@ -100,8 +100,8 @@ func TestRenderVoiceGuideCompactAllFields(t *testing.T) {
 			PersonPOV:      "second",
 			Contractions:   "never",
 			ProhibitedPatterns: []Pattern{
-				{Regex: `!{2,}`, Description: "no stacked exclamation marks", Severity: "major"},
-				{Regex: `\bvery\b`, Severity: "minor"}, // description-less: the regex must surface
+				{Regex: `!{2,}`, Description: "no stacked exclamation marks"},
+				{Regex: `\bvery\b`, Advisory: true}, // description-less: the regex must surface
 			},
 		},
 		Vocabulary: VocabularyRules{

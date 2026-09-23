@@ -5,6 +5,5 @@
 export {
     ContextProvenance,
     Finding,
-    Severity,
     Warning
 } from "./models.js";

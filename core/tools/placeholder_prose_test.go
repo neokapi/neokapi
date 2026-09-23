@@ -3,7 +3,6 @@ package tools
 import (
 	"testing"
 
-	"github.com/neokapi/neokapi/core/check"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -80,8 +79,7 @@ func TestPlaceholderCheck_GenuineStylesStillCaught(t *testing.T) {
 
 			var tokens []string
 			for _, f := range findings {
-				assert.Equal(t, check.SeverityCritical, f.Severity,
-					"a dropped placeholder stays release-blocking")
+				assert.True(t, f.Fails, "a dropped placeholder stays release-blocking")
 				tokens = append(tokens, f.OriginalText)
 			}
 			assert.Contains(t, tokens, tc.token, "the finding names the token that went missing")

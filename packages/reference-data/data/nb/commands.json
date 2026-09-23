@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T22:17:38Z",
+  "generatedAt": "2026-09-23T23:21:16Z",
   "commands": [
     {
       "id": "add",
@@ -178,12 +178,6 @@
           "type": "stringSlice"
         },
         {
-          "name": "lenient",
-          "usage": "kun rapport: passerer alltid porten (viser fortsatt funn)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "locale",
           "usage": "med --ship: begrens målsideportene til én enkelt målspråkkode (f.eks. fr)",
           "type": "string"
@@ -195,32 +189,8 @@
           "type": "int"
         },
         {
-          "name": "max-critical",
-          "usage": "feil hvis kritiske funn overstiger dette antallet",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "max-major",
-          "usage": "mislykk hvis alvorlige funn overskrider dette antallet (-1 = ingen grense)",
-          "default": "-1",
-          "type": "int"
-        },
-        {
-          "name": "max-minor",
-          "usage": "feile hvis antall mindre funn overskrider denne grensen (-1 = ingen grense)",
-          "default": "-1",
-          "type": "int"
-        },
-        {
           "name": "max-words",
           "usage": "flagg innhold med flere ord enn dette (0 = av)",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "min-score",
-          "usage": "feil hvis den samlede poengsummen er under denne terskelen (0 = ingen poengterskel); med --ship: terskelen for samsvar med voice profile (standard 80)",
           "default": "0",
           "type": "int"
         },
@@ -271,12 +241,6 @@
         {
           "name": "staged",
           "usage": "kontroller bare de innholdsblokker de stagede endringene berører, hver fil lest fra indeksen (utelater ustaged endringer og usporede filer)",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "strict",
-          "usage": "streng kontroll: mislykkes ved ethvert kritisk eller alvorlig funn",
           "default": "false",
           "type": "bool"
         },
@@ -649,6 +613,12 @@
       "long": "Registrer at noen endret ordlyd: hva som sto der, hva som erstattet\ndet, og hvor.\n\nEn korreksjon er dokumentasjon om hvordan dette prosjektet skriver, og den\nbilligste som finnes, fordi vurderingen allerede er gjort. Alene registrerer den\nendringen og ingenting annet.\n\nMed --propose registrerer den også regelen endringen innebærer, slik at neste\nbruk av den gamle ordlyden blir rapportert. Den regelen er en kandidat: kontroller\nrapporterer den, og ingen av dem feiler på den før noen bekrefter den.",
       "flags": [
         {
+          "name": "advisory",
+          "usage": "make that rule report without failing a check once kept",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "note",
           "usage": "hvorfor",
           "type": "string"
@@ -671,11 +641,6 @@
           "type": "stringSlice"
         },
         {
-          "name": "severity",
-          "usage": "hvor strengt regelen slår inn når den er bekreftet: minor eller neutral gir rapport, alt annet feiler en kontroll",
-          "type": "string"
-        },
-        {
           "name": "suggest",
           "usage": "also record the rule the change implies, as a suggestion",
           "default": "false",
@@ -684,7 +649,7 @@
       ],
       "examples": [
         "kapi context correct \"sign in\" \"log in\" --seen-in web/src/auth.tsx",
-        "kapi context correct utilise use --seen-in docs/guide.md --suggest --severity minor"
+        "kapi context correct utilise use --seen-in docs/guide.md --suggest --advisory"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -805,8 +770,14 @@
       ],
       "use": "keep [id...]",
       "short": "Establish suggestions as rules",
-      "long": "Keep suggestions, which establishes each rule at the severity it\ncarries and writes it where the rest of kapi reads it: the project's terms or\nits content memory.\n\nName one or more operations by id, or keep everything one agent session\nsuggested with --session. A contested suggestion disagrees with another rule,\nand waits until you choose: a session keep leaves it and says so, and naming it\nis refused with the other side named. Drop the side you do not want, then keep\nthe other.\n\nChange the rule as you keep it with --use and --severity, and widen it past the\npoint its evidence was seen at with --widen-to.",
+      "long": "Keep suggestions, which establishes each rule and writes it where the rest\nof kapi reads it: the project's terms or its content memory. An established rule\nfails a check unless it is marked advisory.\n\nName one or more operations by id, or keep everything one agent session\nsuggested with --session. A contested suggestion disagrees with another rule,\nand waits until you choose: a session keep leaves it and says so, and naming it\nis refused with the other side named. Drop the side you do not want, then keep\nthe other.\n\nChange the rule as you keep it with --use and --advisory, and widen it past the\npoint its evidence was seen at with --widen-to.",
       "flags": [
+        {
+          "name": "advisory",
+          "usage": "make the rule report without failing a check (--advisory=false makes it fail)",
+          "default": "false",
+          "type": "bool"
+        },
         {
           "name": "note",
           "usage": "why",
@@ -821,11 +792,6 @@
         {
           "name": "session",
           "usage": "keep everything one agent session suggested that nothing disagrees with",
-          "type": "string"
-        },
-        {
-          "name": "severity",
-          "usage": "change how hard the rule bites: minor or neutral report, anything else fails a check",
           "type": "string"
         },
         {
@@ -844,7 +810,7 @@
         "kapi context keep 7 9 12",
         "kapi context keep --session s0ab4e399",
         "kapi context keep 7 --use \"content memory\"",
-        "kapi context keep 7 --severity critical",
+        "kapi context keep 7 --advisory=false",
         "kapi context keep 7 --widen-to workspace"
       ],
       "offlineCapable": true,
@@ -8674,12 +8640,6 @@
           "name": "locale",
           "usage": "bruk lokaltilpassede overstyringer",
           "type": "string"
-        },
-        {
-          "name": "min-score",
-          "usage": "feil (avslutning med verdi ulik null) når scoren er under denne terskelen",
-          "default": "0",
-          "type": "int"
         },
         {
           "name": "name",

@@ -36,10 +36,10 @@ git-shareable YAML file (`--profile-file`):
 # Print the rendered guide (paste into an assistant, or pipe to a file)
 kapi voice guide --pack friendly-dtc
 
-# Score text: file argument, --input-text, or stdin. --min-score gates CI (exit 3).
-# The default pass is rule-based and offline; --ai adds an LLM analysis of tone,
-# style, and clarity.
-kapi voice check --profile-file voice.yaml --min-score 80 release-notes.md
+# Score text: file argument, --input-text, or stdin. Exits 3 when a finding
+# fails, so it gates CI. The default pass is rule-based and offline; --ai adds
+# an LLM analysis of tone, style, and clarity, whose findings report.
+kapi voice check --profile-file voice.yaml release-notes.md
 
 # Rewrite off-voice content: deterministic vocabulary substitution, no model.
 # A rule with no replacement is reported under "skipped" rather than applied.
@@ -100,11 +100,10 @@ vocabulary:
   forbidden_terms:
     - term: "leverage"
       replacement: "use"
-      severity: minor
+      advisory: true
   competitor_terms:
     - term: "Slack"
       replacement: "messaging platform"
-      severity: critical
 
 examples:
   - before: "Users can leverage the platform to achieve synergy."
@@ -122,19 +121,25 @@ fields.
 
 Three rule fields do most of the work beyond the example above:
 
-- A vocabulary entry is a **term rule**: `term`, `replacement`, `severity`,
+- A vocabulary entry is a **term rule**: `term`, `replacement`, `advisory`,
   and optionally `forms` (the inflections the exact matcher also recognises,
   which `kapi voice expand` fills in), `case_sensitive`, `scope` (`prose`,
   `code`, `heading`), `do_not_translate`, and a `concept_id` tying the rule to
   a concept in the terms store. The same shape is what a flow step accepts under
   `term_rules:` for `term-check`, `translate`, `recycle`, `dnt-check` and
   `pseudo-translate`, so a rule authored in the profile and a rule handed to a
-  tool read identically.
+  tool read identically. A use of the term fails a check unless the rule is
+  marked `advisory: true`, which makes it report. A rule whose `replacement`
+  is capitalised, such as a product name (`term: QuickCast`, `replacement:
+  Quickcast`), matches case-sensitively, so a lower-case URL slug `quickcast`
+  is left alone; so does a rule whose `term` differs from its `replacement`
+  only in case. Any other rule matches regardless of case, and
+  `case_sensitive: true` or `false` sets it either way.
 - A `style.prohibited_patterns` or `required_patterns` entry is a **pattern**:
-  `regex`, `description`, `severity`, and optionally a `rate` (`max` matches per
+  `regex`, `description`, `advisory`, and optionally a `rate` (`max` matches per
   `per_words`, default 1,000) that turns a ban into a ceiling, and a `scope`.
 - `min_score` is the compliance bar a block must reach to count as compliant in
-  roll-ups; unset, one critical vocabulary hit already drops a block below it.
+  roll-ups; unset, one failing finding already drops a block below it.
 
 Every field is listed in the
 [voice profile reference](/reference/serialization/voice-profile).
@@ -142,15 +147,17 @@ Every field is listed in the
 ## Compliance scoring
 
 Compliance is scored 0–100 across five dimensions: Tone, Style, Vocabulary,
-Clarity, and overall voice compliance. Each finding reduces the score by its
-severity weight:
+Clarity, and overall voice compliance. Each finding reduces the score by a
+weight set by what it does to a check:
 
-| Severity   | Weight | Example                   |
-| ---------- | ------ | ------------------------- |
-| `Neutral`  | 0      | Informational note        |
-| `Minor`    | 1      | Slight tone inconsistency |
-| `Major`    | 5      | Wrong term used           |
-| `Critical` | 25     | Competitor term used      |
+| Finding                        | Weight | Example                        |
+| ------------------------------ | ------ | ------------------------------ |
+| Fails                          | 25     | Forbidden or competitor term   |
+| Reports                        | 1      | Advisory rule, tone reading    |
+| Raised by a suggested rule     | 0      | A proposed rule not yet confirmed |
+
+The score is reported beside the findings. Whether a check fails depends only
+on whether a finding fails.
 
 ## Starter packs
 

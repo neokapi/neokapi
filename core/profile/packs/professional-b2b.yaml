@@ -16,27 +16,26 @@ style:
   prohibited_patterns:
     - regex: '\b(gonna|wanna|gotta)\b'
       description: Informal contractions
-      severity: major
     - regex: '!\s*$'
       description: Exclamation marks (too informal for B2B)
-      severity: minor
+      advisory: true
 vocabulary:
   forbidden_terms:
     - term: leverage
       replacement: use
-      severity: minor
+      advisory: true
     - term: synergy
       replacement: collaboration
-      severity: minor
+      advisory: true
     - term: paradigm shift
       replacement: significant change
-      severity: minor
+      advisory: true
     - term: circle back
       replacement: follow up
-      severity: minor
+      advisory: true
     - term: move the needle
       replacement: make progress
-      severity: minor
+      advisory: true
   preferred_terms:
     - term: solution
       note: Use when describing products/services

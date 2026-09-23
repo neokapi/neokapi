@@ -86,32 +86,17 @@
             "gate": {
               "usage": "with --ship: run only the named project gates (voice, terminology, qa); repeatable"
             },
-            "lenient": {
-              "usage": "report only: never fail the gate (still prints findings)"
-            },
             "locale": {
               "usage": "with --ship: scope the target-side gates to a single target locale (e.g. fr)"
             },
             "max-chars": {
               "usage": "flag content longer than this many characters (0 = off)"
             },
-            "max-critical": {
-              "usage": "fail if critical findings exceed this count"
-            },
-            "max-major": {
-              "usage": "fail if major findings exceed this count (-1 = no limit)"
-            },
-            "max-minor": {
-              "usage": "fail if minor findings exceed this count (-1 = no limit)"
-            },
             "max-words": {
               "usage": "flag content with more than this many words (0 = off)"
             },
-            "min-score": {
-              "usage": "fail if the roll-up score is below this (0 = no score gate); with --ship: the brand-gate compliance threshold (default 80)"
-            },
             "no-fail": {
-              "usage": "exit 0 even when the gate fails (fix-loop mode)"
+              "usage": "exit 0 even when a finding fails (fix-loop mode)"
             },
             "pack": {
               "usage": "built-in brand starter pack"
@@ -137,9 +122,6 @@
             "staged": {
               "usage": "check only the content blocks the staged changes touch, each file read from the index (leaves out unstaged edits and untracked files)"
             },
-            "strict": {
-              "usage": "strict gate: fail on any critical or major finding"
-            },
             "target": {
               "usage": "translated target file to check against the (single) source, enabling bilingual checks"
             },
@@ -150,7 +132,7 @@
               "usage": "with --ship: named terms or terms-store path for the terminology gate (defaults to the project terms store)"
             },
             "validate": {
-              "usage": "reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the Report; strict also fails the gate on a Major+ structure/encoding problem)"
+              "usage": "reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the Report; strict also makes a major structure/encoding problem fail)"
             },
             "voice": {
               "usage": "also run the voice/style-similarity check (needs the kapi-check plugin and a profile with examples)"
@@ -159,8 +141,8 @@
               "usage": "voice-similarity cutoff (cosine, 0-1) below which a block is flagged off-voice"
             }
           },
-          "long": "Run content checks over one or more files and return structured findings\nplus a verdict (passed, failed, or did not run), gating on severity: the\ncontent-first counterpart to a test runner.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/\n--max-words), forbidden/required patterns (--forbid/--require), and brand\nvocabulary when a profile is bound (--profile/--pack/--profile-file).\n\nBilingual checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target \u003cfile\u003e --target-lang \u003clang\u003e to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (\u003ccheck\u003e.\u003ccategory\u003e) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --output-format json|yaml emits the kapi.check/v1\nReport. Configuration warnings, such as an unknown key in a voice profile, follow\nthe verdict and fill the report's warnings array. They name configuration to fix\nand never change the score, the gate or the exit code.\n\nPositional paths accept glob patterns and directories, expanded by kapi itself.\nQuote the pattern and `**` recurses identically in every shell. Inside a .kapi\nproject, check with no file arguments checks the project's declared content;\nnaming files narrows it to those.\n\nProject gate mode (--ship): it runs the project's bound quality gates (voice,\nterminology, rule-based checks) plus its ship/source coverage gates over the\nproject's content, and exits non-zero when any gate is unmet: the pre-release\nbar. Target drift never blocks an ordinary build (see 'kapi status'); --ship is\nthe explicit, opt-in enforcement point. With no file arguments it checks the\nproject's source-only content and declared source/target pairs. Named source\nfiles receive content checks; named targets retain their source pairing.\n\nDiff scope (--diff-file, --diff-against, --staged, --diff-range): check only\nthe content blocks a unified diff touches, each block whole, and report the\nlines each spans. Every file the diff names is listed with what became of it:\nchecked, untouched, out of scope (inside a project, content the recipe does\nnot declare), deleted, or did not run (a changed file whose blocks cannot be\nlocated). --diff-file reads a diff from a file, or from standard input with -.\n--diff-against runs git diff against a revision, read-only, and treats\nuntracked files as added. --staged checks what a commit made now would record:\nthe staged changes, each file read from the index, leaving out unstaged edits\nand untracked files. --diff-range A..B checks the change between two commits,\nand A...B the change B made since it left A, each file read from B, so it reads\nnothing from the working tree and runs the same from any checkout. The recipe,\nvoice profiles and terms on disk govern every one of these checks. Named files\nnarrow the scope. The loop for an agent: edit, run 'kapi check --diff-against\nHEAD', repair, run it again. A pre-commit hook runs 'kapi check --staged', and\na pull request check runs 'kapi check --diff-range origin/main...HEAD'.\n\nExit codes: 0 pass, 3 when the gate fails, 4 when the check did not run, 1\noperational. A check did not run when it examined no content, or when one of its\nchecks reported nothing on the known-bad sample it is given beside the content.\n--no-fail exits 0 when the gate fails (report mode for a fix loop); neither it\nnor --lenient turns a check that did not run into a pass.",
-          "short": "Verify content against a checkset and gate on severity, like tests over code"
+          "long": "Run content checks over one or more files and return structured findings\nplus a verdict (passed, failed, or did not run): the content-first counterpart\nto a test runner.\n\nEach finding either fails or reports, as the rule that raised it says. An\nestablished term and a voice pattern rule fail unless the rule is marked\nadvisory; a suggested rule and a style measure report. The check fails when at\nleast one finding fails. The score is reported beside the findings and never\ndecides the verdict.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/\n--max-words), forbidden/required patterns (--forbid/--require), and brand\nterms and voice rules when a profile is bound (--profile/--pack/--profile-file).\n\nBilingual checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target \u003cfile\u003e --target-lang \u003clang\u003e to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (\u003ccheck\u003e.\u003ccategory\u003e) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --output-format json|yaml emits the kapi.check/v2\nReport. Configuration warnings, such as an unknown key in a voice profile, follow\nthe verdict and fill the report's warnings array. They name configuration to fix\nand never change the score, the verdict or the exit code.\n\nPositional paths accept glob patterns and directories, expanded by kapi itself.\nQuote the pattern and `**` recurses identically in every shell. Inside a .kapi\nproject, check with no file arguments checks the project's declared content;\nnaming files narrows it to those.\n\nProject gate mode (--ship): it runs the project's bound quality gates (voice,\nterminology, rule-based checks) plus its ship/source coverage gates over the\nproject's content, and exits non-zero when any gate is unmet: the pre-release\nbar. Target drift never blocks an ordinary build (see 'kapi status'); --ship is\nthe explicit, opt-in enforcement point. With no file arguments it checks the\nproject's source-only content and declared source/target pairs. Named source\nfiles receive content checks; named targets retain their source pairing.\n\nDiff scope (--diff-file, --diff-against, --staged, --diff-range): check only\nthe content blocks a unified diff touches, each block whole, and report the\nlines each spans. Every file the diff names is listed with what became of it:\nchecked, untouched, out of scope (inside a project, content the recipe does\nnot declare), deleted, or did not run (a changed file whose blocks cannot be\nlocated). --diff-file reads a diff from a file, or from standard input with -.\n--diff-against runs git diff against a revision, read-only, and treats\nuntracked files as added. --staged checks what a commit made now would record:\nthe staged changes, each file read from the index, leaving out unstaged edits\nand untracked files. --diff-range A..B checks the change between two commits,\nand A...B the change B made since it left A, each file read from B, so it reads\nnothing from the working tree and runs the same from any checkout. The recipe,\nvoice profiles and terms on disk govern every one of these checks. Named files\nnarrow the scope. The loop for an agent: edit, run 'kapi check --diff-against\nHEAD', repair, run it again. A pre-commit hook runs 'kapi check --staged', and\na pull request check runs 'kapi check --diff-range origin/main...HEAD'.\n\nExit codes: 0 pass, 3 when a finding fails, 4 when the check did not run, 1\noperational. A check did not run when it examined no content, or when one of its\nchecks reported nothing on the known-bad sample it is given beside the content.\n--no-fail exits 0 when a finding fails (report mode for a fix loop); it never\nturns a check that did not run into a pass.",
+          "short": "Verify content against its rules and fail on a failing finding, like tests over code"
         },
         "completion": {
           "long": "Generate a shell completion script for the specified shell.\n\nTo load completions:\n\nBash:\n  $ source \u003c(kapi completion bash)\n  # Or install permanently:\n  $ kapi completion bash \u003e /etc/bash_completion.d/kapi\n\nZsh:\n  $ source \u003c(kapi completion zsh)\n  # Or install permanently:\n  $ kapi completion zsh \u003e \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Or install permanently:\n  $ kapi completion fish \u003e ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS\u003e kapi completion powershell | Out-String | Invoke-Expression\n",
@@ -278,8 +260,11 @@
         },
         "context": {
           "correct": {
-            "example": "  kapi context correct \"sign in\" \"log in\" --seen-in web/src/auth.tsx\n  kapi context correct utilise use --seen-in docs/guide.md --suggest --severity minor",
+            "example": "  kapi context correct \"sign in\" \"log in\" --seen-in web/src/auth.tsx\n  kapi context correct utilise use --seen-in docs/guide.md --suggest --advisory",
             "flags": {
+              "advisory": {
+                "usage": "make that rule report without failing a check once kept"
+              },
               "note": {
                 "usage": "why"
               },
@@ -291,9 +276,6 @@
               },
               "seen-in": {
                 "usage": "a file the change was made in (repeatable)"
-              },
-              "severity": {
-                "usage": "how hard that rule bites once kept: minor or neutral report, anything else fails a check"
               },
               "suggest": {
                 "usage": "also record the rule the change implies, as a suggestion"
@@ -375,8 +357,11 @@
             "short": "Read committed context files into this project's store"
           },
           "keep": {
-            "example": "  kapi context keep 7\n  kapi context keep 7 9 12\n  kapi context keep --session s0ab4e399\n  kapi context keep 7 --use \"content memory\"\n  kapi context keep 7 --severity critical\n  kapi context keep 7 --widen-to workspace",
+            "example": "  kapi context keep 7\n  kapi context keep 7 9 12\n  kapi context keep --session s0ab4e399\n  kapi context keep 7 --use \"content memory\"\n  kapi context keep 7 --advisory=false\n  kapi context keep 7 --widen-to workspace",
             "flags": {
+              "advisory": {
+                "usage": "make the rule report without failing a check (--advisory=false makes it fail)"
+              },
               "note": {
                 "usage": "why"
               },
@@ -386,9 +371,6 @@
               "session": {
                 "usage": "keep everything one agent session suggested that nothing disagrees with"
               },
-              "severity": {
-                "usage": "change how hard the rule bites: minor or neutral report, anything else fails a check"
-              },
               "use": {
                 "usage": "change what the rule says to write instead (one id)"
               },
@@ -396,7 +378,7 @@
                 "usage": "widen as you keep: \"workspace\", or the name of an axis the rule should stop being specific about"
               }
             },
-            "long": "Keep suggestions, which establishes each rule at the severity it\ncarries and writes it where the rest of kapi reads it: the project's terms or\nits content memory.\n\nName one or more operations by id, or keep everything one agent session\nsuggested with --session. A contested suggestion disagrees with another rule,\nand waits until you choose: a session keep leaves it and says so, and naming it\nis refused with the other side named. Drop the side you do not want, then keep\nthe other.\n\nChange the rule as you keep it with --use and --severity, and widen it past the\npoint its evidence was seen at with --widen-to.",
+            "long": "Keep suggestions, which establishes each rule and writes it where the rest\nof kapi reads it: the project's terms or its content memory. An established rule\nfails a check unless it is marked advisory.\n\nName one or more operations by id, or keep everything one agent session\nsuggested with --session. A contested suggestion disagrees with another rule,\nand waits until you choose: a session keep leaves it and says so, and naming it\nis refused with the other side named. Drop the side you do not want, then keep\nthe other.\n\nChange the rule as you keep it with --use and --advisory, and widen it past the\npoint its evidence was seen at with --widen-to.",
             "short": "Establish suggestions as rules"
           },
           "locales": {
@@ -4116,9 +4098,6 @@
               },
               "locale": {
                 "usage": "apply locale-specific overrides"
-              },
-              "min-score": {
-                "usage": "fail (non-zero exit) when the score is below this threshold"
               },
               "name": {
                 "usage": "named resource in KAPI_HOME (e.g. --name project-terms)"

@@ -54,6 +54,9 @@ type CommentLimits struct {
 	// before the ratio applies.
 	DensityRatio    float64
 	DensityMinLines int
+	// Fails makes a comment over a limit fail a check. The limits are style
+	// measures, so by default what they find reports.
+	Fails bool
 }
 
 // DefaultCommentLimits are the limits that apply where a voice profile asks for
@@ -106,7 +109,7 @@ func CountChangeLines(kinds []comment.LineKind, added []format.LineRange) Change
 
 // CommentDensityFindings reports a change that adds at least DensityMinLines
 // comment lines and more than DensityRatio comment lines for each code line.
-// The finding is major.
+// The finding fails when the limits say so, and reports otherwise.
 func CommentDensityFindings(lines ChangeLines, limits CommentLimits) []Finding {
 	if lines.Comment < limits.DensityMinLines || float64(lines.Comment) <= limits.DensityRatio*float64(lines.Code) {
 		return nil
@@ -114,7 +117,7 @@ func CommentDensityFindings(lines ChangeLines, limits CommentLimits) []Finding {
 	ratio := strconv.FormatFloat(limits.DensityRatio, 'f', -1, 64)
 	return []Finding{{
 		Category: CategoryCommentDensity,
-		Severity: SeverityMajor,
+		Fails:    limits.Fails,
 		Message: fmt.Sprintf("Change adds %d comment lines and %d code lines, more than %s comment lines for each code line",
 			lines.Comment, lines.Code, ratio),
 		Metadata: map[string]string{
@@ -215,17 +218,17 @@ func CommentSentenceFindings(ctx context.Context, seg SentenceBreak, b *model.Bl
 	}
 	var findings []Finding
 	for _, s := range sentences {
-		severity, limit := SeverityMajor, limits.SentenceMajor
+		fails, limit := limits.Fails, limits.SentenceMajor
 		switch {
 		case s.Words > limits.SentenceMajor:
 		case s.Words > limits.SentenceMinor:
-			severity, limit = SeverityMinor, limits.SentenceMinor
+			fails, limit = false, limits.SentenceMinor
 		default:
 			continue
 		}
 		findings = append(findings, Finding{
 			Category:     CategorySentenceLength,
-			Severity:     severity,
+			Fails:        fails,
 			Message:      fmt.Sprintf("Sentence has %d words, over the limit of %d", s.Words, limit),
 			Position:     v.Range(s.Start, s.End),
 			OriginalText: readText(v, s.Start, s.End),
@@ -237,7 +240,8 @@ func CommentSentenceFindings(ctx context.Context, seg SentenceBreak, b *model.Bl
 
 // CommentLengthFindings reports a comment block that holds more words than the
 // limit for what it documents: the package or module its file belongs to, a
-// declaration, or nothing. The finding is major. It reports nothing on a block
+// declaration, or nothing. The finding fails when the limits say so, and
+// reports otherwise. It reports nothing on a block
 // the comment layer did not build.
 func CommentLengthFindings(b *model.Block, limits CommentLimits) []Finding {
 	if !comment.IsBlock(b) {
@@ -256,7 +260,7 @@ func CommentLengthFindings(b *model.Block, limits CommentLimits) []Finding {
 	}
 	return []Finding{{
 		Category: CategoryCommentLength,
-		Severity: SeverityMajor,
+		Fails:    limits.Fails,
 		Message:  fmt.Sprintf("%s has %d words, over the limit of %d", kind, words, limit),
 		Metadata: map[string]string{"words": strconv.Itoa(words), "limit": strconv.Itoa(limit)},
 	}}
@@ -269,16 +273,15 @@ func CommentLengthFindings(b *model.Block, limits CommentLimits) []Finding {
 func CommentSentenceCanaries(limits CommentLimits) []Canary {
 	return []Canary{
 		{
-			Name:     fmt.Sprintf("a sentence of %d words", limits.SentenceMinor+1),
-			Block:    commentCanary("func/Canary", true, canarySentence(limits.SentenceMinor+1, 1)),
-			Expect:   CategorySentenceLength,
-			Severity: SeverityMinor,
+			Name:   fmt.Sprintf("a sentence of %d words", limits.SentenceMinor+1),
+			Block:  commentCanary("func/Canary", true, canarySentence(limits.SentenceMinor+1, 1)),
+			Expect: CategorySentenceLength,
 		},
 		{
 			Name:     fmt.Sprintf("a sentence of %d words wrapped over three lines", limits.SentenceMajor+1),
 			Block:    commentCanary("func/Canary", true, canarySentence(limits.SentenceMajor+1, 3)),
 			Expect:   CategorySentenceLength,
-			Severity: SeverityMajor,
+			MustFail: limits.Fails,
 		},
 	}
 }

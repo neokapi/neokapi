@@ -15,7 +15,7 @@ const usedToNotAfter = `(?i)(?:(?:\b(?:is|are|was|were|be|been|being|get|gets|go
 
 func TestPatternNotAfter(t *testing.T) {
 	p := &VoiceProfile{Style: StyleRules{ProhibitedPatterns: []Pattern{
-		{Regex: `(?i)\bused to\b`, NotAfter: usedToNotAfter, Severity: "major", Scope: ScopeProse},
+		{Regex: `(?i)\bused to\b`, NotAfter: usedToNotAfter, Scope: ScopeProse},
 	}}}
 	for _, tc := range []struct {
 		name, text string

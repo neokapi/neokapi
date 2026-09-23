@@ -138,7 +138,7 @@ func TestApplyVoiceEntry_LandsInTheVoiceStore(t *testing.T) {
 		List:        "forbidden",
 		Term:        "utilize",
 		Replacement: "use",
-		Severity:    "minor",
+		Advisory:    true,
 	}
 
 	res := a.applyAssetEntry(ctx, cmd, e)

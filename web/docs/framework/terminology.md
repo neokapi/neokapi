@@ -201,16 +201,17 @@ Three pipeline tools bring terminology into the flow:
   doubles as a gate. It takes its rules from the project's terms store
   (`--termstore` outside a project) or from `term_rules:` in a flow step's
   config: the same shape a voice profile's vocabulary uses (one `term`, its
-  `replacement`, a `severity`, and optionally a `concept_id` that ties the rule
+  `replacement`, an optional `advisory`, and optionally a `concept_id` that ties the rule
   to a concept here). A concept marked do-not-translate yields a rule with no
   replacement, and the check fails a target that does not keep its term verbatim.
   A term written in the source's inline code, a quoted `kapi` command, an
   example command line or a flag name owes no rendering, because code keeps its
   words in a translation; the prose around it is checked as usual. A voice
   profile's term rules leave code out with `scope: prose` instead.
-  A rule whose `severity` is `minor` warns; any other value, including unset,
-  fails, because a rule resolved from a store carries no severity and must not
-  be silently downgraded.
+  A rule marked `advisory: true` reports without failing; any other rule
+  fails, because a rule resolved from a store carries no marking and must not
+  be silently downgraded. The source term matches in its own casing only when
+  the tool or the rule sets `case_sensitive`.
 - **`dnt-check`** (do-not-translate) fails a target where a term listed under
   `--terms` (product names, trademarks, code identifiers) was translated,
   transliterated or dropped. The translate step masks those spans, so the model

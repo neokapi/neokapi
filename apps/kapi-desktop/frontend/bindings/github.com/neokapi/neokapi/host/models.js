@@ -987,12 +987,13 @@ export class ContextSuggestion {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Severity is how hard the rule would bite once a person keeps it. It
-             * decides nothing while the operation is a suggestion.
+             * Advisory says the rule would report without failing a check once a
+             * person keeps it. It decides nothing while the operation is a
+             * suggestion.
              * @member
-             * @type {string | undefined}
+             * @type {boolean | undefined}
              */
-            this["severity"] = undefined;
+            this["advisory"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**

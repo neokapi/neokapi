@@ -25,16 +25,16 @@ func TestRewriteVocabulary(t *testing.T) {
 		{
 			name: "rules without a replacement are reported, the text is unchanged",
 			profile: profileWith([]TermRule{
-				{Term: "utilize", Severity: "major"},
-				{Term: "leverage", Severity: "major"},
-				{Term: "cutting-edge", Severity: "major"},
+				{Term: "utilize"},
+				{Term: "leverage"},
+				{Term: "cutting-edge"},
 			}, nil),
 			text:     "Leverage our cutting-edge workspace to utilize your content.",
 			wantText: "Leverage our cutting-edge workspace to utilize your content.",
 			wantSkipped: []RewriteSkip{
-				{Term: "utilize", List: "forbidden", Severity: SeverityMajor, Matched: []string{"utilize"}, Count: 1, Reason: RewriteSkipNoReplacement},
-				{Term: "leverage", List: "forbidden", Severity: SeverityMajor, Matched: []string{"Leverage"}, Count: 1, Reason: RewriteSkipNoReplacement},
-				{Term: "cutting-edge", List: "forbidden", Severity: SeverityMajor, Matched: []string{"cutting-edge"}, Count: 1, Reason: RewriteSkipNoReplacement},
+				{Term: "utilize", List: "forbidden", Fails: true, Matched: []string{"utilize"}, Count: 1, Reason: RewriteSkipNoReplacement},
+				{Term: "leverage", List: "forbidden", Fails: true, Matched: []string{"Leverage"}, Count: 1, Reason: RewriteSkipNoReplacement},
+				{Term: "cutting-edge", List: "forbidden", Fails: true, Matched: []string{"cutting-edge"}, Count: 1, Reason: RewriteSkipNoReplacement},
 			},
 		},
 		{
@@ -42,7 +42,7 @@ func TestRewriteVocabulary(t *testing.T) {
 			profile: profileWith(
 				[]TermRule{
 					{Term: "utilize", Replacement: "use"},
-					{Term: "leverage", Severity: "minor", Note: "say what the reader does"},
+					{Term: "leverage", Advisory: true, Note: "say what the reader does"},
 				},
 				[]TermRule{{Term: "Globex"}},
 			),
@@ -52,8 +52,8 @@ func TestRewriteVocabulary(t *testing.T) {
 				{Term: "utilize", Replacement: "use", List: "forbidden", Count: 2},
 			},
 			wantSkipped: []RewriteSkip{
-				{Term: "leverage", List: "forbidden", Severity: SeverityMinor, Note: "say what the reader does", Matched: []string{"Leverage"}, Count: 1, Reason: RewriteSkipNoReplacement},
-				{Term: "Globex", List: "competitor", Severity: SeverityCritical, Matched: []string{"Globex"}, Count: 1, Reason: RewriteSkipNoReplacement},
+				{Term: "leverage", List: "forbidden", Note: "say what the reader does", Matched: []string{"Leverage"}, Count: 1, Reason: RewriteSkipNoReplacement},
+				{Term: "Globex", List: "competitor", Fails: true, Matched: []string{"Globex"}, Count: 1, Reason: RewriteSkipNoReplacement},
 			},
 		},
 		{
@@ -76,24 +76,24 @@ func TestRewriteVocabulary(t *testing.T) {
 				{Term: "utilize", Replacement: "use", List: "forbidden", Count: 1},
 			},
 			wantSkipped: []RewriteSkip{
-				{Term: "utilize", List: "forbidden", Severity: SeverityMajor, Replacement: "use", Matched: []string{"utilizing", "utilized"}, Count: 2, Reason: RewriteSkipInflectedForm},
+				{Term: "utilize", List: "forbidden", Fails: true, Replacement: "use", Matched: []string{"utilizing", "utilized"}, Count: 2, Reason: RewriteSkipInflectedForm},
 			},
 		},
 		{
 			name: "a prose-scoped rule leaves code spans alone and says where it applies",
 			profile: profileWith([]TermRule{
-				{Term: "daemon", Severity: "minor", Scope: ScopeProse},
+				{Term: "daemon", Advisory: true, Scope: ScopeProse},
 			}, nil),
 			text:     "The daemon starts with `daemon --start`.",
 			wantText: "The daemon starts with `daemon --start`.",
 			wantSkipped: []RewriteSkip{
-				{Term: "daemon", List: "forbidden", Severity: SeverityMinor, Scope: ScopeProse, Matched: []string{"daemon"}, Count: 1, Reason: RewriteSkipNoReplacement},
+				{Term: "daemon", List: "forbidden", Scope: ScopeProse, Matched: []string{"daemon"}, Count: 1, Reason: RewriteSkipNoReplacement},
 			},
 		},
 		{
 			name: "a case-sensitive rule substitutes only its own casing",
 			profile: profileWith([]TermRule{
-				{Term: "Ripgrep", Replacement: "ripgrep", CaseSensitive: true},
+				{Term: "Ripgrep", Replacement: "ripgrep", CaseSensitive: new(true)},
 			}, nil),
 			text:     "Ripgrep is fast; ripgrep stays lowercase.",
 			wantText: "ripgrep is fast; ripgrep stays lowercase.",
@@ -105,7 +105,7 @@ func TestRewriteVocabulary(t *testing.T) {
 			name: "a hit inside replaced text is neither substituted nor reported",
 			profile: profileWith([]TermRule{
 				{Term: "cutting-edge", Replacement: "current"},
-				{Term: "edge", Severity: "minor"},
+				{Term: "edge", Advisory: true},
 			}, nil),
 			text:     "A cutting-edge edge case.",
 			wantText: "A current edge case.",
@@ -113,7 +113,7 @@ func TestRewriteVocabulary(t *testing.T) {
 				{Term: "cutting-edge", Replacement: "current", List: "forbidden", Count: 1},
 			},
 			wantSkipped: []RewriteSkip{
-				{Term: "edge", List: "forbidden", Severity: SeverityMinor, Matched: []string{"edge"}, Count: 1, Reason: RewriteSkipNoReplacement},
+				{Term: "edge", List: "forbidden", Matched: []string{"edge"}, Count: 1, Reason: RewriteSkipNoReplacement},
 			},
 		},
 		{
@@ -122,7 +122,7 @@ func TestRewriteVocabulary(t *testing.T) {
 			text:     "Open the workspace.",
 			wantText: "Open the workspace.",
 			wantSkipped: []RewriteSkip{
-				{Term: "workspace", List: "forbidden", Severity: SeverityMajor, ConceptID: "c-42", Matched: []string{"workspace"}, Count: 1, Reason: RewriteSkipNoReplacement},
+				{Term: "workspace", List: "forbidden", Fails: true, ConceptID: "c-42", Matched: []string{"workspace"}, Count: 1, Reason: RewriteSkipNoReplacement},
 			},
 		},
 	}

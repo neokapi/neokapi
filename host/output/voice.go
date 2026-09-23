@@ -21,13 +21,14 @@ func (o VoiceGuideOutput) FormatText(w io.Writer) error {
 	return err
 }
 
-// VoiceCheckOutput is the result of `kapi voice check` — a voice compliance
-// score plus the findings that produced it.
+// VoiceCheckOutput is the result of `kapi voice check`: the findings, a voice
+// compliance score reported beside them, and whether the text passed. It
+// passes when no finding fails; the score gates nothing.
 type VoiceCheckOutput struct {
 	Profile    string                   `json:"profile"`
 	Score      int                      `json:"score"`
 	Passed     bool                     `json:"passed"`
-	MinScore   *int                     `json:"min_score,omitempty"`
+	Failing    int                      `json:"failing"`
 	AIChecked  bool                     `json:"ai_checked"`
 	Dimensions []profile.DimensionScore `json:"dimensions"`
 	Findings   []profile.VoiceFinding   `json:"findings"`
@@ -59,9 +60,9 @@ func (o VoiceCheckOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "  No findings. Reads on brand.")
 		return nil
 	}
-	fmt.Fprintf(w, "\n%d finding(s):\n", len(o.Findings))
+	fmt.Fprintf(w, "\n%d finding(s), %d failing:\n", len(o.Findings), o.Failing)
 	for _, f := range o.Findings {
-		fmt.Fprintf(w, "  [%s/%s] %s", string(f.Severity), f.Category, f.Message)
+		fmt.Fprintf(w, "  [%s/%s] %s", findingOutcome(f), f.Category, f.Message)
 		if f.Suggestion != "" {
 			fmt.Fprintf(w, " (%s)", f.Suggestion)
 		}
@@ -113,7 +114,7 @@ func (o VoiceRewriteOutput) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintf(w, "\n%d violation(s) found, not rewritten: %s\n", total, strings.Join(terms, ", "))
 		for _, s := range o.Skipped {
-			fmt.Fprintf(w, "  %q [%s/%s]: %s", s.Term, s.Severity, s.List, rewriteSkipReason(s))
+			fmt.Fprintf(w, "  %q [%s/%s]: %s", s.Term, outcome(s.Fails), s.List, rewriteSkipReason(s))
 			if s.Count > 1 {
 				fmt.Fprintf(w, " (×%d)", s.Count)
 			}
@@ -295,3 +296,15 @@ func (o VoicePointerOutput) FormatText(w io.Writer) error {
 // assistant limited to CLAUDE.md reaches an AGENTS.md section through an
 // import line there.
 const AssistantFileHint = "AGENTS.md"
+
+// findingOutcome names what a finding does to a check: "fails" or "reports".
+func findingOutcome(f profile.VoiceFinding) string {
+	return outcome(f.Fails && !f.Suggested)
+}
+
+func outcome(fails bool) string {
+	if fails {
+		return "fails"
+	}
+	return "reports"
+}

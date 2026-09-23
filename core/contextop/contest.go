@@ -41,7 +41,7 @@ func contest(records []Record, establishedAt []int64) {
 			if !ok || rule.Replacement == "" {
 				continue
 			}
-			cs := rule.CaseSensitive
+			cs := rule.MatchesCase()
 			if formKey(corr.Correction.From, cs) == formKey(rule.Replacement, cs) && slices.Contains(avoided(rule, cs), formKey(corr.Correction.To, cs)) {
 				markContested(&records[e], corr.ID)
 			}
@@ -111,7 +111,7 @@ func meet(a, b Record) bool {
 // word. A rule that is case-sensitive compares forms as written, so
 // `Quickcast` and `quickcast` stay two forms.
 func disagree(a, b profile.TermRule) bool {
-	cs := a.CaseSensitive || b.CaseSensitive
+	cs := a.MatchesCase() || b.MatchesCase()
 	avoidA, avoidB := avoided(a, cs), avoided(b, cs)
 	useA, useB := formKey(a.Replacement, cs), formKey(b.Replacement, cs)
 	if useA != useB {

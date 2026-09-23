@@ -27,11 +27,8 @@ style:
 vocabulary:
     forbidden_terms:
         - term: utilize
-          severity: major
         - term: leverage
-          severity: major
         - term: cutting-edge
-          severity: major
 `
 
 // mixedProfileYAML names a replacement for one term and none for the others.
@@ -43,7 +40,7 @@ vocabulary:
         - term: utilize
           replacement: use
         - term: leverage
-          severity: minor
+          advisory: true
           note: say what the reader does
     competitor_terms:
         - term: Globex
@@ -77,7 +74,7 @@ func TestVoiceRewriteMCP_ReportsSkipped(t *testing.T) {
 	assert.Equal(t, []string{"utilize", "leverage", "cutting-edge"}, skippedTerms(out.Skipped))
 	for _, s := range out.Skipped {
 		assert.Equal(t, profile.RewriteSkipNoReplacement, s.Reason, s.Term)
-		assert.Equal(t, profile.SeverityMajor, s.Severity, s.Term)
+		assert.True(t, s.Fails, s.Term)
 		assert.Equal(t, "forbidden", s.List, s.Term)
 		assert.Equal(t, 1, s.Count, s.Term)
 	}
@@ -97,12 +94,12 @@ func TestVoiceRewriteMCP_MixedProfile(t *testing.T) {
 	assert.Equal(t, []voiceChangeMCP{{From: "utilize", To: "use", Count: 1}}, out.Changes)
 	require.Len(t, out.Skipped, 2)
 	assert.Equal(t, profile.RewriteSkip{
-		Term: "leverage", List: "forbidden", Severity: profile.SeverityMinor,
+		Term: "leverage", List: "forbidden",
 		Note: "say what the reader does", Matched: []string{"Leverage"}, Count: 1,
 		Reason: profile.RewriteSkipNoReplacement,
 	}, out.Skipped[0])
 	assert.Equal(t, profile.RewriteSkip{
-		Term: "Globex", List: "competitor", Severity: profile.SeverityCritical,
+		Term: "Globex", List: "competitor", Fails: true,
 		Matched: []string{"Globex"}, Count: 1, Reason: profile.RewriteSkipNoReplacement,
 	}, out.Skipped[1])
 }
@@ -157,7 +154,7 @@ func TestVoiceRewriteMCP_SurfaceDeclaresSkipped(t *testing.T) {
 	require.NoError(t, json.Unmarshal(raw, &schema), "output schema: %s", raw)
 	skipped, ok := schema.Properties["skipped"]
 	require.True(t, ok, "output schema lists skipped: %s", raw)
-	for _, field := range []string{"term", "list", "severity", "matched", "count", "reason"} {
+	for _, field := range []string{"term", "list", "fails", "matched", "count", "reason"} {
 		assert.Contains(t, skipped.Items.Properties, field)
 	}
 }

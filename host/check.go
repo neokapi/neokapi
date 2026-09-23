@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -62,9 +61,6 @@ func (r checkReport) FormatText(w io.Writer) error {
 		for _, scope := range r.Execution.Contexts {
 			writeCheckContext(w, scope)
 		}
-	}
-	for _, reason := range r.Gate.Failed {
-		fmt.Fprintf(w, "  gate: %s\n", reason)
 	}
 	writeWarnings(w, r.Warnings)
 	return nil
@@ -170,11 +166,20 @@ func writeCheckContext(w io.Writer, scope check.CheckContext) {
 	fmt.Fprintf(w, "; terms %s\n", terms)
 }
 
-// writeFindingsCounts writes the score + severity roll-up line shared by
-// `kapi check` (after its PASS/FAIL verdict) and a `kapi exec <check>` run.
+// writeFindingsCounts writes the roll-up line shared by `kapi check` (after
+// its PASS/FAIL verdict) and a `kapi exec <check>` run: failing findings
+// first, then the ones that only report, then the score beside them.
 func writeFindingsCounts(w io.Writer, s check.Summary) {
-	fmt.Fprintf(w, "score %d/100 · %d finding(s) (%d critical, %d major, %d minor)\n",
-		s.Score, s.Findings, s.Critical, s.Major, s.Minor)
+	fmt.Fprintf(w, "%d failing, %d reported · score %d/100\n", s.Failing, s.Reporting, s.Score)
+}
+
+// diagnosticOutcome names what a diagnostic does to a check: "fails" or
+// "reports".
+func diagnosticOutcome(d check.Diagnostic) string {
+	if d.Fails {
+		return "fails"
+	}
+	return "reports"
 }
 
 // writeDidNotRun writes the sentence that names why a check did not run. The
@@ -189,11 +194,11 @@ func writeDidNotRun(w io.Writer, cause string) {
 	fmt.Fprintf(w, "  %s (%s)\n", sentence, cause)
 }
 
-// renderFindingsTable writes the severity/rule/location/message table shared by
+// renderFindingsTable writes the outcome/rule/location/message table shared by
 // `kapi check` and the findings a `kapi exec <check>` run reports, so the two
 // read identically — an assistant that learned one has learned the other.
 func renderFindingsTable(w io.Writer, diags []check.Diagnostic) {
-	t := output.NewTable(w).Accent(1).Headers("severity", "rule", "location", "message")
+	t := output.NewTable(w).Accent(1).Headers("outcome", "rule", "location", "message")
 	s := t.Styles()
 	for _, d := range diags {
 		loc := d.Location.Block
@@ -206,7 +211,7 @@ func renderFindingsTable(w io.Writer, diags []check.Diagnostic) {
 				loc += fmt.Sprintf("-%d", l.Last)
 			}
 		}
-		t.Row(severityCell(s, string(d.Severity)), d.Rule, s.Dim(loc), d.Message)
+		t.Row(outcomeCell(s, d.Fails), d.Rule, s.Dim(loc), d.Message)
 		if d.Suggestion != "" {
 			t.Row("", "", "", s.Muted.Render("↳ "+d.Suggestion))
 		}
@@ -231,8 +236,8 @@ func (a *App) RunCheck(cmd Command, args []string) error {
 	}
 	switch report.Verdict {
 	case check.VerdictDidNotRun:
-		// --no-fail and --lenient govern what the findings do to the exit code.
-		// A check that did not run has no findings to read, so neither applies.
+		// --no-fail governs what the findings do to the exit code. A check that
+		// did not run has no findings to read, so it does not apply.
 		return fmt.Errorf("%w: %s (%s): %s", ErrCheckNotRun, check.CauseSummary(report.DidNotRunCause), report.DidNotRunCause, strings.Join(report.DidNotRun, "; "))
 	case check.VerdictFailed:
 		if noFail, _ := cmd.Flags().GetBool("no-fail"); noFail {
@@ -306,12 +311,8 @@ func (a *App) applyProjectSourceLang(cmd Command) {
 // verify engine (RunVerify/computeVerify), which the Stop hook also drives, so a
 // release gate and the hook evaluate a project identically. Flag defaults that
 // differ between the file checkset and the project gates are mapped here: an
-// untouched --min-score means the voice-gate threshold (DefaultVoiceMinScore),
-// and an untouched --source-lang defers to the project's source_language.
+// untouched --source-lang defers to the project's source_language.
 func (a *App) runShipCheck(cmd Command, args []string) error {
-	if !cmd.Flags().Changed("min-score") {
-		_ = cmd.Flags().Set("min-score", strconv.Itoa(DefaultVoiceMinScore))
-	}
 	if !cmd.Flags().Changed("source-lang") {
 		// computeVerify treats "" as "use the project's source_language"; the
 		// check flag's static default ("en") would otherwise override it.
@@ -447,7 +448,7 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 		if validateMode != format.ValidationOff {
 			return check.Report{}, errors.New("reader validation is unavailable with a diff scope; validate the files separately")
 		}
-		return a.runDiffCheck(ctx, diffCheckRun{src: diff, named: args, cmd: cmd, opts: opts, voice: voice, vocab: vocab, gate: gateFromFlags(cmd)})
+		return a.runDiffCheck(ctx, diffCheckRun{src: diff, named: args, cmd: cmd, opts: opts, voice: voice, vocab: vocab})
 	}
 
 	var diags []check.Diagnostic
@@ -565,14 +566,7 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 	}
 	target.Blocks = totalBlocks
 
-	gate := gateFromFlags(cmd)
-	report := execution.report(ctx, a, cmd, target, diags, gate)
-	if validateMode == format.ValidationStrict {
-		applyStrictValidationGate(&report)
-	}
-	if lenient, _ := cmd.Flags().GetBool("lenient"); !lenient {
-		ApplyFormatterGate(&report)
-	}
+	report := execution.report(ctx, a, cmd, target, diags)
 	unread.Report(&report)
 	unread.warn(a, cmd)
 	return report, nil
@@ -602,7 +596,7 @@ func (a *App) checkFileBlocks(ctx context.Context, file string, validateMode for
 		}
 		blocks = bl
 		for _, fd := range fdiags {
-			diags = append(diags, check.DiagnosticFromReader(fd, DisplayName(file)))
+			diags = append(diags, check.DiagnosticFromReader(fd, DisplayName(file), validateMode == format.ValidationStrict))
 		}
 	} else {
 		bl, rerr := a.readBlocksAs(ctx, file, fmtName, fmtCfg, opts.source(a))
@@ -675,25 +669,6 @@ func parseValidationMode(v string) (format.ValidationMode, error) {
 	default:
 		return format.ValidationOff, fmt.Errorf("invalid validate mode %q: want off, report, or strict", v)
 	}
-}
-
-// applyStrictValidationGate tightens the report for --validate strict: any
-// structure or encoding diagnostic of Major severity or worse fails the gate
-// regardless of the severity-count thresholds — a structurally broken or
-// mis-encoded document can't pass. A relabeled-charset mismatch is Minor and
-// does not trip it. This is a check-layer gate policy, not a reader concern.
-func applyStrictValidationGate(report *check.Report) {
-	for _, f := range report.Findings {
-		if f.Check != "structure" && f.Check != "encoding" {
-			continue
-		}
-		if f.Severity != check.SeverityMajor && f.Severity != check.SeverityCritical {
-			continue
-		}
-		report.Gate.Failed = append(report.Gate.Failed,
-			fmt.Sprintf("validation: %s is a blocking %s problem", f.Rule, f.Check))
-	}
-	report.Decide()
 }
 
 // commentLimitsOnly reports whether p holds comment limits and no rule for
@@ -1019,8 +994,8 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 	// The project's term rules for the target language, the rules the ship
 	// terminology gate holds the same translation to. term-check records its
 	// violations as block properties rather than findings, so they are mapped
-	// here: a violation of a rule that fails is critical, which fails the check
-	// as it fails the gate, and one that only warns is minor.
+	// here: a violation of a rule fails the check as it fails the gate, and a
+	// violation of an advisory rule reports.
 	if len(termRules) > 0 {
 		start = time.Now()
 		before := len(diags)
@@ -1031,17 +1006,17 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 				return nil, fmt.Errorf("terminology check %s (%s): %w", DisplayName(file), loc, err)
 			}
 			for _, v := range []struct {
-				prop     string
-				severity check.Severity
+				prop  string
+				fails bool
 			}{
-				{coretools.PropTermCheckErrors, check.SeverityCritical},
-				{coretools.PropTermCheckWarnings, check.SeverityMinor},
+				{coretools.PropTermCheckErrors, true},
+				{coretools.PropTermCheckWarnings, false},
 			} {
 				for m := range strings.SplitSeq(b.Properties[v.prop], "; ") {
 					if strings.TrimSpace(m) == "" {
 						continue
 					}
-					f := check.Finding{Category: "terminology", Severity: v.severity, Message: m}
+					f := check.Finding{Category: "terminology", Fails: v.fails, Message: m}
 					diags = append(diags, check.DiagnosticFrom(f, "terms", check.Location{File: DisplayName(file), Block: blockKey(b)}))
 				}
 			}
@@ -1124,25 +1099,6 @@ func patternRules(forbid, require []string) []check.PatternRule {
 		rules = append(rules, check.PatternRule{Name: fmt.Sprintf("required-%d", i+1), Pattern: p, MustMatch: true})
 	}
 	return rules
-}
-
-// gateFromFlags builds the severity/score gate from the command flags, applying
-// the --strict / --lenient presets.
-func gateFromFlags(cmd Command) check.Gate {
-	g := check.Gate{}
-	g.MaxCritical, _ = cmd.Flags().GetInt("max-critical")
-	g.MaxMajor, _ = cmd.Flags().GetInt("max-major")
-	g.MaxMinor, _ = cmd.Flags().GetInt("max-minor")
-	g.MinScore, _ = cmd.Flags().GetInt("min-score")
-	if strict, _ := cmd.Flags().GetBool("strict"); strict {
-		g.MaxCritical = 0
-		g.MaxMajor = 0
-	}
-	if lenient, _ := cmd.Flags().GetBool("lenient"); lenient {
-		// All limits off: report only, the gate never trips.
-		g = check.Gate{MaxCritical: -1, MaxMajor: -1, MaxMinor: -1, MinScore: 0}
-	}
-	return g
 }
 
 // checkVoice answers "which voice governs this file" for one `kapi check` run.

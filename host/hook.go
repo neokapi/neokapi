@@ -225,7 +225,7 @@ func hookBlockReason(out verifyOutput) string {
 			if loc != "" {
 				loc = " " + loc
 			}
-			fmt.Fprintf(&b, "  %s [%s]%s: %s", strings.ToUpper(f.Severity), g.Gate, loc, f.Message)
+			fmt.Fprintf(&b, "  %s [%s]%s: %s", outcomeLabel(f.Fails), g.Gate, loc, f.Message)
 			if f.Suggestion != "" {
 				fmt.Fprintf(&b, " (%s)", f.Suggestion)
 			}
@@ -371,4 +371,12 @@ func relForReason(root, abs string) string {
 		return rel
 	}
 	return abs
+}
+
+// outcomeLabel names what a finding does to its gate, for plain text.
+func outcomeLabel(fails bool) string {
+	if fails {
+		return "FAILS"
+	}
+	return "REPORTS"
 }

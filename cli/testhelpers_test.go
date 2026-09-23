@@ -228,11 +228,10 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: minor
+      advisory: true
   competitor_terms:
     - term: Globex
       replacement: our platform
-      severity: critical
 `
 
 func iToA(i int) string { return strconv.Itoa(i) }

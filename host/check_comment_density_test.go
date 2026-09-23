@@ -63,7 +63,7 @@ func TestDiffCheckMeasuresCommentDensity(t *testing.T) {
 		found := densityFindings(report)
 		require.Len(t, found, 1, "%+v", report.Findings)
 		d := found[0]
-		assert.Equal(t, check.SeverityMajor, d.Severity)
+		assert.False(t, d.Fails, "density is a style measure and reports unless the limits are marked fails")
 		assert.Equal(t, "Change adds 9 comment lines and 4 code lines, more than 1 comment lines for each code line", d.Message)
 		assert.Empty(t, d.Location.Block, "density is a property of the change, not of one comment")
 		require.NotNil(t, d.Location.Lines)

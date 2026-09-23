@@ -50,7 +50,7 @@ function cli(args) {
 function parseCLI(run) {
   if (run.error || ![0, 3].includes(run.status)) throw new Error(run.error?.message || run.stderr || `Exit ${run.status}`);
   const report = JSON.parse(run.stdout);
-  if (report.schema !== 'kapi.check/v1') throw new Error(`Unexpected report schema: ${report.schema}`);
+  if (report.schema !== 'kapi.check/v2') throw new Error(`Unexpected report schema: ${report.schema}`);
   return report;
 }
 function startMCP() {
@@ -107,7 +107,7 @@ function startMCP() {
 function extractMCP(result) {
   if (result.isError) throw new Error(JSON.stringify(result.content));
   const report = result.structuredContent || JSON.parse(result.content.find(c => c.type === 'text').text);
-  if (report.schema !== 'kapi.check/v1') throw new Error(`Unexpected MCP report schema: ${report.schema}`);
+  if (report.schema !== 'kapi.check/v2') throw new Error(`Unexpected MCP report schema: ${report.schema}`);
   return report;
 }
 const version = cli(['--version']);
@@ -160,7 +160,7 @@ try {
         }
         attempt.report = keepReport(report);
         if (report.target?.blocks !== w.blocks) throw new Error(`Expected ${w.blocks} extracted blocks, got ${report.target?.blocks}`);
-        const semantics = normalize({ pass: report.pass, target: report.target, gate: report.gate, summary: report.summary, findings: report.findings, analyzers: report.execution?.analyzers?.map(({ duration_ms, ...analyzer }) => analyzer) });
+        const semantics = normalize({ pass: report.pass, target: report.target, summary: report.summary, findings: report.findings, analyzers: report.execution?.analyzers?.map(({ duration_ms, ...analyzer }) => analyzer) });
         const expected = w.edits && i % 2 === 0 ? 1 : 0;
         const actual = (report.findings ?? []).filter(f => f.metadata?.constraint_id === 'harbor-help/no-unsupported-assurance').length;
         if (actual !== expected) throw new Error(`Expected ${expected} constraint findings, got ${actual}`);

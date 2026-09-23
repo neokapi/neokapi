@@ -17,27 +17,25 @@ style:
   prohibited_patterns:
     - regex: '\b(simply|just|easily|obviously|clearly)\b'
       description: Minimizing words that assume reader knowledge
-      severity: major
     - regex: '\b\w+(ed|en)\s+by\b'
       description: Passive voice constructions
-      severity: minor
+      advisory: true
 vocabulary:
   forbidden_terms:
     - term: please
       replacement: ""
-      severity: minor
+      advisory: true
     - term: simple
       replacement: ""
-      severity: minor
+      advisory: true
     - term: easy
       replacement: ""
-      severity: minor
+      advisory: true
     - term: obviously
       replacement: ""
-      severity: major
     - term: basically
       replacement: ""
-      severity: minor
+      advisory: true
   preferred_terms:
     - term: run
       note: Preferred over 'execute' for commands

@@ -20,12 +20,12 @@ import { PendingMedia } from "@neokapi/docs-shared";
 Open your project and switch to the **Checks** view.
 
 1. **Run the checkset.** Kapi runs the project's bound rules (hygiene, length, patterns, and voice vocabulary when a profile is bound) over the tracked content.
-2. **Read the findings.** Each finding names its rule, severity, and the exact block; click through to see the flagged text in context.
+2. **Read the findings.** Each finding names its rule, whether it fails or only reports, and the exact block; click through to see the flagged text in context.
 3. **Fix and re-run.** Edit the source, re-run, and watch the findings clear. The same gate result the CLI reports is what the panel shows.
 
 <PendingMedia kind="screenshot">
-  The Checks view: a findings list grouped by rule and severity, with a
-  block-level detail pane and the pass/fail gate summary.
+  The Checks view: a findings list grouped by rule, failing findings first,
+  with a block-level detail pane and the pass/fail summary.
 </PendingMedia>
 
 </TabItem>
@@ -49,18 +49,18 @@ kapi check content/*.md --pack marketing-blog          # built-in starter pack
 kapi check blog-post.md --profile-file brand/voice.yaml
 ```
 
-`--json` emits the structured `kapi.check/v1` Report: pass, a 0–100 score, a gate, one finding per stable rule id, each anchored to a block, and the state the run was evaluated against:
+`--json` emits the structured `kapi.check/v2` Report: pass, a 0–100 score, one finding per stable rule id, each anchored to a block and marked as failing or reporting, and the state the run was evaluated against:
 
 ```json
 {
-  "schema": "kapi.check/v1",
+  "schema": "kapi.check/v2",
   "pass": false,
   "verdict": "failed",
-  "summary": { "score": 74, "critical": 0, "major": 2, "minor": 3 },
+  "summary": { "findings": 5, "failing": 2, "reporting": 3, "score": 47 },
   "findings": [
     {
       "rule": "length.max-chars-exceeded",
-      "severity": "major",
+      "fails": true,
       "message": "Block exceeds the 120-character limit (148 chars).",
       "location": { "file": "src/locales/en.json", "block": "onboarding.welcome" }
     }
@@ -78,7 +78,7 @@ kapi check blog-post.md --profile-file brand/voice.yaml
 
 Field-by-field, the Report is documented in [Checks](/framework/checks); the flags in the [`check` reference](/reference/commands/check).
 
-**Exit codes are the gate:** `0` pass, `3` gate failed, `4` did not run, `1` operational error, so `kapi check` drops straight into CI. A check did not run when it examined no content, or when one of its checks reported nothing on the known-bad sample it is given beside your content. It never exits `0`. `--strict` fails on any critical or major finding. `--lenient` and `--no-fail` loosen the gate for report-only sweeps, and neither turns a check that did not run into a pass.
+**Exit codes are the gate:** `0` pass, `3` at least one finding fails, `4` did not run, `1` operational error, so `kapi check` drops straight into CI. A check did not run when it examined no content, or when one of its checks reported nothing on the known-bad sample it is given beside your content. It never exits `0`. Whether a finding fails is set by the rule that raised it: an established term or voice rule fails unless it is marked `advisory: true`, and a suggested rule or a style measure reports (see [What fails](/framework/checks#what-fails)). The score is reported and never decides the exit code. `--no-fail` exits `0` when a finding fails, for report-only sweeps, and never turns a check that did not run into a pass.
 
 **Check only what changed:** `kapi check --diff-against HEAD` checks the content blocks your edits touched, each block whole, `--staged` checks what the next commit records, `--diff-range` checks the change between two commits, and `--diff-file` takes a diff you already have. See [Check changes in git](#check-changes-in-git). `--validate report|strict` folds reader structure/encoding findings into the same Report.
 
@@ -101,7 +101,7 @@ line becomes a block and what the report's `scope` lists.
 | `--diff-range A..B` | The change between two commits, each file read from B |
 | `--diff-range A...B` | The change B made since it left A |
 
-The exit code carries the outcome: `0` the check passed, `3` the gate failed,
+The exit code carries the outcome: `0` the check passed, `3` a finding failed,
 `4` the check did not run, and `1` kapi could not run it. A check that did not
 run is never a pass. The recipes below map each code to what the tool around
 them expects.
@@ -114,12 +114,12 @@ A pre-commit hook checks what the commit records:
 #!/bin/sh
 # Stops a commit whose staged content fails the check. A commit that touches
 # no content kapi reads goes through.
-cause=$(kapi check --staged --strict --jq '.did_not_run_cause' 2> /dev/null)
+cause=$(kapi check --staged --jq '.did_not_run_cause' 2> /dev/null)
 status=$?
 if [ "$status" -eq 0 ] || { [ "$status" -eq 4 ] && [ "$cause" = '"nothing_to_check"' ]; }; then
 	exit 0
 fi
-kapi check --staged --strict
+kapi check --staged
 exit "$status"
 ```
 
@@ -128,8 +128,8 @@ hook applies the rules the recipe binds. An unstaged edit and an untracked file
 leave the result unchanged. A commit that touches only files kapi does not
 check, such as a binary or content the recipe does not declare, exits `4` with
 `nothing_to_check`, and the hook lets that commit through. Any other outcome
-stops the commit and prints the findings. `--strict` stops it on a critical or
-major finding.
+stops the commit and prints the findings. A finding that only reports lets the
+commit through.
 
 ### On every pull request
 
@@ -154,12 +154,12 @@ jobs:
       - uses: neokapi/kapi-action@v1
         with:
           command: check
-          args: --diff-range origin/${{ github.base_ref }}...HEAD --strict
+          args: --diff-range origin/${{ github.base_ref }}...HEAD
 ```
 
 `fetch-depth: 0` fetches the base branch and the history kapi needs to find the
 merge base. With `A...B`, the job checks only what the pull request changed,
-however far the base branch has moved since. A failed gate exits `3`, which the
+however far the base branch has moved since. A failing finding exits `3`, which the
 action reports as an unmet gate. A check that did not run fails the job too.
 
 ### Which commits added findings
@@ -181,11 +181,10 @@ for commit in $(git rev-list --reverse "$base..HEAD"); do
 	files=()
 	while IFS= read -r -d '' f; do files+=("$f"); done < <(git diff -z --name-only "$commit^" "$commit" -- '*.go')
 	[ ${#files[@]} -eq 0 ] && continue
-	KAPI_NO_PROJECT=1 kapi check --diff-range "$commit^..$commit" --profile-file "$profile" \
-		--max-major 0 --max-minor 0 "${files[@]}" > /dev/null 2>&1
+	count=$(KAPI_NO_PROJECT=1 kapi check --diff-range "$commit^..$commit" --profile-file "$profile" \
+		--jq '.summary.findings' "${files[@]}" 2> /dev/null)
 	case $? in
-	0) ;;
-	3) git log -1 --format='%h %s' "$commit" ;;
+	0 | 3) [ "${count:-0}" -gt 0 ] && git log -1 --format='%h %s' "$commit" ;;
 	4) echo "$(git log -1 --format=%h "$commit"): not checked" >&2 ;;
 	*) echo "$(git log -1 --format=%h "$commit"): kapi check failed" >&2 ;;
 	esac
@@ -198,7 +197,7 @@ done
 
 `KAPI_NO_PROJECT=1` and `--profile-file` hold every commit to the rules in the
 profile you name, whatever the project's recipe said when the commit was made.
-`--max-major 0 --max-minor 0` turns any finding into a failed gate. The script
+`.summary.findings` counts every finding, failing or reported. The script
 names the changed Go files, so a commit that changes only other files is left
 out, and a change to Markdown with no comment to check cannot stop the check
 from running.
@@ -326,9 +325,8 @@ generated files, and the code blocks and references inside a doc comment stay
 out of the prose, so a rule reads sentences and nothing else.
 
 kapi also compares each comment with what gofmt writes. A comment gofmt would
-rewrite is a `formatter.gofmt` finding, and it fails the gate, so formatting
-work is caught before the commit rather than after it. `--lenient` reports it
-without failing.
+rewrite is a `formatter.gofmt` finding, and it fails, so formatting work is
+caught before the commit rather than after it.
 
 Beside your file, each run gives the comment reader and gofmt a small Go file
 with a known fault. If either reports nothing on it, the check did not run and
@@ -450,11 +448,13 @@ style:
     density: { ratio: 1, min_comment_lines: 8 }
 ```
 
-A sentence over 50 words is then a minor `comment.sentence-length` finding and
-one over 70 a major one, and a comment over the limit for what it documents is
-a major `comment.length` finding. A change that adds 8 or more comment lines to
-a file and more comment lines than code lines is a major `comment.density`
-finding. The package doc comment does not count toward it, and only a check
+A sentence over 50 words is then a `comment.sentence-length` finding, and so
+is one over 70; a comment over the limit for what it documents is a
+`comment.length` finding. A change that adds 8 or more comment lines to a file
+and more comment lines than code lines is a `comment.density` finding. These
+limits are style measures, so their findings report. Add `fails: true` under
+`style.comments` to make a sentence over the upper limit, a comment over its
+length limit and a too-dense change fail. The package doc comment does not count toward it, and only a check
 scoped to a diff measures it. `comments: {}` applies these numbers, which
 are the defaults. A profile that holds only these limits can be named on its
 own, as in `kapi check --profile-file comments.yaml parse.go`, and the comment
@@ -471,18 +471,18 @@ style:
   prohibited_patterns:
     - regex: "\u2014"
       description: An em dash; use a comma, a full stop or two sentences.
-      severity: major
       scope: prose
     - regex: '(?i)\bused to\b'
       not_after: '(?i)(?:(?:\b(?:is|are|was|were|be|been|being|get|gets|got|isn''t|aren''t|wasn''t|weren''t)|[''’]s)\s+(?:\w+\s+)?|[^\w\s)\]"''\x60’”]\s*|(?:^|\s)["“‘''\x60]|^\s*)$'
       description: The past-habitual "used to"; describe what the code does.
-      severity: major
       scope: prose
     - regex: "(?i)\\b(?:crucially|importantly|load[- ]bearing|worth noting)\\b"
       description: A significance label; state the claim.
-      severity: major
       scope: prose
 ```
+
+Each pattern fails a check where it matches. Add `advisory: true` to a pattern
+to have it report instead.
 
 `not_after` keeps "is used to" and "an id, used to flag" out of the rule, which
 a regular expression alone cannot say.
@@ -506,8 +506,8 @@ kapi check --diff-against HEAD
 ```
 
 ```text
-  severity  rule         location                                 message
-  CRITICAL  voice.style  internal/parse/parse.go:func/Parse L5-7  Prohibited pattern: Say use rather than utilize.
+  outcome  rule         location                                 message
+  FAILS    voice.style  internal/parse/parse.go:func/Parse L5-7  Prohibited pattern: Say use rather than utilize.
 ```
 
 Write the new prose for that comment as a `comment` entry, with the id, lines

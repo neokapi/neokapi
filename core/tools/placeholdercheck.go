@@ -93,7 +93,7 @@ func NewPlaceholderCheckTool(cfg *PlaceholderCheckConfig) *tool.BaseTool {
 		for _, code := range codeDiff.MissingCodes() {
 			findings = append(findings, check.Finding{
 				Category:     "placeholder",
-				Severity:     check.SeverityCritical,
+				Fails:        true,
 				Message:      fmt.Sprintf("Inline code %s is missing from the %s target (dropped %d×)", code, conf.TargetLocale, codeDiff.Missing[code]),
 				Suggestion:   fmt.Sprintf("Keep %s in the target", code),
 				OriginalText: code,
@@ -103,16 +103,17 @@ func NewPlaceholderCheckTool(cfg *PlaceholderCheckConfig) *tool.BaseTool {
 			for _, code := range codeDiff.ExtraCodes() {
 				findings = append(findings, check.Finding{
 					Category:     "placeholder",
-					Severity:     check.SeverityMajor,
+					Fails:        true,
 					Message:      fmt.Sprintf("Inline code %s appears in the %s target but not the source", code, conf.TargetLocale),
 					OriginalText: code,
+					Metadata:     map[string]string{"kind": "extra"},
 				})
 			}
 		}
 		for _, d := range missing {
 			findings = append(findings, check.Finding{
 				Category:     "placeholder",
-				Severity:     check.SeverityCritical,
+				Fails:        true,
 				Message:      d.missingMessage(conf.TargetLocale),
 				Suggestion:   fmt.Sprintf("Keep %s in the target", d.Token),
 				OriginalText: d.Token,
@@ -121,9 +122,10 @@ func NewPlaceholderCheckTool(cfg *PlaceholderCheckConfig) *tool.BaseTool {
 		for _, d := range extra {
 			findings = append(findings, check.Finding{
 				Category:     "placeholder",
-				Severity:     check.SeverityMajor,
+				Fails:        true,
 				Message:      d.extraMessage(conf.TargetLocale),
 				OriginalText: d.Token,
+				Metadata:     map[string]string{"kind": "extra"},
 			})
 		}
 

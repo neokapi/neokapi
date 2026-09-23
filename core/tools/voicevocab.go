@@ -47,8 +47,8 @@ type VoiceVocabCheckTool struct {
 // against, and returns the tool so a caller can chain it onto the constructor.
 //
 // It is how a project's context operations reach the gate: a set marked
-// Advisory raises its hits at neutral severity, so a candidate is reported and
-// fails nothing, and an unmarked set behaves like any other declared rule.
+// Suggested reports its hits and fails nothing, and an unmarked set behaves
+// like any other declared rule.
 func (t *VoiceVocabCheckTool) Holding(sets ...coreprofile.TermRuleSet) *VoiceVocabCheckTool {
 	for _, set := range sets {
 		if len(set.Rules) > 0 {
@@ -300,14 +300,13 @@ func matchingText(pattern string) (string, bool) {
 // term-lookup annotates those for context and is right to. Here they are simply
 // uses of words the project likes.
 //
-// A rule the caller declared is a violation by construction — a voice profile's
-// forbidden and competitor lists exist to be objected to — so it keeps the kind
-// and severity its rule set gave it. A store match is graded by the concept's
-// standing: a competitor's name is critical and a forbidden term major, matching
-// how the two are weighted in a profile. A retired term is minor, because the
-// word was the project's own until a decision replaced it, and `--strict` should
-// not turn every legacy spelling in a corpus into a build failure the day a term
-// is retired.
+// A rule the caller declared is a violation by construction, so it keeps the
+// kind its rule set gave it and fails unless the rule is advisory or
+// suggested. A store match is graded by the concept's standing: a competitor's
+// name and a forbidden term fail. A retired term reports, because the word was
+// the project's own until a decision replaced it, and a check should not turn
+// every legacy spelling in a corpus into a build failure the day a term is
+// retired.
 func violations(occurrences []terms.Occurrence) []terms.Occurrence {
 	out := make([]terms.Occurrence, 0, len(occurrences))
 	for _, occ := range occurrences {
@@ -317,11 +316,11 @@ func violations(occurrences []terms.Occurrence) []terms.Occurrence {
 		}
 		switch {
 		case occ.Competitor:
-			occ.Kind, occ.Severity = coreprofile.VocabCompetitor, coreprofile.SeverityCritical
+			occ.Kind, occ.Fails = coreprofile.VocabCompetitor, true
 		case occ.Status == model.TermForbidden:
-			occ.Kind, occ.Severity = coreprofile.VocabForbidden, coreprofile.SeverityMajor
+			occ.Kind, occ.Fails = coreprofile.VocabForbidden, true
 		case occ.Status == model.TermDeprecated:
-			occ.Kind, occ.Severity = coreprofile.VocabForbidden, coreprofile.SeverityMinor
+			occ.Kind, occ.Fails = coreprofile.VocabForbidden, false
 		default:
 			continue
 		}

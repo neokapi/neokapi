@@ -139,11 +139,11 @@ func TestRunFlowAction_PrePushGateBlocksOnFindings(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, cli.ExitGate, cli.ExitCode(cmd, err), "a failed gate exits like `kapi check`")
 	assert.Contains(t, err.Error(), `automation "checks-gate" action "run_flow"`)
-	assert.Contains(t, err.Error(), `flow "guard" found 1 finding(s) (1 critical`)
+	assert.Contains(t, err.Error(), `flow "guard" found 1 finding(s), 1 failing`)
 
 	out := stdout.String()
 	assert.Contains(t, out, "Running automation: checks-gate")
-	assert.Contains(t, out, "CRITICAL", "the findings table prints where the push prints")
+	assert.Contains(t, out, "FAILS", "the findings table prints where the push prints")
 	assert.Contains(t, out, "Acme Cloud")
 	assert.NotContains(t, out, "Would run flow")
 }
@@ -279,8 +279,8 @@ func TestRunFlowAction_ReportsWithoutGating(t *testing.T) {
 	cmd, stdout, _ := hookCmd(t)
 
 	require.NoError(t, runLocalAutomations(cmd, proj, project.HookPrePush))
-	assert.Contains(t, stdout.String(), "CRITICAL")
-	assert.Contains(t, stdout.String(), "1 finding(s)")
+	assert.Contains(t, stdout.String(), "FAILS")
+	assert.Contains(t, stdout.String(), "1 failing, 0 reported")
 }
 
 // A post-pull rule runs the flow too, and the triggering command's own
@@ -362,7 +362,7 @@ func TestRunFlowAction_QuietStillGates(t *testing.T) {
 	err := runLocalAutomations(cmd, proj, project.HookPrePush)
 	require.Error(t, err)
 	assert.Equal(t, cli.ExitGate, cli.ExitCode(cmd, err))
-	assert.NotContains(t, stdout.String(), "CRITICAL", "quiet prints no table")
+	assert.NotContains(t, stdout.String(), "FAILS", "quiet prints no table")
 }
 
 // Under --json the command's stdout is a document; the automation narrates
@@ -378,5 +378,5 @@ func TestRunFlowAction_JSONKeepsStdoutForTheDocument(t *testing.T) {
 	require.NoError(t, runLocalAutomations(cmd, proj, project.HookPrePush))
 	assert.Empty(t, stdout.String())
 	assert.Contains(t, stderr.String(), "Running automation: checks")
-	assert.Contains(t, stderr.String(), "CRITICAL")
+	assert.Contains(t, stderr.String(), "FAILS")
 }

@@ -288,7 +288,7 @@ func TestAICheckToolAddsProperties(t *testing.T) {
 	findings := check.Findings(coretool.NewBlockView(resultBlock))
 	require.Len(t, findings, 1)
 	assert.Equal(t, "fluency", findings[0].Category)
-	assert.Equal(t, check.SeverityMinor, findings[0].Severity) // "warning" → minor
+	assert.False(t, findings[0].Fails) // "warning" → minor
 	assert.Equal(t, "awkward phrasing", findings[0].Message)
 	assert.Equal(t, "rephrase", findings[0].Suggestion)
 	assert.Equal(t, "mock", resultBlock.Properties["qa-provider"])

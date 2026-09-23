@@ -26,6 +26,9 @@ type CommentRules struct {
 	// Density limits the comment lines a change adds for the code lines it
 	// adds. A check scoped to a diff applies it.
 	Density *DensityLimits `json:"density,omitempty" yaml:"density,omitempty"`
+	// Fails makes a comment over a limit fail a check. Unset, the limits are
+	// style measures and what they find reports.
+	Fails bool `json:"fails,omitempty" yaml:"fails,omitempty"`
 }
 
 // DensityLimits flag a change that adds at least MinCommentLines comment lines
@@ -67,6 +70,7 @@ func (r *CommentRules) Limits() check.CommentLimits {
 		}
 		set(&l.DensityMinLines, d.MinCommentLines)
 	}
+	l.Fails = r.Fails
 	return l
 }
 
@@ -79,6 +83,7 @@ func (r *CommentRules) clone() *CommentRules {
 		CommentWords:    cloneInt(r.CommentWords),
 		DocWords:        cloneInt(r.DocWords),
 		PackageDocWords: cloneInt(r.PackageDocWords),
+		Fails:           r.Fails,
 	}
 	if s := r.SentenceWords; s != nil {
 		c.SentenceWords = &SentenceWordLimits{Minor: cloneInt(s.Minor), Major: cloneInt(s.Major)}

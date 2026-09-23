@@ -24,7 +24,7 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: minor
+      advisory: true
 `
 
 // writeStalenessProject builds a project that binds a voice profile over one
@@ -169,7 +169,7 @@ func TestStalenessGate_ThreeOutcomes(t *testing.T) {
 		require.True(t, judged)
 		assert.False(t, gate.Pass)
 		require.NotEmpty(t, gate.Findings)
-		assert.Equal(t, "error", gate.Findings[0].Severity)
+		assert.True(t, gate.Findings[0].Fails)
 		assert.Contains(t, gate.Findings[0].Message, "superseded context")
 		assert.Contains(t, gate.Findings[0].Suggestion, "kapi up")
 	})
@@ -182,7 +182,7 @@ func TestStalenessGate_ThreeOutcomes(t *testing.T) {
 		require.True(t, judged)
 		assert.True(t, gate.Pass, "content that predates the stamp must not fail the gate")
 		require.Len(t, gate.Findings, 1)
-		assert.Equal(t, "info", gate.Findings[0].Severity)
+		assert.False(t, gate.Findings[0].Fails)
 		assert.Contains(t, gate.Findings[0].Message, "no governing-context stamp")
 	})
 
@@ -215,11 +215,10 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: minor
+      advisory: true
   competitor_terms:
     - term: Globex
       replacement: our platform
-      severity: critical
 `
 	require.NoError(t, os.WriteFile(layoutVoicePath(t, f.root), []byte(moved), 0o644))
 	readProjectContext(t, f.root)

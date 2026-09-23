@@ -665,7 +665,7 @@ func suggestionsAbout(records []contextop.Record, query string, limit int) []Con
 			entry.SuggestedBy = string(r.Actor.Kind)
 		}
 		if rule, ok := r.Rule(); ok {
-			entry.Term, entry.Forms, entry.Replacement, entry.Severity = rule.Term, rule.Forms, rule.Replacement, rule.Severity
+			entry.Term, entry.Forms, entry.Replacement, entry.Advisory = rule.Term, rule.Forms, rule.Replacement, rule.Advisory
 			if r.Subject.Text != "" {
 				entry.Note = r.Subject.Text
 			}

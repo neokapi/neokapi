@@ -114,7 +114,6 @@ vocabulary:
   forbidden_terms:
     - term: translation memory
       replacement: content memory
-      severity: major
 `)
 
 	write(".kapi/terms.json", `{

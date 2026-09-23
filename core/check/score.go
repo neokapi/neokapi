@@ -60,7 +60,7 @@ func CalculateScore(findings []Finding, opts ...ScoreOption) Score {
 		if _, seen := penalties[f.Category]; !seen {
 			order = append(order, f.Category)
 		}
-		w := SeverityWeight(f.Severity)
+		w := Weight(f)
 		penalties[f.Category] += w
 		counts[f.Category]++
 		total += w

@@ -2,7 +2,7 @@
 // checker's findings painted on the shared severity scale. Every other layer
 // is a card prop as the host serialises it.
 
-import { findingSeverityTone } from "../../lib/finding-severity";
+import { findingOutcomeTone, findingSeverityTone } from "../../lib/finding-severity";
 import type { CheckFindingLike, ReviewFindingView } from "./types";
 
 /**
@@ -19,7 +19,10 @@ export function checkFindingViews(
     id: `${idPrefix}-${i}`,
     category: f.category,
     severity: f.severity,
-    tone: findingSeverityTone(f.severity),
+    fails: f.fails,
+    // A core/check finding says whether it fails; a finding from elsewhere
+    // (an AI pre-review) still grades itself with a severity word.
+    tone: f.fails === undefined ? findingSeverityTone(f.severity) : findingOutcomeTone(f),
     message: f.message,
     suggestion: f.suggestion ?? f.replacement,
     originalText: f.original_text,

@@ -140,10 +140,10 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 	for _, s := range scopes {
 		gate.Pass = false
 		gate.Findings = append(gate.Findings, verifyFinding{
-			Gate:     gateStaleness,
-			File:     s.unit.DisplayPath,
-			Locale:   s.unit.Locale,
-			Severity: "error",
+			Gate:   gateStaleness,
+			File:   s.unit.DisplayPath,
+			Locale: s.unit.Locale,
+			Fails:  true,
 			Message: fmt.Sprintf("%d of %d targets were produced under a superseded context: %s moved (%s)",
 				s.stale, s.produced, s.moved, s.detail),
 			Suggestion: "run `kapi up` to reproduce them under the context now in force",
@@ -156,7 +156,6 @@ func (a *App) verifyStaleness(cmd Command, proj *project.KapiProject, root strin
 	if unstamped > 0 {
 		gate.Findings = append(gate.Findings, verifyFinding{
 			Gate:       gateStaleness,
-			Severity:   "info",
 			Message:    fmt.Sprintf("%d targets carry no governing-context stamp, produced before the stamp existed or written by hand", unstamped),
 			Suggestion: "they are reported, never failed; the next `kapi up` stamps what it reproduces",
 		})

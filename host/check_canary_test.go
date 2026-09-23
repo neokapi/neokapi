@@ -103,7 +103,7 @@ func TestCheckCanary_ZeroBlocksDoesNotPass(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, check.VerdictPassed, report.Verdict, "coverage counts across the run")
 
-	for _, flag := range []string{"", "no-fail", "lenient"} {
+	for _, flag := range []string{"", "no-fail"} {
 		cmd := executionCommand(t)
 		if flag != "" {
 			cmd.Flags().Bool(flag, true, "")

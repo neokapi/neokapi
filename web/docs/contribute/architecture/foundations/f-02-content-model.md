@@ -297,7 +297,7 @@ rather than a runtime flag. Annotations are reached through the
 | Terms | overlay `term` | Matched terms with their target forms |
 | Term candidates | overlay `term-candidate` | Extraction candidates awaiting a decision |
 | Entities | overlay `entity` | Named entities (people, places, dates) |
-| Findings | overlay `qa` | Verification findings with severity |
+| Findings | overlay `qa` | Verification findings, each failing or reporting |
 | Alignment | overlay `alignment` | Source-span to target-span links |
 | Alt-translations | annotation `alt-translation` | Candidate translations with scores |
 | Editor anchors | overlay `editor-anchor` | An integration binding into the native editor that owns the format (a Word content control, a Figma node), set by a connector rather than a tool |

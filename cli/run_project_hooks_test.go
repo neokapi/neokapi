@@ -41,10 +41,10 @@ func TestRunFromProject_OnFindingsReceivesWhatTheRunPrinted(t *testing.T) {
 
 	require.Len(t, got, 1, "one pass, one report")
 	assert.Equal(t, 1, got[0].Summary.Findings)
-	assert.Equal(t, 1, got[0].Summary.Critical)
+	assert.Equal(t, 1, got[0].Summary.Failing)
 	require.Len(t, got[0].Findings, 1)
 	assert.Equal(t, "dnt-check.do-not-translate", got[0].Findings[0].Rule)
-	assert.Contains(t, out.String(), "CRITICAL", "the run still prints its report")
+	assert.Contains(t, out.String(), "FAILS", "the run still prints its report")
 }
 
 // A clean run hands over an empty summary rather than nothing: the caller
@@ -103,7 +103,7 @@ func TestRunFromProject_OnFindingsFiresUnderQuiet(t *testing.T) {
 	require.NoError(t, err, out.String())
 	require.Len(t, got, 1)
 	assert.Equal(t, 1, got[0].Summary.Findings)
-	assert.NotContains(t, out.String(), "CRITICAL", "quiet prints no report")
+	assert.NotContains(t, out.String(), "FAILS", "quiet prints no report")
 }
 
 // Without the hook nothing changes: an ordinary `kapi run` neither collects

@@ -19,7 +19,6 @@ export const valueSetsFixture: Record<string, FieldValueSet> = {
   "style.person_pov": { values: ["first_plural", "second", "third"], open: false },
   "style.contractions": { values: ["always", "sometimes", "never"], open: false },
   "examples.category": { values: ["tone", "style", "vocabulary"], open: false },
-  severity: { values: ["neutral", "minor", "major", "critical"], open: false },
   scope: { values: ["prose", "code", "heading"], open: false },
 };
 
@@ -57,7 +56,7 @@ export const voiceFixture: ProjectVoiceResult = {
             {
               regex: "\\bsynergy\\b",
               description: "Corporate filler.",
-              severity: "minor",
+              advisory: true,
               rate: { max: 2, per_words: 1000 },
             },
           ],
@@ -65,7 +64,7 @@ export const voiceFixture: ProjectVoiceResult = {
             {
               regex: "\\bplease\\b",
               description: "Ask, do not instruct.",
-              severity: "neutral",
+              advisory: true,
               scope: "prose",
             },
           ],
@@ -75,12 +74,11 @@ export const voiceFixture: ProjectVoiceResult = {
             {
               term: "log in",
               replacement: "sign in",
-              severity: "major",
               note: "One spelling across the product.",
               concept_id: "c-signin",
             },
           ],
-          forbidden_terms: [{ term: "bulletproof", severity: "critical" }],
+          forbidden_terms: [{ term: "bulletproof" }],
           abbreviations: { API: "application programming interface" },
         },
         examples: [

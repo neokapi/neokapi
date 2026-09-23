@@ -102,7 +102,7 @@ func TestTermsSurfacesAgreeOnDoNotTranslate(t *testing.T) {
 		for _, d := range report.Findings {
 			if d.Check == "terms" {
 				checked = append(checked, name)
-				assert.Equal(t, check.SeverityCritical, d.Severity, "%s: %s", name, d.Message)
+				assert.True(t, d.Fails, "%s: %s", name, d.Message)
 			}
 		}
 		assert.Equal(t, name == "translated", report.Verdict == check.VerdictFailed, "%s: kapi check verdict %s", name, report.Verdict)

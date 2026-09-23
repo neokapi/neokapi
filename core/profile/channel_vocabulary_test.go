@@ -18,7 +18,7 @@ func channelVocabularyProfile() *VoiceProfile {
 		Name: "Service",
 		Vocabulary: VocabularyRules{
 			ForbiddenTerms: []TermRule{{
-				Term: "utilize", Replacement: "use", Severity: "critical", Forms: []string{"utilizes"},
+				Term: "utilize", Replacement: "use", Forms: []string{"utilizes"},
 			}},
 			PreferredTerms: []TermRule{{Term: "sign in"}},
 		},
@@ -27,7 +27,7 @@ func channelVocabularyProfile() *VoiceProfile {
 		},
 		Channels: map[string]ChannelOverride{
 			"child": {Vocabulary: &VocabularyRules{
-				ForbiddenTerms:  []TermRule{{Term: "authenticate", Replacement: "sign in", Severity: "major"}},
+				ForbiddenTerms:  []TermRule{{Term: "authenticate", Replacement: "sign in"}},
 				CompetitorTerms: []TermRule{{Term: "Globex"}},
 				PreferredTerms:  []TermRule{{Term: "grown-up"}},
 				Abbreviations:   map[string]string{"FAQ": "questions"},
@@ -45,13 +45,13 @@ func termsOf(rules []TermRule) []string {
 	return out
 }
 
-// severitiesOf lists the severity of every hit on term, so a test can see both
-// rules when two layers name the same word.
-func severitiesOf(p *VoiceProfile, text, term string) []Severity {
-	var out []Severity
+// failsOf lists whether every hit on term fails, so a test can see both rules
+// when two layers name the same word.
+func failsOf(p *VoiceProfile, text, term string) []bool {
+	var out []bool
 	for _, h := range MatchVocabulary(p, text) {
 		if h.Term == term {
-			out = append(out, h.Severity)
+			out = append(out, h.Fails)
 		}
 	}
 	return out
@@ -63,13 +63,13 @@ func TestResolveProfile_ChannelVocabularyAppliesOnlyInItsChannel(t *testing.T) {
 
 	child := ResolveProfile(p, "", "child", "")
 	require.NotNil(t, child)
-	assert.Equal(t, []Severity{SeverityMajor}, severitiesOf(child, text, "authenticate"),
+	assert.Equal(t, []bool{true}, failsOf(child, text, "authenticate"),
 		"a channel's forbidden term is a finding in that channel")
-	assert.Equal(t, []Severity{SeverityCritical}, severitiesOf(child, text, "Globex"),
+	assert.Equal(t, []bool{true}, failsOf(child, text, "Globex"),
 		"a channel's competitor term is a finding in that channel")
 	assert.Equal(t, []string{"sign in", "grown-up"}, termsOf(child.Vocabulary.PreferredTerms))
 	assert.Equal(t, "questions", child.Vocabulary.Abbreviations["FAQ"])
-	assert.Equal(t, []Severity{SeverityCritical}, severitiesOf(child, "Please utilize it.", "utilize"),
+	assert.Equal(t, []bool{true}, failsOf(child, "Please utilize it.", "utilize"),
 		"the profile's own rule still applies inside the channel")
 
 	for _, channel := range []string{"", "adult", "unknown"} {
@@ -93,14 +93,14 @@ func TestResolveProfile_ChannelPreferredCannotReAllowForbiddenTerm(t *testing.T)
 	require.NotNil(t, resolved)
 	assert.Equal(t, []string{"sign in"}, termsOf(resolved.Vocabulary.PreferredTerms),
 		"a channel's preferred term must never re-allow a forbidden or competitor term")
-	assert.Equal(t, []Severity{SeverityCritical}, severitiesOf(resolved, "utilize it", "utilize"),
+	assert.Equal(t, []bool{true}, failsOf(resolved, "utilize it", "utilize"),
 		"the term stays forbidden in the channel")
 }
 
 func TestResolveProfile_ChannelCannotLoosenEarlierLayers(t *testing.T) {
 	p := channelVocabularyProfile()
 	p.Channels["child"] = ChannelOverride{Vocabulary: &VocabularyRules{
-		ForbiddenTerms: []TermRule{{Term: "utilize", Severity: "minor"}},
+		ForbiddenTerms: []TermRule{{Term: "utilize", Advisory: true}},
 		PreferredTerms: []TermRule{
 			{Term: "Sign in", Replacement: "log in"}, // rewords the profile's preferred term
 			{Term: "e-post", Replacement: "epost"},   // rewords the locale's preferred term
@@ -111,8 +111,8 @@ func TestResolveProfile_ChannelCannotLoosenEarlierLayers(t *testing.T) {
 
 	resolved := ResolveProfile(p, "nb", "child", "")
 	require.NotNil(t, resolved)
-	assert.Contains(t, severitiesOf(resolved, "Please utilize it.", "utilize"), SeverityCritical,
-		"a channel restating a forbidden term at a lower severity leaves the profile's rule firing")
+	assert.Contains(t, failsOf(resolved, "Please utilize it.", "utilize"), true,
+		"a channel restating a forbidden term as advisory leaves the profile's rule failing")
 	assert.Equal(t,
 		[]TermRule{{Term: "sign in"}, {Term: "e-post", Replacement: "e-post"}},
 		resolved.Vocabulary.PreferredTerms,
@@ -124,7 +124,7 @@ func TestResolveProfile_CaseSensitiveRuleLeavesOtherCasingPreferable(t *testing.
 	p := &VoiceProfile{
 		Name: "ripgrep",
 		Vocabulary: VocabularyRules{ForbiddenTerms: []TermRule{{
-			Term: "Ripgrep", Replacement: "ripgrep", CaseSensitive: true,
+			Term: "Ripgrep", Replacement: "ripgrep", CaseSensitive: new(true),
 		}}},
 		Channels: map[string]ChannelOverride{"docs": {Vocabulary: &VocabularyRules{
 			PreferredTerms: []TermRule{{Term: "ripgrep"}, {Term: "Ripgrep"}},
@@ -195,7 +195,6 @@ channels:
       forbidden_terms:
         - term: authenticate
           replacement: sign in
-          severity: major
 `
 
 func TestChannelVocabularyDecodesInBothLoaders(t *testing.T) {
@@ -207,7 +206,7 @@ func TestChannelVocabularyDecodesInBothLoaders(t *testing.T) {
 	for name, p := range map[string]*VoiceProfile{"lenient": lenient, "strict": strict} {
 		v := p.Channels["child"].Vocabulary
 		require.NotNil(t, v, "the %s loader must keep the channel's vocabulary", name)
-		assert.Equal(t, []TermRule{{Term: "authenticate", Replacement: "sign in", Severity: "major"}}, v.ForbiddenTerms)
+		assert.Equal(t, []TermRule{{Term: "authenticate", Replacement: "sign in"}}, v.ForbiddenTerms)
 	}
 	assert.Empty(t, ValidateProfile(strict))
 }
@@ -220,7 +219,7 @@ func TestValidateProfile_OverrideVocabulary(t *testing.T) {
 	}}
 	p.Personas = map[string]PersonaOverride{"sam": {
 		Preferred: []TermRule{{Term: "sign in", Replacement: "log in"}},
-		Avoided:   []TermRule{{Term: "", Severity: "nope"}},
+		Avoided:   []TermRule{{Term: ""}},
 	}}
 
 	byField := map[string]ProfileProblem{}
@@ -240,5 +239,4 @@ func TestValidateProfile_OverrideVocabulary(t *testing.T) {
 
 	assert.True(t, byField["personas.sam.preferred_terms[0]"].Warning)
 	assert.Contains(t, byField, "personas.sam.avoided_terms[0].term")
-	assert.Contains(t, byField, "personas.sam.avoided_terms[0].severity")
 }

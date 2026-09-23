@@ -188,7 +188,7 @@ func caughtRun(id string, status AnalyzerStatus) AnalyzerExecution {
 
 // TestDecide pairs each rule with the neighbour that must not trigger it.
 func TestDecide(t *testing.T) {
-	failedGate := GateResult{Failed: []string{"critical findings 1 exceed limit 0"}}
+	failing := []Diagnostic{{Rule: "voice.vocabulary", Fails: true}}
 	tests := []struct {
 		name      string
 		report    Report
@@ -217,13 +217,13 @@ func TestDecide(t *testing.T) {
 			want:   VerdictPassed,
 		},
 		{
-			name:   "a tripped gate fails",
-			report: Report{Target: Target{Blocks: 3}, Gate: failedGate, Execution: &Execution{Analyzers: []AnalyzerExecution{caughtRun("hygiene", AnalyzerFindings)}}},
+			name:   "a failing finding fails",
+			report: Report{Target: Target{Blocks: 3}, Findings: failing, Execution: &Execution{Analyzers: []AnalyzerExecution{caughtRun("hygiene", AnalyzerFindings)}}},
 			want:   VerdictFailed,
 		},
 		{
-			name: "a missed canary outranks a tripped gate",
-			report: Report{Target: Target{Blocks: 3}, Gate: failedGate, Execution: &Execution{Analyzers: []AnalyzerExecution{
+			name: "a missed canary outranks a failing finding",
+			report: Report{Target: Target{Blocks: 3}, Findings: failing, Execution: &Execution{Analyzers: []AnalyzerExecution{
 				caughtRun("hygiene", AnalyzerFindings),
 				{ID: "voice.rules", Status: AnalyzerInvalid, File: "a.md", Canary: &CanaryOutcome{Status: CanaryMissed}},
 			}}},
@@ -284,11 +284,11 @@ func TestDecide(t *testing.T) {
 }
 
 func TestBuildReport_ZeroBlocksNeverPasses(t *testing.T) {
-	r := BuildReport(Target{Kind: "file", Blocks: 0}, nil, DefaultGate())
+	r := BuildReport(Target{Kind: "file", Blocks: 0}, nil)
 	assert.False(t, r.Pass)
 	assert.Equal(t, VerdictDidNotRun, r.Verdict)
 
-	r = BuildReport(Target{Kind: "file", Blocks: 1}, nil, DefaultGate())
+	r = BuildReport(Target{Kind: "file", Blocks: 1}, nil)
 	assert.True(t, r.Pass)
 	assert.Equal(t, VerdictPassed, r.Verdict)
 }

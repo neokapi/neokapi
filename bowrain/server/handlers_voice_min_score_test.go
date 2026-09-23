@@ -145,10 +145,10 @@ func authoredProfileRequest(name, mark string, minScore int) VoiceProfileRequest
 			ActiveVoice: true, SentenceLength: "short", PersonPOV: "second",
 			Contractions: "never",
 			ProhibitedPatterns: []coreprofile.Pattern{
-				{Regex: "x" + mark, Description: "no " + mark, Severity: "major"},
+				{Regex: "x" + mark, Description: "no " + mark},
 			},
 			RequiredPatterns: []coreprofile.Pattern{
-				{Regex: "y" + mark, Description: "yes " + mark, Severity: "minor"},
+				{Regex: "y" + mark, Description: "yes " + mark, Advisory: true},
 			},
 		},
 		Vocabulary: coreprofile.VocabularyRules{

@@ -18,30 +18,26 @@ style:
   prohibited_patterns:
     - regex: '\b(you should have|you need to understand)\b'
       description: Blaming or condescending language
-      severity: major
     - regex: '\b(unfortunately|regrettably)\b'
       description: Negative framing (reframe positively)
-      severity: minor
+      advisory: true
 vocabulary:
   forbidden_terms:
     - term: unfortunately
       replacement: ""
-      severity: minor
+      advisory: true
     - term: impossible
       replacement: not currently available
-      severity: major
     - term: you failed to
       replacement: it looks like
-      severity: major
     - term: as per our policy
       replacement: ""
-      severity: minor
+      advisory: true
     - term: obviously
       replacement: ""
-      severity: minor
+      advisory: true
     - term: calm down
       replacement: ""
-      severity: major
   preferred_terms:
     - term: I understand
       note: Use to acknowledge the customer's concern

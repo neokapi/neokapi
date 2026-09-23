@@ -64,7 +64,6 @@ channels:
       forbidden_terms:
         - term: utilize
           replacement: use
-          severity: major
   adult:
     tone:
       formality: neutral
@@ -103,9 +102,9 @@ func TestCheckTextMCPDestinationMatchesFileContext(t *testing.T) {
 			assert.Empty(t, draft.Target.File)
 			assert.Positive(t, ruleCounts(draft)["voice.vocabulary"], "project terms must apply")
 			if channel == "child" {
-				assert.Positive(t, draft.Summary.Critical, "shared constraints survive the child presentation override")
+				assert.Positive(t, draft.Summary.Failing, "shared constraints survive the child presentation override")
 			} else {
-				assert.Zero(t, draft.Summary.Critical, "the adult scope's approved exception must apply")
+				assert.Zero(t, draft.Summary.Failing, "the adult scope's approved exception must apply")
 			}
 			for _, finding := range draft.Findings {
 				assert.Empty(t, finding.Location.File, "a draft finding must not imply disk extraction")
@@ -121,7 +120,7 @@ func TestCheckTextMCPDestinationMatchesFileContext(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, ruleCounts(saved), ruleCounts(draft))
 			assert.Equal(t, saved.Summary, draft.Summary)
-			assert.Equal(t, saved.Gate, draft.Gate)
+			assert.Equal(t, saved.Summary.Failing, draft.Summary.Failing)
 			assert.Empty(t, saved.Target.ContextPath)
 			assert.Equal(t, scopedFindingMeaning(saved), scopedFindingMeaning(draft))
 		})
@@ -150,10 +149,10 @@ func TestCheckTextMCPUnscopedAndExplicitProfileRemainAvailable(t *testing.T) {
 	require.NoError(t, os.WriteFile(override, []byte(profileBody), 0o600))
 	_, report, err = app.checkTextMCP(t.Context(), checkTextInput{Text: "An override-only phrase.", ProfileFile: override})
 	require.NoError(t, err)
-	assert.Equal(t, 1, report.Summary.Critical)
+	assert.Equal(t, 1, report.Summary.Failing)
 	_, report, err = app.checkTextMCP(t.Context(), checkTextInput{Text: "Hello.", ProfilePack: "marketing-blog"})
 	require.NoError(t, err)
-	assert.Equal(t, "kapi.check/v1", report.Schema)
+	assert.Equal(t, "kapi.check/v2", report.Schema)
 }
 
 func TestCheckTextMCPDestinationValidationPrecedesOverrides(t *testing.T) {
@@ -206,7 +205,7 @@ func TestCheckTextMCPReadsNoContextFile(t *testing.T) {
 
 			after, report, err := app.checkTextMCP(t.Context(), checkTextInput{Text: text, ContextPath: "child/new.json"})
 			require.NoError(t, err, "a check opens no context file, so it has none to trip over")
-			assert.Equal(t, "kapi.check/v1", report.Schema)
+			assert.Equal(t, "kapi.check/v2", report.Schema)
 			assert.Equal(t, before, after, "the same store answers the same way")
 
 			// The import is what reads them, and it says so.
@@ -243,5 +242,5 @@ func TestCheckTextMCPDestinationThroughProtocol(t *testing.T) {
 	assert.Equal(t, "child/draft.json", report.Target.ContextPath)
 	assert.Equal(t, "text", report.Target.Kind)
 	assert.Empty(t, report.Target.File)
-	assert.Positive(t, report.Summary.Critical)
+	assert.Positive(t, report.Summary.Failing)
 }

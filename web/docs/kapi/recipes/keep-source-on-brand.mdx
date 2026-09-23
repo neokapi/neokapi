@@ -14,7 +14,7 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 The video below walks the whole path on one repository, in one language. A
 drafted context graph (recipe, voice profile, vocabulary) is reviewed and
-confirmed; `kapi check --strict` runs as a gate over operator documentation,
+confirmed; `kapi check` runs as a gate over operator documentation,
 interface strings and a marketing page; the failures are corrected three ways in
 the source and once as a vocabulary decision the graph keeps, so the next check
 enforces what the last one passed. No server, no model, no second language.
@@ -56,7 +56,7 @@ kapi check blog-post.md --pack marketing-blog
 kapi check product-brief.md --forbid "synergy" --forbid "disrupt" --max-words 500
 ```
 
-Exit `0` is a pass, `3` a gate failure; `--json` emits the `kapi.check/v1` Report with one finding per block ([Checks](/framework/checks) documents the schema). Then fix and re-check:
+Exit `0` is a pass, `3` means at least one finding fails; `--json` emits the `kapi.check/v2` Report with one finding per block ([Checks](/framework/checks) documents the schema). Then fix and re-check:
 
 ```bash
 kapi inspect blog-post.md --jsonl > blocks.jsonl
@@ -70,10 +70,10 @@ An edit whose content hash drifted, or that would corrupt an inline code, is lef
 
 ```jsonl
 {"kind":"content","file":"blog-post.md","id":"paragraph-0","content_hash":"b74d19…","text":"Today we use our infrastructure..."}
-{"kind":"voice","op":"add-rule","list":"forbidden","term":"leverage","replacement":"use","severity":"minor"}
+{"kind":"voice","op":"add-rule","list":"forbidden","term":"leverage","replacement":"use"}
 ```
 
-The `voice` entry lands in the profile the recipe binds, inside the project's voice store, so the next check enforces it (requires a kapi project).
+The `voice` entry lands in the profile the recipe binds, inside the project's voice store, so the next check enforces it (requires a kapi project). A use of the term then fails; add `"advisory":true` to have it report instead.
 
 </TabItem>
 </Tabs>

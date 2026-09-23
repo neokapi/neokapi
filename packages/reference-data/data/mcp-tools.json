@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T22:17:38Z",
+  "generatedAt": "2026-09-23T23:21:16Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -102,7 +102,7 @@
     },
     {
       "name": "check_file",
-      "description": "Check a file you changed against the voice and terms in force at its location, in any format kapi reads (Markdown, JSON, Word, XLIFF and more). Run it on every file you changed and fix what it reports before you say the work is done. To check only what a change touched, pass diff, diff_against (a git revision), staged, or diff_range (A..B). Returns a kapi.check/v1 report: findings, and which analyzers covered the content. A pass is not semantic approval.",
+      "description": "Check a file you changed against the voice and terms in force at its location, in any format kapi reads (Markdown, JSON, Word, XLIFF and more). Run it on every file you changed and fix what it reports before you say the work is done. To check only what a change touched, pass diff, diff_against (a git revision), staged, or diff_range (A..B). Returns a kapi.check/v2 report: findings, and which analyzers covered the content. A pass is not semantic approval.",
       "surface": "writing",
       "params": [
         {
@@ -205,7 +205,7 @@
     },
     {
       "name": "check_text",
-      "description": "Check a draft snippet with deterministic content rules. Before drafting, read the context://\u003cproject-relative-path\u003e resource for the applicable guidance. Supply context_path to check with that destination's voice and terms; without it, project guidance is not resolved. Explicit profile_pack/profile_file are available only without context_path. Returns a kapi.check/v1 Report with findings, analyzer coverage and configuration warnings, which never change pass; pass is not semantic approval. After saving edits, use check_file to verify the actual file.",
+      "description": "Check a draft snippet with deterministic content rules. Before drafting, read the context://\u003cproject-relative-path\u003e resource for the applicable guidance. Supply context_path to check with that destination's voice and terms; without it, project guidance is not resolved. Explicit profile_pack/profile_file are available only without context_path. Returns a kapi.check/v2 Report with findings, analyzer coverage and configuration warnings, which never change pass; pass is not semantic approval. After saving edits, use check_file to verify the actual file.",
       "surface": "content",
       "params": [
         {
@@ -288,6 +288,12 @@
           "description": "the wording that replaced it"
         },
         {
+          "name": "advisory",
+          "type": "boolean",
+          "required": false,
+          "description": "true when that rule should only report once a person keeps it; unset, a kept rule fails a check"
+        },
+        {
           "name": "note",
           "type": "string",
           "required": false,
@@ -304,12 +310,6 @@
           "type": "string",
           "required": false,
           "description": "the sentence the change was made in"
-        },
-        {
-          "name": "severity",
-          "type": "string",
-          "required": false,
-          "description": "how hard that rule bites once a person keeps it: minor and neutral report, anything else fails a check"
         },
         {
           "name": "suggest",

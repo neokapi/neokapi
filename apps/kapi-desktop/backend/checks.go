@@ -28,8 +28,10 @@ import (
 // panel. It mirrors core/check.Finding but adds the fields the panel needs to
 // locate the offending block and (when safe) offer a one-click fix.
 type DesktopFinding struct {
-	Category     string `json:"category"`
-	Severity     string `json:"severity"`
+	Category string `json:"category"`
+	// Fails says whether the finding fails the check, as the rule that raised
+	// it decides. A finding that does not fail reports.
+	Fails        bool   `json:"fails"`
 	Message      string `json:"message"`
 	Suggestion   string `json:"suggestion,omitempty"`
 	OriginalText string `json:"original_text,omitempty"`
@@ -98,7 +100,7 @@ type CheckRunResult struct {
 	Files          []CheckFileResult `json:"files"`
 	// Warnings name configuration to fix, such as a key a voice profile carries
 	// that the profile model does not define. They are the warnings a
-	// kapi.check/v1 report carries, and never change the verdict or the score.
+	// kapi.check/v2 report carries, and never change the verdict or the score.
 	Warnings []check.Warning `json:"warnings,omitempty"`
 }
 
@@ -397,11 +399,11 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 		warnings = append(warnings, found...)
 	}
 
-	// A finding on a comment weighs in the score by its rule and severity, as
-	// check.BuildReport weighs it for `kapi check`.
+	// A finding on a comment weighs in the score by its rule and whether it
+	// fails, as check.BuildReport weighs it for `kapi check`.
 	scored := slices.Clone(allFindings)
 	for _, d := range commentDiags {
-		scored = append(scored, check.Finding{Category: d.Rule, Severity: d.Severity})
+		scored = append(scored, check.Finding{Category: d.Rule, Fails: d.Fails, Suggested: d.Suggested})
 	}
 	score := check.CalculateScore(scored).Overall
 	result := checkRunVerdict(allFindings, commentDiags, blocksChecked, analyzers, score, files, unread)
@@ -410,8 +412,8 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 }
 
 // checkRunVerdict decides a checks run the way `kapi check` decides a report:
-// the default gate fails on any critical finding, a comment the project's
-// formatter would rewrite fails it too, and check.Report.Decide turns a run over
+// a failing finding fails it (a comment the project's formatter would rewrite
+// among them), and check.Report.Decide turns a run over
 // no blocks, or one whose checkers missed or lacked their canaries, into
 // did_not_run. comments are the findings on comments, as `kapi check` reported
 // them. The files unread names become warnings, and a run that read none of the
@@ -422,10 +424,9 @@ func checkRunVerdict(findings []check.Finding, comments []check.Diagnostic, bloc
 		diags = append(diags, check.DiagnosticFrom(f, "", check.Location{}))
 	}
 	diags = append(diags, comments...)
-	report := check.BuildReport(check.Target{Kind: "project", Blocks: blocks}, diags, check.DefaultGate())
+	report := check.BuildReport(check.Target{Kind: "project", Blocks: blocks}, diags)
 	report.Execution = &check.Execution{Analyzers: analyzers}
 	report.Decide()
-	host.ApplyFormatterGate(&report)
 	unread.Report(&report)
 	return &CheckRunResult{
 		Pass:           report.Pass,
@@ -513,7 +514,7 @@ func checkComments(ctx context.Context, capp *host.App, projectPath string, file
 func commentFinding(d check.Diagnostic, rf project.ResolvedFile, locale string) DesktopFinding {
 	f := DesktopFinding{
 		Category:     d.Check,
-		Severity:     string(d.Severity),
+		Fails:        d.Fails,
 		Message:      d.Message,
 		Suggestion:   d.Suggestion,
 		OriginalText: d.Location.Snippet,
@@ -1045,7 +1046,7 @@ func toDesktopFinding(f check.Finding, b *model.Block, field string, locale stri
 	}
 	df := DesktopFinding{
 		Category:     f.Category,
-		Severity:     string(f.Severity),
+		Fails:        f.Fails && !f.Suggested,
 		Message:      f.Message,
 		Suggestion:   f.Suggestion,
 		OriginalText: f.OriginalText,
@@ -1101,13 +1102,11 @@ func isSinglePlainTextRun(runs []model.Run) bool {
 	return len(runs) == 1 && runs[0].Text != nil
 }
 
-// checkSeverityRank orders findings critical → neutral for stable panel output.
-var checkSeverityRank = map[string]int{"critical": 0, "major": 1, "minor": 2, "neutral": 3}
-
+// sortDesktopFindings orders failing findings first, for stable panel output.
 func sortDesktopFindings(fs []DesktopFinding) {
 	sort.SliceStable(fs, func(i, j int) bool {
-		if checkSeverityRank[fs[i].Severity] != checkSeverityRank[fs[j].Severity] {
-			return checkSeverityRank[fs[i].Severity] < checkSeverityRank[fs[j].Severity]
+		if fs[i].Fails != fs[j].Fails {
+			return fs[i].Fails
 		}
 		return fs[i].Category < fs[j].Category
 	})

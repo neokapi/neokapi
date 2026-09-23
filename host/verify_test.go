@@ -24,11 +24,10 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: minor
+      advisory: true
   competitor_terms:
     - term: Globex
       replacement: our platform
-      severity: critical
 `
 
 // writeVerifyProject creates a temp project that binds a voice profile and a

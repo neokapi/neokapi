@@ -18,10 +18,10 @@ timestamp from Go's clock. Operations are appended to the workspace's operation
 log ([C-03](c-03-context-store-and-graph.md)) and never edited. A status change
 is a new operation naming the earlier one.
 
-A suggested rule takes effect at once as **advice**. Checks report it at
-`neutral` severity, which carries no penalty and trips no gate threshold, so a
-suggestion shows up wherever a rule would and can never fail a check. A person
-**keeping** it establishes the rule at the severity it carries, and writes it
+A suggested rule takes effect at once as **advice**. Checks report it with no
+weight in the score, so a suggestion shows up wherever a rule would and can
+never fail a check. A person **keeping** it establishes the rule, which then
+fails a check unless it is marked advisory, and writes it
 into the subsystem that already reads it: the terms store or the content
 memory. The log is the history and the source of suggestions; established
 rules live in the stores.
@@ -113,7 +113,7 @@ it left it:
 | Status | What it means | Answers |
 | --- | --- | --- |
 | `suggested` | nothing has acted on it | advises |
-| `established` | a person kept, imported or wrote it | binds at its severity |
+| `established` | a person kept, imported or wrote it | fails a check unless advisory |
 | `contested` | it disagrees with another rule, named in `ContestedBy` | advises |
 | `withdrawn` | its author took it back in the session that recorded it | silent |
 | `dropped` | a person set it aside | silent |
@@ -141,18 +141,15 @@ differ from the term only in case matches as written, so the rule about
 
 ### Suggestions advise, established rules bind
 
-A suggestion or a contested rule is projected into checks as an advisory rule set
-(`profile.TermRuleSet.Advisory`). The matcher raises every hit against such a
-set at `check.SeverityNeutral`, whatever severity the rule declares, and stamps
-`Advisory` on the hit, the finding and the diagnostic. Neutral is the level the
-framework already defines as carrying no penalty: it weighs zero in the score,
-counts into `Summary.Neutral` alone, and trips none of the gate's limits. A
-suggestion therefore cannot fail a check under `--strict` or under any threshold
-a project sets, and no gate had to be taught about it.
+A suggestion or a contested rule is projected into checks as a suggested rule
+set (`profile.TermRuleSet.Suggested`). The matcher raises every hit against such
+a set with `Fails` false, whatever the rule declares, and stamps `Suggested` on
+the hit, the finding and the diagnostic. A suggested finding weighs zero in the
+score and counts into `Summary.Reporting`, so a suggestion cannot fail a check.
 
 The flag is what a surface reads to show the finding as a suggestion rather than
-a broken rule, and `HitsToFindings` words the message accordingly: *Proposed rule
-about "utilise", not yet confirmed*.
+a broken rule, and `HitsToFindings` words the message accordingly: *Suggested
+rule about "utilise", not yet established*.
 
 Suggestions also run outside the vocabulary analyzer, before it. An analyzer's
 findings are its verdict, and `kapi check` counts them, scores them and holds
@@ -161,8 +158,8 @@ the analyzer to a canary; a suggestion settles none of that. The same stance
 gate. That is also what lets a project with no voice profile and no terms report
 its suggestions, which is the ordinary case on the day a project is created.
 
-Keeping applies the rule's own severity, because keeping writes it into the
-project's stores and every existing reader grades it from there. Only an
+Keeping applies the rule's own advisory marking, because keeping writes it into
+the project's stores and every existing reader grades it from there. Only an
 established rule fails a check.
 
 ### Disagreements are contested until a person chooses
@@ -235,7 +232,7 @@ reads them. It opens no context file, so a checkout carrying one cannot reach an
 answer through the notice either. Every surface renders that one value
 ([S-02](../surfaces/s-02-kapi-desktop.md),
 [S-03](../surfaces/s-03-agent-surfaces.md)), and `kapi check` carries it as a
-configuration warning, which changes neither the score nor the gate.
+configuration warning, which changes neither the score nor the verdict.
 
 ### Scope is set by evidence, and widened deliberately
 
@@ -304,8 +301,8 @@ than to each call site.
 
 Reverting a session marks every operation it recorded as reverted and retracts
 whatever they put in force. What a check says before a session and after that
-session is reverted are the same findings, the same summary and the same gate
-result, not a similar answer. `host/contextops_test.go` asserts the equality
+session is reverted are the same findings, the same summary and the same
+verdict, not a similar answer. `host/contextops_test.go` asserts the equality
 rather than a resemblance.
 
 Nothing is erased. A reverted operation stays in the log with its evidence, so

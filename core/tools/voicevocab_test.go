@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -89,7 +88,7 @@ func TestVoiceVocabCheckForbiddenTerms(t *testing.T) {
 	require.Len(t, findings, 1)
 
 	assert.Equal(t, string(coreprofile.DimensionVocabulary), findings[0].Category)
-	assert.Equal(t, coreprofile.SeverityMajor, findings[0].Severity)
+	assert.True(t, findings[0].Fails)
 	assert.Contains(t, findings[0].Message, "cheap")
 	assert.Contains(t, findings[0].Suggestion, "affordable")
 	assert.Equal(t, 0, findings[0].Position.Start.Run)
@@ -128,7 +127,7 @@ func TestVoiceVocabCheckCompetitorTerms(t *testing.T) {
 	findings := bvAnn.Findings
 	require.Len(t, findings, 1)
 
-	assert.Equal(t, coreprofile.SeverityCritical, findings[0].Severity)
+	assert.True(t, findings[0].Fails)
 	assert.Contains(t, findings[0].Message, "Competitor term")
 	assert.Contains(t, findings[0].Suggestion, "our platform")
 }
@@ -508,29 +507,29 @@ func TestVoiceVocabCheckAddsAnnotation(t *testing.T) {
 func TestVoiceVocabCheckTermsStatuses(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name         string
-		status       model.TermStatus
-		source       terms.TermSource
-		competitor   bool
-		wantFinding  bool
-		wantSeverity check.Severity
-		wantMessage  string
+		name        string
+		status      model.TermStatus
+		source      terms.TermSource
+		competitor  bool
+		wantFinding bool
+		wantFails   bool
+		wantMessage string
 	}{
 		{
 			name: "forbidden voice term", status: model.TermForbidden,
 			source:      terms.TermSourceBrandVocabulary,
-			wantFinding: true, wantSeverity: coreprofile.SeverityMajor, wantMessage: "Forbidden term",
+			wantFinding: true, wantFails: true, wantMessage: "Forbidden term",
 		},
 		{
 			name: "retired terminology term", status: model.TermDeprecated,
 			source:      terms.TermSourceTerminology,
-			wantFinding: true, wantSeverity: coreprofile.SeverityMinor, wantMessage: "Retired term",
+			wantFinding: true, wantFails: false, wantMessage: "Retired term",
 		},
 		{
 			name: "competitor term", status: model.TermAdmitted,
 			source:      terms.TermSourceTerminology,
 			competitor:  true,
-			wantFinding: true, wantSeverity: coreprofile.SeverityCritical, wantMessage: "Competitor term",
+			wantFinding: true, wantFails: true, wantMessage: "Competitor term",
 		},
 		{
 			name: "admitted term is not a finding", status: model.TermAdmitted,
@@ -573,7 +572,7 @@ func TestVoiceVocabCheckTermsStatuses(t *testing.T) {
 			}
 			require.True(t, ok)
 			require.Len(t, ann.Findings, 1)
-			assert.Equal(t, tt.wantSeverity, ann.Findings[0].Severity)
+			assert.Equal(t, tt.wantFails, ann.Findings[0].Fails)
 			assert.Contains(t, ann.Findings[0].Message, tt.wantMessage)
 			assert.Equal(t, "berth", ann.Findings[0].Metadata["replacement"],
 				"the preferred term in the same language is the fix")
@@ -696,5 +695,5 @@ func TestVoiceVocabCheckSharedConstraint(t *testing.T) {
 	require.True(t, ok)
 	require.Len(t, ann.Findings, 1)
 	assert.Equal(t, "assurance", ann.Findings[0].Metadata["constraint_id"])
-	assert.Equal(t, coreprofile.SeverityCritical, ann.Findings[0].Severity)
+	assert.True(t, ann.Findings[0].Fails)
 }

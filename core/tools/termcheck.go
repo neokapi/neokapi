@@ -18,10 +18,10 @@ import (
 const (
 	PropTermCheckPassed = "term-check-passed"
 	PropTermCheckErrors = "term-check-errors"
-	// PropTermCheckWarnings carries the violations that did NOT fail the
-	// check: rules whose severity says a reader should look, not that the
-	// content is wrong. Separate from the errors property so a gate can report
-	// both while failing on one.
+	// PropTermCheckWarnings carries the violations that do not fail the check:
+	// rules marked advisory, which say a reader should look rather than that
+	// the content is wrong. Separate from the errors property so a gate can
+	// report both while failing on one.
 	PropTermCheckWarnings = "term-check-warnings"
 )
 
@@ -43,16 +43,12 @@ type TermCheckConfig struct {
 	CaseSensitive bool           `json:"caseSensitive,omitempty" schema:"title=Case Sensitive,description=Whether term matching is case-sensitive"`
 }
 
-// failsTheCheck reports whether a violated rule makes the block fail rather
-// than merely warn.
-//
-// An unset severity fails. Rules resolved from the terms store carry no
-// severity — they are the project's terminology, not a graded suggestion — and
-// silently downgrading those to warnings would turn the terminology gate off
-// for every project that never wrote a severity by hand.
-func failsTheCheck(severity string) bool {
-	return check.Severity(severity) != check.SeverityMinor &&
-		check.Severity(severity) != check.SeverityNeutral
+// casedFor reports whether a bilingual rule matches in its own casing: when
+// the tool or the rule says so. The replacement is written in the target
+// language, so its capitalisation says nothing about how the source term is
+// written, and TermRule.MatchesCase's default does not apply here.
+func casedFor(cfg *TermCheckConfig, rule profile.TermRule) bool {
+	return cfg.CaseSensitive || (rule.CaseSensitive != nil && *rule.CaseSensitive)
 }
 
 // ToolName returns the tool name this config applies to.
@@ -168,12 +164,14 @@ func TermCheckViolations(cfg *TermCheckConfig, source, target string) (errs, war
 			msg = doNotTranslateViolation(rule)
 		} else {
 			renderings := rule.Renderings()
-			if rendered(targetText, renderings, cfg.CaseSensitive || rule.CaseSensitive) {
+			if rendered(targetText, renderings, casedFor(cfg, rule)) {
 				continue
 			}
 			msg = violation(rule, renderings, cfg.TargetLocale)
 		}
-		if failsTheCheck(rule.Severity) {
+		// A rule fails unless it is marked advisory. Rules resolved from the
+		// terms store are established terms and fail.
+		if !rule.Advisory {
 			errs = append(errs, msg)
 		} else {
 			warns = append(warns, msg)
@@ -217,7 +215,7 @@ func sourceUses(source string, conf *TermCheckConfig) []sourceUse {
 			}
 			p = kept
 		}
-		cased := conf.CaseSensitive || rule.CaseSensitive
+		cased := casedFor(conf, rule)
 		var hits [][2]int
 		if english && len(rule.Forms) == 0 {
 			hits = check.FindEnglishInflectionsIn(p, rule.Term, cased)
@@ -394,7 +392,7 @@ func TermCheckCanaries(cfg *TermCheckConfig) ([]check.Canary, string) {
 // translation.
 func replacementCanaries(cfg *TermCheckConfig, rule profile.TermRule) []check.Canary {
 	renderings := rule.Renderings()
-	cased := cfg.CaseSensitive || rule.CaseSensitive
+	cased := casedFor(cfg, rule)
 
 	absent := "0"
 	if rendered(absent, renderings, cased) {

@@ -94,7 +94,7 @@ func TestToDesktopFinding_CarriesTheAnchor(t *testing.T) {
 	}
 	f := check.Finding{
 		Category:     "terminology",
-		Severity:     check.SeverityMajor,
+		Fails:        true,
 		Message:      "say `use` instead of `utilize`",
 		OriginalText: "utilize",
 		Position:     anchor,

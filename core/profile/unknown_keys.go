@@ -102,6 +102,16 @@ func walkKeys(node *yaml.Node, t reflect.Type, path string, found *[]ProfileProb
 			switch {
 			case ok:
 				walkKeys(value, field, joinKey(path, key.Value), found)
+			case !open && key.Value == "severity" && fieldsHas(fields, "advisory"):
+				// A rule fails unless it is advisory, so a severity reads as a
+				// setting and decides nothing. Name the key that does.
+				*found = append(*found, ProfileProblem{
+					Code:  CodeUnknownKey,
+					Field: joinKey(path, key.Value),
+					Message: fmt.Sprintf("key \"severity\" (line %d) is ignored: a rule fails a check unless it says "+
+						"`advisory: true`, which makes it report only", key.Line),
+					Warning: true,
+				})
 			case !open:
 				*found = append(*found, ProfileProblem{
 					Code:  CodeUnknownKey,
@@ -205,4 +215,10 @@ func StrictDecodeProblems(err error) []ProfileProblem {
 		probs = append(probs, ProfileProblem{Message: line})
 	}
 	return probs
+}
+
+// fieldsHas reports whether the decoded type has a field for key.
+func fieldsHas(fields map[string]reflect.Type, key string) bool {
+	_, ok := fields[key]
+	return ok
 }

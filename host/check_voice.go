@@ -101,7 +101,6 @@ func voiceSimilarityFindings(blocks []*model.Block, refs []string, t voiceTransp
 		if best < threshold {
 			findings = append(findings, check.Finding{
 				Category:     "voice",
-				Severity:     check.SeverityMinor,
 				Message:      fmt.Sprintf("Reads off-voice: closest brand example similarity %.2f (below %.2f)", best, threshold),
 				Suggestion:   "Rephrase toward the voice profile examples, or widen the examples if this is acceptable",
 				OriginalText: text,

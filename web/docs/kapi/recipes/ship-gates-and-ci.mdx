@@ -96,7 +96,7 @@ The full pipeline picture (catch up on a schedule, deliver a PR/MR, gate merges,
 ## File checks vs project gates
 
 Two bars, one command. A bare `kapi check <files>` gates the **files you
-name**: a checkset over their content, findings and a severity gate, no
+name**: a checkset over their content, failing when a finding fails, no
 project needed; the test runner. `kapi check --ship` gates the **project**:
 coverage against the recipe's [`ship_gates:`](/reference/project-file#ship-gates)
 plus the bound quality gates, across every target language: the release bar.

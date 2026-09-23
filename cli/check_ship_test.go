@@ -31,11 +31,9 @@ func TestCheckShip_AbsorbsVerify(t *testing.T) {
 	assert.Contains(t, out, "FAIL")
 }
 
-// TestCheckShip_MinScoreDefaultsToVoiceThreshold: check's own --min-score
-// default (0, the report score gate) must not leak into ship mode — an
-// untouched flag means the voice gate's DefaultVoiceMinScore. The fixture's
-// brand score is 75, so the voice gate fails only if the 80 default applied.
-func TestCheckShip_MinScoreDefaultsToVoiceThreshold(t *testing.T) {
+// TestCheckShip_VoiceGateFailsOnAFailingFinding: the voice gate fails on a
+// failing finding, and the compliance score it reports gates nothing.
+func TestCheckShip_VoiceGateFailsOnAFailingFinding(t *testing.T) {
 	root, _ := writeVerifyProject(t)
 	t.Chdir(root)
 
@@ -45,8 +43,8 @@ func TestCheckShip_MinScoreDefaultsToVoiceThreshold(t *testing.T) {
 
 	out, runErr := captureStdout(t, func() error { return a.RunCheck(cmd, nil) })
 	require.ErrorIs(t, runErr, ErrQualityGate)
-	assert.Contains(t, out, "below the required minimum 80",
-		"ship mode applies the brand-gate default, not check's 0")
+	assert.NotContains(t, out, "below the required minimum")
+	assert.Contains(t, out, "FAILS")
 }
 
 // TestCheckShip_NoFailReportsButExitsZero: --no-fail keeps ship mode

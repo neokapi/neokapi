@@ -599,7 +599,7 @@ func (a *App) applyVoiceEntry(ctx context.Context, cmd Command, e changeEntry) a
 		return errResult(res, err.Error())
 	}
 
-	if !upsertVoiceRule(profile, e.List, e.Term, e.Replacement, e.Severity) {
+	if !upsertVoiceRule(profile, e.List, e.Term, e.Replacement, e.Advisory) {
 		res.Status = "skipped"
 		res.Detail = "already present"
 		return res
@@ -665,17 +665,17 @@ func createVoiceProfile(ctx context.Context, store coreprofile.Store, name strin
 }
 
 // upsertVoiceRule adds a term rule to the named vocabulary list. It is
-// idempotent: a rule with the same term, replacement, and severity already on
-// the list returns changed=false.
-func upsertVoiceRule(profile *coreprofile.VoiceProfile, list, term, replacement, severity string) bool {
-	rule := coreprofile.TermRule{Term: term, Replacement: replacement, Severity: severity}
+// idempotent: a rule with the same term, replacement, and advisory marking
+// already on the list returns changed=false.
+func upsertVoiceRule(profile *coreprofile.VoiceProfile, list, term, replacement string, advisory bool) bool {
+	rule := coreprofile.TermRule{Term: term, Replacement: replacement, Advisory: advisory}
 	target := voiceRuleList(profile, list)
 	for _, existing := range *target {
-		if existing.Term == term && existing.Replacement == replacement && existing.Severity == severity {
+		if existing.Term == term && existing.Replacement == replacement && existing.Advisory == advisory {
 			return false
 		}
 	}
-	// Replace an existing rule for the same term (different replacement/severity)
+	// Replace an existing rule for the same term (different replacement/advisory)
 	// rather than appending a duplicate.
 	for i := range *target {
 		if (*target)[i].Term == term {

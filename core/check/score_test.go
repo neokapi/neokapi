@@ -10,11 +10,11 @@ func TestCalculateScoreRaw(t *testing.T) {
 	assert.Equal(t, 100, CalculateScore(nil).Overall, "no findings → perfect")
 
 	s := CalculateScore([]Finding{
-		{Category: "terminology", Severity: SeverityMajor},         // 5
-		{Category: "terminology", Severity: SeverityMinor},         // 1
-		{Category: "do-not-translate", Severity: SeverityCritical}, // 25
+		{Category: "terminology", Fails: true},      // 25
+		{Category: "terminology"},                   // 1
+		{Category: "do-not-translate", Fails: true}, // 25
 	})
-	assert.Equal(t, 100-31, s.Overall)
+	assert.Equal(t, 100-51, s.Overall)
 
 	// Per-category breakdown, sorted by category.
 	assert.Len(t, s.Categories, 2)
@@ -22,14 +22,14 @@ func TestCalculateScoreRaw(t *testing.T) {
 	assert.Equal(t, 100-25, s.Categories[0].Score)
 	assert.Equal(t, 1, s.Categories[0].Issues)
 	assert.Equal(t, "terminology", s.Categories[1].Category)
-	assert.Equal(t, 100-6, s.Categories[1].Score)
+	assert.Equal(t, 100-26, s.Categories[1].Score)
 	assert.Equal(t, 2, s.Categories[1].Issues)
 }
 
 func TestCalculateScoreClampsAtZero(t *testing.T) {
 	var findings []Finding
 	for range 5 {
-		findings = append(findings, Finding{Category: "x", Severity: SeverityCritical})
+		findings = append(findings, Finding{Category: "x", Fails: true})
 	}
 	assert.Equal(t, 0, CalculateScore(findings).Overall, "125 penalty clamps to 0")
 }
@@ -37,7 +37,7 @@ func TestCalculateScoreClampsAtZero(t *testing.T) {
 func TestCalculateScoreLengthNormalized(t *testing.T) {
 	// A single minor nit (penalty 1) bites less in a long paragraph than in a
 	// short string — this is the WordCount fix.
-	one := []Finding{{Category: "style", Severity: SeverityMinor}}
+	one := []Finding{{Category: "style"}}
 
 	short := CalculateScore(one, WithWordCount(5))  // 1*100/5 = 20 → 80
 	long := CalculateScore(one, WithWordCount(200)) // 1*100/200 = 0.5 → 1 → 99

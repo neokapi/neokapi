@@ -17,39 +17,39 @@ func TestMatchPatterns(t *testing.T) {
 		name      string
 		profile   *VoiceProfile
 		text      string
-		wantMatch []string   // matched substrings, in order
-		wantSev   []Severity // parallel to wantMatch
+		wantMatch []string // matched substrings, in order
+		wantFails []bool   // parallel to wantMatch
 	}{
 		{
 			name:      "prohibited pattern defaults to major",
 			profile:   profileWithPatterns(Pattern{Regex: `\bgonna\b`, Description: "Casual contraction"}),
 			text:      "This is gonna work",
 			wantMatch: []string{"gonna"},
-			wantSev:   []Severity{SeverityMajor},
+			wantFails: []bool{true},
 		},
 		{
 			name:      "rule severity overrides the default",
-			profile:   profileWithPatterns(Pattern{Regex: `\d+\s+formats`, Severity: "critical"}),
+			profile:   profileWithPatterns(Pattern{Regex: `\d+\s+formats`}),
 			text:      "kapi reads 42 formats",
 			wantMatch: []string{"42 formats"},
-			wantSev:   []Severity{SeverityCritical},
+			wantFails: []bool{true},
 		},
 		{
 			name:      "every occurrence is a separate hit",
 			profile:   profileWithPatterns(Pattern{Regex: `\bhype\b`}),
 			text:      "hype and more hype",
 			wantMatch: []string{"hype", "hype"},
-			wantSev:   []Severity{SeverityMajor, SeverityMajor},
+			wantFails: []bool{true, true},
 		},
 		{
 			name: "rules are independent and may overlap",
 			profile: profileWithPatterns(
 				Pattern{Regex: `powerful engine`},
-				Pattern{Regex: `\bengine\b`, Severity: "minor"},
+				Pattern{Regex: `\bengine\b`, Advisory: true},
 			),
 			text:      "a powerful engine",
 			wantMatch: []string{"powerful engine", "engine"},
-			wantSev:   []Severity{SeverityMajor, SeverityMinor},
+			wantFails: []bool{true, false},
 		},
 		{
 			name:      "the regex is matched as authored — no implicit case folding",
@@ -62,7 +62,7 @@ func TestMatchPatterns(t *testing.T) {
 			profile:   profileWithPatterns(Pattern{Regex: `(?i)\bpowerful\b`}),
 			text:      "Powerful things happen",
 			wantMatch: []string{"Powerful"},
-			wantSev:   []Severity{SeverityMajor},
+			wantFails: []bool{true},
 		},
 		{
 			name:      "a regex that does not compile yields nothing",
@@ -84,10 +84,10 @@ func TestMatchPatterns(t *testing.T) {
 		},
 		{
 			name:      "unicode class matches an emoji",
-			profile:   profileWithPatterns(Pattern{Regex: `[\x{1F300}-\x{1FAFF}]`, Severity: "major"}),
+			profile:   profileWithPatterns(Pattern{Regex: `[\x{1F300}-\x{1FAFF}]`}),
 			text:      "ship it 🚀 now",
 			wantMatch: []string{"🚀"},
-			wantSev:   []Severity{SeverityMajor},
+			wantFails: []bool{true},
 		},
 		{
 			name:      "a nil profile yields nothing",
@@ -109,7 +109,7 @@ func TestMatchPatterns(t *testing.T) {
 			require.Len(t, hits, len(tt.wantMatch))
 			for i, want := range tt.wantMatch {
 				assert.Equal(t, want, tt.text[hits[i].Start:hits[i].End], "hit %d text", i)
-				assert.Equal(t, tt.wantSev[i], hits[i].Severity, "hit %d severity", i)
+				assert.Equal(t, tt.wantFails[i], hits[i].Fails, "hit %d fails", i)
 				assert.Equal(t, DimensionStyle, hits[i].Category, "hit %d category", i)
 			}
 		})
@@ -118,7 +118,7 @@ func TestMatchPatterns(t *testing.T) {
 
 func TestPatternHitsToFindings(t *testing.T) {
 	p := profileWithPatterns(
-		Pattern{Regex: `\bgonna\b`, Description: "Casual contraction", Severity: "major"},
+		Pattern{Regex: `\bgonna\b`, Description: "Casual contraction"},
 		Pattern{Regex: `!!`},
 	)
 	text := "This is gonna be great!!"
@@ -127,7 +127,7 @@ func TestPatternHitsToFindings(t *testing.T) {
 
 	assert.Equal(t, "Prohibited pattern: Casual contraction", findings[0].Message)
 	assert.Equal(t, "gonna", findings[0].OriginalText)
-	assert.Equal(t, SeverityMajor, findings[0].Severity)
+	assert.True(t, findings[0].Fails)
 	assert.Equal(t, string(DimensionStyle), findings[0].Category)
 	assert.Equal(t, `\bgonna\b`, findings[0].Metadata["pattern"])
 
@@ -158,10 +158,10 @@ func TestPatternHitsToFindings_AnchorsToRuns(t *testing.T) {
 func TestFindings_PatternsAndVocabularyScoreTogether(t *testing.T) {
 	p := &VoiceProfile{
 		Style: StyleRules{ProhibitedPatterns: []Pattern{
-			{Regex: `\bgonna\b`, Description: "Casual contraction", Severity: "critical"},
+			{Regex: `\bgonna\b`, Description: "Casual contraction"},
 		}},
 		Vocabulary: VocabularyRules{ForbiddenTerms: []TermRule{
-			{Term: "leverage", Replacement: "use", Severity: "minor"},
+			{Term: "leverage", Replacement: "use", Advisory: true},
 		}},
 	}
 	text := "We leverage this and it is gonna work"
@@ -171,7 +171,7 @@ func TestFindings_PatternsAndVocabularyScoreTogether(t *testing.T) {
 	// Vocabulary findings come first, then patterns.
 	assert.Equal(t, string(DimensionVocabulary), findings[0].Category)
 	assert.Equal(t, string(DimensionStyle), findings[1].Category)
-	assert.Equal(t, SeverityCritical, findings[1].Severity)
+	assert.True(t, findings[1].Fails)
 
 	withPattern := CalculateScore(findings).Overall
 	vocabOnly := CalculateScore(HitsToFindings(MatchVocabulary(p, text), text, nil)).Overall

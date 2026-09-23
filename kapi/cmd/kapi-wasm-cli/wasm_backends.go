@@ -28,11 +28,11 @@ var voiceProfile = &profile.VoiceProfile{
 	Name: "Kapi Demo Brand",
 	Vocabulary: profile.VocabularyRules{
 		ForbiddenTerms: []profile.TermRule{
-			{Term: "login", Replacement: "log in", Note: "use the verb form", Severity: "major"},
-			{Term: "utilize", Replacement: "use", Severity: "minor"},
+			{Term: "login", Replacement: "log in", Note: "use the verb form"},
+			{Term: "utilize", Replacement: "use", Advisory: true},
 		},
 		CompetitorTerms: []profile.TermRule{
-			{Term: "Acme", Severity: "critical"},
+			{Term: "Acme"},
 		},
 	},
 }

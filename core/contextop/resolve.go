@@ -146,10 +146,10 @@ func (r Resolution) Empty() bool { return len(r.Binding) == 0 && len(r.Advisory)
 func (r Resolution) RuleSets() []profile.TermRuleSet {
 	var sets []profile.TermRuleSet
 	if len(r.Binding) > 0 {
-		sets = append(sets, profile.TermRuleSet{Rules: r.Binding, Kind: profile.VocabForbidden, Default: profile.SeverityMajor})
+		sets = append(sets, profile.TermRuleSet{Rules: r.Binding, Kind: profile.VocabForbidden})
 	}
 	if len(r.Advisory) > 0 {
-		sets = append(sets, profile.TermRuleSet{Rules: r.Advisory, Kind: profile.VocabForbidden, Default: profile.SeverityMajor, Advisory: true})
+		sets = append(sets, profile.TermRuleSet{Rules: r.Advisory, Kind: profile.VocabForbidden, Suggested: true})
 	}
 	return sets
 }

@@ -85,10 +85,10 @@ func TestRunFlow_ReportsWhatItsChecksFound(t *testing.T) {
 	out, err := runRunCmd(t, processOnlyApp(t), recipe, "guard", "--target-lang", "nb")
 	require.NoError(t, err)
 
-	assert.Contains(t, out, "CRITICAL",
+	assert.Contains(t, out, "FAILS",
 		"a check inside a flow must report what it found, not exit 0 in silence")
 	assert.Contains(t, out, "Acme Cloud")
-	assert.Contains(t, out, "1 finding(s) (1 critical")
+	assert.Contains(t, out, "1 failing, 0 reported")
 	assert.Contains(t, out, "dnt-check.do-not-translate",
 		"the rule names the tool that produced the finding")
 	assert.Contains(t, out, "app.xlf", "the finding names the file it is in")
@@ -102,7 +102,7 @@ func TestRunFlow_SaysWhenItsChecksFoundNothing(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Contains(t, out, "No findings.")
-	assert.NotContains(t, out, "CRITICAL")
+	assert.NotContains(t, out, "FAILS")
 }
 
 // emptyGuardXLIFF holds no translation unit, so a flow over it reads no block.
@@ -172,7 +172,7 @@ func TestRunFlow_DidNotRunIsScriptable(t *testing.T) {
 func TestRunFlow_FindingsDoNotGate(t *testing.T) {
 	recipe, _ := guardProjectFixture(t, []string{"Acme Cloud"})
 	_, err := runRunCmd(t, processOnlyApp(t), recipe, "guard", "--target-lang", "nb")
-	require.NoError(t, err, "a critical finding must not make the flow run fail")
+	require.NoError(t, err, "a failing finding must not make the flow run fail")
 }
 
 // The rendering is scriptable: one run is one JSON document, the run's own
@@ -198,12 +198,12 @@ func TestRunFlow_FindingsAreScriptable(t *testing.T) {
 		Findings *struct {
 			Summary struct {
 				Findings int `json:"findings"`
-				Critical int `json:"critical"`
+				Failing  int `json:"failing"`
 			} `json:"summary"`
 			Findings []struct {
 				Rule     string `json:"rule"`
 				Check    string `json:"check"`
-				Severity string `json:"severity"`
+				Fails    bool   `json:"fails"`
 				Message  string `json:"message"`
 				Location struct {
 					File  string `json:"file"`
@@ -219,17 +219,17 @@ func TestRunFlow_FindingsAreScriptable(t *testing.T) {
 	assert.Equal(t, "guard", doc.FlowName, "the run's own fields survive")
 	require.NotNil(t, doc.Findings)
 	assert.Equal(t, 1, doc.Findings.Summary.Findings)
-	assert.Equal(t, 1, doc.Findings.Summary.Critical)
+	assert.Equal(t, 1, doc.Findings.Summary.Failing)
 	require.Len(t, doc.Findings.Findings, 1)
 	f := doc.Findings.Findings[0]
 	assert.Equal(t, "dnt-check.do-not-translate", f.Rule)
 	assert.Equal(t, "dnt-check", f.Check)
-	assert.Equal(t, "critical", f.Severity)
+	assert.True(t, f.Fails)
 	assert.NotEmpty(t, f.Message)
 	assert.Contains(t, f.Location.File, "app.xlf")
 	assert.NotEmpty(t, f.Location.Block)
 
-	// No verdict: a `"pass": true` beside a critical finding is exactly the
+	// No verdict: a `"pass": true` beside a failing finding is exactly the
 	// reassurance this class of defect hands out, and the gate is `kapi check`'s.
 	assert.Nil(t, doc.Findings.Pass)
 	assert.Nil(t, doc.Findings.Gate)

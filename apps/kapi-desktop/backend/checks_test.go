@@ -21,7 +21,6 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: major
 `
 
 // setupCheckProject writes a project with one JSON content file and the house
@@ -77,9 +76,8 @@ func TestRunChecksFindsVoiceVocab(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
-	// A forbidden-term (major) finding lowers the score but is not critical,
-	// so the gate passes.
-	assert.True(t, res.Pass, "a major finding should not fail the gate")
+	// A forbidden term fails the check and lowers the score.
+	assert.False(t, res.Pass, "a forbidden term is a failing finding")
 	assert.Less(t, res.Score, 100, "the forbidden term should lower the roll-up score")
 
 	require.Len(t, res.Files, 1)
@@ -505,7 +503,7 @@ func TestCheckRunVerdict(t *testing.T) {
 	caught := check.CanaryOutcome{Status: check.CanaryCaught, Probes: 1}
 	missed := check.CanaryOutcome{Status: check.CanaryMissed, Probes: 1, Missed: "dropped placeholder"}
 	proven := []check.AnalyzerExecution{{ID: "placeholder", Status: check.AnalyzerPassed, Required: true, Canary: &caught}}
-	critical := []check.Finding{{Category: "placeholder", Severity: check.SeverityCritical}}
+	critical := []check.Finding{{Category: "placeholder", Fails: true}}
 
 	assert.Equal(t, "passed", checkRunVerdict(nil, nil, 2, proven, 100, nil, nil).Verdict)
 	failed := checkRunVerdict(critical, nil, 2, proven, 75, nil, nil)

@@ -27,7 +27,7 @@ Ingestion is a pipeline job, so the desktop's role here is inspection:
 A [connected assistant](/kapi/get-started/use-with-claude) needs no export step: the [MCP tools](/reference/mcp) are the feed:
 
 - `extract_content` streams the anchored blocks of any file it is pointed at;
-- `check_file` returns the structured `kapi.check/v1` Report, one finding per block;
+- `check_file` returns the structured `kapi.check/v2` Report, one finding per block;
 - `apply_edits` writes revisions back through the round-trip, drift-guarded by `content_hash`.
 
 You describe the outcome ("read the contract and flag every clause that mentions liability") and the assistant reads blocks rather than bytes.

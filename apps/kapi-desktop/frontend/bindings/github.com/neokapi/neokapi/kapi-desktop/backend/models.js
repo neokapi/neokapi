@@ -1475,7 +1475,7 @@ export class CheckRunResult {
             /**
              * Warnings name configuration to fix, such as a key a voice profile carries
              * that the profile model does not define. They are the warnings a
-             * kapi.check/v1 report carries, and never change the verdict or the score.
+             * kapi.check/v2 report carries, and never change the verdict or the score.
              * @member
              * @type {check$0.Warning[] | undefined}
              */
@@ -2010,8 +2010,8 @@ export class ContextDecisionRequest {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Replacement and Severity edit the rule as it is kept. Empty leaves the
-             * rule as suggested.
+             * Replacement and Advisory edit the rule as it is kept. Empty (nil)
+             * leaves the rule as suggested.
              * @member
              * @type {string | undefined}
              */
@@ -2020,9 +2020,9 @@ export class ContextDecisionRequest {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string | undefined}
+             * @type {boolean | null | undefined}
              */
-            this["severity"] = undefined;
+            this["advisory"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -3304,7 +3304,7 @@ export class ContextSubjectDTO {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Term, Replacement and Severity are the rule, for a term subject: Term is
+             * Term, Replacement and Advisory are the rule, for a term subject: Term is
              * the form to avoid, Forms the other forms it avoids, and Replacement the
              * form to use.
              * @member
@@ -3329,9 +3329,9 @@ export class ContextSubjectDTO {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string | undefined}
+             * @type {boolean | undefined}
              */
-            this["severity"] = undefined;
+            this["advisory"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -3830,12 +3830,14 @@ export class DesktopFinding {
              */
             this["category"] = "";
         }
-        if (!("severity" in $$source)) {
+        if (!("fails" in $$source)) {
             /**
+             * Fails says whether the finding fails the check, as the rule that raised
+             * it decides. A finding that does not fail reports.
              * @member
-             * @type {string}
+             * @type {boolean}
              */
-            this["severity"] = "";
+            this["fails"] = false;
         }
         if (!("message" in $$source)) {
             /**

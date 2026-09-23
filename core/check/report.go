@@ -13,7 +13,7 @@ import (
 // ReportSchema is the stable contract id for the check Report shape. Consumers
 // (an AI fix-loop, a CI gate) pin this version so the report format can evolve
 // without silently breaking them. Bump it only on a breaking shape change.
-const ReportSchema = "kapi.check/v1"
+const ReportSchema = "kapi.check/v2"
 
 // Report is the canonical, machine-consumable result of a `kapi check` run — the
 // unit an AI assistant or CI reads, acts on, and re-runs against, the way a test
@@ -39,15 +39,12 @@ type Report struct {
 	Target Target `json:"target"`
 	// Summary is the roll-up (counts + score).
 	Summary Summary `json:"summary"`
-	// Gate echoes the thresholds and records which ones tripped, so a consumer
-	// knows the bar it must clear (e.g. min_score 90), not just pass/fail.
-	Gate GateResult `json:"gate"`
-	// Findings are the substantive output, sorted severity → rule for stable
-	// diffs between loop iterations.
+	// Findings are the substantive output: failing findings first, then by
+	// rule, for stable diffs between loop iterations.
 	Findings []Diagnostic `json:"findings"`
 	// Warnings name problems in the configuration the check ran under, such as
 	// a key a voice profile carries that the profile model does not define.
-	// Decide never reads them, so they leave Summary, Gate and Verdict as they
+	// Decide never reads them, so they leave Summary and Verdict as they
 	// would be without them. See Warning.
 	Warnings []Warning `json:"warnings,omitempty"`
 	// Execution names the analyses that ran and their measured scope. Absent
@@ -121,14 +118,14 @@ type Target struct {
 	ContextPath string `json:"context_path,omitempty"`
 }
 
-// Summary is the count + score roll-up over a Report's findings.
+// Summary is the count + score roll-up over a Report's findings. A check
+// fails when Failing is above zero. Score is a reported metric and gates
+// nothing.
 type Summary struct {
-	Findings int `json:"findings"`
-	Critical int `json:"critical"`
-	Major    int `json:"major"`
-	Minor    int `json:"minor"`
-	Neutral  int `json:"neutral"`
-	Score    int `json:"score"` // 0-100 roll-up (length-normalized when word count is known)
+	Findings  int `json:"findings"`
+	Failing   int `json:"failing"`
+	Reporting int `json:"reporting"`
+	Score     int `json:"score"` // 0-100 roll-up (length-normalized when word count is known)
 }
 
 // Diagnostic is one finding in a Report. It enriches the producer-agnostic
@@ -140,10 +137,10 @@ type Diagnostic struct {
 	// "structure.xml-well-formedness", "voice.vocabulary"). The dedupe/track key.
 	Rule string `json:"rule"`
 	// Check is the producing check family (length|pattern|chars|structure|
-	// hygiene|voice and the target-gated l10n families).
+	// hygiene|terms|voice and the target-gated families).
 	Check string `json:"check"`
-	// Severity drives the gate and the score penalty (MQM weights 25/5/1/0).
-	Severity Severity `json:"severity"`
+	// Fails says whether the finding fails the check. See Finding.Fails.
+	Fails bool `json:"fails"`
 	// Message is the human-readable explanation.
 	Message string `json:"message"`
 	// Suggestion is an optional remediation hint.
@@ -155,11 +152,9 @@ type Diagnostic struct {
 	Point *Point `json:"point,omitempty"`
 	// Metadata carries checker-specific detail (limit, count, matched rule id).
 	Metadata map[string]string `json:"metadata,omitempty"`
-	// Advisory marks a diagnostic raised against a rule nobody has confirmed.
-	// It is always SeverityNeutral, so it lands in Summary.Neutral, weighs
-	// nothing in the score and trips no gate limit. A surface reads it to show
-	// the finding as a proposal awaiting a decision.
-	Advisory bool `json:"advisory,omitempty"`
+	// Suggested marks a diagnostic raised by a suggested rule. It never fails
+	// and weighs nothing in the score. See Finding.Suggested.
+	Suggested bool `json:"suggested,omitempty"`
 }
 
 // Point is a governance point a project resolved for checked blocks: the
@@ -210,12 +205,12 @@ func DiagnosticFrom(f Finding, checkFamily string, loc Location) Diagnostic {
 	d := Diagnostic{
 		Rule:       RuleID(checkFamily, f.Category),
 		Check:      checkFamily,
-		Severity:   f.Severity,
+		Fails:      f.Fails && !f.Suggested,
 		Message:    f.Message,
 		Suggestion: f.Suggestion,
 		Location:   loc,
 		Metadata:   f.Metadata,
-		Advisory:   f.Advisory,
+		Suggested:  f.Suggested,
 	}
 	if !f.Position.IsZero() {
 		rr := f.Position
@@ -229,12 +224,16 @@ func DiagnosticFrom(f Finding, checkFamily string, loc Location) Diagnostic {
 
 // DiagnosticFromReader maps a format reader's validation Diagnostic (RVM) into a
 // check Diagnostic, so `kapi check --validate` folds reader-surfaced structure
-// and encoding problems into the same kapi.check/v1 Report as content findings.
+// and encoding problems into the same kapi.check/v2 Report as content findings.
 // The check family is the prefix before the first dot in the category
 // ("structure" | "encoding"); the rule is the full category (already in
 // "<check>.<category>" form). The reader's line/column/byte offset ride in
 // Metadata so the AI/CI can pinpoint the byte without a Report shape change.
-func DiagnosticFromReader(fd format.Diagnostic, file string) Diagnostic {
+//
+// A critical reader problem fails the check. With strict set, a major one
+// fails too: a structurally broken or mis-encoded document cannot pass. A
+// relabeled-charset mismatch is minor and only reports.
+func DiagnosticFromReader(fd format.Diagnostic, file string, strict bool) Diagnostic {
 	family := fd.Category
 	if i := strings.IndexByte(family, '.'); i >= 0 {
 		family = family[:i]
@@ -242,7 +241,7 @@ func DiagnosticFromReader(fd format.Diagnostic, file string) Diagnostic {
 	d := Diagnostic{
 		Rule:     fd.Category,
 		Check:    family,
-		Severity: severityFromFormat(fd.Severity),
+		Fails:    fd.Severity == format.SeverityCritical || (strict && fd.Severity == format.SeverityMajor),
 		Message:  fd.Message,
 		Location: Location{File: file, Snippet: fd.Snippet},
 	}
@@ -262,90 +261,16 @@ func DiagnosticFromReader(fd format.Diagnostic, file string) Diagnostic {
 	return d
 }
 
-// severityFromFormat maps a format.Severity onto the check Severity scale.
-func severityFromFormat(s format.Severity) Severity {
-	switch s {
-	case format.SeverityCritical:
-		return SeverityCritical
-	case format.SeverityMajor:
-		return SeverityMajor
-	case format.SeverityMinor:
-		return SeverityMinor
-	default:
-		return SeverityNeutral
-	}
-}
-
-// Gate is the set of severity/score thresholds a Report is judged against.
-// MaxMajor/MaxMinor of -1 disable that limit; MinScore of 0 disables the score
-// gate; MaxCritical defaults to 0 (any critical fails).
-type Gate struct {
-	MaxCritical int
-	MaxMajor    int
-	MaxMinor    int
-	MinScore    int
-}
-
-// DefaultGate is the conservative default: any critical fails, majors/minors
-// unlimited, no score floor.
-func DefaultGate() Gate { return Gate{MaxCritical: 0, MaxMajor: -1, MaxMinor: -1, MinScore: 0} }
-
-// GateResult echoes the thresholds and lists which ones tripped (empty = pass).
-type GateResult struct {
-	MaxCritical int      `json:"max_critical"`
-	MaxMajor    int      `json:"max_major"`
-	MaxMinor    int      `json:"max_minor"`
-	MinScore    int      `json:"min_score"`
-	Failed      []string `json:"failed"`
-}
-
-// Evaluate judges a Summary against the gate, returning the echoed thresholds
-// plus the human-readable reasons any limit tripped.
-func (g Gate) Evaluate(s Summary) GateResult {
-	r := GateResult{
-		MaxCritical: g.MaxCritical,
-		MaxMajor:    g.MaxMajor,
-		MaxMinor:    g.MaxMinor,
-		MinScore:    g.MinScore,
-		Failed:      []string{},
-	}
-	if g.MaxCritical >= 0 && s.Critical > g.MaxCritical {
-		r.Failed = append(r.Failed, fmt.Sprintf("critical findings %d exceed limit %d", s.Critical, g.MaxCritical))
-	}
-	if g.MaxMajor >= 0 && s.Major > g.MaxMajor {
-		r.Failed = append(r.Failed, fmt.Sprintf("major findings %d exceed limit %d", s.Major, g.MaxMajor))
-	}
-	if g.MaxMinor >= 0 && s.Minor > g.MaxMinor {
-		r.Failed = append(r.Failed, fmt.Sprintf("minor findings %d exceed limit %d", s.Minor, g.MaxMinor))
-	}
-	if g.MinScore > 0 && s.Score < g.MinScore {
-		r.Failed = append(r.Failed, fmt.Sprintf("score %d below minimum %d", s.Score, g.MinScore))
-	}
-	return r
-}
-
-// BuildReport assembles a Report from diagnostics, a target, and a gate. It
-// computes the count summary and the length-normalizable score (pass
-// WithWordCount to normalize), evaluates the gate, and sorts findings
-// deterministically (severity → rule).
-func BuildReport(target Target, diags []Diagnostic, gate Gate, scoreOpts ...ScoreOption) Report {
-	sum := Summary{Findings: len(diags)}
+// BuildReport assembles a Report from diagnostics and a target. It computes
+// the count summary and the length-normalizable score (pass WithWordCount to
+// normalize), sorts findings deterministically (failing first, then rule), and
+// decides the verdict.
+func BuildReport(target Target, diags []Diagnostic, scoreOpts ...ScoreOption) Report {
 	scoreFindings := make([]Finding, 0, len(diags))
 	for _, d := range diags {
-		switch d.Severity {
-		case SeverityCritical:
-			sum.Critical++
-		case SeverityMajor:
-			sum.Major++
-		case SeverityMinor:
-			sum.Minor++
-		case SeverityNeutral:
-			sum.Neutral++
-		}
-		// Reuse the score kernel: rule as the category key, severity for weight.
-		scoreFindings = append(scoreFindings, Finding{Category: d.Rule, Severity: d.Severity})
+		// Reuse the score kernel: rule as the category key.
+		scoreFindings = append(scoreFindings, Finding{Category: d.Rule, Fails: d.Fails, Suggested: d.Suggested})
 	}
-	sum.Score = CalculateScore(scoreFindings, scoreOpts...).Overall
 
 	sorted := make([]Diagnostic, len(diags))
 	copy(sorted, diags)
@@ -354,12 +279,25 @@ func BuildReport(target Target, diags []Diagnostic, gate Gate, scoreOpts ...Scor
 	report := Report{
 		Schema:   ReportSchema,
 		Target:   target,
-		Summary:  sum,
-		Gate:     gate.Evaluate(sum),
 		Findings: sorted,
 	}
+	report.Summary.Score = CalculateScore(scoreFindings, scoreOpts...).Overall
 	report.Decide()
 	return report
+}
+
+// countFindings sets the summary's counts from the report's findings. The
+// score is left as it was computed.
+func (r *Report) countFindings() {
+	r.Summary.Findings = len(r.Findings)
+	r.Summary.Failing, r.Summary.Reporting = 0, 0
+	for _, d := range r.Findings {
+		if d.Fails {
+			r.Summary.Failing++
+		} else {
+			r.Summary.Reporting++
+		}
+	}
 }
 
 // The causes of a did_not_run verdict. They share an exit code and must never
@@ -400,15 +338,16 @@ const (
 	VerdictDidNotRun Verdict = "did_not_run"
 )
 
-// Decide sets Verdict, Pass and DidNotRun from the report's target, gate and
-// execution. A producer calls it again after changing any of them.
+// Decide sets Verdict, Pass and DidNotRun from the report's target, findings
+// and execution, recounting the summary first. A producer calls it again after
+// changing any of them.
 //
 // The rules apply in order:
 //
 //  1. An analyzer that missed its canary makes the run invalid, so the verdict
-//     is did_not_run, even when the gate failed: an analyzer that passed a
+//     is did_not_run, even when a finding failed: an analyzer that passed a
 //     known-bad input cannot be trusted about the rest either.
-//  2. A tripped gate is failed.
+//  2. A run with at least one failing finding is failed.
 //  3. A run that checked no blocks did not run.
 //  4. A run did not run when a file its diff changed could not be checked,
 //     and, with execution reported, when no analyzer completed with its canary
@@ -416,6 +355,7 @@ const (
 //     analyzer had nothing it could catch.
 //  5. Anything else passed.
 func (r *Report) Decide() {
+	r.countFindings()
 	var invalid, unproven []string
 	proven := false
 	if r.Scope != nil {
@@ -446,7 +386,7 @@ func (r *Report) Decide() {
 	switch {
 	case len(invalid) > 0:
 		r.setVerdict(VerdictDidNotRun, CauseCheckerInvalid, invalid)
-	case len(r.Gate.Failed) > 0:
+	case r.Summary.Failing > 0:
 		r.setVerdict(VerdictFailed, "", nil)
 	case r.Target.Blocks == 0 && r.Scope != nil && len(unproven) == 0:
 		r.setVerdict(VerdictDidNotRun, CauseNothingToCheck, []string{"the diff touches no content block"})
@@ -475,32 +415,16 @@ func onFile(file string) string {
 	return " on " + file
 }
 
-// SortDiagnostics orders diagnostics severity (critical→neutral) then rule, for
-// stable output and stable diffs between fix-loop iterations.
+// SortDiagnostics orders diagnostics failing first, then by rule and block,
+// for stable output and stable diffs between fix-loop iterations.
 func SortDiagnostics(ds []Diagnostic) {
 	sort.SliceStable(ds, func(i, j int) bool {
-		ri, rj := severityOrder(ds[i].Severity), severityOrder(ds[j].Severity)
-		if ri != rj {
-			return ri < rj
+		if ds[i].Fails != ds[j].Fails {
+			return ds[i].Fails
 		}
 		if ds[i].Rule != ds[j].Rule {
 			return ds[i].Rule < ds[j].Rule
 		}
 		return ds[i].Location.Block < ds[j].Location.Block
 	})
-}
-
-func severityOrder(s Severity) int {
-	switch s {
-	case SeverityCritical:
-		return 0
-	case SeverityMajor:
-		return 1
-	case SeverityMinor:
-		return 2
-	case SeverityNeutral:
-		return 3
-	default:
-		return 4
-	}
 }

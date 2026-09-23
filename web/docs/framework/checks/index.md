@@ -1,7 +1,7 @@
 ---
 sidebar_position: 0
 title: Checks
-description: "Checks are tests for AI output: read-only verifiers that inspect content against rules and return one machine-readable Report (pass, score, gate, located findings) without modifying it. A content-first checkset (hygiene, length, patterns, voice) plus opt-in bilingual checks, all one family."
+description: "Checks are tests for AI output: read-only verifiers that inspect content against rules and return one machine-readable Report (verdict, score, located findings that fail or report) without modifying it. A content-first checkset (hygiene, length, patterns, voice) plus opt-in bilingual checks, all one family."
 keywords: [checks, content verification, tests for AI, findings, voice profile, terminology, gate, CI]
 ---
 
@@ -25,14 +25,15 @@ Exact rule checks behave like tests: for fixed input and context they are
 repeatable, and report a specific violation: an over-long string, a forbidden phrase, an
 off-brand term, a doubled word. `kapi check` runs a **content-first** checkset
 over any file, with no translation needed, and returns one stable, machine-readable
-[`kapi.check/v1` Report](#the-report): `pass`, a 0–100 score, a severity gate,
-and a finding per **stable rule id** (`length.max-chars-exceeded`,
-`hygiene.doubled-word`, …) anchored to the exact **block**.
-It **exits non-zero when the gate fails**, so a regression is caught in CI, or
-inside an AI assistant's fix-loop, the same way a failing test is. The assistant
-drafts, the checks tell it which block and which rule broke, it fixes that block
-(through `kapi apply`, or the `apply_edits` MCP tool), and re-checks against the
-declared thresholds. Meaning and unsupported guidance remain for review.
+[`kapi.check/v2` Report](#the-report): `pass`, a 0–100 score, and a finding
+per **stable rule id** (`length.max-chars-exceeded`, `hygiene.doubled-word`, …)
+anchored to the exact **block**. Each finding either fails or reports, as the
+rule that raised it says (see [What fails](#what-fails)). The command **exits
+non-zero when a finding fails**, so a regression is caught in CI, or inside an
+AI assistant's fix-loop, the same way a failing test is. The assistant drafts,
+the checks tell it which block and which rule broke, it fixes that block
+(through `kapi apply`, or the `apply_edits` MCP tool), and re-checks. Meaning
+and unsupported guidance remain for review.
 
 Bilingual checks (do-not-translate and placeholder integrity, which
 compare a translated target against its source) are an opt-in: pass
@@ -41,11 +42,13 @@ compare a translated target against its source) are an opt-in: pass
 ## The Report
 
 A completed `kapi check` run produces a `core/check.Report` (versioned
-`kapi.check/v1`): a summary
-(counts + score), the gate (the thresholds and which tripped), and a list of
-**diagnostics**. Each diagnostic carries a stable `rule` id, a `severity`, a
-human `message`, an optional `suggestion`, and a `location` (the block, plus a
-run-range when the checker pinpointed one). The stable rule id is the loop's
+`kapi.check/v2`): a `summary` (`findings`, `failing`, `reporting` and
+`score`) and a list of **diagnostics**, failing ones first and then by rule.
+Each diagnostic carries a stable `rule` id, `fails` (true or false), a human
+`message`, an optional `suggestion`, a `location` (the block, plus a run-range
+when the checker pinpointed one), and `suggested: true` when a rule nobody has
+confirmed raised it. The human table's first column is the outcome, `FAILS` or
+`REPORTS`, and the roll-up line reads `N failing, M reported · score S/100`. The stable rule id is the loop's
 primary key: an assistant tracks it across iterations to confirm a fix and avoid
 regressions. `--json` emits the Report verbatim; over MCP, the `check_file` and
 `check_text` tools return the same Report, the verifier counterpart to the
@@ -86,8 +89,8 @@ them against those limits. `voice.rules` then has status `not_applicable`, with
 the reason, and never counts as a pass, so the comment analyzers decide the
 verdict. The same profile over content holding no comment did not run. A run
 that checked no blocks did not run. The top-level `did_not_run`
-field lists the reasons. `kapi check` exits `4` for this verdict, and neither
-`--no-fail` nor `--lenient` changes that.
+field lists the reasons. `kapi check` exits `4` for this verdict, and
+`--no-fail` leaves that unchanged.
 
 Every `did_not_run` verdict carries a `did_not_run_cause`, and the causes share
 exit code `4`, so read the cause before acting on it:
@@ -140,8 +143,7 @@ profile governs:
   stderr. A file named on the command line in such a format fails the check
   instead.
 
-Warnings never change the summary, the score, the gate, the verdict or the exit
-code. Fix the configuration they name. `kapi check` prints them after the
+Warnings never change the summary, the score, the verdict or the exit code. Fix the configuration they name. `kapi check` prints them after the
 verdict, `kapi check --ship` carries the same array, and the MCP check tools
 return it in their report.
 
@@ -176,8 +178,8 @@ object naming the state it was reached from:
 
 The record reports and gates nothing: an absent workspace, a project whose
 context is still empty and a projection that has drifted all leave the verdict,
-the score and the gate as they would be without it, and none of them appears in
-the human output. Every producer of a `kapi.check/v1` Report carries the
+and the score as they would be without it, and none of them appears in
+the human output. Every producer of a `kapi.check/v2` Report carries the
 record. `kapi check --ship` reports gates rather than a Report, so it carries
 none.
 
@@ -186,17 +188,17 @@ applicable profile and channel. An explicit profile replaces that voice
 selection, while project terms still apply. Check the reported scope before
 using a passing result to assess the task.
 
-A passing gate and a score of 100 mean no gate-breaking findings in the
-configured checks. They do not establish factual accuracy or compliance with
+A passing verdict means no failing findings in the configured checks. It does
+not establish factual accuracy or compliance with
 rules that were never encoded. Exact voice rules, advisory example similarity
 (`--voice`), and optional LLM review are distinct analyses. `kapi check` does not
 run LLM review and records `voice.llm` as `not_requested`. Applicable profile
 guidance that exact rules cannot assess is recorded as `voice.guidance` with
-status `unsupported`; it does not fail the deterministic content gate.
+status `unsupported`; it fails no check.
 
 A requested analyzer that cannot run, or governing context that cannot resolve,
 returns an operational error instead of a successful report. `--no-fail` affects
-content-gate exits only. MCP uses its existing error response for these failures.
+only the exit for failing findings. MCP uses its existing error response for these failures.
 Embedded applications share checker primitives but can retain their own response
 shapes and operation error views.
 
@@ -281,14 +283,37 @@ and `file` then narrows it.
 ## One model: findings
 
 Every check emits the same structured **finding** (the `core/check.Finding`
-type): a kind, a severity, the run-index range it points at, and an optional
-suggested replacement. A check is a read-only [tool](/framework/tools): it uses
+type): a category, whether it fails, the run-index range it points at, and an
+optional suggested replacement. A check is a read-only [tool](/framework/tools): it uses
 the annotate capability, so it may attach findings but never rewrite content
 (see the [immutability model](/framework/tools)). Findings are recorded as
 stand-off [overlays](/framework/content-model) anchored to the offending runs,
 so a check pass slots into any [flow](/framework/flows) as an ordinary stage and
 its results surface uniformly to the CLI, an editor, the MCP tools, or a
 downstream gate.
+
+### What fails
+
+The rule that raised a finding decides whether it fails:
+
+- An established rule fails: a term in the terms store, a term rule, a voice
+  profile's prohibited or required pattern. A rule marked `advisory: true`
+  reports instead. A retired term in the terms store reports; a forbidden or
+  competitor term fails.
+- A suggested rule, one recorded by `kapi context propose` or `correct` and not
+  yet confirmed, reports and never fails. Its finding carries `suggested: true`
+  and reads `Suggested rule about "X", not yet established`.
+- Style measures report: the voice-similarity check (`--voice`), an AI voice
+  judge, and comment limits, unless the profile sets
+  `style.comments.fails: true`.
+- Empty content fails; whitespace and doubled-word findings report.
+- Length and pattern findings from `--max-chars`, `--max-words`, `--forbid` and
+  `--require` fail.
+- A dropped or extra placeholder fails, and so does a comment the language's
+  formatter would rewrite.
+
+The score (0–100) is reported beside the findings and gates nothing. A failing
+finding weighs 25 against it, a reported one 1, and a suggested one 0.
 
 The shared finding model lets the CLI, Kapi Desktop and downstream editors
 consume the checks each surface invokes. Matching findings does not imply that
@@ -306,8 +331,8 @@ checkset):
   between two characters on one line. A comment lays text out in columns and
   quotes literal text, so a run of three or more spaces, a run that ends where a
   word starts on the line above or below, and a run inside backticks or double
-  quotes are layout and are not reported. A double space in a comment is a major
-  finding, and in other content a minor one.
+  quotes are layout and are not reported. A double space reports, in a comment
+  and in other content.
 
   Hygiene is judged against the block's **content boundaries**, where an inline
   code counts as content. A leading or trailing placeholder is the edge of the
@@ -333,22 +358,23 @@ checkset):
   tool or an explicit AI voice command.
 - **Formatter agreement**: for the comments in source code, a comment the
   language's formatter would rewrite is a `formatter.<formatter>` finding, such
-  as `formatter.gofmt`. It fails the gate whatever the severity limits allow;
-  `--lenient` reports it without failing. The comment reader and the formatter
+  as `formatter.gofmt`, and it fails. The comment reader and the formatter
   each catch a canary on every run, as every other analyzer does. See
   [Comments in source code](/kapi/recipes/verify-content#comments-in-source-code).
 - **Comment limits**: where the voice profile at a comment's point sets
   [comment limits](/reference/serialization/voice-profile#comment-limits), a
-  sentence over the minor or major word limit is a `comment.sentence-length`
-  finding of that severity, and a comment over the limit for what it documents
-  is a major `comment.length` finding. Sentences are split with the UAX #29
+  sentence over the lower or upper word limit is a `comment.sentence-length`
+  finding, and a comment over the limit for what it documents is a
+  `comment.length` finding. These report; with `style.comments.fails: true` a
+  sentence over the upper limit, a comment over its length limit and a
+  too-dense change fail. Sentences are split with the UAX #29
   sentence break over the comment's prose: the lines a comment wraps over are
   joined first, a blank line, a divider line, a list item, a heading or a
   documentation tag starts a new sentence, and code spans, references and links
   are not counted as words. A build without the sentence break reports the
   sentence check as not run. In a check scoped to a diff, a change that adds at
   least the minimum number of comment lines to a file, and more comment lines
-  for each code line than the ratio allows, is a major `comment.density`
+  for each code line than the ratio allows, is a `comment.density`
   finding. Lines are counted from where the comment reader places each comment,
   and the package doc comment is not counted. A check over whole files reports
   density as unsupported.
@@ -368,10 +394,11 @@ consistency, optional LLM review) is documented under
 
 > **Document structure & encoding validity** is a format-reader concern rather
 > than a content check: the readers extract leniently by default. Surface it on
-> demand with `kapi check --validate report` (or `strict` to gate on it): the
-> reader emits located `structure.*` / `encoding.*` findings (malformed
-> XML/YAML, invalid UTF-8, charset mismatch, and the JSON faults the parser
-> rejects) into the same Report. Coverage tracks each reader's own strictness. Validate source and target files
+> demand with `kapi check --validate report`: the reader emits located
+> `structure.*` / `encoding.*` findings (malformed XML/YAML, invalid UTF-8,
+> charset mismatch, and the JSON faults the parser rejects) into the same
+> Report. They report, and a critical one fails; `--validate strict` also makes
+> a major one fail. Coverage tracks each reader's own strictness. Validate source and target files
 > separately; reader validation cannot be combined with `--target`.
 
 ## Composing and gating
@@ -380,12 +407,13 @@ Checks are tools, so they compose in a [flow](/framework/flows) exactly like
 translation or transform stages, typically as the trailing stage after
 translation. In CI, gate on the exit code; in an editor or assistant, surface
 the findings for one-click fixes. A check never blocks the pipeline by mutating
-content; it annotates, and the gate decides.
+content; it annotates, and a failing finding fails the check.
 
 In a project, `kapi check --ship` (and each pass of `kapi up`) runs the bound
 gates over what was produced. The project-gate response groups findings by gate:
 **voice**
-(the compliance score against the bound profile, with `--min-score`),
+(the bound profile's rules, failing on a failing finding, with the compliance
+score reported),
 **terminology**, **qa**, **ship** (the ship gate on target status), **source**
 (the source-side checks), and **staleness** (content produced under a context
 that has since changed, such as a new voice profile version or new term rules,

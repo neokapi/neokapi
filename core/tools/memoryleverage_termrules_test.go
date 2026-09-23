@@ -32,7 +32,7 @@ var termRuleCases = []struct {
 	{"a declared form of the replacement is recycled", []profile.TermRule{{Term: "dashboard", Replacement: "tableau de bord", ReplacementForms: []string{"tableaux de bord"}}}, "Open the dashboards", "Ouvrir les tableaux de bord", true},
 	{"a do-not-translate term kept verbatim is recycled", []profile.TermRule{{Term: "kapi", DoNotTranslate: true}}, "Run kapi", "Lancer kapi", true},
 	{"a do-not-translate term that is changed goes to drafting", []profile.TermRule{{Term: "kapi", DoNotTranslate: true}}, "Run kapi", "Lancer capi", false},
-	{"a rule that only warns is recycled", []profile.TermRule{{Term: "dashboard", Replacement: "tableau de bord", Severity: "minor"}}, "Open the dashboard", "Ouvrir le panneau", true},
+	{"a rule that only warns is recycled", []profile.TermRule{{Term: "dashboard", Replacement: "tableau de bord", Advisory: true}}, "Open the dashboard", "Ouvrir le panneau", true},
 	{"a placeholder name is not a use of the term", []profile.TermRule{dashboardRule}, "Open {dashboard}", "Ouvrir {dashboard}", true},
 }
 

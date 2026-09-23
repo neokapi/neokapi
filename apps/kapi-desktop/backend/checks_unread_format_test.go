@@ -39,7 +39,6 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: major
 `)
 	write("cask/kapi.rb", "cask \"kapi\" do\n  desc \"Please utilize the content engine\"\nend\n")
 

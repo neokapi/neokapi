@@ -50,10 +50,10 @@ func runExecDNT(t *testing.T, target string, args ...string) string {
 
 func TestExecCheckReportsItsFindings(t *testing.T) {
 	out := runExecDNT(t, dntXLIFF, "--target-lang", "nb", "--terms", "Acme Cloud")
-	assert.Contains(t, out, "CRITICAL",
+	assert.Contains(t, out, "FAILS",
 		"an exec run of a check must report what it found, not exit 0 in silence")
 	assert.Contains(t, out, "Acme Cloud")
-	assert.Contains(t, out, "1 finding(s) (1 critical")
+	assert.Contains(t, out, "1 failing, 0 reported")
 }
 
 // And a clean run says so — "printed nothing" and "found nothing" must not look
@@ -61,7 +61,7 @@ func TestExecCheckReportsItsFindings(t *testing.T) {
 func TestExecCheckSaysWhenThereIsNothingToReport(t *testing.T) {
 	out := runExecDNT(t, dntXLIFF, "--target-lang", "nb", "--terms", "Nonexistent")
 	assert.Contains(t, out, "No findings.")
-	assert.NotContains(t, out, "CRITICAL")
+	assert.NotContains(t, out, "FAILS")
 }
 
 // A check that also writes a file must still report. `qa` declares WritesOutput,

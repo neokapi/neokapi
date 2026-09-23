@@ -54,7 +54,6 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: major
 `
 	commentsSourceVoice = `id: source
 name: Source comments

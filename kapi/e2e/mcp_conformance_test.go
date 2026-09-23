@@ -99,7 +99,6 @@ vocabulary:
   forbidden_terms:
     - term: `+forbidden+`
       replacement: `+replacement+`
-      severity: major
 `)
 	write(".kapi/terms.json", `{
   "schemaVersion": "1.0",
@@ -350,7 +349,7 @@ func kapiJSON(t *testing.T, args ...string) map[string]any {
 	return out
 }
 
-// findings reads the findings array out of a kapi.check/v1 report.
+// findings reads the findings array out of a kapi.check/v2 report.
 func findings(report map[string]any) []any {
 	got, _ := report["findings"].([]any)
 	return got
@@ -1394,11 +1393,11 @@ func TestMCPConformanceCandidateCrossesProcesses(t *testing.T) {
 		for _, item := range reported {
 			f, ok := item.(map[string]any)
 			require.True(t, ok)
-			assert.Equal(t, true, f["advisory"],
+			assert.Equal(t, true, f["suggested"],
 				"must fail: a rule nobody has confirmed was reported as a verdict")
-			assert.Equal(t, "neutral", f["severity"],
-				"must fail: a candidate was raised above the severity every gate ignores")
-			assert.Contains(t, f["message"], "not yet confirmed")
+			assert.Equal(t, false, f["fails"],
+				"must fail: a suggested rule was made to fail a check")
+			assert.Contains(t, f["message"], "not yet established")
 		}
 
 		want := kapiJSON(t, "check", violating, "-p", proj.Recipe, "--json")

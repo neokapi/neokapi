@@ -214,7 +214,11 @@ func (a *App) currentUnitFindings(ctx context.Context, op *openProject, scope st
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 	for _, f := range a.blockCheckFindings(ctx, b, sourceLang, loc, profile,
 		points.termsAt(ctx, collection, relPath), dntTerms) {
-		line := fmt.Sprintf("[%s] %s", f.Severity, f.Message)
+		outcome := "reports"
+		if f.Fails {
+			outcome = "fails"
+		}
+		line := fmt.Sprintf("[%s] %s", outcome, f.Message)
 		if f.Suggestion != "" {
 			line += " (suggestion: " + f.Suggestion + ")"
 		}
@@ -567,12 +571,12 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 	return res, nil
 }
 
-// hasBlockingCheckFinding reports whether any deterministic-check finding is
-// critical or major — the classes that veto an auto-approval regardless of the
-// model's score.
+// hasBlockingCheckFinding reports whether any deterministic-check finding
+// fails: a failing finding vetoes an auto-approval regardless of the model's
+// score.
 func hasBlockingCheckFinding(findings []DesktopFinding) bool {
 	for _, f := range findings {
-		if f.Severity == "critical" || f.Severity == "major" {
+		if f.Fails {
 			return true
 		}
 	}

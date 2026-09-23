@@ -44,7 +44,7 @@ func TestDNTCheck_TranslatedTermFlaggedCritical(t *testing.T) {
 		[]string{"Acme Cloud"}, false)
 	require.Len(t, f, 1)
 	assert.Equal(t, "do-not-translate", f[0].Category)
-	assert.Equal(t, check.SeverityCritical, f[0].Severity)
+	assert.True(t, f[0].Fails)
 	assert.Equal(t, "Acme Cloud", f[0].OriginalText)
 }
 
@@ -69,7 +69,7 @@ func TestDNTCheck_CaseSensitivity(t *testing.T) {
 	// Exact-case required by default: "iPhone" → "Iphone" is a violation.
 	strict := runDNT(t, "Use iPhone now", "Benutze Iphone jetzt", []string{"iPhone"}, false)
 	require.Len(t, strict, 1)
-	assert.Equal(t, check.SeverityCritical, strict[0].Severity)
+	assert.True(t, strict[0].Fails)
 
 	// With case-insensitive preservation, a case-folded match is accepted.
 	relaxed := runDNT(t, "Use iPhone now", "Benutze Iphone jetzt", []string{"iPhone"}, true)

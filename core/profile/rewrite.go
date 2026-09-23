@@ -30,13 +30,13 @@ type RewriteChange struct {
 
 // RewriteSkip is a vocabulary rule that matched the text and was left in
 // place, with the reason. It carries what a caller needs to finish the edit by
-// hand: the rule's term, the list it sits in and the severity it bites at,
+// hand: the rule's term, the list it sits in and whether it fails,
 // where it applies, the spellings that matched, and the note or replacement
 // the rule offers.
 type RewriteSkip struct {
 	Term        string        `json:"term"`
 	List        string        `json:"list"`
-	Severity    Severity      `json:"severity"`
+	Fails       bool          `json:"fails"`
 	Scope       string        `json:"scope,omitempty"`
 	Replacement string        `json:"replacement,omitempty"`
 	Note        string        `json:"note,omitempty"`
@@ -162,7 +162,7 @@ func RewriteVocabulary(p *VoiceProfile, text string) RewriteResult {
 		res.Skipped = append(res.Skipped, RewriteSkip{
 			Term:        h.Term,
 			List:        h.Kind.String(),
-			Severity:    h.Severity,
+			Fails:       h.Fails,
 			Scope:       h.Scope,
 			Replacement: h.Replacement,
 			Note:        h.Note,

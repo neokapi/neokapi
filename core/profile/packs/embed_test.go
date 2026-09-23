@@ -48,9 +48,8 @@ func TestLoadInvalid(t *testing.T) {
 
 // TestProhibitedPatternsAreEnforced: every pack's prohibited patterns are matched
 // against content, not merely rendered into the LLM prompt. A pack that declares
-// a pattern major while its minor vocabulary rules decide the score has a
-// severity ladder that reads backwards, and the offline check its scaffold
-// advertises as deterministic is not a check at all.
+// a pattern that decides nothing leaves the offline check its scaffold
+// advertises as deterministic without a rule to hold.
 func TestProhibitedPatternsAreEnforced(t *testing.T) {
 	p, err := Load("professional-b2b")
 	require.NoError(t, err)
@@ -58,8 +57,8 @@ func TestProhibitedPatternsAreEnforced(t *testing.T) {
 
 	hits := profile.MatchPatterns(p, "This is gonna work")
 	require.NotEmpty(t, hits, "the pack's `gonna` rule must fire against content")
-	assert.Equal(t, profile.SeverityMajor, hits[0].Severity,
-		"the pack declares the rule major, and the matcher must honour it")
+	assert.True(t, hits[0].Fails,
+		"the pack's rule is not advisory, so a match fails")
 
 	// The score moves, so the rule decides something.
 	findings := profile.Findings(p, "This is gonna work", nil)

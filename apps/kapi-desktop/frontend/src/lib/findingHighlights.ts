@@ -1,4 +1,4 @@
-import { findingSeverityTone } from "@neokapi/ui-primitives";
+import { findingOutcomeTone } from "@neokapi/ui-primitives";
 import type { PreviewHighlight, PreviewHighlights } from "@neokapi/ui-primitives/preview";
 import type { DesktopFinding } from "../types/api";
 
@@ -30,7 +30,7 @@ export function findingHighlights(
   const out: Record<string, PreviewHighlight[]> = {};
   for (const f of findings) {
     if (!f.block_id) continue;
-    const tone = findingSeverityTone(f.severity);
+    const tone = findingOutcomeTone(f);
     const emphasis: PreviewHighlight["emphasis"] = focused
       ? f === focused
         ? "focus"
