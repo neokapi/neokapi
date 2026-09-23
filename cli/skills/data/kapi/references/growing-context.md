@@ -82,10 +82,10 @@ kapi context widen 7 --to workspace       # put a confirmed rule in force everyw
 
 Confirming, discarding someone else's proposal, reverting and widening belong to
 a person. An agent that tries is refused, and told so. You may still withdraw a
-candidate you recorded in this session, which is how a run cleans up after
-itself. Over MCP there is no tool for any of the decisions at all: end your task
-by reporting what you recorded and the command above for reviewing it, and let
-the user decide.
+proposal you recorded yourself when it turns out wrong: over the CLI with
+`kapi context discard <id>`, and over MCP with `context_withdraw`. That is how a
+run cleans up after itself. For everything else, end your task by reporting what
+you recorded and the command above for reviewing it, and let the user decide.
 
 ---
 
@@ -208,8 +208,8 @@ kapi context discard 9
 Create the project (or adopt the existing recipe, `kapi init` is idempotent):
 
 ```bash
-kapi init --name my-app                                        # content project: terms + check flow
-kapi init --name my-app --target-locale fr --target-locale de  # translation project
+kapi init --name my-app                                        # collections proposed from the tree
+kapi init --name my-app --target-locale fr --target-locale de  # and target languages to translate into
 ```
 
 Bind the context in the recipe:
@@ -273,12 +273,13 @@ translation-coverage bar is an optional top-level `ship_gate:` (see
 each language as not gated rather than shippable. Say which of these the
 project's CI should run, and on what: a check nobody runs governs nothing.
 
-Commit the configuration: `kapi.yaml`, `.kapi/` apart from `.kapi/work/`, and
-the assistant file. The context itself stays in the project's store, where every
-checkout reads it; `kapi context log` is where the user reads what was decided, and
+Commit the configuration: `kapi.yaml`, the agent wiring `kapi init` wrote, and
+the assistant file. `.kapi/` is this checkout's cache and stays out of the
+commit. The context itself stays in the project's store, where every checkout
+reads it; `kapi context log` is where the user reads what was decided, and
 `kapi context export -o backup.kpz` is the backup. If the user wants the context
-reviewable in a pull request as well, tell them about `kapi context snapshot`
-and let them decide.
+reviewable in a pull request as well, tell them about
+`kapi context snapshot --out <dir>` and let them decide.
 
 ## 5. Hand back a loop
 
