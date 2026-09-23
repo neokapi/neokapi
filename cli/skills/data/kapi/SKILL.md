@@ -13,18 +13,16 @@ terms and the wording already approved at each location. Keep four habits.
 - CLI: `kapi context <file>`, and `kapi context search <word>`
 - MCP: `context_read` with the file, and `context_search`
 
-Build on the answer. A suggested rule advises; only an established rule fails a
-check.
+A suggested rule advises; only an established rule fails a check.
 
 ## 2. Record what you notice
 
-- CLI: `kapi context observe "<fact>" --seen-in <file>`, and for a name or
-  spelling `kapi context observe --term <the project's form> --instead-of <form> --seen-in <file> --quote "<text>"`
-- MCP: `context_observe`, with `term` and `instead_of` for a name or spelling
+- CLI: `kapi context observe "<fact>" --seen-in <file>`; for a name,
+  `kapi context observe --term <form used> --instead-of <form avoided> --seen-in <file>`
+- MCP: `context_observe`, with `term` and `instead_of` for a name
 
-Record one thing per call, as you read. kapi adds the spacing, hyphen and case
-variants of the form you name. Take back a suggestion of yours that turns out
-wrong with `kapi context withdraw <id>` (MCP: `context_withdraw`).
+One thing per call, as you read. Take back your own mistake with
+`kapi context withdraw <id>` (MCP: `context_withdraw`).
 
 ## 3. Record the person's corrections
 
