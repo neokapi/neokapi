@@ -8,12 +8,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
 // Reading a saved session back.
 //
-// Every measure the drill reports about a session comes from the transcript on
+// Every measure the evaluation reports about a session comes from the transcript on
 // disk, so the report is reproducible from saved attempts with no model call
 // and a scoring change can be applied to attempts already run.
 //
@@ -24,15 +25,15 @@ import (
 
 // Call kinds, in the order the habits run.
 const (
-	coldStartKindAsk    = "ask"
-	coldStartKindRecord = "record"
-	coldStartKindCheck  = "check"
-	coldStartKindWrite  = "write"
-	coldStartKindOther  = "other"
+	evalKindAsk    = "ask"
+	evalKindRecord = "record"
+	evalKindCheck  = "check"
+	evalKindWrite  = "write"
+	evalKindOther  = "other"
 )
 
-// ColdStartCall is one tool call, in the order the transcript holds it.
-type ColdStartCall struct {
+// EvalCall is one tool call, in the order the transcript holds it.
+type EvalCall struct {
 	Order   int    `json:"order"`
 	Surface string `json:"surface"`
 	Tool    string `json:"tool"`
@@ -40,14 +41,14 @@ type ColdStartCall struct {
 	Detail  string `json:"detail,omitempty"`
 }
 
-// ColdStartTranscript is everything a saved session says.
-type ColdStartTranscript struct {
-	Host        string          `json:"host"`
-	Status      string          `json:"status"`
-	Error       string          `json:"error,omitempty"`
-	ActualModel string          `json:"actual_model,omitempty"`
-	SessionID   string          `json:"session_id,omitempty"`
-	Calls       []ColdStartCall `json:"calls"`
+// EvalTranscript is everything a saved session says.
+type EvalTranscript struct {
+	Host        string     `json:"host"`
+	Status      string     `json:"status"`
+	Error       string     `json:"error,omitempty"`
+	ActualModel string     `json:"actual_model,omitempty"`
+	SessionID   string     `json:"session_id,omitempty"`
+	Calls       []EvalCall `json:"calls"`
 	// SkillLoaded reports the shipped skill being loaded by name.
 	SkillLoaded bool `json:"skill_loaded"`
 	// AskedBeforeWriting reports a context read that came before the first
@@ -62,8 +63,8 @@ type ColdStartTranscript struct {
 }
 
 // kapiCalls returns the calls that reached kapi, by either surface.
-func (t ColdStartTranscript) kapiCalls() []ColdStartCall {
-	out := []ColdStartCall{}
+func (t EvalTranscript) kapiCalls() []EvalCall {
+	out := []EvalCall{}
 	for _, call := range t.Calls {
 		if call.Surface == "mcp" || call.Surface == "cli" {
 			out = append(out, call)
@@ -73,8 +74,8 @@ func (t ColdStartTranscript) kapiCalls() []ColdStartCall {
 }
 
 // ofKind returns the calls of one kind.
-func (t ColdStartTranscript) ofKind(kind string) []ColdStartCall {
-	out := []ColdStartCall{}
+func (t EvalTranscript) ofKind(kind string) []EvalCall {
+	out := []EvalCall{}
 	for _, call := range t.Calls {
 		if call.Kind == kind {
 			out = append(out, call)
@@ -84,7 +85,7 @@ func (t ColdStartTranscript) ofKind(kind string) []ColdStartCall {
 }
 
 // toolNames lists the distinct tool names of a call set, in first-seen order.
-func coldStartToolNames(calls []ColdStartCall) []string {
+func evalToolNames(calls []EvalCall) []string {
 	out := []string{}
 	for _, call := range calls {
 		out = pairedUnique(out, call.Tool)
@@ -92,18 +93,18 @@ func coldStartToolNames(calls []ColdStartCall) []string {
 	return out
 }
 
-// scanColdStartTranscript reads a saved stream and classifies every call.
-func scanColdStartTranscript(path, host string) (ColdStartTranscript, error) {
+// scanEvalTranscript reads a saved stream and classifies every call.
+func scanEvalTranscript(path, host string) (EvalTranscript, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return ColdStartTranscript{}, err
+		return EvalTranscript{}, err
 	}
 	defer file.Close()
-	return readColdStartTranscript(file, host)
+	return readEvalTranscript(file, host)
 }
 
-func readColdStartTranscript(reader io.Reader, host string) (ColdStartTranscript, error) {
-	transcript := ColdStartTranscript{Host: host, Status: "incomplete", Calls: []ColdStartCall{}}
+func readEvalTranscript(reader io.Reader, host string) (EvalTranscript, error) {
+	transcript := EvalTranscript{Host: host, Status: "incomplete", Calls: []EvalCall{}}
 	scanner := bufio.NewScanner(reader)
 	scanner.Buffer(make([]byte, 64*1024), 8*1024*1024)
 	models := map[string]bool{}
@@ -118,9 +119,9 @@ func readColdStartTranscript(reader io.Reader, host string) (ColdStartTranscript
 		}
 		switch host {
 		case "claude":
-			readColdStartClaudeEvent(event, &transcript, models)
+			readEvalClaudeEvent(event, &transcript, models)
 		case "codex":
-			readColdStartCodexEvent(event, &transcript, models)
+			readEvalCodexEvent(event, &transcript, models)
 		default:
 			return transcript, errors.New("unknown agent host")
 		}
@@ -137,11 +138,11 @@ func readColdStartTranscript(reader io.Reader, host string) (ColdStartTranscript
 	if len(models) > 1 {
 		transcript.Status = "model_mismatch"
 	}
-	transcript.AskedBeforeWriting = coldStartAskedFirst(transcript.Calls)
+	transcript.AskedBeforeWriting = evalAskedFirst(transcript.Calls)
 	return transcript, nil
 }
 
-func readColdStartClaudeEvent(event map[string]any, t *ColdStartTranscript, models map[string]bool) {
+func readEvalClaudeEvent(event map[string]any, t *EvalTranscript, models map[string]bool) {
 	switch pairedString(event, "type") {
 	case "system":
 		if pairedString(event, "subtype") == "init" {
@@ -183,7 +184,7 @@ func readColdStartClaudeEvent(event map[string]any, t *ColdStartTranscript, mode
 	}
 }
 
-func (t *ColdStartTranscript) addClaudeCall(name string, input map[string]any) {
+func (t *EvalTranscript) addClaudeCall(name string, input map[string]any) {
 	switch {
 	case name == "Bash":
 		t.addShellCall(pairedString(input, "command"))
@@ -193,7 +194,7 @@ func (t *ColdStartTranscript) addClaudeCall(name string, input map[string]any) {
 		// A host reads an MCP resource through a tool of its own, naming the
 		// server it wants. Only kapi's answers count as a context read.
 		if pairedString(input, "server") == "kapi" || strings.HasPrefix(pairedString(input, "uri"), "context://") {
-			t.add("mcp", coldStartResourceTool(pairedString(input, "uri")), pairedString(input, "uri"))
+			t.add("mcp", evalResourceTool(pairedString(input, "uri")), pairedString(input, "uri"))
 			return
 		}
 		t.add("host", name, pairedString(input, "server"))
@@ -206,15 +207,15 @@ func (t *ColdStartTranscript) addClaudeCall(name string, input map[string]any) {
 			t.SkillLoaded = true
 		}
 		t.add("host", "Skill", skill)
-	case name == "Read" && coldStartIsSkillPath(pairedString(input, "file_path")):
+	case name == "Read" && evalIsSkillPath(pairedString(input, "file_path")):
 		t.SkillLoaded = true
 		t.add("host", name, pairedString(input, "file_path"))
 	default:
-		t.add("host", name, coldStartPathOf(input))
+		t.add("host", name, evalPathOf(input))
 	}
 }
 
-func readColdStartCodexEvent(event map[string]any, t *ColdStartTranscript, models map[string]bool) {
+func readEvalCodexEvent(event map[string]any, t *EvalTranscript, models map[string]bool) {
 	switch pairedString(event, "type") {
 	case "thread.started":
 		t.SessionID = pairedString(event, "thread_id")
@@ -240,12 +241,12 @@ func readColdStartCodexEvent(event map[string]any, t *ColdStartTranscript, model
 			// Codex reads a resource through a helper of its own, under the
 			// server name `codex`, naming the target server in its arguments.
 			if strings.Contains(tool, "mcp_resource") && pairedString(arguments, "server") == "kapi" {
-				t.add("mcp", coldStartResourceTool(pairedString(arguments, "uri")), pairedString(arguments, "uri"))
+				t.add("mcp", evalResourceTool(pairedString(arguments, "uri")), pairedString(arguments, "uri"))
 				return
 			}
 			t.add("host", server+"."+tool, "")
 		case "file_change":
-			t.add("host", "file_change", coldStartCodexChangedPaths(item))
+			t.add("host", "file_change", evalCodexChangedPaths(item))
 		case "agent_message":
 			t.FinalText = pairedString(item, "text")
 		}
@@ -264,7 +265,7 @@ func readColdStartCodexEvent(event map[string]any, t *ColdStartTranscript, model
 	}
 }
 
-func coldStartCodexChangedPaths(item map[string]any) string {
+func evalCodexChangedPaths(item map[string]any) string {
 	changes, ok := item["changes"].([]any)
 	if !ok {
 		return ""
@@ -284,38 +285,38 @@ func coldStartCodexChangedPaths(item map[string]any) string {
 
 // addShellCall reads a shell command for the kapi commands the skill drives.
 // One command line can hold several, and each is recorded where it appears.
-func (t *ColdStartTranscript) addShellCall(command string) {
+func (t *EvalTranscript) addShellCall(command string) {
 	found := false
-	words := coldStartShellWords(command)
+	words := evalShellWords(command)
 	for index, word := range words {
 		if !pairedKapiExecutable(word) {
 			continue
 		}
 		found = true
-		t.add("cli", coldStartKapiRoute(filepath.Base(word), words[index+1:]), strings.TrimSpace(command))
+		t.add("cli", evalKapiRoute(filepath.Base(word), words[index+1:]), strings.TrimSpace(command))
 	}
 	if !found {
 		t.add("host", "shell", strings.TrimSpace(command))
 	}
 }
 
-// coldStartShellWords splits a command line into words, dropping the shell
+// evalShellWords splits a command line into words, dropping the shell
 // punctuation that separates commands within one line.
-func coldStartShellWords(command string) []string {
+func evalShellWords(command string) []string {
 	return strings.FieldsFunc(command, func(r rune) bool {
 		return strings.ContainsRune(" \t\n;|&()'\"", r)
 	})
 }
 
-// coldStartKapiRoute names the kapi command a word sequence runs: the binary,
+// evalKapiRoute names the kapi command a word sequence runs: the binary,
 // plus the subcommand path up to the first flag or argument that is not one.
-func coldStartKapiRoute(binary string, rest []string) string {
+func evalKapiRoute(binary string, rest []string) string {
 	route := []string{binary}
 	for _, word := range rest {
 		if strings.HasPrefix(word, "-") {
 			break
 		}
-		if len(route) >= 3 || !coldStartSubcommandWord(word) {
+		if len(route) >= 3 || !evalSubcommandWord(word) {
 			break
 		}
 		route = append(route, word)
@@ -323,10 +324,10 @@ func coldStartKapiRoute(binary string, rest []string) string {
 	return strings.Join(route, " ")
 }
 
-// coldStartSubcommandWord tells a subcommand from a path or free text. A kapi
+// evalSubcommandWord tells a subcommand from a path or free text. A kapi
 // subcommand is a lowercase word, and the arguments these commands take are
 // paths or sentences.
-func coldStartSubcommandWord(word string) bool {
+func evalSubcommandWord(word string) bool {
 	if word == "" || strings.ContainsAny(word, "/.\\=") {
 		return false
 	}
@@ -338,89 +339,119 @@ func coldStartSubcommandWord(word string) bool {
 	return true
 }
 
-func (t *ColdStartTranscript) add(surface, tool, detail string) {
-	t.Calls = append(t.Calls, ColdStartCall{
+func (t *EvalTranscript) add(surface, tool, detail string) {
+	t.Calls = append(t.Calls, EvalCall{
 		Order: len(t.Calls) + 1, Surface: surface, Tool: tool,
-		Kind: coldStartCallKind(surface, tool, detail), Detail: detail,
+		Kind: evalCallKind(surface, tool, detail), Detail: detail,
 	})
 }
 
-// coldStartCallKind places a call among the four habits, or outside them.
+// evalCallKind places a call among the four habits, or outside them.
 // A command line asking for help reads its own documentation, so it counts as
 // neither a write nor an ask however the command would otherwise be read.
-func coldStartCallKind(surface, tool, detail string) string {
+func evalCallKind(surface, tool, detail string) string {
 	if surface == "cli" && strings.Contains(detail, tool+" --help") {
-		return coldStartKindOther
+		return evalKindOther
 	}
 	switch surface {
 	case "mcp":
-		switch tool {
-		case "context_observe", "context_propose", "context_correct":
-			return coldStartKindRecord
-		case "context_search", "context_session_summary", coldStartContextResource:
-			return coldStartKindAsk
-		case "check_file", "check_text":
-			return coldStartKindCheck
-		case "apply_edits", "edit_file":
-			return coldStartKindWrite
+		if kind, ok := evalMCPToolKinds[tool]; ok {
+			return kind
 		}
-		return coldStartKindOther
+		return evalKindOther
 	case "cli":
 		switch {
 		case strings.HasPrefix(tool, "kapi context observe"),
 			strings.HasPrefix(tool, "kapi context propose"),
 			strings.HasPrefix(tool, "kapi context correct"):
-			return coldStartKindRecord
+			return evalKindRecord
 		case strings.HasPrefix(tool, "kapi context"), strings.HasPrefix(tool, "kapi voice guide"):
-			return coldStartKindAsk
+			return evalKindAsk
 		case strings.HasPrefix(tool, "kapi check"):
-			return coldStartKindCheck
+			return evalKindCheck
 		case strings.HasPrefix(tool, "kapi apply"), strings.HasPrefix(tool, "ksed"):
-			return coldStartKindWrite
+			return evalKindWrite
 		}
-		return coldStartKindOther
+		return evalKindOther
 	}
 	switch tool {
 	case "Write", "Edit", "MultiEdit", "NotebookEdit", "file_change":
-		return coldStartKindWrite
+		return evalKindWrite
 	}
-	return coldStartKindOther
+	return evalKindOther
 }
 
-// coldStartAskedFirst reports whether a context read came before the session's
+// evalMCPToolKinds places each kapi MCP tool among the habits. It is the
+// transcript reader's half of the product vocabulary: a tool the server gains
+// or renames shows up in a preparation record as unclassified until it is
+// placed here.
+var evalMCPToolKinds = map[string]string{
+	"context_observe":         evalKindRecord,
+	"context_propose":         evalKindRecord,
+	"context_correct":         evalKindRecord,
+	"context_search":          evalKindAsk,
+	"context_session_summary": evalKindAsk,
+	evalContextResource:       evalKindAsk,
+	"check_file":              evalKindCheck,
+	"check_text":              evalKindCheck,
+	"apply_edits":             evalKindWrite,
+	"edit_file":               evalKindWrite,
+}
+
+// evalToolCoverage compares a server's tool inventory with the reader: the
+// recording and checking tools the reader knows that the server lacks, and the
+// tools the server offers that the reader cannot place.
+func evalToolCoverage(tools []string) (missing, unclassified []string) {
+	missing, unclassified = []string{}, []string{}
+	for name, kind := range evalMCPToolKinds {
+		if (kind == evalKindRecord || kind == evalKindCheck) && !slices.Contains(tools, name) {
+			missing = append(missing, name)
+		}
+	}
+	for _, name := range tools {
+		if _, ok := evalMCPToolKinds[name]; !ok {
+			unclassified = append(unclassified, name)
+		}
+	}
+	slices.Sort(missing)
+	slices.Sort(unclassified)
+	return missing, unclassified
+}
+
+// evalAskedFirst reports whether a context read came before the session's
 // first change to a file. Reading a resource is an ask on both surfaces, and a
 // session that changed nothing has no first write to be before.
-func coldStartAskedFirst(calls []ColdStartCall) bool {
+func evalAskedFirst(calls []EvalCall) bool {
 	for _, call := range calls {
 		switch call.Kind {
-		case coldStartKindAsk:
+		case evalKindAsk:
 			return true
-		case coldStartKindWrite:
+		case evalKindWrite:
 			return false
 		}
 	}
 	return false
 }
 
-// coldStartIsSkillPath reports a read of the shipped skill by path, which is
+// evalIsSkillPath reports a read of the shipped skill by path, which is
 // how a host that loads no skill of its own still meets the guidance.
-func coldStartIsSkillPath(path string) bool {
+func evalIsSkillPath(path string) bool {
 	slashed := filepath.ToSlash(path)
 	return strings.Contains(slashed, "/skills/kapi/") && strings.Contains(slashed, "SKILL.md")
 }
 
-// coldStartContextResource is the name a context resource read is recorded
+// evalContextResource is the name a context resource read is recorded
 // under, so a resource and a tool call read the same way in a report.
-const coldStartContextResource = "context resource"
+const evalContextResource = "context resource"
 
-func coldStartResourceTool(uri string) string {
+func evalResourceTool(uri string) string {
 	if strings.HasPrefix(uri, "context://") {
-		return coldStartContextResource
+		return evalContextResource
 	}
 	return "resource read"
 }
 
-func coldStartPathOf(input map[string]any) string {
+func evalPathOf(input map[string]any) string {
 	for _, key := range []string{"file_path", "path", "pattern", "notebook_path"} {
 		if value := pairedString(input, key); value != "" {
 			return value

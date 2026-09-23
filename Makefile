@@ -2471,45 +2471,43 @@ paired-eval-pilot: ## Run the paired pilot within the persistent attempt ceiling
 paired-eval-score: ## Summarize saved paired attempts without model calls
 	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase score
 
-# The cold-start drill: one project whose context is empty, an ordinary writing
-# task, and only the shipped skill and MCP server. It measures whether an agent
-# grows the context by itself in a way a person would confirm. The fixture is
-# generated outside this repository, and the live phases share one persistent
-# attempt ceiling with no automatic retries.
-COLDSTART_MANIFEST ?= scripts/skilleval/testdata/coldstart-study.json
-COLDSTART_DIR ?= harness/out/coldstart
-COLDSTART_MAX_ATTEMPTS ?= 2
+# The agent evaluation: whether coding agents find, apply and grow a project's
+# context through kapi. It runs over a generated documentation repository whose
+# conventions are written down as an answer key, in cells generated outside this
+# repository, one host and one task per cell. The live phases share one
+# persistent attempt ceiling with no automatic retries, and every live target
+# builds bin/kapi first, because the binary under test is this checkout's.
+# Runbook: docs/internals/agent-evaluation.md.
+EVAL_MANIFEST ?= scripts/skilleval/testdata/eval-study.json
+EVAL_DIR ?= harness/out/eval
+# Two smoke runs and three runs per host on each measure.
+EVAL_MAX_ATTEMPTS ?= 14
+# The whole invocation's deadline: a phase runs its sessions one after another.
+EVAL_TIMEOUT ?= 4h
 # Where the cells are generated. Empty puts them under the system temporary
-# directory, which macOS sweeps after a few days; name a directory that
-# outlives that when a person's review comes later. It has to sit outside this
-# checkout, and nothing discoverable may sit above it.
-COLDSTART_CELLS_DIR ?=
-# The Kapi Desktop the review sheet opens a cell's workspace with: empty names
-# the shipped bundle, or point it at a locally built one.
-COLDSTART_DESKTOP_APP ?=
-COLDSTART_ARGS ?=
-COLDSTART_FLAGS = -coldstart-manifest "$(COLDSTART_MANIFEST)" -coldstart-dir "$(COLDSTART_DIR)" \
-	$(if $(COLDSTART_CELLS_DIR),-coldstart-cells-dir "$(COLDSTART_CELLS_DIR)") \
-	$(if $(COLDSTART_DESKTOP_APP),-coldstart-desktop-app "$(COLDSTART_DESKTOP_APP)") $(COLDSTART_ARGS)
-.PHONY: coldstart-preflight coldstart-smoke coldstart-session-one coldstart-review coldstart-session-two coldstart-report
+# directory, which macOS sweeps after a few days; name a directory that outlives
+# that when a person's review comes later. It has to sit outside this checkout,
+# and nothing discoverable may sit above it.
+EVAL_CELLS_DIR ?=
+EVAL_ARGS ?=
+EVAL_FLAGS = -eval-manifest "$(EVAL_MANIFEST)" -eval-dir "$(EVAL_DIR)" -timeout $(EVAL_TIMEOUT) \
+	$(if $(EVAL_CELLS_DIR),-eval-cells-dir "$(EVAL_CELLS_DIR)") $(EVAL_ARGS)
+.PHONY: eval-preflight eval-smoke eval-apply eval-grow eval-report
 
-coldstart-preflight: ## Build the cold-start fixture and establish its wiring without model calls (build kapi first)
-	$(GO) run ./scripts/skilleval $(COLDSTART_FLAGS) -coldstart-phase preflight
+eval-preflight: build ## Build the evaluation fixture and every cell, and verify the wiring (no model calls)
+	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase preflight
 
-coldstart-smoke: ## Run one cold-start first session per host (consumes plan allowance)
-	$(GO) run ./scripts/skilleval $(COLDSTART_FLAGS) -coldstart-phase smoke -coldstart-live -coldstart-max-attempts $(COLDSTART_MAX_ATTEMPTS)
+eval-smoke: build ## Run one agent-evaluation grow session per host (consumes plan allowance)
+	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase smoke -eval-live -eval-max-attempts $(EVAL_MAX_ATTEMPTS)
 
-coldstart-session-one: ## Run every cold-start first session within the ceiling (consumes plan allowance)
-	$(GO) run ./scripts/skilleval $(COLDSTART_FLAGS) -coldstart-phase session-one -coldstart-live -coldstart-max-attempts $(COLDSTART_MAX_ATTEMPTS)
+eval-apply: build ## Run Measure 1: do agents apply the rules a project holds (consumes plan allowance)
+	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase apply -eval-live -eval-max-attempts $(EVAL_MAX_ATTEMPTS)
 
-coldstart-review: ## Print each cell's candidates for a person, and read back what was decided
-	$(GO) run ./scripts/skilleval $(COLDSTART_FLAGS) -coldstart-phase review
+eval-grow: build ## Run Measure 2: do agents record a project's conventions (consumes plan allowance)
+	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase grow -eval-live -eval-max-attempts $(EVAL_MAX_ATTEMPTS)
 
-coldstart-session-two: ## Run the second cold-start session over what the person left in force (consumes plan allowance)
-	$(GO) run ./scripts/skilleval $(COLDSTART_FLAGS) -coldstart-phase session-two -coldstart-live -coldstart-max-attempts $(COLDSTART_MAX_ATTEMPTS)
-
-coldstart-report: ## Render the three cold-start measures from saved attempts without model calls
-	$(GO) run ./scripts/skilleval $(COLDSTART_FLAGS) -coldstart-phase report
+eval-report: ## Render the agent-evaluation report and review sheet from saved attempts (no model calls)
+	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase report
 
 PRIORAB_ARGS ?=
 # Costs model calls. Two halves: a deterministic consistency check (does the

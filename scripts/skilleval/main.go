@@ -66,14 +66,14 @@ func main() {
 		pairedLive        = flag.Bool("paired-live", false, "explicitly allow subscription-backed agent sessions")
 		pairedMaxAttempts = flag.Int("paired-max-attempts", 6, "persistent ceiling across live phases, including failed attempts")
 		pairedSessions    = flag.String("paired-sessions", "", "comma-separated session IDs to select; does not reset the attempt ceiling")
-		coldManifest      = flag.String("coldstart-manifest", "", "cold-start drill manifest; selects the separate cold-start runner")
-		coldPhase         = flag.String("coldstart-phase", "preflight", "cold-start phase: preflight, smoke, session-one, review, session-two or report")
-		coldDir           = flag.String("coldstart-dir", "harness/out/coldstart", "private directory for immutable cold-start evidence")
-		coldLive          = flag.Bool("coldstart-live", false, "explicitly allow subscription-backed agent sessions")
-		coldMaxAttempts   = flag.Int("coldstart-max-attempts", 2, "persistent ceiling across live cold-start phases, including failed attempts")
-		coldSessions      = flag.String("coldstart-sessions", "", "comma-separated cold-start session IDs to select; does not reset the attempt ceiling")
-		coldCellsDir      = flag.String("coldstart-cells-dir", "", "directory the cold-start cells are generated in; empty uses the system temporary directory")
-		coldDesktopApp    = flag.String("coldstart-desktop-app", "", "Kapi Desktop the review sheet opens a cell's workspace with: an application name, or a path to a locally built bundle")
+		evalManifest      = flag.String("eval-manifest", "", "agent evaluation manifest; selects the separate evaluation runner")
+		evalPhase         = flag.String("eval-phase", "preflight", "evaluation phase: preflight, smoke, apply, grow or report")
+		evalDir           = flag.String("eval-dir", "harness/out/eval", "private directory for immutable evaluation evidence")
+		evalLive          = flag.Bool("eval-live", false, "explicitly allow subscription-backed agent sessions")
+		evalMaxAttempts   = flag.Int("eval-max-attempts", 14, "persistent ceiling across live evaluation phases, including failed attempts")
+		evalSessions      = flag.String("eval-sessions", "", "comma-separated evaluation session IDs to select; does not reset the attempt ceiling")
+		evalCellsDir      = flag.String("eval-cells-dir", "", "directory the evaluation cells are generated in; empty uses the system temporary directory")
+		evalAnswers       = flag.String("eval-answers", "", "a person's answers to the review sheet; empty reads review-answers.yaml in the evaluation directory")
 		mode              = flag.String("mode", modeTrigger, "trigger or completion")
 		surface           = flag.String("surface", "", "limit to one surface: skill or mcp")
 		out               = flag.String("out", DefaultOut, "where to write the dataset")
@@ -112,27 +112,27 @@ func main() {
 		fail("paired-live requires paired-manifest")
 	}
 
-	// The cold-start drill is a third entry point: one project whose context is
-	// empty, an ordinary writing task, and the shipped skill and MCP server.
-	if *coldManifest != "" {
+	// The agent evaluation is a third entry point: a generated documentation
+	// repository with an answer key, and live sessions scored against it.
+	if *evalManifest != "" {
 		root, err := repoRoot()
 		if err != nil {
 			fail(err.Error())
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 		defer cancel()
-		err = executeColdStart(ctx, ColdStartOptions{
-			ManifestPath: *coldManifest, Phase: *coldPhase, Dir: *coldDir, RepoRoot: root,
-			CellsDir: *coldCellsDir, DesktopApp: *coldDesktopApp,
-			Live: *coldLive, MaxAttempts: *coldMaxAttempts, Sessions: *coldSessions,
+		err = executeEval(ctx, EvalOptions{
+			ManifestPath: *evalManifest, Phase: *evalPhase, Dir: *evalDir, RepoRoot: root,
+			CellsDir: *evalCellsDir, Answers: *evalAnswers,
+			Live: *evalLive, MaxAttempts: *evalMaxAttempts, Sessions: *evalSessions,
 		})
 		if err != nil {
 			fail(err.Error())
 		}
 		return
 	}
-	if *coldLive {
-		fail("coldstart-live requires coldstart-manifest")
+	if *evalLive {
+		fail("eval-live requires eval-manifest")
 	}
 
 	if *mode != modeTrigger && *mode != modeCompletion {

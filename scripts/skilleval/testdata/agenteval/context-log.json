@@ -1,0 +1,544 @@
+{
+  "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+  "operations": [
+    {
+      "id": "25",
+      "seq": 25,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "run-1"
+      },
+      "kind": "correct",
+      "correction": {
+        "from": "e-mail",
+        "to": "email"
+      },
+      "evidence": [
+        {
+          "path": "docs/troubleshooting.md"
+        }
+      ],
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T21:15:30.618894Z",
+      "status": "candidate"
+    },
+    {
+      "id": "24",
+      "seq": 24,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "run-1"
+      },
+      "kind": "observe",
+      "subject": {
+        "kind": "note",
+        "text": "Always write timesheet as one word"
+      },
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T21:15:30.590021Z",
+      "status": "candidate"
+    },
+    {
+      "id": "23",
+      "seq": 23,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "run-1"
+      },
+      "kind": "observe",
+      "subject": {
+        "kind": "note",
+        "text": "Paragraphs are short"
+      },
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T21:15:30.561595Z",
+      "status": "candidate"
+    },
+    {
+      "id": "22",
+      "seq": 22,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "run-1"
+      },
+      "kind": "observe",
+      "subject": {
+        "kind": "note",
+        "text": "Pages speak to the reader in the second person"
+      },
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T21:15:30.532081Z",
+      "status": "candidate"
+    },
+    {
+      "id": "21",
+      "seq": 21,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "run-1"
+      },
+      "kind": "observe",
+      "subject": {
+        "kind": "note",
+        "text": "The product name is always written Loomwise, one word"
+      },
+      "evidence": [
+        {
+          "path": "README.md"
+        }
+      ],
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T21:15:30.503041Z",
+      "status": "candidate"
+    },
+    {
+      "id": "20",
+      "seq": 20,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "run-1"
+      },
+      "kind": "observe",
+      "subject": {
+        "kind": "note",
+        "text": "Headings use sentence case"
+      },
+      "evidence": [
+        {
+          "path": "docs/plans.md",
+          "quote": "Changing plan"
+        }
+      ],
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T21:15:30.47406Z",
+      "status": "candidate"
+    },
+    {
+      "id": "19",
+      "seq": 19,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "run-1"
+      },
+      "kind": "propose",
+      "subject": {
+        "kind": "term",
+        "term": {
+          "term": "shift",
+          "replacement": "slot"
+        }
+      },
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T21:15:30.445736Z",
+      "status": "candidate"
+    },
+    {
+      "id": "18",
+      "seq": 18,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "run-1"
+      },
+      "kind": "propose",
+      "subject": {
+        "kind": "term",
+        "term": {
+          "term": "utilize",
+          "replacement": "use"
+        }
+      },
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T21:15:30.417014Z",
+      "status": "candidate"
+    },
+    {
+      "id": "17",
+      "seq": 17,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "run-1"
+      },
+      "kind": "propose",
+      "subject": {
+        "kind": "term",
+        "term": {
+          "term": "time sheet",
+          "replacement": "timesheet"
+        }
+      },
+      "evidence": [
+        {
+          "path": "docs/timesheets.md"
+        }
+      ],
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T21:15:30.388533Z",
+      "status": "candidate"
+    },
+    {
+      "id": "16",
+      "seq": 16,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "run-1"
+      },
+      "kind": "propose",
+      "subject": {
+        "kind": "term",
+        "term": {
+          "term": "catalog",
+          "replacement": "catalogue"
+        }
+      },
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T21:15:30.359918Z",
+      "status": "candidate"
+    },
+    {
+      "id": "15",
+      "seq": 15,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "run-1"
+      },
+      "kind": "propose",
+      "subject": {
+        "kind": "term",
+        "term": {
+          "term": "logged in",
+          "replacement": "signed in"
+        }
+      },
+      "evidence": [
+        {
+          "path": "docs/team-members.md",
+          "quote": "Once you have signed in"
+        }
+      ],
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T21:15:30.33058Z",
+      "status": "candidate"
+    },
+    {
+      "id": "14",
+      "seq": 14,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "agent",
+        "name": "claude-code",
+        "session": "run-1"
+      },
+      "kind": "propose",
+      "subject": {
+        "kind": "voice",
+        "voice": {
+          "list": "forbidden",
+          "rule": {
+            "term": "Loom Wise",
+            "replacement": "Loomwise"
+          }
+        }
+      },
+      "evidence": [
+        {
+          "path": "README.md"
+        }
+      ],
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T21:15:30.301497Z",
+      "status": "candidate"
+    },
+    {
+      "id": "13",
+      "seq": 13,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "confirm",
+      "scope": {
+        "level": "project"
+      },
+      "target": "12",
+      "at": "2026-09-23T21:15:30.219976Z",
+      "status": "confirmed"
+    },
+    {
+      "id": "12",
+      "seq": 12,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "propose",
+      "subject": {
+        "kind": "voice",
+        "voice": {
+          "list": "forbidden",
+          "rule": {
+            "term": "color",
+            "replacement": "colour",
+            "note": "held"
+          }
+        }
+      },
+      "scope": {
+        "level": "project"
+      },
+      "note": "held",
+      "at": "2026-09-23T21:15:30.190276Z",
+      "status": "confirmed"
+    },
+    {
+      "id": "11",
+      "seq": 11,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "confirm",
+      "scope": {
+        "level": "project"
+      },
+      "target": "10",
+      "at": "2026-09-23T21:15:30.158175Z",
+      "status": "confirmed"
+    },
+    {
+      "id": "10",
+      "seq": 10,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "propose",
+      "subject": {
+        "kind": "voice",
+        "voice": {
+          "list": "forbidden",
+          "rule": {
+            "term": "!",
+            "replacement": ".",
+            "note": "held"
+          }
+        }
+      },
+      "scope": {
+        "level": "project"
+      },
+      "note": "held",
+      "at": "2026-09-23T21:15:30.127791Z",
+      "status": "confirmed"
+    },
+    {
+      "id": "9",
+      "seq": 9,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "confirm",
+      "scope": {
+        "level": "project"
+      },
+      "target": "8",
+      "at": "2026-09-23T21:15:30.094557Z",
+      "status": "confirmed"
+    },
+    {
+      "id": "8",
+      "seq": 8,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "propose",
+      "subject": {
+        "kind": "voice",
+        "voice": {
+          "list": "forbidden",
+          "rule": {
+            "term": "employee",
+            "replacement": "team member",
+            "note": "held"
+          }
+        }
+      },
+      "scope": {
+        "level": "project"
+      },
+      "note": "held",
+      "at": "2026-09-23T21:15:30.064434Z",
+      "status": "confirmed"
+    },
+    {
+      "id": "7",
+      "seq": 7,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "confirm",
+      "scope": {
+        "level": "project"
+      },
+      "target": "6",
+      "at": "2026-09-23T21:15:30.03128Z",
+      "status": "confirmed"
+    },
+    {
+      "id": "6",
+      "seq": 6,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "propose",
+      "subject": {
+        "kind": "voice",
+        "voice": {
+          "list": "forbidden",
+          "rule": {
+            "term": "e-mail",
+            "replacement": "email",
+            "note": "held"
+          }
+        }
+      },
+      "scope": {
+        "level": "project"
+      },
+      "note": "held",
+      "at": "2026-09-23T21:15:29.998783Z",
+      "status": "confirmed"
+    },
+    {
+      "id": "5",
+      "seq": 5,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "confirm",
+      "scope": {
+        "level": "project"
+      },
+      "target": "4",
+      "at": "2026-09-23T21:15:29.965242Z",
+      "status": "confirmed"
+    },
+    {
+      "id": "4",
+      "seq": 4,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "propose",
+      "subject": {
+        "kind": "voice",
+        "voice": {
+          "list": "forbidden",
+          "rule": {
+            "term": "log in",
+            "replacement": "sign in",
+            "note": "held"
+          }
+        }
+      },
+      "scope": {
+        "level": "project"
+      },
+      "note": "held",
+      "at": "2026-09-23T21:15:29.935188Z",
+      "status": "confirmed"
+    },
+    {
+      "id": "2",
+      "seq": 2,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "confirm",
+      "scope": {
+        "level": "project"
+      },
+      "target": "1",
+      "at": "2026-09-23T21:15:29.869321Z",
+      "status": "confirmed"
+    },
+    {
+      "id": "1",
+      "seq": 1,
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "propose",
+      "subject": {
+        "kind": "voice",
+        "voice": {
+          "list": "forbidden",
+          "rule": {
+            "term": "Loom Wise",
+            "replacement": "Loomwise",
+            "note": "held"
+          }
+        }
+      },
+      "scope": {
+        "level": "project"
+      },
+      "note": "held",
+      "at": "2026-09-23T21:15:29.838555Z",
+      "status": "confirmed"
+    }
+  ]
+}

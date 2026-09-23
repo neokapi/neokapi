@@ -1,7 +1,0 @@
-{
-  "id": "empty-export-section",
-  "stage": "one",
-  "correction": true,
-  "prompt": "Add a section to docs/troubleshooting.md for people whose export downloads as an empty file. Tell them the date range has to cover invoice dates rather than payment dates, and that a narrower range helps on a large workspace.\n\nOne thing from your last draft: I changed your \"log in\" to \"sign in\" everywhere before it went out. We always say sign in, never log in.",
-  "note": "The only prompt carrying a person's wording correction. A correction recorded with both wordings and the file it was made in is the cue this task tests."
-}
