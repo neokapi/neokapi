@@ -13,6 +13,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/contextgraph"
+	"github.com/neokapi/neokapi/core/contextop"
 	coregraph "github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -110,6 +111,10 @@ type ContextSearchResult struct {
 	// voice is in force, and until when". Only profiles that declare a window
 	// appear; a project that never bounds governance has none.
 	Profiles []ContextProfileHit `json:"profiles,omitempty"`
+	// Suggestions are what somebody recorded about the word and nobody has
+	// established: suggested term rules and notes that mention it, and the
+	// rules a disagreement contests. They advise and fail no check.
+	Suggestions []ContextSuggestion `json:"suggestions,omitempty"`
 	// Attention holds what a person or an agent must act on before relying on
 	// the answer: context files nothing has read in, a store that could not be
 	// read. The text answer shows these and nothing else of Notes.
@@ -132,7 +137,7 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 	for _, a := range r.Attention {
 		fmt.Fprintf(w, "%s\n\n", capitalSentence(a))
 	}
-	if len(r.Terms) == 0 && len(r.Precedent) == 0 {
+	if len(r.Terms) == 0 && len(r.Precedent) == 0 && len(r.Suggestions) == 0 {
 		fmt.Fprintf(w, "Nothing in this project's context matches %q.\n", r.Query)
 		if r.Scope != ScopeProfile {
 			fmt.Fprintln(w, "If the project keeps to a name or spelling for it, record that with context_observe "+
@@ -218,6 +223,13 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 				fmt.Fprintf(w, "  %-24s uses retired wording: %s\n", "",
 					strings.Join(p.Discouraged, ", "))
 			}
+		}
+	}
+
+	if len(r.Suggestions) > 0 {
+		fmt.Fprintln(w, "\nSuggested, not yet established")
+		for _, c := range r.Suggestions {
+			fmt.Fprintf(w, "  %s\n", strings.TrimPrefix(suggestionLine(c), "- "))
 		}
 	}
 
@@ -391,6 +403,12 @@ type ContextSearchSources struct {
 	// project that genuinely holds no such term.
 	Unread *ContextFilesNotice
 
+	// Operations are the project's context operations that still answer:
+	// suggestions, contested rules and notes, newest first. The search reports
+	// the ones that mention the query. Empty for a standalone-store query with
+	// no project in scope.
+	Operations []contextop.Record
+
 	// Recipe is the project whose context space the answer resolves places
 	// against, so a term's uses can say where each one is governed. nil for a
 	// standalone-store query with no project in scope.
@@ -461,6 +479,17 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 			src.Profiles = profileHits(proj.ProfileWindows(), src.At)
 			if notice, unread := a.ContextFilesUnread(ctxOrBackground(cmd.Context()), path); unread {
 				src.Unread = &notice
+			}
+			// What has been suggested about a word is part of what the project
+			// says about it, so an agent that observed a name reads it back
+			// here. A workspace that cannot be read leaves the answer without
+			// it, the same as every other store.
+			if log, lerr := a.ContextOperations(ctxOrBackground(cmd.Context()), ContextLogRequest{Project: path, Subjects: true}); lerr == nil {
+				for _, op := range log.Operations {
+					if op.Status.Advises() {
+						src.Operations = append(src.Operations, op.Record)
+					}
+				}
 			}
 			a.bindContextGraph(ctxOrBackground(cmd.Context()), path, proj, &src)
 		}
@@ -577,6 +606,7 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	}
 
 	res.Profiles = src.Profiles
+	res.Suggestions = suggestionsAbout(src.Operations, req.Query, limit)
 
 	flagRetiredPrecedent(res.Terms, res.Precedent)
 	res.Notes = append(res.Notes, countTermUses(ctx, src, res.Terms)...)
@@ -585,9 +615,9 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	// freshness notes, ahead of the caveats about which store answered. A
 	// caller that reads two notes reads the two that change what it should do
 	// next.
-	// The by-content answer reads stores rather than the operation log, so it
-	// counts what it found and reports no candidates.
-	res.Coverage = coverageOf(countKinds(len(res.Terms) > 0, len(res.Precedent) > 0), false)
+	// What is established counts toward coverage; a suggestion only lifts an
+	// empty answer to a thin one.
+	res.Coverage = coverageOf(countKinds(len(res.Terms) > 0, len(res.Precedent) > 0), len(res.Suggestions) > 0)
 	res.Provenance = src.Provenance
 	var lead []string
 	if note := contextSearchCoverageNote(res.Coverage, strconv.Quote(req.Query)); note != "" {
@@ -606,6 +636,74 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	}
 
 	return res, nil
+}
+
+// suggestionsAbout picks the operations that mention a query: a term rule
+// whose forms or replacement contain it, a note whose text does. Matching
+// folds case, the way the terms store searches.
+func suggestionsAbout(records []contextop.Record, query string, limit int) []ContextSuggestion {
+	q := strings.ToLower(strings.TrimSpace(query))
+	if q == "" || len(records) == 0 {
+		return nil
+	}
+	var out []ContextSuggestion
+	for _, r := range records {
+		if !mentions(r, q) {
+			continue
+		}
+		entry := ContextSuggestion{
+			Operation:   r.ID,
+			Kind:        string(r.Subject.Kind),
+			Status:      string(r.Status),
+			ContestedBy: r.ContestedBy,
+			Note:        r.Note,
+			SuggestedBy: r.Actor.Name,
+			Session:     r.Actor.Session,
+			Evidence:    r.Evidence,
+		}
+		if entry.SuggestedBy == "" {
+			entry.SuggestedBy = string(r.Actor.Kind)
+		}
+		if rule, ok := r.Rule(); ok {
+			entry.Term, entry.Forms, entry.Replacement, entry.Severity = rule.Term, rule.Forms, rule.Replacement, rule.Severity
+			if r.Subject.Text != "" {
+				entry.Note = r.Subject.Text
+			}
+		} else {
+			entry.Kind = string(contextop.SubjectNote)
+			entry.Text = r.Subject.Text
+			if entry.Text == "" && r.Correction != nil {
+				entry.Text = fmt.Sprintf("%q became %q", r.Correction.From, r.Correction.To)
+			}
+		}
+		if !r.At.IsZero() {
+			entry.At = r.At.UTC().Format(time.RFC3339)
+		}
+		out = append(out, entry)
+		if len(out) == limit {
+			break
+		}
+	}
+	return out
+}
+
+// mentions reports whether an operation says anything about a folded query.
+func mentions(r contextop.Record, q string) bool {
+	var texts []string
+	if rule, ok := r.Rule(); ok {
+		texts = append(texts, rule.Term, rule.Replacement)
+		texts = append(texts, rule.Forms...)
+	}
+	texts = append(texts, r.Subject.Text)
+	if r.Correction != nil {
+		texts = append(texts, r.Correction.From, r.Correction.To)
+	}
+	for _, t := range texts {
+		if t != "" && strings.Contains(strings.ToLower(t), q) {
+			return true
+		}
+	}
+	return false
 }
 
 // profileHits renders the project's bounded governance profiles for a context

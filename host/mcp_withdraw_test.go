@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/contextop"
-	"github.com/neokapi/neokapi/core/profile"
 )
 
 // growthSession connects a client to a server carrying the context-growth
@@ -62,7 +61,7 @@ func TestContextWithdrawTakesBackThisSessionsCandidate(t *testing.T) {
 	session := growthSession(t, app)
 
 	recorded, res := callRecord(t, session, "context_correct", map[string]any{
-		"from": "use", "to": "utilise", "path": "config/app.yaml", "propose": true,
+		"from": "use", "to": "utilise", "path": "config/app.yaml", "suggest": true,
 		"project": recipeOf(root),
 	})
 	require.False(t, res.IsError, resultText(res))
@@ -72,10 +71,10 @@ func TestContextWithdrawTakesBackThisSessionsCandidate(t *testing.T) {
 		"operation": recorded.Operation, "note": "entered backwards", "project": recipeOf(root),
 	})
 	require.False(t, res.IsError, resultText(res))
-	assert.Equal(t, string(contextop.KindDiscard), withdrawn.Kind)
+	assert.Equal(t, string(contextop.KindWithdraw), withdrawn.Kind)
 	assert.Equal(t, "withdrew operation "+recorded.Operation, withdrawn.Recorded)
 
-	log, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root), Status: contextop.StatusCandidate})
+	log, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root), Status: contextop.StatusSuggested})
 	require.NoError(t, err)
 	for _, op := range log.Operations {
 		assert.NotEqual(t, recorded.Operation, op.ID, "a withdrawn correction is no longer a candidate")
@@ -89,24 +88,24 @@ func TestContextWithdrawRefusesWhatIsNotThisSessions(t *testing.T) {
 	root := contextOpsProject(t, "withdraw-refused")
 	session := growthSession(t, app)
 
-	other, err := app.ProposeContextRule(t.Context(), ContextProposeRequest{
-		Actor:    contextop.Actor{Kind: contextop.ActorAgent, Name: "codex", Session: "s-earlier"},
-		Project:  recipeOf(root),
-		Term:     &profile.TermRule{Term: "utilise", Replacement: "use"},
+	other, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
+		Actor:   contextop.Actor{Kind: contextop.ActorAgent, Name: "codex", Session: "s-earlier"},
+		Project: recipeOf(root),
+		Term:    "use", InsteadOf: []string{"utilise"},
 		Evidence: []contextop.Evidence{{Path: "config/app.yaml"}},
 	})
 	require.NoError(t, err)
 	_, res := callRecord(t, session, "context_withdraw", map[string]any{
 		"operation": other.ID, "project": recipeOf(root),
 	})
-	require.True(t, res.IsError, "another session's candidate is a person's to decide")
-	assert.Contains(t, resultText(res), "another actor")
+	require.True(t, res.IsError, "another session's suggestion is a person's to decide")
+	assert.Contains(t, resultText(res), "only its author withdraws")
 
-	mine, res := callRecord(t, session, "context_propose", map[string]any{
-		"term": "widget", "use": "gadget", "path": "config/app.yaml", "project": recipeOf(root),
+	mine, res := callRecord(t, session, "context_observe", map[string]any{
+		"term": "gadget", "instead_of": []string{"widget"}, "path": "config/app.yaml", "project": recipeOf(root),
 	})
 	require.False(t, res.IsError, resultText(res))
-	_, err = app.ConfirmContextOperation(t.Context(), ContextConfirmRequest{
+	_, err = app.KeepContextOperation(t.Context(), ContextKeepRequest{
 		Actor:   contextop.Actor{Kind: contextop.ActorPerson, Name: "ada"},
 		Project: recipeOf(root),
 		ID:      mine.Operation,
@@ -115,8 +114,8 @@ func TestContextWithdrawRefusesWhatIsNotThisSessions(t *testing.T) {
 	_, res = callRecord(t, session, "context_withdraw", map[string]any{
 		"operation": mine.Operation, "project": recipeOf(root),
 	})
-	require.True(t, res.IsError, "a confirmed rule is a person's to withdraw")
-	assert.Contains(t, resultText(res), "confirmed")
+	require.True(t, res.IsError, "an established rule is a person's to revert")
+	assert.Contains(t, resultText(res), "established")
 
 	_, res = callRecord(t, session, "context_withdraw", map[string]any{"operation": " ", "project": recipeOf(root)})
 	require.True(t, res.IsError)

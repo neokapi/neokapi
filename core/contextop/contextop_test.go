@@ -327,6 +327,7 @@ func TestSubjectDescribe(t *testing.T) {
 		},
 		{"a note", contextop.Subject{Kind: contextop.SubjectNote, Text: "we say you"}, `note "we say you"`},
 		{"nothing", contextop.Subject{}, ""},
+		{"a term rule with no rule", contextop.Subject{Kind: contextop.SubjectTerm}, "term"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

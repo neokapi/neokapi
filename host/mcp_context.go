@@ -26,8 +26,13 @@ import (
 // The two are shaped differently on the wire because the questions are. Asking
 // what a word means is a call with arguments, so it is a TOOL. Asking what
 // applies at a location is reading something that already exists at an address,
-// so it is a RESOURCE — which is also what lets the rendering be a property of
+// so it is a RESOURCE, which is also what lets the rendering be a property of
 // the read (a mime type) rather than a second entry point.
+//
+// The server offers the resource only as a template, and a client lists no
+// resources from a template, so an agent that works from its tool list never
+// reads one. context_read is the same read as a tool: it takes the path and
+// answers with exactly the text `context://<path>` does.
 
 func init() { RegisterMCPToolFactory(registerContextMCPTools) }
 
@@ -42,7 +47,47 @@ func registerContextMCPTools(server *mcp.Server, a *App) {
 			"context files nobody has imported.",
 	}, a.handleContextSearch)
 
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "context_read",
+		Description: "Read what applies when you write one file, before you change it: the voice, the words " +
+			"to use and to avoid, and what has been suggested but not yet established. `path` is " +
+			"project-relative, e.g. `docs/guide.md`, or `profile/<name>` for a named profile. The same " +
+			"text the context://<path> resource returns.",
+	}, a.handleContextRead)
+
 	registerContextResources(server, a)
+}
+
+// contextReadInput names the place a context_read answers for.
+type contextReadInput struct {
+	Path    string `json:"path" jsonschema:"the project-relative file you are about to write, or profile/<name>"`
+	Format  string `json:"format,omitempty" jsonschema:"markdown (default) or json"`
+	Project string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+}
+
+// handleContextRead answers with the text the context:// resource at the same
+// path returns, by reading that address.
+func (a *App) handleContextRead(ctx context.Context, _ *mcp.CallToolRequest, in contextReadInput) (*mcp.CallToolResult, any, error) {
+	path := strings.TrimPrefix(strings.TrimSpace(in.Path), contextURIScheme)
+	if path == "" {
+		return nil, nil, fmt.Errorf("context_read: name the file you are about to write in `path`")
+	}
+	query := url.Values{}
+	if in.Format != "" {
+		query.Set("format", in.Format)
+	}
+	if in.Project != "" {
+		query.Set("project", in.Project)
+	}
+	uri := contextURIScheme + path
+	if len(query) > 0 {
+		uri += "?" + query.Encode()
+	}
+	body, _, err := a.readContextURI(ctx, uri)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: body}}}, nil, nil
 }
 
 // contextURIScheme is the address space the by-location primitive lives in.
@@ -93,14 +138,26 @@ func registerContextResources(server *mcp.Server, a *App) {
 // `context://profile/<name>` from the same host resolution the CLI verb calls.
 func (a *App) handleContextResource(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 	uri := req.Params.URI
-	request, asJSON, named, err := parseContextURI(uri)
+	body, mime, err := a.readContextURI(ctx, uri)
 	if err != nil {
 		return nil, err
+	}
+	return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{
+		{URI: uri, MIMEType: mime, Text: body},
+	}}, nil
+}
+
+// readContextURI resolves one `context://` address and renders the answer, for
+// the resource and for context_read alike.
+func (a *App) readContextURI(ctx context.Context, uri string) (string, string, error) {
+	request, asJSON, named, err := parseContextURI(uri)
+	if err != nil {
+		return "", "", err
 	}
 
 	cmd, recipe, err := a.mcpCallCommand(ctx, "context", named)
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
 	if recipe != "" && request.Path != "" && !filepath.IsAbs(request.Path) {
 		request.Path = filepath.Join(filepath.Dir(recipe), request.Path)
@@ -110,16 +167,9 @@ func (a *App) handleContextResource(ctx context.Context, req *mcp.ReadResourceRe
 
 	answer, err := ResolveContextAt(ctx, src, request)
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
-
-	body, mime, err := renderContextAnswer(answer, asJSON)
-	if err != nil {
-		return nil, err
-	}
-	return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{
-		{URI: uri, MIMEType: mime, Text: body},
-	}}, nil
+	return renderContextAnswer(answer, asJSON)
 }
 
 // renderContextAnswer renders one answer in the form the read asked for. The

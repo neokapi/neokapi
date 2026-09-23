@@ -106,12 +106,12 @@ func vocabularyFindings(report check.Report) []check.Diagnostic {
 
 func proposeUtilise(t *testing.T, app *App, root string, actor contextop.Actor) ContextOperation {
 	t.Helper()
-	op, err := app.ProposeContextRule(t.Context(), ContextProposeRequest{
-		Actor:    actor,
-		Project:  recipeOf(root),
-		Term:     &coreprofile.TermRule{Term: "utilise", Replacement: "use", Severity: "major"},
+	op, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
+		Actor:   actor,
+		Project: recipeOf(root),
+		Term:    "use", InsteadOf: []string{"utilise"},
 		Evidence: []contextop.Evidence{{Path: "config/app.yaml", Unit: "greeting", Quote: "We utilise the widget"}},
-		Note:     "the docs say use everywhere else",
+		Text:     "the docs say use everywhere else",
 	})
 	require.NoError(t, err)
 	return op
@@ -135,7 +135,7 @@ func TestCandidateAdvisesAndConfirmedBinds(t *testing.T) {
 	require.NotEqual(t, check.VerdictFailed, clean.Verdict)
 
 	proposed := proposeUtilise(t, app, root, person)
-	assert.Equal(t, contextop.StatusCandidate, proposed.Status)
+	assert.Equal(t, contextop.StatusSuggested, proposed.Status)
 
 	advised := checkWith(t, app, root, true)
 	found := vocabularyFindings(advised)
@@ -149,7 +149,7 @@ func TestCandidateAdvisesAndConfirmedBinds(t *testing.T) {
 	assert.Zero(t, advised.Summary.Major)
 	assert.Zero(t, advised.Summary.Critical)
 
-	confirmed, err := app.ConfirmContextOperation(t.Context(), ContextConfirmRequest{
+	confirmed, err := app.KeepContextOperation(t.Context(), ContextKeepRequest{
 		Actor:   person,
 		Project: recipeOf(root),
 		ID:      proposed.ID,
@@ -177,16 +177,16 @@ func TestDiscardAndRevertStopARuleAnswering(t *testing.T) {
 		undo    func(t *testing.T, app *App, root, id string)
 	}{
 		{
-			name: "discarding a candidate",
+			name: "dropping a suggestion",
 			undo: func(t *testing.T, app *App, root, id string) {
-				_, err := app.DiscardContextOperation(t.Context(), ContextDiscardRequest{
+				_, err := app.DropContextOperation(t.Context(), ContextDropRequest{
 					Actor: person, Project: recipeOf(root), ID: id,
 				})
 				require.NoError(t, err)
 			},
 		},
 		{
-			name: "reverting a candidate",
+			name: "reverting a suggestion",
 			undo: func(t *testing.T, app *App, root, id string) {
 				_, err := app.RevertContextOperations(t.Context(), ContextRevertRequest{
 					Actor: person, Project: recipeOf(root), ID: id,
@@ -195,17 +195,7 @@ func TestDiscardAndRevertStopARuleAnswering(t *testing.T) {
 			},
 		},
 		{
-			name:    "discarding a confirmed rule",
-			confirm: true,
-			undo: func(t *testing.T, app *App, root, id string) {
-				_, err := app.DiscardContextOperation(t.Context(), ContextDiscardRequest{
-					Actor: person, Project: recipeOf(root), ID: id,
-				})
-				require.NoError(t, err)
-			},
-		},
-		{
-			name:    "reverting a confirmed rule",
+			name:    "reverting an established rule",
 			confirm: true,
 			undo: func(t *testing.T, app *App, root, id string) {
 				_, err := app.RevertContextOperations(t.Context(), ContextRevertRequest{
@@ -222,7 +212,7 @@ func TestDiscardAndRevertStopARuleAnswering(t *testing.T) {
 
 			proposed := proposeUtilise(t, app, root, person)
 			if tt.confirm {
-				_, err := app.ConfirmContextOperation(t.Context(), ContextConfirmRequest{
+				_, err := app.KeepContextOperation(t.Context(), ContextKeepRequest{
 					Actor:   person,
 					Project: recipeOf(root), ID: proposed.ID,
 				})
@@ -252,22 +242,23 @@ func TestRevertingASessionRestoresTheCheckExactly(t *testing.T) {
 	session := agentIn("s-nightly")
 	var recorded []string
 	for _, rule := range []coreprofile.TermRule{
-		{Term: "utilise", Replacement: "use", Severity: "major"},
-		{Term: "widget", Replacement: "component", Severity: "major"},
-		{Term: "every day", Replacement: "daily", Severity: "minor"},
+		{Term: "utilise", Replacement: "use"},
+		{Term: "widget", Replacement: "component"},
+		{Term: "every day", Replacement: "daily"},
 	} {
-		op, err := app.ProposeContextRule(t.Context(), ContextProposeRequest{
-			Actor:    session,
-			Project:  recipeOf(root),
-			Term:     &rule,
-			Evidence: []contextop.Evidence{{Path: "config/app.yaml"}},
+		op, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
+			Actor:     session,
+			Project:   recipeOf(root),
+			Term:      rule.Replacement,
+			InsteadOf: []string{rule.Term},
+			Evidence:  []contextop.Evidence{{Path: "config/app.yaml"}},
 		})
 		require.NoError(t, err)
 		recorded = append(recorded, op.ID)
 	}
 	// A person confirmed one of them, so the session put something binding in
 	// the project's store as well as three candidates in its log.
-	_, err := app.ConfirmContextOperation(t.Context(), ContextConfirmRequest{
+	_, err := app.KeepContextOperation(t.Context(), ContextKeepRequest{
 		Actor:   person,
 		Project: recipeOf(root), ID: recorded[0],
 	})
@@ -282,9 +273,9 @@ func TestRevertingASessionRestoresTheCheckExactly(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 3, summary.Operations)
-	assert.Equal(t, 3, summary.ByKind[contextop.KindPropose])
-	assert.Equal(t, 1, summary.ByStatus[contextop.StatusConfirmed])
-	assert.Equal(t, 2, summary.ByStatus[contextop.StatusCandidate])
+	assert.Equal(t, 3, summary.ByKind[contextop.KindObserve])
+	assert.Equal(t, 1, summary.ByStatus[contextop.StatusEstablished])
+	assert.Equal(t, 2, summary.ByStatus[contextop.StatusSuggested])
 
 	reverted, err := app.RevertContextOperations(t.Context(), ContextRevertRequest{
 		Actor:   person,
@@ -308,9 +299,9 @@ func TestAnAgentCannotConfirm(t *testing.T) {
 	root := contextOpsProject(t, "ctxops-policy")
 
 	proposed := proposeUtilise(t, app, root, agentIn("s1"))
-	assert.Equal(t, contextop.StatusCandidate, proposed.Status)
+	assert.Equal(t, contextop.StatusSuggested, proposed.Status)
 
-	_, err := app.ConfirmContextOperation(t.Context(), ContextConfirmRequest{
+	_, err := app.KeepContextOperation(t.Context(), ContextKeepRequest{
 		Actor:   agentIn("s1"),
 		Project: recipeOf(root), ID: proposed.ID,
 	})
@@ -328,7 +319,7 @@ func TestAnAgentCannotConfirm(t *testing.T) {
 	assert.True(t, found[0].Advisory, "the refused confirmation left the rule a proposal")
 	assert.NotEqual(t, check.VerdictFailed, still.Verdict)
 
-	confirmed, err := app.ConfirmContextOperation(t.Context(), ContextConfirmRequest{
+	confirmed, err := app.KeepContextOperation(t.Context(), ContextKeepRequest{
 		Actor:   person,
 		Project: recipeOf(root), ID: proposed.ID,
 	})
@@ -344,7 +335,7 @@ func TestAWidenedRuleAnswersInASecondProject(t *testing.T) {
 	second := contextOpsProject(t, "ctxops-second")
 
 	proposed := proposeUtilise(t, app, first, person)
-	_, err := app.ConfirmContextOperation(t.Context(), ContextConfirmRequest{
+	_, err := app.KeepContextOperation(t.Context(), ContextKeepRequest{
 		Actor:   person,
 		Project: recipeOf(first), ID: proposed.ID,
 	})
@@ -398,16 +389,15 @@ func TestApplyAssetEntriesRecordOperations(t *testing.T) {
 
 	log, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root)})
 	require.NoError(t, err)
-	require.Len(t, log.Operations, 2, "a proposal and the confirmation of it, both by the person who ran apply")
-	confirm, propose := log.Operations[0], log.Operations[1]
-	assert.Equal(t, contextop.KindConfirm, confirm.Kind)
-	assert.Equal(t, contextop.KindPropose, propose.Kind)
-	assert.Equal(t, contextop.StatusConfirmed, propose.Status)
-	assert.Equal(t, contextop.ActorPerson, propose.Actor.Kind)
-	rule, ok := propose.Rule()
+	require.Len(t, log.Operations, 1, "one edit by the person who ran apply")
+	edit := log.Operations[0]
+	assert.Equal(t, contextop.KindEdit, edit.Kind)
+	assert.Equal(t, contextop.StatusEstablished, edit.Status, "a person's own edit is established from the start")
+	assert.Equal(t, contextop.ActorPerson, edit.Actor.Kind)
+	rule, ok := edit.Rule()
 	require.True(t, ok)
 	assert.Equal(t, "utilise", rule.Term)
-	assert.Equal(t, []contextop.Evidence{{Path: "config/app.yaml"}}, propose.Evidence)
+	assert.Equal(t, []contextop.Evidence{{Path: "config/app.yaml"}}, edit.Evidence)
 
 	// Re-applying the same entry is a no-op, and records nothing a second time.
 	again := app.applyRecordedAssetEntry(t.Context(), cmd, changeEntry{
@@ -416,7 +406,7 @@ func TestApplyAssetEntriesRecordOperations(t *testing.T) {
 	assert.Equal(t, "skipped", again.Status)
 	log, err = app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root)})
 	require.NoError(t, err)
-	assert.Len(t, log.Operations, 2, "an entry that changed nothing decides nothing")
+	assert.Len(t, log.Operations, 1, "an entry that changed nothing decides nothing")
 
 	// An agent naming itself on an asset entry is refused before anything is
 	// written, because applying one is a decision.
@@ -425,7 +415,7 @@ func TestApplyAssetEntriesRecordOperations(t *testing.T) {
 		Actor: &contextop.Actor{Kind: contextop.ActorAgent, Name: "claude", Session: "s1"},
 	})
 	assert.Equal(t, "error", refused.Status)
-	assert.Contains(t, refused.Detail, "may not confirm")
+	assert.Contains(t, refused.Detail, "may not edit")
 	assert.NoFileExists(t, filepath.Join(root, ".kapi", "voice.yaml"),
 		"the refusal came before the committed source moved")
 }
@@ -446,11 +436,11 @@ func TestContextLogFilters(t *testing.T) {
 	_, err = app.RecordContextCorrection(t.Context(), ContextCorrectRequest{
 		Actor:   agentIn("s1"),
 		Project: recipeOf(root),
-		From:    "widget", To: "component", Propose: true, Severity: "minor",
+		From:    "widget", To: "component", Suggest: true, Severity: "minor",
 		Evidence: []contextop.Evidence{{Path: "config/app.yaml", Unit: "greeting"}},
 	})
 	require.NoError(t, err)
-	_, err = app.DiscardContextOperation(t.Context(), ContextDiscardRequest{
+	_, err = app.DropContextOperation(t.Context(), ContextDropRequest{
 		Actor:   person,
 		Project: recipeOf(root), ID: proposed.ID,
 	})
@@ -463,8 +453,8 @@ func TestContextLogFilters(t *testing.T) {
 	}{
 		{"everything", ContextLogRequest{}, 4},
 		{"what carries a subject", ContextLogRequest{Subjects: true}, 3},
-		{"what is still a candidate", ContextLogRequest{Status: contextop.StatusCandidate}, 2},
-		{"what was discarded", ContextLogRequest{Status: contextop.StatusDiscarded}, 1},
+		{"what is still a candidate", ContextLogRequest{Status: contextop.StatusSuggested}, 2},
+		{"what was discarded", ContextLogRequest{Status: contextop.StatusDropped}, 1},
 		{"one session", ContextLogRequest{Session: "s1"}, 2},
 		{"one actor", ContextLogRequest{Actor: "asgeir"}, 2},
 		{"a limit", ContextLogRequest{Limit: 1}, 1},
@@ -480,7 +470,7 @@ func TestContextLogFilters(t *testing.T) {
 
 	// A correction carries both wordings, and the rule it implies.
 	corrections, err := app.ContextOperations(t.Context(), ContextLogRequest{
-		Project: recipeOf(root), Status: contextop.StatusCandidate, Subjects: true,
+		Project: recipeOf(root), Status: contextop.StatusSuggested, Subjects: true,
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, corrections.Operations)

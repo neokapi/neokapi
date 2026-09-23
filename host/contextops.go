@@ -3,25 +3,25 @@
 //
 // A project starts with no terms, no voice rules and an empty content memory.
 // What it knows accumulates out of ordinary work, and each step is recorded:
-// an observation, a proposal with the evidence behind it, a correction someone
-// made, and a person's decision about each. core/contextop owns the vocabulary
-// and the append-only log; this file is what the CLI, the agent tools and the
-// desktop call.
+// an observation, a correction someone made, what a person imported, and a
+// person's decision about each. core/contextop owns the vocabulary and the
+// append-only log; this file is what the CLI, the agent tools and the desktop
+// call.
 //
 // Three things are worth knowing before reading on.
 //
-// A proposal advises from the moment it is recorded and binds only once a
-// person confirms it. Until then it is projected into checks as an advisory
+// A suggestion advises from the moment it is recorded and binds only once a
+// person keeps it. Until then it is projected into checks as an advisory
 // finding at neutral severity, which carries no penalty and trips no gate.
 //
-// Confirming writes the rule where the existing subsystems already read it:
-// through the same appliers `kapi apply` uses, into the committed source the
-// recipe binds and from there into the project's terms store, voice profile or
-// content memory. The log is the history, not a second home for the rule.
+// Keeping writes the rule where the existing subsystems already read it:
+// through the same appliers `kapi apply` uses, into the project's terms store
+// or content memory. The log is the history, not a second home for the rule.
 //
-// Every transition goes through core/contextop's policy. Today an agent may
-// observe, propose and record a correction; only a person confirms, edits,
-// discards another actor's work, withdraws a confirmed rule or widens one.
+// Every transition goes through core/contextop's policy. An agent may observe
+// and record a correction, and withdraw its own suggestion in the session that
+// recorded it; only a person keeps, edits, drops, reverts an established rule
+// or widens one.
 //
 // A caller that states an actor kind is taken at its word: the MCP tools state
 // the agent, and the desktop states the person. A request that states none came
@@ -34,7 +34,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"slices"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/contextop"
@@ -47,8 +47,9 @@ import (
 // shows it.
 type ContextOperation struct {
 	contextop.Record
-	// Landed names what a confirmation wrote and where, empty for every other
-	// operation. It is the assetResult detail from the applier that wrote it.
+	// Landed names what a keep wrote and where, or what a contest took out of
+	// force, empty for every other operation. It is the assetResult detail from
+	// the applier that wrote it.
 	Landed string `json:"landed,omitempty"`
 }
 
@@ -70,7 +71,8 @@ type ContextRevertResult struct {
 	Retracted []string `json:"retracted,omitempty"`
 }
 
-// ContextObserveRequest records a fact somebody noticed, with no rule implied.
+// ContextObserveRequest records something somebody noticed: a fact in prose,
+// or, with Term, the form the project uses for a word and the forms it avoids.
 type ContextObserveRequest struct {
 	// Actor is who is acting. An empty Kind is a command line, where the
 	// environment answers (host/contextactor.go).
@@ -79,34 +81,18 @@ type ContextObserveRequest struct {
 	Project string
 	// Text is the fact, in the actor's own words.
 	Text string
+	// Term is the form the project uses for a word. With it the observation
+	// states a term rule: write Term, and avoid InsteadOf and the variants
+	// contextop.AvoidedForms derives from it.
+	Term string
+	// InsteadOf are forms the project avoids for Term.
+	InsteadOf []string
 	// Evidence is where it was seen.
 	Evidence []contextop.Evidence
 }
 
-// ContextProposeRequest proposes a candidate rule. Exactly one of Term, Voice
-// and Memory is set.
-type ContextProposeRequest struct {
-	// Actor is who is acting. An empty Kind is a command line, where the
-	// environment answers (host/contextactor.go).
-	Actor contextop.Actor
-	// Project is the recipe path of the project the proposal is about.
-	Project string
-	// Term proposes a term rule: one word, what to write instead, how hard it
-	// bites.
-	Term *profile.TermRule
-	// Voice proposes a rule for a list in the project's voice profile.
-	Voice *contextop.VoiceRule
-	// Memory proposes a source and target pair for the content memory.
-	Memory *contextop.MemoryPair
-	// Evidence is where the wording behind the proposal was seen. A proposal
-	// with none is a preference; a proposal with evidence can be argued with.
-	Evidence []contextop.Evidence
-	// Note is whatever the actor wants to say about it.
-	Note string
-}
-
 // ContextCorrectRequest records that someone changed wording at a location. A
-// correction is evidence first; Propose asks for the rule it implies to be
+// correction is evidence first; Suggest asks for the rule it implies to be
 // recorded with it.
 type ContextCorrectRequest struct {
 	// Actor is who is acting. An empty Kind is a command line, where the
@@ -119,12 +105,12 @@ type ContextCorrectRequest struct {
 	To   string
 	// Evidence is where the change was made.
 	Evidence []contextop.Evidence
-	// Propose carries the correction into a candidate term rule, so the next
+	// Suggest carries the correction into a suggested term rule, so the next
 	// use of the old wording is reported. Without it the correction is recorded
 	// as evidence and nothing else.
-	Propose bool
-	// Severity is the severity the proposed rule carries once a person confirms
-	// it. Empty leaves it unset, which fails a check when confirmed.
+	Suggest bool
+	// Severity is the severity the suggested rule carries once a person keeps
+	// it. Empty leaves it unset, which fails a check once established.
 	Severity string
 	// Note is whatever the actor wants to say about it.
 	Note string
@@ -136,7 +122,8 @@ type ContextLogRequest struct {
 	Project string
 	// Session narrows to one agent session.
 	Session string
-	// Status narrows to candidate, confirmed, discarded or reverted.
+	// Status narrows to one status: suggested, established, contested,
+	// withdrawn, dropped or reverted.
 	Status contextop.Status
 	// Actor narrows to one actor, by name or by kind.
 	Actor string
@@ -149,32 +136,65 @@ type ContextLogRequest struct {
 	Limit int
 }
 
-// ContextConfirmRequest makes a candidate binding, optionally editing it and
-// optionally widening it in the same step.
-type ContextConfirmRequest struct {
+// ContextKeepRequest establishes suggestions: the ones IDs names, or everything
+// one session suggested. One suggestion may be edited and widened as it is
+// kept.
+type ContextKeepRequest struct {
 	// Actor is who is acting. An empty Kind is a command line, where the
 	// environment answers (host/contextactor.go).
 	Actor contextop.Actor
 	// Project is the recipe path.
 	Project string
-	// ID is the operation being confirmed. Naming a decision about a rule
-	// reaches the rule.
-	ID string
-	// Replacement, when set, replaces what the rule says to write instead.
+	// ID names one operation to keep, and IDs several; both may be given.
+	// Naming a decision about a rule reaches the rule.
+	ID  string
+	IDs []string
+	// Session keeps everything one session suggested that nothing disagrees
+	// with, in place of IDs.
+	Session string
+	// Replacement, when set, replaces what the rule says to write instead. It
+	// edits one rule, so it takes one id.
 	Replacement string
 	// Severity, when set, replaces how hard the rule bites. `minor` and
 	// `neutral` report; everything else fails a check.
 	Severity string
-	// WidenTo widens the rule as it is confirmed: "workspace" puts it in force
-	// in every project, and an axis name drops that axis from the rule's point
-	// so it answers more widely.
+	// WidenTo widens the rule as it is kept: "workspace" puts it in force in
+	// every project, and an axis name drops that axis from the rule's point so
+	// it answers more widely.
 	WidenTo string
 	// Note is whatever the person wants to say about the decision.
 	Note string
 }
 
-// ContextDiscardRequest rejects a candidate.
-type ContextDiscardRequest struct {
+// ContextKeepResult is what keeping did.
+type ContextKeepResult struct {
+	// Kept are the keep operations recorded, one per suggestion.
+	Kept []ContextOperation `json:"kept"`
+	// Skipped are the suggestions a session keep left alone, with the reason:
+	// a contested suggestion waits for a person to choose.
+	Skipped []ContextKeepSkip `json:"skipped,omitempty"`
+}
+
+// ContextKeepSkip is one suggestion a keep left alone.
+type ContextKeepSkip struct {
+	ID     string `json:"id"`
+	Reason string `json:"reason"`
+}
+
+// ContextDropRequest sets a suggestion aside. Only a person drops; the author
+// of a suggestion withdraws it instead.
+type ContextDropRequest struct {
+	// Actor is who is acting. An empty Kind is a command line, where the
+	// environment answers (host/contextactor.go).
+	Actor   contextop.Actor
+	Project string
+	ID      string
+	Note    string
+}
+
+// ContextWithdrawRequest takes back a suggestion its author recorded, in the
+// session that recorded it.
+type ContextWithdrawRequest struct {
 	// Actor is who is acting. An empty Kind is a command line, where the
 	// environment answers (host/contextactor.go).
 	Actor   contextop.Actor
@@ -196,7 +216,7 @@ type ContextRevertRequest struct {
 	Note    string
 }
 
-// ContextWidenRequest moves a confirmed rule to a broader point.
+// ContextWidenRequest moves an established rule to a broader point.
 type ContextWidenRequest struct {
 	// Actor is who is acting. An empty Kind is a command line, where the
 	// environment answers (host/contextactor.go).
@@ -270,65 +290,40 @@ func (s *contextOpsSession) noteAgentSession(ctx context.Context, actor contexto
 
 // teachRefusal answers a policy refusal with what to do instead.
 //
-// Only a non-person is ever refused, so the reader is an agent mid-task, and
-// the useful next move is to put the candidates in front of the person rather
-// than to try the command again.
+// The reader is almost always an agent mid-task, and the useful next move is
+// to put the suggestions in front of the person rather than to try the command
+// again.
 func teachRefusal(err error) error {
 	if err == nil || !errors.Is(err, contextop.ErrRefused) {
 		return err
 	}
 	return fmt.Errorf("%w\ndeciding belongs to the person working here: "+
-		"show them what is waiting with `kapi context log --status candidate` and let them decide", err)
+		"show them what is waiting with `kapi context log --status suggested` and let them decide", err)
 }
 
-// RecordContextObservation records a fact somebody noticed. It implies no rule,
-// so nothing about a check changes; it is the material a proposal is later
-// drawn from.
+// RecordContextObservation records something somebody noticed. A fact in
+// prose implies no rule; an observation naming a term states a term rule that
+// advises from this moment and binds once a person keeps it.
 func (a *App) RecordContextObservation(ctx context.Context, req ContextObserveRequest) (ContextOperation, error) {
 	s, err := a.contextOps(ctx, req.Project)
 	if err != nil {
 		return ContextOperation{}, err
 	}
-	if req.Text == "" {
-		return ContextOperation{}, errors.New("an observation needs something to say")
+	subject, err := observedSubject(req)
+	if err != nil {
+		return ContextOperation{}, err
 	}
 	actor, note, err := s.actorFor(ctx, req.Actor, "")
+	if err != nil {
+		return ContextOperation{}, err
+	}
+	before, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
 	if err != nil {
 		return ContextOperation{}, err
 	}
 	record, err := s.ledger.Append(ctx, s.stamp(contextop.Record{
 		Actor:    actor,
 		Kind:     contextop.KindObserve,
-		Subject:  contextop.Subject{Kind: contextop.SubjectNote, Text: req.Text},
-		Evidence: req.Evidence,
-		Note:     note,
-	}, req.Evidence))
-	if err != nil {
-		return ContextOperation{}, teachRefusal(err)
-	}
-	return ContextOperation{Record: record}, nil
-}
-
-// ProposeContextRule records a candidate rule with the evidence behind it.
-//
-// The rule advises from this moment: a check reports it as a proposal at
-// neutral severity, which fails nothing. It binds when a person confirms it.
-func (a *App) ProposeContextRule(ctx context.Context, req ContextProposeRequest) (ContextOperation, error) {
-	s, err := a.contextOps(ctx, req.Project)
-	if err != nil {
-		return ContextOperation{}, err
-	}
-	subject, err := proposedSubject(req)
-	if err != nil {
-		return ContextOperation{}, err
-	}
-	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
-	if err != nil {
-		return ContextOperation{}, err
-	}
-	record, err := s.ledger.Append(ctx, s.stamp(contextop.Record{
-		Actor:    actor,
-		Kind:     contextop.KindPropose,
 		Subject:  subject,
 		Evidence: req.Evidence,
 		Note:     note,
@@ -336,46 +331,34 @@ func (a *App) ProposeContextRule(ctx context.Context, req ContextProposeRequest)
 	if err != nil {
 		return ContextOperation{}, teachRefusal(err)
 	}
-	return ContextOperation{Record: record}, nil
+	return s.settled(ctx, record, before)
 }
 
-// proposedSubject reads the one subject a proposal names.
-func proposedSubject(req ContextProposeRequest) (contextop.Subject, error) {
-	named := 0
-	for _, set := range []bool{req.Term != nil, req.Voice != nil, req.Memory != nil} {
-		if set {
-			named++
+// observedSubject reads what an observation states: a term rule when it names a
+// term, and a note otherwise.
+func observedSubject(req ContextObserveRequest) (contextop.Subject, error) {
+	text := strings.TrimSpace(req.Text)
+	term := strings.TrimSpace(req.Term)
+	if term == "" {
+		if len(req.InsteadOf) > 0 {
+			return contextop.Subject{}, errors.New("the forms to avoid need the form the project uses: name it with the term")
 		}
+		if text == "" {
+			return contextop.Subject{}, errors.New("an observation needs something to say")
+		}
+		return contextop.Subject{Kind: contextop.SubjectNote, Text: text}, nil
 	}
-	if named != 1 {
-		return contextop.Subject{}, errors.New("a proposal names exactly one of a term rule, a voice rule and a content-memory pair")
-	}
-	switch {
-	case req.Term != nil:
-		if req.Term.Term == "" {
-			return contextop.Subject{}, errors.New("a term rule needs a term")
-		}
-		return contextop.Subject{Kind: contextop.SubjectTerm, Term: req.Term}, nil
-	case req.Voice != nil:
-		if req.Voice.Rule.Term == "" {
-			return contextop.Subject{}, errors.New("a voice rule needs a term")
-		}
-		if !validVoiceList(req.Voice.List) {
-			return contextop.Subject{}, fmt.Errorf("a voice rule sits in one of %v, not %q", contextop.VoiceLists, req.Voice.List)
-		}
-		return contextop.Subject{Kind: contextop.SubjectVoice, Voice: req.Voice}, nil
-	default:
-		if req.Memory.Source == "" || req.Memory.Target == "" || req.Memory.TargetLocale == "" {
-			return contextop.Subject{}, errors.New("a content-memory pair needs a source, a target and a target locale")
-		}
-		return contextop.Subject{Kind: contextop.SubjectMemory, Memory: req.Memory}, nil
-	}
+	rule := contextop.ObservedRule(term, req.InsteadOf)
+	return contextop.Subject{Kind: contextop.SubjectTerm, Term: &rule, Text: text}, nil
 }
-
-func validVoiceList(list string) bool { return slices.Contains(contextop.VoiceLists, list) }
 
 // RecordContextCorrection records wording somebody changed, and, when asked,
-// the candidate rule that change implies.
+// the suggested rule that change implies.
+//
+// A person's correction that reverses an established rule contests the rule,
+// which then advises instead of binding, so the person's own edit never fails
+// their build. The rule is taken out of the store it was written to until a
+// person keeps it again or sets the correction aside.
 func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectRequest) (ContextOperation, error) {
 	s, err := a.contextOps(ctx, req.Project)
 	if err != nil {
@@ -395,7 +378,7 @@ func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectReq
 		Evidence:   req.Evidence,
 		Note:       note,
 	}
-	if req.Propose {
+	if req.Suggest {
 		record.Subject = contextop.Subject{Kind: contextop.SubjectTerm, Term: &profile.TermRule{
 			Term:        req.From,
 			Replacement: req.To,
@@ -403,11 +386,15 @@ func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectReq
 			Note:        req.Note,
 		}}
 	}
+	before, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
+	if err != nil {
+		return ContextOperation{}, err
+	}
 	written, err := s.ledger.Append(ctx, s.stamp(record, req.Evidence))
 	if err != nil {
 		return ContextOperation{}, teachRefusal(err)
 	}
-	return ContextOperation{Record: written}, nil
+	return s.settled(ctx, written, before)
 }
 
 // ContextOperations reads a project's context history, newest first.
@@ -457,41 +444,133 @@ func (a *App) logSession(session string) (string, error) {
 	return resolved.Actor.Session, nil
 }
 
-// ConfirmContextOperation makes a candidate binding.
+// KeepContextOperations establishes suggestions.
 //
-// It records the confirmation, with whatever edits and widening the person
+// It records a keep for each, with whatever edits and widening the person
 // asked for, and then writes the rule where the subsystems read it: a term into
-// the committed terms source and the project's terms store, a voice rule into
-// the voice profile, a content-memory pair into the memory bundle. A rule
-// widened to the workspace goes into the workspace's own rule store instead,
-// because no project owns it.
-func (a *App) ConfirmContextOperation(ctx context.Context, req ContextConfirmRequest) (ContextOperation, error) {
+// the project's terms store, a content-memory pair into the content memory. A
+// rule widened to the workspace goes into the workspace's own rule store
+// instead, because no project owns it.
+//
+// A contested suggestion is kept only once a person has chosen: naming one
+// explicitly is refused with the other side named, and a session keep leaves
+// it for later and says so. A contested established rule is a person's own rule
+// that a later correction reversed, and keeping it again is the choice.
+func (a *App) KeepContextOperations(ctx context.Context, req ContextKeepRequest) (ContextKeepResult, error) {
 	s, err := a.contextOps(ctx, req.Project)
 	if err != nil {
-		return ContextOperation{}, err
+		return ContextKeepResult{}, err
 	}
-	target, err := s.ledger.Subject(ctx, req.ID)
-	if err != nil {
-		return ContextOperation{}, err
+	if req.ID != "" {
+		req.IDs = append([]string{req.ID}, req.IDs...)
 	}
-	if target.Subject.Kind == contextop.SubjectNote {
-		return ContextOperation{}, fmt.Errorf("operation %s states no rule to confirm", target.ID)
+	if (len(req.IDs) == 0) == (req.Session == "") {
+		return ContextKeepResult{}, errors.New("keep names operations or a session, not both and not neither")
+	}
+	if req.Replacement != "" && len(req.IDs) != 1 {
+		return ContextKeepResult{}, errors.New("changing the rule as it is kept edits one rule: name one operation")
+	}
+
+	var out ContextKeepResult
+	var targets []contextop.Record
+	if req.Session != "" {
+		held, herr := s.ledger.Records(ctx, contextop.Filter{Session: req.Session, Subjects: true})
+		if herr != nil {
+			return ContextKeepResult{}, herr
+		}
+		// Oldest first, so the keeps read in the order the session worked.
+		for i := len(held) - 1; i >= 0; i-- {
+			r := held[i]
+			switch {
+			case r.Actor.Session != req.Session || r.Established || !r.Status.Advises():
+			case r.Status == contextop.StatusContested:
+				out.Skipped = append(out.Skipped, ContextKeepSkip{ID: r.ID, Reason: contestedReason(r)})
+			default:
+				targets = append(targets, r)
+			}
+		}
+	} else {
+		for _, id := range req.IDs {
+			target, terr := s.ledger.Subject(ctx, id)
+			if terr != nil {
+				return ContextKeepResult{}, terr
+			}
+			if err := keepable(target); err != nil {
+				return ContextKeepResult{}, err
+			}
+			targets = append(targets, target)
+		}
 	}
 
 	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
 	if err != nil {
+		return ContextKeepResult{}, err
+	}
+	for _, target := range targets {
+		op, kerr := s.keep(ctx, actor, note, target, req)
+		if kerr != nil {
+			return out, kerr
+		}
+		out.Kept = append(out.Kept, op)
+	}
+	return out, nil
+}
+
+// KeepContextOperation keeps one suggestion and returns the keep it recorded,
+// for a surface that decides one entry at a time.
+func (a *App) KeepContextOperation(ctx context.Context, req ContextKeepRequest) (ContextOperation, error) {
+	if req.Session != "" || len(req.IDs)+btoi(req.ID != "") != 1 {
+		return ContextOperation{}, errors.New("keep one operation: name exactly one id")
+	}
+	res, err := a.KeepContextOperations(ctx, req)
+	if err != nil {
 		return ContextOperation{}, err
 	}
-	confirm := contextop.Record{
+	return res.Kept[0], nil
+}
+
+// btoi counts a condition as one.
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// keepable refuses a keep a person has not chosen yet, and one of a subject
+// nothing answers for any more.
+func keepable(r contextop.Record) error {
+	switch {
+	case r.Status == contextop.StatusContested && !r.Established:
+		return fmt.Errorf("operation %s cannot be kept yet: %s. Choose first: drop the side you do not want with `kapi context drop`, or revert the established rule",
+			r.ID, contestedReason(r))
+	case !r.Status.Answers():
+		return fmt.Errorf("operation %s is %s: record it again to keep it", r.ID, r.Status)
+	}
+	return nil
+}
+
+// contestedReason names the other side of a disagreement.
+func contestedReason(r contextop.Record) string {
+	others := make([]string, len(r.ContestedBy))
+	for i, id := range r.ContestedBy {
+		others[i] = "#" + id
+	}
+	return "it is contested by " + strings.Join(others, ", ")
+}
+
+// keep records one keep and lands the rule it establishes.
+func (s *contextOpsSession) keep(ctx context.Context, actor contextop.Actor, note string, target contextop.Record, req ContextKeepRequest) (ContextOperation, error) {
+	keep := contextop.Record{
 		Actor:   actor,
-		Kind:    contextop.KindConfirm,
+		Kind:    contextop.KindKeep,
 		Target:  target.ID,
 		Project: target.Project,
 		Note:    note,
 		Scope:   target.Scope,
 	}
 	if edited, changed := editSubject(target.Subject, req.Replacement, req.Severity); changed {
-		confirm.Subject = edited
+		keep.Subject = edited
 		target.Subject = edited
 	}
 	if req.WidenTo != "" {
@@ -499,18 +578,18 @@ func (a *App) ConfirmContextOperation(ctx context.Context, req ContextConfirmReq
 		if werr != nil {
 			return ContextOperation{}, werr
 		}
-		confirm.Scope, target.Scope = widened, widened
+		keep.Scope, target.Scope = widened, widened
 	}
 
 	// The decision is recorded before it is carried out. A write that fails
-	// after the log has it leaves a confirmation with nothing behind it, which
-	// a person can see and repeat; a write that succeeded with no record of who
-	// asked for it is the thing nobody can act on.
-	written, err := s.ledger.Append(ctx, confirm)
+	// after the log has it leaves a keep with nothing behind it, which a person
+	// can see and repeat; a write that succeeded with no record of who asked
+	// for it is the thing nobody can act on.
+	written, err := s.ledger.Append(ctx, keep)
 	if err != nil {
 		return ContextOperation{}, teachRefusal(err)
 	}
-	target.Status = contextop.StatusConfirmed
+	target.Status = contextop.StatusEstablished
 	landed, err := s.land(ctx, target)
 	if err != nil {
 		return ContextOperation{}, err
@@ -518,8 +597,8 @@ func (a *App) ConfirmContextOperation(ctx context.Context, req ContextConfirmReq
 	return ContextOperation{Record: written, Landed: landed}, nil
 }
 
-// editSubject applies a confirmation's edits to the rule being confirmed, and
-// reports whether anything moved. A content-memory pair and a note carry no
+// editSubject applies a keep's edits to the rule being kept, and reports
+// whether anything moved. A content-memory pair and a note carry no
 // replacement or severity, so an edit of either is a no-op.
 func editSubject(subject contextop.Subject, replacement, severity string) (contextop.Subject, bool) {
 	if replacement == "" && severity == "" {
@@ -535,17 +614,10 @@ func editSubject(subject contextop.Subject, replacement, severity string) (conte
 		}
 		return changed
 	}
-	switch subject.Kind {
-	case contextop.SubjectTerm:
+	if subject.Kind == contextop.SubjectTerm && subject.Term != nil {
 		rule := *subject.Term
 		if apply(&rule) {
 			subject.Term = &rule
-			return subject, true
-		}
-	case contextop.SubjectVoice:
-		voice := *subject.Voice
-		if apply(&voice.Rule) {
-			subject.Voice = &voice
 			return subject, true
 		}
 	}
@@ -573,9 +645,10 @@ func widenScope(scope contextop.Scope, to string) (contextop.Scope, error) {
 	return scope, nil
 }
 
-// DiscardContextOperation rejects a candidate. It stops answering at once, and
-// a rule already confirmed is taken back out of the project's stores.
-func (a *App) DiscardContextOperation(ctx context.Context, req ContextDiscardRequest) (ContextOperation, error) {
+// DropContextOperation sets a suggestion aside. It stops answering at once. An
+// established rule is reverted rather than dropped, because reverting is what
+// takes it back out of the stores it was written to.
+func (a *App) DropContextOperation(ctx context.Context, req ContextDropRequest) (ContextOperation, error) {
 	s, err := a.contextOps(ctx, req.Project)
 	if err != nil {
 		return ContextOperation{}, err
@@ -584,13 +657,43 @@ func (a *App) DiscardContextOperation(ctx context.Context, req ContextDiscardReq
 	if err != nil {
 		return ContextOperation{}, err
 	}
-	actor, note, err := s.actorFor(ctx, req.Actor, req.Note)
+	if target.Established {
+		return ContextOperation{}, fmt.Errorf("operation %s is an established rule: revert it with `kapi context revert %s`", target.ID, target.ID)
+	}
+	if !target.Status.Answers() {
+		return ContextOperation{}, fmt.Errorf("operation %s is already %s", target.ID, target.Status)
+	}
+	return s.setAside(ctx, contextop.KindDrop, req.Actor, target, req.Note)
+}
+
+// WithdrawContextOperation takes back a suggestion its author recorded. The
+// policy decides who may: the author, in the session that recorded it.
+func (a *App) WithdrawContextOperation(ctx context.Context, req ContextWithdrawRequest) (ContextOperation, error) {
+	s, err := a.contextOps(ctx, req.Project)
+	if err != nil {
+		return ContextOperation{}, err
+	}
+	target, err := s.ledger.Subject(ctx, req.ID)
+	if err != nil {
+		return ContextOperation{}, err
+	}
+	return s.setAside(ctx, contextop.KindWithdraw, req.Actor, target, req.Note)
+}
+
+// setAside records a drop or a withdrawal and settles whatever the suggestion
+// was contesting.
+func (s *contextOpsSession) setAside(ctx context.Context, kind contextop.Kind, stated contextop.Actor, target contextop.Record, note string) (ContextOperation, error) {
+	actor, note, err := s.actorFor(ctx, stated, note)
+	if err != nil {
+		return ContextOperation{}, err
+	}
+	before, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
 	if err != nil {
 		return ContextOperation{}, err
 	}
 	written, err := s.ledger.Append(ctx, contextop.Record{
 		Actor:   actor,
-		Kind:    contextop.KindDiscard,
+		Kind:    kind,
 		Target:  target.ID,
 		Project: target.Project,
 		Note:    note,
@@ -598,18 +701,14 @@ func (a *App) DiscardContextOperation(ctx context.Context, req ContextDiscardReq
 	if err != nil {
 		return ContextOperation{}, teachRefusal(err)
 	}
-	retracted, err := s.retract(ctx, target)
-	if err != nil {
-		return ContextOperation{}, err
-	}
-	return ContextOperation{Record: written, Landed: retracted}, nil
+	return s.settled(ctx, written, before)
 }
 
 // RevertContextOperations undoes one operation, or everything one session did.
 //
 // Reverting a session puts the project's answers back where they were before
-// the session started: every candidate it recorded stops advising, and every
-// rule it got confirmed is taken back out of the stores it was written to.
+// the session started: every suggestion it recorded stops advising, and every
+// rule of it a person kept is taken back out of the stores it was written to.
 func (a *App) RevertContextOperations(ctx context.Context, req ContextRevertRequest) (ContextRevertResult, error) {
 	s, err := a.contextOps(ctx, req.Project)
 	if err != nil {
@@ -642,8 +741,15 @@ func (a *App) RevertContextOperations(ctx context.Context, req ContextRevertRequ
 		revert.TargetSession = req.Session
 	}
 
+	before, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
+	if err != nil {
+		return ContextRevertResult{}, err
+	}
 	if _, err := s.ledger.Append(ctx, revert); err != nil {
 		return ContextRevertResult{}, teachRefusal(err)
+	}
+	if _, err := s.reconcile(ctx, before); err != nil {
+		return ContextRevertResult{}, err
 	}
 
 	out := ContextRevertResult{Session: req.Session}
@@ -661,8 +767,8 @@ func (a *App) RevertContextOperations(ctx context.Context, req ContextRevertRequ
 	return out, nil
 }
 
-// WidenContextOperation moves a confirmed rule to a broader point: out to the
-// whole workspace, or past one axis of the point its evidence was seen at.
+// WidenContextOperation moves an established rule to a broader point: out to
+// the whole workspace, or past one axis of the point its evidence was seen at.
 func (a *App) WidenContextOperation(ctx context.Context, req ContextWidenRequest) (ContextOperation, error) {
 	s, err := a.contextOps(ctx, req.Project)
 	if err != nil {
@@ -672,8 +778,8 @@ func (a *App) WidenContextOperation(ctx context.Context, req ContextWidenRequest
 	if err != nil {
 		return ContextOperation{}, err
 	}
-	if target.Status != contextop.StatusConfirmed {
-		return ContextOperation{}, fmt.Errorf("operation %s is a %s; confirm it before widening it", target.ID, target.Status)
+	if target.Status != contextop.StatusEstablished {
+		return ContextOperation{}, fmt.Errorf("operation %s is %s; keep it before widening it", target.ID, target.Status)
 	}
 	widened, err := widenScope(target.Scope, req.To)
 	if err != nil {
@@ -722,8 +828,8 @@ type contextOpsSession struct {
 	// recipe is the recipe path and root the directory holding it.
 	recipe string
 	root   string
-	// cmd carries the project through to the appliers that land a confirmed
-	// rule, which read it the way a command line would.
+	// cmd carries the project through to the appliers that land an
+	// established rule, which read it the way a command line would.
 	cmd Command
 }
 

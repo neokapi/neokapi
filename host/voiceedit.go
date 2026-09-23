@@ -205,7 +205,7 @@ func (a *App) recordVoiceWrite(
 	}
 	record, err := s.ledger.Append(ctx, s.stamp(contextop.Record{
 		Actor: actor,
-		Kind:  contextop.KindConfirm,
+		Kind:  contextop.KindEdit,
 		Subject: contextop.Subject{
 			Kind: contextop.SubjectNote,
 			Text: "voice profile " + prof.ID + " " + what,

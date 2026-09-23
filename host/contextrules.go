@@ -12,7 +12,7 @@ import (
 //
 // Three places hold a rule about a word: the terms store (a concept with a
 // preferred term and discouraged ones), the voice profile's vocabulary, and
-// the rules confirmed across the workspace. A writer asks one question of all
+// the rules established across the workspace. A writer asks one question of all
 // of them, "what do I say, and what not", so the answer merges them into one
 // list at render time and states each word once. Storage keeps the three
 // apart.
@@ -95,7 +95,7 @@ func (l *ruleList) add(r ContextRule, from string) {
 }
 
 // sayThisNotThat builds the one list for a point from the terms in force there,
-// the rules confirmed across the workspace, and the voice's vocabulary, in
+// the rules established across the workspace, and the voice's vocabulary, in
 // that order, and caps it at limit. It returns the total as well, so a capped
 // list says what it is a part of.
 func sayThisNotThat(hits []ContextTermHit, binding []coreprofile.TermRule, voice *coreprofile.VoiceProfile, limit int) ([]ContextRule, int) {

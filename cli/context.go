@@ -38,9 +38,9 @@ The answer is the same text an assistant reads from the context:// resource.
 that bound the voice, and the project and revision that answered. --json gives
 all of it as data.
 
-The subcommands record and decide. observe, propose and correct record what you
-notice; log lists it; confirm, discard, revert and widen are a person's
-decisions. import, snapshot, export and restore move the context between the
+The subcommands record and decide. observe and correct record what you notice,
+as suggestions; log lists them; keep, drop, revert and widen are a person's
+decisions, and withdraw takes back a suggestion of your own. import, snapshot, export and restore move the context between the
 store and files, and locales reports how stored rows are filed.`,
 		Example: "  kapi context docs/guide.md\n" +
 			"  kapi context docs/guide.md --explain\n" +
@@ -104,11 +104,11 @@ store and files, and locales reports how stored rows are filed.`,
 		newContextRestoreCmd(a),
 		newContextLocalesCmd(a),
 		newContextObserveCmd(a),
-		newContextProposeCmd(a),
 		newContextCorrectCmd(a),
 		newContextLogCmd(a),
-		newContextConfirmCmd(a),
-		newContextDiscardCmd(a),
+		newContextKeepCmd(a),
+		newContextDropCmd(a),
+		newContextWithdrawCmd(a),
 		newContextRevertCmd(a),
 		newContextWidenCmd(a),
 	)

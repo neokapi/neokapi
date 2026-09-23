@@ -39,8 +39,8 @@ type importScribe struct {
 // importScribe opens the log an import records into, and settles who is
 // recording before anything is read.
 //
-// A person runs an import. The context policy says so for the confirm each file
-// is recorded as, and asking here means an import an agent started leaves the
+// A person runs an import. The context policy says so for the import operation
+// each file is recorded as, and asking here means an import an agent started leaves the
 // store as it found it rather than stopping part way through.
 func (a *App) importScribe(ctx context.Context, recipePath string) (*importScribe, error) {
 	resolved, err := a.commandActor()
@@ -79,7 +79,8 @@ func (s *importScribe) readRecord(ctx context.Context, rel string, n int) error 
 	return s.record(ctx, rel, "", fmt.Sprintf("decision record %s, %s", rel, pluralUnit(n, "decision", "decisions")))
 }
 
-// record appends one confirm naming a source the import read.
+// record appends one import operation naming a source the import read. What a
+// person imports is established from the start.
 //
 // The evidence carries the source's project-relative path and, for a single
 // file, the SHA-256 of the bytes that were read, so a reader of the log can
@@ -94,7 +95,7 @@ func (s *importScribe) record(ctx context.Context, rel, digest, subject string) 
 	}
 	_, err := s.ops.ledger.Append(ctx, s.ops.stamp(contextop.Record{
 		Actor:    s.actor,
-		Kind:     contextop.KindConfirm,
+		Kind:     contextop.KindImport,
 		Subject:  contextop.Subject{Kind: contextop.SubjectNote, Text: subject},
 		Evidence: evidence,
 		Note:     s.note,

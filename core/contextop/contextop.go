@@ -244,27 +244,40 @@ func (s Subject) Rule() (profile.TermRule, bool) {
 
 // Describe renders the subject as the one line a log prints for it.
 func (s Subject) Describe() string {
+	if s.Kind == SubjectNone {
+		return ""
+	}
+	if phrase := s.Phrase(); phrase != "" {
+		return string(s.Kind) + " " + phrase
+	}
+	return string(s.Kind)
+}
+
+// Phrase renders what the subject says without naming its kind, for a line
+// that names the kind elsewhere: `"Quickcast", not "Quick cast"` for a term
+// rule, the quoted prose of a note.
+func (s Subject) Phrase() string {
 	switch s.Kind {
 	case SubjectTerm:
 		rule, ok := s.Rule()
 		if !ok {
-			return string(s.Kind)
+			return ""
 		}
 		if rule.Replacement == "" {
-			return fmt.Sprintf("term %q", rule.Term)
+			return strconv.Quote(rule.Term)
 		}
 		avoid := make([]string, 0, 1+len(rule.Forms))
 		for _, form := range append([]string{rule.Term}, rule.Forms...) {
 			avoid = append(avoid, strconv.Quote(form))
 		}
-		return fmt.Sprintf("term %q, not %s", rule.Replacement, strings.Join(avoid, ", "))
+		return fmt.Sprintf("%q, not %s", rule.Replacement, strings.Join(avoid, ", "))
 	case SubjectMemory:
 		if s.Memory == nil {
-			return string(s.Kind)
+			return ""
 		}
-		return fmt.Sprintf("memory %q into %s", s.Memory.Source, s.Memory.TargetLocale)
+		return fmt.Sprintf("%q into %s", s.Memory.Source, s.Memory.TargetLocale)
 	case SubjectNote:
-		return "note " + strconv.Quote(s.Text)
+		return strconv.Quote(s.Text)
 	}
 	return ""
 }

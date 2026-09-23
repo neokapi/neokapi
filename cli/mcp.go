@@ -25,8 +25,8 @@ func NewMCPCmd(a *App, implName string) *cobra.Command {
 
 --tools picks the tool sets it serves, as a comma-separated list:
 
-  writing       (default) the context:// resources, context_search, the
-                recording tools (context_observe, context_propose,
+  writing       (default) context_read and the context:// resources,
+                context_search, the recording tools (context_observe,
                 context_correct, context_withdraw), context_session_summary
                 and check_file
   content       check_text, voice_check, voice_rewrite, term-check,

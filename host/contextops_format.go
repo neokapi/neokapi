@@ -23,7 +23,9 @@ func (o ContextOperation) FormatText(w io.Writer) error {
 }
 
 // line is one operation on one line: its id, when it happened, who did it, what
-// they did, what it was about and where it stands.
+// they did, what it was about and where it stands. The operation's kind is
+// named once: a term rule reads `observe term "Quickcast", not "Quick cast"`,
+// and a note reads `observe "the docs address the reader as you"`.
 func (o ContextOperation) line() string {
 	parts := []string{
 		"#" + o.ID,
@@ -31,8 +33,12 @@ func (o ContextOperation) line() string {
 		o.Actor.String(),
 		string(o.Kind),
 	}
-	if subject := o.Subject.Describe(); subject != "" {
-		parts = append(parts, subject)
+	switch o.Subject.Kind {
+	case contextop.SubjectNone:
+	case contextop.SubjectNote:
+		parts = append(parts, o.Subject.Phrase())
+	default:
+		parts = append(parts, o.Subject.Describe())
 	}
 	if o.Correction != nil {
 		parts = append(parts, fmt.Sprintf("%q became %q", o.Correction.From, o.Correction.To))
@@ -44,7 +50,15 @@ func (o ContextOperation) line() string {
 		parts = append(parts, "of session "+o.TargetSession)
 	}
 	if o.Kind.Bears() {
-		parts = append(parts, "["+string(o.Status)+"]")
+		status := string(o.Status)
+		if len(o.ContestedBy) > 0 {
+			others := make([]string, len(o.ContestedBy))
+			for i, id := range o.ContestedBy {
+				others[i] = "#" + id
+			}
+			status += " by " + strings.Join(others, ", ")
+		}
+		parts = append(parts, "["+status+"]")
 	}
 	return strings.Join(parts, "  ")
 }
@@ -108,6 +122,26 @@ func (r ContextRevertResult) FormatText(w io.Writer) error {
 	}
 	for _, retracted := range r.Retracted {
 		if _, err := fmt.Fprintf(w, "  taken back out of %s\n", retracted); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// FormatText renders what a keep did: one line per rule kept, where it was
+// written, and each suggestion left for a person to choose about.
+func (r ContextKeepResult) FormatText(w io.Writer) error {
+	if len(r.Kept) == 0 && len(r.Skipped) == 0 {
+		_, err := fmt.Fprintln(w, "Nothing was waiting to be kept.")
+		return err
+	}
+	for _, op := range r.Kept {
+		if err := op.FormatText(w); err != nil {
+			return err
+		}
+	}
+	for _, skip := range r.Skipped {
+		if _, err := fmt.Fprintf(w, "Left #%s: %s. Choose between them before keeping it.\n", skip.ID, skip.Reason); err != nil {
 			return err
 		}
 	}

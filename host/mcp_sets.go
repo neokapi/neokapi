@@ -37,7 +37,7 @@ const (
 // plugin's own tools, which their own flags and installation decide.
 var mcpToolSets = map[string][]string{
 	MCPSetWriting: {
-		"context_search", "context_observe", "context_propose", "context_correct",
+		"context_read", "context_search", "context_observe", "context_correct",
 		"context_withdraw", "context_session_summary", "check_file",
 	},
 	MCPSetContent: {

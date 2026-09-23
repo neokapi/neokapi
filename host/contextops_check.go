@@ -14,12 +14,12 @@ import (
 // ContextRulesAt is what a project's context operations add to the vocabulary
 // its own stores already carry, at one point.
 //
-// Two lists, because they answer differently. The binding rules were confirmed
-// by a person and widened to the whole workspace, so they hold at the severity
-// each one carries, exactly like a rule in the project's terms store. The
-// advisory rules are candidates: proposals the project has accumulated and not
-// yet decided on, reported at neutral severity so they show up in a check and
-// fail nothing.
+// Two lists, because they answer differently. The binding rules were
+// established by a person and widened to the whole workspace, so they hold at
+// the severity each one carries, exactly like a rule in the project's terms
+// store. The advisory rules are suggestions the project has accumulated and
+// not yet established, and rules a disagreement contests, reported at neutral
+// severity so they show up in a check and fail nothing.
 func (a *App) ContextRulesAt(ctx context.Context, recipePath string, point project.GovernancePoint) (contextop.Resolution, error) {
 	cmd := NewEnvCommand(ctx, "context-rules")
 	cmd.Flags().String(projectFlagName, recipePath, "")
@@ -30,7 +30,7 @@ func (a *App) ContextRulesAt(ctx context.Context, recipePath string, point proje
 	return resolver.at(point)
 }
 
-// contextRules answers "which candidates and which widened rules hold here" for
+// contextRules answers "which suggestions and which widened rules hold here" for
 // one run.
 //
 // It reads the operation log and the workspace's widened rules once and folds
@@ -142,12 +142,12 @@ func (a *App) projectDeclaredTerms(cmd Command) ([]string, error) {
 	return out, nil
 }
 
-// advisoryDiagnostics reports the candidate rules a text matches.
+// advisoryDiagnostics reports the suggested rules a text matches.
 //
-// Candidates run outside the analyzer the vocabulary gate registers, and on
+// Suggestions run outside the analyzer the vocabulary gate registers, and on
 // purpose. An analyzer's findings are its verdict, and a check counts them,
-// scores them and holds the analyzer to a canary; a candidate is a note about a
-// rule nobody has decided on, so it settles none of that. This is the same
+// scores them and holds the analyzer to a canary; a suggestion is a note about
+// a rule nobody has established, so it settles none of that. This is the same
 // stance core/check takes with a Warning: reported beside the findings, read by
 // no gate.
 func advisoryDiagnostics(sets []profile.TermRuleSet, text string, runs []model.Run, loc check.Location) []check.Diagnostic {

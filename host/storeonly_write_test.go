@@ -83,7 +83,8 @@ func TestImport_EachCheckoutReadsItsOwnFiles(t *testing.T) {
 	ops := recordedOps(t, c.a, c.aRecipe)
 	require.Len(t, ops, 2, "the log names both imports")
 	for _, op := range ops {
-		assert.Equal(t, contextop.KindConfirm, op.Kind)
+		assert.Equal(t, contextop.KindImport, op.Kind)
+		assert.Equal(t, contextop.StatusEstablished, op.Status, "what a person imports is established")
 		require.NotEmpty(t, op.Evidence)
 		assert.Equal(t, ".kapi/terms.json", op.Evidence[0].Path)
 		assert.True(t, strings.HasPrefix(op.Evidence[0].Quote, "sha256:"),
@@ -122,12 +123,12 @@ func TestConfirm_ChangesNoFileAndReachesBothCheckouts(t *testing.T) {
 	require.Empty(t, conceptTexts(t, c.b, c.bRecipe))
 	beforeA, beforeB := treeOf(t, c.aRoot), treeOf(t, c.bRoot)
 
-	proposed, err := c.a.ProposeContextRule(ctx, ContextProposeRequest{
+	proposed, err := c.a.RecordContextObservation(ctx, ContextObserveRequest{
 		Project: c.aRecipe,
-		Term:    &coreprofile.TermRule{Term: "utilise", Replacement: "use"},
+		Term:    "use", InsteadOf: []string{"utilise"},
 	})
 	require.NoError(t, err)
-	_, err = c.a.ConfirmContextOperation(ctx, ContextConfirmRequest{Project: c.aRecipe, ID: proposed.ID})
+	_, err = c.a.KeepContextOperation(ctx, ContextKeepRequest{Project: c.aRecipe, ID: proposed.ID})
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"use", "utilise"}, sorted(conceptTexts(t, c.b, c.bRecipe)),
@@ -171,16 +172,16 @@ func TestApply_LandsInTheStoreAndIsRecorded(t *testing.T) {
 	}
 
 	ops := recordedOps(t, a, recipe)
-	require.Len(t, ops, 6, "each applied entry is a proposal and the confirmation of it")
-	proposed := map[contextop.SubjectKind]int{}
+	require.Len(t, ops, 2, "each applied term and memory pair is one edit")
+	edited := map[contextop.SubjectKind]int{}
 	for _, op := range ops {
-		if op.Kind == contextop.KindPropose {
-			proposed[op.Subject.Kind]++
+		if op.Kind == contextop.KindEdit {
+			edited[op.Subject.Kind]++
 		}
 	}
 	assert.Equal(t, map[contextop.SubjectKind]int{
-		contextop.SubjectTerm: 1, contextop.SubjectMemory: 1, contextop.SubjectVoice: 1,
-	}, proposed)
+		contextop.SubjectTerm: 1, contextop.SubjectMemory: 1,
+	}, edited, "a voice-profile vocabulary rule is recorded by the profile's own history")
 }
 
 // TestVoiceEdit_ReadsTheEditedProfileBackAsOneOperation drives the editor with
@@ -209,7 +210,7 @@ func TestVoiceEdit_ReadsTheEditedProfileBackAsOneOperation(t *testing.T) {
 
 	ops := recordedOps(t, a, recipe)
 	edit := ops[len(ops)-1]
-	assert.Equal(t, contextop.KindConfirm, edit.Kind)
+	assert.Equal(t, contextop.KindEdit, edit.Kind)
 	assert.Contains(t, edit.Subject.Text, "edited whole")
 }
 

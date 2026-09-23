@@ -14,7 +14,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/neokapi/neokapi/core/contextop"
-	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -27,8 +26,8 @@ import (
 //
 // Each tool wraps exactly one call in host/contextops.go and adds no rule of
 // its own. What an agent may record is decided by core/contextop's policy, not
-// here: observe, propose and record a correction, all of which advise and none
-// of which can fail a check. Confirming, discarding another actor's work,
+// here: observe and record a correction, both of which advise and neither of
+// which can fail a check, and withdraw its own suggestion. Keeping, dropping,
 // reverting and widening belong to a person, so this surface carries no tool
 // for them at all.
 //
@@ -41,23 +40,17 @@ func init() { RegisterMCPToolFactory(registerContextGrowthMCPTools) }
 func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_observe",
-		Description: "Record one fact about how this project writes, as soon as you notice it: a product or " +
-			"feature name as the project spells it, a spelling it keeps to, who its text addresses. " +
-			"One fact per call, with `path` and `quote` saying where you saw it. It advises at once and " +
-			"fails no check.",
+		Description: "Record one thing you notice about how this project writes, as soon as you notice it. " +
+			"For a name or spelling the project keeps to, pass `term` with the form it uses and `instead_of` " +
+			"with forms it avoids; kapi adds the spacing, hyphen and case variants. Otherwise say it in " +
+			"`text`. Give `path` and `quote` for where you saw it. It is a suggestion: checks report it, " +
+			"none fails on it, and a person keeps it.",
 	}, a.handleContextObserve)
-
-	mcp.AddTool(server, &mcp.Tool{
-		Name: "context_propose",
-		Description: "Propose a rule about a word: write this instead of that, when the project is consistent " +
-			"about it and nothing records it yet. Give `path` and `quote` for where you saw it. The rule is a " +
-			"suggestion: checks report it and none fails on it until a person confirms it.",
-	}, a.handleContextPropose)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_correct",
 		Description: "Record that the person changed your wording: `from` is what you wrote, `to` is what they " +
-			"replaced it with, and `path` is where. Call it as soon as you see the edit. Set `propose` to also " +
+			"replaced it with, and `path` is where. Call it as soon as you see the edit. Set `suggest` to also " +
 			"suggest the rule it implies.",
 	}, a.handleContextCorrect)
 
@@ -194,26 +187,15 @@ func sessionClientName(req mcp.Request) string {
 
 // ─── What the write tools take ──────────────────────────────────────────────
 
-// contextObserveInput is one fact an agent noticed while reading a project.
+// contextObserveInput is one thing an agent noticed while reading a project.
 type contextObserveInput struct {
-	Text    string `json:"text" jsonschema:"the fact, in one sentence, in your own words"`
-	Path    string `json:"path,omitempty" jsonschema:"the project-relative file you saw it in"`
-	Unit    string `json:"unit,omitempty" jsonschema:"the block or unit id inside that file, when you have one"`
-	Quote   string `json:"quote,omitempty" jsonschema:"the wording you saw, quoted from the file"`
-	Project string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
-}
-
-// contextProposeInput is a candidate rule about one word.
-type contextProposeInput struct {
-	Term     string `json:"term" jsonschema:"the word or phrase the rule is about"`
-	Use      string `json:"use,omitempty" jsonschema:"what to write instead; a rule without one records the word and matches nothing"`
-	List     string `json:"list,omitempty" jsonschema:"propose a voice-profile rule in this list instead of a project term: forbidden, competitor or preferred"`
-	Severity string `json:"severity,omitempty" jsonschema:"how hard the rule bites once a person confirms it: minor and neutral report, anything else fails a check"`
-	Note     string `json:"note,omitempty" jsonschema:"why you are proposing it"`
-	Path     string `json:"path" jsonschema:"the project-relative file you saw the wording in"`
-	Unit     string `json:"unit,omitempty" jsonschema:"the block or unit id inside that file, when you have one"`
-	Quote    string `json:"quote,omitempty" jsonschema:"the wording as it stands there"`
-	Project  string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+	Text      string   `json:"text,omitempty" jsonschema:"the fact, in one sentence, in your own words"`
+	Term      string   `json:"term,omitempty" jsonschema:"the form this project uses for a name or word, e.g. Quickcast"`
+	InsteadOf []string `json:"instead_of,omitempty" jsonschema:"forms the project avoids for term, e.g. Quick cast; spacing, hyphen and case variants are added for you"`
+	Path      string   `json:"path,omitempty" jsonschema:"the project-relative file you saw it in"`
+	Unit      string   `json:"unit,omitempty" jsonschema:"the block or unit id inside that file, when you have one"`
+	Quote     string   `json:"quote,omitempty" jsonschema:"the wording you saw, quoted from the file"`
+	Project   string   `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 }
 
 // contextCorrectInput is wording the person changed, at the place they changed
@@ -224,8 +206,8 @@ type contextCorrectInput struct {
 	Path     string `json:"path" jsonschema:"the project-relative file they changed it in"`
 	Unit     string `json:"unit,omitempty" jsonschema:"the block or unit id inside that file, when you have one"`
 	Quote    string `json:"quote,omitempty" jsonschema:"the sentence the change was made in"`
-	Propose  bool   `json:"propose,omitempty" jsonschema:"also record the rule the change implies, so the next use of the old wording is reported"`
-	Severity string `json:"severity,omitempty" jsonschema:"how hard that rule bites once a person confirms it: minor and neutral report, anything else fails a check"`
+	Suggest  bool   `json:"suggest,omitempty" jsonschema:"also record the rule the change implies, so the next use of the old wording is reported"`
+	Severity string `json:"severity,omitempty" jsonschema:"how hard that rule bites once a person keeps it: minor and neutral report, anything else fails a check"`
 	Note     string `json:"note,omitempty" jsonschema:"what they said about the change"`
 	Project  string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 }
@@ -248,13 +230,16 @@ type contextSessionInput struct {
 // contextRecordOutput is what a write tool answers: the operation it recorded,
 // what that operation counts as, and how a person reviews it.
 type contextRecordOutput struct {
-	// Operation is the id, which is what `kapi context confirm` takes.
+	// Operation is the id, which is what `kapi context keep` takes.
 	Operation string `json:"operation"`
-	// Kind is what was done: observe, propose or correct.
+	// Kind is what was done: observe, correct or withdraw.
 	Kind string `json:"kind"`
-	// Status is what the operation counts as. `candidate` advises and fails
-	// nothing until a person confirms it.
+	// Status is what the operation counts as. `suggested` advises and fails
+	// nothing until a person keeps it; `contested` disagrees with the rules
+	// ContestedBy names.
 	Status string `json:"status"`
+	// ContestedBy names the operations on the other side of a disagreement.
+	ContestedBy []string `json:"contested_by,omitempty"`
 	// Session groups everything this run recorded.
 	Session string `json:"session"`
 	// Project is the project it was recorded in.
@@ -275,17 +260,18 @@ type contextSessionOutput struct {
 	Agent   string `json:"agent,omitempty"`
 	// Operations is how many operations the session recorded in all.
 	Operations int `json:"operations"`
-	// Observed, Proposed and Corrected count what it recorded.
+	// Observed and Corrected count what it recorded.
 	Observed  int `json:"observed"`
-	Proposed  int `json:"proposed"`
 	Corrected int `json:"corrected"`
-	// Candidates is how many of them are still waiting for a decision,
-	// Confirmed how many a person made binding, and Discarded and Reverted what
-	// became of the rest.
-	Candidates int `json:"candidates"`
-	Confirmed  int `json:"confirmed"`
-	Discarded  int `json:"discarded"`
-	Reverted   int `json:"reverted"`
+	// Suggested is how many of them are still waiting for a person, Contested
+	// how many disagree with another rule, Established how many a person kept,
+	// and Withdrawn, Dropped and Reverted what became of the rest.
+	Suggested   int `json:"suggested"`
+	Contested   int `json:"contested"`
+	Established int `json:"established"`
+	Withdrawn   int `json:"withdrawn"`
+	Dropped     int `json:"dropped"`
+	Reverted    int `json:"reverted"`
 	// First and Last bound the session in time, RFC 3339.
 	First string `json:"first,omitempty"`
 	Last  string `json:"last,omitempty"`
@@ -302,58 +288,58 @@ func (a *App) handleContextObserve(ctx context.Context, req *mcp.CallToolRequest
 	if err != nil {
 		return nil, contextRecordOutput{}, err
 	}
-	if strings.TrimSpace(in.Text) == "" {
-		return nil, contextRecordOutput{}, errors.New("context_observe: say what you noticed in `text`")
+	if strings.TrimSpace(in.Text) == "" && strings.TrimSpace(in.Term) == "" {
+		return nil, contextRecordOutput{}, errors.New(
+			"context_observe: say what you noticed in `text`, or name the form the project uses in `term`")
+	}
+	if strings.TrimSpace(in.Term) == "" && len(in.InsteadOf) > 0 {
+		return nil, contextRecordOutput{}, errors.New(
+			"context_observe: `instead_of` needs `term`, the form the project uses in their place")
+	}
+	evidence := mcpEvidence(in.Path, in.Unit, in.Quote)
+	if strings.TrimSpace(in.Term) != "" {
+		if err := requireEvidence("context_observe", evidence); err != nil {
+			return nil, contextRecordOutput{}, err
+		}
 	}
 	op, err := a.RecordContextObservation(ctx, ContextObserveRequest{
-		Actor:    mcpAgentActor(req),
-		Project:  recipe,
-		Text:     in.Text,
-		Evidence: mcpEvidence(in.Path, in.Unit, in.Quote),
+		Actor:     mcpAgentActor(req),
+		Project:   recipe,
+		Text:      in.Text,
+		Term:      in.Term,
+		InsteadOf: in.InsteadOf,
+		Evidence:  evidence,
 	})
 	if err != nil {
 		return nil, contextRecordOutput{}, err
 	}
 	a.NoteMCPSession(ctx, recipe, mcpClientName(req))
 	out := recordedOutput(op)
-	out.Next = "nothing has to happen to it. It is material for a rule somebody proposes later."
+	out.Next = suggestionNext(op)
 	return nil, out, nil
 }
 
-func (a *App) handleContextPropose(ctx context.Context, req *mcp.CallToolRequest, in contextProposeInput) (*mcp.CallToolResult, contextRecordOutput, error) {
-	recipe, err := a.RequireMCPCallProject(in.Project)
-	if err != nil {
-		return nil, contextRecordOutput{}, err
+// suggestionNext says what happens to a suggestion, so an answer is never read
+// as a rule now in force.
+func suggestionNext(op ContextOperation) string {
+	if op.Status == contextop.StatusContested {
+		return fmt.Sprintf("contested by %s: it advises beside the other side until a person chooses between them.",
+			idList(op.ContestedBy))
 	}
-	if strings.TrimSpace(in.Term) == "" {
-		return nil, contextRecordOutput{}, errors.New("context_propose: name the word the rule is about in `term`")
+	if _, isRule := op.Rule(); isRule {
+		return fmt.Sprintf("a suggestion: every check reports it and none can fail on it. "+
+			"It is established when a person runs `kapi context keep %s`.", op.ID)
 	}
-	evidence := mcpEvidence(in.Path, in.Unit, in.Quote)
-	if err := requireEvidence("context_propose", evidence); err != nil {
-		return nil, contextRecordOutput{}, err
+	return "a suggestion: it advises whoever reads this project's context next, and a person may keep it."
+}
+
+// idList renders operation ids as a person types them.
+func idList(ids []string) string {
+	out := make([]string, len(ids))
+	for i, id := range ids {
+		out[i] = "#" + id
 	}
-	rule := profile.TermRule{Term: in.Term, Replacement: in.Use, Severity: in.Severity, Note: in.Note}
-	proposal := ContextProposeRequest{
-		Actor:    mcpAgentActor(req),
-		Project:  recipe,
-		Evidence: evidence,
-		Note:     in.Note,
-	}
-	if in.List != "" {
-		proposal.Voice = &contextop.VoiceRule{List: in.List, Rule: rule}
-	} else {
-		proposal.Term = &rule
-	}
-	op, err := a.ProposeContextRule(ctx, proposal)
-	if err != nil {
-		return nil, contextRecordOutput{}, err
-	}
-	a.NoteMCPSession(ctx, recipe, mcpClientName(req))
-	out := recordedOutput(op)
-	out.Next = fmt.Sprintf(
-		"a candidate: every check reports it and none can fail on it. It binds when a person runs `kapi context confirm %s`.",
-		op.ID)
-	return nil, out, nil
+	return strings.Join(out, ", ")
 }
 
 func (a *App) handleContextCorrect(ctx context.Context, req *mcp.CallToolRequest, in contextCorrectInput) (*mcp.CallToolResult, contextRecordOutput, error) {
@@ -375,7 +361,7 @@ func (a *App) handleContextCorrect(ctx context.Context, req *mcp.CallToolRequest
 		From:     in.From,
 		To:       in.To,
 		Evidence: evidence,
-		Propose:  in.Propose,
+		Suggest:  in.Suggest,
 		Severity: in.Severity,
 		Note:     in.Note,
 	})
@@ -385,19 +371,20 @@ func (a *App) handleContextCorrect(ctx context.Context, req *mcp.CallToolRequest
 	a.NoteMCPSession(ctx, recipe, mcpClientName(req))
 	out := recordedOutput(op)
 	out.Recorded = fmt.Sprintf("correction %q to %q", in.From, in.To)
-	if in.Propose {
-		out.Next = fmt.Sprintf(
-			"a candidate rule came with it: every check reports it and none can fail on it. "+
-				"It binds when a person runs `kapi context confirm %s`.", op.ID)
-	} else {
-		out.Next = "recorded as evidence. Pass `propose` next time to record the rule it implies with it."
+	switch {
+	case in.Suggest:
+		out.Next = suggestionNext(op)
+	case op.Landed != "":
+		out.Next = "recorded as evidence. " + op.Landed + "."
+	default:
+		out.Next = "recorded as evidence. Pass `suggest` next time to record the rule it implies with it."
 	}
 	return nil, out, nil
 }
 
-// handleContextWithdraw discards an operation this session recorded. The
-// policy decides who may: an agent withdraws its own candidates, in the session
-// that recorded them, and nothing else.
+// handleContextWithdraw withdraws an operation this session recorded. The
+// policy decides who may: an agent withdraws its own suggestions, in the
+// session that recorded them, and nothing else.
 func (a *App) handleContextWithdraw(ctx context.Context, req *mcp.CallToolRequest, in contextWithdrawInput) (*mcp.CallToolResult, contextRecordOutput, error) {
 	recipe, err := a.RequireMCPCallProject(in.Project)
 	if err != nil {
@@ -407,7 +394,7 @@ func (a *App) handleContextWithdraw(ctx context.Context, req *mcp.CallToolReques
 	if id == "" {
 		return nil, contextRecordOutput{}, errors.New("context_withdraw: name the operation to withdraw in `operation`")
 	}
-	op, err := a.DiscardContextOperation(ctx, ContextDiscardRequest{
+	op, err := a.WithdrawContextOperation(ctx, ContextWithdrawRequest{
 		Actor:   mcpAgentActor(req),
 		Project: recipe,
 		ID:      id,
@@ -446,13 +433,14 @@ func (a *App) handleContextSessionSummary(ctx context.Context, req *mcp.CallTool
 // which is the part that differs by kind.
 func recordedOutput(op ContextOperation) contextRecordOutput {
 	return contextRecordOutput{
-		Operation: op.ID,
-		Kind:      string(op.Kind),
-		Status:    string(op.Status),
-		Session:   op.Actor.Session,
-		Project:   string(op.Project),
-		Recorded:  op.Subject.Describe(),
-		Review:    "kapi context log --session " + op.Actor.Session,
+		Operation:   op.ID,
+		Kind:        string(op.Kind),
+		Status:      string(op.Status),
+		ContestedBy: op.ContestedBy,
+		Session:     op.Actor.Session,
+		Project:     string(op.Project),
+		Recorded:    op.Subject.Describe(),
+		Review:      "kapi context log --session " + op.Actor.Session,
 	}
 }
 
@@ -460,18 +448,19 @@ func recordedOutput(op ContextOperation) contextRecordOutput {
 // by what became of it, with the sentence an agent ends its report on.
 func sessionOutput(s contextop.SessionSummary) contextSessionOutput {
 	out := contextSessionOutput{
-		Session:    s.Session,
-		Project:    string(s.Project),
-		Agent:      s.Actor.Name,
-		Operations: s.Operations,
-		Observed:   s.ByKind[contextop.KindObserve],
-		Proposed:   s.ByKind[contextop.KindPropose],
-		Corrected:  s.ByKind[contextop.KindCorrect],
-		Candidates: s.ByStatus[contextop.StatusCandidate],
-		Confirmed:  s.ByStatus[contextop.StatusConfirmed],
-		Discarded:  s.ByStatus[contextop.StatusDiscarded],
-		Reverted:   s.ByStatus[contextop.StatusReverted],
-		Review:     "kapi context log --session " + s.Session,
+		Session:     s.Session,
+		Project:     string(s.Project),
+		Agent:       s.Actor.Name,
+		Operations:  s.Operations,
+		Observed:    s.ByKind[contextop.KindObserve],
+		Corrected:   s.ByKind[contextop.KindCorrect],
+		Suggested:   s.ByStatus[contextop.StatusSuggested],
+		Contested:   s.ByStatus[contextop.StatusContested],
+		Established: s.ByStatus[contextop.StatusEstablished],
+		Withdrawn:   s.ByStatus[contextop.StatusWithdrawn],
+		Dropped:     s.ByStatus[contextop.StatusDropped],
+		Reverted:    s.ByStatus[contextop.StatusReverted],
+		Review:      "kapi context log --session " + s.Session,
 	}
 	if !s.First.IsZero() {
 		out.First = s.First.UTC().Format(time.RFC3339)
@@ -492,20 +481,20 @@ func sessionReport(s contextSessionOutput) string {
 	}
 	var parts []string
 	if s.Observed > 0 {
-		parts = append(parts, plural(s.Observed, "fact", "facts")+" observed")
-	}
-	if s.Proposed > 0 {
-		parts = append(parts, plural(s.Proposed, "rule", "rules")+" proposed")
+		parts = append(parts, plural(s.Observed, "observation", "observations"))
 	}
 	if s.Corrected > 0 {
-		parts = append(parts, plural(s.Corrected, "correction", "corrections")+" recorded")
+		parts = append(parts, plural(s.Corrected, "correction", "corrections"))
 	}
-	report := "Context, session " + s.Session + ": " + strings.Join(parts, ", ") + "."
-	if s.Candidates > 0 {
-		report += fmt.Sprintf(" %s %s waiting for a decision.",
-			plural(s.Candidates, "candidate", "candidates"), verb(s.Candidates, "is", "are"))
+	report := "Context, session " + s.Session + ": " + strings.Join(parts, ", ") + " recorded."
+	if waiting := s.Suggested + s.Contested; waiting > 0 {
+		report += fmt.Sprintf(" %s %s waiting for a person", plural(waiting, "suggestion", "suggestions"), verb(waiting, "is", "are"))
+		if s.Contested > 0 {
+			report += fmt.Sprintf(", %d of them contested", s.Contested)
+		}
+		report += "."
 	}
-	return report + " Review with `" + s.Review + "`."
+	return report + " Review with `" + s.Review + "`, and keep them all with `kapi context keep --session " + s.Session + "`."
 }
 
 // mcpEvidence renders the location a call named as the evidence behind it.
