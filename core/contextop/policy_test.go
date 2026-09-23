@@ -11,14 +11,16 @@ import (
 func TestPersonDecides(t *testing.T) {
 	agentRecord := contextop.Record{
 		Actor:  agent("claude", "s1"),
-		Kind:   contextop.KindPropose,
-		Status: contextop.StatusCandidate,
+		Kind:   contextop.KindObserve,
+		Status: contextop.StatusSuggested,
 	}
-	confirmedRecord := contextop.Record{
-		Actor:  agent("claude", "s1"),
-		Kind:   contextop.KindPropose,
-		Status: contextop.StatusConfirmed,
+	establishedRecord := contextop.Record{
+		Actor:       agent("claude", "s1"),
+		Kind:        contextop.KindObserve,
+		Status:      contextop.StatusEstablished,
+		Established: true,
 	}
+	personRecord := contextop.Record{Actor: person("asgeir"), Kind: contextop.KindObserve, Status: contextop.StatusSuggested}
 
 	tests := []struct {
 		name       string
@@ -26,78 +28,110 @@ func TestPersonDecides(t *testing.T) {
 		refused    bool
 	}{
 		{
-			name:       "a person confirms",
-			transition: contextop.Transition{Actor: person("asgeir"), Kind: contextop.KindConfirm, Targeted: true, Target: agentRecord},
+			name:       "a person keeps",
+			transition: contextop.Transition{Actor: person("asgeir"), Kind: contextop.KindKeep, Targeted: true, Target: agentRecord},
+		},
+		{
+			name:       "a person drops",
+			transition: contextop.Transition{Actor: person("asgeir"), Kind: contextop.KindDrop, Targeted: true, Target: agentRecord},
 		},
 		{
 			name:       "a person widens",
-			transition: contextop.Transition{Actor: person("asgeir"), Kind: contextop.KindWiden, Targeted: true, Target: confirmedRecord},
+			transition: contextop.Transition{Actor: person("asgeir"), Kind: contextop.KindWiden, Targeted: true, Target: establishedRecord},
+		},
+		{
+			name:       "a person imports",
+			transition: contextop.Transition{Actor: person("asgeir"), Kind: contextop.KindImport, Subject: contextop.SubjectNote},
+		},
+		{
+			name:       "a person withdraws their own suggestion",
+			transition: contextop.Transition{Actor: person("asgeir"), Kind: contextop.KindWithdraw, Targeted: true, Target: personRecord},
 		},
 		{
 			name:       "an agent observes",
 			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindObserve, Subject: contextop.SubjectNote},
 		},
 		{
-			name:       "an agent proposes",
-			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindPropose, Subject: contextop.SubjectTerm},
+			name:       "an agent observes a term",
+			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindObserve, Subject: contextop.SubjectTerm},
 		},
 		{
 			name:       "an agent records a correction",
 			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindCorrect},
 		},
 		{
-			name:       "a tool proposes",
-			transition: contextop.Transition{Actor: contextop.Actor{Kind: contextop.ActorTool, Name: "converge"}, Kind: contextop.KindPropose},
+			name:       "a tool observes",
+			transition: contextop.Transition{Actor: contextop.Actor{Kind: contextop.ActorTool, Name: "converge"}, Kind: contextop.KindObserve},
 		},
 		{
-			name:       "an agent discards its own candidate",
-			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindDiscard, Targeted: true, Target: agentRecord},
+			name:       "an agent withdraws its own suggestion",
+			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindWithdraw, Targeted: true, Target: agentRecord},
 		},
 		{
-			name:       "an agent reverts its own candidate",
+			name:       "an agent reverts its own suggestion",
 			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindRevert, Targeted: true, Target: agentRecord},
 		},
 		{
-			name:       "an agent confirms",
-			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindConfirm, Targeted: true, Target: agentRecord},
+			name:       "an agent drops its own suggestion",
+			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindDrop, Targeted: true, Target: agentRecord},
 			refused:    true,
 		},
 		{
-			name:       "a tool confirms",
-			transition: contextop.Transition{Actor: contextop.Actor{Kind: contextop.ActorTool, Name: "converge"}, Kind: contextop.KindConfirm, Targeted: true, Target: agentRecord},
+			name:       "an agent keeps",
+			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindKeep, Targeted: true, Target: agentRecord},
+			refused:    true,
+		},
+		{
+			name:       "a tool keeps",
+			transition: contextop.Transition{Actor: contextop.Actor{Kind: contextop.ActorTool, Name: "converge"}, Kind: contextop.KindKeep, Targeted: true, Target: agentRecord},
+			refused:    true,
+		},
+		{
+			name:       "an agent imports",
+			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindImport, Subject: contextop.SubjectNote},
+			refused:    true,
+		},
+		{
+			name:       "an agent writes a rule directly",
+			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindEdit, Subject: contextop.SubjectTerm},
 			refused:    true,
 		},
 		{
 			name:       "an agent widens",
-			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindWiden, Targeted: true, Target: confirmedRecord},
+			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindWiden, Targeted: true, Target: establishedRecord},
 			refused:    true,
 		},
 		{
-			name:       "an agent proposes straight to the workspace",
-			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindPropose, Widening: true},
+			name:       "an agent observes straight to the workspace",
+			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindObserve, Widening: true},
 			refused:    true,
 		},
 		{
-			name:       "an agent withdraws a confirmed rule",
-			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindRevert, Targeted: true, Target: confirmedRecord},
+			name:       "an agent reverts an established rule",
+			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindRevert, Targeted: true, Target: establishedRecord},
 			refused:    true,
 		},
 		{
-			name: "an agent discards another agent's proposal",
+			name:       "an agent withdraws an established rule",
+			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindWithdraw, Targeted: true, Target: establishedRecord},
+			refused:    true,
+		},
+		{
+			name:       "a person withdraws another actor's suggestion",
+			transition: contextop.Transition{Actor: person("asgeir"), Kind: contextop.KindWithdraw, Targeted: true, Target: agentRecord},
+			refused:    true,
+		},
+		{
+			name: "an agent withdraws another session's suggestion",
 			transition: contextop.Transition{
-				Actor: agent("claude", "s2"), Kind: contextop.KindDiscard, Targeted: true, Target: agentRecord,
+				Actor: agent("claude", "s2"), Kind: contextop.KindWithdraw, Targeted: true, Target: agentRecord,
 			},
 			refused: true,
 		},
 		{
-			name: "an agent discards a person's proposal",
-			transition: contextop.Transition{
-				Actor:    agent("claude", "s1"),
-				Kind:     contextop.KindDiscard,
-				Targeted: true,
-				Target:   contextop.Record{Actor: person("asgeir"), Kind: contextop.KindPropose, Status: contextop.StatusCandidate},
-			},
-			refused: true,
+			name:       "an agent withdraws a person's suggestion",
+			transition: contextop.Transition{Actor: agent("claude", "s1"), Kind: contextop.KindWithdraw, Targeted: true, Target: personRecord},
+			refused:    true,
 		},
 		{
 			name:       "an agent reverts a whole session",
@@ -132,28 +166,28 @@ func TestLedger_PolicyRefusesAnAgentConfirmation(t *testing.T) {
 
 	proposed, err := ledger.Append(ctx, contextop.Record{
 		Project: "prj_docs", Actor: agent("claude", "s1"),
-		Kind: contextop.KindPropose, Subject: termRule("utilise", "use", ""),
+		Kind: contextop.KindObserve, Subject: termRule("utilise", "use", ""),
 	})
 	require.NoError(t, err)
 
 	_, err = ledger.Append(ctx, contextop.Record{
 		Project: "prj_docs", Actor: agent("claude", "s1"),
-		Kind: contextop.KindConfirm, Target: proposed.ID,
+		Kind: contextop.KindKeep, Target: proposed.ID,
 	})
 	require.ErrorIs(t, err, contextop.ErrRefused)
 
 	still, err := ledger.Get(ctx, proposed.ID)
 	require.NoError(t, err)
-	assert.Equal(t, contextop.StatusCandidate, still.Status, "a refused confirmation records nothing")
+	assert.Equal(t, contextop.StatusSuggested, still.Status, "a refused confirmation records nothing")
 
 	_, err = ledger.Append(ctx, contextop.Record{
 		Project: "prj_docs", Actor: person("asgeir"),
-		Kind: contextop.KindConfirm, Target: proposed.ID,
+		Kind: contextop.KindKeep, Target: proposed.ID,
 	})
 	require.NoError(t, err)
 	confirmed, err := ledger.Get(ctx, proposed.ID)
 	require.NoError(t, err)
-	assert.Equal(t, contextop.StatusConfirmed, confirmed.Status, "a person confirms the same rule")
+	assert.Equal(t, contextop.StatusEstablished, confirmed.Status, "a person confirms the same rule")
 }
 
 // TestLedger_DefaultPolicyIsPersonDecides pins the default, because a nil
@@ -163,7 +197,7 @@ func TestLedger_DefaultPolicyIsPersonDecides(t *testing.T) {
 	ledger := contextop.NewLedger(openWorkspace(t), nil)
 	_, err := ledger.Append(ctx, contextop.Record{
 		Project: "prj_docs", Actor: agent("claude", "s1"),
-		Kind: contextop.KindPropose, Subject: termRule("utilise", "use", ""),
+		Kind: contextop.KindObserve, Subject: termRule("utilise", "use", ""),
 	})
 	require.NoError(t, err)
 	_, err = ledger.Append(ctx, contextop.Record{

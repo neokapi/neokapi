@@ -77,8 +77,8 @@ func (l *Ledger) Append(ctx context.Context, r Record) (Record, error) {
 		Actor:    r.Actor,
 		Kind:     r.Kind,
 		Subject:  r.Subject.Kind,
-		Widening: r.Kind == KindWiden || (r.Kind == KindConfirm && r.Scope.Level == LevelWorkspace),
-		Editing:  r.Kind == KindConfirm && r.Subject.Kind != SubjectNone,
+		Widening: r.Kind == KindWiden || (r.Kind == KindKeep && r.Scope.Level == LevelWorkspace),
+		Editing:  r.Kind == KindKeep && r.Subject.Kind != SubjectNone,
 	}
 	if r.Target != "" {
 		target, ok := find(held, r.Target)
@@ -106,6 +106,7 @@ func (l *Ledger) Append(ctx context.Context, r Record) (Record, error) {
 	r.ID = FormatID(written[0].Seq)
 	r.At = written[0].At.UTC()
 	r.Status = statusAtBirth(r.Kind)
+	r.Established = r.Kind.Bears() && r.Status == StatusEstablished
 	return r, nil
 }
 
@@ -196,8 +197,8 @@ func (l *Ledger) Get(ctx context.Context, id string) (Record, error) {
 
 // Subject resolves an id to the subject-bearing operation behind it: the
 // operation itself when it carries a subject, and otherwise the one it acts on.
-// Confirming an already-confirmed rule by naming the confirm rather than the
-// proposal therefore reaches the same rule.
+// Keeping an established rule by naming the keep rather than the suggestion
+// therefore reaches the same rule.
 func (l *Ledger) Subject(ctx context.Context, id string) (Record, error) {
 	all, err := l.fold(ctx)
 	if err != nil {
@@ -231,6 +232,7 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 			continue
 		}
 		r.Status = statusAtBirth(r.Kind)
+		r.Established = r.Kind.Bears() && r.Status == StatusEstablished
 		records = append(records, r)
 	}
 	// Sequence order, which is the order the operations happened in.
@@ -241,6 +243,15 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 		at[r.ID] = i
 	}
 	byID := index(records)
+	// establishedAt is the position of the act that last established each
+	// subject, so a correction can be told apart from one the person already
+	// answered by keeping the rule again.
+	establishedAt := make([]int64, len(records))
+	for i, r := range records {
+		if r.Kind.Bears() && r.Status == StatusEstablished {
+			establishedAt[i] = r.Seq
+		}
+	}
 
 	for _, act := range records {
 		if act.Kind.Bears() {
@@ -250,6 +261,7 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 			for i := range records {
 				if records[i].Kind.Bears() && records[i].Actor.Session == act.TargetSession {
 					records[i].Status = StatusReverted
+					records[i].Established = false
 				}
 			}
 			continue
@@ -263,22 +275,30 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 			continue
 		}
 		switch act.Kind {
-		case KindConfirm:
-			records[i].Status = StatusConfirmed
+		case KindKeep:
+			records[i].Status = StatusEstablished
+			establishedAt[i] = act.Seq
+			records[i].Established = true
 			if act.Subject.Kind != SubjectNone {
 				records[i].Subject = act.Subject
 			}
 			if act.Scope.Level != "" || len(act.Scope.Coordinates) > 0 {
 				records[i].Scope = act.Scope
 			}
-		case KindDiscard:
-			records[i].Status = StatusDiscarded
+		case KindDrop:
+			records[i].Status = StatusDropped
+			records[i].Established = false
+		case KindWithdraw:
+			records[i].Status = StatusWithdrawn
+			records[i].Established = false
 		case KindRevert:
 			records[i].Status = StatusReverted
+			records[i].Established = false
 		case KindWiden:
 			records[i].Scope = act.Scope
 		}
 	}
+	contest(records, establishedAt)
 	return records, nil
 }
 
@@ -348,14 +368,15 @@ func (l *Ledger) Session(ctx context.Context, session string) (SessionSummary, e
 	return out, nil
 }
 
-// statusAtBirth is the status an operation holds before anything acts on it: a
-// subject-bearing operation is a candidate, and an operation that acts on
-// another stands as done.
+// statusAtBirth is the status an operation holds before anything acts on it.
+// What somebody observed or corrected is a suggestion; what a person imported
+// or wrote directly is established; an operation that acts on another stands
+// as done.
 func statusAtBirth(k Kind) Status {
-	if k.Bears() {
-		return StatusCandidate
+	if k == KindObserve || k == KindCorrect {
+		return StatusSuggested
 	}
-	return StatusConfirmed
+	return StatusEstablished
 }
 
 // index maps records by id.
@@ -378,8 +399,8 @@ func find(records []Record, id string) (Record, bool) {
 }
 
 // bearer walks from an acting operation to the subject-bearing operation it
-// ultimately acts on: reverting a confirm reaches the proposal the confirm made
-// binding. The walk is bounded because a target always has a lower sequence
+// ultimately acts on: reverting a keep reaches the suggestion the keep
+// established. The walk is bounded because a target always has a lower sequence
 // number than the operation naming it, so a chain cannot loop.
 func bearer(byID map[string]Record, r Record) (Record, bool) {
 	for range len(byID) + 1 {

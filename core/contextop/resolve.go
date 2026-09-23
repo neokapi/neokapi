@@ -42,7 +42,7 @@ type WidenedRule struct {
 	At time.Time `json:"at"`
 }
 
-// Widen puts a confirmed rule in force across the workspace.
+// Widen puts an established rule in force across the workspace.
 //
 // A project-scoped rule lives in the project's own terms store or voice
 // profile, where every reader already looks. A widened one has no project to
@@ -72,7 +72,7 @@ func Widen(ctx context.Context, store RuleStore, r Record) error {
 }
 
 // Narrow takes a widened rule back out of force across the workspace. It is
-// what discarding or reverting a widened rule does, and narrowing one the
+// what dropping or reverting a widened rule does, and narrowing one the
 // workspace does not hold is not an error.
 func Narrow(ctx context.Context, store RuleStore, project workspace.ProjectKey, id string) error {
 	return store.NarrowRule(ctx, widenedID(project, id))
@@ -124,10 +124,11 @@ type ResolveRequest struct {
 // Resolution is what the context operations add to the vocabulary a project's
 // own stores already carry.
 type Resolution struct {
-	// Binding are workspace-wide confirmed rules. They are in force at the
+	// Binding are workspace-wide established rules. They are in force at the
 	// severity each one carries, the same as a rule in the project's own store.
 	Binding []profile.TermRule
-	// Advisory are the candidates: rules proposed and not yet confirmed. They
+	// Advisory are the suggestions and the contested rules: advice nobody has
+	// established, or that disagrees with another rule. They
 	// are reported and can never fail a check.
 	Advisory []profile.TermRule
 }
@@ -141,7 +142,7 @@ func (r Resolution) Empty() bool { return len(r.Binding) == 0 && len(r.Advisory)
 // Both sets are forbidden-term sets: a rule says a word should be written
 // another way, which is what a forbidden term with a replacement says. The
 // advisory set carries the marker that holds its hits at neutral severity, so a
-// candidate is reported everywhere a rule would be and fails nothing.
+// suggestion is reported everywhere a rule would be and fails nothing.
 func (r Resolution) RuleSets() []profile.TermRuleSet {
 	var sets []profile.TermRuleSet
 	if len(r.Binding) > 0 {
@@ -158,9 +159,9 @@ func (r Resolution) RuleSets() []profile.TermRuleSet {
 //
 // The ladder runs from the most specific source to the least: what the
 // project's own stores hold hides a workspace-wide rule about the same term,
-// and a candidate recorded in this project hides a workspace-wide candidate
+// and a suggestion recorded in this project hides a workspace-wide suggestion
 // about it. Within one level the newest operation about a term answers, because
-// a later proposal is a revision of an earlier one.
+// a later suggestion is a revision of an earlier one.
 func Resolve(records []Record, widened []WidenedRule, req ResolveRequest) Resolution {
 	held := map[string]bool{}
 	for _, term := range req.Held {
@@ -171,7 +172,7 @@ func Resolve(records []Record, widened []WidenedRule, req ResolveRequest) Resolu
 
 	var out Resolution
 
-	// Workspace-wide confirmed rules, beneath whatever the project itself says.
+	// Workspace-wide established rules, beneath whatever the project itself says.
 	seen := map[string]bool{}
 	binding := make([]profile.TermRule, 0, len(widened))
 	for _, w := range widened {
@@ -189,12 +190,12 @@ func Resolve(records []Record, widened []WidenedRule, req ResolveRequest) Resolu
 	sortRules(binding)
 	out.Binding = binding
 
-	// Candidates. Records arrive newest first from Ledger.Records, so the first
+	// Suggestions. Records arrive newest first from Ledger.Records, so the first
 	// answer about a term is the latest revision of it.
-	candidates := make([]profile.TermRule, 0, len(records))
+	advisory := make([]profile.TermRule, 0, len(records))
 	advised := map[string]bool{}
 	for _, r := range order(records) {
-		if r.Status != StatusCandidate || !r.Kind.Bears() {
+		if !r.Status.Advises() || !r.Kind.Bears() {
 			continue
 		}
 		if !answersIn(r, req.Project) || !r.Scope.Covers(req.Coordinates) {
@@ -209,10 +210,10 @@ func Resolve(records []Record, widened []WidenedRule, req ResolveRequest) Resolu
 			continue
 		}
 		advised[key] = true
-		candidates = append(candidates, rule)
+		advisory = append(advisory, rule)
 	}
-	sortRules(candidates)
-	out.Advisory = candidates
+	sortRules(advisory)
+	out.Advisory = advisory
 	return out
 }
 

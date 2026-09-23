@@ -42,13 +42,13 @@ func TestLedger_AppendAndRead(t *testing.T) {
 	written, err := ledger.Append(ctx, contextop.Record{
 		Project:  "prj_docs",
 		Actor:    agent("claude", "s1"),
-		Kind:     contextop.KindPropose,
+		Kind:     contextop.KindObserve,
 		Subject:  termRule("utilise", "use", "major"),
 		Evidence: []contextop.Evidence{{Path: "docs/guide.md", Unit: "p1", Quote: "we utilise it"}},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "1", written.ID, "the log's position is the operation's id")
-	assert.Equal(t, contextop.StatusCandidate, written.Status, "a proposal starts as a candidate")
+	assert.Equal(t, contextop.StatusSuggested, written.Status, "a proposal starts as a candidate")
 	assert.False(t, written.At.IsZero(), "the operation is stamped from Go's clock")
 	assert.Equal(t, contextop.LevelProject, written.Scope.Level, "a rule starts scoped to its project")
 
@@ -69,8 +69,8 @@ func TestLedger_FoldsStatusFromLaterOperations(t *testing.T) {
 		act  contextop.Kind
 		want contextop.Status
 	}{
-		{"confirming makes a candidate binding", contextop.KindConfirm, contextop.StatusConfirmed},
-		{"discarding rejects it", contextop.KindDiscard, contextop.StatusDiscarded},
+		{"keeping establishes a suggestion", contextop.KindKeep, contextop.StatusEstablished},
+		{"dropping sets it aside", contextop.KindDrop, contextop.StatusDropped},
 		{"reverting undoes it", contextop.KindRevert, contextop.StatusReverted},
 	}
 	for _, tt := range tests {
@@ -78,7 +78,7 @@ func TestLedger_FoldsStatusFromLaterOperations(t *testing.T) {
 			ledger := contextop.NewLedger(openWorkspace(t), contextop.Allow)
 			proposed, err := ledger.Append(ctx, contextop.Record{
 				Project: "prj_docs", Actor: agent("claude", "s1"),
-				Kind: contextop.KindPropose, Subject: termRule("utilise", "use", ""),
+				Kind: contextop.KindObserve, Subject: termRule("utilise", "use", ""),
 			})
 			require.NoError(t, err)
 
@@ -101,12 +101,12 @@ func TestLedger_ConfirmCarriesEditsAndScope(t *testing.T) {
 
 	proposed, err := ledger.Append(ctx, contextop.Record{
 		Project: "prj_docs", Actor: agent("claude", "s1"),
-		Kind: contextop.KindPropose, Subject: termRule("utilise", "use", "minor"),
+		Kind: contextop.KindObserve, Subject: termRule("utilise", "use", "minor"),
 	})
 	require.NoError(t, err)
 
 	_, err = ledger.Append(ctx, contextop.Record{
-		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindConfirm, Target: proposed.ID,
+		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindKeep, Target: proposed.ID,
 		Subject: termRule("utilise", "use", "critical"),
 		Scope:   contextop.Scope{Level: contextop.LevelWorkspace},
 	})
@@ -117,7 +117,7 @@ func TestLedger_ConfirmCarriesEditsAndScope(t *testing.T) {
 	rule, ok := folded.Rule()
 	require.True(t, ok)
 	assert.Equal(t, "critical", rule.Severity, "a confirmation's edit replaces the proposed rule")
-	assert.Equal(t, contextop.LevelWorkspace, folded.Scope.Level, "confirming can widen in the same step")
+	assert.Equal(t, contextop.LevelWorkspace, folded.Scope.Level, "keeping can widen in the same step")
 }
 
 func TestLedger_RevertingASessionUndoesEverythingItRecorded(t *testing.T) {
@@ -127,13 +127,13 @@ func TestLedger_RevertingASessionUndoesEverythingItRecorded(t *testing.T) {
 	for _, term := range []string{"utilise", "leverage", "synergy"} {
 		_, err := ledger.Append(ctx, contextop.Record{
 			Project: "prj_docs", Actor: agent("claude", "s1"),
-			Kind: contextop.KindPropose, Subject: termRule(term, "use", ""),
+			Kind: contextop.KindObserve, Subject: termRule(term, "use", ""),
 		})
 		require.NoError(t, err)
 	}
 	kept, err := ledger.Append(ctx, contextop.Record{
 		Project: "prj_docs", Actor: agent("claude", "s2"),
-		Kind: contextop.KindPropose, Subject: termRule("utilize", "use", ""),
+		Kind: contextop.KindObserve, Subject: termRule("utilize", "use", ""),
 	})
 	require.NoError(t, err)
 
@@ -151,7 +151,7 @@ func TestLedger_RevertingASessionUndoesEverythingItRecorded(t *testing.T) {
 
 	other, err := ledger.Get(ctx, kept.ID)
 	require.NoError(t, err)
-	assert.Equal(t, contextop.StatusCandidate, other.Status, "another session is untouched")
+	assert.Equal(t, contextop.StatusSuggested, other.Status, "another session is untouched")
 }
 
 func TestLedger_RevertReachesThroughADecision(t *testing.T) {
@@ -160,11 +160,11 @@ func TestLedger_RevertReachesThroughADecision(t *testing.T) {
 
 	proposed, err := ledger.Append(ctx, contextop.Record{
 		Project: "prj_docs", Actor: person("asgeir"),
-		Kind: contextop.KindPropose, Subject: termRule("utilise", "use", ""),
+		Kind: contextop.KindObserve, Subject: termRule("utilise", "use", ""),
 	})
 	require.NoError(t, err)
 	confirmed, err := ledger.Append(ctx, contextop.Record{
-		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindConfirm, Target: proposed.ID,
+		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindKeep, Target: proposed.ID,
 	})
 	require.NoError(t, err)
 
@@ -187,7 +187,7 @@ func TestLedger_Filters(t *testing.T) {
 
 	_, err := ledger.Append(ctx, contextop.Record{
 		Project: "prj_docs", Actor: agent("claude", "s1"),
-		Kind: contextop.KindPropose, Subject: termRule("utilise", "use", ""),
+		Kind: contextop.KindObserve, Subject: termRule("utilise", "use", ""),
 	})
 	require.NoError(t, err)
 	_, err = ledger.Append(ctx, contextop.Record{
@@ -206,8 +206,8 @@ func TestLedger_Filters(t *testing.T) {
 		{"one session", contextop.Filter{Session: "s1"}, 1},
 		{"one actor by name", contextop.Filter{Actor: "asgeir"}, 1},
 		{"one actor by kind", contextop.Filter{Actor: "agent"}, 1},
-		{"one status", contextop.Filter{Status: contextop.StatusCandidate}, 2},
-		{"one kind", contextop.Filter{Kinds: []contextop.Kind{contextop.KindObserve}}, 1},
+		{"one status", contextop.Filter{Status: contextop.StatusSuggested}, 2},
+		{"one kind", contextop.Filter{Kinds: []contextop.Kind{contextop.KindCorrect}}, 0},
 		{"a limit", contextop.Filter{Limit: 1}, 1},
 	}
 	for _, tt := range tests {
@@ -231,7 +231,7 @@ func TestLedger_Session(t *testing.T) {
 	for _, term := range []string{"utilise", "leverage"} {
 		_, err := ledger.Append(ctx, contextop.Record{
 			Project: "prj_docs", Actor: agent("claude", "s1"),
-			Kind: contextop.KindPropose, Subject: termRule(term, "use", ""),
+			Kind: contextop.KindObserve, Subject: termRule(term, "use", ""),
 		})
 		require.NoError(t, err)
 	}
@@ -241,7 +241,7 @@ func TestLedger_Session(t *testing.T) {
 	})
 	require.NoError(t, err)
 	_, err = ledger.Append(ctx, contextop.Record{
-		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindConfirm, Target: "1",
+		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindKeep, Target: "1",
 	})
 	require.NoError(t, err)
 
@@ -249,10 +249,9 @@ func TestLedger_Session(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 3, summary.Operations)
 	assert.Equal(t, workspace.ProjectKey("prj_docs"), summary.Project)
-	assert.Equal(t, 2, summary.ByKind[contextop.KindPropose])
-	assert.Equal(t, 1, summary.ByKind[contextop.KindObserve])
-	assert.Equal(t, 1, summary.ByStatus[contextop.StatusConfirmed])
-	assert.Equal(t, 2, summary.ByStatus[contextop.StatusCandidate])
+	assert.Equal(t, 3, summary.ByKind[contextop.KindObserve])
+	assert.Equal(t, 1, summary.ByStatus[contextop.StatusEstablished])
+	assert.Equal(t, 2, summary.ByStatus[contextop.StatusSuggested])
 	assert.False(t, summary.First.IsZero())
 
 	empty, err := ledger.Session(ctx, "s-unknown")
@@ -271,7 +270,7 @@ func TestLedger_RejectsAnUnknownKindAndAMissingTarget(t *testing.T) {
 	require.ErrorContains(t, err, "not an operation kind")
 
 	_, err = ledger.Append(ctx, contextop.Record{
-		Project: "p", Actor: person("asgeir"), Kind: contextop.KindConfirm, Target: "42",
+		Project: "p", Actor: person("asgeir"), Kind: contextop.KindKeep, Target: "42",
 	})
 	assert.ErrorIs(t, err, contextop.ErrNotFound)
 }
@@ -310,14 +309,14 @@ func TestSubjectDescribe(t *testing.T) {
 		subject contextop.Subject
 		want    string
 	}{
-		{"a term rule with a replacement", termRule("utilise", "use", ""), `term "utilise", use "use"`},
+		{"a term rule with a replacement", termRule("utilise", "use", ""), `term "use", not "utilise"`},
 		{"a term rule without one", termRule("utilise", "", ""), `term "utilise"`},
 		{
-			"a voice rule",
-			contextop.Subject{Kind: contextop.SubjectVoice, Voice: &contextop.VoiceRule{
-				List: "forbidden", Rule: profile.TermRule{Term: "Ripgrep", Replacement: "ripgrep"},
+			"a term rule with other forms",
+			contextop.Subject{Kind: contextop.SubjectTerm, Term: &profile.TermRule{
+				Term: "Quick cast", Forms: []string{"QuickCast"}, Replacement: "Quickcast",
 			}},
-			`voice "Ripgrep", use "ripgrep"`,
+			`term "Quickcast", not "Quick cast", "QuickCast"`,
 		},
 		{
 			"a content-memory pair",
