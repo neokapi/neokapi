@@ -15,7 +15,7 @@
 # `apply`, and the closing `status` run live against the in-memory filesystem
 # — the same park → decide → shippable arc, minus the native-only verbs.
 #
-# Fully offline in every venue: the recipe's tm-recycle flow leverages the content memory
+# Fully offline in every venue: the recipe's memory-recycle flow leverages the content memory
 # only — no LLM, no network. The ship gate is translated: 100 + reviewed: 100,
 # so production alone can never clear it: the human decision is the last mile.
 
@@ -36,14 +36,14 @@ embed:
         defaults:
           source_language: en
           target_languages: [fr]
-          flow: tm-recycle
+          flow: memory-recycle
           materialize: on-converge
         ship_gate: { translated: 100, reviewed: 100 }
         collections:
           - path: messages.json
             target: "messages.{lang}.json"
         flows:
-          tm-recycle:
+          memory-recycle:
             steps:
               - tool: recycle
     - path: messages.json
@@ -153,14 +153,14 @@ files:
       defaults:
         source_language: en
         target_languages: [fr]
-        flow: tm-recycle
+        flow: memory-recycle
         materialize: on-converge
       ship_gate: { translated: 100, reviewed: 100 }
       collections:
         - path: messages.json
           target: "messages.{lang}.json"
       flows:
-        tm-recycle:
+        memory-recycle:
           steps:
             - tool: recycle
   - path: review.jsonl

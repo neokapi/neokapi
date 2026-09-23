@@ -16,7 +16,7 @@ const config: WalkthroughEmbedConfig = {
     {
       path: "kapi.yaml",
       content:
-        'version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\n  flow: tm-recycle\ncollections:\n  - path: messages.json\n    target: "messages.{lang}.json"\nflows:\n  tm-recycle:\n    steps:\n      - tool: recycle\n',
+        'version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\n  flow: memory-recycle\ncollections:\n  - path: messages.json\n    target: "messages.{lang}.json"\nflows:\n  memory-recycle:\n    steps:\n      - tool: recycle\n',
     },
   ],
   steps: [
@@ -41,7 +41,7 @@ const config: WalkthroughEmbedConfig = {
         "status derives each locale's standing from the working tree. fr is at zero — pending work, never a build failure.",
     },
     {
-      command: "kapi run tm-recycle -i messages.json",
+      command: "kapi run memory-recycle -i messages.json",
       narration:
         "run executes one pass of one named flow. In a project the pass is process-only — it commits results to the project store, not to files.",
     },

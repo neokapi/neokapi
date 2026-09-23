@@ -14,7 +14,7 @@
 # that loop automates — one flow pass (`run`), materializing files (`merge`),
 # and the bilingual handoff (`extract`).
 #
-# Offline contract: the recipe's tm-recycle flow leverages content memory
+# Offline contract: the recipe's memory-recycle flow leverages content memory
 # only (no LLM), and `memory import` tops up the wasm build's pre-seeded in-memory
 # content memory — so every runnable step works in the browser embed. `kapi up` itself is
 # not wired into the wasm build (kapi/cmd/kapi-wasm-cli); it is offline: false
@@ -31,7 +31,7 @@ mode: interactive
 # fills real targets offline. kapi.yaml
 # is the recipe `kapi init` scaffolds — here pre-written with the content
 # already declared (a target template is what makes coverage derivable) and a
-# tm-recycle flow as defaults.flow. Flow names must not shadow the built-in
+# memory-recycle flow as defaults.flow. Flow names must not shadow the built-in
 # porcelain flows (translate, pseudo-translate), so the recipe flow gets its
 # own name. (init is genuinely runnable below — it is idempotent and reports
 # the project is already initialized.)
@@ -107,12 +107,12 @@ files:
       defaults:
         source_language: en
         target_languages: [fr]
-        flow: tm-recycle
+        flow: memory-recycle
       collections:
         - path: messages.json
           target: "messages.{lang}.json"
       flows:
-        tm-recycle:
+        memory-recycle:
           steps:
             - tool: recycle
 
@@ -138,7 +138,7 @@ steps:
     # beats below do the same work in the embed.
     offline: false
   - comment: Under the hood, up loops plumbing you can run by hand.
-  - command: kapi run tm-recycle -i messages.json
+  - command: kapi run memory-recycle -i messages.json
     narration: run executes one pass of one named flow. In a project the pass is process-only — it commits results to the project store, not to files.
     # smoke:false — consumes the content memory seeded by the prior memory import step; W7 would
     # run it in isolation (no content memory) and leverage nothing.

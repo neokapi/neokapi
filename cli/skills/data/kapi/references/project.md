@@ -82,11 +82,13 @@ which files landed, since they commit them.
 - **`.kapi/`**: this checkout's cache, ignored by version control. `work/store.db`
   is the checkout's projection of the working tree: the block cache, the
   overlays a run wrote, the extraction stamps. Beside it sit the caches, the
-  redaction vault and the saved reader filters.
+  redaction vault and `filters.local.json`, the reader filters saved as
+  personal to this checkout.
 - **The workspace**, under the user's data directory
   (`<data dir>/workspaces/default/`), holds one context store per project: the
-  terms, the voice profiles, the content memory and the decision ledger, shared
-  by every checkout of that project. This is where every read goes: a gate, a
+  terms, the voice profiles, the content memory, the decision ledger and the
+  reader filters saved as shared, all shared by every checkout of that
+  project. This is where every read goes: a gate, a
   lookup and `kapi context <path>` all answer from it, on any branch. Never read
   or write either database directly and never commit one; go through kapi
   commands.

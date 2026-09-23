@@ -14,7 +14,7 @@ import (
 
 // explainProjectFixture writes a `.kapi` project with a JSON content pattern
 // (per-locale target template), a project-defined "sidecars" flow (one
-// recycle step — the shape of the dogfood tm-recycle flow from #1295) and a
+// recycle step — the shape of the dogfood memory-recycle flow from #1295) and a
 // "pseudo" flow (offline pseudo-translate, used as the executing control).
 // Returns the recipe path and the resolved project root.
 func explainProjectFixture(t *testing.T, targets []model.LocaleID) (recipe, root string) {

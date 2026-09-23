@@ -24,7 +24,7 @@ mode: interactive
 # messages.json is the kit fixture (greeting / farewell / cart).
 # project.memory.json is the committed content-memory bundle carrying the
 # matching French so recycle has real leverage. kapi.yaml declares
-# the content (with a target template) and two non-shadowing flows: tm-recycle
+# the content (with a target template) and two non-shadowing flows: memory-recycle
 # (the single content memory step) and leverage-check (recycle composed with the
 # deterministic rule-based checks).
 seed:
@@ -99,12 +99,12 @@ files:
       defaults:
         source_language: en
         target_languages: [fr]
-        flow: tm-recycle
+        flow: memory-recycle
       collections:
         - path: messages.json
           target: "messages.{lang}.json"
       flows:
-        tm-recycle:
+        memory-recycle:
           steps:
             - tool: recycle
         leverage-check:
