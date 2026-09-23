@@ -216,7 +216,13 @@ func (a *App) ListFlows(cmd Command, opts FlowCmdOptions) error {
 			}
 		}
 	}
-	add(projectFlowInfos(cmd))
+	projectFlows, err := projectFlowInfos(cmd)
+	if err != nil {
+		// The built-in flows still list; the project's are named as missing
+		// rather than silently absent.
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: %v\n", err)
+	}
+	add(projectFlows)
 
 	// Read ExtraFlows at run time — plugins install via
 	// RegisterAppInitializer which fires during PersistentPreRun, after
@@ -241,15 +247,15 @@ func (a *App) ListFlows(cmd Command, opts FlowCmdOptions) error {
 // name. A file whose name an inline flow already has is left out, since `kapi
 // run` resolves that name to the inline flow. A file that does not describe a
 // runnable flow is listed with its problem as the description. Nil when no
-// recipe is in scope or it does not load.
-func projectFlowInfos(cmd Command) []output.FlowInfo {
+// recipe is in scope; an error when the one in scope does not load.
+func projectFlowInfos(cmd Command) ([]output.FlowInfo, error) {
 	path, err := ResolveProjectPath(cmd)
 	if err != nil || path == "" {
-		return nil
+		return nil, nil
 	}
 	proj, err := project.Load(path)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("%s: %w; its flows are not listed", DisplayName(path), err)
 	}
 
 	var infos []output.FlowInfo
@@ -274,7 +280,7 @@ func projectFlowInfos(cmd Command) []output.FlowInfo {
 		}
 		infos = append(infos, info)
 	}
-	return infos
+	return infos, nil
 }
 
 // builtinComposedFlows returns the list of built-in composed flows

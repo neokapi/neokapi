@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/flow"
@@ -15,8 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// listFlowsJSON runs `kapi flows --json -p <recipe>` and returns what it listed.
-func listFlowsJSON(t *testing.T, a *App, recipe string, opts FlowCmdOptions) []output.FlowInfo {
+// listFlowsJSON runs `kapi flows --json -p <recipe>` and returns what it
+// listed and what it wrote to stderr.
+func listFlowsJSON(t *testing.T, a *App, recipe string, opts FlowCmdOptions) ([]output.FlowInfo, string) {
 	t.Helper()
 	cmd := NewEnvCommand(context.Background(), "flows")
 	fs := cmd.Flags()
@@ -24,12 +26,32 @@ func listFlowsJSON(t *testing.T, a *App, recipe string, opts FlowCmdOptions) []o
 	fs.Bool("json", true, "")
 	fs.String("output", "json", "")
 	require.NoError(t, fs.Set("project", recipe))
-	var out bytes.Buffer
+	var out, errOut bytes.Buffer
 	cmd.SetOut(&out)
+	cmd.SetErr(&errOut)
 	require.NoError(t, a.ListFlows(cmd, opts))
 	var got output.FlowsListOutput
 	require.NoError(t, json.Unmarshal(out.Bytes(), &got), out.String())
-	return got.Flows
+	return got.Flows, errOut.String()
+}
+
+// A recipe that does not load still lists the built-in flows, and says why the
+// project's are missing.
+func TestListFlows_SaysWhenTheRecipeDoesNotLoad(t *testing.T) {
+	a, recipe, _ := dirFlowProject(t, "guard", pseudoDirFlow)
+	body, err := os.ReadFile(recipe)
+	require.NoError(t, err)
+	broken := strings.Replace(string(body), "flows_dir: flows", "flows_dir: .kapi/flows", 1)
+	require.NotEqual(t, string(body), broken)
+	require.NoError(t, os.WriteFile(recipe, []byte(broken), 0o644))
+
+	flows, stderr := listFlowsJSON(t, a, recipe, FlowCmdOptions{})
+	assert.NotEmpty(t, flows, "the built-in flows still list")
+	for _, f := range flows {
+		assert.NotEqual(t, "guard", f.Name)
+	}
+	assert.Contains(t, stderr, "disposable cache")
+	assert.Contains(t, stderr, "its flows are not listed")
 }
 
 // `kapi flows` lists the project's own flows, inline and file-per-flow, beside
@@ -47,7 +69,7 @@ func TestListFlows_ListsTheProjectsFlows(t *testing.T) {
 	}
 	require.NoError(t, project.Save(recipe, loaded))
 
-	flows := listFlowsJSON(t, a, recipe, FlowCmdOptions{
+	flows, _ := listFlowsJSON(t, a, recipe, FlowCmdOptions{
 		ExtraFlows: func() []output.FlowInfo {
 			return []output.FlowInfo{{Name: "guard", Description: "from a plugin"}, {Name: "plugin-only"}}
 		},
