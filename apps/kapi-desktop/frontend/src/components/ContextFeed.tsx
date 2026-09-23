@@ -800,7 +800,13 @@ function StatusBadge({
   kind: string;
   contestedBy?: string[];
 }) {
-  if (kind === "keep" || kind === "drop" || kind === "withdraw" || kind === "revert" || kind === "widen") {
+  if (
+    kind === "keep" ||
+    kind === "drop" ||
+    kind === "withdraw" ||
+    kind === "revert" ||
+    kind === "widen"
+  ) {
     return null;
   }
   if (status === "contested") {
