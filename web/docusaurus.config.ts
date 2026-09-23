@@ -568,6 +568,11 @@ const config: Config = {
           // client-redirects resolves one hop, so a route that already had a
           // predecessor (notes-internal, below) points at the grouped path
           // directly rather than at the flat path that no longer resolves.
+          // The agent evaluation replaced the cold-start drill.
+          {
+            from: "/contribute/implementation/repo/cold-start-drill",
+            to: "/contribute/implementation/repo/agent-evaluation",
+          },
           {
             from: "/contribute/implementation/content-parity",
             to: "/contribute/implementation/foundations/content-parity",

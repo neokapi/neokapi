@@ -1,0 +1,200 @@
+{
+  "schema": "kapi.check/v1",
+  "pass": true,
+  "verdict": "passed",
+  "target": {
+    "kind": "diff",
+    "file": "git diff 85d170cf7f94644f6f6b4a57b2c260be869ac754",
+    "blocks": 2
+  },
+  "summary": {
+    "findings": 0,
+    "critical": 0,
+    "major": 0,
+    "minor": 0,
+    "neutral": 0,
+    "score": 100
+  },
+  "gate": {
+    "max_critical": 0,
+    "max_major": -1,
+    "max_minor": -1,
+    "min_score": 0,
+    "failed": []
+  },
+  "findings": [],
+  "execution": {
+    "analyzers": [
+      {
+        "id": "hygiene",
+        "status": "passed",
+        "file": "README.md",
+        "required": true,
+        "findings": 0,
+        "duration_ms": 0.077625,
+        "canary": {
+          "status": "caught",
+          "probes": 2
+        }
+      },
+      {
+        "id": "length",
+        "status": "not_requested",
+        "file": "README.md",
+        "required": false,
+        "findings": 0,
+        "reason": "No length limit was configured."
+      },
+      {
+        "id": "pattern",
+        "status": "not_requested",
+        "file": "README.md",
+        "required": false,
+        "findings": 0,
+        "reason": "No explicit patterns were configured."
+      },
+      {
+        "id": "voice.rules",
+        "status": "passed",
+        "file": "README.md",
+        "required": false,
+        "findings": 0,
+        "duration_ms": 0.07075,
+        "canary": {
+          "status": "caught",
+          "probes": 1
+        }
+      },
+      {
+        "id": "voice.similarity",
+        "status": "not_requested",
+        "file": "README.md",
+        "required": false,
+        "findings": 0,
+        "reason": "Similarity analysis was not requested."
+      },
+      {
+        "id": "voice.llm",
+        "status": "not_requested",
+        "file": "README.md",
+        "required": false,
+        "findings": 0,
+        "reason": "This command does not run semantic review."
+      }
+    ],
+    "timings": {
+      "context_ms": 5.469709,
+      "extraction_ms": 0,
+      "analyzers_ms": 0.14837499999999998,
+      "report_ms": 0.001875,
+      "total_ms": 35.355458
+    },
+    "contexts": [
+      {
+        "file": "README.md",
+        "voice": {
+          "selection": "project",
+          "applied": true,
+          "name": "loomwise-help",
+          "source": "store:loomwise-help"
+        },
+        "terms_applied": false,
+        "point": {}
+      }
+    ]
+  },
+  "scope": {
+    "diff": "git diff 85d170cf7f94644f6f6b4a57b2c260be869ac754",
+    "files": [
+      {
+        "path": "README.md",
+        "status": "checked",
+        "blocks": [
+          {
+            "block": "loomwise-help-centre/h",
+            "lines": {
+              "first": 5,
+              "last": 5
+            }
+          },
+          {
+            "block": "loomwise-help-centre/trouble-signing-in/p",
+            "lines": {
+              "first": 7,
+              "last": 7
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "evaluation": {
+    "at": "2026-09-23T21:15:30Z",
+    "context": {
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "name": "loomwise-help",
+      "revision": 25,
+      "stale": true,
+      "stale_reason": "kapi has read no content from this project yet, so term use counts are empty. The guidance in this answer does not depend on them"
+    },
+    "tool": {
+      "name": "kapi",
+      "version": "v1.3.0-rc1-10-ge0eb0fba9",
+      "commit": "e0eb0fba9"
+    },
+    "analyzers": [
+      {
+        "id": "hygiene",
+        "ran": 1
+      },
+      {
+        "id": "length",
+        "ran": 0,
+        "not_run": [
+          {
+            "status": "not_requested",
+            "reason": "No length limit was configured.",
+            "inputs": 1
+          }
+        ]
+      },
+      {
+        "id": "pattern",
+        "ran": 0,
+        "not_run": [
+          {
+            "status": "not_requested",
+            "reason": "No explicit patterns were configured.",
+            "inputs": 1
+          }
+        ]
+      },
+      {
+        "id": "voice.llm",
+        "ran": 0,
+        "not_run": [
+          {
+            "status": "not_requested",
+            "reason": "This command does not run semantic review.",
+            "inputs": 1
+          }
+        ]
+      },
+      {
+        "id": "voice.rules",
+        "ran": 1
+      },
+      {
+        "id": "voice.similarity",
+        "ran": 0,
+        "not_run": [
+          {
+            "status": "not_requested",
+            "reason": "Similarity analysis was not requested.",
+            "inputs": 1
+          }
+        ]
+      }
+    ]
+  }
+}

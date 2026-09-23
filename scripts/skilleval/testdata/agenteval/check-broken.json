@@ -1,0 +1,328 @@
+{
+  "schema": "kapi.check/v1",
+  "pass": true,
+  "verdict": "passed",
+  "target": {
+    "kind": "diff",
+    "file": "git diff 85d170cf7f94644f6f6b4a57b2c260be869ac754",
+    "blocks": 2
+  },
+  "summary": {
+    "findings": 4,
+    "critical": 0,
+    "major": 4,
+    "minor": 0,
+    "neutral": 0,
+    "score": 80
+  },
+  "gate": {
+    "max_critical": 0,
+    "max_major": -1,
+    "max_minor": -1,
+    "min_score": 0,
+    "failed": []
+  },
+  "findings": [
+    {
+      "rule": "voice.vocabulary",
+      "check": "voice",
+      "severity": "major",
+      "message": "Forbidden term \"log in\" found",
+      "suggestion": "Use \"sign in\" instead",
+      "location": {
+        "file": "README.md",
+        "block": "loomwise-help-centre/trouble-logging-in/p",
+        "anchor": {
+          "kind": "range",
+          "start": {
+            "run": 0,
+            "offset": 23
+          },
+          "end": {
+            "run": 0,
+            "offset": 29
+          }
+        },
+        "lines": {
+          "first": 7,
+          "last": 7
+        },
+        "snippet": "log in"
+      },
+      "point": {},
+      "metadata": {
+        "replacement": "sign in",
+        "term": "log in"
+      }
+    },
+    {
+      "rule": "voice.vocabulary",
+      "check": "voice",
+      "severity": "major",
+      "message": "Forbidden term \"e-mail\" found",
+      "suggestion": "Use \"email\" instead",
+      "location": {
+        "file": "README.md",
+        "block": "loomwise-help-centre/trouble-logging-in/p",
+        "anchor": {
+          "kind": "range",
+          "start": {
+            "run": 0,
+            "offset": 43
+          },
+          "end": {
+            "run": 0,
+            "offset": 49
+          }
+        },
+        "lines": {
+          "first": 7,
+          "last": 7
+        },
+        "snippet": "e-mail"
+      },
+      "point": {},
+      "metadata": {
+        "replacement": "email",
+        "term": "e-mail"
+      }
+    },
+    {
+      "rule": "voice.vocabulary",
+      "check": "voice",
+      "severity": "major",
+      "message": "Forbidden term \"employee\" found",
+      "suggestion": "Use \"team member\" instead",
+      "location": {
+        "file": "README.md",
+        "block": "loomwise-help-centre/trouble-logging-in/p",
+        "anchor": {
+          "kind": "range",
+          "start": {
+            "run": 0,
+            "offset": 7
+          },
+          "end": {
+            "run": 0,
+            "offset": 15
+          }
+        },
+        "lines": {
+          "first": 7,
+          "last": 7
+        },
+        "snippet": "employee"
+      },
+      "point": {},
+      "metadata": {
+        "replacement": "team member",
+        "term": "employee"
+      }
+    },
+    {
+      "rule": "voice.vocabulary",
+      "check": "voice",
+      "severity": "major",
+      "message": "Forbidden term \"!\" found",
+      "suggestion": "Use \".\" instead",
+      "location": {
+        "file": "README.md",
+        "block": "loomwise-help-centre/trouble-logging-in/p",
+        "anchor": {
+          "kind": "range",
+          "start": {
+            "run": 0,
+            "offset": 49
+          },
+          "end": {
+            "run": 1
+          }
+        },
+        "lines": {
+          "first": 7,
+          "last": 7
+        },
+        "snippet": "!"
+      },
+      "point": {},
+      "metadata": {
+        "replacement": ".",
+        "term": "!"
+      }
+    }
+  ],
+  "execution": {
+    "analyzers": [
+      {
+        "id": "hygiene",
+        "status": "passed",
+        "file": "README.md",
+        "required": true,
+        "findings": 0,
+        "duration_ms": 0.079709,
+        "canary": {
+          "status": "caught",
+          "probes": 2
+        }
+      },
+      {
+        "id": "length",
+        "status": "not_requested",
+        "file": "README.md",
+        "required": false,
+        "findings": 0,
+        "reason": "No length limit was configured."
+      },
+      {
+        "id": "pattern",
+        "status": "not_requested",
+        "file": "README.md",
+        "required": false,
+        "findings": 0,
+        "reason": "No explicit patterns were configured."
+      },
+      {
+        "id": "voice.rules",
+        "status": "findings",
+        "file": "README.md",
+        "required": false,
+        "findings": 4,
+        "duration_ms": 0.077708,
+        "canary": {
+          "status": "caught",
+          "probes": 1
+        }
+      },
+      {
+        "id": "voice.similarity",
+        "status": "not_requested",
+        "file": "README.md",
+        "required": false,
+        "findings": 0,
+        "reason": "Similarity analysis was not requested."
+      },
+      {
+        "id": "voice.llm",
+        "status": "not_requested",
+        "file": "README.md",
+        "required": false,
+        "findings": 0,
+        "reason": "This command does not run semantic review."
+      }
+    ],
+    "timings": {
+      "context_ms": 5.490292,
+      "extraction_ms": 0,
+      "analyzers_ms": 0.157417,
+      "report_ms": 0.002791,
+      "total_ms": 35.191042
+    },
+    "contexts": [
+      {
+        "file": "README.md",
+        "voice": {
+          "selection": "project",
+          "applied": true,
+          "name": "loomwise-help",
+          "source": "store:loomwise-help"
+        },
+        "terms_applied": false,
+        "point": {}
+      }
+    ]
+  },
+  "scope": {
+    "diff": "git diff 85d170cf7f94644f6f6b4a57b2c260be869ac754",
+    "files": [
+      {
+        "path": "README.md",
+        "status": "checked",
+        "blocks": [
+          {
+            "block": "loomwise-help-centre/h",
+            "lines": {
+              "first": 5,
+              "last": 5
+            }
+          },
+          {
+            "block": "loomwise-help-centre/trouble-logging-in/p",
+            "lines": {
+              "first": 7,
+              "last": 7
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "evaluation": {
+    "at": "2026-09-23T21:15:30Z",
+    "context": {
+      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "name": "loomwise-help",
+      "revision": 25,
+      "stale": true,
+      "stale_reason": "kapi has read no content from this project yet, so term use counts are empty. The guidance in this answer does not depend on them"
+    },
+    "tool": {
+      "name": "kapi",
+      "version": "v1.3.0-rc1-10-ge0eb0fba9",
+      "commit": "e0eb0fba9"
+    },
+    "analyzers": [
+      {
+        "id": "hygiene",
+        "ran": 1
+      },
+      {
+        "id": "length",
+        "ran": 0,
+        "not_run": [
+          {
+            "status": "not_requested",
+            "reason": "No length limit was configured.",
+            "inputs": 1
+          }
+        ]
+      },
+      {
+        "id": "pattern",
+        "ran": 0,
+        "not_run": [
+          {
+            "status": "not_requested",
+            "reason": "No explicit patterns were configured.",
+            "inputs": 1
+          }
+        ]
+      },
+      {
+        "id": "voice.llm",
+        "ran": 0,
+        "not_run": [
+          {
+            "status": "not_requested",
+            "reason": "This command does not run semantic review.",
+            "inputs": 1
+          }
+        ]
+      },
+      {
+        "id": "voice.rules",
+        "ran": 1
+      },
+      {
+        "id": "voice.similarity",
+        "ran": 0,
+        "not_run": [
+          {
+            "status": "not_requested",
+            "reason": "Similarity analysis was not requested.",
+            "inputs": 1
+          }
+        ]
+      }
+    ]
+  }
+}

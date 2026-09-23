@@ -1,7 +1,0 @@
-{
-  "id": "plans-page",
-  "stage": "two",
-  "correction": false,
-  "prompt": "Write docs/plans.md, the page somebody reads before they pick a plan. Cover the three plans, what a seat is, and how to change plan later. Keep it to one page.",
-  "note": "The second session's task. It touches the same wording the first session had the chance to record: the product name, the sign-in verb and the address to the reader."
-}

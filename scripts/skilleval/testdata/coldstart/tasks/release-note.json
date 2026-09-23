@@ -1,7 +1,0 @@
-{
-  "id": "release-note",
-  "stage": "one",
-  "correction": false,
-  "prompt": "We shipped CSV export this month. Any list of invoices can now be downloaded as a CSV file, and the export picker offers CSV beside PDF. Write the release note for it at docs/releases/2026-09.md, two or three short paragraphs, reading the way the rest of the docs read.",
-  "note": "The product name, the second-person address and the Quickcast spelling are all in the prose the agent must read to match the register. Nothing in the prompt asks for any of them."
-}
