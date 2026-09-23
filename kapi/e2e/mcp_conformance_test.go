@@ -30,6 +30,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -244,12 +245,23 @@ func writeBilingual(t *testing.T, dir, name, source, target, targetLang string) 
 
 // ─── Driving the server and the CLI ─────────────────────────────────────────
 
-// mcpServer starts a real `kapi mcp` over stdio and connects a client to it.
+// mcpServer starts a real `kapi mcp` over stdio and connects a client to it,
+// serving every tool set unless the arguments name the sets themselves, so a
+// test can drive any tool.
 //
 // The working directory is a fresh temporary directory rather than a project,
 // so nothing answers by accident: what a call reaches is the project it named,
 // or the one the server was started with.
 func mcpServer(t *testing.T, args ...string) (*mcp.ClientSession, context.Context) {
+	t.Helper()
+	if !slices.ContainsFunc(args, func(a string) bool { return a == "--tools" || a == "--all" }) {
+		args = append(args, "--tools", "all")
+	}
+	return startMCPServer(t, args...)
+}
+
+// startMCPServer starts `kapi mcp` with exactly the given arguments.
+func startMCPServer(t *testing.T, args ...string) (*mcp.ClientSession, context.Context) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
@@ -380,26 +392,47 @@ func messages(items []any) []string {
 
 // ─── The surface a client discovers ─────────────────────────────────────────
 
-func TestMCPConformanceToolSurface(t *testing.T) {
-	session, ctx := mcpServer(t)
-
-	var tools []*mcp.Tool
-	params := &mcp.ListToolsParams{}
-	for {
-		res, err := session.ListTools(ctx, params)
-		require.NoError(t, err)
-		tools = append(tools, res.Tools...)
-		if res.NextCursor == "" {
-			break
-		}
-		params.Cursor = res.NextCursor
-	}
-	require.NotEmpty(t, tools)
-
+// listTools lists the tools a server serves, by name.
+func listTools(t *testing.T, ctx context.Context, session *mcp.ClientSession) map[string]*mcp.Tool {
+	t.Helper()
 	byName := map[string]*mcp.Tool{}
-	for _, tool := range tools {
+	for tool, err := range session.Tools(ctx, nil) {
+		require.NoError(t, err)
 		byName[tool.Name] = tool
 	}
+	require.NotEmpty(t, byName)
+	return byName
+}
+
+// TestMCPConformanceDefaultIsTheWritingSet: a server started with no --tools
+// serves the writing set and the context:// resources, and nothing else.
+func TestMCPConformanceDefaultIsTheWritingSet(t *testing.T) {
+	session, ctx := startMCPServer(t)
+	byName := listTools(t, ctx, session)
+	for _, name := range []string{
+		"context_search", "context_observe", "context_propose", "context_correct",
+		"context_withdraw", "context_session_summary", "check_file",
+	} {
+		assert.Contains(t, byName, name)
+	}
+	assert.Len(t, byName, 7, "the writing set and no other tool")
+
+	var templates []string
+	for tmpl, err := range session.ResourceTemplates(ctx, nil) {
+		require.NoError(t, err)
+		templates = append(templates, tmpl.URITemplate)
+	}
+	assert.Len(t, templates, 2, "the context:// resources are part of the writing set")
+
+	widened, wctx := startMCPServer(t, "--tools", "writing,translation")
+	byName = listTools(t, wctx, widened)
+	assert.Contains(t, byName, "up")
+	assert.NotContains(t, byName, "apply_edits", "content is its own set")
+}
+
+func TestMCPConformanceToolSurface(t *testing.T) {
+	session, ctx := mcpServer(t)
+	byName := listTools(t, ctx, session)
 
 	// Every project-scoped tool takes the project as an argument. A tool added
 	// to this surface without one can only serve the directory the server
@@ -898,9 +931,10 @@ func TestMCPConformanceServerIntroducesItself(t *testing.T) {
 	require.NotEmpty(t, instructions, "the server introduces itself on initialize")
 
 	assert.Contains(t, instructions, "context://", "ask what applies before writing")
+	assert.Contains(t, instructions, "kapi context <path>", "and how to ask without resource support")
+	assert.Contains(t, instructions, "context_observe", "record names while reading")
 	assert.Contains(t, instructions, "check_file", "run the check before reporting the work done")
-	assert.Contains(t, instructions, "context_search")
-	assert.Contains(t, instructions, "empty answer",
+	assert.Contains(t, instructions, "nothing is recorded",
 		"an empty answer read as nothing to do is the failure the instructions exist to prevent")
 }
 
@@ -936,7 +970,8 @@ func TestMCPConformanceEmptyContextTeaches(t *testing.T) {
 		// markdown rather than JSON.
 		text, mime := readResource(t, ctx, session, "context://docs/guide.md?project="+bare)
 		assert.Equal(t, "text/markdown", mime)
-		assert.Contains(t, text, "records nothing for this location")
+		assert.Contains(t, text, "Nothing is recorded for this file yet.")
+		assert.Contains(t, text, "context_observe", "and says how the next answer gets better")
 	})
 
 	t.Run("by location, on a project that records something", func(t *testing.T) {
@@ -1018,10 +1053,12 @@ func TestMCPConformanceEveryReadSaysWhatItRead(t *testing.T) {
 		assertProvenanceParity(t, want, got, "provenance")
 	})
 
-	t.Run("the prose rendering says it too", func(t *testing.T) {
+	t.Run("the prose rendering leaves it to --explain", func(t *testing.T) {
 		text, _ := readResource(t, ctx, session, "context://docs/guide.md?project="+bare)
-		assert.Contains(t, text, "at workspace revision",
-			"a client reading markdown is told the same three things as one reading JSON")
+		assert.NotContains(t, text, "workspace revision", "a writer acts on none of it")
+		explained := kapi(t, "context", "docs/guide.md", "-p", bareRecipe, "--explain")
+		assert.Contains(t, explained, "at workspace revision",
+			"a person asking how the answer was reached is told the same three things as JSON")
 	})
 }
 
@@ -1349,8 +1386,8 @@ func TestMCPConformanceCandidateCrossesProcesses(t *testing.T) {
 	t.Run("the prose rendering says it is not a rule", func(t *testing.T) {
 		text, mime := readResource(t, ctx, second, "context://docs/clean.md")
 		assert.Equal(t, "text/markdown", mime)
-		assert.Contains(t, text, "Candidates, not yet decided")
-		assert.Contains(t, text, "kapi context confirm")
+		assert.Contains(t, text, "Suggested, not yet established:")
+		assert.NotContains(t, text, "Say this, not that:", "a suggestion is never listed with the rules in force")
 	})
 
 	t.Run("a candidate is reported and fails nothing", func(t *testing.T) {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T06:20:51Z",
+  "generatedAt": "2026-09-23T20:05:53Z",
   "commands": [
     {
       "id": "add",
@@ -577,10 +577,16 @@
         "context"
       ],
       "use": "context [path]",
-      "short": "Ask what this project's content context says",
-      "long": "Retrieve the content context this project goes by: the terms, the\nvoice and the rules that hold, without needing to know which store holds the\nanswer.\n\nTwo questions, and every asset-shaped lookup is one of them:\n\n  kapi context \u003cpath\u003e          what applies HERE: the voice in force at that\n                               location, its guidance, the terms bound there\n  kapi context --profile \u003cn\u003e   the same answer for a named profile, when you\n                               have no file in hand\n  kapi context search \u003cquery\u003e  what we know about THIS: terms, prior wording\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says before you write, rather than learning it from a failing check\nafterwards.\n\nFour more verbs move the context itself: import and snapshot carry it between\nthe project's files and its store, export and restore carry the whole of it as\none file, and with --workspace those two carry every project you work on here.\n\nSix more grow it. Context accumulates out of ordinary work: propose records a\nrule with the evidence behind it, log shows what has been proposed and decided,\nand confirm, discard, revert and widen are the decisions. A proposal advises\nfrom the moment it is recorded and no check fails on one; confirming is what\nmakes it bind.\n\nOne reports on the store itself: locales says which locale each stored row is\nfiled under, and files them the way lookups ask when one has drifted.",
+      "short": "Ask what applies before you write a file",
+      "long": "Ask what this project keeps to before you write a file: the voice, the\nwords to use and to avoid, and what has been suggested but not yet established.\n\n  kapi context \u003cpath\u003e          what applies to that file\n  kapi context --profile \u003cn\u003e   the same answer for a named profile\n  kapi context search \u003cword\u003e   what the project says about one word\n\nThe answer is the same text an assistant reads from the context:// resource.\n--explain adds how it was reached: the point the file sits at, the recipe line\nthat bound the voice, and the project and revision that answered. --json gives\nall of it as data.\n\nThe subcommands record and decide. observe, propose and correct record what you\nnotice; log lists it; confirm, discard, revert and widen are a person's\ndecisions. import, snapshot, export and restore move the context between the\nstore and files, and locales reports how stored rows are filed.",
       "groupID": "work",
       "flags": [
+        {
+          "name": "explain",
+          "usage": "add how the answer was reached: point, binding, project, revision and notes",
+          "default": "false",
+          "type": "bool"
+        },
         {
           "name": "file",
           "usage": "explicit path to resource file",
@@ -588,7 +594,7 @@
         },
         {
           "name": "limit",
-          "usage": "max terms to render",
+          "usage": "max word rules to render",
           "default": "25",
           "type": "int"
         },
@@ -623,10 +629,10 @@
       ],
       "examples": [
         "kapi context docs/guide.md",
+        "kapi context docs/guide.md --explain",
         "kapi context docs/guide.md --json",
         "kapi context --profile marketing",
-        "kapi context search widget",
-        "kapi context snapshot --out build/context"
+        "kapi context search widget"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -5766,13 +5772,13 @@
         "mcp"
       ],
       "use": "mcp",
-      "short": "Start MCP server (stdio) exposing the project's context and the loop around it",
-      "long": "Start an MCP server over stdio.\n\nThe default surface is deliberately small: retrieving the project's context,\nchecking content against it, writing edits back, and running the loop. That is\nwhat an assistant needs to work inside this project's context.\n\nEverything else the tool registry can do is still reachable (pipeline steps,\nformat internals, one-off transforms) as an explicit opt-in, because a\nsurface nobody chose is how it grew to fifty-one tools.\n\n  --all-tools   every CLI-visible registry tool\n  --all-flows   the flow-running verbs\n  --all         both",
+      "short": "Start an MCP server (stdio) for assistants writing in this project",
+      "long": "Start an MCP server over stdio.\n\n--tools picks the tool sets it serves, as a comma-separated list:\n\n  writing       (default) the context:// resources, context_search, the\n                recording tools (context_observe, context_propose,\n                context_correct, context_withdraw), context_session_summary\n                and check_file\n  content       check_text, voice_check, voice_rewrite, term-check,\n                extract_content, detect_format, apply_edits, redact\n  translation   translate, up, up_plan, stats\n  review        review_queue, review_unit, approve_unit, reject_unit,\n                sign_off_unit\n  all           every set\n\nTwo flags add what no set holds, for debugging:\n\n  --all-tools   every CLI-visible registry tool (pipeline steps, format\n                internals, one-off transforms)\n  --all-flows   the flow-running verbs\n  --all         every set and both of these",
       "groupID": "advanced",
       "flags": [
         {
           "name": "all",
-          "usage": "shorthand for --all-tools --all-flows",
+          "usage": "every tool set, plus --all-tools and --all-flows",
           "default": "false",
           "type": "bool"
         },
@@ -5793,7 +5799,18 @@
           "shorthand": "p",
           "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
+        },
+        {
+          "name": "tools",
+          "usage": "tool sets to serve: writing (default), content, translation, review, all",
+          "default": "[]",
+          "type": "stringSlice"
         }
+      ],
+      "examples": [
+        "kapi mcp",
+        "kapi mcp --tools writing,translation",
+        "kapi mcp --tools all"
       ],
       "offlineCapable": false,
       "runnableInBrowser": false,

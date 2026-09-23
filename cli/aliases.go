@@ -138,6 +138,8 @@ var (
 	ApplyAIDefaults              = host.ApplyAIDefaults
 	ApplySourceLocale            = host.ApplySourceLocale
 	ApplyMCPToolFactories        = host.ApplyMCPToolFactories
+	MCPToolSetNames              = host.MCPToolSetNames
+	MCPToolSetTools              = host.MCPToolSetTools
 	BoolFlag                     = host.BoolFlag
 	BoolFlagAny                  = host.BoolFlagAny
 	BuildAISetupChoices          = host.BuildAISetupChoices

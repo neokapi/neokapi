@@ -34,22 +34,12 @@ func init() { RegisterMCPToolFactory(registerContextMCPTools) }
 func registerContextMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_search",
-		Description: "Ask what this project's content context says about a word or phrase: " +
-			"what it is called here, whether it is discouraged and what to say instead, " +
-			"and wording the project has already approved. One question across every store " +
-			"the project binds; you do not need to know which one holds the answer. " +
-			"Search before writing; read the context://<project-relative-path> resource for the full " +
-			"guidance at your destination. After saving edits, use check_file on the changed files. " +
-			"Results are grouped by kind, and say what could not be reached. " +
-			"`coverage` grades what stood behind the answer (empty, thin or covered); an empty one " +
-			"means this project has recorded nothing about the query, and its notes say what is " +
-			"worth noticing while you work. `provenance` names the project that answered, the " +
-			"workspace revision it was read at, and whether the content kapi holds still matches " +
-			"the files on disk. " +
-			"Each term carries how often the project's extracted content uses it, as of the last " +
-			"extraction (the last `kapi up`) rather than of the working tree. " +
-			"A `notice` names context files this checkout carries that nothing has read in, which " +
-			"is why the answer is empty; say so rather than working as though the project holds nothing.",
+		Description: "Ask what this project says about one word or phrase: what it is called here, whether " +
+			"it is discouraged and what to say instead, and wording the project has already approved. " +
+			"For everything that applies to a file, read context://<path> instead. " +
+			"An empty answer means nothing is recorded about the word; if the project keeps to a spelling " +
+			"for it, record that with context_observe. `attention` says what a person must act on, such as " +
+			"context files nobody has imported.",
 	}, a.handleContextSearch)
 
 	registerContextResources(server, a)
@@ -76,25 +66,18 @@ const contextProfilePrefix = "profile/"
 // form was asked for, and a dispatch that depended on template ordering would
 // be a coin toss on `context://profile/x`, which both templates match.
 func registerContextResources(server *mcp.Server, a *App) {
-	const description = "What this project's context says applies at one place: the voice profile " +
-		"in force with its full guidance, the terms bound there, and the governance windows " +
-		"around them. Read this BEFORE writing or editing content at that location. " +
-		"An answer with nothing in it says so and says what is worth noticing while you work, " +
-		"so a project that has recorded nothing yet is still worth asking. Every answer names " +
-		"the project it came from, the workspace revision it was read at, and whether the " +
-		"content kapi holds still matches the files on disk. " +
-		"Returns markdown by default; append `?format=json` for the structured shape, " +
-		"where `coverage` grades what stood behind it (empty, thin or covered) and a `notice` " +
-		"names context files this checkout carries that nothing has read in."
+	const description = "What applies when you write at one place: the voice, the words to use and to " +
+		"avoid, and what has been suggested but not yet established. Read it before you change a file. " +
+		"An answer with nothing recorded says so. Returns markdown; append `?format=json` for the " +
+		"structured answer, which also names the point, the project and the revision that answered."
 
 	server.AddResourceTemplate(&mcp.ResourceTemplate{
 		Name:        "context-at-location",
 		Title:       "Context at a location",
 		URITemplate: contextLocationTemplate,
 		MIMEType:    "text/markdown",
-		Description: description + " The path is project-relative, e.g. `context://docs/guide.md`. " +
-			"Add `?project=<path>` to read a project other than the one the server started in; " +
-			"the path names its kapi.yaml, its root directory, or anything inside it.",
+		Description: description + " The path is project-relative, e.g. `context://docs/guide.md`; " +
+			"`?project=<path>` reads another project.",
 	}, a.handleContextResource)
 
 	server.AddResourceTemplate(&mcp.ResourceTemplate{
@@ -102,8 +85,7 @@ func registerContextResources(server *mcp.Server, a *App) {
 		Title:       "Context of a named profile",
 		URITemplate: contextProfileTemplate,
 		MIMEType:    "text/markdown",
-		Description: description + " Addresses a governance profile by name, for a caller with " +
-			"no file in hand, e.g. `context://profile/marketing`.",
+		Description: description + " Names a profile instead of a file, e.g. `context://profile/marketing`.",
 	}, a.handleContextResource)
 }
 
