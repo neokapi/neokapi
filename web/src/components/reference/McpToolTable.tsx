@@ -16,12 +16,12 @@ function bySurface(surface: MCPSurface): MCPTool[] {
 }
 
 /** The number of tools on one surface, so prose never hardcodes a count. */
-export function McpToolCount({ surface = "default" }: { surface?: MCPSurface }) {
+export function McpToolCount({ surface = "writing" }: { surface?: MCPSurface }) {
   return <>{bySurface(surface).length}</>;
 }
 
 /** Every tool on one surface, as a name/description table. */
-export function McpToolList({ surface = "default" }: { surface?: MCPSurface }) {
+export function McpToolList({ surface = "writing" }: { surface?: MCPSurface }) {
   return (
     <table>
       <thead>

@@ -170,11 +170,18 @@ Four properties hold for everything written:
 
 `initialize` carries an `instructions` string to every client, ahead of the
 tool list and whether or not the host loads a skill. It is the only text a
-client with no skill support ever reads about kapi, so it carries the same four
-habits the skill leads with, one paragraph each.
-`host/mcp_instructions_test.go` holds it to the names the server actually
-serves and to a length budget, so a fifth paragraph is a decision rather than a
-drift.
+client with no skill support ever reads about kapi, so it states the task in
+about a hundred words: read `context://<path>` before changing a file, record
+names and spellings with `context_observe` and the person's changes with
+`context_correct`, take back a wrong record with `context_withdraw`, run
+`check_file` on each changed file, and end with `context_session_summary`.
+
+It also names `kapi context <path>`. Some clients list only concrete resources
+and never a resource template, so a model there has no way to find the address
+except this text, and the shell command prints the same answer. The
+instructions name the writing set's tools, so a server that does not serve that
+set sends none. `host/mcp_instructions_test.go` holds the text to the names the
+writing set serves and to a word budget.
 
 The server also writes one row into the workspace saying that an agent is at
 work: the session id it records operations under, the project, the client's own
@@ -415,16 +422,29 @@ registry tool produced an agent surface nobody chose, most of it pipeline steps
 should be assembling by hand, plus verbs like recycling that the catch-up loop
 does automatically and invisibly.
 
-The default surface is therefore the hand-authored porcelain (reading and sizing
-content with `extract_content`, `detect_format` and `stats`, checking text or a
-file, voice scoring and offline rewriting, context search, the three context
-write tools and the session read, the catch-up verbs and their dry run, the
-review-queue verbs, and `apply_edits`) plus a short curated list of registry
-tools that produce something a caller cannot produce itself or check something
-with no porcelain equivalent: `translate`, `term-check` and `redact`. The
-listing helpers and `pseudo_translate` sit behind `--all-tools`, the
-flow-running verbs behind `--all-flows`, and `--all` is the shorthand for both.
-The full generated list is in the [MCP reference](/reference/mcp).
+The surface is served in **tool sets**, because an assistant reads every
+description it is offered and a writing session needs a handful of tools.
+`--tools <set>[,<set>...]` names them, and `writing` is served when it names
+none:
+
+| Set | Serves |
+| --- | --- |
+| `writing` | the `context://` resources, `context_search`, `context_observe`, `context_propose`, `context_correct`, `context_withdraw`, `context_session_summary`, `check_file` |
+| `content` | `check_text`, `voice_check`, `voice_rewrite`, `term-check`, `extract_content`, `detect_format`, `apply_edits`, `redact` |
+| `translation` | `translate`, `up`, `up_plan`, `stats` |
+| `review` | `review_queue`, `review_unit`, `approve_unit`, `reject_unit`, `sign_off_unit` |
+| `all` | every set |
+
+The sets are one table in `host/mcp_sets.go`. Every factory registers its
+tools, and the server then removes whatever the selected sets leave out; the
+surface snapshot fails when a tool belongs to no set. A name that is not a set
+fails startup with the list. `kapi init` writes `--tools writing,translation`
+into the MCP entry of a project that declares target languages. The listing
+helpers and `pseudo_translate` sit behind `--all-tools`, the flow-running verbs
+behind `--all-flows`, and `--all` serves every set and both. `translate`,
+`term-check` and `redact` are the registry tools on a set: they produce
+something a caller cannot produce itself or check something with no porcelain
+equivalent. The full generated list is in the [MCP reference](/reference/mcp).
 
 Three curation rules are asserted by tests rather than remembered:
 
@@ -436,9 +456,10 @@ Three curation rules are asserted by tests rather than remembered:
 - **No curated tool shadows a porcelain one.** Two names for one job means the
   caller picks wrong half the time.
 - **Nothing a person decides is agent-facing.** `context_observe`,
-  `context_propose` and `context_correct` record what an agent may record;
-  confirming, discarding another actor's work, reverting and widening are a
-  person's, and the surface carries no tool for them at all. The policy
+  `context_propose` and `context_correct` record what an agent may record, and
+  `context_withdraw` discards what the same session recorded wrongly and nothing
+  else; confirming, discarding another actor's work, reverting and widening are
+  a person's, and the surface carries no tool for them at all. The policy
   ([C-11](../context/c-11-context-operations.md)) would refuse such a call
   anyway, and a tool that is always refused is one an assistant keeps trying.
   The actor rides on the call rather than in it: kind `agent`, the name from
@@ -458,10 +479,13 @@ arguments, so it is a **tool** (`context_search`). Asking what applies at a
 
 | Address | Answers |
 | --- | --- |
-| `context://{+path}{?format,project}` | what applies at a project-relative location: the voice profile in force with its guidance, the terms bound there, the candidates nobody has decided on, and the governance windows around them |
+| `context://{+path}{?format,project}` | what applies at a project-relative location: the voice in force, the words to use and to avoid there, and what has been suggested but not yet established |
 | `context://profile/{name}{?format,project}` | the same, addressed by governance profile name, for a caller with no file in hand |
 
-Both render markdown by default; `?format=json` returns the structured shape.
+Both render markdown by default, the brief a writer reads and nothing about how
+it was reached; `?format=json` returns the structured shape, which adds the
+point, the full voice guide, the terms, the governance windows and the
+provenance.
 Making the rendering a property of the read, a MIME type, is what avoids a
 second entry point for the same question. One reserved path prefix carries the
 by-name form, so a single scheme carries both address forms. `?project=` names
@@ -515,9 +539,10 @@ output.
   drift-checks, and gates.
 - One write verb covers content and asset edits, a mixed change-set lands
   atomically, and `git diff` is the uniform review surface for all of it.
-- A curated MCP surface means the agent-facing tool list is a reviewed decision;
-  the code-execution exclusion is a test, so widening the surface can never
-  silently grant shell access.
+- Tool sets mean the agent-facing tool list is a reviewed decision per kind of
+  work, and a writing session reads a handful of descriptions rather than every
+  tool; the code-execution exclusion is a test, so widening the surface can
+  never silently grant shell access.
 - One long-lived server serves an assistant that moves between projects, because
   the project is an argument of the call rather than a property of the process.
 - A check tool that stops reporting a violation over MCP fails a pre-merge job,

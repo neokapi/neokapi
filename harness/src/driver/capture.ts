@@ -163,7 +163,9 @@ export async function captureDemo(m: DemoManifest, opts: CaptureOptions = {}): P
         mcpServers: {
           kapi: {
             command: KAPI_BIN,
-            args: ["mcp"],
+            // Every tool set: an MCP demo sizes files and works the review
+            // queue, which the default writing set does not serve.
+            args: ["mcp", "--tools", "all"],
             // The MCP server inherits the same isolation the session runs under,
             // including the project opt-in: without it a `project: true` demo's
             // recipe is invisible to every project-scoped tool (review_queue,

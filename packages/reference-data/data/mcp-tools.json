@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-09-22T06:20:51Z",
+  "generatedAt": "2026-09-23T20:05:53Z",
   "tools": [
     {
       "name": "apply_edits",
       "description": "Apply a typed change-set: the one write verb. For document wording, each entry uses kind=content, file, id, content_hash and text (the new wording). Read block IDs and hashes with extract_content. The replacement field is for voice rules. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (terms entry, content memory pair, voice rule) are written to the project's stores and recorded in its context history, and a recipe field is written to kapi.yaml. No AI provider is used. Read the context://\u003cproject-relative-path\u003e resource before editing content, then run check_file on each changed file to review findings and analyzer coverage. For a code comment, an entry uses kind=comment, file, id and lines (as check_file reports them, such as func/Parse), comment_sha256 (the fingerprint check_file reports for the comment; a comment whose bytes differ is refused as changed, and current_text may carry the prose as read instead) and text (the comment's prose without comment markers, or a /* */ comment's delimiters and the * opening each line). Every byte outside the comment is kept, a /* */ comment keeps its layout, the result must parse and the language's formatter must agree; a directive, a generated file's comment, a changed comment, text holding */ in a /* */ comment and text that drops a code block or reference are refused with a reason and write nothing. A comment in a language whose plugin or formatter is not installed, or whose formatter does not format the file, did not run and is not written. A project's formatter runs code that project controls, and an agent that can write files can write the configuration it loads, so apply_edits never runs it: such a comment did not run, with the reason formatter, and a person applies it with kapi apply in a terminal. Each written file's result carries a check scoped to the change.",
-      "surface": "default",
+      "surface": "content",
       "params": [
         {
           "name": "changeset",
@@ -23,7 +23,7 @@
     {
       "name": "approve_unit",
       "description": "Approve one review-queue unit (→ reviewed). The unit state is recorded in the project store, bound to the current translation's content hash, with identity \"agent/\u003cclient\u003e\".",
-      "surface": "default",
+      "surface": "review",
       "params": [
         {
           "name": "file",
@@ -102,8 +102,8 @@
     },
     {
       "name": "check_file",
-      "description": "Check the content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) with format-aware extraction and the voice and terms in force at that file's location. Run it on every file you changed, and fix what it reports, before you say the work is done. To check only the blocks a change touched, pass diff (unified diff text), diff_against (a git revision), staged (the changes staged for commit, read from the index) or diff_range (A..B or A...B, read from B); each touched block is checked whole, with the lines it spans, and report.scope names every changed file and what became of it. Before editing, read the context://\u003cproject-relative-path\u003e resource. Returns a kapi.check/v1 Report with effective scope in execution.contexts and configuration warnings, which never change pass; pass is not semantic approval. Omit profile_file/profile_pack to use the file's project profile and channel. Supplying either replaces that voice selection with an explicit override; project terms still apply. Pass target/target_lang to also run bilingual checks.",
-      "surface": "default",
+      "description": "Check a file you changed against the voice and terms in force at its location, in any format kapi reads (Markdown, JSON, Word, XLIFF and more). Run it on every file you changed and fix what it reports before you say the work is done. To check only what a change touched, pass diff, diff_against (a git revision), staged, or diff_range (A..B). Returns a kapi.check/v1 report: findings, and which analyzers covered the content. A pass is not semantic approval.",
+      "surface": "writing",
       "params": [
         {
           "name": "diff",
@@ -206,7 +206,7 @@
     {
       "name": "check_text",
       "description": "Check a draft snippet with deterministic content rules. Before drafting, read the context://\u003cproject-relative-path\u003e resource for the applicable guidance. Supply context_path to check with that destination's voice and terms; without it, project guidance is not resolved. Explicit profile_pack/profile_file are available only without context_path. Returns a kapi.check/v1 Report with findings, analyzer coverage and configuration warnings, which never change pass; pass is not semantic approval. After saving edits, use check_file to verify the actual file.",
-      "surface": "default",
+      "surface": "content",
       "params": [
         {
           "name": "text",
@@ -266,8 +266,8 @@
     },
     {
       "name": "context_correct",
-      "description": "Record that the person changed your wording: what you wrote, what they replaced it with, and where. Call it as soon as you see the edit, before you carry on. A correction is evidence about this project's wording, and it is the cheapest context there is, because someone has already made the judgement. Set `propose` to also record the rule it implies, so the next use of the old wording is reported.",
-      "surface": "default",
+      "description": "Record that the person changed your wording: `from` is what you wrote, `to` is what they replaced it with, and `path` is where. Call it as soon as you see the edit. Set `propose` to also suggest the rule it implies.",
+      "surface": "writing",
       "params": [
         {
           "name": "from",
@@ -327,8 +327,8 @@
     },
     {
       "name": "context_observe",
-      "description": "Record one fact you noticed about how this project writes: a product name as it spells it, a spelling it is consistent about, who its text addresses, the register it keeps. Call it while you read, as soon as you notice something, one fact per call. It states no rule, changes no check and takes effect immediately. Say where you saw it: `path` and `quote` are what let a person judge the fact later, and an observation with neither is worth much less than one with both.",
-      "surface": "default",
+      "description": "Record one fact about how this project writes, as soon as you notice it: a product or feature name as the project spells it, a spelling it keeps to, who its text addresses. One fact per call, with `path` and `quote` saying where you saw it. It advises at once and fails no check.",
+      "surface": "writing",
       "params": [
         {
           "name": "text",
@@ -364,8 +364,8 @@
     },
     {
       "name": "context_propose",
-      "description": "Propose a rule about a word: write this instead of that. Use it when the project is consistent about a word and nothing records it yet. Evidence is required: `path` names the file you saw it in and `quote` the wording as it stands there. The result is a CANDIDATE. It advises from the moment you record it, every check reports it, and no check can fail on it until a person confirms it. Do not tell anyone a rule is now in force.",
-      "surface": "default",
+      "description": "Propose a rule about a word: write this instead of that, when the project is consistent about it and nothing records it yet. Give `path` and `quote` for where you saw it. The rule is a suggestion: checks report it and none fails on it until a person confirms it.",
+      "surface": "writing",
       "params": [
         {
           "name": "path",
@@ -425,8 +425,8 @@
     },
     {
       "name": "context_search",
-      "description": "Ask what this project's content context says about a word or phrase: what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. One question across every store the project binds; you do not need to know which one holds the answer. Search before writing; read the context://\u003cproject-relative-path\u003e resource for the full guidance at your destination. After saving edits, use check_file on the changed files. Results are grouped by kind, and say what could not be reached. `coverage` grades what stood behind the answer (empty, thin or covered); an empty one means this project has recorded nothing about the query, and its notes say what is worth noticing while you work. `provenance` names the project that answered, the workspace revision it was read at, and whether the content kapi holds still matches the files on disk. Each term carries how often the project's extracted content uses it, as of the last extraction (the last `kapi up`) rather than of the working tree. A `notice` names context files this checkout carries that nothing has read in, which is why the answer is empty; say so rather than working as though the project holds nothing.",
-      "surface": "default",
+      "description": "Ask what this project says about one word or phrase: what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. For everything that applies to a file, read context://\u003cpath\u003e instead. An empty answer means nothing is recorded about the word; if the project keeps to a spelling for it, record that with context_observe. `attention` says what a person must act on, such as context files nobody has imported.",
+      "surface": "writing",
       "params": [
         {
           "name": "query",
@@ -468,8 +468,8 @@
     },
     {
       "name": "context_session_summary",
-      "description": "Report what this session recorded, proposed and had confirmed. Call it before you say the work is done, and end your report with what it says, including the command it gives for reviewing the session.",
-      "surface": "default",
+      "description": "Report what this session recorded. Call it before you say the work is done and end your report with what it says, including the command a person reviews the session with.",
+      "surface": "writing",
       "params": [
         {
           "name": "project",
@@ -482,6 +482,31 @@
           "type": "string",
           "required": false,
           "description": "the session to summarize (default: this MCP server's own)"
+        }
+      ]
+    },
+    {
+      "name": "context_withdraw",
+      "description": "Take back something this session recorded wrongly, such as a correction entered backwards. Name it by the `operation` id its call returned. Only this session's own suggestions can be withdrawn.",
+      "surface": "writing",
+      "params": [
+        {
+          "name": "operation",
+          "type": "string",
+          "required": true,
+          "description": "the operation id the recording call returned"
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "what was wrong with it"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
         }
       ]
     },
@@ -537,7 +562,7 @@
     {
       "name": "detect_format",
       "description": "Detect the file format from a file path based on its extension",
-      "surface": "default",
+      "surface": "content",
       "params": [
         {
           "name": "path",
@@ -728,7 +753,7 @@
     {
       "name": "extract_content",
       "description": "Parse a file into translatable content blocks: each block's id, content_hash, source text (inline codes rendered as \u003cx id=\"…\"/\u003e placeholders), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply).",
-      "surface": "default",
+      "surface": "content",
       "params": [
         {
           "name": "path",
@@ -1327,7 +1352,7 @@
     {
       "name": "redact",
       "description": "Replace sensitive spans with protected placeholders before processing",
-      "surface": "default",
+      "surface": "content",
       "params": [
         {
           "name": "text",
@@ -1376,7 +1401,7 @@
     {
       "name": "reject_unit",
       "description": "Reject one review-queue unit (→ draft, back to the work queue) with a note explaining why. Recorded with identity \"agent/\u003cclient\u003e\"; retranslating the unit re-enters it in review.",
-      "surface": "default",
+      "surface": "review",
       "params": [
         {
           "name": "file",
@@ -1517,7 +1542,7 @@
     {
       "name": "review_queue",
       "description": "List the review queue: every unit awaiting a person, addressed by (file, key, locale). One queue holds every language, the project's source language among them: a translated unit not yet approved is one row, and a source unit the project's source gate is waiting on is another, marked `isSource`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; units annotated by an AI pre-review carry their score. Lean by design: call review_unit for a unit's context (the point governing it, its neighbourhood, its prior version, its findings).",
-      "surface": "default",
+      "surface": "review",
       "params": [
         {
           "name": "collection",
@@ -1548,7 +1573,7 @@
     {
       "name": "review_unit",
       "description": "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. A unit in the project's source language is read the same way, from its source file, and returns its authoring rung with no target half. The read leg before approve_unit / reject_unit / sign_off_unit.",
-      "surface": "default",
+      "surface": "review",
       "params": [
         {
           "name": "file",
@@ -1804,7 +1829,7 @@
     {
       "name": "sign_off_unit",
       "description": "Sign off one review-queue unit (→ signed-off, the top ladder rung). Recorded with identity \"agent/\u003cclient\u003e\".",
-      "surface": "default",
+      "surface": "review",
       "params": [
         {
           "name": "file",
@@ -1872,7 +1897,7 @@
     {
       "name": "stats",
       "description": "Size files before processing them. Reports per-file and total content metrics: blocks (translatable and not), words, characters (with and without spaces, plus the unique-character inventory), segments when available, and a by-role breakdown. Works on any supported format (Word, PowerPoint, JSON, XLIFF, Markdown, HTML, …) and returns the same JSON `kapi stats --json` emits.",
-      "surface": "default",
+      "surface": "translation",
       "params": [
         {
           "name": "files",
@@ -1891,7 +1916,7 @@
     {
       "name": "term-check",
       "description": "Terminology Check",
-      "surface": "default",
+      "surface": "content",
       "params": [
         {
           "name": "target",
@@ -1977,7 +2002,7 @@
     {
       "name": "translate",
       "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
-      "surface": "default",
+      "surface": "translation",
       "params": [
         {
           "name": "text",
@@ -2093,7 +2118,7 @@
     {
       "name": "up",
       "description": "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the default flow (content memory reuse then AI translate) over every target language, concurrently per language, loop until every gated scope is shippable or parks for a human, and run the project's bound checks each pass. In a project connected to a Bowrain server the run happens there (push, converge on the org's keys and shared content memory, pull the results); pass local to run the loop on this machine instead. Never fails on pending target work: parked units are reported, not thrown. Returns the structured result (per-locale standing, parked scopes, materialized files). Use up_plan first to see the pending work and token estimate.",
-      "surface": "default",
+      "surface": "translation",
       "params": [
         {
           "name": "jobs",
@@ -2136,7 +2161,7 @@
     {
       "name": "up_plan",
       "description": "Dry-run the catch-up work for a kapi project: per (collection, locale), the units missing a target, exact-content-memory leverage, the remaining AI work, and a rough token estimate. No provider calls, nothing written. The pre-flight for the up tool.",
-      "surface": "default",
+      "surface": "translation",
       "params": [
         {
           "name": "project",
@@ -2259,7 +2284,7 @@
     {
       "name": "voice_check",
       "description": "Score text against a voice profile using deterministic vocabulary rules; returns a 0-100 compliance score and findings",
-      "surface": "default",
+      "surface": "content",
       "params": [
         {
           "name": "text",
@@ -2284,7 +2309,7 @@
     {
       "name": "voice_rewrite",
       "description": "Rewrite text to comply with a voice profile by substituting forbidden/competitor terms (deterministic, offline). A rule that names no replacement, and a match on an inflected form of a term, are left in place and listed under skipped with the term, its list, severity and reason; rewrite those by hand and verify with voice_check.",
-      "surface": "default",
+      "surface": "content",
       "params": [
         {
           "name": "text",
@@ -2464,14 +2489,14 @@
       "uriTemplate": "context://profile/{name}{?format,project}",
       "name": "context-for-profile",
       "title": "Context of a named profile",
-      "description": "What this project's context says applies at one place: the voice profile in force with its full guidance, the terms bound there, and the governance windows around them. Read this BEFORE writing or editing content at that location. An answer with nothing in it says so and says what is worth noticing while you work, so a project that has recorded nothing yet is still worth asking. Every answer names the project it came from, the workspace revision it was read at, and whether the content kapi holds still matches the files on disk. Returns markdown by default; append `?format=json` for the structured shape, where `coverage` grades what stood behind it (empty, thin or covered) and a `notice` names context files this checkout carries that nothing has read in. Addresses a governance profile by name, for a caller with no file in hand, e.g. `context://profile/marketing`.",
+      "description": "What applies when you write at one place: the voice, the words to use and to avoid, and what has been suggested but not yet established. Read it before you change a file. An answer with nothing recorded says so. Returns markdown; append `?format=json` for the structured answer, which also names the point, the project and the revision that answered. Names a profile instead of a file, e.g. `context://profile/marketing`.",
       "mimeType": "text/markdown"
     },
     {
       "uriTemplate": "context://{+path}{?format,project}",
       "name": "context-at-location",
       "title": "Context at a location",
-      "description": "What this project's context says applies at one place: the voice profile in force with its full guidance, the terms bound there, and the governance windows around them. Read this BEFORE writing or editing content at that location. An answer with nothing in it says so and says what is worth noticing while you work, so a project that has recorded nothing yet is still worth asking. Every answer names the project it came from, the workspace revision it was read at, and whether the content kapi holds still matches the files on disk. Returns markdown by default; append `?format=json` for the structured shape, where `coverage` grades what stood behind it (empty, thin or covered) and a `notice` names context files this checkout carries that nothing has read in. The path is project-relative, e.g. `context://docs/guide.md`. Add `?project=\u003cpath\u003e` to read a project other than the one the server started in; the path names its kapi.yaml, its root directory, or anything inside it.",
+      "description": "What applies when you write at one place: the voice, the words to use and to avoid, and what has been suggested but not yet established. Read it before you change a file. An answer with nothing recorded says so. Returns markdown; append `?format=json` for the structured answer, which also names the point, the project and the revision that answered. The path is project-relative, e.g. `context://docs/guide.md`; `?project=\u003cpath\u003e` reads another project.",
       "mimeType": "text/markdown"
     }
   ]

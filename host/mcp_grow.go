@@ -41,37 +41,37 @@ func init() { RegisterMCPToolFactory(registerContextGrowthMCPTools) }
 func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_observe",
-		Description: "Record one fact you noticed about how this project writes: a product name as it spells it, " +
-			"a spelling it is consistent about, who its text addresses, the register it keeps. " +
-			"Call it while you read, as soon as you notice something, one fact per call. " +
-			"It states no rule, changes no check and takes effect immediately. " +
-			"Say where you saw it: `path` and `quote` are what let a person judge the fact later, " +
-			"and an observation with neither is worth much less than one with both.",
+		Description: "Record one fact about how this project writes, as soon as you notice it: a product or " +
+			"feature name as the project spells it, a spelling it keeps to, who its text addresses. " +
+			"One fact per call, with `path` and `quote` saying where you saw it. It advises at once and " +
+			"fails no check.",
 	}, a.handleContextObserve)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_propose",
-		Description: "Propose a rule about a word: write this instead of that. " +
-			"Use it when the project is consistent about a word and nothing records it yet. " +
-			"Evidence is required: `path` names the file you saw it in and `quote` the wording as it stands there. " +
-			"The result is a CANDIDATE. It advises from the moment you record it, every check reports it, " +
-			"and no check can fail on it until a person confirms it. Do not tell anyone a rule is now in force.",
+		Description: "Propose a rule about a word: write this instead of that, when the project is consistent " +
+			"about it and nothing records it yet. Give `path` and `quote` for where you saw it. The rule is a " +
+			"suggestion: checks report it and none fails on it until a person confirms it.",
 	}, a.handleContextPropose)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_correct",
-		Description: "Record that the person changed your wording: what you wrote, what they replaced it with, and where. " +
-			"Call it as soon as you see the edit, before you carry on. " +
-			"A correction is evidence about this project's wording, and it is the cheapest context there is, " +
-			"because someone has already made the judgement. " +
-			"Set `propose` to also record the rule it implies, so the next use of the old wording is reported.",
+		Description: "Record that the person changed your wording: `from` is what you wrote, `to` is what they " +
+			"replaced it with, and `path` is where. Call it as soon as you see the edit. Set `propose` to also " +
+			"suggest the rule it implies.",
 	}, a.handleContextCorrect)
 
 	mcp.AddTool(server, &mcp.Tool{
+		Name: "context_withdraw",
+		Description: "Take back something this session recorded wrongly, such as a correction entered " +
+			"backwards. Name it by the `operation` id its call returned. Only this session's own " +
+			"suggestions can be withdrawn.",
+	}, a.handleContextWithdraw)
+
+	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_session_summary",
-		Description: "Report what this session recorded, proposed and had confirmed. " +
-			"Call it before you say the work is done, and end your report with what it says, " +
-			"including the command it gives for reviewing the session.",
+		Description: "Report what this session recorded. Call it before you say the work is done and end " +
+			"your report with what it says, including the command a person reviews the session with.",
 	}, a.handleContextSessionSummary)
 }
 
@@ -230,6 +230,13 @@ type contextCorrectInput struct {
 	Project  string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 }
 
+// contextWithdrawInput names one operation this session recorded.
+type contextWithdrawInput struct {
+	Operation string `json:"operation" jsonschema:"the operation id the recording call returned"`
+	Note      string `json:"note,omitempty" jsonschema:"what was wrong with it"`
+	Project   string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+}
+
 // contextSessionInput asks what one session did.
 type contextSessionInput struct {
 	Session string `json:"session,omitempty" jsonschema:"the session to summarize (default: this MCP server's own)"`
@@ -385,6 +392,34 @@ func (a *App) handleContextCorrect(ctx context.Context, req *mcp.CallToolRequest
 	} else {
 		out.Next = "recorded as evidence. Pass `propose` next time to record the rule it implies with it."
 	}
+	return nil, out, nil
+}
+
+// handleContextWithdraw discards an operation this session recorded. The
+// policy decides who may: an agent withdraws its own candidates, in the session
+// that recorded them, and nothing else.
+func (a *App) handleContextWithdraw(ctx context.Context, req *mcp.CallToolRequest, in contextWithdrawInput) (*mcp.CallToolResult, contextRecordOutput, error) {
+	recipe, err := a.RequireMCPCallProject(in.Project)
+	if err != nil {
+		return nil, contextRecordOutput{}, err
+	}
+	id := strings.TrimSpace(in.Operation)
+	if id == "" {
+		return nil, contextRecordOutput{}, errors.New("context_withdraw: name the operation to withdraw in `operation`")
+	}
+	op, err := a.DiscardContextOperation(ctx, ContextDiscardRequest{
+		Actor:   mcpAgentActor(req),
+		Project: recipe,
+		ID:      id,
+		Note:    in.Note,
+	})
+	if err != nil {
+		return nil, contextRecordOutput{}, err
+	}
+	a.NoteMCPSession(ctx, recipe, mcpClientName(req))
+	out := recordedOutput(op)
+	out.Recorded = "withdrew operation " + id
+	out.Next = "withdrawn: it no longer advises, and the log keeps the record of it."
 	return nil, out, nil
 }
 

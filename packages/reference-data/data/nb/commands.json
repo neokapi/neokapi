@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T11:32:58Z",
+  "generatedAt": "2026-09-23T20:05:53Z",
   "commands": [
     {
       "id": "add",
@@ -582,6 +582,12 @@
       "groupID": "work",
       "flags": [
         {
+          "name": "explain",
+          "usage": "add how the answer was reached: point, binding, project, revision and notes",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "file",
           "usage": "eksplisitt sti til ressursfil",
           "type": "string"
@@ -623,10 +629,10 @@
       ],
       "examples": [
         "kapi context docs/guide.md",
+        "kapi context docs/guide.md --explain",
         "kapi context docs/guide.md --json",
         "kapi context --profile marketing",
-        "kapi context search widget",
-        "kapi context snapshot --out build/context"
+        "kapi context search widget"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -5793,7 +5799,18 @@
           "shorthand": "p",
           "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra cwd hvis utelatt)",
           "type": "string"
+        },
+        {
+          "name": "tools",
+          "usage": "tool sets to serve: writing (default), content, translation, review, all",
+          "default": "[]",
+          "type": "stringSlice"
         }
+      ],
+      "examples": [
+        "kapi mcp",
+        "kapi mcp --tools writing,translation",
+        "kapi mcp --tools all"
       ],
       "offlineCapable": false,
       "runnableInBrowser": false,

@@ -233,9 +233,48 @@ export class ContextAnswer {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Notes carries freshness and scope-shaped caveats. Present so a thin answer
-             * is never ambiguous between "nothing applies here" and "nothing could be
-             * consulted".
+             * Rules is what a writer says and avoids here, as one list: the terms in
+             * force, the rules confirmed across the workspace, and the voice's
+             * vocabulary, merged so each wording is stated once. Capped at the
+             * request's limit; RulesTotal says how many there are in all.
+             * @member
+             * @type {ContextRule[] | undefined}
+             */
+            this["rules"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["rules_total"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * VoiceBrief is the voice in force as the short brief the text answer
+             * leads with: its description and the tone and style fields it sets. The
+             * full guide is Voice.Guide.
+             * @member
+             * @type {string | undefined}
+             */
+            this["voice_brief"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Attention holds what a person or an agent must act on before relying on
+             * the answer: context files nothing has read in, a voice or terms binding
+             * that failed to load, a location governed by a profile of its own. The
+             * text answer shows these and nothing else of Notes.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["attention"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Notes carries every caveat, including freshness and scope, so a thin
+             * answer is never ambiguous between "nothing applies here" and "nothing
+             * could be consulted". The text answer shows them under --explain.
              * @member
              * @type {string[] | undefined}
              */
@@ -269,8 +308,10 @@ export class ContextAnswer {
         const $$createField6_0 = $$createType8;
         const $$createField8_0 = $$createType10;
         const $$createField9_0 = $$createType12;
-        const $$createField10_0 = $$createType13;
-        const $$createField11_0 = $$createType15;
+        const $$createField10_0 = $$createType14;
+        const $$createField13_0 = $$createType15;
+        const $$createField14_0 = $$createType15;
+        const $$createField15_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField0_0($$parsedSource["constraints"]);
@@ -293,11 +334,17 @@ export class ContextAnswer {
         if ("profiles" in $$parsedSource) {
             $$parsedSource["profiles"] = $$createField9_0($$parsedSource["profiles"]);
         }
+        if ("rules" in $$parsedSource) {
+            $$parsedSource["rules"] = $$createField10_0($$parsedSource["rules"]);
+        }
+        if ("attention" in $$parsedSource) {
+            $$parsedSource["attention"] = $$createField13_0($$parsedSource["attention"]);
+        }
         if ("notes" in $$parsedSource) {
-            $$parsedSource["notes"] = $$createField10_0($$parsedSource["notes"]);
+            $$parsedSource["notes"] = $$createField14_0($$parsedSource["notes"]);
         }
         if ("notice" in $$parsedSource) {
-            $$parsedSource["notice"] = $$createField11_0($$parsedSource["notice"]);
+            $$parsedSource["notice"] = $$createField15_0($$parsedSource["notice"]);
         }
         return new ContextAnswer(/** @type {Partial<ContextAnswer>} */($$parsedSource));
     }
@@ -434,7 +481,7 @@ export class ContextCandidate {
      * @returns {ContextCandidate}
      */
     static createFrom($$source = {}) {
-        const $$createField12_0 = $$createType17;
+        const $$createField12_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("evidence" in $$parsedSource) {
             $$parsedSource["evidence"] = $$createField12_0($$parsedSource["evidence"]);
@@ -509,7 +556,7 @@ export class ContextFilesNotice {
      * @returns {ContextFilesNotice}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType13;
+        const $$createField0_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("files" in $$parsedSource) {
             $$parsedSource["files"] = $$createField0_0($$parsedSource["files"]);
@@ -597,7 +644,7 @@ export class ContextPoint {
      * @returns {ContextPoint}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType18;
+        const $$createField5_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coordinates" in $$parsedSource) {
             $$parsedSource["coordinates"] = $$createField5_0($$parsedSource["coordinates"]);
@@ -665,7 +712,7 @@ export class ContextPrecedentHit {
      * @returns {ContextPrecedentHit}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType13;
+        const $$createField4_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("discouraged" in $$parsedSource) {
             $$parsedSource["discouraged"] = $$createField4_0($$parsedSource["discouraged"]);
@@ -709,6 +756,92 @@ export const ContextProvenance = check$0.ContextProvenance;
  * and a check result reporting one shape under one set of field names.
  * @typedef {check$0.ContextProvenance} ContextProvenance
  */
+
+/**
+ * ContextRule is one line of that list: the wording to use, the wording to
+ * avoid, and what the rule is about.
+ */
+export class ContextRule {
+    /**
+     * Creates a new ContextRule instance.
+     * @param {Partial<ContextRule>} [$$source = {}] - The source object to create the ContextRule.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Say is the wording to use. Empty for a rule that only bans a word.
+             * @member
+             * @type {string | undefined}
+             */
+            this["say"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Also are other admitted wordings for the same thing.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["also"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Not are the wordings to avoid.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["not"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Note says what the rule is about: the concept's definition or the
+             * voice rule's note.
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Locale is the language the rule is stated in, empty for a voice rule.
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (!("from" in $$source)) {
+            /**
+             * From names where the rule is held: `terms`, `voice` or `workspace`.
+             * @member
+             * @type {string[]}
+             */
+            this["from"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextRule instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextRule}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType15;
+        const $$createField2_0 = $$createType15;
+        const $$createField5_0 = $$createType15;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("also" in $$parsedSource) {
+            $$parsedSource["also"] = $$createField1_0($$parsedSource["also"]);
+        }
+        if ("not" in $$parsedSource) {
+            $$parsedSource["not"] = $$createField2_0($$parsedSource["not"]);
+        }
+        if ("from" in $$parsedSource) {
+            $$parsedSource["from"] = $$createField5_0($$parsedSource["from"]);
+        }
+        return new ContextRule(/** @type {Partial<ContextRule>} */($$parsedSource));
+    }
+}
 
 /**
  * ContextScope names how much of the graph a result set could have come from.
@@ -844,9 +977,19 @@ export class ContextSearchResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Notes carries scope-shaped caveats — e.g. that a store the query would
-             * have consulted is not bound. Present so "nothing found" is never
-             * ambiguous between "no answer" and "nowhere to look".
+             * Attention holds what a person or an agent must act on before relying on
+             * the answer: context files nothing has read in, a store that could not be
+             * read. The text answer shows these and nothing else of Notes.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["attention"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Notes carries every caveat, including scope and freshness, e.g. that a
+             * store the query would have consulted is not bound. Present so "nothing
+             * found" is never ambiguous between "no answer" and "nowhere to look".
              * @member
              * @type {string[] | undefined}
              */
@@ -863,11 +1006,12 @@ export class ContextSearchResult {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType4;
-        const $$createField4_0 = $$createType15;
+        const $$createField4_0 = $$createType17;
         const $$createField5_0 = $$createType8;
-        const $$createField6_0 = $$createType20;
+        const $$createField6_0 = $$createType22;
         const $$createField7_0 = $$createType12;
-        const $$createField8_0 = $$createType13;
+        const $$createField8_0 = $$createType15;
+        const $$createField9_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("provenance" in $$parsedSource) {
             $$parsedSource["provenance"] = $$createField3_0($$parsedSource["provenance"]);
@@ -884,8 +1028,11 @@ export class ContextSearchResult {
         if ("profiles" in $$parsedSource) {
             $$parsedSource["profiles"] = $$createField7_0($$parsedSource["profiles"]);
         }
+        if ("attention" in $$parsedSource) {
+            $$parsedSource["attention"] = $$createField8_0($$parsedSource["attention"]);
+        }
         if ("notes" in $$parsedSource) {
-            $$parsedSource["notes"] = $$createField8_0($$parsedSource["notes"]);
+            $$parsedSource["notes"] = $$createField9_0($$parsedSource["notes"]);
         }
         return new ContextSearchResult(/** @type {Partial<ContextSearchResult>} */($$parsedSource));
     }
@@ -1027,7 +1174,7 @@ export class ContextTermHit {
      * @returns {ContextTermHit}
      */
     static createFrom($$source = {}) {
-        const $$createField12_0 = $$createType22;
+        const $$createField12_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("top_uses" in $$parsedSource) {
             $$parsedSource["top_uses"] = $$createField12_0($$parsedSource["top_uses"]);
@@ -1369,7 +1516,7 @@ export class ConvergeLocaleResult {
      * @returns {ConvergeLocaleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType23;
+        const $$createField4_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField4_0($$parsedSource["pct"]);
@@ -1550,9 +1697,9 @@ export class ConvergeOutput {
      * @returns {ConvergeOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType25;
-        const $$createField4_0 = $$createType27;
-        const $$createField15_0 = $$createType29;
+        const $$createField3_0 = $$createType27;
+        const $$createField4_0 = $$createType29;
+        const $$createField15_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -1801,9 +1948,9 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType31;
-        const $$createField4_0 = $$createType30;
-        const $$createField8_0 = $$createType29;
+        const $$createField3_0 = $$createType33;
+        const $$createField4_0 = $$createType32;
+        const $$createField8_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField3_0($$parsedSource["scopes"]);
@@ -2003,22 +2150,24 @@ const $$createType9 = ContextCandidate.createFrom;
 const $$createType10 = $Create.Array($$createType9);
 const $$createType11 = review$0.ProfileValidity.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = $Create.Array($Create.Any);
-const $$createType14 = ContextFilesNotice.createFrom;
-const $$createType15 = $Create.Nullable($$createType14);
-const $$createType16 = contextop$0.Evidence.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = $Create.Map($Create.Any, $Create.Any);
-const $$createType19 = ContextPrecedentHit.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = ContextTermUse.createFrom;
+const $$createType13 = ContextRule.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = $Create.Array($Create.Any);
+const $$createType16 = ContextFilesNotice.createFrom;
+const $$createType17 = $Create.Nullable($$createType16);
+const $$createType18 = contextop$0.Evidence.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = $Create.Map($Create.Any, $Create.Any);
+const $$createType21 = ContextPrecedentHit.createFrom;
 const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = $Create.Map($Create.Any, $Create.Any);
-const $$createType24 = ConvergeLocaleResult.createFrom;
-const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = ParkedScope.createFrom;
+const $$createType23 = ContextTermUse.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = $Create.Map($Create.Any, $Create.Any);
+const $$createType26 = ConvergeLocaleResult.createFrom;
 const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = check$0.Warning.createFrom;
+const $$createType28 = ParkedScope.createFrom;
 const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = UpPlanScope.createFrom;
+const $$createType30 = check$0.Warning.createFrom;
 const $$createType31 = $Create.Array($$createType30);
+const $$createType32 = UpPlanScope.createFrom;
+const $$createType33 = $Create.Array($$createType32);

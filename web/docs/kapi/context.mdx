@@ -253,15 +253,33 @@ the answer.
 
 ### What applies here
 
-Point `kapi context` at a file and it answers for the place that file sits: the
-point it resolved to, the voice profile in force with its full guidance, the
-terms bound there, the candidates nobody has decided on, and the governance
-windows around them. It is one document, written to be read by a person or
+Point `kapi context` at a file before you write it. The answer is a short brief:
+the voice in force, one list of the words to use and to avoid there, and what has
+been suggested but not yet established. It is written to be read by a person or
 dropped into a model's context.
 
 ```bash
-kapi context docs/guide.md
+kapi context docs/billing.md
 ```
+
+```text
+# Writing docs/billing.md
+
+Voice: Fernwell. Plain, second person, for studio owners who are not accountants. Short sentences.
+
+Say this, not that:
+- Fernwell Ledger, not "the Ledger": The product. Always the full name in prose.
+- person, not "seat"
+
+Suggested, not yet established:
+- Quickcast is the forecast feature, always one word, capital Q (claude-code, seen in README.md)
+
+Nothing else is recorded for this file. If you notice a name or spelling the project keeps to, record it with context_observe (or `kapi context observe`).
+```
+
+The word list merges the terms bound at the point with the voice profile's
+vocabulary, so a rule held in both places is one line. The voice shows only the
+fields the profile sets. `kapi voice guide <path>` prints the full profile.
 
 It resolves through the same seam a run, a check and a push resolve through, so
 the voice you read for a file is the voice a run applies to it, including a
@@ -276,10 +294,12 @@ With no file in hand (an ad-hoc draft, a starter pack), name a profile instead:
 kapi context --profile marketing
 ```
 
-Add `--json` for the structured shape. Over MCP the two addresses are resources
-rather than tools, because reading what already applies at a place takes no
-arguments; `context://docs/guide.md?format=json` is the same document `--json`
-prints.
+`--explain` adds how the answer was reached: the point the file sits at, the
+recipe line that bound the voice, the project and workspace revision that
+answered, and every note. `--json` gives all of it as data. Over MCP the two
+addresses are resources rather than tools, because reading what already applies
+at a place takes no arguments; `context://docs/billing.md` is the same text, and
+`context://docs/billing.md?format=json` is the same document `--json` prints.
 
 ### What do we know about this
 
@@ -321,12 +341,21 @@ reads; it is the same shape the MCP tool returns.
 
 Most projects start here, and the first weeks of one are spent filling it in.
 Ask either question in a project that has recorded nothing and you still get an
-answer. It says the project holds nothing at that point yet, and it says what is
-worth noticing while you work: the names this project gives its own things, the
-spellings it keeps to, who the text addresses, how formal it is. It invents no
-rule, because there are none to report. That note is what an agent acts on: it
-records what it notices as it reads, and the next answer has more in it
-([Growing context](/kapi/context-decisions)).
+answer:
+
+```text
+# Writing docs/billing.md
+
+Nothing is recorded for this file yet. Write as the surrounding files do.
+
+While you read, record the names and spellings this project keeps to, such as a product or feature name, with context_observe (or `kapi context observe`).
+```
+
+It invents no rule, because there are none to report. The last line is what an
+agent acts on: it records what it notices as it reads, and the next answer has
+more in it ([Growing context](/kapi/context-decisions)). When the checkout
+carries context files nobody has imported, the answer leads with that and names
+`kapi context import`, which a person runs.
 
 The JSON carries the same fact as a `coverage` value, so a script or an
 assistant can act on it. It counts what is in force at the point: the voice
@@ -351,8 +380,9 @@ elsewhere.
 
 ### Every answer says what it read
 
-Each answer names the project it came from, the revision of your workspace it
-was read at, and whether the content kapi holds still matches the files on disk:
+Each answer records the project it came from, the revision of your workspace it
+was read at, and whether the content kapi holds still matches the files on disk.
+`--explain` prints them:
 
 ```text
 Read from project `prj_7k2n…` at workspace revision 41, content current.

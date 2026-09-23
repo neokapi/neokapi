@@ -38,9 +38,9 @@ script:
   - command: echo '{"kind":"recipe","op":"set","path":"defaults.coordinates.brand","value":"voltway"}' > coordinates.jsonl
   - command: kapi apply coordinates.jsonl
   - comment: Ask any file where it sits. The documentation answers with the docs channel.
-  - command: kapi context docs/quickstart.md
+  - command: kapi context docs/quickstart.md --explain
   - comment: The partner page is three directories away, on another brand, and answers with the portal channel.
-  - command: kapi context partner/index.md
+  - command: kapi context partner/index.md --explain
   - comment: This is what an assistant is handed before it writes a portal page.
   - command: kapi voice guide --profile-file .kapi/voice.yaml --channel portal
   - comment: And this is the gate, over every surface, with no flags.

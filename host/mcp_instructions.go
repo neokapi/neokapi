@@ -5,26 +5,39 @@ package host
 // MCP delivers an `instructions` string to every client at initialize, ahead
 // of the tool list and whether or not the host loads a skill. It is the only
 // text a client with no skill support ever reads about kapi, so it carries the
-// same four habits the skill leads with: ask what applies before writing,
-// record what you notice while you read, record the person's corrections, and
-// check what you changed before reporting the work done.
+// habits the skill leads with: read what applies before writing, record the
+// names and corrections met while working, and check what changed before
+// reporting the work done.
 //
 // It names only what the server serves. A sentence about a verb that does not
 // exist here would be the most expensive kind of wrong, because a model acts
-// on it before it can find out.
+// on it before it can find out. So the text is for the writing set, and a
+// server that does not serve that set sends none.
 
-// MCPInstructions is the server's own introduction, delivered to every client
-// on initialize.
+// MCPInstructions is the server's introduction when it serves the writing
+// set, delivered to every client on initialize.
+//
+// It points at the CLI as well as the resource. Some clients list only
+// concrete resources and never a resource template, so a model there has no
+// way to find `context://` except this text, and the shell command gives it
+// the same answer whether or not its client can read resources.
 func MCPInstructions() string {
-	return `kapi holds this project's content context: the voice in force at a location, the terms bound there, and wording it has already approved. Most projects have recorded little of it, and what you notice while you work is how it grows.
+	return "This project's writing rules are kept by kapi. Before you change a file, read `context://<path>` " +
+		"for it (a project-relative path). It gives the voice and the words to use there, or says nothing " +
+		"is recorded yet. Without resource support, `kapi context <path>` prints the same text.\n\n" +
+		"While you read, record the names and spellings the project keeps to with context_observe. When the " +
+		"person changes your wording, record it with context_correct. If you recorded something wrongly, " +
+		"take it back with context_withdraw. A person decides what becomes a rule.\n\n" +
+		"Before you finish, run check_file on each file you changed, fix what it reports, and end with what " +
+		"context_session_summary says."
+}
 
-Before writing or editing prose here, read ` + "`context://<project-relative-path>`" + ` for the file you are about to change, and call context_search to ask what a word is called here. An empty answer is an answer: this project has recorded nothing at that point, and the answer says what is worth noticing while you work. Both list the candidates nobody has decided on, marked as candidates: build on them, report none as a rule in force.
-
-While you read, call context_observe on what you notice about how the project writes, such as a product name as it spells it. Where it is consistent about a word and nothing records that, call context_propose with the file you saw it in. When the person changes your wording, call context_correct with both wordings and the place. One call records one thing and asks you nothing. What you record advises until a person confirms it, so none of it can fail a check.
-
-After saving a change, call check_file on each file you changed and fix what it reports before you say the work is done. Then call context_session_summary and end your report with what it says.
-
-An answer's ` + "`notice`" + ` names context files nothing has read into the store, which is why it is empty. Say so: a person runs ` + "`kapi context import`" + `.
-
-Every project-scoped tool takes an optional project argument, and the context resource takes ?project=: the project's kapi.yaml, its root directory, or any path inside it. Every answer says which project answered, the workspace revision it was read at, and whether what kapi holds still matches the files on disk.`
+// MCPInstructionsFor is the introduction for a server serving the given tool
+// sets: MCPInstructions when the writing set is among them, and nothing
+// otherwise. A nil selection serves every set.
+func MCPInstructionsFor(sets map[string]bool) string {
+	if sets != nil && !sets[MCPSetWriting] {
+		return ""
+	}
+	return MCPInstructions()
 }

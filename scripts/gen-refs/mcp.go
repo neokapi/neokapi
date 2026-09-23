@@ -15,10 +15,10 @@ import (
 	_ "github.com/neokapi/neokapi/kapi/mcptools"
 )
 
-// Surfaces an MCP tool can belong to. `kapi mcp` serves the curated default;
-// --all-tools and --all-flows widen it.
+// Surfaces an MCP tool can belong to beyond the tool sets. A tool in a set
+// (`kapi mcp --tools <set>`) is labelled with the set's name; --all-tools and
+// --all-flows add tools no set holds.
 const (
-	MCPSurfaceDefault  = "default"
 	MCPSurfaceAllTools = "all-tools"
 	MCPSurfaceAllFlows = "all-flows"
 )
@@ -54,8 +54,8 @@ type MCPResource struct {
 type MCPTool struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	// Surface is which server surface exposes the tool: the curated default, or
-	// the set a --all-tools / --all-flows server adds.
+	// Surface is the tool set that serves the tool (writing, content,
+	// translation, review), or the flag that adds it (all-tools, all-flows).
 	Surface string     `json:"surface"`
 	Params  []MCPParam `json:"params,omitempty"`
 }
@@ -68,18 +68,23 @@ type MCPParam struct {
 	Description string `json:"description,omitempty"`
 }
 
-// collectMCPDataset enumerates each server surface and labels every tool with
-// the narrowest surface that exposes it.
+// collectMCPDataset enumerates the widest server surface and labels every tool
+// with the set that serves it, or the flag that adds it.
 func collectMCPDataset(now string) (MCPDataset, error) {
+	setOf := map[string]string{}
+	for _, set := range cli.MCPToolSetNames() {
+		for _, name := range cli.MCPToolSetTools(set) {
+			setOf[name] = set
+		}
+	}
 	byName := map[string]MCPTool{}
-	// Widest first: a tool the default surface also serves keeps that label.
+	// Flows first: a tool both flags add is labelled all-tools.
 	surfaces := []struct {
 		label   string
 		surface cli.MCPSurface
 	}{
-		{MCPSurfaceAllTools, cli.MCPSurface{AllTools: true}},
 		{MCPSurfaceAllFlows, cli.MCPSurface{AllFlows: true}},
-		{MCPSurfaceDefault, cli.MCPSurface{}},
+		{MCPSurfaceAllTools, cli.MCPSurface{AllTools: true}},
 	}
 	for _, s := range surfaces {
 		tools, err := listMCPTools(s.surface)
@@ -88,6 +93,9 @@ func collectMCPDataset(now string) (MCPDataset, error) {
 		}
 		for _, t := range tools {
 			t.Surface = s.label
+			if set, ok := setOf[t.Name]; ok {
+				t.Surface = set
+			}
 			byName[t.Name] = t
 		}
 	}

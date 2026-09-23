@@ -121,6 +121,9 @@ and lists the comment limits in force there. Ask with --comments before writing
 a comment, in a Go source file or any other.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profile, _, err := a.ResolveVoiceProfileCmd(cmd, args...)
+			if errors.Is(err, ErrNoVoiceBound) {
+				return printNoVoiceGuide(cmd)
+			}
 			if err != nil {
 				return err
 			}
@@ -134,6 +137,16 @@ a comment, in a Go source file or any other.`,
 	AddProfileFlags(cmd)
 	output.AddFlags(cmd.Flags())
 	return cmd
+}
+
+// printNoVoiceGuide answers `kapi voice guide` and `show` in a project that
+// binds no voice where they were asked: that is the guidance in force, the
+// same answer `kapi context <path>` gives, and an assistant told to read the
+// guide before writing gets an answer it can act on rather than an error.
+func printNoVoiceGuide(cmd *cobra.Command) error {
+	return output.Print(cmd, output.VoiceGuideOutput{
+		Guide: "No voice profile is bound at this point, so no tone or style guidance applies.\n",
+	})
 }
 
 func newVoiceCheckCmd(a *App) *cobra.Command {
@@ -438,6 +451,9 @@ func newVoiceShowCmd(a *App) *cobra.Command {
 		Short: "Show a voice profile as a guide",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profile, _, err := a.ResolveVoiceProfileCmd(cmd, args...)
+			if errors.Is(err, ErrNoVoiceBound) {
+				return printNoVoiceGuide(cmd)
+			}
 			if err != nil {
 				return err
 			}

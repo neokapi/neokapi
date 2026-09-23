@@ -11,6 +11,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/segment"
+	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -79,6 +80,18 @@ func TestMCPToolSurfaceSnapshot(t *testing.T) {
 		params.Cursor = res.NextCursor
 	}
 	require.NotEmpty(t, tools)
+
+	// Every tool the default server serves belongs to a tool set, so
+	// `kapi mcp --tools` decides each one (host/mcp_sets.go).
+	classified := map[string]bool{}
+	for _, set := range host.MCPToolSetNames() {
+		for _, name := range host.MCPToolSetTools(set) {
+			classified[name] = true
+		}
+	}
+	for _, tool := range tools {
+		assert.Truef(t, classified[tool.Name], "%s is in no tool set; add it to one in host/mcp_sets.go", tool.Name)
+	}
 
 	type toolSnapshot struct {
 		Name        string          `json:"name"`

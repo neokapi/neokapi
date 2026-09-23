@@ -273,10 +273,17 @@ export interface ModelDataset {
 // ── MCP reference ───────────────────────────────────────────────────────────
 
 /**
- * Which `kapi mcp` surface exposes a tool: the curated default an assistant
- * gets on connect, or the sets `--all-tools` / `--all-flows` add.
+ * Which `kapi mcp` surface exposes a tool: the tool set that serves it
+ * (`--tools <set>`, `writing` by default), or the flag that adds a tool no set
+ * holds (`--all-tools`, `--all-flows`).
  */
-export type MCPSurface = "default" | "all-tools" | "all-flows";
+export type MCPSurface =
+  | "writing"
+  | "content"
+  | "translation"
+  | "review"
+  | "all-tools"
+  | "all-flows";
 
 /** One top-level property of an MCP tool's input schema. */
 export interface MCPParam {

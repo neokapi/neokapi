@@ -102,11 +102,15 @@ var neverAgentFacing = map[string]bool{
 	"script":           true, // "Run a JavaScript processing script on each part"
 }
 
-// MCPSurface widens the exposed tool set. It is set from flags on `kapi mcp`
-// (--all-tools / --all-flows / --all) rather than an environment variable: the
-// surface an assistant sees is a property of how the server was started, so it
-// belongs on the command that starts it, where `--help` lists it.
+// MCPSurface is the tool surface a server exposes. It is set from flags on
+// `kapi mcp` (--tools, --all-tools, --all-flows, --all) rather than an
+// environment variable: the surface an assistant sees is a property of how the
+// server was started, so it belongs on the command that starts it, where
+// `--help` lists it.
 type MCPSurface struct {
+	// Sets are the tool sets served (see mcp_sets.go). nil serves every set,
+	// for a caller that builds a server without going through `kapi mcp`.
+	Sets map[string]bool
 	// AllTools exposes every CLI-visible registry tool instead of the curated
 	// set — pipeline steps, format internals, one-off transforms.
 	AllTools bool

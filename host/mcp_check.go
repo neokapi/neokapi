@@ -42,18 +42,11 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "check_file",
-		Description: "Check the content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) with " +
-			"format-aware extraction and the voice and terms in force at that file's location. " +
-			"Run it on every file you changed, and fix what it reports, before you say the work is done. " +
-			"To check only the blocks a change touched, pass diff (unified diff text), diff_against (a git " +
-			"revision), staged (the changes staged for commit, read from the index) or diff_range (A..B or A...B, " +
-			"read from B); each touched block is checked whole, with the lines it spans, and report.scope names " +
-			"every changed file and what became of it. Before editing, read the " +
-			"context://<project-relative-path> resource. Returns a kapi.check/v1 " +
-			"Report with effective scope in execution.contexts and configuration warnings, which never change " +
-			"pass; pass is not semantic approval. " +
-			"Omit profile_file/profile_pack to use the file's project profile and channel. Supplying either " +
-			"replaces that voice selection with an explicit override; project terms still apply. Pass target/target_lang to also run bilingual checks.",
+		Description: "Check a file you changed against the voice and terms in force at its location, in any " +
+			"format kapi reads (Markdown, JSON, Word, XLIFF and more). Run it on every file you changed and fix " +
+			"what it reports before you say the work is done. To check only what a change touched, pass diff, " +
+			"diff_against (a git revision), staged, or diff_range (A..B). Returns a kapi.check/v1 report: " +
+			"findings, and which analyzers covered the content. A pass is not semantic approval.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in checkFileInput) (*mcp.CallToolResult, check.Report, error) {
 		return a.checkFileMCP(ctx, in)
 	})

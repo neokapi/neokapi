@@ -251,7 +251,7 @@ func TestContextSearch_ReportsAnUnseededStore(t *testing.T) {
 
 	out, err := runCLI(t, NewContextCmd(a), "search", "mooring", "--project", recipe)
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "kapi up", "an unseeded store must name the verb that seeds it")
+	assert.Contains(t, out, "kapi context import", "an unseeded store must name the verb that seeds it")
 }
 
 // TestMonolingual_IsNotAssumedFromDefaultsAlone: a recipe that names its

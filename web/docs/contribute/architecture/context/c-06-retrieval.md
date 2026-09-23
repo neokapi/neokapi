@@ -98,7 +98,8 @@ what makes the rendering a property rather than a second tool.
 The by-location primitive renders as **prose for a model** (`text/markdown`) or
 **structured for a program** (`application/json`). MCP resources carry a mime
 type, so this is a property of the resource rather than a second entry point; the
-CLI expresses it as `--json`. On the wire the rendering rides on the address as
+CLI expresses it as `--json`, and adds `--explain` for a person who wants the
+prose with how it was reached. On the wire the rendering rides on the address as
 `?format=json`, and the mime type on the response states which was served. A
 format nobody recognises is an error: a caller that asked for a shape it can
 parse must not be handed prose it cannot.
@@ -107,6 +108,31 @@ That is what dissolves a `voice_guide`-shaped tool. Such a tool conflates three
 concerns (voice only, by name only, markdown only) into one narrow point. Once
 content is the whole context, addressing covers by-name, and rendering is a
 property, nothing is left over.
+
+### The prose is the task
+
+The markdown answer is the brief a writer reads before changing a file, and
+nothing about how the answer was reached:
+
+- the **voice** in a sentence or two: its name, its description, and the tone
+  and style fields the profile sets, with no line for a field it leaves unset,
+  then its patterns, comment limits, examples and shared constraints
+  (`profile.RenderVoiceBrief`);
+- one list, **Say this, not that**, merging the terms in force at the point, the
+  rules confirmed across the workspace and the voice's vocabulary at render
+  time, keyed by the wording to use, so a rule held in two places is one line
+  (`host/contextrules.go`); storage keeps the three apart;
+- the candidates under **Suggested, not yet established**, less any the list
+  already states;
+- a closing line naming `context_observe` (and `kapi context observe`), because
+  what the writer notices while reading is how the next answer gets better.
+
+Notes appear in the prose only when a person or an agent must act before relying
+on the answer: a checkout whose context nobody has imported into the store, a voice or terms binding that
+failed to load, a governance change since the last read, or a location a profile
+claims, which can answer differently from the rest of the project. The JSON
+carries them as `attention`. Everything else, the point, the binding field, the
+scope, the provenance and every other note, is in the JSON and in `--explain`.
 
 ### What folds in, and what does not
 
@@ -199,18 +225,20 @@ what it proposes, who recorded it, in which session, and the evidence behind it,
 with the operation id a person confirms it by. The rules in it are the ones the
 resolution holds at the point, so the list and a check cannot disagree, and the
 operation log supplies the provenance a reader judges one by. The prose
-rendering puts them under a heading that says they are not decided.
+rendering lists them under **Suggested, not yet established**.
 
 A second agent reading a location therefore builds on what the first one
 recorded rather than working the same facts out again, and cannot mistake either
 for a rule in force. Neither can it act on them: deciding is a person's
 ([C-11](c-11-context-operations.md)).
 
-A thin or empty by-location answer adds one note: that this project records
-nothing here yet, and what is worth noticing while the work is done (the names
-the project gives its own things, the spellings it keeps to, who the text
+A thin or empty by-location answer adds one note to the JSON: that this project
+records nothing here yet, and what is worth noticing while the work is done (the
+names the project gives its own things, the spellings it keeps to, who the text
 addresses, how formal it is). Where candidates stand behind a thin answer, the
-note counts them and says they are waiting to be confirmed or discarded. It
+note counts them and says they are waiting to be confirmed or discarded. The
+prose says it in two sentences: nothing is recorded for this file yet, and
+record the names and spellings the project keeps to with `context_observe`. It
 **states no rule**, because none is in force, and handing a writer a proposal
 the project has not agreed to is the one outcome worse than saying nothing.
 
@@ -240,9 +268,13 @@ the stat moved. It costs no walk of the tree, which matters on a path an agent
 hits repeatedly inside one thought, and it is what tells a caller that a term's
 use count describes the files as they were rather than as they are.
 
-This reports position on every answer. The staleness note beside it
-([C-05](c-05-freshness.md)) reports movement, once, to the answer that first
-spans it. Neither resolves.
+This reports position on every answer, in the JSON and under `--explain`. The
+staleness note beside it ([C-05](c-05-freshness.md)) reports movement, once, to
+the answer that first spans it. Neither resolves.
+
+A project kapi has read no content from yet is stale in the JSON, and its note
+says that only the term use counts are empty. The guidance in the answer does
+not depend on them, so the note names no command to run.
 
 ### Results are grouped, never merged into one ranking
 
@@ -270,14 +302,14 @@ in its place) as a note.
 
 ### The generated surface is opt-in
 
-MCP exposes a **curated** set by default: the two retrieval primitives, the check
-tools (`check_text`, `check_file`), `stats`, the convergence verbs (`up`,
-`up_plan`), the write verb (`apply_edits`), the two offline voice tools, the
-three context write tools and the session read (`context_observe`,
-`context_propose`, `context_correct`, `context_session_summary`,
-[C-11](c-11-context-operations.md)), and three registry tools that have no
-porcelain equivalent (`translate`, `term-check`, `redact`). `kapi mcp
---all-tools` restores the full generated surface for debugging and power use.
+MCP serves **tool sets** ([S-03](../surfaces/s-03-agent-surfaces.md)), and the
+writing set is the default: the two retrieval primitives, the context write
+tools and the session read (`context_observe`, `context_propose`,
+`context_correct`, `context_withdraw`, `context_session_summary`,
+[C-11](c-11-context-operations.md)), and `check_file`. The content, translation
+and review sets carry the rest of the porcelain, with three registry tools that
+have no porcelain equivalent (`translate`, `term-check`, `redact`). `kapi mcp
+--all-tools` adds the full generated surface for debugging and power use.
 
 **The tools that execute arbitrary commands and scripts are not part of that
 flag.** *Show me every tool* and *let a caller run anything* are different classes

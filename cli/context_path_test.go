@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/host"
@@ -123,18 +124,24 @@ func TestContextPath_PrintsTheHostRender(t *testing.T) {
 	assert.Equal(t, want.String(), got)
 }
 
-// TestContextPath_AnswersWhatAppliesHere: the point, the voice in force and the
-// vocabulary bound there, in one document — the question a writer actually has.
+// TestContextPath_AnswersWhatAppliesHere: the voice in force and the words to
+// use there, in one document, which is the question a writer has. --explain
+// adds how the answer was reached.
 func TestContextPath_AnswersWhatAppliesHere(t *testing.T) {
 	writeGovernedProject(t)
 
 	got := runContext(t, &App{}, "docs/guide.md")
 
-	assert.Contains(t, got, "# Context at docs/guide.md")
-	assert.Contains(t, got, "Point `acme/docs`: profile `acme`, channel `docs`, collection `acme-docs`, coordinates channel=`docs`, product=`acme`.")
-	assert.Contains(t, got, "## Voice Guide: Acme")
-	assert.Contains(t, got, "~~translation memory~~ → say **content memory**")
-	assert.Contains(t, got, "Answered from this project alone")
+	assert.Contains(t, got, "# Writing docs/guide.md")
+	assert.Contains(t, got, "Voice: Acme.")
+	assert.Contains(t, got, "Say this, not that:\n- content memory, not \"translation memory\"")
+	assert.NotContains(t, got, "Point `acme/docs`", "where the file sits is for --explain")
+	assert.NotContains(t, got, "Answered from this project alone")
+
+	explained := runContext(t, &App{}, "docs/guide.md", "--explain")
+	assert.True(t, strings.HasPrefix(explained, got), "--explain adds to the answer and changes none of it")
+	assert.Contains(t, explained, "Point `acme/docs`: profile `acme`, channel `docs`, collection `acme-docs`, coordinates channel=`docs`, product=`acme`.")
+	assert.Contains(t, explained, "Answered from this project alone")
 }
 
 // TestContextPath_JSONIsTheSameDocument: --json is the structured rendering of
@@ -160,7 +167,7 @@ func TestContextPath_JSONIsTheSameDocument(t *testing.T) {
 func TestContextPath_UnclaimedPathSaysSo(t *testing.T) {
 	writeGovernedProject(t)
 
-	got := runContext(t, &App{}, "README.md")
+	got := runContext(t, &App{}, "README.md", "--explain")
 
 	assert.Contains(t, got, "This location sits at the project's default point: no profile claims it.")
 }
@@ -173,7 +180,7 @@ func TestContextPath_NoAddressShowsHelp(t *testing.T) {
 	got := runContext(t, &App{})
 
 	assert.Contains(t, got, "kapi context <path>")
-	assert.Contains(t, got, "kapi context search <query>")
+	assert.Contains(t, got, "kapi context search <word>")
 }
 
 // writeTwoVoiceProject builds a project whose profile binds its own voice file,
@@ -247,9 +254,9 @@ func TestContextPath_RelativePathBoundByFlagResolvesAgainstTheProject(t *testing
 	root := writeTwoVoiceProject(t)
 	foreignCwd(t)
 
-	got := runContext(t, &App{}, "docs/guide.md", "-p", root)
+	got := runContext(t, &App{}, "docs/guide.md", "-p", root, "--explain")
 
-	assert.Contains(t, got, "# Context at docs/guide.md")
+	assert.Contains(t, got, "# Writing docs/guide.md")
 	assert.Contains(t, got, "Point `guides/docs`: profile `guides`, channel `docs`, collection `acme-guides`, coordinates channel=`docs`, product=`guides`.")
 	assert.Contains(t, got, "Voice `Acme Guides`, bound by `profiles.guides.voice`")
 	assert.NotContains(t, got, "default point")
@@ -276,9 +283,9 @@ func TestContextPath_RelativePathFromASubdirectoryStillReadsAgainstCwd(t *testin
 	root := writeTwoVoiceProject(t)
 	t.Chdir(filepath.Join(root, "docs"))
 
-	got := runContext(t, &App{}, "guide.md", "-p", root)
+	got := runContext(t, &App{}, "guide.md", "-p", root, "--explain")
 
-	assert.Contains(t, got, "# Context at docs/guide.md")
+	assert.Contains(t, got, "# Writing docs/guide.md")
 	assert.Contains(t, got, "Point `guides/docs`: profile `guides`, channel `docs`, collection `acme-guides`, coordinates channel=`docs`, product=`guides`.")
 }
 
