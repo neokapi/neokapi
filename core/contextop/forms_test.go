@@ -36,9 +36,8 @@ func TestAvoidedForms(t *testing.T) {
 			want: []string{"Kapi-Desktop", "KapiDesktop", "kapi desktop"},
 		},
 		{
-			name: "a lower-case phrase is only hyphenated",
-			term: "content memory",
-			want: []string{"content-memory"},
+			name: "a lower-case phrase derives nothing",
+			term: "sign in",
 		},
 		{
 			name:      "a lower-case closed word split like a given form",

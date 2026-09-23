@@ -44,8 +44,9 @@ func ObservedRule(term string, insteadOf []string) profile.TermRule {
 //   - A compound yields the spaced form, the hyphenated form and, when the
 //     term is capitalised or written closed, the closed form and the form with
 //     every part capitalised: `Quickcast` gives `Quick cast`, `Quick-cast` and
-//     `QuickCast`. A lower-case phrase such as `content memory` yields only
-//     `content-memory`, because nobody writes it closed.
+//     `QuickCast`. A lower-case phrase such as `sign in` yields nothing: its
+//     hyphenated and closed spellings are often words of their own (the
+//     `sign-in` page), so only the forms given in insteadOf are avoided.
 //   - A capitalised term yields its lower-case spelling: `Quickcast` gives
 //     `quickcast`.
 //
@@ -79,8 +80,8 @@ func AvoidedForms(term string, insteadOf []string) []string {
 		}
 	}
 	capitalised := startsUpper(term)
-	if len(parts) >= 2 {
-		spaced := strings.ContainsAny(term, " -_")
+	spaced := strings.ContainsAny(term, " -_")
+	if len(parts) >= 2 && (capitalised || !spaced) {
 		add(strings.Join(parts, " "))
 		add(strings.Join(parts, "-"))
 		if capitalised || !spaced {
