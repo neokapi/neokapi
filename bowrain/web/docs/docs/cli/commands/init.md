@@ -179,7 +179,7 @@ kapi status  # finds kapi.yaml up the tree
 - `kapi.yaml`: the recipe (single source of truth)
 - the agent wiring `kapi init` wrote: `.mcp.json` and `.claude/skills/kapi/SKILL.md`, and the other hosts' files where it wrote them
 
-**Do NOT commit** `.kapi/`: it is this checkout's cache (`work/store.db`, the caches, the redaction vault, your saved filters), and `kapi init` writes an ignore rule that keeps all of it out.
+**Do NOT commit** `.kapi/`: it is this checkout's cache (`work/store.db`, the caches, the redaction vault, your personal saved filters), and `kapi init` writes an ignore rule that keeps all of it out.
 
 Auth tokens are never written to the project. They live in the OS keychain (keys `bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`); non-secret metadata sits in `auth.json` in the bowrain config directory (`~/.config/bowrain` on Linux, `~/Library/Application Support/bowrain` on macOS).
 

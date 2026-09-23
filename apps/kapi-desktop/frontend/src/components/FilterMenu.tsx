@@ -63,7 +63,13 @@ export function FilterMenu({ project }: { project: KapiProject }) {
             <DropdownMenuItem key={f.id} onClick={() => void setActive(f.id)}>
               <Check size={14} className={activeId === f.id ? "opacity-100" : "opacity-0"} />
               <span className="flex-1 truncate">{f.name}</span>
-              {f.shared && <Users size={11} className="text-muted-foreground" />}
+              {f.shared && (
+                <Users
+                  size={11}
+                  className="text-muted-foreground"
+                  aria-label={t("Shared with the project's team")}
+                />
+              )}
               <span
                 role="button"
                 tabIndex={0}
@@ -235,14 +241,21 @@ function FilterEditorDialog({
             </div>
           )}
 
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={shared} onCheckedChange={() => setShared(!shared)} />
-            {t("Save to project")}
-            <Badge variant="outline" className="gap-1 font-normal">
-              <Users size={10} />
-              {t("shared")}
-            </Badge>
-          </label>
+          <div className="space-y-1">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={shared} onCheckedChange={() => setShared(!shared)} />
+              {t("Share with the project's team")}
+              <Badge variant="outline" className="gap-1 font-normal">
+                <Users size={10} />
+                {t("shared")}
+              </Badge>
+            </label>
+            <p className="pl-6 text-xs text-muted-foreground">
+              {shared
+                ? t("Kept with the project's context, so every checkout of the project lists it.")
+                : t("Kept on this machine, for this checkout only.")}
+            </p>
+          </div>
           {narrowsNothing && (
             <p className="text-xs text-muted-foreground">
               {t("This filter narrows nothing yet. It will behave like “All”.")}

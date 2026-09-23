@@ -25,7 +25,8 @@ lives there; run is the escape hatch for one named pipeline, one pass.
 Built-in flows:
   translate-qa    Translate + quality check using AI/LLM
 
-Custom flows can be defined in the kapi.yaml recipe or .kapi/flows/ as YAML files.
+Custom flows are defined inline in the kapi.yaml recipe under flows:, or one
+YAML file per flow in the directory the recipe names with flows_dir:.
 
 Use -p to run a flow from a kapi.yaml recipe:
   kapi run translate -p kapi.yaml`,

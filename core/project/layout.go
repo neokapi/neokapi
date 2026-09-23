@@ -32,7 +32,7 @@ type Layout struct {
 // the user's workspace, one store per project, shared by every checkout. What
 // kapi writes under `.kapi/` is derived from the working tree beside it or
 // belongs to this machine: the block store, the caches, the redaction vault and
-// the saved filters. Deleting the directory costs a re-extraction, except for
+// the personal saved filters. Deleting the directory costs a re-extraction, except for
 // the vault (see VaultDirName).
 //
 // A person may still keep context files here: `kapi context snapshot --out
@@ -147,23 +147,15 @@ const RecipeFileName = "kapi.yaml"
 // parse.
 const CacheDirName = "cache"
 
-// FiltersFilename / LocalFiltersFilename hold saved content filters (the
-// desktop "Active Filter"). Both sit in this checkout's cache directory; the
-// shared set travels only in a project that commits it under an ignore rule of
-// its own.
-const (
-	FiltersFilename      = "filters.json"
-	LocalFiltersFilename = "filters.local.json"
-)
+// LocalFiltersFilename holds this checkout's personal saved content filters
+// (the desktop "Active Filter") and which one is active. The filters a team
+// shares are a setting of the project, kept in its context store
+// (projectdb.SettingSavedFilters).
+const LocalFiltersFilename = "filters.local.json"
 
 // CacheDir returns the absolute path to the regenerable-cache subdirectory.
 func (l Layout) CacheDir() string {
 	return filepath.Join(l.WorkDir(), CacheDirName)
-}
-
-// FiltersPath returns the path to the shared saved-filters file.
-func (l Layout) FiltersPath() string {
-	return filepath.Join(l.StateDir, FiltersFilename)
 }
 
 // LocalFiltersPath returns the path to the personal saved-filters file.
@@ -349,7 +341,7 @@ func cacheOnly(dir string) bool {
 	}
 	for _, e := range entries {
 		switch e.Name() {
-		case WorkDirName, FiltersFilename, LocalFiltersFilename, StateGitignoreFilename:
+		case WorkDirName, LocalFiltersFilename, StateGitignoreFilename:
 		default:
 			return false
 		}

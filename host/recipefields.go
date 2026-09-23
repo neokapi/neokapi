@@ -26,23 +26,17 @@ func (a *App) WarnInertRecipeFields(cmd Command, proj *project.KapiProject) {
 	}
 }
 
-// UnsyncedCoordinatesWarning is what a run prints when a project binds a
-// VOCABULARY to a region of its context space and is also connected to a
+// UnsyncedCoordinatesWarning is what a run prints when a project binds a terms
+// store to a profile (`profiles.<name>.termstore`) and is also connected to a
 // server.
 //
-// It used to cover the whole context space, because none of it reached the
-// server: a local run resolved the coordinates while the server, having no
-// collection rows to resolve them from, fell back to the project-wide voice.
-// The context content type closed that half — a push now carries every declared
-// collection, its point and the voice governing it, so both venues resolve the
-// same voice for the same content.
-//
-// What it does not close is `profiles[].terms:`. That is a path into the local
-// project, and a path means nothing to a server that governs terminology from
-// the workspace vocabulary. So the caveat survives, narrowed to the case that
-// still has it: the same content checked against two different vocabularies
-// depending on where the loop ran.
-const UnsyncedCoordinatesWarning = "warning: a profile's terms: binding applies to local runs only. " +
+// A push carries every declared collection, its point and the voice governing
+// it, so both venues resolve the same voice for the same content. A profile's
+// termstore names a store this machine keeps, which a push does not carry, so
+// the server checks that content against the workspace vocabulary instead: the
+// same content checked against two vocabularies depending on where the loop
+// ran.
+const UnsyncedCoordinatesWarning = "warning: a profile's termstore: binding applies to local runs only. " +
 	"This project is connected to a server, which checks terminology against the workspace vocabulary"
 
 // WarnUnsyncedCoordinates writes UnsyncedCoordinatesWarning to w when the recipe

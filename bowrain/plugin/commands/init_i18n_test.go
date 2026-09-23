@@ -32,7 +32,7 @@ func TestApplyFrameworkPreset_NeokapiI18nCleanLayout(t *testing.T) {
 
 	assert.DirExists(t, proj.StateDir(), "init creates the cache directory")
 	assert.NoFileExists(t, filepath.Join(proj.StateDir(), "manifest.yaml"))
-	assert.NoDirExists(t, proj.FlowsDirPath(), "init writes no flow into the cache")
+	assert.Empty(t, proj.FlowsDirPath(), "init names no flows directory")
 
 	gi, err := os.ReadFile(filepath.Join(proj.StateDir(), ".gitignore"))
 	require.NoError(t, err)

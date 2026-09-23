@@ -156,7 +156,6 @@ func TestLayout_WorkHoldsEveryDerivedPath(t *testing.T) {
 	assert.Equal(t, filepath.Join(layout.StateDir, "memory"), layout.Export().MemoryDir())
 	assert.Equal(t, filepath.Join(layout.StateDir, "profiles"), layout.Export().ProfilesDir())
 	assert.Equal(t, filepath.Join(layout.Export().ProfilesDir(), "bowrain"), layout.Export().ProfileDir("bowrain"))
-	assert.Equal(t, filepath.Join(layout.StateDir, "filters.json"), layout.FiltersPath())
 	assert.Equal(t, filepath.Join(layout.StateDir, "filters.local.json"), layout.LocalFiltersPath())
 }
 

@@ -66,12 +66,13 @@ kapi run translate-qa
 
 ## Custom flows
 
-Define a flow as a YAML file under `.kapi/flows/`, composing the tools you need.
+Define a flow as a YAML file in the directory your recipe names with
+`flows_dir:` (here `flows_dir: flows`), composing the tools you need.
 Step config keys are the tool's own schema keys, in camelCase, as the
 [tool reference](https://neokapi.github.io/reference/tools/translate) lists
 them; an unrecognized key is ignored.
 
-`.kapi/flows/translate-with-checks.yaml`:
+`flows/translate-with-checks.yaml`:
 
 ```yaml
 name: translate-with-checks

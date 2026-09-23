@@ -21,7 +21,7 @@ one database per project, reached by every clone and worktree of it
 
 `.kapi/` beside the recipe is the one directory kapi owns in a checkout, and it
 is a **disposable cache for that checkout only**: the block store, the caches,
-the redaction vault and the saved reader filters. `kapi init` writes an ignore
+the redaction vault and a person's own saved reader filters. `kapi init` writes an ignore
 rule into it that keeps the whole directory out of version control, and
 deleting it costs a re-extraction.
 
@@ -67,9 +67,7 @@ my-app/
 ├── .claude/skills/kapi/SKILL.md
 ├── .kapi/                      ← THIS CHECKOUT'S CACHE (ignored as a whole)
 │   ├── .gitignore              ← `*`, written by kapi init
-│   ├── filters.json            ← saved reader filters
 │   ├── filters.local.json      ← personal saved filters
-│   ├── flows/                  ← file-per-flow definitions (E-04), when used
 │   └── work/
 │       ├── store.db            ← this checkout's projection (C-03)
 │       ├── vault/              ← withheld originals (C-10), local-only
@@ -78,6 +76,7 @@ my-app/
 │           ├── redaction/      ← per-batch vault sidecars (C-10)
 │           ├── refs.json       ← the observed freshness refs (C-05)
 │           └── collections/    ← overlay layers per collection
+├── flows/                      ← file-per-flow definitions named by flows_dir (E-04), when used
 ├── src/                        ← authored sources (user-owned)
 └── i18n/                       ← writer output (generated)
 ```
@@ -105,10 +104,13 @@ Ownership, zone by zone:
   `work/store.db` is the projection of the working tree: the block cache, the
   overlays a flow wrote, the extraction stamps
   ([C-03](c-03-context-store-and-graph.md)). Beside it sit the caches, the
-  redaction vault ([C-10](c-10-redaction.md)) and the saved reader filters.
-  `flows/` is read by `kapi run` for file-per-flow definitions
-  ([E-04](../engine/e-04-flows-and-io-binding.md)); a project that keeps flow
-  files there commits them under an ignore rule of its own.
+  redaction vault ([C-10](c-10-redaction.md)) and the personal saved reader
+  filters with the choice of the active one. Nothing authored lives here: the
+  filters a team shares are a setting of the project, kept in its context store
+  (`core/projectdb.SettingSavedFilters`), and a project's flow files sit in the committed
+  directory its recipe names with `flows_dir:`
+  ([E-04](../engine/e-04-flows-and-io-binding.md)), and kapi reads nothing
+  from `.kapi/flows/`.
   A second clone and a git worktree each keep a `.kapi/` of their own and share
   one context store.
 

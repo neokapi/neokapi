@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -147,8 +149,25 @@ func TestInitCmd_framework(t *testing.T) {
 	require.Len(t, items, 1)
 	assert.Equal(t, "lib/l10n/app_en.arb", items[0].Path)
 	require.NotNil(t, items[0].Format)
-	assert.Equal(t, "json", items[0].Format.Name)
+	assert.Equal(t, "arb", items[0].Format.Name, "ARB catalogs read with the arb format")
 	assert.Equal(t, "lib/l10n/app_{lang}.arb", items[0].Target)
+}
+
+// Every built-in framework preset maps its catalogs to a format this build
+// registers, with both a reader and a writer, so a recipe `kapi init
+// --framework` scaffolds reads and writes its content.
+func TestFrameworkPresets_MapToRegisteredFormats(t *testing.T) {
+	app := newAppForTest(t)
+	reg := preset.NewPresetRegistry()
+	preset.RegisterBuiltins(reg)
+
+	for _, p := range reg.ListFrameworkPresets() {
+		for _, m := range p.Mappings {
+			id := registry.FormatID(m.Format)
+			assert.True(t, app.FormatReg.HasReader(id), "preset %s maps %s to %q, which has no reader", p.Name, m.Local, m.Format)
+			assert.True(t, app.FormatReg.HasWriter(id), "preset %s maps %s to %q, which has no writer", p.Name, m.Local, m.Format)
+		}
+	}
 }
 
 func TestInitCmd_frameworkNeokapiI18nScaffoldsCleanLayout(t *testing.T) {

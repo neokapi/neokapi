@@ -68,11 +68,11 @@ For finer control, run a single tool with `kapi exec`, or a custom flow with `ka
 # Run one tool over the project's collections
 kapi exec translate
 
-# Or run a custom flow declared in .kapi/flows/translate-website.yaml
+# Or run a custom flow declared in flows/translate-website.yaml
 kapi run translate-website
 ```
 
-A custom flow composes tools into a pipeline. `.kapi/flows/translate-website.yaml`:
+A custom flow composes tools into a pipeline. `flows/translate-website.yaml`, with `flows_dir: flows` in `kapi.yaml`:
 
 ```yaml
 name: translate-website
@@ -148,9 +148,9 @@ kapi declares its tree on every push, so only changed blocks transfer over the n
 
 ## Tips
 
-- **Initialize projects with `kapi init`** to write a `kapi.yaml` recipe and a committed `.kapi/` directory
+- **Initialize projects with `kapi init`** to write a `kapi.yaml` recipe and the checkout's `.kapi/` cache
 - **Bind a voice profile and a terms store** in `defaults:` so drafts and checks read the same context
-- **Define custom flows** in `.kapi/flows/` for your specific workflow
+- **Define custom flows** in the directory `flows_dir:` names, for your specific workflow
 - **Put `recycle` before `translate`** to reuse approved wording before spending credits
 - **Run `kapi pseudo-translate`** first to identify potential UI truncation issues
 - **Use local automations** to run the checks before pushing to a workspace

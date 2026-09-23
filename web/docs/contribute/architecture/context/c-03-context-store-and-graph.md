@@ -19,8 +19,10 @@ it, so it belongs beside the tree it describes and a second checkout of the same
 project keeps one of its own.
 
 The **context store** lives in a **workspace**, outside every checkout: the
-terms, the voice profiles, the content memory, and the unit decision ledger
-([C-04](c-04-unit-state-and-decisions.md)). It is authored rather than derived,
+terms, the voice profiles, the content memory, the unit decision ledger
+([C-04](c-04-unit-state-and-decisions.md)), and the project's settings: team
+choices about the project that are neither content nor governance, such as the
+saved filters a team shares (`projectdb.Setting`). It is authored rather than derived,
 written a little at a time, and true wherever the project is checked out. Two
 checkouts of one project, a second clone and a git worktree, share it, and each
 keeps its own view of the one ledger.

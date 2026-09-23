@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"gopkg.in/yaml.v3"
@@ -42,7 +43,8 @@ import (
 // workspace is built rather than left for the agent to name a flag for.
 //
 // The voice is bound by name, the id the profile carries (pullProfileID); the
-// store answers for it once `kapi context import` has read `.kapi/voice.yaml`.
+// store answers for it once `kapi context import` has read `.kapi/voice.yaml`,
+// which importPulledContext runs before the agent starts.
 const pullProject = `version: v1
 name: ripgrep-docs
 defaults:
@@ -146,6 +148,27 @@ func writePulledProject(tree string, profile *coreprofile.VoiceProfile) error {
 	return os.WriteFile(filepath.Join(tree, "kapi.yaml"), fmt.Appendf(nil, pullProject, pullProfileID(profile)), 0o644)
 }
 
+// importPulledContext reads the workspace's `.kapi/` into the store the arm's
+// kapi answers from, as the person who set the project up. A project's context
+// files are in force only once they are imported, and kapi refuses an agent's
+// import, so the harness does it on the person's behalf, the way a teammate
+// runs `kapi context import` once after cloning. Without it `kapi voice guide`
+// finds the binding and no profile, and the arm fetches nothing.
+//
+// It runs with the arm's own environment, so the import lands in the store the
+// agent's kapi later reads.
+func importPulledContext(ctx context.Context, kapiBin, home, tree string) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, kapiBin, "context", "import", "-p", filepath.Join(tree, "kapi.yaml"))
+	cmd.Dir = tree
+	cmd.Env = append(append(agentEnv(), pullEnv(home, tree)...), "KAPI_ACTOR=person")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("`kapi context import` in the pulled workspace: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 // pullProfileID is the id an import stores the pulled profile under: the id it
 // declares, else a slug of its name.
 func pullProfileID(p *coreprofile.VoiceProfile) string {
@@ -176,10 +199,10 @@ func pullProfileID(p *coreprofile.VoiceProfile) string {
 // at all is the same defect wearing a worse disguise — `kapi voice guide` would
 // exit non-zero, the agent would shrug and write the bare document, and the arm
 // would publish as "the model ignored the context".
-func verifyPull(ctx context.Context, kapiBin, tree, want string) error {
+func verifyPull(ctx context.Context, kapiBin, home, tree, want string) error {
 	cmd := exec.CommandContext(ctx, kapiBin, "voice", "guide")
 	cmd.Dir = tree
-	cmd.Env = append(agentEnv(), pullEnv(filepath.Dir(tree), tree)...)
+	cmd.Env = append(agentEnv(), pullEnv(home, tree)...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -208,7 +231,10 @@ func checkPull(ctx context.Context, root, kapiBin string, profile *coreprofile.V
 	if err != nil {
 		return err
 	}
-	return verifyPull(ctx, kapiBin, tree, want)
+	if err := importPulledContext(ctx, kapiBin, home, tree); err != nil {
+		return err
+	}
+	return verifyPull(ctx, kapiBin, home, tree, want)
 }
 
 // pullEnv is the isolation contract for an arm that must find a project.

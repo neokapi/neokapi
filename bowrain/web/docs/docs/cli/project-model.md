@@ -15,8 +15,7 @@ my-app/
 ├── .mcp.json                   # agent wiring written by kapi init (committed)
 ├── .kapi/                      # this checkout's cache, ignored as a whole
 │   ├── .gitignore              # `*`, written by kapi init
-│   ├── filters.json            # saved reader filters
-│   ├── flows/                  # optional file-per-flow definitions
+│   ├── filters.local.json      # personal saved reader filters
 │   └── work/
 │       ├── store.db            # this checkout's projection of its working tree
 │       ├── vault/              # withheld redaction originals (local-only)
@@ -24,6 +23,7 @@ my-app/
 │           ├── sync-cache.json  # the tree last declared to the server
 │           ├── extractions/
 │           └── collections/
+├── flows/                      # file-per-flow definitions, named by flows_dir (optional)
 └── src/
     └── locales/
         ├── en/
@@ -35,7 +35,7 @@ my-app/
 Ownership zones at the project root:
 
 - **`kapi.yaml`**: hand-edited, committed to git. The recipe is the single source of truth for project configuration. Its fixed, conventional filename means every editor and code host (GitHub, GitLab) applies YAML syntax highlighting to diffs and previews with no configuration. One thing writes it besides you: an axis approved on the server arrives as a [`kapi pull`](/cli/commands/pull) that edits `defaults.coordinates`, for review in git.
-- **`.kapi/`**: this checkout's cache, kept out of git. `work/store.db` is the checkout's projection of its working tree: the block cache, the overlays a run wrote, the extraction stamps. It rebuilds from the content files. `work/cache/` holds everything cheaply regenerable (the tree last declared to the server, extraction intermediates, overlay layers) and is safe to delete at any time. `flows/*.yaml` holds optional file-per-flow definitions, which bowrain reads in addition to inline `flows:` on the recipe; a project that keeps them commits them under an ignore rule of its own.
+- **`.kapi/`**: this checkout's cache, kept out of git. `work/store.db` is the checkout's projection of its working tree: the block cache, the overlays a run wrote, the extraction stamps. It rebuilds from the content files. `work/cache/` holds everything cheaply regenerable (the tree last declared to the server, extraction intermediates, overlay layers) and is safe to delete at any time. Nothing authored lives there: file-per-flow definitions sit in the committed directory the recipe names with `flows_dir:`, and kapi reads nothing from `.kapi/flows/`.
 - **The project's context store**: kapi-owned, in a workspace under your data directory rather than in the checkout. It holds the terms, the content memory, the voice profiles and the decision ledger, every checkout of the project shares it, and every gate and lookup answers from it. `kapi context export` is the backup, and `kapi context snapshot --out <dir>` writes it out as files that `kapi context import` reads back.
 
 Local and server converge in shape. Bowrain answers graph questions over one database spanning workspaces, projects and streams; a project answers the same query shapes over its own workspace graph with those dimensions fixed to one value, so which blocks use a given term, by collection and coordinate, is answerable with no server.
@@ -126,7 +126,8 @@ assets:
 | `profiles`     | map            | Governance bound per product, keyed by profile name (see [Profiles and channels](#profiles-and-channels)) |
 | `plugins`      | map            | Plugin dependencies as `name: version-constraint`                       |
 | `requires`     | map            | Plugin name → version constraint that gates loading; a `bowrain:` block adds `bowrain` so a plain kapi binary refuses the recipe |
-| `flows`        | map            | Inline flow definitions (file-per-flow under `.kapi/flows/` also works) |
+| `flows`        | map            | Inline flow definitions                                                 |
+| `flows_dir`    | string         | A directory, relative to the recipe, holding one YAML file per flow. No default |
 | `ship_gate`    | gate           | The bar a locale must clear to be shippable (see [Gates](#gates))       |
 | `ship_gates`   | list           | Per-scope ship gates, each a `when:` selector plus a gate               |
 | `source_gate`  | gate           | The bar the source must clear before a run fans out; `none` opts out   |
@@ -417,9 +418,7 @@ kapi init --server https://app.bowrain.cloud --project abc123
 `kapi init` writes:
 
 1. `kapi.yaml` recipe at the project root (with a `bowrain:` block when a server was supplied)
-2. `.kapi/` directory
-3. `.kapi/flows/pseudo.yaml`, an example flow
-4. a two-line ignore rule: `/.kapi/work/` and `/.kapi/filters.local.json`
+2. `.kapi/`, the checkout's cache, with a `.gitignore` of `*` that keeps the whole directory out of version control
 
 ## Server Connection
 

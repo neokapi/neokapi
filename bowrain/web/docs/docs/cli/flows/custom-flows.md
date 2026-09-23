@@ -5,7 +5,17 @@ title: Custom Flows
 
 # Creating Custom Flows
 
-Define your own workflows as YAML files in `.kapi/flows/`.
+Define your own workflows as YAML files, one per flow, in a directory your
+recipe names with `flows_dir:`:
+
+```yaml
+# kapi.yaml
+flows_dir: flows
+```
+
+The path is relative to the recipe. Keep the directory committed with the
+recipe; kapi rejects a `flows_dir` under `.kapi/`, which is a cache for one
+checkout. A flow can also be declared inline under `flows:` in `kapi.yaml`.
 
 ## Flow definition format
 
@@ -35,7 +45,7 @@ plugins included.
 
 ### Simple AI drafting
 
-`.kapi/flows/translate-simple.yaml`:
+`flows/translate-simple.yaml`:
 
 ```yaml
 name: translate-simple
@@ -54,7 +64,7 @@ supports; omit them to use the project's defaults.
 
 ### Reuse first, then draft, then check
 
-`.kapi/flows/full-translation.yaml`:
+`flows/full-translation.yaml`:
 
 ```yaml
 name: full-translation
@@ -92,7 +102,7 @@ for their options.
 
 ### Checks only
 
-`.kapi/flows/checks-only.yaml`:
+`flows/checks-only.yaml`:
 
 ```yaml
 name: checks-only
@@ -116,7 +126,7 @@ Run it, then let `kapi check` turn the findings into an exit code; see
 
 ### Source cleanup
 
-`.kapi/flows/cleanup.yaml`:
+`flows/cleanup.yaml`:
 
 ```yaml
 name: cleanup
@@ -171,7 +181,7 @@ kapi run my-flow
 3. **Reuse before you draft**: put `recycle` ahead of `translate`
 4. **Order matters**: place expensive tools (AI) last
 5. **Test incrementally**: add one tool at a time
-6. **Commit flows to git**: `.kapi/flows/*.yaml` should be versioned
+6. **Commit flows to git**: the `flows_dir` directory is versioned with the recipe
 7. **Gate in CI**: `kapi check --ship` is the enforcement point, not the flow
 
 ## Next steps

@@ -12,7 +12,7 @@ import (
 )
 
 // End-to-end over the real `kapi run <flow>` command, for a flow that lives in
-// its own file under .kapi/flows/ rather than inline on the recipe. Both are a
+// its own file in the recipe's flows_dir rather than inline on the recipe. Both are a
 // project flow: the run resolves the recipe's collections, applies its format
 // bindings and locale passes, and reports what the flow's check steps found.
 //
@@ -29,7 +29,7 @@ steps:
 `
 
 // dirFlowProjectFixture writes a recipe with one XLIFF collection and no
-// inline flows, plus .kapi/flows/guard.yaml holding the flow.
+// inline flows, plus flows/guard.yaml, named by flows_dir, holding the flow.
 func dirFlowProjectFixture(t *testing.T, flowYAML string) (recipe, root string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -38,8 +38,9 @@ func dirFlowProjectFixture(t *testing.T, flowYAML string) (recipe, root string) 
 
 	recipe = filepath.Join(real, project.RecipeFileName)
 	require.NoError(t, project.Save(recipe, &project.KapiProject{
-		Version: project.CurrentVersion,
-		Name:    "DirFlowTest",
+		Version:  project.CurrentVersion,
+		Name:     "DirFlowTest",
+		FlowsDir: "flows",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb"},
@@ -53,7 +54,7 @@ func dirFlowProjectFixture(t *testing.T, flowYAML string) (recipe, root string) 
 		},
 	}))
 
-	flowsDir := project.LayoutAt(real).FlowsDir()
+	flowsDir := filepath.Join(real, "flows")
 	require.NoError(t, os.MkdirAll(flowsDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(flowsDir, "guard.yaml"), []byte(flowYAML), 0o644))
 

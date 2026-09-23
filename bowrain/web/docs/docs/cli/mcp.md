@@ -237,7 +237,7 @@ Download results from Bowrain Server.
 
 ### list_flows
 
-List available processing flows. Returns both built-in flows and project-defined flows (inline on the recipe and from `.kapi/flows/`).
+List available processing flows. Returns both built-in flows and project-defined flows (inline on the recipe and from the recipe's `flows_dir`).
 
 No parameters.
 

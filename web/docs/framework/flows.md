@@ -86,6 +86,12 @@ tool's output channel feeds the next tool's input channel. A flow carries only
 its steps; *where content comes from and goes to* is a binding decided when you
 run it rather than part of the flow (see [Source and sink](#source-and-sink-the-flows-ends)).
 
+A project declares its flows in `kapi.yaml`, inline under `flows:`, or as one
+steps file per flow in the directory the recipe names with `flows_dir:` (see
+[Flow files](/reference/project-file#flow-files)). `kapi flows` lists both
+kinds beside the built-in flows, and `kapi run <name>` runs either over the
+project's collections.
+
 A [check](/framework/checks) such as `qa` is just a read-only step: it
 attaches findings to each block as annotations rather than rewriting content, so
 it typically sits last and a CI gate reads its result.

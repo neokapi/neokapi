@@ -114,19 +114,20 @@ func vueI18nPreset() *FrameworkPreset {
 	}
 }
 
-// flutterPreset covers Flutter intl/ARB catalogs (lib/l10n/app_{lng}.arb). ARB is
-// a JSON dialect, so the JSON reader handles it.
+// flutterPreset covers Flutter intl/ARB catalogs (lib/l10n/app_{lng}.arb). ARB
+// is a JSON dialect with its own semantics (the "@key" metadata entries, ICU
+// messages, the "@@locale" header), so the catalogs are read with the arb
+// format, which knows those entries, rather than as plain JSON.
 func flutterPreset() *FrameworkPreset {
 	return &FrameworkPreset{
 		Name:        "flutter",
 		Description: "Flutter with intl/ARB catalogs (lib/l10n/app_{lang}.arb)",
 		Detect:      []string{"pubspec.yaml"},
 		Mappings: []MappingTemplate{
-			{Local: "lib/l10n/app_en.arb", Format: "json", TargetPath: "lib/l10n/app_{lang}.arb"},
+			{Local: "lib/l10n/app_en.arb", Format: "arb", TargetPath: "lib/l10n/app_{lang}.arb"},
 		},
-		Exclude:       []string{".dart_tool/**", "build/**"},
-		FormatPresets: map[string]map[string]any{"json": {"extractArrayStrings": false}},
-		Source:        sourceBuiltIn,
+		Exclude: []string{".dart_tool/**", "build/**"},
+		Source:  sourceBuiltIn,
 	}
 }
 

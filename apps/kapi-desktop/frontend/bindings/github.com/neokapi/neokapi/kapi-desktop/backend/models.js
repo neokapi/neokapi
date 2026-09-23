@@ -6436,9 +6436,12 @@ export class ProjectFileInfo {
 /**
  * ProjectFilter is a saved "Active Filter" — a named narrowing of the project to
  * a subset of collections (optionally further by a glob over file paths) and a
- * subset of target languages. It scopes every project view and flow run. Shared
- * filters live in the committed .kapi/filters.json; personal ones in the
- * gitignored .kapi/filters.local.json.
+ * subset of target languages. It scopes every project view and flow run.
+ * 
+ * A shared filter is a team setting about the project, so it is kept in the
+ * project's context store (projectdb.SettingSavedFilters), which every checkout
+ * of the project reads. A personal filter, and the choice of active filter,
+ * belong to this checkout and sit in .kapi/filters.local.json.
  */
 export class ProjectFilter {
     /**
@@ -6483,7 +6486,8 @@ export class ProjectFilter {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Shared marks the filter as committed to the project (vs personal/local).
+             * Shared marks the filter as the team's, kept in the project's context
+             * store, rather than personal to this checkout.
              * @member
              * @type {boolean | undefined}
              */

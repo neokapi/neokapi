@@ -1115,6 +1115,17 @@ export class KapiProject {
         }
         if (/** @type {any} */(false)) {
             /**
+             * FlowsDir names a directory, relative to the recipe, that holds one YAML
+             * file per flow, named for the flow. `kapi run <flow>` resolves a flow
+             * there when none is declared inline under `flows:`. There is no default;
+             * see flowsdir.go.
+             * @member
+             * @type {string | undefined}
+             */
+            this["flows_dir"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Profiles binds governance to a product, keyed by the product's name. A
              * project is not always one voice: a repository holding both a framework
              * and the platform built on it carries two, and one project-wide binding
@@ -1226,14 +1237,14 @@ export class KapiProject {
         const $$createField4_0 = $$createType27;
         const $$createField5_0 = $$createType29;
         const $$createField7_0 = $$createType32;
-        const $$createField8_0 = $$createType34;
-        const $$createField9_0 = $$createType23;
-        const $$createField10_0 = $$createType36;
-        const $$createField11_0 = $$createType37;
-        const $$createField12_0 = $$createType23;
-        const $$createField13_0 = $$createType36;
-        const $$createField14_0 = $$createType23;
-        const $$createField15_0 = $$createType38;
+        const $$createField9_0 = $$createType34;
+        const $$createField10_0 = $$createType23;
+        const $$createField11_0 = $$createType36;
+        const $$createField12_0 = $$createType37;
+        const $$createField13_0 = $$createType23;
+        const $$createField14_0 = $$createType36;
+        const $$createField15_0 = $$createType23;
+        const $$createField16_0 = $$createType38;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField3_0($$parsedSource["plugins"]);
@@ -1248,28 +1259,28 @@ export class KapiProject {
             $$parsedSource["flows"] = $$createField7_0($$parsedSource["flows"]);
         }
         if ("profiles" in $$parsedSource) {
-            $$parsedSource["profiles"] = $$createField8_0($$parsedSource["profiles"]);
+            $$parsedSource["profiles"] = $$createField9_0($$parsedSource["profiles"]);
         }
         if ("ship_gate" in $$parsedSource) {
-            $$parsedSource["ship_gate"] = $$createField9_0($$parsedSource["ship_gate"]);
+            $$parsedSource["ship_gate"] = $$createField10_0($$parsedSource["ship_gate"]);
         }
         if ("ship_gates" in $$parsedSource) {
-            $$parsedSource["ship_gates"] = $$createField10_0($$parsedSource["ship_gates"]);
+            $$parsedSource["ship_gates"] = $$createField11_0($$parsedSource["ship_gates"]);
         }
         if ("gates" in $$parsedSource) {
-            $$parsedSource["gates"] = $$createField11_0($$parsedSource["gates"]);
+            $$parsedSource["gates"] = $$createField12_0($$parsedSource["gates"]);
         }
         if ("verified_gate" in $$parsedSource) {
-            $$parsedSource["verified_gate"] = $$createField12_0($$parsedSource["verified_gate"]);
+            $$parsedSource["verified_gate"] = $$createField13_0($$parsedSource["verified_gate"]);
         }
         if ("verified_gates" in $$parsedSource) {
-            $$parsedSource["verified_gates"] = $$createField13_0($$parsedSource["verified_gates"]);
+            $$parsedSource["verified_gates"] = $$createField14_0($$parsedSource["verified_gates"]);
         }
         if ("source_gate" in $$parsedSource) {
-            $$parsedSource["source_gate"] = $$createField14_0($$parsedSource["source_gate"]);
+            $$parsedSource["source_gate"] = $$createField15_0($$parsedSource["source_gate"]);
         }
         if ("requires" in $$parsedSource) {
-            $$parsedSource["requires"] = $$createField15_0($$parsedSource["requires"]);
+            $$parsedSource["requires"] = $$createField16_0($$parsedSource["requires"]);
         }
         return new KapiProject(/** @type {Partial<KapiProject>} */($$parsedSource));
     }

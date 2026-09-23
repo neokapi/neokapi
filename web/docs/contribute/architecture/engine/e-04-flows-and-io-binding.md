@@ -94,7 +94,16 @@ carrying the four things a flat list of tool names cannot:
   shapes a sequence cannot express.
 - **Identity and reuse**: a flow has a name and a source (built-in, user,
   project). A project's `flows:` block is its vocabulary of named operations,
-  versioned with the recipe and shared like any other artifact. A flow is
+  versioned with the recipe and shared like any other artifact. A project with
+  many flows keeps each in its own YAML file, named for the flow, in a committed
+  directory the recipe names with `flows_dir:`; there is no default directory,
+  and a flow declared inline wins over a file of the same name. The directory
+  never sits under `.kapi/`, which is a disposable cache for one checkout
+  ([C-01](../context/c-01-project-model.md)): the loader rejects such a
+  `flows_dir:`, reads nothing in `.kapi/flows/`, and warns once when flow files
+  sit there. Both forms are one steps spec to the project runner
+  (`core/project.LoadDirFlow`). A flow file's steps name no paths; the run
+  takes its files from the recipe's collections or from `--input`. A flow is
   portable, declarative intent and owns no I/O, so it travels in a project's
   portable twin, the `.kpz` package
   ([M-06](../multilingual/m-06-content-packages.md)), like any other recipe field.

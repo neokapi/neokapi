@@ -23,14 +23,23 @@ jobs:
         env:
           GOTOOLCHAIN: local
         run: |
-          for dir in . cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain; do
+          for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain; do
             echo "Tidying $dir..."
             (cd "$dir" && go mod tidy)
           done
 
+      # Dependabot bumps one module's go.mod and go.sum. The workspace resolves
+      # every module together, so a bump can raise a version in the workspace
+      # graph whose checksum only go.work.sum records. Left stale, the first
+      # build in any checkout writes those lines and dirties the tree.
+      - name: Refresh go.work.sum
+        env:
+          GOTOOLCHAIN: local
+        run: go list -m all > /dev/null
+
       - name: Push if changed
         run: |
-          if git diff --quiet -- '**go.mod' '**go.sum'; then
+          if git diff --quiet -- '**go.mod' '**go.sum' go.work.sum; then
             echo "All modules already tidy"
             exit 0
           fi
