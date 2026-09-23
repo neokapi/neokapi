@@ -20,12 +20,6 @@ type FrameworkPreset struct {
 	FormatPresets map[string]map[string]any // format -> config overrides
 	Flows         map[string]map[string]any // flow -> config defaults
 	Source        string                    // "built-in" or plugin name
-
-	// VoiceProfile and TermsSource name context files a stack commits. No
-	// built-in preset sets them: a recipe binds a voice and terms by name, and
-	// `kapi context import` is what reads such a file into the store.
-	VoiceProfile string
-	TermsSource  string
 }
 
 // MappingTemplate is a mapping entry from a framework preset.
