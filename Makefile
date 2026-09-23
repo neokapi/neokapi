@@ -1189,11 +1189,12 @@ publish-skill: ## Sync the portable skill → the neokapi/agent-skills collectio
 
 publish-integrations: publish-plugin publish-skill ## Publish both the Claude plugin and the portable skill
 
-dev-skills: ## Copy the bundled skills into ./.claude/skills for in-repo dogfooding (gitignored)
+dev-skills: ## Copy the kapi skill (SKILL.md, as kapi init writes it) into ./.claude/skills for in-repo dogfooding (gitignored)
 	@mkdir -p .claude/skills
 	@rm -rf .claude/skills/kapi
-	@cp -R $(SKILLS_SRC)/kapi .claude/skills/kapi
-	@echo "Copied skills into .claude/skills (gitignored; canonical source is $(SKILLS_SRC))"
+	@mkdir -p .claude/skills/kapi
+	@cp $(SKILLS_SRC)/kapi/SKILL.md .claude/skills/kapi/SKILL.md
+	@echo "Copied the kapi skill into .claude/skills (gitignored; canonical source is $(SKILLS_SRC); kapi help serves the references)"
 
 build-all: i18n-catalogs ## Build all Go binaries
 	@mkdir -p $(BIN_DIR)

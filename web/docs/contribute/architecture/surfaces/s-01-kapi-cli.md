@@ -241,6 +241,39 @@ is the *global* config file and is not the project recipe, which is a
 flags override configuration values; `KAPI_`-prefixed environment variables
 override the file. `KAPI_PLUGINS_DIR` names an alternative plugin root.
 
+### `kapi init` proposes, and wires the agents
+
+`kapi init` is how a project starts, and it asks nothing, so it runs the same
+from a terminal, from CI and from an agent. It writes a recipe whose
+collections are proposed from the files already in the tree, each under a
+comment saying what it matched ([C-01](../context/c-01-project-model.md)), and
+it wires the project for the coding agents that work in it:
+
+- an MCP server entry that starts `kapi mcp --project kapi.yaml`, with
+  `--tools writing,translation` when the recipe declares target languages, in
+  each host's own configuration file (`.mcp.json`, `.cursor/mcp.json`,
+  `.vscode/mcp.json`, `.codex/config.toml`);
+- one short skill, `SKILL.md`, naming the four habits the context loop rests
+  on (ask what applies, record what you notice, record the person's
+  corrections, check what you changed and report the session), each in its CLI
+  and MCP form.
+
+Re-running it is safe. It leaves the recipe's collections alone and prints the
+content no collection reads yet. An MCP entry exactly as kapi writes it follows
+the recipe; any other entry called `kapi` is someone's own and is kept. In a
+skill directory an earlier kapi filled, the files kapi recognises by content as
+its own are removed and anything else stays.
+
+### `kapi help <topic>` serves the guidance
+
+The skill stays short because the binary carries the rest. `kapi help` prints
+the command overview and then the topics; `kapi help <topic>` prints one,
+served from the embedded skill references (`cli/skills`), with links between
+references rewritten as the `kapi help` command that serves each. An agent
+therefore reads the guidance of the binary it is running. A topic that shares a
+name with a command (`check`, `context`, `translate`, `voice`) prints the guide
+and names the command's own `--help`.
+
 ### Agent and toolbox surfaces on the same binary
 
 `kapi mcp` starts an MCP server over stdio, serving the tool sets `--tools`

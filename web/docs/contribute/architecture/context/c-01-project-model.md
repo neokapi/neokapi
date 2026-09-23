@@ -2,7 +2,7 @@
 id: c-01-project-model
 sidebar_position: 1
 title: "C-01: The project model"
-description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root and a committed .kapi/ directory holding its configuration. Machine state is confined to one internal directory, .kapi/work/; the project's context lives in a per-user workspace outside every checkout."
+description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root. The .kapi/ directory beside it is a disposable cache for one checkout, and the project's context lives in a per-user workspace outside every checkout."
 keywords: [kapi project, kapi.yaml, .kapi, YAML recipe, project model, context, workspace, store.db, architecture decision, neokapi]
 ---
 
@@ -10,23 +10,20 @@ keywords: [kapi project, kapi.yaml, .kapi, YAML recipe, project model, context, 
 
 ## Summary
 
-A kapi project is a folder containing a `kapi.yaml` recipe at its root and a
-sibling `.kapi/` directory. The recipe captures the user's declarative intent
-(identity, content collections, flows, governance bindings) plus any extension
-blocks a plugin has registered a schema for.
+A kapi project is a folder containing a `kapi.yaml` recipe at its root. The
+recipe captures the user's declarative intent (identity, content collections,
+flows, governance bindings) plus any extension blocks a plugin has registered a
+schema for, and it is the one file of the project that is committed.
 
-`.kapi/` is the one directory kapi owns, and it is **committed**: it holds the
-project's configuration (the manifest, the flow definitions, the shared reader
-configuration). Machine state is confined to one internal directory,
-`.kapi/work/`, which is ignored. This is the model git itself uses: `.git` is
-the tool's directory and its index lives inside it.
+The project's **context** lives in a per-user workspace outside every checkout,
+one database per project, reached by every clone and worktree of it
+([C-03](c-03-context-store-and-graph.md)).
 
-The project's **context** lives somewhere else entirely: a per-user workspace
-outside every checkout, one database per project, reached by every clone and
-worktree of it ([C-03](c-03-context-store-and-graph.md)). `.kapi/` may also hold
-the artifact form of that context, written by `kapi context snapshot` and read
-by `kapi context import`, which is how a team puts its terms and approvals in a
-pull request. Those files are read by that one command and by nothing else.
+`.kapi/` beside the recipe is the one directory kapi owns in a checkout, and it
+is a **disposable cache for that checkout only**: the block store, the caches,
+the redaction vault and the saved reader filters. `kapi init` writes an ignore
+rule into it that keeps the whole directory out of version control, and
+deleting it costs a re-extraction.
 
 A `ProjectContext` resolves the recipe into a runtime configuration, and a
 `Store` interface with pluggable providers gives tools random-access storage
@@ -65,27 +62,15 @@ Ownership zones at the project root:
 
 ```
 my-app/
-├── kapi.yaml                   ← RECIPE (user edits; a conventional YAML config file)
-├── .kapi/                      ← COMMITTED (configuration, reviewed in a pull request)
-│   ├── .gitignore              ← the two-line ignore rule, written by kapi init
-│   ├── manifest.yaml           ← bookkeeping written by kapi init
-│   ├── filters.json            ← shared reader/writer configuration
-│   ├── filters.local.json      ← personal overrides (ignored)
-│   ├── flows/                  ← file-per-flow definitions (E-04)
-│   │
-│   │   ── the context snapshot, when a team keeps one (optional) ──
-│   ├── terms.json              ← a terms bundle (C-08)
-│   ├── voice.yaml              ← a voice profile (C-07)
-│   ├── memory/                 ← content-memory bundles (C-09)
-│   │   └── <surface>.memory.json
-│   ├── profiles/               ← per-profile overrides (C-02)
-│   │   └── <profile>/
-│   │       ├── voice.yaml
-│   │       └── terms.json
-│   ├── state/                  ← the unit-state record (C-04)
-│   │   └── <document>.jsonl
-│   │
-│   └── work/                   ← WHAT THIS CHECKOUT DERIVES (ignored)
+├── kapi.yaml                   ← RECIPE (user edits; committed)
+├── .mcp.json                   ← agent wiring written by kapi init (committed)
+├── .claude/skills/kapi/SKILL.md
+├── .kapi/                      ← THIS CHECKOUT'S CACHE (ignored as a whole)
+│   ├── .gitignore              ← `*`, written by kapi init
+│   ├── filters.json            ← saved reader filters
+│   ├── filters.local.json      ← personal saved filters
+│   ├── flows/                  ← file-per-flow definitions (E-04), when used
+│   └── work/
 │       ├── store.db            ← this checkout's projection (C-03)
 │       ├── vault/              ← withheld originals (C-10), local-only
 │       └── cache/              ← free to delete, always
@@ -105,47 +90,35 @@ Ownership, zone by zone:
   and diff apply YAML highlighting with no custom file-type registration. Wide,
   zero-config recognition was chosen over a branded document type.
 
-  The same reasoning governs every other artifact kapi writes here: each ends in
-  the suffix of the serialization it actually is. Where a file also needs to say
+  The same reasoning governs every other artifact kapi writes: each ends in the
+  suffix of the serialization it actually is. Where a file also needs to say
   *which* document of that serialization it is, the marker goes in a segment
   ahead of the suffix (`.kbf.json`, `.memory.json`, `.overlays.jsonl`), so
   `jq`, diffs and highlighting keep working while the name stays self-describing.
   Only `.kpz`, a binary zip nobody hand-edits, keeps a dedicated extension.
 
-- **`.kapi/`** holds the project's configuration, reviewed in a pull request,
-  and it sits **flat**: an umbrella directory would appear in every path and
-  distinguish none of them. `flows/` holds the flow definitions
-  ([E-04](../engine/e-04-flows-and-io-binding.md)) and `filters.json` the shared
-  reader configuration.
+- **The agent wiring** is the MCP entry and the short skill `kapi init` writes
+  for the coding agents that work in the project
+  ([S-01](../surfaces/s-01-kapi-cli.md)). It is committed with the recipe.
 
-- **The context files under `.kapi/`** are a snapshot rather than a source.
-  `kapi context snapshot` writes them from the project's stores and
-  `kapi context import` reads them back ([C-11](c-11-context-operations.md));
-  a gate, a lookup and a retrieval all answer from the store. `terms.json` is a
-  terms bundle ([C-08](c-08-terms.md)), `memory/` holds content-memory bundles
-  ([C-09](c-09-content-memory.md)), `voice.yaml` is a voice profile
-  ([C-07](c-07-voice-profiles.md)), and `profiles/<profile>/` holds what one
-  profile overrides, named for its key under `profiles:`. The recipe keys
-  `defaults.terms_source`, `defaults.memory_source` and `profile_file` move any
-  of them elsewhere; these are the conventional places, not the only ones.
+- **`.kapi/`** is what THIS CHECKOUT derives or keeps for this machine.
+  `work/store.db` is the projection of the working tree: the block cache, the
+  overlays a flow wrote, the extraction stamps
+  ([C-03](c-03-context-store-and-graph.md)). Beside it sit the caches, the
+  redaction vault ([C-10](c-10-redaction.md)) and the saved reader filters.
+  `flows/` is read by `kapi run` for file-per-flow definitions
+  ([E-04](../engine/e-04-flows-and-io-binding.md)); a project that keeps flow
+  files there commits them under an ignore rule of its own.
 
-  A project whose team backs its context up with `kapi context export` instead
-  keeps none of these files, and every gate answers exactly the same.
+  A second clone and a git worktree each keep a `.kapi/` of their own and share
+  one context store.
 
-- **`.kapi/state/`** is the artifact form of per-unit state: where each unit
-  stands on the review ladder, which a plain target file cannot hold. JSON Lines,
-  one shard per document ([C-04](c-04-unit-state-and-decisions.md)). Written by
-  the snapshot, not hand-edited.
-
-- **`.kapi/work/`** is everything THIS CHECKOUT derives, and the only thing kapi
-  keeps out of version control. `store.db` is the projection of the working
-  tree: the block cache, the overlays a flow wrote, the extraction stamps
-  ([C-03](c-03-context-store-and-graph.md)). Beside it sit the caches and the
-  redaction vault ([C-10](c-10-redaction.md)).
-
-  The project's context stores sit in the user's workspace, one database per
-  project, reached by every checkout of that project. A second clone and a git
-  worktree each keep a `work/` of their own and share one context store.
+- **Context files** are an artifact of the store, never a source a gate reads.
+  `kapi context snapshot --out <dir>` writes the project's terms, voice
+  profiles, content memory and decision record as files, and
+  `kapi context import <dir>` reads them back ([C-11](c-11-context-operations.md)).
+  With no path, import reads `.kapi/`, so a project that commits a snapshot
+  there keeps its own `.kapi/.gitignore`, which kapi never overwrites.
 
 - **`src/**`** is user-authored content. Referenced by the recipe; never moved
   into `.kapi/`.
@@ -155,35 +128,42 @@ Ownership, zone by zone:
 
 ### One directory, one ignore rule
 
-`.kapi/` is committed and `.kapi/work/` is not, which makes the ignore contract
-two lines with no negation in it. The framework owns the whole rule as one
-constant, `core/project.StateGitignore`, and its home is `.kapi/.gitignore`, so
-it travels with the directory it governs. A repository that would rather state
-the same rule at its root writes the two paths there instead:
+`core/project.EnsureLayout` writes `.kapi/.gitignore` holding one line, `*`, so
+the whole directory, the rule included, stays out of version control. The rule
+is the constant `core/project.StateGitignore`.
 
-```gitignore
-work/
-filters.local.json
-```
-
-The second line is the personal reader overlay: a developer's own settings,
-which are theirs and not the project's. Nothing else in `.kapi/` is ignored, and
-nothing ignored has to be excepted back in. Confining derivation to one
-subdirectory removes the question a scattered layout raises, where a tracked
-path has to be rescued by a negation that version control only honours if the
-parent was never ignored.
+It is written only into a `.kapi/` that is new or holds nothing but what kapi
+keeps there. A directory that already carries other files, such as a committed
+context snapshot, has an ignore arrangement of its own, and a rule that ignored
+everything would silently keep the next of those files out of the commit. A
+rule already present is never rewritten.
 
 What deleting costs, stated exactly:
 
 - `rm -rf .kapi/work/cache` is **always free**. Everything under it is rebuilt on
   the next run.
-- `rm -rf .kapi/work` costs one thing: the redaction vault under
-  `.kapi/work/vault/` holds withheld originals that are **local-only and not
-  regenerable** ([C-10](c-10-redaction.md)): never committed, never synced, so
-  nothing anywhere else has a copy. Everything else under `work/` is derived
-  from the working tree, including `store.db`. The project's terms, voice
-  profiles, content memory and decisions are in the workspace and stay
+- `rm -rf .kapi` costs a re-extraction and one more thing: the redaction vault
+  under `.kapi/work/vault/` holds withheld originals that are **local-only and
+  not regenerable** ([C-10](c-10-redaction.md)): never committed, never synced,
+  so nothing anywhere else has a copy. The project's terms, voice profiles,
+  content memory and decisions are in the workspace and stay
   ([C-03](c-03-context-store-and-graph.md)).
+
+### How a project is created
+
+`kapi init` scans the directory (honouring every `.gitignore`, skipping hidden,
+dependency, vendored and build directories) and writes a recipe with a
+collection for each kind of content it recognises. The format registry decides
+what a document is: a built-in format whose family carries documents (marked-up
+text, office documents, timed text) is content wherever it sits, grouped by
+top-level directory and extension, with a file at the root as an entry of its
+own. i18n catalogs are recognised by the framework presets' layouts, or by a
+path that names the source language; a file named for any other language is a
+translation and is left out. Each collection carries a comment saying what it
+matched. The scan is deterministic and asks nothing (`host.ProposeCollections`).
+
+On a project that already has a recipe, `kapi init` leaves its collections
+alone and reports the content no collection reads yet, as lines to paste.
 
 ### Recipe schema
 
@@ -574,11 +554,6 @@ plugins are excluded from preset selectors, and flows referencing tools from
 undeclared plugins produce warnings during validation.
 
 ### Bookkeeping
-
-`.kapi/manifest.yaml` is `core/project.StateManifest` (`kind: kapi-state`):
-the generator that scaffolded the project, a reference to the recipe, and room
-for per-collection block counts and per-source fingerprints. `kapi init` writes
-it. Nothing authoritative lives in it, so deleting it costs nothing.
 
 `.kapi/work/cache/extractions/<batch-id>/manifest.yaml` records each `kapi
 extract` run ([M-01](../multilingual/m-01-bilingual-interop.md)): the emitted
