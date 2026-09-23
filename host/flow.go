@@ -1936,9 +1936,9 @@ func ToolAccepts(s *schema.ComponentSchema, cap string) bool {
 //
 //  1. An explicit --termstore flag (named resource or path) — a standalone store.
 //  2. The `termstore:` of the profile governing the point
-//     (project.ResolveGovernanceFor) — a standalone store, relative to the
-//     project root. It binds a vocabulary to a region of the context space, and
-//     there is nothing on the wire for it, so it stays a local path.
+//     (project.ResolveGovernanceFor) — a store named the way --termstore names
+//     one. It binds a vocabulary to a region of the context space, and there is
+//     nothing on the wire for it, so it names a store on this machine.
 //  3. The project's own store.
 //
 // The zero point resolves the project-wide binding, which is what every caller
@@ -1974,29 +1974,31 @@ func (a *App) ResolveTermsStore(cmd Command, point project.GovernancePoint) (Sto
 	if rerr != nil {
 		return StoreSelection{}, rerr
 	}
-	if bound := governedTermsPath(root, rc); bound != "" {
+	bound, err := governedTermsPath(rc)
+	if err != nil {
+		return StoreSelection{}, err
+	}
+	if bound != "" {
 		return StoreSelection{Path: bound}, nil
 	}
 	return StoreSelection{Root: root}, nil
 }
 
-// governedTermsPath returns the terms store a resolved governance points at,
-// absolute, or "" when the project's own terms govern.
+// governedTermsPath returns the file behind the terms store a resolved
+// governance names, or "" when the project's own terms govern.
 //
-// One rung: the matched profile's `termstore:`, as written in the recipe. It
-// binds a vocabulary to a region of the context space and is the one place a
-// recipe still names a store of its own.
-func governedTermsPath(root string, rc *project.ResolvedGovernance) string {
-	if rc == nil {
-		return ""
+// One rung: the matched profile's `termstore:`, a store name resolved the way
+// `--termstore <name>` resolves one. It binds a vocabulary to a region of the
+// context space and is the one place a recipe names a store of its own.
+func governedTermsPath(rc *project.ResolvedGovernance) (string, error) {
+	if rc == nil || rc.TermStore == "" {
+		return "", nil
 	}
-	if bound := rc.TermStore; bound != "" {
-		if !filepath.IsAbs(bound) {
-			bound = filepath.Join(root, bound)
-		}
-		return bound
+	path, err := resolveNamedResource("terms", rc.TermStore)
+	if err != nil {
+		return "", fmt.Errorf("resolve termstore %q: %w", rc.TermStore, err)
 	}
-	return ""
+	return path, nil
 }
 
 // ResolveTermRules builds the term rules governing the project — for each

@@ -41,7 +41,7 @@ type VoiceProfileTarget struct {
 	// ID is the profile in the project's voice store a save lands on.
 	ID string `json:"id,omitempty"`
 	// Writable is false when the point binds something a save cannot reach: a
-	// starter pack, or a profile file the store has never been given.
+	// starter pack.
 	Writable bool `json:"writable"`
 	// Exists is false when a save creates the profile.
 	Exists bool `json:"exists"`
@@ -55,9 +55,9 @@ type VoiceProfileTarget struct {
 // VoiceProfileTargetAt reports which profile a save at a point would write,
 // without writing anything.
 //
-// A point that binds a profile by name or by a file the store has read answers
-// with that profile. A point that binds nothing answers with the profile a save
-// would open for it, and says the point reads its voice from coarser up.
+// A point that binds a profile by name answers with that profile. A point that
+// binds nothing answers with the profile a save would open for it, and says the
+// point reads its voice from coarser up.
 func (a *App) VoiceProfileTargetAt(ctx context.Context, root string, point project.GovernancePoint) (VoiceProfileTarget, error) {
 	recipePath := filepath.Join(root, project.RecipeFileName)
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
@@ -94,15 +94,6 @@ func (a *App) VoiceProfileTargetAt(ctx context.Context, root string, point proje
 		}, nil
 	case bound.Profile != "":
 		target.ID = bound.Profile
-	case bound.ProfileFile != "":
-		id := a.voiceProfileIDForBinding(ctx, root, bound.ProfileFile)
-		if id == "" {
-			return VoiceProfileTarget{
-				Reason: fmt.Sprintf("%s binds %s and this project's store holds no profile read from it. Read it in with `%s`.",
-					voiceFieldName(point.Profile, own), bound.ProfileFile, ContextImportCommand),
-			}, nil
-		}
-		target.ID = id
 	}
 	if store != nil && target.ID != "" {
 		if _, gerr := lookupProfileIn(ctx, store, target.ID); gerr == nil {
@@ -232,25 +223,37 @@ func newVoiceProfileID(root, profile string) string {
 
 // bindVoiceProfile declares in the recipe which stored profile governs a point,
 // leaving a binding that already names it alone.
+//
+// A point that binds nothing gains the two lines of the binding and nothing
+// else changes in the file (project.BindVoice). A point that binds another
+// voice has that binding replaced, through project.Save.
 func bindVoiceProfile(recipePath, profile, id string) error {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
 	}
-	binding := &project.VoiceBinding{Profile: id}
-	if profile == "" {
-		if proj.Defaults.Voice != nil && proj.Defaults.Voice.Profile == id {
-			return nil
-		}
-		proj.Defaults.Voice = binding
-	} else {
+	current := proj.Defaults.Voice
+	if profile != "" {
 		pr, ok := proj.Profiles[profile]
 		if !ok {
 			return fmt.Errorf("voice: this project declares no profile %q", profile)
 		}
-		if pr.Voice != nil && pr.Voice.Profile == id {
-			return nil
+		current = pr.Voice
+	}
+	if current != nil && current.Profile == id {
+		return nil
+	}
+	if current == nil {
+		if err := project.BindVoice(recipePath, profile, id); err != nil {
+			return fmt.Errorf("bind voice profile: %w", err)
 		}
+		return nil
+	}
+	binding := &project.VoiceBinding{Profile: id}
+	if profile == "" {
+		proj.Defaults.Voice = binding
+	} else {
+		pr := proj.Profiles[profile]
 		pr.Voice = binding
 		proj.Profiles[profile] = pr
 	}

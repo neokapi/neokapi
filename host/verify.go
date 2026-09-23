@@ -795,7 +795,7 @@ func (a *App) termsBindings(cmd Command, proj *project.KapiProject, root string)
 		if err != nil {
 			return nil, err
 		}
-		if governedTermsPath(root, rc) != "" {
+		if rc.TermStore != "" {
 			bound = append(bound, "profiles."+name)
 		}
 	}

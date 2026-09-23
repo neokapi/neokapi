@@ -19,7 +19,7 @@ interface Point {
   coordinates?: Record<string, string>;
   profile?: string;
   channel?: string;
-  voiceFile?: string;
+  voice?: string;
   voiceField?: string;
   termStore?: string;
   collections?: string[];
@@ -671,7 +671,6 @@ function SectionList({
  * voice file is named voice.yaml, so a basename alone would show two different
  * files under one name.
  */
-const shortPath = (p?: string): string => (p ? p.replace(/^\.kapi\//, "") : "");
 
 /**
  * Products down the side, channels across the top, and what governs the content
@@ -722,9 +721,9 @@ function CoordinateMap({ points, axes }: { points: Point[]; axes: Axes }): React
                   <div style={{ fontWeight: 600, marginBottom: ".35rem" }}>
                     {(p.collections ?? []).join(", ")}
                   </div>
-                  <div style={styles.slug}>voice: {shortPath(p.voiceFile)}</div>
+                  <div style={styles.slug}>voice: {p.voice}</div>
                   <div style={styles.slug}>
-                    terms: {p.termStore ? shortPath(p.termStore) : "project default"}
+                    terms: {p.termStore ?? "project default"}
                   </div>
                 </div>
               );
@@ -1302,7 +1301,7 @@ export default function Coordinate(): ReactElement {
         {fallback && (
           <p style={{ marginTop: "1rem", ...styles.prose }}>
             Content that declares no coordinate falls back to the project defaults:{" "}
-            <code>{shortPath(fallback.voiceFile)}</code> and the project&rsquo;s own terms. Here
+            <code>{fallback.voice}</code> and the project&rsquo;s own terms. Here
             that is the <code>{(fallback.collections ?? []).join(", ")}</code> collection.
           </p>
         )}

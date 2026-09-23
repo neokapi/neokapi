@@ -248,22 +248,11 @@ func TestSanitizeRecipeClearsNonLocalPaths(t *testing.T) {
 		set  func(*project.KapiProject)
 		got  func(*project.KapiProject) string
 	}{
-		{"defaults.terms_source",
-			func(p *project.KapiProject) { p.Defaults.TermsSource = escape },
-			func(p *project.KapiProject) string { return p.Defaults.TermsSource }},
-		{"defaults.memory_source",
-			func(p *project.KapiProject) { p.Defaults.MemorySource = escape },
-			func(p *project.KapiProject) string { return p.Defaults.MemorySource }},
 		{"defaults.redaction.rules",
 			func(p *project.KapiProject) {
 				p.Defaults.Redaction = &project.RedactionSpec{Enabled: true, Rules: escape}
 			},
 			func(p *project.KapiProject) string { return p.Defaults.Redaction.Rules }},
-		{"defaults.voice.profile_file",
-			func(p *project.KapiProject) {
-				p.Defaults.Voice = &project.VoiceBinding{ProfileFile: escape}
-			},
-			func(p *project.KapiProject) string { return p.Defaults.Voice.ProfileFile }},
 		{"content base",
 			func(p *project.KapiProject) {
 				p.Collections = []project.Collection{{Path: "src/**", Base: escape}}
@@ -312,10 +301,8 @@ func TestSanitizeRecipeKeepsOrdinaryPaths(t *testing.T) {
 	r := &project.KapiProject{
 		Version: project.CurrentVersion,
 		Defaults: project.Defaults{
-			TermsSource:  "context/terms.terms.json",
-			MemorySource: "context/memory.memory.json",
-			Redaction:    &project.RedactionSpec{Enabled: true, Rules: "context/redaction.yaml"},
-			Voice:        &project.VoiceBinding{ProfileFile: "context/kapi-voice.yaml"},
+			Redaction: &project.RedactionSpec{Enabled: true, Rules: "context/redaction.yaml"},
+			Voice:     &project.VoiceBinding{Profile: "kapi-voice"},
 		},
 		Collections: []project.Collection{{
 			Path:   "docs/**/*.md",

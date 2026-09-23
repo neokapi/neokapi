@@ -3,10 +3,8 @@ package host
 import (
 	"context"
 	"fmt"
-	"maps"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 
 	"github.com/neokapi/neokapi/core/project"
@@ -102,17 +100,14 @@ func storeHolds(db *projectdb.DB, kind contextSourceKind) bool {
 // committedContextSources lists the context files a `.kapi/` layout holds, in a
 // stable order (terms, then memory bundles by path, then voice profiles by
 // path) so two passes over one tree do the same work in the same sequence. A
-// bound source that does not exist is left out rather than reported: a recipe
-// may bind a file nobody has written.
+// conventional place with no file in it is left out rather than reported.
 //
-// Each kind is listed where the layout keeps it. The terms bundle and the
-// content memory sit at their conventional places under `.kapi/` and wherever
-// a recipe's `terms_source:` or `memory_source:` names; a profile keeps its
-// own terms and voice under `.kapi/profiles/<name>/`.
-//
-// proj may be nil, for a layout that belongs to no loaded recipe. Only the
-// recipe-bound paths are left out then; the conventional ones still answer.
-func committedContextSources(proj *project.KapiProject, layout project.Layout) ([]contextSource, error) {
+// Each kind is listed where the layout keeps it: the terms bundle and the voice
+// profile at the top of the layout, the content-memory bundles under
+// `memory/`, and a profile's own terms and voice under `profiles/<name>/`. A
+// recipe names none of these files: it binds a voice and terms by name, and the
+// layout is found by where it sits.
+func committedContextSources(layout project.Layout) ([]contextSource, error) {
 	export := layout.Export()
 	var out []contextSource
 	seen := map[string]bool{}
@@ -137,13 +132,6 @@ func committedContextSources(proj *project.KapiProject, layout project.Layout) (
 		return nil
 	}
 
-	if proj != nil {
-		if bound := proj.Defaults.TermsSource; bound != "" {
-			if err := add(bound, sourceKindTerms); err != nil {
-				return nil, err
-			}
-		}
-	}
 	if err := add(filepath.Join(layout.StateDir, ktb.ConventionalName), sourceKindTerms); err != nil {
 		return nil, err
 	}
@@ -157,16 +145,13 @@ func committedContextSources(proj *project.KapiProject, layout project.Layout) (
 	if err != nil {
 		return nil, err
 	}
-	if proj != nil && proj.Defaults.MemorySource != "" {
-		memoryPaths = append(memoryPaths, resolveUnder(layout.Root, proj.Defaults.MemorySource))
-	}
 	for _, p := range memoryPaths {
 		if err := add(p, sourceKindMemory); err != nil {
 			return nil, err
 		}
 	}
 
-	for _, p := range voiceProfilePaths(proj, layout) {
+	for _, p := range voiceProfilePaths(layout) {
 		if err := add(p, sourceKindVoice); err != nil {
 			return nil, err
 		}
@@ -196,26 +181,14 @@ func bundlePathsIn(dir string) ([]string, error) {
 }
 
 // voiceProfilePaths lists the voice profiles a `.kapi/` layout holds: the
-// project default first, then one per profile directory in name order, then
-// anything a recipe binds elsewhere. The order puts the default ahead of the
-// overrides, so an id both of them claim is settled the way a layout's own
-// order settles it.
-func voiceProfilePaths(proj *project.KapiProject, layout project.Layout) []string {
+// project default first, then one per profile directory in name order. The
+// order puts the default ahead of the overrides, so an id both of them claim is
+// settled the way a layout's own order settles it.
+func voiceProfilePaths(layout project.Layout) []string {
 	export := layout.Export()
 	out := []string{filepath.Join(layout.StateDir, VoiceConventionalName)}
 	for _, n := range profileDirNames(export) {
 		out = append(out, filepath.Join(export.ProfileDir(n), VoiceConventionalName))
-	}
-	if proj == nil {
-		return out
-	}
-	if b := proj.Defaults.Voice; b != nil && b.ProfileFile != "" {
-		out = append(out, resolveUnder(layout.Root, b.ProfileFile))
-	}
-	for _, name := range slices.Sorted(maps.Keys(proj.Profiles)) {
-		if b := proj.Profiles[name].Voice; b != nil && b.ProfileFile != "" {
-			out = append(out, resolveUnder(layout.Root, b.ProfileFile))
-		}
 	}
 	return out
 }

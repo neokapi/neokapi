@@ -3,7 +3,6 @@ package host
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -136,22 +135,10 @@ func (a *App) DescribeProjectVoice(ctx context.Context, root string) (info Proje
 // reason it has none yet.
 func (a *App) nameBoundVoice(ctx context.Context, root string, rc *project.ResolvedGovernance, info *ProjectVoiceInfo) {
 	bv := rc.Voice
-	if bv.ProfileFile != "" {
-		path := bv.ProfileFile
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(root, path)
-		}
-		if _, serr := os.Stat(path); errors.Is(serr, os.ErrNotExist) {
-			// Bound, not yet written: the ordinary state right after a
-			// scaffold that points at a file the author fills in.
-			return
-		}
-	}
-	// Both a `profile:` name and a `profile_file:` path are answered by the
-	// project's voice store, so open it for either. A `pack:` is the one
-	// binding the store has no part in.
+	// A `profile:` name is answered by the project's voice store. A `pack:` is
+	// the one binding the store has no part in.
 	var store coreprofile.Store
-	if bv.Profile != "" || bv.ProfileFile != "" {
+	if bv.Profile != "" {
 		s, release, serr := a.ProjectVoiceStore(ctx, root)
 		if serr != nil {
 			info.Problem = serr

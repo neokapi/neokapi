@@ -632,8 +632,7 @@ func (a *App) applyVoiceEntry(ctx context.Context, cmd Command, e changeEntry) a
 //
 // A project that binds none gets a profile of its own, created in the store and
 // bound in the recipe under `defaults.voice.profile`. A starter pack is
-// read-only, and a `profile_file:` whose profile the store has never been given
-// names the command that reads it.
+// read-only.
 func (a *App) boundVoiceProfileForWrite(ctx context.Context, db *projectdb.DB, recipePath, root string) (*coreprofile.VoiceProfile, error) {
 	store := db.Voice()
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
@@ -649,15 +648,6 @@ func (a *App) boundVoiceProfileForWrite(ctx context.Context, db *projectdb.DB, r
 				return p, nil
 			}
 			return createVoiceProfile(ctx, store, bv.Profile)
-		case bv.ProfileFile != "":
-			id := a.voiceProfileIDForBinding(ctx, root, bv.ProfileFile)
-			if id != "" {
-				if p, gerr := lookupProfileIn(ctx, store, id); gerr == nil {
-					return p, nil
-				}
-			}
-			return nil, fmt.Errorf("voice: the recipe binds %s and this project's store holds no profile read from it. Read it in with `%s`",
-				bv.ProfileFile, ContextImportCommand)
 		}
 	}
 
@@ -669,9 +659,8 @@ func (a *App) boundVoiceProfileForWrite(ctx context.Context, db *projectdb.DB, r
 	if err != nil {
 		return nil, err
 	}
-	proj.Defaults.Voice = &project.VoiceBinding{Profile: profile.ID}
-	if err := project.Save(recipePath, proj); err != nil {
-		return nil, fmt.Errorf("bind voice profile: %w", err)
+	if err := bindVoiceProfile(recipePath, "", profile.ID); err != nil {
+		return nil, err
 	}
 	return profile, nil
 }
