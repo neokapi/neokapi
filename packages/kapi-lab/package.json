@@ -29,7 +29,7 @@
     "@neokapi/reference-data": "*",
     "@neokapi/ui-primitives": "*",
     "gliner": "^0.0.19",
-    "lucide-react": "^1.46.0"
+    "lucide-react": "^1.47.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",
@@ -41,7 +41,7 @@
     "react-dom": "^19.3.0",
     "typescript": "^7.0.2",
     "vite-plus": "^0.3.3",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   },
   "peerDependencies": {
     "react": "^19.0.0",
