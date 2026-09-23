@@ -61,8 +61,8 @@ and a shared policy function for all writers.
 
 ```go
 type Record struct {
-    ID            string               // the position the workspace log gave it
-    Seq           int64                // the same position as a number
+    ID            string               // the operation id, the same in every log that holds it
+    Short         string               // its first ten characters, as a log line shows it
     Project       workspace.ProjectKey
     Actor         Actor                // person | agent | tool, a name, an agent's session
     Kind          Kind                 // observe | correct | import | edit | keep | drop | withdraw | revert | widen
@@ -298,8 +298,35 @@ operation per context change, which stays small enough to read whole; an
 implementation that needs an index adds one behind `Ledger` without moving the
 model.
 
-Operation ids are local to a workspace. Context exports and snapshots contain
-established rules without those ids; the operation history remains local.
+### Operation ids
+
+An operation id (`workspace.NewOpID`) is 24 characters of lower-case Crockford
+base32: eight for the moment the log accepted the operation, in milliseconds
+since the start of 2026, and sixteen random ones. The time comes first, so ids
+sort in the order operations were accepted, and the fold reads the log in id
+order. A log never mints an id that sorts before one it already holds: where the
+clock has not moved past the newest id, the time part advances one millisecond
+past it, so an operation recorded after another was seen sorts after it, on
+whichever machine either was recorded.
+
+The id is the same in every log that holds the operation, so two logs merge by
+union (`workspace.Merge`): recording an id the log already holds changes
+nothing, and two logs merged into each other hold the same operations in the
+same order, whichever was merged first. An operation may also carry a content
+address; a log holds one operation per address, and where two machines recorded
+one address under different ids the older id stands in both. The local backend
+keeps a per-log arrival position beside the id. It is what `Head` returns and
+what `Since` reads from, so a surface watching for change polls one number and
+an operation merged in from elsewhere moves it like one recorded here.
+
+A log line shows the first ten characters (`workspace.ShortOpID`): the time part
+and two random characters, which one machine never repeats because it never
+accepts two operations in one millisecond. Every verb resolves any prefix that
+starts exactly one id; a prefix that starts several is refused with the
+candidates listed (`workspace.AmbiguousOpIDError`).
+
+Context exports and snapshots carry established rules without operation ids,
+so the history stays in the workspace that recorded it.
 
 ## Surfaces
 
@@ -308,7 +335,7 @@ and `widen` are the command-line half. `kapi context keep` takes several ids, or
 `--session <id>` for everything one session suggested that nothing contests;
 `--use` changes the rule as it is kept, for one id only. `kapi context log
 --status` filters by any of the six statuses, and a log line prints the kind
-once and marks a contested entry `[contested by #5]`. The host API
+once and marks a contested entry `[contested by #0n79tw5k9s]`. The host API
 (`host/contextops.go`) is typed requests and results with no flag sets, so the
 agent tools and the desktop drive the same loop.
 

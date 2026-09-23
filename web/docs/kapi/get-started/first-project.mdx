@@ -191,10 +191,10 @@ No context operations are recorded here yet.
 After a session:
 
 ```
-#3  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  term "use", not "utilise"  [suggested]
+#0n791c0w3d  2026-09-21T19:22:21Z  agent claude-code/s4980103f5148  observe  term "use", not "utilise"  [suggested]
   seen in docs/guide.md: "We utilise the widget to configure your account."
   Every other page in docs/ says "use".
-#2  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  "The product is written \"Acme Widget\" in headings and \"the widget\" in running text."  [suggested]
+#0n791b3t34  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  "The product is written \"Acme Widget\" in headings and \"the widget\" in running text."  [suggested]
   seen in docs/guide.md: "We utilise the widget to configure your account."
 ```
 
@@ -209,11 +209,11 @@ groups entries by session and shows the supporting evidence on each card.
 ## 4. Keep what is right
 
 ```bash
-kapi context keep 3
+kapi context keep 0n791c0w3d
 ```
 
 ```
-#4  2026-09-21T19:23:01Z  person  keep  of #3
+#0n792jyqxw  2026-09-21T19:23:01Z  person  keep  of #0n791c0w3d
   written to the project's terms store
 ```
 

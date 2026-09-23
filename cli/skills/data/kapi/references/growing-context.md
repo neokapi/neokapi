@@ -69,11 +69,11 @@ kapi context log --status suggested       # what is waiting for a decision
 kapi context log --status contested       # what disagrees with another rule
 kapi context log --session this --json    # what this run recorded
 kapi context log --session s4f1c2 --json  # what one agent run recorded
-kapi context keep 7 9                     # establish rules, and write them
+kapi context keep 0n794e2gk7 0n79gkq853   # establish rules, and write them
 kapi context keep --session s4f1c2        # keep everything one run suggested
-kapi context drop 7                       # set a suggestion aside
+kapi context drop 0n794e2gk7              # set a suggestion aside
 kapi context revert --session s4f1c2      # undo everything one run recorded
-kapi context widen 7 --to workspace       # put an established rule in force everywhere
+kapi context widen 0n794e2gk7 --to workspace # put an established rule in force everywhere
 ```
 
 Keeping, dropping, reverting and widening belong to a person. An agent that
@@ -189,8 +189,8 @@ the log, and the decisions are the log's verbs:
 
 ```bash
 kapi context log --status suggested    # each entry with its evidence
-kapi context keep 7 --use dashboard    # keep, editing the rule as you go
-kapi context drop 9
+kapi context keep 0n794e2gk7 --use dashboard    # keep, editing the rule as you go
+kapi context drop 0n79gkq853
 ```
 
 ## 4. Bind

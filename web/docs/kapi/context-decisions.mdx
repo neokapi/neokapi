@@ -67,20 +67,21 @@ kapi context log --status suggested
 ```
 
 ```
-#5  2026-09-21T19:36:17Z  agent claude-code/s8d7fb12ba4c7  correct  term "component", not "widget"  "widget" became "component"  [suggested]
+#0n79tw5k9s  2026-09-21T19:36:17Z  agent claude-code/s8d7fb12ba4c7  correct  term "component", not "widget"  "widget" became "component"  [suggested]
   seen in docs/guide.md getting-started/p: "We utilise the widget to configure your account."
-#2  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  "The product is written \"Acme Widget\" in headings."  [suggested]
+#0n791b3t34  2026-09-21T19:22:20Z  agent claude-code/s4980103f5148  observe  "The product is written \"Acme Widget\" in headings."  [suggested]
   seen in docs/guide.md: "We utilise the widget to configure your account."
 ```
 
-Then decide, by the id in the first column. `keep` takes several ids at once:
+Then decide, by the id in the first column. Any start of an id that names one
+operation will do, and `keep` takes several ids at once:
 
 ```bash
-kapi context keep 5
+kapi context keep 0n79tw5k9s
 ```
 
 ```
-#7  2026-09-21T19:37:02Z  person  keep  of #5
+#0n79w8kr6q  2026-09-21T19:37:02Z  person  keep  of #0n79tw5k9s
   written to the project's terms store
 ```
 
@@ -92,16 +93,16 @@ which case it reports.
 Change the rule as you keep it:
 
 ```bash
-kapi context keep 5 --use "module" --advisory
+kapi context keep 0n79tw5k9s --use "module" --advisory
 ```
 
-Set it aside instead with `kapi context drop 5`. Either way the record stays in
+Set it aside instead with `kapi context drop 0n79tw5k9s`. Either way the record stays in
 the log, so the same suggestion is recognisable the next time somebody makes it.
 
 ## When two rules disagree
 
 Two suggestions that name different forms for one word are **contested**. Both
-still advise, the log marks each `[contested by #n]` with the other side named,
+still advise, the log marks each `[contested by #<id>]` with the other side named,
 and neither can be kept until you choose: drop the one you do not want, then
 keep the other. `kapi context keep --session` leaves a contested suggestion
 where it is and says so.
@@ -124,7 +125,7 @@ Reverting a session deactivates its suggestions and removes any rules it
 established from the terms store or content memory. This restores the check
 results from before the session, provided no other relevant state has changed.
 
-Undo one operation with `kapi context revert 5`.
+Undo one operation with `kapi context revert 0n79tw5k9s`.
 
 Nothing is erased. Reverted operations stay in the log, marked reverted.
 
@@ -137,7 +138,7 @@ another product's tutorials.
 To apply an established rule across the workspace:
 
 ```bash
-kapi context widen 5 --to workspace
+kapi context widen 0n79tw5k9s --to workspace
 ```
 
 That rule is then in force in every project you work on here. A project that has
@@ -147,7 +148,7 @@ always wins.
 To remove a restriction on one axis while preserving the other coordinates:
 
 ```bash
-kapi context widen 5 --to mode
+kapi context widen 0n79tw5k9s --to mode
 ```
 
 ## Who may do what
@@ -195,7 +196,7 @@ The asset entries of `kapi apply` are decisions about the same context, so they
 appear in the same log:
 
 ```
-#8  2026-09-21T19:37:31Z  person  edit  term "use", not "leverage"  [established]
+#0n79x4m0cb  2026-09-21T19:37:31Z  person  edit  term "use", not "leverage"  [established]
   applied with `kapi apply`
 ```
 

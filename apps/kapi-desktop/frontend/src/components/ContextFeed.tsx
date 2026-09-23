@@ -477,7 +477,7 @@ function FeedEntryCard({
         {showProject && entry.project_name && <span translate="no">{entry.project_name}</span>}
         <When iso={entry.at} relative />
         <span className="font-mono text-[11px] text-muted-foreground/70" translate="no">
-          #{entry.id}
+          #{entry.short}
         </span>
       </div>
 

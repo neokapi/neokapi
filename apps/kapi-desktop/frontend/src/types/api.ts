@@ -773,8 +773,10 @@ export interface ContextScope {
 
 /** One recorded operation as the feed shows it. */
 export interface ContextFeedEntry {
+  /** Names the operation; every action on it passes it back. */
   id: string;
-  seq: number;
+  /** The id as a person reads and types it, the form `kapi context log` prints. */
+  short: string;
   project_key: string;
   project_name?: string;
   /** observe, propose, correct, confirm, discard, revert, widen. */

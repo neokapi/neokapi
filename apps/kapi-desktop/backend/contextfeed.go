@@ -108,8 +108,11 @@ type ContextScopeDTO struct {
 
 // ContextFeedEntry is one recorded operation as the feed shows it.
 type ContextFeedEntry struct {
-	ID  string `json:"id"`
-	Seq int64  `json:"seq"`
+	// ID names the operation; every action on it passes it back.
+	ID string `json:"id"`
+	// Short is the id as a person reads and types it, the form `kapi context
+	// log` prints.
+	Short string `json:"short"`
 	// ProjectKey and ProjectName name the project whose work produced it.
 	ProjectKey  string `json:"project_key"`
 	ProjectName string `json:"project_name,omitempty"`
@@ -875,17 +878,17 @@ func spanOf(entries []ContextFeedEntry) (first, last string) {
 func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFeedEntry {
 	out := ContextFeedEntry{
 		ID:            r.ID,
-		Seq:           r.Seq,
+		Short:         contextop.ShortID(r.ID),
 		ProjectKey:    string(r.Project),
 		ProjectName:   projectName,
 		Kind:          string(r.Kind),
 		Status:        string(r.Status),
-		ContestedBy:   append([]string{}, r.ContestedBy...),
+		ContestedBy:   contextop.ShortIDs(r.ContestedBy),
 		Actor:         actorDTO(r.Actor),
 		Subject:       subjectDTO(r.Subject),
 		Evidence:      []ContextEvidenceDTO{},
 		Scope:         scopeDTO(r.Scope),
-		Target:        r.Target,
+		Target:        contextop.ShortID(r.Target),
 		TargetSession: r.TargetSession,
 		Note:          r.Note,
 		At:            r.At.UTC().Format(time.RFC3339),
