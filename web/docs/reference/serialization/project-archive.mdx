@@ -70,9 +70,8 @@ whole project that needs to travel is a `.kpz`, and a single bundle that needs t
 travel small is what `zip` and `gzip` are for.
 
 The suffix identifies a bundle wherever it sits: a project puts one
-wherever it likes and may keep several. Which bundle an import reads and a
-snapshot writes is set by the recipe
-([`defaults.terms_source` / `defaults.memory_source`](/reference/project-file#context-files-a-recipe-names)),
+wherever it likes and may keep several. An import reads the bundles in the
+layout it is given ([Context files](/reference/project-file#context-files)),
 and an explicit `-o` path names one outright.
 
 ### Where a bundle sits when nothing binds it

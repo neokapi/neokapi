@@ -109,7 +109,6 @@ Ownership, zone by zone:
   `flows/` is read by `kapi run` for file-per-flow definitions
   ([E-04](../engine/e-04-flows-and-io-binding.md)); a project that keeps flow
   files there commits them under an ignore rule of its own.
-
   A second clone and a git worktree each keep a `.kapi/` of their own and share
   one context store.
 
@@ -118,7 +117,9 @@ Ownership, zone by zone:
   profiles, content memory and decision record as files, and
   `kapi context import <dir>` reads them back ([C-11](c-11-context-operations.md)).
   With no path, import reads `.kapi/`, so a project that commits a snapshot
-  there keeps its own `.kapi/.gitignore`, which kapi never overwrites.
+  there keeps its own `.kapi/.gitignore`, which kapi never overwrites. The
+  recipe names none of these files: it binds the voice and terms they carry by
+  name.
 
 - **`src/**`** is user-authored content. Referenced by the recipe; never moved
   into `.kapi/`.
@@ -572,10 +573,10 @@ right extraction without guessing from its name.
   are slow against a remote store.
 - The recipe is always free of credentials, so it is safe to commit and to share.
 - The recipe binds by name what governs a point (`defaults.voice`,
-  `profiles.<n>.termstore`) and by path what an import reads
-  (`defaults.terms_source`, `defaults.memory_source`). Neither kind of binding
-  reaches a checkout on a read path, so two branches of one project answer the
-  same question the same way.
+  `profiles.<n>.termstore`) and names no context file. A recipe that names one
+  fails to load with the import that reads it. No binding reaches a checkout on
+  a read path, so two branches of one project answer the same question the same
+  way.
 
 ## See also
 

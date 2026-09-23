@@ -355,9 +355,8 @@ A project accumulates **many** memory bundles, not one (one per content surface
 under `.kapi/memory/*.memory.json`), so the suffix, not the location, identifies
 a bundle. That is why the memory has no single conventional filename where the
 terms bundle has one: it would force a project with a bundle per surface to
-nominate one of them arbitrarily. An import reads every bundle in the directory,
-`defaults.memory_source` names one elsewhere, and there is nothing sensible to
-guess.
+nominate one of them arbitrarily. An import reads every bundle in the
+directory, the recipe names none, and there is nothing sensible to guess.
 
 ### Absorbing the committed translations
 

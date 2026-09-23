@@ -103,8 +103,8 @@ steps:
       caseSensitive: false
 ```
 
-The term step checks against the project's terms, compiled from the
-source the recipe binds (`defaults.terms_source`), not one configured per step;
+The term step checks against the project's terms, which `kapi context import`
+reads into the project's store, not a list configured per step;
 `--termstore` overrides it for a single run.
 
 Run with:

@@ -128,7 +128,7 @@ kapi terms import product-terms.csv -s en -t fr --name product-terms
 kapi exec term-check i18n/ --target-lang fr --termstore product-terms
 ```
 
-To feed terminology into the translation step itself rather than only checking it afterward, bind the store in the recipe (`defaults.terms_source`) or list rules under `term_rules:` in the step's config. `translate` reads the matching rules itself and sends them in the prompt's terminology section.
+To feed terminology into the translation step itself rather than only checking it afterward, read the terms into the project with `kapi context import` (the project's own terms govern with nothing bound) or list rules under `term_rules:` in the step's config. `translate` reads the matching rules itself and sends them in the prompt's terminology section.
 
 See [Terminology](/framework/terminology).
 
@@ -168,10 +168,10 @@ name: MyApp
 defaults:
   source_language: en
   target_languages: [de, fr, ja, nb]
-  # The terms store and the voice profile are git-tracked sources under i18n/.
+  # The voice is bound by the name `kapi context import i18n` stores it under;
+  # the same import reads i18n/terms.json into the project's own terms.
   voice:
-    profile_file: i18n/voice.yaml
-  terms_source: i18n/terms.json
+    profile: myapp
 collections:
   - path: "i18n/src/**/*.kbf.json"
     format: kbf
@@ -182,13 +182,14 @@ collections:
 i18n/
 ├── src/                    source KBF catalogs (from `neokapi-i18n extract`)
 ├── de/ fr/ ja/ nb/         per-locale targets (from kapi)
-├── terms.json              terms store (git source)
-└── voice.yaml              voice profile (git source)
+├── terms.json              terms, read in by `kapi context import i18n`
+└── voice.yaml              voice profile, read in by the same import
 ```
 
 The content memory's local store and the pseudo-locale output are rebuildable
 state, so they live under `.kapi/work/`, in the checkout's cache that git never
-sees.
+sees. An edit to `i18n/voice.yaml`
+or `i18n/terms.json` takes effect when you run `kapi context import i18n` again.
 Define a `translate` flow in the recipe (for example `recycle` → `translate` → `qa`), then:
 
 ```json title="package.json"

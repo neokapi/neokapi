@@ -562,9 +562,8 @@ sets `$KAPI_DATA_DIR` as part of the isolation contract.
 - **One transaction still covers a decision and the wording it blesses.** Both
   are in the context pool, which is why they are in the same file.
 - **Store paths are not a user surface.** The recipe binds what governs a point
-  by name and names no database, and it carries no workspace binding.
-  `defaults.terms_source` and `defaults.memory_source` address the import and
-  the snapshot rather than a read. Standalone stores outside a project keep
+  by name and names no database or context file, and it carries no workspace
+  binding. Standalone stores outside a project keep
   their own selectors (`--termstore`, `--memory`); those address a file the user
   owns, which is a different thing.
 - **CI caches `.kapi/work/cache/docs`, and nothing else under `work/`.** The

@@ -44,9 +44,9 @@ Implemented in Go at
 A flow needing a project's terms reads the project's terms store; no flow opens
 a bundle. [`kapi context import`](/reference/commands/context-import) is what
 reads one, and with no path it looks at `<project-root>/.kapi/terms.json`, the
-conventional place beside the rest of a project's context files. Setting
-`terms_source` in `kapi.yaml` names a bundle elsewhere, and the import reads
-that one too; it binds any path.
+conventional place beside the rest of a project's context files. Name a
+directory, `kapi context import context`, to read the `terms.json` in it. The
+recipe names no terms file.
 
 ## Content memory has no single conventional file
 

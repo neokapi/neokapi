@@ -520,9 +520,8 @@ A snapshot writes the record at `.kapi/state/`, derived from the project layout,
 beside the terms and the content memory it makes claims about. The recipe binds
 nothing: the record is a directory whose contents kapi owns and prunes, so
 pointing it at an arbitrary location would invite a project to aim it somewhere
-kapi deletes from. That is the difference from `terms_source` and
-`memory_source`, which bind any path because a person may already keep those
-files elsewhere.
+kapi deletes from. The terms and the content memory are bound nowhere either:
+an import reads them from a layout, and the store holds them.
 
 Getting the record *out* of kapi's own layout is a job for exchange rather than
 relocation (`kapi merge`, XLIFF `<target state=…>`, the `.kpz` bilingual

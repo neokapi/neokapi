@@ -48,8 +48,7 @@ When a command needs a profile and no `--profile`, `--profile-file`, or
 `--pack` flag is given, kapi resolves one in this order:
 
 1. **The recipe binding**: `defaults.voice` in `kapi.yaml`, naming a `profile`
-   in the project's voice store, a `pack`, or a `profile_file` whose stored
-   profile the import filed under that path.
+   in the project's voice store or a `pack`. A recipe names no profile file.
 2. **The profile's own name**: a profile under `profiles:` that binds no
    `voice:` of its own is answered by the profile the store holds under its
    name, before the project default is; see
