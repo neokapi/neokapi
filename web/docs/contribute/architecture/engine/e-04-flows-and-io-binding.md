@@ -96,8 +96,15 @@ carrying the four things a flat list of tool names cannot:
   project). A project's `flows:` block is its vocabulary of named operations,
   versioned with the recipe and shared like any other artifact. A project with
   many flows keeps each in its own YAML file, named for the flow, in a committed
-  directory the recipe names with `flows_dir:`; there is no default directory,
-  and a flow declared inline wins over a file of the same name. The directory
+  directory the recipe names with `flows_dir:`; there is no default directory.
+  A name resolves to the most specific definition, by one rule on every
+  surface (`kapi run`, `kapi up`'s `defaults.flow`, `kapi flows`, the MCP
+  `run_flow` tool; `host.ResolveProjectFlow`): the recipe's inline flow, then
+  the file of that name, then the built-in flow of that name, then a plugin's
+  fallback. A project that declares `translate` runs its own, and `kapi flows`
+  lists it in place of the built-in. The porcelain verbs (`kapi translate`,
+  `kapi pseudo-translate`) belong to kapi, so they always run the built-in
+  flow they are named for. The directory
   never sits under `.kapi/`, which is a disposable cache for one checkout
   ([C-01](../context/c-01-project-model.md)): the loader rejects such a
   `flows_dir:`, reads nothing in `.kapi/flows/`, and warns once when flow files

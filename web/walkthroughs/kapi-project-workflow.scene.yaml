@@ -31,10 +31,11 @@ mode: interactive
 # fills real targets offline. kapi.yaml
 # is the recipe `kapi init` scaffolds — here pre-written with the content
 # already declared (a target template is what makes coverage derivable) and a
-# memory-recycle flow as defaults.flow. Flow names must not shadow the built-in
-# porcelain flows (translate, pseudo-translate), so the recipe flow gets its
-# own name. (init is genuinely runnable below — it is idempotent and reports
-# the project is already initialized.)
+# memory-recycle flow as defaults.flow. The recipe flow takes a name of its own so
+# it reads apart from the porcelain verbs (kapi translate, kapi
+# pseudo-translate), which always run the built-in flows. (init is genuinely
+# runnable below — it is idempotent and reports the project is already
+# initialized.)
 seed:
   - messages.json
 files:

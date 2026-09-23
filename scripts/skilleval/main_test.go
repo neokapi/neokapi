@@ -255,6 +255,7 @@ func TestIsolationEnvHonoursTheContract(t *testing.T) {
 	for _, want := range []string{
 		"KAPI_NO_PROJECT=1",
 		"KAPI_CONFIG_DIR=",
+		"KAPI_DATA_DIR=",
 		"XDG_DATA_HOME=",
 		"XDG_CACHE_HOME=",
 		"KAPI_PLUGINS_DIR_ONLY=1",

@@ -159,7 +159,7 @@ func main() {
 	if opts.KapiBin == "" {
 		fail("needs this checkout's kapi: run `make build` first. A kapi on PATH is deliberately not used")
 	}
-	fmt.Fprintf(os.Stderr, "kapi: %s (%s)\n", opts.KapiBin, strings.TrimSpace(run(opts.KapiBin, "--version")))
+	fmt.Fprintf(os.Stderr, "kapi: %s (%s)\n", opts.KapiBin, strings.TrimSpace(kapiProbe(context.Background(), opts.KapiBin, "--version")))
 
 	set := selectScenarios(*only, opts.Mode, *surface)
 	if len(set) == 0 {
@@ -602,7 +602,7 @@ func (r *Report) stamp(opts Options, claudeBin string) {
 		SkillModified: firstLine(run("git", "-C", opts.RepoRoot, "log", "-1", "--format=%ad", "--date=short", "--", "cli/skills/data/kapi")),
 		Host:          firstLine(run("uname", "-sm")),
 		Kapi:          strings.TrimPrefix(opts.KapiBin, opts.RepoRoot+"/"),
-		KapiVersion:   scrubPaths(firstLine(run(opts.KapiBin, "version"))),
+		KapiVersion:   scrubPaths(firstLine(kapiProbe(context.Background(), opts.KapiBin, "version"))),
 		Settings:      settingsLine(opts),
 	}
 }
@@ -719,6 +719,29 @@ func run(name string, args ...string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, name, args...).Output()
+	if err != nil {
+		return ""
+	}
+	return string(out)
+}
+
+// kapiProbe captures a short kapi command's stdout for a provenance field, or
+// "" if it fails. kapi runs under the isolation contract with throwaway roots,
+// like every other kapi a run launches: a version probe from inside this
+// checkout would otherwise bind the dogfood recipe and read the developer's
+// configuration, plugins and data root.
+func kapiProbe(ctx context.Context, kapiBin string, args ...string) string {
+	home, err := os.MkdirTemp("", "skilleval-probe-")
+	if err != nil {
+		return ""
+	}
+	defer os.RemoveAll(home)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, kapiBin, args...)
+	cmd.Dir = home
+	cmd.Env = append(agentEnv(), isolationEnv(home)...)
+	out, err := cmd.Output()
 	if err != nil {
 		return ""
 	}

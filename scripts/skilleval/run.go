@@ -391,10 +391,16 @@ func agentEnv() []string {
 	return out
 }
 
+// isolationEnv is the CLAUDE.md isolation contract for a kapi launched with
+// its throwaway roots under home. KAPI_DATA_DIR names the data root outright
+// and wins over XDG_DATA_HOME, so it is set here rather than left to the
+// environment: a launch that inherited a developer's exported KAPI_DATA_DIR
+// would read and write the developer's own workspace.
 func isolationEnv(home string) []string {
 	return []string{
 		"KAPI_NO_PROJECT=1",
 		"KAPI_CONFIG_DIR=" + filepath.Join(home, "kapi-config"),
+		"KAPI_DATA_DIR=" + filepath.Join(home, "kapi-data"),
 		"XDG_DATA_HOME=" + filepath.Join(home, "xdg-data"),
 		"XDG_CACHE_HOME=" + filepath.Join(home, "xdg-cache"),
 		"KAPI_PLUGINS_DIR_ONLY=1",

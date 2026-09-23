@@ -532,16 +532,17 @@ kapi run translate -p kapi.yaml
 
 Built-in flows are registered in `host/flowdef.BuiltInFlows`; the
 [`kapi run` reference](/reference/commands/run) lists them. A recipe's `flows:`
-map adds flows, and a built-in name wins over a recipe flow of the same name in
-`kapi run`, so a recipe flow that should not shadow a built-in takes a name of
-its own.
+map adds flows, and a recipe flow runs in place of a built-in flow of the same
+name. The porcelain verbs (`kapi translate`, `kapi pseudo-translate`) always run
+the built-in they are named for.
 
 With `-p`:
 
-- The flow name is matched against the built-in flows first; if it is not one of
-  those, it is looked up in the project's `flows` map, then as
+- The flow name is looked up in the project's `flows` map first, then as
   `<flows_dir>/<name>.yaml` when the recipe names a `flows_dir`
-  (`core/project.LoadDirFlow`), and finally the plugin fallback
+  (`core/project.LoadDirFlow`), then among the built-in flows, and finally the
+  plugin fallback (`host.ResolveProjectFlow`, which `kapi up` resolves
+  `defaults.flow` through as well)
 - `defaults.source_language` and `defaults.target_languages[0]` provide
   defaults (CLI flags override)
 - For single-file flows, `--input` selects the file. The project's

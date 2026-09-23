@@ -452,7 +452,7 @@ bounded profile against the current time and labels it `active`, `upcoming` or
 | `coordinates`      | map                 | The project's default point on the declared axes (`brand`, `mode`), inherited by every collection; `product` and `channel` are derived from `channel:` and rejected here (see [Declared axes](#declared-axes)) |
 | `tools`            | map                 | Project-level tool presets, keyed by tool name: config applied wherever that tool runs in a project flow. A step's own `config` overrides a preset per key. `term_rules:` is the key `term-check`, `translate`, `recycle`, `dnt-check` and `pseudo-translate` take here (one term, what to use instead, and `advisory: true` for a rule that reports without failing; see the [voice profile reference](/reference/serialization/voice-profile#term-rules)) |
 | `locales`          | map                 | Per-target-language overrides keyed by locale. Each entry's `tools:` presets merge over `defaults.tools` and under a step's own config whenever a flow runs for that locale, so one locale can enable redaction or a different model without forking the flow (see [the kapi loop](/kapi/convergence)) |
-| `flow`             | string              | The project's default flow, the composed flow `kapi up` runs to catch up every locale. A built-in name (e.g. `translate`) or a key in `flows:`. Empty runs the built-in default (recycle → translate) |
+| `flow`             | string              | The project's default flow, the composed flow `kapi up` runs to catch up every locale. A key in `flows:`, a file in `flows_dir:`, or a built-in name (e.g. `translate`), resolved as `kapi run` resolves it. Empty runs the built-in default (recycle → translate) |
 | `materialize`      | string              | Who delivers translated files. `manual` (default) leaves delivery to `kapi merge` or `kapi up --materialize`; `on-converge` makes `kapi up` write a locale's files to the collection's `target:` only once its gated scopes are shippable |
 | `jobs`             | int                 | How many target languages one `kapi up` pass runs concurrently. `0` (default) leaves it to the runner (4); `--jobs` overrides per run |
 | `source_gate`      | string              | Source-first convergence level: the source status a block must reach before it is translated (see [source_gate](#defaults-source-gate)) |
@@ -648,7 +648,9 @@ steps:
       terms: [Acme Cloud]
 ```
 
-A flow file holds the same steps as an entry under `flows:`, plus an optional `description:`. Its steps name no input or output paths: `kapi run` takes the files from the recipe's collections, or from `--input`. When `flows:` and a file both define a flow of the same name, the recipe's entry runs.
+A flow file holds the same steps as an entry under `flows:`, plus an optional `description:`. Its steps name no input or output paths: `kapi run` takes the files from the recipe's collections, or from `--input`.
+
+A flow name runs the most specific definition: the entry under `flows:`, then the file of that name, then the built-in flow of that name. So a recipe that declares `translate` runs its own with `kapi run translate` and as `defaults.flow`, and `kapi flows` lists it in place of the built-in. The `kapi translate` and `kapi pseudo-translate` commands always run the built-in flow.
 
 kapi reads no flow files from `.kapi/flows/`. When it finds some there, it prints one warning naming them; move them to a committed directory and set `flows_dir:`.
 

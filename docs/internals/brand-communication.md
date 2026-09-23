@@ -155,8 +155,9 @@ the source of truth. Specifics that have bitten us:
 - **Built-in flows** include `translate`, `translate-qa`, `pseudo-translate`,
   `qa` and `recycle` (`host/flowdef/builtin.go`). `kapi run translate` runs the
   built-in `translate` flow, which is memory reuse, then translate, then the
-  checks; a project file can define additional named flows, and a built-in name
-  wins over a project flow of the same name.
+  checks; a project file can define additional named flows, and a project flow
+  runs in place of a built-in flow of the same name (`kapi translate` itself
+  always runs the built-in).
 - **`--target-lang` is single-valued** for `run` and tool commands; only
   `extract` accepts a comma-separated list. Don't show `--target-lang fr,de,ja`
   fanning out to multiple files.
