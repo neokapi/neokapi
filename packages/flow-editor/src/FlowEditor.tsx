@@ -746,7 +746,7 @@ export function FlowEditor({
       setSelectedNodeId(`tool-${at}`);
       // Re-anchor the content top-left at 100% (keeps Source pinned top-left).
       requestAnimationFrame(() => {
-        reactFlowRef.current?.setViewport(
+        void reactFlowRef.current?.setViewport(
           { x: CANVAS_MARGIN, y: CANVAS_MARGIN, zoom: 1 },
           { duration: 300 },
         );

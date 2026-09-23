@@ -103,7 +103,7 @@ export function PreviewPanel({
       debounceRef.current = setTimeout(() => {
         // Auto-preview on debounce if text is non-empty
         if (e.target.value.trim()) {
-          handlePreview();
+          void handlePreview();
         }
       }, 500);
     },
