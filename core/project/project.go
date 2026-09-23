@@ -78,6 +78,12 @@ type KapiProject struct {
 	Preset      string                     `yaml:"preset,omitempty" json:"preset,omitempty"`
 	Flows       map[string]*flow.StepsSpec `yaml:"flows,omitempty" json:"flows,omitempty"`
 
+	// FlowsDir names a directory, relative to the recipe, that holds one YAML
+	// file per flow, named for the flow. `kapi run <flow>` resolves a flow
+	// there when none is declared inline under `flows:`. There is no default;
+	// see flowsdir.go.
+	FlowsDir string `yaml:"flows_dir,omitempty" json:"flows_dir,omitempty"`
+
 	// Profiles binds governance to a product, keyed by the product's name. A
 	// project is not always one voice: a repository holding both a framework
 	// and the platform built on it carries two, and one project-wide binding
@@ -1042,6 +1048,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 		return fmt.Errorf("unsupported version %q (expected %q)", p.Version, CurrentVersion)
 	}
 	if err := ValidateID(p.ID); err != nil {
+		return err
+	}
+	if err := p.validateFlowsDir(); err != nil {
 		return err
 	}
 	for _, key := range sortedKeys(p.Extras) {

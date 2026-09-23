@@ -123,11 +123,15 @@ func (p *Project) StateDir() string { return p.Layout.StateDir }
 // CacheDir is the absolute path to the .kapi/work/cache/ directory.
 func (p *Project) CacheDir() string { return p.Layout.CacheDir() }
 
-// FlowsDirPath returns the path to .kapi/flows/, the optional file-per-flow
-// store. `kapi run` resolves a flow from here when the recipe declares none
-// inline under `flows:`.
+// FlowsDirPath returns the absolute path of the directory the recipe names
+// with `flows_dir:`, one YAML file per flow, or "" when it names none. `kapi
+// run` resolves a flow from here when the recipe declares none inline under
+// `flows:`.
 func (p *Project) FlowsDirPath() string {
-	return p.Layout.FlowsDir()
+	if p.Recipe == nil {
+		return ""
+	}
+	return p.Recipe.FlowsDirIn(p.Root)
 }
 
 // SyncCachePath is the path to the bowrain sync cache. Bowrain owns this

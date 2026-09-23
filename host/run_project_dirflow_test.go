@@ -13,15 +13,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A flow under .kapi/flows/ is a project flow, so `kapi run <flow>` resolves it
-// through the project runner: the recipe's collections supply the files, the
+// A flow file in the recipe's flows_dir is a project flow, so `kapi run <flow>`
+// resolves it through the project runner: the recipe's collections supply the files, the
 // recipe's format bindings read them, and the run writes where a recipe flow's
 // run writes. A run that treated the flow name as a file path instead opened a
 // file named after the flow, or ran the tools over one file with no project
 // context and wrote the result back over its own input.
 
 // dirFlowProject writes a project with one collection of MDX pages and one
-// flow file under .kapi/flows/, and returns the App, the recipe path and the
+// flow file in its flows_dir, and returns the App, the recipe path and the
 // project root.
 func dirFlowProject(t *testing.T, flowName, flowYAML string) (*App, string, string) {
 	t.Helper()
@@ -38,14 +38,15 @@ func dirFlowProject(t *testing.T, flowName, flowYAML string) (*App, string, stri
 	require.NoError(t, os.MkdirAll(docs, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(docs, "page.md"), []byte(mdxPage), 0o644))
 
-	flowsDir := project.LayoutAt(dir).FlowsDir()
+	flowsDir := filepath.Join(dir, "flows")
 	require.NoError(t, os.MkdirAll(flowsDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(flowsDir, flowName+".yaml"), []byte(flowYAML), 0o644))
 
 	recipe := filepath.Join(dir, "kapi.yaml")
 	require.NoError(t, project.Save(recipe, &project.KapiProject{
-		Version: project.CurrentVersion,
-		Name:    "dir-flow",
+		Version:  project.CurrentVersion,
+		Name:     "dir-flow",
+		FlowsDir: "flows",
 		Collections: []project.Collection{{
 			Name:   "docs",
 			Path:   "docs/**/*.md",
@@ -159,7 +160,7 @@ func TestRunFromProject_RecipeFlowWinsOverTheFlowsDirectory(t *testing.T) {
 
 	out := filepath.Join(dir, "page.qps.md")
 	require.NoError(t, runProjectFlowCmd(t, a, "pseudo", recipe, out, "qps"))
-	assert.FileExists(t, out, "the file-per-flow definition ran, and its tool does not exist")
+	assert.FileExists(t, out, "the recipe's flow ran; the file's tool does not exist")
 }
 
 // An unknown flow reports that the project has no such flow rather than trying
@@ -170,6 +171,20 @@ func TestRunFromProject_UnknownFlowIsReported(t *testing.T) {
 	err := runProjectFlowCmd(t, a, "nowhere", recipe, "", "qps")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nowhere")
+}
+
+// kapi reads flow files only from the directory the recipe names. A file left
+// in the checkout's .kapi/ cache is no flow of the project's.
+func TestRunFromProject_FlowFileInTheCacheIsNotRead(t *testing.T) {
+	a, recipe, dir := dirFlowProject(t, "other", pseudoDirFlow)
+
+	cache := filepath.Join(dir, project.StateDirName, "flows")
+	require.NoError(t, os.MkdirAll(cache, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(cache, "pseudo.yaml"), []byte(pseudoDirFlow), 0o644))
+
+	err := runProjectFlowCmd(t, a, "pseudo", recipe, "", "qps")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `flow "pseudo" not found`)
 }
 
 // A step that names a file is rejected with the reason: a flow's steps declare

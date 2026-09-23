@@ -15,8 +15,8 @@ import (
 // RunCmdOptions configures the run command.
 type RunCmdOptions struct {
 	// FallbackRunE is called when the flow name matches no flow kapi can
-	// resolve: no built-in, none inline on the recipe, and no file under
-	// .kapi/flows/. It is the extension point a plugin installs to serve
+	// resolve: no built-in, none inline on the recipe, and no file in the
+	// recipe's flows_dir. It is the extension point a plugin installs to serve
 	// flows kapi itself knows nothing about.
 	FallbackRunE func(cmd Command, flowName string, args []string) error
 
@@ -133,13 +133,13 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 		spec = builtInFlowSteps(flowName, runFlagToolConfig(cmd))
 	} else {
 		// A project's flows live in two places: inline on the recipe under
-		// `flows:`, and one file per flow under `.kapi/flows/`. Both are the
-		// same flow here, so a file-per-flow definition takes the same content
-		// resolution, locale passes, standing bindings and findings report as
-		// an inline one.
+		// `flows:`, and one file per flow in the directory the recipe names
+		// with `flows_dir:`. Both are the same flow here, so a file-per-flow
+		// definition takes the same content resolution, locale passes,
+		// standing bindings and findings report as an inline one.
 		spec = proj.Flow(flowName)
 		if spec == nil {
-			dirFlow, derr := project.LoadDirFlow(project.LayoutAt(ctx.ProjectDir), flowName)
+			dirFlow, derr := project.LoadDirFlow(proj.FlowsDirIn(ctx.ProjectDir), flowName)
 			if derr != nil && !errors.Is(derr, os.ErrNotExist) {
 				return derr
 			}

@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A project keeps its flows inline on the recipe or one file per flow under
-// .kapi/flows/, and both run the same way: over the recipe's collections,
+// A project keeps its flows inline on the recipe or one file per flow in the
+// directory the recipe names with flows_dir, and both run the same way: over the recipe's collections,
 // through the project runner, with the recipe's bindings and the findings its
 // check steps report. These drive the file-per-flow half through the local
 // run_flow action, which is the surface #2426 was found on.
@@ -29,8 +29,8 @@ steps:
         - Acme Cloud
 `
 
-// dirFlowFixture writes a project whose `guard` flow lives in
-// .kapi/flows/guard.yaml rather than inline on the recipe.
+// dirFlowFixture writes a project whose `guard` flow lives in flows/guard.yaml,
+// named by the recipe's flows_dir, rather than inline on the recipe.
 func dirFlowFixture(t *testing.T, rules ...project.AutomationSpec) *project.Project {
 	t.Helper()
 	isolateKapi(t)
@@ -39,8 +39,9 @@ func dirFlowFixture(t *testing.T, rules ...project.AutomationSpec) *project.Proj
 	require.NoError(t, err)
 
 	recipe := &project.Recipe{
-		Version: coreproj.CurrentVersion,
-		Name:    "DirFlowTest",
+		Version:  coreproj.CurrentVersion,
+		Name:     "DirFlowTest",
+		FlowsDir: "flows",
 		Defaults: coreproj.Defaults{
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb"},

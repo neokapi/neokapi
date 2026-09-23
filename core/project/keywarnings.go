@@ -171,7 +171,8 @@ func editDistance(a, b string) int {
 }
 
 // OnKeyWarnings is called after a recipe loads with any near-miss keys it
-// carries. Nil by default, so the framework prints nothing on its own.
+// carries, and with a note when flow files sit in `.kapi/flows/` beside it.
+// Nil by default, so the framework prints nothing on its own.
 //
 // A hook rather than a print: core/project is library code and a package that
 // writes to stderr on its own initiative is a package a caller cannot embed.
@@ -183,12 +184,18 @@ func editDistance(a, b string) int {
 // goroutine; it is read, not synchronised.
 var OnKeyWarnings func(recipePath string, warnings []string)
 
-// reportKeyWarnings hands a freshly loaded recipe's near-miss keys to the hook.
+// reportKeyWarnings hands a freshly loaded recipe's near-miss keys to the hook,
+// with the note about flow files left in `.kapi/flows/`, which kapi does not
+// read (see flowsdir.go).
 func reportKeyWarnings(path string, p *KapiProject) {
 	if OnKeyWarnings == nil {
 		return
 	}
-	if w := p.KeyWarnings(); len(w) > 0 {
+	w := p.KeyWarnings()
+	if note := flowFilesInCacheWarning(path); note != "" {
+		w = append(w, note)
+	}
+	if len(w) > 0 {
 		OnKeyWarnings(path, w)
 	}
 }

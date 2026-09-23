@@ -1,5 +1,6 @@
-// Package projflow lists the project-defined flows under .kapi/flows/ for the
-// plugin's command and MCP surfaces, so the two stay decoupled from each other.
+// Package projflow lists the project's file-per-flow definitions, in the
+// directory the recipe names with `flows_dir:`, for the plugin's command and
+// MCP surfaces, so the two stay decoupled from each other.
 // The files themselves are read by the framework (core/project.ListDirFlows),
 // which is also what the project runner resolves `kapi run <flow>` through.
 package projflow
@@ -10,7 +11,7 @@ import (
 	"github.com/neokapi/neokapi/host/venue/project"
 )
 
-// List returns the flow info entries in the project's .kapi/flows/ directory.
+// List returns the flow info entries in the recipe's `flows_dir:`.
 // Returns nil when no project is found. A file that does not describe a
 // runnable flow is listed with its problem as the description, so it is
 // visible where its author looks for it.
@@ -21,7 +22,7 @@ func List() []clioutput.FlowInfo {
 	}
 
 	var flows []clioutput.FlowInfo
-	for _, def := range coreproj.ListDirFlows(proj.Layout) {
+	for _, def := range coreproj.ListDirFlows(proj.FlowsDirPath()) {
 		info := clioutput.FlowInfo{
 			Name:        def.Name,
 			Description: def.Description,

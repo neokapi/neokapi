@@ -12,20 +12,80 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// FlowsDirName holds the project's file-per-flow definitions, one YAML file
-// per flow, named for the flow. A recipe declares a flow inline under `flows:`;
-// a project with more than a couple of them keeps each in its own file instead,
-// where it is reviewed and edited on its own. Both are the same flow to
-// everything downstream: one steps spec, run through the project runner over
-// the recipe's collections.
-const FlowsDirName = "flows"
+// A recipe declares a flow inline under `flows:`. A project with more than a
+// couple of them keeps each in its own YAML file instead, named for the flow,
+// in the directory the recipe names with `flows_dir:`, where each is reviewed
+// and edited on its own. Both are the same flow to everything downstream: one
+// steps spec, run through the project runner over the recipe's collections.
+//
+// The directory has no default. Flow files are authored configuration, so they
+// sit wherever the project commits its configuration, and the recipe says
+// where. They never sit under `.kapi/`, which is a disposable cache.
 
-// FlowsDir returns the absolute path of the file-per-flow directory.
-func (l Layout) FlowsDir() string {
-	return filepath.Join(l.StateDir, FlowsDirName)
+// FlowsDirIn returns the absolute path of the file-per-flow directory the
+// recipe at root names with `flows_dir:`, or "" when it names none.
+func (p *KapiProject) FlowsDirIn(root string) string {
+	if p == nil || p.FlowsDir == "" {
+		return ""
+	}
+	return filepath.Join(root, filepath.FromSlash(p.FlowsDir))
 }
 
-// DirFlow is one flow file in the project's flows directory.
+// validateFlowsDir keeps `flows_dir:` a committed directory every checkout
+// resolves the same way: relative to the recipe, and outside the checkout's
+// cache, where a flow file is lost to the next clean checkout and never reaches
+// a teammate.
+func (p *KapiProject) validateFlowsDir() error {
+	if p.FlowsDir == "" {
+		return nil
+	}
+	if filepath.IsAbs(p.FlowsDir) {
+		return fmt.Errorf("flows_dir: %q is an absolute path. Name the directory relative to the recipe, so every checkout finds it", p.FlowsDir)
+	}
+	first := strings.Split(filepath.ToSlash(filepath.Clean(p.FlowsDir)), "/")[0]
+	if first == StateDirName {
+		return fmt.Errorf("flows_dir: %q sits under %s/, a disposable cache for one checkout. Keep flow files in a committed directory, such as flows/", p.FlowsDir, StateDirName)
+	}
+	return nil
+}
+
+// cacheFlowsDirName is the directory under `.kapi/` that once held flow files.
+// kapi reads nothing there; FlowFilesInCache finds files left in it so a
+// person learns to move them.
+const cacheFlowsDirName = "flows"
+
+// FlowFilesInCache reports the flow files sitting in `.kapi/flows/` beside the
+// recipe at recipePath, sorted by name. kapi never reads them, so a project
+// that keeps flows there runs without them.
+func FlowFilesInCache(recipePath string) []string {
+	dir := filepath.Join(filepath.Dir(recipePath), StateDirName, cacheFlowsDirName)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() && filepath.Ext(e.Name()) == ".yaml" {
+			names = append(names, e.Name())
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+// flowFilesInCacheWarning is the one line a recipe load reports when
+// `.kapi/flows/` holds flow files, or "" when it holds none.
+func flowFilesInCacheWarning(recipePath string) string {
+	files := FlowFilesInCache(recipePath)
+	if len(files) == 0 {
+		return ""
+	}
+	return fmt.Sprintf(
+		"kapi does not read flow files in %s/%s/ (%s), because %s/ is a disposable cache. Move them to a committed directory and name it in the recipe with flows_dir: <dir>",
+		StateDirName, cacheFlowsDirName, strings.Join(files, ", "), StateDirName)
+}
+
+// DirFlow is one flow file in the recipe's `flows_dir:`.
 type DirFlow struct {
 	// Name is the flow's name, taken from the file name. The `name:` key
 	// inside the file is a label; the file name is what `kapi run` resolves.
@@ -61,26 +121,34 @@ type dirFlowPathProbe struct {
 	} `yaml:"steps"`
 }
 
-// LoadDirFlow reads the flow one file in the project's flows directory names.
-// The error wraps os.ErrNotExist when the project has no such file, which is
-// how a caller tells "no flow by that name" from "a flow that will not load".
-func LoadDirFlow(l Layout, name string) (*DirFlow, error) {
+// LoadDirFlow reads the flow one file in dir names, dir being the recipe's
+// resolved `flows_dir:` (FlowsDirIn). The error wraps os.ErrNotExist when dir
+// is empty or holds no such file, which is how a caller tells "no flow by that
+// name" from "a flow that will not load".
+func LoadDirFlow(dir, name string) (*DirFlow, error) {
+	if dir == "" {
+		return nil, fmt.Errorf("project: no flow %q: the recipe names no flows_dir: %w", name, os.ErrNotExist)
+	}
 	if name == "" || strings.ContainsAny(name, `/\`) || name == "." || name == ".." {
 		return nil, fmt.Errorf("project: flow name %q is not a file name: %w", name, os.ErrNotExist)
 	}
-	def := loadDirFlowFile(filepath.Join(l.FlowsDir(), name+".yaml"), name)
+	def := loadDirFlowFile(filepath.Join(dir, name+".yaml"), name)
 	if def.Err != nil {
 		return nil, def.Err
 	}
 	return def, nil
 }
 
-// ListDirFlows reads every flow file in the project's flows directory, ordered
-// by name. An entry that carries an Err named a file that will not run; a
-// listing shows it with its problem, since a flow dropped from the listing is
-// one whose author never learns why it does nothing.
-func ListDirFlows(l Layout) []*DirFlow {
-	entries, err := os.ReadDir(l.FlowsDir())
+// ListDirFlows reads every flow file in dir, the recipe's resolved
+// `flows_dir:`, ordered by name. An empty dir lists nothing. An entry that
+// carries an Err named a file that will not run; a listing shows it with its
+// problem, since a flow dropped from the listing is one whose author never
+// learns why it does nothing.
+func ListDirFlows(dir string) []*DirFlow {
+	if dir == "" {
+		return nil
+	}
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
 	}
@@ -91,7 +159,7 @@ func ListDirFlows(l Layout) []*DirFlow {
 			continue
 		}
 		name := strings.TrimSuffix(e.Name(), ".yaml")
-		flows = append(flows, loadDirFlowFile(filepath.Join(l.FlowsDir(), e.Name()), name))
+		flows = append(flows, loadDirFlowFile(filepath.Join(dir, e.Name()), name))
 	}
 	sort.Slice(flows, func(i, j int) bool { return flows[i].Name < flows[j].Name })
 	return flows
