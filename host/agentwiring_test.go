@@ -351,3 +351,100 @@ func treeSnapshot(t *testing.T, root string) map[string]string {
 	}))
 	return out
 }
+
+// A project that declares target languages gets the translation tools beside
+// the writing ones; a project with none gets the default set and no flag.
+func TestAgentWiringNamesTheToolSets(t *testing.T) {
+	root := t.TempDir()
+	_, err := host.WriteAgentWiring(host.AgentWiringOptions{
+		Root:  root,
+		Hosts: []host.AgentHost{host.AgentHostClaudeCode, host.AgentHostCodex},
+		Tools: []string{"writing", "translation"},
+	})
+	require.NoError(t, err)
+
+	servers := readJSON(t, filepath.Join(root, ".mcp.json"))["mcpServers"].(map[string]any)
+	assert.Equal(t, []any{"mcp", "--project", "kapi.yaml", "--tools", "writing,translation"},
+		servers["kapi"].(map[string]any)["args"])
+	codex, err := os.ReadFile(filepath.Join(root, ".codex/config.toml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(codex), `args = ["mcp", "--project", "kapi.yaml", "--tools", "writing,translation"]`)
+}
+
+// An entry exactly as kapi writes it is kapi's own and follows the recipe: a
+// project that gains target languages gets the translation tools on the next
+// run, in the JSON configs and in Codex's TOML alike. An entry someone edited
+// is theirs and is kept.
+func TestAgentWiringRefreshesItsOwnEntry(t *testing.T) {
+	root := t.TempDir()
+	hosts := []host.AgentHost{host.AgentHostClaudeCode, host.AgentHostCodex}
+	_, err := host.WriteAgentWiring(host.AgentWiringOptions{Root: root, Hosts: hosts})
+	require.NoError(t, err)
+
+	res, err := host.WriteAgentWiring(host.AgentWiringOptions{
+		Root: root, Hosts: hosts, Tools: []string{"writing", "translation"},
+	})
+	require.NoError(t, err)
+	for _, f := range res.Files {
+		assert.Equal(t, host.AgentWiringUpdated, f.Action, "%s", f.Path)
+	}
+	servers := readJSON(t, filepath.Join(root, ".mcp.json"))["mcpServers"].(map[string]any)
+	assert.Contains(t, servers["kapi"].(map[string]any)["args"], "--tools")
+	codex, err := os.ReadFile(filepath.Join(root, ".codex/config.toml"))
+	require.NoError(t, err)
+	assert.Equal(t, 1, strings.Count(string(codex), "[mcp_servers.kapi]"), "the block is replaced, not appended:\n%s", codex)
+	assert.Contains(t, string(codex), `"--tools", "writing,translation"`)
+
+	again, err := host.WriteAgentWiring(host.AgentWiringOptions{
+		Root: root, Hosts: hosts, Tools: []string{"writing", "translation"},
+	})
+	require.NoError(t, err)
+	for _, f := range again.Files {
+		assert.Equal(t, host.AgentWiringUnchanged, f.Action, "%s", f.Path)
+	}
+
+	// A person's own entry, with an environment kapi never writes, is kept.
+	own := `{"mcpServers":{"kapi":{"type":"stdio","command":"kapi","args":["mcp","--project","kapi.yaml"],"env":{"X":"1"}}}}`
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".mcp.json"), []byte(own), 0o644))
+	kept, err := host.WriteAgentWiring(host.AgentWiringOptions{
+		Root: root, Hosts: []host.AgentHost{host.AgentHostClaudeCode},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, host.AgentWiringKept, kept.Files[0].Action)
+	after, err := os.ReadFile(filepath.Join(root, ".mcp.json"))
+	require.NoError(t, err)
+	assert.Equal(t, own, string(after))
+}
+
+// A skill directory an earlier kapi filled with reference files keeps only
+// what this binary ships: the files kapi recognises as its own are removed,
+// directories they leave empty go with them, and anything else stays and is
+// reported.
+func TestAgentWiringRemovesFilesAnEarlierKapiCopied(t *testing.T) {
+	root, _ := wire(t, []host.AgentHost{host.AgentHostClaudeCode})
+	skill := filepath.Join(root, ".claude/skills/kapi")
+	require.NoError(t, os.WriteFile(filepath.Join(skill, "NOTES.md"), []byte("mine\n"), 0o644))
+
+	short := fstest.MapFS{"kapi/SKILL.md": {Data: []byte("---\nname: kapi\n---\nshort\n")}}
+	retired := func(body []byte) bool {
+		s := string(body)
+		return s == "read, edit, write, verify\n" || s == "retrieve, score, fix\n"
+	}
+	res, err := host.WriteAgentWiring(host.AgentWiringOptions{
+		Root: root, Hosts: []host.AgentHost{host.AgentHostClaudeCode}, Skills: short, Retired: retired,
+	})
+	require.NoError(t, err)
+
+	assert.NoDirExists(t, filepath.Join(skill, "references"), "an emptied directory is removed")
+	assert.FileExists(t, filepath.Join(skill, "NOTES.md"))
+	var file host.AgentWiringFile
+	for _, f := range res.Files {
+		if f.Path == ".claude/skills/kapi" {
+			file = f
+		}
+	}
+	assert.Equal(t, host.AgentWiringUpdated, file.Action)
+	assert.Equal(t, []string{"references/edit.md", "references/voice.md"}, file.Removed)
+	assert.Equal(t, []string{"NOTES.md"}, file.Kept)
+	assert.Equal(t, "1 file", file.Detail)
+}

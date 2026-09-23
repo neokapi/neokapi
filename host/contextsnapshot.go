@@ -3,6 +3,7 @@ package host
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -20,7 +21,7 @@ import (
 
 // Writing a project's context back out as files.
 //
-// A snapshot is the store rendered in the `.kapi/` layout: the terms bundle,
+// A snapshot is the store rendered in the layout `kapi context import` reads: the terms bundle,
 // one content-memory bundle, the voice profiles at the paths governance
 // resolves them from, and the decision record. A clean clone holding a snapshot
 // and no store reads it back through the same importers the seeding pass uses,
@@ -50,8 +51,8 @@ const snapshotVoiceHeader = "# Written by `kapi context snapshot` from this proj
 
 // ContextSnapshotRequest names where to write.
 type ContextSnapshotRequest struct {
-	// Out is the directory to write the layout into. Empty means the
-	// project's own `.kapi/`.
+	// Out is the directory to write the layout into. It is required: `.kapi/`
+	// is a checkout's cache, so a snapshot goes where its caller says.
 	Out string
 }
 
@@ -112,13 +113,12 @@ func (a *App) SnapshotProjectContext(ctx context.Context, projectPath string, re
 	if err != nil {
 		return res, err
 	}
-	out := layout.StateDir
-	if req.Out != "" {
-		abs, aerr := filepath.Abs(req.Out)
-		if aerr != nil {
-			return res, fmt.Errorf("resolve %s: %w", req.Out, aerr)
-		}
-		out = abs
+	if req.Out == "" {
+		return res, errors.New("context snapshot: name the directory to write (--out)")
+	}
+	out, err := filepath.Abs(req.Out)
+	if err != nil {
+		return res, fmt.Errorf("resolve %s: %w", req.Out, err)
 	}
 	res.Dir = reportedPath(layout.Root, out)
 

@@ -209,7 +209,7 @@ func commitAndReadUnits(t *testing.T, root string) []state.UnitState {
 	// write out what the App under test recorded into the same file.
 	writer := &host.App{}
 	defer writer.Shutdown()
-	_, err := writer.SnapshotProjectContext(t.Context(), root, host.ContextSnapshotRequest{})
+	_, err := writer.SnapshotProjectContext(t.Context(), root, host.ContextSnapshotRequest{Out: filepath.Join(root, project.StateDirName)})
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}

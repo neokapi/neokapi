@@ -73,8 +73,8 @@ connected, ask for the project:
 
 > Set kapi up for this project.
 
-Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known
-i18n layout) and adds the content patterns it finds. What it writes is
+Claude runs `kapi init`, which proposes the content collections from the files
+in the tree, and reads the list back to you to adjust. What it writes is
 committed: a recipe saying which files count as content, and the wiring that
 lets the next session reach kapi. From there your prompts stay short; "check
 this is on brand" needs no flags, because the project carries what the check
@@ -87,29 +87,41 @@ reads.
 directory:
 
 ```bash
-kapi init                      # write kapi.yaml, and wire your agents
-kapi add "docs/**/*.md"        # declare the content; format auto-detected
+kapi init                      # write kapi.yaml with the content it finds, and wire your agents
 ```
 
-`kapi init` names every file as it writes it:
+`kapi init` reads the files in the directory, honouring `.gitignore` and
+skipping dependency and build directories, and names what it chose and every
+file it writes:
 
 ```
 Initialized kapi project "acme-docs"
   recipe: /path/to/acme-docs/kapi.yaml
-  state:  /path/to/acme-docs/.kapi
+  collections (proposed from the files here; edit the recipe to change them):
+    README.md     markdown, 1 file
+    docs/**/*.md  markdown, 12 files
   mcp:    .mcp.json (created: kapi mcp --project kapi.yaml)
-  skill:  .claude/skills/kapi (created: 24 files)
+  skill:  .claude/skills/kapi (created: 1 file)
 ```
 
+The collections are the files kapi reads as content: documents grouped by
+directory, a file at the root on its own, and i18n catalogs where a known
+framework layout or a file named for the source language marks them. Each one
+carries a comment in the recipe saying what it matched. Change them freely;
+`kapi add "<pattern>"` adds another. Running `kapi init` again leaves them as
+they are and prints any content no collection reads yet, with the lines to add.
+
 The last two lines are the wiring: an MCP entry that starts `kapi mcp` for this
-project, and a copy of the kapi skill. Once the project binds a voice, `kapi
-init` adds a short section to `CLAUDE.md` pointing an assistant at it, and
+project, and a short kapi skill that tells an agent what to do and leaves the
+rest to `kapi help <topic>`. Once the project binds a voice, `kapi init` adds a
+short section to `CLAUDE.md` pointing an assistant at it, and
 `kapi voice pointer` writes that section on its own. Choose the agents with
 `--agents`, or opt out with `--agents none`. See
 [what `kapi init` wires up](/kapi/get-started/use-with-claude#what-kapi-init-wires-up).
 
 For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`,
-…) pre-fills the content mapping; `kapi init --list-presets` lists them.
+…) writes its catalog layout even before the files exist;
+`kapi init --list-presets` lists them.
 
 The recipe is plain YAML. `defaults:` carries what applies to every collection,
 and `collections:` names the content:
@@ -120,19 +132,23 @@ id: prj_fbqdv5uoovvpkaarpy5vnexhaq
 name: acme-docs
 defaults:
   source_language: en
+
 collections:
+  # README.md: Markdown, at the root
+  - path: README.md
+    format: markdown
+  # docs/: 12 Markdown files
   - path: "docs/**/*.md"
+    format: markdown
 ```
 
 `id:` is the project's identity. It survives a rename, a move and a clone, and
 it is what joins two checkouts of one repository to one context. Keep it.
 
-Commit the recipe and `.kapi/`. Both are configuration: the recipe says what
-counts as content and what governs it, and `.kapi/` holds the flows you write
-and the saved readers you share. `kapi init` writes a two-line ignore rule for
-the part that belongs to your machine alone, `.kapi/work/`, where
-[everything derived from your files](/kapi/project-store) goes, plus
-`.kapi/filters.local.json` for your personal reader settings.
+Commit the recipe and the agent wiring. `.kapi/` is a cache for this checkout,
+where [everything derived from your files](/kapi/project-store) goes; `kapi init`
+writes an ignore rule that keeps all of it out of version control, and deleting
+it costs a re-read of your files.
 
 What the project learns goes elsewhere. The terms, the voice profiles, the
 wording you approve and the record of who approved it are held in your

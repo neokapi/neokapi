@@ -298,7 +298,7 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 // wants the shards in git runs, and what this asserts against.
 func assertCommittedUnits(t *testing.T, root string, want int, msg string) {
 	t.Helper()
-	_, err := (&App{}).SnapshotProjectContext(t.Context(), root, ContextSnapshotRequest{})
+	_, err := (&App{}).SnapshotProjectContext(t.Context(), root, ContextSnapshotRequest{Out: filepath.Join(root, project.StateDirName)})
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}

@@ -177,7 +177,7 @@ func TestHandleReviewDecision_ApproveRejectSignOff(t *testing.T) {
 	// to write out what the App under test recorded into the same file.
 	writer := &host.App{}
 	defer writer.Shutdown()
-	_, err = writer.SnapshotProjectContext(t.Context(), root, host.ContextSnapshotRequest{})
+	_, err = writer.SnapshotProjectContext(t.Context(), root, host.ContextSnapshotRequest{Out: filepath.Join(root, project.StateDirName)})
 	require.NoError(t, err)
 	units, err := state.ReadCommitted(project.LayoutAt(root).Export().UnitStateDir())
 	require.NoError(t, err)

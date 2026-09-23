@@ -6,11 +6,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-// Layout describes the on-disk shape of a kapi project per Framework AD-008:
-// a `kapi.yaml` recipe file plus an adjacent `.kapi/` state folder,
-// co-located at the same directory. Both paths are absolute.
+// Layout describes the on-disk shape of a kapi project: a `kapi.yaml` recipe
+// plus an adjacent `.kapi/` cache directory, co-located at the same directory.
+// Both paths are absolute.
 type Layout struct {
 	// Root is the directory that holds both RecipePath and StateDir.
 	Root string
@@ -23,55 +24,57 @@ type Layout struct {
 	StateDir string
 }
 
-// StateDirName is the ONE kapi-owned directory in a project. It is committed
-// by default and holds the project's configuration alongside a single internal
-// machine-state directory — the git model, where `.git` keeps its index inside
-// itself rather than scattering siblings across the tree.
+// StateDirName is the one kapi-owned directory in a checkout, and it is a
+// disposable cache for that checkout only.
 //
-// The project's context — its terms, voice profiles, content memory and
-// recorded decisions — lives in the user's workspace. What sits here is what
-// `kapi context export` and `kapi context snapshot` wrote, addressed through
-// ExportLayout.
+// The recipe is the project's committed configuration. The project's context
+// (its terms, voice profiles, content memory and recorded decisions) lives in
+// the user's workspace, one store per project, shared by every checkout. What
+// kapi writes under `.kapi/` is derived from the working tree beside it or
+// belongs to this machine: the block store, the caches, the redaction vault and
+// the saved filters. Deleting the directory costs a re-extraction, except for
+// the vault (see VaultDirName).
 //
-// Two lines of `.kapi/.gitignore` describe the whole rule: `work/` and
-// `filters.local.json`. Everything else under here is authored and reviewed.
+// A person may still keep context files here: `kapi context snapshot --out
+// .kapi` writes them and `kapi context import` reads them, through
+// ExportLayout. A project that commits such files keeps its own
+// `.kapi/.gitignore`, which EnsureLayout never overwrites.
 const StateDirName = ".kapi"
 
-// WorkDirName is the single machine-state subdirectory of StateDir: the local
-// store, the caches, and the redaction vault. Everything kapi derives or keeps
-// per-machine lives under it, and nothing else does, which is what keeps the
-// ignore rule to one line.
+// WorkDirName is the machine-state subdirectory of StateDir: the local store,
+// the caches, and the redaction vault.
 const WorkDirName = "work"
 
-// StateGitignore is the whole ignore rule for a `.kapi/` directory, and it is
-// two lines because the directory splits exactly once.
-//
-// `work/` is machine state: the store, the caches, the vault. `filters.local.json`
-// is the one personal file that is not derived, so it cannot live under work/
-// and has to be named. Everything else — manifest.yaml, flows/, filters.json,
-// and whatever a context export wrote here — is committed.
-//
-// Every path method below has to land on one side of that boundary or the
-// other; a new one that needs an ignore pattern of its own is in the wrong
-// place.
-const StateGitignore = WorkDirName + "/\n" + LocalFiltersFilename + "\n"
+// StateGitignore is the ignore rule EnsureLayout writes into a new `.kapi/`. It
+// ignores the whole directory, the rule file included, because nothing kapi
+// writes there belongs in version control.
+const StateGitignore = "*\n"
 
 // StateGitignoreFilename is where StateGitignore is written, inside `.kapi/`.
 const StateGitignoreFilename = ".gitignore"
+
+// GitignoreCovers reports whether an ignore file's content keeps name out of
+// version control, either by naming it on a line of its own or by ignoring
+// everything. It reads the plain forms kapi writes and makes no attempt to
+// evaluate arbitrary patterns.
+func GitignoreCovers(content, name string) bool {
+	for line := range strings.SplitSeq(content, "\n") {
+		switch strings.TrimSpace(line) {
+		case "*", "/*", name, "/" + name:
+			return true
+		}
+	}
+	return false
+}
 
 // WorkDir returns the absolute path of the machine-state directory.
 func (l Layout) WorkDir() string {
 	return filepath.Join(l.StateDir, WorkDirName)
 }
 
-// RelStatePath returns the project-relative path of a conventional source
-// inside `.kapi/` — what a recipe binding is written as when kapi scaffolds
-// one. Always joined through filepath so the binding matches the paths the
-// loader resolves on the same platform.
-//
-// The committed sources sit directly in `.kapi/`, one segment from the root of
-// the directory that holds them — there is no intermediate grouping segment,
-// because everything committed under `.kapi/` is context.
+// RelStatePath returns the project-relative path of a context file inside
+// `.kapi/`, the path an import records a file under. Joined through filepath
+// so it matches the paths the loader resolves on the same platform.
 func RelStatePath(parts ...string) string {
 	return filepath.Join(append([]string{StateDirName}, parts...)...)
 }
@@ -139,15 +142,15 @@ const RecipeFileName = "kapi.yaml"
 
 // CacheDirName is the subdirectory of WorkDir that holds all regenerable
 // caches: the parse cache, extraction intermediates, overlay layers, and any
-// platform-specific caches (e.g. sync caches added by extensions). Authoritative
-// project data is committed directly under `.kapi/`, and the store sits above
-// the cache inside work/, so users can blow away the cache without losing
-// translation work.
+// platform-specific caches (e.g. sync caches added by extensions). The store
+// sits above the cache inside work/, so deleting the cache costs only the next
+// parse.
 const CacheDirName = "cache"
 
 // FiltersFilename / LocalFiltersFilename hold saved content filters (the
-// desktop "Active Filter"): the shared set is committed; the local set is
-// personal and gitignored.
+// desktop "Active Filter"). Both sit in this checkout's cache directory; the
+// shared set travels only in a project that commits it under an ignore rule of
+// its own.
 const (
 	FiltersFilename      = "filters.json"
 	LocalFiltersFilename = "filters.local.json"
@@ -158,12 +161,12 @@ func (l Layout) CacheDir() string {
 	return filepath.Join(l.WorkDir(), CacheDirName)
 }
 
-// FiltersPath returns the path to the shared (committed) saved-filters file.
+// FiltersPath returns the path to the shared saved-filters file.
 func (l Layout) FiltersPath() string {
 	return filepath.Join(l.StateDir, FiltersFilename)
 }
 
-// LocalFiltersPath returns the path to the personal (gitignored) filters file.
+// LocalFiltersPath returns the path to the personal saved-filters file.
 func (l Layout) LocalFiltersPath() string {
 	return filepath.Join(l.StateDir, LocalFiltersFilename)
 }
@@ -303,13 +306,13 @@ func LayoutFor(recipePath string) (Layout, error) {
 	}, nil
 }
 
-// EnsureLayout creates the `.kapi/` directory and the ignored `work/cache/`
-// under it. Idempotent; safe to call on an existing project.
+// EnsureLayout creates the `.kapi/` directory and the `work/cache/` under it.
+// Idempotent; safe to call on an existing project.
 //
 // It writes no context file and creates no directory for one. A project's
-// terms, voice profiles, content memory and decisions live in the workspace,
-// and `kapi context export` creates what it writes.
+// terms, voice profiles, content memory and decisions live in the workspace.
 func EnsureLayout(layout Layout) error {
+	fresh := cacheOnly(layout.StateDir)
 	for _, dir := range []string{
 		layout.StateDir,
 		layout.CacheDir(),
@@ -319,19 +322,39 @@ func EnsureLayout(layout Layout) error {
 		}
 	}
 
-	// The ignore rule belongs to the layout, not to one command: every surface
-	// that creates a state directory arrives here, and the directory is meant to
-	// be committed — so without it a first `git add` stages the store, the
-	// caches and the redaction vault, which the split above exists to keep out.
-	// Written only when absent, so a project that has edited its own rule keeps
-	// what it wrote.
+	// The ignore rule belongs to the layout rather than to one command: every
+	// surface that creates the directory arrives here, and without the rule a
+	// first `git add -A` stages the store, the caches and the redaction vault.
+	//
+	// It is written only into a directory that holds nothing but what kapi
+	// itself keeps there. A `.kapi/` that already carries other files, such as
+	// context files a project commits, has an ignore arrangement of its own,
+	// and a rule that ignored everything would silently keep the next of those
+	// files out of the commit. A rule already present is never rewritten.
 	ignorePath := filepath.Join(layout.StateDir, StateGitignoreFilename)
-	if _, err := os.Stat(ignorePath); errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(ignorePath); errors.Is(err, os.ErrNotExist) && fresh {
 		if err := os.WriteFile(ignorePath, []byte(StateGitignore), 0o644); err != nil {
 			return fmt.Errorf("project: write %s: %w", StateGitignoreFilename, err)
 		}
 	}
 	return nil
+}
+
+// cacheOnly reports whether dir is absent or holds only what kapi writes into
+// a checkout's cache directory.
+func cacheOnly(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return errors.Is(err, fs.ErrNotExist)
+	}
+	for _, e := range entries {
+		switch e.Name() {
+		case WorkDirName, FiltersFilename, LocalFiltersFilename, StateGitignoreFilename:
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // Retired state files are not swept here. Every predecessor of the merged store

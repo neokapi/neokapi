@@ -7,15 +7,15 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // The first thing a newcomer does after `kapi init`, driven end to end: the
-// scaffolded content recipe, the collection `kapi add` writes into it, and the
-// `check` flow the scaffold ships — on a project with no target languages,
-// which is the only shape the content scaffold produces.
+// scaffolded recipe with no target languages, the collection `kapi add` writes
+// into it, and a monolingual `check` flow run over it with `kapi run check`.
 
 // scaffoldContentProject runs the real InitProject content scaffold, points its
 // collection at two markdown files, and returns the App and recipe path.
@@ -47,6 +47,12 @@ func scaffoldContentProject(t *testing.T) (*App, string, string) {
 	proj.Collections = append(proj.Collections, project.Collection{
 		Name: "docs", Path: "docs/**/*.md", Format: &project.FormatSpec{Name: "markdown"},
 	})
+	// A monolingual flow of the kind a person adds to run one check over every
+	// tracked file.
+	if proj.Flows == nil {
+		proj.Flows = map[string]*flow.StepsSpec{}
+	}
+	proj.Flows["check"] = &flow.StepsSpec{Steps: []flow.FlowStep{{Tool: "voice-vocab-check"}}}
 	require.NoError(t, project.Save(res.RecipePath, proj))
 
 	a := &App{}
@@ -92,10 +98,10 @@ func markdownFiles(t *testing.T, dir string) []string {
 	return names
 }
 
-// The scaffold's own suggestion has to work on the project the scaffold just
-// created. `check`'s single step reads source text, so the flow is monolingual
-// and needs no target language — a project with no target languages is exactly
-// what the content scaffold writes.
+// A monolingual flow has to run on the project the scaffold creates. The
+// `check` flow's single step reads source text and needs no target language,
+// and a project with no target languages is what the scaffold writes by
+// default.
 func TestScaffoldedCheckFlowRunsOnItsOwnProject(t *testing.T) {
 	a, recipe, dir := scaffoldContentProject(t)
 
@@ -131,18 +137,15 @@ func TestCheckRunWritesNothingForOneFileOrMany(t *testing.T) {
 	assert.Equal(t, []string{"index.md"}, markdownFiles(t, dir))
 }
 
-// The state directory is meant to be committed, so the rule that keeps the
-// store, the caches and the redaction vault out of the commit has to be there
-// from the moment the directory is.
+// `.kapi/` is this checkout's cache, so the rule that keeps it out of version
+// control has to be there from the moment the directory is.
 func TestInitProjectWritesTheStateIgnoreRule(t *testing.T) {
 	dir := t.TempDir()
-	res, err := InitProject(dir, InitOptions{Name: "demo"})
+	_, err := InitProject(dir, InitOptions{Name: "demo"})
 	require.NoError(t, err)
 
-	path := filepath.Join(res.StateDir, project.StateGitignoreFilename)
+	path := filepath.Join(dir, project.StateDirName, project.StateGitignoreFilename)
 	content, rerr := os.ReadFile(path)
 	require.NoError(t, rerr, "`kapi init` must write %s", path)
 	assert.Equal(t, project.StateGitignore, string(content))
-	assert.Contains(t, string(content), project.WorkDirName+"/",
-		"work/ holds the store, the caches and the redaction vault")
 }

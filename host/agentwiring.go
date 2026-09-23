@@ -23,8 +23,10 @@ import (
 // A project has a voice, terms and a check gate long before anyone tells an
 // assistant they exist. The voice pointer (host/voicepointer.go) says so in
 // prose; this says so in the files an agent host reads as configuration: the
-// MCP server entry that starts `kapi mcp` for this project, and a copy of the
-// kapi skill in the directory the host scans for skills.
+// MCP server entry that starts `kapi mcp` for this project, and the short kapi
+// skill in the directory the host scans for skills. The skill names four
+// habits and leaves everything else to `kapi help <topic>`, which answers from
+// the binary the agent is actually running.
 //
 // Three rules hold for every file written here.
 //
@@ -39,9 +41,12 @@ import (
 // project.
 //
 // AN EXISTING ENTRY IS LEFT ALONE. A config file that already names a server
-// called kapi is read and not written, whatever it says, because someone chose
-// what is in it. The skill directory is kapi's own, so the files the binary
-// ships are refreshed there and anything else in it is left in place.
+// called kapi is read and not written, because someone chose what is in it.
+// The one exception is an entry exactly as kapi writes it, differing only in
+// its tool sets: that entry is kapi's own, and it follows the recipe. The skill
+// directory is kapi's own too, so the file the binary ships is refreshed there,
+// a file an earlier kapi copied there is removed, and anything else is left in
+// place and reported.
 
 // AgentHost names one coding-agent host a project can be wired for.
 type AgentHost string
@@ -130,6 +135,12 @@ type AgentWiringFile struct {
 	// Detail says what is in it, for a line a person reads: the server command
 	// for a config file, the file count for a skill directory.
 	Detail string `json:"detail,omitempty"`
+	// Removed lists, for a skill directory, the files an earlier kapi copied
+	// there that this run removed, relative to the skill directory.
+	Removed []string `json:"removed,omitempty"`
+	// Kept lists, for a skill directory, the files in it that kapi did not
+	// write and left in place, relative to the skill directory.
+	Kept []string `json:"kept,omitempty"`
 }
 
 // AgentWiringResult reports what WriteAgentWiring did.
@@ -155,6 +166,14 @@ type AgentWiringOptions struct {
 	// directory per skill, each holding a SKILL.md. nil writes no skill, which
 	// is what a caller with no embedded copy passes.
 	Skills fs.FS
+	// Retired reports whether a file found in a skill directory is one an
+	// earlier kapi copied there, judged by its content. Such a file is removed;
+	// any other file the binary does not ship is kept and reported. nil keeps
+	// every such file.
+	Retired func(body []byte) bool
+	// Tools are the `kapi mcp --tools` sets the entry names. Empty writes no
+	// flag, which serves the default set.
+	Tools []string
 }
 
 // ErrUnknownAgentHost reports a host name kapi does not wire.
@@ -251,6 +270,60 @@ type mcpServerEntry struct {
 	Args    []string `json:"args"`
 }
 
+// mcpToolsFlag is the `kapi mcp` flag that names the tool sets served.
+const mcpToolsFlag = "--tools"
+
+// kapiMCPEntry is the entry kapi writes for a project: `kapi mcp` for its
+// recipe, with the tool sets named when there are any.
+func kapiMCPEntry(recipe string, tools []string) mcpServerEntry {
+	args := []string{"mcp", "--project", recipe}
+	if len(tools) > 0 {
+		args = append(args, mcpToolsFlag, strings.Join(tools, ","))
+	}
+	return mcpServerEntry{Type: "stdio", Command: "kapi", Args: args}
+}
+
+// isKapiWrittenEntry reports whether held is an entry exactly as kapi writes
+// it for this recipe, whatever tool sets it names. Such an entry is refreshed
+// to the current one; any other entry called kapi is someone's choice and is
+// kept.
+func isKapiWrittenEntry(held mcpServerEntry, recipe string) bool {
+	if held.Command != "kapi" || (held.Type != "" && held.Type != "stdio") {
+		return false
+	}
+	base := []string{"mcp", "--project", recipe}
+	if len(held.Args) < len(base) || !slices.Equal(held.Args[:len(base)], base) {
+		return false
+	}
+	rest := held.Args[len(base):]
+	return len(rest) == 0 || (len(rest) == 2 && rest[0] == mcpToolsFlag && rest[1] != "")
+}
+
+// decodeKapiShaped decodes an entry that carries a type, a command and its
+// arguments and no other key, which is every entry kapi writes. An entry with
+// anything more (an environment, a working directory) is someone's own.
+func decodeKapiShaped(raw json.RawMessage, into *mcpServerEntry) bool {
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(raw, &fields) != nil {
+		return false
+	}
+	for k := range fields {
+		if k != "type" && k != "command" && k != "args" {
+			return false
+		}
+	}
+	return json.Unmarshal(raw, into) == nil
+}
+
+// entryRecipe returns the recipe an entry of kapi's shape names, so a refresh
+// compares against the entry kapi would write for that same recipe.
+func entryRecipe(entry mcpServerEntry) string {
+	if len(entry.Args) >= 3 {
+		return entry.Args[2]
+	}
+	return ""
+}
+
 // mcpConfigFile is one host's MCP configuration: where it lives under the
 // project root, and the key its servers sit under. Claude Code and Cursor read
 // `mcpServers`; VS Code reads `servers`.
@@ -288,11 +361,7 @@ func WriteAgentWiring(opts AgentWiringOptions) (*AgentWiringResult, error) {
 	if opts.Recipe == "" {
 		recipe = project.RecipeFileName
 	}
-	entry := mcpServerEntry{
-		Type:    "stdio",
-		Command: "kapi",
-		Args:    []string{"mcp", "--project", recipe},
-	}
+	entry := kapiMCPEntry(recipe, opts.Tools)
 
 	res := &AgentWiringResult{}
 	for _, host := range agentHostOrder {
@@ -323,7 +392,7 @@ func WriteAgentWiring(opts AgentWiringOptions) (*AgentWiringResult, error) {
 		if !ok || opts.Skills == nil {
 			continue
 		}
-		files, err := writeSkillTree(filepath.Join(opts.Root, filepath.FromSlash(dir)), opts.Skills)
+		files, err := writeSkillTree(filepath.Join(opts.Root, filepath.FromSlash(dir)), opts.Skills, opts.Retired)
 		if err != nil {
 			return nil, err
 		}
@@ -372,10 +441,17 @@ func upsertMCPServerEntry(path, serversKey string, entry mcpServerEntry) (AgentW
 			return out, fmt.Errorf("%s holds a %s that is not an object, so it was left alone: %w", path, serversKey, jerr)
 		}
 	}
-	if _, held := servers[mcpServerName]; held {
-		out.Action = AgentWiringKept
-		out.Detail = "already names a server called " + mcpServerName
-		return out, nil
+	if raw, held := servers[mcpServerName]; held {
+		var current mcpServerEntry
+		if !decodeKapiShaped(raw, &current) || !isKapiWrittenEntry(current, entryRecipe(entry)) {
+			out.Action = AgentWiringKept
+			out.Detail = "already names a server called " + mcpServerName
+			return out, nil
+		}
+		if slices.Equal(current.Args, entry.Args) && current.Type == entry.Type {
+			out.Action = AgentWiringUnchanged
+			return out, nil
+		}
 	}
 
 	updated, merr := marshalMCPConfig(doc, serversKey, servers, entry)
@@ -446,9 +522,21 @@ func upsertCodexMCPServerEntry(path string, entry mcpServerEntry) (AgentWiringFi
 		return out, fmt.Errorf("%s holds TOML kapi could not read, so it was left alone: %w", path, terr)
 	}
 	if servers, ok := doc[codexMCPServersTable].(map[string]any); ok {
-		if _, held := servers[mcpServerName]; held {
-			out.Action = AgentWiringKept
-			out.Detail = "already names a server called " + mcpServerName
+		if table, held := servers[mcpServerName]; held {
+			current, isKapi := codexEntry(table)
+			old := codexMCPServerBlock(current)
+			switch {
+			case !isKapi || !isKapiWrittenEntry(current, entryRecipe(entry)) || !strings.Contains(string(raw), old):
+				out.Action = AgentWiringKept
+				out.Detail = "already names a server called " + mcpServerName
+			case old == block:
+				out.Action = AgentWiringUnchanged
+			default:
+				if werr := writeProjectFile(path, []byte(strings.Replace(string(raw), old, block, 1))); werr != nil {
+					return out, werr
+				}
+				out.Action = AgentWiringUpdated
+			}
 			return out, nil
 		}
 	}
@@ -465,6 +553,32 @@ func upsertCodexMCPServerEntry(path string, entry mcpServerEntry) (AgentWiringFi
 	}
 	out.Action = AgentWiringUpdated
 	return out, nil
+}
+
+// codexEntry reads a Codex server table holding a command and its arguments
+// and nothing else, the shape kapi writes.
+func codexEntry(table any) (mcpServerEntry, bool) {
+	fields, ok := table.(map[string]any)
+	if !ok || len(fields) != 2 {
+		return mcpServerEntry{}, false
+	}
+	command, ok := fields["command"].(string)
+	if !ok {
+		return mcpServerEntry{}, false
+	}
+	list, ok := fields["args"].([]any)
+	if !ok {
+		return mcpServerEntry{}, false
+	}
+	entry := mcpServerEntry{Type: "stdio", Command: command}
+	for _, a := range list {
+		s, ok := a.(string)
+		if !ok {
+			return mcpServerEntry{}, false
+		}
+		entry.Args = append(entry.Args, s)
+	}
+	return entry, true
 }
 
 // codexMCPServerBlock renders kapi's server as the table Codex reads. Codex
@@ -491,8 +605,9 @@ func describeMCPEntry(entry mcpServerEntry) string {
 // The directory named for a skill belongs to that skill, so the files the
 // binary ships are written there whatever was in them: they are a copy of what
 // this binary documents, and a copy that lags the binary names commands the
-// binary may no longer have. Files nobody ships are left where they are.
-func writeSkillTree(dir string, tree fs.FS) ([]AgentWiringFile, error) {
+// binary may no longer have. A file an earlier kapi copied there and this one
+// no longer ships is removed; any other file is left where it is.
+func writeSkillTree(dir string, tree fs.FS, retired func([]byte) bool) ([]AgentWiringFile, error) {
 	names, err := fs.ReadDir(tree, ".")
 	if err != nil {
 		return nil, fmt.Errorf("read the embedded skill tree: %w", err)
@@ -506,7 +621,7 @@ func writeSkillTree(dir string, tree fs.FS) ([]AgentWiringFile, error) {
 		if serr != nil {
 			return nil, fmt.Errorf("read the embedded skill %s: %w", name.Name(), serr)
 		}
-		file, werr := writeOneSkill(filepath.Join(dir, name.Name()), sub)
+		file, werr := writeOneSkill(filepath.Join(dir, name.Name()), sub, retired)
 		if werr != nil {
 			return nil, werr
 		}
@@ -517,14 +632,16 @@ func writeSkillTree(dir string, tree fs.FS) ([]AgentWiringFile, error) {
 	return out, nil
 }
 
-// writeOneSkill copies one skill's files into dir and reports what changed.
-func writeOneSkill(dir string, skill fs.FS) (AgentWiringFile, error) {
+// writeOneSkill copies one skill's files into dir, clears out what an earlier
+// kapi left there, and reports what changed.
+func writeOneSkill(dir string, skill fs.FS, retired func([]byte) bool) (AgentWiringFile, error) {
 	var (
 		out     AgentWiringFile
 		count   int
 		created int
 		updated int
 	)
+	shipped := map[string]bool{}
 	err := fs.WalkDir(skill, ".", func(rel string, d fs.DirEntry, werr error) error {
 		if werr != nil {
 			return werr
@@ -532,6 +649,7 @@ func writeOneSkill(dir string, skill fs.FS) (AgentWiringFile, error) {
 		if d.IsDir() {
 			return nil
 		}
+		shipped[rel] = true
 		body, rerr := fs.ReadFile(skill, rel)
 		if rerr != nil {
 			return fmt.Errorf("read the embedded skill file %s: %w", rel, rerr)
@@ -555,6 +673,11 @@ func writeOneSkill(dir string, skill fs.FS) (AgentWiringFile, error) {
 		return out, err
 	}
 
+	out.Removed, out.Kept, err = sweepSkillDir(dir, shipped, retired)
+	if err != nil {
+		return out, err
+	}
+
 	out.Detail = fmt.Sprintf("%d files", count)
 	if count == 1 {
 		out.Detail = "1 file"
@@ -562,12 +685,65 @@ func writeOneSkill(dir string, skill fs.FS) (AgentWiringFile, error) {
 	switch {
 	case created > 0:
 		out.Action = AgentWiringCreated
-	case updated > 0:
+	case updated > 0 || len(out.Removed) > 0:
 		out.Action = AgentWiringUpdated
 	default:
 		out.Action = AgentWiringUnchanged
 	}
 	return out, nil
+}
+
+// sweepSkillDir removes the files under dir that an earlier kapi copied there
+// and this binary does not ship, and lists the ones it leaves because kapi did
+// not write them. Directories the sweep empties are removed too.
+func sweepSkillDir(dir string, shipped map[string]bool, retired func([]byte) bool) (removed, kept []string, err error) {
+	var dirs []string
+	werr := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+			return err
+		}
+		rel, rerr := filepath.Rel(dir, p)
+		if rerr != nil {
+			return rerr
+		}
+		rel = filepath.ToSlash(rel)
+		if d.IsDir() {
+			if rel != "." {
+				dirs = append(dirs, p)
+			}
+			return nil
+		}
+		if shipped[rel] {
+			return nil
+		}
+		body, rerr := os.ReadFile(p)
+		if rerr != nil {
+			return fmt.Errorf("read %s: %w", p, rerr)
+		}
+		if retired != nil && retired(body) {
+			if rmErr := os.Remove(p); rmErr != nil {
+				return fmt.Errorf("remove %s: %w", p, rmErr)
+			}
+			removed = append(removed, rel)
+			return nil
+		}
+		kept = append(kept, rel)
+		return nil
+	})
+	if werr != nil {
+		return nil, nil, werr
+	}
+	// Deepest first, so a directory is tried after everything under it.
+	sort.Slice(dirs, func(i, j int) bool { return len(dirs[i]) > len(dirs[j]) })
+	for _, d := range dirs {
+		if entries, rerr := os.ReadDir(d); rerr == nil && len(entries) == 0 {
+			_ = os.Remove(d)
+		}
+	}
+	return removed, kept, nil
 }
 
 // writeProjectFile writes one file, creating the directories above it.

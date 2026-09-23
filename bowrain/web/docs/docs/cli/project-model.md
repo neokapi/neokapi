@@ -12,22 +12,12 @@ A bowrain project is a `.kapi` project with a `bowrain:` block on its recipe. Th
 ```
 my-app/
 ├── kapi.yaml                   # the recipe (committed); fixed, conventional filename
-├── .kapi/                      # committed; the project's context
-│   ├── manifest.yaml           # bookkeeping: block counts, fingerprints
-│   ├── filters.json            # shared reader/writer configuration
-│   ├── filters.local.json      # personal overrides (gitignored)
+├── .mcp.json                   # agent wiring written by kapi init (committed)
+├── .kapi/                      # this checkout's cache, ignored as a whole
+│   ├── .gitignore              # `*`, written by kapi init
+│   ├── filters.json            # saved reader filters
 │   ├── flows/                  # optional file-per-flow definitions
-│   │   └── pseudo.yaml
-│   ├── terms.json              # terms (bound by defaults.terms_source)
-│   ├── voice.yaml              # the voice profile (bound by defaults.voice)
-│   ├── memory/                 # content-memory bundles
-│   │   └── memory.json         # the primary (bound by defaults.memory_source)
-│   ├── profiles/               # per-profile governance overrides
-│   │   └── bowrain/
-│   │       └── voice.yaml
-│   ├── state/                  # the unit-state record, one shard per document
-│   │   └── src-locales-en-messages.jsonl
-│   └── work/                   # gitignored; everything derived
+│   └── work/
 │       ├── store.db            # this checkout's projection of its working tree
 │       ├── vault/              # withheld redaction originals (local-only)
 │       └── cache/              # free to delete, always
@@ -45,12 +35,8 @@ my-app/
 Ownership zones at the project root:
 
 - **`kapi.yaml`**: hand-edited, committed to git. The recipe is the single source of truth for project configuration. Its fixed, conventional filename means every editor and code host (GitHub, GitLab) applies YAML syntax highlighting to diffs and previews with no configuration. One thing writes it besides you: an axis approved on the server arrives as a [`kapi pull`](/cli/commands/pull) that edits `defaults.coordinates`, for review in git.
-- **`.kapi/`**: the project's configuration (`flows/`, `filters.json`), committed. A project may also keep a snapshot of its context here, written by `kapi context snapshot`: `terms.json`, `memory/`, `voice.yaml` and per-profile overrides under `profiles/<name>/`. `kapi context import` is what reads those files back. Only `.kapi/work/` is gitignored.
-- **`.kapi/state/*.jsonl`**: the decision record, as a snapshot writes it: the decisions this checkout holds, one shard per document.
-- **`.kapi/work/store.db`**: kapi-owned, gitignored. This checkout's projection of its working tree: the block cache, the overlays a run wrote, the extraction stamps. It rebuilds from the content files.
-- **The project's context store**: kapi-owned, in a workspace under your data directory rather than in the checkout. It holds the terms, the content memory, the voice profiles and the decision ledger, every checkout of the project shares it, and every gate and lookup answers from it. Nothing reproduces a row in it; `kapi context export` is the backup.
-- **`.kapi/work/cache/`**: CLI-owned, gitignored. Everything cheaply regenerable: the tree last declared to the server, extraction intermediates, overlay layers. Safe to delete at any time.
-- **`.kapi/flows/*.yaml`**: optional file-per-flow definitions, hand-edited, committed. Bowrain reads these in addition to inline `flows:` declared on the recipe.
+- **`.kapi/`**: this checkout's cache, kept out of git. `work/store.db` is the checkout's projection of its working tree: the block cache, the overlays a run wrote, the extraction stamps. It rebuilds from the content files. `work/cache/` holds everything cheaply regenerable (the tree last declared to the server, extraction intermediates, overlay layers) and is safe to delete at any time. `flows/*.yaml` holds optional file-per-flow definitions, which bowrain reads in addition to inline `flows:` on the recipe; a project that keeps them commits them under an ignore rule of its own.
+- **The project's context store**: kapi-owned, in a workspace under your data directory rather than in the checkout. It holds the terms, the content memory, the voice profiles and the decision ledger, every checkout of the project shares it, and every gate and lookup answers from it. `kapi context export` is the backup, and `kapi context snapshot --out <dir>` writes it out as files that `kapi context import` reads back.
 
 Local and server converge in shape. Bowrain answers graph questions over one database spanning workspaces, projects and streams; a project answers the same query shapes over its own workspace graph with those dimensions fixed to one value, so which blocks use a given term, by collection and coordinate, is answerable with no server.
 
@@ -381,24 +367,13 @@ All commands work from any subdirectory within the project. A directory holds at
 ### Commit to git
 
 - `kapi.yaml`: the recipe (single source of truth for configuration)
-- `.kapi/terms.json`, `.kapi/memory/memory.json`, `.kapi/voice.yaml`: the exported context files an import reads
-- `.kapi/state/*.jsonl`: the unit-state record
-- `.kapi/flows/*.yaml`: file-per-flow definitions, if you use them
-- `.kapi/manifest.yaml`, `.kapi/filters.json`: bookkeeping and shared reader configuration
+- the agent wiring `kapi init` wrote (`.mcp.json`, `.claude/skills/kapi/SKILL.md`, and the other hosts' files where it wrote them)
 
 ### Do NOT commit
 
-`kapi init` writes a two-line ignore rule, with no negation:
+`.kapi/`: `kapi init` writes `.kapi/.gitignore` with one line, `*`, so none of the cache reaches git.
 
-```gitignore
-/.kapi/work/
-/.kapi/filters.local.json
-```
-
-- `.kapi/work/`: everything derived: `store.db`, the caches, and the redaction vault
-- `.kapi/filters.local.json`: your personal reader overrides
-
-Deleting `.kapi/work/cache/` costs nothing. Deleting `.kapi/work/` costs a re-extraction, and, if the project uses redaction, the withheld originals in `.kapi/work/vault/`, which are local-only by design and rebuild from nothing. Your context is in the workspace and survives it; deleting the workspace costs every project's terms, voice profiles, content memory and decisions, so take a copy with `kapi context export --workspace` before you remove that.
+Deleting `.kapi/work/cache/` costs nothing. Deleting `.kapi/` costs a re-extraction, and, if the project uses redaction, the withheld originals in `.kapi/work/vault/`, which are local-only by design and rebuild from nothing. Your context is in the workspace and survives it; deleting the workspace costs every project's terms, voice profiles, content memory and decisions, so take a copy with `kapi context export --workspace` before you remove that.
 
 ## Initialization
 

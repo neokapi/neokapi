@@ -143,7 +143,7 @@ func TestSnapshotVoiceProfile_KeepsTheCommentary(t *testing.T) {
 	})
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
-	_, err := a.SnapshotProjectContext(context.Background(), recipe, ContextSnapshotRequest{})
+	_, err := a.SnapshotProjectContext(context.Background(), recipe, ContextSnapshotRequest{Out: filepath.Join(filepath.Dir(recipe), project.StateDirName)})
 	require.NoError(t, err)
 
 	after, err := os.ReadFile(voice)

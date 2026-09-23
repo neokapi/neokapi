@@ -5,7 +5,7 @@ sidebar_position: 1
 
 # kapi init
 
-Initialize a new project in the current directory. Creates a `kapi.yaml` recipe at the project root and a sibling `.kapi/` directory holding the project's context (terms, content memory, voice profile and the decision record), with everything derived kept out of git. With the bowrain plugin installed, `kapi init` can also connect the project to a workspace.
+Initialize a new project in the current directory. Creates a `kapi.yaml` recipe at the project root with collections proposed from the files in the tree, and wires the project for the coding agents that work in it. The project's context (terms, content memory, voice profile and the decision record) lives in your workspace; `.kapi/` beside the recipe is a cache for this checkout, kept out of git. With the bowrain plugin installed, `kapi init` can also connect the project to a workspace.
 
 ## Usage
 
@@ -62,11 +62,11 @@ kapi init --server https://app.bowrain.cloud --workspace acme
 
 ## What happens
 
-1. Checks that no `kapi.yaml` recipe and no `.kapi/` directory already exist (fails fast if they do)
-2. Writes the `kapi.yaml` recipe at the project root
-3. Creates the `.kapi/` directory with `flows/`, `memory/`, `state/`, `manifest.yaml`, and an empty `work/cache/`
-4. Adds the example `pseudo` flow at `.kapi/flows/pseudo.yaml`
-5. Adds the ignore rule for `.kapi/work/` and `.kapi/filters.local.json`; the rest of `.kapi/` is committed
+1. Checks that no `kapi.yaml` recipe already exists (fails fast if one does)
+2. Proposes a collection for each kind of content it finds in the tree, unless a preset already named them
+3. Writes the `kapi.yaml` recipe at the project root
+4. Creates the `.kapi/` cache directory with an ignore rule that keeps all of it out of git
+5. Writes the MCP entry that starts `kapi mcp` for this project and the short kapi skill, as `kapi init` does
 6. Optionally creates a project on the Bowrain Server and writes the `bowrain:` block to the recipe
 
 After initialization, you can run `kapi status`, `kapi up`, `kapi run <flow>`,
@@ -174,22 +174,14 @@ kapi status  # finds kapi.yaml up the tree
 
 ## Version control
 
-**Commit to git**: `kapi.yaml` and all of `.kapi/`:
+**Commit to git**:
 
 - `kapi.yaml`: the recipe (single source of truth)
-- `.kapi/terms.json`, `.kapi/memory/memory.json`, `.kapi/voice.yaml`: the exported context files `kapi context import` reads
-- `.kapi/state/*.jsonl`: the decision record, written by `kapi context snapshot`
-- `.kapi/flows/*.yaml`: flow definitions you author
-- `.kapi/manifest.yaml`, `.kapi/filters.json`: bookkeeping and shared reader configuration
+- the agent wiring `kapi init` wrote: `.mcp.json` and `.claude/skills/kapi/SKILL.md`, and the other hosts' files where it wrote them
 
-**Do NOT commit:**
-
-- `.kapi/work/`: everything this checkout derives: `store.db`, the caches, the redaction vault
-- `.kapi/filters.local.json`: your personal reader overrides
+**Do NOT commit** `.kapi/`: it is this checkout's cache (`work/store.db`, the caches, the redaction vault, your saved filters), and `kapi init` writes an ignore rule that keeps all of it out.
 
 Auth tokens are never written to the project. They live in the OS keychain (keys `bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`); non-secret metadata sits in `auth.json` in the bowrain config directory (`~/.config/bowrain` on Linux, `~/Library/Application Support/bowrain` on macOS).
-
-`kapi init` writes a two-line ignore rule, `/.kapi/work/` and `/.kapi/filters.local.json`, so everything else under `.kapi/` stays tracked with no negation to remember.
 
 ## Next steps
 

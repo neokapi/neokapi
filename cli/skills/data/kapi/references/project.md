@@ -46,17 +46,21 @@ pipeline; the layer model is
 
 ```bash
 kapi init --name my-app --source-locale en --target-locale fr --target-locale de
-# --framework <preset>  pre-fills content paths; kapi init --list-presets shows them all
+# --framework <preset>  writes a known stack's catalog layout; kapi init --list-presets shows them all
 ```
 
-This writes `kapi.yaml` (the recipe) and a `.kapi/` directory. Both are
-configuration and both are committed. The project's **context** (its terms, its
-voice profiles, its content memory and its decisions) lives in the user's
-workspace, one store per project, shared by every checkout. Never tell the user
-to commit their context.
+This writes `kapi.yaml` (the recipe) with a collection for each kind of content
+kapi found in the tree, each under a comment saying what it matched. Read the
+list back to the user and adjust it with them; `kapi add <pattern>` adds one. On
+a project that already has a recipe, `kapi init` leaves the collections alone
+and prints the content no collection reads yet, with the lines to add.
 
-When the project binds a voice (the default scaffold binds a starter pack),
-`kapi init` also writes a short section into the project's assistant file: an
+The recipe is the configuration, and it is committed. The project's **context**
+(its terms, its voice profiles, its content memory and its decisions) lives in
+the user's workspace, one store per project, shared by every checkout. Never
+tell the user to commit their context.
+
+When the project binds a voice, `kapi init` also writes a short section into the project's assistant file: an
 existing `CLAUDE.md` or `AGENTS.md` at the root, or a new `CLAUDE.md`. It says
 the voice is held by kapi and that `kapi voice guide` retrieves it, so the next
 assistant in this tree asks before it writes. The section sits between
@@ -68,21 +72,17 @@ into, since they commit it. A section that landed in `AGENTS.md` reaches an
 assistant limited to `CLAUDE.md` through an import line, `@AGENTS.md`.
 
 `kapi init` also writes the MCP entry that starts `kapi mcp` for this project
-(`.mcp.json` for Claude Code, `.cursor/mcp.json`, `.vscode/mcp.json`) and a copy
-of this skill in the host's skills directory. It names every file it writes,
-leaves an entry someone else put there alone, and writes nothing on a re-run.
-`--agents <list|all|none>` chooses; tell the user which files landed, since they
-commit them.
+(`.mcp.json` for Claude Code, `.cursor/mcp.json`, `.vscode/mcp.json`,
+`.codex/config.toml`), naming `--tools writing,translation` when the recipe
+declares target languages, and the short kapi skill (one `SKILL.md`) in the
+host's skills directory. It names every file it writes and leaves an entry
+someone else put there alone. `--agents <list|all|none>` chooses; tell the user
+which files landed, since they commit them.
 
-- **`.kapi/`**: configuration, committed: `flows/` (file-per-flow definitions)
-  and `filters.json` (shared reader settings). A project may also keep a
-  snapshot of its context here, written by `kapi context snapshot`:
-  `terms.json`, `voice.yaml`, `memory/*.memory.json`, `profiles/<name>/` and
-  `state/*.jsonl`. Those files are read by `kapi context import` and by nothing
-  else.
-- **`.kapi/work/`**: everything this checkout derives, and the only gitignored
-  path. `store.db` is its projection of the working tree: the block cache, the
-  overlays a run wrote, the extraction stamps.
+- **`.kapi/`**: this checkout's cache, ignored by version control. `work/store.db`
+  is the checkout's projection of the working tree: the block cache, the
+  overlays a run wrote, the extraction stamps. Beside it sit the caches, the
+  redaction vault and the saved reader filters.
 - **The workspace**, under the user's data directory
   (`<data dir>/workspaces/default/`), holds one context store per project: the
   terms, the voice profiles, the content memory and the decision ledger, shared
@@ -91,9 +91,10 @@ commit them.
   or write either database directly and never commit one; go through kapi
   commands.
 
-The ignore rule `kapi init` writes is `.kapi/.gitignore` with two lines, `work/`
-and `filters.local.json` (a developer's personal reader settings). If you see
-a project ignoring more of `.kapi/` than that, it is stale.
+The ignore rule `kapi init` writes is `.kapi/.gitignore` with one line, `*`. A
+project that commits a snapshot in `.kapi/` for `kapi context import` to read
+(written with `kapi context snapshot --out .kapi`) keeps an ignore rule of its
+own, and kapi leaves it as it is.
 
 Deleting:
 

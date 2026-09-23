@@ -237,11 +237,11 @@ include:
   - run: kapi check --ship
   ```
 
-  Keep those files current with `kapi context snapshot`, which writes the whole
-  of a project's context into `.kapi/`: the terms, the voice profiles, the
-  content memory and the decision record's shards. A job that makes decisions
-  snapshots and commits what it wrote, alongside the translated files. It never
-  commits `.kapi/work/store.db`.
+  Keep those files current with `kapi context snapshot --out <dir>`, which
+  writes the whole of a project's context into the directory it names: the
+  terms, the voice profiles, the content memory and the decision record's
+  shards. A job that makes decisions snapshots and commits what it wrote,
+  alongside the translated files. It never commits `.kapi/work/store.db`.
 - **The parse cache is the part to carry between runs**: `.kapi/work/cache/docs`
   is gitignored, rebuilt on a fresh runner, and keyed by each file's path and
   content, the parse configuration, the recipe and the kapi build, so a restored

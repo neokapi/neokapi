@@ -168,4 +168,8 @@ func init() {
 	// --color/NO_COLOR/isatty handling as the rest of the CLI). Must run after
 	// localization: the template reads Short/Long/Example at render time.
 	cli.SetupStyledHelp(rootCmd)
+
+	// `kapi help <topic>` serves the skill's reference topics beside the
+	// command help, which is where the short skill `kapi init` writes points.
+	cli.SetupHelpTopics(rootCmd)
 }

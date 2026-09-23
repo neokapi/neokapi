@@ -126,12 +126,13 @@ host/i18n/catalogs/*.mo
 
 # Dogfood project state for the root kapi.yaml recipe.
 #
-# `.kapi/` is committed, so only the two things that are not get named here, and
-# they are the same two `kapi init` writes into `.kapi/.gitignore` (see
-# core/project.StateGitignore). Everything else in there is authored: the
-# manifest, the flows, and the context sources — the terms bundle, the memory
-# seeds, the brand voice, and the decision record, which belongs in the change
-# that caused the drift and must reconcile on a fresh clone with no server.
+# A new project's `.kapi/` is a cache that `kapi init` ignores as a whole. This
+# repository also commits a context export there (the terms bundle, the memory
+# seeds, the voice, and the decision record, which belongs in the change that
+# caused the drift and must reconcile on a fresh clone with no server), so its
+# `.kapi/` carries no ignore rule of its own and these two lines keep the cache
+# out instead. core/project.EnsureLayout writes no rule into a `.kapi/` that
+# already holds other files.
 #
 # Two plain paths, no `/.kapi/*` star and no negation clawing anything back:
 # git does not descend into an ignored directory, so a negation inside one

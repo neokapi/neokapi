@@ -9,10 +9,12 @@ import (
 	"strings"
 
 	clivenue "github.com/neokapi/neokapi/cli/venue"
+	"github.com/neokapi/neokapi/host"
 
 	"github.com/charmbracelet/huh"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/cli/skills"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/preset"
@@ -41,8 +43,11 @@ var initCmd = &cobra.Command{
 	Short: "Set up a new project",
 	Long: `Set up a new bowrain project in the current directory.
 
-Creates a kapi.yaml recipe and a .kapi/ state directory next to it,
-plus an example flow under .kapi/flows/.
+Creates a kapi.yaml recipe with collections proposed from the files in the
+tree, the same way 'kapi init' does, and wires the project for the coding
+agents that work in it: an MCP entry that starts 'kapi mcp' and one short
+skill. kapi keeps a cache for this checkout in .kapi/, ignored by version
+control and safe to delete.
 
 In interactive mode (default when stdin is a terminal), presents a guided setup
 wizard. Use flags for non-interactive CI/CD usage.
@@ -66,13 +71,11 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("get current directory: %w", err)
 	}
 
-	// Fail fast if a recipe or .kapi/ state dir already exists in cwd —
-	// before any server calls or prompts.
+	// Fail fast if a recipe already exists in cwd, before any server calls or
+	// prompts. A `.kapi/` without one is a leftover cache and is no reason to
+	// refuse.
 	if existing, err := existingRecipePath(cwd); err == nil && existing != "" {
 		return fmt.Errorf("kapi recipe already exists at %s", existing)
-	}
-	if info, err := os.Stat(filepath.Join(cwd, coreproj.StateDirName)); err == nil && info.IsDir() {
-		return fmt.Errorf("kapi state directory already exists at %s", filepath.Join(cwd, coreproj.StateDirName))
 	}
 
 	var result *output.InitOutput
@@ -640,23 +643,24 @@ func finishInit(cwd string, recipe *project.Recipe) (*output.InitOutput, error) 
 		recipe.Name = initProjectName
 	}
 
+	proposed, err := proposeCollections(cwd, recipe)
+	if err != nil {
+		return nil, err
+	}
+
 	proj, err := project.InitProject(cwd, recipe)
 	if err != nil {
 		return nil, fmt.Errorf("initialize project: %w", err)
-	}
-
-	if err := writeStateGitignore(proj); err != nil {
-		return nil, fmt.Errorf("write state .gitignore: %w", err)
-	}
-
-	if err := createExampleFlow(proj); err != nil {
-		return nil, fmt.Errorf("create example flow: %w", err)
 	}
 
 	out := &output.InitOutput{
 		Root:      proj.Root,
 		ConfigDir: proj.RecipePath(),
 	}
+	for _, p := range proposed {
+		out.Collections = append(out.Collections, p.Path)
+	}
+	out.AgentFiles = wireAgents(cwd, recipe)
 
 	if recipe.HasServer() {
 		out.Server = recipe.Server.ServerURL()
@@ -667,41 +671,61 @@ func finishInit(cwd string, recipe *project.Recipe) (*output.InitOutput, error) 
 	return out, nil
 }
 
-// writeStateGitignore drops core/project's two-line ignore rule inside the
-// `.kapi/` state dir: `work/` for machine state, `filters.local.json` for the
-// one personal file that is not derived. Everything else under there —
-// manifest.yaml, flows/, and the context sources — is authored and committed.
-func writeStateGitignore(proj *project.Project) error {
-	gitignorePath := filepath.Join(proj.StateDir(), ".gitignore")
-	if _, err := os.Stat(gitignorePath); err == nil {
-		return nil
+// proposeCollections gives a recipe that has no collections the ones `kapi
+// init` proposes from the files in the tree, and returns them.
+func proposeCollections(cwd string, recipe *project.Recipe) ([]host.ProposedCollection, error) {
+	if len(recipe.Collections) > 0 {
+		return nil, nil
 	}
-	return os.WriteFile(gitignorePath, []byte(coreproj.StateGitignore), 0o644)
+	a := &host.App{}
+	a.InitRegistries()
+	source := string(recipe.Defaults.SourceLanguage)
+	if source == "" {
+		source = "en"
+	}
+	proposed, err := host.ProposeCollections(cwd, host.ProposeOptions{
+		Formats:      a.FormatReg,
+		SourceLocale: source,
+		Targets:      len(recipe.Defaults.TargetLanguages) > 0,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("propose collections: %w", err)
+	}
+	for _, p := range proposed {
+		recipe.Collections = append(recipe.Collections, coreproj.Collection{
+			Path:   p.Path,
+			Format: &coreproj.FormatSpec{Name: p.Format},
+			Target: p.Target,
+		})
+	}
+	return proposed, nil
 }
 
-func createExampleFlow(proj *project.Project) error {
-	flowsDir := proj.FlowsDirPath()
-	if err := os.MkdirAll(flowsDir, 0o755); err != nil {
-		return fmt.Errorf("create flows dir: %w", err)
+// wireAgents writes the same agent wiring `kapi init` writes and returns one
+// line per file for the output. A file it cannot write is reported on stderr
+// and does not undo the init.
+func wireAgents(cwd string, recipe *project.Recipe) []string {
+	var targets []string
+	for _, t := range recipe.Defaults.TargetLanguages {
+		targets = append(targets, string(t))
 	}
-	flowPath := filepath.Join(flowsDir, "pseudo.yaml")
-
-	exampleFlow := `name: pseudo
-description: Generate pseudo-translations for testing
-
-steps:
-  - tool: pseudo-translate
-    config:
-      method: extended
-      expansion_rate: 1.3
-`
-
-	if err := os.WriteFile(flowPath, []byte(exampleFlow), 0644); err != nil {
-		return err
+	res, err := cli.WriteAgentWiring(cli.AgentWiringOptions{
+		Root:    cwd,
+		Hosts:   cli.DetectAgentHosts(cwd),
+		Recipe:  coreproj.RecipeFileName,
+		Skills:  skills.Wiring(),
+		Retired: skills.Retired,
+		Tools:   cli.MCPToolSets(targets),
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: agent wiring: %v\n", err)
+		return nil
 	}
-
-	fmt.Printf("Created example flow: %s\n", flowPath)
-	return nil
+	var lines []string
+	for _, f := range res.Files {
+		lines = append(lines, fmt.Sprintf("%s %s (%s)", f.Kind, f.Path, f.Action))
+	}
+	return lines
 }
 
 func applyFrameworkPreset(recipe *project.Recipe, presetName string) error {
@@ -734,16 +758,6 @@ func applyFrameworkPreset(recipe *project.Recipe, presetName string) error {
 
 	// Apply exclude patterns.
 	recipe.Defaults.Exclude = append(recipe.Defaults.Exclude, fp.Exclude...)
-
-	// Standing project-context bindings the stack declares — a voice
-	// profile and a committed native terms source — scaffolded under
-	// defaults: so project-scoped brand and terminology checks need no flags.
-	if fp.VoiceProfile != "" && recipe.Defaults.Voice == nil {
-		recipe.Defaults.Voice = &coreproj.VoiceBinding{ProfileFile: fp.VoiceProfile}
-	}
-	if fp.TermsSource != "" && recipe.Defaults.TermsSource == "" {
-		recipe.Defaults.TermsSource = fp.TermsSource
-	}
 
 	// Apply format preset overrides as Defaults.Formats entries.
 	if len(fp.FormatPresets) > 0 && recipe.Defaults.Formats == nil {

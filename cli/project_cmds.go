@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -12,10 +13,11 @@ import (
 	"github.com/neokapi/neokapi/host/output"
 )
 
-// NewInitCmd returns `kapi init` — scaffold a new kapi project in
-// the current directory (or `--dir <path>`). Creates `kapi.yaml`
-// + `.kapi/` adjacent to it. Idempotent; re-running on an existing
-// project adopts it rather than erroring.
+// NewInitCmd returns `kapi init`: scaffold a new kapi project in the current
+// directory (or `--dir <path>`), with collections proposed from the files in
+// the tree and the wiring the coding agents working there read. Idempotent:
+// re-running on an existing project adopts it and reports content no
+// collection reads yet.
 func NewInitCmd(a *App) *cobra.Command {
 	var (
 		dir          string
@@ -33,48 +35,47 @@ func NewInitCmd(a *App) *cobra.Command {
 		Use:     "init",
 		Short:   "Scaffold a new kapi project in the current directory",
 		GroupID: "work",
-		Long: `Create a new kapi project with a kapi.yaml recipe and an
-adjacent .kapi/ state directory.
+		Long: `Create a kapi project here: a kapi.yaml recipe with collections for the
+content kapi found in the tree, and the wiring coding agents read.
 
-By default kapi init scaffolds a content project that keeps your source in
-voice: a voice profile, the project terms store, and a check flow, with no
-target languages. Pass --target-locale (or --framework) to make it a
-translation project instead.
+kapi init reads the files under the directory, honouring .gitignore and
+skipping dependency, vendored and build directories, and writes a collection
+for each kind of content it recognises: documents grouped by directory
+(docs/**/*.md), a file at the root on its own (README.md), and i18n catalogs
+where a framework preset's layout or a file named for the source language
+marks them. Each collection carries a comment saying what it matched. The
+result is the same every time for the same tree, and nothing is asked.
 
-The project name defaults to the current directory's basename and the source
-locale to en. Override with --name, --source-locale, --target-locale
-(repeatable).
+Run it again on a project that already has a recipe and it leaves your
+collections as they are. It prints the content no collection reads yet, as
+recipe lines to paste and as the 'kapi add' command that writes each one.
 
-Every project kapi scaffolds is given a stable id under 'id:' in the recipe.
-It survives a rename, a move and a clone, and everything kapi records about
-the project is keyed on it. A recipe written before this and carrying no id
-keeps working, identified by its name; --mint-id writes one into it, leaving
-the rest of the file exactly as it is.
+The project name defaults to the directory's basename and the source language
+to en. --target-locale (repeatable) declares target languages, and catalogs
+then get a target beside their source. --preset <name> (alias --framework)
+writes a known stack's catalog layout even before its files exist;
+--list-presets lists the presets.
 
---preset <name> (alias: --framework) pre-fills the content mapping for a known
-stack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,
-angular, and scaffolds the translation project. List every preset (framework
-scaffolds plus per-format parsing presets) with --list-presets.
+The recipe gets a stable id under 'id:', which survives a rename, a move and a
+clone. --mint-id writes one into an existing recipe that has none.
 
-When the project binds a voice profile, kapi init also writes a short section
-into the project's assistant file, so an assistant working in the tree knows
-the voice is held by kapi and retrieves it with 'kapi voice guide' before
-writing. An existing CLAUDE.md or AGENTS.md at the root takes the section
-(CLAUDE.md when both exist); with neither, kapi init creates CLAUDE.md.
-Re-running replaces the section in place and leaves the rest of the file
-alone. --no-pointer skips it; 'kapi voice pointer' writes it later.
+The project's context (its terms, voice and recorded decisions) lives in your
+workspace, not in the checkout. kapi keeps a cache for this checkout in .kapi/,
+which is ignored by version control and safe to delete.
 
-kapi init also wires the project up for the coding agents that work in it, so
-an agent opened here finds kapi with no further setup: an MCP server entry that
-starts 'kapi mcp' for this project, and a copy of the kapi skill in the
-directory the agent reads skills from. Claude Code is always wired; Cursor,
-VS Code and Codex are wired where the project already keeps their directory.
---agents takes a comma-separated list (claude-code, cursor, vscode, codex,
-agents), 'all', or 'none'. Every path written is inside the project, an entry
-someone else put there is left as it is, and re-running writes nothing new.
-Codex reads the entry in .codex/config.toml once you trust this repository
-there. Running kapi init on a project that already has a recipe is how an
-existing project gets the same wiring.`,
+For coding agents, kapi init writes an MCP server entry that starts
+'kapi mcp' for this project (with --tools writing,translation when the recipe
+declares target languages) and one short skill, SKILL.md, naming the four
+habits kapi supports; 'kapi help <topic>' serves the rest. Claude Code is
+always wired; Cursor, VS Code, Codex and .agents/ are wired where the project
+already keeps their directory. --agents takes a comma-separated list
+(claude-code, cursor, vscode, codex, agents), 'all' or 'none'. An MCP entry
+someone else wrote is left as it is. In a skill directory an earlier kapi
+filled, the files it copied there are removed and any other file is kept.
+Codex reads its entry once you trust this repository there.
+
+When the project binds a voice, kapi init also writes a short section into
+CLAUDE.md or AGENTS.md saying so; --no-pointer skips it.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// --list-presets: print the preset catalog and exit (absorbs the
 			// former `kapi presets list`, #1078 C1).
@@ -99,17 +100,15 @@ existing project gets the same wiring.`,
 			// `kapi init` is idempotent: re-running it (or running it on a
 			// project that already has a recipe) is not an error. This lets
 			// plugin contributions (e.g. connecting an existing kapi project to
-			// a server) run on top of `kapi init` without a separate command —
+			// a server) run on top of `kapi init` without a separate command:
 			// `kapi init --server …` on an existing project just connects it.
-			//
-			// The composition (write recipe → EnsureLayout → SaveState) lives in
-			// host.InitProject so Kapi Desktop creates projects the same way.
 			res, err := InitProject(root, InitOptions{
 				Name:          name,
 				SourceLocale:  sourceLocale,
 				TargetLocales: targetLocale,
 				Framework:     framework,
 				MintID:        mintID,
+				Formats:       a.FormatReg,
 			})
 			if err != nil {
 				return err
@@ -117,10 +116,13 @@ existing project gets the same wiring.`,
 
 			if res.AlreadyInitialized {
 				fmt.Fprintf(cmd.OutOrStdout(), "kapi project already initialized: %s\n", res.RecipePath)
+				// Printed last, after the wiring and pointer lines, because it
+				// ends with lines to paste.
+				defer printUncovered(cmd, res.Uncovered)
 			} else {
 				fmt.Fprintf(cmd.OutOrStdout(), "Initialized kapi project %q\n", res.Name)
 				fmt.Fprintf(cmd.OutOrStdout(), "  recipe: %s\n", res.RecipePath)
-				fmt.Fprintf(cmd.OutOrStdout(), "  state:  %s\n", res.StateDir)
+				printProposed(cmd, res.Collections)
 			}
 			// The id is reported only where the user asked about it. An
 			// ordinary init writes it into the recipe, which is where it is
@@ -137,10 +139,12 @@ existing project gets the same wiring.`,
 				hosts = DetectAgentHosts(root)
 			}
 			wiring, werr := WriteAgentWiring(AgentWiringOptions{
-				Root:   root,
-				Hosts:  hosts,
-				Recipe: filepath.Base(res.RecipePath),
-				Skills: skills.Tree(),
+				Root:    root,
+				Hosts:   hosts,
+				Recipe:  filepath.Base(res.RecipePath),
+				Skills:  skills.Wiring(),
+				Retired: skills.Retired,
+				Tools:   MCPToolSets(res.TargetLanguages),
 			})
 			if werr != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "warning: agent wiring: %v\n", werr)
@@ -171,8 +175,8 @@ existing project gets the same wiring.`,
 	cmd.Flags().StringVar(&name, "name", "", "Project name (default: directory basename)")
 	cmd.Flags().StringVar(&sourceLocale, "source-locale", "en", "Source locale (BCP-47)")
 	cmd.Flags().StringSliceVar(&targetLocale, "target-locale", nil, "Target locale (repeatable)")
-	cmd.Flags().StringVar(&framework, "framework", "", "Pre-fill content mapping for a known stack (see 'kapi init --list-presets'); scaffolds a translation project")
-	cmd.Flags().StringVar(&presetName, "preset", "", "Scaffold from a named framework preset (see 'kapi init --list-presets'); alias of --framework")
+	cmd.Flags().StringVar(&framework, "framework", "", "Write a known stack's catalog layout as collections (see 'kapi init --list-presets')")
+	cmd.Flags().StringVar(&presetName, "preset", "", "Write a named framework preset's catalog layout as collections; alias of --framework")
 	cmd.Flags().BoolVar(&listPresets, "list-presets", false, "List available presets (framework scaffolds and per-format parsing presets) and exit")
 	cmd.Flags().BoolVar(&noPointer, "no-pointer", false, "Do not write the voice pointer into CLAUDE.md or AGENTS.md")
 	cmd.Flags().BoolVar(&mintID, "mint-id", false, "Write a stable project id into a recipe that has none, and print the id")
@@ -193,6 +197,71 @@ func printMintedID(cmd *cobra.Command, res *InitResult) {
 	}
 }
 
+// MCPToolSets returns the `kapi mcp --tools` sets kapi init writes into a
+// project's MCP entry: the default writing set alone, which needs no flag, or
+// the writing and translation sets when the recipe declares target languages.
+func MCPToolSets(targetLanguages []string) []string {
+	if len(targetLanguages) == 0 {
+		return nil
+	}
+	return []string{"writing", "translation"}
+}
+
+// printProposed lists the collections a new recipe was written with, or says
+// that none was found and how to add one.
+func printProposed(cmd *cobra.Command, proposals []ProposedCollection) {
+	w := cmd.OutOrStdout()
+	if len(proposals) == 0 {
+		fmt.Fprintln(w, "  collections: none found; add one with 'kapi add <pattern>'")
+		return
+	}
+	fmt.Fprintln(w, "  collections (proposed from the files here; edit the recipe to change them):")
+	printProposalTable(w, proposals)
+}
+
+// printUncovered reports, on a re-run, the content no collection reads yet:
+// the recipe lines that would read it, and the `kapi add` command that writes
+// each. Nothing is written for them.
+func printUncovered(cmd *cobra.Command, proposals []ProposedCollection) {
+	if len(proposals) == 0 {
+		return
+	}
+	w := cmd.OutOrStdout()
+	fmt.Fprintln(w, "\nContent kapi can read that no collection covers yet:")
+	printProposalTable(w, proposals)
+	fmt.Fprintln(w, "\nTo read it, add these lines under collections: in the recipe:")
+	fmt.Fprint(w, RenderCollections(proposals))
+	fmt.Fprintln(w, "\nor run:")
+	for _, p := range proposals {
+		line := "  kapi add " + shellQuote(p.Path) + " --format " + p.Format
+		if p.Target != "" {
+			line += " --target " + shellQuote(p.Target)
+		}
+		fmt.Fprintln(w, line)
+	}
+}
+
+// printProposalTable prints one line per proposal: its glob, its format and
+// how many files it matched.
+func printProposalTable(w io.Writer, proposals []ProposedCollection) {
+	width := 0
+	for _, p := range proposals {
+		width = max(width, len(p.Path))
+	}
+	for _, p := range proposals {
+		n := fmt.Sprintf("%d files", len(p.Files))
+		if len(p.Files) == 1 {
+			n = "1 file"
+		}
+		fmt.Fprintf(w, "    %-*s  %s, %s\n", width, p.Path, p.Format, n)
+	}
+}
+
+// shellQuote single-quotes a pattern so a shell passes it to kapi unexpanded.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
 // printAgentWiring lists every file the agent wiring touched and what became
 // of it. These files are loaded as configuration by a program that runs what
 // they say, so the command that wrote them names each one.
@@ -208,6 +277,12 @@ func printAgentWiring(cmd *cobra.Command, res *AgentWiringResult) {
 			line += ": " + file.Detail
 		}
 		fmt.Fprintln(w, line+")")
+		if len(file.Removed) > 0 {
+			fmt.Fprintf(w, "          removed %s an earlier kapi copied there\n", countFiles(len(file.Removed)))
+		}
+		if len(file.Kept) > 0 {
+			fmt.Fprintf(w, "          kept %s kapi did not write: %s\n", countFiles(len(file.Kept)), strings.Join(file.Kept, ", "))
+		}
 	}
 	// Codex reads a repository's own configuration layer for a repository the
 	// person has trusted, so the file kapi wrote starts answering on the first
@@ -215,6 +290,14 @@ func printAgentWiring(cmd *cobra.Command, res *AgentWiringResult) {
 	if slices.Contains(res.Hosts, AgentHostCodex) {
 		fmt.Fprintln(w, "  note:   Codex reads .codex/config.toml once you trust this repository there")
 	}
+}
+
+// countFiles renders a file count.
+func countFiles(n int) string {
+	if n == 1 {
+		return "1 file"
+	}
+	return fmt.Sprintf("%d files", n)
 }
 
 // printInitPointer reports what init did to the assistant file. On a fresh

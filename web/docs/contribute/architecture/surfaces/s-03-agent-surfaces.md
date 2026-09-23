@@ -13,9 +13,10 @@ import { CycleDiagram } from "@neokapi/docs-shared";
 ## Summary
 
 An AI assistant reaches kapi through two surfaces over one implementation. The
-**Agent Skill**, a `SKILL.md` router plus progressive-disclosure reference
-files sourced at `cli/skills/data/kapi/`, teaches an assistant that runs shell
-commands *when* to reach for kapi and *which* verb to run. The **MCP server**
+**Agent Skill**, one short `SKILL.md` sourced at `cli/skills/data/kapi/`,
+teaches an assistant that runs shell commands *when* to reach for kapi and
+*which* verb to run, and `kapi help <topic>` serves the reference files beside
+it. The **MCP server**
 (`kapi mcp`) serves clients that call tools rather than shell out, exposing a
 deliberately curated set plus the `context://` resource space. Both converge on
 the same asymmetry: **the assistant writes the content; kapi supplies the
@@ -39,8 +40,9 @@ Applicable guidance that requires semantic judgment is explicitly unassessed
 when no analyzer implements it.
 
 The connective tissue has to be cheap. An assistant's context is finite, and a
-document describing every kapi command would crowd out the task. Hence a router
-that stays small and reference files that load only when the task matches.
+document describing every kapi command would crowd out the task. Hence a skill
+that stays small and reference topics the assistant asks the binary for only
+when the task matches.
 
 ## Decision
 
@@ -48,9 +50,8 @@ that stays small and reference files that load only when the task matches.
 
 ```
 cli/skills/data/kapi/
-├── SKILL.md            the router: frontmatter (name, description) + a short
-│                       body that decides scope and points at references
-└── references/         progressive-disclosure how-to, loaded on demand
+├── SKILL.md            four habits, each in its CLI and MCP form, under 300 words
+└── references/         the topics `kapi help <topic>` serves
     ├── edit.md         read → edit → write → verify
     ├── create.md       author → parse → check → revise
     ├── voice.md        retrieve guidance, score a draft, fix it
@@ -64,13 +65,19 @@ cli/skills/data/kapi/
     └── i18n/           …per-ecosystem playbooks + a machine-readable registry
 ```
 
-`SKILL.md` leads with **four habits** an assistant keeps inside other work: ask
+`SKILL.md` is the **four habits** an assistant keeps inside other work: ask
 what applies at the file before writing it, record what it notices while reading
 the project, record the wording the person changes, and check what it changed
 before reporting the work done and saying what the session recorded. Each habit
-is a few lines and one command, and everything past them is a map of the
-references. The body is a router: it triages the request and points at one
-reference, and the references carry the task detail, one per concern.
+is its CLI command and its MCP tool, and one line says that `kapi help` lists
+the topics for everything else. The skill's description stays under the 1,024
+characters agent hosts load at startup, and `cli/skills/skills_test.go` holds
+both limits.
+
+The references carry the task detail, one per concern, and the binary serves
+them: `kapi help <topic>` prints one, with links between references rewritten
+as the `kapi help` command that serves each ([S-01](s-01-kapi-cli.md)). A
+reference therefore always matches the binary the assistant is running.
 Terminology folds into the voice and translate references rather than standing
 alone, because a term is something you apply while writing or translating, not a
 task you set out to do.
@@ -109,8 +116,8 @@ copies, so they cannot diverge:
 | `make plugin-bundle` | the Claude Code plugin bundle under `packages/kapi-claude-plugin` |
 | `make publish-plugin` | mirrors that bundle to the `neokapi-plugins` marketplace repo |
 | `make publish-skill` | mirrors the portable skill into the agent-skills collection, for any `SKILL.md`-aware tool |
-| `make dev-skills` | copies it into this repo's own `.claude/skills` for dogfooding |
-| `cli/skills` (`go:embed`) | the copy `kapi init` writes into a project (see [the wiring below](#kapi-init-wires-an-agent-up)) |
+| `make dev-skills` | copies `SKILL.md` into this repo's own `.claude/skills` for dogfooding |
+| `cli/skills` (`go:embed`) | the `SKILL.md` `kapi init` writes into a project (see [the wiring below](#kapi-init-wires-an-agent-up)), and the topics `kapi help` serves |
 
 The embedded copy is the one a release can make a promise about. A plugin
 cannot pin a CLI version, so a marketplace skill that named an unreleased
@@ -132,10 +139,11 @@ installed:
 
 | Host | What is written | Convention |
 | --- | --- | --- |
-| Claude Code | `.mcp.json` (`mcpServers`), `.claude/skills/kapi/` | [project MCP file](https://code.claude.com/docs/en/mcp), [project skills](https://code.claude.com/docs/en/skills) |
+| Claude Code | `.mcp.json` (`mcpServers`), `.claude/skills/kapi/SKILL.md` | [project MCP file](https://code.claude.com/docs/en/mcp), [project skills](https://code.claude.com/docs/en/skills) |
 | Cursor | `.cursor/mcp.json` (`mcpServers`) | [Cursor MCP](https://cursor.com/docs/context/mcp) |
 | VS Code | `.vscode/mcp.json` (`servers`) | [MCP configuration reference](https://code.visualstudio.com/docs/agents/reference/mcp-configuration) |
-| Cross-client | `.agents/skills/kapi/` | [Agent Skills client guide](https://agentskills.io/client-implementation/adding-skills-support) |
+| Codex | `.codex/config.toml` (`mcp_servers`) | read once the person trusts the repository |
+| Cross-client | `.agents/skills/kapi/SKILL.md` | [Agent Skills client guide](https://agentskills.io/client-implementation/adding-skills-support) |
 
 Each host is supported where its convention was read from that host's own
 documentation. `servers` and `mcpServers` differ between two of them, and a key
@@ -148,12 +156,13 @@ detect. The others are wired where the project already keeps their directory.
 `--agents` takes a list, `all`, or `none`; `kapi init` on a project that
 already has a recipe is how an existing project gains the same wiring.
 
-Four properties hold for everything written:
+Five properties hold for everything written:
 
 - **Project scope only.** Every path is under the project root. Nothing under
   the user's home directory and nothing machine-wide is read or written.
 - **A command, and nothing else.** The entry carries the binary, the `mcp`
-  verb, and the project it answers for. No shell, no environment, no
+  verb, the project it answers for and, when the recipe declares target
+  languages, `--tools writing,translation`. No shell, no environment, no
   credential: these files are committed, shared, and loaded by a program that
   runs what they say.
 - **The entry names the project.** `kapi mcp --project kapi.yaml`, so the
@@ -161,10 +170,14 @@ Four properties hold for everything written:
   the host happened to start it in. The path is relative, because the file is
   shared with everyone on the project and an absolute one resolves on one
   machine.
-- **An existing entry is left alone.** A configuration file that already names
-  a server called kapi is read and not written. The skill directory is kapi's
-  own, so the files the binary ships are refreshed there and anything else in
-  it stays.
+- **An entry someone else wrote is left alone.** An entry called kapi that is
+  exactly what kapi writes, differing only in its tool sets, is kapi's own and
+  follows the recipe. Any other entry called kapi is read and not written.
+- **The skill directory holds what this binary ships.** `SKILL.md` is refreshed.
+  A file an earlier kapi copied there (a reference file from before the skill
+  was one file) is recognised by its content, against the embedded tree and the
+  closed list in `cli/skills/retired.sha256`, and removed. Anything else stays,
+  and `kapi init` names it.
 
 ### The MCP server introduces itself
 

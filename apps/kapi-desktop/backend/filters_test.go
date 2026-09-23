@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,11 +44,12 @@ func TestProjectFilters_SharedAndLocalRoundTrip(t *testing.T) {
 	assert.True(t, byID[shared.ID].Shared, "shared filter flagged")
 	assert.False(t, byID[local.ID].Shared, "local filter not shared")
 
-	// Shared → committed file; local → gitignored file.
+	// Shared and local filters keep separate files, and the personal one is
+	// kept out of version control.
 	assert.FileExists(t, filepath.Join(dir, ".kapi", "filters.json"))
 	assert.FileExists(t, filepath.Join(dir, ".kapi", "filters.local.json"))
 	gi, _ := os.ReadFile(filepath.Join(dir, ".kapi", ".gitignore"))
-	assert.Contains(t, string(gi), "filters.local.json")
+	assert.True(t, project.GitignoreCovers(string(gi), project.LocalFiltersFilename), "rule: %q", gi)
 
 	// Deleting the active (local) filter clears the active selection.
 	require.NoError(t, app.DeleteProjectFilter("t", local.ID))

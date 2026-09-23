@@ -172,9 +172,12 @@ tell you what to run. The notice stops once the store holds anything at all.
 kapi context snapshot --out build/context
 ```
 
-This writes the `.kapi/` layout: `terms.json`, `memory/memory.json`, each voice
-profile at the path the recipe binds it from, and the decision record's shards.
-With no `--out` it writes the project's own `.kapi/` directory.
+This writes, into the directory `--out` names, the layout `kapi context import`
+reads: `terms.json`, `memory/memory.json`, each voice profile at the path the
+recipe binds it from, and the decision record's shards. `--out` is required:
+`.kapi/` is a cache for one checkout, so a snapshot goes where you say. A team
+that keeps its snapshot in `.kapi/` names it (`--out .kapi`) and commits it under
+an ignore rule of its own.
 
 The files it writes are **generated**. Each voice profile it creates says so at
 the top of itself. Change the project's context and snapshot again rather than

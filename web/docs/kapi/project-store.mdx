@@ -75,24 +75,16 @@ then those files are bytes on disk and nothing in them applies.
 
 ## What to commit, and what to ignore
 
-The recipe and `.kapi/` are configuration, and they are committed: the flows you
-write under `.kapi/flows/`, the saved readers in `.kapi/filters.json`, and the
-extraction manifest. The part kapi keeps out of git is `.kapi/work/`, where
-everything it derives goes, which makes the ignore rule two lines:
-
-```gitignore
-/.kapi/work/
-/.kapi/filters.local.json
-```
-
-The second line is your personal filter overlay: your own reader settings, not
-the project's.
+Commit the recipe, and the agent wiring `kapi init` wrote beside it. `.kapi/` is
+a cache for this checkout: the block store, the caches, the redaction vault and
+your saved reader filters. `kapi init` writes `.kapi/.gitignore` with one line,
+`*`, so none of it reaches git, and a second clone builds its own.
 
 Deleting is worth being precise about:
 
 - **`rm -rf .kapi/work/cache` is always safe.** Everything under it is rebuilt on
   the next run.
-- **`rm -rf .kapi/work` costs a re-extraction**, and, if you use
+- **`rm -rf .kapi` costs a re-extraction**, and, if you use
   [redaction](/framework/redaction), the vault under `.kapi/work/vault/`. The
   vault holds the withheld originals, deliberately local-only, never committed
   and never synced, so no copy exists anywhere else. Merge the batches you have
@@ -172,8 +164,8 @@ kapi context log            # the decision, with the evidence behind it
 ```
 
 A team that wants the record in git as well writes it there with
-[`kapi context snapshot`](/kapi/context-portability#writing-context-out), which
-puts one JSON Lines shard per document under `.kapi/state/`
+[`kapi context snapshot --out <dir>`](/kapi/context-portability#writing-context-out),
+which puts one JSON Lines shard per document under `<dir>/state/`
 ([serialization](/reference/serialization/project-state)). That is a choice
 about what a pull request should show.
 

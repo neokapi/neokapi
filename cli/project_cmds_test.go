@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,66 +24,79 @@ func newAppForTest(t *testing.T) *App {
 func TestInitCmd_scaffoldsProject(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "docs", "guide"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("# Demo\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "docs", "install.md"), []byte("# Install\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "docs", "guide", "usage.md"), []byte("# Usage\n"), 0o644))
 
 	cmd := NewInitCmd(app)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-	// No --target-locale / --framework: the default is an on-brand content project.
 	cmd.SetArgs([]string{"--dir", dir, "--name", "my-app", "--source-locale", "en"})
 	require.NoError(t, cmd.Execute())
 
-	// Recipe + state dir both exist.
 	recipe := filepath.Join(dir, project.RecipeFileName)
 	info, err := os.Stat(recipe)
 	require.NoError(t, err)
 	assert.False(t, info.IsDir())
 
+	// `.kapi/` is this checkout's cache: no manifest, and a rule that keeps
+	// all of it out of version control.
 	stateDir := filepath.Join(dir, ".kapi")
-	info, err = os.Stat(stateDir)
+	assert.DirExists(t, stateDir)
+	assert.NoFileExists(t, filepath.Join(stateDir, "manifest.yaml"))
+	rule, err := os.ReadFile(filepath.Join(stateDir, ".gitignore"))
 	require.NoError(t, err)
-	assert.True(t, info.IsDir())
+	assert.Equal(t, project.StateGitignore, string(rule))
+	assert.NotContains(t, out.String(), "state:", "the project's state does not live in .kapi/")
 
-	// State manifest was written with the project id.
-	layout, err := project.LayoutFor(recipe)
-	require.NoError(t, err)
-	state, err := project.LoadState(layout)
-	require.NoError(t, err)
-	require.NotNil(t, state)
-	assert.Equal(t, "my-app", state.Project.ID)
-
-	// Default init scaffolds an on-brand content project: source language set,
-	// no target languages, and a check flow on the deterministic
-	// voice-vocabulary check. Neither a voice nor terminology is bound: a new
-	// project has no voice yet, and the vocabulary lives in the project's own
-	// store.
+	// The recipe reads the content found in the tree, needs no flow to be
+	// checked, and binds no voice.
 	p, err := project.Load(recipe)
 	require.NoError(t, err)
 	assert.Equal(t, "en", string(p.Defaults.SourceLanguage))
 	assert.Empty(t, p.Defaults.TargetLanguages)
-
 	assert.Nil(t, p.Defaults.Voice, "a scaffolded project binds no voice")
+	assert.Empty(t, p.Flows, "kapi check runs with no flow declared")
+	var paths []string
+	for _, c := range p.Collections {
+		paths = append(paths, c.Path)
+	}
+	assert.Equal(t, []string{"README.md", "docs/**/*.md"}, paths)
+	assert.Contains(t, out.String(), "docs/**/*.md")
 
-	require.Contains(t, p.Flows, "check")
-	require.NotNil(t, p.Flows["check"])
-	steps := p.Flows["check"].Steps
-	require.NotEmpty(t, steps)
-	assert.Equal(t, "voice-vocab-check", steps[0].Tool)
-
-	// The scaffold and the registry have to agree, because the scaffold writes a
-	// project with no target languages: the flow it ships must resolve to a
-	// source-only run rather than to a locale it will then demand.
-	infos := flow.BuildToolInfoMap(app.ToolReg)
-	assert.False(t, flow.FlowNeedsTargetLanguage(p.Flows["check"], infos),
-		"the scaffolded check flow must run on the project the scaffold creates")
-	assert.Nil(t, flow.ResolveFlowLocales(p.Flows["check"], infos, "en", nil),
-		"no target languages and an all-monolingual chain is one source-only pass")
-
-	// The recipe's own next-step comment names a command; it has to be one that
-	// works here.
 	recipeText, err := os.ReadFile(recipe)
 	require.NoError(t, err)
-	assert.Contains(t, string(recipeText), "'kapi check' to score them")
+	assert.Contains(t, string(recipeText), "# docs/: 2 Markdown files")
+	assert.NotContains(t, string(recipeText), "store.db")
+}
+
+// A re-run leaves the person's collections alone and prints what no
+// collection reads yet, as lines to paste and as kapi add commands.
+func TestInitCmd_rerunPrintsUncoveredContent(t *testing.T) {
+	app := newAppForTest(t)
+	dir := t.TempDir()
+	recipe := filepath.Join(dir, project.RecipeFileName)
+	const own = "version: v1\nname: mine\ncollections:\n  - path: README.md\n    format: markdown\n"
+	require.NoError(t, os.WriteFile(recipe, []byte(own), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("# Demo\n"), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "guides"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "guides", "intro.md"), []byte("# Intro\n"), 0o644))
+
+	cmd := NewInitCmd(app)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--dir", dir, "--agents", "none"})
+	require.NoError(t, cmd.Execute())
+
+	body, err := os.ReadFile(recipe)
+	require.NoError(t, err)
+	assert.Equal(t, own, string(body), "a re-run writes nothing into the recipe")
+	assert.Contains(t, out.String(), `- path: "guides/*.md"`)
+	assert.Contains(t, out.String(), "kapi add 'guides/*.md' --format markdown")
+	assert.NotContains(t, out.String(), "kapi add 'README.md'", "a covered file is not proposed again")
 }
 
 func TestInitCmd_translationScaffold(t *testing.T) {
@@ -150,16 +162,15 @@ func TestInitCmd_frameworkNeokapiI18nScaffoldsCleanLayout(t *testing.T) {
 	require.NoError(t, cmd.Execute())
 
 	// The recipe is written and encodes the clean nested i18n/{lang} layout:
-	// source in i18n/src/, per-locale targets in i18n/{lang}/, and voice profile +
-	// terms under i18n/ — no sibling i18n-<lang>/ sprawl.
+	// source in i18n/src/ and per-locale targets in i18n/{lang}/.
 	recipe, err := project.Load(filepath.Join(dir, project.RecipeFileName))
 	require.NoError(t, err)
 	require.Len(t, recipe.Collections, 1)
 	assert.Equal(t, "i18n/src/**/*.kbf.json", recipe.Collections[0].Path)
 	assert.Equal(t, "i18n/{lang}/{path}.kbf.json", recipe.Collections[0].Target)
-	require.NotNil(t, recipe.Defaults.Voice)
-	assert.Equal(t, "i18n/voice.yaml", recipe.Defaults.Voice.ProfileFile)
-	assert.Equal(t, "i18n/terms.json", recipe.Defaults.TermsSource)
+	// A voice and terms are bound by name once the project's store holds
+	// them; the scaffold names no file for either.
+	assert.Nil(t, recipe.Defaults.Voice)
 }
 
 func TestInitCmd_frameworkUnknown(t *testing.T) {

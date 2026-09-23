@@ -110,44 +110,6 @@ func TestEnsureLayout_createsStateDir(t *testing.T) {
 	assert.True(t, info.IsDir())
 }
 
-// State manifest round-trip.
-func TestStateManifest_roundTrip(t *testing.T) {
-	root := t.TempDir()
-	recipe := filepath.Join(root, "kapi.yaml")
-	require.NoError(t, os.WriteFile(recipe, []byte("name: my-app\n"), 0o644))
-	layout, err := project.LayoutFor(recipe)
-	require.NoError(t, err)
-
-	orig := &project.StateManifest{
-		Generator: project.StateGenerator{ID: "kapi", Version: "0.5.0"},
-		Project:   project.StateProjectRef{ID: "my-app", Path: "../kapi.yaml"},
-		Blocks: map[string]project.StateBlockStats{
-			"ui": {Count: 42, SHA256: "abc123"},
-		},
-	}
-	require.NoError(t, project.SaveState(layout, orig))
-
-	got, err := project.LoadState(layout)
-	require.NoError(t, err)
-	assert.Equal(t, "my-app", got.Project.ID)
-	assert.Equal(t, 42, got.Blocks["ui"].Count)
-	assert.Equal(t, "abc123", got.Blocks["ui"].SHA256)
-	assert.NotEmpty(t, got.UpdatedAt)
-}
-
-func TestLoadState_missingFileReturnsNil(t *testing.T) {
-	root := t.TempDir()
-	recipe := filepath.Join(root, "kapi.yaml")
-	require.NoError(t, os.WriteFile(recipe, []byte("name: my-app\n"), 0o644))
-	layout, err := project.LayoutFor(recipe)
-	require.NoError(t, err)
-	require.NoError(t, project.EnsureLayout(layout))
-
-	got, err := project.LoadState(layout)
-	require.NoError(t, err)
-	assert.Nil(t, got)
-}
-
 func testLayout(t *testing.T) project.Layout {
 	t.Helper()
 	root := t.TempDir()
@@ -170,9 +132,9 @@ func TestLayout_StorePathIsNotUnderCache(t *testing.T) {
 	assert.NotEqual(t, layout.CacheDir(), filepath.Dir(layout.StorePath()))
 }
 
-// `.kapi/` splits exactly once: `work/` is machine state, everything else is
-// committed. That is the whole ignore rule, so it is asserted as one property —
-// every derived path sits under work/, and every authored one does not.
+// Every path kapi derives from the working tree sits under work/, so deleting
+// work/ is always a re-extraction and nothing more. The context files an
+// import reads and a snapshot writes sit one segment inside `.kapi/`.
 func TestLayout_WorkHoldsEveryDerivedPath(t *testing.T) {
 	layout := testLayout(t)
 	work := layout.WorkDir() + string(filepath.Separator)
@@ -190,34 +152,69 @@ func TestLayout_WorkHoldsEveryDerivedPath(t *testing.T) {
 		assert.True(t, strings.HasPrefix(path, work), "%s must live under work/: %s", name, path)
 	}
 
-	committed := layout.StateDir + string(filepath.Separator)
-	for name, path := range map[string]string{
-		"memory":     layout.Export().MemoryDir(),
-		"unit state": layout.Export().UnitStateDir(),
-		"profiles":   layout.Export().ProfilesDir(),
-		"profile":    layout.Export().ProfileDir("bowrain"),
-		"filters":    layout.FiltersPath(),
-	} {
-		assert.True(t, strings.HasPrefix(path, committed), "%s must live under .kapi/: %s", name, path)
-		assert.False(t, strings.HasPrefix(path, work), "%s is committed and must not live under work/: %s", name, path)
-	}
-
-	// The one gitignored path outside work/: personal, user-edited, and named
-	// individually by the ignore file for exactly that reason.
-	assert.Equal(t, filepath.Join(layout.StateDir, "filters.local.json"), layout.LocalFiltersPath())
-}
-
-// The committed sources sit one segment inside `.kapi/`, not two: no umbrella
-// directory groups what is already grouped by being committed at all.
-func TestLayout_CommittedSourcesAreFlat(t *testing.T) {
-	layout := testLayout(t)
 	assert.Equal(t, filepath.Join(layout.StateDir, "state"), layout.Export().UnitStateDir())
 	assert.Equal(t, filepath.Join(layout.StateDir, "memory"), layout.Export().MemoryDir())
 	assert.Equal(t, filepath.Join(layout.StateDir, "profiles"), layout.Export().ProfilesDir())
 	assert.Equal(t, filepath.Join(layout.Export().ProfilesDir(), "bowrain"), layout.Export().ProfileDir("bowrain"))
-	assert.Equal(t, filepath.Join(".kapi", "terms.json"), project.RelStatePath("terms.json"))
-	assert.Equal(t, filepath.Join(".kapi", "memory", "memory.json"),
-		project.RelStatePath(project.MemoryDirName, "memory.json"))
+	assert.Equal(t, filepath.Join(layout.StateDir, "filters.json"), layout.FiltersPath())
+	assert.Equal(t, filepath.Join(layout.StateDir, "filters.local.json"), layout.LocalFiltersPath())
+}
+
+// A new `.kapi/` is a cache for one checkout, so the rule EnsureLayout writes
+// keeps all of it out of version control, the rule file included.
+func TestEnsureLayout_IgnoresTheWholeDirectory(t *testing.T) {
+	layout := testLayout(t)
+	require.NoError(t, project.EnsureLayout(layout))
+
+	rule, err := os.ReadFile(filepath.Join(layout.StateDir, project.StateGitignoreFilename))
+	require.NoError(t, err)
+	assert.Equal(t, "*\n", string(rule))
+	assert.True(t, project.GitignoreCovers(string(rule), project.LocalFiltersFilename))
+}
+
+// A `.kapi/` that already carries files a project commits (this repository's
+// own dogfood export is one) keeps its own arrangement: an ignore-everything
+// rule dropped beside those files would keep the next one out of the commit.
+func TestEnsureLayout_LeavesADirectoryWithCommittedFilesAlone(t *testing.T) {
+	layout := testLayout(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(layout.StateDir, "state"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(layout.StateDir, "terms.json"), []byte("{}"), 0o644))
+
+	require.NoError(t, project.EnsureLayout(layout))
+
+	assert.NoFileExists(t, filepath.Join(layout.StateDir, project.StateGitignoreFilename))
+	assert.DirExists(t, layout.CacheDir())
+}
+
+// A rule someone wrote is theirs, and a re-run keeps it byte for byte.
+func TestEnsureLayout_KeepsAnExistingRule(t *testing.T) {
+	layout := testLayout(t)
+	require.NoError(t, os.MkdirAll(layout.StateDir, 0o755))
+	own := "work/\nfilters.local.json\n"
+	ignorePath := filepath.Join(layout.StateDir, project.StateGitignoreFilename)
+	require.NoError(t, os.WriteFile(ignorePath, []byte(own), 0o644))
+
+	require.NoError(t, project.EnsureLayout(layout))
+
+	got, err := os.ReadFile(ignorePath)
+	require.NoError(t, err)
+	assert.Equal(t, own, string(got))
+}
+
+func TestGitignoreCovers(t *testing.T) {
+	for _, tc := range []struct {
+		content string
+		want    bool
+	}{
+		{"*\n", true},
+		{"/*\n", true},
+		{"work/\nfilters.local.json\n", true},
+		{"work/\n/filters.local.json\n", true},
+		{"work/\n", false},
+		{"", false},
+	} {
+		assert.Equal(t, tc.want, project.GitignoreCovers(tc.content, "filters.local.json"), "%q", tc.content)
+	}
 }
 
 // EnsureLayout scaffolds both halves, so a fresh project has somewhere to put

@@ -64,7 +64,7 @@ Your client launches `kapi mcp` as a stdio subprocess. Claude Code and Cursor re
 }
 ```
 
-`--project` names the project the server answers for, so it binds yours rather than whichever project sits above the directory your client started it in.
+`--project` names the project the server answers for, so it binds yours rather than whichever project sits above the directory your client started it in. For a project that declares target languages, `kapi init` adds `"--tools", "writing,translation"` to the arguments, so the agent also gets the translation tools beside the writing ones.
 
 See [MCP server](/reference/mcp) for every client's configuration and the full tool list.
 
@@ -96,10 +96,13 @@ The project also tells the assistant it has a voice. `kapi init` writes a short 
 
 | Agent | What it gets |
 |---|---|
-| **Claude Code** | `.mcp.json` with the `kapi` server, and the kapi skill in `.claude/skills/kapi/` |
+| **Claude Code** | `.mcp.json` with the `kapi` server, and the kapi skill in `.claude/skills/kapi/SKILL.md` |
 | **Cursor** | `.cursor/mcp.json` with the `kapi` server |
 | **VS Code** | `.vscode/mcp.json` with the `kapi` server |
-| **Any SKILL.md-aware tool** | the kapi skill in `.agents/skills/kapi/` |
+| **Codex** | `.codex/config.toml` with the `kapi` server, read once you trust the repository |
+| **Any SKILL.md-aware tool** | the kapi skill in `.agents/skills/kapi/SKILL.md` |
+
+The skill is one short file: the four habits an agent keeps while it works (ask what applies before writing, record what it notices, record your corrections, check what it changed and report the session), each as a command and an MCP tool. Everything else is one command away: `kapi help` lists the topics, and `kapi help <topic>` prints one from the kapi binary you have installed.
 
 Claude Code is wired every time. The others are wired when the project already keeps their directory, so `kapi init` adds no directory for an editor you do not use. Choose for yourself with `--agents`:
 
@@ -109,7 +112,7 @@ kapi init --agents all                  # every agent kapi knows
 kapi init --agents none                 # write no agent files
 ```
 
-Everything it writes is inside the project, and it writes nothing but a command: no shell, no environment, no credential. A file that already names a server called `kapi` is left exactly as it is, so your own entry survives. Running `kapi init` again changes nothing, which is also how a project you created earlier gets the same wiring.
+Everything it writes is inside the project, and it writes nothing but a command: no shell, no environment, no credential. An entry called `kapi` that you wrote or changed is left exactly as it is; an entry exactly as `kapi init` wrote it follows the recipe, so adding target languages and running `kapi init` again gives the agent the translation tools. Running `kapi init` again is also how a project you created earlier gets the same wiring. A skill directory an earlier kapi filled with reference files is cleared of the files kapi wrote there, and any file of yours in it stays.
 
 Claude Code asks you to approve a project MCP server the first time you open the project, so review `.mcp.json` before you say yes, the way you would any file a repository ships.
 

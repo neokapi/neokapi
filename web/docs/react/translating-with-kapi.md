@@ -187,8 +187,8 @@ i18n/
 ```
 
 The content memory's local store and the pseudo-locale output are rebuildable
-state, so they live under `.kapi/work/` (gitignored); the memory bundle the
-recipe names in `defaults.memory_source` is committed with the rest of `.kapi/`.
+state, so they live under `.kapi/work/`, in the checkout's cache that git never
+sees.
 Define a `translate` flow in the recipe (for example `recycle` → `translate` → `qa`), then:
 
 ```json title="package.json"

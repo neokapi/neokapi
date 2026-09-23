@@ -32,9 +32,10 @@ var defaultPatterns = []rule{
 
 // rule is a single parsed ignore rule.
 type rule struct {
-	pattern string
-	dirOnly bool // trailing / in the original pattern
-	negated bool // leading ! in the original pattern
+	pattern  string
+	dirOnly  bool // trailing / in the original pattern
+	anchored bool // leading / in the original pattern: matches from the root only
+	negated  bool // leading ! in the original pattern
 }
 
 // Matcher tests file paths against a set of ignore rules.
@@ -94,6 +95,11 @@ func (m *Matcher) AddPattern(line string) {
 		line = line[1:]
 	}
 
+	if strings.HasPrefix(line, "/") {
+		r.anchored = true
+		line = strings.TrimPrefix(line, "/")
+	}
+
 	if strings.HasSuffix(line, "/") {
 		r.dirOnly = true
 		line = strings.TrimSuffix(line, "/")
@@ -115,7 +121,7 @@ func (m *Matcher) Match(relPath string, isDir bool) bool {
 		if r.dirOnly && !isDir {
 			continue
 		}
-		if matchRule(r.pattern, relPath) {
+		if r.anchored && matchGlob(r.pattern, relPath) || !r.anchored && matchRule(r.pattern, relPath) {
 			ignored = !r.negated
 		}
 	}

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T20:05:53Z",
+  "generatedAt": "2026-09-23T20:52:38Z",
   "commands": [
     {
       "id": "add",
@@ -1187,9 +1187,8 @@
         }
       ],
       "examples": [
-        "kapi context snapshot",
         "kapi context snapshot --out build/context",
-        "kapi context snapshot --json"
+        "kapi context snapshot --out build/context --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
