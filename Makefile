@@ -2475,8 +2475,10 @@ paired-eval-score: ## Summarize saved paired attempts without model calls
 # context through kapi. It runs over a generated documentation repository whose
 # conventions are written down as an answer key, in cells generated outside this
 # repository, one host and one task per cell. The live phases share one
-# persistent attempt ceiling with no automatic retries, and every live target
-# builds bin/kapi first, because the binary under test is this checkout's.
+# persistent attempt ceiling with no automatic retries. The binary under test
+# is this checkout's bin/kapi: run `make build` once before the preflight, and
+# not again until the report, because every build stamps a new binary and a new
+# binary starts a new study.
 # Runbook: docs/internals/agent-evaluation.md.
 EVAL_MANIFEST ?= scripts/skilleval/testdata/eval-study.json
 EVAL_DIR ?= harness/out/eval
@@ -2494,16 +2496,16 @@ EVAL_FLAGS = -eval-manifest "$(EVAL_MANIFEST)" -eval-dir "$(EVAL_DIR)" -timeout 
 	$(if $(EVAL_CELLS_DIR),-eval-cells-dir "$(EVAL_CELLS_DIR)") $(EVAL_ARGS)
 .PHONY: eval-preflight eval-smoke eval-apply eval-grow eval-report
 
-eval-preflight: build ## Build the evaluation fixture and every cell, and verify the wiring (no model calls)
+eval-preflight: ## Build the evaluation fixture and every cell, and verify the wiring (no model calls; make build first)
 	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase preflight
 
-eval-smoke: build ## Run one agent-evaluation grow session per host (consumes plan allowance)
+eval-smoke: ## Run one agent-evaluation grow session per host (consumes plan allowance)
 	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase smoke -eval-live -eval-max-attempts $(EVAL_MAX_ATTEMPTS)
 
-eval-apply: build ## Run Measure 1: do agents apply the rules a project holds (consumes plan allowance)
+eval-apply: ## Run Measure 1: do agents apply the rules a project holds (consumes plan allowance)
 	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase apply -eval-live -eval-max-attempts $(EVAL_MAX_ATTEMPTS)
 
-eval-grow: build ## Run Measure 2: do agents record a project's conventions (consumes plan allowance)
+eval-grow: ## Run Measure 2: do agents record a project's conventions (consumes plan allowance)
 	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase grow -eval-live -eval-max-attempts $(EVAL_MAX_ATTEMPTS)
 
 eval-report: ## Render the agent-evaluation report and review sheet from saved attempts (no model calls)

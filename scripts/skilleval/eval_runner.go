@@ -165,7 +165,7 @@ func executeEvalWith(ctx context.Context, opts EvalOptions, deps evalDependencie
 	}
 	// The key is the evaluator's. It is written beside the evidence and never
 	// into a cell.
-	if err := writePairedJSON(filepath.Join(opts.Dir, "answer-key.json"), opts.Fixture); err != nil {
+	if err := pairedWriteJSON(filepath.Join(opts.Dir, "answer-key.json"), opts.Fixture); err != nil {
 		return err
 	}
 	if opts.Phase == evalPhasePreflight || !opts.Live {
