@@ -68,6 +68,14 @@ func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 	}, a.handleContextCorrect)
 
 	mcp.AddTool(server, &mcp.Tool{
+		Name: "context_withdraw",
+		Description: "Withdraw something this session recorded wrongly: a correction entered backwards, " +
+			"a proposal about the wrong word. Name it by the `operation` id its call returned. " +
+			"Only this session's own candidates can be withdrawn; anything a person confirmed, " +
+			"and anything another session recorded, is theirs to decide.",
+	}, a.handleContextWithdraw)
+
+	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_session_summary",
 		Description: "Report what this session recorded, proposed and had confirmed. " +
 			"Call it before you say the work is done, and end your report with what it says, " +
@@ -230,6 +238,13 @@ type contextCorrectInput struct {
 	Project  string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 }
 
+// contextWithdrawInput names one operation this session recorded.
+type contextWithdrawInput struct {
+	Operation string `json:"operation" jsonschema:"the operation id the recording call returned"`
+	Note      string `json:"note,omitempty" jsonschema:"what was wrong with it"`
+	Project   string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+}
+
 // contextSessionInput asks what one session did.
 type contextSessionInput struct {
 	Session string `json:"session,omitempty" jsonschema:"the session to summarize (default: this MCP server's own)"`
@@ -385,6 +400,34 @@ func (a *App) handleContextCorrect(ctx context.Context, req *mcp.CallToolRequest
 	} else {
 		out.Next = "recorded as evidence. Pass `propose` next time to record the rule it implies with it."
 	}
+	return nil, out, nil
+}
+
+// handleContextWithdraw discards an operation this session recorded. The
+// policy decides who may: an agent withdraws its own candidates, in the session
+// that recorded them, and nothing else.
+func (a *App) handleContextWithdraw(ctx context.Context, req *mcp.CallToolRequest, in contextWithdrawInput) (*mcp.CallToolResult, contextRecordOutput, error) {
+	recipe, err := a.RequireMCPCallProject(in.Project)
+	if err != nil {
+		return nil, contextRecordOutput{}, err
+	}
+	id := strings.TrimSpace(in.Operation)
+	if id == "" {
+		return nil, contextRecordOutput{}, errors.New("context_withdraw: name the operation to withdraw in `operation`")
+	}
+	op, err := a.DiscardContextOperation(ctx, ContextDiscardRequest{
+		Actor:   mcpAgentActor(req),
+		Project: recipe,
+		ID:      id,
+		Note:    in.Note,
+	})
+	if err != nil {
+		return nil, contextRecordOutput{}, err
+	}
+	a.NoteMCPSession(ctx, recipe, mcpClientName(req))
+	out := recordedOutput(op)
+	out.Recorded = "withdrew operation " + id
+	out.Next = "withdrawn: it no longer advises, and the log keeps the record of it."
 	return nil, out, nil
 }
 

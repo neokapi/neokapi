@@ -215,6 +215,13 @@ func (a *App) SaveProfileToStore(cmd Command, profile *coreprofile.VoiceProfile,
 	})
 }
 
+// ErrNoVoiceBound is ResolveVoiceProfileCmd's answer inside a project that
+// binds no voice at the point asked about, with no profile flag given. It is a
+// state of the project rather than a mistake in the call, so a command that
+// reports guidance (`kapi voice guide`) prints it as its answer.
+var ErrNoVoiceBound = errors.New("no voice profile is bound at this point, so no tone or style guidance applies; " +
+	"specify one with --profile, --profile-file, or --pack to use it anyway")
+
 // ResolveVoiceProfileCmd resolves the effective profile from --profile-file,
 // --pack, or --profile (local store), then applies locale/channel overrides.
 // paths, when given, are the files the caller is about to act on. The first
@@ -250,6 +257,9 @@ func (a *App) ResolveVoiceProfileCmd(cmd Command, paths ...string) (*coreprofile
 		}
 		if ok {
 			return profile, src, nil
+		}
+		if projectPath, _ := ResolveProjectPath(cmd); projectPath != "" {
+			return nil, "", ErrNoVoiceBound
 		}
 		return nil, "", errors.New("specify a profile with --profile, --profile-file, or --pack (or bind one in your kapi.yaml under defaults.voice)")
 	}

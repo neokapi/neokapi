@@ -111,7 +111,7 @@ func projectionDrift(ctx context.Context, db *projectdb.DB, root string) (bool, 
 		return false, ""
 	}
 	if !extracted {
-		return true, "kapi has read no content from this project yet, so anything counted over its content is empty. `kapi up` reads it"
+		return true, "kapi has read no content from this project yet, so term use counts are empty. The guidance in this answer does not depend on them"
 	}
 	if db.BlockStoreStale(ctx) {
 		return true, "the content kapi holds was read by a different version of kapi. `kapi up` reads it again"

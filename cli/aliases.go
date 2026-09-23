@@ -257,6 +257,7 @@ var (
 	CollectorFactories           = host.CollectorFactories
 	NewVoiceInferCollectorFor    = host.NewVoiceInferCollectorFor
 	ErrQualityGate               = host.ErrQualityGate
+	ErrNoVoiceBound              = host.ErrNoVoiceBound
 	ErrCheckNotRun               = host.ErrCheckNotRun
 	ErrSilentExit                = host.ErrSilentExit
 	ToolExamples                 = host.ToolExamples

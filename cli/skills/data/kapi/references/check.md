@@ -66,7 +66,9 @@ analyzers covered the content and which did not.
 `evaluation.context.stale` means the blocks kapi holds were read from files that
 have since changed, so anything counted over content is out of date. Run
 `kapi up` to read the files again, then check again. Report the finding as
-measured against files as they were if you cannot.
+measured against files as they were if you cannot. When `stale_reason` says
+kapi has read no content from the project yet, nothing is out of date: only the
+term use counts are empty, and the verdict stands without running anything.
 
 A missing `evaluation.context` means the check ran on files outside any project:
 no voice profile, terms or recorded decisions applied. Run the check from inside
