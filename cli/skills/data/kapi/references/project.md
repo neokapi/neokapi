@@ -175,9 +175,10 @@ collections:
 
   The recipe is the authoring surface for governance. A push carries every
   collection, its point and the governing voice, so a connected project resolves
-  the same voice on the server. A profile's `termstore:` is the exception: it names
-  a local path, so a project binding terms per profile and also bound to a server
-  warns on every run that the binding applies to local runs only.
+  the same voice on the server. A profile's `termstore:` is the exception: it names,
+  by the name `--termstore` takes, a terms store this machine keeps, and a push
+  does not carry it, so a project binding terms per profile and also bound to a
+  server warns on every run that the binding applies to local runs only.
 - **Declared axes**: `defaults.coordinates` names the axes the project varies
   along beyond product and channel (`brand`, `mode`), inherited by every
   collection; a collection that sits elsewhere sets the one axis it differs on

@@ -98,8 +98,8 @@ defaults:
   flow: tm-recycle
   # The voice is bound by name: the profile `kapi context import` reads from
   # .kapi/voice.yaml into the project's store. The terms need no binding: the
-  # same import reads .kapi/terms.json into the project's own terms, which
-  # govern wherever a profile names no store of its own.
+  # same import reads .kapi/terms.json, and any profiles/<name>/terms.json,
+  # into the project's one terms store, which governs every collection.
   voice:
     profile: neokapi-documentation
   memory:
@@ -191,9 +191,10 @@ profiles:
     voice:
       profile: bowrain-platform
   # The code comments of both products. The comment voice holds them to its
-  # length limits and to the writing tells a comment avoids. Its terms store is
-  # empty: a comment names identifiers and standards that the product
-  # vocabulary is not written for.
+  # length limits and to the writing tells a comment avoids. The profile binds
+  # no terms store of its own, so the project's terms govern comments as they
+  # govern everything else; .kapi/profiles/source/terms.json, which the import
+  # reads into that same store, holds no concepts.
   source:
     channels: [comments]
     voice:
