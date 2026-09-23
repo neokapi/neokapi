@@ -1852,9 +1852,9 @@ export const sampleReviewPoint: ReviewPoint = {
       'Never use these terms (use the replacement): "leverage" → "use"; "utilize" → "use".',
   },
   term_rules: [
-    { term: "leverage", replacement: "use", severity: "major" },
-    { term: "utilize", replacement: "use", severity: "minor" },
-    { term: "best-in-class", note: "Rephrase without a superlative.", severity: "critical" },
+    { term: "leverage", replacement: "use" },
+    { term: "utilize", replacement: "use", advisory: true },
+    { term: "best-in-class", note: "Rephrase without a superlative." },
     { term: "Bowrain", note: "The product name stays in English.", do_not_translate: true },
   ],
   terms_total: 4,

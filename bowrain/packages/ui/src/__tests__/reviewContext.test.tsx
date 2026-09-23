@@ -96,7 +96,7 @@ describe("the queue anchors what the checks found", () => {
           findings: [
             {
               category: "compliance",
-              severity: "major",
+              fails: true,
               message: "Uses a term the profile forbids.",
               original_text: "Réinitialisez",
               suggestion: "Changez",
@@ -152,7 +152,7 @@ describe("the queue anchors what the checks found", () => {
           findings: [
             {
               category: "compliance",
-              severity: "major",
+              fails: true,
               message: "Uses a term the profile forbids.",
               original_text: "Réinitialisez",
               suggestion: "Changez",
@@ -450,7 +450,7 @@ describe("the document's inspector", () => {
           findings: [
             {
               category: "compliance",
-              severity: "major",
+              fails: true,
               message: "Uses a term the profile forbids.",
               original_text: "Réinitialisez",
               suggestion: "Changez",

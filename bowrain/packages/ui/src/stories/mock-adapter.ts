@@ -1050,7 +1050,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
                 ? [
                     {
                       category: "compliance",
-                      severity: "major",
+                      fails: true,
                       message: "Uses a term the profile forbids.",
                       original_text: "Neokapi",
                       suggestion: "the platform",
@@ -1660,7 +1660,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
           // Server shape: core/check.Finding — the grouping field is
           // `category`, and the position is a run range, not character offsets.
           category: "vocabulary",
-          severity: r.severity ?? "major",
+          fails: true,
           message: `Uses the term "${r.term}"`,
           position: { kind: "range", start: { run: 0 }, end: { run: 0, offset: r.term.length } },
           original_text: r.term,
@@ -2178,7 +2178,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         {
           kind: "voice",
           rule: "synergy",
-          severity: "major",
+          fails: true,
           block_id: "b-2",
           item_name: "home.json",
           collection_name: "Pages",

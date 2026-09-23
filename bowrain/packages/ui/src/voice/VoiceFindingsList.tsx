@@ -1,5 +1,5 @@
 import { Badge, cn } from "@neokapi/ui-primitives";
-import type { VoiceFinding, VoiceSeverity } from "./types";
+import type { VoiceFinding } from "./types";
 import { ListCapRow } from "../components/ListCapRow";
 
 interface VoiceFindingsListProps {
@@ -15,12 +15,20 @@ interface VoiceFindingsListProps {
 /** Hard render cap — a large scan can produce hundreds of findings. */
 const MAX_FINDINGS = 200;
 
-const severityStyles: Record<VoiceSeverity, string> = {
-  neutral: "bg-muted text-muted-foreground",
-  minor: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
-  major: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
-  critical: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
-};
+/** A finding's badge: a failing finding in the destructive tone, a reported one in warning, a suggestion muted. */
+function outcomeBadge(finding: VoiceFinding): { className: string; label: string } {
+  if (finding.suggested) return { className: "bg-muted text-muted-foreground", label: "suggested" };
+  return finding.fails
+    ? {
+        className:
+          "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
+        label: "fails",
+      }
+    : {
+        className: "bg-warning/10 text-warning dark:bg-warning/20 dark:text-warning",
+        label: "reports",
+      };
+}
 
 export function VoiceFindingsList({ findings, scanned, className }: VoiceFindingsListProps) {
   if (findings.length === 0) {
@@ -40,8 +48,8 @@ export function VoiceFindingsList({ findings, scanned, className }: VoiceFinding
     <ul className={cn("space-y-2", className)}>
       {findings.slice(0, MAX_FINDINGS).map((finding, i) => (
         <li key={i} className="flex items-start gap-3 rounded-md border p-3 text-sm bg-card/50">
-          <Badge className={cn("shrink-0 text-[10px]", severityStyles[finding.severity])}>
-            {finding.severity}
+          <Badge className={cn("shrink-0 text-[10px]", outcomeBadge(finding).className)}>
+            {outcomeBadge(finding).label}
           </Badge>
           <div className="flex-1 min-w-0 space-y-1">
             <p>{finding.message}</p>

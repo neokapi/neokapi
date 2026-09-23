@@ -206,9 +206,7 @@ function FindingRow({ finding, tone }: { finding: TrialFinding; tone: "raised" |
         <Badge variant="outline" className="text-[10px]">
           {finding.kind === "term" ? "term" : "voice"}
         </Badge>
-        {finding.severity && (
-          <span className="text-[10px] text-muted-foreground">{finding.severity}</span>
-        )}
+        {finding.fails && <span className="text-[10px] text-muted-foreground">fails</span>}
       </div>
       <p className="mt-1 line-clamp-2 text-xs text-foreground">{finding.text}</p>
       <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">

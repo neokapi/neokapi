@@ -161,7 +161,7 @@ export const sampleExamples: VoiceExample[] = [
 export const sampleFindings: VoiceFinding[] = [
   {
     category: "vocabulary",
-    severity: "major",
+    fails: true,
     message: "Forbidden term 'simple' detected.",
     suggestion: "Replace with 'minimal' or 'straightforward'.",
     position: { kind: "range", start: { run: 0, offset: 12 }, end: { run: 0, offset: 18 } },
@@ -169,7 +169,7 @@ export const sampleFindings: VoiceFinding[] = [
   },
   {
     category: "tone",
-    severity: "minor",
+    fails: false,
     message: "Sentence uses passive voice.",
     suggestion: "Rewrite in active voice: 'The API returns...'",
     position: { kind: "range", start: { run: 0 }, end: { run: 0, offset: 45 } },
@@ -177,7 +177,7 @@ export const sampleFindings: VoiceFinding[] = [
   },
   {
     category: "style",
-    severity: "critical",
+    fails: true,
     message: "Contraction detected in formal profile.",
     suggestion: 'Replace "don\'t" with "do not".',
     position: { kind: "range", start: { run: 0, offset: 22 }, end: { run: 0, offset: 27 } },
@@ -185,13 +185,13 @@ export const sampleFindings: VoiceFinding[] = [
   },
   {
     category: "clarity",
-    severity: "minor",
+    fails: false,
     message: "Sentence exceeds recommended length (42 words).",
     position: { kind: "range", start: { run: 0 }, end: { run: 0, offset: 280 } },
   },
   {
     category: "compliance",
-    severity: "major",
+    fails: true,
     message: "Competitor name mentioned directly.",
     suggestion: "Use a generic reference instead.",
     position: { kind: "range", start: { run: 0, offset: 55 }, end: { run: 0, offset: 63 } },

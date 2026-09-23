@@ -43,7 +43,7 @@ const evidence: BlockEvidence = {
   findings: [
     {
       category: "voice-vocabulary",
-      severity: "major",
+      fails: true,
       message: 'Forbidden term "Utilize" found',
       suggestion: 'Use "Use" instead',
       original_text: "Utilize",

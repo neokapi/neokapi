@@ -50,7 +50,7 @@ const entity: EntityInfo = {
 
 const voiceFinding: BlockFinding = {
   category: "voice-vocabulary",
-  severity: "major",
+  fails: true,
   message: 'Forbidden term "Utilize" found',
   suggestion: 'Use "Use" instead',
   original_text: "Utilize",
@@ -181,7 +181,7 @@ describe("blockToContentNode — overlays", () => {
     });
     expect(checks?.spans[0].props).toMatchObject({
       category: "voice-vocabulary",
-      severity: "major",
+      severity: "error",
       replacement: "Use",
       concept_id: "c-42",
     });

@@ -59,7 +59,7 @@ function makeDimension(overrides: Partial<DimensionScore> = {}): DimensionScore 
 function makeFinding(overrides: Partial<VoiceFinding> = {}): VoiceFinding {
   return {
     category: "tone",
-    severity: "minor",
+    fails: false,
     message: "Tone is too formal for the target audience",
     position: { kind: "range", start: { run: 0 }, end: { run: 0, offset: 10 } },
     ...overrides,
@@ -186,16 +186,16 @@ describe("VoiceExamplePair", () => {
 // ---------------------------------------------------------------------------
 
 describe("VoiceFindingsList", () => {
-  it("renders findings with severity badges", () => {
+  it("renders findings with outcome badges", () => {
     const findings = [
-      makeFinding({ severity: "minor", message: "Slightly too formal" }),
-      makeFinding({ severity: "critical", message: "Forbidden term used" }),
+      makeFinding({ fails: false, message: "Slightly too formal" }),
+      makeFinding({ fails: true, message: "Forbidden term used" }),
     ];
     render(<VoiceFindingsList findings={findings} scanned />);
     expect(screen.getByText("Slightly too formal")).toBeInTheDocument();
     expect(screen.getByText("Forbidden term used")).toBeInTheDocument();
-    expect(screen.getByText("minor")).toBeInTheDocument();
-    expect(screen.getByText("critical")).toBeInTheDocument();
+    expect(screen.getByText("reports")).toBeInTheDocument();
+    expect(screen.getByText("fails")).toBeInTheDocument();
   });
 
   it("shows suggestion when present", () => {

@@ -39,9 +39,9 @@ export const SingleCritical: Story = {
   args: { findings: [sampleFindings[2]] },
 };
 
-/** Only minor findings. */
-export const MinorOnly: Story = {
+/** Only findings that report. */
+export const ReportingOnly: Story = {
   args: {
-    findings: sampleFindings.filter((f) => f.severity === "minor"),
+    findings: sampleFindings.filter((f) => !f.fails),
   },
 };

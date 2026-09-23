@@ -613,8 +613,8 @@ export interface TrialFinding {
   rule: string;
   /** What the rule says to write instead, when it says. */
   replacement?: string;
-  /** The voice half's severity; absent on a term finding. */
-  severity?: string;
+  /** Whether the voice half's finding fails a check; absent on a term finding. */
+  fails?: boolean;
   concept_id?: string;
   block_id: string;
   item_name: string;
