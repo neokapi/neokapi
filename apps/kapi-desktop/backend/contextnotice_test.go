@@ -32,8 +32,7 @@ func newCheckoutWithContextFiles(t *testing.T, dir, name string) string {
 		Name:    name,
 		Defaults: project.Defaults{
 			SourceLanguage: "en-US",
-			Voice:          &project.VoiceBinding{ProfileFile: project.RelStatePath("voice.yaml")},
-			TermsSource:    project.RelStatePath("terms.json"),
+			Voice:          &project.VoiceBinding{Profile: "northsea"},
 		},
 		Collections: []project.Collection{{
 			Name:    "Docs",

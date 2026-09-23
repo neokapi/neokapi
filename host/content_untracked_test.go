@@ -41,8 +41,6 @@ func untrackedFixture(t *testing.T) (*project.KapiProject, string) {
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb"},
 			Exclude:         []string{"vendor/**"},
-			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
-			TermsSource:     "terms.json",
 		},
 		Collections: []project.Collection{
 			{Name: "docs", Content: []project.ContentItem{{Path: "docs/**/*.md"}}},

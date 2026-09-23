@@ -26,13 +26,9 @@ func scopedTextCheckFixture(t *testing.T) (*App, string) {
 name: scoped-drafts
 defaults:
   source_language: en
-  terms_source: .kapi/terms.json
-  voice:
-    profile_file: .kapi/voice.yaml
 profiles:
   service:
     channels: [child, adult]
-    voice: .kapi/voice.yaml
 collections:
   - name: children
     channel: service/child

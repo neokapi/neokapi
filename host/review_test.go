@@ -24,7 +24,6 @@ name: rev
 defaults:
   source_language: en
   target_languages: [nb]
-  memory_source: memory.json
 collections:
   - path: en.json
     target: "{lang}.json"

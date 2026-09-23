@@ -41,14 +41,12 @@ name: staleness
 defaults:
   source_language: en
   target_languages: [fr]
-  voice:
-    profile_file: voice.yaml
 collections:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(stalenessVoiceYAML), 0o644))
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(stalenessVoiceYAML), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "app.json"),
 		[]byte("{\n  \"greeting\": \"Hello there\"\n}\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "fr", "app.json"),
@@ -223,7 +221,7 @@ vocabulary:
       replacement: our platform
       severity: critical
 `
-	require.NoError(t, os.WriteFile(filepath.Join(f.root, "voice.yaml"), []byte(moved), 0o644))
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, f.root), []byte(moved), 0o644))
 	readProjectContext(t, f.root)
 
 	// A fresh App: the fingerprints are resolved once per run, which is what

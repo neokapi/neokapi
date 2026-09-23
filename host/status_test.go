@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
@@ -410,18 +410,12 @@ func TestStatus_ShipManifestNamesUngovernedTerminology(t *testing.T) {
 
 // TestStatus_DoNotTranslateGovernsAndIsChecked: a do-not-translate concept
 // governs every language, and the loop's term-check fails a target that
-// translated the term, so the locale does not ship on it. The concept is committed in
-// the recipe's terms source, the form a project keeps its terms in.
+// translated the term, so the locale does not ship on it. The concept is read in
+// from the layout's terms bundle, the form a project brings its terms in.
 func TestStatus_DoNotTranslateGovernsAndIsChecked(t *testing.T) {
 	root := writeVerifiedGateProject(t)
-	recipePath := filepath.Join(root, "kapi.yaml")
-	recipe, err := os.ReadFile(recipePath)
-	require.NoError(t, err)
-	bound := strings.Replace(string(recipe), "  target_languages: [nb, de]\n",
-		"  target_languages: [nb, de]\n  terms_source: terms.json\n", 1)
-	require.NotEqual(t, string(recipe), bound, "the recipe binds the terms source")
-	require.NoError(t, os.WriteFile(recipePath, []byte(bound), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "terms.json"), []byte(`{
+	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, project.RelStatePath("terms.json")), []byte(`{
   "schemaVersion": "1.0",
   "kind": "kapi-terms",
   "concepts": [

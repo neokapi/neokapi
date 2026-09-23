@@ -34,7 +34,6 @@ func TestContextAnswersForAFilesContentPastACommentsOnlyItem(t *testing.T) {
 name: acme
 defaults:
   source_language: en
-  voice: .kapi/voice.yaml
 profiles:
   source:
     channels: [comments]

@@ -190,7 +190,8 @@ func TestCheckCanary_NothingToCatch(t *testing.T) {
 	})
 
 	t.Run("a project profile with no rules", func(t *testing.T) {
-		recipe := writeCheckInput(t, dir, "custom.kapi", "version: v1\ndefaults:\n  source_language: en\n  voice:\n    profile_file: tone.yaml\ncollections:\n  - path: app.json\n")
+		require.NoError(t, os.WriteFile(layoutVoicePath(t, dir), []byte("id: tone\nname: Tone\ntone:\n  personality: [plain]\n"), 0o644))
+		recipe := writeCheckInput(t, dir, "custom.kapi", "version: v1\ndefaults:\n  source_language: en\n  voice:\n    profile: tone\ncollections:\n  - path: app.json\n")
 		readContextAt(t, recipe)
 		serverCmd := NewEnvCommand(t.Context(), "mcp")
 		serverCmd.Flags().String("project", recipe, "")

@@ -29,9 +29,9 @@ func governanceRunProject(t *testing.T, recipe string) (recipePath, root, guide,
 	require.NoError(t, err)
 
 	for path, body := range map[string]string{
-		"voice.yaml":         "id: house\nname: House Style\n",
-		"promo-voice.yaml":   "id: promo\nname: Promo Voice\n",
-		"legal-voice.yaml":   "id: legal\nname: Legal Voice\n",
+		".kapi/voice.yaml":                "id: house\nname: House Style\n",
+		".kapi/profiles/promo/voice.yaml": "id: promo\nname: Promo Voice\n",
+		".kapi/profiles/legal/voice.yaml": "id: legal\nname: Legal Voice\n",
 		"docs/guide.md":      "The guide.\n",
 		"docs/legal/eula.md": "The terms.\n",
 	} {
@@ -56,14 +56,14 @@ defaults:
   source_language: en
   target_languages: [nb]
   voice:
-    profile_file: voice.yaml
+    profile: house
 profiles:
   promo:
     channels: [docs]
-    voice: promo-voice.yaml
+    voice: {profile: promo}
   legal:
     channels: [docs]
-    voice: legal-voice.yaml
+    voice: {profile: legal}
 collections:
   - name: docs
     channel: promo/docs
@@ -142,11 +142,11 @@ defaults:
   source_language: en
   target_languages: [nb]
   voice:
-    profile_file: voice.yaml
+    profile: house
 profiles:
   promo:
     channels: [docs]
-    voice: promo-voice.yaml
+    voice: {profile: promo}
 `+tt.window+`collections:
   - name: docs
     channel: promo/docs
@@ -191,11 +191,11 @@ defaults:
   source_language: en
   target_languages: [nb]
   voice:
-    profile_file: voice.yaml
+    profile: house
 profiles:
   promo:
     channels: [docs]
-    voice: promo-voice.yaml
+    voice: {profile: promo}
     valid_to: 2020-01-01
 collections:
   - name: docs
@@ -239,9 +239,9 @@ func TestUp_ItemChannelOverrideSurvivesAConvergeRun(t *testing.T) {
 		[]byte(`{"greeting":"Hello world"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "src", "legal", "en.json"),
 		[]byte(`{"terms":"Read the terms"}`), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "voice.yaml"),
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, dir),
 		[]byte("id: house\nname: House Style\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "legal-voice.yaml"),
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, dir, "legal"),
 		[]byte("id: legal\nname: Legal Voice\n"), 0o644))
 
 	proj := &project.KapiProject{
@@ -252,13 +252,13 @@ func TestUp_ItemChannelOverrideSurvivesAConvergeRun(t *testing.T) {
 			TargetLanguages: []model.LocaleID{"fr"},
 			Flow:            "translate",
 			SourceGate:      string(model.SourceGateNone),
-			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
+			Voice:           &project.VoiceBinding{Profile: "house"},
 		},
 		Profiles: map[string]project.Profile{
 			"house": {Channels: []project.Channel{{ID: "app"}}},
 			"legal": {
 				Channels: []project.Channel{{ID: "app"}},
-				Voice:    &project.VoiceBinding{ProfileFile: "legal-voice.yaml"},
+				Voice:    &project.VoiceBinding{Profile: "legal"},
 			},
 		},
 		Collections: []project.Collection{{
@@ -278,6 +278,7 @@ func TestUp_ItemChannelOverrideSurvivesAConvergeRun(t *testing.T) {
 	recipe := filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, project.Save(recipe, proj))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
+	readProjectContext(t, dir)
 	t.Chdir(dir)
 
 	a := &App{}

@@ -4,9 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -109,14 +109,12 @@ func namedContentProject(t *testing.T) string {
 	t.Helper()
 	root := commentPointProject(t, onlyOnItem)
 	recipe := filepath.Join(root, "kapi.yaml")
-	data, err := os.ReadFile(recipe)
-	require.NoError(t, err)
-	const anchor = "  source_language: en\n"
-	require.Contains(t, string(data), anchor)
-	data = []byte(strings.Replace(string(data), anchor, anchor+"  voice: .kapi/voice.yaml\n", 1))
-	require.NoError(t, os.WriteFile(recipe, data, 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".kapi", "voice.yaml"), []byte(projectVoice), 0o600))
+	// The import reads the voice and binds it at the default point.
 	readProjectContext(t, root)
+	p, err := project.Load(recipe)
+	require.NoError(t, err)
+	require.NotNil(t, p.Defaults.Voice, "the import binds the voice it brings")
 	return root
 }
 

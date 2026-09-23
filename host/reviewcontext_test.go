@@ -185,7 +185,7 @@ func chainAnswer(id, unit, source, target, fingerprint string, at time.Time) mem
 // wording the project has already approved.
 func TestReviewHistoryReportsAnUnreadStore(t *testing.T) {
 	ctx := t.Context()
-	a, root, recipe := newSeedProject(t, false)
+	a, root, recipe := newSeedProject(t)
 	writeMemoryBundle(t, root, "docs-nb", map[string]string{"Hello": "Hei"})
 	block := docBlock("greeting", "Hello", "")
 

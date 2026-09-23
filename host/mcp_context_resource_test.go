@@ -35,8 +35,6 @@ name: acme
 defaults:
   source_language: en
   target_languages: [nb]
-  voice: .kapi/voice.yaml
-  terms_source: .kapi/terms.json
 profiles:
   acme:
     channels: [docs]

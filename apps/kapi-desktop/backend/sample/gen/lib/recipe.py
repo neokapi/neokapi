@@ -25,8 +25,8 @@ def pin_recycle(path: str) -> None:
     if "\n  recycle:\n" not in text:
         text = text.replace("flows:\n", RECYCLE_FLOW, 1)
 
-    marker = "  memory_source:"
-    line_end = text.index("\n", text.index(marker))
+    marker = "\n  voice:"
+    line_end = text.index("\n", text.index(marker) + 1)
     text = text[:line_end] + "\n  flow: recycle" + text[line_end:]
 
     open(path, "w", encoding="utf-8").write(text)

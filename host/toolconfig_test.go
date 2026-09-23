@@ -49,7 +49,7 @@ func unitProject(t *testing.T) (a *App, recipe, root, srcFile string) {
 	require.NoError(t, err)
 	root = dir
 
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(unitVoiceYAML), 0o644))
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(unitVoiceYAML), 0o644))
 
 	proj := &project.KapiProject{
 		Version: project.CurrentVersion,
@@ -57,8 +57,7 @@ func unitProject(t *testing.T) (a *App, recipe, root, srcFile string) {
 		Defaults: project.Defaults{
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb", "fr"},
-			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
-			TermsSource:     project.RelStatePath(ktb.ConventionalName),
+			Voice:           &project.VoiceBinding{Profile: "house"},
 			Tools: map[string]map[string]any{
 				"translate": {
 					"dnt":           []any{"Bowrain", "kapi"},

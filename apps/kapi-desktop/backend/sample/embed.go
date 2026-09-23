@@ -145,13 +145,13 @@ func seedStore(targetDir string) error {
 	return nil
 }
 
-// MemorySourceRel and TermsSourceRel are where the context sources sit inside a
-// scaffolded project. They are the paths `kapi.yaml` binds under
-// defaults.memory_source and defaults.terms_source, so the import reads the
-// same files the recipe names.
+// ContextMemoryRel, ContextTermsRel and ContextVoiceRel are where the context
+// files sit inside a scaffolded project: the conventional places in the
+// context/ layout, which is where the import finds them.
 var (
-	MemorySourceRel = filepath.Join(ContextDirName, project.MemoryDirName, kmb.ConventionalName)
-	TermsSourceRel  = filepath.Join(ContextDirName, ktb.ConventionalName)
+	ContextMemoryRel = filepath.Join(ContextDirName, project.MemoryDirName, kmb.ConventionalName)
+	ContextTermsRel  = filepath.Join(ContextDirName, ktb.ConventionalName)
+	ContextVoiceRel  = filepath.Join(ContextDirName, "voice.yaml")
 )
 
 // indexMemory rebuilds the content memory's search side-tables.

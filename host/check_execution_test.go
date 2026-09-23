@@ -185,8 +185,7 @@ func TestCheckExecutionMCPUsesExplicitServerProject(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "content.json")
 	require.NoError(t, os.WriteFile(source, []byte(`{"body":"A risk-free appointment."}`), 0o644))
-	profilePath := filepath.Join(dir, "voice.yaml")
-	require.NoError(t, os.WriteFile(profilePath, []byte(`name: Scoped
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, dir), []byte(`name: Scoped
 vocabulary:
   forbidden_terms:
     - term: risk-free
@@ -196,8 +195,6 @@ vocabulary:
 	require.NoError(t, os.WriteFile(recipe, []byte(`version: v1
 defaults:
   source_language: nb
-  voice:
-    profile_file: voice.yaml
 collections:
   - path: content.json
 `), 0o644))

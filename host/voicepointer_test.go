@@ -27,7 +27,7 @@ func pointerProject(t *testing.T, recipe string, files map[string]string) string
 
 const (
 	packRecipe = "version: v1\nname: my-app\ndefaults:\n  source_language: en\n  voice:\n    pack: professional-b2b\n"
-	fileRecipe = "version: v1\nname: my-app\ndefaults:\n  source_language: en\n  voice:\n    profile_file: brand/voice.yaml\n"
+	nameRecipe = "version: v1\nname: my-app\ndefaults:\n  source_language: en\n  voice:\n    profile: house-voice\n"
 	bareRecipe = "version: v1\nname: my-app\ndefaults:\n  source_language: en\n"
 )
 
@@ -40,7 +40,7 @@ func TestWriteVoicePointer(t *testing.T) {
 		recipe string
 		files  map[string]string
 		// read runs the explicit import, which is how a profile the recipe
-		// binds by path reaches the store the pointer names it from.
+		// binds by name reaches the store the pointer names it from.
 		read bool
 		// wantFile is the assistant file, relative to root; empty when
 		// nothing is written.
@@ -50,6 +50,8 @@ func TestWriteVoicePointer(t *testing.T) {
 		// wantIn / wantNotIn are checked against the file after the write.
 		wantIn    []string
 		wantNotIn []string
+		// wantWarning is a fragment of the warning; empty expects none.
+		wantWarning string
 	}{
 		{
 			name:       "a fresh project gets CLAUDE.md",
@@ -88,9 +90,9 @@ func TestWriteVoicePointer(t *testing.T) {
 			wantIn:     []string{"# Agents\n\n" + coreprofile.VoicePointerStartLine},
 		},
 		{
-			name:       "a profile file binding names the profile",
-			recipe:     fileRecipe,
-			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			name:       "a binding by name names the profile",
+			recipe:     nameRecipe,
+			files:      map[string]string{".kapi/voice.yaml": houseVoice},
 			read:       true,
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
@@ -98,12 +100,13 @@ func TestWriteVoicePointer(t *testing.T) {
 			wantIn:     []string{"voice, House Voice, is held by kapi"},
 		},
 		{
-			name:       "a bound file nobody has written yet is pointed at unnamed",
-			recipe:     fileRecipe,
-			wantFile:   "CLAUDE.md",
-			wantAction: VoicePointerCreated,
-			wantIn:     []string{"This project's voice is held by kapi"},
-			wantNotIn:  []string{"voice, ,"},
+			name:        "a bound name the store does not hold is pointed at unnamed",
+			recipe:      nameRecipe,
+			wantFile:    "CLAUDE.md",
+			wantAction:  VoicePointerCreated,
+			wantIn:      []string{"This project's voice is held by kapi"},
+			wantNotIn:   []string{"voice, ,"},
+			wantWarning: "has not been imported or restored here",
 		},
 		{
 			// A voice profile sitting in the checkout governs nothing until a
@@ -117,9 +120,9 @@ func TestWriteVoicePointer(t *testing.T) {
 		},
 		{
 			name: "declared profiles make the pointer per file",
-			recipe: fileRecipe + "profiles:\n  acme:\n    channels: [docs]\n    voice: brand/acme.yaml\n" +
+			recipe: nameRecipe + "profiles:\n  acme:\n    channels: [docs]\n    voice: {profile: acme}\n" +
 				"collections:\n  - name: acme-docs\n    channel: acme/docs\n    content:\n      - path: \"docs/**/*.md\"\n",
-			files:      map[string]string{"brand/voice.yaml": houseVoice, "brand/acme.yaml": "name: Acme\n"},
+			files:      map[string]string{".kapi/voice.yaml": houseVoice, ".kapi/profiles/acme/voice.yaml": "name: Acme\n"},
 			read:       true,
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
@@ -129,10 +132,10 @@ func TestWriteVoicePointer(t *testing.T) {
 		},
 		{
 			name: "comments placed by defaults.comments.channel get their own retrieval",
-			recipe: fileRecipe + "  comments:\n    channel: source/comments\n" +
+			recipe: nameRecipe + "  comments:\n    channel: source/comments\n" +
 				"profiles:\n  source:\n    channels: [comments]\n" +
 				"collections:\n  - name: code\n    content:\n      - path: \"code/*.go\"\n        comments: true\n",
-			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			files:      map[string]string{".kapi/voice.yaml": houseVoice},
 			read:       true,
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
@@ -141,9 +144,9 @@ func TestWriteVoicePointer(t *testing.T) {
 		},
 		{
 			name: "comments an item places at a channel get their own retrieval",
-			recipe: fileRecipe + "profiles:\n  source:\n    channels: [comments]\n" +
+			recipe: nameRecipe + "profiles:\n  source:\n    channels: [comments]\n" +
 				"collections:\n  - name: code\n    content:\n      - path: \"code/*.go\"\n        comments:\n          channel: source/comments\n",
-			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			files:      map[string]string{".kapi/voice.yaml": houseVoice},
 			read:       true,
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
@@ -152,9 +155,9 @@ func TestWriteVoicePointer(t *testing.T) {
 		},
 		{
 			name: "an item declared for its comments alone gets their own retrieval",
-			recipe: fileRecipe + "collections:\n  - name: workflows\n    source_only: true\n    content:\n" +
+			recipe: nameRecipe + "collections:\n  - name: workflows\n    source_only: true\n    content:\n" +
 				"      - path: \".github/workflows/*.yaml\"\n        comments:\n          only: true\n",
-			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			files:      map[string]string{".kapi/voice.yaml": houseVoice},
 			read:       true,
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
@@ -163,9 +166,9 @@ func TestWriteVoicePointer(t *testing.T) {
 		},
 		{
 			name: "comments: true alone places no point of their own",
-			recipe: fileRecipe + "collections:\n  - name: code\n    content:\n" +
+			recipe: nameRecipe + "collections:\n  - name: code\n    content:\n" +
 				"      - path: \"code/*.go\"\n        comments: true\n",
-			files:      map[string]string{"brand/voice.yaml": houseVoice},
+			files:      map[string]string{".kapi/voice.yaml": houseVoice},
 			read:       true,
 			wantFile:   "CLAUDE.md",
 			wantAction: VoicePointerCreated,
@@ -206,7 +209,11 @@ func TestWriteVoicePointer(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantAction, res.Action)
 			assert.Equal(t, tt.wantVoice, res.Voice)
-			assert.Empty(t, res.Warning)
+			if tt.wantWarning == "" {
+				assert.Empty(t, res.Warning)
+			} else {
+				assert.Contains(t, res.Warning, tt.wantWarning)
+			}
 
 			if tt.wantFile == "" {
 				assert.Empty(t, res.File)
@@ -286,20 +293,20 @@ func TestWriteVoicePointer_IdempotentAndUpdatedInPlace(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(got, coreprofile.VoicePointerStart))
 }
 
-// A binding whose file the store has not been given is still pointed at, and
-// the section goes in unnamed rather than failing the write. The pointer names
-// the voice out of the store, so a file that never reached it has no name to
-// carry.
+// A binding whose profile the store has not been given is still pointed at,
+// and the section goes in unnamed rather than failing the write. The pointer
+// names the voice out of the store, so a profile that never reached it has no
+// name to carry, and the warning names the import that brings it.
 func TestWriteVoicePointer_PointsAtAnUnreadBindingUnnamed(t *testing.T) {
-	root := pointerProject(t, fileRecipe, map[string]string{
-		"brand/voice.yaml": "name: House Voice\n",
+	root := pointerProject(t, nameRecipe, map[string]string{
+		".kapi/voice.yaml": "name: House Voice\n",
 	})
 	a := &App{}
 	res, err := a.WriteVoicePointer(context.Background(), root)
 	require.NoError(t, err)
 	assert.Equal(t, VoicePointerCreated, res.Action)
 	assert.Empty(t, res.Voice)
-	assert.Empty(t, res.Warning)
+	assert.Contains(t, res.Warning, "`kapi context import`")
 
 	body, err := os.ReadFile(filepath.Join(root, "CLAUDE.md"))
 	require.NoError(t, err)

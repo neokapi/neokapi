@@ -1825,8 +1825,8 @@ type ProjectBindings struct {
 	// profile is the resolved voice profile (defaults.voice),
 	// injected into translate steps as config["profile"]. nil when unbound.
 	profile *coreprofile.VoiceProfile
-	// termRules are the terminology constraints built from the project terms
-	// store (defaults.terms_source), injected into the steps governed by
+	// termRules are the terminology constraints built from the terms store
+	// governing the point, injected into the steps governed by
 	// terminology as config["term_rules"]. nil when unbound.
 	termRules []coreprofile.TermRule
 	// ToolPresets holds the project-level tool presets (defaults.tools):

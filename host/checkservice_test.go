@@ -280,11 +280,11 @@ func TestResolveVoiceProfile_ResolvesAgainstTheStore(t *testing.T) {
 	ctx := context.Background()
 	profileYAML := []byte("id: house\nname: House Style\n")
 
-	t.Run("profile_file binding", func(t *testing.T) {
+	t.Run("a binding by name", func(t *testing.T) {
 		root := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), profileYAML, 0o644))
+		require.NoError(t, os.WriteFile(layoutVoicePath(t, root), profileYAML, 0o644))
 		proj := &project.KapiProject{
-			Defaults: project.Defaults{Voice: &project.VoiceBinding{ProfileFile: "voice.yaml"}},
+			Defaults: project.Defaults{Voice: &project.VoiceBinding{Profile: "house"}},
 		}
 		store := voiceFixtureProject(t, root, proj)
 
@@ -295,15 +295,19 @@ func TestResolveVoiceProfile_ResolvesAgainstTheStore(t *testing.T) {
 		assert.Equal(t, "store:house", src, "the binding names the profile the store holds")
 	})
 
-	t.Run("an unread profile file binds nothing", func(t *testing.T) {
+	t.Run("a bound name the store does not hold names the missing import", func(t *testing.T) {
 		root := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), profileYAML, 0o644))
+		require.NoError(t, os.WriteFile(layoutVoicePath(t, root), profileYAML, 0o644))
 		proj := &project.KapiProject{
-			Defaults: project.Defaults{Voice: &project.VoiceBinding{ProfileFile: "voice.yaml"}},
+			Defaults: project.Defaults{Voice: &project.VoiceBinding{Profile: "house"}},
 		}
 		_, _, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
-		require.NoError(t, err)
+		require.ErrorIs(t, err, ErrVoiceProfileNotFound)
 		assert.False(t, found, "a file nobody has read in governs nothing")
+		assert.Contains(t, err.Error(), `defaults.voice binds voice profile "house"`)
+		assert.Contains(t, err.Error(), "has not been imported or restored here")
+		assert.NotContains(t, err.Error(), "kapi voice pack",
+			"a starter pack of another name would install something else entirely")
 	})
 
 	t.Run("a conventional file the recipe does not bind", func(t *testing.T) {
@@ -342,7 +346,7 @@ func TestResolveVoiceProfile_ResolvesAgainstTheStore(t *testing.T) {
 				Content: []project.ContentItem{{Path: "src/*.json"}},
 			}},
 		}
-		proj.Defaults.Voice = &project.VoiceBinding{ProfileFile: ".kapi/voice.yaml"}
+		proj.Defaults.Voice = &project.VoiceBinding{Profile: "house"}
 		store := voiceFixtureProject(t, root, proj)
 
 		p, src, found, err := app.ResolveVoiceProfile(ctx, proj, root,
@@ -373,7 +377,7 @@ func TestResolveVoiceProfile_ResolvesAgainstTheStore(t *testing.T) {
 		}
 		_, _, _, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not found in local store")
+		assert.Contains(t, err.Error(), "has not been imported or restored here")
 		_, statErr := os.Stat(filepath.Join(root, "voice.db"))
 		assert.True(t, os.IsNotExist(statErr), "a missing store must not be created by a lookup")
 	})

@@ -712,6 +712,11 @@ func TestLoad_RejectsFileBindings(t *testing.T) {
 			want: []string{"profiles.acme.voice:", "`kapi context import .kapi/profiles/acme`"},
 		},
 		{
+			name: "voice as a bare file name",
+			body: "defaults:\n  voice: voice.yaml\n",
+			want: []string{"defaults.voice:", `"voice.yaml" names a file`, "`kapi context import .`"},
+		},
+		{
 			name: "defaults.terms_source",
 			body: "defaults:\n  terms_source: context/terms.json\n",
 			want: []string{"defaults.terms_source:", `"context/terms.json" names a file`,
@@ -744,6 +749,25 @@ func TestLoad_RejectsFileBindings(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestLoad_VoiceShortFormIsAName pins the short form: a scalar that is not a
+// path names a profile, the way `profile:` does.
+func TestLoad_VoiceShortFormIsAName(t *testing.T) {
+	path := filepath.Join(t.TempDir(), RecipeFileName)
+	require.NoError(t, os.WriteFile(path, []byte(`version: v1
+name: short
+defaults:
+  voice: fernwell
+profiles:
+  acme:
+    channels: [docs]
+    voice: acme-docs
+`), 0o644))
+	loaded, err := Load(path)
+	require.NoError(t, err)
+	assert.Equal(t, "fernwell", loaded.Defaults.Voice.Profile)
+	assert.Equal(t, "acme-docs", loaded.Profiles["acme"].Voice.Profile)
 }
 
 // TestLoad_TermStoreByName pins the form a profile's terms binding keeps: the

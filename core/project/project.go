@@ -280,7 +280,9 @@ type LocaleDefaults struct {
 // VoiceBinding binds a voice profile by name: to the project under
 // `defaults.voice`, or to a region of the context space under a profile's
 // `voice:`. Exactly one source is expected: a profile the project's voice store
-// holds (Profile), or a built-in starter pack (Pack).
+// holds (Profile), or a built-in starter pack (Pack). The short form is the
+// profile's id alone, `voice: fernwell`, which reads as `voice: {profile:
+// fernwell}`.
 //
 // A recipe never names a file. The store is what every surface answers from,
 // and `kapi context import` is what reads a profile file into it, so a binding
@@ -297,11 +299,17 @@ type VoiceBinding struct {
 	namedFile string
 }
 
-// UnmarshalYAML reads the mapping form. A scalar, or a mapping carrying
-// `profile_file:`, names a file; the path is kept for validate to reject.
+// UnmarshalYAML reads the mapping form and the short form, a scalar naming a
+// profile. A scalar that is a path (it holds a separator or ends in a YAML
+// extension), or a mapping carrying `profile_file:`, names a file; the path is
+// kept for validate to reject.
 func (b *VoiceBinding) UnmarshalYAML(node *yaml.Node) error {
 	if node.Kind == yaml.ScalarNode {
-		*b = VoiceBinding{namedFile: node.Value}
+		if namesFile(node.Value) {
+			*b = VoiceBinding{namedFile: node.Value}
+		} else {
+			*b = VoiceBinding{Profile: node.Value}
+		}
 		return nil
 	}
 	var mapping struct {
@@ -336,6 +344,20 @@ func (b *VoiceBinding) validate(field string) error {
 		return fmt.Errorf("%s: profile and pack are mutually exclusive", field)
 	}
 	return nil
+}
+
+// namesFile reports whether a binding's value is a path to a file rather than a
+// name: it holds a path separator or ends in a file extension kapi reads
+// context from.
+func namesFile(v string) bool {
+	if strings.ContainsAny(v, `/\`) {
+		return true
+	}
+	switch strings.ToLower(filepath.Ext(v)) {
+	case ".yaml", ".yml", ".json", ".db", ".tbx":
+		return true
+	}
+	return false
 }
 
 // retiredDefaultsKeys are `defaults:` keys that named a context file. Each is

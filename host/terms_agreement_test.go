@@ -27,7 +27,7 @@ func writeTermsAgreementProject(t *testing.T) string {
 	isolateCheckExecution(t)
 	root := t.TempDir()
 	var recipe strings.Builder
-	recipe.WriteString("version: v1\nname: agreement\ndefaults:\n  source_language: en\n  target_languages: [fr]\n  terms_source: .kapi/terms.json\ncollections:\n")
+	recipe.WriteString("version: v1\nname: agreement\ndefaults:\n  source_language: en\n  target_languages: [fr]\ncollections:\n")
 	for _, name := range agreementCollections {
 		recipe.WriteString("  - name: " + name + "\n    path: en/" + name + ".json\n    target: \"{lang}/" + name + ".json\"\n")
 	}

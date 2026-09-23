@@ -45,8 +45,6 @@ func commentsOnlyProject(t *testing.T) string {
 name: ts-comments
 defaults:
   source_language: en
-  voice:
-    profile_file: .kapi/voice.yaml
 collections:
   - name: code
     source_only: true

@@ -2,7 +2,6 @@ package project
 
 import (
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -987,11 +986,7 @@ func (p *KapiProject) validateProfiles() error {
 // would be read from wherever this checkout happens to sit, where a name
 // resolves to the one store this user keeps under it.
 func validateTermStoreName(field, name string) error {
-	if name == "" {
-		return nil
-	}
-	ext := strings.ToLower(filepath.Ext(name))
-	if !strings.ContainsAny(name, `/\`) && ext != ".db" && ext != ".json" && ext != ".tbx" {
+	if name == "" || !namesFile(name) {
 		return nil
 	}
 	return fmt.Errorf("%s: %q names a file, and a recipe binds a terms store by name. "+

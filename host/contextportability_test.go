@@ -92,9 +92,6 @@ name: portable
 defaults:
   source_language: en
   target_languages: [nb]
-  voice:
-    profile_file: .kapi/voice.yaml
-  terms_source: .kapi/terms.json
 profiles:
   landing:
     channels: [web]

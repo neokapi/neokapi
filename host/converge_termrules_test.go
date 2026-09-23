@@ -16,7 +16,6 @@ import (
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
-	"github.com/neokapi/neokapi/terms/ktb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -94,7 +93,7 @@ func newTermRulesConvergeProject(t *testing.T) (*App, *EnvCommand, string, strin
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(unitVoiceYAML), 0o644))
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(unitVoiceYAML), 0o644))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "src"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "en.json"),
 		[]byte(`{"greeting":"Utilize the content memory","farewell":"Goodbye now"}`), 0o644))
@@ -107,8 +106,7 @@ func newTermRulesConvergeProject(t *testing.T) (*App, *EnvCommand, string, strin
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb", "fr"},
 			Flow:            "converge",
-			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
-			TermsSource:     project.RelStatePath(ktb.ConventionalName),
+			Voice:           &project.VoiceBinding{Profile: "house"},
 		},
 		Collections: []project.Collection{
 			{Name: "docs", Path: "src/en.json", Target: "src/{lang}.json"},

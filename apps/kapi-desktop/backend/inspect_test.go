@@ -42,7 +42,8 @@ vocabulary:
       replacement: use
       severity: major
 `
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "voice.yaml"), []byte(voiceYAML), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RelStatePath("voice.yaml")), []byte(voiceYAML), 0o644))
 
 	// Seed the project's terms so the term annotator has data to match. They
 	// live in the workspace, so the seed goes through an App, which is where
@@ -66,7 +67,7 @@ vocabulary:
 		Defaults: project.Defaults{
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{model.LocaleID("fr")},
-			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
+			Voice:           &project.VoiceBinding{Profile: "house"},
 		},
 		Collections: []project.Collection{
 			{Path: "locales/en.json", Target: "locales/{lang}.json"},

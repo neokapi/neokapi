@@ -88,9 +88,9 @@ type ProjectVoiceInfo struct {
 	// Project is the recipe's name, for the title of a file created from
 	// nothing.
 	Project string
-	// Problem is why a binding that exists did not load. A profile file the
-	// recipe points at but nobody has written yet is not a problem: the
-	// scaffold binds it before the author fills it in.
+	// Problem is why a binding that exists did not load: most often a profile
+	// the recipe names that this machine's store does not hold yet, and the
+	// error names the import that brings it.
 	Problem error
 }
 

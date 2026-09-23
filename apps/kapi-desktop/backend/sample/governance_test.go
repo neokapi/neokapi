@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,9 +20,9 @@ func TestScaffoldShipsCommittedContext(t *testing.T) {
 	require.NoError(t, Scaffold("kapimart", dir))
 
 	for _, rel := range []string{
-		filepath.Join(ContextDirName, "voice.yaml"),
-		TermsSourceRel,
-		MemorySourceRel,
+		ContextVoiceRel,
+		ContextTermsRel,
+		ContextMemoryRel,
 		filepath.Join(project.StateDirName, project.StateGitignoreFilename),
 	} {
 		info, err := os.Stat(filepath.Join(dir, rel))
@@ -30,29 +31,29 @@ func TestScaffoldShipsCommittedContext(t *testing.T) {
 	}
 }
 
-// The recipe's bindings and the files on disk are two statements of the same
-// fact, and nothing else checks that they agree: a renamed source leaves the
-// recipe pointing at nothing, the store compiles from an empty set, and the
-// project still opens.
-func TestRecipeBindsTheCommittedContext(t *testing.T) {
+// The recipe binds the voice by name, and the name is the one the scaffold's
+// import stores the committed profile under. Nothing else checks that the two
+// agree: a renamed profile leaves the recipe naming a voice the store does not
+// hold, and the project still opens, ungoverned.
+func TestRecipeBindsTheImportedVoice(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, Scaffold("kapimart", dir))
 
 	proj, err := project.Load(filepath.Join(dir, "kapi.yaml"))
 	require.NoError(t, err)
-
-	require.NotEmpty(t, proj.Defaults.TermsSource, "recipe must bind a terms source")
-	require.NotEmpty(t, proj.Defaults.MemorySource, "recipe must bind a content-memory source")
-
-	for _, bound := range []string{proj.Defaults.TermsSource, proj.Defaults.MemorySource} {
-		_, err := os.Stat(filepath.Join(dir, filepath.FromSlash(bound)))
-		require.NoError(t, err, "recipe binds %q, which must exist on disk", bound)
-	}
-
 	require.NotNil(t, proj.Defaults.Voice, "recipe must bind a voice profile")
-	assert.NotEmpty(t, proj.Defaults.Voice.ProfileFile)
-	_, err = os.Stat(filepath.Join(dir, filepath.FromSlash(proj.Defaults.Voice.ProfileFile)))
-	assert.NoError(t, err, "the bound voice profile must exist on disk")
+	require.NotEmpty(t, proj.Defaults.Voice.Profile, "recipe binds the voice by name")
+
+	app := &host.App{}
+	app.InitRegistries()
+	defer app.Shutdown()
+	store, release, err := app.ProjectVoiceStore(t.Context(), dir)
+	require.NoError(t, err)
+	defer release()
+	p, _, found, err := app.ResolveVoiceProfile(t.Context(), proj, dir, host.VoiceResolveOptions{Store: store})
+	require.NoError(t, err, "the scaffold's store must hold the voice the recipe names")
+	require.True(t, found)
+	assert.Equal(t, "KapiMart", p.Name)
 }
 
 // A project sitting at exactly one point teaches nothing about coordinates, and

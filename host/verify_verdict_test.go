@@ -132,7 +132,7 @@ func TestBuildVerifyOutput_Precedence(t *testing.T) {
 		{"a failure outranks a gate with nothing to check", []verifyGateResult{failing, empty}, check.VerdictFailed, ""},
 		{"a missed canary outranks a failure", []verifyGateResult{failing, broken}, check.VerdictDidNotRun, check.CauseCheckerInvalid},
 		{"a gate with nothing to check leaves the run unverified", []verifyGateResult{passing, empty}, check.VerdictDidNotRun, check.CauseNothingToCheck},
-		{"an unbound gate did not run", []verifyGateResult{passing, unboundGate(gateVoice, "defaults.voice")}, check.VerdictDidNotRun, check.CauseContentNotChecked},
+		{"an unbound gate did not run", []verifyGateResult{passing, unboundGate(gateVoice, "voice", "bind one")}, check.VerdictDidNotRun, check.CauseContentNotChecked},
 		{"no gate at all", nil, check.VerdictDidNotRun, check.CauseNothingToCheck},
 	}
 	for _, tt := range tests {

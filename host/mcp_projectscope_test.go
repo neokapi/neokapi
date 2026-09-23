@@ -37,7 +37,6 @@ defaults:
   source_language: en
   target_languages: [`+target+`]
   source_gate: none
-  voice: .kapi/voice.yaml
 collections:
   - name: Docs
     content:

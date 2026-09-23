@@ -55,8 +55,9 @@ func setupCheckProjectVoiced(t *testing.T, app *App, sourceJSON, voiceYAML strin
 		},
 	}
 	if voiceYAML != "" {
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "voice.yaml"), []byte(voiceYAML), 0o644))
-		proj.Defaults.Voice = &project.VoiceBinding{ProfileFile: "voice.yaml"}
+		// The import reads the profile from the layout and binds it by name.
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, project.RelStatePath("voice.yaml")), []byte(voiceYAML), 0o644))
 	}
 	projPath := filepath.Join(dir, "proj.kapi")
 	require.NoError(t, project.Save(projPath, proj))

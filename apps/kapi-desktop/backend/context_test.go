@@ -129,7 +129,7 @@ func newContextProject(t *testing.T, app *App) (*TabInfo, string) {
 			// A declared axis every collection inherits, beside the structural
 			// axes a collection's channel derives.
 			Coordinates: map[string]string{project.BrandAxis: "northsea"},
-			Voice:       &project.VoiceBinding{ProfileFile: project.RelStatePath("voice.yaml")},
+			Voice:       &project.VoiceBinding{Profile: "northsea"},
 		},
 		Profiles: map[string]project.Profile{
 			"support": {Channels: []project.Channel{{ID: "docs"}}},

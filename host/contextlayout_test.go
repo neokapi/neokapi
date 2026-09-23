@@ -17,10 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newSeedProject writes a recipe binding a committed terms source and returns
-// the app, project root and recipe path. Nothing is read yet: the store starts
-// as empty as it is on a fresh clone.
-func newSeedProject(t *testing.T, bindTermsSource bool) (a *App, root, recipe string) {
+// newSeedProject writes a recipe and returns the app, project root and recipe
+// path. Nothing is read yet: the store starts as empty as it is on a fresh
+// clone.
+func newSeedProject(t *testing.T) (a *App, root, recipe string) {
 	t.Helper()
 	root = t.TempDir()
 	recipe = filepath.Join(root, project.RecipeFileName)
@@ -31,9 +31,6 @@ func newSeedProject(t *testing.T, bindTermsSource bool) (a *App, root, recipe st
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb"},
 		},
-	}
-	if bindTermsSource {
-		proj.Defaults.TermsSource = project.RelStatePath(ktb.ConventionalName)
 	}
 	require.NoError(t, project.Save(recipe, proj))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
@@ -111,6 +108,34 @@ func readProjectContext(t *testing.T, root string) {
 	readContextAt(t, filepath.Join(root, project.RecipeFileName))
 }
 
+// layoutVoicePath is where a project's `.kapi/` layout keeps a voice profile:
+// the project's own at the top, or the one a profile directory holds when a
+// profile name is given. The directory is created, so the caller writes the
+// file and an import finds it.
+func layoutVoicePath(t *testing.T, root string, profile ...string) string {
+	t.Helper()
+	path := filepath.Join(root, project.RelStatePath(VoiceConventionalName))
+	if len(profile) > 0 {
+		path = filepath.Join(root, project.RelStatePath(project.ProfilesDirName, profile[0], VoiceConventionalName))
+	}
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	return path
+}
+
+// namedTermStorePath is where the terms store a recipe names with `termstore:
+// <name>` lives: the store `--termstore <name>` opens, under this user's
+// configuration. A test that has not isolated the configuration directory gets
+// a temporary one, so no test reaches the developer's own stores.
+func namedTermStorePath(t *testing.T, name string) string {
+	t.Helper()
+	if os.Getenv("KAPI_CONFIG_DIR") == "" {
+		t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	}
+	path, err := resolveNamedResource("terms", name)
+	require.NoError(t, err)
+	return path
+}
+
 // readContextAt is readProjectContext for a recipe that is not named
 // `kapi.yaml`.
 func readContextAt(t *testing.T, recipe string) {
@@ -180,29 +205,24 @@ func storeCounts(t *testing.T, a *App, root string) (concepts, entries int) {
 func TestImportProjectContext_ReadsTheLayout(t *testing.T) {
 	tests := []struct {
 		name string
-		// setup writes the context files; the recipe binds terms_source when
-		// bindTerms is set.
-		bindTerms    bool
+		// setup writes the context files.
 		setup        func(t *testing.T, root string)
 		wantConcepts int
 		wantEntries  int
 	}{
 		{
-			name:      "no context files reads nothing",
-			bindTerms: false,
-			setup:     func(*testing.T, string) {},
+			name:  "no context files reads nothing",
+			setup: func(*testing.T, string) {},
 		},
 		{
-			name:      "a bound terms source reads into the store",
-			bindTerms: true,
+			name: "the terms bundle reads into the store",
 			setup: func(t *testing.T, root string) {
 				writeTermsSource(t, root, map[string]string{"content memory": "innholdsminne"})
 			},
 			wantConcepts: 1,
 		},
 		{
-			name:      "every bundle under the memory directory is read",
-			bindTerms: false,
+			name: "every bundle under the memory directory is read",
 			setup: func(t *testing.T, root string) {
 				writeMemoryBundle(t, root, "docs-nb", map[string]string{"Hello": "Hei"})
 				writeMemoryBundle(t, root, "cli-nb", map[string]string{"Goodbye": "Ha det"})
@@ -210,8 +230,7 @@ func TestImportProjectContext_ReadsTheLayout(t *testing.T) {
 			wantEntries: 2,
 		},
 		{
-			name:      "terms and memory are read together",
-			bindTerms: true,
+			name: "terms and memory are read together",
 			setup: func(t *testing.T, root string) {
 				writeTermsSource(t, root, map[string]string{"terms": "termer"})
 				writeMemoryBundle(t, root, "docs-nb", map[string]string{"Hello": "Hei"})
@@ -220,16 +239,10 @@ func TestImportProjectContext_ReadsTheLayout(t *testing.T) {
 			wantEntries:  1,
 		},
 		{
-			name:      "a bound source that does not exist is not an error",
-			bindTerms: true,
-			setup:     func(*testing.T, string) {},
-		},
-		{
 			// A profile keeps its own vocabulary under its directory, and a
 			// read that skipped it would leave those terms in the checkout
 			// with nothing to bring them in.
-			name:      "a profile's own terms are read",
-			bindTerms: false,
+			name: "a profile's own terms are read",
 			setup: func(t *testing.T, root string) {
 				writeTermsBundleAt(t,
 					filepath.Join(project.LayoutAt(root).Export().ProfileDir("landing"), ktb.ConventionalName),
@@ -241,7 +254,7 @@ func TestImportProjectContext_ReadsTheLayout(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			a, root, recipe := newSeedProject(t, tc.bindTerms)
+			a, root, recipe := newSeedProject(t)
 			tc.setup(t, root)
 
 			res, err := a.ImportProjectContext(context.Background(), recipe, ContextImportRequest{})
@@ -260,7 +273,7 @@ func TestImportProjectContext_ReadsTheLayout(t *testing.T) {
 // the files carry, never a replace — terminology a venue pull wrote into the
 // store survives a later read of a bundle.
 func TestImportProjectContext_KeepsServerVocabulary(t *testing.T) {
-	a, root, recipe := newSeedProject(t, true)
+	a, root, recipe := newSeedProject(t)
 	writeTermsSource(t, root, map[string]string{"content memory": "innholdsminne"})
 	ctx := context.Background()
 
@@ -285,7 +298,7 @@ func TestImportProjectContext_KeepsServerVocabulary(t *testing.T) {
 // TestImportProjectContext_RelationsRoundTrip: the bundle is the terms store's
 // lossless form, so the edges it carries reach the store too.
 func TestImportProjectContext_RelationsRoundTrip(t *testing.T) {
-	a, root, recipe := newSeedProject(t, true)
+	a, root, recipe := newSeedProject(t)
 	ctx := context.Background()
 
 	stamp := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -323,7 +336,7 @@ func TestImportProjectContext_RelationsRoundTrip(t *testing.T) {
 // project cannot decide each other's terms by what their branches happen to
 // hold.
 func TestImportProjectContext_NothingIsReadWithoutTheCommand(t *testing.T) {
-	a, root, recipe := newSeedProject(t, true)
+	a, root, recipe := newSeedProject(t)
 	writeTermsSource(t, root, map[string]string{"widget": "dings"})
 	writeMemoryBundle(t, root, "docs-nb", map[string]string{"Hello": "Hei"})
 	ctx := context.Background()

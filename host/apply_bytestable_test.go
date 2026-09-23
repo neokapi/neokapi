@@ -55,7 +55,6 @@ name: northsea
 # The languages this project is written in. One, for now.
 defaults:
   source_language: en-GB
-  voice: .kapi/voice.yaml
 collections:
   # Every surface the harbour publishes to.
   - name: northsea-docs

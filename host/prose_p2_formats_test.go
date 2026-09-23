@@ -132,12 +132,9 @@ func proseFormatProject(t *testing.T, pf proseFormat, comments bool, text string
 name: prose-%[1]s
 defaults:
   source_language: en
-  voice:
-    profile_file: .kapi/voice.yaml
 profiles:
   service:
     channels: [code, docs]
-    voice: .kapi/voice.yaml
 collections:
   - name: code
     channel: service/code

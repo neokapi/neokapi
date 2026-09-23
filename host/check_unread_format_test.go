@@ -32,9 +32,6 @@ func unreadProject(t *testing.T, readable string) string {
 name: unread-format
 defaults:
   source_language: en
-  terms_source: .kapi/terms.json
-  voice:
-    profile_file: .kapi/voice.yaml
 collections:
 `
 	if readable != "" {

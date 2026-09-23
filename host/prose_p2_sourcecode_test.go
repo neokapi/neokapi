@@ -238,7 +238,7 @@ func sourcecodeProject(t *testing.T) string {
 		require.NoError(t, os.WriteFile(path, []byte(body), 0o644))
 	}
 	var recipe strings.Builder
-	recipe.WriteString("version: v1\nname: source-comments\ndefaults:\n  source_language: en\n  voice:\n    profile_file: .kapi/voice.yaml\ncollections:\n  - name: code\n    source_only: true\n    content:\n")
+	recipe.WriteString("version: v1\nname: source-comments\ndefaults:\n  source_language: en\ncollections:\n  - name: code\n    source_only: true\n    content:\n")
 	for _, f := range sourcecodeFiles {
 		fmt.Fprintf(&recipe, "      - path: %q\n        comments: true\n", f.path)
 		write(f.path, f.governed)
@@ -436,7 +436,7 @@ func TestProseP2_typescript(t *testing.T) {
 	declaredProject := func(t *testing.T, item string) string {
 		t.Helper()
 		root := t.TempDir()
-		recipe := "version: v1\nname: declared\ndefaults:\n  source_language: en\n  voice:\n    profile_file: .kapi/voice.yaml\ncollections:\n  - name: code\n    source_only: true\n    content:\n" + item
+		recipe := "version: v1\nname: declared\ndefaults:\n  source_language: en\ncollections:\n  - name: code\n    source_only: true\n    content:\n" + item
 		for name, body := range map[string]string{
 			"kapi.yaml":        recipe,
 			".kapi/voice.yaml": "id: declared\nname: Service\nconstraints:\n  - id: service/plain-words\n    version: 1\n    source: service-guide.md\n    statement: Say use rather than utilize.\n    kind: prohibited_pattern\n    regex: '(?i)\\butilize\\b'\n",
