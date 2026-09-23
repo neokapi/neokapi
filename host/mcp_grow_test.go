@@ -95,9 +95,9 @@ func TestMCPEvidenceAndItsRequirement(t *testing.T) {
 		[]contextop.Evidence{{Path: "docs/guide.md", Unit: "u1", Quote: "Utilise the editor"}},
 		mcpEvidence(" docs/guide.md ", "u1", "Utilise the editor "))
 
-	require.Error(t, requireEvidence("context_propose", nil))
-	assert.Contains(t, requireEvidence("context_propose", nil).Error(), "evidence")
-	assert.NoError(t, requireEvidence("context_propose", mcpEvidence("docs/guide.md", "", "")))
+	require.Error(t, requireEvidence("context_observe", nil))
+	assert.Contains(t, requireEvidence("context_observe", nil).Error(), "evidence")
+	assert.NoError(t, requireEvidence("context_observe", mcpEvidence("docs/guide.md", "", "")))
 }
 
 // The sentence an agent ends its report with has to be usable as it stands: it
