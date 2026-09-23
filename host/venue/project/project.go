@@ -63,8 +63,8 @@ func FindProject(startDir string) (*Project, error) {
 	}, nil
 }
 
-// InitProject creates a new kapi recipe at <root>/kapi.yaml and
-// scaffolds the .kapi/ state directory. The supplied recipe is saved
+// InitProject creates a new kapi recipe at <root>/kapi.yaml and the
+// checkout's .kapi/ cache directory. The supplied recipe is saved
 // verbatim (both framework and bowrain fields).
 func InitProject(root string, recipe *Recipe) (*Project, error) {
 	absRoot, err := filepath.Abs(root)
@@ -117,7 +117,7 @@ func (p *Project) Save() error {
 // RecipePath is the absolute path to the kapi.yaml recipe.
 func (p *Project) RecipePath() string { return p.Layout.RecipePath }
 
-// StateDir is the absolute path to the .kapi/ state directory.
+// StateDir is the absolute path to the checkout's .kapi/ cache directory.
 func (p *Project) StateDir() string { return p.Layout.StateDir }
 
 // CacheDir is the absolute path to the .kapi/work/cache/ directory.

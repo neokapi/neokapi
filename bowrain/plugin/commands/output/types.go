@@ -109,11 +109,21 @@ type InitOutput struct {
 	ClaimToken string `json:"claim_token,omitempty"`
 	ClaimURL   string `json:"claim_url,omitempty"`
 	ClaimEmail string `json:"claim_email,omitempty"`
+	// Collections are the globs proposed from the files in the tree.
+	Collections []string `json:"collections,omitempty"`
+	// AgentFiles are the agent wiring files written, one line each.
+	AgentFiles []string `json:"agent_files,omitempty"`
 }
 
 func (o InitOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Initialized kapi project in: %s\n", o.Root)
 	fmt.Fprintf(w, "Recipe: %s\n", o.ConfigDir)
+	for _, c := range o.Collections {
+		fmt.Fprintf(w, "  collection: %s\n", c)
+	}
+	for _, f := range o.AgentFiles {
+		fmt.Fprintf(w, "  %s\n", f)
+	}
 
 	if o.ProjectID != "" {
 		fmt.Fprintf(w, "\nProject created: %s\n", o.ProjectID)
