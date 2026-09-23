@@ -77,7 +77,8 @@ then those files are bytes on disk and nothing in them applies.
 
 Commit the recipe, and the agent wiring `kapi init` wrote beside it. `.kapi/` is
 a cache for this checkout: the block store, the caches, the redaction vault and
-your saved reader filters. `kapi init` writes `.kapi/.gitignore` with one line,
+your personal saved reader filters. Filters you share with the team are kept
+with the project's context instead. `kapi init` writes `.kapi/.gitignore` with one line,
 `*`, so none of it reaches git, and a second clone builds its own.
 
 Deleting is worth being precise about:

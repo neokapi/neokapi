@@ -719,8 +719,8 @@ export function DeleteMemoryImportSession(handle, sessionID) {
 }
 
 /**
- * DeleteProjectFilter removes a filter from whichever file holds it and clears
- * the active selection if it pointed at the deleted filter.
+ * DeleteProjectFilter removes a filter from wherever it is kept and clears the
+ * active selection if it pointed at the deleted filter.
  * @param {string} tabID
  * @param {string} filterID
  * @returns {$CancellablePromise<void>}
@@ -2464,9 +2464,10 @@ export function SaveProjectDialog(tabID) {
 }
 
 /**
- * SaveProjectFilter creates or updates a filter, writing it to the shared
- * (committed) or local (gitignored) file per f.Shared. A filter that changes
- * scope is moved between files. Returns the saved filter (with its assigned id).
+ * SaveProjectFilter creates or updates a filter: a shared one in the project's
+ * context store, a personal one in this checkout's local file, per f.Shared. A
+ * filter that changes scope moves between the two. Returns the saved filter
+ * (with its assigned id).
  * @param {string} tabID
  * @param {$models.ProjectFilter} f
  * @returns {$CancellablePromise<$models.ProjectFilter | null>}

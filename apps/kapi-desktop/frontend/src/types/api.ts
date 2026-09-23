@@ -473,7 +473,10 @@ export interface ProjectFilter {
   collections?: string[];
   glob?: string;
   languages?: string[];
-  /** Committed to the project (.kapi/filters.json) vs personal (filters.local.json). */
+  /**
+   * Shared with the project's team, kept in the project's context store so every
+   * checkout lists it, vs personal to this checkout (.kapi/filters.local.json).
+   */
   shared?: boolean;
 }
 

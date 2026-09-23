@@ -1,8 +1,10 @@
 package backend
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -11,20 +13,25 @@ import (
 
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 )
 
 // ProjectFilter is a saved "Active Filter" — a named narrowing of the project to
 // a subset of collections (optionally further by a glob over file paths) and a
-// subset of target languages. It scopes every project view and flow run. Shared
-// filters live in the committed .kapi/filters.json; personal ones in the
-// gitignored .kapi/filters.local.json.
+// subset of target languages. It scopes every project view and flow run.
+//
+// A shared filter is a team setting about the project, so it is kept in the
+// project's context store (projectdb.SettingSavedFilters), which every checkout
+// of the project reads. A personal filter, and the choice of active filter,
+// belong to this checkout and sit in .kapi/filters.local.json.
 type ProjectFilter struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
 	Collections []string `json:"collections,omitempty"`
 	Glob        string   `json:"glob,omitempty"`
 	Languages   []string `json:"languages,omitempty"`
-	// Shared marks the filter as committed to the project (vs personal/local).
+	// Shared marks the filter as the team's, kept in the project's context
+	// store, rather than personal to this checkout.
 	Shared bool `json:"shared,omitempty"`
 }
 
@@ -35,8 +42,7 @@ type ProjectFilters struct {
 	Filters []ProjectFilter `json:"filters"`
 }
 
-// filtersFile is the on-disk shape of each filters file. Active is only
-// meaningful in the local file.
+// filtersFile is the shape of the personal filters file.
 type filtersFile struct {
 	Active  string          `json:"active,omitempty"`
 	Filters []ProjectFilter `json:"filters"`
@@ -63,11 +69,19 @@ func (a *App) GetProjectFilters(tabID string) ProjectFilters {
 	if !ok {
 		return ProjectFilters{}
 	}
-	shared := readFiltersFile(layout.FiltersPath())
 	local := readFiltersFile(layout.LocalFiltersPath())
 
 	out := ProjectFilters{Active: local.Active}
-	for _, f := range shared.Filters {
+	// Rendering the filter menu must not bring a store into being, so the
+	// shared set is read only from a store the project already has.
+	var shared []ProjectFilter
+	if db, ok := a.existingProjectStore(a.getOpenProject(tabID)); ok {
+		var err error
+		if shared, err = readSharedFilters(db); err != nil {
+			a.logger.Printf("read shared filters: %v", err)
+		}
+	}
+	for _, f := range shared {
 		f.Shared = true
 		out.Filters = append(out.Filters, f)
 	}
@@ -78,9 +92,10 @@ func (a *App) GetProjectFilters(tabID string) ProjectFilters {
 	return out
 }
 
-// SaveProjectFilter creates or updates a filter, writing it to the shared
-// (committed) or local (gitignored) file per f.Shared. A filter that changes
-// scope is moved between files. Returns the saved filter (with its assigned id).
+// SaveProjectFilter creates or updates a filter: a shared one in the project's
+// context store, a personal one in this checkout's local file, per f.Shared. A
+// filter that changes scope moves between the two. Returns the saved filter
+// (with its assigned id).
 func (a *App) SaveProjectFilter(tabID string, f ProjectFilter) (*ProjectFilter, error) {
 	layout, ok := a.layoutForTab(tabID)
 	if !ok {
@@ -92,30 +107,46 @@ func (a *App) SaveProjectFilter(tabID string, f ProjectFilter) (*ProjectFilter, 
 	if f.ID == "" {
 		f.ID = id.New()
 	}
-	// Drop any existing copy from both files first (handles update + scope move).
-	removeFilterFromFile(layout.FiltersPath(), f.ID)
+	// Any existing copy is dropped from both places (an update, or a move
+	// between shared and personal).
 	removeFilterFromFile(layout.LocalFiltersPath(), f.ID)
 
-	target := layout.LocalFiltersPath()
 	if f.Shared {
-		target = layout.FiltersPath()
-	} else if err := ensureLocalFiltersGitignored(layout); err != nil {
+		db, err := a.projectStore(a.getOpenProject(tabID))
+		if err != nil {
+			return nil, fmt.Errorf("open the project store: %w", err)
+		}
+		shared, err := readSharedFilters(db)
+		if err != nil {
+			return nil, err
+		}
+		if err := writeSharedFilters(db, append(withoutFilter(shared, f.ID), f)); err != nil {
+			return nil, err
+		}
+		return &f, nil
+	}
+	if err := a.removeSharedFilter(tabID, f.ID); err != nil {
 		return nil, err
 	}
-	if err := appendFilterToFile(target, f); err != nil {
+	if err := ensureLocalFiltersGitignored(layout); err != nil {
+		return nil, err
+	}
+	if err := appendFilterToFile(layout.LocalFiltersPath(), f); err != nil {
 		return nil, err
 	}
 	return &f, nil
 }
 
-// DeleteProjectFilter removes a filter from whichever file holds it and clears
-// the active selection if it pointed at the deleted filter.
+// DeleteProjectFilter removes a filter from wherever it is kept and clears the
+// active selection if it pointed at the deleted filter.
 func (a *App) DeleteProjectFilter(tabID, filterID string) error {
 	layout, ok := a.layoutForTab(tabID)
 	if !ok {
 		return errors.New("no project for tab")
 	}
-	removeFilterFromFile(layout.FiltersPath(), filterID)
+	if err := a.removeSharedFilter(tabID, filterID); err != nil {
+		return err
+	}
 	removeFilterFromFile(layout.LocalFiltersPath(), filterID)
 
 	local := readFiltersFile(layout.LocalFiltersPath())
@@ -207,7 +238,66 @@ func matchGlobPath(glob, path string) bool {
 	return re.MatchString(path)
 }
 
-// ─── file helpers ───────────────────────────────────────────────────────────
+// ─── shared filters: the project's context store ────────────────────────────
+
+// readSharedFilters reads the shared filters from the project's context store.
+func readSharedFilters(db *projectdb.DB) ([]ProjectFilter, error) {
+	raw, ok, err := db.Setting(context.Background(), projectdb.SettingSavedFilters)
+	if err != nil || !ok {
+		return nil, err
+	}
+	var filters []ProjectFilter
+	if err := json.Unmarshal([]byte(raw), &filters); err != nil {
+		return nil, fmt.Errorf("decode the shared filters: %w", err)
+	}
+	return filters, nil
+}
+
+// writeSharedFilters replaces the shared filters in the project's context store.
+func writeSharedFilters(db *projectdb.DB, filters []ProjectFilter) error {
+	if filters == nil {
+		filters = []ProjectFilter{}
+	}
+	for i := range filters {
+		filters[i].Shared = false // implied by where it is kept
+	}
+	data, err := json.Marshal(filters)
+	if err != nil {
+		return err
+	}
+	return db.PutSetting(context.Background(), projectdb.SettingSavedFilters, string(data))
+}
+
+// removeSharedFilter drops a filter from the shared set. A project with no
+// store yet has no shared filter to remove, and none is created for it.
+func (a *App) removeSharedFilter(tabID, filterID string) error {
+	db, ok := a.existingProjectStore(a.getOpenProject(tabID))
+	if !ok {
+		return nil
+	}
+	shared, err := readSharedFilters(db)
+	if err != nil {
+		return err
+	}
+	kept := withoutFilter(shared, filterID)
+	if len(kept) == len(shared) {
+		return nil
+	}
+	return writeSharedFilters(db, kept)
+}
+
+// withoutFilter returns filters with the one carrying filterID left out.
+func withoutFilter(filters []ProjectFilter, filterID string) []ProjectFilter {
+	kept := make([]ProjectFilter, 0, len(filters))
+	for _, f := range filters {
+		if f.ID != filterID {
+			kept = append(kept, f)
+		}
+	}
+	return kept
+}
+
+// ─── personal filters: this checkout's local file ───────────────────────────
 
 func readFiltersFile(path string) filtersFile {
 	var f filtersFile

@@ -15,7 +15,7 @@ my-app/
 ├── .mcp.json                   # agent wiring written by kapi init (committed)
 ├── .kapi/                      # this checkout's cache, ignored as a whole
 │   ├── .gitignore              # `*`, written by kapi init
-│   ├── filters.json            # saved reader filters
+│   ├── filters.local.json      # personal saved reader filters
 │   └── work/
 │       ├── store.db            # this checkout's projection of its working tree
 │       ├── vault/              # withheld redaction originals (local-only)
