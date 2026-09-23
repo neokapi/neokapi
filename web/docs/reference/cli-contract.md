@@ -243,30 +243,35 @@ distinction without changing field names or types.
 
 An entry also takes two optional fields, `actor` and `evidence`. An asset entry
 (a term, a voice rule, a content-memory pair) is a decision about the project's
-context, so applying one records an operation in that project's history, and
-these say who made it and where the wording behind it was seen. Omitting `actor`
-reads as a person, which is what someone running `kapi apply` is; an entry that
-names an agent is refused, because an agent proposes rather than decides. See
+context. Applying a term or a content-memory pair records one `edit` operation
+in that project's history, established from the start, and these fields say who
+made it and where the wording behind it was seen. Omitting `actor` reads as a
+person, which is what someone running `kapi apply` is; an entry that names an
+agent is refused, because an agent suggests and a person decides. See
 [Growing context](/kapi/context-decisions).
 
 Four tools record and read a project's context history: `context_observe`,
-`context_propose`, `context_correct` and `context_session_summary`. Each wraps
+`context_correct`, `context_withdraw` and `context_session_summary`. Each wraps
 one call in the host's context-operations API and takes the same optional
-`project` as every other project-scoped tool.
+`project` as every other project-scoped tool. `context_read` returns exactly
+the text the `context://<path>` resource returns, for a client that lists no
+resources from a template.
 
 None of them takes an actor. The kind is `agent`, the name is the client's own
 `initialize` name, and the session is minted once per server process, so an
 argument naming an actor or a session is refused by the schema. Evidence is
-required where a rule is stated: `context_propose` and `context_correct` declare
-`path` as required and refuse a blank one. A recorded operation is a candidate,
-so a check reports it at `neutral` severity with `advisory: true` and no gate
-counts it.
+required where a rule is stated: `context_observe` refuses a term rule with no
+`path`, and `context_correct` declares `path` as required and refuses a blank
+one. A recorded operation is a suggestion, so a check reports it at `neutral`
+severity with `advisory: true` and no gate counts it. The record carries
+`contested_by` when it disagrees with another rule.
 
-There is no MCP tool for confirming, discarding, reverting or widening, and
-none is planned: the policy reserves those for a person, and a tool that is
-always refused is one an assistant keeps trying. The `candidates` array on a
-by-location context answer is additive, and the CLI verbs `kapi context observe`
-and `kapi context correct` are new. See
+There is no MCP tool for keeping, dropping, reverting or widening, and none is
+planned: the policy reserves those for a person, and a tool that is always
+refused is one an assistant keeps trying. `context_withdraw` takes back only
+what the same session recorded. A by-location context answer and a
+`context_search` answer carry a `suggestions` array, each entry with `status`
+`suggested` or `contested`, `contested_by` and `suggested_by`. See
 [Growing context](/kapi/context-decisions).
 
 The registry tools on that surface are exactly the CLI-visible ones: a built-in tool appears under `kapi exec`, in `kapi tools list`, and as an MCP tool when it registers a config factory and does not declare itself internal (`registry.ToolRegistry.CLITools`). Wiring a factory for a tool that lacked one is therefore an additive surface change: it adds the tool to all three at once, and the snapshot moves. `whitespace-correct` gained one this way, and `dnt-check`, `placeholder-check`, `xml-validation`, `create-target`, `remove-target`, `inline-codes-remove` and `external-command` followed.

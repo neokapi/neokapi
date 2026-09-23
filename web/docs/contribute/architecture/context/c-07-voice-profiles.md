@@ -337,15 +337,15 @@ apply` change-set, alongside the content fix that justifies it:
 
 The entry adds a term rule to the named vocabulary list (`forbidden`,
 `competitor` or `preferred`) of the profile the recipe binds, inside the
-project's voice store, and records a context operation for it. The operation is
-idempotent. A binding that points at a starter pack is rejected: a pack is
+project's voice store. The entry is idempotent, and the context policy refuses
+one that names an agent as its actor before anything is written. A binding that points at a starter pack is rejected: a pack is
 embedded in the binary and a project that wants to change one imports it first.
 
-A rule proposed rather than applied takes the same route once someone confirms
-it. `kapi context propose --list forbidden` records a candidate, which checks
-report at `neutral` severity and fail nothing on; confirming it builds this same
-change-set entry and runs this same applier. Withdrawing it takes the rule back
-out and writes the profile whole. See [C-11](c-11-context-operations.md).
+A rule somebody notices while working is a term rule.
+`kapi context observe --term use --instead-of utilise` records a suggestion,
+which checks report at `neutral` severity and fail nothing on; a person keeping
+it writes the rule into the project's terms store, where every check reads it
+beside the voice's vocabulary. See [C-11](c-11-context-operations.md).
 
 ### Authoring a profile
 

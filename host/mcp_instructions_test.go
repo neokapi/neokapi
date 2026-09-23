@@ -33,13 +33,12 @@ func TestMCPInstructionsNameOnlyTheWritingSet(t *testing.T) {
 func TestMCPInstructionsCarryTheHabits(t *testing.T) {
 	text := MCPInstructions()
 	for habit, name := range map[string]string{
-		"read what applies before writing":           "context://",
-		"the same answer for a client without reads": "kapi context <path>",
-		"record names while reading":                 "context_observe",
-		"record the person's correction":             "context_correct",
-		"take back what was recorded wrongly":        "context_withdraw",
-		"check what you changed before saying done":  "check_file",
-		"report what the session recorded":           "context_session_summary",
+		"read what applies before writing":          "context_read",
+		"record names while reading":                "context_observe",
+		"record the person's correction":            "context_correct",
+		"take back what was recorded wrongly":       "context_withdraw",
+		"check what you changed before saying done": "check_file",
+		"report what the session recorded":          "context_session_summary",
 	} {
 		assert.Containsf(t, text, name, "the instructions carry the habit: %s", habit)
 	}

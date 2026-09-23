@@ -227,15 +227,17 @@ not yet established, as [`kapi context <path>`](/kapi/context#what-applies-here)
 prints it. The JSON adds the point the location resolved to, the full voice
 guide, the terms, the governance windows and the provenance.
 
-The `candidates` list is reported apart from everything in force. Each entry
-says it is a candidate, what it proposes, who recorded it, in which session and
-the evidence behind it, with the operation id a person confirms it by. A check
-reports every candidate and fails on none of them.
+The `suggestions` list is reported apart from everything in force. Each entry
+carries its status, `suggested` or `contested` (with `contested_by` naming the
+other side), the rule or note it states, who suggested it, in which session and
+the evidence behind it, with the operation id a person keeps it by. A check
+reports every suggestion and fails on none of them.
 
-Some clients list only concrete resources and never a resource template, so an
-assistant there cannot discover these addresses on its own. The server's
-instructions name the address, and `kapi context <path>` prints the same text
-for an assistant that can run a shell command.
+The server offers these addresses as resource templates, and many clients list
+no resources from a template, so an assistant there cannot discover them on its
+own. [`context_read`](#context_read) returns exactly the same text as a tool,
+the server's instructions name the address, and `kapi context <path>` prints
+the same text for an assistant that can run a shell command.
 
 **The rendering is a property of the read.** `?format=json`
 returns the same answer as `application/json` (the document `kapi context <path>
@@ -330,30 +332,40 @@ target-language decisions.
 
 ## Tool reference
 
+### context_read
+
+Read what applies when writing one file, before changing it: the voice, the
+words to use and to avoid, and what has been suggested but not yet established.
+It returns exactly the text the `context://<path>` resource returns, for a
+client that lists no resources from a template. `path` is project-relative, or
+`profile/<name>` for a named profile.
+
+<McpToolParams name="context_read" />
+
 ### context_search
+
+A word somebody has suggested a rule or a note about comes back under
+`suggestions`, apart from the terms in force.
 
 <McpToolParams name="context_search" />
 
 ### context_observe
 
-Record one fact about how the project writes, noticed while reading it. It
-states no rule and changes no check. `path` and `quote` are what let a person
-judge the fact later.
+Record one thing noticed about how the project writes, while reading it. In
+`text`, it is a fact that states no rule. With `term`, the form the project
+uses, and `instead_of`, forms it avoids, it states a term rule: kapi adds the
+spacing, hyphen and case variants of a compound, so `Quickcast` instead of
+`Quick cast` also avoids `Quick-cast`, `QuickCast` and `quickcast`. A term rule
+needs `path`. The result is a **suggestion**: every check reports it, and none
+fails on it until a person keeps it with `kapi context keep <id>`.
 
 <McpToolParams name="context_observe" />
-
-### context_propose
-
-Propose a rule about one word. The result is a **candidate**: every check
-reports it, and no check can fail on it until a person confirms it with
-`kapi context confirm <id>`. Evidence is required, so `path` is not optional.
-
-<McpToolParams name="context_propose" />
 
 ### context_correct
 
 Record that the person changed some wording: what was there, what replaced it,
-and where. `propose` also records the rule the change implies.
+and where. `suggest` also records the rule the change implies, as a
+suggestion.
 
 <McpToolParams name="context_correct" />
 
@@ -361,21 +373,23 @@ and where. `propose` also records the rule the change implies.
 
 Take back something this session recorded wrongly, such as a correction entered
 backwards, by the `operation` id its call returned. An assistant withdraws only
-its own session's suggestions. Anything a person confirmed, and anything another
-session recorded, stays a person's to decide.
+its own session's suggestions. Anything a person established, and anything
+another session recorded, stays a person's to decide.
 
 <McpToolParams name="context_withdraw" />
 
 ### context_session_summary
 
-What this session recorded, proposed and had confirmed, with the sentence to
-end a task report on and the command that reviews the session.
+What this session recorded and what became of it, counted as `observed`,
+`corrected`, `suggested`, `contested`, `established`, `withdrawn`, `dropped`
+and `reverted`, with the sentence to end a task report on. The report ends with
+the `kapi context keep --session <id>` command a person keeps the session's
+suggestions with.
 
 <McpToolParams name="context_session_summary" />
 
-There is no tool for confirming, reverting or widening, or for discarding what
-another session recorded. Those are a person's, on the command line or in the
-desktop. See
+There is no tool for keeping, dropping, reverting or widening. Those are a
+person's, on the command line or in the desktop. See
 [Growing context](/kapi/context-decisions).
 
 ### extract_content
