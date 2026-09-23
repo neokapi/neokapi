@@ -7,10 +7,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/graph"
@@ -110,16 +112,39 @@ type ContextAnswer struct {
 	// against the answer's instant — which voice is in force, and until when.
 	// The same shape the by-content answer reports, because it is the same fact.
 	Profiles []ContextProfileHit `json:"profiles,omitempty"`
-	// Notes carries freshness and scope-shaped caveats. Present so a thin answer
-	// is never ambiguous between "nothing applies here" and "nothing could be
-	// consulted".
+	// Rules is what a writer says and avoids here, as one list: the terms in
+	// force, the rules confirmed across the workspace, and the voice's
+	// vocabulary, merged so each wording is stated once. Capped at the
+	// request's limit; RulesTotal says how many there are in all.
+	Rules      []ContextRule `json:"rules,omitempty"`
+	RulesTotal int           `json:"rules_total,omitempty"`
+	// VoiceBrief is the voice in force as the short brief the text answer
+	// leads with: its description and the tone and style fields it sets. The
+	// full guide is Voice.Guide.
+	VoiceBrief string `json:"voice_brief,omitempty"`
+	// Attention holds what a person or an agent must act on before relying on
+	// the answer: context files nothing has read in, a voice or terms binding
+	// that failed to load, a location governed by a profile of its own. The
+	// text answer shows these and nothing else of Notes.
+	Attention []string `json:"attention,omitempty"`
+	// Notes carries every caveat, including freshness and scope, so a thin
+	// answer is never ambiguous between "nothing applies here" and "nothing
+	// could be consulted". The text answer shows them under --explain.
 	Notes []string `json:"notes,omitempty"`
 	// Notice names the context files this checkout carries whose project store
 	// has never held context, and the command that reads them. An answer
 	// carrying one is thin because nothing has been read in, which a caller
 	// cannot otherwise tell from a project that governs nothing here.
 	Notice *ContextFilesNotice `json:"notice,omitempty"`
+
+	// explain makes the text rendering add how the answer was reached: the
+	// point, the binding, the project and revision, and every note.
+	explain bool
 }
+
+// Explain makes the text rendering add how the answer was reached, the
+// details `kapi context --explain` prints.
+func (r *ContextAnswer) Explain() { r.explain = true }
 
 // ContextPoint is the coordinate an answer is about.
 type ContextPoint struct {
@@ -538,12 +563,17 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	// there are any is half of the answer's coverage and the coverage note
 	// leads the thin ones.
 	var (
-		hits  []ContextTermHit
-		total int
+		all  []ContextTermHit
+		hits []ContextTermHit
 	)
 	if src.ConceptsErr == nil {
-		hits, total = termsInForce(src.Concepts, req.Locale, src.At, limit)
+		all, _ = termsInForce(src.Concepts, req.Locale, src.At, 0)
+		hits = all
+		if len(hits) > limit {
+			hits = hits[:limit]
+		}
 	}
+	total := len(all)
 
 	res := &ContextAnswer{
 		Scope: scope,
@@ -578,8 +608,10 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	res.Candidates = contextCandidates(src.Rules.Advisory, src.Candidates, res.Point.Coordinates)
 
 	// Freshness leads the notes: it is the only note that says the rest of the
-	// answer may already describe a graph that has moved.
+	// answer may already describe a graph that has moved, and a reader acts on
+	// it by reading again.
 	res.Notes = append(res.Notes, src.Freshness...)
+	res.Attention = append(res.Attention, src.Freshness...)
 	// Then the coverage, for a thin answer. A caller that reads no further has
 	// still been told the two things that matter here: how much stands behind
 	// this, and what to watch for while it works.
@@ -592,11 +624,22 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	if src.Unread != nil {
 		res.Notice = src.Unread
 		res.Notes = append(res.Notes, src.Unread.Message())
+		res.Attention = append(res.Attention, src.Unread.Message()+". Ask the person to run it")
 	}
+	// The assembly's own notes say why part of the answer could not be
+	// reached, or that no project stood behind it, which a caller has to know
+	// before relying on the rest.
 	for _, n := range src.Notes {
 		if n != "" {
 			res.Notes = append(res.Notes, n)
+			res.Attention = append(res.Attention, n)
 		}
+	}
+	// A location a profile claims is governed apart from the rest of the
+	// project, so what holds in the next file over can differ.
+	if src.Governance != nil && !res.Point.Default && req.Path != "" && res.Point.Profile != "" {
+		res.Attention = append(res.Attention, fmt.Sprintf(
+			"this file is governed by the `%s` profile, so what applies here can differ from the rest of the project", res.Point.Profile))
 	}
 	// A profile that stopped governing on a date has to be visible; a reader is
 	// never told a rule is in force by an answer that just watched it lapse.
@@ -606,7 +649,9 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 
 	switch {
 	case src.VoiceErr != nil:
-		res.Notes = append(res.Notes, "the voice bound here could not be loaded: "+src.VoiceErr.Error())
+		note := "the voice bound here could not be loaded: " + src.VoiceErr.Error()
+		res.Notes = append(res.Notes, note)
+		res.Attention = append(res.Attention, note)
 	case src.Voice != nil:
 		res.Constraints = coreprofile.ConstraintResolutions(src.Voice)
 		res.Voice = &ContextVoice{
@@ -614,6 +659,7 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 			Source: src.VoiceSource,
 			Guide:  coreprofile.RenderVoiceGuide(src.Voice),
 		}
+		res.VoiceBrief = coreprofile.RenderVoiceBrief(src.Voice)
 		if src.Governance != nil {
 			res.Voice.Field = src.Governance.VoiceField
 		}
@@ -623,7 +669,9 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 
 	switch {
 	case src.ConceptsErr != nil:
-		res.Notes = append(res.Notes, "the terms bound here could not be read: "+src.ConceptsErr.Error())
+		note := "the terms bound here could not be read: " + src.ConceptsErr.Error()
+		res.Notes = append(res.Notes, note)
+		res.Attention = append(res.Attention, note)
 	case len(src.Concepts) > 0:
 		// A capped list is stated by Terms against TermsTotal, so a caller
 		// that draws the list draws the count beside it; the text rendering
@@ -634,6 +682,7 @@ func ResolveContextAt(_ context.Context, src ContextPointSources, req ContextPoi
 	}
 
 	res.Profiles = src.Profiles
+	res.Rules, res.RulesTotal = sayThisNotThat(all, src.Rules.Binding, src.Voice, limit)
 
 	if scope == ScopeProject {
 		res.Notes = append(res.Notes,
@@ -790,7 +839,7 @@ func termsInForce(concepts []terms.Concept, locale model.LocaleID, at time.Time,
 		return all[i].Locale < all[j].Locale
 	})
 	total := len(all)
-	if len(all) > limit {
+	if limit > 0 && len(all) > limit {
 		all = all[:limit]
 	}
 	return all, total
@@ -809,13 +858,73 @@ func termRank(h ContextTermHit) int {
 	}
 }
 
-// FormatText renders the answer as one markdown document — prose for a model,
-// which is what a by-location answer is for. It lives on the shared type rather
-// than in the CLI so the CLI render and the `context://` resource body are the
-// same bytes, defined once.
+// FormatText renders the answer as the brief a writer reads before changing a
+// file: the voice, what to say and what not, what has been suggested and not
+// yet established, and what to record while working. It lives on the shared
+// type rather than in the CLI so the CLI render and the `context://` resource
+// body are the same bytes, defined once.
+//
+// How the answer was reached (the point, the binding, the project and its
+// revision, the scope and every note) is left to the JSON form and to
+// Explain, because a writer acts on none of it.
 func (r *ContextAnswer) FormatText(w io.Writer) error {
-	fmt.Fprintf(w, "# %s\n\n", r.heading())
-	fmt.Fprintf(w, "%s\n", r.where())
+	fmt.Fprintf(w, "# %s\n", r.heading())
+
+	for _, a := range r.Attention {
+		fmt.Fprintf(w, "\n%s\n", capitalSentence(a))
+	}
+
+	if r.VoiceBrief != "" {
+		fmt.Fprintf(w, "\n%s", r.VoiceBrief)
+	}
+
+	if len(r.Rules) > 0 {
+		fmt.Fprintln(w, "\nSay this, not that:")
+		showLocale := rulesSpanLocales(r.Rules)
+		for _, rule := range r.Rules {
+			fmt.Fprintln(w, ruleLine(rule, showLocale))
+		}
+		if r.RulesTotal > len(r.Rules) {
+			fmt.Fprintf(w, "Showing %d of %d. context_search (or `kapi context search <word>`) finds one by name.\n",
+				len(r.Rules), r.RulesTotal)
+		}
+	}
+
+	if suggested := r.suggestedLines(); len(suggested) > 0 {
+		fmt.Fprintln(w, "\nSuggested, not yet established:")
+		for _, line := range suggested {
+			fmt.Fprintln(w, line)
+		}
+	}
+
+	// Recording is what grows the answer, and it needs a project to record
+	// into. An answer with no project behind it stops at what it found.
+	recordable := r.Scope != ScopeProfile
+	subject := r.subject()
+	switch {
+	case r.VoiceBrief == "" && len(r.Rules) == 0 && len(r.Candidates) == 0:
+		fmt.Fprintf(w, "\nNothing is recorded for %s yet. Write as the surrounding files do.\n", subject)
+		if recordable {
+			fmt.Fprintln(w, "\nWhile you read, record the names and spellings this project keeps to, such as a product "+
+				"or feature name, with context_observe (or `kapi context observe`).")
+		}
+	case recordable:
+		fmt.Fprintf(w, "\nNothing else is recorded for %s. If you notice a name or spelling the project keeps to, "+
+			"record it with context_observe (or `kapi context observe`).\n", subject)
+	}
+
+	if r.explain {
+		r.formatExplain(w)
+	}
+	return nil
+}
+
+// formatExplain renders how the answer was reached: where the location sits,
+// which recipe line bound the voice, what was consulted, which project answered
+// at which revision, the governance windows, and every note.
+func (r *ContextAnswer) formatExplain(w io.Writer) {
+	fmt.Fprintln(w, "\n## How this was answered")
+	fmt.Fprintf(w, "\n%s\n", r.where())
 	if r.Voice != nil {
 		fmt.Fprintf(w, "%s\n", r.voiceLine())
 	}
@@ -823,37 +932,8 @@ func (r *ContextAnswer) FormatText(w io.Writer) error {
 	if line := provenanceLine(r.Provenance); line != "" {
 		fmt.Fprintf(w, "%s\n", line)
 	}
-
-	if r.Voice != nil && r.Voice.Guide != "" {
-		// The guide renders its own headings from `# Voice Guide: …` down; one
-		// level of demotion nests it under this document's title instead of
-		// competing with it.
-		fmt.Fprintf(w, "\n%s\n", demoteHeadings(strings.TrimRight(r.Voice.Guide, "\n")))
-	}
-
-	if len(r.Terms) > 0 {
-		fmt.Fprintln(w, "\n## Terms in force")
-		for _, t := range r.Terms {
-			fmt.Fprintf(w, "%s\n", termLine(t))
-		}
-		if r.TermsTotal > len(r.Terms) {
-			fmt.Fprintf(w, "\nShowing %d of %d terms bound here. `kapi context search <word>` finds one by name.\n",
-				len(r.Terms), r.TermsTotal)
-		}
-	}
-
-	if len(r.Candidates) > 0 {
-		fmt.Fprintln(w, "\n## Candidates, not yet decided")
-		fmt.Fprintln(w, "\nProposed here and awaiting a person's decision. A check reports each of these and"+
-			" none of them can fail one. Build on them; do not write them up as rules in force.")
-		for _, c := range r.Candidates {
-			fmt.Fprintf(w, "%s\n", candidateLine(c))
-		}
-		fmt.Fprintln(w, "\n`kapi context log --status candidate` lists them, `kapi context confirm <id>` makes one binding.")
-	}
-
 	if len(r.Profiles) > 0 {
-		fmt.Fprintln(w, "\n## Governance windows")
+		fmt.Fprintln(w, "\nGovernance windows:")
 		for _, p := range r.Profiles {
 			window := strings.TrimSpace(strings.TrimSpace("from "+p.ValidFrom) + " " + strings.TrimSpace("until "+p.ValidTo))
 			if p.ValidFrom == "" {
@@ -865,30 +945,59 @@ func (r *ContextAnswer) FormatText(w io.Writer) error {
 			fmt.Fprintf(w, "- `%s`: %s (%s)\n", p.Name, window, p.State)
 		}
 	}
-
-	// Notes last and always: they are what makes a thin answer readable rather
-	// than ambiguous.
 	if len(r.Notes) > 0 {
-		fmt.Fprintln(w, "\n## Notes")
+		fmt.Fprintln(w, "\nNotes:")
 		for _, n := range r.Notes {
 			fmt.Fprintf(w, "- %s\n", n)
 		}
 	}
-	return nil
 }
 
-// heading names what the answer is about.
+// heading names what the answer is for.
 func (r *ContextAnswer) heading() string {
 	if r.Point.Path != "" {
-		return "Context at " + r.Point.Path
+		return "Writing " + r.Point.Path
 	}
 	if r.Point.Profile != "" {
-		return "Context of profile " + r.Point.Profile
+		return "Writing for the " + r.Point.Profile + " profile"
 	}
-	return "Context"
+	return "Writing"
 }
 
-// where states the coordinate in one sentence — the answer's own address, so a
+// subject is how the text refers to what it answers for.
+func (r *ContextAnswer) subject() string {
+	switch {
+	case r.Point.Path != "":
+		return "this file"
+	case r.Point.Profile != "":
+		return "this profile"
+	default:
+		return "this location"
+	}
+}
+
+// suggestedLines renders the candidates a writer has not already been told as
+// a rule: what each suggests, then who recorded it and where they saw it.
+func (r *ContextAnswer) suggestedLines() []string {
+	say := map[string]bool{}
+	avoid := map[string]bool{}
+	for _, rule := range r.Rules {
+		say[fold(rule.Say)] = true
+		for _, n := range rule.Not {
+			avoid[fold(n)] = true
+		}
+	}
+	var lines []string
+	for _, c := range r.Candidates {
+		if c.Kind != string(contextop.SubjectNote) && avoid[fold(c.Term)] && (c.Replacement == "" || say[fold(c.Replacement)]) {
+			continue
+		}
+		lines = append(lines, candidateLine(c))
+	}
+	return lines
+}
+
+// where states the coordinate in one sentence: the answer's own address, so a
 // caller can tell which of several points it just read.
 func (r *ContextAnswer) where() string {
 	if r.Scope == ScopeProfile {
@@ -939,9 +1048,8 @@ func (r *ContextAnswer) voiceLine() string {
 	return line + "."
 }
 
-// scopeLine states what was answered from. AD-037's reach-not-capability rule:
-// a caller must be able to tell "this project holds no answer" from "this scope
-// cannot hold one", which it cannot do unless the scope is on the answer.
+// scopeLine states what was answered from, so a caller can tell "this project
+// holds no answer" from "this scope cannot hold one".
 func (r *ContextAnswer) scopeLine() string {
 	switch r.Scope {
 	case ScopeWorkspace:
@@ -953,100 +1061,50 @@ func (r *ContextAnswer) scopeLine() string {
 	}
 }
 
-// termLine renders one term as the answer shows it: the verdict first, because
-// the caller is asking whether it may use the word.
-func termLine(t ContextTermHit) string {
-	var b strings.Builder
-	if t.Discouraged {
-		fmt.Fprintf(&b, "- ~~%s~~", t.Term)
-		if t.Replacement != "" {
-			fmt.Fprintf(&b, " → say **%s**", t.Replacement)
-		}
-	} else {
-		fmt.Fprintf(&b, "- **%s**", t.Term)
-	}
-	meta := t.Locale
-	if t.Status != "" {
-		if meta != "" {
-			meta += ", "
-		}
-		meta += t.Status
-	}
-	if meta != "" {
-		fmt.Fprintf(&b, " (%s)", meta)
-	}
-	if t.ValidTo != "" {
-		fmt.Fprintf(&b, " until %s", validityText(t.ValidTo))
-	}
-	if t.Domain != "" {
-		fmt.Fprintf(&b, " [%s]", t.Domain)
-	}
-	if t.Definition != "" {
-		fmt.Fprintf(&b, ": %s", t.Definition)
-	}
-	return b.String()
-}
-
-// candidateLine renders one candidate as the answer shows it: what it says
-// first, then who recorded it and where they saw it, then the id a person acts
-// on it by.
+// candidateLine renders one candidate: what it suggests, then who recorded it
+// and where they saw it.
 func candidateLine(c ContextCandidate) string {
 	var b strings.Builder
 	switch {
 	case c.Kind == string(contextop.SubjectNote):
 		fmt.Fprintf(&b, "- %s", c.Text)
-	case c.Replacement != "":
-		fmt.Fprintf(&b, "- ~~%s~~ → say **%s**", c.Term, c.Replacement)
+	case c.Replacement != "" && c.Replacement != c.Term:
+		fmt.Fprintf(&b, "- %s, not %q", c.Replacement, c.Term)
 	default:
-		fmt.Fprintf(&b, "- **%s**", c.Term)
-	}
-	if c.List != "" {
-		fmt.Fprintf(&b, " (voice `%s`)", c.List)
+		fmt.Fprintf(&b, "- %s", c.Term)
 	}
 	if c.Note != "" && c.Note != c.Text {
 		fmt.Fprintf(&b, ": %s", c.Note)
-	}
-	var seen []string
-	for _, e := range c.Evidence {
-		switch {
-		case e.Path != "" && e.Quote != "":
-			seen = append(seen, fmt.Sprintf("%s (%q)", e.Path, e.Quote))
-		case e.Path != "":
-			seen = append(seen, e.Path)
-		case e.Quote != "":
-			seen = append(seen, strconv.Quote(e.Quote))
-		}
-	}
-	if len(seen) > 0 {
-		fmt.Fprintf(&b, ", seen in %s", strings.Join(seen, ", "))
 	}
 	var by []string
 	if c.ProposedBy != "" {
 		by = append(by, c.ProposedBy)
 	}
-	if c.Operation != "" {
-		by = append(by, "#"+c.Operation)
+	var seen []string
+	for _, e := range c.Evidence {
+		if e.Path != "" && !slices.Contains(seen, e.Path) {
+			seen = append(seen, e.Path)
+		}
+	}
+	if len(seen) > 0 {
+		by = append(by, "seen in "+strings.Join(seen, ", "))
 	}
 	if len(by) > 0 {
-		fmt.Fprintf(&b, " [%s]", strings.Join(by, " "))
+		fmt.Fprintf(&b, " (%s)", strings.Join(by, ", "))
 	}
 	return b.String()
 }
 
-// demoteHeadings pushes every ATX heading in a markdown fragment down one level
-// so it can be nested inside a larger document. Content inside fenced code
-// blocks is left alone: a `#` there is a comment, not a heading.
-func demoteHeadings(md string) string {
-	var out []string
-	fenced := false
-	for line := range strings.SplitSeq(md, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "```") {
-			fenced = !fenced
-		}
-		if !fenced && strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "######") {
-			line = "#" + line
-		}
-		out = append(out, line)
+// capitalSentence renders a note as a sentence: capitalised, with a full stop.
+func capitalSentence(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return s
 	}
-	return strings.Join(out, "\n")
+	r, size := utf8.DecodeRuneInString(s)
+	s = string(unicode.ToUpper(r)) + s[size:]
+	if !strings.HasSuffix(s, ".") {
+		s += "."
+	}
+	return s
 }

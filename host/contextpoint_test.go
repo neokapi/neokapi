@@ -91,6 +91,14 @@ func renderAnswer(t *testing.T, res *host.ContextAnswer) string {
 	return buf.String()
 }
 
+// renderExplained is the text `kapi context --explain` prints: the answer,
+// then how it was reached.
+func renderExplained(t *testing.T, res *host.ContextAnswer) string {
+	t.Helper()
+	res.Explain()
+	return renderAnswer(t, res)
+}
+
 // resolveAt is the by-location answer for one point, assembled the way
 // ContextSourcesAt assembles it: one governance resolution, shared.
 func resolveAt(t *testing.T, proj *project.KapiProject, req host.ContextPointRequest, src host.ContextPointSources) *host.ContextAnswer {
@@ -214,9 +222,17 @@ func TestResolveContextAt_TermsAreRankedAndCapped(t *testing.T) {
 		assert.NotContains(t, n, "terms bound here", "the cap is a count on the answer, not a note")
 	}
 
-	var sb strings.Builder
-	require.NoError(t, res.FormatText(&sb))
-	assert.Contains(t, sb.String(), "Showing 2 of 3 terms bound here. `kapi context search <word>` finds one by name.",
+	// The word rules are capped by the same limit: one line per concept and
+	// language, so the three terms are two rules.
+	assert.Equal(t, 2, res.RulesTotal)
+	require.Len(t, res.Rules, 2)
+	assert.Equal(t, "content memory", res.Rules[0].Say)
+	assert.Equal(t, []string{"translation memory"}, res.Rules[0].Not)
+
+	capped := resolveAt(t, proj, host.ContextPointRequest{Path: "docs/guide.md", Limit: 1},
+		host.ContextPointSources{Concepts: pointConcepts()})
+	require.Len(t, capped.Rules, 1)
+	assert.Contains(t, renderAnswer(t, capped), "Showing 1 of 2. context_search (or `kapi context search <word>`) finds one by name.",
 		"the text rendering says where the rest are")
 }
 
@@ -279,7 +295,8 @@ func TestResolveContextAt_StatesItsScope(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			res := resolveAt(t, tt.proj, tt.req, tt.src)
 			assert.Equal(t, tt.wantScope, res.Scope)
-			assert.Contains(t, renderAnswer(t, res), tt.wantLine)
+			assert.NotContains(t, renderAnswer(t, res), tt.wantLine, "a writer acts on none of it")
+			assert.Contains(t, renderExplained(t, res), tt.wantLine, "--explain says what was consulted")
 			if tt.wantNote != "" {
 				assert.Contains(t, res.Notes, tt.wantNote)
 			}
@@ -300,10 +317,10 @@ func TestResolveContextAt_FreshnessLeadsTheNotes(t *testing.T) {
 	assert.Equal(t, moved, res.Notes[0])
 }
 
-// TestResolveContextAt_RendersTheVoiceGuide: the guidance a writer reads here is
-// the rendering `kapi voice guide` prints and the translation prompt carries —
-// not a second, narrower summary of the same profile.
-func TestResolveContextAt_RendersTheVoiceGuide(t *testing.T) {
+// TestResolveContextAt_RendersTheVoice: the structured answer carries the full
+// guide `kapi voice guide` prints, and the text leads with the brief: the
+// description and the style fields the profile sets.
+func TestResolveContextAt_RendersTheVoice(t *testing.T) {
 	voice := pointVoice()
 	res := resolveAt(t, pointRecipe(t, ""), host.ContextPointRequest{Path: "docs/guide.md"},
 		host.ContextPointSources{Voice: voice, VoiceSource: ".kapi/voice.yaml"})
@@ -311,13 +328,12 @@ func TestResolveContextAt_RendersTheVoiceGuide(t *testing.T) {
 	require.NotNil(t, res.Voice)
 	assert.Equal(t, "Acme", res.Voice.Name)
 	assert.Equal(t, coreprofile.RenderVoiceGuide(voice), res.Voice.Guide)
+	assert.Equal(t, coreprofile.RenderVoiceBrief(voice), res.VoiceBrief)
 
-	// Nested one level under the answer's own title, so the result is one
-	// document rather than two competing ones.
 	text := renderAnswer(t, res)
-	assert.Contains(t, text, "# Context at docs/guide.md")
-	assert.Contains(t, text, "\n## Voice Guide: Acme\n")
-	assert.NotContains(t, text, "\n# Voice Guide: Acme\n")
+	assert.True(t, strings.HasPrefix(text, "# Writing docs/guide.md\n"), text)
+	assert.Contains(t, text, "\nVoice: Acme. ")
+	assert.NotContains(t, text, "Voice Guide")
 }
 
 // TestResolveContextAt_NeedsAnAddress: a request that names neither a location
@@ -338,6 +354,6 @@ func TestResolveContextAt_SharedConstraintsAndCoordinates(t *testing.T) {
 	assert.Equal(t, "help", res.Point.Coordinates["service"])
 	require.Len(t, res.Constraints, 1)
 	assert.Equal(t, "applicable", res.Constraints[0].Status)
-	assert.Contains(t, renderAnswer(t, res), "audience=`child`")
+	assert.Contains(t, renderExplained(t, res), "audience=`child`")
 	assert.Contains(t, renderAnswer(t, res), "semantic verification unsupported")
 }

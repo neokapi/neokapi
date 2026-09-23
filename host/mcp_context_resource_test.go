@@ -239,18 +239,27 @@ func TestContextResourceRejectsAnUnknownRendering(t *testing.T) {
 
 // TestContextResourceStatesItsScope: a local answer says what it answered from,
 // so "this project holds no answer" stays distinguishable from "this scope
-// cannot hold one".
+// cannot hold one". The structured rendering carries it; the markdown a writer
+// reads leaves it out, because a writer acts on none of it.
 func TestContextResourceStatesItsScope(t *testing.T) {
 	contextFixture(t)
 	session := contextClient(t, &host.App{})
 
 	read, err := session.ReadResource(t.Context(),
-		&mcp.ReadResourceParams{URI: "context://docs/guide.md"})
+		&mcp.ReadResourceParams{URI: "context://docs/guide.md?format=json"})
 	require.NoError(t, err)
 	require.Len(t, read.Contents, 1)
-	assert.Contains(t, read.Contents[0].Text, "Answered from this project alone")
-	assert.Contains(t, read.Contents[0].Text,
+	var answer host.ContextAnswer
+	require.NoError(t, json.Unmarshal([]byte(read.Contents[0].Text), &answer))
+	assert.Equal(t, host.ScopeProject, answer.Scope)
+	assert.Contains(t, answer.Notes,
 		"project scope: concept relations, revisions and market scoping live in a connected workspace")
+
+	text, err := session.ReadResource(t.Context(),
+		&mcp.ReadResourceParams{URI: "context://docs/guide.md"})
+	require.NoError(t, err)
+	assert.NotContains(t, text.Contents[0].Text, "project scope")
+	assert.NotContains(t, text.Contents[0].Text, "workspace revision")
 }
 
 func TestContextMCPRetainsExplicitRecipeWithoutDiscovery(t *testing.T) {
@@ -278,15 +287,21 @@ func TestContextMCPRetainsExplicitRecipeWithoutDiscovery(t *testing.T) {
 		read, err := session.ReadResource(t.Context(), &mcp.ReadResourceParams{URI: "context://docs/guide.md"})
 		require.NoError(t, err)
 		require.Len(t, read.Contents, 1)
-		assert.Contains(t, read.Contents[0].Text, "acme/docs")
+		assert.Contains(t, read.Contents[0].Text, "# Writing docs/guide.md")
 		assert.Contains(t, read.Contents[0].Text, "Explain the documented workflow.")
-		assert.Contains(t, read.Contents[0].Text, "content memory")
-		assert.NotContains(t, read.Contents[0].Text, "No point resolved")
+
+		structured, err := session.ReadResource(t.Context(), &mcp.ReadResourceParams{URI: "context://docs/guide.md?format=json"})
+		require.NoError(t, err)
+		var answer host.ContextAnswer
+		require.NoError(t, json.Unmarshal([]byte(structured.Contents[0].Text), &answer))
+		assert.Equal(t, "acme/docs", answer.Point.Ref, "the location resolves to its own point, not the default")
 	}
-	byName, err := session.ReadResource(t.Context(), &mcp.ReadResourceParams{URI: "context://profile/acme"})
+	byName, err := session.ReadResource(t.Context(), &mcp.ReadResourceParams{URI: "context://profile/acme?format=json"})
 	require.NoError(t, err)
 	require.Len(t, byName.Contents, 1)
-	assert.Contains(t, byName.Contents[0].Text, "Answered from this project alone")
+	var named host.ContextAnswer
+	require.NoError(t, json.Unmarshal([]byte(byName.Contents[0].Text), &named))
+	assert.Equal(t, host.ScopeProject, named.Scope, "a declared profile is answered from the project")
 
 	store, _, release, err := app.OpenTermsSQLite(cmd)
 	require.NoError(t, err)

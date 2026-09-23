@@ -32,78 +32,19 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 		b.WriteString(guidance + "\n\n")
 	}
 
-	// Tone
-	b.WriteString("## Tone\n")
-	if len(p.Tone.Personality) > 0 {
-		fmt.Fprintf(&b, "- Personality: %s\n", strings.Join(p.Tone.Personality, ", "))
-	}
-	fmt.Fprintf(&b, "- Formality: %s\n", p.Tone.Formality)
-	fmt.Fprintf(&b, "- Emotion: %s\n", p.Tone.Emotion)
-	fmt.Fprintf(&b, "- Humor: %s\n", p.Tone.Humor)
-	if p.Tone.Guidelines != "" {
-		fmt.Fprintf(&b, "- Guidelines: %s\n", p.Tone.Guidelines)
-	}
-	b.WriteString("\n")
+	// A field the profile leaves unset renders nothing, and a section with
+	// nothing set renders no heading: "- Humor:" with no value reads to a model
+	// as a rule it cannot follow.
+	section(&b, "Tone", toneLines(p))
+	section(&b, "Style Rules", styleLines(p))
 
-	// Style
-	b.WriteString("## Style Rules\n")
-	if p.Style.ActiveVoice {
-		b.WriteString("- Use active voice\n")
-	}
-	fmt.Fprintf(&b, "- Sentence length: %s\n", p.Style.SentenceLength)
-	fmt.Fprintf(&b, "- Point of view: %s\n", p.Style.PersonPOV)
-	fmt.Fprintf(&b, "- Contractions: %s\n", p.Style.Contractions)
-	// Both renderers name the words a pattern bans (#2240). The full guide is
-	// what `kapi voice guide` prints and what an assistant is handed, so
-	// fixing only the compact one would have left the surface most people see
-	// still saying "avoid implementation vocabulary" and naming none of it.
-	if len(p.Style.ProhibitedPatterns) > 0 {
-		b.WriteString("- Prohibited patterns:\n")
-		for _, pat := range p.Style.ProhibitedPatterns {
-			fmt.Fprintf(&b, "  - %s (severity: %s)\n", patternHint(pat), pat.Severity)
-		}
-	}
-	if len(p.Style.RequiredPatterns) > 0 {
-		b.WriteString("- Required in the document:\n")
-		for _, pat := range p.Style.RequiredPatterns {
-			fmt.Fprintf(&b, "  - %s (severity: %s)\n", patternHint(pat), pat.Severity)
-		}
-	}
-	if p.Style.Comments != nil {
-		l := p.Style.Comments.Limits()
-		b.WriteString("- Code comments:\n")
-		fmt.Fprintf(&b, "  - A sentence over %d words is a minor finding, and over %d words a major one\n", l.SentenceMinor, l.SentenceMajor)
-		fmt.Fprintf(&b, "  - A comment that documents no declaration: at most %d words\n", l.CommentWords)
-		fmt.Fprintf(&b, "  - A declaration's doc comment: at most %d words\n", l.DocWords)
-		fmt.Fprintf(&b, "  - A package or module doc comment: at most %d words\n", l.PackageDocWords)
-		b.WriteString("  - Code spans, references and links are not counted as words\n")
-		fmt.Fprintf(&b, "  - A change adding %d or more comment lines: at most %s comment lines for each code line it adds, "+
-			"not counting the package doc comment\n", l.DensityMinLines, strconv.FormatFloat(l.DensityRatio, 'f', -1, 64))
-	}
-	b.WriteString("\n")
-
-	// Vocabulary
-	b.WriteString("## Vocabulary\n")
-	if len(p.Vocabulary.PreferredTerms) > 0 {
-		b.WriteString("### Preferred Terms\n")
-		for _, t := range p.Vocabulary.PreferredTerms {
-			b.WriteString(termLine(t) + "\n")
-		}
-		b.WriteString("\n")
-	}
-	if len(p.Vocabulary.ForbiddenTerms) > 0 {
-		b.WriteString("### Forbidden Terms\n")
-		for _, t := range p.Vocabulary.ForbiddenTerms {
-			b.WriteString(termLine(t) + "\n")
-		}
-		b.WriteString("\n")
-	}
-	if len(p.Vocabulary.CompetitorTerms) > 0 {
-		b.WriteString("### Competitor Terms\n")
-		for _, t := range p.Vocabulary.CompetitorTerms {
-			b.WriteString(termLine(t) + "\n")
-		}
-		b.WriteString("\n")
+	var vocab strings.Builder
+	vocabList(&vocab, "Preferred Terms", p.Vocabulary.PreferredTerms)
+	vocabList(&vocab, "Forbidden Terms", p.Vocabulary.ForbiddenTerms)
+	vocabList(&vocab, "Competitor Terms", p.Vocabulary.CompetitorTerms)
+	if vocab.Len() > 0 {
+		b.WriteString("## Vocabulary\n")
+		b.WriteString(vocab.String())
 	}
 
 	// Examples
@@ -125,6 +66,104 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 	}
 
 	return b.String()
+}
+
+// section writes one `##` section of the guide, or nothing when it has no
+// lines.
+func section(b *strings.Builder, title string, lines []string) {
+	if len(lines) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "## %s\n", title)
+	for _, l := range lines {
+		b.WriteString(l + "\n")
+	}
+	b.WriteString("\n")
+}
+
+// vocabList writes one vocabulary list under its own heading, or nothing when
+// the list is empty.
+func vocabList(b *strings.Builder, title string, rules []TermRule) {
+	if len(rules) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "### %s\n", title)
+	for _, t := range rules {
+		b.WriteString(termLine(t) + "\n")
+	}
+	b.WriteString("\n")
+}
+
+// toneLines are the tone fields the profile sets, one line each.
+func toneLines(p *VoiceProfile) []string {
+	var lines []string
+	if len(p.Tone.Personality) > 0 {
+		lines = append(lines, "- Personality: "+strings.Join(p.Tone.Personality, ", "))
+	}
+	for _, f := range []struct{ label, value string }{
+		{"Formality", p.Tone.Formality},
+		{"Emotion", p.Tone.Emotion},
+		{"Humor", p.Tone.Humor},
+		{"Guidelines", p.Tone.Guidelines},
+	} {
+		if v := strings.TrimSpace(f.value); v != "" {
+			lines = append(lines, "- "+f.label+": "+v)
+		}
+	}
+	return lines
+}
+
+// styleLines are the style rules the profile sets. Pattern lists and comment
+// limits carry nested lines, so an entry may span several.
+func styleLines(p *VoiceProfile) []string {
+	var lines []string
+	if p.Style.ActiveVoice {
+		lines = append(lines, "- Use active voice")
+	}
+	for _, f := range []struct{ label, value string }{
+		{"Sentence length", p.Style.SentenceLength},
+		{"Point of view", p.Style.PersonPOV},
+		{"Contractions", p.Style.Contractions},
+	} {
+		if v := strings.TrimSpace(f.value); v != "" {
+			lines = append(lines, "- "+f.label+": "+v)
+		}
+	}
+	// Both renderers name the words a pattern bans (#2240), so the guide a
+	// person or an assistant reads says which words a rule means.
+	if len(p.Style.ProhibitedPatterns) > 0 {
+		lines = append(lines, "- Prohibited patterns:")
+		for _, pat := range p.Style.ProhibitedPatterns {
+			lines = append(lines, fmt.Sprintf("  - %s (severity: %s)", patternHint(pat), pat.Severity))
+		}
+	}
+	if len(p.Style.RequiredPatterns) > 0 {
+		lines = append(lines, "- Required in the document:")
+		for _, pat := range p.Style.RequiredPatterns {
+			lines = append(lines, fmt.Sprintf("  - %s (severity: %s)", patternHint(pat), pat.Severity))
+		}
+	}
+	lines = append(lines, commentLimitLines(p)...)
+	return lines
+}
+
+// commentLimitLines renders the code-comment limits a profile sets, nil when
+// it sets none.
+func commentLimitLines(p *VoiceProfile) []string {
+	if p.Style.Comments == nil {
+		return nil
+	}
+	l := p.Style.Comments.Limits()
+	return []string{
+		"- Code comments:",
+		fmt.Sprintf("  - A sentence over %d words is a minor finding, and over %d words a major one", l.SentenceMinor, l.SentenceMajor),
+		fmt.Sprintf("  - A comment that documents no declaration: at most %d words", l.CommentWords),
+		fmt.Sprintf("  - A declaration's doc comment: at most %d words", l.DocWords),
+		fmt.Sprintf("  - A package or module doc comment: at most %d words", l.PackageDocWords),
+		"  - Code spans, references and links are not counted as words",
+		fmt.Sprintf("  - A change adding %d or more comment lines: at most %s comment lines for each code line it adds, "+
+			"not counting the package doc comment", l.DensityMinLines, strconv.FormatFloat(l.DensityRatio, 'f', -1, 64)),
+	}
 }
 
 // RenderVoiceGuideCompact renders a condensed single-paragraph form of the

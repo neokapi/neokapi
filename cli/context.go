@@ -24,41 +24,29 @@ import (
 func NewContextCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "context [path]",
-		Short:   "Ask what this project's content context says",
+		Short:   "Ask what applies before you write a file",
 		GroupID: "work",
-		Long: `Retrieve the content context this project goes by: the terms, the
-voice and the rules that hold, without needing to know which store holds the
-answer.
+		Long: `Ask what this project keeps to before you write a file: the voice, the
+words to use and to avoid, and what has been suggested but not yet established.
 
-Two questions, and every asset-shaped lookup is one of them:
+  kapi context <path>          what applies to that file
+  kapi context --profile <n>   the same answer for a named profile
+  kapi context search <word>   what the project says about one word
 
-  kapi context <path>          what applies HERE: the voice in force at that
-                               location, its guidance, the terms bound there
-  kapi context --profile <n>   the same answer for a named profile, when you
-                               have no file in hand
-  kapi context search <query>  what we know about THIS: terms, prior wording
+The answer is the same text an assistant reads from the context:// resource.
+--explain adds how it was reached: the point the file sits at, the recipe line
+that bound the voice, and the project and revision that answered. --json gives
+all of it as data.
 
-Communication is contextual: a legal notice is not a help article. Ask what the
-project says before you write, rather than learning it from a failing check
-afterwards.
-
-Four more verbs move the context itself: import and snapshot carry it between
-the project's files and its store, export and restore carry the whole of it as
-one file, and with --workspace those two carry every project you work on here.
-
-Six more grow it. Context accumulates out of ordinary work: propose records a
-rule with the evidence behind it, log shows what has been proposed and decided,
-and confirm, discard, revert and widen are the decisions. A proposal advises
-from the moment it is recorded and no check fails on one; confirming is what
-makes it bind.
-
-One reports on the store itself: locales says which locale each stored row is
-filed under, and files them the way lookups ask when one has drifted.`,
+The subcommands record and decide. observe, propose and correct record what you
+notice; log lists it; confirm, discard, revert and widen are a person's
+decisions. import, snapshot, export and restore move the context between the
+store and files, and locales reports how stored rows are filed.`,
 		Example: "  kapi context docs/guide.md\n" +
+			"  kapi context docs/guide.md --explain\n" +
 			"  kapi context docs/guide.md --json\n" +
 			"  kapi context --profile marketing\n" +
-			"  kapi context search widget\n" +
-			"  kapi context snapshot --out build/context",
+			"  kapi context search widget",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path := ""
@@ -88,6 +76,9 @@ filed under, and files them the way lookups ask when one has drifted.`,
 			if err != nil {
 				return err
 			}
+			if explain, _ := cmd.Flags().GetBool("explain"); explain {
+				res.Explain()
+			}
 			// The answer renders itself (host.ContextAnswer implements
 			// output.TextFormatter), so the markdown a reader sees here is the
 			// body the MCP resource serves, and --json is the same document the
@@ -97,7 +88,8 @@ filed under, and files them the way lookups ask when one has drifted.`,
 	}
 	cmd.Flags().String("profile", "", "answer for a named profile instead of a location")
 	cmd.Flags().StringP("locale", "l", "", "narrow the reported terms to one language")
-	cmd.Flags().Int("limit", host.DefaultContextTermsLimit, "max terms to render")
+	cmd.Flags().Int("limit", host.DefaultContextTermsLimit, "max word rules to render")
+	cmd.Flags().Bool("explain", false, "add how the answer was reached: point, binding, project, revision and notes")
 	// The same project- and store-resolution flags every other project verb
 	// carries, so this command resolves the same way `terms` and `memory` do.
 	// The output format axis (--json among them) is persistent on the root.

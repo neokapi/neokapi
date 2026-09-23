@@ -106,8 +106,7 @@ defaults:
 
 	a := &App{}
 	_, _, err := a.ResolveVoiceProfileCmd(newVoiceCheckCmd(a))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "specify a profile")
+	require.ErrorIs(t, err, ErrNoVoiceBound, "inside a project, the answer is that no voice is bound here")
 }
 
 // TestResolveVoiceProfile_NoProjectNoFlag asserts the original "specify a

@@ -116,35 +116,3 @@ func TestParseContextURI(t *testing.T) {
 		})
 	}
 }
-
-// TestDemoteHeadings: the voice guide nests inside the answer rather than
-// competing with its title, and a `#` inside a fenced block stays a comment.
-func TestDemoteHeadings(t *testing.T) {
-	tests := []struct {
-		name string
-		in   string
-		want string
-	}{
-		{
-			name: "headings drop one level",
-			in:   "# Voice Guide: Acme\n\n## Tone\n### Example 1\n",
-			want: "## Voice Guide: Acme\n\n### Tone\n#### Example 1\n",
-		},
-		{
-			name: "a fenced comment is not a heading",
-			in:   "# Title\n```sh\n# not a heading\n```\n# Back\n",
-			want: "## Title\n```sh\n# not a heading\n```\n## Back\n",
-		},
-		{
-			name: "the deepest level does not overflow",
-			in:   "###### Six\n",
-			want: "###### Six\n",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, demoteHeadings(tt.in))
-		})
-	}
-}
