@@ -299,9 +299,25 @@ func isKapiWrittenEntry(held mcpServerEntry, recipe string) bool {
 	return len(rest) == 0 || (len(rest) == 2 && rest[0] == mcpToolsFlag && rest[1] != "")
 }
 
-// recipeOf returns the recipe an entry of kapi's shape names, so a refresh
+// decodeKapiShaped decodes an entry that carries a type, a command and its
+// arguments and no other key, which is every entry kapi writes. An entry with
+// anything more (an environment, a working directory) is someone's own.
+func decodeKapiShaped(raw json.RawMessage, into *mcpServerEntry) bool {
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(raw, &fields) != nil {
+		return false
+	}
+	for k := range fields {
+		if k != "type" && k != "command" && k != "args" {
+			return false
+		}
+	}
+	return json.Unmarshal(raw, into) == nil
+}
+
+// entryRecipe returns the recipe an entry of kapi's shape names, so a refresh
 // compares against the entry kapi would write for that same recipe.
-func recipeOf(entry mcpServerEntry) string {
+func entryRecipe(entry mcpServerEntry) string {
 	if len(entry.Args) >= 3 {
 		return entry.Args[2]
 	}
@@ -427,7 +443,7 @@ func upsertMCPServerEntry(path, serversKey string, entry mcpServerEntry) (AgentW
 	}
 	if raw, held := servers[mcpServerName]; held {
 		var current mcpServerEntry
-		if json.Unmarshal(raw, &current) != nil || !isKapiWrittenEntry(current, recipeOf(entry)) {
+		if !decodeKapiShaped(raw, &current) || !isKapiWrittenEntry(current, entryRecipe(entry)) {
 			out.Action = AgentWiringKept
 			out.Detail = "already names a server called " + mcpServerName
 			return out, nil
@@ -510,7 +526,7 @@ func upsertCodexMCPServerEntry(path string, entry mcpServerEntry) (AgentWiringFi
 			current, isKapi := codexEntry(table)
 			old := codexMCPServerBlock(current)
 			switch {
-			case !isKapi || !isKapiWrittenEntry(current, recipeOf(entry)) || !strings.Contains(string(raw), old):
+			case !isKapi || !isKapiWrittenEntry(current, entryRecipe(entry)) || !strings.Contains(string(raw), old):
 				out.Action = AgentWiringKept
 				out.Detail = "already names a server called " + mcpServerName
 			case old == block:

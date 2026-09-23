@@ -114,3 +114,25 @@ func TestInitCmd_rerunWiresAnExistingProject(t *testing.T) {
 	_, err = os.Stat(filepath.Join(dir, ".mcp.json"))
 	require.NoError(t, err, "running init on a project that has a recipe wires it")
 }
+
+// A project that declares target languages gets the translation tools in its
+// MCP entry beside the writing ones, and the skill is one file.
+func TestInitCmd_translationProjectNamesTheToolSets(t *testing.T) {
+	dir := t.TempDir()
+	runInit(t, dir, "--target-locale", "fr")
+
+	raw, err := os.ReadFile(filepath.Join(dir, ".mcp.json"))
+	require.NoError(t, err)
+	var doc struct {
+		Servers map[string]struct {
+			Args []string `json:"args"`
+		} `json:"mcpServers"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &doc))
+	assert.Equal(t, []string{"mcp", "--project", "kapi.yaml", "--tools", "writing,translation"}, doc.Servers["kapi"].Args)
+
+	entries, err := os.ReadDir(filepath.Join(dir, ".claude/skills/kapi"))
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "SKILL.md", entries[0].Name())
+}
