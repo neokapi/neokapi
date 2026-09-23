@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/plugin/internal/projflow"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
@@ -105,13 +106,13 @@ func TestDirFlow_OpensNoFileNamedAfterTheFlow(t *testing.T) {
 	assert.Equal(t, string(before), string(after), "the run wrote over its own input")
 }
 
-// listProjectFlows lists what the flows directory holds, so `kapi flows` names
-// the same flows the runner resolves.
+// projflow.List, which the MCP surface lists project flows through, reads what
+// the flows directory holds, so it names the same flows the runner resolves.
 func TestListProjectFlows_ReadsTheFlowsDirectory(t *testing.T) {
 	proj := dirFlowFixture(t)
 	t.Chdir(proj.Root)
 
-	flows := listProjectFlows()
+	flows := projflow.List()
 	require.Len(t, flows, 1)
 	assert.Equal(t, "guard", flows[0].Name)
 	assert.Equal(t, "Check the do-not-translate list", flows[0].Description)
@@ -126,7 +127,7 @@ func TestListProjectFlows_ShowsAFileThatWillNotRun(t *testing.T) {
 	require.NoError(t, os.WriteFile(broken, []byte("name: broken\nsteps: []\n"), 0o644))
 	t.Chdir(proj.Root)
 
-	flows := listProjectFlows()
+	flows := projflow.List()
 	require.Len(t, flows, 2)
 	assert.Equal(t, "broken", flows[0].Name)
 	assert.Contains(t, flows[0].Description, "declares no steps")

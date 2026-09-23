@@ -201,9 +201,22 @@ func explainProjectFlowRun(w io.Writer, flowName string, inputPaths []string, ou
 	return nil
 }
 
-// ListFlows outputs the list of available flows.
+// ListFlows outputs the list of available flows: the built-in compositions,
+// then the project's own flows when a recipe is in scope, then any a plugin
+// adds. A name is listed once, for the source `kapi run` resolves it to: a
+// built-in name runs the built-in, so a project flow of that name is left out.
 func (a *App) ListFlows(cmd Command, opts FlowCmdOptions) error {
 	flows := builtinComposedFlows()
+	listed := BuiltinFlowNames()
+	add := func(more []output.FlowInfo) {
+		for _, f := range more {
+			if !listed[f.Name] {
+				listed[f.Name] = true
+				flows = append(flows, f)
+			}
+		}
+	}
+	add(projectFlowInfos(cmd))
 
 	// Read ExtraFlows at run time — plugins install via
 	// RegisterAppInitializer which fires during PersistentPreRun, after
@@ -213,7 +226,7 @@ func (a *App) ListFlows(cmd Command, opts FlowCmdOptions) error {
 		extra = a.ExtraFlows
 	}
 	if extra != nil {
-		flows = append(flows, extra()...)
+		add(extra())
 	}
 
 	out := output.FlowsListOutput{
@@ -221,6 +234,47 @@ func (a *App) ListFlows(cmd Command, opts FlowCmdOptions) error {
 		Total: len(flows),
 	}
 	return output.Print(cmd, out)
+}
+
+// projectFlowInfos lists the flows the project in scope declares: inline under
+// `flows:`, then one per file in the recipe's `flows_dir:`, each set ordered by
+// name. A file whose name an inline flow already has is left out, since `kapi
+// run` resolves that name to the inline flow. A file that does not describe a
+// runnable flow is listed with its problem as the description. Nil when no
+// recipe is in scope or it does not load.
+func projectFlowInfos(cmd Command) []output.FlowInfo {
+	path, err := ResolveProjectPath(cmd)
+	if err != nil || path == "" {
+		return nil
+	}
+	proj, err := project.Load(path)
+	if err != nil {
+		return nil
+	}
+
+	var infos []output.FlowInfo
+	inline := proj.FlowNames()
+	slices.Sort(inline)
+	for _, name := range inline {
+		info := output.FlowInfo{Name: name, Path: path}
+		if spec := proj.Flow(name); spec != nil {
+			info.Steps = len(spec.Steps)
+		}
+		infos = append(infos, info)
+	}
+	for _, def := range project.ListDirFlows(proj.FlowsDirIn(filepath.Dir(path))) {
+		if proj.Flow(def.Name) != nil {
+			continue
+		}
+		info := output.FlowInfo{Name: def.Name, Description: def.Description, Path: def.Path}
+		if def.Err != nil {
+			info.Description = def.Err.Error()
+		} else {
+			info.Steps = len(def.Spec.Steps)
+		}
+		infos = append(infos, info)
+	}
+	return infos
 }
 
 // builtinComposedFlows returns the list of built-in composed flows

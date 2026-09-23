@@ -1,8 +1,8 @@
 // Package projflow lists the project's file-per-flow definitions, in the
-// directory the recipe names with `flows_dir:`, for the plugin's command and
-// MCP surfaces, so the two stay decoupled from each other.
+// directory the recipe names with `flows_dir:`, for the plugin's MCP surface.
 // The files themselves are read by the framework (core/project.ListDirFlows),
-// which is also what the project runner resolves `kapi run <flow>` through.
+// which is also what the project runner resolves `kapi run <flow>` through and
+// what `kapi flows` lists them with (host.ListFlows).
 package projflow
 
 import (
