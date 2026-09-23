@@ -157,7 +157,7 @@ func TestReportEvalWritesTheSheetAndFoldsTheAnswers(t *testing.T) {
 	require.NoError(t, reportEval(opts))
 	sheet := evalLatest(t, dir, "report-*-review.md")
 	assert.Contains(t, sheet, "## The decoy")
-	assert.Contains(t, sheet, "| grow-feature-page-claude | 17 | propose |")
+	assert.Contains(t, sheet, "| grow-feature-page-claude | 17 | observe |")
 	for _, question := range evalReviewQuestions {
 		assert.Contains(t, sheet, question)
 	}

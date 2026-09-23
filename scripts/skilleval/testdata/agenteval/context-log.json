@@ -1,10 +1,10 @@
 {
-  "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+  "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
   "operations": [
     {
       "id": "25",
       "seq": 25,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "agent",
         "name": "claude-code",
@@ -23,13 +23,13 @@
       "scope": {
         "level": "project"
       },
-      "at": "2026-09-23T21:15:30.618894Z",
-      "status": "candidate"
+      "at": "2026-09-23T22:39:43.503662Z",
+      "status": "suggested"
     },
     {
       "id": "24",
       "seq": 24,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "agent",
         "name": "claude-code",
@@ -43,13 +43,13 @@
       "scope": {
         "level": "project"
       },
-      "at": "2026-09-23T21:15:30.590021Z",
-      "status": "candidate"
+      "at": "2026-09-23T22:39:43.455276Z",
+      "status": "suggested"
     },
     {
       "id": "23",
       "seq": 23,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "agent",
         "name": "claude-code",
@@ -63,13 +63,13 @@
       "scope": {
         "level": "project"
       },
-      "at": "2026-09-23T21:15:30.561595Z",
-      "status": "candidate"
+      "at": "2026-09-23T22:39:43.416711Z",
+      "status": "suggested"
     },
     {
       "id": "22",
       "seq": 22,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "agent",
         "name": "claude-code",
@@ -83,13 +83,13 @@
       "scope": {
         "level": "project"
       },
-      "at": "2026-09-23T21:15:30.532081Z",
-      "status": "candidate"
+      "at": "2026-09-23T22:39:43.377505Z",
+      "status": "suggested"
     },
     {
       "id": "21",
       "seq": 21,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "agent",
         "name": "claude-code",
@@ -108,13 +108,13 @@
       "scope": {
         "level": "project"
       },
-      "at": "2026-09-23T21:15:30.503041Z",
-      "status": "candidate"
+      "at": "2026-09-23T22:39:43.338315Z",
+      "status": "suggested"
     },
     {
       "id": "20",
       "seq": 20,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "agent",
         "name": "claude-code",
@@ -134,71 +134,77 @@
       "scope": {
         "level": "project"
       },
-      "at": "2026-09-23T21:15:30.47406Z",
-      "status": "candidate"
+      "at": "2026-09-23T22:39:43.292664Z",
+      "status": "suggested"
     },
     {
       "id": "19",
       "seq": 19,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "agent",
         "name": "claude-code",
         "session": "run-1"
       },
-      "kind": "propose",
+      "kind": "observe",
       "subject": {
         "kind": "term",
         "term": {
           "term": "shift",
           "replacement": "slot"
-        }
+        },
+        "text": "A rota holds slots"
       },
       "scope": {
         "level": "project"
       },
-      "at": "2026-09-23T21:15:30.445736Z",
-      "status": "candidate"
+      "at": "2026-09-23T22:39:43.254964Z",
+      "status": "suggested"
     },
     {
       "id": "18",
       "seq": 18,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "agent",
         "name": "claude-code",
         "session": "run-1"
       },
-      "kind": "propose",
+      "kind": "observe",
       "subject": {
         "kind": "term",
         "term": {
           "term": "utilize",
           "replacement": "use"
-        }
+        },
+        "text": "Plain words"
       },
       "scope": {
         "level": "project"
       },
-      "at": "2026-09-23T21:15:30.417014Z",
-      "status": "candidate"
+      "at": "2026-09-23T22:39:43.209432Z",
+      "status": "suggested"
     },
     {
       "id": "17",
       "seq": 17,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "agent",
         "name": "claude-code",
         "session": "run-1"
       },
-      "kind": "propose",
+      "kind": "observe",
       "subject": {
         "kind": "term",
         "term": {
           "term": "time sheet",
-          "replacement": "timesheet"
-        }
+          "replacement": "timesheet",
+          "forms": [
+            "time-sheet"
+          ]
+        },
+        "text": "Timesheet is one word"
       },
       "evidence": [
         {
@@ -208,48 +214,50 @@
       "scope": {
         "level": "project"
       },
-      "at": "2026-09-23T21:15:30.388533Z",
-      "status": "candidate"
+      "at": "2026-09-23T22:39:43.171165Z",
+      "status": "suggested"
     },
     {
       "id": "16",
       "seq": 16,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "agent",
         "name": "claude-code",
         "session": "run-1"
       },
-      "kind": "propose",
+      "kind": "observe",
       "subject": {
         "kind": "term",
         "term": {
           "term": "catalog",
           "replacement": "catalogue"
-        }
+        },
+        "text": "British spelling"
       },
       "scope": {
         "level": "project"
       },
-      "at": "2026-09-23T21:15:30.359918Z",
-      "status": "candidate"
+      "at": "2026-09-23T22:39:43.132518Z",
+      "status": "suggested"
     },
     {
       "id": "15",
       "seq": 15,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "agent",
         "name": "claude-code",
         "session": "run-1"
       },
-      "kind": "propose",
+      "kind": "observe",
       "subject": {
         "kind": "term",
         "term": {
           "term": "logged in",
           "replacement": "signed in"
-        }
+        },
+        "text": "Sign in, not log in"
       },
       "evidence": [
         {
@@ -260,28 +268,33 @@
       "scope": {
         "level": "project"
       },
-      "at": "2026-09-23T21:15:30.33058Z",
-      "status": "candidate"
+      "at": "2026-09-23T22:39:43.09263Z",
+      "status": "suggested"
     },
     {
       "id": "14",
       "seq": 14,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "agent",
         "name": "claude-code",
         "session": "run-1"
       },
-      "kind": "propose",
+      "kind": "observe",
       "subject": {
-        "kind": "voice",
-        "voice": {
-          "list": "forbidden",
-          "rule": {
-            "term": "Loom Wise",
-            "replacement": "Loomwise"
-          }
-        }
+        "kind": "term",
+        "term": {
+          "term": "Loom Wise",
+          "replacement": "Loomwise",
+          "forms": [
+            "Loom wise",
+            "Loom-wise",
+            "LoomWise",
+            "loomwise"
+          ],
+          "case_sensitive": true
+        },
+        "text": "Loomwise, one word"
       },
       "evidence": [
         {
@@ -291,254 +304,246 @@
       "scope": {
         "level": "project"
       },
-      "at": "2026-09-23T21:15:30.301497Z",
-      "status": "candidate"
+      "at": "2026-09-23T22:39:43.052818Z",
+      "status": "suggested"
     },
     {
       "id": "13",
       "seq": 13,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "person"
       },
-      "kind": "confirm",
-      "scope": {
-        "level": "project"
-      },
-      "target": "12",
-      "at": "2026-09-23T21:15:30.219976Z",
-      "status": "confirmed"
-    },
-    {
-      "id": "12",
-      "seq": 12,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
-      "actor": {
-        "kind": "person"
-      },
-      "kind": "propose",
-      "subject": {
-        "kind": "voice",
-        "voice": {
-          "list": "forbidden",
-          "rule": {
-            "term": "color",
-            "replacement": "colour",
-            "note": "held"
-          }
-        }
-      },
-      "scope": {
-        "level": "project"
-      },
-      "note": "held",
-      "at": "2026-09-23T21:15:30.190276Z",
-      "status": "confirmed"
-    },
-    {
-      "id": "11",
-      "seq": 11,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
-      "actor": {
-        "kind": "person"
-      },
-      "kind": "confirm",
-      "scope": {
-        "level": "project"
-      },
-      "target": "10",
-      "at": "2026-09-23T21:15:30.158175Z",
-      "status": "confirmed"
-    },
-    {
-      "id": "10",
-      "seq": 10,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
-      "actor": {
-        "kind": "person"
-      },
-      "kind": "propose",
-      "subject": {
-        "kind": "voice",
-        "voice": {
-          "list": "forbidden",
-          "rule": {
-            "term": "!",
-            "replacement": ".",
-            "note": "held"
-          }
-        }
-      },
-      "scope": {
-        "level": "project"
-      },
-      "note": "held",
-      "at": "2026-09-23T21:15:30.127791Z",
-      "status": "confirmed"
-    },
-    {
-      "id": "9",
-      "seq": 9,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
-      "actor": {
-        "kind": "person"
-      },
-      "kind": "confirm",
-      "scope": {
-        "level": "project"
-      },
-      "target": "8",
-      "at": "2026-09-23T21:15:30.094557Z",
-      "status": "confirmed"
-    },
-    {
-      "id": "8",
-      "seq": 8,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
-      "actor": {
-        "kind": "person"
-      },
-      "kind": "propose",
-      "subject": {
-        "kind": "voice",
-        "voice": {
-          "list": "forbidden",
-          "rule": {
-            "term": "employee",
-            "replacement": "team member",
-            "note": "held"
-          }
-        }
-      },
-      "scope": {
-        "level": "project"
-      },
-      "note": "held",
-      "at": "2026-09-23T21:15:30.064434Z",
-      "status": "confirmed"
-    },
-    {
-      "id": "7",
-      "seq": 7,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
-      "actor": {
-        "kind": "person"
-      },
-      "kind": "confirm",
+      "kind": "keep",
       "scope": {
         "level": "project"
       },
       "target": "6",
-      "at": "2026-09-23T21:15:30.03128Z",
-      "status": "confirmed"
+      "at": "2026-09-23T22:39:42.996965Z",
+      "status": "established"
     },
     {
-      "id": "6",
-      "seq": 6,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "id": "12",
+      "seq": 12,
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "person"
       },
-      "kind": "propose",
-      "subject": {
-        "kind": "voice",
-        "voice": {
-          "list": "forbidden",
-          "rule": {
-            "term": "e-mail",
-            "replacement": "email",
-            "note": "held"
-          }
-        }
-      },
+      "kind": "keep",
       "scope": {
         "level": "project"
       },
-      "note": "held",
-      "at": "2026-09-23T21:15:29.998783Z",
-      "status": "confirmed"
+      "target": "5",
+      "at": "2026-09-23T22:39:42.996413Z",
+      "status": "established"
     },
     {
-      "id": "5",
-      "seq": 5,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "id": "11",
+      "seq": 11,
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "person"
       },
-      "kind": "confirm",
+      "kind": "keep",
       "scope": {
         "level": "project"
       },
       "target": "4",
-      "at": "2026-09-23T21:15:29.965242Z",
-      "status": "confirmed"
+      "at": "2026-09-23T22:39:42.995898Z",
+      "status": "established"
     },
     {
-      "id": "4",
-      "seq": 4,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "id": "10",
+      "seq": 10,
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "person"
       },
-      "kind": "propose",
-      "subject": {
-        "kind": "voice",
-        "voice": {
-          "list": "forbidden",
-          "rule": {
-            "term": "log in",
-            "replacement": "sign in",
-            "note": "held"
-          }
-        }
-      },
+      "kind": "keep",
       "scope": {
         "level": "project"
       },
-      "note": "held",
-      "at": "2026-09-23T21:15:29.935188Z",
-      "status": "confirmed"
+      "target": "3",
+      "at": "2026-09-23T22:39:42.994926Z",
+      "status": "established"
     },
     {
-      "id": "2",
-      "seq": 2,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "id": "9",
+      "seq": 9,
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "person"
       },
-      "kind": "confirm",
+      "kind": "keep",
+      "scope": {
+        "level": "project"
+      },
+      "target": "2",
+      "at": "2026-09-23T22:39:42.994407Z",
+      "status": "established"
+    },
+    {
+      "id": "7",
+      "seq": 7,
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "keep",
       "scope": {
         "level": "project"
       },
       "target": "1",
-      "at": "2026-09-23T21:15:29.869321Z",
-      "status": "confirmed"
+      "at": "2026-09-23T22:39:42.957663Z",
+      "status": "established"
     },
     {
-      "id": "1",
-      "seq": 1,
-      "project": "prj_7yqxbm33qowlmiphvcdgrpz3um",
+      "id": "6",
+      "seq": 6,
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
       "actor": {
         "kind": "person"
       },
-      "kind": "propose",
+      "kind": "observe",
       "subject": {
-        "kind": "voice",
-        "voice": {
-          "list": "forbidden",
-          "rule": {
-            "term": "Loom Wise",
-            "replacement": "Loomwise",
-            "note": "held"
-          }
-        }
+        "kind": "term",
+        "term": {
+          "term": "color",
+          "replacement": "colour"
+        },
+        "text": "held"
       },
       "scope": {
         "level": "project"
       },
-      "note": "held",
-      "at": "2026-09-23T21:15:29.838555Z",
-      "status": "confirmed"
+      "at": "2026-09-23T22:39:42.919017Z",
+      "status": "established",
+      "established": true
+    },
+    {
+      "id": "5",
+      "seq": 5,
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "observe",
+      "subject": {
+        "kind": "term",
+        "term": {
+          "term": "!",
+          "replacement": "."
+        },
+        "text": "held"
+      },
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T22:39:42.881313Z",
+      "status": "established",
+      "established": true
+    },
+    {
+      "id": "4",
+      "seq": 4,
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "observe",
+      "subject": {
+        "kind": "term",
+        "term": {
+          "term": "employee",
+          "replacement": "team member"
+        },
+        "text": "held"
+      },
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T22:39:42.84278Z",
+      "status": "established",
+      "established": true
+    },
+    {
+      "id": "3",
+      "seq": 3,
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "observe",
+      "subject": {
+        "kind": "term",
+        "term": {
+          "term": "e-mail",
+          "replacement": "email",
+          "forms": [
+            "e mail"
+          ]
+        },
+        "text": "held"
+      },
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T22:39:42.805125Z",
+      "status": "established",
+      "established": true
+    },
+    {
+      "id": "2",
+      "seq": 2,
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "observe",
+      "subject": {
+        "kind": "term",
+        "term": {
+          "term": "log in",
+          "replacement": "sign in"
+        },
+        "text": "held"
+      },
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T22:39:42.767208Z",
+      "status": "established",
+      "established": true
+    },
+    {
+      "id": "1",
+      "seq": 1,
+      "project": "prj_ymbzr37dq7e2z7xwt6byxdgmja",
+      "actor": {
+        "kind": "person"
+      },
+      "kind": "observe",
+      "subject": {
+        "kind": "term",
+        "term": {
+          "term": "Loom Wise",
+          "replacement": "Loomwise",
+          "forms": [
+            "Loom wise",
+            "Loom-wise",
+            "LoomWise",
+            "loomwise"
+          ],
+          "case_sensitive": true
+        },
+        "text": "held"
+      },
+      "scope": {
+        "level": "project"
+      },
+      "at": "2026-09-23T22:39:42.729172Z",
+      "status": "established",
+      "established": true
     }
   ]
 }

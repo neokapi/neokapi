@@ -362,8 +362,8 @@ func evalCallKind(surface, tool, detail string) string {
 	case "cli":
 		switch {
 		case strings.HasPrefix(tool, "kapi context observe"),
-			strings.HasPrefix(tool, "kapi context propose"),
-			strings.HasPrefix(tool, "kapi context correct"):
+			strings.HasPrefix(tool, "kapi context correct"),
+			strings.HasPrefix(tool, "kapi context withdraw"):
 			return evalKindRecord
 		case strings.HasPrefix(tool, "kapi context"), strings.HasPrefix(tool, "kapi voice guide"):
 			return evalKindAsk
@@ -387,7 +387,7 @@ func evalCallKind(surface, tool, detail string) string {
 // placed here.
 var evalMCPToolKinds = map[string]string{
 	"context_observe":         evalKindRecord,
-	"context_propose":         evalKindRecord,
+	"context_read":            evalKindAsk,
 	"context_correct":         evalKindRecord,
 	"context_withdraw":        evalKindRecord,
 	"context_search":          evalKindAsk,

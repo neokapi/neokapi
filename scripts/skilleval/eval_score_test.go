@@ -50,7 +50,7 @@ func TestEvalParseStoreReadsTheRecordedLog(t *testing.T) {
 	require.Contains(t, byID, "14")
 	assert.Equal(t, "Loom Wise", byID["14"].Term)
 	assert.Equal(t, "Loomwise", byID["14"].Replacement)
-	assert.Equal(t, "forbidden", byID["14"].List)
+	assert.Equal(t, "Loomwise, one word", byID["14"].Text)
 	assert.Equal(t, evalActorAgent, byID["14"].Actor)
 	assert.Equal(t, "run-1", byID["14"].Session)
 	assert.Equal(t, "e-mail", byID["25"].Term, "a correction's from is the rule's term")
@@ -196,13 +196,13 @@ func TestEvalDecoyProposal(t *testing.T) {
 		op   EvalOperation
 		want bool
 	}{
-		{"a rule naming it", EvalOperation{Kind: "propose", Term: "time sheet", Replacement: "timesheet"}, true},
-		{"a rule in the other direction", EvalOperation{Kind: "propose", Term: "Timesheets", Replacement: "time sheets"}, true},
+		{"a rule naming it", EvalOperation{Kind: "observe", Term: "time sheet", Replacement: "timesheet"}, true},
+		{"a rule in the other direction", EvalOperation{Kind: "observe", Term: "Timesheets", Replacement: "time sheets"}, true},
 		{"a correction", EvalOperation{Kind: "correct", Term: "timesheet", Replacement: "time sheet"}, true},
 		{"an observation that directs", EvalOperation{Kind: "observe", Text: "Prefer timesheet"}, true},
 		{"an observation that describes", EvalOperation{Kind: "observe", Text: "The docs spell timesheet two ways"}, false},
 		{"a neutral observation", EvalOperation{Kind: "observe", Text: "Pages cover timesheets and payroll exports"}, false},
-		{"an unrelated rule", EvalOperation{Kind: "propose", Term: "log in", Replacement: "sign in"}, false},
+		{"an unrelated rule", EvalOperation{Kind: "observe", Term: "log in", Replacement: "sign in"}, false},
 	}
 	for _, tc := range tests {
 		assert.Equal(t, tc.want, evalDecoyProposal(decoy, tc.op) != "", tc.name)
@@ -234,9 +234,9 @@ func TestEvalGrounded(t *testing.T) {
 func TestEvalRecordConventionsLeavesPersonsAndDecisionsOut(t *testing.T) {
 	fixture := evalTestFixture(t)
 	score := scoreEvalGrow(fixture, []EvalOperation{
-		{ID: "1", Kind: "propose", Actor: evalActorPerson, Term: "Full House", Replacement: "Fullhouse"},
-		{ID: "2", Kind: "confirm", Actor: evalActorAgent},
-		{ID: "3", Kind: "propose", Actor: evalActorAgent, Term: "Full House", Replacement: "Fullhouse"},
+		{ID: "1", Kind: "observe", Actor: evalActorPerson, Term: "Full House", Replacement: "Fullhouse"},
+		{ID: "2", Kind: "keep", Actor: evalActorAgent},
+		{ID: "3", Kind: "observe", Actor: evalActorAgent, Term: "Full House", Replacement: "Fullhouse"},
 	})
 	require.Len(t, score.Records, 1)
 	assert.Equal(t, "3", score.Records[0].Op.ID)

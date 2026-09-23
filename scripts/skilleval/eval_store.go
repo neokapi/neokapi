@@ -27,8 +27,6 @@ type EvalOperation struct {
 	// one: a proposed term or voice rule, or a correction's from and to.
 	Term        string `json:"term,omitempty"`
 	Replacement string `json:"replacement,omitempty"`
-	// List is the voice-profile list a voice rule was proposed into.
-	List string `json:"list,omitempty"`
 	// Text is an observation's own words.
 	Text string `json:"text,omitempty"`
 	// Actor is the actor kind the store holds: "agent" or "person".
@@ -92,13 +90,6 @@ type evalLogPayload struct {
 				Term        string `json:"term"`
 				Replacement string `json:"replacement"`
 			} `json:"term"`
-			Voice *struct {
-				List string `json:"list"`
-				Rule struct {
-					Term        string `json:"term"`
-					Replacement string `json:"replacement"`
-				} `json:"rule"`
-			} `json:"voice"`
 			Text string `json:"text"`
 		} `json:"subject"`
 		Correction *struct {
@@ -136,11 +127,8 @@ func evalParseStore(data []byte) (EvalStore, error) {
 			entry.Subject = fmt.Sprintf("%q became %q", op.Correction.From, op.Correction.To)
 		case op.Subject.Term != nil:
 			entry.Term, entry.Replacement = op.Subject.Term.Term, op.Subject.Term.Replacement
+			entry.Text = op.Subject.Text
 			entry.Subject = fmt.Sprintf("term %q, use %q", entry.Term, entry.Replacement)
-		case op.Subject.Voice != nil:
-			entry.Term, entry.Replacement = op.Subject.Voice.Rule.Term, op.Subject.Voice.Rule.Replacement
-			entry.List = op.Subject.Voice.List
-			entry.Subject = fmt.Sprintf("voice %s %q, use %q", entry.List, entry.Term, entry.Replacement)
 		case op.Subject.Text != "":
 			entry.Text = op.Subject.Text
 			entry.Subject = op.Subject.Text

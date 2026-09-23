@@ -70,7 +70,7 @@ func TestReadEvalTranscriptReadsShellCommands(t *testing.T) {
 	stream := claudeStream(
 		claudeToolEvent("Bash", `{"command":"kapi context docs/billing.md"}`),
 		claudeToolEvent("Bash", `{"command":"cd docs && kapi context observe \"the docs say sign in\" --seen-in billing.md"}`),
-		claudeToolEvent("Bash", `{"command":"kapi context correct \"log in\" \"sign in\" --seen-in docs/troubleshooting.md --propose"}`),
+		claudeToolEvent("Bash", `{"command":"kapi context correct \"log in\" \"sign in\" --seen-in docs/troubleshooting.md --suggest"}`),
 		claudeToolEvent("Bash", `{"command":"git status"}`),
 		claudeToolEvent("Bash", `{"command":"kapi check --diff-against HEAD --json"}`),
 	)
@@ -111,7 +111,7 @@ func TestReadEvalTranscriptSeesTheSkillLoad(t *testing.T) {
 func TestReadEvalTranscriptOfCodex(t *testing.T) {
 	stream := strings.Join([]string{
 		`{"type":"thread.started","thread_id":"t-1","model":"gpt-5.6-terra"}`,
-		`{"type":"item.completed","item":{"type":"mcp_tool_call","server":"kapi","tool":"context_propose"}}`,
+		`{"type":"item.completed","item":{"type":"mcp_tool_call","server":"kapi","tool":"context_observe"}}`,
 		`{"type":"item.completed","item":{"type":"mcp_tool_call","server":"codex","tool":"read_mcp_resource","arguments":{"server":"kapi","uri":"context://docs/billing.md"}}}`,
 		`{"type":"item.completed","item":{"type":"command_execution","command":"kapi check --diff-against HEAD"}}`,
 		`{"type":"item.completed","item":{"type":"file_change","changes":[{"path":"docs/plans.md"}]}}`,
@@ -123,7 +123,7 @@ func TestReadEvalTranscriptOfCodex(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "completed", transcript.Status)
 	assert.Equal(t, "gpt-5.6-terra", transcript.ActualModel)
-	assert.Equal(t, []string{"context_propose", evalContextResource, "kapi check"},
+	assert.Equal(t, []string{"context_observe", evalContextResource, "kapi check"},
 		evalToolNames(transcript.kapiCalls()))
 	assert.Equal(t, "written", transcript.FinalText)
 	assert.True(t, transcript.AskedBeforeWriting)
@@ -155,7 +155,7 @@ func TestEvalKapiRoute(t *testing.T) {
 		{command: "kapi context docs/billing.md", want: "kapi context", kind: evalKindAsk},
 		{command: "kapi context search widget", want: "kapi context search", kind: evalKindAsk},
 		{command: "kapi context observe \"they say you\"", want: "kapi context observe", kind: evalKindRecord},
-		{command: "kapi context propose utilise --use use", want: "kapi context propose", kind: evalKindRecord},
+		{command: "kapi context withdraw 14", want: "kapi context withdraw", kind: evalKindRecord},
 		{command: "kapi context log --limit 10", want: "kapi context log", kind: evalKindAsk},
 		{command: "kapi check --diff-against HEAD", want: "kapi check", kind: evalKindCheck},
 		{command: "kapi apply --from edits.jsonl", want: "kapi apply", kind: evalKindWrite},
