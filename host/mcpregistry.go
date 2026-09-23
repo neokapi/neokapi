@@ -37,7 +37,7 @@ func RegisterLateMCPToolFactory(f MCPToolFactory) {
 }
 
 // ApplyMCPToolFactories invokes every registered MCPToolFactory, then every
-// late one.
+// late one, then removes what the tool sets the app selected leave out.
 func ApplyMCPToolFactories(server *mcp.Server, app *App) {
 	mcpRegMu.RLock()
 	fs := append([]MCPToolFactory(nil), mcpToolFactories...)
@@ -49,6 +49,7 @@ func ApplyMCPToolFactories(server *mcp.Server, app *App) {
 	for _, f := range late {
 		f(server, app)
 	}
+	pruneMCPToolSets(server, app.MCPSurface.Sets)
 }
 
 // ResetMCPToolFactoriesForTest clears the MCP tool factory registry.

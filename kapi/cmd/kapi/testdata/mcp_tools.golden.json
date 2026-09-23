@@ -556,6 +556,30 @@
     }
   },
   {
+    "name": "context_withdraw",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "note": {
+          "description": "what was wrong with it",
+          "type": "string"
+        },
+        "operation": {
+          "description": "the operation id the recording call returned",
+          "type": "string"
+        },
+        "project": {
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation"
+      ],
+      "type": "object"
+    }
+  },
+  {
     "name": "detect_format",
     "input_schema": {
       "additionalProperties": false,

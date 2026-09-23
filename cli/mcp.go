@@ -20,32 +20,52 @@ func NewMCPCmd(a *App, implName string) *cobra.Command {
 	}
 	cmd := &cobra.Command{
 		Use:   "mcp",
-		Short: "Start MCP server (stdio) exposing the project's context and the loop around it",
+		Short: "Start an MCP server (stdio) for assistants writing in this project",
 		Long: `Start an MCP server over stdio.
 
-The default surface is deliberately small: retrieving the project's context,
-checking content against it, writing edits back, and running the loop. That is
-what an assistant needs to work inside this project's context.
+--tools picks the tool sets it serves, as a comma-separated list:
 
-Everything else the tool registry can do is still reachable (pipeline steps,
-format internals, one-off transforms) as an explicit opt-in, because a
-surface nobody chose is how it grew to fifty-one tools.
+  writing       (default) the context:// resources, context_search, the
+                recording tools (context_observe, context_propose,
+                context_correct, context_withdraw), context_session_summary
+                and check_file
+  content       check_text, voice_check, voice_rewrite, term-check,
+                extract_content, detect_format, apply_edits, redact
+  translation   translate, up, up_plan, stats
+  review        review_queue, review_unit, approve_unit, reject_unit,
+                sign_off_unit
+  all           every set
 
-  --all-tools   every CLI-visible registry tool
+Two flags add what no set holds, for debugging:
+
+  --all-tools   every CLI-visible registry tool (pipeline steps, format
+                internals, one-off transforms)
   --all-flows   the flow-running verbs
-  --all         both`,
+  --all         every set and both of these`,
+		Example: "  kapi mcp\n" +
+			"  kapi mcp --tools writing,translation\n" +
+			"  kapi mcp --tools all",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			all, _ := cmd.Flags().GetBool("all")
+			allTools, _ := cmd.Flags().GetBool("all-tools")
+			allFlows, _ := cmd.Flags().GetBool("all-flows")
+			names, _ := cmd.Flags().GetStringSlice("tools")
+			sets, err := host.ParseMCPToolSets(names)
+			if err != nil {
+				return err
+			}
+			if all {
+				sets = host.AllMCPToolSets()
+			}
 			// Resolve project vs ad-hoc mode once for the server's lifetime so
 			// the tool factories can scope the exposed surface accordingly.
 			if err := a.ResolveMCPProject(cmd); err != nil {
 				return err
 			}
-			all, _ := cmd.Flags().GetBool("all")
-			allTools, _ := cmd.Flags().GetBool("all-tools")
-			allFlows, _ := cmd.Flags().GetBool("all-flows")
 			a.MCPSurface = host.MCPSurface{
+				Sets:     sets,
 				AllTools: all || allTools,
 				AllFlows: all || allFlows,
 			}
@@ -55,7 +75,7 @@ surface nobody chose is how it grew to fifty-one tools.
 			// what they describe is the surface rather than the binary.
 			server := mcp.NewServer(
 				&mcp.Implementation{Name: implName, Version: version.Version},
-				&mcp.ServerOptions{Instructions: host.MCPInstructions()},
+				&mcp.ServerOptions{Instructions: host.MCPInstructionsFor(sets)},
 			)
 			ApplyMCPToolFactories(server, a)
 			// One row in the workspace saying an agent is at work here, moved
@@ -75,6 +95,7 @@ surface nobody chose is how it grew to fifty-one tools.
 	AddProjectFlag(cmd)
 	cmd.Flags().Bool("all-tools", false, "expose every CLI-visible registry tool, not the curated set")
 	cmd.Flags().Bool("all-flows", false, "expose the flow-running verbs")
-	cmd.Flags().Bool("all", false, "shorthand for --all-tools --all-flows")
+	cmd.Flags().Bool("all", false, "every tool set, plus --all-tools and --all-flows")
+	cmd.Flags().StringSlice("tools", nil, "tool sets to serve: writing (default), content, translation, review, all")
 	return cmd
 }

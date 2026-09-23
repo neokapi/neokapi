@@ -58,6 +58,12 @@ func registerContextMCPTools(server *mcp.Server, a *App) {
 // contextURIScheme is the address space the by-location primitive lives in.
 const contextURIScheme = "context://"
 
+// The two resource templates, by location and by profile name.
+const (
+	contextLocationTemplate = contextURIScheme + "{+path}{?format,project}"
+	contextProfileTemplate  = contextURIScheme + contextProfilePrefix + "{name}{?format,project}"
+)
+
 // contextProfilePrefix reserves one path under the scheme for the by-name form.
 // A location genuinely called `profile/…` is therefore not addressable by path;
 // the two address forms are one primitive, and the reservation is what lets a
@@ -84,7 +90,7 @@ func registerContextResources(server *mcp.Server, a *App) {
 	server.AddResourceTemplate(&mcp.ResourceTemplate{
 		Name:        "context-at-location",
 		Title:       "Context at a location",
-		URITemplate: contextURIScheme + "{+path}{?format,project}",
+		URITemplate: contextLocationTemplate,
 		MIMEType:    "text/markdown",
 		Description: description + " The path is project-relative, e.g. `context://docs/guide.md`. " +
 			"Add `?project=<path>` to read a project other than the one the server started in; " +
@@ -94,7 +100,7 @@ func registerContextResources(server *mcp.Server, a *App) {
 	server.AddResourceTemplate(&mcp.ResourceTemplate{
 		Name:        "context-for-profile",
 		Title:       "Context of a named profile",
-		URITemplate: contextURIScheme + contextProfilePrefix + "{name}{?format,project}",
+		URITemplate: contextProfileTemplate,
 		MIMEType:    "text/markdown",
 		Description: description + " Addresses a governance profile by name, for a caller with " +
 			"no file in hand, e.g. `context://profile/marketing`.",
