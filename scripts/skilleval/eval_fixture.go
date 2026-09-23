@@ -901,14 +901,22 @@ func evalAncestorFindings(dir string) ([]string, error) {
 	}
 }
 
-// evalRecipeMapping completes the content mapping `kapi init` leaves for the
-// person: the scaffolded recipe holds an empty collection list, and its own
-// comments say to point collections at the files to keep in voice.
+// evalRecipeMapping makes sure the recipe `kapi init` wrote governs the
+// fixture's pages. Init proposes collections from the files it finds, and that
+// proposal is part of what the evaluation measures, so a recipe whose
+// collections already name the README and the docs is kept as it is. A recipe
+// that proposed nothing gets the mapping written in; one that proposed
+// something else is a finding about init, and preflight stops on it.
 func evalRecipeMapping(recipe []byte) ([]byte, error) {
 	const emptyCollections = "collections: []"
 	body := string(recipe)
 	if !strings.Contains(body, emptyCollections) {
-		return nil, fmt.Errorf("scaffolded recipe no longer holds %q, so the fixture's content mapping was not written", emptyCollections)
+		for _, want := range []string{"README.md", "docs/**/*.md"} {
+			if !strings.Contains(body, want) {
+				return nil, fmt.Errorf("kapi init proposed collections that leave out %q, so the fixture's pages are not governed", want)
+			}
+		}
+		return recipe, nil
 	}
 	mapping := "collections:\n" +
 		"  - path: \"README.md\"\n    format: markdown\n" +

@@ -309,7 +309,6 @@ const refreshRecipe = `version: v1
 name: tidewatch
 defaults:
   source_language: en
-  voice: voice.yaml
 collections:
   - name: docs
     content:
@@ -639,7 +638,7 @@ var scenarios = []Scenario{
 		Why: "The second visit, and it fails in two directions. Completing means the agent read the drift BEFORE writing: " +
 			"a rewritten profile looks like success in a transcript, so the gate is that nothing changed before approval.",
 		Fixture: []FixtureFile{
-			{As: "kapi.yaml", Body: refreshRecipe, Note: "binds the profile below"},
+			{As: "kapi.yaml", Body: refreshRecipe, Note: "binds no voice: the profile below is a file nobody has read into the store"},
 			{As: "voice.yaml", Body: tidewatchProfile,
 				Note: "names the OLD product, and kapi can parse it; must not be rewritten before approval"},
 			{As: "docs/intro.md", Body: "# Tidewatch\n\nTidewatch keeps an eye on your tides.\n"},
