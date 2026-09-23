@@ -160,9 +160,10 @@ ok(
 // ── 6. snapshot: the recorded decisions are written out as the record ─────────
 // A decision is durable in the ledger the moment it is made. `kapi context
 // snapshot` writes the project's context out as files, the record among them:
-// per-document JSONL shards under .kapi/state/ (one line per unit), written
-// through the sandbox FS.
-const s6 = await run(["context", "snapshot", "-p", P]);
+// per-document JSONL shards under <out>/state/ (one line per unit), written
+// through the sandbox FS. --out is required; this names the project's own
+// .kapi/ so the shards land where the assertions below read them.
+const s6 = await run(["context", "snapshot", "-p", P, "--out", "/project/.kapi"]);
 ok("context snapshot exits 0 in wasm", s6.code === 0, `code=${s6.code}`);
 let shards: string[] = [];
 try {
