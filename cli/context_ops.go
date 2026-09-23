@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -65,7 +66,7 @@ Say where you saw it with --seen-in and --quote.`,
 			term, _ := cmd.Flags().GetString("term")
 			insteadOf, _ := cmd.Flags().GetStringArray("instead-of")
 			if text == "" && term == "" {
-				return fmt.Errorf("say what you noticed, or name the form the project uses with --term")
+				return errors.New("say what you noticed, or name the form the project uses with --term")
 			}
 			seenIn, _ := cmd.Flags().GetStringSlice("seen-in")
 			quote, _ := cmd.Flags().GetString("quote")

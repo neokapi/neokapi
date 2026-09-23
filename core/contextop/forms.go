@@ -1,6 +1,7 @@
 package contextop
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -60,12 +61,9 @@ func AvoidedForms(term string, insteadOf []string) []string {
 		if form == "" || form == term {
 			return
 		}
-		for _, held := range out {
-			if held == form {
-				return
-			}
+		if !slices.Contains(out, form) {
+			out = append(out, form)
 		}
-		out = append(out, form)
 	}
 	for _, form := range insteadOf {
 		add(form)
@@ -134,7 +132,7 @@ func splitLike(term, form string) []string {
 	for _, p := range formParts {
 		n := utf8.RuneCountInString(p)
 		cut := 0
-		for i := 0; i < n; i++ {
+		for range n {
 			_, size := utf8.DecodeRuneInString(rest[cut:])
 			cut += size
 		}

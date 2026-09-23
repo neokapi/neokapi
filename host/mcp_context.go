@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -70,7 +71,7 @@ type contextReadInput struct {
 func (a *App) handleContextRead(ctx context.Context, _ *mcp.CallToolRequest, in contextReadInput) (*mcp.CallToolResult, any, error) {
 	path := strings.TrimPrefix(strings.TrimSpace(in.Path), contextURIScheme)
 	if path == "" {
-		return nil, nil, fmt.Errorf("context_read: name the file you are about to write in `path`")
+		return nil, nil, errors.New("context_read: name the file you are about to write in `path`")
 	}
 	query := url.Values{}
 	if in.Format != "" {

@@ -57,7 +57,7 @@ func contest(records []Record, establishedAt []int64) {
 			live = append(live, i)
 		}
 	}
-	for x := 0; x < len(live); x++ {
+	for x := range live {
 		for y := x + 1; y < len(live); y++ {
 			a, b := &records[live[x]], &records[live[y]]
 			if a.Established && b.Established {

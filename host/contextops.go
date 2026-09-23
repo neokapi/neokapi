@@ -34,6 +34,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -479,8 +480,7 @@ func (a *App) KeepContextOperations(ctx context.Context, req ContextKeepRequest)
 			return ContextKeepResult{}, herr
 		}
 		// Oldest first, so the keeps read in the order the session worked.
-		for i := len(held) - 1; i >= 0; i-- {
-			r := held[i]
+		for _, r := range slices.Backward(held) {
 			switch {
 			case r.Actor.Session != req.Session || r.Established || !r.Status.Advises():
 			case r.Status == contextop.StatusContested:
