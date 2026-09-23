@@ -61,6 +61,7 @@ func RunConformance(t *testing.T, newBackend Factory) {
 		{"operations carry ids that sort in the order they arrive", operationsCarryIDs},
 		{"an operation keeps the id it arrives with and is held once", operationKeepsItsID},
 		{"a content address is held once", contentAddressIsHeldOnce},
+		{"a selection narrows by kind and project", selectionNarrows},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -149,6 +150,35 @@ func contentAddressIsHeldOnce(t *testing.T, b workspace.Backend) {
 	all, err := b.Since(ctx, 0, 0)
 	require.NoError(t, err)
 	assert.Len(t, all, 1)
+}
+
+func selectionNarrows(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	recorded, err := b.Record(ctx,
+		workspace.Op{Project: "prj_a", Kind: "context.observe"},
+		workspace.Op{Project: "prj_b", Kind: "context.keep"},
+		workspace.Op{Project: "prj_a", Kind: "contextual"},
+		workspace.Op{Project: "prj_a", Kind: "unit.decide"},
+		workspace.Op{Project: "prj_a", Kind: "context.drop"},
+	)
+	require.NoError(t, err)
+
+	got, err := b.Select(ctx, workspace.OpQuery{KindPrefix: "context."})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"context.observe", "context.keep", "context.drop"}, kinds(got),
+		"a kind prefix keeps the kinds that start with it, in arrival order")
+
+	got, err = b.Select(ctx, workspace.OpQuery{KindPrefix: "context.", Project: "prj_a"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"context.observe", "context.drop"}, kinds(got))
+
+	got, err = b.Select(ctx, workspace.OpQuery{After: recorded[1].Seq, KindPrefix: "context.", Limit: 1})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"context.drop"}, kinds(got), "a selection reads from a position and stops at a limit")
+
+	all, err := b.Select(ctx, workspace.OpQuery{})
+	require.NoError(t, err)
+	assert.Len(t, all, 5, "a zero query asks for everything")
 }
 
 // logsMergeByUnion covers what a second machine needs: two logs that each

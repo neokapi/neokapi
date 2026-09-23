@@ -57,31 +57,71 @@ func contest(records []Record, establishedAt []int64) {
 			live = append(live, i)
 		}
 	}
-	for x := range live {
-		for y := x + 1; y < len(live); y++ {
-			a, b := &records[live[x]], &records[live[y]]
-			if a.Established && b.Established {
+	for _, pair := range candidatePairs(records, live) {
+		a, b := &records[live[pair[0]]], &records[live[pair[1]]]
+		if a.Established && b.Established {
+			continue
+		}
+		if !meet(*a, *b) {
+			continue
+		}
+		ra, _ := a.Rule()
+		rb, _ := b.Rule()
+		if !disagree(ra, rb) {
+			continue
+		}
+		switch {
+		case a.Established:
+			markContested(b, a.ID)
+		case b.Established:
+			markContested(a, b.ID)
+		default:
+			markContested(a, b.ID)
+			markContested(b, a.ID)
+		}
+	}
+}
+
+// candidatePairs lists the pairs of live rules that could disagree, as
+// positions in live with the first below the second, in ascending order.
+//
+// Two rules can only disagree when they share a form, once case is folded:
+// an avoided form both name, or one rule's replacement the other avoids. So the
+// rules are bucketed by every form they name, and only rules sharing a bucket
+// are compared. A log holding hundreds of rules then costs what its overlapping
+// words cost, rather than every rule against every other.
+func candidatePairs(records []Record, live []int) [][2]int {
+	buckets := map[string][]int{}
+	for x, i := range live {
+		rule, _ := records[i].Rule()
+		seen := map[string]bool{}
+		for _, form := range append(avoided(rule, false), formKey(rule.Replacement, false)) {
+			if form == "" || seen[form] {
 				continue
 			}
-			if !meet(*a, *b) {
-				continue
-			}
-			ra, _ := a.Rule()
-			rb, _ := b.Rule()
-			if !disagree(ra, rb) {
-				continue
-			}
-			switch {
-			case a.Established:
-				markContested(b, a.ID)
-			case b.Established:
-				markContested(a, b.ID)
-			default:
-				markContested(a, b.ID)
-				markContested(b, a.ID)
+			seen[form] = true
+			buckets[form] = append(buckets[form], x)
+		}
+	}
+	pairs := map[[2]int]bool{}
+	for _, members := range buckets {
+		for p := range members {
+			for q := p + 1; q < len(members); q++ {
+				pairs[[2]int{members[p], members[q]}] = true
 			}
 		}
 	}
+	out := make([][2]int, 0, len(pairs))
+	for pair := range pairs {
+		out = append(out, pair)
+	}
+	slices.SortFunc(out, func(a, b [2]int) int {
+		if a[0] != b[0] {
+			return a[0] - b[0]
+		}
+		return a[1] - b[1]
+	})
+	return out
 }
 
 // markContested sets a record contested by another, naming it once.

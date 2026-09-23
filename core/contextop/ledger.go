@@ -18,10 +18,10 @@ type Log interface {
 	// Record appends operations and returns them with the ids the backend
 	// assigned.
 	Record(ctx context.Context, ops ...workspace.Op) ([]workspace.Op, error)
-	// Ops returns the operations this log received after a local position, in
-	// the order it received them. A limit of zero or less asks for every
-	// operation.
-	Ops(ctx context.Context, after int64, limit int) ([]workspace.Op, error)
+	// Select returns the operations a query names, in the order this log
+	// received them. The ledger reads the context operations alone, so the
+	// unit decisions and memory entries sharing the log cost it nothing.
+	Select(ctx context.Context, q workspace.OpQuery) ([]workspace.Op, error)
 }
 
 // Ledger reads and writes a workspace's context operations under one policy.
@@ -218,7 +218,7 @@ func (l *Ledger) Subject(ctx context.Context, id string) (Record, error) {
 // fold reads the whole log and reports each operation with the status the
 // operations that named it left it at.
 func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
-	ops, err := l.log.Ops(ctx, 0, 0)
+	ops, err := l.log.Select(ctx, workspace.OpQuery{KindPrefix: OpKindPrefix})
 	if err != nil {
 		return nil, err
 	}

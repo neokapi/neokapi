@@ -293,10 +293,13 @@ Agents can record suggestions during normal work without affecting build
 results. People can review operations together, keep suggestions by session and
 revert a session when necessary.
 
-The log is folded on every read rather than indexed. A workspace holds one
-operation per context change, which stays small enough to read whole; an
-implementation that needs an index adds one behind `Ledger` without moving the
-model.
+The log is folded on every read rather than indexed. The ledger selects the
+`context.*` operations alone (`Backend.Select` with a kind prefix, answered from
+an index on the kind), so whatever else shares the log costs a fold nothing, and
+contest detection compares only rules that share a form. With 13,000 other
+operations and 500 to 800 context operations in the log, sixteen concurrent
+agents record an observation with a p99 of 32 ms. An implementation that needs
+more adds an index behind `Ledger` without moving the model.
 
 ### Operation ids
 

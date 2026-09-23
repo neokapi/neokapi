@@ -61,7 +61,8 @@ CREATE TABLE workspace_ops (
     at      TEXT NOT NULL
 );
 CREATE UNIQUE INDEX idx_workspace_ops_address ON workspace_ops(address) WHERE address IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_workspace_ops_project ON workspace_ops(project, seq);`,
+CREATE INDEX IF NOT EXISTS idx_workspace_ops_project ON workspace_ops(project, seq);
+CREATE INDEX idx_workspace_ops_kind ON workspace_ops(kind, seq);`,
 }}
 
 // LocalBackend keeps a workspace as a directory of SQLite files on this
@@ -354,21 +355,52 @@ func scanOps(rows *sql.Rows) ([]Op, error) {
 // Since returns the operations this log received after a local position, in
 // the order it received them.
 func (b *LocalBackend) Since(ctx context.Context, after int64, limit int) ([]Op, error) {
+	return b.Select(ctx, OpQuery{After: after, Limit: limit})
+}
+
+// Select returns the operations a query names, in the order this log received
+// them.
+func (b *LocalBackend) Select(ctx context.Context, q OpQuery) ([]Op, error) {
 	db, err := b.Registry(ctx)
 	if err != nil {
 		return nil, err
 	}
-	query := `SELECT ` + opColumns + ` FROM workspace_ops WHERE seq > ? ORDER BY seq`
-	args := []any{after}
-	if limit > 0 {
+	query := `SELECT ` + opColumns + ` FROM workspace_ops WHERE seq > ?`
+	args := []any{q.After}
+	if q.KindPrefix != "" {
+		// A range over the kind index rather than LIKE, which SQLite answers
+		// with a scan unless the column is declared case-insensitive.
+		query += ` AND kind >= ? AND kind < ?`
+		args = append(args, q.KindPrefix, prefixEnd(q.KindPrefix))
+	}
+	if q.Project != "" {
+		query += ` AND project = ?`
+		args = append(args, string(q.Project))
+	}
+	query += ` ORDER BY seq`
+	if q.Limit > 0 {
 		query += ` LIMIT ?`
-		args = append(args, limit)
+		args = append(args, q.Limit)
 	}
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("workspace: read operations: %w", err)
 	}
 	return scanOps(rows)
+}
+
+// prefixEnd is the smallest string that sorts after every string starting
+// with prefix, for a range scan. A prefix of bytes that cannot be incremented
+// has no end, which the caller never meets: kinds are ASCII.
+func prefixEnd(prefix string) string {
+	b := []byte(prefix)
+	for i := len(b) - 1; i >= 0; i-- {
+		if b[i] < 0xff {
+			b[i]++
+			return string(b[:i+1])
+		}
+	}
+	return "\xff"
 }
 
 // Head returns the local position of the last operation this log received.

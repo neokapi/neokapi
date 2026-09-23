@@ -106,6 +106,20 @@ type Op struct {
 	At time.Time
 }
 
+// OpQuery narrows a reading of the operation log. A zero OpQuery asks for
+// every operation.
+type OpQuery struct {
+	// After is the local position to read from, exclusive.
+	After int64
+	// KindPrefix keeps the operations whose kind starts with it: "context."
+	// for the context operations, "context.keep" for one kind.
+	KindPrefix string
+	// Project keeps one project's operations.
+	Project ProjectKey
+	// Limit caps the number returned. Zero or less asks for every one.
+	Limit int
+}
+
 // Operation kinds the workspace itself records.
 const (
 	// OpRegisterProject records a project registering, or re-registering with a
@@ -153,6 +167,12 @@ type Backend interface {
 	// asks for every operation. A caller that wants the order across machines
 	// sorts the result by ID (SortOps).
 	Since(ctx context.Context, after int64, limit int) ([]Op, error)
+
+	// Select returns the operations a query names, in the order this log
+	// received them. It is Since narrowed to kinds and a project, answered by
+	// the backend rather than by reading every operation and discarding most
+	// of them: a subsystem folding its own operations reads those alone.
+	Select(ctx context.Context, q OpQuery) ([]Op, error)
 
 	// Head returns the local position of the last operation this log
 	// received, and zero for an empty log. It moves whenever an operation is
