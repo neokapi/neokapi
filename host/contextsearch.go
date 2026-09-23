@@ -110,19 +110,34 @@ type ContextSearchResult struct {
 	// voice is in force, and until when". Only profiles that declare a window
 	// appear; a project that never bounds governance has none.
 	Profiles []ContextProfileHit `json:"profiles,omitempty"`
-	// Notes carries scope-shaped caveats — e.g. that a store the query would
-	// have consulted is not bound. Present so "nothing found" is never
-	// ambiguous between "no answer" and "nowhere to look".
+	// Attention holds what a person or an agent must act on before relying on
+	// the answer: context files nothing has read in, a store that could not be
+	// read. The text answer shows these and nothing else of Notes.
+	Attention []string `json:"attention,omitempty"`
+	// Notes carries every caveat, including scope and freshness, e.g. that a
+	// store the query would have consulted is not bound. Present so "nothing
+	// found" is never ambiguous between "no answer" and "nowhere to look".
 	Notes []string `json:"notes,omitempty"`
 }
 
 // FormatText renders the grouped answer for a human, implementing
 // output.TextFormatter. It lives on the shared type rather than in the CLI so
-// the text and JSON renderings of a context answer are defined once — the
+// the text and JSON renderings of a context answer are defined once: the
 // surfaces wrap this, they do not each decide what an answer looks like.
+//
+// The text carries what a writer acts on. Which project answered, at which
+// revision, over which scope, and the caveats about stores that are not bound
+// are in the JSON form.
 func (r *ContextSearchResult) FormatText(w io.Writer) error {
+	for _, a := range r.Attention {
+		fmt.Fprintf(w, "%s\n\n", capitalSentence(a))
+	}
 	if len(r.Terms) == 0 && len(r.Precedent) == 0 {
 		fmt.Fprintf(w, "Nothing in this project's context matches %q.\n", r.Query)
+		if r.Scope != ScopeProfile {
+			fmt.Fprintln(w, "If the project keeps to a name or spelling for it, record that with context_observe "+
+				"(or `kapi context observe`).")
+		}
 	}
 
 	if len(r.Terms) > 0 {
@@ -225,18 +240,6 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 		}
 	}
 
-	if line := provenanceLine(r.Provenance); line != "" {
-		fmt.Fprintf(w, "\n%s\n", line)
-	}
-
-	// Notes last and always: they are what makes an empty or partial answer
-	// readable rather than ambiguous.
-	if len(r.Notes) > 0 {
-		fmt.Fprintln(w)
-		for _, n := range r.Notes {
-			fmt.Fprintf(w, "  note: %s\n", n)
-		}
-	}
 	return nil
 }
 
@@ -533,20 +536,26 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	// it is the only note that says the rest of the answer may already be
 	// answering a question about a graph that has moved.
 	res.Notes = append(res.Notes, src.Freshness...)
+	res.Attention = append(res.Attention, src.Freshness...)
 	if src.Unread != nil {
 		res.Notice = src.Unread
 		res.Notes = append(res.Notes, src.Unread.Message())
+		res.Attention = append(res.Attention, src.Unread.Message()+". Ask the person to run it")
+	}
+	attend := func(note string) {
+		res.Notes = append(res.Notes, note)
+		res.Attention = append(res.Attention, note)
 	}
 
 	if src.Terms != nil {
 		concepts, _, err := src.Terms.Search(ctx, req.Query, req.Locale, "", 0, limit)
 		if err != nil {
-			res.Notes = append(res.Notes, "terms store could not be searched: "+err.Error())
+			attend("terms store could not be searched: " + err.Error())
 		} else {
 			res.Terms = termHits(concepts, req.Locale)
 		}
 	} else if src.TermsErr != nil {
-		res.Notes = append(res.Notes, "terms store could not be opened: "+src.TermsErr.Error())
+		attend("terms store could not be opened: " + src.TermsErr.Error())
 	} else {
 		res.Notes = append(res.Notes, "no terms store is bound, so terminology was not consulted")
 	}
@@ -557,12 +566,12 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 			Limit: limit,
 		})
 		if err != nil {
-			res.Notes = append(res.Notes, "content memory could not be searched: "+err.Error())
+			attend("content memory could not be searched: " + err.Error())
 		} else {
 			res.Precedent = precedentHits(entries, req.Locale, limit)
 		}
 	} else if src.MemoryErr != nil {
-		res.Notes = append(res.Notes, "content memory could not be opened: "+src.MemoryErr.Error())
+		attend("content memory could not be opened: " + src.MemoryErr.Error())
 	} else {
 		res.Notes = append(res.Notes, "no content memory is bound, so prior wording was not consulted")
 	}
