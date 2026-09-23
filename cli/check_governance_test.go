@@ -30,14 +30,14 @@ defaults:
   source_language: en
   target_languages: [fr]
   voice:
-    profile_file: house-voice.yaml
+    profile: house
 profiles:
   promo:
     channels: [docs]
-    voice: promo-voice.yaml
+    voice: promo
 `+window+`  legal:
     channels: [docs]
-    voice: legal-voice.yaml
+    voice: legal
 collections:
   - name: docs
     channel: promo/docs
@@ -51,9 +51,9 @@ collections:
 		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
 		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
 	}
-	write("house-voice.yaml", forbidding("House Style", "house", "utilize", "use"))
-	write("promo-voice.yaml", forbidding("Promo Voice", "promo", "cheap", "affordable"))
-	write("legal-voice.yaml", forbidding("Legal Voice", "legal", "guarantee", "warrant"))
+	write(".kapi/voice.yaml", forbidding("House Style", "house", "utilize", "use"))
+	write(".kapi/profiles/promo/voice.yaml", forbidding("Promo Voice", "promo", "cheap", "affordable"))
+	write(".kapi/profiles/legal/voice.yaml", forbidding("Legal Voice", "legal", "guarantee", "warrant"))
 
 	// Both files carry every forbidden word, so the findings that appear are
 	// decided entirely by which profile governs the file.

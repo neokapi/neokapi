@@ -143,7 +143,10 @@ kapi check --strict                       # exit 3, one major and the rest advis
 ```
 
 The import comes first: until it runs, the files under `context/` are a copy
-somebody sent you, and every gate answers from an empty store. `kapi up` then
+somebody sent you, and every gate answers from an empty store. `kapi.yaml`
+binds the voice by the name the import stores it under (`profile: northsea`)
+and names no file, so an edit to `context/voice.yaml` or `context/terms.json`
+takes effect when you import again. `kapi up` then
 builds the occurrence graph, so `kapi context search` can answer *where* a word
 is used and not only what it means.
 

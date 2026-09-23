@@ -10,9 +10,10 @@ defaults:
   target_languages: [nb, nl]
   materialize: on-converge
   flow: converge
+  # Bound by the name `kapi context import ./context` stores the voice under.
+  # The terms need no binding: the import reads them into the project's own.
   voice:
-    profile_file: context/voice.yaml
-  terms_source: context/terms.json
+    profile: northsea
   memory:
     fuzzy_threshold: 75
   # Front matter is content: a reader sees the title in the sidebar and the
@@ -32,7 +33,8 @@ defaults:
 profiles:
   northsea:
     channels: [docs]
-    voice: context/voice.yaml
+    voice:
+      profile: northsea
 
 collections:
   - name: tidewatch-docs

@@ -20,8 +20,9 @@ node samples/audience-context/run.mjs --binary bin/kapi --output /tmp/audience-r
 ```
 
 The runner copies the sample to a temporary directory, reads its `context/`
-files into the store with `kapi context import ./context`, disables project and
-plugin discovery outside that fixture, and uses throwaway configuration and
+files into the store with `kapi context import ./context` (the recipe binds the
+voice by the name that import stores it under, `harbor-help`), disables project
+and plugin discovery outside that fixture, and uses throwaway configuration and
 cache directories. It records the binary and source hashes, context answer,
 raw check output and process exit status. It fails if a critical wording
 violation disappears in any audience.

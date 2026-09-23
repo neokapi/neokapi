@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host"
 	bproject "github.com/neokapi/neokapi/host/venue/project"
 	"github.com/neokapi/neokapi/host/venue/source"
 )
@@ -41,7 +42,9 @@ func TestDaemonPushDeclaresTheRecipeContext(t *testing.T) {
 	t.Cleanup(func() { app = prev })
 
 	root := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"),
+	voicePath := filepath.Join(root, coreproj.RelStatePath(coreproj.ProfilesDirName, "kapi", "voice.yaml"))
+	require.NoError(t, os.MkdirAll(filepath.Dir(voicePath), 0o755))
+	require.NoError(t, os.WriteFile(voicePath,
 		[]byte("name: Test Voice\ndescription: How it sounds.\n"), 0o644))
 
 	recipe := &bproject.Recipe{
@@ -52,7 +55,7 @@ func TestDaemonPushDeclaresTheRecipeContext(t *testing.T) {
 		Profiles: map[string]coreproj.Profile{
 			"kapi": {
 				Channels: []coreproj.Channel{{ID: "docs"}, {ID: "app"}},
-				Voice:    &coreproj.VoiceBinding{ProfileFile: "voice.yaml"},
+				Voice:    &coreproj.VoiceBinding{Profile: "test-voice"},
 			},
 		},
 		Collections: []coreproj.Collection{
@@ -69,6 +72,9 @@ func TestDaemonPushDeclaresTheRecipeContext(t *testing.T) {
 		},
 	}
 	proj, err := bproject.InitProject(root, recipe)
+	require.NoError(t, err)
+	// The recipe binds the voice by name; the import puts it in the store.
+	_, err = app.ImportProjectContext(t.Context(), proj.Layout.RecipePath, host.ContextImportRequest{})
 	require.NoError(t, err)
 
 	entry := &projectEntry{

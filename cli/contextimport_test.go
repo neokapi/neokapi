@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -21,6 +22,29 @@ import (
 func readProjectContext(t *testing.T, root string) {
 	t.Helper()
 	readContextAt(t, filepath.Join(root, project.RecipeFileName))
+}
+
+// layoutVoicePath is where a project's `.kapi/` layout keeps its voice profile,
+// with the directory created so the caller writes the file and an import finds
+// it. The import binds the voice it reads when the recipe binds none.
+func layoutVoicePath(t *testing.T, root string) string {
+	t.Helper()
+	path := filepath.Join(root, project.RelStatePath("voice.yaml"))
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	return path
+}
+
+// namedTermStorePath is where the terms store a recipe names with `termstore:
+// <name>` lives, the store `--termstore <name>` opens. A test that has not
+// isolated the configuration directory gets a temporary one.
+func namedTermStorePath(t *testing.T, name string) string {
+	t.Helper()
+	if os.Getenv("KAPI_CONFIG_DIR") == "" {
+		t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	}
+	dir := filepath.Join(host.ConfigDir(), "terms")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	return filepath.Join(dir, name+".db")
 }
 
 // readContextAt is readProjectContext for a recipe that is not named

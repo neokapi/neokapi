@@ -72,7 +72,6 @@ func newReturnLegProject(t *testing.T, srvURL string) (*bproject.Project, string
 			Name: "return leg",
 			Defaults: coreproj.Defaults{
 				SourceLanguage: "en",
-				TermsSource:    coreproj.RelStatePath(ktb.ConventionalName),
 			},
 		},
 		Server: &bproject.ServerSpec{URL: srvURL + "/acme/proj1", Stream: "main"},

@@ -7,11 +7,11 @@ version: v1
 name: northsea
 defaults:
   source_language: en-GB
+  # Bound by the name `kapi context import ./context` stores the voice under.
+  # The vocabulary needs no binding: the same import reads it into the
+  # project's own terms, which is where `kapi apply` writes a term decision.
   voice:
-    profile_file: context/voice.yaml
-  # The vocabulary this sample ships. An import reads it into the project's
-  # terms store, which is where `kapi apply` writes a term decision.
-  terms_source: context/terms.json
+    profile: northsea
   exclude:
     - "**/node_modules/**"
     - "**/.git/**"
@@ -19,7 +19,8 @@ defaults:
 profiles:
   northsea:
     channels: [docs, app, landing, reference]
-    voice: context/voice.yaml
+    voice:
+      profile: northsea
 
 collections:
   # Operator documentation. The two historical surfaces below it — the API

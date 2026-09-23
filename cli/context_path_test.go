@@ -37,8 +37,6 @@ name: acme
 defaults:
   source_language: en
   target_languages: [nb]
-  voice: .kapi/voice.yaml
-  terms_source: .kapi/terms.json
 profiles:
   acme:
     channels: [docs]
@@ -213,11 +211,10 @@ name: acme
 defaults:
   source_language: en
   target_languages: [nb]
-  voice: .kapi/voice.yaml
 profiles:
   guides:
     channels: [docs]
-    voice: .kapi/profiles/guides/voice.yaml
+    voice: acme-guides
 collections:
   - name: acme-guides
     channel: guides/docs

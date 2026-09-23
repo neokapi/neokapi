@@ -135,7 +135,9 @@ kapi status --ship --emit site/ship.json          # what the site may offer toda
 
 The import comes first. The voice profile, the vocabulary, the approved wording
 and the review record ship here as files, and until somebody reads them in they
-govern nothing.
+govern nothing. `kapi.yaml` binds the voice by the name the import stores it
+under (`profile: northsea`) and names no file, so an edit under `context/`
+takes effect when you import again.
 
 Converge. Approved wording is recycled first; the remainder is drafted by the
 `demo` provider, whose output is deliberately and visibly synthetic:

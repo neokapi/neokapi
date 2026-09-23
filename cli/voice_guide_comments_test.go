@@ -30,7 +30,6 @@ func writeCommentVoiceProject(t *testing.T, apart bool) string {
 name: comment-voice
 defaults:
   source_language: en
-  voice: .kapi/voice.yaml
 `+defaults+`profiles:
   site:
     channels: [web]

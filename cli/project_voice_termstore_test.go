@@ -60,18 +60,16 @@ vocabulary:
 `
 
 // TestResolveVoiceProfile_FromProjectBinding asserts that with no profile
-// flag, brand resolution falls back to defaults.voice.profile_file in
-// the .kapi recipe, resolved relative to the project root.
+// flag, voice resolution falls back to the voice the recipe binds, which the
+// import binds by name when it reads the project's voice profile.
 func TestResolveVoiceProfile_FromProjectBinding(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
   source_language: en
   target_languages: [fr]
-  voice:
-    profile_file: voice.yaml
 `)
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(voiceYAML), 0o644))
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(voiceYAML), 0o644))
 	readProjectContext(t, root)
 	t.Chdir(root)
 
@@ -86,22 +84,18 @@ defaults:
 		"the binding names which profile applies; the store answers for it")
 }
 
-// TestResolveVoiceProfile_UnboundFileGovernsNothing: a voice profile sitting at
+// TestResolveVoiceProfile_UnreadFileGovernsNothing: a voice profile sitting at
 // a well-known location governs nothing on its own. The recipe says which
-// profile applies, and a recipe that binds none leaves the point ungoverned
-// however many profile files the checkout carries. Reading them into the store
-// puts them within reach of a binding without putting any of them in force.
-func TestResolveVoiceProfile_UnboundFileGovernsNothing(t *testing.T) {
+// profile applies, and until an import reads the file in and binds it, the
+// point is ungoverned however many profile files the checkout carries.
+func TestResolveVoiceProfile_UnreadFileGovernsNothing(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
   source_language: en
   target_languages: [fr]
 `)
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(voiceYAML), 0o644))
-	require.NoError(t, os.WriteFile(
-		filepath.Join(root, project.RelStatePath("voice.yaml")), []byte(voiceYAML), 0o644))
-	readProjectContext(t, root)
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(voiceYAML), 0o644))
 	t.Chdir(root)
 
 	a := &App{}
@@ -130,10 +124,8 @@ func TestResolveVoiceProfile_ExplicitFlagWins(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
-  voice:
-    profile_file: voice.yaml
 `)
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(voiceYAML), 0o644))
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(voiceYAML), 0o644))
 
 	explicit := filepath.Join(root, "explicit.yaml")
 	require.NoError(t, os.WriteFile(explicit, []byte("name: Explicit\n"), 0o644))
@@ -241,7 +233,7 @@ defaults:
 profiles:
   press:
     channels: [docs]
-    termstore: brand-terms.db
+    termstore: brand-terms
 collections:
   - name: press-docs
     channel: press/docs
@@ -251,7 +243,7 @@ collections:
 	// The project store says one thing; the profile's standalone store says
 	// another, and the profile wins.
 	seedProjectTerms(t, root)
-	dbPath := filepath.Join(root, "brand-terms.db")
+	dbPath := namedTermStorePath(t, "brand-terms")
 	tb, err := terms.NewSQLiteStore(dbPath)
 	require.NoError(t, err)
 	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{

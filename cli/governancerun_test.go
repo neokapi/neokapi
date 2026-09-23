@@ -23,9 +23,10 @@ func twoCollectionFixture(t *testing.T, platformChannel string) (recipe string, 
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "voice.yaml"),
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".kapi", "profiles", "platform"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".kapi", "voice.yaml"),
 		[]byte("id: house\nname: House Style\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "platform-voice.yaml"),
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".kapi", "profiles", "platform", "voice.yaml"),
 		[]byte("id: platform\nname: Platform Voice\n"), 0o644))
 
 	platform := project.Collection{
@@ -44,12 +45,12 @@ func twoCollectionFixture(t *testing.T, platformChannel string) (recipe string, 
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR"},
-			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
+			Voice:           &project.VoiceBinding{Profile: "house"},
 		},
 		Profiles: map[string]project.Profile{
 			"platform": {
 				Channels: []project.Channel{{ID: "app"}, {ID: "docs"}},
-				Voice:    &project.VoiceBinding{ProfileFile: "platform-voice.yaml"},
+				Voice:    &project.VoiceBinding{Profile: "platform"},
 			},
 		},
 		Collections: []project.Collection{
@@ -70,6 +71,7 @@ func twoCollectionFixture(t *testing.T, platformChannel string) (recipe string, 
 	recipe = filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, project.Save(recipe, proj))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
+	readProjectContext(t, dir)
 
 	for _, rel := range []string{"framework/en/messages.json", "platform/en/messages.json"} {
 		abs := filepath.Join(dir, filepath.FromSlash(rel))

@@ -3,9 +3,9 @@ name: audience-context
 
 defaults:
   source_language: en
-  terms_source: context/terms.json
+  # Bound by the name `kapi context import ./context` stores the voice under.
   voice:
-    profile_file: context/voice.yaml
+    profile: harbor-help
   coordinates:
     service: harbor-help
     topic: video-appointments
@@ -15,7 +15,8 @@ defaults:
 profiles:
   harbor-help:
     channels: [child, teen, adult, older-adult]
-    voice: context/voice.yaml
+    voice:
+      profile: harbor-help
 
 collections:
   - name: child-page

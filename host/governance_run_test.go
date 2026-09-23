@@ -32,8 +32,8 @@ func governanceRunProject(t *testing.T, recipe string) (recipePath, root, guide,
 		".kapi/voice.yaml":                "id: house\nname: House Style\n",
 		".kapi/profiles/promo/voice.yaml": "id: promo\nname: Promo Voice\n",
 		".kapi/profiles/legal/voice.yaml": "id: legal\nname: Legal Voice\n",
-		"docs/guide.md":      "The guide.\n",
-		"docs/legal/eula.md": "The terms.\n",
+		"docs/guide.md":                   "The guide.\n",
+		"docs/legal/eula.md":              "The terms.\n",
 	} {
 		full := filepath.Join(dir, filepath.FromSlash(path))
 		require.NoError(t, os.MkdirAll(filepath.Dir(full), 0o755))
