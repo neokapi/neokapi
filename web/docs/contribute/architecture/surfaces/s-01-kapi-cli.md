@@ -243,9 +243,10 @@ override the file. `KAPI_PLUGINS_DIR` names an alternative plugin root.
 
 ### Agent and toolbox surfaces on the same binary
 
-`kapi mcp` starts an MCP server over stdio, exposing a curated tool set plus the
-`context://` resources; `--all-tools` and `--all-flows` widen it for debugging,
-and `--all` is the shorthand for both. `kapi hook` provides the
+`kapi mcp` starts an MCP server over stdio, serving the tool sets `--tools`
+names (`writing`, with the `context://` resources, when it names none);
+`--all-tools` and `--all-flows` add tools no set holds, for debugging, and
+`--all` serves every set and both. `kapi hook` provides the
 assistant-integration hooks. Both are covered in
 [S-03](s-03-agent-surfaces.md).
 

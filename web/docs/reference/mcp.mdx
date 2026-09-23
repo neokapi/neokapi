@@ -43,7 +43,8 @@ kapi mcp
 ```
 
 This launches a JSON-RPC server on stdio. You don't run it manually; your AI
-tool starts it as a subprocess.
+tool starts it as a subprocess. With no flags it serves the
+[writing set](#available-tools); `--tools` names others.
 
 ## Setup
 
@@ -147,12 +148,34 @@ If `kapi` is not in your `$PATH`, use the full path to the binary (e.g. `/usr/lo
 
 ## Available tools
 
-`kapi mcp` serves a curated set of <McpToolCount /> tools. Each tool is exposed
-by a named decision: an assistant that is handed every pipeline step picks the
-wrong one about half the time, so the steps the loop runs for you are
-deliberately absent.
+`kapi mcp` serves tools in named sets. An assistant reads every tool description
+it is offered and chooses among them, so a server offers the sets its work
+needs. `--tools` takes a comma-separated list, and a name that is not a set is
+refused with the list of sets:
 
-<McpToolList />
+```bash
+kapi mcp                               # the writing set
+kapi mcp --tools writing,translation   # writing, plus the loop that fills target languages
+kapi mcp --tools all                   # every set
+```
+
+**writing** is the default: the `context://` resources and these
+<McpToolCount surface="writing" /> tools, which ask what applies, record what
+the assistant notices, and check what it changed.
+
+<McpToolList surface="writing" />
+
+**content** works on content directly:
+
+<McpToolList surface="content" />
+
+**translation** runs the loop that fills target languages:
+
+<McpToolList surface="translation" />
+
+**review** is the review queue and its decisions:
+
+<McpToolList surface="review" />
 
 Project scoping applies on top. Started inside a kapi project (discovered by a
 git-style upward walk, exactly as the CLI discovers it), the tool set is
@@ -173,14 +196,14 @@ kapi already uses is skipped so the kapi tool keeps the name.
 
 ### Widening the surface
 
-Two flags on `kapi mcp` widen what the server offers, for debugging and for
-callers who really are assembling a pipeline by hand:
+Two flags on `kapi mcp` add tools no set holds, for debugging and for callers
+who really are assembling a pipeline by hand:
 
 - `kapi mcp --all-tools` adds every CLI-visible processing tool, plus the
   listing verbs: <McpToolNames surface="all-tools" />.
 - `kapi mcp --all-flows` adds the flow-running verbs:
   <McpToolNames surface="all-flows" />.
-- `kapi mcp --all` adds both.
+- `kapi mcp --all` serves every set and adds both.
 
 Two tools are withheld from every surface, including the widened ones:
 `external-command` and `script` run arbitrary commands and JavaScript, which is
@@ -198,14 +221,21 @@ so it is a **resource**:
 
 The two addresses are one primitive. A path answers *what applies here*; a
 profile name answers the same question for a caller with no file in hand (an
-ad-hoc run, or a starter pack). Both return the point the location resolved to,
-the voice profile in force with its full guidance, the terms bound there, the
-candidates nobody has decided on, and the governance windows around them.
+ad-hoc run, or a starter pack). The markdown is the brief a writer reads: the
+voice, one list of words to use and to avoid, and what has been suggested but
+not yet established, as [`kapi context <path>`](/kapi/context#what-applies-here)
+prints it. The JSON adds the point the location resolved to, the full voice
+guide, the terms, the governance windows and the provenance.
 
 The `candidates` list is reported apart from everything in force. Each entry
 says it is a candidate, what it proposes, who recorded it, in which session and
 the evidence behind it, with the operation id a person confirms it by. A check
 reports every candidate and fails on none of them.
+
+Some clients list only concrete resources and never a resource template, so an
+assistant there cannot discover these addresses on its own. The server's
+instructions name the address, and `kapi context <path>` prints the same text
+for an assistant that can run a shell command.
 
 **The rendering is a property of the read.** `?format=json`
 returns the same answer as `application/json` (the document `kapi context <path>
@@ -242,7 +272,9 @@ what to say instead, and any wording already approved. Asking before writing is
 cheaper than learning the same fact from a failing check afterwards.
 
 Every answer carries `notes`, and the first of them says whether the context,
-the terms or the decisions moved since this session last read them. The
+the terms or the decisions moved since this session last read them. What a
+person must act on, such as context files nobody has imported, is also in
+`attention`, and it is the part of the notes the text answer shows. The
 comparison is against what the project last observed of its server, held on
 disk, so it costs a small file read and no round trip, and it reports rather
 than resolves: an assistant told the terms moved asks again before continuing,
@@ -325,6 +357,15 @@ and where. `propose` also records the rule the change implies.
 
 <McpToolParams name="context_correct" />
 
+### context_withdraw
+
+Take back something this session recorded wrongly, such as a correction entered
+backwards, by the `operation` id its call returned. An assistant withdraws only
+its own session's suggestions. Anything a person confirmed, and anything another
+session recorded, stays a person's to decide.
+
+<McpToolParams name="context_withdraw" />
+
 ### context_session_summary
 
 What this session recorded, proposed and had confirmed, with the sentence to
@@ -332,8 +373,9 @@ end a task report on and the command that reviews the session.
 
 <McpToolParams name="context_session_summary" />
 
-There is no tool for confirming, discarding, reverting or widening. Those are a
-person's, on the command line or in the desktop. See
+There is no tool for confirming, reverting or widening, or for discarding what
+another session recorded. Those are a person's, on the command line or in the
+desktop. See
 [Growing context](/kapi/context-decisions).
 
 ### extract_content

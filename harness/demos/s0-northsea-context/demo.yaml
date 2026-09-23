@@ -44,9 +44,9 @@ script:
   - comment: One verb reconciles the project's context and the sources. No target languages, no provider, nothing to ask for.
   - command: kapi up
   - comment: The first question an agent asks. Where am I, and what governs here?
-  - command: kapi context docs/berths.md
+  - command: kapi context docs/berths.md --explain
   - comment: The same question, three directories away, at a different point and in a different register.
-  - command: kapi context landing/index.html
+  - command: kapi context landing/index.html --explain
   - comment: The second question. What do we call this, and why?
   - command: kapi context search mooring
 

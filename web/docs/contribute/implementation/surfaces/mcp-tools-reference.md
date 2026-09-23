@@ -29,9 +29,18 @@ server and the `*host.App`, and adds its tools. Registration happens in
 `init()`, so linking a package is what exposes its tools, which is why the
 kapi porcelain lives in an importable package rather than in `package main`.
 
-`App.MCPSurface` is set from the `--all-tools` / `--all-flows` / `--all` flags
-and never from the environment, because the surface is a property of how the
-server was started; the factories read it to decide what to add.
+`App.MCPSurface` is set from the `--tools`, `--all-tools`, `--all-flows` and
+`--all` flags and never from the environment, because the surface is a property
+of how the server was started. The factories read `AllTools` and `AllFlows` to
+decide what to add. `Sets` is the tool-set selection: once every factory has
+run, `ApplyMCPToolFactories` removes each tool and resource template whose set
+is not selected. The sets are one table, `mcpToolSets` in `host/mcp_sets.go`,
+and a tool on no list (a widened registry tool, a flow verb, a plugin's tool)
+is served whatever sets are named. `ParseMCPToolSets` reads the flag, serving
+`writing` when it is absent, and `MCPInstructionsFor` sends the server's
+instructions only when the writing set is served, because they name its tools.
+The surface snapshot test (`kapi/cmd/kapi/mcp_snapshot_test.go`) fails when a
+tool on the default server belongs to no set.
 `App.ResolveMCPProject` accepts `-p` / `--project` through the CLI's project
 flag convention and otherwise runs the shared upward walk. `KAPI_NO_PROJECT=1`
 disables implicit discovery; an explicit recipe still wins. The resolver retains
@@ -129,7 +138,9 @@ first path segment would be read as an authority and lowercased, silently
 renaming a location on a case-sensitive filesystem.
 
 Surface widening does not apply here: `--all-tools` and `--all-flows` govern
-which tools a caller may *run*, not what it may *read*.
+which tools a caller may *run*, not what it may *read*. The tool sets do: the
+two templates belong to the writing set, so a server that does not serve it
+answers no `context://` read.
 
 ## Result shapes
 
