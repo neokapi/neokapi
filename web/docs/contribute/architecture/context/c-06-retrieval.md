@@ -128,7 +128,7 @@ nothing about how the answer was reached:
   what the writer notices while reading is how the next answer gets better.
 
 Notes appear in the prose only when a person or an agent must act before relying
-on the answer: context files nobody has imported, a voice or terms binding that
+on the answer: a checkout whose context nobody has imported into the store, a voice or terms binding that
 failed to load, a governance change since the last read, or a location a profile
 claims, which can answer differently from the rest of the project. The JSON
 carries them as `attention`. Everything else, the point, the binding field, the

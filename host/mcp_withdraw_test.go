@@ -2,6 +2,7 @@ package host
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -44,13 +45,13 @@ func callRecord(t *testing.T, session *mcp.ClientSession, name string, args map[
 }
 
 func resultText(res *mcp.CallToolResult) string {
-	var text string
+	var text strings.Builder
 	for _, c := range res.Content {
 		if tc, ok := c.(*mcp.TextContent); ok {
-			text += tc.Text
+			text.WriteString(tc.Text)
 		}
 	}
-	return text
+	return text.String()
 }
 
 // An agent that entered a correction backwards takes it back in the same
