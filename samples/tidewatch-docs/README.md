@@ -122,6 +122,10 @@ kapi status                               # coverage on both axes
 head -6 i18n/nb/docusaurus-plugin-content-docs/current/index.md
 ```
 
+`kapi.yaml` binds the voice by the name the import stores it under
+(`profile: northsea`) and names no file, so an edit under `context/` takes
+effect when you import again.
+
 Report coverage the way CI does:
 
 ```bash

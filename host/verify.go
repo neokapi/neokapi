@@ -397,7 +397,8 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		case sel.explicit:
 			// --voice was requested but the project binds no voice profile. Fail
 			// loudly rather than skip, so the misconfiguration is visible.
-			gates = append(gates, unboundGate(gateVoice, "defaults.voice"))
+			gates = append(gates, unboundGate(gateVoice, "voice bound at defaults.voice",
+				"bind one under defaults.voice in kapi.yaml (`voice: {profile: <id>}`, the id `kapi voice profiles` lists)"))
 		}
 	}
 
@@ -732,19 +733,21 @@ func (g *verifyGateResult) addExecution(e *checkExecution) {
 // required project binding is missing. The gate has nothing to check, so it did
 // not run: a CI user learns the gate is misconfigured instead of seeing a false
 // pass, and --no-fail does not turn that into exit 0.
-func unboundGate(gate, binding string) verifyGateResult {
+//
+// missing names what the project lacks, and fix is how to give it one.
+func unboundGate(gate, missing, fix string) verifyGateResult {
 	flag := "--" + gateFlagName + " " + gate
 	return verifyGateResult{
 		Gate:           gate,
 		Pass:           false,
 		Verdict:        check.VerdictDidNotRun,
 		DidNotRunCause: check.CauseContentNotChecked,
-		DidNotRun:      []string{fmt.Sprintf("%s was requested but the project binds no %s", flag, binding)},
+		DidNotRun:      []string{fmt.Sprintf("%s was requested but the project has no %s", flag, missing)},
 		Findings: []verifyFinding{{
 			Gate:       gate,
 			Severity:   "error",
-			Message:    fmt.Sprintf("%s gate was requested with %s but the project binds no %s, so there is nothing to check", gate, flag, binding),
-			Suggestion: fmt.Sprintf("add %s to the kapi.yaml recipe, or drop %s to skip this gate", binding, flag),
+			Message:    fmt.Sprintf("%s gate was requested with %s but the project has no %s, so there is nothing to check", gate, flag, missing),
+			Suggestion: fmt.Sprintf("%s, or drop %s to skip this gate", fix, flag),
 		}},
 	}
 }
@@ -760,7 +763,8 @@ func (a *App) ungovernedTermsGate(cmd Command, proj *project.KapiProject, root s
 		return verifyGateResult{}, err
 	}
 	if len(bound) == 0 {
-		return unboundGate(gateTerms, "defaults.terms_source"), nil
+		return unboundGate(gateTerms, "terms",
+			"read a terms file into the project with `kapi context import <dir>`, or add terms with `kapi terms import`"), nil
 	}
 	flag := "--" + gateFlagName + " " + gateTerms
 	where := strings.Join(bound, ", ")
@@ -795,7 +799,7 @@ func (a *App) termsBindings(cmd Command, proj *project.KapiProject, root string)
 		if err != nil {
 			return nil, err
 		}
-		if governedTermsPath(root, rc) != "" {
+		if rc.TermStore != "" {
 			bound = append(bound, "profiles."+name)
 		}
 	}

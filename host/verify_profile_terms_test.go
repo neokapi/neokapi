@@ -21,7 +21,7 @@ import (
 // Where a profile-terms fixture binds its vocabulary.
 const (
 	termsOnProfileStore = "profile termstore database"
-	termsOnDefaults     = "defaults terms_source"
+	termsOnDefaults     = "the project's own terms"
 	termsNowhere        = "nowhere"
 )
 
@@ -73,12 +73,12 @@ func writeProfileTermsProject(t *testing.T, f profileTermsFixture) string {
 	var recipe strings.Builder
 	recipe.WriteString("version: v1\nname: profileterms\ndefaults:\n  source_language: en\n  target_languages: [fr]\n")
 	if f.binding == termsOnDefaults {
-		recipe.WriteString("  terms_source: .kapi/terms.json\n")
+		recipe.WriteString("")
 	}
 	recipe.WriteString("profiles:\n  press:\n    channels: [docs]\n")
 	switch f.binding {
 	case termsOnProfileStore:
-		recipe.WriteString("    termstore: vocab/press.db\n")
+		recipe.WriteString("    termstore: press\n")
 	}
 	recipe.WriteString("collections:\n")
 	if !f.noDocument {
@@ -118,8 +118,7 @@ func writeProfileTermsProject(t *testing.T, f profileTermsFixture) string {
 
 	switch f.binding {
 	case termsOnProfileStore:
-		require.NoError(t, os.MkdirAll(filepath.Join(root, "vocab"), 0o755))
-		store, err := terms.NewSQLiteStore(filepath.Join(root, "vocab", "press.db"))
+		store, err := terms.NewSQLiteStore(namedTermStorePath(t, "press"))
 		require.NoError(t, err)
 		for _, c := range concepts {
 			require.NoError(t, store.AddConcept(t.Context(), c))
@@ -404,7 +403,7 @@ func TestShip_NoTermsAnywhere(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, check.VerdictDidNotRun, g.Verdict)
 	require.NotEmpty(t, g.Findings)
-	assert.Contains(t, g.Findings[0].Message, "defaults.terms_source")
+	assert.Contains(t, g.Findings[0].Message, "the project has no terms")
 
 	status := profileTermsStatus(t, root)
 	assert.Equal(t, []string{"terms"}, scopeCoverage(t, status, "press-docs", "fr").NotGoverned)

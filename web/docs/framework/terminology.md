@@ -152,8 +152,7 @@ user config directory on Linux, and resolves to
 resolved location.
 
 With no flag inside a project, the terms store is instead a set of tables in the
-project's own store, compiled from the committed bundle the recipe binds
-with `defaults.terms_source`; see
+project's own store, which `kapi context import` fills from a terms bundle; see
 [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
 
 ```bash
@@ -180,9 +179,9 @@ kapi terms occurrences c-dashboard --locale nb --collection docs
 The `kapi terms` commands cover import, export, lookup, search, occurrences,
 statistics, and listing. Inside a project, a term decision also lands through
 the one write verb: a `kapi apply` entry with `kind:"term"` (`op`, `term`,
-`locale`, `status`, `replaces`, `do_not_translate`) is written to the committed terms source the
-recipe binds with `defaults.terms_source` and compiled into the project store,
-so `git diff` is the review surface. Concept **relations** are authored
+`locale`, `status`, `replaces`, `do_not_translate`) is written to the project's
+terms store, and `kapi context snapshot` writes the store out as a bundle a pull
+request can review. Concept **relations** are authored
 visually rather than from the command line: Kapi Desktop opens a per-concept
 dashboard (the `@neokapi/concept-ui` component, which shows a concept's terms,
 geography, constraints, a local relations widget, and a timeline) over a local

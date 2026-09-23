@@ -732,32 +732,6 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
-             * TermsSource binds the committed, git-tracked native source artifact
-             * (a .terms.json document) the project terms store is compiled from. This is the
-             * authored, reviewable form: `kapi apply` edits the .terms.json here and then
-             * re-imports it into the gitignored terms tables inside `.kapi/work/store.db`,
-             * so the store is written by exactly one path and `git diff` is the review
-             * surface. The path resolves relative to the project root. Empty means no
-             * bound source (whatever the store already holds is the only artifact).
-             * @member
-             * @type {string | undefined}
-             */
-            this["terms_source"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * MemorySource binds the committed, git-tracked native source artifact (a
-             * .memory.json document) the project content memory is compiled from, the content memory
-             * analogue of TermsSource. `kapi apply` edits the .memory.json here and
-             * re-imports it into the project store. The path resolves relative to the
-             * project root. Empty means no bound content memory source.
-             * @member
-             * @type {string | undefined}
-             */
-            this["memory_source"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
              * Tools holds project-level tool presets: per-tool config defaults applied
              * wherever the tool runs in a project flow. A flow step's own config
              * overrides the preset per key (step wins), so a project can pin, say,
@@ -805,8 +779,8 @@ export class Defaults {
         const $$createField17_0 = $$createType16;
         const $$createField18_0 = $$createType18;
         const $$createField19_0 = $$createType4;
-        const $$createField22_0 = $$createType20;
-        const $$createField23_0 = $$createType22;
+        const $$createField20_0 = $$createType20;
+        const $$createField21_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
@@ -842,10 +816,10 @@ export class Defaults {
             $$parsedSource["coordinates"] = $$createField19_0($$parsedSource["coordinates"]);
         }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField22_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField20_0($$parsedSource["tools"]);
         }
         if ("locales" in $$parsedSource) {
-            $$parsedSource["locales"] = $$createField23_0($$parsedSource["locales"]);
+            $$parsedSource["locales"] = $$createField21_0($$parsedSource["locales"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }
@@ -1147,8 +1121,8 @@ export class KapiProject {
              * governs the wrong one half the time. Each profile declares the channels
              * its product ships on, and a collection names the point its content sits
              * at with one `channel:` reference (Collection.Channel). Empty means the
-             * whole project sits at one point, under defaults.voice /
-             * defaults.terms_source. See profiles.go.
+             * whole project sits at one point, under defaults.voice and
+             * the project's own terms. See profiles.go.
              * @member
              * @type {{ [_ in string]?: Profile } | undefined}
              */
@@ -1583,9 +1557,9 @@ export class Profile {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Voice is the voice profile governing this product's content, in the
-             * same forms as defaults.voice (a bare path, or profile_file / profile /
-             * pack). nil keeps defaults.voice.
+             * Voice is the voice profile governing this product's content, bound by
+             * name in the same forms as defaults.voice (`profile:` or `pack:`). nil
+             * keeps defaults.voice.
              * @member
              * @type {VoiceBinding | null | undefined}
              */
@@ -1593,9 +1567,10 @@ export class Profile {
         }
         if (/** @type {any} */(false)) {
             /**
-             * TermStore is a STANDALONE terms store governing this product's content —
-             * a file the recipe points at, resolved relative to the project root. Empty
-             * is the ordinary case: the project's own store governs.
+             * TermStore names a terms store governing this product's content, by the
+             * name `--termstore` takes: a store `kapi terms` keeps for this user. It is
+             * a name and never a path. Empty is the ordinary case: the project's own
+             * terms govern.
              * 
              * Spelled `termstore:` rather than `terms:` because a store is not its
              * contents, and because `terms` is already the dnt-check tool's own key for
@@ -1819,15 +1794,16 @@ export class ShipGateRule {
 }
 
 /**
- * VoiceBinding binds a voice profile — to the project under `defaults.voice`,
- * or to a region of the context space under a profile's `voice:`. Exactly one
- * source is expected: a standalone profile YAML (ProfileFile, resolved relative
- * to the project root), a profile in the local voice store (Profile), or a
- * built-in starter pack (Pack).
+ * VoiceBinding binds a voice profile by name: to the project under
+ * `defaults.voice`, or to a region of the context space under a profile's
+ * `voice:`. Exactly one source is expected: a profile the project's voice store
+ * holds (Profile), or a built-in starter pack (Pack). The short form is the
+ * profile's id alone, `voice: fernwell`, which reads as `voice: {profile:
+ * fernwell}`.
  * 
- * The short form is the profile file itself — `voice: context/kapi-voice.yaml`
- * — which is what a recipe writes when the profile is a file in the project,
- * as it usually is.
+ * A recipe never names a file. The store is what every surface answers from,
+ * and `kapi context import` is what reads a profile file into it, so a binding
+ * to the file would read as in force while the store held something else.
  */
 export class VoiceBinding {
     /**
@@ -1837,16 +1813,7 @@ export class VoiceBinding {
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
             /**
-             * ProfileFile is the path to a standalone profile YAML, resolved
-             * relative to the project root.
-             * @member
-             * @type {string | undefined}
-             */
-            this["profile_file"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Profile names a profile in the local voice store.
+             * Profile names a profile in the project's voice store, by id or by name.
              * @member
              * @type {string | undefined}
              */

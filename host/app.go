@@ -207,7 +207,7 @@ type App struct {
 	convergeProgressTap tool.Tool
 
 	// ProjectBindings carries the standing voice + terms context
-	// resolved from a .kapi project (defaults.voice / defaults.terms_source).
+	// resolved from a .kapi project (defaults.voice and the project's terms).
 	// Set temporarily by RunFromProject so project-flow steps can be made
 	// brand- and terminology-aware with no flags. nil for ad-hoc runs.
 	ProjectBindings *ProjectBindings

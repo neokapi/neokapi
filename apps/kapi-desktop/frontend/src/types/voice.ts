@@ -164,7 +164,7 @@ export interface VoiceFallback {
 
 /** The recipe binding that selected a profile. */
 export interface VoiceBinding {
-  /** "profile_file", "pack" or "profile". */
+  /** "profile" or "pack". */
   kind: string;
   value: string;
 }

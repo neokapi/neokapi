@@ -113,7 +113,7 @@ passes, and a per-locale ship state that says what can go out today.
 ### Using terms
 
 1. Import terms (TBX, CSV, JSON) with `kapi terms import`; they land in the project's terms store
-2. Bind the store with `defaults.terms_source` so every run and check reads it
+2. Every run and check reads the project's terms store with nothing bound; `kapi context import` reads a terms bundle into it
 3. Add `term-check` to your flow to check each target against the terms in force
 4. In a workspace, the editor's context panel shows matched terms per block
 

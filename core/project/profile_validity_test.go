@@ -15,16 +15,16 @@ defaults:
   source_language: en
   target_languages: [nb]
   voice:
-    profile_file: .kapi/voice.yaml
+    profile: house
 profiles:
   spring-sale:
     channels: [landing]
-    voice: .kapi/profiles/spring-sale/voice.yaml
+    voice: {profile: spring-sale}
     valid_from: 2026-01-01
     valid_to: 2026-07-01
   evergreen:
     channels: [docs]
-    voice: .kapi/profiles/evergreen/voice.yaml
+    voice: {profile: evergreen}
 collections:
   - name: promo
     channel: spring-sale/landing

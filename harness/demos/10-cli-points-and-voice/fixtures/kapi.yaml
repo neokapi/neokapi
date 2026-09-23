@@ -12,7 +12,7 @@ defaults:
   source_gate: approved
   flow: converge
   voice:
-    profile_file: .kapi/voice.yaml
+    profile: voltway
   exclude:
     - "**/node_modules/**"
     - "**/.git/**"
@@ -20,7 +20,8 @@ defaults:
 profiles:
   voltway:
     channels: [docs, app, portal]
-    voice: .kapi/voice.yaml
+    voice:
+      profile: voltway
 
 collections:
   # Operator documentation.

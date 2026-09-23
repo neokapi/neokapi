@@ -84,9 +84,8 @@ steps:
       checkTargetInconsistency: true
 ```
 
-The `recycle` and `term-check` steps read the content memory and the terms the
-recipe binds (`defaults.memory_source`, `defaults.terms_source`, or a
-profile's own `termstore:`), so they take no path of their own. See the
+The `recycle` and `term-check` steps read the project's content memory and terms
+(or a profile's own `termstore:`), so they take no path of their own. See the
 [recycle](https://neokapi.github.io/reference/tools/recycle) and
 [term-check](https://neokapi.github.io/reference/tools/term-check) references
 for their options.

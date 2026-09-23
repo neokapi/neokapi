@@ -56,7 +56,7 @@ defaults:
 profiles:
   press:
     channels: [docs]
-    termstore: press-terms.db
+    termstore: press-terms
 collections:
   - name: docs
     channel: press/docs
@@ -64,7 +64,7 @@ collections:
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	return root, filepath.Join(root, "press-terms.db")
+	return root, namedTermStorePath(t, "press-terms")
 }
 
 // TestResolveTermsCmdStore_ProjectAware asserts that with no flag inside a

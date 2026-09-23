@@ -37,7 +37,7 @@ const project: KapiProject = {
   defaults: {
     source_language: "en-US",
     coordinates: { brand: "northsea" },
-    voice: { profile_file: ".kapi/voice.yaml" },
+    voice: { profile: "northsea" },
   },
   flows: { translate: { steps: [] } },
 };
@@ -58,7 +58,7 @@ function renderSettings(overrides: Partial<KapiProject> = {}) {
 describe("GovernanceSettings", () => {
   it("shows the bound voice profile", () => {
     renderSettings();
-    expect(screen.getByLabelText("Voice profile")).toHaveTextContent(".kapi/voice.yaml");
+    expect(screen.getByLabelText("Voice profile")).toHaveTextContent("northsea");
   });
 
   it("binds a starter pack", async () => {

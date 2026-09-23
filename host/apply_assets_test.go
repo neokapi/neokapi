@@ -151,7 +151,6 @@ func TestApplyVoiceEntry_LandsInTheVoiceStore(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, proj.Defaults.Voice)
 	require.NotEmpty(t, proj.Defaults.Voice.Profile)
-	assert.Empty(t, proj.Defaults.Voice.ProfileFile, "nothing binds a path")
 
 	store, release, err := a.ProjectVoiceStore(ctx, root)
 	require.NoError(t, err)

@@ -14,9 +14,10 @@ defaults:
   # them.
   materialize: on-converge
   flow: converge
+  # Bound by the name `kapi context import ./context` stores the voice under.
+  # The terms need no binding: the import reads them into the project's own.
   voice:
-    profile_file: context/voice.yaml
-  terms_source: context/terms.json
+    profile: northsea
   memory:
     fuzzy_threshold: 75
   exclude:
@@ -26,7 +27,8 @@ defaults:
 profiles:
   northsea:
     channels: [app]
-    voice: context/voice.yaml
+    voice:
+      profile: northsea
 
 collections:
   # Compass interface strings. One block per leaf key; the key path is the block

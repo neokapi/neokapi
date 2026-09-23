@@ -2,9 +2,8 @@ version: v1
 name: paired-content-task
 defaults:
   source_language: en
-  terms_source: .kapi/terms.json
   voice:
-    profile_file: .kapi/voice.yaml
+    profile: harbor-help
   coordinates:
     service: harbor-help
   exclude:
@@ -12,7 +11,8 @@ defaults:
 profiles:
   harbor-help:
     channels: [child, older-adult, adult]
-    voice: .kapi/voice.yaml
+    voice:
+      profile: harbor-help
 collections:
   - name: task-content
     channel: harbor-help/older-adult

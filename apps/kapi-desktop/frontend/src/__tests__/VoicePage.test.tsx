@@ -19,8 +19,8 @@ describe("VoicePage", () => {
     // The recipe plumbing sits on its own quiet line, off the resolution chain.
     const plumbing = screen.getByTestId("voice-plumbing");
     expect(plumbing).toHaveTextContent("defaults.voice");
-    expect(plumbing).toHaveTextContent("profile_file");
-    expect(plumbing).toHaveTextContent(".kapi/voice.yaml");
+    expect(plumbing).toHaveTextContent("profile");
+    expect(plumbing).toHaveTextContent("northsea");
   });
 
   it("draws the skipped binding and what governs in its place", async () => {

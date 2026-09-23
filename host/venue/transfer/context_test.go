@@ -24,7 +24,9 @@ func newGovernedProject(t *testing.T) (*host.App, *bproject.Project) {
 	app := &host.App{}
 
 	root := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(root, "acme-voice.yaml"), []byte(
+	acmeVoice := filepath.Join(root, coreproj.RelStatePath(coreproj.ProfilesDirName, "kapi", "voice.yaml"))
+	require.NoError(t, os.MkdirAll(filepath.Dir(acmeVoice), 0o755))
+	require.NoError(t, os.WriteFile(acmeVoice, []byte(
 		"name: Acme Voice\ndescription: How Acme sounds.\ntone:\n  formality: neutral\n"), 0o644))
 
 	recipe := &bproject.Recipe{
@@ -35,7 +37,7 @@ func newGovernedProject(t *testing.T) (*host.App, *bproject.Project) {
 		Profiles: map[string]coreproj.Profile{
 			"kapi": {
 				Channels: []coreproj.Channel{{ID: "docs"}, {ID: "email"}},
-				Voice:    &coreproj.VoiceBinding{ProfileFile: "acme-voice.yaml"},
+				Voice:    &coreproj.VoiceBinding{Profile: "acme-voice"},
 			},
 			"bowrain": {Channels: []coreproj.Channel{{ID: "partners"}}},
 		},
@@ -122,7 +124,7 @@ func TestBuildPushContext_CarriesDeclaredCollections(t *testing.T) {
 // to be resolved last.
 func TestBuildPushContext_CarriesTheVoiceAsAuthored(t *testing.T) {
 	app, proj := newGovernedProject(t)
-	require.NoError(t, os.WriteFile(filepath.Join(proj.Root, "acme-voice.yaml"), []byte(
+	require.NoError(t, os.WriteFile(filepath.Join(proj.Root, coreproj.RelStatePath(coreproj.ProfilesDirName, "kapi", "voice.yaml")), []byte(
 		"name: Acme Voice\ntone:\n  formality: neutral\nchannels:\n  docs:\n    tone:\n      formality: formal\n"), 0o644))
 	readProjectContext(t, app, proj)
 

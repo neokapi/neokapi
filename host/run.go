@@ -212,7 +212,7 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	a.WarnUnsyncedCoordinates(cmd.ErrOrStderr(), proj)
 
 	// Resolve standing voice + terminology bindings so project-flow steps
-	// honor them with no flags (defaults.voice / defaults.terms_source), per
+	// honor them with no flags (defaults.voice and the project's terms), per
 	// content collection: the input set splits into one group per distinct
 	// binding, and each group runs the flow with its own. A recipe where no
 	// collection overrides anything yields one group over every input — the

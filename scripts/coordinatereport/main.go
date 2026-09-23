@@ -117,7 +117,7 @@ type Point struct {
 	Coordinates map[string]string `json:"coordinates,omitempty"`
 	Profile     string            `json:"profile,omitempty"`
 	Channel     string            `json:"channel,omitempty"`
-	VoiceFile   string            `json:"voiceFile,omitempty"`
+	Voice       string            `json:"voice,omitempty"`
 	VoiceField  string            `json:"voiceField,omitempty"`
 	TermStore   string            `json:"termStore,omitempty"`
 	Collections []string          `json:"collections,omitempty"`
@@ -191,15 +191,15 @@ defaults:
   source_language: en
   target_languages: [nb]
   voice:
-    profile_file: .kapi/voice.yaml
+    profile: house
 profiles:
   acme:
     channels: [web, support]
-    voice: .kapi/profiles/acme/voice.yaml
-    termstore: .kapi/profiles/acme/terms.json
+    voice: {profile: acme}
+    termstore: acme-terms
   other:
     channels: [web, email]
-    voice: .kapi/profiles/other/voice.yaml
+    voice: {profile: other}
 collections:
   - name: acme-web
     channel: acme/web
@@ -279,7 +279,7 @@ func buildPoints(p *project.KapiProject) ([]Point, error) {
 			Default:    rc.Profile == "" && rc.Channel == "",
 		}
 		if rc.Voice != nil {
-			pt.VoiceFile = rc.Voice.ProfileFile
+			pt.Voice = rc.Voice.Profile
 		}
 		pt.Coordinates = map[string]string{}
 		if rc.Profile != "" {

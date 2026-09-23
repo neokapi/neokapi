@@ -84,9 +84,9 @@ func writeTwoProductProject(t *testing.T) string {
 			"tone:\n  personality: [plain]\n  formality: neutral\n  emotion: neutral\n  humor: none\n" +
 			"style:\n  active_voice: true\n"
 	}
-	write("voices/default.yaml", profile("default voice"))
-	write("voices/engine.yaml", profile("engine voice"))
-	write("voices/platform.yaml", profile("platform voice"))
+	write(".kapi/voice.yaml", profile("default voice"))
+	write(".kapi/profiles/kapi/voice.yaml", profile("engine voice"))
+	write(".kapi/profiles/bowrain/voice.yaml", profile("platform voice"))
 
 	write("engine/meta.json", `{"a":"one"}`)
 	write("mail/en.json", `{"b":"two"}`)
@@ -97,14 +97,14 @@ defaults:
   source_language: en
   target_languages: [nb]
   voice:
-    profile_file: voices/default.yaml
+    profile: default-voice
 profiles:
   kapi:
     channels: [engine]
-    voice: voices/engine.yaml
+    voice: engine-voice
   bowrain:
     channels: [email]
-    voice: voices/platform.yaml
+    voice: platform-voice
 collections:
   - name: kapi-engine
     channel: kapi/engine

@@ -84,8 +84,7 @@ defaults:
   source_language: en
   target_languages: [`+targetLang+`]
   source_gate: none
-  voice: .kapi/voice.yaml
-  terms_source: .kapi/terms.json
+  voice: `+name+`
 collections:
   - name: Docs
     content:
@@ -200,7 +199,6 @@ defaults:
   source_language: `+lang+`
   target_languages: [`+targetLang+`]
   source_gate: none
-  terms_source: .kapi/terms.json
 collections:
   - name: Docs
     content:

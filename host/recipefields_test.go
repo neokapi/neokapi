@@ -50,7 +50,7 @@ func TestWarnUnsyncedCoordinates(t *testing.T) {
 	voiceProfiles := map[string]project.Profile{
 		"kapi": {
 			Channels: []project.Channel{{ID: "docs"}},
-			Voice:    &project.VoiceBinding{ProfileFile: "voice.yaml"},
+			Voice:    &project.VoiceBinding{Profile: "house"},
 		},
 	}
 	termsProfiles := map[string]project.Profile{

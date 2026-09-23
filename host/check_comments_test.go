@@ -59,12 +59,9 @@ func commentProjectFixture(t *testing.T) string {
 name: code-comments
 defaults:
   source_language: en
-  voice:
-    profile_file: .kapi/voice.yaml
 profiles:
   service:
     channels: [code, docs]
-    voice: .kapi/voice.yaml
 collections:
   - name: code
     channel: service/code

@@ -87,8 +87,6 @@ defaults:
   source_language: en
   target_languages: [nb]
   source_gate: none
-  voice: .kapi/voice.yaml
-  terms_source: .kapi/terms.json
 profiles:
   support:
     channels: [docs]

@@ -25,9 +25,6 @@ func sourceShipFixture(t *testing.T) (string, string) {
 name: source-ship
 defaults:
   source_language: en
-  terms_source: .kapi/terms.json
-  voice:
-    profile_file: .kapi/voice.yaml
 collections:
   - name: content
     content:
@@ -222,14 +219,12 @@ func TestVerifySourceTerminologyUsesCollectionScope(t *testing.T) {
 	scoped := strings.Replace(string(recipe), "collections:", `profiles:
   help:
     channels: [web]
-    voice: .kapi/voice.yaml
-    termstore: vocab/help.db
+    termstore: help
 collections:`, 1)
 	scoped = strings.Replace(scoped, "  - name: content", "  - name: content\n    channel: help/web", 1)
 	require.NoError(t, os.WriteFile(recipePath, []byte(scoped), 0o644))
 
-	require.NoError(t, os.MkdirAll(filepath.Join(root, "vocab"), 0o755))
-	store, err := terms.NewSQLiteStore(filepath.Join(root, "vocab", "help.db"))
+	store, err := terms.NewSQLiteStore(namedTermStorePath(t, "help"))
 	require.NoError(t, err)
 	require.NoError(t, store.AddConcept(t.Context(), terms.Concept{ID: "scoped-service", Terms: []terms.Term{
 		{Text: "ForbiddenName", Locale: model.LocaleEnglish, Status: model.TermPreferred},

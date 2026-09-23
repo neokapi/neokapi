@@ -240,8 +240,6 @@ name: three
 defaults:
   source_language: en
   target_languages: [nb, de, nl]
-  voice:
-    profile_file: .kapi/voice.yaml
 collections:
   - path: en.json
     target: "{lang}.json"

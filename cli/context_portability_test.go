@@ -31,9 +31,6 @@ name: portable-cli
 defaults:
   source_language: en
   target_languages: [nb]
-  voice:
-    profile_file: .kapi/voice.yaml
-  terms_source: .kapi/terms.json
 collections:
   - name: app
     path: "locales/en/*.json"

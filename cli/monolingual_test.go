@@ -52,8 +52,6 @@ func monolingualProject(t *testing.T) (recipe, root string) {
 name: northsea
 defaults:
   source_language: en-GB
-  voice: .kapi/voice.yaml
-  terms_source: .kapi/terms.json
   source_gate: none
 profiles:
   northsea:

@@ -26,8 +26,6 @@ func writeFormatBoundProject(t *testing.T) string {
 name: formats
 defaults:
   source_language: en
-  voice:
-    profile_file: voice.yaml
   formats:
     yaml:
       config:
@@ -58,7 +56,7 @@ style:
       description: Marketing superlative
       severity: critical
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(profile), 0o644))
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(profile), 0o644))
 
 	// `title` is prose the recipe selects; `command` is a shell line it does not.
 	// Only the command carries the prohibited word.

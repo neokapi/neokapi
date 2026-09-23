@@ -6,12 +6,8 @@ import {
 } from "../components/voiceBinding";
 
 describe("voice binding keys", () => {
-  it("round-trips the three forms of a binding", () => {
-    for (const spec of [
-      { profile_file: ".kapi/voice.yaml" },
-      { pack: "technical-docs" },
-      { profile: "support" },
-    ]) {
+  it("round-trips the two forms of a binding", () => {
+    for (const spec of [{ pack: "technical-docs" }, { profile: "support" }]) {
       expect(decodeVoiceBinding(encodeVoiceBinding(spec))).toEqual(spec);
     }
   });
@@ -23,8 +19,8 @@ describe("voice binding keys", () => {
     expect(decodeVoiceBinding("")).toBeUndefined();
   });
 
-  it("keeps a colon inside a file path", () => {
-    expect(decodeVoiceBinding("file:C:/voice.yaml")).toEqual({ profile_file: "C:/voice.yaml" });
+  it("keeps a colon inside a profile name", () => {
+    expect(decodeVoiceBinding("store:acme:docs")).toEqual({ profile: "acme:docs" });
   });
 
   it("offers the stored profiles first, then the packs as read-only", () => {

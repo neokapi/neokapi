@@ -9360,8 +9360,7 @@ export class VoiceBindingDTO {
     constructor($$source = {}) {
         if (!("kind" in $$source)) {
             /**
-             * Kind is "profile_file", "pack" or "profile" — the three forms a
-             * `voice:` binding takes.
+             * Kind is "profile" or "pack", the two forms a `voice:` binding takes.
              * @member
              * @type {string}
              */
@@ -9578,7 +9577,7 @@ export class VoicePointDTO {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Source is where the profile was loaded from: a path, `pack:<name>` or
+             * Source is where the profile was loaded from: `pack:<name>` or
              * `store:<name>`.
              * @member
              * @type {string | undefined}

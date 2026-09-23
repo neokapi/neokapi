@@ -56,15 +56,13 @@ func governedProject(t *testing.T) (recipe, root string) {
 name: northsea
 defaults:
   source_language: en-GB
-  voice: .kapi/voice.yaml
-  terms_source: .kapi/terms.json
   source_gate: none
 profiles:
   northsea:
     channels: [docs, reference]
   northsea-record:
     channels: [reference]
-    termstore: vocab/northsea-record.db
+    termstore: northsea-record
 collections:
   - name: northsea-docs
     channel: northsea/docs
@@ -112,8 +110,7 @@ tone:
 	// by naming a store, which governs that point alone; a bundle under
 	// `.kapi/` is an export artifact an import folds into the one project
 	// vocabulary, which governs everywhere.
-	require.NoError(t, os.MkdirAll(filepath.Join(real, "vocab"), 0o755))
-	recordTerms, err := terms.NewSQLiteStore(filepath.Join(real, "vocab", "northsea-record.db"))
+	recordTerms, err := terms.NewSQLiteStore(namedTermStorePath(t, "northsea-record"))
 	require.NoError(t, err)
 	stamp := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	require.NoError(t, recordTerms.AddConcept(t.Context(), terms.Concept{

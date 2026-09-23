@@ -20,12 +20,13 @@ import (
 
 // Voice profiles, on the way into the store and back out of it.
 //
-// A recipe names a profile by a PATH: `defaults.voice.profile_file` names one
-// and a profile's `voice:` names another. The store keys profiles by id, so the
-// tie between the two is what governance resolves through and what a snapshot
-// writes by. Reading a profile in is where that tie is recorded
-// (MetaVoiceBindings), in the context store, so every checkout of the project
-// resolves one answer.
+// A recipe binds a profile by the id the store holds it under. A layout keeps
+// each profile at a path: `.kapi/voice.yaml` for the project's, and
+// `.kapi/profiles/<name>/voice.yaml` for a profile's own. Reading a profile in
+// records the tie between the path and the id (MetaVoiceBindings), in the
+// context store: a snapshot writes each profile back to the path it came from,
+// and a profile that binds no voice in the recipe is answered by the one its
+// directory held.
 
 // compileVoiceSource writes one voice profile into the project store's voice
 // store and records where it is authored.
@@ -165,8 +166,8 @@ func voiceProfileScopeName(rel string) string {
 	return "default"
 }
 
-// voiceProfileIDForBinding answers which profile in the project's voice store a
-// recipe's `profile_file:` selects, or "" when nothing does.
+// voiceProfileIDForBinding answers which profile in the project's voice store
+// was read from a layout path, or "" when none was.
 //
 // The tie is the binding a read of that file recorded (MetaVoiceBindings). A
 // store filled by a restore rather than by a read has no binding recorded, and

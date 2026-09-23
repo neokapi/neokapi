@@ -20,15 +20,6 @@ type FrameworkPreset struct {
 	FormatPresets map[string]map[string]any // format -> config overrides
 	Flows         map[string]map[string]any // flow -> config defaults
 	Source        string                    // "built-in" or plugin name
-
-	// VoiceProfile, when non-empty, is scaffolded as
-	// defaults.voice.profile_file — a project-local voice profile
-	// the stack conventionally commits (e.g. i18n/voice.yaml).
-	VoiceProfile string
-	// TermsSource, when non-empty, is scaffolded as defaults.terms_source
-	// — the committed, git-tracked native terms the project compiles its
-	// terms from (e.g. i18n/terms.json).
-	TermsSource string
 }
 
 // MappingTemplate is a mapping entry from a framework preset.

@@ -20,15 +20,17 @@ the terms bundle and the per-surface memory bundles below are authored here.
 
 - `voice.yaml`: the machine-readable encoding of
   [docs/internals/brand-communication.md](../docs/internals/brand-communication.md),
-  bound project-wide via `defaults.voice`. Keep the two in sync.
+  stored as `neokapi-documentation` and bound by that name project-wide via
+  `defaults.voice`. Keep the two in sync.
 - `profiles/<name>/voice.yaml`: a voice profile per product where the
-  project-wide one does not apply. `kapi.yaml` binds
-  `profiles.bowrain.voice` to `profiles/bowrain/voice.yaml`; a collection whose
-  channel names no profile falls back to `defaults.voice` above.
+  project-wide one does not apply. The import stores
+  `profiles/bowrain/voice.yaml` as `bowrain-platform`, and `kapi.yaml` binds
+  `profiles.bowrain.voice` to that name; a collection whose channel names no
+  profile falls back to `defaults.voice` above.
 - `terms.json`: terminology decisions per target locale (currently Norwegian
   Bokmål, `nb`): a concept per decision with `en` + `nb` terms, domain,
-  definition/usage note, and status. Bound by `defaults.terms_source`. It is
-  both a source and a destination: the workspace's approved term decisions are
+  definition/usage note, and status. The import reads it into the project's
+  own terms. It is both a source and a destination: the workspace's approved term decisions are
   merged back into it by the nightly's concept pull, upsert-only, so a concept
   it does not mention survives.
 - `state/*.jsonl`: the decision record, written from the decisions this

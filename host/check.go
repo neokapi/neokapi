@@ -50,22 +50,7 @@ func (r checkReport) FormatText(w io.Writer) error {
 		writeDidNotRun(w, r.DidNotRunCause)
 	}
 	if r.Execution != nil {
-		completed, invalid, skipped := 0, 0, 0
-		for _, run := range r.Execution.Analyzers {
-			switch run.Status {
-			case check.AnalyzerPassed, check.AnalyzerFindings:
-				completed++
-			case check.AnalyzerInvalid:
-				invalid++
-			default:
-				skipped++
-			}
-		}
-		fmt.Fprintf(w, "  Coverage: %d completed, %d not run or unsupported", completed, skipped)
-		if invalid > 0 {
-			fmt.Fprintf(w, ", %d missed a canary", invalid)
-		}
-		fmt.Fprintln(w, ". Score covers reported findings only.")
+		writeCoverage(w, r.Execution.Analyzers)
 	}
 	if r.Scope != nil {
 		writeScope(w, r.Scope)
@@ -83,6 +68,51 @@ func (r checkReport) FormatText(w io.Writer) error {
 	}
 	writeWarnings(w, r.Warnings)
 	return nil
+}
+
+// writeCoverage renders one line on how far the analyzers got.
+//
+// It counts the analyzer runs that completed and names the analyzers that were
+// requested and did not run, with the reason the first such run gave. An
+// analyzer nobody asked for (not_requested), or one the configuration gives no
+// rule for this input (not_applicable), is left out: naming it would read as a
+// gap in the check when nothing was asked of it. The score caveat follows only
+// when a requested analyzer did not run, because only then is the score
+// computed over less than was asked for.
+func writeCoverage(w io.Writer, runs []check.AnalyzerExecution) {
+	completed, invalid := 0, 0
+	var notRun []string
+	reasons := map[string]string{}
+	for _, run := range runs {
+		switch run.Status {
+		case check.AnalyzerPassed, check.AnalyzerFindings:
+			completed++
+		case check.AnalyzerInvalid:
+			invalid++
+		case check.AnalyzerNotRequested, check.AnalyzerNotApplicable:
+		default:
+			if _, seen := reasons[run.ID]; !seen {
+				notRun = append(notRun, run.ID)
+				reasons[run.ID] = strings.TrimSuffix(strings.TrimSpace(run.Reason), ".")
+			}
+		}
+	}
+	fmt.Fprintf(w, "  Coverage: %s completed", pluralUnit(completed, "analyzer run", "analyzer runs"))
+	if invalid > 0 {
+		fmt.Fprintf(w, ", %d missed a canary", invalid)
+	}
+	if len(notRun) == 0 {
+		fmt.Fprintln(w, ".")
+		return
+	}
+	named := make([]string, len(notRun))
+	for i, id := range notRun {
+		named[i] = id
+		if reason := reasons[id]; reason != "" {
+			named[i] += " (" + reason + ")"
+		}
+	}
+	fmt.Fprintf(w, "; requested and not run: %s. Score covers reported findings only.\n", strings.Join(named, ", "))
 }
 
 // writeScope lists every file a diff named and what the check did with it.

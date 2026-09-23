@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
@@ -21,8 +22,13 @@ import (
 // on because the store is what every other surface answers from.
 //
 // The layout it reads is the project's own, or one a caller names: a donor
-// checkout, a directory a colleague sent. The difference between the two is
-// the recipe, whose bindings add to what the project's own layout holds.
+// checkout, a directory a colleague sent, or a directory of context files that
+// ships beside a sample. Either way the files are found where the layout keeps
+// them; the recipe names none of them.
+//
+// A recipe binds a voice by name. An import that brings voice profiles into a
+// project whose recipe binds none at the default point binds the project's one
+// voice in kapi.yaml, so what was just read is also what governs.
 
 // ContextImportRequest names the layout to read.
 type ContextImportRequest struct {
@@ -51,6 +57,40 @@ type ContextImport struct {
 	// name. Its context has nowhere to be logged, so the import read the files
 	// and left no history behind.
 	Unrecorded bool `json:"unrecorded,omitempty"`
+	// Voice reports what the import did about the recipe's voice binding. nil
+	// when the recipe already binds a voice at the default point, or the
+	// layout carries none.
+	Voice *ImportedVoiceBinding `json:"voice,omitempty"`
+}
+
+// ImportedVoiceBinding is the voice binding an import settled, or the choice
+// it left to the person.
+type ImportedVoiceBinding struct {
+	// Recipe is the recipe file the binding is written in, as a reader names it.
+	Recipe string `json:"recipe"`
+	// Bound is the profile the import bound under `defaults.voice`, empty when
+	// it bound none.
+	Bound *VoiceProfileRef `json:"bound,omitempty"`
+	// Candidates are the profiles the layout carries when there is more than
+	// one to choose from and the import bound none of them.
+	Candidates []VoiceProfileRef `json:"candidates,omitempty"`
+	// FileBinding is the path a recipe's `defaults.voice` names in a form that
+	// names a file, which the import leaves for the person to replace.
+	FileBinding string `json:"fileBinding,omitempty"`
+}
+
+// VoiceProfileRef names a voice profile in the project's store.
+type VoiceProfileRef struct {
+	ID   string `json:"id"`
+	Name string `json:"name,omitempty"`
+}
+
+// label renders the profile as a person reads it: its name, else its id.
+func (r VoiceProfileRef) label() string {
+	if r.Name != "" {
+		return r.Name
+	}
+	return r.ID
 }
 
 // Read reports whether the import put anything into the store.
@@ -100,6 +140,36 @@ func (r ContextImport) FormatText(w io.Writer) error {
 			return err
 		}
 	}
+	return r.Voice.formatText(w)
+}
+
+// formatText renders what the import did about the voice binding.
+func (v *ImportedVoiceBinding) formatText(w io.Writer) error {
+	switch {
+	case v == nil:
+		return nil
+	case v.Bound != nil:
+		_, err := fmt.Fprintf(w, "Bound voice %s in %s (defaults.voice.profile: %s).\n",
+			v.Bound.label(), v.Recipe, v.Bound.ID)
+		return err
+	case v.FileBinding != "":
+		_, err := fmt.Fprintf(w, "%s binds defaults.voice to the file %s, and a recipe binds a voice by name. "+
+			"Replace that binding with the profile's id from `kapi voice profiles`:\n  voice:\n    profile: <id>\n",
+			v.Recipe, v.FileBinding)
+		return err
+	case len(v.Candidates) > 0:
+		names := make([]string, len(v.Candidates))
+		for i, c := range v.Candidates {
+			names[i] = c.ID
+			if c.Name != "" && c.Name != c.ID {
+				names[i] += " (" + c.Name + ")"
+			}
+		}
+		_, err := fmt.Fprintf(w, "%s binds no voice, and this import read %d: %s. "+
+			"Bind the one that governs by adding it under defaults: in %s:\n  voice:\n    profile: %s\n",
+			v.Recipe, len(v.Candidates), strings.Join(names, ", "), v.Recipe, v.Candidates[0].ID)
+		return err
+	}
 	return nil
 }
 
@@ -131,11 +201,10 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 	if err != nil {
 		return res, err
 	}
-	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
-	if err != nil {
-		return res, fmt.Errorf("load project: %w", err)
-	}
-	from, own, err := resolveContextLayout(layout, req.Dir)
+	// The recipe is not loaded: an import reads files the recipe never names,
+	// and a recipe that fails to load for a binding it carries is exactly the
+	// one whose context a person is bringing in to fix it.
+	from, _, err := resolveContextLayout(layout, req.Dir)
 	if err != nil {
 		return res, err
 	}
@@ -146,13 +215,7 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 		return res, err
 	}
 
-	// The recipe's own bindings add to the conventional sources, and only for
-	// the project's own layout: a directory elsewhere is read as it stands.
-	var bindings *project.KapiProject
-	if own {
-		bindings = proj
-	}
-	sources, err := committedContextSources(bindings, from)
+	sources, err := committedContextSources(from)
 	if err != nil {
 		return res, err
 	}
@@ -215,6 +278,12 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 		}
 	}
 
+	voice, err := a.bindImportedVoice(ctx, db, layout, from, sources)
+	if err != nil {
+		return res, err
+	}
+	res.Voice = voice
+
 	recordDir := from.Export().UnitStateDir()
 	n, err := importDecisionRecord(ctx, db.Work(), recordDir)
 	if err != nil {
@@ -227,6 +296,84 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 		}
 	}
 	return res, nil
+}
+
+// bindImportedVoice binds the voice an import brought when the recipe binds none
+// at the default point, and reports what it did.
+//
+// The profile it binds is the layout's own: the `voice.yaml` at the top of the
+// layout, which is the project's by convention. A layout with none there and
+// exactly one voice profile anywhere binds that one. With several and none at
+// the top, nothing is bound and the candidates are reported, because which of
+// them governs the whole project is the person's decision.
+//
+// A recipe that already binds a voice at the default point is left alone,
+// including one whose binding names a file: that binding is reported for the
+// person to replace.
+func (a *App) bindImportedVoice(ctx context.Context, db *projectdb.DB, layout, from project.Layout, sources []contextSource) (*ImportedVoiceBinding, error) {
+	var voices []contextSource
+	for _, src := range sources {
+		if src.kind == sourceKindVoice {
+			voices = append(voices, src)
+		}
+	}
+	store := db.Voice()
+	if len(voices) == 0 || store == nil {
+		return nil, nil
+	}
+	recipeName := reportedPath(layout.Root, layout.RecipePath)
+	declared, err := project.DeclaredDefaultVoice(layout.RecipePath)
+	if err != nil {
+		return nil, err
+	}
+	if declared != nil {
+		if file := declared.NamedFile(); file != "" {
+			return &ImportedVoiceBinding{Recipe: recipeName, FileBinding: file}, nil
+		}
+		return nil, nil
+	}
+
+	bindings := loadVoiceBindings(ctx, db)
+	ref := func(src contextSource) (VoiceProfileRef, bool) {
+		id := bindings[src.rel]
+		if id == "" {
+			return VoiceProfileRef{}, false
+		}
+		r := VoiceProfileRef{ID: id}
+		if p, gerr := store.GetProfile(ctx, id); gerr == nil {
+			r.Name = p.Name
+		}
+		return r, true
+	}
+
+	top := filepath.Join(from.StateDir, VoiceConventionalName)
+	var candidates []VoiceProfileRef
+	seen := map[string]bool{}
+	var chosen *VoiceProfileRef
+	for _, src := range voices {
+		r, ok := ref(src)
+		if !ok || seen[r.ID] {
+			continue
+		}
+		seen[r.ID] = true
+		candidates = append(candidates, r)
+		if src.path == top {
+			chosen = &r
+		}
+	}
+	if chosen == nil && len(candidates) == 1 {
+		chosen = &candidates[0]
+	}
+	if chosen == nil {
+		if len(candidates) == 0 {
+			return nil, nil
+		}
+		return &ImportedVoiceBinding{Recipe: recipeName, Candidates: candidates}, nil
+	}
+	if err := project.BindVoice(layout.RecipePath, "", chosen.ID); err != nil {
+		return nil, fmt.Errorf("bind voice %s in %s: %w", chosen.ID, recipeName, err)
+	}
+	return &ImportedVoiceBinding{Recipe: recipeName, Bound: chosen}, nil
 }
 
 // resolveContextLayout turns the directory a caller named into the layout to

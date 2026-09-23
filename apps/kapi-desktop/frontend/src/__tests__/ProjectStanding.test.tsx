@@ -32,7 +32,7 @@ const points: ProjectPointsResult = {
       collections: ["App"],
       voice: "Northsea",
       voice_field: "defaults.voice",
-      termstore: ".kapi/terms.json",
+      termstore: "northsea-terms",
     },
     {
       ref: "support/docs",
@@ -80,7 +80,7 @@ describe("ProjectStanding", () => {
     expect(standing).toHaveTextContent("42 unit(s) extracted");
     expect(standing).toHaveTextContent("2 collection(s)");
     expect(screen.getByTestId("standing-voice")).toHaveTextContent("voice Northsea");
-    expect(standing).toHaveTextContent(".kapi/terms.json");
+    expect(standing).toHaveTextContent("northsea-terms");
     expect(standing).toHaveTextContent("3 of 3 point(s) governed");
   });
 

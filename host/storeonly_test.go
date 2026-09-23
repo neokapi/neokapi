@@ -37,9 +37,8 @@ id: prj_twocheckoutsaaaaaaaaaaaaaaaaaaaa
 defaults:
   source_language: en
   target_languages: [nb]
-  terms_source: .kapi/terms.json
   voice:
-    profile_file: .kapi/voice.yaml
+    profile: audit-voice
 collections:
   - name: docs
     path: "docs/*.md"

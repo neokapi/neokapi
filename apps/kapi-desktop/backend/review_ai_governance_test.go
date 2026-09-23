@@ -95,7 +95,9 @@ func newGovernedReviewProject(t *testing.T, app *App) (*TabInfo, string) {
 		[]byte(`{"greeting":"Hello {name}","farewell":"Goodbye"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "fr-FR.json"),
 		[]byte(`{"greeting":"Bonjour {name}","farewell":"Au revoir"}`), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(reviewVoiceYAML), 0o644))
+	// The import reads the voice from the layout and binds it by name.
+	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, project.RelStatePath("voice.yaml")), []byte(reviewVoiceYAML), 0o644))
 
 	stamp := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	data, err := ktb.Marshal(ktb.FromConcepts([]terms.Concept{{
@@ -119,8 +121,6 @@ func newGovernedReviewProject(t *testing.T, app *App) (*TabInfo, string) {
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR"},
-			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
-			TermsSource:     project.RelStatePath(ktb.ConventionalName),
 			Tools: map[string]map[string]any{
 				"translate": {"context": "neighbours", "contextWindow": 4},
 			},

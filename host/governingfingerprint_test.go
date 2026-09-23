@@ -86,7 +86,7 @@ func TestApplyReviewDecision_RecordsTheGoverningContext(t *testing.T) {
 
 	// The voice moves. The same verdict on the same pairing is now a decision
 	// under a different context, and is recorded again.
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(`name: Staleness Voice
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(`name: Staleness Voice
 version: 2
 tone:
   formality: formal

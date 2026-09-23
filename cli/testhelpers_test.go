@@ -39,14 +39,12 @@ name: verify
 defaults:
   source_language: en
   target_languages: [fr]
-  voice:
-    profile_file: voice.yaml
 collections:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(verifyVoiceYAML), 0o644))
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(verifyVoiceYAML), 0o644))
 
 	// Source: contains the competitor term "Globex" (brand fail) and a
 	// {name} placeholder plus a ruled term "Save".
@@ -145,7 +143,6 @@ name: rev
 defaults:
   source_language: en
   target_languages: [nb]
-  memory_source: memory.json
 collections:
   - path: en.json
     target: "{lang}.json"

@@ -397,10 +397,6 @@ type VoiceResolveOptions struct {
 //     starter pack).
 //  2. defaults.voice, in the same two forms.
 //
-// A binding that names a `profile_file:` names WHICH profile applies, and the
-// store answers for it under the id `kapi context import` filed that path
-// under. The file itself stays closed.
-//
 // What the recipe binds is *loaded* here and then handed to the framework's one
 // resolution chain (coreprofile.ResolveProfileFromContext) at the collection tier,
 // where a connector- or editor-created project's `CollectionConfig` binding
@@ -532,14 +528,9 @@ const VoiceConventionalName = "voice.yaml"
 
 // loadBoundVoiceProfile turns a resolved voice binding into a VoiceProfile,
 // out of the project's voice store. Returns found=false when the binding is nil
-// (nothing bound at this point, nor project-wide) and when the store holds no
-// profile for it. field names the recipe key the binding came from.
-//
-// A `profile_file:` names WHICH profile applies here, and the store answers for
-// it under the id `kapi context import` filed that path under. The file itself
-// is never opened: a checkout on another branch carries a different copy of it,
-// and a gate that read whichever copy was in the tree would enforce a voice the
-// project never agreed on.
+// (nothing bound at this point, nor project-wide). field names the recipe key
+// the binding came from, and a `profile:` the store does not hold is an error
+// that names it (boundVoiceNotHeld).
 func (a *App) loadBoundVoiceProfile(ctx context.Context, bv *project.VoiceBinding, root string, store coreprofile.Store, field string) (*coreprofile.VoiceProfile, string, bool, error) {
 	if bv == nil {
 		return nil, "", false, nil
@@ -554,22 +545,9 @@ func (a *App) loadBoundVoiceProfile(ctx context.Context, bv *project.VoiceBindin
 	case bv.Profile != "":
 		p, err := lookupProfileIn(ctx, store, bv.Profile)
 		if err != nil {
-			return nil, "", false, err
+			return nil, "", false, boundVoiceNotHeld(field, bv.Profile, err)
 		}
 		return p, "store:" + bv.Profile, true, nil
-	case bv.ProfileFile != "":
-		id := a.voiceProfileIDForBinding(ctx, root, bv.ProfileFile)
-		if id == "" {
-			return nil, "", false, nil
-		}
-		p, err := lookupProfileIn(ctx, store, id)
-		if err != nil {
-			// The store has not been given this profile. The first-meeting
-			// notice names the file and the command that reads it, so the
-			// answer here is that nothing is bound.
-			return nil, "", false, nil
-		}
-		return p, "store:" + id, true, nil
 	}
 	return nil, "", false, nil
 }
@@ -589,7 +567,7 @@ func (a *App) lookupStoreProfile(cmd Command, name string) (*coreprofile.VoicePr
 // case-insensitive name. A nil store — no project, and no standalone file on
 // disk — reads as profile-not-found.
 func lookupProfileIn(ctx context.Context, store coreprofile.Store, name string) (*coreprofile.VoiceProfile, error) {
-	notFound := fmt.Errorf("voice profile %q not found in local store (try 'kapi voice pack %s' or 'kapi voice profiles')", name, name)
+	notFound := voiceProfileNotFound(name)
 	if store == nil {
 		return nil, notFound
 	}

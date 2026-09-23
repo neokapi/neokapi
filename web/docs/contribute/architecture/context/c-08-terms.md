@@ -136,8 +136,10 @@ reads it in a browser diff and `jq` reads it on the command line.
 its vocabulary reviewable in a pull request keeps the snapshot committed; a team
 that does not backs the store up instead, and both govern identically.
 
-An import with no path reads `.kapi/terms.json`, the conventional place, and
-`defaults.terms_source` names a bundle elsewhere. That single convention works
+An import with no path reads `.kapi/terms.json`, the conventional place, and an
+import of a directory reads the `terms.json` in it. The recipe names no terms
+file: the project's own terms govern with nothing bound, and a profile binds a
+standalone store by name with `termstore:`. That single convention works
 because **a project has exactly one set of terms**. The content memory has no
 equivalent: a project accumulates *many* memory bundles, one per content surface
 ([C-09](c-09-content-memory.md)), so an import reads every bundle in a directory
@@ -460,8 +462,10 @@ it.
 `stats`, `expand`, `validate` and `list`. The store selector is **`--termstore`**: `--terms` is already
 taken as the boolean gate on `kapi exec dnt-check`, and the asymmetry with
 `--memory` is guarded by a test. The recipe follows the flag: a profile binds a
-standalone store with `profiles.<name>.termstore`, and `terms` names contents
-(the concepts, and dnt-check's list of strings), never a store.
+standalone store with `profiles.<name>.termstore`, by the name `--termstore
+<name>` takes and never by a path, and `terms` names contents (the concepts, and
+dnt-check's list of strings), never a store. A `termstore:` that is a path or a
+file name fails to load.
 
 `kapi terms occurrences` reports where a concept is actually used, reading the
 occurrence index in the block cache ([C-03](c-03-context-store-and-graph.md)).

@@ -33,14 +33,13 @@ func markupPointProject(t *testing.T, format, name, body string, apart bool) str
 name: markup-points
 defaults:
   source_language: en
-  terms_source: .kapi/terms.json
 profiles:
   site:
     channels: [web]
-    termstore: vocab/site.db
+    termstore: site
   source:
     channels: [comments]
-    termstore: vocab/source.db
+    termstore: source
 collections:
   - name: pages
     channel: site/web
@@ -53,8 +52,8 @@ collections:
 	write(".kapi/profiles/site/voice.yaml", siteVoice)
 	write(".kapi/profiles/source/voice.yaml", sourceVoice)
 	writeTermsBundle(t, filepath.Join(root, ".kapi", "terms.json"), "project-name", "Kapi", "OldKapi")
-	writeTermsStore(t, filepath.Join(root, "vocab", "site.db"), "site-name", "SiteName", "ScopedName")
-	writeTermsStore(t, filepath.Join(root, "vocab", "source.db"), "source-name", "SourceName", "LegacyName")
+	writeTermsStore(t, namedTermStorePath(t, "site"), "site-name", "SiteName", "ScopedName")
+	writeTermsStore(t, namedTermStorePath(t, "source"), "source-name", "SourceName", "LegacyName")
 	write(name, body)
 	readProjectContext(t, root)
 	return root

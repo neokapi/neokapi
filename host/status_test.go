@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
@@ -108,6 +108,14 @@ func TestStatus_CollectionScopedGates(t *testing.T) {
 // the file carries.
 func writeSourceGateProject(t *testing.T, sourceGate string) string {
 	t.Helper()
+	return writeSourceProject(t, "  voice:\n    pack: professional-b2b\n", sourceGate)
+}
+
+// writeSourceProject writes a three-string catalog project. binding is spliced
+// under `defaults:` and says what governs the source; empty leaves it
+// ungoverned.
+func writeSourceProject(t *testing.T, binding, sourceGate string) string {
+	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
 	recipe := `version: v1
@@ -115,7 +123,7 @@ name: src
 defaults:
   source_language: en
   target_languages: [nb]
-collections:
+` + binding + `collections:
   - path: en.json
     target: "{lang}.json"
 ` + sourceGate + "\n"
@@ -149,6 +157,19 @@ func TestStatus_SourceReadiness(t *testing.T) {
 // TestStatus_SourceReadiness_ApprovalIsNotDerived: settling reaches `checked`
 // and stops. `approved` is somebody's decision, so a gate that asks for it stays
 // pending however clean the source is.
+// TestStatus_SourceReadiness_UngovernedSourceIsNotChecked: source that no voice
+// and no terms govern was checked against nothing. It reads as authored, so a
+// project fresh from `kapi init` does not report its source as checked.
+func TestStatus_SourceReadiness_UngovernedSourceIsNotChecked(t *testing.T) {
+	t.Chdir(writeSourceProject(t, "", ""))
+	out := runStatusJSON(t)
+
+	require.NotNil(t, out.Source)
+	assert.Equal(t, 3, out.Source.Total)
+	assert.Equal(t, 100, out.Source.Pct["authored"])
+	assert.Equal(t, 0, out.Source.Pct["checked"], "nothing governs the source, so nothing checked it")
+}
+
 func TestStatus_SourceReadiness_ApprovalIsNotDerived(t *testing.T) {
 	t.Chdir(writeSourceGateProject(t, "source_gate: { approved: 100 }"))
 	out := runStatusJSON(t)
@@ -410,18 +431,12 @@ func TestStatus_ShipManifestNamesUngovernedTerminology(t *testing.T) {
 
 // TestStatus_DoNotTranslateGovernsAndIsChecked: a do-not-translate concept
 // governs every language, and the loop's term-check fails a target that
-// translated the term, so the locale does not ship on it. The concept is committed in
-// the recipe's terms source, the form a project keeps its terms in.
+// translated the term, so the locale does not ship on it. The concept is read in
+// from the layout's terms bundle, the form a project brings its terms in.
 func TestStatus_DoNotTranslateGovernsAndIsChecked(t *testing.T) {
 	root := writeVerifiedGateProject(t)
-	recipePath := filepath.Join(root, "kapi.yaml")
-	recipe, err := os.ReadFile(recipePath)
-	require.NoError(t, err)
-	bound := strings.Replace(string(recipe), "  target_languages: [nb, de]\n",
-		"  target_languages: [nb, de]\n  terms_source: terms.json\n", 1)
-	require.NotEqual(t, string(recipe), bound, "the recipe binds the terms source")
-	require.NoError(t, os.WriteFile(recipePath, []byte(bound), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "terms.json"), []byte(`{
+	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, project.RelStatePath("terms.json")), []byte(`{
   "schemaVersion": "1.0",
   "kind": "kapi-terms",
   "concepts": [

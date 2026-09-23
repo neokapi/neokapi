@@ -97,8 +97,9 @@ func TestVerify_ExplicitTermsUnboundDidNotRun(t *testing.T) {
 	require.True(t, ok, "the terminology gate must appear as a misconfig failure")
 	assert.False(t, g.Pass)
 	require.NotEmpty(t, g.Findings)
-	assert.Contains(t, g.Findings[0].Message, "defaults.terms_source",
-		"the suggestion must name a recipe key that exists")
+	assert.Contains(t, g.Findings[0].Message, "the project has no terms")
+	assert.Contains(t, g.Findings[0].Suggestion, "kapi context import",
+		"the suggestion must name a command that gives the project terms")
 	require.Len(t, out.Gates, 1)
 }
 
@@ -172,14 +173,12 @@ name: clean
 defaults:
   source_language: en
   target_languages: [fr]
-  voice:
-    profile_file: voice.yaml
 collections:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(profile), 0o644))
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(profile), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "app.json"),
 		[]byte("{\"greeting\": \"Hello there\"}\n"), 0o644))
 	readProjectContext(t, root)

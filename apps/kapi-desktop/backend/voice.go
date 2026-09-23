@@ -59,8 +59,7 @@ type VoiceFallbackDTO struct {
 
 // VoiceBindingDTO is the recipe binding that selected a profile.
 type VoiceBindingDTO struct {
-	// Kind is "profile_file", "pack" or "profile" — the three forms a
-	// `voice:` binding takes.
+	// Kind is "profile" or "pack", the two forms a `voice:` binding takes.
 	Kind  string `json:"kind"`
 	Value string `json:"value"`
 }
@@ -78,7 +77,7 @@ type VoicePointDTO struct {
 	Collections []string `json:"collections"`
 	// Field is the recipe key the governing binding was declared on.
 	Field string `json:"field,omitempty"`
-	// Source is where the profile was loaded from: a path, `pack:<name>` or
+	// Source is where the profile was loaded from: `pack:<name>` or
 	// `store:<name>`.
 	Source    string           `json:"source,omitempty"`
 	Binding   *VoiceBindingDTO `json:"binding,omitempty"`
@@ -244,7 +243,7 @@ func (a *App) voicePoint(
 		Channels:    profileChannels(proj, pt.Profile),
 		Collections: collections[pt.Profile],
 		Field:       declared.VoiceField,
-		TermStore:   relSource(root, declared.TermStore),
+		TermStore:   declared.TermStore,
 		Binding:     voiceBinding(declared.Voice),
 		Validity:    validityDTO(declared.Validity, pt.At),
 	}
@@ -603,8 +602,6 @@ func voiceBinding(b *project.VoiceBinding) *VoiceBindingDTO {
 		return nil
 	}
 	switch {
-	case b.ProfileFile != "":
-		return &VoiceBindingDTO{Kind: "profile_file", Value: b.ProfileFile}
 	case b.Pack != "":
 		return &VoiceBindingDTO{Kind: "pack", Value: b.Pack}
 	case b.Profile != "":

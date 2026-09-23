@@ -131,7 +131,6 @@ func TestCheckContextReportTermsWithoutVoiceAreChecked(t *testing.T) {
 name: terms-only
 defaults:
   source_language: en
-  terms_source: .kapi/terms.json
 collections:
   - name: content
     content:

@@ -15,6 +15,8 @@ import (
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host/output"
+	"github.com/neokapi/neokapi/memory/kmb"
+	"github.com/neokapi/neokapi/terms/ktb"
 )
 
 // Local project content management — add/rm edit the .kapi recipe's content
@@ -76,10 +78,10 @@ func MatchesPathPrefix(rel string, prefixes []string) bool {
 //
 // A file is reported when kapi has a reader for its extension and it is matched
 // by no item pattern, no target template and no exclude. Files kapi cannot read
-// are not content. The recipe and the artifacts it binds as context — the voice
-// profile, the terms source, the content memory source, and the per-profile
-// bindings — are governance rather than governed, so they are skipped even
-// though kapi reads YAML and JSON.
+// are not content. The recipe and the context files `kapi context import` reads
+// (a voice profile, a terms bundle, a content-memory bundle, named the way an
+// import finds them) are governance rather than governed, so they are skipped
+// even though kapi reads YAML and JSON.
 //
 // prefixes narrows the report to a subtree, exactly as `kapi ls` does.
 func (a *App) UntrackedContent(proj *coreproj.KapiProject, recipePath string, prefixes []string) (output.LsOutput, error) {
@@ -88,9 +90,7 @@ func (a *App) UntrackedContent(proj *coreproj.KapiProject, recipePath string, pr
 	if err != nil {
 		return output.LsOutput{}, err
 	}
-	for _, rel := range contextArtifacts(proj, filepath.Base(recipePath)) {
-		tracked[rel] = true
-	}
+	tracked[filepath.Base(recipePath)] = true
 
 	out := output.LsOutput{Untracked: true}
 	err = coreproj.WalkProjectDir(root, func(rel string, info os.FileInfo) error {
@@ -98,7 +98,7 @@ func (a *App) UntrackedContent(proj *coreproj.KapiProject, recipePath string, pr
 			return nil
 		}
 		rel = filepath.ToSlash(rel)
-		if tracked[rel] || !MatchesPathPrefix(rel, prefixes) {
+		if tracked[rel] || isContextFile(rel) || !MatchesPathPrefix(rel, prefixes) {
 			return nil
 		}
 		for _, pattern := range proj.Defaults.Exclude {
@@ -174,29 +174,11 @@ func trackedPaths(proj *coreproj.KapiProject, root string) (map[string]bool, err
 	return tracked, nil
 }
 
-// contextArtifacts lists the project-relative files the recipe binds as
-// context: the recipe itself and every governance document it points at.
-func contextArtifacts(proj *coreproj.KapiProject, recipeName string) []string {
-	out := []string{recipeName}
-	voice := func(b *coreproj.VoiceBinding) {
-		if b != nil && b.ProfileFile != "" {
-			out = append(out, filepath.ToSlash(b.ProfileFile))
-		}
-	}
-	voice(proj.Defaults.Voice)
-	if proj.Defaults.TermsSource != "" {
-		out = append(out, filepath.ToSlash(proj.Defaults.TermsSource))
-	}
-	if proj.Defaults.MemorySource != "" {
-		out = append(out, filepath.ToSlash(proj.Defaults.MemorySource))
-	}
-	for _, prof := range proj.Profiles {
-		voice(prof.Voice)
-		if prof.TermStore != "" {
-			out = append(out, filepath.ToSlash(prof.TermStore))
-		}
-	}
-	return out
+// isContextFile reports whether a file is named the way `kapi context import`
+// finds a context file in a layout: a voice profile, a terms bundle or a
+// content-memory bundle.
+func isContextFile(rel string) bool {
+	return filepath.Base(rel) == VoiceConventionalName || ktb.IsBundlePath(rel) || kmb.IsBundlePath(rel)
 }
 
 // CollectionForAdd returns the collection new patterns are appended to: nil

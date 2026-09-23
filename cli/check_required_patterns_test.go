@@ -26,8 +26,6 @@ func requiredPatternProject(t *testing.T) (root, carries, missing string) {
 name: required-patterns
 defaults:
   source_language: en
-  voice:
-    profile_file: voice.yaml
 collections:
   - name: docs
     content:
@@ -39,7 +37,7 @@ collections:
 		require.NoError(t, os.WriteFile(full, []byte(body), 0o644))
 		return full
 	}
-	write("voice.yaml", `name: Required Patterns
+	write(".kapi/voice.yaml", `name: Required Patterns
 style:
   prohibited_patterns:
     - regex: '\bseamless\b'

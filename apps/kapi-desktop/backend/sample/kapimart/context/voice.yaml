@@ -1,7 +1,8 @@
 # KapiMart house voice.
 #
-# Bound to the `kapimart` profile in kapi.yaml and to the default point, so
-# `kapi check` scores every surface against it with no flags.
+# Stored as `kapimart` and bound by that name to the `kapimart` profile in
+# kapi.yaml and to the default point, so `kapi check` scores every surface
+# against it with no flags.
 #
 # The register bends per surface (channels:, below): a walkthrough and a
 # contract are not written the same way. The vocabulary does not bend — a word

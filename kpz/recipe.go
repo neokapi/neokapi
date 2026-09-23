@@ -147,9 +147,8 @@ var sideEffectingExtras = map[string]bool{
 //     config that would arm them (`defaults.tools`, `defaults.locales.*.tools`).
 //   - Exec-class format bindings ([execClassFormats]) on any content item.
 //   - Every path-valued field naming somewhere outside the project
-//     ([sanitizeRecipePath]): the terms, terms-source, memory-source and state
-//     bindings, the redaction rules file, the voice profile file, and each
-//     content entry's `base` and `target`. A project's OWN recipe may point
+//     ([sanitizeRecipePath]): the redaction rules file and each content
+//     entry's `base` and `target`. A project's OWN recipe may point
 //     wherever its owner wants — that stays supported, and is asserted
 //     separately — but a packaged recipe is answering for a machine it has
 //     never seen, so it may only name places inside the project it lands in.
@@ -203,16 +202,7 @@ func SanitizeRecipe(p *project.KapiProject) (*project.KapiProject, []string) {
 	}
 
 	clone.Defaults.Extras = sanitizeExtras(p.Defaults.Extras, "defaults.", note)
-	clone.Defaults.TermsSource = sanitizeRecipePath(p.Defaults.TermsSource, "defaults.terms_source", note)
-	clone.Defaults.MemorySource = sanitizeRecipePath(p.Defaults.MemorySource, "defaults.memory_source", note)
 	clone.Defaults.Redaction = sanitizeRedaction(p.Defaults.Redaction, "defaults.redaction.rules", note)
-	if bv := p.Defaults.Voice; bv != nil {
-		// A pointer field is shared with the caller's recipe, so it is rebuilt
-		// rather than edited, the same rule the maps above follow.
-		c := *bv
-		c.ProfileFile = sanitizeRecipePath(bv.ProfileFile, "defaults.voice.profile_file", note)
-		clone.Defaults.Voice = &c
-	}
 
 	clone.Defaults.Tools = sanitizeToolConfig(p.Defaults.Tools, "defaults.tools", note)
 	if len(p.Defaults.Locales) > 0 {

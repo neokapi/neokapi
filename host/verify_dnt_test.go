@@ -27,7 +27,7 @@ func writeDoNotTranslateProject(t *testing.T, source, target string) string {
 	isolateCheckExecution(t)
 	root := t.TempDir()
 	writeFixtureFile(t, root, "kapi.yaml", "version: v1\nname: dnt\ndefaults:\n  source_language: en\n  target_languages: [fr]\n"+
-		"  terms_source: .kapi/terms.json\ncollections:\n  - name: app\n    path: en/app.json\n    target: \"{lang}/app.json\"\n")
+		"collections:\n  - name: app\n    path: en/app.json\n    target: \"{lang}/app.json\"\n")
 	writeFixtureFile(t, root, "en/app.json", source)
 	writeFixtureFile(t, root, "fr/app.json", target)
 	writeConceptsBundle(t, filepath.Join(root, project.RelStatePath(ktb.ConventionalName)), []terms.Concept{kapiDoNotTranslate})

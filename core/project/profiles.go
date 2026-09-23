@@ -121,14 +121,15 @@ type Profile struct {
 	// collection binds to one of them through its `channel:`.
 	Channels []Channel `yaml:"channels,omitempty" json:"channels,omitempty"`
 
-	// Voice is the voice profile governing this product's content, in the
-	// same forms as defaults.voice (a bare path, or profile_file / profile /
-	// pack). nil keeps defaults.voice.
+	// Voice is the voice profile governing this product's content, bound by
+	// name in the same forms as defaults.voice (`profile:` or `pack:`). nil
+	// keeps defaults.voice.
 	Voice *VoiceBinding `yaml:"voice,omitempty" json:"voice,omitempty"`
 
-	// TermStore is a STANDALONE terms store governing this product's content —
-	// a file the recipe points at, resolved relative to the project root. Empty
-	// is the ordinary case: the project's own store governs.
+	// TermStore names a terms store governing this product's content, by the
+	// name `--termstore` takes: a store `kapi terms` keeps for this user. It is
+	// a name and never a path. Empty is the ordinary case: the project's own
+	// terms govern.
 	//
 	// Spelled `termstore:` rather than `terms:` because a store is not its
 	// contents, and because `terms` is already the dnt-check tool's own key for
@@ -356,9 +357,9 @@ type ResolvedGovernance struct {
 	// Voice is the matched profile's voice, else defaults.voice. nil
 	// when neither binds one.
 	Voice *VoiceBinding
-	// TermStore is the matched profile's standalone terms store, as written in
-	// the recipe — relative to the project root unless absolute. Empty means the
-	// project's own store governs, which is the ordinary case.
+	// TermStore is the name of the matched profile's terms store, as written in
+	// the recipe. Empty means the project's own terms govern, which is the
+	// ordinary case.
 	TermStore string
 	// VoiceField names the recipe key Voice came from (`profiles.bowrain.voice`
 	// or `defaults.voice`), so a profile that cannot be loaded names the line
@@ -716,8 +717,8 @@ func (p *KapiProject) HasContextSpace() bool {
 // The distinction is a venue one. A collection's channel and the voice it
 // selects are carried to a connected server by the context content type, so
 // both venues resolve the same voice for the same content. A profile's
-// `termstore:` is a path into the local project — a file the recipe points at —
-// and there is nothing on the wire for it: the server governs terminology from
+// `termstore:` names a store this user keeps on this machine, and there is
+// nothing on the wire for it: the server governs terminology from
 // the workspace vocabulary instead. A recipe that binds terms per profile therefore still
 // resolves differently depending on where the loop ran, and that is what the
 // remaining warning is about.
@@ -970,11 +971,28 @@ func (p *KapiProject) validateProfiles() error {
 		if err := prof.Voice.validate(fmt.Sprintf("profiles.%s.voice", name)); err != nil {
 			return err
 		}
+		if err := validateTermStoreName(fmt.Sprintf("profiles.%s.termstore", name), prof.TermStore); err != nil {
+			return err
+		}
 		if _, err := prof.Validity(); err != nil {
 			return fmt.Errorf("profiles.%s: %w", name, err)
 		}
 	}
 	return nil
+}
+
+// validateTermStoreName rejects a `termstore:` that names a file rather than a
+// store. A path separator or a file extension is a file: the store it held
+// would be read from wherever this checkout happens to sit, where a name
+// resolves to the one store this user keeps under it.
+func validateTermStoreName(field, name string) error {
+	if name == "" || !namesFile(name) {
+		return nil
+	}
+	return fmt.Errorf("%s: %q names a file, and a recipe binds a terms store by name. "+
+		"Name a store `kapi terms` keeps (the name `--termstore` takes), or read the file into "+
+		"the project's own terms with `%s` and leave termstore unset",
+		field, name, importCommandFor(name))
 }
 
 // declaresChannel reports whether a profile declares the given channel.

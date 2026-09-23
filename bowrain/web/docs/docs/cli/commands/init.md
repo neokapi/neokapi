@@ -188,6 +188,6 @@ Auth tokens are never written to the project. They live in the OS keychain (keys
 After initialization:
 
 1. **Edit content collections** in `kapi.yaml` to match your file structure
-2. **Bind the context**: a voice profile under `defaults.voice`, terms under `defaults.terms_source`, coordinates under `defaults.coordinates`
+2. **Bind the context**: read the voice profile and terms in with `kapi context import`, which binds the voice under `defaults.voice` by name; declare coordinates under `defaults.coordinates`
 3. **Catch the project up**: `kapi up`
 4. **Connect to a server**: `kapi init --server …` on an existing project connects it and leaves an already-connected project untouched

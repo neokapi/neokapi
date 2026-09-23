@@ -59,8 +59,6 @@ type Defaults struct {
     Comments        CommentDefaults           `yaml:"comments,omitempty"`     // directives and channel for every declared comment
     Voice           *VoiceBinding             `yaml:"voice,omitempty"`
     Coordinates     map[string]string         `yaml:"coordinates,omitempty"`  // the declared axes of the default point
-    TermsSource     string                    `yaml:"terms_source,omitempty"`
-    MemorySource    string                    `yaml:"memory_source,omitempty"`
     Tools           map[string]map[string]any `yaml:"tools,omitempty"`        // per-tool presets
     Locales         map[string]LocaleDefaults `yaml:"locales,omitempty"`      // per-target-language presets
     Extras          map[string]yaml.Node      `yaml:",inline"`
@@ -92,7 +90,7 @@ type Collection struct {
 type Profile struct {
     Channels  []Channel     `yaml:"channels,omitempty"`  // a slug, or {id, concept}
     Voice     *VoiceBinding `yaml:"voice,omitempty"`     // same forms as defaults.voice
-    TermStore string        `yaml:"termstore,omitempty"` // a standalone terms store, project-relative
+    TermStore string        `yaml:"termstore,omitempty"` // a terms store, by name
     Concept   string        `yaml:"concept,omitempty"`   // display only; never resolved
     ValidFrom string        `yaml:"valid_from,omitempty"`
     ValidTo   string        `yaml:"valid_to,omitempty"`
@@ -152,7 +150,7 @@ profiles:
       - app
     voice:
       profile: acme-app             # a profile in the project's voice store
-    termstore: acme-terms.db        # optional; the project's own terms otherwise
+    termstore: acme-terms           # optional, a store name; the project's own terms otherwise
 
 collections:
   - name: acme-app
@@ -257,9 +255,9 @@ the merged point (structural plus declared axes), its voice binding, and its
 preview host if the venue extension declares one, so both venues resolve the
 same voice for the same content.
 
-What does not cross is a profile's `termstore:`. That is a path into the local
-project, and a path means nothing to a venue that governs terminology from a
-shared vocabulary. A recipe that binds a terms store per profile
+What does not cross is a profile's `termstore:`. That names a store on this
+machine, and a local store means nothing to a venue that governs terminology
+from a shared vocabulary. A recipe that binds a terms store per profile
 (`KapiProject.BindsTermsByProfile`) and also binds a venue is warned at run time
 (`host.WarnUnsyncedCoordinates`, called by `kapi run`, `kapi up` and
 `RunFlowAllLocales`) that the binding applies to local runs only. The run
@@ -347,10 +345,10 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   placeholders before processing and restore it afterwards. Overridable per
   `ContentItem.Redaction`.
 - `voice` (`*VoiceBinding`): bind a voice profile as standing project context.
-  `profile` names one in the project's voice store, `pack` a built-in starter
-  pack, and `profile_file` (or a bare path, which parses as one) selects the
-  profile the store filed under that path. Every form resolves through the
-  store; the file itself is never opened on a read path.
+  `profile` names one in the project's voice store and `pack` a built-in
+  starter pack; a scalar that is not a path is the short form of `profile`.
+  A binding that names a file (`profile_file:`, or a scalar path) is rejected
+  at load with the import that reads the file.
 - `coordinates` (map): the declared axes of the project's default point (see
   above).
 - `tools` (map of tool name to config): project-level tool presets, applied
@@ -358,15 +356,13 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   per key.
 - `locales` (map of locale to `{tools}`): per-target-language presets that
   merge on top of `tools` and under a step's own config.
-- `terms_source` / `memory_source` (string): native bundles
-  (`.terms.json` / `.memory.json`) in the checkout that
-  [`kapi context import`](/reference/commands/context-import) reads and
-  `kapi context snapshot` writes. Neither is on a read path: gates and lookups
-  answer from the project's stores. Both keys bind any path; the conventional
-  places are inside `.kapi/`. `terms_source` left unset makes the import read
-  `<root>/.kapi/terms.json`; `memory_source` has no single fallback, because a
-  project has one terms bundle but many memory bundles (one per content
-  surface), so the import reads every bundle in `.kapi/memory/`.
+- No key names a context file. `terms_source` and `memory_source` are rejected
+  at load (`retiredDefaultsKeys`) with the import that reads the file.
+  [`kapi context import`](/reference/commands/context-import) reads a layout's
+  `terms.json`, its `memory/` bundles and its voice profiles into the stores,
+  and binds the imported voice under `defaults.voice` when the recipe binds none
+  (`project.BindVoice`, a text insertion that leaves the rest of the file as
+  written).
 
 ## The project store
 
@@ -447,8 +443,9 @@ the full extension model.
     target`.
 - Every `profiles:` key is a slug, and so is every channel it declares; a channel
   is declared at most once per profile. A profile's `voice` is shape-checked
-  exactly like `defaults.voice` (one of `profile`, `pack`, `profile_file`, or a
-  bare path), a `concept` on the profile or on a channel must be
+  exactly like `defaults.voice` (one of `profile` or `pack`, and no file), a
+  `termstore` is a store name rather than a path, a `concept` on the profile or
+  on a channel must be
   whitespace-free, and `valid_from`/`valid_to` must parse as a date or an
   RFC3339 instant.
 - `defaults.merge.conflict_policy`, `defaults.memory.fuzzy_threshold` (0..100),

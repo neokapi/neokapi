@@ -8,12 +8,13 @@ defaults:
   source_language: en
   target_languages: [fr]
   voice:
-    profile_file: .kapi/voice.yaml
+    profile: taskly
 
 profiles:
   taskly:
     channels: [site]
-    voice: .kapi/voice.yaml
+    voice:
+      profile: taskly
 
 collections:
   - name: taskly-site

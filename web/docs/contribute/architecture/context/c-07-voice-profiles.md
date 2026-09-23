@@ -218,8 +218,9 @@ The tiers below the collection are property maps read off stored rows, which is
 how a project created by a connector or an editor, with no recipe, is governed. A
 recipe-governed project fills the *same* collection tier: a collection's
 `channel:` selects the profile ([C-02](c-02-coordinates-and-governance.md)), the
-host loads it (a recipe binds a profile file or a starter pack, which a store id
-cannot name) and hands it over as the already-loaded collection profile. So the
+host loads it (a recipe binds a profile in the project's store, or a starter
+pack, which a store id cannot name) and hands it over as the already-loaded
+collection profile. So the
 two kinds of project differ in which tiers they populate, never in how the tiers
 are ranked, and an explicit per-call profile outranks a recipe exactly as it
 outranks a stored row.
@@ -243,9 +244,9 @@ that depends on where the loop happened to run.
 
 What crosses a push is every declared collection, the point it sits at and the
 voice governing it, so both venues resolve the same voice for the same content.
-What does not cross is a profile's `termstore:`, a path into the local project,
-and a path means nothing to a service that governs terminology from a shared
-vocabulary. That divergence is real and is reported rather than hidden: a run
+What does not cross is a profile's `termstore:`, which names a store on this
+machine, and a local store means nothing to a service that governs terminology
+from a shared vocabulary. That divergence is real and is reported rather than hidden: a run
 over a project that binds a terms store per profile *and* binds a venue prints a
 warning to stderr and proceeds. A recipe field that is not readable at the other
 venue is not a reason to refuse the run.
@@ -358,8 +359,35 @@ document states the profile entire, so a section deleted in the editor is
 deleted from the profile; an editor that exits with an error, and a document
 saved unchanged, both leave the store as it was.
 
-`kapi context snapshot` writes every stored profile back out as YAML at the path
-the recipe binds it from, and `kapi context import` reads those files back
+### Binding a profile
+
+A recipe binds a voice by name and never by file: `voice: {profile: <id>}`, or
+the short form `voice: <id>`, names a profile the project's store holds, and
+`voice: {pack: <name>}` a starter pack. A recipe that names a file
+(`profile_file:`, or a `voice:` that is a path) fails to load, and the message
+names the import that reads the file and the binding to write. The store is what
+every surface answers from, so a binding to a file would read as in force while
+the store held something else.
+
+`kapi context import` reads the profiles a layout carries: `voice.yaml` at the
+top of the layout is the project's, and `profiles/<name>/voice.yaml` belongs to
+that profile. When the recipe binds no voice under `defaults:`, the import binds
+the project's profile there (or the only profile the layout carries) and says
+so. It writes the two lines of the binding into `kapi.yaml` as a text insertion
+(`project.BindVoice`), so every other byte of the recipe stays as authored. With
+several profiles and none at the top, it binds none and lists them with the line
+to add. An agent's import is refused, since reading context in is a person's
+decision.
+
+A recipe that binds a name the store does not hold is a project whose context has
+not reached this machine: a fresh clone or a new data root. The error names the
+binding and the two commands that bring the context, `kapi context import` in a
+checkout carrying the profile and `kapi context restore` from an export.
+`kapi voice pack <name>` is suggested only when a starter pack carries that name,
+because for any other name it would install something else.
+
+`kapi context snapshot` writes every stored profile back out as YAML at the
+layout path it was read from, and `kapi context import` reads those files back
 ([C-11](c-11-context-operations.md)). The store metadata key
 `context.voiceBindings` ties a stored profile's id to the path a layout keys it
 by, which is the one place the two are joined.

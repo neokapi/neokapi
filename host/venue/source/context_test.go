@@ -190,8 +190,8 @@ func TestApplyPulledContext_UnownedEntryDefaultsToWorkspace(t *testing.T) {
 // correct, a file-bound voice is git's — and not reported either, which is not.
 // The divergence a pull cannot resolve is exactly the one it must name.
 
-// bindCollectionVoice writes a voice profile file and binds it to the docs
-// collection, the way a project whose voice lives in git does.
+// bindCollectionVoice writes a voice profile file, reads it into the store, and
+// binds it by name at the project's default point.
 func bindCollectionVoice(t *testing.T, conn *BowrainSourceConnector, name string) {
 	t.Helper()
 	root := conn.project.Root
@@ -200,7 +200,7 @@ func bindCollectionVoice(t *testing.T, conn *BowrainSourceConnector, name string
 	body, err := yaml.Marshal(&coreprofile.VoiceProfile{Name: name})
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(root, rel), body, 0o644))
-	conn.project.Recipe.KapiProject.Defaults.Voice = &coreproj.VoiceBinding{ProfileFile: rel}
+	conn.project.Recipe.KapiProject.Defaults.Voice = &coreproj.VoiceBinding{Profile: name}
 
 	// The store is the read path, so the profile reaches a local run through
 	// `kapi context import` and no other way.

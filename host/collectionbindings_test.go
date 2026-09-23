@@ -35,9 +35,9 @@ func governedProject(t *testing.T, platformChannel string) (recipe, root string)
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "voice.yaml"),
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, dir),
 		[]byte("id: house\nname: House Style\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "platform-voice.yaml"),
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, dir, "platform"),
 		[]byte(platformVoiceYAML), 0o644))
 
 	proj := &project.KapiProject{
@@ -46,13 +46,13 @@ func governedProject(t *testing.T, platformChannel string) (recipe, root string)
 		Defaults: project.Defaults{
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb"},
-			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
+			Voice:           &project.VoiceBinding{Profile: "house"},
 		},
 		Profiles: map[string]project.Profile{
 			"framework": {Channels: []project.Channel{{ID: "docs"}}},
 			"platform": {
 				Channels: []project.Channel{{ID: "docs"}, {ID: "landing"}},
-				Voice:    &project.VoiceBinding{ProfileFile: "platform-voice.yaml"},
+				Voice:    &project.VoiceBinding{Profile: "platform"},
 			},
 		},
 		Collections: []project.Collection{
@@ -98,16 +98,16 @@ func resolvedPoint(t *testing.T, proj *project.KapiProject, pt project.Governanc
 }
 
 func TestGroupInputsByBinding(t *testing.T) {
-	defaultVoice := &project.VoiceBinding{ProfileFile: "voice.yaml"}
+	defaultVoice := &project.VoiceBinding{Profile: "house"}
 	profiles := map[string]project.Profile{
 		"platform": {
 			Channels: []project.Channel{{ID: "docs"}, {ID: "landing"}, {ID: "notes"}},
-			Voice:    &project.VoiceBinding{ProfileFile: "platform-voice.yaml"},
+			Voice:    &project.VoiceBinding{Profile: "platform"},
 		},
 		"press": {
 			Channels:  []project.Channel{{ID: "news"}},
 			Voice:     &project.VoiceBinding{Pack: "marketing-blog"},
-			TermStore: "press-terms.db",
+			TermStore: "press-terms",
 		},
 		// A profile binding exactly what the project defaults bind: the default
 		// voice, and no standalone terms — so the project's own store governs

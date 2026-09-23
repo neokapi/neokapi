@@ -147,8 +147,6 @@ assets:
 | `collection`       | string | Default collection name for organizing content           |
 | `exclude`          | list   | Glob patterns to skip during scanning                    |
 | `formats`          | map    | Per-format default presets and config overrides          |
-| `terms_source`     | string | Path to a terms bundle `kapi context import` reads and `kapi context snapshot` writes (for example `.kapi/terms.json`) |
-| `memory_source`    | string | Path to a content-memory bundle an import reads and a snapshot writes (for example `.kapi/memory/memory.json`) |
 | `voice`            | binding | The voice profile every collection is governed by unless a profile binds another. `profile:` names one in the project's voice store |
 | `coordinates`      | map    | The declared axes every collection inherits, `brand` and `mode` among them; the structural axes `product` and `channel` are derived from `channel:` and never written here |
 | `materialize`      | string | When target files are written from the project store; `kapi up --materialize` forces `on-converge` |
@@ -262,7 +260,7 @@ profiles:
     channels: [app]
     voice:
       profile: acme-labs
-    termstore: acme-labs-terms.db
+    termstore: acme-labs-terms
     valid_from: 2026-09-01
 
 collections:
@@ -280,7 +278,7 @@ collections:
 | ------------ | --------------------------------------------------------------------------- |
 | `channels`   | The channels this product ships on                                          |
 | `voice`      | The voice profile that governs this product, overriding `defaults.voice`   |
-| `termstore`  | A terms store bound for this product's local runs                           |
+| `termstore`  | A terms store, by name, bound for this product's local runs                  |
 | `concept`    | A concept reference (`term:<id>`) the profile carries for display          |
 | `valid_from`, `valid_to` | The profile's validity window                                   |
 

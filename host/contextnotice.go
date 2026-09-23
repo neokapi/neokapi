@@ -65,11 +65,7 @@ func (a *App) ContextFilesUnread(ctx context.Context, projectPath string) (Conte
 	if err != nil {
 		return ContextFilesNotice{}, false
 	}
-	// Best-effort: a recipe that will not load still has its conventional
-	// files stated, which is the case a person most needs named.
-	proj, _ := project.LoadWithOptions(layout.RecipePath, project.LoadOptions{SkipRequiresCheck: true})
-
-	files := contextFilesIn(proj, layout)
+	files := contextFilesIn(layout)
 	if len(files) == 0 {
 		return ContextFilesNotice{}, false
 	}
@@ -92,8 +88,8 @@ func (a *App) ContextFilesUnread(ctx context.Context, projectPath string) (Conte
 // contextFilesIn lists the context files a checkout holds, project-relative and
 // sorted: the sources a read would compile, and the decision record's shards
 // named by their directory, since a person reads them as one record.
-func contextFilesIn(proj *project.KapiProject, layout project.Layout) []string {
-	sources, err := committedContextSources(proj, layout)
+func contextFilesIn(layout project.Layout) []string {
+	sources, err := committedContextSources(layout)
 	if err != nil {
 		return nil
 	}

@@ -122,8 +122,6 @@ func bindingKey(rc *project.ResolvedGovernance) string {
 	b.WriteString(rc.Channel)
 	b.WriteByte(0)
 	if rc.Voice != nil {
-		b.WriteString(rc.Voice.ProfileFile)
-		b.WriteByte(0)
 		b.WriteString(rc.Voice.Profile)
 		b.WriteByte(0)
 		b.WriteString(rc.Voice.Pack)

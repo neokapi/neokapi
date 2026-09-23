@@ -81,7 +81,7 @@ func newConvergedStalenessProject(t *testing.T) (*App, string, string) {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "src"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "en.json"),
 		[]byte(`{"greeting":"Utilize the content memory","farewell":"Goodbye now"}`), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(stalenessConvergeVoice), 0o644))
+	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(stalenessConvergeVoice), 0o644))
 	writeStalenessTerms(t, root, "mémoire de contenu")
 
 	proj := &project.KapiProject{
@@ -91,8 +91,7 @@ func newConvergedStalenessProject(t *testing.T) (*App, string, string) {
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr"},
 			Flow:            "converge",
-			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
-			TermsSource:     project.RelStatePath(ktb.ConventionalName),
+			Voice:           &project.VoiceBinding{Profile: "converge-voice"},
 		},
 		Collections: []project.Collection{
 			{Name: "app", Path: "src/en.json", Target: "src/{lang}.json"},

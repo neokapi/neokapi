@@ -107,9 +107,9 @@ func TestProjectVoiceNamesTheBindingAndItsSource(t *testing.T) {
 
 	def := pointOf(t, res, "project default")
 	require.NotNil(t, def.Binding)
-	assert.Equal(t, "profile_file", def.Binding.Kind)
-	assert.Equal(t, project.RelStatePath("voice.yaml"), def.Binding.Value,
-		"the binding names the file the recipe points at")
+	assert.Equal(t, "profile", def.Binding.Kind)
+	assert.Equal(t, "northsea", def.Binding.Value,
+		"the binding names the profile the recipe binds")
 	assert.Equal(t, "store:northsea", def.Source,
 		"the source names the profile in the store, which is where the resolution read it")
 	assert.NotContains(t, def.Source, root, "the source carries no absolute path")
