@@ -13,22 +13,22 @@ import {
 import type { ContextFeed } from "../types/api";
 
 function renderFeed(feed: ContextFeed = CONTEXT_FEED) {
-  const onConfirm = vi.fn();
-  const onDiscard = vi.fn();
+  const onKeep = vi.fn();
+  const onDrop = vi.fn();
   const onRevert = vi.fn();
   const onRevertSession = vi.fn();
   const onWiden = vi.fn();
   const view = render(
     <ContextFeedList
       feed={feed}
-      onConfirm={onConfirm}
-      onDiscard={onDiscard}
+      onKeep={onKeep}
+      onDrop={onDrop}
       onRevert={onRevert}
       onRevertSession={onRevertSession}
       onWiden={onWiden}
     />,
   );
-  return { view, onConfirm, onDiscard, onRevert, onRevertSession, onWiden };
+  return { view, onKeep, onDrop, onRevert, onRevertSession, onWiden };
 }
 
 describe("the feed of recorded context operations", () => {
@@ -56,26 +56,26 @@ describe("the feed of recorded context operations", () => {
   });
 
   it("confirms and discards a candidate from its buttons", () => {
-    const { onConfirm, onDiscard } = renderFeed();
+    const { onKeep, onDrop } = renderFeed();
     const entry = document.querySelector(`[data-entry='${CANDIDATE.id}']`) as HTMLElement;
-    fireEvent.click(entry.querySelector("[data-slot='confirm-candidate']") as HTMLElement);
-    expect(onConfirm).toHaveBeenCalledTimes(1);
-    expect(onConfirm.mock.calls[0][0].id).toBe(CANDIDATE.id);
-    expect(onConfirm.mock.calls[0][1]).toBeUndefined();
+    fireEvent.click(entry.querySelector("[data-slot='keep-suggestion']") as HTMLElement);
+    expect(onKeep).toHaveBeenCalledTimes(1);
+    expect(onKeep.mock.calls[0][0].id).toBe(CANDIDATE.id);
+    expect(onKeep.mock.calls[0][1]).toBeUndefined();
 
-    fireEvent.click(entry.querySelector("[data-slot='discard-candidate']") as HTMLElement);
-    expect(onDiscard).toHaveBeenCalledTimes(1);
+    fireEvent.click(entry.querySelector("[data-slot='drop-suggestion']") as HTMLElement);
+    expect(onDrop).toHaveBeenCalledTimes(1);
   });
 
   it("confirms with the keyboard, the way the review session does", () => {
-    const { onConfirm, onDiscard } = renderFeed();
+    const { onKeep, onDrop } = renderFeed();
     fireEvent.keyDown(window, { key: "a" });
-    expect(onConfirm).toHaveBeenCalledTimes(1);
-    expect(onConfirm.mock.calls[0][0].id).toBe(CANDIDATE.id);
+    expect(onKeep).toHaveBeenCalledTimes(1);
+    expect(onKeep.mock.calls[0][0].id).toBe(CANDIDATE.id);
 
     fireEvent.keyDown(window, { key: "r" });
-    expect(onDiscard).toHaveBeenCalledTimes(1);
-    expect(onDiscard.mock.calls[0][0].id).toBe(CANDIDATE.id);
+    expect(onDrop).toHaveBeenCalledTimes(1);
+    expect(onDrop.mock.calls[0][0].id).toBe(CANDIDATE.id);
   });
 
   it("moves the cursor with j and k over the candidates alone", () => {
@@ -94,7 +94,7 @@ describe("the feed of recorded context operations", () => {
         }),
       ],
     };
-    const { onConfirm } = renderFeed(feed);
+    const { onKeep } = renderFeed(feed);
     expect(document.querySelector("[data-active]")?.getAttribute("data-entry")).toBe(CANDIDATE.id);
 
     fireEvent.keyDown(window, { key: "j" });
@@ -104,11 +104,11 @@ describe("the feed of recorded context operations", () => {
 
     fireEvent.keyDown(window, { key: "j" });
     fireEvent.keyDown(window, { key: "a" });
-    expect(onConfirm.mock.calls[0][0].id).toBe("13");
+    expect(onKeep.mock.calls[0][0].id).toBe("13");
   });
 
   it("edits the replacement before accepting, and hands the edit to the caller", async () => {
-    const { onConfirm } = renderFeed();
+    const { onKeep } = renderFeed();
     fireEvent.keyDown(window, { key: "e" });
     const form = await waitFor(() => {
       const el = document.querySelector("[data-slot='context-edit']");
@@ -118,14 +118,14 @@ describe("the feed of recorded context operations", () => {
     const input = form.querySelector("input") as HTMLInputElement;
     expect(input.value).toBe("log in");
     fireEvent.change(input, { target: { value: "sign in" } });
-    fireEvent.click(form.querySelector("[data-slot='confirm-edited']") as HTMLElement);
+    fireEvent.click(form.querySelector("[data-slot='keep-edited']") as HTMLElement);
 
-    expect(onConfirm).toHaveBeenCalledTimes(1);
-    expect(onConfirm.mock.calls[0][1]).toMatchObject({ replacement: "sign in" });
+    expect(onKeep).toHaveBeenCalledTimes(1);
+    expect(onKeep.mock.calls[0][1]).toMatchObject({ replacement: "sign in" });
   });
 
   it("leaves the keys alone while a field has focus", async () => {
-    const { onConfirm } = renderFeed();
+    const { onKeep } = renderFeed();
     fireEvent.keyDown(window, { key: "e" });
     const input = await waitFor(() => {
       const el = document.querySelector("[data-slot='context-edit'] input");
@@ -133,13 +133,13 @@ describe("the feed of recorded context operations", () => {
       return el as HTMLInputElement;
     });
     fireEvent.keyDown(input, { key: "a" });
-    expect(onConfirm).not.toHaveBeenCalled();
+    expect(onKeep).not.toHaveBeenCalled();
   });
 
   it("offers undo and widening on a rule in force, and neither on a candidate", () => {
     const { onRevert, onWiden } = renderFeed();
     const confirmed = document.querySelector(`[data-entry='${IN_FORCE.id}']`) as HTMLElement;
-    expect(confirmed.querySelector("[data-slot='confirm-candidate']")).toBeNull();
+    expect(confirmed.querySelector("[data-slot='keep-suggestion']")).toBeNull();
     fireEvent.click(confirmed.querySelector("[data-slot='revert-entry']") as HTMLElement);
     expect(onRevert).toHaveBeenCalledTimes(1);
     expect(confirmed.querySelector("[data-slot='widen-picker']")).not.toBeNull();
@@ -162,7 +162,7 @@ describe("the feed of recorded context operations", () => {
       ],
     };
     renderFeed(feed);
-    expect(document.querySelector("[data-slot='confirm-candidate']")).toBeNull();
+    expect(document.querySelector("[data-slot='keep-suggestion']")).toBeNull();
     expect(document.querySelector("[data-slot='context-undecidable']")?.textContent).toContain(
       "No copy of this project is on this machine",
     );
@@ -172,7 +172,7 @@ describe("the feed of recorded context operations", () => {
     renderFeed();
     const session = document.querySelector("[data-session='session:sess-1']") as HTMLElement;
     expect(session.querySelector("[data-slot='session-summary']")?.textContent).toContain(
-      "2 proposed",
+      "2 recorded",
     );
     expect(session.textContent).toContain("claude");
     expect(session.textContent).toContain("studio");
@@ -222,8 +222,8 @@ describe("the feed of recorded context operations", () => {
             }),
           ],
         }}
-        onConfirm={vi.fn()}
-        onDiscard={vi.fn()}
+        onKeep={vi.fn()}
+        onDrop={vi.fn()}
         onRevert={vi.fn()}
         onRevertSession={vi.fn()}
         onWiden={vi.fn()}

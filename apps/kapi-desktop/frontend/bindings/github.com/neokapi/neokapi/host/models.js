@@ -163,7 +163,7 @@ export class ContextAnswer {
             /**
              * Coverage grades how much of the project's context stands behind the
              * answer: the voice profile in force, the terms bound here and the rules
-             * confirmed here, counted, with a candidate awaiting a decision counting
+             * established here, counted, with a suggestion awaiting a decision counting
              * for less than any of them. A caller reading the JSON branches on this
              * rather than on the shape of the lists below.
              * @member
@@ -210,16 +210,16 @@ export class ContextAnswer {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Candidates are what earlier sessions proposed and noticed at this point
-             * and nobody has decided on. They are reported apart from Voice and Terms
-             * because they bind nothing: a check reports each one and no check fails on
-             * it. A writer reads them as the project's own unfinished thinking, and an
-             * agent building on another session's work reads them rather than
-             * rediscovering the same facts.
+             * Suggestions are what earlier sessions noticed at this point and nobody
+             * has established, with the rules a disagreement contests. They are
+             * reported apart from Voice and Terms because they bind nothing: a check
+             * reports each one and no check fails on it. A writer reads them as the
+             * project's own unfinished thinking, and an agent building on another
+             * session's work reads them rather than rediscovering the same facts.
              * @member
-             * @type {ContextCandidate[] | undefined}
+             * @type {ContextSuggestion[] | undefined}
              */
-            this["candidates"] = undefined;
+            this["suggestions"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -234,7 +234,7 @@ export class ContextAnswer {
         if (/** @type {any} */(false)) {
             /**
              * Rules is what a writer says and avoids here, as one list: the terms in
-             * force, the rules confirmed across the workspace, and the voice's
+             * force, the rules established across the workspace, and the voice's
              * vocabulary, merged so each wording is stated once. Capped at the
              * request's limit; RulesTotal says how many there are in all.
              * @member
@@ -328,8 +328,8 @@ export class ContextAnswer {
         if ("terms" in $$parsedSource) {
             $$parsedSource["terms"] = $$createField6_0($$parsedSource["terms"]);
         }
-        if ("candidates" in $$parsedSource) {
-            $$parsedSource["candidates"] = $$createField8_0($$parsedSource["candidates"]);
+        if ("suggestions" in $$parsedSource) {
+            $$parsedSource["suggestions"] = $$createField8_0($$parsedSource["suggestions"]);
         }
         if ("profiles" in $$parsedSource) {
             $$parsedSource["profiles"] = $$createField9_0($$parsedSource["profiles"]);
@@ -347,146 +347,6 @@ export class ContextAnswer {
             $$parsedSource["notice"] = $$createField15_0($$parsedSource["notice"]);
         }
         return new ContextAnswer(/** @type {Partial<ContextAnswer>} */($$parsedSource));
-    }
-}
-
-/**
- * ContextCandidate is one operation nobody has decided on, as an answer reports
- * it: the rule or the fact it states, who recorded it, and where they saw it.
- * 
- * Status is always `candidate`, in the vocabulary the operation log uses
- * (contextop.StatusCandidate). It is carried on every entry so a caller reading
- * the JSON has the standing of the entry in the entry, rather than in the name
- * of the list it arrived in.
- */
-export class ContextCandidate {
-    /**
-     * Creates a new ContextCandidate instance.
-     * @param {Partial<ContextCandidate>} [$$source = {}] - The source object to create the ContextCandidate.
-     */
-    constructor($$source = {}) {
-        if (/** @type {any} */(false)) {
-            /**
-             * Operation is the id, which is what `kapi context confirm` takes.
-             * @member
-             * @type {string | undefined}
-             */
-            this["operation"] = undefined;
-        }
-        if (!("kind" in $$source)) {
-            /**
-             * Kind is what the candidate is about: `term`, `voice` or `note`.
-             * @member
-             * @type {string}
-             */
-            this["kind"] = "";
-        }
-        if (!("status" in $$source)) {
-            /**
-             * Status is what it counts as, and is always `candidate`.
-             * @member
-             * @type {string}
-             */
-            this["status"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Term is the word a term or voice candidate is about, and Replacement what
-             * it proposes writing instead. Both are empty for a note.
-             * @member
-             * @type {string | undefined}
-             */
-            this["term"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["replacement"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * List is the voice-profile vocabulary list a voice candidate sits in.
-             * @member
-             * @type {string | undefined}
-             */
-            this["list"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Severity is how hard the rule would bite once a person confirms it. It
-             * decides nothing while the operation is a candidate.
-             * @member
-             * @type {string | undefined}
-             */
-            this["severity"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Text is the prose of a note.
-             * @member
-             * @type {string | undefined}
-             */
-            this["text"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Note is whatever the actor said about it.
-             * @member
-             * @type {string | undefined}
-             */
-            this["note"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * ProposedBy is the actor, and Session the run it belonged to, so a person
-             * can review or revert a whole session.
-             * @member
-             * @type {string | undefined}
-             */
-            this["proposed_by"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["session"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * At is when it was recorded, RFC 3339.
-             * @member
-             * @type {string | undefined}
-             */
-            this["at"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Evidence is where it was seen. A candidate with evidence can be argued
-             * with; one without is a preference somebody typed.
-             * @member
-             * @type {contextop$0.Evidence[] | undefined}
-             */
-            this["evidence"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ContextCandidate instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {ContextCandidate}
-     */
-    static createFrom($$source = {}) {
-        const $$createField12_0 = $$createType19;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("evidence" in $$parsedSource) {
-            $$parsedSource["evidence"] = $$createField12_0($$parsedSource["evidence"]);
-        }
-        return new ContextCandidate(/** @type {Partial<ContextCandidate>} */($$parsedSource));
     }
 }
 
@@ -644,7 +504,7 @@ export class ContextPoint {
      * @returns {ContextPoint}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType20;
+        const $$createField5_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("coordinates" in $$parsedSource) {
             $$parsedSource["coordinates"] = $$createField5_0($$parsedSource["coordinates"]);
@@ -977,6 +837,16 @@ export class ContextSearchResult {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Suggestions are what somebody recorded about the word and nobody has
+             * established: suggested term rules and notes that mention it, and the
+             * rules a disagreement contests. They advise and fail no check.
+             * @member
+             * @type {ContextSuggestion[] | undefined}
+             */
+            this["suggestions"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Attention holds what a person or an agent must act on before relying on
              * the answer: context files nothing has read in, a store that could not be
              * read. The text answer shows these and nothing else of Notes.
@@ -1008,10 +878,11 @@ export class ContextSearchResult {
         const $$createField3_0 = $$createType4;
         const $$createField4_0 = $$createType17;
         const $$createField5_0 = $$createType8;
-        const $$createField6_0 = $$createType22;
+        const $$createField6_0 = $$createType20;
         const $$createField7_0 = $$createType12;
-        const $$createField8_0 = $$createType15;
+        const $$createField8_0 = $$createType10;
         const $$createField9_0 = $$createType15;
+        const $$createField10_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("provenance" in $$parsedSource) {
             $$parsedSource["provenance"] = $$createField3_0($$parsedSource["provenance"]);
@@ -1028,13 +899,174 @@ export class ContextSearchResult {
         if ("profiles" in $$parsedSource) {
             $$parsedSource["profiles"] = $$createField7_0($$parsedSource["profiles"]);
         }
+        if ("suggestions" in $$parsedSource) {
+            $$parsedSource["suggestions"] = $$createField8_0($$parsedSource["suggestions"]);
+        }
         if ("attention" in $$parsedSource) {
-            $$parsedSource["attention"] = $$createField8_0($$parsedSource["attention"]);
+            $$parsedSource["attention"] = $$createField9_0($$parsedSource["attention"]);
         }
         if ("notes" in $$parsedSource) {
-            $$parsedSource["notes"] = $$createField9_0($$parsedSource["notes"]);
+            $$parsedSource["notes"] = $$createField10_0($$parsedSource["notes"]);
         }
         return new ContextSearchResult(/** @type {Partial<ContextSearchResult>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextSuggestion is one operation nobody has established, or one a
+ * disagreement contests, as an answer reports it: the rule or the fact it
+ * states, who recorded it, and where they saw it.
+ * 
+ * Status is `suggested` or `contested`, in the vocabulary the operation log
+ * uses (contextop.StatusSuggested, contextop.StatusContested). It is carried on
+ * every entry so a caller reading the JSON has the standing of the entry in the
+ * entry, rather than in the name of the list it arrived in.
+ */
+export class ContextSuggestion {
+    /**
+     * Creates a new ContextSuggestion instance.
+     * @param {Partial<ContextSuggestion>} [$$source = {}] - The source object to create the ContextSuggestion.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Operation is the id, which is what `kapi context keep` takes.
+             * @member
+             * @type {string | undefined}
+             */
+            this["operation"] = undefined;
+        }
+        if (!("kind" in $$source)) {
+            /**
+             * Kind is what the suggestion is about: `term` or `note`.
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (!("status" in $$source)) {
+            /**
+             * Status is what it counts as: `suggested`, or `contested` when another
+             * rule disagrees with it.
+             * @member
+             * @type {string}
+             */
+            this["status"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ContestedBy names the operations on the other side of a disagreement.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["contested_by"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Term is the form a term suggestion avoids, Forms the other forms it
+             * avoids, and Replacement the form to write instead. All are empty for a
+             * note.
+             * @member
+             * @type {string | undefined}
+             */
+            this["term"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["forms"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["replacement"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Severity is how hard the rule would bite once a person keeps it. It
+             * decides nothing while the operation is a suggestion.
+             * @member
+             * @type {string | undefined}
+             */
+            this["severity"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Text is the prose of a note.
+             * @member
+             * @type {string | undefined}
+             */
+            this["text"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Note is whatever the actor said about it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * SuggestedBy is the actor, and Session the run it belonged to, so a person
+             * can review or keep a whole session.
+             * @member
+             * @type {string | undefined}
+             */
+            this["suggested_by"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["session"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * At is when it was recorded, RFC 3339.
+             * @member
+             * @type {string | undefined}
+             */
+            this["at"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Evidence is where it was seen. A suggestion with evidence can be argued
+             * with; one without is a preference somebody typed.
+             * @member
+             * @type {contextop$0.Evidence[] | undefined}
+             */
+            this["evidence"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextSuggestion instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextSuggestion}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType15;
+        const $$createField5_0 = $$createType15;
+        const $$createField13_0 = $$createType22;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("contested_by" in $$parsedSource) {
+            $$parsedSource["contested_by"] = $$createField3_0($$parsedSource["contested_by"]);
+        }
+        if ("forms" in $$parsedSource) {
+            $$parsedSource["forms"] = $$createField5_0($$parsedSource["forms"]);
+        }
+        if ("evidence" in $$parsedSource) {
+            $$parsedSource["evidence"] = $$createField13_0($$parsedSource["evidence"]);
+        }
+        return new ContextSuggestion(/** @type {Partial<ContextSuggestion>} */($$parsedSource));
     }
 }
 
@@ -2146,7 +2178,7 @@ const $$createType5 = review$0.Voice.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
 const $$createType7 = ContextTermHit.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = ContextCandidate.createFrom;
+const $$createType9 = ContextSuggestion.createFrom;
 const $$createType10 = $Create.Array($$createType9);
 const $$createType11 = review$0.ProfileValidity.createFrom;
 const $$createType12 = $Create.Array($$createType11);
@@ -2155,10 +2187,10 @@ const $$createType14 = $Create.Array($$createType13);
 const $$createType15 = $Create.Array($Create.Any);
 const $$createType16 = ContextFilesNotice.createFrom;
 const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = contextop$0.Evidence.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = $Create.Map($Create.Any, $Create.Any);
-const $$createType21 = ContextPrecedentHit.createFrom;
+const $$createType18 = $Create.Map($Create.Any, $Create.Any);
+const $$createType19 = ContextPrecedentHit.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = contextop$0.Evidence.createFrom;
 const $$createType22 = $Create.Array($$createType21);
 const $$createType23 = ContextTermUse.createFrom;
 const $$createType24 = $Create.Array($$createType23);

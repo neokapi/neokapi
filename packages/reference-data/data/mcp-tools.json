@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T20:05:53Z",
+  "generatedAt": "2026-09-23T22:17:38Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -266,7 +266,7 @@
     },
     {
       "name": "context_correct",
-      "description": "Record that the person changed your wording: `from` is what you wrote, `to` is what they replaced it with, and `path` is where. Call it as soon as you see the edit. Set `propose` to also suggest the rule it implies.",
+      "description": "Record that the person changed your wording: `from` is what you wrote, `to` is what they replaced it with, and `path` is where. Call it as soon as you see the edit. Set `suggest` to also suggest the rule it implies.",
       "surface": "writing",
       "params": [
         {
@@ -300,12 +300,6 @@
           "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
         },
         {
-          "name": "propose",
-          "type": "boolean",
-          "required": false,
-          "description": "also record the rule the change implies, so the next use of the old wording is reported"
-        },
-        {
           "name": "quote",
           "type": "string",
           "required": false,
@@ -315,7 +309,13 @@
           "name": "severity",
           "type": "string",
           "required": false,
-          "description": "how hard that rule bites once a person confirms it: minor and neutral report, anything else fails a check"
+          "description": "how hard that rule bites once a person keeps it: minor and neutral report, anything else fails a check"
+        },
+        {
+          "name": "suggest",
+          "type": "boolean",
+          "required": false,
+          "description": "also record the rule the change implies, so the next use of the old wording is reported"
         },
         {
           "name": "unit",
@@ -327,14 +327,14 @@
     },
     {
       "name": "context_observe",
-      "description": "Record one fact about how this project writes, as soon as you notice it: a product or feature name as the project spells it, a spelling it keeps to, who its text addresses. One fact per call, with `path` and `quote` saying where you saw it. It advises at once and fails no check.",
+      "description": "Record one thing you notice about how this project writes, as soon as you notice it. For a name or spelling the project keeps to, pass `term` with the form it uses and `instead_of` with forms it avoids; kapi adds the spacing, hyphen and case variants. Otherwise say it in `text`. Give `path` and `quote` for where you saw it. It is a suggestion: checks report it, none fails on it, and a person keeps it.",
       "surface": "writing",
       "params": [
         {
-          "name": "text",
-          "type": "string",
-          "required": true,
-          "description": "the fact, in one sentence, in your own words"
+          "name": "instead_of",
+          "type": "array",
+          "required": false,
+          "description": "forms the project avoids for term, e.g. Quick cast; spacing, hyphen and case variants are added for you"
         },
         {
           "name": "path",
@@ -355,6 +355,18 @@
           "description": "the wording you saw, quoted from the file"
         },
         {
+          "name": "term",
+          "type": "string",
+          "required": false,
+          "description": "the form this project uses for a name or word, e.g. Quickcast"
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "required": false,
+          "description": "the fact, in one sentence, in your own words"
+        },
+        {
           "name": "unit",
           "type": "string",
           "required": false,
@@ -363,63 +375,27 @@
       ]
     },
     {
-      "name": "context_propose",
-      "description": "Propose a rule about a word: write this instead of that, when the project is consistent about it and nothing records it yet. Give `path` and `quote` for where you saw it. The rule is a suggestion: checks report it and none fails on it until a person confirms it.",
+      "name": "context_read",
+      "description": "Read what applies when you write one file, before you change it: the voice, the words to use and to avoid, and what has been suggested but not yet established. `path` is project-relative, e.g. `docs/guide.md`, or `profile/\u003cname\u003e` for a named profile. The same text the context://\u003cpath\u003e resource returns.",
       "surface": "writing",
       "params": [
         {
           "name": "path",
           "type": "string",
           "required": true,
-          "description": "the project-relative file you saw the wording in"
+          "description": "the project-relative file you are about to write, or profile/\u003cname\u003e"
         },
         {
-          "name": "term",
-          "type": "string",
-          "required": true,
-          "description": "the word or phrase the rule is about"
-        },
-        {
-          "name": "list",
+          "name": "format",
           "type": "string",
           "required": false,
-          "description": "propose a voice-profile rule in this list instead of a project term: forbidden, competitor or preferred"
-        },
-        {
-          "name": "note",
-          "type": "string",
-          "required": false,
-          "description": "why you are proposing it"
+          "description": "markdown (default) or json"
         },
         {
           "name": "project",
           "type": "string",
           "required": false,
           "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
-        },
-        {
-          "name": "quote",
-          "type": "string",
-          "required": false,
-          "description": "the wording as it stands there"
-        },
-        {
-          "name": "severity",
-          "type": "string",
-          "required": false,
-          "description": "how hard the rule bites once a person confirms it: minor and neutral report, anything else fails a check"
-        },
-        {
-          "name": "unit",
-          "type": "string",
-          "required": false,
-          "description": "the block or unit id inside that file, when you have one"
-        },
-        {
-          "name": "use",
-          "type": "string",
-          "required": false,
-          "description": "what to write instead; a rule without one records the word and matches nothing"
         }
       ]
     },

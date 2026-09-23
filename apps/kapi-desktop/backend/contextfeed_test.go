@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/contextop"
-	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
 )
@@ -64,10 +63,10 @@ func openFeedProject(t *testing.T, app *App, name string) (recipe, key string) {
 // agent actor, a session id, and the evidence the rule came from.
 func agentPropose(t *testing.T, engine *host.App, recipe, session, term, replacement, path, quote string) host.ContextOperation {
 	t.Helper()
-	op, err := engine.ProposeContextRule(context.Background(), host.ContextProposeRequest{
+	op, err := engine.RecordContextObservation(context.Background(), host.ContextObserveRequest{
 		Actor:   contextop.Actor{Kind: contextop.ActorAgent, Name: "claude@studio", Session: session},
 		Project: recipe,
-		Term:    &profile.TermRule{Term: term, Replacement: replacement, Severity: "major"},
+		Term:    replacement, InsteadOf: []string{term},
 		Evidence: []contextop.Evidence{{
 			Path: path, Unit: "unit-1", Quote: quote,
 		}},
@@ -97,7 +96,7 @@ func TestFeedCarriesWhatAnotherProcessRecorded(t *testing.T) {
 	assert.Equal(t, "claude", group.Actor.Name, "an actor named <client>@<host> shows the client")
 	assert.Equal(t, "studio", group.Actor.Host, "and the machine it ran on")
 	assert.Equal(t, "KapiMart", group.ProjectName)
-	assert.Equal(t, 1, group.Proposed)
+	assert.Equal(t, 1, group.Recorded)
 	assert.Equal(t, 1, group.Awaiting)
 
 	require.Len(t, group.Entries, 1)
@@ -129,7 +128,7 @@ func TestConfirmingWithAnEditIsWhatTheAgentReadsNext(t *testing.T) {
 
 	proposal := agentPropose(t, engine, recipe, "sess-1", "sign in", "log in", "docs/pricing.md", "Please sign in.")
 
-	_, err := app.ConfirmContextCandidate(ContextDecisionRequest{
+	_, err := app.KeepContextSuggestion(ContextDecisionRequest{
 		Project:     key,
 		ID:          proposal.ID,
 		Replacement: "sign in",
@@ -143,7 +142,7 @@ func TestConfirmingWithAnEditIsWhatTheAgentReadsNext(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, read.Operations, 1)
-	assert.Equal(t, contextop.StatusConfirmed, read.Operations[0].Status)
+	assert.Equal(t, contextop.StatusEstablished, read.Operations[0].Status)
 	rule, ok := read.Operations[0].Rule()
 	require.True(t, ok)
 	assert.Equal(t, "sign in", rule.Replacement, "the person's edit is the rule in force")
@@ -168,7 +167,7 @@ func TestDiscardingStopsACandidateAnswering(t *testing.T) {
 
 	proposal := agentPropose(t, engine, recipe, "sess-1", "utilise", "use", "docs/guide.md", "Utilise the store.")
 
-	_, err := app.DiscardContextCandidate(ContextDecisionRequest{
+	_, err := app.DropContextSuggestion(ContextDecisionRequest{
 		Project: key, ID: proposal.ID, Note: "house style keeps utilise",
 	})
 	require.NoError(t, err)
@@ -189,7 +188,7 @@ func TestRevertingASessionNamesWhatItUndoes(t *testing.T) {
 
 	first := agentPropose(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in here.")
 	agentPropose(t, engine, recipe, "sess-1", "utilise", "use", "docs/b.md", "Utilise this.")
-	_, err := app.ConfirmContextCandidate(ContextDecisionRequest{Project: key, ID: first.ID})
+	_, err := app.KeepContextSuggestion(ContextDecisionRequest{Project: key, ID: first.ID})
 	require.NoError(t, err)
 
 	scope, err := app.ContextRevertScope(ContextRevertRequest{Project: key, Session: "sess-1"})
@@ -224,7 +223,7 @@ func TestWidenReachListsTheProjectsAndSaysWhatItDoesNotCompute(t *testing.T) {
 	engine := agentProcess(t, app)
 
 	proposal := agentPropose(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in here.")
-	_, err := app.ConfirmContextCandidate(ContextDecisionRequest{Project: key, ID: proposal.ID})
+	_, err := app.KeepContextSuggestion(ContextDecisionRequest{Project: key, ID: proposal.ID})
 	require.NoError(t, err)
 
 	preview, err := app.ContextWidenReach(key, proposal.ID, host.WidenToWorkspace)
@@ -270,7 +269,7 @@ func TestWidenPastAnAxisNamesThePointsItWouldNewlyCover(t *testing.T) {
 
 	engine := agentProcess(t, app)
 	proposal := agentPropose(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in here.")
-	_, err = app.ConfirmContextCandidate(ContextDecisionRequest{Project: id, ID: proposal.ID})
+	_, err = app.KeepContextSuggestion(ContextDecisionRequest{Project: id, ID: proposal.ID})
 	require.NoError(t, err)
 
 	preview, err := app.ContextWidenReach(id, proposal.ID, "product")
@@ -343,7 +342,7 @@ func TestFeedNarrowsToOneProjectAndStillCountsTheRest(t *testing.T) {
 // says why.
 func TestDecidingNeedsACheckoutOnThisMachine(t *testing.T) {
 	app := newWorkspaceApp(t)
-	_, err := app.ConfirmContextCandidate(ContextDecisionRequest{Project: "absent", ID: "1"})
+	_, err := app.KeepContextSuggestion(ContextDecisionRequest{Project: "absent", ID: "1"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "absent")
 }
@@ -357,7 +356,7 @@ func TestAQuietSessionIsSummarised(t *testing.T) {
 
 	first := agentPropose(t, engine, recipe, "sess-1", "sign in", "log in", "docs/a.md", "Sign in.")
 	agentPropose(t, engine, recipe, "sess-1", "utilise", "use", "docs/b.md", "Utilise.")
-	_, err := app.ConfirmContextCandidate(ContextDecisionRequest{Project: key, ID: first.ID})
+	_, err := app.KeepContextSuggestion(ContextDecisionRequest{Project: key, ID: first.ID})
 	require.NoError(t, err)
 
 	feed, err := app.ContextFeed(key, 0)
@@ -369,7 +368,7 @@ func TestAQuietSessionIsSummarised(t *testing.T) {
 		}
 	}
 	require.Equal(t, "sess-1", session.Session)
-	assert.Equal(t, 2, session.Proposed)
+	assert.Equal(t, 2, session.Recorded)
 	assert.Equal(t, 1, session.Awaiting)
 	assert.False(t, session.Quiet, "a session recorded a moment ago is still running")
 	assert.NotEmpty(t, session.First)

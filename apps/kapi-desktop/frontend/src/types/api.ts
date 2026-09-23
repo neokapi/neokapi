@@ -743,8 +743,8 @@ export interface ContextSubject {
   term?: string;
   replacement?: string;
   severity?: string;
-  /** The voice profile's vocabulary list a voice rule sits in. */
-  list?: string;
+  /** The other forms a term rule avoids, beside `term`. */
+  forms?: string[];
   source?: string;
   target?: string;
   target_locale?: string;
@@ -776,8 +776,10 @@ export interface ContextFeedEntry {
   project_name?: string;
   /** observe, propose, correct, confirm, discard, revert, widen. */
   kind: string;
-  /** candidate, confirmed, discarded, reverted. */
+  /** suggested, established, contested, withdrawn, dropped, reverted. */
   status: string;
+  /** The operations on the other side of a disagreement, for a contested entry. */
+  contested_by?: string[];
   actor: ContextActor;
   subject: ContextSubject;
   correction?: ContextCorrection;
@@ -812,10 +814,9 @@ export interface ContextFeedGroup {
   last: string;
   awaiting: number;
   recorded: number;
-  proposed: number;
   corrected: number;
-  confirmed: number;
-  discarded: number;
+  kept: number;
+  dropped: number;
   /** Nothing has been added for a while, so the counts are of finished work. */
   quiet: boolean;
   entries: ContextFeedEntry[];
@@ -847,7 +848,7 @@ export interface ContextDecisionRequest {
   /** The project's workspace key, which every feed entry carries. */
   project: string;
   id: string;
-  /** Edits applied as the rule is confirmed. */
+  /** Edits applied as the rule is kept. */
   replacement?: string;
   severity?: string;
   /** "workspace", or an axis the rule stops being specific about. */

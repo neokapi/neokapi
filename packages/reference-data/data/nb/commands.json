@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T20:52:38Z",
+  "generatedAt": "2026-09-23T22:17:38Z",
   "commands": [
     {
       "id": "add",
@@ -639,53 +639,6 @@
       "demoMode": false
     },
     {
-      "id": "context.confirm",
-      "path": [
-        "context",
-        "confirm"
-      ],
-      "use": "confirm \u003cid\u003e",
-      "short": "Gjør en foreslått regel bindende",
-      "long": "Bekreft et forslag, som gjør regelen bindende med den alvorlighetsgraden den\nbærer og skriver den dit resten av kapi leser den: prosjektets termer, dets\nstemmeprofil eller dets content memory.\n\nSkrivingen går inn i den committede filen oppskriften binder, så \"git diff\" viser\nbeslutningen som enhver annen endring.\n\nRediger regelen mens du bekrefter den med --use og --severity, og utvid den forbi\npunktet evidensen ble sett ved med --widen-to.",
-      "flags": [
-        {
-          "name": "note",
-          "usage": "hvorfor",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra gjeldende katalog hvis utelatt)",
-          "type": "string"
-        },
-        {
-          "name": "severity",
-          "usage": "endre hvor strengt regelen slår inn: minor eller neutral gir rapport, alt annet feiler en kontroll",
-          "type": "string"
-        },
-        {
-          "name": "use",
-          "usage": "endre hva regelen sier å skrive i stedet",
-          "type": "string"
-        },
-        {
-          "name": "widen-to",
-          "usage": "utvid når du bekrefter: \"workspace\", eller navnet på en akse regelen ikke lenger skal være spesifikk for",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context confirm 7",
-        "kapi context confirm 7 --use \"content memory\"",
-        "kapi context confirm 7 --severity critical",
-        "kapi context confirm 7 --widen-to workspace"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
       "id": "context.correct",
       "path": [
         "context",
@@ -707,12 +660,6 @@
           "type": "string"
         },
         {
-          "name": "propose",
-          "usage": "registrer også regelen endringen impliserer, som en kandidat",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "quote",
           "usage": "setningen endringen ble gjort i",
           "type": "string"
@@ -727,41 +674,47 @@
           "name": "severity",
           "usage": "hvor strengt regelen slår inn når den er bekreftet: minor eller neutral gir rapport, alt annet feiler en kontroll",
           "type": "string"
+        },
+        {
+          "name": "suggest",
+          "usage": "also record the rule the change implies, as a suggestion",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
         "kapi context correct \"sign in\" \"log in\" --seen-in web/src/auth.tsx",
-        "kapi context correct utilise use --seen-in docs/guide.md --propose --severity minor"
+        "kapi context correct utilise use --seen-in docs/guide.md --suggest --severity minor"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
       "demoMode": false
     },
     {
-      "id": "context.discard",
+      "id": "context.drop",
       "path": [
         "context",
-        "discard"
+        "drop"
       ],
-      "use": "discard \u003cid\u003e",
-      "short": "Avvis et foreslått regelforslag",
-      "long": "Forkast et forslag. Det slutter å bli rapportert umiddelbart, og\nregistreringen av det blir liggende i loggen slik at det samme forslaget kan\ngjenkjennes neste gang.\n\nÅ forkaste en regel som allerede er bekreftet fjerner den fra prosjektets\ntermer, voice profile eller content memory, og fra den committe filen den ble\nskrevet til.",
+      "use": "drop \u003cid\u003e",
+      "short": "Set a suggestion aside",
+      "long": "Drop a suggestion. It stops being reported at once, and the record\nof it stays in the log so the same suggestion can be recognised next time.\n\nDropping one side of a disagreement settles it: the other side is no longer\ncontested. An established rule is reverted rather than dropped.",
       "flags": [
         {
           "name": "note",
-          "usage": "hvorfor",
+          "usage": "why",
           "type": "string"
         },
         {
           "name": "project",
           "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens mappe (oppdages automatisk fra gjeldende mappe hvis utelatt)",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
         }
       ],
       "examples": [
-        "kapi context discard 7",
-        "kapi context discard 7 --note \"we say it both ways on purpose\""
+        "kapi context drop 7",
+        "kapi context drop 7 --note \"we say it both ways on purpose\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -839,6 +792,60 @@
         "kapi context import",
         "kapi context import ../other-project/.kapi",
         "kapi context import --force"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.keep",
+      "path": [
+        "context",
+        "keep"
+      ],
+      "use": "keep [id...]",
+      "short": "Establish suggestions as rules",
+      "long": "Keep suggestions, which establishes each rule at the severity it\ncarries and writes it where the rest of kapi reads it: the project's terms or\nits content memory.\n\nName one or more operations by id, or keep everything one agent session\nsuggested with --session. A contested suggestion disagrees with another rule,\nand waits until you choose: a session keep leaves it and says so, and naming it\nis refused with the other side named. Drop the side you do not want, then keep\nthe other.\n\nChange the rule as you keep it with --use and --severity, and widen it past the\npoint its evidence was seen at with --widen-to.",
+      "flags": [
+        {
+          "name": "note",
+          "usage": "why",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "session",
+          "usage": "keep everything one agent session suggested that nothing disagrees with",
+          "type": "string"
+        },
+        {
+          "name": "severity",
+          "usage": "change how hard the rule bites: minor or neutral report, anything else fails a check",
+          "type": "string"
+        },
+        {
+          "name": "use",
+          "usage": "change what the rule says to write instead (one id)",
+          "type": "string"
+        },
+        {
+          "name": "widen-to",
+          "usage": "widen as you keep: \"workspace\", or the name of an axis the rule should stop being specific about",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context keep 7",
+        "kapi context keep 7 9 12",
+        "kapi context keep --session s0ab4e399",
+        "kapi context keep 7 --use \"content memory\"",
+        "kapi context keep 7 --severity critical",
+        "kapi context keep 7 --widen-to workspace"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -927,7 +934,8 @@
       ],
       "examples": [
         "kapi context log",
-        "kapi context log --status candidate",
+        "kapi context log --status suggested",
+        "kapi context log --status contested",
         "kapi context log --session 0ab4e399 --json",
         "kapi context log --session this",
         "kapi context log --actor agent --since 2026-09-01"
@@ -942,10 +950,16 @@
         "context",
         "observe"
       ],
-      "use": "observe \u003cwhat you noticed\u003e",
+      "use": "observe [what you noticed]",
       "short": "Registrer et faktum om hvordan dette prosjektet skriver",
       "long": "Registrer noe du la merke til om hvordan dette prosjektet skriver: et\nproduktnavn slik det staves, en stavemåte det er konsekvent på, hvem teksten\nhenvender seg til, registeret det holder.\n\nEn observasjon angir ingen regel. Ingenting ved en kontroll endres, og ingen trenger å\nbeslutte noe om den. Det er materialet en regel foreslås fra senere, og\nå registrere det koster mindre enn å arbeide frem det samme faktumet to ganger.\n\nAngi hvor du så det med --seen-in og --quote.",
       "flags": [
+        {
+          "name": "instead-of",
+          "usage": "a form the project avoids for --term (repeatable)",
+          "default": "[]",
+          "type": "stringArray"
+        },
         {
           "name": "project",
           "shorthand": "p",
@@ -962,69 +976,18 @@
           "usage": "en fil du så det i (kan gjentas)",
           "default": "[]",
           "type": "stringSlice"
+        },
+        {
+          "name": "term",
+          "usage": "the form the project uses for a name or word",
+          "type": "string"
         }
       ],
       "examples": [
         "kapi context observe \"the docs address the reader as you\"",
-        "kapi context observe \"the product is written Kapi Desktop, never KapiDesktop\" \\",
-        "--seen-in docs/guide.md --quote \"Open Kapi Desktop and pick a project.\""
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.propose",
-      "path": [
-        "context",
-        "propose"
-      ],
-      "use": "propose \u003cterm\u003e",
-      "short": "Foreslå en regel for et ord, til noen bekrefter den",
-      "long": "Foreslå en regel for et ord: skriv dette i stedet for det.\n\nEt forslag trer i kraft umiddelbart som råd. Kontroller rapporterer det overalt der ordet\nforekommer, og ingen kontroll feiler på det, så et forslag stopper aldri noens arbeid. Det\nbegynner å være bindende når noen bekrefter det med «kapi context confirm».\n\nOppgi hvor du så ordet med --seen-in. En regel med dokumentasjon bak seg kan\ndiskuteres senere; en regel uten noe er en preferanse noen har tastet inn.\n\nForeslå en regel for stemmeprofilens vokabular med --list, og en for\nprosjektets termer uten den.",
-      "flags": [
-        {
-          "name": "list",
-          "usage": "foreslå en stemmeprofil-regel i denne listen i stedet for en prosjektterm: forbidden, competitor eller preferred",
-          "type": "string"
-        },
-        {
-          "name": "note",
-          "usage": "hvorfor",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra cwd hvis utelatt)",
-          "type": "string"
-        },
-        {
-          "name": "quote",
-          "usage": "ordlyden det ble sett i",
-          "type": "string"
-        },
-        {
-          "name": "seen-in",
-          "usage": "en fil ordet ble sett i (kan gjentas)",
-          "default": "[]",
-          "type": "stringSlice"
-        },
-        {
-          "name": "severity",
-          "usage": "hvor hardt regelen slår inn etter bekreftelse: minor eller neutral rapporteres, alt annet feiler en kontroll",
-          "type": "string"
-        },
-        {
-          "name": "use",
-          "usage": "hva som skal skrives i stedet",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context propose utilise --use use",
-        "kapi context propose utilise --use use --seen-in docs/guide.md",
-        "kapi context propose Ripgrep --use ripgrep --list forbidden --severity major"
+        "kapi context observe --term Quickcast --instead-of \"Quick cast\" \\",
+        "--seen-in README.md --quote \"Quickcast forecasts the next hour.\"",
+        "kapi context observe \"we write use, never utilise\" --term use --instead-of utilise --instead-of utilize"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -1224,6 +1187,36 @@
       "examples": [
         "kapi context widen 7 --to workspace",
         "kapi context widen 7 --to mode"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.withdraw",
+      "path": [
+        "context",
+        "withdraw"
+      ],
+      "use": "withdraw \u003cid\u003e",
+      "short": "Take back a suggestion you recorded",
+      "long": "Withdraw a suggestion you recorded, such as a correction entered\nbackwards. Only its author can withdraw a suggestion, and an agent only in the\nsession that recorded it. It stops being reported at once, and the log keeps\nthe record of it.",
+      "flags": [
+        {
+          "name": "note",
+          "usage": "what was wrong with it",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context withdraw 7",
+        "kapi context withdraw 7 --note \"recorded the wrong way round\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

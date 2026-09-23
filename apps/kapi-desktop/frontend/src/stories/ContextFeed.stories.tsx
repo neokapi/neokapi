@@ -20,8 +20,8 @@ const meta: Meta<typeof ContextFeedList> = {
   args: {
     feed: CONTEXT_FEED,
     keyboard: false,
-    onConfirm: fn(),
-    onDiscard: fn(),
+    onKeep: fn(),
+    onDrop: fn(),
     onRevert: fn(),
     onRevertSession: fn(),
     onWiden: fn(),
@@ -55,7 +55,6 @@ export const AcrossProjects: Story = {
           project_key: "bowmart",
           project_name: "BowMart",
           actor: { kind: "agent", name: "claude", session: "sess-2", host: "laptop" },
-          proposed: 1,
           entries: [
             feedEntry({
               ...CANDIDATE,
@@ -88,7 +87,6 @@ export const StillWorking: Story = {
         feedGroup({
           id: "session:sess-1",
           session: "sess-1",
-          proposed: 2,
           quiet: false,
           entries: [CANDIDATE, IN_FORCE],
         }),
@@ -112,7 +110,6 @@ export const NoCheckoutToDecideThrough: Story = {
           id: "session:sess-1",
           session: "sess-1",
           recipe: undefined,
-          proposed: 1,
           entries: [feedEntry({ ...CANDIDATE, recipe: undefined })],
         }),
       ],
@@ -127,7 +124,7 @@ export const WidenToTheWorkspace: StoryObj<typeof ContextWidenDialog> = {
       entry={IN_FORCE}
       to="workspace"
       onClose={fn()}
-      onConfirm={fn()}
+      onKeep={fn()}
       preview={{
         to: "workspace",
         from: { level: "project", describe: "project brand=kapimart" },
@@ -157,7 +154,7 @@ export const WidenPastAnAxis: StoryObj<typeof ContextWidenDialog> = {
       entry={IN_FORCE}
       to="product"
       onClose={fn()}
-      onConfirm={fn()}
+      onKeep={fn()}
       preview={{
         to: "product",
         from: { level: "project", describe: "project product=store" },
@@ -190,7 +187,7 @@ export const UndoASession: StoryObj<typeof ContextRevertDialog> = {
     <ContextRevertDialog
       request={{ project: "kapimart", session: "sess-1" }}
       onClose={fn()}
-      onConfirm={fn()}
+      onKeep={fn()}
       scope={{
         session: "sess-1",
         operations: 4,
