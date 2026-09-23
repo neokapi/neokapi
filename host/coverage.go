@@ -27,7 +27,11 @@ func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProj
 		return SourceCoverage{}, err
 	}
 
-	states, _, unreadable, err := a.settleSourceStates(ctx, root, string(proj.Defaults.SourceLanguage), model.SourceGateNone, units)
+	governed, err := a.sourceGovernance(ctx, proj, root)
+	if err != nil {
+		return SourceCoverage{}, err
+	}
+	states, _, unreadable, err := a.settleSourceStatesReporting(ctx, root, string(proj.Defaults.SourceLanguage), model.SourceGateNone, units, governed)
 	if err != nil {
 		return SourceCoverage{}, err
 	}
@@ -89,6 +93,65 @@ func convergeSourceGate(proj *project.KapiProject) (model.SourceGateLevel, bool)
 // error still propagates, for the reasons host/converge.go states at the call
 // site.
 func (a *App) settleSourceStates(ctx context.Context, root, sourceLang string, gateLevel model.SourceGateLevel, units []VerifyUnit) (states []string, held int, unreadable []string, err error) {
+	return a.settleSourceStatesReporting(ctx, root, sourceLang, gateLevel, units, nil)
+}
+
+// sourceGovernance returns whether a voice or terms govern the source at a
+// project-relative path, for the source ladder a report shows.
+//
+// The `checked` rung says the source cleared the voice and terminology checks
+// that govern it. The settle derivation stamps it from the provider-free
+// hygiene checks, which is the right admission test for the convergence gate:
+// content nothing governs has nothing to hold it back. A report is a different
+// question. Source that no voice and no terms govern was checked against
+// nothing, so a report that counted it as `checked` would claim a check that
+// never happened; it reads as `authored` instead.
+//
+// Terms govern a point when the profile there names a store of its own, or the
+// project's own store holds a concept. A voice governs it when the recipe binds
+// one there. The answer is cached per profile and channel, the only inputs it
+// varies with.
+func (a *App) sourceGovernance(ctx context.Context, proj *project.KapiProject, root string) (func(sourcePath string) bool, error) {
+	projectTerms := false
+	if db, err := a.ProjectDB(ctx, root); err == nil {
+		if held, herr := db.HasTerms(ctx); herr == nil {
+			projectTerms = held
+		}
+	}
+	cache := map[string]bool{}
+	return func(sourcePath string) bool {
+		rel := relativeToRoot(root, sourcePath)
+		rc, err := proj.ResolveGovernanceFor(project.GovernancePoint{Path: rel})
+		if err != nil || rc == nil {
+			return projectTerms
+		}
+		key := rc.Profile + "\x00" + rc.Channel
+		if v, ok := cache[key]; ok {
+			return v
+		}
+		v := projectTerms || rc.TermStore != "" || rc.Voice != nil || a.profileVoiceHeld(ctx, root, rc)
+		cache[key] = v
+		return v
+	}, nil
+}
+
+// profileVoiceHeld reports whether a profile that binds no voice in the recipe
+// is answered by the one its layout directory was read from, the implicit
+// binding loadVoiceAtGovernance resolves first.
+func (a *App) profileVoiceHeld(ctx context.Context, root string, rc *project.ResolvedGovernance) bool {
+	if rc.Profile == "" || rc.VoiceField != project.DefaultVoiceField {
+		return false
+	}
+	conv := project.RelStatePath(project.ProfilesDirName, rc.Profile, VoiceConventionalName)
+	return a.voiceProfileIDForBinding(ctx, root, conv) != ""
+}
+
+// settleSourceStatesReporting is settleSourceStates for a report. governed,
+// when set, says whether anything governs the source at a path; a `checked`
+// stamp on ungoverned source is reported as `authored` (sourceGovernance). The
+// gate count is taken before that, so the convergence gate admits exactly what
+// settleSourceStates admits.
+func (a *App) settleSourceStatesReporting(ctx context.Context, root, sourceLang string, gateLevel model.SourceGateLevel, units []VerifyUnit, governed func(string) bool) (states []string, held int, unreadable []string, err error) {
 	// Committed approvals, seeded onto each block before it settles. Without
 	// this the settle derivation only ever produces `authored` or `checked`:
 	// check.NewSourceReadinessTool preserves an existing approval, but nothing
@@ -116,6 +179,7 @@ func (a *App) settleSourceStates(ctx context.Context, root, sourceLang string, g
 			return nil, 0, nil, berr
 		}
 		scope := docs.Scope(root, u.SourcePath)
+		ungoverned := governed != nil && !governed(u.SourcePath)
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue
@@ -124,10 +188,13 @@ func (a *App) settleSourceStates(ctx context.Context, root, sourceLang string, g
 				b.SourceStatus = model.SourceStatusApproved
 			}
 			check.SettleSourceStatus(ctx, b)
-			states = append(states, sourceUnitState(b))
 			if gateLevel != model.SourceGateNone && !gateLevel.Admits(b.SourceStatus) {
 				held++
 			}
+			if ungoverned && b.SourceStatus == model.SourceStatusChecked {
+				b.SourceStatus = model.SourceStatusAuthored
+			}
+			states = append(states, sourceUnitState(b))
 		}
 	}
 	return states, held, sortedFormatSet(noReader), nil

@@ -108,6 +108,14 @@ func TestStatus_CollectionScopedGates(t *testing.T) {
 // the file carries.
 func writeSourceGateProject(t *testing.T, sourceGate string) string {
 	t.Helper()
+	return writeSourceProject(t, "  voice:\n    pack: professional-b2b\n", sourceGate)
+}
+
+// writeSourceProject writes a three-string catalog project. binding is spliced
+// under `defaults:` and says what governs the source; empty leaves it
+// ungoverned.
+func writeSourceProject(t *testing.T, binding, sourceGate string) string {
+	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
 	recipe := `version: v1
@@ -115,7 +123,7 @@ name: src
 defaults:
   source_language: en
   target_languages: [nb]
-collections:
+` + binding + `collections:
   - path: en.json
     target: "{lang}.json"
 ` + sourceGate + "\n"
@@ -149,6 +157,19 @@ func TestStatus_SourceReadiness(t *testing.T) {
 // TestStatus_SourceReadiness_ApprovalIsNotDerived: settling reaches `checked`
 // and stops. `approved` is somebody's decision, so a gate that asks for it stays
 // pending however clean the source is.
+// TestStatus_SourceReadiness_UngovernedSourceIsNotChecked: source that no voice
+// and no terms govern was checked against nothing. It reads as authored, so a
+// project fresh from `kapi init` does not report its source as checked.
+func TestStatus_SourceReadiness_UngovernedSourceIsNotChecked(t *testing.T) {
+	t.Chdir(writeSourceProject(t, "", ""))
+	out := runStatusJSON(t)
+
+	require.NotNil(t, out.Source)
+	assert.Equal(t, 3, out.Source.Total)
+	assert.Equal(t, 100, out.Source.Pct["authored"])
+	assert.Equal(t, 0, out.Source.Pct["checked"], "nothing governs the source, so nothing checked it")
+}
+
 func TestStatus_SourceReadiness_ApprovalIsNotDerived(t *testing.T) {
 	t.Chdir(writeSourceGateProject(t, "source_gate: { approved: 100 }"))
 	out := runStatusJSON(t)
