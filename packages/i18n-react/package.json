@@ -108,7 +108,7 @@
   "dependencies": {
     "@neokapi/kapi-format": "^2.0.0",
     "@swc/core": "^1.16.2",
-    "unplugin": "^3.3.0"
+    "unplugin": "^3.4.0"
   },
   "devDependencies": {
     "@storybook/react-vite": "^10.6.0",
