@@ -136,7 +136,7 @@ Direct downloads for **Kapi Desktop 1.2.0**:
 ## Beta channel
 
 The **beta channel** is a fast ring: it receives release candidates *and* every
-stable release, so a beta install is never behind stable and simply gets things
+stable release, so a beta install is never behind stable and gets things
 sooner. It is an opt-in early-adopter ring, shipped as separate Homebrew
 packages.
 

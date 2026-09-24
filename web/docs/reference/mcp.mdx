@@ -351,9 +351,8 @@ A word somebody has suggested a rule or a note about comes back under
 
 ### context_observe
 
-Record one thing noticed about how the project writes, while reading it. In
-`text`, it is a fact that states no rule. With `term`, the form the project
-uses, and `instead_of`, forms it avoids, it states a term rule: kapi adds the
+Record an observation about project wording. Use `text` for a note, or `term`
+and `instead_of` for a suggested term rule: kapi adds the
 spacing, hyphen and case variants of a compound, so `Quickcast` instead of
 `Quick cast` also avoids `Quick-cast`, `QuickCast` and `quickcast`. A term rule
 needs `path`. The result is a **suggestion**: every check reports it, and none
@@ -373,8 +372,7 @@ suggestion.
 
 Take back something this session recorded wrongly, such as a correction entered
 backwards, by the `operation` id its call returned. An assistant withdraws only
-its own session's suggestions. Anything a person established, and anything
-another session recorded, stays a person's to decide.
+its own session's suggestions. A person must handle established rules and suggestions from other sessions.
 
 <McpToolParams name="context_withdraw" />
 
@@ -388,8 +386,8 @@ suggestions with.
 
 <McpToolParams name="context_session_summary" />
 
-There is no tool for keeping, dropping, reverting or widening. Those are a
-person's, on the command line or in the desktop. See
+Keeping, dropping, reverting and widening are reserved for people through the
+CLI or desktop and are excluded from the MCP tools. See
 [Growing context](/kapi/context-decisions).
 
 ### extract_content

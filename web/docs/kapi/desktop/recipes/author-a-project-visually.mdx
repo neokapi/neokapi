@@ -49,9 +49,9 @@ with the same committable `kapi.yaml` recipe you would get from `kapi init`.
    Settings**. The home then shows per-language coverage, and **Bring up to
    date** runs the project's default flow to the ship gates, the same loop as
    `kapi up`. A project that translates nothing is complete without this step.
-5. **Commit the recipe.** The `kapi.yaml` recipe and `.kapi/` are the project's
-   configuration; commit them, and the project runs identically from the CLI.
-   What the project has learned lives in your workspace, and
+5. **Commit the recipe.** Commit `kapi.yaml` and the agent configuration so the
+   CLI and desktop use the same project settings. `.kapi/` is ignored by
+   default. Project context lives in your workspace, and
    [`kapi context export`](/kapi/context-portability) is how it reaches another
    machine or a teammate.
 

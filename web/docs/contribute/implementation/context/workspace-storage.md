@@ -97,28 +97,24 @@ must be atomic is a decision and the wording the content memory learns from it.
 - **An in-process FIFO permit** (`core/storage.writeGate`) every write holds for
   its whole life. SQLite's busy backoff has no memory of who has waited longest:
   measured at dogfood scale, a drip of small unit-state writes completed 32 of
-  2650 attempts against a saturating content-memory writer. The permit takes
-  that to zero.
+  2650 attempts against a saturating content-memory writer. The permit prevents this writer starvation.
 - **A cross-process advisory lock** on `<database>.lock`, a separate file beside
   the database, taken inside the permit and released by the same `Commit` or
   `Rollback`. It is `flock` on Unix and `LockFileEx` on Windows, and a no-op on
-  a build with neither. A separate file because locking the database's own
-  descriptor would sit alongside the locks SQLite takes on it, and two advisory
-  schemes on one inode is a question nobody should have to answer.
+  a build with neither. The separate file avoids interference with SQLite's locks on the database.
 
 `core/storage/write.go` applies both: `ExecContext`, `Exec`, `BeginTx` and
 `Begin` shadow the promoted `*sql.DB` methods and take the gate and then the
 lock. Reads stay promoted and are never gated: under WAL a reader neither blocks
 a writer nor waits for one.
 
-The permit and the lock are per file, which is what the two-pool split buys
-back. A block session's long transaction holds the projection's and leaves the
-context store's alone, so a review loop recording decisions runs beside an
-extraction rather than behind it.
+Permits and locks are per file. A long block-store transaction locks only the
+projection, allowing review decisions to be written concurrently to the context
+store.
 
 Two consequences at the call site:
 
-- A block-store session from `Blocks()` is ONE transaction over a whole
+- A block-store session from `Blocks()` is one transaction over a whole
   purge-and-refill, so it holds the projection's permit from `Begin` to
   `Commit`. A write to the same pool issued from the goroutine holding one is a
   deadlock, reported rather than hung: `storage.ErrWriteGateReentrant`.
@@ -150,14 +146,13 @@ second and promoting wording into the content memory every tenth round:
 | CLI: projection purge+refill | 11 | 0 | 74.81 | 93.26 | 93.26 | 93.26 |
 | CLI: context write | 11 | 0 | 32.13 | 44.07 | 44.07 | 44.07 |
 
-The CLI's projection transaction runs for 75 to 93 ms throughout, and the agent
-writes beside it do not move. That is the claim the split makes, measured.
+The measured projection transactions took 75–93 ms, while agent decision writes
+met the p99 target. Content-memory promotion and projection writes are reported
+separately from the latency gate for small context writes.
 
-Two rows are reported rather than gated, and the second is the reason.
-
-**Teaching the content memory is a heavier write, and its cost is its own.**
+**Content-memory writes have additional indexing costs.**
 `memory.Add` maintains the FTS5 tables row by row, and it grows with the corpus:
-on this store, with a SINGLE writer and nobody else on the file, it costs 32 ms
+on this store, with a single writer and nobody else on the file, it costs 32 ms
 at the median and 47 ms at the 99th percentile. The sixteen-process run above
 measures 33 ms and 89 ms, so contention adds about a millisecond to the median.
 Holding that write to a 50 ms bar would measure FTS5 rather than the workspace.
@@ -165,7 +160,7 @@ A converge worker with entries in hand should use `BulkAddWithStream`, which is
 one transaction for the batch; at the decision rate (`-memory-every=1`) the
 store saturates and the tail goes with it.
 
-**The cross-process lock is in the design because of the run before it.** With
+**Cross-process locking reduces tail latency.** With
 the in-process permit alone, sixteen agents recorded zero failed writes but a
 66 ms p99 and a 778 ms maximum on a write whose median was 0.45 ms. The tail was
 `busy_timeout` rather than the work: a writer that loses the race sleeps a fixed

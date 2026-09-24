@@ -2,7 +2,7 @@
 id: s-02-kapi-desktop
 sidebar_position: 2
 title: "S-02: Kapi Desktop"
-description: "Kapi Desktop is a Wails v3 application over the same host runtime the CLI uses: one Go service bound to a React frontend, a home screen on the workspace's project registry, several projects open as tabs, a feed of what agents recorded about a project's context, a Context hub for the stores, governance editing on the recipe, runs dispatched through the up venue, and no Cobra anywhere in its dependency graph."
+description: "Kapi Desktop uses the shared host runtime for project management, context review and content processing, with a Wails v3 backend and React frontend."
 keywords: [neokapi, architecture decision, Kapi Desktop, Wails, desktop app, module isolation, workspace, context hub, context operations, point map, governance, review, credential vault]
 ---
 
@@ -119,26 +119,17 @@ recipe and no files, its terms and content memory are bound straight to the
 workspace's context store as borrowed handles, and the Context hub drops the
 sections that read a checkout.
 
-Removal is a verb of its own. `Workspace.Forget` deletes the registration, the
-checkouts recorded against it and the context store behind it, and the desktop
-asks for confirmation naming the file that goes and the folders that stay.
-Nothing else calls it: closing a tab, deleting a folder and resetting a sample
-all leave the project registered, because a context that disappears as a side
-effect of something else is the loss this separation exists to prevent.
+`Workspace.Forget` deletes the project registration, checkout records and
+context store after confirmation. The confirmation identifies the database to
+delete and the checkout folders to preserve. Closing a tab, deleting a checkout
+or resetting a sample leaves the registration and context intact.
 
-The home follows other processes without any channel to them. A CLI run and an
-agent's MCP server write into the same workspace, and a registration that
-changed something appends to its operation log, as every context operation
-does, so `workspace.Head` is one indexed integer that says whether anything has
-happened. Re-opening a project nothing has changed about writes no operation,
-which is what keeps the head from moving whenever anyone looks at anything. A
-goroutine started in `ServiceStartup`
-reads it once a second and emits `workspace:changed` when it moves, which the
-frontend turns into a refetch. Polling rather than watching the files: a SQLite
-database in WAL mode changes three files in an order a filesystem event says
-nothing useful about, while an idle app here costs one single-row query a
-second. There is no IPC and no background service; the store is the meeting
-point.
+The desktop detects changes made by the CLI and MCP server through the shared
+workspace operation log. A goroutine started in `ServiceStartup` polls
+`workspace.Head` once per second and emits `workspace:changed` when the revision
+changes, triggering a frontend refetch. Reopening an unchanged registration
+leaves the revision unchanged. This requires one indexed query per second and
+avoids interpreting filesystem events from SQLite database and WAL files.
 
 ### The project home and the point map
 
@@ -201,7 +192,7 @@ rule or wording it is about, its status (`suggested`, `established`,
 `contested`, `withdrawn`, `dropped` or `reverted`, with a contested entry
 reading "Contested by #n"), and its evidence: the file, the unit and the
 quotation. Evidence is on the card rather than behind a disclosure for
-anything awaiting a decision, because a decision taken without it is a guess.
+anything awaiting a decision, so reviewers can assess the supporting text.
 
 **Deciding goes through the host API and nothing else.** Keep, keep with an
 edit, drop, revert one operation, revert a session and widen are the backend's
@@ -215,12 +206,10 @@ project from a recipe path and the home screen spans projects, some of which
 have no checkout on this machine. A project with no readable checkout is read
 here and not decided on, and the card says so.
 
-Widening asks first. The preview names where the rule would answer: every
-registered project for a widening to the workspace, and the recipe's declared
-points the rule newly covers for a widening past one axis. It says in as many
-words that it has not counted the content the rule touches, since no API
-computes that and a number invented in the frontend would be a second answer
-about content the engine never gave.
+Widening requires confirmation. The preview lists affected projects for
+workspace scope, or newly covered recipe points when removing an axis
+restriction. It explicitly states that affected content has not been counted;
+the backend does not provide that count.
 
 The keys are the review session's, so the two decision surfaces feel the same:
 `j`/`k` and the arrows move over the suggestions, `a` keeps, `r` drops, `e`
@@ -407,8 +396,8 @@ the package manager.
   in the desktop is a recipe edit `git diff` shows.
 - Any new tool, format, or provider registered in the framework appears in the
   desktop with no backend change.
-- The app knows every project on the machine without anyone listing them, and it
-  pays one indexed query a second for keeping that list current.
+- The app lists projects registered by any local kapi surface and checks for
+  updates with one indexed query per second.
 
 ## Related
 

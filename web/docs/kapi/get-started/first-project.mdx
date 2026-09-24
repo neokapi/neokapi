@@ -15,16 +15,14 @@ content, plus the wiring that lets the coding agents in your repository reach
 kapi. Set it up once and every surface works the same project: the desktop app,
 your assistant, and the CLI.
 
-**Your project starts with an empty context**, and that is the normal state on
-day one. It has no terms, no approved wording and no house rules, because the
-words a project cares about are the ones it turns out to use. The context fills
-as you and your agents work: an agent records what it notices, you keep what
-is right, and from then on `kapi check` holds new writing to it.
+A new project has no terms, approved wording or voice rules. Build its context
+as you work: review the observations your agent records and keep the rules you
+want `kapi check` to enforce.
 
 That context lives in your workspace on this machine, one store per project,
 and every checkout, worktree and clone of the project reads the same one. The
-files in the repository say what counts as content and what governs it; what
-the project has learned is held beside them.
+recipe defines the content collections and their governance bindings. The
+workspace stores the context those bindings refer to.
 
 A new project is source-only, so the loop below is about your own writing.
 [Add languages](/kapi/get-started/add-languages) when you want them.
@@ -48,8 +46,8 @@ and use the demo engine.
 2. **Add content.** In the **Project** view, add a pattern that matches your
    source files (for example `docs/**/*.md`). Kapi lists the matched files and
    the detected format, grouped into a collection.
-3. **Read where it stands.** The project home says where the project is on two
-   axes: **Content** (what has been read in, what changed on disk, what is
+3. **Review project status.** The project home shows two axes: **Content**
+   (what has been read in, what changed on disk, what is
    missing) and **Governance** (the voice profile in force, the terms bound,
    when it last converged). Below, the **point map** gives one row per point the
    recipe declares. Bind a voice profile and set the default point under
@@ -73,12 +71,9 @@ connected, ask for the project:
 
 > Set kapi up for this project.
 
-Claude runs `kapi init`, which proposes the content collections from the files
-in the tree, and reads the list back to you to adjust. What it writes is
-committed: a recipe saying which files count as content, and the wiring that
-lets the next session reach kapi. From there your prompts stay short; "check
-this is on brand" needs no flags, because the project carries what the check
-reads.
+Claude runs `kapi init` and presents the proposed content collections for your
+review. Commit the generated recipe and agent configuration. Subsequent
+sessions can use the project settings when you ask for a check.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -145,15 +140,14 @@ collections:
 `id:` is the project's identity. It survives a rename, a move and a clone, and
 it is what joins two checkouts of one repository to one context. Keep it.
 
-Commit the recipe and the agent wiring. `.kapi/` is a cache for this checkout,
-where [everything derived from your files](/kapi/project-store) goes; `kapi init`
-writes an ignore rule that keeps all of it out of version control, and deleting
-it costs a re-read of your files.
+Commit the recipe and agent configuration. `kapi init` excludes `.kapi/` from
+version control. It contains derived stores and caches, personal reader
+filters, and any redaction vault. The derived data can be rebuilt, but deleting
+the vault loses its withheld originals. See [The project store](/kapi/project-store).
 
-What the project learns goes elsewhere. The terms, the voice profiles, the
-wording you approve and the record of who approved it are held in your
-workspace, keyed on the `id:` above, so a rule you keep on one branch holds
-on every branch and in every worktree. See
+Terms, voice profiles, content memory and approval records are stored in your
+workspace under the project's `id:`. Rules established in one checkout therefore
+apply across its branches and worktrees. See
 [Context portability](/kapi/context-portability) for moving that context to
 another machine or handing it to somebody else.
 
@@ -179,9 +173,8 @@ where two would do, and every wording you change in its draft. Each of those is
 recorded as a **suggestion** with the file it came from. It ends its report with
 what the session recorded.
 
-Nothing it records is in force. Checks report suggestions and fail on none of
-them, so an agent can keep recording while you work without any risk of
-stopping a build.
+Checks report suggestions without changing scores or failing gates. A person
+must keep a suggestion before it becomes an established rule.
 
 ## 3. Read what it recorded
 
@@ -211,8 +204,7 @@ is waiting for you, and `--session <id>` to one agent run.
 
 In Kapi Desktop the same log is the **Recorded** feed: on the home screen across
 every project, and in a project's **Context** hub for that project alone. It
-groups by session, and the evidence sits on the card, because a decision taken
-without it is a guess.
+groups entries by session and shows the supporting evidence on each card.
 
 ## 4. Keep what is right
 
@@ -231,9 +223,9 @@ evidence it rested on. Change it as you keep it with `--use` and `--advisory`,
 or set it aside with `kapi context drop 3`. Either way the record stays in the log, so the
 same suggestion is recognisable the next time somebody makes it.
 
-Deciding is yours. An agent observes and records corrections, and it has no
-verb for keeping, dropping, reverting or widening. [Growing context](/kapi/context-decisions) covers the whole set of
-verbs, including undoing a whole agent session in one command.
+Only a person can establish rules or undo an entire session. See
+[Growing context](/kapi/context-decisions) for the available operations and
+permissions.
 
 ## 5. Check
 
@@ -255,9 +247,8 @@ PASS configured checks: 0 failing, 2 reported · score 100/100
   Context: docs/guide.md; voice none (project); terms none loaded
 ```
 
-The `Context:` line says what the check was evaluated against: the voice profile
-in force at that file, and whether the project's terms store had anything to
-say. After keeping, the same word is an established rule, and the check fails on it:
+The `Context:` line identifies the applicable voice profile and whether terms
+were loaded. After you keep the rule, the check fails on uses of “utilise”:
 
 ```
   outcome  rule              location                                    message
@@ -275,8 +266,7 @@ Run `kapi check` with no path to check the whole project, and `kapi check
 --ship` to enforce release policy. Both exit `3` when a finding fails, which is
 what makes it a CI step: see [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
-Repeat steps 2 to 5 as you work. Each session adds to what the project holds,
-and a person decided every part of it.
+Repeat steps 2 to 5 to build a reviewed set of rules from your writing work.
 
 ## Next
 

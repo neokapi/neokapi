@@ -74,7 +74,11 @@ kapi check blog-post.md --profile-file brand/voice.yaml
 }
 ```
 
-**What the run was evaluated against:** the terms, voice rules and decisions a check enforces live in your workspace, outside the repository, and they move as work goes on. `evaluation.context.revision` is the position that workspace had reached, so two results carrying one revision were checked against one state of the context, and `stale` says the blocks kapi holds were read from files that have since changed. Beside it, `evaluation.tool` and `evaluation.plugins` name the versions that ran, and `evaluation.analyzers` says which analyzers covered the content and which did not, with the reason. The record reports: it never changes the verdict, the score or the exit code. A check of files outside a project carries no `context`.
+**Evaluation metadata** identifies the context revision, checker and plugin
+versions, and analyzer coverage. `evaluation.context.stale` indicates that the
+stored content no longer matches the files on disk. This metadata is
+informational and does not change scores, verdicts or exit codes. Checks outside
+a project omit `evaluation.context`.
 
 Field-by-field, the Report is documented in [Checks](/framework/checks); the flags in the [`check` reference](/reference/commands/check).
 

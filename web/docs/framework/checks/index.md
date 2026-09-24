@@ -149,11 +149,9 @@ return it in their report.
 
 ### What the run was evaluated against
 
-Much of what a check enforces lives outside the repository: the terms someone
-confirmed, the voice rules in force, the decisions recorded about a project. A
-verdict is read long after the run that produced it, from a CI log, an agent
-transcript or a bug report, so the Report carries an optional `evaluation`
-object naming the state it was reached from:
+Check results depend on workspace context as well as repository content. The
+optional `evaluation` object records that context and the checker version so
+results can be interpreted later from logs and reports:
 
 - `at`: when the run was evaluated, RFC 3339 in UTC, read once per run so every
   field of the record shares one instant.
@@ -176,10 +174,8 @@ object naming the state it was reached from:
   counting each group. An analyzer that missed its canary is grouped under
   status `invalid`, because what it reported cannot be read as a result.
 
-The record reports and gates nothing: an absent workspace, a project whose
-context is still empty and a projection that has drifted all leave the verdict,
-and the score as they would be without it, and none of them appears in
-the human output. Every producer of a `kapi.check/v2` Report carries the
+Evaluation metadata does not affect scores, verdicts or gates, and is omitted
+from human-readable output. Every producer of a `kapi.check/v2` Report carries the
 record. `kapi check --ship` reports gates rather than a Report, so it carries
 none.
 
@@ -294,13 +290,13 @@ downstream gate.
 
 ### What fails
 
-The rule that raised a finding decides whether it fails:
+A finding's `fails` field is determined by the rule and its status:
 
 - An established rule fails: a term in the terms store, a term rule, a voice
   profile's prohibited or required pattern. A rule marked `advisory: true`
   reports instead. A retired term in the terms store reports; a forbidden or
   competitor term fails.
-- A suggested rule, one recorded by `kapi context propose` or `correct` and not
+- A suggested rule, one recorded by `kapi context observe` or `correct` and not
   yet confirmed, reports and never fails. Its finding carries `suggested: true`
   and reads `Suggested rule about "X", not yet established`.
 - Style measures report: the voice-similarity check (`--voice`), an AI voice

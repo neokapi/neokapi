@@ -375,14 +375,13 @@ beside the voice's vocabulary. See [C-11](c-11-context-operations.md).
 ### Authoring a profile
 
 `kapi voice new` scaffolds a commented, schema-valid YAML file and
-`kapi voice import` files it in the project's voice store, which is the
-bootstrap. After that `kapi voice edit` is the authoring surface: it writes the
+`kapi voice import` loads it into the project's voice store. Use
+`kapi voice edit` for subsequent changes: it writes the
 stored profile to a temporary file through the snapshot serializer, opens
 `$VISUAL` or `$EDITOR`, validates what comes back the way `kapi voice validate`
-validates a file, and reads it into the store as one recorded change. The
-document states the profile entire, so a section deleted in the editor is
-deleted from the profile; an editor that exits with an error, and a document
-saved unchanged, both leave the store as it was.
+validates a file, and imports it as one recorded change. The edited document
+replaces the full profile, including any deleted sections. An editor error or
+an unchanged document leaves the stored profile intact.
 
 ### Binding a profile
 
@@ -390,9 +389,8 @@ A recipe binds a voice by name and never by file: `voice: {profile: <id>}`, or
 the short form `voice: <id>`, names a profile the project's store holds, and
 `voice: {pack: <name>}` a starter pack. A recipe that names a file
 (`profile_file:`, or a `voice:` that is a path) fails to load, and the message
-names the import that reads the file and the binding to write. The store is what
-every surface answers from, so a binding to a file would read as in force while
-the store held something else.
+identifies the import command and the required name binding. All surfaces
+resolve profiles from the store.
 
 `kapi context import` reads the profiles a layout carries: `voice.yaml` at the
 top of the layout is the project's, and `profiles/<name>/voice.yaml` belongs to
@@ -404,8 +402,8 @@ several profiles and none at the top, it binds none and lists them with the line
 to add. An agent's import is refused, since reading context in is a person's
 decision.
 
-A recipe that binds a name the store does not hold is a project whose context has
-not reached this machine: a fresh clone or a new data root. The error names the
+A binding to a missing profile produces an error. This can happen when a clone
+has not imported its context or when using a new data directory. The error names the
 binding and the two commands that bring the context, `kapi context import` in a
 checkout carrying the profile and `kapi context restore` from an export.
 `kapi voice pack <name>` is suggested only when a starter pack carries that name,

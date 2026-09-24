@@ -1,35 +1,34 @@
 ---
 sidebar_position: 2
 title: The project store
-description: "Where a kapi project's work lives: a projection of your files at .kapi/work/store.db, and the context store in a workspace outside the checkout that holds the terms, voice profiles, content memory and decisions. The recipe is config, the store is work, the files are the deliverable."
+description: "Where kapi stores derived content, authored context and operation history, and how to preserve or rebuild each."
 keywords: [kapi, project store, store.db, workspace, context store, context graph, units, review, coverage, cache, ship state]
 ---
 
 # The project store
 
-A kapi project has three things, and it helps to keep them straight:
+A kapi project consists of:
 
 - the **recipe** (`kapi.yaml`), your *config*: content, governance bindings, flows, defaults, languages;
 - the **files**, your *deliverable*: the source and target files on disk;
 - the **project store**, your *work*: what kapi derives from your files, plus
   the context the project works under and the decisions people record in it.
 
-This page is about the third one. The guiding rule:
+The storage model has two authoritative sources:
 
 > **Your files are the source of truth for the deliverable, and the store is the
-> source of truth for the context. Everything else kapi keeps is derived from
-> one of the two and rebuilds.**
+> source of truth for the context. Derived indexes and caches can be rebuilt.**
 
 ## What's in the store
 
-The store is two databases with different lifetimes: one beside your checkout
-for what kapi read out of your files, and one in a per-user workspace for the
-context your project goes by.
+kapi separates derived content data from authored context. The projection
+database belongs to one checkout; the context database is shared by the
+project's checkouts in the local workspace.
 
 | Layer | Lives in | Kind | Lose it? |
 |---|---|---|---|
 | **context store** | a workspace under your data directory | **authored**: terms, voice profiles, content memory, recorded decisions | **back it up with [`kapi context export`](/kapi/context-portability)** |
-| the record of how it got there | the same workspace | every observation, proposal and decision, with the evidence behind each ([Growing context](/kapi/context-decisions)) | stays on this machine; the rules it produced are in the context store and travel |
+| operation history | the same workspace | every observation, proposal and decision, with the evidence behind each ([Growing context](/kapi/context-decisions)) | remains local; established context can be exported |
 | projection | `.kapi/work/store.db` | **derived from your files**: the block cache, the overlays a run wrote, the extraction stamps | rebuilds on the next run |
 | cache | `.kapi/work/cache/` | **derived**: parse cache, extractions, collections, sync cache | rebuilds on the next run |
 
@@ -56,66 +55,53 @@ database per project:
 The data directory is `$KAPI_DATA_DIR` when you set it, `$XDG_DATA_HOME/kapi`
 when that is set, and otherwise the platform's own: `~/Library/Application Support/kapi`
 on macOS, `%LocalAppData%\kapi` on Windows, `~/.local/share/kapi` elsewhere.
-kapi creates the workspace on first use, and the recipe binds nothing to it.
+kapi creates the workspace on first use; no recipe setting is required.
 
-kapi keys a project by the `id:` its recipe carries, which `kapi init` mints, so
-every checkout of one project reaches the same context store. A second clone
-opens with the terms, the voice profiles, the content memory and the decisions
-already in force, and re-extracts its own projection. A git worktree is a
-checkout rather than a second project: a decision you record in one is in force
-in the other, and switching branches moves no context.
+`kapi init` assigns a stable project `id:`. Clones and worktrees with that id
+share the local context store while maintaining separate projections of their
+files. Switching branches preserves the context. Checks and context queries
+use the same store, so a confirmed rule is available to the next command in
+every checkout.
 
-Every read goes to that store. A gate, a retrieval and an agent's question all
-resolve the same terms and the same voice profile, whichever branch the checkout
-is on, and a rule you confirm is in force for the next command in every worktree.
-
-A checkout that carries context files brings them in with one command,
-[`kapi context import`](/kapi/context-portability), which a person runs. Until
-then those files are bytes on disk and nothing in them applies.
+Use [`kapi context import`](/kapi/context-portability) to load context files
+from a checkout. They affect governance only after a person imports them.
 
 ## What to commit, and what to ignore
 
-Commit the recipe, and the agent wiring `kapi init` wrote beside it. `.kapi/` is
-a cache for this checkout: the block store, the caches, the redaction vault and
-your personal saved reader filters. Filters you share with the team are kept
-with the project's context instead. `kapi init` writes `.kapi/.gitignore` with one line,
-`*`, so none of it reaches git, and a second clone builds its own.
+Commit the recipe and agent configuration. `.kapi/` holds checkout-local data:
+the block store, caches, redaction vault and personal reader filters. Shared
+filters are kept in the project's context store. By default, `kapi init` writes
+`.kapi/.gitignore` containing `*` to exclude the directory from version control.
 
-Deleting is worth being precise about:
+Deletion has different consequences for each location:
 
 - **`rm -rf .kapi/work/cache` is always safe.** Everything under it is rebuilt on
   the next run.
-- **`rm -rf .kapi` costs a re-extraction**, and, if you use
-  [redaction](/framework/redaction), the vault under `.kapi/work/vault/`. The
-  vault holds the withheld originals, deliberately local-only, never committed
-  and never synced, so no copy exists anywhere else. Merge the batches you have
-  in flight before you clear it. Your terms, your voice profiles, your content
-  memory and your decisions are in the workspace and stay where they are.
+- **Deleting `.kapi/` removes derived data, personal filters and any redaction
+  vault.** The [redaction](/framework/redaction) vault at `.kapi/work/vault/`
+  contains withheld originals that are neither committed nor synced. Merge
+  in-flight batches before deleting it. Workspace context is unaffected.
 - **Deleting the workspace costs the context of every project on the machine**:
   the terms, the voice profiles, the content memory and the recorded decisions.
   git holds none of it, so take a copy with
   [`kapi context export --workspace`](/kapi/context-portability#backing-up-every-project-at-once)
   before you do anything that reaches your data directory.
 
-## Rows filed under an old language spelling
+## Repairing non-canonical locale identifiers {#rows-filed-under-an-old-language-spelling}
 
-Every row in the store is filed under one canonical spelling of its language,
-and every lookup asks in that spelling. A row an older kapi filed under `nb_NO`
-when lookups ask for `nb-NO` is never matched, so the term or the approved
-sentence it holds reads as absent, which looks exactly like content nobody has
-worked on yet. `kapi status` and `kapi up` say so once when they find one.
+kapi stores and looks up locale identifiers in canonical form. Older rows may
+use an identifier such as `nb_NO` that does not match a lookup for `nb-NO`,
+leaving terms or approved wording absent from results. `kapi status` and
+`kapi up` report these rows when detected.
 
 ```bash
-kapi context locales         # what each row is filed under
-kapi context locales --fix   # file the context rows the way lookups ask
+kapi context locales         # inspect stored locale identifiers
+kapi context locales --fix   # normalize context rows and report conflicts
 ```
 
-`--fix` moves the rows in the context store where they stand, and throws none
-away. A row whose canonical spelling is free takes it. A row saying exactly what
-the canonical row already says folds into it, and the report counts the merge. A
-row whose canonical spelling already answers differently is left alone and
-named, because picking between two approvals is yours to do rather than a
-repair.
+`--fix` updates context rows in place. It changes an identifier when the
+canonical key is unused and merges identical rows. Conflicting rows are
+preserved and reported for manual review.
 
 Rows in the projection are what kapi read out of your own files, so they are
 rebuilt rather than moved: delete `.kapi/work/store.db` and the next `kapi up`
@@ -124,7 +110,7 @@ reads your files again.
 ## One context graph
 
 The workspace keeps a graph that links a term to the blocks that use it, a
-decision to the unit it blesses, and both to their
+decision to the unit it approves, and both to their
 [context coordinates](/kapi/context#the-context-space). A project answers graph
 questions without a server: which blocks use this term, in which collection, at
 which coordinate. Because the graph spans the projects you have opened, *which
@@ -154,9 +140,9 @@ Approving a translation records a **decision** in the store, and it counts from
 that moment (see [Review](/kapi/convergence#review-the-state-record)). Every
 checkout of the project reads it, and there is no second step.
 
-The decision is bound to the **content hash** of the translation it blesses and
-to the source it blessed it for, so editing either one later drops the unit back
-below *reviewed*. An approval can't silently outlive the text it approved.
+The decision is bound to the **content hash** of the translation and
+to the source text it was approved against. Editing either drops the unit below
+*reviewed*. An approval can't silently outlive the text it approved.
 
 ```bash
 kapi status --review        # the worklist: units awaiting approval
@@ -179,8 +165,7 @@ them back (`kapi pull`), the same record with a different sink.
 Presence is table-level. A context store whose terms tables are empty behaves
 exactly as though there were no terms store at all: the terminology gate
 enforces nothing, `kapi up --plan` never creates state, and `kapi pack` carries
-only the parts that hold something. A database's existence conjures nothing into
-it.
+only the parts that hold something. Only populated subsystems contribute context.
 
 The same model runs in the browser, where everything is held in memory and the
 decisions persist to a sidecar file beside the projection. A browser tab holds

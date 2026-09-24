@@ -109,15 +109,15 @@ id: prj_k3m7xq2vw9ta5r8ybn4dcp
 name: My App
 ```
 
-The id is random, minted once, and derived from nothing else in the project. Everything kapi records about the project locally is keyed on it, so you can rename the project, move the folder, or clone the repository onto another machine and the recorded context still belongs to the same project. Two checkouts of one repository are one project because they share one recipe.
+The id is randomly generated and remains stable when you rename or move the project. Local clones and worktrees with the same id share a context store. On another machine, import or restore the context to make it available there.
 
 `name:` is the label you read in `kapi status` and in Kapi Desktop. Change it whenever you like.
 
-Keep the `id:` line when you commit the recipe, and keep it when you copy a recipe as a starting point for a genuinely different project: delete the line there and run `kapi init --mint-id` in the new project, which writes a fresh id and leaves the rest of the file untouched.
+Keep the `id:` line when committing or cloning the same project. When copying a recipe to create a different project, delete that line and run `kapi init --mint-id`. This assigns a new identity without changing the rest of the recipe.
 
 A recipe with no `id:` keeps working. kapi identifies such a project by its `name:`, and `kapi init --mint-id` gives it an id whenever you want one.
 
-Older kapi releases read a recipe carrying an `id:` without complaint: an unrecognized top-level key round-trips as an extension. Such a release still identifies the project by its name, so a project shared between two kapi versions is keyed differently by each until both carry this release.
+Releases without support for `id:` preserve it as an unknown top-level extension and continue to identify the project by name. Mixing versions with different identity handling can therefore produce different project keys.
 
 ### Collections
 
@@ -352,7 +352,7 @@ a connected run warns that the binding applies locally only.
 
 #### Resolution order
 
-A profile's own binding answers before the project default does. Resolution for a
+Profile bindings take precedence over project defaults. Resolution for a
 collection's point, most specific first:
 
 | Store | Order                                                                                   |
@@ -360,12 +360,9 @@ collection's point, most specific first:
 | voice | `profiles.<name>.voice` → the profile the store holds under `<name>` → `defaults.voice` |
 | terms | `--termstore` → `profiles.<name>.termstore` → the project's own terms |
 
-Every rung above answers out of a store. Nothing on this path opens a file in
-the checkout: a branch carrying a different copy of a profile would otherwise
-enforce a voice the project never agreed on.
-[`kapi context import`](/reference/commands/context-import) is what reads a
-checkout's context files into the store, and a recipe binds what the store holds
-by name.
+Resolution reads stored context by name. Use
+[`kapi context import`](/reference/commands/context-import) to load context
+files from a checkout before they affect governance.
 
 The channel then refines the voice that resolved: a matching entry under the
 voice profile's own `channels:` replaces its tone, its style, or both, and can

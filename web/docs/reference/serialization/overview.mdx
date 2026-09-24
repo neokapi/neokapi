@@ -34,7 +34,7 @@ play.
 **A projection is derived working state.** `.kapi/work/store.db` holds what
 kapi read out of the working tree: the block cache, the overlays a run wrote,
 the skeleton and parse caches beside it. It is fast, indexed, mutable and
-**rebuildable**, a picture of files that are themselves the truth.
+**rebuildable** from the content files.
 
 **A context store is authored state.** The project's own store, in a workspace
 outside the checkout, holds the content memory, the terms, the voice profiles
@@ -54,14 +54,12 @@ are what you hand over, ship, or put in a pull request.
 
 ### The rule this produces
 
-**Anything a person authored or decided is in the context store, and anything
-derived from your files rebuilds.** A bundle is the third thing: the shape
-authored state takes when it leaves the store.
-[`kapi context snapshot`](/kapi/context-portability#writing-context-out) writes
-that shape into `.kapi/`, `kapi context import` reads it back, and a team that
-wants its terms and approvals reviewable in git keeps the snapshot committed.
-Only `.kapi/work/`, where the projection and its caches are derived, is ignored
-outright.
+Bundles serialize authored context for exchange and review.
+[`kapi context snapshot --out <dir>`](/kapi/context-portability#writing-context-out)
+writes them to a selected directory, and `kapi context import <dir>` reads them
+back. Commit a snapshot if your team reviews terms and approvals in git.
+`.kapi/` is ignored by default; adjust its ignore rules if you choose it as the
+snapshot directory.
 
 ## The formats
 

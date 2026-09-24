@@ -22,22 +22,17 @@ conformance suite holds them to it.
 
 ## What the app opens to
 
-The app opens on your **workspace**: every project kapi has run in on this
-machine, whichever surface ran it. Set a repository up from a terminal and it is
-on the list when you next look, with no step in the app. Each project shows its
-name, its identity, when it was last active, and the folders it has been seen
-in. Two worktrees or two clones of one repository are one project with two
-folders beneath it, because they share an identity and one context.
+The app opens on your **workspace**, listing projects registered by the CLI,
+desktop app or an agent. Each entry shows the project name, identity, last
+activity and checkout folders. Clones and worktrees with the same project id
+appear together and share context.
 
-A folder that has gone away is marked missing rather than dropped: the project
-and its context are unaffected, and the row still says where the files were. A
-project with no copy on this machine, one you have only ever opened elsewhere,
-opens on its context alone. **Open a Project** is there for a folder kapi has
-never run in, and opening it adds it to the list.
+Missing checkout folders remain listed, and their project context is preserved.
+A registered project without a local checkout opens in a context-only tab. Use
+**Open a Project** to register and open another folder.
 
-Removing a project from the workspace is something you ask for. The confirmation
-names the file that will be deleted and the folders that will not, and nothing
-else in the app removes a project as a consequence of anything.
+Removing a project from the workspace requires confirmation. The dialog
+identifies the context database to delete and the checkout folders to preserve.
 
 A project reopens as a tab, and the tabs you had last time come back. A
 project's home says where it stands, on two axes:
@@ -82,10 +77,9 @@ The **Context** hub is where the graph is legible:
 
 ## Working beside an agent
 
-Keep the app open while an agent works in one of your projects. The agent runs
-in its own process, through the kapi CLI or its MCP server, and what it records
-about terms, voice and wording arrives here within a second or two. Nothing
-connects the two: both read and write the same project context on this machine.
+Keep the app open to review an agent's observations as it works. Suggestions
+recorded through the CLI or MCP server appear in the **Recorded** feed within a
+second or two.
 
 **Recorded** on the home screen carries every project's work; the same section
 inside a project's Context hub carries that project's. Each entry says what was
@@ -103,9 +97,8 @@ For each entry waiting on you:
 - **Confirm** writes the rule into the project's terms, voice profile or
   content memory, where every check reads it and the Recorded feed keeps the
   decision beside the evidence it rested on.
-- **Edit** changes what the rule says to write instead, and how hard it bites,
-  before you accept it. Minor and neutral report a violation; major and
-  critical fail a check.
+- **Edit** changes the replacement and whether violations fail checks or only
+  report, before you accept the rule.
 - **Discard** rejects it. It stops advising at once.
 - **Undo** takes a confirmed rule back out, and **Undo session** does that for
   everything one agent session recorded. The confirmation names how many
@@ -114,16 +107,14 @@ For each entry waiting on you:
 The keys are the review session's: `j` and `k` move, `a` confirms, `r`
 discards, `e` edits.
 
-A confirmed rule can be **widened**: out to every project in your workspace, or
-past one axis of the point it was learned at, so it answers more widely in its
-own project. You see where it would reach before you accept. The count of files
-it would touch is not part of that; run a check afterwards to see what it
-reports.
+You can **widen** an established rule to all projects in the workspace, or
+remove one coordinate restriction within its project. The confirmation lists
+the affected scope. Run a check afterwards to see findings in the affected
+content.
 
 A count beside a project says how many decisions are waiting there. It is
-absent when there are none. Deciding writes into the project's files, so it
-needs a copy of the project on this machine: a project you have only ever
-opened elsewhere can be read here and not decided on.
+absent when there are none. Reviewing operations requires a readable local
+checkout. Context-only tabs support inspection but not these decisions.
 
 ## Collections and formats
 

@@ -82,16 +82,13 @@ Terminology folds into the voice and translate references rather than standing
 alone, because a term is something you apply while writing or translating, not a
 task you set out to do.
 
-The `growing-context` reference is the second and third habits at their other
-speed. Everyday growth and a deliberate discovery session are one mechanism:
-both record operations that produce suggestions, and neither writes a governance
-file, because a person keeping a suggestion is what writes one ([C-11](../context/c-11-context-operations.md)).
-The deliberate half covers two visits. On the first, the assistant assembles a
-project's context from the user's material. On a later one it diffs new material
-against what the project already holds and proposes a **refresh**: suggestions
-the user keeps one at a time, or a change-set the user approves
-(`kapi apply refresh.jsonl`) where the decisions are already made. Nothing is
-rewritten behind the user's back either way.
+The `growing-context` reference covers routine observations and dedicated
+context discovery. Both record suggestions for review
+([C-11](../context/c-11-context-operations.md)). During initial discovery, the
+assistant proposes context from the user's material. During a refresh, it
+compares new material with existing context and proposes changes. The user can
+keep individual suggestions or approve a prepared change-set with
+`kapi apply refresh.jsonl`.
 
 The `i18n` concern is itself a tree. `references/i18n.md` detects the stack and
 routes into `references/i18n/`, driven by a machine-readable framework registry
@@ -108,8 +105,7 @@ documents, not in a file an assistant loads into a live context window.
 
 ### The skill is a copy, never a second tree
 
-One source tree, copied. Four make targets and the binary itself produce the
-copies, so they cannot diverge:
+The following targets distribute copies from one source tree:
 
 | Target | What it produces |
 | --- | --- |
@@ -145,10 +141,9 @@ installed:
 | Codex | `.codex/config.toml` (`mcp_servers`) | read once the person trusts the repository |
 | Cross-client | `.agents/skills/kapi/SKILL.md` | [Agent Skills client guide](https://agentskills.io/client-implementation/adding-skills-support) |
 
-Each host is supported where its convention was read from that host's own
-documentation. `servers` and `mcpServers` differ between two of them, and a key
-the host does not read is inert with nothing to notice it, so
-`host/agentwiring_test.go` asserts each spelling rather than trusting one.
+Host configuration follows each client's documented format.
+`host/agentwiring_test.go` verifies differences such as the `servers` and
+`mcpServers` keys.
 
 Claude Code is wired unconditionally, because its MCP file sits at the project
 root and its skills directory is one kapi creates, so there is nothing to
@@ -346,8 +341,7 @@ call appends a context operation carrying the actor and the evidence
 ([C-11](../context/c-11-context-operations.md)). Each store therefore has
 exactly one writer, `kapi context log` is the uniform review surface for every
 kind, and the operation is idempotent, so re-running a partly-applied change-set
-is safe. The `recipe` kind is the exception that proves it: the recipe is
-configuration, so that entry writes `kapi.yaml` in the checkout.
+is safe. Entries of kind `recipe` update `kapi.yaml` in the checkout.
 
 **A content edit carries its own guards.** Each `content` entry pins a
 `content_hash`; if the block drifted since it was inspected, the edit is *stale*
@@ -408,22 +402,20 @@ configured for one project keeps the behaviour it had.
 
 Four properties follow from resolving per call rather than per process.
 
-**Nothing about a call lands on the server.** The resolved recipe travels on the
-command the handler builds, which is what every embedded surface already does,
-so two calls for two projects run at once without interfering.
+**Call state is isolated.** The handler passes the resolved recipe through its
+command object. Concurrent calls for different projects do not change the
+server's default project.
 
 **Each project gets its own store handle.** `App.ProjectDB` memoizes one handle
 per project root, and `Shutdown` closes all of them, so a second project opens a
 second connection pool and neither outlives the server.
 
-**Content is read in the call's own source language.** A term lookup matches the
-locale exactly, so content read in another project's language is held to no
-vocabulary at all. The language is settled from the recipe each call resolved
-and travels with the run. A source language named when the server started still
-outranks a recipe, as an explicit `--source-lang` outranks one on the command
-line, and the server's own language answers a call that resolved no project.
+**Source language resolves per call.** Each run uses the resolved project's
+source language for exact locale matching in term lookups. An explicit server
+source-language setting takes precedence over the recipe. Calls without a
+project use the server default.
 
-**The tool list stays the start project's.** A client reads `tools/list` once, so
+**The tool list is fixed at startup.** A client reads `tools/list` once, so
 which tools exist is fixed when the server starts. A per-call project decides
 what governs the content, and for a registry tool it decides the target-language
 default; it does not add or remove tools.
@@ -474,8 +466,8 @@ Three curation rules are asserted by tests rather than remembered:
   nothing else; keeping, dropping, reverting and widening are a person's, and
   the surface carries no tool for them at all. The policy
   ([C-11](../context/c-11-context-operations.md)) would refuse such a call
-  anyway, and a tool that is always refused is one an assistant keeps trying.
-  The actor rides on the call rather than in it: kind `agent`, the name from
+  before modifying context.
+  The server assigns the actor identity: kind `agent`, the name from
   `initialize`, and a session minted once per server process, so a caller cannot
   claim to be a person.
 
@@ -513,37 +505,29 @@ Both MCP primitives are thin wrappers over the same host functions the `kapi
 context` verbs call. The skill drives the CLI, so a capability that existed on
 only one surface would teach an assistant a kapi the other half does not have.
 
-### Parity is a suite, not a claim
+### CLI and MCP conformance {#parity-is-a-suite-not-a-claim}
 
-Sharing an implementation makes the two surfaces agree in principle. What
-establishes it in practice is a conformance suite that drives the real
-`kapi mcp` over stdio the way a client does (`initialize`, `tools/list`,
-`tools/call`, `resources/read`) against scratch projects, and compares each
-answer with what `kapi check`, `kapi exec` or `kapi context` reports for the
-same input.
+A conformance suite starts the real `kapi mcp` server over stdio against
+isolated projects. It exercises `initialize`, `tools/list`, `tools/call` and
+`resources/read`, then compares results with `kapi check`, `kapi exec` or
+`kapi context` on the same input.
 
-Every check-type tool carries a fixture that must pass and a fixture that must
-fail. The must-fail half is the point: the harness that builds a block from a
-snippet built it source-only, so every bilingual check reached over MCP returned
-a clean result whatever the translation said, and the CLI path was correct the
-whole time. A suite that only asserts a clean result on clean content cannot see
-that.
+Every check tool has both passing and failing fixtures. Bilingual fixtures
+include target content so the suite detects tools that skip translation checks
+or return an empty result for invalid content.
 
-The suite lives in `kapi/e2e` and runs pre-merge in the `Kapi CLI E2E` job on
-every pull request touching `cli/`, `host/` or `kapi/`.
+The suite lives in `kapi/e2e` and runs in the `Kapi CLI E2E` job on pull requests
+that change `cli/`, `host/` or `kapi/`.
 
 ### The skill drives the CLI
 
-The bundled skill issues shell commands. The CLI is the richer surface (the
-model-backed checks, the credential store, project resolution, the full
-toolbox), and an assistant that can run shell already has it. MCP exists for
-clients that cannot, and the shared host implementation is what keeps the two
-honest.
+The bundled skill issues shell commands and can use the CLI's full set of
+checks, credential management and project operations. MCP provides structured
+access for clients without shell execution. Both use the shared host runtime.
 
-Because a skill issues commands, it consumes the exit-code contract
-([S-01](s-01-kapi-cli.md)): a distinct gate code lets a loop branch on "the draft
-scored below the bar, rewrite it" versus "the command failed" without parsing
-output.
+The skill relies on the [exit-code contract](s-01-kapi-cli.md): a failing check
+has a distinct code from an operational error, allowing the assistant to choose
+between revising content and troubleshooting the command.
 
 ## Consequences
 

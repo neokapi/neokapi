@@ -243,26 +243,21 @@ override the file. `KAPI_PLUGINS_DIR` names an alternative plugin root.
 
 ### `kapi init` proposes, and wires the agents
 
-`kapi init` is how a project starts, and it asks nothing, so it runs the same
-from a terminal, from CI and from an agent. It writes a recipe whose
-collections are proposed from the files already in the tree, each under a
-comment saying what it matched ([C-01](../context/c-01-project-model.md)), and
-it wires the project for the coding agents that work in it:
+`kapi init` creates a project without interactive prompts. It proposes content
+collections from existing files and records the matches in recipe comments
+([C-01](../context/c-01-project-model.md)). It also writes agent configuration:
 
 - an MCP server entry that starts `kapi mcp --project kapi.yaml`, with
   `--tools writing,translation` when the recipe declares target languages, in
   each host's own configuration file (`.mcp.json`, `.cursor/mcp.json`,
   `.vscode/mcp.json`, `.codex/config.toml`);
-- one short skill, `SKILL.md`, naming the four habits the context loop rests
-  on (ask what applies, record what you notice, record the person's
-  corrections, check what you changed and report the session), each in its CLI
-  and MCP form.
+- a short `SKILL.md` describing context retrieval, observations, corrections
+  and checks, with CLI and MCP equivalents and session-reporting guidance.
 
-Re-running it is safe. It leaves the recipe's collections alone and prints the
-content no collection reads yet. An MCP entry exactly as kapi writes it follows
-the recipe; any other entry called `kapi` is someone's own and is kept. In a
-skill directory an earlier kapi filled, the files kapi recognises by content as
-its own are removed and anything else stays.
+Rerunning initialization preserves existing collections and reports uncovered
+content. It updates generated MCP entries to match the recipe while preserving
+custom entries. Obsolete generated skill files are identified by content and
+removed; user-authored files remain intact.
 
 ### `kapi help <topic>` serves the guidance
 

@@ -2,7 +2,7 @@
 id: c-01-project-model
 sidebar_position: 1
 title: "C-01: The project model"
-description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root. The .kapi/ directory beside it is a disposable cache for one checkout, and the project's context lives in a per-user workspace outside every checkout."
+description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root. The .kapi/ directory holds checkout-local data, and the project's context lives in a per-user workspace outside every checkout."
 keywords: [kapi project, kapi.yaml, .kapi, YAML recipe, project model, context, workspace, store.db, architecture decision, neokapi]
 ---
 
@@ -13,17 +13,16 @@ keywords: [kapi project, kapi.yaml, .kapi, YAML recipe, project model, context, 
 A kapi project is a folder containing a `kapi.yaml` recipe at its root. The
 recipe captures the user's declarative intent (identity, content collections,
 flows, governance bindings) plus any extension blocks a plugin has registered a
-schema for, and it is the one file of the project that is committed.
+schema for. Commit it together with the agent configuration and any flow files.
 
 The project's **context** lives in a per-user workspace outside every checkout,
 one database per project, reached by every clone and worktree of it
 ([C-03](c-03-context-store-and-graph.md)).
 
-`.kapi/` beside the recipe is the one directory kapi owns in a checkout, and it
-is a **disposable cache for that checkout only**: the block store, the caches,
-the redaction vault and a person's own saved reader filters. `kapi init` writes an ignore
-rule into it that keeps the whole directory out of version control, and
-deleting it costs a re-extraction.
+`.kapi/` holds checkout-local data: the derived block store and caches, personal
+reader filters and any redaction vault. `kapi init` excludes the directory from
+version control. Derived data can be rebuilt; personal filters and withheld
+originals in the vault require separate preservation.
 
 A `ProjectContext` resolves the recipe into a runtime configuration, and a
 `Store` interface with pluggable providers gives tools random-access storage
@@ -100,13 +99,12 @@ Ownership, zone by zone:
   for the coding agents that work in the project
   ([S-01](../surfaces/s-01-kapi-cli.md)). It is committed with the recipe.
 
-- **`.kapi/`** is what THIS CHECKOUT derives or keeps for this machine.
+- **`.kapi/`** holds data specific to this checkout.
   `work/store.db` is the projection of the working tree: the block cache, the
   overlays a flow wrote, the extraction stamps
   ([C-03](c-03-context-store-and-graph.md)). Beside it sit the caches, the
   redaction vault ([C-10](c-10-redaction.md)) and the personal saved reader
-  filters with the choice of the active one. Nothing authored lives here: the
-  filters a team shares are a setting of the project, kept in its context store
+  filters with the choice of the active one. Shared reader filters are project settings kept in the context store
   (`core/projectdb.SettingSavedFilters`), and a project's flow files sit in the committed
   directory its recipe names with `flows_dir:`
   ([E-04](../engine/e-04-flows-and-io-binding.md)), and kapi reads nothing
@@ -270,8 +268,7 @@ and `KAPI_NO_PROJECT=1` opts out of discovery entirely.
 
 ### Project identity
 
-`id:` is the project's identity and `name:` is its label. They are separate
-fields because they answer different questions, and because the label changes.
+`id:` is the stable project identity; `name:` is an editable display label.
 
 The id is minted once, by `kapi init`, out of `crypto/rand` and nothing else.
 No part of it is derived from the name, the folder or the repository's origin,
@@ -304,9 +301,8 @@ over a digest of the normalized path), so it still has a context store of its
 own, and a second checkout of it gets a second one. Minting an `id:` is what
 joins them.
 
-Setting the id is one-way. The setter refuses to clear it, and refuses to write
-a second one over the first, because either strands everything already recorded
-under it. Turning a copied recipe into a genuinely different project means
+The setter rejects clearing or replacing an existing id, which would disconnect
+the project from its recorded context. Turning a copied recipe into a genuinely different project means
 deleting the `id:` line and minting a fresh one.
 
 Unknown top-level keys are preserved rather than rejected (see [Recipe extension

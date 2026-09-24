@@ -39,24 +39,18 @@ of them are signed off?* is answered in one pass.
 
 Context is relational. A term occurs in blocks; blocks belong to collections and
 sit at a point in the context space ([C-02](c-02-coordinates-and-governance.md));
-a state record blesses a unit at a content hash; a memory entry recycles into a
+a state record approves a unit at a content hash; a memory entry recycles into a
 block. Retrieval ([C-06](c-06-retrieval.md)) and governance
 ([C-02](c-02-coordinates-and-governance.md)) both traverse those relations rather
 than reading one store in isolation.
 
-Context is also durable in a way a parse is not. A voice profile, a term, an
-approved wording and a recorded decision are what a person put there. A parsed
-block, an overlay and a stamp are what the last run computed, and the next run
-computes them again. Keeping both in one file inside the checkout made the
-durable half inherit the disposable half's lifetime: a second clone started with
-no memory of what had been approved, a git worktree recorded decisions the main
-checkout never saw, and `rm -rf .kapi/work` was a sentence with two very
-different halves.
+Authored context must survive checkout deletion and remain available across
+clones and worktrees. Parsed blocks, overlays and extraction stamps belong to a
+specific working tree and can be rebuilt. Separate databases give these data
+sets independent lifetimes and write locks.
 
-A hosted layer answers such questions over one database spanning many projects.
-If a local project could not answer them at all, the two halves would differ in
-what they can be *asked*, not merely in scale, and the framework's standing
-constraint is that kapi runs on its own.
+Both local and hosted storage support queries across context relationships.
+The local implementation provides these capabilities without a server.
 
 ## Decision
 
@@ -88,26 +82,14 @@ Consequences of that key, both intended:
     prj_4c8m…b1.db
 ```
 
-The alternative was one database per workspace with a project column on every
-context table. A directory won, for four reasons:
+A separate database per project preserves the terms, content-memory and voice
+schemas without adding project columns to each table. It also limits write
+contention and file corruption to one project and supports file-level export,
+copying and deletion.
 
-- The `terms/`, `memory/` and `voice/` schemas move out of the checkout
-  unchanged. A project column on every table would have meant a scoping change
-  inside three subsystems, each with its own migration ledger and its own
-  hosted counterpart to stay in step with.
-- Write contention is bounded to the project that caused it. SQLite locks a
-  file, so a converge run teaching one project's content memory would otherwise
-  queue every other project's writers behind it.
-- So is corruption. A truncated write costs the project that was being written
-  rather than every project on the machine.
-- Exporting a project, copying one, or deleting one is a file operation.
-
-What the split costs is a cross-project query, which is exactly what the
-workspace database absorbs: the graph's node ids carry the project dimension
-already ([Node identity carries the scope tuple](#node-identity-carries-the-scope-tuple)),
-so *which projects use this concept* is a traversal there. A question the graph
-does not hold is a fan-out over the project databases, which is a loop over
-files a directory listing gives.
+Cross-project graph queries use `workspace.db`, where node identities include
+project scope ([Node identity carries the scope tuple](#node-identity-carries-the-scope-tuple)).
+Queries for data outside the graph read the relevant project databases.
 
 ### Where the authoritative copy lives is a backend
 
@@ -200,18 +182,13 @@ inside the framework that names one.
 
 ### Adoption
 
-The first open of a project WITH a workspace, where the context store is new and
-the projection still carries context tables, carries the project across.
+When a project first opens with a workspace, kapi migrates any context tables
+from the projection into the new context store. It copies every context row
+before removing the old tables; a failed copy leaves the originals intact.
 
-Every context row moves, because nothing reproduces one. They are read out of
-the old store and written into the new one first, and nothing is dropped unless
-that succeeded.
-
-What is dropped afterwards is computed rather than listed: an empty projection
-is built in memory, its tables are what a projection is entitled to hold, and
-every other table in the file belonged to a subsystem that has moved out. A list
-would be a second copy of four subsystems' schemas with nothing keeping it
-current.
+To identify the tables to retain, kapi creates an empty projection in memory
+and compares its schema with the existing database. This avoids maintaining a
+separate list of tables owned by each context subsystem.
 
 ### Joining across the two files
 
@@ -261,7 +238,6 @@ path pattern: iCloud Drive, Dropbox, OneDrive and Google Drive, matched a path
 segment at a time. The message names the folder, the product and the way out,
 which is to set `KAPI_DATA_DIR` to a directory outside it.
 
-A sync client and a SQLite database in WAL mode disagree about what a file is.
 SQLite keeps a database, a write-ahead log and a shared-memory index consistent
 with each other through byte-range locks the operating system enforces; a sync
 client copies each of the three whenever it notices a change, takes no lock, and
@@ -285,26 +261,20 @@ carry a snapshot of the same content under `.kapi/`, written by
 `kapi context snapshot`; `kapi context import` is the one command that reads it
 back, and `kapi context export` is the backup ([C-11](c-11-context-operations.md)).
 
-Two consequences follow, and both are the point. A branch carrying an older copy
-of a terms bundle enforces the terms the project agreed on rather than the ones
-its branch happens to hold. And a project whose team keeps no snapshot at all
-governs its content exactly as one that does.
+Branches use the current context store even when they contain older snapshot
+files. Governance is therefore independent of whether a team commits snapshots.
 
-### `.kapi/work/` is free to delete
+### Deleting derived data {#kapiwork-is-free-to-delete}
 
-Everything under `.kapi/work/` is derived from the working tree: the parse
-cache, extraction batches, collection overlays, and `store.db` itself. Deleting
-the whole of it costs a re-extraction.
+The parse cache, extraction batches, collection overlays and `store.db` can be
+rebuilt from content files. The redaction vault at `.kapi/work/vault/` is an
+exception: it contains withheld originals that are neither committed nor sent
+to a service. Deleting it loses those values ([C-10](c-10-redaction.md)).
 
-What exists in a single place is the context store, and it sits in the
-workspace. Deleting `<DataDir>/workspaces/` costs the terms, the voice profiles,
-the content memory and the decisions of every project on the machine, which is
-what `kapi context export --workspace` exists to prevent.
-
-The redaction vault ([C-10](c-10-redaction.md)) at `.kapi/work/vault/` is the
-one thing under `work/` that is still a loss rather than a rebuild: it holds
-withheld originals, local-only by design, never committed and never sent
-anywhere, so nothing else has a copy.
+The context store has a separate lifetime in the workspace. Deleting
+`<DataDir>/workspaces/` removes the terms, voice profiles, content memory and
+decisions of every local project. Use `kapi context export --workspace` to back
+up project context before deleting the workspace.
 
 ### Locales are keyed canonically
 
@@ -470,9 +440,8 @@ The index is built **before a search, not during a write**. Maintaining it insid
 every block write costs roughly seven times the write: extraction writes every
 block in the project, which is too much to levy for a query that may never be
 asked. A write only marks the block stale, and the first search reconciles
-exactly what changed. The index narrows and never decides (a trigram match is
-necessary, not sufficient), so matching is done in Go, which is also how the
-browser build answers the same question by scanning.
+exactly what changed. The index selects candidate matches; Go code verifies them. The browser build
+uses the same matcher with a scan instead of an index.
 
 `kapi terms occurrences` is the surface that lists uses live from this index,
 with their positions. The usage count is a different reading: `kapi context
@@ -551,17 +520,17 @@ sets `$KAPI_DATA_DIR` as part of the isolation contract.
 
 ## Consequences
 
-- **A clone starts where the project is, not where the checkout is.** A second
+- **Clones share project context.** A second
   clone of a project with an `id:` opens with its terms, its voice profiles, its
   content memory and its decisions already in force, and re-extracts its own
   projection.
-- **A git worktree is a checkout, not a second project.** Decisions recorded in
+- **Worktrees share the decision ledger.** Decisions recorded in
   one are in force in the other, and switching branches moves no authored
   context.
 - **Cross-subsystem questions are one query within a pool, and one join across
   them.** Term coverage per collection, the blocks behind a coordinate, the
   units a term change puts at risk.
-- **One transaction still covers a decision and the wording it blesses.** Both
+- **One transaction still covers a decision and the wording it approves.** Both
   are in the context pool, which is why they are in the same file.
 - **Store paths are not a user surface.** The recipe binds what governs a point
   by name and names no database or context file, and it carries no workspace

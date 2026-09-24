@@ -2,7 +2,7 @@
 id: c-08-terms
 sidebar_position: 8
 title: "C-08: Terms"
-description: "Architecture decision: terminology is concept-oriented (a Concept groups terms across locales with per-term status, part of speech and validity), the project's terms store is the truth while a .terms.json bundle is the artifact it travels as, and one pass locates every declared term in a text."
+description: "Architecture decision: terminology is concept-oriented (a Concept groups terms across locales with per-term status, part of speech and validity), the project's terms store is authoritative and .terms.json bundles support exchange, and one pass locates every declared term in a text."
 keywords: [terms, terminology, Concept, TBX, terms store, concept-oriented, validity, term rules, architecture decision, neokapi]
 ---
 
@@ -17,8 +17,8 @@ per-term metadata (status, part of speech, grammatical gender, validity). The
 `Terminology` interface (`terms/`) supports in-memory and SQLite backends, a
 tiered lookup pipeline, and TBX import and export.
 
-The project's terms store is the truth, and a `.terms.json` bundle is the
-artifact it travels as. Terms flow through the streaming pipeline as first-class annotation types
+The project's terms store is authoritative. `.terms.json` bundles provide a
+portable representation for exchange and review. Terms flow through the streaming pipeline as first-class annotation types
 whose positions are run-anchored, so a match survives run-preserving edits. One
 pass, `terms.Locate`, finds every declared term in a text, whether it was
 declared in a voice profile, in a tool's `term_rules:` or in the store.
@@ -113,7 +113,7 @@ same form, so a term recorded under `en_US` is the term a check running in
 `en-US` finds. The concept id `kapi apply` mints for a term decided outside any
 concept, `term:<locale>:<slug>`, embeds the locale in that form.
 
-### The terms store is the truth; a bundle is how it travels
+### Authoritative storage and bundle exchange {#the-terms-store-is-the-truth-a-bundle-is-how-it-travels}
 
 Terminology is **authored content, not derived state**. A person decides which
 terms are do-not-translate and what the preferred wording is, and those
@@ -128,9 +128,8 @@ checkout, branch and worktree of the project reads them:
   and records a context operation ([C-11](c-11-context-operations.md)), so
   `kapi context log` carries the change and the evidence behind it.
 
-A **terms bundle** (`kind: "kapi-terms"`) is the artifact the store travels as:
-a diff-friendly, mergeable JSON document under a compound suffix, so a reviewer
-reads it in a browser diff and `jq` reads it on the command line.
+A **terms bundle** (`kind: "kapi-terms"`) serializes terms as JSON for review,
+merging and command-line processing.
 `kapi context snapshot` writes one, `kapi context import` reads one, and
 `kapi context export` packs the same content into a `.kpz`. A team that wants
 its vocabulary reviewable in a pull request keeps the snapshot committed; a team
@@ -148,10 +147,8 @@ rather than one well-known name.
 Presence is table-level, so a project whose terms tables are empty enforces
 nothing, whether or not a database file exists
 ([C-03](c-03-context-store-and-graph.md)). A checkout carrying a terms bundle
-against such a store is the first meeting, and every surface says so and names
-`kapi context import` ([C-11](c-11-context-operations.md)). Nothing reads the
-bundle until a person runs it, which is what stops a branch's copy of a file
-from deciding what a gate enforces.
+with an empty context store triggers a notice directing the user to
+`kapi context import` ([C-11](c-11-context-operations.md)). The bundle affects governance only after a person imports it.
 
 ### The return leg: reviewed decisions come home
 

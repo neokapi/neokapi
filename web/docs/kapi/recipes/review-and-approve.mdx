@@ -12,7 +12,7 @@ import { PendingMedia, GatedLoopDiagram } from "@neokapi/docs-shared";
 
 # Review & approve
 
-**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces: it brings every unit to *translated* and parks the rest. A person promotes: *reviewed*, then optionally *signed-off*. Each review lands in the project's store, bound to the content hash of the exact translation it blesses, so an approval can never silently outlive the text it approved. The model is [the kapi loop](/kapi/convergence); the store is [the project store](/kapi/project-store).
+**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces: it brings every unit to *translated* and parks the rest. A person promotes: *reviewed*, then optionally *signed-off*. Each review lands in the project's store, bound to the content hash of the exact translation it approves, so an approval can never silently outlive the text it approved. The model is [the kapi loop](/kapi/convergence); the store is [the project store](/kapi/project-store).
 
 ## Settle the source first
 
@@ -122,7 +122,7 @@ the source locale.
 
 Address the unit exactly as the worklist lists it. `status` is `"reviewed"` by default; `"signed-off"` is the optional final rung for contractual or regulated content. The decision is recorded in the [project store](/kapi/project-store) and is durable at once, so every checkout of the project reads it and there is no second step. Read it back, with the evidence behind it, from `kapi context log`.
 
-To put the record in git as well, write it out with `kapi context snapshot` and commit the shards it produces. That is a team's choice about what a pull request should show; see [Moving context](/kapi/context-portability).
+To put the record in git as well, write it out with `kapi context snapshot --out <dir>` and commit the shards it produces. See [Moving context](/kapi/context-portability).
 
 Piping works at scale: `kapi status --review --json` through your own filter into `kapi apply`. A `kind:"memory"` entry is different: it banks a source→target pair for future recycle leverage and does **not** promote a unit to reviewed.
 

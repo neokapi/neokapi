@@ -51,7 +51,7 @@ plural/select constructs serialize identically.
 
 ## One bundle per store
 
-Each store has exactly one native spelling, the bundle:
+Each store has a native bundle format:
 
 ```bash
 kapi memory export -o .kapi/memory/cli-nb.memory.json
@@ -76,12 +76,12 @@ and an explicit `-o` path names one outright.
 
 ### Where a bundle sits when nothing binds it
 
-A terms bundle written for a project belongs at **`.kapi/terms.json`**, which
-is where [`kapi context import`](/reference/commands/context-import) looks with
-no path and where `kapi context snapshot` writes one. A bundle kept there shows
-up in a diff and goes through review like any other source. The
-[terms page](/reference/serialization/terms#where-an-import-looks-for-one) says
-what the recipe can bind instead.
+[`kapi context import`](/reference/commands/context-import) reads
+**`.kapi/terms.json`** by default. A snapshot writes `terms.json` under the
+required `--out` directory. You can commit that snapshot for review; when using
+`.kapi/`, adjust its default ignore rules first. See
+[Terms](/reference/serialization/terms#where-an-import-looks-for-one) for import
+locations.
 
 Content memory has no matching single name: **a project has one terms bundle but
 many content-memory bundles**, typically one per content surface. This

@@ -19,18 +19,17 @@ keywords:
 
 Project state records **where each unit stands**: what has been
 reviewed, what was approved and by whom, what status a target has reached. It is
-the artifact form of the decisions a project holds, the shape they take when
-they leave the store and the shape they are read back from.
+the portable representation of the project's unit decisions.
 
 Implemented in Go at
 [`core/state`](https://github.com/neokapi/neokapi/tree/main/core/state).
 
-## The ledger records, a snapshot writes it out
+## Ledger storage and snapshots {#the-ledger-records-a-snapshot-writes-it-out}
 
 A decision is appended to the project's **decision ledger**, which lives in the
 [project store](/kapi/project-store), and it is durable the moment it is
-recorded. Every checkout of the project reads the ledger, so the decision is in
-force at once and on every branch.
+recorded. Every local checkout reads the ledger and applies decisions whose
+source and target hashes match its current content.
 
 `kapi context snapshot` writes the ledger out in the form git tracks: for each
 unit this checkout holds, what was decided about the source and the translation
@@ -43,7 +42,7 @@ The consequences follow from that:
   them, so a clone that runs the import picks up what the shards carry.
 - Reading a shard twice costs nothing. A line the ledger already holds is left
   alone, and a line older than what applies at its pairing is left out.
-- A snapshot with nothing to say writes nothing, which keeps a CI step from
+- A snapshot leaves unchanged shards untouched, which keeps a CI step from
   producing an empty commit.
 - A server-backed project has a different sink for the same record:
   `kapi push` sends the decisions to the remote instead of writing shards.

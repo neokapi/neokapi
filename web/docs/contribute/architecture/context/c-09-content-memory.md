@@ -2,7 +2,7 @@
 id: c-09-content-memory
 sidebar_position: 9
 title: "C-09: Content memory"
-description: "Architecture decision: the content memory stores multilingual entries as Run sequences with inline markup, matches in tiers (generalized, structural, plain, then fuzzy), keeps a governed version chain per block, and lives in the project's store, which a run tops up from each committed translation it reads."
+description: "Architecture decision: the content memory stores multilingual entries as Run sequences with inline markup, matches in tiers (generalized, structural, plain, then fuzzy), keeps a governed version chain per block, and lives in the project's store, which runs populate from committed translations."
 keywords: [content memory, runs, multilingual, matching tiers, version chain, governed reuse, SQLite, recycle, TMX, architecture decision, neokapi]
 ---
 
@@ -339,9 +339,8 @@ kept out of version control**:
   accumulating store. One continuum, larger backend. The `memory/schema` package
   carries the table definitions in a second SQL dialect beside SQLite's, so such
   a backend builds the same tables from the same declaration.
-- it is **additive**: every pass tops it up from the translations it reads, so a
-  store that has seen a project's history answers more than a fresh one and
-  neither answers wrongly.
+- it is **additive**: each pass imports pairs from the translations it reads. A store with
+  project history can supply more matches than a fresh store.
 - because it is additive it needs **no locking**: it tolerates last-write-wins
   and per-branch cache keys.
 
@@ -360,16 +359,14 @@ directory, the recipe names none, and there is nothing sensible to guess.
 
 ### Absorbing the committed translations
 
-A run tops the store up from the working tree on the read path, keyed by content
-digest, so an unchanged input costs a read and no writes. Each collection's
+A run imports source/target pairs from the working tree, using content digests
+to skip writes for unchanged inputs. Each collection's
 per-locale target document is paired with its source through the collection's own
 binding (the same reader and format config on both sides) and absorbed as
 source→target pairs.
 
-This is the half that carries wording no bundle holds. A translation approved
-somewhere reaches version control as the target artifact, and without reading it
-back the reviewed wording lives in exactly one place nothing in the pipeline can
-see. The absorption reports what it did: pairs seen, documents read, pairs
+This also imports wording available only in committed target files. The report
+lists pairs seen, documents read, pairs
 learned, pairs reconciled, pairs contested, pairs refused.
 
 The digest decides what is applied again: only an artifact whose bytes moved,
@@ -396,7 +393,7 @@ by construction (that is what this stage does), an entry written under an older
 identity is **re-learned rather than migrated**: the pass drops the stamps
 that would let it skip a document, reads the record again, and afterwards
 forgets the entries it had minted that the current identity no longer mints.
-What the corpus learned elsewhere is not the record's to forget.
+Entries imported from other sources are preserved.
 
 The forgetting comes after the pass rather than before it, and that ordering is
 what keeps an entry's own history intact. An entry the pass re-asserts with the

@@ -43,7 +43,7 @@ Ask for the sweep:
 
 > Check `blog/` against our voice profile and fix anything off-brand.
 
-The assistant loads the voice first (`kapi voice guide`, injected into its context so it rewrites on-voice rather than merely rule-compliant), runs `check_file`, rewrites each flagged block, and lands the edits with `apply_edits` (structure intact, no second model). When a term recurs, it proposes a `voice` change-set entry that adds the vocabulary rule to your profile; `kapi context log` is the review surface. It re-checks until the gate is green.
+The assistant loads the voice first (`kapi voice guide`, injected into its context so it rewrites on-voice rather than merely rule-compliant), runs `check_file`, rewrites each flagged block, and lands the edits with `apply_edits` (structure intact, no second model). When a term recurs, it can record a suggested rule with `context_observe`; review the suggestion in `kapi context log` before keeping it. It re-checks until the gate is green.
 
 </TabItem>
 <TabItem value="cli" label="CLI">

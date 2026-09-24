@@ -2,7 +2,7 @@
 id: c-04-unit-state-and-decisions
 sidebar_position: 4
 title: "C-04: Unit state and the decision record"
-description: "Architecture decision: a project's authored unit state (the review ladder, approvals, sign-off, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies where the pairing it blessed appears, so one ledger serves every checkout of a project; the .kapi/state/ shards are what a snapshot writes and an import reads."
+description: "Architecture decision: a project's authored unit state (the review ladder, approvals, sign-off, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies when its source and target hashes match the content, so one ledger serves every checkout of a project; the .kapi/state/ shards are what a snapshot writes and an import reads."
 keywords: [project state, decision ledger, core/state, review, approval, convergence, append-only, content-addressed, commit, targetHash, architecture decision, neokapi]
 ---
 
@@ -23,7 +23,7 @@ project's **work**, and that work is itself two kinds of thing:
   anything; it must be **kept**.
 
 Authored state needs a carrier a plain target file cannot provide: such a file
-records that a target *exists*, not that anyone *blessed* it. `core/state` is
+contains target text but no record of its approval. `core/state` is
 that carrier, a first-class, format-independent record of where each unit
 stands, distinct from both the derived cache and the recycle content memory
 ([C-09](c-09-content-memory.md)).
@@ -84,13 +84,11 @@ the memory as leverage, but that is a side effect, not where the record lives.
 
 ### The ledger is the authority
 
-A decision is an entry in an **append-only ledger**, addressed by what it says.
-Nothing is rewritten in place: a later decision about the same unit is a new
-entry, and withdrawing one is an entry of its own. An entry carries the record,
-the actor who reached it, how it reached the ledger, and the time it was
-recorded, taken from Go's clock.
+Decisions are content-addressed entries in an **append-only ledger**. Updates
+and withdrawals append new entries. Each entry contains the decision record,
+actor, origin and a timestamp assigned by Go.
 
-The entry's key is the unit **and the pairing it blessed**: `(document, unit
+The entry's key identifies the unit **and its source/target pairing**: `(document, unit
 identity, variant, source hash, target hash)`. That is what makes the ledger
 answerable across checkouts, and it is the same fact the `blesses` edge carries
 ([C-03](c-03-context-store-and-graph.md)).
@@ -103,30 +101,20 @@ change feed without the ledger growing.
 
 ### Applicability is a lookup
 
-"What is this unit's state here" is answered by looking up the entry recorded for
-the source and the translation this checkout holds **now**. A reader with the
-file content in hand asks for exactly that pairing (`WorkStore.Lookup`).
+`WorkStore.Lookup` returns the decision for the source and target content hashes
+currently present in a checkout. Different translations of a unit have separate
+ledger entries. Checkouts with identical source and target text share the same
+decision, regardless of branch.
 
-One ledger serves every checkout of a project, and several of them sit on
-different branches at once. Two branches holding different translations of one
-unit hold two entries, each answering only where its pairing appears. Switching
-branches changes which entries apply and moves nothing, so one branch's approvals
-cannot reach another's record. Two checkouts that hold the same source and the
-same translation hold the same answer, and neither had to copy it.
-
-Each checkout keeps a **view**: the pairing each unit has in it. The view is
-derived, rebuilt from the content this checkout holds whenever it moves, which
-is what a branch switch does to it. The entry behind a row still answers only
-where its pairing appears. Emptying the view
-(`WorkStore.ClearView`, what restoring a context bundle over a project does to
-the decisions half) leaves every entry in the ledger, so a pairing that comes
-back comes back to what was decided about it.
+Each checkout maintains a derived **view** of its current unit pairings. Content
+changes, including branch switches, rebuild this view without modifying the
+ledger. `WorkStore.ClearView` clears only the checkout's view; decisions remain
+available if their source and target pairing appears again.
 
 ### Recording is durable; the shards are an artifact
 
 `Put`, `Record` and `RecordEntry` append to the ledger and are durable at once.
-Nothing has to be published for a decision to count, and no tier sits between
-making one and keeping it.
+No separate publish or commit step is required.
 
 Two directions connect the ledger to the shards under `.kapi/state/`, for a team
 that keeps them in version control, and they agree:
@@ -181,7 +169,7 @@ reports what it refused. An actor class with narrower or wider rights is a chang
 in that one function rather than at each call site, which is why actor and origin
 ride on every entry.
 
-### Unit state is unit-keyed and bound to the pairing it blessed
+### Unit state is unit-keyed and bound to the pairing it records {#unit-state-is-unit-keyed-and-bound-to-the-pairing-it-blessed}
 
 State is keyed by the **unit**: `(document, unit identity, variant)`, where the
 variant is the locale plus any further qualification, not by content.
@@ -477,7 +465,7 @@ and findings, bound to the translation it judged so that an edit invalidates it
 
 ### A venue is authoritative for what it accepts
 
-The record is the project's. What a venue does with it is the venue's.
+The project stores decisions locally; each venue enforces its own review policy.
 A push sends the record whole, so it can carry an approval the venue declines:
 the pusher may hold no review permission for that language, or the workspace may
 refuse a verdict on work its author wrote. The venue keeps such a record as the
@@ -516,19 +504,17 @@ to account for a file it does not have.
 
 ### The shards' location is fixed
 
-A snapshot writes the record at `.kapi/state/`, derived from the project layout,
-beside the terms and the content memory it makes claims about. The recipe binds
-nothing: the record is a directory whose contents kapi owns and prunes, so
-pointing it at an arbitrary location would invite a project to aim it somewhere
-kapi deletes from. The terms and the content memory are bound nowhere either:
-an import reads them from a layout, and the store holds them.
+A snapshot writes decision shards under `state/` in the selected output
+directory. Import reads the same layout, conventionally `.kapi/state/`. The
+recipe has no separate binding for this directory. kapi manages and prunes the
+shards within the snapshot layout.
 
 Getting the record *out* of kapi's own layout is a job for exchange rather than
 relocation (`kapi merge`, XLIFF `<target state=…>`, the `.kpz` bilingual
 profile), which converts the record into a format a third party can read instead
 of moving it.
 
-### Why a project keeps its own record, whatever else exists
+### Local decision records {#why-a-project-keeps-its-own-record-whatever-else-exists}
 
 A hosted layer can coordinate review: concurrent reviewers, assignment, queues,
 and a place for reviews done by people with no checkout. That is coordination
@@ -583,8 +569,8 @@ re-exports the core types through aliases so downstream code sees one import.
 - **Coverage derives from the state store plus the target files**, never from
   content-memory properties.
 - **Exchange and parcels carry state**, so a hand-off does not drop it.
-- **The recipe stays clean.** It binds what governs a point by name and never a
-  store path; the shards' location is fixed by the project layout, and the
+- **Storage locations are independent of governance bindings.** The recipe
+  binds governance by name; the shards' location is fixed by the project layout, and the
   database holding the ledger is fixed by the workspace
   ([C-03](c-03-context-store-and-graph.md)).
 

@@ -109,10 +109,9 @@ concerns (voice only, by name only, markdown only) into one narrow point. Once
 content is the whole context, addressing covers by-name, and rendering is a
 property, nothing is left over.
 
-### The prose is the task
+### The writing brief {#the-prose-is-the-task}
 
-The markdown answer is the brief a writer reads before changing a file, and
-nothing about how the answer was reached:
+The Markdown response provides a writing brief:
 
 - the **voice** in a sentence or two: its name, its description, and the tone
   and style fields the profile sets, with no line for a field it leaves unset,
@@ -124,8 +123,7 @@ nothing about how the answer was reached:
   (`host/contextrules.go`); storage keeps the three apart;
 - the suggestions under **Suggested, not yet established**, less any the list
   already states;
-- a closing line naming `context_observe` (and `kapi context observe`), because
-  what the writer notices while reading is how the next answer gets better.
+- a closing line naming `context_observe` (and `kapi context observe`), for recording additional observations.
 
 Notes appear in the prose only when a person or an agent must act before relying
 on the answer: a checkout whose context nobody has imported into the store, a voice or terms binding that
@@ -190,99 +188,57 @@ behind it.
 Half an answer plus a statement of what was unreachable is more useful than an
 answer that quietly omits a store it could not open.
 
-### An answer with nothing in it teaches
+### Coverage and suggestions {#an-answer-with-nothing-in-it-teaches}
 
-Most projects meet kapi with no voice profile and no terms, and the honest
-answer for a location in one is short. It was once so short that an assistant
-read it as *there is nothing to do here* and worked without the project's
-context for the rest of the session.
-
-So every answer carries a `coverage` grade, counting the kinds of material in
-force behind it:
+Every response includes a `coverage` grade based on the kinds of context
+available for that query:
 
 | Primitive | What is counted |
 | --- | --- |
-| By location | the voice profile in force at the point; the terms bound there and in force; the rules established and widened at it ([C-11](c-11-context-operations.md)) |
-| By content | the terms the query matched; the prior wording it found |
+| By location | applicable voice profile, terms, and established or workspace-wide rules |
+| By content | matching terms and previously approved wording |
 
-Two or more is `covered`, one is `thin`, none is `empty`. Three grades, because
-the grade is read by a model deciding how much to lean on the answer, and a
-finer scale would be a number nobody could act on differently. The grade
-describes **the answer**, so a search for a word the project has never written
-about is empty whatever else the project holds.
+Two or more kinds produce `covered`, one produces `thin`, and none produces
+`empty`. The grade describes the response, not the whole project. Unreviewed
+suggestions raise `empty` to `thin` but cannot produce `covered`.
 
-**A suggestion counts for less than anything in force.** A suggestion nobody
-has decided on holds no content to anything, so it never makes an answer
-`covered`. It does lift `empty` to `thin`, because a suggestion is evidence that
-someone looked here, and `empty` then means what it says: nothing at all has
-been recorded at this point. The by-location answer reads them through
-`App.ContextRulesAt`, the seam a check resolves them with, so a suggestion an
-answer mentions is a suggestion a check reports.
+Suggestions appear separately from established context in a `suggestions`
+list. Each entry includes its status, rule or note, actor, session, evidence and
+operation id. Contested entries also identify the conflicting operations in
+`contested_by`. Markdown renders these under **Suggested, not yet established**.
 
-**Suggestions are listed, apart from everything in force.** The answer carries a
-`suggestions` list beside `voice` and `terms`. Each entry carries its status
-(`suggested`, or `contested` with `contested_by` naming the other side), the
-rule or note it states, who suggested it (`suggested_by`), in which session,
-and the evidence behind it, with the operation id a person keeps it by. The
-rules in it are the ones the resolution holds at the point, so the list and a
-check cannot disagree, and the operation log supplies the provenance a reader
-judges one by. The prose rendering lists them under **Suggested, not yet
-established**.
-
-The by-content answer carries the same `suggestions` list for the word it was
-asked about: suggested term rules whose forms or replacement contain it, and
-notes whose text does. A word an agent has just observed therefore reads as
-suggested rather than as nothing recorded, and the suggestion lifts an empty
-search to `thin` in the same way.
-
-A second agent reading a location therefore builds on what the first one
-recorded rather than working the same facts out again, and cannot mistake either
-for a rule in force. Neither can it act on them: deciding is a person's
+By-location queries resolve suggestions through `App.ContextRulesAt`, the same
+function used by checks. By-content queries match the query against term forms,
+replacements and note text. Agents can use earlier observations as context,
+but only a person can establish them as rules
 ([C-11](c-11-context-operations.md)).
 
-A thin or empty by-location answer adds one note to the JSON: that this project
-records nothing here yet, and what is worth noticing while the work is done (the
-names the project gives its own things, the spellings it keeps to, who the text
-addresses, how formal it is). Where suggestions stand behind a thin answer, the
-note counts them and says they are waiting to be kept or dropped. The
-prose says it in two sentences: nothing is recorded for this file yet, and
-record the names and spellings the project keeps to with `context_observe`. It
-**states no rule**, because none is in force, and handing a writer a suggestion
-the project has not agreed to is the one outcome worse than saying nothing.
+Thin and empty by-location responses explain the available coverage and invite
+observations about project names, spelling and writing style. If suggestions
+are pending, the note reports their count and review status. By-content
+responses include this note only when the result is empty.
 
-The by-content answer carries that note when it found nothing at all and on no
-other grade. A search graded thin found the word and answered the question
-asked, so the same sentence would be a lecture delivered on a successful call.
+### Response provenance {#every-answer-says-what-it-read}
 
-### Every answer says what it read
+Every response includes `provenance`: the project identity, workspace operation
+log revision and projection freshness. These fields appear in JSON and in the
+CLI's `--explain` output.
 
-An answer is quoted, acted on, and sometimes committed, often an hour after it
-was read and by a process that has since asked the same question of another
-project. So every answer carries a `provenance`: the project's stable identity
-([C-01](c-01-project-model.md)), the position the workspace's operation log had
-reached, and whether the content kapi holds still matches the files on disk.
+The identity distinguishes projects. The revision identifies the workspace
+state used for the response. Reopening a project records a new operation only
+if its registration changed, preserving the revision for unchanged context.
 
-The three are one fact each, and each is needed for a different reason. The
-identity says which project answered, for a caller that moves between them. The
-**revision** is a position: two answers carrying one revision were read from
-one state of the context, which is what makes them comparable. Opening a
-project is the most frequent thing that happens to a workspace, so it records
-an operation only when the registration changed, and a re-open leaves the
-position where it was.
+Projection freshness is checked against extraction stamps using file metadata,
+with a hash comparison when the metadata changes. It requires no directory
+walk. A stale projection means term usage counts may describe an earlier
+version of the content files.
 
-The **projection's state** compares the extract-time stamps the block store
-already holds against the files on disk, one stat each and a hash only where
-the stat moved. It costs no walk of the tree, which matters on a path an agent
-hits repeatedly inside one thought, and it is what tells a caller that a term's
-use count describes the files as they were rather than as they are.
+Provenance describes the current read. The separate freshness notice
+([C-05](c-05-freshness.md)) reports changes since the previous read by that
+process. Neither check updates the underlying content.
 
-This reports position on every answer, in the JSON and under `--explain`. The
-staleness note beside it ([C-05](c-05-freshness.md)) reports movement, once, to
-the answer that first spans it. Neither resolves.
-
-A project kapi has read no content from yet is stale in the JSON, and its note
-says that only the term use counts are empty. The guidance in the answer does
-not depend on them, so the note names no command to run.
+Before the first extraction, the projection is reported as stale and term usage
+counts are empty. Voice and terminology guidance remain available.
 
 ### Results are grouped, never merged into one ranking
 
@@ -338,11 +294,10 @@ registry tool regardless.
   where the answer lives is ours to change.
 - **A stale answer is visible to the caller holding it**, rather than being a
   read with no memory.
-- **A project that has recorded nothing is still worth asking.** The first hour
-  of a project gets an answer that says it is empty and what to watch for,
-  rather than one an assistant reads as permission to stop asking.
-- **Two answers can be compared without either having watched the other**,
-  because each carries the project and the revision it was read at.
+- **Empty responses are explicit.** They describe missing context and explain
+  how to record observations.
+- **Responses identify their source.** Project identity and workspace revision
+  support comparisons between reads.
 - **Partial answers stop reading as whole ones**, the failure that makes a
   store-shaped retrieval tool actively misleading rather than merely narrow.
 - **A new registry tool does not become an agent tool by accident.** Exposure is

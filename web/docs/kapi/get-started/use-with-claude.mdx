@@ -48,7 +48,7 @@ npx skills update kapi                               # refresh later
 <details>
 <summary>Install the MCP server (Claude Desktop, Claude Code, Cursor, and the rest)</summary>
 
-`kapi init` writes this for you; the rest of this section is what it writes, for a client it does not know about or a file you would rather edit yourself.
+`kapi init` configures supported clients automatically. Use the following example for manual configuration or another compatible client.
 
 Your client launches `kapi mcp` as a stdio subprocess. Claude Code and Cursor read the server list under `mcpServers`; VS Code reads it under `servers`. Claude Desktop uses `claude_desktop_config.json` with the same shape as Claude Code's:
 
@@ -84,9 +84,9 @@ An unreadable, empty, or malformed hook payload; a session directory kapi cannot
 
 The wire shapes are Claude Code's, and Claude Code versions its own hook schema; kapi does not add a version of its own. What is stable here is the policy in the table: fail open, and report the bypass.
 
-The loop, whichever door: Claude asks what applies at the file it is about to change (`kapi context <path>`), writes through the one write verb (`kapi apply`: structure preserved, drift-guarded by content hash), then gates out with `kapi check` until green. Bind the profile and the terms store in a [project](/kapi/get-started/first-project) and this happens automatically; your prompts stay short: "Set kapi up for this project", "Check `README.md` against our voice profile and fix what fails", "Translate the docs into French and German, then bring them to the ship gate".
+The workflow is the same for either integration: retrieve guidance with `kapi context <path>`, apply edits with `kapi apply`, and run `kapi check` to verify the result. A [project](/kapi/get-started/first-project) supplies the voice and terms bindings. For example, ask: “Check `README.md` against our voice profile and fix the failing findings.”
 
-It also grows the context while it works. What it notices about how you write, and every wording you correct, is recorded as a **candidate** with the file it came from. Nothing it records is in force until you confirm it, checks report candidates and fail on none of them, and it ends its report with what the session recorded and the command that reviews it. See [Growing context](/kapi/context-decisions).
+The agent can record writing conventions and your corrections as **candidates**, with evidence from the relevant files. Checks report these suggestions without failing until you confirm them. The session report includes the recorded suggestions and a command for reviewing them. See [Growing context](/kapi/context-decisions).
 
 The project also tells the assistant it has a voice. `kapi init` writes a short section into `CLAUDE.md`, the file Claude Code reads, naming the voice and the command that retrieves it, and `kapi voice pointer` writes or refreshes it on a project that bound its voice later. A root that holds `AGENTS.md` alone keeps the section there, and a line reading `@AGENTS.md` in a `CLAUDE.md` imports it. The section carries no guidance of its own, so a changed profile never leaves it stale.
 
@@ -102,7 +102,7 @@ The project also tells the assistant it has a voice. `kapi init` writes a short 
 | **Codex** | `.codex/config.toml` with the `kapi` server, read once you trust the repository |
 | **Any SKILL.md-aware tool** | the kapi skill in `.agents/skills/kapi/SKILL.md` |
 
-The skill is one short file: the four habits an agent keeps while it works (ask what applies before writing, record what it notices, record your corrections, check what it changed and report the session), each as a command and an MCP tool. Everything else is one command away: `kapi help` lists the topics, and `kapi help <topic>` prints one from the kapi binary you have installed.
+The skill explains how to retrieve context, record observations and corrections, check edits, and report the session. It gives CLI and MCP equivalents. For detailed guidance, `kapi help` lists topics and `kapi help <topic>` prints the selected guide from your installed binary.
 
 Claude Code is wired every time. The others are wired when the project already keeps their directory, so `kapi init` adds no directory for an editor you do not use. Choose for yourself with `--agents`:
 

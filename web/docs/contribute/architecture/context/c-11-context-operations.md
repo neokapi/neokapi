@@ -26,42 +26,32 @@ into the subsystem that already reads it: the terms store or the content
 memory. The log is the history and the source of suggestions; established
 rules live in the stores.
 
-Who may do what is one function, `contextop.PersonDecides`. An agent or a tool
+`contextop.PersonDecides` defines the permission policy. An agent or a tool
 may observe, record a correction, and withdraw its own suggestion in the
 session that recorded it. Only a person keeps, edits, drops, imports, reverts an
 established rule, or widens one.
 
 ## Context
 
-A project starts with an empty context. It has no terms, no voice profile and
-no content memory, and everything it comes to know accumulates out of ordinary
-work: somebody notices how the product name is written, an agent suggests a rule
-from a hundred documents that agree, a person corrects a translation, a check
-enforces what was agreed, and the next correction is evidence for the rule after
-that.
+Projects accumulate context through observations and corrections made during
+normal writing work. Agents can propose rules with evidence; people review
+those proposals before checks enforce them.
 
 <CycleDiagram
   steps={[
     { label: "Observe", sub: "a fact or a term, with evidence" },
-    { label: "Suggest", sub: "advice every check reports" },
-    { label: "Keep", sub: "a person decides" },
+    { label: "Suggest", sub: "advice reported by checks" },
+    { label: "Keep", sub: "a person establishes the rule" },
     { label: "Enforce", sub: "kapi check" },
-    { label: "Correct", sub: "wording someone changed" },
+    { label: "Correct", sub: "record a wording change" },
   ]}
-  caption="Every leg is an operation in the workspace log. An agent records the observation and the correction, each of which takes effect as a suggestion; a person keeps it."
+  caption="Observations and corrections become suggestions. A person reviews and keeps a suggestion before checks enforce it."
 />
 
-Two properties decide whether that loop is usable. The first is that a machine's
-suggestion must never stop a person's work, because a project that fails its
-build over an unreviewed guess is a project whose context people turn off. The
-second is that every step must be attributable and reversible, because the loop
-writes into the files and stores a project is governed by, and nobody accepts an
-automated writer they cannot audit or undo.
-
-`core/state` settled the same question for unit decisions
-([C-04](c-04-unit-state-and-decisions.md)): an append-only ledger, a content
-address, and one `Policy` function that every writer goes through. Context
-operations take the same shape for the same reasons.
+Suggestions must not fail builds before review. Operations must also be
+attributable and reversible. The design follows the unit-decision model in
+`core/state` ([C-04](c-04-unit-state-and-decisions.md)): an append-only ledger
+and a shared policy function for all writers.
 
 ## Decision
 
@@ -106,9 +96,8 @@ subject and five that act on one.
 - `keep`, `drop`, `withdraw`, `revert` and `widen` name an earlier operation and
   say what became of it.
 
-Status is folded rather than stored. `contextop.Ledger` reads the log forward
-and reports each subject-bearing operation at the status the operations naming
-it left it:
+`contextop.Ledger` derives status by replaying the log in order and applying
+subsequent operations to each subject:
 
 | Status | What it means | Answers |
 | --- | --- | --- |
@@ -119,8 +108,8 @@ it left it:
 | `dropped` | a person set it aside | silent |
 | `reverted` | somebody undid it, alone or with its session | silent |
 
-Naming a decision rather than the rule it decided reaches the rule, so `revert`
-on a keep undoes the keep's subject.
+Operations can target a decision indirectly: reverting a `keep` retracts the
+rule that operation established.
 
 ### An observation states a term rule by its forms
 
@@ -133,7 +122,7 @@ spacing, hyphen and case variants of a compound. The rule above avoids
 A compound's parts come from the term's own spaces, hyphens and case changes,
 or, for a closed word such as `Quickcast`, from an `--instead-of` form that
 breaks it. A lower-case phrase such as `content memory` yields only
-`content-memory`, because nobody writes it closed. A word with neither has no
+`content-memory`, without generating a closed compound. A word with neither has no
 parts to vary, and its rule avoids what `--instead-of` lists. The first avoided
 form becomes the rule's term and the rest its forms. A rule whose avoided forms
 differ from the term only in case matches as written, so the rule about
@@ -151,16 +140,14 @@ The flag is what a surface reads to show the finding as a suggestion rather than
 a broken rule, and `HitsToFindings` words the message accordingly: *Suggested
 rule about "utilise", not yet established*.
 
-Suggestions also run outside the vocabulary analyzer, before it. An analyzer's
-findings are its verdict, and `kapi check` counts them, scores them and holds
-the analyzer to a canary; a suggestion settles none of that. The same stance
-`core/check` takes with a `Warning`: reported beside the findings, read by no
-gate. That is also what lets a project with no voice profile and no terms report
-its suggestions, which is the ordinary case on the day a project is created.
+Suggested-rule checks run before and independently of the vocabulary analyzer.
+This allows projects without a voice profile or terms store to report
+suggestions. Suggested findings have zero scoring weight and do not affect
+gates or the analyzer's canary validation.
 
-Keeping applies the rule's own advisory marking, because keeping writes it into
-the project's stores and every existing reader grades it from there. Only an
-established rule fails a check.
+Keeping a rule writes it into the project's stores. Subsequent checks use the
+rule's advisory setting: violations of an established rule fail unless it is
+marked advisory.
 
 ### Disagreements are contested until a person chooses
 
@@ -194,9 +181,7 @@ form, and a form that differs from the form to use only in case stays out of
 the store, which folds case.
 
 Reverting an established rule reverses it against the same stores: the term is
-deleted from the terms store, or the pair from the content memory. A concept's
-other terms stand, because the delete addresses the term the rule named rather
-than the concept that held it.
+deleted from the terms store, or the pair from the content memory. Other terms in the concept are preserved because deletion targets the term.
 
 `kapi apply` records one `edit` operation for each term or content-memory entry
 it applies, established from the start and attributed to the person who ran the
@@ -224,15 +209,14 @@ the file's project-relative path, so two checkouts of one project never skip
 each other's files and a second import of unmoved bytes reports that it read
 nothing. `--force` reads regardless.
 
-A checkout carrying context files whose project store has never held context is
-the **first meeting**, and `host.ContextFilesUnread` answers for it: it stats
-the layout, asks the store whether it holds a concept, a content-memory entry, a
-voice profile or a decision, and returns the file list with the command that
-reads them. It opens no context file, so a checkout carrying one cannot reach an
-answer through the notice either. Every surface renders that one value
-([S-02](../surfaces/s-02-kapi-desktop.md),
-[S-03](../surfaces/s-03-agent-surfaces.md)), and `kapi check` carries it as a
-configuration warning, which changes neither the score nor the verdict.
+`host.ContextFilesUnread` detects a checkout with context files and an empty
+project context store. It checks file metadata and whether the store contains
+any concept, memory entry, voice profile or decision, without reading the
+context files. It returns the file list and import command.
+
+Every surface uses this result ([S-02](../surfaces/s-02-kapi-desktop.md),
+[S-03](../surfaces/s-03-agent-surfaces.md)). `kapi check` reports it as a
+configuration warning that affects neither scores nor verdicts.
 
 ### Scope is set by evidence, and widened deliberately
 
@@ -249,13 +233,10 @@ from the rule's point, so a rule learned at one mode answers at every mode of
 its brand. Naming `workspace` puts the rule in force in every project of the
 workspace.
 
-A workspace-wide rule has no project store to live in, so the workspace holds
-it: `workspace.Rule`, a row in `workspace.db` carrying an id, a kind, the
-project its evidence came from, and the rule as opaque JSON. The workspace never
-reads inside the payload, which keeps it ignorant of term rules and of whatever
-is widened next. Resolution puts these beneath what the project itself says: a
-term the project's own store declares hides the workspace-wide rule about it,
-and the most specific answer wins.
+Workspace-wide rules use `workspace.Rule` rows in `workspace.db`. Each row
+contains an id, kind, source project and opaque JSON payload. This keeps
+workspace storage independent of the rule type. Project-specific terms take
+precedence over workspace rules for the same term.
 
 ### One policy function
 
@@ -282,8 +263,7 @@ person: keeping, editing what another actor suggested, importing, writing a
 rule directly, dropping, reverting an established rule or a whole session, and
 widening.
 
-`drop` and `withdraw` both stop a suggestion answering, and they differ in who
-acts. A person drops a suggestion; asked to drop an established rule, kapi
+`drop` and `withdraw` deactivate suggestions but have different permissions. A person drops a suggestion; asked to drop an established rule, kapi
 refuses and names the `kapi context revert` that takes it out of the stores.
 Its author withdraws a suggestion, and only while it is still one.
 
@@ -299,31 +279,27 @@ than to each call site.
 
 ### Reversibility is exact
 
-Reverting a session marks every operation it recorded as reverted and retracts
-whatever they put in force. What a check says before a session and after that
-session is reverted are the same findings, the same summary and the same
-verdict, not a similar answer. `host/contextops_test.go` asserts the equality
-rather than a resemblance.
+Reverting a session marks its operations as reverted and retracts the rules
+they established. With other state unchanged, checks produce the same findings,
+summary and verdict as before the session. `host/contextops_test.go` verifies
+this equality.
 
 Nothing is erased. A reverted operation stays in the log with its evidence, so
 the same suggestion is recognisable the next time it is made.
 
 ## Consequences
 
-An agent can write into a project's context continuously without any risk of
-stopping a build, because everything it writes is advice until a person says
-otherwise. A person reviewing a week of that work reads one list, decides in one
-verb, and can undo a whole session in another.
+Agents can record suggestions during normal work without affecting build
+results. People can review operations together, keep suggestions by session and
+revert a session when necessary.
 
 The log is folded on every read rather than indexed. A workspace holds one
 operation per context change, which stays small enough to read whole; an
 implementation that needs an index adds one behind `Ledger` without moving the
 model.
 
-Operation ids are workspace-local positions, so they are not portable between
-workspaces. Nothing needs them to be: established rules travel in the context
-bundles `kapi context export` and `kapi context snapshot` write, and those carry
-no operation ids.
+Operation ids are local to a workspace. Context exports and snapshots contain
+established rules without those ids; the operation history remains local.
 
 ## Surfaces
 
@@ -341,17 +317,16 @@ The agent surface records and reads, one tool per habit: `context_observe`,
 wrongly, and `context_session_summary`, which reports what one session recorded
 and what became of it and ends with the `kapi context keep --session` command a
 person reviews it with. Each wraps one host call and adds no rule of its own.
-There is no tool for keeping, dropping, reverting or widening, because those
-are a person's and a tool that is always refused is one an assistant keeps
-trying ([S-03](../surfaces/s-03-agent-surfaces.md)).
+Keeping, dropping, reverting and widening are reserved for people and are
+excluded from the agent tool set ([S-03](../surfaces/s-03-agent-surfaces.md)).
 
-The actor rides on the call rather than in it. An MCP tool takes no actor
+The server assigns the actor identity. An MCP tool takes no actor
 argument and refuses one: the kind is `agent`, the name comes from the client's
 own `initialize`, and the session is minted once per server process, so
-everything one run recorded reads back and reverts together. A command line
-records as the person running it, which is what a command line is.
+operations from one run can be read and reverted together. Shell commands use
+environment-based actor detection to distinguish people from supported agent
+hosts.
 
 Evidence is required where a rule is stated. `context_observe` refuses a term
 rule with no `path`, and `context_correct` declares the path as a required
-argument and refuses a blank one, so a rule nobody can check never reaches the
-log.
+argument and refuses a blank one, so recorded rules have traceable evidence.

@@ -53,8 +53,7 @@ A cell is one host working one task, in its own copy of the fixture with its own
 kapi roots. Every cell is prepared the same way: the fixture under git, the real
 `kapi init --agents all` run over it by the binary under test, and the content
 mapping its scaffold leaves for a person. A Measure 1 cell also has the planted
-conventions put in force by a person before the agent starts. The commit a cell
-ends on is its baseline.
+conventions put in force by a person before the agent starts. The commit created after preparation is the cell's baseline.
 
 Cells are generated outside this repository. An agent host walks up from its
 working directory looking for `CLAUDE.md`, and kapi walks up looking for
@@ -75,7 +74,7 @@ claimed.
 
 ## Measure 1: agents apply context
 
-A person holds the eleven conventions as rules, loaded with `KAPI_ACTOR=person`
+The eleven conventions are established as rules with `KAPI_ACTOR=person`
 before the session. Preparation reads the context log back and refuses a cell in
 which any rule did not reach the held status.
 
@@ -91,13 +90,13 @@ forms, correct or avoided, or when a finding names it. The two habits apply to
 any added prose. The transcript says whether the agent ran a check after its
 last write.
 
-The bar: 90% of applicable conventions followed in the first saved version, and
+Acceptance criteria: 90% of applicable conventions followed in the first saved version, and
 no failing finding at the end.
 
 ## Measure 2: agents grow context
 
-Nothing is held. The same tasks run in fresh cells, and the agent's own entries
-in `kapi context log --json` are placed against the key. Entries by a person and
+These cells start without established rules. The agent's entries in
+`kapi context log --json` are scored against the answer key. Entries by a person and
 decisions such as confirmations are left out.
 
 - A rule matches a convention when its replacement is a form the convention
@@ -117,7 +116,7 @@ evidence names a fixture file or quotes the fixture's own words. Anything else
 is noise.
 
 Recall counts the four names and three spellings a run recorded. Precision is
-the share of entries that match the key or are harmless. The bar: on average
+the share of entries that match the key or are harmless. Acceptance criteria: on average
 half the names and spellings recorded per run, 80% precision over every entry,
 and the decoy never proposed.
 
@@ -126,7 +125,7 @@ and the decoy never proposed.
 Settling is measured together with the settling logic it tests. The report
 keeps a heading for it.
 
-## Measure 4: review is worth it
+## Measure 4: review usefulness {#measure-4-review-is-worth-it}
 
 After the grow runs, the report writes a review sheet: every entry each run
 recorded, grouped under the convention it matches, then the decoy, then entries

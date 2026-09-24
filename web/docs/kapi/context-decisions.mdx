@@ -1,22 +1,19 @@
 ---
 sidebar_position: 5
 title: Growing context
-description: "The verbs that grow a project's context out of ordinary work: observe and correct record what somebody noticed as suggestions, with the evidence behind them, log shows what has been recorded, and keep, drop, withdraw, revert and widen are the decisions. A suggestion is reported by checks and never fails one."
+description: "Record observations and corrections, review suggested rules, and manage established context with an auditable operation log."
 keywords: [kapi, context, observe, correct, keep, drop, withdraw, revert, widen, suggestion, established, contested, evidence, terms, content memory, agent]
 ---
 
 # Growing context
 
-A new project knows nothing. It has no terms, no voice profile and no approved
-wording, and it should not: the words a project cares about are the ones it
-turns out to use, and nobody knows those on the first day.
+A new project starts with no terms, voice profile or approved wording. You can
+build its context as you work: record a consistent product name, suggest a
+preferred spelling, or capture a correction. Review each suggestion before
+establishing it as a rule.
 
-Context grows out of the work instead. Someone notices how the product name is
-written and records it as a suggestion. You keep it, and from then on it is an
-established rule that checks hold new writing to. When you correct a
-translation, that correction is evidence for the next rule.
-
-These verbs are that loop. The first two record; the rest are the decisions.
+The following commands record observations, show their history and manage the
+rules that checks enforce.
 
 | Verb | Does |
 | --- | --- |
@@ -31,11 +28,9 @@ These verbs are that loop. The first two record; the rest are the decisions.
 
 ## An agent records as it works
 
-A coding agent with kapi's [MCP server](/reference/mcp) keeps the first two as
-habits inside whatever else it is doing: `context_observe` while it reads the
-project, naming the form the project uses for a word where it is consistent, and
-`context_correct` the moment you change its wording. One call, one thing,
-without stopping to ask you.
+A coding agent using kapi's [MCP server](/reference/mcp) can record consistent
+wording with `context_observe` and your edits with `context_correct`. Each call
+records one observation or correction as a suggestion.
 
 Everything it records is a suggestion under a **session** of its own, so you can
 read a run's whole contribution in one place, keep it in one command, or undo
@@ -58,16 +53,12 @@ Name the form the project uses, a form it avoids, and say where you saw it:
 kapi context observe --term Quickcast --instead-of "Quick cast" --seen-in docs/guide.md
 ```
 
-kapi adds the other spellings a writer reaches for: the hyphenated and
-capitalised forms of a compound and the lower-case spelling of a capitalised
-name, so this suggestion avoids `Quick cast`, `Quick-cast`, `QuickCast` and
-`quickcast`. From that moment a check reports those forms wherever they appear.
-The finding is a note. It carries no penalty, it does not lower a score, and it
-cannot fail a check or a gate. That is what makes it
-safe to let an agent record suggestions while you work: whatever it suggests is
-visible and nothing it suggests can break a build.
+kapi derives spelling variants, including hyphenation and capitalisation. This
+suggestion identifies `Quick cast`, `Quick-cast`, `QuickCast` and `quickcast` as
+alternatives to avoid. Checks report these forms, but suggested rules have no
+effect on scores or gate results until you keep them.
 
-## Keeping is what makes a rule bind
+## Establishing a rule {#keeping-is-what-makes-a-rule-bind}
 
 Read what is waiting:
 
@@ -129,9 +120,9 @@ An agent run can record a great deal in an evening. Undo all of it at once:
 kapi context revert --session s4980103f5148
 ```
 
-Everything that run recorded stops answering, and any rule of it you kept is
-taken back out of your terms or your content memory. What a check said before
-that run and what it says after the revert are the same answer.
+Reverting a session deactivates its suggestions and removes any rules it
+established from the terms store or content memory. This restores the check
+results from before the session, provided no other relevant state has changed.
 
 Undo one operation with `kapi context revert 5`.
 
@@ -139,12 +130,11 @@ Nothing is erased. Reverted operations stay in the log, marked reverted.
 
 ## Where a rule holds
 
-A rule holds where its evidence was seen. A word you decided about in one
-product's reference pages says nothing about another product's tutorials, which
-is usually what you want: house style is rarely one thing across a whole
-company.
+A rule initially applies at the context coordinates of its evidence. For
+example, a term recorded in one product's reference pages does not apply to
+another product's tutorials.
 
-When it is one thing, say so:
+To apply an established rule across the workspace:
 
 ```bash
 kapi context widen 5 --to workspace
@@ -154,8 +144,7 @@ That rule is then in force in every project you work on here. A project that has
 its own decision about the word keeps it, because the more specific answer
 always wins.
 
-You can also widen past a single axis of the point the rule sits at, which keeps
-it specific about everything else:
+To remove a restriction on one axis while preserving the other coordinates:
 
 ```bash
 kapi context widen 5 --to mode
@@ -163,27 +152,21 @@ kapi context widen 5 --to mode
 
 ## Who may do what
 
-Anyone may say what they saw. An agent observes and records corrections, and
-everything it records is a suggestion.
+People and agents can record observations and corrections. Only a person can
+keep or drop suggestions, edit another actor's suggestion, revert an established
+rule, or widen its scope. kapi rejects these operations from agents.
 
-Deciding belongs to a person. Keeping a suggestion, editing what someone else
-suggested, dropping it, reverting an established rule and widening one are all
-yours. An agent that tries is refused, and told so: its tools carry no verb for
-any of them.
-
-Whoever recorded a suggestion may withdraw it, and an agent only in the session
-that recorded it, which is how a run cleans up after itself.
+The author of a suggestion can withdraw it. An agent can withdraw only
+suggestions recorded in its current session.
 
 ## How kapi knows who recorded an entry
 
-Over the MCP server the answer comes with the call: that server is serving an
-agent, it has the client's name, and it groups its run under one session.
+The MCP server identifies the caller as an agent, uses the client's name and
+groups its operations under one session.
 
-From a shell kapi reads the environment. A coding agent host puts every command
-it runs into an environment of its own, and kapi recognises the common ones by
-the variable each of them sets, so an agent that reaches these verbs from a
-shell records as an agent, under a session, with no flag to pass. Its own run
-reads back with:
+For shell commands, kapi detects supported agent hosts from their environment
+variables and assigns an agent identity and session automatically. An agent can
+read its current session with:
 
 ```bash
 kapi context log --session this
@@ -197,16 +180,14 @@ Three variables cover the rest.
 | `KAPI_AGENT_NAME` | what the agent is called, for a host kapi does not recognise |
 | `KAPI_AGENT_SESSION` | the id that groups this run, for the same case |
 
-A host that names no session of its own gets one derived from its process, so
-the separate kapi commands of one run share an id and a second run gets
-another. Where a machine keeps its process tree out of reach, which is the case
-on Windows, the id covers one command, and `KAPI_AGENT_SESSION` is how a host
-says otherwise there.
+If the host provides no session identifier, kapi derives one from the process
+tree so commands from the same run share a session. On Windows, where this
+process information is unavailable, the default identifier covers one command.
+Set `KAPI_AGENT_SESSION` to group those commands into a session.
 
-kapi errs toward the agent. Reading a person as an agent costs one keep,
-which the entry was heading for anyway; reading an agent as a
-person would put an unreviewed rule on the record with your standing behind it,
-outside `--actor agent` and beyond the reach of `revert --session`.
+When actor detection is uncertain, kapi uses the agent role. This keeps
+suggestions subject to review and includes them in agent filters and session
+reverts.
 
 ## `kapi apply` writes the same history
 
@@ -218,9 +199,9 @@ appear in the same log:
   applied with `kapi apply`
 ```
 
-They are established the moment they land, because you ran the command. The
-same holds for `kapi context import`, which records one `import` per file it
-reads.
+Asset changes applied by a person are established immediately.
+`kapi context import` also establishes context directly and records one
+`import` operation per file.
 
 ## What to read next
 

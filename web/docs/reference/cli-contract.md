@@ -201,7 +201,7 @@ The check report schema is `kapi.check/v2`. Its `summary` carries `findings`,
 `failing`, `reporting` and `score`. Each finding carries `fails` (a boolean the
 rule that raised it sets) and, when a suggested rule raised it,
 `suggested: true`. Findings sort failing first, then by rule. The verdict fails
-when at least one finding fails; the score is reported and decides nothing.
+when at least one finding fails; the score is informational and does not determine the verdict.
 `kapi check --ship` findings carry the same `fails`, and its summary counts
 `failing` and `reporting`.
 
@@ -253,9 +253,8 @@ An entry also takes two optional fields, `actor` and `evidence`. An asset entry
 (a term, a voice rule, a content-memory pair) is a decision about the project's
 context. Applying a term or a content-memory pair records one `edit` operation
 in that project's history, established from the start, and these fields say who
-made it and where the wording behind it was seen. Omitting `actor` reads as a
-person, which is what someone running `kapi apply` is; an entry that names an
-agent is refused, because an agent suggests and a person decides. See
+made it and where the wording behind it was seen. Asset entries default to the person role when `actor` is omitted. An entry
+that explicitly names an agent is refused by the context policy. See
 [Growing context](/kapi/context-decisions).
 
 Four tools record and read a project's context history: `context_observe`,
@@ -274,9 +273,8 @@ one. A recorded operation is a suggestion, so a check reports it with
 `"fails": false` and `"suggested": true`. The record carries
 `contested_by` when it disagrees with another rule.
 
-There is no MCP tool for keeping, dropping, reverting or widening, and none is
-planned: the policy reserves those for a person, and a tool that is always
-refused is one an assistant keeps trying. `context_withdraw` takes back only
+The MCP tool set excludes keeping, dropping, reverting and widening. The
+context policy reserves those operations for people. `context_withdraw` takes back only
 what the same session recorded. A by-location context answer and a
 `context_search` answer carry a `suggestions` array, each entry with `status`
 `suggested` or `contested`, `contested_by` and `suggested_by`. See

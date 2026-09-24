@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Moving context
-description: "Four verbs that move a project's context: import reads a checkout's context files into the store, snapshot writes the store back out as files, export packs the whole of it into one file, and restore reads that file into another project. With --workspace the last two carry every project you work on here."
+description: "Import and snapshot context as files, or export and restore archives for project and workspace backups."
 keywords: [kapi, context, import, snapshot, export, restore, backup, workspace, migration, terms, voice profile, content memory, decision record, kpz]
 ---
 
@@ -9,13 +9,10 @@ import { RoundTripDiagram } from "@neokapi/docs-shared";
 
 # Moving context
 
-A project's context is the terms it has agreed on, the voice profiles that
-govern how it writes, the wording it has already approved, and the record of who
-approved what. It lives in your [workspace](/kapi/project-store) on this
-machine, one store per project, and every clone, worktree and branch of the
-project reads that one store.
-
-Four verbs carry it in and out of that store as files.
+A project's context includes terms, voice profiles, content memory and approval
+records. It lives in your local [workspace](/kapi/project-store), with one store
+per project shared by its clones and worktrees. Use these commands to exchange
+context as files or back it up as an archive.
 
 | Verb | Moves | Use it to |
 | --- | --- | --- |
@@ -33,7 +30,7 @@ store. Export and restore are the same two directions against a single archive.
 
 <RoundTripDiagram
   ariaLabel="Context moving between a directory of context files, the project store and a single archive"
-  caption="The same context in three shapes. Nothing is lost on any leg."
+  caption="Import and snapshot exchange context files; export and restore exchange archives."
   forward={[
     { label: "context files", sub: "terms · voice · memory · decisions", role: "io" },
     { label: "kapi context import" },
@@ -53,8 +50,7 @@ store. Export and restore are the same two directions against a single archive.
 
 ## What counts as context
 
-The same four things everywhere, each with the file shape a snapshot writes it
-in and an import reads it from:
+Snapshots and imports use the following files:
 
 - **terms**: the concepts and the approved word for each, per language
   (`terms.json`);
@@ -65,8 +61,7 @@ in and an import reads it from:
 - **the decision record**: who approved which wording, against which text
   (`state/*.jsonl`).
 
-Your content files stay in git, and a project's context is about them rather
-than a copy of them.
+Content files are managed separately in git and are excluded from context backups.
 
 ## What never travels
 
@@ -76,13 +71,12 @@ service, and keeps the originals in a vault on the machine that read them
 export, and there is no flag that puts it in either. If you move a project to
 another machine, the placeholders come with it and the originals do not.
 
-The rest of `.kapi/work/` is excluded too. Everything there is what kapi read
-out of your own files, rebuilt on the next run, and none of it is context.
+The derived stores and caches under `.kapi/work/` are also excluded. kapi
+rebuilds them from your content files.
 
-The record of how the context got there stays where it is as well: every
-observation, proposal and decision with its evidence
-([Growing context](/kapi/context-decisions)) belongs to this computer's
-workspace. What travels is the context those decisions produced.
+The [operation log](/kapi/context-decisions), including observations, proposals
+and their evidence, remains in the local workspace. Exports contain the
+resulting context and unit approval records, but exclude this operation history.
 
 ## Reading context in
 
@@ -95,13 +89,11 @@ Read .kapi into the project store:
   1 concept
 ```
 
-This is the one command that opens a context file. Everything else answers from
-the store, so what you read here is in force for every checkout of the project
-on this machine, and for everyone else once they run it too.
+Import loads context files into the store shared by this project's local
+checkouts. Other users must import the files into their own workspaces.
 
-A person runs it. Reading a checkout's files puts them in force for everyone
-working in the project, which is a decision rather than a step in a script, so
-kapi refuses the same command from a coding agent and names what to ask for:
+Only a person can import context. kapi rejects an import attempted by an agent
+and reports the command for the person to run:
 
 ```
 Error: agent claude-code/s4980103f5148 may not import context: reading a
@@ -130,22 +122,19 @@ files the store was built from and when:
   seen in .kapi/terms.json: "sha256:ef9b7f79f21235d1065dca333930ddd44147c19e3d134e640a941ef044de3c09"
 ```
 
-Reading twice changes nothing. Every concept, entry, profile and decision is
-matched by the identity it already carries, so a second read finds the store
-already holding what the file says:
+Import is idempotent: concepts, entries, profiles and decisions are matched by
+identity. Repeating an import of unchanged files leaves the store unchanged:
 
 ```
 Nothing to read: 2 sources already in the store at these bytes.
 ```
 
-A file whose bytes have not moved since this checkout read it is skipped;
-`--force` reads it anyway.
+Unchanged files are skipped. Use `--force` to read them again.
 
 ## Meeting a project whose context is still in files
 
-A clone that arrived carrying context files, against a store that has never
-held this project, gets one line on standard error from every command that
-resolves the project:
+If a checkout contains context files but its project store is empty, commands
+that resolve the project print this notice to standard error:
 
 ```
 note: this project carries context files (.kapi/memory/memory.json, .kapi/terms.json) and its store holds no context yet. They are read by `kapi context import`, and until then nothing in them is in force
@@ -172,32 +161,25 @@ tell you what to run. The notice stops once the store holds anything at all.
 kapi context snapshot --out build/context
 ```
 
-This writes, into the directory `--out` names, the layout `kapi context import`
-reads: `terms.json`, `memory/memory.json`, each voice profile at the path the
-recipe binds it from, and the decision record's shards. `--out` is required:
-`.kapi/` is a cache for one checkout, so a snapshot goes where you say. A team
-that keeps its snapshot in `.kapi/` names it (`--out .kapi`) and commits it under
-an ignore rule of its own.
+This writes an importable snapshot to the required `--out` directory: terms,
+content memory, voice profiles and decision records. To keep snapshots in
+`.kapi/`, specify `--out .kapi` and adjust the directory's ignore rules before
+committing the files.
 
-The files it writes are **generated**. Each voice profile it creates says so at
-the top of itself. Change the project's context and snapshot again rather than
-editing them, the way you would with any other generated artifact.
+Snapshot files are generated. Update the project's context in its store, then
+create a new snapshot. Generated voice profiles include a notice to this effect.
 
-Three properties make a snapshot usable as a reviewed artifact:
+Snapshots have the following properties:
 
-- **It does not churn.** A snapshot with nothing to say writes nothing, so it
-  leaves no diff and no modification times behind.
-- **It round-trips.** Read a snapshot into a project with no store and snapshot
-  again, and you get the same bytes.
-- **A clean clone governs the same way after one command.** Run
-  `kapi context import` in a checkout holding a snapshot, and it resolves the
-  same voice, the same terms and the same rules the project that wrote the
-  snapshot resolves.
+- **Unchanged files are preserved.** Repeating a snapshot without changes
+  leaves file contents and modification times intact.
+- **Round-trip stability.** Importing a snapshot into an empty store and
+  snapshotting again produces the same bytes.
+- **Consistent governance.** After importing a snapshot, a clean clone uses
+  the same voice profiles, terms and rules as the exporting project.
 
-The decision record in a snapshot is the project's own, written from what the
-store holds at the moment of the snapshot. It is the way a team that wants its
-approvals reviewable in git gets them there, and that is a choice each team
-makes rather than something kapi needs.
+The snapshot includes the project's current decision records, which can be
+committed to git for review.
 
 A directory that already holds content-memory bundles you wrote by hand keeps
 them. A snapshot writes the store's own bundle beside them rather than deleting
@@ -210,17 +192,14 @@ files it did not write. To get a directory holding only the snapshot, point
 kapi context export -o context.kpz
 ```
 
-One file holding everything above. It is the backup a store that holds reviewed
-work needs, and the way to carry a project's context to another machine. Nothing
-is flattened on the way: every part travels in the form kapi reads it back from,
-so a restore puts it into a store with the identities it left with.
+Export creates a single archive for backup or transfer to another machine.
+Restore preserves the identities of the archived context records:
 
 ```bash
 kapi context restore context.kpz
 ```
 
-Restoring into a project whose store already holds context stops and asks which
-you meant:
+Restoring into a non-empty store requires an explicit merge or replacement:
 
 ```bash
 kapi context restore context.kpz --merge     # read it over what is there
@@ -231,24 +210,19 @@ kapi context restore context.kpz --replace   # put it in place of what is there
 the same store. `--replace` empties the context stores first, so what is left is
 the file and nothing else.
 
-A file written by a later kapi than the one reading it is refused by name, with
-the version that could not read it, rather than read halfway.
+kapi rejects unsupported archive versions before restoring their contents. The
+error identifies the archive and the version incompatibility.
 
 ### Every branch's approvals, not just the one you are on
 
-Checkouts of one project share its decisions, and two of them on different
-branches can answer the same sentence differently. An export carries both.
-Restoring it puts both back, and each checkout then answers with the approval
-made against the text it actually holds, so a backup taken on one branch keeps
-what was approved on another. A snapshot writes the shards for the branch you
-are on, because that is the text the checkout under it holds.
+An export includes decisions for every branch. After restoration, each checkout
+uses the approvals that match its source and target text. A snapshot includes
+only the decision shards for the current checkout.
 
 ## Backing up every project at once
 
-Your projects share one place for their context on this computer, and git does
-not track it. Losing it loses the terms, the voice profiles, the approved
-wording and the recorded decisions of every project you work on here. Two flags
-back up the whole of it.
+The workspace contains context for all local projects and is not tracked by
+git. Use `--workspace` to back up or restore all project context stores.
 
 Start by seeing what you have:
 
@@ -263,11 +237,9 @@ of them still have a working copy on this computer. Then write the file:
 kapi context export --workspace -o everything.kpz
 ```
 
-A project travels whether or not you still have it checked out here, which is
-the point: a repository you deleted a year ago keeps the terms and approvals it
-earned, and they come back with it. Each project inside the file is a complete
-context file of its own, so unzipping the backup gives you one `.kpz` per
-project that `kapi context restore` reads on its own.
+The backup includes registered projects even if their checkouts have been
+deleted. It contains one `.kpz` archive per project, each of which can be
+extracted and restored separately.
 
 Reading it back needs no checkouts at all:
 
@@ -278,21 +250,16 @@ kapi context restore --workspace everything.kpz
 Every project comes back under the name and identity it had. Clone a repository
 afterwards and the first command you run there finds its context waiting.
 
-A computer that already has projects of its own stops and asks which you meant,
-the same way a single project does:
+If the destination already contains project context, specify how to handle it:
 
 ```bash
 kapi context restore --workspace everything.kpz --merge     # read it over what is there
 kapi context restore --workspace everything.kpz --replace   # put it in place of what is there
 ```
 
-`--replace` lists every project whose context it is about to empty before it
-empties any of them, so a backup aimed at the wrong computer is something you
-read rather than something you discover.
+`--replace` lists the affected projects before clearing their context stores.
 
-Withheld originals are not in a workspace backup either, and neither are the
-directories your projects live in. Those name folders on one computer and mean
-nothing on the next.
+Workspace backups exclude redaction vaults and machine-specific checkout paths.
 
 ## Which one to use
 

@@ -152,54 +152,29 @@ manifest kind:
   and term context. It excludes other locales, the full recipe, and raw source.
   This is neokapi's native interchange carrier, the parcel `extract` sends and
   `merge` ingests.
-- **Context profile** (`kapi-context`): everything the project store holds as
-  authored context, and no content. Terms, the voice profiles with the paths
-  they are authored at, the content memory, and the decision record's shards.
-  It is what `kapi context export` writes and `kapi context restore` reads,
-  which is the backup and the carrier between machines for a store that holds
-  reviewed work ([C-03](../context/c-03-context-store-and-graph.md)).
+- **Context profile** (`kapi-context`): terms, voice profiles and their layout
+  paths, content memory, and unit decision records. `kapi context export` and
+  `kapi context restore` use this profile for backup and transfer. Content
+  files, blocks and skeletons are excluded
+  ([C-03](../context/c-03-context-store-and-graph.md)).
+- **Workspace profile** (`kapi-workspace`): a context package for each registered
+  project, plus its registry entry. `kapi context export --workspace` and
+  `kapi context restore --workspace` use this profile. It includes projects
+  whose checkouts have been deleted and excludes machine-specific checkout paths.
 
-  It carries no blocks, no skeletons and no source, for the same reason the
-  project profile carries source by identity: a project's documents are already
-  in version control, and a package that mixed them in would make a context
-  backup as large as the corpus it governs.
-- **Workspace profile** (`kapi-workspace`): every project a workspace holds, one
-  context package each, plus the registry entries that name them. A workspace
-  keeps the authored context of every project a machine account works on,
-  outside every checkout and in no version control
-  ([C-03](../context/c-03-context-store-and-graph.md)), so an archive of the
-  whole of it is what a person has after losing the directory. It is what
-  `kapi context export --workspace` writes and
-  `kapi context restore --workspace` reads.
+These profiles are exchange archives. Open or restore their contents before
+working on them.
 
-  A project is read out of the workspace rather than out of a checkout, so one
-  whose working tree was deleted travels exactly as one that is open now. What a
-  workspace records and this profile leaves behind is the checkout paths: they
-  name directories on one machine.
+The context profile adds `voice` and `decisions` members. Voice profiles use
+the comment-preserving YAML serializer and record their store identity and
+layout path in the manifest. Decisions use the JSON Lines representation from
+`core/state`. Both member kinds contribute to the archive's root hash.
 
-All four profiles are parcels rather than workspaces.
-
-The context profile adds two member kinds. A `voice` member is one profile's
-YAML, written through the comment-preserving writer every exported voice
-profile goes through, with its store identity and its authoring path recorded
-in the manifest so a restore puts it back where governance resolves it from. A
-`decisions` member is one shard of the decision record, carried as the JSON
-Lines `core/state` writes, so the record travels in the one form every reader of
-it already parses. Both are content: they are in the root hash, and what a
-reviewer approved is the most expensive thing a project holds.
-
-The `decisions` members carry the project's **ledger**: the entry in force at
-every pairing, whichever checkout recorded it
-(`core/state.WorkStore.Ledger`). One ledger serves every checkout of a project,
-and two of them sit on different branches with different translations of one
-unit at the same time, so a bundle built from a checkout's view would be
-lossless for that checkout and lossy for the project. A unit several branches
-have answered therefore contributes a line per pairing, which is more than any
-one checkout's snapshot shards hold, and a restore records each of them. A
-snapshot keeps carrying the view, because that is what the checkout under it
-evaluates from. The member's bytes and its content type are the same
-either way, so a bundle written before the ledger travelled is read without a
-version to negotiate: it carries what it carries.
+Decision members contain the current ledger entry for every source/target
+pairing (`core/state.WorkStore.Ledger`), including pairings from other branches.
+A unit can therefore contribute several lines. In contrast, snapshot shards
+contain only the current checkout's view. Both use the same content type and
+serialization, so older archives remain readable with the entries they contain.
 
 The workspace profile adds two more. A `project` member is one project's whole
 context package, carried verbatim under `projects/`, and a `registry` member
