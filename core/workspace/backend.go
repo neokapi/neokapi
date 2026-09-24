@@ -185,9 +185,22 @@ type Backend interface {
 	// it repeatedly, so it costs one query rather than a walk of the log.
 	Head(ctx context.Context) (int64, error)
 
+	// PutBlob stores bytes an operation names and returns their address:
+	// "sha256:" and the lower-case hex digest of the bytes. Storing bytes the
+	// backend already holds writes nothing and returns the same address, so
+	// two logs merged by union hold one copy of every blob.
+	PutBlob(ctx context.Context, data []byte) (string, error)
+
+	// Blob returns the bytes stored under an address, and ErrNoBlob for an
+	// address the backend does not hold.
+	Blob(ctx context.Context, digest string) ([]byte, error)
+
 	// Close releases every handle the backend opened. It is idempotent.
 	Close() error
 }
+
+// ErrNoBlob reports a blob address the workspace does not hold.
+var ErrNoBlob = errors.New("workspace: no blob at that address")
 
 // ErrReadOnly reports a write asked of a workspace whose backend cannot write.
 // The local backend reports it when the workspace directory is not writable.
