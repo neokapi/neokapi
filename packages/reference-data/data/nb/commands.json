@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T23:21:16Z",
+  "generatedAt": "2026-09-24T00:16:29Z",
   "commands": [
     {
       "id": "add",
@@ -678,8 +678,8 @@
         }
       ],
       "examples": [
-        "kapi context drop 7",
-        "kapi context drop 7 --note \"we say it both ways on purpose\""
+        "kapi context drop 0n794e2gk7",
+        "kapi context drop 0n794e2gk7 --note \"we say it both ways on purpose\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -806,12 +806,12 @@
         }
       ],
       "examples": [
-        "kapi context keep 7",
-        "kapi context keep 7 9 12",
+        "kapi context keep 0n794e2gk7",
+        "kapi context keep 0n794e2gk7 0n79gkq853",
         "kapi context keep --session s0ab4e399",
-        "kapi context keep 7 --use \"content memory\"",
-        "kapi context keep 7 --advisory=false",
-        "kapi context keep 7 --widen-to workspace"
+        "kapi context keep 0n794e2gk7 --use \"content memory\"",
+        "kapi context keep 0n794e2gk7 --advisory=false",
+        "kapi context keep 0n794e2gk7 --widen-to workspace"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -1032,7 +1032,7 @@
         }
       ],
       "examples": [
-        "kapi context revert 7",
+        "kapi context revert 0n794e2gk7",
         "kapi context revert --session 0ab4e399"
       ],
       "offlineCapable": true,
@@ -1151,8 +1151,8 @@
         }
       ],
       "examples": [
-        "kapi context widen 7 --to workspace",
-        "kapi context widen 7 --to mode"
+        "kapi context widen 0n794e2gk7 --to workspace",
+        "kapi context widen 0n794e2gk7 --to mode"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -1181,8 +1181,8 @@
         }
       ],
       "examples": [
-        "kapi context withdraw 7",
-        "kapi context withdraw 7 --note \"recorded the wrong way round\""
+        "kapi context withdraw 0n794e2gk7",
+        "kapi context withdraw 0n794e2gk7 --note \"recorded the wrong way round\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

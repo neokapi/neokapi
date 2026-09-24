@@ -56,7 +56,7 @@ func TestAppendLatency(t *testing.T) {
 	for i := range contextOps {
 		_, err := ledger.Append(ctx, contextop.Record{
 			Project: "prj_docs", Actor: agent("claude", "seed"),
-			Kind: contextop.KindObserve, Subject: termRule(fmt.Sprintf("word%d", i), fmt.Sprintf("form%d", i), ""),
+			Kind: contextop.KindObserve, Subject: termRule(fmt.Sprintf("word%d", i), fmt.Sprintf("form%d", i), false),
 		})
 		require.NoError(t, err)
 	}
