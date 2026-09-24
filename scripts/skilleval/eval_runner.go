@@ -209,7 +209,7 @@ func makeEvalStudyRecord(ctx context.Context, opts EvalOptions) (evalStudyRecord
 		if record.KapiHash, err = pairedFileHash(opts.KapiBin); err != nil {
 			return record, err
 		}
-		record.KapiVersion = firstLine(evalProbe(ctx, opts.KapiBin, "--version"))
+		record.KapiVersion = firstLine(kapiProbe(ctx, opts.KapiBin, "--version"))
 	}
 	// The commit is provenance. It stays out of the fingerprint, which binds the
 	// inputs an evaluation actually runs on: the manifest, the fixture with its

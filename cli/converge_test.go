@@ -172,7 +172,7 @@ func TestConverge_MissingExplicitDefaultFlow(t *testing.T) {
 
 	_, runErr := runConverge(t, a, recipe, ConvergeOptions{})
 	require.Error(t, runErr)
-	assert.Contains(t, runErr.Error(), `default flow "nope" not found`)
+	assert.Contains(t, runErr.Error(), `defaults.flow "nope" names no flow`)
 }
 
 // TestConverge_UntilGateParksUnreachableGate: a gate the deterministic flow

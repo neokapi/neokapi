@@ -437,8 +437,8 @@ type upPlanFlow struct {
 // exactly as RunDefaultFlowConverge does, including its errors: a plan that
 // quotes figures for a run that cannot start is the same fault as a plan that
 // quotes figures the run would not produce.
-func (a *App) resolveUpPlanFlow(proj *project.KapiProject) (upPlanFlow, error) {
-	cf, err := convergeFlowSpec(proj)
+func (a *App) resolveUpPlanFlow(proj *project.KapiProject, projectDir string) (upPlanFlow, error) {
+	cf, err := convergeFlowSpec(proj, projectDir)
 	if err != nil {
 		return upPlanFlow{Label: cf.label}, err
 	}
@@ -514,7 +514,7 @@ type upPlanBasis struct {
 // the flow a run would execute: what that flow can produce is what the plan
 // counts as work, and what it cannot is reported rather than priced.
 func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *project.KapiProject, units []VerifyUnit) (UpPlanOutput, error) {
-	fl, ferr := a.resolveUpPlanFlow(proj)
+	fl, ferr := a.resolveUpPlanFlow(proj, basis.root)
 	if ferr != nil {
 		return UpPlanOutput{}, ferr
 	}

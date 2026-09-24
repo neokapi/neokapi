@@ -72,7 +72,8 @@ hoc) or 'kapi up' (project) produce the real translations.`,
 // newPorcelainFlowRunE builds the shared RunE for a flow-backed porcelain
 // verb: positional files merge into the flow path's --input flag, project
 // defaults apply when a recipe is discovered (same precedence as kapi run),
-// and the named built-in flow executes.
+// and the named built-in flow executes, whatever flow of that name the recipe
+// declares.
 func newPorcelainFlowRunE(a *App, flowName, needInputMsg string) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		for _, f := range args {
@@ -91,7 +92,7 @@ func newPorcelainFlowRunE(a *App, flowName, needInputMsg string) func(*cobra.Com
 		}
 		fallbackRunE := a.ResolveFallbackRunE(RunCmdOptions{})
 		if projectPath != "" {
-			return a.RunFromProject(cmd, flowName, projectPath, RunCmdOptions{FallbackRunE: fallbackRunE})
+			return a.RunFromProject(cmd, flowName, projectPath, RunCmdOptions{FallbackRunE: fallbackRunE, Builtin: true})
 		}
 		return a.RunFlow(cmd.Context(), cmd, flowName, FlowCmdOptions{FallbackRunE: fallbackRunE})
 	}

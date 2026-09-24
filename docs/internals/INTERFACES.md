@@ -926,7 +926,8 @@ Two consequences for anything that runs kapi:
 - **`$KAPI_DATA_DIR` is part of the isolation contract**, and it wins over
   `$XDG_DATA_HOME`. Every in-repo surface that launches a RELEASED kapi (the
   Makefile's `$(KAPI_ISO_ENV)`, `kapi/e2e`'s `isoEnv`, the harness's
-  `kapiIsolationEnv`) sets it: a released binary is not a test binary, and
+  `kapiIsolationEnv`, `scripts/skilleval`'s `isolationEnv` and `evalEnv`) sets
+  it: a released binary is not a test binary, and
   setting only `$XDG_DATA_HOME` leaves a developer's exported `$KAPI_DATA_DIR`
   in force.
 

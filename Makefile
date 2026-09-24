@@ -1906,7 +1906,7 @@ l10n-review-export: bin/kapi l10n-context-import ## Emit disposable TMX/CSV revi
 # every collection is covered by construction — add a collection to kapi.yaml
 # and it is converged with no Makefile change.
 #
-# The recipe binds `flow: tm-recycle`: exact-match content-memory leverage and
+# The recipe binds `flow: memory-recycle`: exact-match content-memory leverage and
 # nothing else, with no AI, no provider credentials and no network. So this
 # stage runs on what the import above put in the store plus whatever a venue
 # pull brought home, and a fresh clone converges from git alone. AI convergence

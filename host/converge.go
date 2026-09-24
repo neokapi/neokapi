@@ -340,7 +340,7 @@ func (o ConvergeOutput) formatMonolingual(w io.Writer) error {
 // error (target drift is normal toil, not a break).
 func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, projectPath string, opts ConvergeOptions) error {
 	untilGate, maxPasses := opts.UntilGate, opts.MaxPasses
-	cf, err := convergeFlowSpec(proj)
+	cf, err := convergeFlowSpec(proj, filepath.Dir(projectPath))
 	if err != nil {
 		return err
 	}
@@ -1239,8 +1239,9 @@ type convergeFlow struct {
 // source gate's leading stage prepended when the gate is active. The run and
 // `kapi up --plan` both resolve through it, so a plan never prices a flow the
 // run would not execute, and a flow the run cannot start fails the plan the same
-// way.
-func convergeFlowSpec(proj *project.KapiProject) (convergeFlow, error) {
+// way. projectDir is the recipe's directory, which a `flows_dir:` is relative
+// to.
+func convergeFlowSpec(proj *project.KapiProject, projectDir string) (convergeFlow, error) {
 	cf := convergeFlow{name: proj.Defaults.Flow, label: proj.Defaults.Flow}
 	if cf.name == "" {
 		// No defaults.flow: run the built-in default (#1078 G6), content memory
@@ -1250,13 +1251,15 @@ func convergeFlowSpec(proj *project.KapiProject) (convergeFlow, error) {
 		cf.label = BuiltinDefaultFlowLabel
 		cf.spec = DefaultConvergeFlowSpec()
 	} else {
-		cf.spec = proj.Flow(cf.name)
-		if cf.spec == nil {
-			if BuiltinComposedFlowNames()[cf.name] {
-				return cf, fmt.Errorf("defaults.flow %q is a built-in flow; define it under the project's `flows:` map to use it as `kapi up`'s default flow", cf.name)
-			}
-			return cf, fmt.Errorf("default flow %q not found in the project's `flows:`", cf.name)
+		// The name resolves as `kapi run` resolves it (ResolveProjectFlow).
+		pf, err := ResolveProjectFlow(proj, projectDir, cf.name, nil)
+		if err != nil {
+			return cf, err
 		}
+		if pf == nil {
+			return cf, fmt.Errorf("defaults.flow %q names no flow under the recipe's `flows:`, no file in its `flows_dir:` and no built-in flow", cf.name)
+		}
+		cf.spec = pf.Spec
 	}
 
 	// Source-first gate (epic 019): resolve the convergence source gate

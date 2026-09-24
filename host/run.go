@@ -20,6 +20,11 @@ type RunCmdOptions struct {
 	// flows kapi itself knows nothing about.
 	FallbackRunE func(cmd Command, flowName string, args []string) error
 
+	// Builtin runs the built-in flow of the name, whatever the recipe
+	// declares. The porcelain verbs set it: `kapi translate` is kapi's own
+	// verb, and a recipe's `translate` flow does not change what it does.
+	Builtin bool
+
 	// OnFindings, when set, receives what the run's check steps reported: the
 	// report the run prints, once per locale pass and binding group. A flow
 	// with no check step reports nothing. A surface that gates on a project
@@ -123,30 +128,22 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	// so it takes the same content resolution, locale passes, standing bindings
 	// and process-only store commit, and the run flags it honours over files
 	// (--provider, --credential, --model, …) seed every step.
+	var pf *ProjectFlow
+	if opts.Builtin {
+		if spec := builtInFlowSteps(flowName, runFlagToolConfig(cmd)); spec != nil {
+			pf = &ProjectFlow{Name: flowName, Source: FlowSourceBuiltin, Spec: spec}
+		}
+	} else if pf, err = ResolveProjectFlow(proj, ctx.ProjectDir, flowName, runFlagToolConfig(cmd)); err != nil {
+		return err
+	}
+	if pf != nil && pf.Source == FlowSourceBuiltin && (len(inputPaths) > 0 || explain) {
+		return a.RunFlow(cmd.Context(), cmd, flowName, FlowCmdOptions{
+			FallbackRunE: opts.FallbackRunE,
+		})
+	}
 	var spec *flow.StepsSpec
-	if BuiltinFlowNames()[flowName] {
-		if len(inputPaths) > 0 || explain {
-			return a.RunFlow(cmd.Context(), cmd, flowName, FlowCmdOptions{
-				FallbackRunE: opts.FallbackRunE,
-			})
-		}
-		spec = builtInFlowSteps(flowName, runFlagToolConfig(cmd))
-	} else {
-		// A project's flows live in two places: inline on the recipe under
-		// `flows:`, and one file per flow in the directory the recipe names
-		// with `flows_dir:`. Both are the same flow here, so a file-per-flow
-		// definition takes the same content resolution, locale passes,
-		// standing bindings and findings report as an inline one.
-		spec = proj.Flow(flowName)
-		if spec == nil {
-			dirFlow, derr := project.LoadDirFlow(proj.FlowsDirIn(ctx.ProjectDir), flowName)
-			if derr != nil && !errors.Is(derr, os.ErrNotExist) {
-				return derr
-			}
-			if dirFlow != nil {
-				spec = dirFlow.Spec
-			}
-		}
+	if pf != nil {
+		spec = pf.Spec
 	}
 	if spec == nil {
 		// A flow no part of the project declares: hand it to a plugin's
@@ -288,6 +285,51 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	}
 
 	return runGroups()
+}
+
+// Where a flow a project runs by name comes from.
+const (
+	FlowSourceBuiltin = "builtin" // kapi's own catalog (host/flowdef)
+	FlowSourceInline  = "inline"  // the recipe's `flows:` map
+	FlowSourceFile    = "file"    // a file in the recipe's `flows_dir:`
+)
+
+// ProjectFlow is a flow name resolved against a project.
+type ProjectFlow struct {
+	Name   string
+	Source string // one of the FlowSource constants
+	Spec   *flow.StepsSpec
+	// Path is the flow file, for a flow from `flows_dir:`.
+	Path string
+}
+
+// ResolveProjectFlow resolves a flow name against the recipe in projectDir,
+// the one rule every project surface runs a flow by (`kapi run`, `kapi up`'s
+// defaults.flow, `kapi flows`, the MCP run_flow tool): the most specific
+// definition wins. The recipe's inline `flows:` entry comes first, then the
+// file of that name in its `flows_dir:`, then kapi's built-in flow of that
+// name, so a project that declares `translate` runs its own. The porcelain
+// verbs (`kapi translate`, `kapi pseudo-translate`) are kapi's own and always
+// run the built-in they are named for (RunCmdOptions.Builtin).
+//
+// runConfig seeds every step of a built-in flow (the run flags a caller
+// honours). Nil, nil when nothing declares the name; an error when the flow
+// file of that name does not load.
+func ResolveProjectFlow(proj *project.KapiProject, projectDir, name string, runConfig map[string]any) (*ProjectFlow, error) {
+	if spec := proj.Flow(name); spec != nil {
+		return &ProjectFlow{Name: name, Source: FlowSourceInline, Spec: spec}, nil
+	}
+	dirFlow, err := project.LoadDirFlow(proj.FlowsDirIn(projectDir), name)
+	switch {
+	case err == nil:
+		return &ProjectFlow{Name: name, Source: FlowSourceFile, Spec: dirFlow.Spec, Path: dirFlow.Path}, nil
+	case !errors.Is(err, os.ErrNotExist):
+		return nil, err
+	}
+	if spec := builtInFlowSteps(name, runConfig); spec != nil {
+		return &ProjectFlow{Name: name, Source: FlowSourceBuiltin, Spec: spec}, nil
+	}
+	return nil, nil
 }
 
 // builtInFlowSteps renders a built-in flow's tool chain as the steps spec the

@@ -26,7 +26,8 @@ Built-in flows:
   translate-qa    Translate + quality check using AI/LLM
 
 Custom flows are defined inline in the kapi.yaml recipe under flows:, or one
-YAML file per flow in the directory the recipe names with flows_dir:.
+YAML file per flow in the directory the recipe names with flows_dir:. A
+project's flow runs in place of a built-in flow of the same name.
 
 Use -p to run a flow from a kapi.yaml recipe:
   kapi run translate -p kapi.yaml`,

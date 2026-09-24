@@ -80,7 +80,8 @@ func TestListFlows_ListsTheProjectsFlows(t *testing.T) {
 	}
 
 	require.Len(t, byName["translate-qa"], 1, "a built-in name is listed once")
-	assert.Zero(t, byName["translate-qa"][0].Steps, "as the built-in, which kapi run resolves it to")
+	assert.Equal(t, 1, byName["translate-qa"][0].Steps, "as the recipe's flow, which kapi run resolves it to")
+	assert.Equal(t, recipe, byName["translate-qa"][0].Path)
 
 	require.Len(t, byName["inline"], 1, "an inline flow wins over a file of its name")
 	assert.Equal(t, 2, byName["inline"][0].Steps)

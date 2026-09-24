@@ -32,7 +32,7 @@ export default defineConfig({
         // load fails, the lazy import in useApi swallows it, and every backend
         // call returns null: the app renders with empty lists and no error.
         advancedChunks: {
-          groups: [{ name: "wails", test: /@wailsio[\/]runtime|[\/]bindings[\/]/ }],
+          groups: [{ name: "wails", test: /@wailsio\/runtime|\/bindings\// }],
         },
       },
     },

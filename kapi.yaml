@@ -87,7 +87,7 @@ defaults:
         pseudo-translate:
           prefix: ""
           suffix: ""
-  # The loop this project runs locally. tm-recycle is exact-match content-memory
+  # The loop this project runs locally. memory-recycle is exact-match content-memory
   # leverage and nothing else, so a checkout with no credentials converges from
   # the committed context alone and the pass is a deterministic function of
   # source + .kapi/. AI convergence happens at the server venue (the bowrain:
@@ -95,7 +95,7 @@ defaults:
   # deliberate local AI pass is `kapi run translate-ai`. Without this the
   # built-in default flow ends in `translate`, and a fresh clone stops on a
   # missing provider credential having recycled nothing.
-  flow: tm-recycle
+  flow: memory-recycle
   # The voice is bound by name: the profile `kapi context import` reads from
   # .kapi/voice.yaml into the project's store. The terms need no binding: the
   # same import reads .kapi/terms.json, and any profiles/<name>/terms.json,
@@ -601,8 +601,8 @@ collections:
 flows:
   # Exact-match content-memory leverage plus the one check that is about
   # correctness rather than coverage: the deterministic pass `defaults.flow`
-  # binds, run over the whole recipe. Named tm-recycle so it does not shadow the
-  # built-in `recycle`/`translate` flows (built-ins win in `kapi run`).
+  # binds, run over the whole recipe. A built-in flow name runs the built-in,
+  # so this flow takes a name of its own rather than `recycle`.
   #
   # placeholder-check is bound here because a target that dropped an
   # interpolation placeholder is not a partial translation, it is a wrong one: a
@@ -611,24 +611,13 @@ flows:
   # inline code, and this is the same predicate applied to what a pass produced,
   # whatever venue produced it. It reports; the return-leg gate
   # (scripts/check-sync-backed.sh) is what refuses.
-  tm-recycle:
+  memory-recycle:
     steps:
       - tool: recycle
         config:
           fillTarget: true
           fillTargetThreshold: 100
       - tool: placeholder-check
-  # content memory-driven translation: reviewed translations live in the project content memory
-  # (seeded from .kapi/memory/*.memory.json); exact matches fill the target, terminology
-  # compliance is checked against the project terms.
-  translate:
-    steps:
-      - tool: recycle
-        config:
-          fillTarget: true
-          fillTargetThreshold: 100
-      - tool: placeholder-check
-      - tool: term-check
   # AI translation for new/changed strings: content memory first, then translate for
   # the misses (voice profile + terms are bound project-wide), then checks.
   # Requires provider credentials (keychain or ANTHROPIC_API_KEY).

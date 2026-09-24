@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
@@ -160,21 +161,80 @@ func TestHandleProjectLsPathFilter(t *testing.T) {
 	assert.Equal(t, "locales/en.json", out.Files[0].Path)
 }
 
+// Outside a project, list_flows lists the composed built-in flows `kapi flows`
+// lists.
 func TestHandleBowrainListFlows(t *testing.T) {
-	a := bowrainTestApp()
+	t.Chdir(t.TempDir())
 
-	_, out, err := handleBowrainListFlows(a)
+	_, out, err := handleBowrainListFlows()
 	require.NoError(t, err)
 	assert.NotEmpty(t, out.Flows)
 	assert.Equal(t, len(out.Flows), out.Total)
+	assert.Empty(t, out.Warning)
 
-	var names []string
+	sources := map[string]string{}
 	for _, f := range out.Flows {
-		names = append(names, f.Name)
+		sources[f.Name] = f.Source
 	}
-	assert.Contains(t, names, "pseudo-translate")
-	assert.Contains(t, names, "qa")
-	assert.Contains(t, names, "translate")
+	assert.Equal(t, "builtin", sources["translate"])
+	assert.Equal(t, "builtin", sources["translate-qa"])
+}
+
+// In a project, list_flows lists what `kapi flows` lists: the recipe's inline
+// flows and its flows_dir files, each name once, for the flow `kapi run`
+// resolves it to. A file that will not run is listed with its problem.
+func TestHandleBowrainListFlows_ListsInlineAndFileFlows(t *testing.T) {
+	root := t.TempDir()
+	recipe := &project.Recipe{
+		Version:  coreproj.CurrentVersion,
+		Name:     "FlowsTest",
+		FlowsDir: "flows",
+		Defaults: coreproj.Defaults{SourceLanguage: "en"},
+		Flows: map[string]*flow.StepsSpec{
+			"inline-check": {Steps: []flow.FlowStep{{Tool: "qa"}}},
+			"guard":        {Steps: []flow.FlowStep{{Tool: "qa"}, {Tool: "qa"}}},
+			// A built-in's name: `kapi run translate` runs the recipe's flow,
+			// so the listing shows it in place of the built-in.
+			"translate": {Steps: []flow.FlowStep{{Tool: "qa"}}},
+		},
+	}
+	proj, err := project.InitProject(root, recipe)
+	require.NoError(t, err)
+	flowsDir := proj.FlowsDirPath()
+	require.NoError(t, os.MkdirAll(flowsDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(flowsDir, "file-check.yaml"),
+		[]byte("description: Check from a file\nsteps:\n  - tool: qa\n"), 0o644))
+	// The inline guard wins over a file of its name.
+	require.NoError(t, os.WriteFile(filepath.Join(flowsDir, "guard.yaml"),
+		[]byte("steps:\n  - tool: qa\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(flowsDir, "broken.yaml"),
+		[]byte("steps: []\n"), 0o644))
+	t.Chdir(root)
+
+	_, out, err := handleBowrainListFlows()
+	require.NoError(t, err)
+	assert.Empty(t, out.Warning)
+
+	byName := map[string][]MCPFlowEntry{}
+	for _, f := range out.Flows {
+		byName[f.Name] = append(byName[f.Name], f)
+	}
+	for name, entries := range byName {
+		assert.Len(t, entries, 1, "%s is listed once", name)
+	}
+	require.Contains(t, byName, "inline-check")
+	assert.Equal(t, "project", byName["inline-check"][0].Source)
+	require.Contains(t, byName, "file-check")
+	assert.Equal(t, "project", byName["file-check"][0].Source)
+	assert.Equal(t, "Check from a file", byName["file-check"][0].Description)
+	require.Contains(t, byName, "guard")
+	assert.Equal(t, 2, byName["guard"][0].Steps, "the inline guard, not the file")
+	require.Contains(t, byName, "broken")
+	assert.Contains(t, byName["broken"][0].Description, "declares no steps")
+	require.Contains(t, byName, "translate")
+	assert.Equal(t, "project", byName["translate"][0].Source)
+	require.Contains(t, byName, "translate-qa")
+	assert.Equal(t, "builtin", byName["translate-qa"][0].Source)
 }
 
 func TestMatchesMCPPathFilter(t *testing.T) {

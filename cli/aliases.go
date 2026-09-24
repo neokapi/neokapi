@@ -141,11 +141,12 @@ var (
 	MCPToolSetNames              = host.MCPToolSetNames
 	MCPToolSetTools              = host.MCPToolSetTools
 	BoolFlag                     = host.BoolFlag
-	BoolFlagAny                  = host.BoolFlagAny
 	BuildAISetupChoices          = host.BuildAISetupChoices
 	BuildModelRows               = host.BuildModelRows
 	BuiltinFlowNames             = host.BuiltinFlowNames
 	BuiltinComposedFlowNames     = host.BuiltinComposedFlowNames
+	FlowListing                  = host.FlowListing
+	ResolveProjectFlow           = host.ResolveProjectFlow
 	CmdContext                   = host.CmdContext
 	CollectAllPresets            = host.CollectAllPresets
 	CollectAuditRows             = host.CollectAuditRows

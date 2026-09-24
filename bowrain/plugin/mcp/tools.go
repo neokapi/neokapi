@@ -12,13 +12,11 @@ import (
 	"path/filepath"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/neokapi/neokapi/bowrain/plugin/internal/projflow"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
-	clioutput "github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/host/venue/project"
 	"github.com/neokapi/neokapi/host/venue/source"
 )
@@ -68,7 +66,7 @@ func registerBowrainTools(server *mcp.Server, a *cli.App) {
 		Name:        "list_flows",
 		Description: "List available processing flows (built-in and project-defined)",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, MCPListFlowsOutput, error) {
-		return handleBowrainListFlows(a)
+		return handleBowrainListFlows()
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -188,6 +186,9 @@ type MCPFlowEntry struct {
 type MCPListFlowsOutput struct {
 	Flows []MCPFlowEntry `json:"flows"`
 	Total int            `json:"total"`
+	// Warning says why the project's own flows are missing, when its recipe
+	// does not load.
+	Warning string `json:"warning,omitempty"`
 }
 
 // --- Handlers ---
@@ -435,37 +436,36 @@ func handleProjectConfig() (*mcp.CallToolResult, MCPConfigOutput, error) {
 	return nil, out, nil
 }
 
-func handleBowrainListFlows(a *cli.App) (*mcp.CallToolResult, MCPListFlowsOutput, error) {
-	builtinFlows := []clioutput.FlowInfo{
-		{Name: "translate", Description: "Translate content with an LLM or MT provider"},
-		{Name: "translate-qa", Description: "Translate + quality check using AI/LLM"},
-		{Name: "pseudo-translate", Description: "Generate pseudo-translations for testing"},
-		{Name: "qa", Description: "Run rule-based quality checks on translations"},
-		{Name: "recycle", Description: "Pre-fill translations from content memory"},
-		{Name: "segmentation", Description: "Split source text into sentence segments"},
+// handleBowrainListFlows lists what `kapi flows` lists for the project in
+// scope (cli.FlowListing): the composed built-in flows, then the recipe's own,
+// inline and in its `flows_dir:`, each name once for the flow `kapi run`
+// resolves it to. A recipe that does not load still lists the built-in flows,
+// and the warning says why the project's are missing.
+func handleBowrainListFlows() (*mcp.CallToolResult, MCPListFlowsOutput, error) {
+	var recipePath string
+	if proj, err := project.FindProject(""); err == nil {
+		recipePath = proj.RecipePath()
 	}
+	flows, err := cli.FlowListing(recipePath)
 
-	var entries []MCPFlowEntry
-	for _, f := range builtinFlows {
-		entries = append(entries, MCPFlowEntry{
+	out := MCPListFlowsOutput{Flows: make([]MCPFlowEntry, 0, len(flows))}
+	if err != nil {
+		out.Warning = err.Error()
+	}
+	for _, f := range flows {
+		source := "builtin"
+		if f.Path != "" {
+			source = "project"
+		}
+		out.Flows = append(out.Flows, MCPFlowEntry{
 			Name:        f.Name,
 			Description: f.Description,
-			Source:      "builtin",
-		})
-	}
-
-	// Add project flows if available.
-	projectFlows := projflow.List()
-	for _, f := range projectFlows {
-		entries = append(entries, MCPFlowEntry{
-			Name:        f.Name,
-			Description: f.Description,
-			Source:      "project",
+			Source:      source,
 			Steps:       f.Steps,
 		})
 	}
-
-	return nil, MCPListFlowsOutput{Flows: entries, Total: len(entries)}, nil
+	out.Total = len(out.Flows)
+	return nil, out, nil
 }
 
 // matchesMCPPathFilter returns true if relPath matches any of the given path prefixes,

@@ -43,16 +43,16 @@ func TestExplainProjectFlowRun(t *testing.T) {
 		want    string
 	}{
 		{
-			"multi input all locales", "tm-recycle",
+			"multi input all locales", "memory-recycle",
 			[]string{"a/demo.yaml", "b/demo.yaml"}, "", []string{"nb", "de"},
-			"flow tm-recycle: file(a/demo.yaml) → file\n" +
-				"flow tm-recycle: file(b/demo.yaml) → file\n" +
+			"flow memory-recycle: file(a/demo.yaml) → file\n" +
+				"flow memory-recycle: file(b/demo.yaml) → file\n" +
 				"locales: nb, de\n",
 		},
 		{
-			"single input explicit output", "tm-recycle",
+			"single input explicit output", "memory-recycle",
 			[]string{"a.json"}, "out.json", []string{"nb"},
-			"flow tm-recycle: file(a.json) → file(out.json)\nlocales: nb\n",
+			"flow memory-recycle: file(a.json) → file(out.json)\nlocales: nb\n",
 		},
 		{
 			"source-only pass omits empty locale", "lint",

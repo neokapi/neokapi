@@ -102,7 +102,7 @@ sits in no collection and under no `defaults.exclude` pattern. It runs in
 `make lint`, `make pre-push` and the *Repo guards* job, and every generated tree
 the exclude list names carries its reason beside it in `kapi.yaml`.
 
-The recipe binds `flow: tm-recycle`: exact-match content-memory leverage and
+The recipe binds `flow: memory-recycle`: exact-match content-memory leverage and
 nothing else: no AI, no provider credentials, no network. A checkout with no
 credentials therefore converges from the context this repository exports
 alone. AI convergence

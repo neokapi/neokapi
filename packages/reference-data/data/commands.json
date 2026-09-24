@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T23:21:16Z",
+  "generatedAt": "2026-09-24T00:11:52Z",
   "commands": [
     {
       "id": "add",
@@ -7148,7 +7148,7 @@
       ],
       "use": "run [flow-name] [flags]",
       "short": "Run a composed flow (a named multi-tool pipeline)",
-      "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\nTo bring the whole project up to date, use 'kapi up': the kapi loop\nlives there; run is the escape hatch for one named pipeline, one pass.\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI/LLM\n\nCustom flows are defined inline in the kapi.yaml recipe under flows:, or one\nYAML file per flow in the directory the recipe names with flows_dir:.\n\nUse -p to run a flow from a kapi.yaml recipe:\n  kapi run translate -p kapi.yaml",
+      "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\nTo bring the whole project up to date, use 'kapi up': the kapi loop\nlives there; run is the escape hatch for one named pipeline, one pass.\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI/LLM\n\nCustom flows are defined inline in the kapi.yaml recipe under flows:, or one\nYAML file per flow in the directory the recipe names with flows_dir:. A\nproject's flow runs in place of a built-in flow of the same name.\n\nUse -p to run a flow from a kapi.yaml recipe:\n  kapi run translate -p kapi.yaml",
       "groupID": "advanced",
       "flags": [
         {
