@@ -13,11 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestWorkerRecycle_FillsFromMemoryOnlyAITranslatesRemainder is the end-to-end proof
-// of verification (a): a convergence translation job with content-memory entries fills the
-// matching blocks from the project content memory and sends only the remainder to the AI
-// translator — and records a truthful ViaMemory/ViaAI split on the job row (the
-// input to the produce emitter's "content memory N · AI M").
+// TestWorkerRecycle_FillsFromMemoryOnlyAITranslatesRemainder verifies that matching
+// blocks are filled from content memory and only the remainder reaches AI. The
+// job records the corresponding ViaMemory and ViaAI counts.
 func TestWorkerRecycle_FillsFromMemoryOnlyAITranslatesRemainder(t *testing.T) {
 	db := pgtest.NewTestDB(t)
 	ctx := t.Context()
@@ -95,7 +93,7 @@ func TestWorkerRecycle_FillsFromMemoryOnlyAITranslatesRemainder(t *testing.T) {
 	assert.NotEmpty(t, targets["Brand new string"], "the unmatched block must be AI-translated")
 	assert.NotEqual(t, "Bonjour", targets["Brand new string"])
 
-	// The job records the truthful split: 1 via content memory, 1 via AI (verification (c)).
+	// The job records one block from content memory and one from AI.
 	reloaded, err := js.GetJob(ctx, job.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, reloaded.ViaMemory, "one block recycled from content memory → ViaMemory=1")

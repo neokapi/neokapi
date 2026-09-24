@@ -8,37 +8,13 @@ import (
 	"strings"
 )
 
-// Recording the session, rather than a summary of it.
+// Sessions retain assistant messages, tool calls and results from the agent's
+// stream-json output. Counts and tool lists remain in the main dataset; full
+// transcripts are staged separately and published to the documentation CDN.
+// The page fetches them on demand to keep the dataset bundle small.
 //
-// The agent runs with --output-format stream-json, so the whole conversation
-// goes past: every assistant message, every tool call with its arguments, and
-// every tool result, which is what the agent actually saw before its next move.
-// Run keeps counts and a deduplicated tool list out of that, which answers "what
-// did it reach for" and cannot answer "why did it do that".
-//
-// The second question is the one a reader has when a verdict surprises them, and
-// it is the question the eval work kept needing: #2227 was diagnosed from a
-// transcript showing an agent produce a correct change-set and then spend a
-// 40-turn budget on one rejection. That reading happened on a developer's
-// machine, from a run nobody else could see.
-//
-// So the events are kept, and they are kept out of the dataset: the page imports
-// _skilleval.json directly, and sessions are large. Each scenario's sessions are
-// written to their own file under web/static, and the row fetches it when a
-// reader opens it. The index stays the size it is; the evidence is one click
-// away rather than one machine away.
-
-// The session is published whole.
-//
-// It was capped — 400 events, 256KB, each message clipped to 3,000 characters
-// and each tool result to 1,200 — because it was committed to git. Those caps
-// cut exactly the part a reader wants: the file the agent actually read, the
-// error it actually got. A transcript that stops mid-tool-result is a summary
-// with a scrollbar.
-//
-// So the transcripts go where the artefacts go, an S3 bucket behind CloudFront,
-// and nothing is truncated on the way. What remains is scrubbing, which is not
-// a cap: a published transcript must not carry the machine it ran on.
+// Published transcripts are not truncated. Every event passes through path
+// scrubbing before storage.
 
 // Event is one step of a session, in the order it happened.
 type Event struct {

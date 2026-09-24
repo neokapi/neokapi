@@ -12,29 +12,14 @@ import (
 	"strings"
 )
 
-// Ground truth is read from the document, not from another tool.
+// Ground truth is extracted from the document's text-bearing OOXML elements
+// using a ZIP reader and XML parser. The comparison measures content retention
+// independently of another converter's output.
 //
-// This is the whole reason the eval can exist. A comparison scored against
-// pandoc's output measures agreement with pandoc; a comparison scored against
-// the file's own text nodes measures whether a converter saw what the format
-// says is there. OOXML makes that available: the spec designates exactly which
-// elements carry user-visible text, and reading them needs a zip reader and an
-// XML parser rather than an opinion.
-//
-// What this does NOT establish:
-//
-//   - Structure. Headings, lists, tables and their nesting are not compared. A
-//     converter that emits every word as one paragraph scores the same as one
-//     that preserves the outline.
-//   - Order. The metric is a multiset, so text that survives in the wrong place
-//     counts as present.
-//   - Anything outside the body part. Headers, footers, footnotes, comments and
-//     speaker notes are excluded, because converters disagree about whether
-//     those belong in the output at all and counting them would score that
-//     disagreement rather than fidelity.
-//
-// What it does establish is the failure that matters most and is easiest to
-// ship: content silently disappearing.
+// The metric compares text multisets. It does not assess structure or order:
+// a converter can flatten paragraphs or reorder text without losing credit.
+// Headers, footers, footnotes, comments and speaker notes are excluded from the
+// body-text comparison because converters differ in their inclusion policies.
 
 // bodyPart names, per format, the parts whose text nodes are the ground truth
 // and the element that carries the text.

@@ -6,12 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// blockCheckFindings used to discard host.RunCheckTool's error, which made every
-// one of its callers fail UNSAFE: the review pane showed a clean unit, HasFindings
-// read false, and — worst — review_ai's AutoApprove consults hasBlockingCheckFinding
-// on that very slice, so a checker whose plugin was down would auto-approve a
-// translation whose placeholder integrity was never verified. The failure is now a
-// `major` synthetic finding, so the gate treats "not checked" as blocking.
+// Checker errors must produce a blocking finding. Dropping host.RunCheckTool's
+// error would show an unchecked unit as clean and allow review_ai.AutoApprove
+// to approve it when a plugin is unavailable. These tests verify that failed
+// checks block approval.
 func TestHasBlockingCheckFinding_TreatsAnIncompleteCheckAsBlocking(t *testing.T) {
 	incomplete := []DesktopFinding{{
 		Category: "check",

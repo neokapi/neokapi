@@ -13,29 +13,15 @@ type BlockIdentity struct {
 	ContextHash string // SHA-256 of contextual information (name, type, properties)
 }
 
-// RecordHash folds both halves into the hash that decides TRANSFER: whether a
-// far side already holds what this block currently is.
+// RecordHash combines ContentHash and ContextHash to determine whether a stored
+// block needs to be transferred.
 //
-// The two halves answer different questions and neither answers this one alone.
-// ContentHash says what the text is, and is the identity a decision, a memory
-// entry and a block key are all filed under — it must never move for a reason
-// other than the text moving. But a block is stored with more than its text: its
-// name, its type, and the properties a reader recorded about it. A reader that
-// starts recording something new — a message key, a role, a note — leaves the
-// text untouched, so a transfer decision made on ContentHash alone reports the
-// block unchanged and the new field never arrives. Not on the next push: never,
-// because the text is the same forever.
+// ContentHash identifies the text. ContextHash includes the name, type and
+// reader-supplied properties, so metadata changes trigger a transfer even when
+// the text is unchanged. Persisted fields must contribute to one of these hashes.
 //
-// Folding the context half in is what makes an ordinary push deliver it, per
-// block, with nobody declaring a version or remembering to force anything. The
-// cost this avoids — a locator like a line number shifting and re-uploading a
-// file's whole tail — is paid for by AdvisoryPropertyPrefix, which keeps derived
-// locators out of the context hash in the first place.
-//
-// A field this hash cannot see is a field that never reaches content already
-// stored. So anything a block is persisted with belongs in one half or the
-// other, and anything computed rather than read belongs behind the advisory
-// prefix.
+// Derived locators use AdvisoryPropertyPrefix and are excluded from ContextHash.
+// Moving a line number therefore does not re-upload every subsequent block.
 func (i *BlockIdentity) RecordHash() string {
 	if i == nil {
 		return ""

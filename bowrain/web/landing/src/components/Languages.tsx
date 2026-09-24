@@ -6,12 +6,7 @@ import { SECTION_LANGUAGES } from "../sections";
 import { captureLandingEvent } from "../analytics";
 import { markEngaged } from "../sectionSignals";
 
-// The closer, and the only place the page leads with language.
-//
-// It closes on the delivery edge because that is where the argument pays off:
-// once a language is a coordinate rather than a project, "is it ready" stops
-// being a percentage somebody interprets and becomes a state the same rule
-// derives every time.
+// Illustrate locale readiness from coverage, checks and review decisions.
 
 type ShipState = "governed" | "ai_shippable" | "pending";
 
@@ -59,8 +54,7 @@ const STATE_STYLES: Record<ShipState, string> = {
   pending: "bg-muted text-muted-foreground",
 };
 
-// The two bars a team actually sets. Each names the ship states it accepts, so
-// the table below re-partitions rather than re-computing.
+// Each delivery policy accepts a set of precomputed ship states.
 const BARS = [
   { id: "governed", label: t("Ship what a person approved"), accepts: ["governed"] as ShipState[] },
   {
@@ -103,17 +97,17 @@ export function Languages() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "Staying on profile in Norwegian is the same question as staying on profile in a help article. So the profiles you already have carry the language, the terms you already approved travel with it, and the same checks decide whether a locale is ready. Nothing above needed a second language to be worth having, and adding one widens the graph by an axis rather than starting a second process.",
+              "Use language coordinates to select the terms and writing guidance that apply to each locale. Translation coverage, check results and review decisions determine which locales meet your delivery policy.",
             )}
           </p>
         </div>
 
         <div className="mt-12 grid gap-8 lg:grid-cols-[minmax(0,20rem)_1fr]">
           <div>
-            <h3 className="text-base font-semibold">{t("Ready is a state, not a percentage")}</h3>
+            <h3 className="text-base font-semibold">{t("How readiness is determined")}</h3>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               {t(
-                "One rule derives it, from what the work left behind: coverage, failing checks, and whether a person signed off.",
+                "Readiness depends on translation coverage, failing checks and recorded approvals.",
               )}
             </p>
             <dl className="mt-5 space-y-4 text-sm">

@@ -9,13 +9,9 @@ import (
 	"strings"
 )
 
-// The point of a history file is that a batch ceiling chosen today does not
-// quietly become folklore. Models and APIs move; a curve measured against
-// `sonnet` in July 2026 says nothing about the model that answers to the same
-// alias six months later. So every run is stamped with the date, the provider,
-// the resolved model, and — crucially — a digest of the corpus it was measured
-// on. Two runs are only comparable if that digest matches; a dashboard that
-// silently plots them together would be inventing a trend.
+// History records the date, provider, resolved model and corpus digest for each
+// batch sweep. Provider aliases can change over time, so model names alone do
+// not identify a reproducible run. Compare curves only when corpus digests match.
 
 // History is the committed record: one entry per (date, provider, model, target,
 // corpus).
@@ -35,11 +31,8 @@ type Run struct {
 	// at one, and two models swept at different concurrencies cannot be raced
 	// against each other on speed.
 	Concurrency int `json:"concurrency,omitempty"`
-	// Temperature is what the sweep sampled at. Recorded for the same reason as
-	// concurrency: a command alone does not reproduce a sampled number, and
-	// until this was pinned the honest answer was "whatever the API defaults
-	// to", which nobody wrote down. A pointer so an older entry, made before
-	// the field existed, reads as unknown rather than as zero.
+	// Temperature records the sampling setting used by the sweep. A nil pointer
+	// marks an older entry with an unknown setting, distinct from temperature zero.
 	Temperature *float64 `json:"temperature,omitempty"`
 
 	// Price is what the tokens were charged at, pinned at measurement time. Looking
@@ -50,9 +43,8 @@ type Run struct {
 	Corpus       string `json:"corpus"`
 	CorpusWords  int    `json:"corpus_words,omitempty"`
 	CorpusBlocks int    `json:"corpus_blocks,omitempty"`
-	// CorpusDigest is what makes the history honest. Change the corpus and the
-	// digest moves, and runs measured on the old one stop being comparable —
-	// the dashboard says so rather than drawing a line through both.
+	// CorpusDigest identifies the corpus used by the sweep. The dashboard treats
+	// runs with different digests as incomparable.
 	CorpusDigest string `json:"corpus_digest"`
 
 	// Simulated marks a run against the offline stub. It measures the harness and

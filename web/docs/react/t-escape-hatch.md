@@ -234,9 +234,9 @@ In dev (plugin not active), `t(text, params)` does:
 
 Both return a `string`. For a ReactNode result you need the JSX path.
 
-## ESLint / oxlint: keep `t()` honest
+## ESLint / oxlint: validate `t()` calls {#eslint--oxlint-keep-t-honest}
 
-`t(someVariable)` defeats the point: the extractor has no text to hash. Install [`@neokapi/i18n-react-lint`](./linting) which ships rules for both ESLint and oxlint that catch this and the related pitfalls (`t('Hello ' + name)`, `<img alt={'Logo ' + brand} />`, string literals hidden in JSX expression containers).
+The extractor cannot hash the runtime value in `t(someVariable)`. Install [`@neokapi/i18n-react-lint`](./linting) which ships rules for both ESLint and oxlint that catch this and the related pitfalls (`t('Hello ' + name)`, `<img alt={'Logo ' + brand} />`, string literals hidden in JSX expression containers).
 
 ## Next
 

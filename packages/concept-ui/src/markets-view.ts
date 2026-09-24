@@ -18,7 +18,7 @@ function statusRank(term: Term): number {
 }
 
 /**
- * Order a locale's terms most-blessed → most-restricted (preferred first, banned
+ * Order a locale's terms preferred to most restricted (preferred first, banned
  * last), stable for equal status. The wording to lead with rises to the top and
  * banned variants sink, so a market panel reads at a glance.
  */
@@ -31,9 +31,9 @@ export function orderLocaleTerms(terms: Term[]): Term[] {
 
 /** A locale within a market, with its ordered terms and banned/preferred flags. */
 export interface MarketLocaleView extends LocaleTerms {
-  /** Terms ordered most-blessed → most-restricted. */
+  /** Terms ordered preferred to most restricted. */
   terms: Term[];
-  /** The wording to lead with: the most-blessed non-banned term, else the first. */
+  /** The wording to lead with: the highest-ranked non-banned term, else the first. */
   primary: Term;
   hasBanned: boolean;
   hasPreferred: boolean;

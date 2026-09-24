@@ -140,15 +140,15 @@ type CaseResult struct {
 	Drift       []string `json:"drift"`
 	Why         string   `json:"why"`
 	Withheld    bool     `json:"withheld,omitempty"`
-	// PromptDiffers is whether the two prompts were actually different. For a
-	// withheld case they are not, which is what makes it a control.
+	// PromptDiffers records whether the prompts differ. Withheld cases use
+	// identical prompts as a control.
 	PromptDiffers bool     `json:"promptDiffers"`
 	Samples       []Sample `json:"samples"`
 	KeptWith      int      `json:"keptWith"`
 	KeptWithout   int      `json:"keptWithout"`
 }
 
-// Report is the whole eval.
+// Report contains evaluation inputs, samples and aggregate results.
 type Report struct {
 	Note  string `json:"_note"`
 	RanAt string `json:"ranAt"`
@@ -298,9 +298,7 @@ func Run(ctx context.Context, opts RunOpts) (*Report, error) {
 	return report, nil
 }
 
-// promptsFor renders the two prompts through the real prompt builder, which is
-// the whole point: what is measured is the prompt production would send, not a
-// reconstruction of it.
+// promptsFor renders both conditions through the production prompt builder.
 func promptsFor(c abCase) (without, with []aiprovider.Message, err error) {
 	t := prompt.Translate{
 		SourceLocale: "en",

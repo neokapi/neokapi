@@ -552,10 +552,8 @@ async function main() {
       continue;
     }
 
-    // Tokenize exactly as the browser terminal does — same module, so a command
-    // that runs in the docs embed runs here, quotes and all. (This used to be a
-    // whitespace split, which shredded any quoted argument and failed a snippet
-    // in CI that worked fine in the browser it was verifying.)
+    // Use the browser terminal's tokenizer so quoted arguments are parsed
+    // consistently in the embed and snippet verification.
     const argv = parseCommand(rawCmd);
 
     resetCwd(snippet.sandboxDir);

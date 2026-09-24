@@ -11,36 +11,21 @@ import (
 	"github.com/neokapi/neokapi/core/state"
 )
 
-// The staleness gate: content produced under a context that has since been
-// superseded.
+// The staleness gate detects content produced or approved under superseded
+// governing context.
 //
-// Every translation producer stamps model.Origin.ContextFingerprint — a hash of
-// the governing context as it actually reached it, the rendered voice guidance
-// and the terminology it was given. Until now nothing compared it, so a project
-// could change the voice its content is written in and keep shipping every
-// target written in the old one, with no surface saying so. Coverage would read
-// 100%: the units are there, they are approved, and they are governed by a
-// context that no longer exists.
+// Producers record model.Origin.ContextFingerprint from the voice guidance and
+// term rules supplied to them. The gate compares that fingerprint with the
+// current context resolved for each file, including collection-specific bindings.
+// Staleness can fail a release gate, but target-language drift must not block an
+// ordinary build.
 //
-// The gate compares the stamp against the context in force AT THE POINT THAT
-// GOVERNS EACH FILE, so a recipe that binds two voices holds each file to its
-// own. It is a ship-gate concern: superseded governance blocks the release bar,
-// never an ordinary build, because catching targets up is exactly the work
-// `kapi up` exists to absorb.
+// The comparison uses state.UnitState.GoverningBasis: an approval's fingerprint
+// when present, otherwise the producer's stamp. Approval under the current context
+// clears staleness; rejection leaves the producer's stamp in force.
 //
-// Unstamped targets are reported and never failed. Content that predates the
-// stamp, and anything a person wrote by hand, carries no fingerprint at all —
-// failing it would punish content for the mechanism arriving after it, and the
-// gate would be unusable on the day it shipped, in every project that has any
-// history.
-//
-// What the gate compares is the unit's governing basis
-// (state.UnitState.GoverningBasis): an approval's own fingerprint where a
-// reviewer has vouched for the answer, and the producer's stamp everywhere
-// else. A reviewer approving under the context now in force is the project
-// saying this wording stands under it, so the unit clears; a rejection endorses
-// nothing and the unit reads through to the stamp the run left, which is what
-// keeps a turned-down draft stale.
+// Targets without fingerprints, including older or manually authored content,
+// are reported without failing the gate because their context cannot be compared.
 
 // gateStaleness is the gate's id. There is no flag to tune it: a coverage bar
 // is a judgement about how much is enough, and this is not one — a stamp either

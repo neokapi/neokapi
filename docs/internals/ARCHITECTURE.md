@@ -1,7 +1,7 @@
 # neokapi: Architecture
 
-neokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/)
-in Go. For the reasoning behind each major design choice, see the
+neokapi is a content engine in Go with format readers, processing flows and
+format-aware writers. For the design of each subsystem, see the
 [Architecture Decisions](../../web/docs/contribute/architecture/README.md).
 
 ## Architecture Diagram

@@ -43,12 +43,7 @@ func TestReadFreshnessFindsEverySpelling(t *testing.T) {
 	}
 }
 
-// TestTheIndexDoesNotBakeInToday.
-//
-// The reader records a date and never an age. An age would be computed at
-// generate time and baked into a committed file, so the drift test that keeps
-// this index honest would fail every morning and be muted inside a week.
-// Building twice must produce identical bytes.
+// Store measurement dates rather than computed ages so repeated builds remain identical.
 func TestTheIndexDoesNotBakeInToday(t *testing.T) {
 	first, err := Build()
 	require.NoError(t, err)

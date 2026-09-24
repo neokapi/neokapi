@@ -1,86 +1,52 @@
-// Package projectdb opens a kapi project's store.
+// Package projectdb opens a project's projection and context stores.
 //
-// A project's store is two pools, split by what produces the rows.
+// The projection is per checkout, at .kapi/work/store.db. It holds the block cache,
+// flow overlays and extraction stamps derived from the working tree. Extraction
+// can rewrite these tables in long transactions.
 //
-// The PROJECTION is per checkout, at `.kapi/work/store.db`: the block cache,
-// the overlays a flow wrote, the extraction stamps. Everything in it is derived
-// from the working tree by long transactions that rewrite large parts of it, so
-// it belongs beside the tree it describes and a second checkout of the same
-// project keeps one of its own.
+// The context store lives in a workspace (core/workspace), outside the checkout.
+// It holds terms, voice profiles, content memory and the unit-state working set
+// with staged decisions. Checkouts of the same project share this authored data.
 //
-// The CONTEXT store is per project and lives outside every checkout, in a
-// workspace (core/workspace): the terms, the voice profiles, the content
-// memory, and the unit-state working set with the decisions staged in it. It is
-// authored rather than derived, written a little at a time, and true wherever
-// the project is checked out. Two checkouts, a clone and a git worktree, share
-// it, so a decision recorded on one branch is in force on the other.
+// Each subsystem retains its own migration ledger, including sievepen_migrations,
+// termbase_migrations, cache_migrations and state, regardless of its database pool.
 //
-// Each subsystem migrates its own schema under its own ledger table
-// (`sievepen_migrations`, `termbase_migrations`, `cache_migrations`, `state`),
-// which is what storage.Migrate's namespaced bookkeeping was built for, so
-// nothing about a subsystem's schema changes with which pool it binds to.
+// # Embedded layout
 //
-// # The embedded layout
+// Without a workspace, Open uses .kapi/work/store.db for both context and
+// projection tables through one handle. The host supplies the workspace location
+// through host.DataDir(); the framework has no default pointing to user data.
 //
-// Open with no workspace puts the context tables beside the projection in
-// `.kapi/work/store.db` and the two pools are one handle. That is what a test
-// gets, and it is why `go test` cannot reach a developer's own workspace: the
-// location comes from the host layer (host/projectstore.go, from
-// host.DataDir()), never from a default inside the framework.
+// Opening an embedded project with a workspace moves staged decisions into the
+// context store, re-seeds the other context data from committed .kapi files, and
+// drops the projection's context tables. See adopt.go.
 //
-// The first open WITH a workspace adopts a project that was living in the
-// embedded layout: the decisions staged in the projection are carried into the
-// context store, everything else re-seeds from the committed `.kapi/` files,
-// and the projection's context tables are dropped. See adopt.go.
+// # Cross-store queries
 //
-// # Joining across the two files
+// DB.Join attaches the projection as main and the context store as context for
+// one read, allowing queries such as finding the blocks that use a term.
 //
-// A question that spans the two pools — which blocks use this term — is one
-// connection with both files attached: DB.Join opens the projection as `main`
-// and the context store as `context`, for the length of one read.
+// # Writes
 //
-// # Write discipline
+// storage.ProjectOptions configures BEGIN IMMEDIATE and an in-process FIFO write
+// permit for each database file. SQLite busy retries alone do not order waiting
+// writers; repeated short transactions can starve other writes. The FIFO permit
+// provides that ordering within a process.
 //
-// Each pool is opened with storage.ProjectOptions(): BEGIN IMMEDIATE on every
-// transaction, and an in-process FIFO permit every write holds for its whole
-// life. Both halves were measured, not assumed. Without them a converge run's
-// content-memory writes starved the review loop's drip of unit-state writes
-// almost completely — 32 operations of 2650 completed, the rest failing
-// SQLITE_BUSY after the five-second timeout, because SQLite's busy backoff has
-// no notion of who has waited longest. With them the in-process busy count is
-// zero and the starved writer runs at roughly nine tenths of what it managed
-// when it had a file to itself.
+// The separate files allow context writes during extraction. A block-store session
+// holds the projection permit throughout its purge-and-refill transaction, from
+// Begin to Commit. Close every session. Writing to the same pool from a goroutine
+// that already holds its permit returns storage.ErrWriteGateReentrant.
 //
-// The permit is per file, so the split buys back what the merge cost: a block
-// session's long transaction holds the projection's permit and leaves the
-// context store's alone, which is why a review loop recording decisions runs
-// beside an extraction rather than behind it.
+// Separate processes still contend through SQLite's file locking and busy_timeout.
+// Reads bypass the write permit and use WAL concurrency.
 //
-// Two consequences worth knowing at the call site:
+// # Browser build
 //
-//   - A block-store session from Blocks() is ONE transaction over a whole
-//     purge-and-refill, so it holds the projection's permit from Begin to
-//     Commit. Every other writer on the projection in this process waits. That
-//     is the correct reading of what SQLite makes it anyway — the store has a
-//     single writer for the length of an extraction — but it does mean a
-//     session must be closed, and that a write to the same pool issued from the
-//     goroutine holding one is a deadlock. It is reported rather than hung: see
-//     storage.ErrWriteGateReentrant.
-//   - The permit orders writers in THIS process. A second kapi process on the
-//     same project still contends at the file level, where IMMEDIATE and
-//     busy_timeout are all there is.
-//
-// Reads are never gated. Under WAL a reader neither blocks a writer nor waits
-// for one, so `kapi status` beside a converge run costs nothing.
-//
-// Browser build: there is no file-backed SQLite driver, so storage.Open reports
-// storage.ErrNoSQLite and Open degrades — Work() still functions, backed by the
-// JSON sidecar at `.kapi/work/store.json`, while Memory(), Terms() and Blocks()
-// return nil. That is not a hole the browser ever falls into: the host injects
-// in-memory content-memory, terms and block backends before any browser code
-// path reaches a project store. The degraded handle exists so the review→approve
-// loop keeps its durability contract in the lab, where a decision recorded by
-// one command must survive into the next.
+// Without a file-backed SQLite driver, storage.Open returns storage.ErrNoSQLite.
+// Work remains available through .kapi/work/store.json; Memory, Terms and Blocks
+// return nil. The host injects in-memory backends for those services. The sidecar
+// preserves review decisions between browser commands.
 package projectdb
 
 import (

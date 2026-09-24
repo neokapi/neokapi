@@ -1,23 +1,14 @@
 # Growing a project's context
 
-A project's context is what it has recorded about how it writes. Most projects
-have recorded little of it, and nobody will author one from a blank page.
+Project context records writing guidance, terms and approved wording. Build it
+from observations during ordinary work or through a dedicated discovery session.
+Both approaches record operations in the context log. Suggestions become
+established rules only when a person keeps them, using the same appliers as
+other context edits.
 
-There is one mechanism for growing it, run at two speeds. Both record
-**operations** into the project's context log, both produce **suggestions** a
-person decides on, and neither writes a governance file: keeping a suggestion
-is what establishes it and writes the rule into the terms store or the content
-memory, through the same appliers a person's own edit goes through.
-
-- **Everyday growth** is what you do inside other work. You notice a fact while
-  reading, you see the project is consistent about a word, the user changes your
-  wording. Two calls, seconds each, no interruption to the task.
-- **Deliberate discovery** is a session whose whole purpose is the context:
-  first visit, or a refresh after the material moved. Same operations, in bulk,
-  reviewed together.
-
-Discovery is the second half of this file. Read the everyday calls first,
-because a project where they are kept rarely needs a discovery session at all.
+During ordinary work, record useful facts, consistent terminology and user
+corrections as you encounter them. Use a discovery session for a first review
+of the material or a substantial update to existing guidance.
 
 ## Everyday growth: two calls
 
@@ -38,15 +29,13 @@ Over MCP the same two are `context_observe` (with `term` and `instead_of`) and
   Everything recorded is a **suggestion**: every check reports it, and no check
   can fail on it until a person keeps it. Never tell the user a rule is in force
   because you observed one.
-- **Correct** when the user changes your wording. The judgement has already been
-  made, which makes it the cheapest context there is. `--suggest` records the
-  rule the change implies with it. A person's correction that reverses an
+- **Correct** when the user changes your wording. `--suggest` also records the
+  implied rule for review. A person's correction that reverses an
   established rule contests that rule, which then reports instead of failing.
 
-**Evidence is what makes any of this reviewable.** `--seen-in` names the file
-and `--quote` the wording. A rule with evidence can be argued with; a rule
-without any is a preference somebody typed, and a person reading a list of them
-cannot tell the two apart. A term rule and a correction require it.
+Attach evidence with `--seen-in` for the file and `--quote` for the wording.
+Term rules and corrections require evidence so reviewers can compare the
+proposal with its source.
 
 Two suggestions that name different forms for one word are **contested**: both
 advise, each names the other, and a person chooses by dropping one.
@@ -102,18 +91,13 @@ Turn the user's repo, site, and materials into a working content context: a
 voice profile, a terminology seed, and the checks that enforce both, bound to
 the content it governs.
 
-That is a complete journey in one language. Governing the source the user
-already has needs no second language, no server, and no provider credential.
-Target languages are one more axis on the same context, and connecting the
-project to a Bowrain server is a later step for teams who want review and
-approval off the machine, both are the last sections of this file, and neither
-is a prerequisite for any of the ones before it.
+Start with the user's source content. This workflow works in one language
+without a server or provider credentials. Add target languages or a Bowrain
+connection when the project needs them.
 
-The user corrects a first draft instead of authoring one. **You** do the reading
-and the drafting; kapi is the schema, the validator, and the gate.
-
-The second half of this file is the **refresh** flow: diffing new material
-against a context that already exists.
+Read the material and prepare a draft for the user to review. Use kapi to
+validate the profile and check its effect on the content. For an existing
+profile, follow *Refresh an existing context* below.
 
 ## 1. Gather
 
@@ -277,7 +261,7 @@ reports the compliance score beside it; a translation-coverage bar is an
 optional top-level `ship_gate:` (see
 [translate.md](translate.md)). Without one, `kapi status` and `kapi up` report
 each language as not gated rather than shippable. Say which of these the
-project's CI should run, and on what: a check nobody runs governs nothing.
+project's CI should run and which files it should check.
 
 Commit the configuration: `kapi.yaml`, the agent wiring `kapi init` wrote, and
 the assistant file. `.kapi/` is this checkout's cache and stays out of the
@@ -287,7 +271,7 @@ reads it; `kapi context log` is where the user reads what was decided, and
 reviewable in a pull request as well, tell them about
 `kapi context snapshot --out <dir>` and let them decide.
 
-## 5. Hand back a loop
+## 5. Document the workflow
 
 End by telling the user, concretely:
 
@@ -349,7 +333,7 @@ workspace URL):
 
 ```bash
 kapi pull               # establish the concept baseline
-kapi push --concepts    # reconcile the local terms into the server's terminology hub
+kapi push               # synchronize content and declared context
 ```
 
 **The bound voice profile travels with the push.** On a workspace project,
@@ -357,18 +341,17 @@ kapi push --concepts    # reconcile the local terms into the server's terminolog
 created on first push, a no-op when unchanged, a new server-side version when
 it changed, server-side edits are archived in the version history, never
 overwritten, and rules the server promoted from corrections are kept.
-`--no-brand` skips it. The profile still travels in git, and `kapi check --ship`
-enforces it wherever the repo is checked out (dev machines, CI).
+Configure the voice binding in the recipe. Use `kapi check --ship` to enforce
+it in each environment where the project context is available.
 
 Tell the user the claim URL while unclaimed, and the project and review URLs
 once claimed.
 
 ---
 
-# Notice when the context moves under you
+# Respond to context changes
 
-A context bound to a server is shared, and it moves while you work. Two surfaces
-report it, and both stop at reporting:
+Shared context can change during a task. Use these reports to detect updates:
 
 - `kapi status` prints a **governance** line: `in sync`, or which of the
   context, the terms and the decisions moved since this project last observed
@@ -386,10 +369,9 @@ since been superseded fails the staleness gate, naming what moved. Re-running
 
 # Refresh an existing context
 
-A context is drafted once and corrected forever. Refresh is the second visit:
-the material has moved, and the record has to catch up, **as a proposal the
-user approves, never as a rewrite you perform**. Nothing under `.kapi/` and
-nothing in `kapi.yaml` changes before the user has seen the delta.
+When the material changes, compare it with the existing context and propose
+updates for review. Show the proposed changes before editing `.kapi/` or
+`kapi.yaml`.
 
 ## When to refresh
 
@@ -405,8 +387,8 @@ Refresh on a **change in the material**, not on a calendar:
   rule that is always wrong in one place is a rule that needs a decision.
 - **The user asks.** "Our brand changed", "we renamed X", "refresh our context".
 
-Time alone is not a trigger. A context nobody has changed in a year is not
-stale; it is settled. Refresh what moved, and leave the rest alone.
+Base the refresh on changed material or requirements. Preserve guidance that
+still applies.
 
 ## 1. Read the baseline, and write nothing
 
@@ -431,9 +413,8 @@ exact vocabulary lists.
 
 ## 2. Draft the change-set
 
-Five kinds of delta, each with a route that writes only what the entry names.
-Every route changes one rule and records it, so the user reviews a decision
-rather than a rewritten file. Never hand-edit a project's context: the routes
+Use the route appropriate to each proposed change. Each context operation
+records the affected rule for review. Never hand-edit a project's context: the routes
 below are how it changes, and `kapi context log` is how the user reads it back.
 
 | What moved | Route | What the user reviews |
@@ -483,9 +464,8 @@ Present the change-set as **adds / retires / replaces**, each with its evidence:
 where the new term appeared in the material, what the old one conflicts with,
 which file the new surface came from.
 
-Before approval, show the **blast radius** of every retirement. A retired term
-starts flagging existing content on the next check, and a user who learns that
-from a red build did not consent to it:
+Before approval, show where each term proposed for retirement appears.
+These occurrences may produce findings on the next check:
 
 ```bash
 kapi terms occurrences "team space"      # where the word is used today
@@ -522,8 +502,7 @@ record and the gate can disagree in public without blocking anybody.
 ## 6. Carry it to the server (only if connected)
 
 ```bash
-kapi push --concepts    # reconcile the local terms with the workspace hub
-kapi push               # the corrected content
+kapi push               # synchronize corrected content and declared context
 ```
 
 The voice profile travels with `kapi push`, versioned server-side rather than

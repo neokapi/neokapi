@@ -1023,12 +1023,9 @@ func TestMCPConformanceEmptyContextTeaches(t *testing.T) {
 	})
 }
 
-// TestMCPConformanceEveryReadSaysWhatItRead: both primitives, on both
-// surfaces, report the project that answered, the workspace revision it was
-// read at, and whether the content kapi holds still matches the files on disk.
-//
-// Parity is the point. A field one surface reports and the other does not
-// teaches an assistant a kapi that half of it does not have.
+// TestMCPConformanceEveryReadSaysWhatItRead checks that CLI and MCP retrieval
+// report the same project, workspace revision and content freshness for both
+// location queries and content searches.
 func TestMCPConformanceEveryReadSaysWhatItRead(t *testing.T) {
 	bare, bareRecipe := writeBareProject(t, "provenance")
 	session, ctx := mcpServer(t)

@@ -1,9 +1,6 @@
-// "What lives here" — the content at the point (Apache-2.0).
-//
-// Coverage and ship states are derived, never stored: a decision cites the
-// source hash it blessed, and a basis that no longer matches the current hash is
-// stale on every stream at once. The pane shows the derivation's verdict and
-// flags the stale rows rather than presenting a count that has quietly rotted.
+// Content and derived status at a context point (Apache-2.0).
+// A decision is stale when its source basis differs from the current source hash.
+// The pane displays derived coverage and ship status and marks stale rows.
 
 import { Badge, Progress, Separator, cn } from "@neokapi/ui-primitives";
 import { EmptyHint, LocalePill, useResource } from "@neokapi/concept-ui";

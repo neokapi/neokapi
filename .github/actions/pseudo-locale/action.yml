@@ -28,19 +28,9 @@ inputs:
 runs:
   using: composite
   steps:
-    # Installed, not built. dogfood-sync.yml already puts it plainly: this
-    # "installs the released CLI ... the same path a customer takes. Neither is
-    # built from this checkout, so the run tests the product rather than the
-    # working tree."
-    #
-    # It also settles what should redeploy the docs. Built from source, the
-    # generated locale depended on the whole Go module graph, so no honest list
-    # of trigger paths existed — a fix in core/tools would merge and the site
-    # would go on serving the old output with nothing to show for it. Pinned,
-    # the locale is a function of the docs, the recipe, the terms and a version,
-    # and the version is a line in this file that someone edits on purpose.
-    #
-    # No Go toolchain and no ICU: nothing here compiles any more.
+    # Use a pinned release so output depends on the docs, recipe, terms and
+    # this action's version setting. The workflow needs no Go or ICU build
+    # dependencies, and source-code changes do not alter the generated locale.
     - name: Install kapi
       uses: neokapi/setup-kapi@v1
       with:

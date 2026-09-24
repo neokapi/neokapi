@@ -145,13 +145,10 @@ func TestGetReviewUnit_CarriesTheReviewContext(t *testing.T) {
 	})
 }
 
-// TestGetReviewUnit_DirectoryMirrorTarget guards a real bug: a collection
-// whose target is a bare directory mirror ("{lang}", no {filename}/{relpath}/*
-// token) — kapimart's "Contracts" collection (`base: legal`, `target: "{lang}"`)
-// is exactly this shape. findReviewSource used to reconstruct the target path
-// with a {lang}/* -only substitution that can't produce a directory-mirror
-// path at all, so opening the Review page on such a project failed with
-// `no content file resolves to target "legal/ar/pricing-schedule.json" (ar)`.
+// TestGetReviewUnit_DirectoryMirrorTarget covers collections with a bare target
+// directory such as "{lang}". Path resolution must support these mappings as well
+// as patterns containing {filename}, {relpath} or *. The sample's Contracts
+// collection uses base legal and target "{lang}".
 func TestGetReviewUnit_DirectoryMirrorTarget(t *testing.T) {
 	app := NewApp()
 	root := t.TempDir()
@@ -300,7 +297,7 @@ func TestUpdateReviewTarget_EditsFileAndInvalidatesDecision(t *testing.T) {
 	assert.Equal(t, "translated", d2.Status, "the prior approval no longer judges the edited text")
 
 	// The unit re-entered the review queue for its new text; approving again
-	// blesses the edit.
+	// approves the edit.
 	require.NoError(t, app.ApproveReviewItem(tab.ID, "fr-FR", file, "greeting"))
 	d3, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
 	require.NoError(t, err)

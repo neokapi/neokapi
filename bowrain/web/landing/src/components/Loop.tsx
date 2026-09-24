@@ -4,8 +4,7 @@ import { useReveal } from "../useReveal";
 import { useSectionSignals } from "../useSectionSignals";
 import { SECTION_LOOP } from "../sections";
 
-// Four steps, numbered, because this genuinely is a sequence that closes on
-// itself: what Enforce holds is what Discover proposed and Decide promoted.
+// Show the sequence from candidate discovery to rule enforcement.
 const STEPS = [
   {
     icon: SearchCheck,

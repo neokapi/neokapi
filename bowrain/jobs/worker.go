@@ -218,14 +218,9 @@ const translationProgressChunk = 50
 // the task and left for the fifteen-minute stale sweeper on another instance.
 const defaultDrainGrace = 25 * time.Second
 
-// drainableJobContext detaches a job body from the shutdown signal, then bounds
-// how long it may outlive it.
-//
-// Deriving the job's context from the signal context is what made every deploy
-// freeze the work in flight: the provider call came back context.Canceled —
-// deliberately permanent, so not retried — the failure write went to the same
-// dead context, and the queue message was deleted anyway. The stop func
-// releases the watchdog and cancels, and blocks until it has exited.
+// drainableJobContext allows a job to finish within a bounded period after
+// shutdown begins. The returned stop function cancels the watchdog and context,
+// then waits for the watchdog to exit.
 func drainableJobContext(parent context.Context, grace time.Duration) (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.WithoutCancel(parent))
 	done := make(chan struct{})
@@ -480,11 +475,8 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 		if ctx.Err() != nil {
 			return deferInterruptedJob(ctx, deps, job, epoch)
 		}
-		// Dependency known-down: the breaker rejected the call, so nothing was
-		// attempted upstream. Park the job instead of retrying it — waiting is
-		// the honest cost of an outage, and spending the retry budget on calls
-		// that were never made would fail work that is perfectly translatable
-		// the moment the provider returns.
+		// A circuit breaker rejected the call before it reached the provider.
+		// Defer the job without consuming a retry attempt.
 		if d := deferralFor(err); d != nil {
 			deferred, derr := deps.JobStore.DeferJob(ctx, jobID, epoch, deps.maxJobDeferrals(),
 				"deferred: "+d.dependency+" unavailable")
@@ -676,11 +668,10 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		return voiceProfile
 	}
 
-	// content memory-first convergence (theme A). Before paying for AI, recycle exact/
-	// near-exact matches from the project's server content memory — mirroring the built-in
-	// `translate` flow's recycle→translate ordering. Only the blocks with no
-	// usable content-memory match go to the AI translator below; the content memory-filled ones are
-	// persisted straight away. memoryFilled feeds the truthful ViaMemory report.
+	// Reuse eligible exact and near-exact content-memory matches before AI
+	// translation, matching the built-in translate flow. Persist reused targets
+	// immediately and pass the remaining blocks to AI. memoryFilled records the
+	// reused block count.
 	memoryFilled := 0
 	tm := resolveJobMemory(deps, job)
 	if tm != nil {
@@ -715,9 +706,8 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		}
 	}
 
-	// Record the content memory/AI split truthfully on the job so the convergence produce
-	// emitter can report "content memory N · AI M" (theme A2). aiFilled is the remainder
-	// the AI loop below translates.
+	// Record content-memory and AI block counts for convergence progress.
+	// aiFilled is the remainder processed by the AI loop below.
 	if err := deps.JobStore.UpdateJobMemorySplit(ctx, job.ID, epoch, memoryFilled, totalBlocks); err != nil {
 		slog.WarnContext(ctx, "record content memory/AI split failed", "job_id", job.ID, "error", err)
 	}
@@ -955,13 +945,10 @@ func startLeaseHeartbeat(ctx context.Context, store leaseRenewer, jobID string, 
 	}
 }
 
-// resolveProvider creates the appropriate LLM provider for the job and reports
-// its billing source (Epic 004 hybrid AI). A job with an empty or "platform"
-// ProviderConfigID uses the env-configured platform provider (metered in
-// credits). A job that names a saved config resolves it from the per-workspace
-// Postgres store — scoped to the job's workspace — and its BYO key burns no
-// credits. This deliberately no longer touches the machine-global keychain/file
-// CredStore for saved provider keys.
+// resolveProvider selects the job's LLM provider and billing source. An empty or
+// platform ProviderConfigID uses the configured platform provider and consumes
+// credits. A saved config is resolved within the job's workspace and uses its
+// BYO key without consuming credits. Saved keys come from the workspace store.
 func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob) (*ResolvedProvider, error) {
 	if job.IsPlatformProvider() {
 		platform := activePlatform(ctx, job.WorkspaceID, deps.Platform, deps.PlatformResolver)

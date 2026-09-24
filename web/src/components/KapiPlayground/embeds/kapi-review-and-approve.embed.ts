@@ -28,22 +28,22 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi status",
       narration:
-        "status derives coverage from the files plus the committed state store. fr is translated 100%, reviewed 0% — the machine is done, the human review is pending.",
+        "status derives coverage from the content and recorded decisions. French is 100% translated and 0% reviewed, so human review remains pending.",
     },
     {
       command: "kapi status --review",
       narration:
-        'The review worklist — every translated unit not yet approved, addressed by file / id / locale exactly as a kind:"review" change-set names it.',
+        "List translated units awaiting approval, addressed by file, id and locale for a review change-set.",
     },
     {
       command: "kapi apply review.jsonl",
       narration:
-        "apply records the decision in the committed decision record under .kapi/state/, bound to the translation's content hash — edit that translation later and the unit drops back below reviewed.",
+        "apply binds the approval to the translation's content hash. Editing that translation later requires another review.",
     },
     {
       command: "kapi status",
       narration:
-        "reviewed coverage climbs to 33% — derived straight back from the committed decision. Commit .kapi/state/ and the approval travels with the project; a {reviewed} gate now sees it.",
+        "Reviewed coverage increases to 33% after the recorded approval. This coverage counts toward the review gate.",
     },
   ],
 };

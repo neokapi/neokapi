@@ -261,7 +261,7 @@ func TestChannelQueueEnqueueAfterDelivers(t *testing.T) {
 
 	require.NoError(t, q.EnqueueAfter(t.Context(), "job-1", 20*time.Millisecond))
 
-	// Nothing yet: the point of a deferral is that it is not immediately visible.
+	// The job must remain unavailable until its delay expires.
 	select {
 	case got := <-q.ch:
 		t.Fatalf("job %q delivered before its delay elapsed", got)

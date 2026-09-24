@@ -20,12 +20,9 @@ type JobStore interface {
 	// can neither regress the fresh owner's progress nor falsely refresh its
 	// heartbeat; a lost-lease write is a silent no-op.
 	UpdateJobProgress(ctx context.Context, id string, epoch int64, doneBlocks, totalBlocks int) error
-	// UpdateJobMemorySplit records the content memory-first split for the job: viaMemory is the
-	// block count filled from the project content memory (recycled), viaAI the count sent to
-	// the AI translator. The convergence produce emitter aggregates these across
-	// a locale's jobs to report a truthful "content memory N · AI M" (theme A2). Epoch-
-	// guarded like UpdateJobProgress so a stale worker cannot overwrite the
-	// fresh owner's counts.
+	// UpdateJobMemorySplit records blocks filled from content memory and blocks
+	// sent to AI. Convergence aggregates these counts per locale. Epoch guards
+	// prevent stale workers from overwriting the current owner's counts.
 	UpdateJobMemorySplit(ctx context.Context, id string, epoch int64, viaMemory, viaAI int) error
 	UpdateJobStatus(ctx context.Context, id string, status JobStatus, errMsg string) error
 	// CancelJob stops a job a person asked to stop. It applies only to a job
@@ -397,10 +394,8 @@ func (s *jobStore) DeferJob(ctx context.Context, id string, epoch int64, maxDefe
 	if maxDeferrals < 1 {
 		maxDeferrals = 1
 	}
-	// Mirrors RetryOrFail's single-statement shape, but increments `deferrals`
-	// and leaves `attempts` alone — that is the whole point of a deferral. The
-	// status/epoch guards are identical, so a stale worker can no more defer the
-	// fresh owner's job than it can retry it.
+	// Increment deferrals without consuming attempts. Status and epoch guards
+	// prevent a stale worker from deferring another worker's job.
 	var requeued bool
 	err := s.db.QueryRowContext(ctx,
 		`UPDATE translation_jobs

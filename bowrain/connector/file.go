@@ -228,20 +228,14 @@ func (c *FileConnector) publishFile(ctx context.Context, item *platconn.ContentI
 		return fmt.Errorf("set output %s: %w", path, err)
 	}
 
-	// Faithful re-parse delivery. A skeleton-dependent format (Android
-	// strings.xml, HTML, XML, …) reconstructs its non-translatable frame —
-	// comments, attribute order, non-translatable entries, element ordering — only
-	// from a skeleton captured off the SOURCE document; reconstructing from stored
-	// blocks alone loses that frame. When the untranslated source file is
-	// co-located on disk — the forge/git delivery runs inside the tracked-branch
-	// checkout, and the plain file connector shares one root — re-read it to
-	// capture that skeleton and splice the reviewed targets back into it, exactly
-	// as the local `kapi merge` roundtrip does (host/merge.go
-	// writeMergedSourceWithSkeleton). Bowrain's store stays format-agnostic and
-	// skeleton-free; faithfulness is reconstructed at the edge from the source
-	// that is already on disk. Pure-structure formats (json/yaml/arb/po/…) whose
-	// block set fully determines the file produce byte-identical output either way
-	// (verified), so this is transparent for them.
+	// Re-read the source document to capture the skeleton required by formats
+	// such as Android XML, HTML and XML. Stored blocks alone cannot preserve
+	// comments, attribute order or non-translatable structure. Reviewed targets
+	// are merged into this source skeleton, as in kapi merge.
+	//
+	// Forge/git delivery supplies a tracked-branch checkout; the file connector
+	// uses its configured root. Formats fully determined by their blocks produce
+	// the same output through either path.
 	if consumer, ok := writer.(format.SkeletonStoreConsumer); ok && item.Locale != "" {
 		if blocks, store, ok := c.reparseSourceSkeleton(ctx, item); ok {
 			defer store.Close()
@@ -362,17 +356,12 @@ func (c *FileConnector) reparseSourceSkeleton(ctx context.Context, item *platcon
 	return sourceBlocks, store, true
 }
 
-// resolveSourcePath locates the item's untranslated source document under the
-// connector root. The server-side delivery materializer stamps an explicit
-// source_path (the source-relative path the target path was derived from); the
-// store item name is that same relative path, so it is the fallback. The
-// delivery target path (item.Path) is never treated as the source.
+// resolveSourcePath locates the untranslated source within the connector root.
+// It uses source_path metadata, falling back to the stored item name. item.Path
+// is the delivery target and is never used as the source.
 //
-// Both candidates are connector-relative and are resolved as such. An absolute
-// source_path used to be honoured outright, which let item metadata name any
-// readable file on the host and have its content parsed into the delivery; the
-// materializer has no reason to emit one, and the connector has no business
-// reading outside the root it was pointed at.
+// Both candidates must be connector-relative. Reject absolute paths and paths
+// that escape the root so item metadata cannot expose unrelated host files.
 func (c *FileConnector) resolveSourcePath(item *platconn.ContentItem) string {
 	candidate := item.Metadata["source_path"]
 	if candidate == "" {

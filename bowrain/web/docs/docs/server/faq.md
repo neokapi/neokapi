@@ -1,7 +1,7 @@
 ---
 title: FAQ
 sidebar_position: 22
-description: Short, honest answers. When a platform is warranted, self-hosting, credits and bring-your-own keys, your data if you leave, supported formats, model training, review statuses, and providers.
+description: Answers about choosing Bowrain, self-hosting, credits, AI provider keys, data export, supported formats and review statuses.
 ---
 
 # Frequently asked questions
@@ -18,8 +18,7 @@ history, and corrections that become enforced checks.
 kapi on its own is enough when one person works from one checkout. Reach for
 Bowrain when content lives in systems beyond that checkout, when several
 projects or surfaces should share one memory, when several people work on the
-same content, or when corrections should compound. Bowrain is as much for a solo
-builder with many surfaces as it is for a team. The full comparison is in
+same content, or when you need shared review decisions. The full comparison is in
 [How Bowrain and kapi fit together](/getting-started/kapi-vs-bowrain).
 
 ## Can I self-host Bowrain?
@@ -40,12 +39,10 @@ provider. See [Security and privacy](/server/security-and-privacy#bring-your-own
 
 ## What happens to my data if I leave?
 
-You take it with you. Content round-trips back to the source formats you imported,
-and your assets export to open interchange formats through the kapi
-CLI: `kapi memory export` writes TMX, and `kapi terms export` writes TBX, CSV, or
+You can export content to its original format and use the kapi CLI to export
+shared stores in open interchange formats: `kapi memory export` writes TMX, and `kapi terms export` writes TBX, CSV, or
 JSON. A self-hosted deployment additionally keeps everything in a PostgreSQL
-database you can back up directly. There is no proprietary lock-in format holding
-your content hostage.
+database you can back up directly.
 
 ## Which formats are supported?
 

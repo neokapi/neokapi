@@ -141,9 +141,8 @@ func uiCase(i int) Case {
 	}
 }
 
-// ambiguousCase reuses a bare verb under a distinct key — the case where the key is
-// the only thing separating a noun reading from a verb reading, and where positional
-// batch mapping used to corrupt silently. These duplicates are the point.
+// ambiguousCase uses the same bare verb under different keys. The key must
+// preserve the intended reading and response identity when text is duplicated.
 func ambiguousCase(i int) Case {
 	verb := pick(uiVerbs, i)
 	return Case{

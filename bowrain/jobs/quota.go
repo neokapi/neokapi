@@ -76,9 +76,7 @@ const DefaultMonthlyQuota int64 = 10_000_000 // 10M tokens/month (abuse ceiling)
 //	2  add operation column to ai_usage
 //	3  add workspace_id column to ai_usage for billing alignment
 //
-// The columns versions 2 and 3 added by ALTER are declared in the CREATE here,
-// which is the point of a baseline: one statement per table describing what the
-// table is, rather than a transcript of how it got that way.
+// CREATE includes the operation and workspace_id columns from versions 2 and 3.
 //
 // Baseline is version 4 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is

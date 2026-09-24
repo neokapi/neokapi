@@ -529,11 +529,9 @@ func TestProfilePersonasRoundTrip(t *testing.T) {
 	assert.Equal(t, "leverage", updated.Personas["jordan"].Avoided[0].Term)
 }
 
-// TestProfileMinScoreRoundTrip holds the profile's own compliance bar across
-// every path a profile takes through this store. A column the store does not
-// select comes back as a zero rather than failing the scan, so a write that
-// reads back at the default bar is silent — only a round-trip sees it, and the
-// bar is what the ship gate and bulk approve-passing act on.
+// TestProfileMinScoreRoundTrip verifies that every store read path preserves
+// the profile's compliance threshold. Omitting the column can return a zero value
+// without a scan error, changing the threshold used by ship and approval gates.
 func TestProfileMinScoreRoundTrip(t *testing.T) {
 	ctx := t.Context()
 	store := newTestStore(t)

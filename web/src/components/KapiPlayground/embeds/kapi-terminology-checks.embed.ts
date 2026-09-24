@@ -39,7 +39,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi exec term-check pseudo_fr.json --source-lang en --target-lang fr",
       narration:
-        "Flags target segments that violate the seeded terminology — the same check kapi up binds after every pass, so a violating unit cannot lift its locale over the gate.",
+        "Report target segments that violate the seeded terminology. The same check runs after each up pass and contributes to the ship gate.",
     },
   ],
 };

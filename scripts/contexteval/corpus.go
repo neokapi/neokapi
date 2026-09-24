@@ -136,14 +136,10 @@ func (c Context) Mandate(term string) (string, bool) {
 	return "", false
 }
 
-// HouseStyle renders the target's mandated vocabulary as short lines for
-// anyone judging subjective quality — the LLM judge and the human labeler
-// alike. A mandate is deliberately non-naive (that is what makes it
-// measurable), so a judge who does not know it will penalize obedience as
-// unnaturalness — "alarmmelding" reads odd to a Norwegian who expects
-// "varsling", but it is the commanded rendering, and terminology is owned by
-// the deterministic checks, never by the rubric. Identity pins are folded into
-// the product-names line.
+// HouseStyle renders required target vocabulary for the LLM judge and human
+// labeler. Explicit terms may differ from ordinary usage; providing them avoids
+// penalizing compliance as unnatural wording. Deterministic checks score
+// terminology separately. Identity pins appear in the product-names line.
 func (c Context) HouseStyle() []string {
 	var out []string
 	for _, r := range c.TermRules {

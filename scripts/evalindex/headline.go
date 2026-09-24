@@ -8,19 +8,8 @@ import (
 	"strconv"
 )
 
-// The one number each eval is for, read out of its own dataset.
-//
-// The index listed a status and a paragraph, so a reader wanting to know how
-// parity was doing had to open a card, read two sentences, follow a link and
-// find the number on another page. Status is not a result: "partial" is true of
-// an eval at 96% and of one at 40%.
-//
-// Typing the number into the registry beside the prose was the obvious fix and
-// the wrong one — it is the same mistake as a hand-written date, and it goes
-// wrong the same way, silently and in the direction that flatters. So each
-// headline is a function of the dataset, extracted here, and an eval whose
-// dataset changes shape loses its headline loudly rather than keeping an old
-// one.
+// Headline extractors read summary results from committed datasets. A schema
+// mismatch returns no headline and is caught by the extractor tests.
 
 // Headline is the number a row shows before anyone clicks.
 type Headline struct {
@@ -190,9 +179,7 @@ func headlineCheckAccuracy(doc any) *Headline {
 
 // headlineMaturity reports how many formats have reached the target level.
 //
-// Levels are strings — "L1", "L4" — not numbers. Reading them as numbers gave
-// every format level 0 against target 0 and produced "0/36 formats at L0 or
-// above", which is both wrong and impossible. Hence rung().
+// Levels are strings such as "L1" and "L4"; rung parses their numeric level.
 func headlineMaturity(doc any) *Headline {
 	target, ok := rung(str(dig(doc, "target_level")))
 	if !ok {
@@ -357,9 +344,8 @@ func headlineContext(doc any) *Headline {
 
 // headlineBatching reports the largest batch size that came back intact.
 //
-// The question batching poses is not how fast it is but where it breaks: a
-// block that never returns, a placeholder that does not survive, a segment that
-// comes back untranslated. So the headline is the biggest N with none of those.
+// Missing blocks, damaged placeholders and untranslated segments disqualify
+// a batch size from this headline.
 func headlineBatching(doc any) *Headline {
 	runs, ok := dig(doc, "runs").([]any)
 	if !ok || len(runs) == 0 {
@@ -416,9 +402,7 @@ func headlineReuseRules(doc any) *Headline {
 // count of prompts inspected. Nothing here is a quality score, and the card says
 // so.
 func headlinePromptContents(doc any) *Headline {
-	// `cases` is the list of them, not a count. Reading it as a number returned
-	// nothing, which TestARegisteredHeadlineResolves caught — the point of that
-	// test being that a nil headline is invisible on the page.
+	// Count the entries in cases; the dataset stores a list rather than a total.
 	cases, ok := dig(doc, "cases").([]any)
 	if !ok || len(cases) == 0 {
 		return nil

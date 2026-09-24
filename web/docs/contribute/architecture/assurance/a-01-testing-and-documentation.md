@@ -33,8 +33,8 @@ synchronized with actual behavior: a recording that shows a command that no long
 exists defeats its own purpose.
 
 Because demo assets exercise real commands, testing and documentation are tightly
-coupled: a recording is both a regression signal and user-facing content. Avoiding
-mocks in demo assets is what keeps the documented behavior honest.
+coupled: a recording is both a regression signal and user-facing content. Demos
+run against real infrastructure to document the behaviour users will encounter.
 
 The documentation consumer splits in two. **End users** (translators, content and
 language engineers) need quickstarts, command references, and workflow tutorials.
@@ -172,7 +172,7 @@ a `-publish` variant where a run costs calls, and a committed dataset under
 cover page, and each card's freshness is read out of its dataset rather than
 typed on the card.
 
-Three rules keep a published number honest:
+Published measurements follow these rules:
 
 - **A sampled eval is reproducible.** The spending evals pin the temperature at
   0 and record it in the dataset, and a test asserts that every provider

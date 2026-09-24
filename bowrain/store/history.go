@@ -50,22 +50,14 @@ func sqlListTranslationTextByBlocks(dialect string, nblocks int) string {
 		AND block_id IN (` + placeholderList(dialect, 3, nblocks) + `)`
 }
 
-// recordTargetHistoryPg appends a block_history row for each target whose text
-// changed, within the PostgreSQL store-blocks transaction. This makes the PG
-// content store retain prior target content, as the SQLite store does, which is
-// the substrate for per-edit rollback. author is left empty here; the audit_log
-// captures the acting user for the corresponding block.updated event.
+// recordTargetHistoryPg appends history for changed targets within the
+// store-blocks transaction. Prior content supports per-edit rollback. author
+// remains empty here; audit_log records the user through block.updated.
 //
-// now is the transaction's own timestamp, bound like every other write in it,
-// and deliberately NOT the database's NOW(). Those are two clocks, and a history
-// row is only useful beside the things it gets compared against: a
-// point-in-time restore takes its cutoff from versions.created_at or
-// change_log.logged_at — both stamped by this process — and asks which history
-// rows fall after it (ComputePointInTimeReverts). Stamped on the database's
-// clock instead, that comparison spans a skew nobody controls. Run the server a
-// little behind its database and a restore reverts nothing, because every row
-// it should roll back looks older than the version being rolled back to; run it
-// ahead and the restore blanks targets that had content.
+// Use the transaction's process timestamp, now, rather than database NOW().
+// ComputePointInTimeReverts compares history with versions.created_at and
+// change_log.logged_at, which use the process clock. Mixing clocks could exclude
+// required reverts or revert content older than the selected version.
 func recordTargetHistoryPg(ctx context.Context, tx Runner, projectID, stream, blockID string, oldText map[string]string, newTargets map[model.VariantKey]*model.Target, now time.Time) error {
 	cc := ChangeContextFromContext(ctx)
 	for key, nt := range newTargets {

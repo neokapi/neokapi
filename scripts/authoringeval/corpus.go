@@ -76,14 +76,10 @@ const (
 // name, which is how the store-resolving tools address it.
 const referenceProfileID = "harbourlight"
 
-// referenceProfile is ground truth for voice-infer-quality: the profile a
-// person would write from the on-profile half of the corpus, because the
-// on-profile half was written from it.
-//
-// The vocabulary rules carry `forms:`, which is the state an authored profile
-// is in after `kapi voice expand` has filled them. A profile without them
-// catches only the bare stem, and the corpus plants `utilizes` precisely
-// because that is the case a rule about `utilize` used to miss.
+// referenceProfile defines the expected voice profile for voice-infer-quality.
+// The on-profile documents are written to this profile. Rules include the forms
+// produced by kapi voice expand, including inflections such as "utilizes" for
+// "utilize".
 const referenceProfile = `name: Harbourlight
 description: Plain, direct voice for a port logistics tool
 tone:
@@ -149,12 +145,8 @@ vocabulary:
         - term: let's
 `
 
-// corpus is the whole synthesized set.
-//
-// Six on-profile documents and six off-profile ones. The split matters more
-// than the size: precision needs documents where the right answer is silence,
-// and a corpus of nothing but violations cannot measure a check that reports
-// them everywhere.
+// corpus contains six compliant and six noncompliant documents. Compliant
+// documents measure false positives; violating documents measure detection.
 var corpus = []Doc{
 	// ---- On-profile: the voice the reference profile describes ---------------
 	{

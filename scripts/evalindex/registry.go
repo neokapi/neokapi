@@ -1,35 +1,9 @@
 package main
 
-// The registry of every eval, the layer of the system it measures, and the band
-// that layer belongs to.
-//
-// This file is authored. Its claims about coverage are checked against reality
-// by the companion tests. A registry that can say whatever it likes about how
-// well kapi is measured would be the opposite of evidence.
-//
-// # Why bands, and why these three
-//
-// The first version of this page was a flat list of questions, and it read as
-// chaos: "does content survive a round trip" and "does the prior version change
-// what the model writes" are not the same kind of claim, and putting them in one
-// column invites a reader to weigh them the same way.
-//
-// The top-level split is therefore by SUBJECT, what the eval has under test,
-// because the subject decides what its numbers can mean:
-//
-//   - kapi's own code is deterministic. Same input, same output. An eval here
-//     can assert correctness and can gate a build.
-//   - a model's output is sampled. An eval here estimates, over a corpus, with
-//     a judge whose agreement with a person is itself a measurement. It can be
-//     tracked, and it cannot gate anything.
-//   - an agent's behaviour is stochastic in a third way. Whether a skill fires
-//     is a property of a description and a model's reading of it, scored per
-//     scenario over repeats, and it drifts when either side moves.
-//
-// Within a band the structure is the architecture: the same six AD series the
-// contributor docs are organised by, so an eval sits beside the document that
-// describes what it measures, and a series with no eval is visible as a hole in
-// the architecture rather than as an absence from a list.
+// Evaluation registry, grouped by subject and architecture layer.
+// Engine checks assert deterministic results. Model evaluations estimate
+// quality over a corpus. Agent evaluations score repeated task scenarios.
+// Tests validate coverage declarations and links to supporting material.
 
 // Band is what a group of evals has under test.
 type Band string
@@ -114,7 +88,7 @@ const (
 	MethodScenario Method = "scenario"
 )
 
-// Status is where an eval actually is, which is the honest half of this page.
+// Status describes the available evidence and any validation gaps.
 type Status string
 
 const (
@@ -138,10 +112,7 @@ const (
 	StatusAbsent Status = "absent"
 )
 
-// AllStatuses is every status, and the totals are computed from it rather than
-// from a switch. A switch over these silently ignored the one that was added
-// last, so every eval carrying it vanished from the coverage line while each
-// row still rendered.
+// AllStatuses defines the complete set used to initialize coverage totals.
 var AllStatuses = []Status{
 	StatusMeasured, StatusPartial, StatusUnvalidated, StatusBlocked, StatusAbsent,
 }
@@ -164,12 +135,10 @@ type Eval struct {
 	// date on that dataset is the real currency of the numbers.
 	Local bool `json:"local,omitempty"`
 
-	// Corpus is what it runs over, in a sentence, with its size. The size is
-	// the honest ceiling on what the eval can conclude.
+	// Corpus describes the evaluation inputs and sample size.
 	Corpus string `json:"corpus"`
 
-	// Covers and Misses are the scope, stated in both directions. Misses is the
-	// field that makes a card evidence rather than advertising.
+	// Covers and Misses describe the measured scope and its limitations.
 	Covers string `json:"covers"`
 	Misses string `json:"misses,omitempty"`
 
@@ -177,18 +146,9 @@ type Eval struct {
 	// the thing that produced it.
 	Reproduce string `json:"reproduce"`
 
-	// Settings is what a model call was made with: temperature, max tokens,
-	// seed. Required of any eval that spends, because a command alone does not
-	// reproduce a number that was sampled.
-	//
-	// "not recorded" is a valid answer, and it was the true one for every eval
-	// here until providers/ai learned to send the field: Config.Temperature was
-	// honoured by Ollama, honoured-except-zero by Bedrock, and dropped on the
-	// floor by Anthropic, OpenAI, Azure and Gemini. Every cloud eval ran at
-	// whatever the API defaulted to, and none of them wrote it down.
-	//
-	// The field existed to make that visible rather than let it stay implied.
-	// It now carries the pinned value instead.
+	// Settings records sampling parameters such as temperature, token limits and
+	// seed. Required for evaluations that call a model. Use "not recorded" when
+	// the dataset omits a parameter rather than assuming the provider's default.
 	Settings string `json:"settings,omitempty"`
 
 	// Data is the committed result this eval publishes, relative to the repo
@@ -203,16 +163,10 @@ type Eval struct {
 	// whole file is this card's.
 	FreshAt string `json:"-"`
 
-	// Fresh is how old the committed numbers are, read out of the dataset
-	// rather than typed here. A hand-written date is a date nobody updates;
-	// /pseudobench spent three months showing results measured on 2026-05-20
-	// with nothing on the page saying so.
+	// Fresh contains measurement dates read from the committed dataset.
 	Fresh Freshness `json:"fresh,omitzero"`
 
-	// Headline is the one number this eval is for, extracted from its dataset
-	// rather than typed here. See headline.go: a status is not a result, and a
-	// number written beside the prose goes wrong the way a hand-written date
-	// does.
+	// Headline is the summary result extracted from the dataset. See headline.go.
 	Headline *Headline `json:"headline,omitempty"`
 
 	// Validation is required when Method is judged: what agreement with a human
@@ -227,7 +181,7 @@ var bands = []BandInfo{
 		ID:       BandEngine,
 		Title:    "Engine and formats",
 		Subject:  "kapi's own code: what it does to a document it reads, holds and writes back.",
-		Evidence: "Deterministic. The same document produces the same content model every run, so these evals assert rather than estimate, and a regression is a fact rather than a shift in a distribution.",
+		Evidence: "Deterministic checks compare the content model and output with expected results. Repeated runs use the same inputs.",
 		Gates:    "Yes. A failure here stops a build.",
 		Layers:   []string{"foundations", "engine"},
 	},
@@ -235,18 +189,18 @@ var bands = []BandInfo{
 		ID:      BandAI,
 		Title:   "AI and context",
 		Subject: "What a model writes under kapi's governance, and whether the governance reached it.",
-		Evidence: "Sampled. A score is an estimate over a corpus, and where a model does the scoring it is an estimate of an estimate. " +
-			"Corpus size is the ceiling on what any of it can conclude, so every card states it.",
-		Gates:  "No. These are tracked over time, and a drop is a signal to look rather than a build failure.",
+		Evidence: "Scores estimate performance on the stated corpus. Model-judged scores also depend on the judge's validated agreement with people. " +
+			"Each card reports corpus size to make the sample limitations visible.",
+		Gates:  "No. Results are tracked over time; regressions require investigation.",
 		Layers: []string{"context", "multilingual", "assurance"},
 	},
 	{
 		ID:      BandSkills,
 		Title:   "Agent skills",
 		Subject: "An agent driving kapi: the shipped Agent Skill, and the MCP tools an assistant calls.",
-		Evidence: "Scenario-scored. A prompt and a workspace go in, and what the agent did comes out: which tool it reached for, whether it finished at a green gate. " +
-			"No model grades anything. Triggering is stochastic, so a scenario means little until it is repeated.",
-		Gates:  "No, and these never run in CI. They drive an interactive agent on a maintainer's machine, so the committed dataset is all CI sees and the date on it is the real currency of the numbers.",
+		Evidence: "Repeated scenarios measure tool selection and whether the agent completes the task with a passing gate. " +
+			"Scores use observed actions and gate results rather than an LLM judge.",
+		Gates:  "No. Runs use an interactive agent on a maintainer's machine. CI reads the committed dataset; its date indicates when the results were measured.",
 		Layers: []string{"surfaces"},
 	},
 }

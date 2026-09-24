@@ -1,23 +1,11 @@
 /**
- * The bridge: one brand palette in, one set of Docusaurus and diagram-kit
- * custom properties out.
+ * Derives Docusaurus and diagram CSS properties from the canonical brand tokens.
+ * Infima uses --ifm-* properties and diagrams use --kdx-* properties. Both need
+ * colours converted from OKLCH. The primary ramp uses seven lightness steps;
+ * diagram roles use the shared semantic hues.
  *
- * Docusaurus paints from Infima's `--ifm-*` variables and the diagram kit from
- * its own `--kdx-*` ones, and neither speaks OKLCH. Rather than keep a hand-kept
- * hex ramp beside each brand palette, every value below is computed from the
- * canonical tokens: the surfaces come straight across, the primary ramp is seven
- * lightness steps of the brand primary, and each diagram role takes its hue from
- * the shared semantic tokens so a role means the same thing on both sites.
- *
- * Two rules hold the result legible:
- *
- *   - Text colours are pushed along their own lightness axis until they clear
- *     WCAG AA (4.5:1) against the ground they sit on. A brand primary picked for
- *     a button on a card is usually too light to be a link on a page, and the
- *     search is what makes the docs primary a shade of the brand rather than a
- *     second opinion about it.
- *   - Diagram accents sit at one lightness per theme, so six roles drawn side by
- *     side read as one drawing.
+ * Text lightness is adjusted to meet WCAG AA contrast (4.5:1) against its
+ * background. Diagram accents share one lightness per theme for visual consistency.
  */
 
 import {

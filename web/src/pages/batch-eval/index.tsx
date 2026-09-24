@@ -4,17 +4,9 @@ import Layout from "@theme/Layout";
 import history from "./_batcheval.json";
 import { t } from "@neokapi/i18n-react/runtime";
 
-// The batch-eval dashboard. kapi packs several blocks into one LLM call, and the
-// ceiling it packs to (tools.MaxBlocksPerCall) was chosen from evidence about
-// *adjacent* tasks — nobody has published a quality-versus-N curve for segment
-// translation. This is our own, and it keeps being measured: models and APIs move,
-// so a ceiling that was right in July 2026 is not self-evidently right later.
-// Regenerate with `make batch-eval-publish`.
-//
-// Every claim on this page is computed from the committed history rather than typed
-// into the prose. A sentence that hardcodes a finding keeps asserting it long after
-// the data stops supporting it — which is the exact failure this page exists to
-// catch in kapi, and there is no reason to think the page is immune to it.
+// Compare batching cost, throughput and structural integrity across models.
+// Regenerate the committed measurements with `make batch-eval-publish`.
+// Derive findings from those measurements so they remain current after each run.
 
 interface Result {
   n: number;
@@ -161,20 +153,13 @@ const intactCell = (p: Result): string =>
       ? t("failed", "batch result status")
       : `${intact(p).toFixed(1)}%`;
 
-// The findings below are *derived from the data*, never typed into the prose. A
-// sentence that hardcodes "100% at every N" keeps saying so after the day a model
-// stops being clean, and this page exists precisely to catch that day.
-//
-// And the claim has to be a *trend*, not a perfection. These are stochastic models:
-// a sweep will sooner or later drop a segment somewhere, and a page built on "no
-// breaks above N=32" would be falsified by one unlucky run while its actual thesis —
-// that damage does not grow with N — stood untouched. So the question asked of the
-// data is the one that survives noise: is the small end worse than the large end?
+// Compare normalized error rates for small and large batches. Derive findings
+// from the current measurements and account for variation between model runs.
 const SMALL_N = 16;
 const LARGE_N = 128;
 
 interface Findings {
-  /** Worst intact% anywhere in the sweep, and where — the honest floor. */
+  /** Lowest intact percentage in the sweep, with its model and batch size. */
   worst: { n: number; model: string; intact: number } | null;
   /** Structural breaks per 1,000 blocks at the small end (N ≤ SMALL_N) and the large (N ≥ LARGE_N). */
   smallRate: number | null;
@@ -486,15 +471,15 @@ export default function BatchEval(): ReactElement {
   const f = findings(current);
   const smallEndWorse = f.smallRate != null && f.largeRate != null && f.smallRate > f.largeRate;
   const trendHeadline = smallEndWorse
-    ? t("If anything, the small end is worse.", "batch eval finding")
-    : t("The damage does not scale with N.", "batch eval finding");
+    ? t("Small batches have a higher break rate.", "batch eval finding")
+    : t("The break rate does not increase with batch size.", "batch eval finding");
   const trendReading = smallEndWorse
     ? t(
-        "More calls means more chances to fumble a placeholder, and less surrounding context in which to recognise one — the opposite of the effect the ceiling was set to guard against.",
+        "In this sweep, larger batches preserved structure at least as well as smaller batches.",
         "batch eval finding",
       )
     : t(
-        "Whatever the ceiling was set to guard against, it is not a trend visible here.",
+        "This sweep provides no evidence that larger batches increase structural errors.",
         "batch eval finding",
       );
   return (
@@ -505,29 +490,26 @@ export default function BatchEval(): ReactElement {
       <main style={{ maxWidth: 940, margin: "0 auto", padding: "2.5rem 1.25rem 4rem" }}>
         <h1>Batch eval</h1>
         <p style={{ fontSize: "1.05rem", color: "var(--ifm-color-emphasis-700)" }}>
-          kapi packs several blocks into a single LLM call, because one call per string is slow and
-          expensive. How many is safe? kapi&rsquo;s ceiling began as an informed guess; this page is
-          the measurement that replaced it, re-run as models change so it does not quietly go stale.
-          The sibling <Link to="/context-eval">context eval</Link> measures the other axis: whether
-          a model follows the context kapi injects.
+          kapi groups blocks into a single LLM call to reduce request overhead. This page measures
+          how batch size affects cost, throughput and structural integrity. The evaluation is
+          repeated as models change. The <Link to="/context-eval">context eval</Link> measures
+          whether models follow the terms and writing guidance supplied by kapi.
         </p>
 
         <h2>How it is measured</h2>
         <p>
           A fixed corpus is translated at each batch size, and the result is scored for{" "}
-          <strong>structural integrity</strong> — not wording. The failure that matters when
-          batching is not clumsier phrasing; it is a segment that comes back{" "}
-          <strong>dropped, merged, renumbered, or stripped of a placeholder or tag</strong>. In a
-          translation pipeline that is a correctness failure, because a translation missing its{" "}
-          <code>{"{0}"}</code> cannot be written back into the source file at all. Scoring structure
-          needs no reference translation, so the same measurement works for any model in any
-          language pair. Cost and throughput are recorded from the same runs.
+          <strong>structural integrity</strong>: segments must retain their identity, placeholders
+          and tags. A dropped or merged segment, a changed identifier, or a missing placeholder such
+          as <code>{"{0}"}</code> can prevent a valid write back to the source format. These checks
+          require no reference translation and can be applied across models and language pairs. They
+          do not assess wording quality. Cost and throughput are recorded from the same runs.
         </p>
         <p>
-          The corpus is 600 blocks of the things batching is supposed to break — ambiguous UI
-          strings, placeholders, inline markup, and long prose — with every string distinct, so a
-          model cannot pass by copying one segment&rsquo;s answer into the next. Each size is swept
-          more than once, because a single run of a stochastic model is an anecdote.
+          The corpus contains 600 distinct blocks covering ambiguous UI strings, placeholders,
+          inline markup and long prose. Distinct strings prevent a model from passing by copying one
+          segment&rsquo;s answer into another. Each batch size is tested more than once to account
+          for variation between runs.
         </p>
 
         {current.length === 0 ? (
@@ -542,34 +524,24 @@ export default function BatchEval(): ReactElement {
               <code>{canonicalDigest}</code>
             </p>
             <p>
-              Quality does not move with batch size — every model stays structurally intact at every
-              N — so the chart that would show it is a flat line at the ceiling. What moves is what
-              batching <em>costs</em>, so that is the chart.
+              The charts below compare cost, structural errors and throughput at each measured batch
+              size. Interpret each curve within its model and provider configuration.
             </p>
             <Chart runs={current} s={COST} />
             <Legend runs={current} />
             <p style={{ fontSize: "0.9rem", color: "var(--ifm-color-emphasis-700)" }}>
-              Log scale, because the models are an order of magnitude apart in price and a linear
-              axis would flatten the cheap ones into the baseline. Two shapes to read. The{" "}
-              <strong>fall on the left</strong> is the per-call overhead — system prompt plus JSON
-              schema, paid once per call — being amortised over more blocks; how steep it is depends
-              on how big that overhead is, which is a fact about the provider, not about batching.
-              On Bedrock that fall is steep — 985 tokens of overhead per call is a lot to repeat. On
-              Gemini it is barely a fall at all: ~106 tokens of overhead leaves almost nothing to
-              amortise, and the curve is flat until it turns up. The{" "}
-              <strong>rise on the right</strong> is the same on every provider, because it is not
-              the provider&rsquo;s doing: past the output ceiling the reply cannot be emitted in one
-              go, kapi splits the batch and redoes the work, and you pay for the same words twice.
-              Cheapest is in between — and the minimum is broad and shallow, which is the useful
-              part: the exact N barely matters, so long as you are not at either extreme.
+              The logarithmic scale makes models with substantially different prices comparable. A{" "}
+              <strong>falling curve</strong> shows fixed request overhead, including the system
+              prompt and JSON schema, spread over more blocks. The size of that overhead varies by
+              provider. A <strong>rising curve</strong> at large batch sizes can indicate output
+              truncation: kapi splits the batch and retries, adding to the cost.
             </p>
 
-            <h3>Structural integrity, on an axis where a regression would show</h3>
+            <h3>Structural integrity</h3>
             <p>
-              Breaks per 1,000 blocks — dropped, merged, renumbered segments, and mangled
-              placeholders or tags. Zero is the expected reading, and the reason to keep drawing it
-              is that a model can regress behind a stable alias without anyone being told. This is
-              the guard, not the headline.
+              Structural errors per 1,000 blocks include dropped, merged or renumbered segments and
+              damaged placeholders or tags. Zero is the expected result. Repeated measurements can
+              reveal regressions even when the provider keeps the same model alias.
             </p>
             <Chart runs={current} s={BREAKS} />
             <Legend runs={current} />
@@ -585,8 +557,7 @@ export default function BatchEval(): ReactElement {
 
             <h2>What the sweep found</h2>
             <p>
-              <strong>There is no quality cliff.</strong> Batches of {f.maxN} segments — most of a
-              document, answered in a single call — came back structurally intact.
+              The largest measured batch contains <strong>{f.maxN} segments</strong>.
               {f.worst && (
                 <>
                   {" "}
@@ -595,35 +566,28 @@ export default function BatchEval(): ReactElement {
                   {f.worst.n}).
                 </>
               )}{" "}
-              Batching is often expected to degrade as N grows, but that did not happen here, and
-              the reason is structural: translating one segment does not depend on having translated
-              the others correctly. The segments are independent, so the failures that do occur are
-              sporadic rather than progressive.
+              The comparison below shows whether structural errors become more frequent at larger
+              batch sizes.
             </p>
             {f.smallRate != null && f.largeRate != null && (
               <p>
-                <strong>{trendHeadline}</strong> These are stochastic models: a sweep this size
-                drops a segment somewhere, so the claim worth making is about the trend, not about
-                perfection. Counted as breaks per 1,000 blocks — a rate, so a batch size is not
-                flattered by having fewer blocks behind it — small batches (N {"\u2264"} {SMALL_N})
-                broke <strong>{f.smallRate.toFixed(1)}</strong> and large ones (N {"\u2265"}{" "}
-                {LARGE_N}) broke <strong>{f.largeRate.toFixed(1)}</strong>. {trendReading}
+                <strong>{trendHeadline}</strong> Rates are normalized per 1,000 blocks to account
+                for different sample sizes. Small batches (N {"\u2264"} {SMALL_N}) broke{" "}
+                <strong>{f.smallRate.toFixed(1)}</strong> and large ones (N {"\u2265"} {LARGE_N})
+                broke <strong>{f.largeRate.toFixed(1)}</strong>. {trendReading}
               </p>
             )}
             <p>
-              <strong>
-                What actually binds is output tokens, and it bills rather than breaks.
-              </strong>{" "}
-              A blocking call may emit at most {OUTPUT_CAP.toLocaleString()} tokens (
+              <strong>Output-token limits can increase retry costs.</strong> A blocking call may
+              emit at most {OUTPUT_CAP.toLocaleString()} tokens (
               <code>NonStreamingMaxOutputTokens</code>: asking a synchronous request for more means
               holding an HTTP connection open for many minutes). A batch whose reply would exceed
-              that comes back truncated — under a JSON schema, a fragment is invalid JSON — so kapi
-              halves the batch and translates each half. Nothing is corrupted, which is exactly why
-              the integrity line stays at 100%. You simply pay for the work twice.
+              that can be truncated into invalid JSON. kapi then halves the batch and translates
+              each half. Retrying avoids accepting the truncated result, but adds to the cost.
               {f.oversize.length > 0 && (
                 <>
                   {" "}
-                  At the top of this sweep that is not a rounding error:{" "}
+                  At the largest measured batch size:{" "}
                   {f.oversize.map((o, i) => (
                     <span key={o.model}>
                       {i > 0 ? "; " : ""}
@@ -638,35 +602,29 @@ export default function BatchEval(): ReactElement {
               )}
             </p>
             <p>
-              So the limit that matters is a <strong>token budget</strong>, not a block count, and
-              that is what kapi packs against. The block cap is a backstop, set at N{"≤"}
-              {SHIPPED_CEILING} — inside the measured-clean range, and few enough that the output
-              budget binds first on anything longer than a short UI string.
+              kapi packs batches against a <strong>token budget</strong>, with an additional block
+              cap of N{"≤"}
+              {SHIPPED_CEILING}. Longer blocks usually reach the token budget first.
             </p>
 
             <h2>What it costs, and what you give up</h2>
             <p>
-              Every call carries a <strong>fixed overhead</strong> — the system prompt and the JSON
-              schema that constrains the reply — paid once per call however many blocks ride along.
-              Batching amortises it. How much that is worth depends on how big the overhead is,
-              which varies by provider by an order of magnitude, so the honest answer to &ldquo;does
-              batching save money?&rdquo; is <em>it depends on who you call</em> — read the Δ column
-              below rather than trusting a rule of thumb.
+              Every call includes a <strong>fixed overhead</strong> for the system prompt and JSON
+              schema. Batching spreads this overhead across more blocks. The savings depend on the
+              provider; the Δ column below reports the measured difference.
             </p>
             <p>
-              What batching buys on <em>every</em> provider is <strong>throughput</strong>: you wait
-              on a handful of round trips instead of hundreds. And on rate-limited routes it buys
-              the run itself — see <code>eu.anthropic.claude-sonnet-4-6</code> below, where the
-              smallest batch sizes issue so many calls that the account&rsquo;s Bedrock quota
-              refuses them outright. There the scarce resource is <em>requests</em>, not tokens.
+              Batching also reduces the number of requests and can improve{" "}
+              <strong>throughput</strong>. On rate-limited routes, it may be necessary to complete a
+              run. For example, the smallest batch sizes for{" "}
+              <code>eu.anthropic.claude-sonnet-4-6</code> exceeded the account&rsquo;s Bedrock
+              request quota in this sweep.
             </p>
             <p>
-              The unit is <strong>USD per 1,000 source words</strong>, because content budgets are
-              denominated in words and a token count is a fact about a vendor&rsquo;s tokenizer
-              rather than about the work. Nothing here is specific to translation: any AI pass over
-              content — a review, a check, terminology, entity extraction — has the same shape and
-              the same economics. Translation is simply the pass this harness drives, because it is
-              the one that batches.
+              Costs are reported in <strong>USD per 1,000 source words</strong> so models with
+              different tokenizers can be compared on the same content. This harness measures
+              translation. Other batched content tasks may also benefit from reduced request
+              overhead, but their costs require separate measurement.
             </p>
             <p style={{ fontSize: "0.92rem", color: "var(--ifm-color-emphasis-700)" }}>
               The smallest batch size measured, against kapi&rsquo;s shipped ceiling of{" "}
@@ -766,12 +724,11 @@ export default function BatchEval(): ReactElement {
               </tbody>
             </table>
             <p style={{ fontSize: "0.85rem", color: "var(--ifm-color-emphasis-700)" }}>
-              Read the two Δ columns together against the last one: whatever batching does to your
-              bill, it buys throughput and costs no structural integrity. That is the trade it
-              actually offers.
+              Compare the cost and throughput changes with the intact percentage to assess each
+              model's batching tradeoffs.
             </p>
             <p style={{ fontSize: "0.85rem", color: "var(--ifm-color-emphasis-700)" }}>
-              Three honest caveats about these numbers.{" "}
+              Interpret these numbers with the following limitations.{" "}
               <strong>Bedrock is billed through AWS Marketplace</strong>, and the <code>eu.</code>{" "}
               cross-region inference profile is a <em>regional</em> profile: AWS charges exactly 10%
               more for it than for the otherwise identical <code>global.</code> profile
@@ -780,11 +737,10 @@ export default function BatchEval(): ReactElement {
               sweep reached them through the Claude subscription, which is not billed per token —
               and whose token counts do not describe an API call either: the CLI wraps every request
               in its own agent system prompt and reports it as cache creation, so it recorded 240
-              input tokens across sixty calls. A dollar figure built on that would be fiction in
-              whichever direction happened to flatter the conclusion, so the column is blank. Cost
-              for those models needs a sweep against the metered Anthropic API.{" "}
-              <strong>Speed is not comparable across providers</strong>: the sweeps ran at different
-              concurrencies
+              input tokens across sixty calls. Those counts cannot support a reliable API cost
+              estimate, so the column is blank. Cost for those models requires a sweep against the
+              metered Anthropic API. <strong>Speed is not comparable across providers</strong>: the
+              sweeps ran at different concurrencies
               {current.some((r) => r.concurrency) && (
                 <>
                   {" "}
@@ -796,10 +752,9 @@ export default function BatchEval(): ReactElement {
                 </>
               )}
               , and the claude-code route pays a CLI session start-up on every call that a direct
-              API call does not. Treat words/sec as a within-model comparison across N, not a race
-              between vendors. <strong>Subscription routes are not billed per token</strong>: for
-              those, the rate shown is what the same model costs on the metered API — the right
-              number to reason with, but not an invoice.
+              API call does not. Compare words/sec across batch sizes within the same model.
+              <strong> Subscription routes are not billed per token</strong>: where a rate is shown,
+              it estimates the cost of the same model on the metered API.
             </p>
             {current[0]?.price && (
               <p style={{ fontSize: "0.85rem", color: "var(--ifm-color-emphasis-600)" }}>
@@ -918,8 +873,7 @@ export default function BatchEval(): ReactElement {
             <h2>Over time</h2>
             <p>
               Intact% at the shipped ceiling (N={SHIPPED_CEILING}), by run date. A model that
-              silently regresses behind a stable alias shows up here — which is the point of keeping
-              the record rather than measuring once.
+              regresses while retaining the same alias can be detected by comparing these runs.
             </p>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
               <thead>

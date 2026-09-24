@@ -36,10 +36,8 @@ type ContextScanJobStore interface {
 	// owner's completed (already billed) run. Returns owner=false when the
 	// lease was lost, in which case nothing was written.
 	FailContextScanJob(ctx context.Context, id string, epoch int64, errMsg string) (owner bool, err error)
-	// AddContextScanTokens accumulates billed token usage onto the job as each
-	// phase is metered, while the caller still holds the lease. This keeps
-	// tokens_used truthful for a scan that fails AFTER a billed phase — the
-	// credits were deducted, so the job must report the spend.
+	// AddContextScanTokens records usage after each billed phase while the
+	// caller holds the lease, including usage before a later phase fails.
 	AddContextScanTokens(ctx context.Context, id string, epoch int64, tokens int) error
 	// CompleteContextScanJob atomically persists the result and marks the job
 	// completed — but only while the caller still holds the lease (status

@@ -11,22 +11,9 @@ import (
 	corestorage "github.com/neokapi/neokapi/core/storage"
 )
 
-// Content goes to object storage, not through the API.
-//
-// Every byte a push sent used to transit this server: the client PUT each
-// chunk to a request handler, the handler wrote it to the blob store, and the
-// worker downloaded it again by hash. Object storage was already the
-// destination — the API was a hop in the middle of it, and it cost a 2 MiB
-// request cap that shaped the chunking, an interactive server's throughput and
-// memory spent on bulk transfer, and uploads that could not run in parallel
-// because they contended with the API's own concurrency.
-//
-// Presigned PUTs need the key decided before the upload. Content addressing
-// already gives that: a chunk is named by the SHA-256 of the exact bytes being
-// sent, so the grant is a write to one key whose name IS the content. A client
-// that PUTs something else has not corrupted anything — it has written an
-// object whose name does not match its content, and the commit, which verifies
-// every chunk by hash, refuses it.
+// Presigned PUTs upload chunks directly to object storage. The object key is the
+// SHA-256 of the uploaded bytes. Commit verifies each chunk against its declared
+// hash and rejects a mismatch before applying content.
 
 // HandleSyncPushUploads grants presigned PUTs for a set of content hashes, and
 // says which of them the venue already holds.

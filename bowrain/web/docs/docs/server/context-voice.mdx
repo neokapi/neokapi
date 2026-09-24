@@ -1,7 +1,7 @@
 ---
 title: Voice and corrections
 sidebar_label: Voice and corrections
-description: Bowrain turns a team's corrections into versioned, enforced voice checks. Correct content once and the rule that prevents the mistake from recurring is authored, versioned, and shared across people and AI tools.
+description: Review recurring corrections, preview candidate rules and promote them into versioned voice profiles shared across projects.
 keywords: [voice profile, corrections, candidate rules, governance, drift, blast radius, bowrain]
 ---
 
@@ -19,14 +19,10 @@ each bound at the point it governs. On its own, a profile is a set of
 Bowrain run it over content and report what drifts off-voice, the same way a
 test reports what broke.
 
-Bowrain adds the part a single checkout cannot: it **learns the profile from
-your team's corrections** and keeps the result versioned, shared, and enforced.
-Voice is a section of the [Context](/server/context) hub; this page covers the
-correction loop in detail.
-
-Every correction becomes a signal: Bowrain aggregates repeated fixes into
-candidate rules, shows each rule's blast radius, and promotes it into a
-versioned, enforced check.
+Bowrain aggregates repeated corrections into candidate rules. Reviewers can
+inspect their evidence, preview their effect on stored content and promote them
+into a versioned voice profile. The **Voice** section of the
+[Context hub](/server/context) provides this workflow.
 
 <ThemedVideo
   sources={{
@@ -37,10 +33,9 @@ versioned, enforced check.
 
 ## The loop
 
-The rules a team most needs are the ones it discovers by correcting real
-output: the phrasing it keeps changing, the competitor name that slips in, the
-term it has decided against. Bowrain captures those corrections and closes the
-loop:
+Repeated corrections can reveal gaps in a profile, such as an unwanted phrase
+or a term reviewers consistently replace. Bowrain records these corrections for
+review:
 
 1. **Correct.** A person in the [review session](/server/review) or the editor,
    or an AI assistant working through [MCP](/cli/mcp), fixes content the
@@ -62,9 +57,8 @@ loop:
    its term denotes, so the rule and the term it governs share one identity in the
    Context hub. Promoting a voice rule is a governed edit, and a concept's
    [story](/server/context#the-concept-story) shows the rules that reference it.
-5. **Monitor.** After a rule lands, Bowrain watches aggregate compliance and
-   raises a **drift** alert when it erodes, so a profile that was healthy does
-   not quietly decay as content and models change.
+5. **Monitor.** Bowrain tracks aggregate compliance and raises a **drift**
+   alert when it declines.
 
 <PhaseFlow
   nodes={[
@@ -80,19 +74,15 @@ loop:
       loop: ["drift alert when compliance erodes", "feeds the next correction"],
     },
   ]}
-  caption="Correct once; the rule that prevents the mistake is authored, versioned, and shared."
+  caption="Recurring corrections provide evidence for candidate rules. Reviewers preview and promote them into a shared, versioned profile."
 />
-
-Correct once, and the rule that prevents the mistake from recurring is authored,
-versioned, and shared, the way adding a regression test stops a fixed bug from
-returning.
 
 ## Rules inherit and expire
 
 A rule is bound at a point and applies to everything beneath it until a
 narrower profile overrides it. A rule can also carry a validity: it starts and
-stops on a date, so a campaign's vocabulary or a rename's transition period
-expires on its own instead of needing a cleanup project.
+stops on a date. Use validity windows for campaign vocabulary or a rename's
+transition period.
 
 ## Progressive autonomy
 
@@ -105,7 +95,7 @@ grows, and never all at once.
 
 ## Where it shows up
 
-The loop is drivable from three surfaces, all over the same voice engine:
+You can use the same voice engine through these interfaces:
 
 - **Web**: the Voice section of the [Context hub](/server/context) lists pending
   candidates with the corrections behind them, shows a candidate's blast radius

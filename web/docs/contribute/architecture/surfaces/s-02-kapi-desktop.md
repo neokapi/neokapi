@@ -93,9 +93,8 @@ watcher, and the in-app updater.
 Projects open as **tabs**. Every project-scoped method takes a `tabID`, so the
 open set is real state in the backend. Each tab carries its own loaded recipe,
 project context, and resolved stores, and closing one releases them. A file
-watcher on the recipe keeps an open tab honest when the file changes underneath
-it, which is the normal case when the same project is also being driven from the
-CLI or from git.
+watcher refreshes the tab when the recipe changes, including edits made through
+the CLI or git.
 
 ### The app opens on the workspace
 
@@ -389,8 +388,8 @@ the package manager.
   `cli` or platform import fails `make audit-modules`, not a review.
 - A project bound to a convergence venue converges there from the desktop as
   from the CLI, so the team's state has one home.
-- Tabs make the desktop honest about a real working pattern, several projects
-  open at once, at the cost of every project-scoped method carrying a `tabID`.
+- Tabs support several open projects. Each project-scoped method requires a
+  `tabID` to route operations to the correct project.
 - `kapi.yaml` recipes stay shareable workflow documents: open, edit, save,
   commit. No hidden state travels with the recipe, and a governance edit made
   in the desktop is a recipe edit `git diff` shows.

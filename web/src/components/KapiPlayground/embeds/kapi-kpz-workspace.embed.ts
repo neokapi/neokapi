@@ -17,17 +17,17 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi pseudo-translate work.kpz",
       narration:
-        "The tool caches its per-block work in the workspace's shadow cache — the .kpz file itself is not rewritten yet.",
+        "The tool stores its changes in the working cache. The .kpz file is updated when you pack it.",
     },
     {
       command: "kapi info work.kpz",
       narration:
-        'info reports the workspace is now "dirty" — there is work not yet packed into the .kpz.',
+        "info reports a dirty workspace because the working cache contains unpacked changes.",
     },
     {
       command: "kapi pack work.kpz",
       narration:
-        'pack writes the .kpz — the explicit hand-off boundary. info would now show "clean".',
+        "pack writes the changes to the .kpz bundle. info would now report a clean workspace.",
     },
     {
       command: "kapi merge work.kpz -o out/",

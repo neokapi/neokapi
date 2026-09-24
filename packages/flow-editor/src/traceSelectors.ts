@@ -83,11 +83,10 @@ export function nodeSpans(events: TraceEvent[], cursor: number): Map<string, num
 }
 
 /**
- * Parts in transit per edge at the cursor — a part is "on" the edge X→Y
- * between its exit from X and its enter into Y (or on the X→sink edge after
- * its final exit). Keys are `${sourceNodeId}→${targetNodeId}` in editor node
- * ids. This is what makes the playback dots literal: an edge shows movement
- * exactly when a part is mid-hop at the cursor, not as a decorative loop.
+ * Returns parts in transit at the playback cursor, keyed by
+ * `${sourceNodeId}→${targetNodeId}` using editor node ids. A part occupies X→Y
+ * between its exit from X and entry into Y, or X→sink after its final exit.
+ * Playback dots therefore represent actual transit intervals.
  */
 export function edgeTransits(
   events: TraceEvent[],

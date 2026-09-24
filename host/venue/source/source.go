@@ -929,27 +929,20 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	}, nil
 }
 
-// recordGovernanceAfterPush records where the governance components stand once
-// a push has landed — read back from the server, never computed here.
+// recordGovernanceAfterPush reads the server's governance components after a
+// push and records them locally.
 //
-// A client-computed value would be wrong in an ordinary case. The server keeps a
-// collection the recipe no longer declares (report, never delete), and it keeps
-// it recipe-owned, so the fold it publishes and the fold this client makes over
-// what the recipe declares differ permanently. Caching this side's fold and then
-// asserting it would refuse every later governance push with "governance moved"
-// — over a collection nobody moved, on a project that could never recover,
-// because the recipe is the authority and pulling would not remove it.
+// The server may retain recipe-owned collections that the local recipe no longer
+// declares. Its governance hash can therefore differ from a hash computed locally.
+// Caching a local hash would cause subsequent pushes to report false conflicts.
 //
-// When the ingest is not confirmed applied, or the ref cannot be read, the
-// components this push carried are CLEARED rather than guessed. An empty
-// component asserts nothing and reads as "worth sending again", so the next push
-// re-sends an idempotent write and re-reads the answer. One redundant reconcile,
-// never a false conflict.
+// If ingest is unconfirmed or the reference cannot be read, clear the components
+// carried by this push. Empty components allow the next push to repeat the
+// idempotent write and retrieve the server's reference.
 //
-// A push that committed NOTHING is the third case and takes neither branch: the
-// negotiation's answer still describes the server, because this push did not
-// move it. It is also where a project pushing before it has ever pulled learns
-// the governance it never wrote.
+// If the push committed nothing, retain the reference returned by negotiation.
+// It still describes the server and can initialize governance for a project
+// that has never pulled.
 func (c *BowrainSourceConnector) recordGovernanceAfterPush(ctx context.Context, pushID, ingest string, negotiated *ref.Ref) {
 	if pushID == "" || pushID == apiclient.PushUnchanged {
 		if negotiated != nil {

@@ -78,37 +78,18 @@ var PlanFeatures = map[Plan]map[Feature]bool{
 	},
 }
 
-// PlanLimits defines numeric limits per plan. A value of -1 means unlimited.
+// PlanLimits defines numeric plan limits; -1 means unlimited.
 //
-// What is metered, and what deliberately is not:
+// Custodians have grants to manage voice or terms within a region. Free includes
+// no custodians; SetupTrial grants Pro access for DefaultTrialDays. Markets and
+// brands limit the scope available to a workspace.
 //
-//   - **Custodians** are the paid role: someone who may author what governs
-//     content — voice, terms — over a bounded region. Free carries none, and the
-//     trial is how a workspace tries the role (SetupTrial puts a new workspace on
-//     Pro for DefaultTrialDays). The seat's comparison is payroll rather than a
-//     SaaS seat, because it stands in for a review function.
-//   - **Markets and brands** are the base: the scope of custody a workspace
-//     holds. Markets is the headline number, because that is what a buyer
-//     budgets by and expands into most often. Brands is the coarser boundary.
-//   - **Members are not metered at all.** Viewers, contributors and machine
-//     tokens are free and uncapped: the people most worth having in the system
-//     are the ones who notice what no rule caught, and a seat cap is a standing
-//     reason not to invite them. Metering headcount would also earn less exactly
-//     as the product works, since one custodian is meant to govern what several
-//     reviewers could not.
-//   - **Checks are never metered.** Billing verification per run makes customers
-//     verify less, and verification is the whole position. Unlimited on every
-//     plan, including Free.
-//   - **Coordinates are never metered.** A scan proposes axes and a person
-//     approves them; if accepting one cost money, approval would become a budget
-//     decision and true proposals would be rejected. A bill must not make a
-//     customer's model worse. Markets and brands are tier boundaries, not
-//     per-point charges.
+// Members, checks and coordinates are not metered. Viewer and contributor
+// accounts and machine tokens are uncapped. Markets and brands are plan limits,
+// not per-coordinate charges.
 //
-// The numbers here are provisional — nothing in this category prices on custody,
-// so they are guesses until a few deals test them. Tune here, nowhere else; the
-// dollar prices live in Stripe (DECISIONS L4).
-// The limit names, so a typo is a compile error rather than a silent -1.
+// Configure limits here; dollar prices are stored in Stripe (DECISIONS L4).
+// Named limits below let the compiler catch misspelled keys.
 const (
 	LimitMaxCustodians = "max-custodians"
 	LimitMaxMarkets    = "max-markets"

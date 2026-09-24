@@ -3,9 +3,8 @@ package store
 import "github.com/neokapi/neokapi/bowrain/storage"
 
 // Migrations is the complete PostgreSQL content store schema as a single
-// consolidated baseline. It is the largest of the fifteen ledgers: sixty-nine
-// tables, including the hash-partitioned blocks, translations, annotations and
-// overlays_ext families.
+// consolidated baseline and subsequent migrations, including hash-partitioned
+// blocks, translations, annotations and overlays_ext tables.
 //
 // LEDGER — every version this subsystem has ever issued, now folded in:
 //
@@ -33,32 +32,10 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	22  channel alias proposals
 //	23  the third consolidated baseline (folded 1-22) + channel alias judgements
 //
-// The subsystem carries exactly one baseline (migrations/schema_test.go
-// enforces it), so a schema change is made by editing the baseline in place and
-// bumping its version. Version 24 records the BASIS on a decision — the hash of
-// the source wording it blessed — so a reader can tell an approval whose source
-// has been rewritten from one that still describes the project.
-//
-// Versions 3 and 4 were already retired before the first consolidation — they
-// ran on live databases and were then folded into the v1 baseline. They are
-// listed because a retired number stays spent forever: a live database records
-// them as applied, so a new migration reusing 3 or 4 would be silently skipped.
-// That is why a consolidation numbers its baseline above the whole range
-// rather than restarting at 1.
-//
-// Versions 16-19 were appended after the first consolidation and are now folded
-// in turn, so the rule the drift tests enforce — a consolidated subsystem
-// carries exactly one baseline — holds again. Folding is editing the CREATE
-// statements, never appending an ALTER beside them: 17's stream and 18's
-// word_count are columns of their tables' CREATE, 19's rename is the access
-// column the blocks CREATE already declares, and 16's ledger is a
-// CREATE TABLE IF NOT EXISTS like every other table here. That is what lets one
-// statement serve an empty database and a database that already ran 15-19
-// alike.
-//
-// Baseline is version 24 — above every number issued, so an existing database
-// applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 35.
+// Version 24 is the consolidated baseline. Preserve the issued version numbers
+// above: databases record applied versions, so reusing one would skip new SQL.
+// Baseline changes belong in CREATE statements; subsequent versions are listed
+// below. Choose new versions above the highest version already issued.
 //
 // 25  where a collection's strings can be read in place
 // 26  the ship gate's per-block verdict

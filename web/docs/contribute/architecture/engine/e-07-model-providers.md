@@ -193,9 +193,9 @@ name; it just sits under "Advanced" on the `/models` page rather than in the
 primary list, which is sorted Recommended → Advanced → Legacy (superseded). An
 *active default* can never be non-recommended; a test enforces it.
 
-**Staying honest.** Curation rots, so `make check-models` (`scripts/modelcheck`)
-is the alarm: it lists what each provider serves today and reports any catalogued
-model that is gone, or, with `-candidates`, any live model the catalog omits. The
+**Catalog validation.** `make check-models` (`scripts/modelcheck`) lists each
+provider's available models and reports catalogued models that are no longer
+served. With `-candidates`, it also reports available models missing from the catalog. The
 live half needs provider credentials and stays a manual or scheduled tool: a
 rate-limited provider must never be mistaken for a retired one, the same
 false-cliff trap the [batch eval](/batch-eval) guards against. The keyless half

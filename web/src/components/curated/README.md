@@ -1,9 +1,7 @@
 # Curated result views (R8 · #677)
 
-Framework-first docs widgets. kapi is a _framework_; the CLI is one front-end.
-These components show what the **framework produced** — the content model,
-before/after transforms, and a dual CLI ⇄ result view — rather than only a
-terminal.
+Documentation widgets that display the content model, before/after transforms,
+and CLI output alongside structured results.
 
 All three run the **real kapi CLI compiled to WebAssembly** in the browser,
 reusing `@neokapi/kapi-playground` (the kit). They are **lazy + client-only**:
@@ -20,7 +18,7 @@ design tokens (defined on `:root` by the kit's `styles.css`).
   kit-side, so several curated views on one page share the single warm runtime
   instance. **Nothing is fetched on page load**: every view renders the shared
   `<RunGate compact>` (from `@neokapi/kapi-lab`) until the reader presses Run —
-  the same activation gate the labs use, with the honest size hint
+  the same activation gate the labs use, with the download-size hint
   ("~13 MB engine · runs locally — nothing leaves your machine").
 - **`BlockPreview`** uses `KapiRuntime.preview(path)` →
   `{ ok, format, blocks:[{id,text}], total, bytes }`.
@@ -31,7 +29,7 @@ design tokens (defined on `:root` by the kit's `styles.css`).
 - `DualExample`'s "Terminal" affordance hands off to the kit's shared modal via
   `openKapi` (imported from the SSR-clean `/store` subpath).
 
-No kit source was modified — the curated views compose the kit's public API.
+The curated views use the kit's public API.
 
 ## Components
 

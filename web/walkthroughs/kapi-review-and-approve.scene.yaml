@@ -54,18 +54,18 @@ files:
 steps:
   - comment: The project is translated — a machine took every unit to *translated*. Now a person takes the ones that matter to *reviewed*.
   - command: kapi status
-    narration: status derives coverage from the files plus the committed state store. fr is translated 100%, reviewed 0% — the machine is done, the human review is pending.
+    narration: status derives coverage from the content and recorded decisions. French is 100% translated and 0% reviewed, so human review remains pending.
     # smoke:false — needs the multi-file project seeded; the wasm review loop is
     # covered by scripts/verify-snippets/review-smoke.ts, which seeds a project.
     smoke: false
   - command: kapi status --review
-    narration: The review worklist — every translated unit not yet approved, addressed by file / id / locale exactly as a kind:"review" change-set names it.
+    narration: List translated units awaiting approval, addressed by file, id and locale for a review change-set.
     smoke: false
   - comment: Approving a unit is a decision, recorded with the one write verb. review.jsonl blesses the greeting unit's fr translation.
   - command: kapi apply review.jsonl
-    narration: apply records the decision in the committed decision record under .kapi/state/, bound to the translation's content hash — edit that translation later and the unit drops back below reviewed.
+    narration: apply binds the approval to the translation's content hash. Editing that translation later requires another review.
     smoke: false
   - command: kapi status
-    narration: reviewed coverage climbs to 33% — derived straight back from the committed decision. Commit .kapi/state/ and the approval travels with the project; a {reviewed} gate now sees it.
+    narration: Reviewed coverage increases to 33% after the recorded approval. This coverage counts toward the review gate.
     smoke: false
   - comment: The gate is the consequence — `kapi check --ship` exits 3 while a required review is missing, and clears once the decisions land. See the kapi-up-loop walkthrough for the block-then-clear moment end to end.

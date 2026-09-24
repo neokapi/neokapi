@@ -13,17 +13,13 @@ import type { ReviewPoint, TermRule } from "@neokapi/contract-types";
 import type { ReviewTermHitView } from "./types";
 
 /**
- * The point card: where this unit's file sits, and what governs it there.
+ * Displays a unit's context coordinates and applicable governance.
+ * The summary shows product and channel chips. Expanded details include the file
+ * path, voice guidance, compliance score, term rules and matches, validity
+ * windows and resolution warnings.
  *
- * The summary line is the address itself, drawn as coordinate chips, so a
- * reviewer reads the product and channel a unit belongs to before opening
- * anything. Behind it sit the file's own path, the voice profile in force with
- * its rendered guidance and the unit's score against the profile's bar, the
- * term rules bearing on this unit's wording, the terms the source matches, the
- * governance profiles' validity windows, and the caveats the resolution
- * produced. The point is the review model's own (core/review.Point); the term
- * hits and the score against the bar are the platform's rows beside it, and a
- * host that carries neither leaves those rows out.
+ * Coordinates come from core/review.Point. Term matches and compliance scores
+ * are optional host data and are omitted when unavailable.
  */
 
 /** A rule marked advisory only reports. Everything else fails a check. */

@@ -69,8 +69,7 @@ steps:
   - comment: Survey the source before checking it
   - command: kapi stats product-page.md
     narration: >-
-      A content-metrics overview — blocks, words, and a by-role breakdown —
-      so you know the shape of what you are about to check.
+      Inspect block and word counts, grouped by role, before checking the file.
   - comment: Check the source against the voice profile
   - command: kapi check product-page.md --profile-file voice.yaml
     narration: >-
@@ -87,7 +86,7 @@ steps:
   - comment: Fix the terms deterministically — no model involved
   - command: kapi voice rewrite --profile-file voice.yaml --input-text "Unlike NoteCorp, you can utilize Lumen Notes offline."
     narration: >-
-      brand rewrite substitutes forbidden and competitor terms for their
+      voice rewrite substitutes forbidden and competitor terms for their
       approved replacements, offline, and reports each change. Tone and style
       fixes go through kapi apply, with the voice guide as context.
     offline: false

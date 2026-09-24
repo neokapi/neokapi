@@ -2,19 +2,13 @@ package main
 
 import "strings"
 
-// The scenarios, ported from cli/skills/EVALS.md.
+// Scenarios correspond to cli/skills/EVALS.md. Each defines a prompt, workspace
+// and expectation. Every file named in a prompt must exist before the agent
+// starts, and cross-format tasks need fixtures in multiple formats.
 //
-// Each one is a prompt, a workspace, and an expectation. The workspace is the
-// half that is easy to get wrong: a prompt about pitch.pptx in an empty
-// directory tests nothing, and a "find every X across docs/" scenario whose
-// docs/ holds only Markdown correctly does NOT trigger, because native grep is
-// the better tool there. The fixture is what makes the scenario mean what it
-// says, so every file a prompt names exists before the agent starts.
-//
-// Fixtures come from the repository wherever a real binary is needed, so no
-// .docx or .pptx is duplicated into this directory. Text fixtures are written
-// inline, where being able to read the scenario and its material together is
-// worth more than the reuse.
+// Binary fixtures come from the repository to avoid duplicating documents.
+// Text fixtures are inline so the scenario and its inputs can be reviewed
+// together.
 
 // FixtureFile is one file placed in a scenario's workspace.
 type FixtureFile struct {
@@ -186,19 +180,10 @@ const gateLocaleTranslated = `kapi status -p . --json 2>/dev/null | ` +
 	`python3 -c 'import json,sys;d=json.load(sys.stdin);` +
 	`sys.exit(0 if any(l["pct"].get("translated",0)>0 for l in d.get("locales",[])) else 1)'`
 
-// The app is translatable when the hardcoded string has left the component and
-// the strings it held live in a catalog.
-//
-// The second half used to be `-name '*.json' -path '*locale*'`, which is
-// react-i18next's convention rather than a definition of done. The agent
-// working with kapi extracted to `i18n/src/App.klf`, a catalog in kapi's own
-// exchange format, and the gate scored that a failure while an unaided agent
-// reaching for react-i18next passed. The gate was measuring which library was
-// chosen, and it made kapi look worse than no kapi on two scenarios.
-//
-// Any format a reader would recognise as a catalog counts now. The first half
-// is unchanged and still does the real work: a catalog beside an untouched
-// App.jsx is the likelier half-finished outcome.
+// The gate requires both a catalog and removal of hardcoded text from the
+// component. A catalog alone does not establish that the app uses its strings.
+// Accept recognized catalog formats, including KLF, so the gate evaluates the
+// result independently of the library selected by the agent.
 var gateStringsExtracted = `! grep -q "Welcome back, Alex" src/App.jsx && ` +
 	gateHasFileMatching(`\( -name '*.klf' -o -name '*.po' -o -name '*.pot' `+
 		`-o -name '*.xlf' -o -name '*.xliff' `+

@@ -1,26 +1,13 @@
-// Package ref carries the freshness ref: one composite value that answers, for
-// a single synchronized stream, how far what is held here sits from what is
-// held there — on every axis at once, in one place.
+// Package ref represents a synchronized stream's content position and
+// governance hashes in one freshness reference.
 //
-// A ref has four components, and they are deliberately not the same kind of
-// value:
+// The content component is monotonic: positions can be ordered and interrupted
+// transfers can resume from a recorded position. The context, terms and decisions
+// components are identity hashes. Unequal hashes indicate different governance,
+// but cannot establish which side is newer; the caller must reconcile them.
 //
-//	content   — a monotonic position. Ahead and behind are meaningful, and a
-//	            transfer interrupted at a position resumes from it.
-//	context   — an identity hash of the governing context.
-//	terms     — an identity hash of the governed terminology.
-//	decisions — an identity hash of the committed decision record.
-//
-// The three identity components are compared for equality and for nothing
-// else. Two unequal hashes carry no ordering, so a ref never claims one side is
-// newer than the other: it reports that governance moved and leaves the
-// reconciliation to a caller who can ask a human. Cheap observation, explicit
-// resolution.
-//
-// Componentwise comparison is what makes the composite safe to write against. A
-// writer asserts only the component it owns — Assert — so ordinary content
-// traffic, which moves nothing but the position, can never manufacture a
-// governance conflict for a writer that is nowhere near it.
+// Assert compares only the components a writer owns. Content-only transfers
+// therefore do not create conflicts for a writer updating governance.
 package ref
 
 import (

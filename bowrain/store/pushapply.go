@@ -11,42 +11,16 @@ import (
 	"github.com/neokapi/neokapi/core/venue"
 )
 
-// Applying one push as one transition.
+// Push application uses one transaction across content and voice stores.
+// Chunks are downloaded, hash-verified and decoded before the transaction
+// starts, limiting its duration to database work.
 //
-// A push is chunked, and every write used to own its own transaction: one per
-// chunk of blocks, one per item inside it, and several more after the loop for
-// the prune and the decision ledger. A push that failed halfway therefore left
-// the project holding a state no source ever had — some items updated, some
-// not, some blocks pruned and their replacements never stored — and nothing
-// recorded that. The job was marked failed and the half-applied content stayed.
+// Both stores share the worker's PgDB, so storage.PgDB.Transition covers
+// collection reconciliation, voice updates, items, blocks, pruning and decisions.
+// Any failure rolls back the entire push.
 //
-// It gets worse the more a push is allowed to do. A transition that adds,
-// removes and renames items in one go is exactly the one that must not be
-// interrupted: pruning an item's blocks and then failing before the new ones
-// land is content loss, where before it was only inconsistency.
-//
-// So the content transition runs on one transaction. The chunks are staged
-// first — downloaded, hash-verified and decoded before anything is written —
-// so the transaction spans the database work and not the transfer, and its
-// length is the size of the change rather than the size of the corpus.
-//
-// The transition spans every store the push writes through, not just this one.
-// The content store and the voice store are separate types with separate
-// schemas, but bowrain-worker builds both from ONE PgDB, so a transaction
-// begun on that pool covers both — see storage.PgDB.Transition.
-//
-// It has to. The collection reconcile that runs first does more than create
-// empty collections: it UPDATES existing ones, moving their coordinates and
-// their voice binding, and it creates and updates the workspace's voice
-// profiles from the content the push declared. Left outside the transition, a
-// push that failed afterwards had already changed what governs the workspace
-// on the strength of content that never landed.
-//
-// What survives from the old arrangement is the ORDER, which was always the
-// real constraint: collections reconcile before items are stored, because an
-// item naming a collection that does not exist yet falls to the project's
-// default collection and is governed by it until some later push re-binds it.
-// Inside one transaction that is simply statement order.
+// Reconcile collections before storing items. An item referencing a missing
+// collection would otherwise be assigned to the project's default collection.
 
 var (
 	_ platstore.PushApplyStore = (*PostgresStore)(nil)

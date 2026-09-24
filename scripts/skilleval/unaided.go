@@ -6,43 +6,16 @@ import (
 	"strings"
 )
 
-// The unaided control: the same prompt, the same workspace, no kapi.
+// The unaided control receives the same prompt and workspace without kapi.
+// Paired outcomes measure the contribution of kapi in each scenario:
 //
-// This exists because of a claim that turned out to be false. A scenario note
-// said of a .pptx fixture that "the agent has no other way to read it", and an
-// agent with no skill and no kapi on PATH answered the question correctly in
-// three tool calls:
+//   - ENABLED: the gate passes with kapi and fails without it.
+//   - EASED: both pass, but the unaided arm takes more work.
+//   - NEITHER: outcomes and effort are similar.
+//   - HINDERED: the unaided arm passes and the kapi arm fails.
 //
-//	unzip -l pitch.pptx
-//	unzip -p pitch.pptx ppt/slides/slide3.xml
-//	→ "Slide 3 is titled Next Steps, with five bullets: …"
-//
-// A .pptx is a zip of XML. Of course it could. The note was an assertion
-// dressed as a fixture description, and the suite was full of them: formatting
-// "must survive" an edit nothing checked, a translation that "must come back
-// valid" with no gate, a sweep grep "cannot" do without anyone asking whether
-// the agent would reach for grep at all.
-//
-// Prose cannot fix that. What answers it is running the control and reporting
-// the difference, so every claim about what kapi adds is a measurement
-// alongside the with-kapi run rather than a sentence next to it.
-//
-// The honest outcomes are four, and only one of them is "kapi was necessary":
-//
-//   - ENABLED   the gate is green with kapi and red without. The task was not
-//     reachable otherwise.
-//   - EASED     green both ways, and the unaided arm took visibly more work.
-//     kapi saved effort, which is a real claim and a smaller one.
-//   - NEITHER   same outcome, similar effort. The scenario is not evidence for
-//     kapi, and saying so is the point of measuring.
-//   - HINDERED  the unaided agent finished and the one with kapi did not. This
-//     had no name in the first version and was counted as "neither", which is
-//     the one place a taxonomy must not round: three scenarios landed here on
-//     the first fully gated sweep.
-//
-// AllContributions is the list, and the summary line and the dashboard both
-// iterate it. Naming them inline is how the fourth would go missing from a
-// total while every row still showed it.
+// These are observations of the evaluated runs, not proof that a task requires
+// kapi. AllContributions supplies the shared list for summaries and dashboards.
 
 // armSkill and armUnaided name the two conditions.
 const (
@@ -50,13 +23,9 @@ const (
 	armUnaided = "unaided"
 )
 
-// stripKapiFromPath removes every directory holding a kapi or toolbox binary,
-// so the unaided arm cannot reach one by accident.
-//
-// A developer's PATH has kapi in it, from Homebrew or from this checkout's
-// bin/. Leaving it there would mean the control arm measured an agent that had
-// kapi and merely lacked the skill, which is a different and much less
-// interesting question.
+// stripKapiFromPath removes directories containing kapi or toolbox binaries.
+// This prevents the control arm from using a developer-installed binary even
+// when the kapi skill is absent.
 func stripKapiFromPath(path string) string {
 	var kept []string
 	for _, dir := range filepath.SplitList(path) {

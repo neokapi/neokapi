@@ -115,15 +115,10 @@ func (a *App) findReviewSource(op *openProject, locale, file string) (project.Re
 	return project.ResolvedFile{}, "", fmt.Errorf("no content file resolves to target %q (%s)", file, locale)
 }
 
-// reviewUnitBlocks reads a review unit's source file, overlays its target file
-// for the locale, and returns the blocks twice: in DOCUMENT ORDER, and keyed by
-// their stable unit key. It is the same source-block+target-overlay pairing
-// RunChecks measures.
-//
-// The ordered slice is what makes a unit's neighbourhood available. A map
-// answers "which block is this" and cannot answer "what comes next", so a
-// caller holding only the map can show a reviewer a sentence with nothing
-// around it while the translate prompt had the paragraph.
+// reviewUnitBlocks reads a source file, overlays its locale's target file and
+// returns both document-ordered blocks and a lookup by stable unit key. This is
+// the same source/target pairing used by RunChecks. The ordered slice preserves
+// neighboring content for the review pane; the map supports direct unit lookup.
 func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.ResolvedFile, tgtPath, locale string) ([]*model.Block, map[string]*model.Block, error) {
 	pctx := project.NewProjectContext(op.Project, op.Path)
 	sourceLang := string(pctx.SourceLocale)
@@ -374,24 +369,14 @@ func targetEditable(b *model.Block, loc model.LocaleID) bool {
 	return isSinglePlainTextRun(t.Runs)
 }
 
-// ReviewQueue returns the project's unified review queue: every unit awaiting a
-// person, in one listing across the project's languages, the source language
-// among them. Source units carry IsSource and sort first.
+// ReviewQueue lists units awaiting review across all project languages. Source
+// units carry IsSource and sort first.
 //
-// The listing is narrowed to the project's Active Filter, and each translation
-// row is enriched with hasFindings, whether the unit currently trips any
-// registered checker — so the Review page can order findings-first and offer a
-// "clean only" batch. Enrichment is best-effort: a file that cannot be measured
-// leaves its rows unmarked, and a source row has no translation to check.
-//
-// Languages counts what is left after the filter rather than what the whole
-// project holds, so a language the reviewer can select always has rows behind
-// it.
-//
-// The filter is applied BEFORE enrichment, which is what makes it worth
-// threading twice over: enrichment runs every registered checker over every
-// item, and a project the size of the sample has thousands. A filter that only
-// hid rows afterwards would still pay for all of them.
+// The Active Filter narrows the queue before checker enrichment. Each target row
+// gets hasFindings so the UI can prioritize findings and offer clean-only batch
+// review. Filtering first avoids running every checker on hidden rows. Enrichment
+// is best-effort: unreadable files remain unmarked, and source rows have no target
+// to check. Languages counts only rows remaining after filtering.
 func (a *App) ReviewQueue(tabID string, filter ProjectFilter) (host.ReviewQueue, error) {
 	langs, lerr := canonicalLocales(filter.Languages)
 	if lerr != nil {
@@ -543,21 +528,14 @@ func (a *App) applyReviewDecision(tabID, locale, file, key, decision, note strin
 	return err
 }
 
-// UpdateReviewTarget writes an edited translation back into the unit's target
-// file through the same block-rewrite path the Checks panel's "Apply fix" uses
-// (format reader → mutate one block → format writer, atomically). The edit is
-// only applied when the unit's target content is a single plain text run — a
-// substring-level rewrite over runs carrying placeholders or paired codes could
-// corrupt the markup, so that case is refused with a clear error.
+// UpdateReviewTarget rewrites one translation atomically through the format
+// reader and writer, using the same path as the Checks panel's Apply fix action.
+// Only a single plain-text run is supported; substring edits to placeholders or
+// paired codes could corrupt markup and are rejected.
 //
-// After the write, any prior hash-bound decision for the unit is stale by
-// construction (decisions bind to the content hash of the text they judged), so
-// a subsequent approval blesses the NEW text.
-//
-// The edit is a production step, so it is recorded as one: a state record with
-// a human origin, the new translation's hash and the source it renders, and no
-// decision on it. The unit stays in the review queue until a reviewer approves
-// the wording they typed.
+// The new content hash invalidates earlier approvals. The edit records human
+// origin, the target hash and source basis without a review decision. The unit
+// remains in the review queue until a reviewer approves the new wording.
 func (a *App) UpdateReviewTarget(tabID, locale, file, key, text string) error {
 	op := a.getOpenProject(tabID)
 	if op == nil {

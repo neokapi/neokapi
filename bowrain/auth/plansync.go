@@ -5,17 +5,13 @@ import (
 	"fmt"
 )
 
-// PlanSyncer keeps the workspace record's cached plan (and Stripe customer ID) in
-// step with the billing subscription that is the source of truth. It satisfies
-// billing.WorkspacePlanSyncer structurally, so the billing package needs no
-// dependency on auth.
+// PlanSyncer updates the workspace's cached plan and Stripe customer ID from
+// billing subscription state. It implements billing.WorkspacePlanSyncer without
+// requiring billing to import auth.
 //
-// The cache exists because authorization reads the plan on every request
-// (WorkspaceAccessMiddleware → PlanGuard/QuotaGuard) and must not call the
-// billing store to do it. Every writer of a subscription — the checkout webhook,
-// the admin plan override, workspace creation's trial, and the trial sweeper —
-// syncs through here, which is why it lives in auth rather than in any one of
-// them.
+// Authorization reads the cache on each request. Subscription writers use this
+// adapter to update it, except the trial sweeper, which updates subscription and
+// workspace rows atomically in the billing store.
 type PlanSyncer struct {
 	Store AuthStore
 }

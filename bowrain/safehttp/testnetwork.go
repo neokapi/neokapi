@@ -5,19 +5,11 @@ import (
 	"sync/atomic"
 )
 
-// The dilemma this solves: a policy that refuses loopback and private address
-// space refuses every address a local test fixture could possibly bind to. So
-// a test either reaches its fixture or exercises the real client — and the one
-// that matters is the real client.
-//
-// The seam below replaces DNS resolution and the raw dial for policies built
-// after it, and nothing else. Every scheme and address check stays in the
-// path: a test names its fixture through a public hostname, the policy vets
-// that hostname's (documentation-range) answer exactly as it would in
-// production, and only the final connect is redirected to the listener. A test
-// that is refused has been refused by the shipping code.
-//
-// It cannot be reached from a production process — see [InstallTestNetwork].
+// Test networking replaces DNS resolution and dialing for policies created
+// after installation. Tests address fixtures through public hostnames that
+// resolve to documentation-range addresses. Production scheme and address
+// checks still run; only the final connection is redirected to the fixture.
+// InstallTestNetwork rejects use outside a test process.
 
 // testOptions holds the options appended to every policy built by [NewPolicy].
 // It is nil in any normal process.

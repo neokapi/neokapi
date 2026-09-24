@@ -7,57 +7,35 @@ import (
 	"sort"
 )
 
-// Prior answers for one block.
+// Version history groups content-memory entries by Entry.Unit. Rewriting a
+// block's source creates a new entry while retaining the approved earlier entry.
+// Versions are ordered by write time and may be restricted to one context point.
 //
-// The corpus has always accumulated versions. A block whose source is rewritten
-// writes a NEW entry — the key is the text, and the text moved — beside the one
-// that came before, which stays exactly as it was approved. What was missing was
-// any way to say those two entries are successive answers for the same block
-// rather than two unrelated strings that happen to share a project.
-//
-// Entry.Unit says it. So a version chain is a query, not a new store: the
-// entries are already there, ordered by when they were written, and the only
-// thing this adds is the ability to ask for them.
-//
-// This is deliberately NOT a matcher. A lookup asks "what has been approved for
-// something like this, near here" and ranks candidates; a version chain asks
-// "what did THIS block say before" and the answer is a fact with no score
-// attached. Ranking it would invite the caller to treat a prior version as a
-// match, which is the thing fuzzy matching did wrong.
+// History uses an exact block identity. Unlike fuzzy lookup, it returns prior
+// versions without ranking them as candidates for reuse.
 
 // VersionQuery selects a block's prior answers.
 type VersionQuery struct {
-	// Unit is the block whose chain to return. Required: an empty unit selects
-	// every entry approved before the chain existed, which is never a useful
-	// answer and is why this refuses rather than returning them.
+	// Unit identifies the block whose history to return. Required: entries with
+	// an empty unit cannot be associated with a specific block.
 	Unit string
-	// Point narrows the chain to answers approved at one place. Empty returns
-	// the chain across every point the block has sat at, which is what a caller
-	// reporting on a moved block wants and what a caller assembling context
-	// does not.
+	// Point restricts history to versions approved at one context point. Empty
+	// includes all points, including those the block occupied before a move.
 	Point string
 	// Limit caps how many are returned, newest first. Zero means DefaultVersionLimit.
 	Limit int
 }
 
-// DefaultVersionLimit is how many prior answers a chain returns when the caller
-// names no limit. One is the common case — the version immediately before this
-// one — and the rest are for a surface showing history; a caller that wants the
-// whole chain says so.
+// DefaultVersionLimit caps the history returned when a query has no limit.
 const DefaultVersionLimit = 10
 
 // Version is one prior answer, with what governed it when it was approved.
 type Version struct {
 	Entry Entry
-	// ContextFingerprint is the governing context this answer was produced
-	// under, lifted from the entry's most recent origin. Empty when the entry
-	// carries no origin that recorded one — an import, a seed, or a producer
-	// that ran ungoverned.
-	//
-	// It is the field a caller gates on. A prior answer whose fingerprint no
-	// longer matches the context in force was approved under rules that have
-	// since moved, and offering it as reference would anchor the model to
-	// wording those rules would now reject.
+	// ContextFingerprint identifies the governing context recorded in the entry's
+	// most recent origin with a fingerprint. Empty means no origin recorded one.
+	// Callers can compare it with the current context before using the version as
+	// reference material.
 	ContextFingerprint string
 }
 
@@ -69,10 +47,9 @@ func (v Version) GovernedBy(fingerprint string) bool {
 	return fingerprint != "" && v.ContextFingerprint == fingerprint
 }
 
-// VersionReader is the optional capability of returning a block's prior
-// answers. A content memory that cannot is not broken — an in-memory corpus
-// built for one run has no history worth the name — so callers type-assert for
-// it rather than requiring it of every implementation.
+// VersionReader is an optional capability for retrieving a block's history.
+// Callers use a type assertion because some content-memory backends have no
+// persistent history.
 type VersionReader interface {
 	// Versions returns a block's prior answers, newest first, excluding any
 	// entry whose ID matches excludeID (the answer currently in force, which
@@ -80,13 +57,9 @@ type VersionReader interface {
 	Versions(ctx context.Context, q VersionQuery, excludeID string) ([]Version, error)
 }
 
-// VersionsFrom builds the chain from entries already loaded, newest first. It is
-// the shared half of every backend's implementation: the selection is a query
-// the backend runs, and the ordering and trimming are not.
-//
-// Exported because a backend outside this package implements the same
-// capability: the server's Postgres corpus selects by unit and point in SQL and
-// then hands the entries here, so the two answer a chain identically.
+// VersionsFrom filters loaded entries and returns the most recent versions.
+// Backends can select entries in their own storage layer, then use this function
+// for consistent filtering, ordering and limits.
 func VersionsFrom(entries []Entry, q VersionQuery, excludeID string) []Version {
 	limit := q.Limit
 	if limit <= 0 {
@@ -122,10 +95,9 @@ func VersionsFrom(entries []Entry, q VersionQuery, excludeID string) []Version {
 	return out
 }
 
-// LatestFingerprint returns the governing fingerprint of an entry's most recent
-// origin, or empty when no origin recorded one. It is the fingerprint the
-// entry's answer stands under: what a version chain reports for it, and what a
-// re-seed carries back onto the decision record the answer was recorded for.
+// LatestFingerprint returns the fingerprint of the most recent origin that
+// recorded one, or empty if none did. Version history and decision re-seeding
+// use this value to identify the entry's governing context.
 func LatestFingerprint(e *Entry) string {
 	best := ""
 	var bestAt = e.CreatedAt
@@ -153,18 +125,13 @@ func (tm *InMemoryStore) Versions(ctx context.Context, q VersionQuery, excludeID
 	return VersionsFrom(entries, q, excludeID), nil
 }
 
-// ErrVersionQueryNeedsUnit rejects a chain query naming no block. Returning
-// every unit-less entry instead would answer with the whole pre-chain corpus,
-// which is the least useful possible answer and the easiest to mistake for a
-// working lookup.
+// ErrVersionQueryNeedsUnit reports a history query without a block identity.
+// Entries with no unit cannot establish that they belong to the same block.
 var ErrVersionQueryNeedsUnit = errors.New("memory: version query needs a unit")
 
-// Versions returns a block's prior answers from the SQLite corpus.
-//
-// The selection is a query — the (unit, point) index exists for it — and the
-// entries are hydrated through the same path every other read uses, so a
-// version carries the variants, entities and origins a caller needs to judge it
-// rather than a trimmed projection that would have to grow fields later.
+// Versions returns a block's history from the SQLite corpus. It selects entries
+// using the (unit, point) index and loads their variants, entities and origins
+// through the shared entry loader.
 func (tm *SQLiteStore) Versions(ctx context.Context, q VersionQuery, excludeID string) ([]Version, error) {
 	if q.Unit == "" {
 		return nil, ErrVersionQueryNeedsUnit

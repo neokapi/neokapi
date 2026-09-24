@@ -19,21 +19,17 @@ scenes:
 
 ## Story
 
-A terms store makes terminology consistent across your translations and across
-locales. `kapi terms` compiles the committed terms bundle and exposes
-lookup/search; `kapi exec term-check` flags terminology drift in target files
-before they ship — the same check `kapi up` binds after every pass, so a
-violating unit cannot lift its locale over the ship gate.
+A terms store records preferred wording across languages. This walkthrough uses
+`kapi terms` to inspect and search its contents, then `kapi exec term-check` to
+identify violations in a target file.
 
 ## Scene 1: terms-checks (terminal)
 
-Inspect the pre-seeded terms's stats, look up a
-specific term, search for related ones, then run `kapi pseudo-translate`
-followed by `kapi exec term-check ...` to see violations flagged in
-the output.
+Inspect the pre-seeded terms store's statistics, look up a term and search for
+related concepts. Run `kapi pseudo-translate`, then `kapi exec term-check ...`
+to inspect the resulting findings.
 
 ## Closing
 
-In a project, `kapi up` runs this check for you: terminology is a bound
-check, and a unit with findings holds its locale out of shipping until it
-is fixed.
+In a project, `kapi up` applies the bound terminology check after each pass.
+Failing findings prevent the affected content from meeting its ship gate.

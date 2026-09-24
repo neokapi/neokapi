@@ -1,40 +1,21 @@
 /**
- * run-projection — the one way to turn a Run sequence into something else.
+ * Projects Run sequences into display text, chips, segments or other values.
  *
- * A run sequence is the content model's ground truth, and every surface that
- * shows content has to project it into its own shape: a string, a chip, a
- * segment. The projection is where content gets lost, because the lossy version
- * of the loop is the one that is easy to write:
+ * Use a {@link RunSpec} to handle every kind in {@link RUN_KINDS}. Concatenating
+ * only runs with a text property silently drops placeholders, paired codes and
+ * plurals. The mapped type requires an explicit choice for each kind:
  *
- *     for (const r of runs) if (typeof r.text === "string") out += r.text;
+ *     text:   (run) => T                     render one value
+ *     plural: { expand: (run) => T[] }       render several values
+ *     ph:     { dropped: "why" }             omit intentionally
+ *     sub:    { unsupported: "why" }         report unsupported content
  *
- * That reads as "concatenate the text" and behaves as "silently delete every
- * placeholder, every paired code, every plural". It shipped three times in this
- * repository — a review pane whose source read "Your credits reset on ." beside
- * a target that showed the variable; a document preview that drew a plural
- * block as an empty line; a lab that measured segmentation over text no reader
- * ever saw. Nothing failed. The content was simply gone.
+ * Intentional omission supports projections such as offset domains, where inline
+ * codes have no width. Unsupported content is reported and uses the spec's
+ * required fallback.
  *
- * So a projection is *declared*, never written as a loop. A {@link RunSpec}
- * answers for every kind of run the model defines, and its type is a mapped
- * type over {@link RUN_KINDS} — leave `plural` out and the call site does not
- * compile. Each kind gets one of four answers, all of them explicit:
- *
- *     text:   (run) => T                     render it
- *     plural: { expand: (run) => T[] }       render it as several values
- *     ph:     { dropped: "why" }             contribute nothing, and say why
- *     sub:    { unsupported: "why" }         must not occur — report it if it does
- *
- * "Contribute nothing" stays available, because some projections genuinely have
- * no width for an inline code (an offset domain mirroring `model.RunsText`).
- * What is no longer available is contributing nothing by accident.
- *
- * Adding a kind to the model means adding it to {@link RUN_KINDS}, which breaks
- * every projection in the workspace until each has said what it does with it.
- * That is the point: the compiler asks the question reviewers forget.
- *
- * `scripts/check-run-projection.sh` guards the rule against a hand-rolled loop
- * growing back beside this one.
+ * Adding a kind to RUN_KINDS requires every projection to handle it before the
+ * code compiles. scripts/check-run-projection.sh rejects ad hoc projection loops.
  */
 
 /**
@@ -80,11 +61,9 @@ export type RunRule<R, T, K extends RunKind> =
   | { readonly unsupported: string };
 
 /**
- * A complete answer for every kind of run, plus what to show in place of a run
- * this projection cannot render — an `unsupported` kind, or one the model has
- * gained that this build does not know. `fallback` is required because the
- * alternative is the silence this module exists to prevent: whatever a surface
- * puts there, it puts *something*.
+ * Handles every known run kind and provides a fallback for unsupported content.
+ * The fallback also handles run kinds introduced by a newer engine, ensuring the
+ * projection displays a replacement instead of silently omitting content.
  */
 export type RunSpec<R, T> = {
   readonly [K in RunKind]: RunRule<R, T, K>;
@@ -120,11 +99,9 @@ export function setRunProjectionReporter(fn: RunProjectionReporter | null): void
 const reported = new Set<string>();
 
 /**
- * Loud where it can be — a thrown error under Node (tests, build steps, the
- * CLI), so a projection that meets a run it cannot render is fixed before it
- * ships. In a browser, a surface that throws mid-render is worse than one that
- * shows a marker, so the report goes to the console once per (kind, reason) and
- * the spec's fallback is drawn in the run's place.
+ * Throw in non-production Node environments so tests and build steps detect
+ * unsupported runs. In browsers, report each (kind, reason) once and render the
+ * spec's fallback, allowing the rest of the content to remain visible.
  */
 function defaultReporter(kind: string, why: string): void {
   const message = `run projection: cannot render a "${kind}" run — ${why}`;
@@ -150,8 +127,8 @@ export function projectRuns<R extends RunLike, T>(
   for (const run of runs) {
     const kind = runKindOf(run);
     if (kind === null) {
-      // A run this build has no discriminator for: a newer engine, or a payload
-      // that lost its shape. Either way it is content, and it is not silent.
+      // Handle unknown run kinds and malformed payloads through the required
+      // fallback so their content is visibly marked as unsupported.
       const why = "the run carries no discriminator this build knows";
       reporter("unknown", why);
       out.push(spec.fallback("unknown", why));

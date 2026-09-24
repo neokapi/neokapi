@@ -367,9 +367,8 @@ extracts:
 // two blocks: "Ready to go." and "Publish"
 ```
 
-What a conditional cannot rescue is a bare string literal in a branch
-(`{cond ? "A" : "B"}`), which stays opaque; see
-[Ternary with string literals as JSX children](#ternary-with-string-literals-as-jsx-children).
+Bare string literals in a conditional branch (`{cond ? "A" : "B"}`) are not
+extracted. See [Literals in a conditional’s branches](#literals-in-a-conditionals-branches).
 
 ### An element in a plain expression
 

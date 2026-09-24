@@ -11,7 +11,7 @@ const config: WalkthroughEmbedConfig = {
     {
       path: "voice.yaml",
       content:
-        'name: Lumen Notes\ndescription: Plain, direct product voice for Lumen Notes pages.\n\ntone:\n  personality: [clear, direct, calm]\n  formality: neutral\n  guidelines: Address the reader as "you". State what the product does; avoid hype.\n\nstyle:\n  active_voice: true\n\nvocabulary:\n  preferred_terms:\n    - term: sign in\n      note: not "log in"\n  forbidden_terms:\n    - term: utilize\n      replacement: use\n      severity: minor\n    - term: game-changing\n      replacement: ""\n      severity: major\n  competitor_terms:\n    - term: NoteCorp\n      replacement: other note apps\n      severity: major\n',
+        'name: Lumen Notes\ndescription: Plain, direct product voice for Lumen Notes pages.\n\ntone:\n  personality: [clear, direct, calm]\n  formality: neutral\n  guidelines: Address the reader as "you". State what the product does; avoid hype.\n\nstyle:\n  active_voice: true\n\nvocabulary:\n  preferred_terms:\n    - term: sign in\n      note: not "log in"\n  forbidden_terms:\n    - term: utilize\n      replacement: use\n      advisory: true\n    - term: game-changing\n      replacement: ""\n  competitor_terms:\n    - term: NoteCorp\n      replacement: other note apps\n',
     },
     {
       path: "product-page.md",
@@ -22,8 +22,7 @@ const config: WalkthroughEmbedConfig = {
   steps: [
     {
       command: "kapi stats product-page.md",
-      narration:
-        "A content-metrics overview — blocks, words, and a by-role breakdown — so you know the shape of what you are about to check.",
+      narration: "Inspect block and word counts, grouped by role, before checking the file.",
     },
   ],
 };

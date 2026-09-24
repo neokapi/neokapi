@@ -1231,35 +1231,17 @@ func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegi
 	return writer.Close()
 }
 
-// absorbBlockIntoMemory writes a block's source+target into the project content memory
-// with kapi-merge provenance. Returns (new, updated) counts. Today both
-// are 1-or-0 since we write one entry per block; tracking them separately
-// matters once we widen to per-segment.
+// memoryAbsorber stages merged source/target pairs with kapi-merge provenance
+// and writes them in one transaction at the end of the run. Batching reduces
+// contention from repeated small write transactions.
 //
-// A write failure is RETURNED, not swallowed. It used to be discarded (an
-// errored Add read as "0 new, 0 updated"), so a project content memory that had gone
-// read-only, or run out of disk, absorbed nothing while every merge reported
-// success. Callers treat it as non-fatal — the merged file is the deliverable —
-// but they report it.
-// memoryAbsorber collects what a merge run teaches the content memory and
-// writes it ONCE, at the end, in a single transaction.
+// The bulk path skips per-row FTS5 maintenance and rebuilds search and fuzzy
+// indexes afterward. This scans tm_variants even for a small merge, but avoids
+// holding the writer throughout file processing.
 //
-// Per-block writes were the natural shape when the content memory had a
-// database to itself: N small write transactions on a file nothing else touched.
-// In the merged store they contend with the block cache and the working set for
-// the same writer, and SQLite's deferred write transactions do not queue fairly
-// — a run of hundreds of one-row commits starves whichever writer arrives
-// second. One bulk transaction per run removes the contention rather than
-// tuning it.
-//
-// The trade is the index rebuild. The bulk path deliberately skips per-row FTS5
-// maintenance (it dominates on large corpora), so the search and fuzzy indexes
-// are rebuilt set-wise afterwards — one pass over tm_variants instead of a
-// tokenization per row. That is a whole-table pass for a run that may have
-// learned three entries, which is the cost of not holding the writer for the
-// length of the merge.
-//
-// Not safe for concurrent use: the merge loop is sequential, one file at a time.
+// Write errors are returned for callers to report. They do not invalidate the
+// merged files. The absorber is used by the sequential merge loop and is not
+// safe for concurrent use.
 type memoryAbsorber struct {
 	app     *App
 	tm      *memory.SQLiteStore

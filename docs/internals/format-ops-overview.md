@@ -1,25 +1,23 @@
 # Format Ops: Overview
 
-The one-page front door to how neokapi adopts and matures document formats.
-This is the *map*; the detailed docs are linked at the bottom.
+This overview explains how neokapi adopts formats, assesses their support and
+schedules maintenance. The detailed runbooks are linked below.
 
-neokapi's edge is faithful, deep processing of many native formats. The
-**format-ops framework** is how we keep that edge honest as formats and models
-change: it **measures** how good our support for each format is, **promises** a
-support level users can rely on, and **drives** the recurring work, with AI, to
-improve it.
+Format operations combines measured capabilities with declared support tiers.
+Audits identify gaps, and recurring maintenance tasks improve implementations
+as formats and models change.
 
-## Two things, kept separate
+## Support tiers and measured scores
 
-| | **The promise** (a tier) | **The score** (a vector) |
+| | **Support commitment** (a tier) | **The score** (a vector) |
 |---|---|---|
-| What | What users may rely on | How good our support actually is |
+| What | What users may rely on | Measured capabilities |
 | Values | **Supported** · **Maintained** · **Available** | one small ladder per axis |
 | Changes | only by a human-approved event | recomputed every audit, automatically |
-| Backed by | a CI gate (a tier with no gate is marketing) | deterministic file evidence |
+| Backed by | a CI gate | deterministic file evidence |
 
 The headline tier is the **minimum over the gating axes**, never an average. A
-format can score high on a non-gating axis and still be honestly "Maintained."
+format can score high on a non-gating axis and still qualify only as "Maintained."
 
 ## The axes, in three families
 
@@ -28,7 +26,7 @@ Each axis is a ladder (L0–L4, V0–V3, …). They group by the question they a
 **Comprehension: how deeply we read it**
 | Axis | | Measures | The ladder, roughly |
 |---|---|---|---|
-| Engine | L0–L4 | parse / round-trip / parity fidelity | reads → round-trips → spec'd → parity-verified → rock-solid |
+| Engine | L0–L4 | parse / round-trip / parity fidelity | reads → round-trips → spec'd → parity-verified → highest verified level |
 | Vocabulary | V0–V3 | inline meaning (bold, links, placeholders) survives into the canonical model | opaque → typed reading → bidirectional → loss-proven |
 | Structure & Geometry | G0–G4 | how much document structure & layout we recover | opaque → metadata → text → roles/tables/reading-order → +geometry/bboxes |
 | Prose | P0–P4 | how much of the comment layer kapi can locate, check and rewrite, per format and per source language | none → located → governed → editable → complete |
@@ -57,20 +55,18 @@ and bounding boxes* (G4).
 
 ## How a score is trustworthy
 
-Scores are **computed, not opinionated**. A deterministic floor (`audit-format.py`
-greps each format's files) pins each axis level; a model may only *demote* a few
-quality dimensions, and only with a cited file/test as evidence. A reproducibility
-check proves the floor alone fixes the level (no model swing). So re-runs, and
-new models, produce the same answer. The live results are the
-[`/format-maturity` dashboard](https://neokapi.github.io/format-maturity).
+The deterministic audit (`audit-format.py`) derives a capability floor from
+format files. A model may demote selected quality dimensions only with cited
+file or test evidence. A reproducibility check detects score variation.
+See the live [`/format-maturity` dashboard](https://neokapi.github.io/format-maturity).
 
 ## How it runs: the runbook
 
-The maintainer's whole job is to point Claude at the runbook on a loose cadence:
+Ask the assistant to run the format-ops skill at `.skills/format-ops/`.
+To inspect pending work without executing it:
 
-```
-"run the format-ops runbook"      → .skills/format-ops/
-node .skills/format-ops/scripts/due.mjs   # zero-cost: what's due, no run
+```bash
+node .skills/format-ops/scripts/due.mjs
 ```
 
 The runbook reads a committed **ledger** + live repo signals, computes what's
@@ -83,12 +79,12 @@ an approval queue for the maintainer; everything else is autonomous.
 
 ## Adding a new format
 
-```
-radar candidate → adoption-evidence bar → human accept
-  → implement-format skill (build it: reader/writer + spec + dossier/vocab/corpus/structure.yaml)
-  → triage-score discovers & scores it automatically (no list to edit)
-  → tier-review promotes Available → Maintained → Supported
-```
+1. Review the candidate against the adoption evidence requirements and obtain
+   maintainer approval.
+2. Run the implement-format skill to build the reader, writer and supporting
+   specifications, documentation and fixtures.
+3. Run triage-score to discover and assess the format.
+4. Use tier-review to propose promotion from Available to Maintained or Supported.
 
 ## Where the detail lives
 

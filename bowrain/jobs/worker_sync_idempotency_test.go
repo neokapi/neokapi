@@ -130,13 +130,9 @@ func TestProcessSyncPush_RedeliveredJobStoresOneCopy(t *testing.T) {
 	assert.Len(t, ids, 2, "each pushed block should still map to one stored row")
 }
 
-// TestProcessSyncPush_AnnotationWriteBackDoesNotDuplicate is the worker-level
-// reproducer for what #1527 actually was: not a redelivered push, but the
-// entity-extraction worker writing its annotated blocks back for the same item
-// moments after ingestion. Those blocks carry the internal ids the store minted
-// during ingestion, and storing them under an item name used to mint a *second*
-// row per block — two rows, same content_hash, different ids, which is the
-// signature the issue reports.
+// TestProcessSyncPush_AnnotationWriteBackDoesNotDuplicate verifies that entity
+// extraction can write annotated blocks back using their stored IDs without
+// creating duplicate rows for the same item.
 func TestProcessSyncPush_AnnotationWriteBackDoesNotDuplicate(t *testing.T) {
 	deps := newTestWorkerDeps(t)
 	ctx := t.Context()

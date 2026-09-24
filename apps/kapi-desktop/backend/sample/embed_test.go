@@ -133,8 +133,7 @@ func TestScaffoldShipsPartialCoverage(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "prose must not ship part-translated")
 }
 
-// The approvals that blessed the memory travel with it. Without them the
-// entries are answers nobody agreed to.
+// The sample must include approval records for its content-memory entries.
 func TestScaffoldShipsTheUnitStateLedger(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, Scaffold("kapimart", dir))

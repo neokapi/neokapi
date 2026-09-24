@@ -1,22 +1,21 @@
 # Tests and evals
 
-Everything kapi publishes as evidence lives at `/evals`, generated from
-`scripts/evalindex`. This is the working note for adding to it.
+The `/evals` page publishes evaluation evidence from `scripts/evalindex`.
+This guide explains how to register evaluations and publish their results.
 
 ## Three bands
 
-The top-level split is by **what an eval has under test**, because the subject
-decides what its numbers can mean.
+Evaluations are grouped by the subject under test.
 
 | Band | Subject | Evidence | Gates CI |
 | --- | --- | --- | --- |
 | Engine and formats | kapi's own code | deterministic | yes |
-| AI and context | what a model writes under governance | sampled | no |
+| AI and context | model output under governance | sampled | no |
 | Agent skills | an agent driving kapi | scenario-scored | no, never runs in CI |
 
-Inside a band the structure is the six AD series (F, E, C, M, A, S), so an eval
-sits beside the architecture decision describing what it measures, and a series
-with nothing behind it shows as a hole rather than as an absence from a list.
+Within each band, evaluations follow the six architecture decision series
+(F, E, C, M, A, S). Each evaluation appears beside its relevant decision.
+Series without evidence remain visible as coverage gaps.
 
 ## Adding an eval
 
@@ -32,92 +31,60 @@ index stale and its drift test fails. The format-maturity publish
 step, and `make pre-push` runs `go test ./scripts/evalindex/` whenever a
 dataset, the index, `scripts/evalindex/` or the Makefile changes.
 
-The tests will refuse the card unless every claim in it resolves: a `make`
-target must exist in the Makefile, a page must have a file, a dataset must
-exist, a judged eval must declare its validation or admit it has none. That is
-not ceremony. The first draft of the registry named four commands that do not
-exist and linked a page retired two releases earlier, and every one of them read
-perfectly plausibly.
-
-`Misses` is the field that makes a card evidence rather than advertising. A card
-that says only what it covers invites a reader to assume the rest, and the
-assumption is always more generous than the truth.
+Registration tests verify that each card references an existing Makefile target,
+page and dataset. Judged evaluations must declare their validation status.
+Use the `Misses` field to state limitations and unmeasured behavior.
 
 ## Datasets record their own date
 
-`scripts/evalindex/freshness.go` opens each dataset and takes the timestamp out
-of it. Do not type a date on a card: a hand-written date is a date nobody
-updates.
-
-Give a new harness a `generated` field. Without one the page cannot show an age,
-and a stale dataset reads exactly like a fresh one. That is how `/pseudobench`
-came to render results measured on 2026-05-20 from a file committed in July with
-nothing saying so.
-
-Record the **date only**, never a computed age. An age baked into a committed
-artifact is wrong the next morning, and the drift test that keeps the index
-honest would fail daily and be muted inside a week. The page does the
-subtraction.
+`scripts/evalindex/freshness.go` reads timestamps from datasets. Give new
+harness output a `generated` field so readers can assess its age. Do not
+enter dates manually on cards or store computed ages in committed artifacts;
+the page calculates age from the recorded date.
 
 ## Each card shows its number
 
-A status is not a result: "partial" is true of an eval at 96% and of one at 40%.
-`scripts/evalindex/headline.go` extracts one number per eval **from its dataset**
-and the row renders it before anyone clicks.
+`scripts/evalindex/headline.go` extracts a headline result from each dataset.
+Register an extractor there instead of entering a result manually on the card.
+`TestARegisteredHeadlineResolves` fails if a registered extractor returns no
+result, including when the dataset schema changes.
 
-Register an extractor there rather than typing the number on the card. A typed
-number goes wrong exactly the way a typed date does, and in the flattering
-direction. `TestARegisteredHeadlineResolves` fails if a registered extractor
-returns nothing, which is what happens when a dataset's shape moves under it.
-Three of the first five read keys that do not exist, and the only symptom was a
-blank column.
+Ensure comparisons use equivalent inputs. For example, comparing total engine
+runtimes is misleading when the engines succeed on different files. A speed
+comparison must use the files processed successfully by both engines.
 
-Pick the comparison the number claims to be, and check it is the one being
-computed. Engine speed divided the two engines' total wall times, and the
-engines do not succeed on the same files (725 against 802), so it compared one
-engine's corpus against another's. Summing only the files both read gives 23.8×
-where the totals gave 22.7×. Close enough that nobody would have caught it, and
-no reason the next run would be as kind.
+## Dataset publication guards
 
-## Two rules the committed datasets keep tripping over
+Two CI guards apply to published datasets:
 
-Both are CI guards, and both fail on a build that looks unrelated to whatever
-you changed.
-
-- **No absolute paths** (`scripts/check-abs-paths.sh`). An agent transcript or a
-  benchmark error carries the temp workspace and the developer's home. Run
-  recorded strings through a scrubber before they reach the file. Note the guard
-  allows the placeholder names `me`, `dev`, `demo`, `user`, `test`, `you`, since a
-  test for a path scrubber has to contain paths.
+- **No absolute home paths** (`scripts/check-abs-paths.sh`). Scrub recorded
+  paths before writing transcripts and benchmark errors. The guard permits
+  placeholder user names `me`, `dev`, `demo`, `user`, `test` and `you` for
+  path-scrubbing tests.
 - **No downstream product references** (`scripts/check-docs-bowrain-clean.sh`).
-  The datasets land under `web/src`, which the docs site serves and which is
-  held to zero mentions. Scenario text is under the suite's control and a test
-  keeps it clean; a transcript is not, because the shipped skill's own
-  description names the platform and an agent can repeat it on any scenario.
+  Content published under `web/src` must follow this rule, including scenario
+  text and agent transcripts.
 
-  `skilleval` withholds the transcript rather than refusing the run. Refusing
-  was the first version, and it threw away a seventeen-scenario sweep for one
-  word in one closing message. The result keeps its verdict, gate, message
-  counts and file changes and loses the prose, and the omission is recorded on
-  the result and counted on the report so the page can say what is missing. An
-  omission a reader can see is not a quiet rewrite. The guard applies only when
-  publishing under `web/src`; a run sent elsewhere with `-out` is for reading.
+When a transcript contains a downstream product reference, `skilleval` omits
+it from publication and records the omission. The result retains its verdict,
+gate results, message counts and file changes. The report counts omissions so
+readers can see what evidence is unavailable. This publication guard does not
+apply to runs written elsewhere with `-out`.
 
 ## Evals that spend
 
-Anything calling a model commits its dataset; a build cannot be asked to pay for
-it. State the sampling settings on the card, and pin them in the harness:
+Evaluations that call a model commit their datasets so builds can use the
+results without making paid calls. Record sampling settings on the card and
+set them explicitly in the harness:
 
 ```go
-Temperature: new(0.0)   // greedy, so a re-run lands on the same numbers
+Temperature: new(0.0)   // request greedy decoding
 ```
 
-Set it with `new(expr)`. `Config.Temperature` is a `*float64` because 0 is a
-real request rather than an absent one, and it used to be a bare `float64` with
-`omitempty`, which made greedy decoding the one value you could not ask for.
-Worse, four of six providers accepted the field and never sent it, so every eval
-in this repo sampled at whatever the API defaulted to and none of them wrote it
-down. `TestEveryProviderSendsTemperature` keeps that from coming back.
+`Config.Temperature` is a `*float64` so an explicit zero remains distinct from
+an omitted setting. `TestEveryProviderSendsTemperature` verifies that providers
+forward the configured value. A fixed temperature reduces sampling variation;
+it does not guarantee identical results across runs.
 
 ## Validating a judge
 
@@ -131,27 +98,19 @@ make judge-label        # answer y/n per criterion, resumable, roughly 20 minute
 make judge-validate     # measure Cohen's kappa and record it in the history
 ```
 
-The loop is blind on purpose. It never shows the judge's verdict, the model, or
-whether the translation came from the steered or the bare pass, because a
-labeller who sees any of them agrees with it and the result becomes a
-measurement of suggestibility. Items are shuffled deterministically, so fatigue
-does not correlate with condition, and the same seed replays the same order on
-a resume.
+Labeling hides the judge's verdict, producing model and experimental condition
+to reduce bias. Items are shuffled with a fixed seed, preserving the order
+when a session resumes. Record uncertain items as skipped; the report counts
+them separately.
 
-"I am not sure" is an answer. A forced guess is noise that kappa cannot tell
-from disagreement, and it drags the estimate toward chance in a way that looks
-like a bad judge. Skipped items are recorded and counted.
-
-The floor is 100 items and a session aims for 150. Thirty was the old number
-and it was optimistic: a kappa over thirty items carries an interval wide
-enough to span "substantial" and "poor", which is the situation this exercise
-exists to get out of.
+The minimum is 100 labeled items, with a target of 150 per session. Smaller
+samples can produce confidence intervals too wide to assess agreement.
 
 ## Evals that drive an agent
 
 `scripts/skilleval` runs the agent-skill and MCP scenarios. It never runs in CI:
-it drives `claude -p` with local credentials and real money, so the committed
-dataset is all a build sees, and the date on it is the real currency.
+it drives `claude -p` with local credentials and consumes account allowance.
+Builds use the committed dataset and display its measurement date.
 
 ```bash
 make skill-eval             # does the skill fire (cheap, 4-turn cap, 3 repeats)
@@ -163,79 +122,40 @@ The same program runs the agent evaluation, which scores whether agents apply
 and record a project's conventions against a generated fixture's answer key.
 Its phases and budget are in the [agent evaluation runbook](agent-evaluation.md).
 
-Four things about scenarios are worth knowing before writing one:
+When adding a scenario:
 
-- **The fixture is the scenario.** A prompt about `pitch.pptx` in an empty
-  directory tests nothing, and a "sweep `docs/`" scenario whose `docs/` holds
-  only Markdown correctly does *not* trigger, because native grep is the better
-  tool there. Both look like skill defects and neither is. The cross-format
-  sweep searched for a word its `.docx` did not contain and so only ever spanned
-  the Markdown file; it now renames a product appearing nine times inside two
-  binaries.
-- **Triggering and finishing are different budgets.** Four turns is plenty to
-  see a skill fire and stops a positive running away into metered translation.
-  Completing takes tens of turns, and gates that failed at eight passed at
-  forty, which measured the cap rather than the skill.
-- **A scenario with no gate is not a pass.** It has no definition of done, so
-  nothing about it was verified; the verdict is `no gate` and it is counted
-  separately. Scoring those on triggering once read as "17 pass" on a sweep
-  where three scenarios were checked and two of the three failed.
-- **A gate that touches a project needs `-p .`.** The isolation contract sets
-  `KAPI_NO_PROJECT=1`, so discovery is off and a bare `kapi status` cannot find
-  the recipe the agent just wrote.
+- **Provide realistic fixtures.** Every file named in the prompt must exist.
+  A cross-format task needs content in multiple formats; a Markdown-only task
+  may be better served by native search tools.
+- **Separate trigger and completion budgets.** Trigger mode uses a short turn
+  cap to check skill selection. Completion mode needs enough turns to finish
+  the task and run its gate.
+- **Define a completion gate.** Scenarios without one receive `no gate` and
+  are counted separately from passes.
+- **Pass `-p .` to project commands in gates.** The isolation contract sets
+  `KAPI_NO_PROJECT=1`, disabling automatic recipe discovery.
 
-Run each new gate by hand first, in both directions, against a workspace shaped
-like the one an agent leaves behind. A gate that cannot fail proves nothing, and
-one that cannot pass wastes a metered sweep discovering its own bug.
-
-`TestAGateIsRedBeforeTheAgentRuns` now does that automatically: it builds every
-scenario's fixture and runs the gate against it, requiring a red exit. Reading
-the gate as a string was the first version and it missed three, all green before
-the agent started. One asked `kapi voice check`, which accepts any YAML at all:
-every profile field is optional, so an empty file scores 100/100 with no
-findings, and a directory merely containing a `.yaml` satisfied it. Use
-`kapi voice validate` when the question is whether a profile is usable.
-
-The fixtures need the same treatment. Both project fixtures were invented, and
-every key was wrong. `version: "1"` where the loader wants `v1`,
-`source:`/`targets:` for `source_language`/`target_languages`, `include:` for
-`content: - path:`. Only the last was ever reported, because `Defaults` and
-`Collection` end in an inline `Extras` map and an unrecognised key is preserved
-rather than rejected ([#2223](https://github.com/neokapi/neokapi/issues/2223)).
-Agents were handed a project kapi refuses to load, and the sweep said nothing.
-`TestEveryFixtureRecipeLoads` loads every fixture recipe through kapi.
+Run each gate against both incomplete and completed workspaces.
+`TestAGateIsRedBeforeTheAgentRuns` verifies that every gate fails against its
+initial fixture. Use `kapi voice validate` to assess whether a profile is
+usable: a check alone can report no findings for an empty profile.
+`TestEveryFixtureRecipeLoads` verifies fixture recipes through kapi's loader.
 
 ### The session is published, not summarised
 
-Each run's whole conversation is recorded: every assistant message, every tool
-call with its arguments, and every tool result, which is what the agent read
-before its next move. The dataset carries counts and a deduplicated tool list,
-which answer what the agent reached for and cannot answer why it did.
+Each session records assistant messages, tool calls and tool results. These
+records let readers investigate outcomes beyond the dataset's counts and tool
+list.
 
-Why is the question a surprising verdict raises, and the one this work kept
-needing. #2227 was found by reading a transcript that showed an agent produce a
-correct ten-block change-set and then spend a 40-turn budget on the single
-rejection. That reading happened on one laptop, from a run nobody else could
-see.
+Per-scenario transcripts are staged under `web/static/skill-eval/transcripts/`
+and published to the documentation CDN with the run artifacts. The page fetches
+a transcript when its row is opened, keeping it out of the main dataset bundle.
+Transcripts retain complete messages and tool results. `Run.record` scrubs
+paths before storing events.
 
-Sessions are written per scenario to `web/static/skill-eval/transcripts/` and
-fetched when a reader opens the row, because the page imports the dataset into
-its bundle and a session is much larger than a summary. Three things about them:
-
-- **Everything is scrubbed on the way in.** `Run.record` is the only way an
-  event is built, so no caller can forget. A transcript otherwise carries the
-  temp workspace, the developer's home directory, and whatever the agent
-  printed of either, into a file `scripts/check-abs-paths.sh` sweeps.
-- **A session is capped**, at 400 events and 256KB, with each message clipped to
-  3,000 characters and each tool argument and result to 1,200. A capped session
-  says how many events it dropped rather than ending as though the agent
-  stopped.
-- **Pruning is per surface.** `-only mcp` replaces the MCP transcripts and
-  leaves the skill ones alone, for the same reason the dataset merges by
-  surface: that run measured nothing about the others and cannot replace them.
-
-A run written elsewhere with `-out` keeps its events inline instead, so one file
-is still one whole record; `-transcripts <dir>` puts them wherever you want.
+Pruning is scoped to the evaluated surface: `-only mcp` replaces MCP
+transcripts while retaining skill transcripts. A run written elsewhere with
+`-out` keeps events inline. Use `-transcripts <dir>` to write separate files.
 
 ## What the control arm found
 
@@ -245,29 +165,26 @@ The first fully gated sweep with the unaided control, over 17 scenarios:
 kapi enabled 3, eased 1, hindered 3, neither 10
 ```
 
-`hindered` means the agent with kapi failed where the unaided one passed. It had
-no name in the first version, which counted it as `neither` and put it beside
-scenarios where both arms sailed through. Three of seventeen is the number that
-would have been lost.
+`hindered` means the agent with kapi failed where the unaided one passed. This outcome is counted separately from scenarios where both arms succeed or
+both fail.
 
 Two of the three are the same failure: **the kapi route extracts a catalog and
 stops.** p09 produced `i18n/src/App.klf` and never touched `src/App.jsx`; p14
 produced the catalog, edited `App.jsx`, and left `<h1>Welcome back, Alex</h1>`
 in it. Neither app is translatable, and both look finished from the catalog
-alone. That is why the gate asks for the string to have left the component as
-well: a catalog beside an untouched component is the likelier half-finished
-outcome, and it is what an agent following the extraction path produces.
+alone. The completion gate therefore checks both catalog creation and removal of
+the hardcoded string from the component.
 
 The third is #2227.
 
 The counts are also not the whole comparison. The unaided arm was shorter on
 most scenarios and often several times shorter, so the page reports the message
-totals beside the outcome counts. kapi reaches answers the unaided agent cannot,
-and it is not the cheaper route to the ones it can.
+totals beside the outcome counts. In this sweep, some tasks required kapi, while others took fewer messages
+without it.
 
 ## Where the gaps are
 
-`/evals` is the answer, and it is generated, so it does not go stale here.
+See the generated `/evals` page for current coverage gaps.
 
 Building the last four evals turned up five bugs, four of them since fixed, and they are
 worth keeping here because in each case the eval's first result was about kapi

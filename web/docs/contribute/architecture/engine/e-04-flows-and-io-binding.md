@@ -82,10 +82,8 @@ I/O sits outside the flow, leaving three concepts, each with exactly one job:
   (sink). A binding belongs to neither the tool nor the flow; it is supplied by
   the invocation and the project.
 
-A flow is **composition, and only composition.** It owns no I/O, and a single
-tool is not a flow: a lone tool is invoked directly as a tool command, and
-`kapi flows` lists only the compositions. The flow noun earns its place by
-carrying the four things a flat list of tool names cannot:
+Invoke a single tool directly as a tool command. Use a flow to compose tools;
+`kapi flows` lists these compositions. A flow provides:
 
 - **Configuration**: a flow pins each tool's settings, so it is a *configured*
   recipe (`recycle{fuzzy:75}` → `translate{provider:anthropic}` → `qa`), not

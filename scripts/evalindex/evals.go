@@ -1,15 +1,8 @@
 package main
 
-// The cards. One per eval, including the ones that do not exist.
-//
-// Grouped by the layer that lists them. An absent eval carries the same card as
-// a measured one minus its data, because the useful thing about a gap is the
-// shape of what is missing rather than the fact of it.
-//
-// Every Reproduce, Page and Data here is checked against the repository by the
-// companion tests. Authoring this file the first time named four commands that
-// do not exist and one page that was retired, which is the argument for the
-// tests rather than against the registry.
+// Evaluation descriptions, grouped by the architecture layer they measure.
+// Entries include unmeasured areas so readers can identify coverage gaps.
+// Tests verify reproduction commands, page links and dataset paths.
 
 var evals = []Eval{
 	// ==========================================================================
@@ -31,34 +24,37 @@ var evals = []Eval{
 
 	// --- E, Engine ------------------------------------------------------------
 	{
-		ID:        "parity",
-		Title:     "Filter parity against upstream Okapi",
-		Method:    MethodDeterministic,
-		Status:    StatusPartial,
-		Corpus:    "The Okapi Framework's own filter test suite, mapped onto neokapi's readers.",
-		Covers:    "Whether a document read by neokapi produces the same content model as the Java implementation it descends from, per format.",
-		Misses:    "Publishes nothing. The report lands in a gitignored sandbox and the dashboard that used to render it was retired, so the result is visible only to whoever ran it. Formats with no upstream counterpart are unmeasurable this way, and a known-failure list is carried rather than fixed.",
+		ID:     "parity",
+		Title:  "Filter parity against upstream Okapi",
+		Method: MethodDeterministic,
+		Status: StatusPartial,
+		Corpus: "The Okapi Framework's own filter test suite, mapped onto neokapi's readers.",
+		Covers: "Whether a document read by neokapi produces the same content model as the Java implementation it descends from, per format.",
+		Misses: "The report is written to a gitignored sandbox and has no published dashboard. Formats without an " +
+			"upstream counterpart cannot be compared this way. Known failures are listed separately.",
 		Reproduce: "make parity-test",
 	},
 	{
-		ID:        "format-maturity",
-		Title:     "Format maturity, L0 to L4",
-		Method:    MethodDeterministic,
-		Status:    StatusMeasured,
-		Corpus:    "Every registered format, scored against a fixed rubric.",
-		Covers:    "How far each format has been taken: read, write, round-trip, inline codes, faithful write-back.",
-		Misses:    "A rubric level is a claim about capability, not about quality on your documents.",
+		ID:     "format-maturity",
+		Title:  "Format maturity, L0 to L4",
+		Method: MethodDeterministic,
+		Status: StatusMeasured,
+		Corpus: "Every registered format, scored against a fixed rubric.",
+		Covers: "How far each format has been taken: read, write, round-trip, inline codes, faithful write-back.",
+		Misses: "Rubric levels summarize tested capabilities. Results on your documents require separate " +
+			"verification.",
 		Reproduce: "/format-ops triage-score",
 		Data:      "web/static/data/format-maturity.json",
 		Page:      "/format-maturity",
 	},
 	{
-		ID:        "engine-speed",
-		Title:     "Engine throughput",
-		Method:    MethodBenchmark,
-		Status:    StatusMeasured,
-		Corpus:    "844 fixtures on the pseudo-translation path, which exercises read and write without a model, across four engines.",
-		Covers:    "How fast each engine moves content when no provider is in the way, with the count of files whose output actually contains pseudo-translated text beside the timing, so an engine that is fast because it read less is visible as such.",
+		ID:     "engine-speed",
+		Title:  "Engine throughput",
+		Method: MethodBenchmark,
+		Status: StatusMeasured,
+		Corpus: "844 fixtures on the pseudo-translation path, which exercises read and write without a model, across four engines.",
+		Covers: "Engine throughput without model calls. Each timing includes the count of outputs containing " +
+			"pseudo-translated text, so incomplete processing is visible alongside speed.",
 		Misses:    "Isolates the engine deliberately, so it says nothing about a run that calls a model. One machine, one platform.",
 		Reproduce: "make bench-stress",
 		Data:      "web/static/data/pseudobench.json",
@@ -70,19 +66,22 @@ var evals = []Eval{
 		Method:    MethodBenchmark,
 		Status:    StatusMeasured,
 		Corpus:    "The bundled ML models, on one machine's runtime.",
-		Covers:    "What a user pays in download size, cold start, per-sentence inference and resident memory.",
+		Covers:    "Model download size, cold-start time, per-sentence inference time and resident memory.",
 		Misses:    "Measured on one platform. A different runtime or accelerator moves every number.",
 		Reproduce: "python3 scripts/ml-benchmark.py",
 		Data:      "web/src/pages/ml-benchmark/_benchmark.json",
 		Page:      "/ml-benchmark",
 	},
 	{
-		ID:        "conversion-comparison",
-		Title:     "How much of a document each converter keeps",
-		Method:    MethodComparative,
-		Status:    StatusPartial,
-		Corpus:    "The Okapi Framework's own integration-test resources: real .docx, .pptx and .xlsx collected by another project for another purpose, which is what makes them a fair test rather than a demonstration.",
-		Covers:    "Text-extraction completeness against ground truth read from each document's own XML parts, so no converter's output stands in for the answer, plus how long each conversion took. Compared per format, because the tools accept different ones and a single column would rank them by what they declined.",
+		ID:     "conversion-comparison",
+		Title:  "How much of a document each converter keeps",
+		Method: MethodComparative,
+		Status: StatusPartial,
+		Corpus: "DOCX, PPTX and XLSX documents from the Okapi Framework's integration-test resources, collected " +
+			"independently of this comparison.",
+		Covers: "Text-extraction completeness against reference text read directly from each document's XML " +
+			"parts, together with conversion time. Results are grouped by format because the converters " +
+			"support different inputs.",
 		Misses:    "Text only. Structure and ordering are not compared, so a converter that flattens every heading scores the same as one that keeps the outline. Headers, footnotes, comments and speaker notes are excluded because converters disagree about whether they belong in the output. Only the converters installed on the machine that ran it appear.",
 		Reproduce: "make conversion-eval",
 		Data:      "web/src/pages/conversion-eval/_conversioneval.json",
@@ -122,40 +121,53 @@ var evals = []Eval{
 		// Validation is deliberately empty: see Status.
 	},
 	{
-		ID:        "context-value",
-		Title:     "What context injection is worth",
-		Method:    MethodJudged,
-		Status:    StatusUnvalidated,
-		Spends:    true,
-		Corpus:    "A synthetic brand corpus with a fixed rubric, swept across models.",
-		Covers:    "Whether a model given voice guidance and terminology produces output that needs less correction than one that is not.",
-		Misses:    "Judge-to-human agreement is gated at 30 labelled items; the literature puts the useful floor at 100 to 200, and no sweep has cleared even the lower bar.",
-		Settings:  "Temperature 0 on every swept model, pinned in the harness. The committed sweep predates the field that records it, so the dataset carries no temperature of its own until the next one. Max tokens follow each model's ceiling. No seed: the APIs expose none.",
+		ID:     "context-value",
+		Title:  "What context injection is worth",
+		Method: MethodJudged,
+		Status: StatusUnvalidated,
+		Spends: true,
+		Corpus: "A synthetic brand corpus with a fixed rubric, swept across models.",
+		Covers: "Whether a model given voice guidance and terminology produces output that needs less correction than one that is not.",
+		Misses: "Publication requires Cohen's kappa of at least 0.6 on at least 100 labelled items. " +
+			"The committed judge validations have not passed that gate.",
+		Settings: "The current harness sets temperature to 0, but the committed runs contain no temperature field. " +
+			"Max tokens follow each model's ceiling. No seed is available from the APIs.",
 		Reproduce: "make context-eval",
 		Data:      "web/src/pages/context-eval/_contexteval.json",
 		Page:      "/context-eval",
 	},
 	{
-		ID:        "authoring-effect",
-		Title:     "Whether the voice guide steers writing or just improves it",
-		Method:    MethodBenchmark,
-		Status:    StatusPartial,
-		Spends:    true,
-		Corpus:    "Six briefs about a synthesized product, each written twice by one model: once bare, once with `kapi voice guide` as the system turn. Both versions scored against the profile the guide came from and against a contrast profile that wants the opposite.",
-		Covers:    "Whether the guide moves writing toward its own profile specifically. Any competent writing guidance raises any reasonable score, so the reference gain alone proves nothing; the measurement is the difference between the two gains. Guided writing gained 5.8 points against the reference profile and lost 6.7 against the contrast, an effect of 12.5. The mechanism is visible in the findings: passive constructions fell from 11 to 4 across the six documents, and the writing moved to second person.",
-		Misses:    "Six documents on one model, and each arm turns on a single rule. Every point the reference arm gained is passive-voice reduction: the model never reached for a forbidden term in either condition, so those rules contributed nothing. Every point the contrast arm lost is the pronoun shift, since that profile declares three forbidden terms and no patterns. The two arms moving in opposite directions is real, and it is two mechanisms rather than a broad effect. The declared fields (person, sentence length) are in the guide the model read and not in the score, because nothing offline evaluates them.",
+		ID:     "authoring-effect",
+		Title:  "Effect of voice guidance on profile adherence",
+		Method: MethodBenchmark,
+		Status: StatusPartial,
+		Spends: true,
+		Corpus: "Six briefs about a synthetic product, each written with and without `kapi voice guide` as the " +
+			"system turn. Both versions are scored against the reference profile and a contrasting profile " +
+			"with opposing requirements.",
+		Covers: "Whether guidance improves adherence specifically to its own profile, measured as the difference " +
+			"between score changes for the reference and contrasting profiles. Guided writing gained 5.8 " +
+			"points against the reference profile and lost 6.7 against the contrast, a difference of 12.5. " +
+			"Passive constructions fell from 11 to 4 across the six documents, and the writing shifted to " +
+			"second person.",
+		Misses: "Six documents on one model. The reference gain comes entirely from reduced passive voice; " +
+			"neither condition used forbidden terms. The contrast loss comes from the pronoun shift under a " +
+			"profile with three forbidden terms and no patterns. These results demonstrate two specific " +
+			"effects. Declared person and sentence-length fields are supplied in the guide but have no " +
+			"offline scoring implementation.",
 		Settings:  "Temperature 0, and the user turn is byte-identical across arms. The bare arm has no system turn at all rather than a placebo one.",
 		Reproduce: "make authoring-eval",
 		Data:      "web/src/pages/authoring-eval/_authoringeval.json",
 		Page:      "/authoring-eval",
 	},
 	{
-		ID:        "voice-infer-quality",
-		Title:     "Whether an inferred voice profile is usable",
-		Method:    MethodDeterministic,
-		Status:    StatusPartial,
-		Spends:    true,
-		Corpus:    "The corpus's on-profile half was written from a reference profile, so recovery is checkable field by field rather than by asking a judge: the reference is not an opinion about a good draft, it is the thing the material expresses.",
+		ID:     "voice-infer-quality",
+		Title:  "Whether an inferred voice profile is usable",
+		Method: MethodDeterministic,
+		Status: StatusPartial,
+		Spends: true,
+		Corpus: "Documents written to a known reference profile. The inferred profile is compared with that " +
+			"reference field by field.",
 		Settings:  "claude-code:sonnet, one inference over the whole corpus rather than one per file. Six minutes is the budget: a local model could not finish inside kapi's own HTTP timeout to it.",
 		Covers:    "How much of the reference profile a draft recovers, field by field. 5 of 9 on claude-code:sonnet from six documents: formality, humor, sentence length, person and active voice all correct; personality a third right.",
 		Misses:    "One run on one model over six documents. Two of the four misses say something about the tool rather than the model: it recovered no forbidden terms at all, which a corpus written TO a profile cannot teach since it contains no violations, and it answered `emotion` with \"calm and reassuring\" where the schema takes an enum, so the draft did not validate. Inferring what to forbid needs a corpus that breaks the rules.",
@@ -167,7 +179,7 @@ var evals = []Eval{
 	// --- M, Multilingual ------------------------------------------------------
 	{
 		ID:        "prompt-contents",
-		Title:     "What each call actually sends",
+		Title:     "Prompt contents sent to the model",
 		Method:    MethodDeterministic,
 		Status:    StatusMeasured,
 		Corpus:    "The prompts built for the reuse evals, captured as they went to the model.",
@@ -178,15 +190,17 @@ var evals = []Eval{
 		Page:      "/coordinate",
 	},
 	{
-		ID:        "batching-cost",
-		Title:     "What batching costs and saves",
-		Method:    MethodBenchmark,
-		Status:    StatusMeasured,
-		Spends:    true,
-		Corpus:    "600 blocks swept across four batch sizes on two models, plus the earlier sweeps kept in the same history.",
-		Covers:    "Throughput and structural integrity as blocks per call rises, priced per model. Both models hold every block to 128 per call and neither can answer at 600.",
-		Misses:    "Concurrency is recorded because throughput depends on it, so two models swept at different concurrencies cannot be raced on speed. Segmentation (M-02) is not measured at all, and it decides what a block is before any of this runs.",
-		Settings:  "Temperature 0, pinned in the harness. The committed sweep predates the field that records it, so the dataset carries concurrency but not temperature until the next one. No seed: the APIs expose none.",
+		ID:     "batching-cost",
+		Title:  "What batching costs and saves",
+		Method: MethodBenchmark,
+		Status: StatusMeasured,
+		Spends: true,
+		Corpus: "600 blocks swept across four batch sizes on two models, plus the earlier sweeps kept in the same history.",
+		Covers: "Throughput and structural integrity as blocks per call rises, priced per model. Both models hold every block to 128 per call and neither can answer at 600.",
+		Misses: "Throughput comparisons require matching concurrency settings, which are recorded in the dataset. " +
+			"Segmentation (M-02) is not measured by this evaluation.",
+		Settings: "The current harness sets temperature to 0. The committed runs record concurrency but omit " +
+			"temperature. No seed is available from the APIs.",
 		Reproduce: "make batch-eval",
 		Data:      "web/src/pages/batch-eval/_batcheval.json",
 		Page:      "/batch-eval",
@@ -206,11 +220,13 @@ var evals = []Eval{
 		Page:      "/check-eval",
 	},
 	{
-		ID:        "authoring-checks",
-		Title:     "Whether the voice checks find real violations",
-		Method:    MethodLabelled,
-		Status:    StatusPartial,
-		Corpus:    "Twelve synthesized documents about one product: six written to a voice profile, six written against it with 18 violations marked. The clean half is what makes false positives measurable.",
+		ID:     "authoring-checks",
+		Title:  "Whether the voice checks find real violations",
+		Method: MethodLabelled,
+		Status: StatusPartial,
+		Corpus: "Twelve synthetic documents about one product. Six comply with the voice profile and are used to " +
+			"measure false positives. Six intentionally violate it, with 18 marked violations for measuring " +
+			"recall.",
 		Covers:    "Recall over the marked violations, split by how the profile expresses each rule, for the offline check and the LLM one side by side. Offline finds 94%: every prohibited pattern, every forbidden term, and none of the declared fields, which nothing offline evaluates. It raises a finding on 3 of the 6 clean documents, all from one over-broad passive regex.",
 		Misses:    "The corpus is synthesized, which is disclosed in the data itself. The declared fields (active_voice, person_pov, sentence_length) have no offline implementation at all, so their row is a property of the design rather than a defect to fix. And a rule stated as a regex is only as good as the regex: every false positive here is one passive-voice pattern firing on a predicate adjective. The term row reads 13 of 13 because the reference profile declares each term's other forms, which is what `kapi voice expand` writes; a profile whose terms were typed by hand and never expanded matches the bare string only, and scores lower here than it would in a language with less inflection.",
 		Reproduce: "make authoring-eval",
@@ -250,7 +266,7 @@ var evals = []Eval{
 		Spends:  true,
 		Local:   true,
 		Corpus:  "15 of the positive scenarios driven to the end in a sandboxed kapi with isolated config, data, cache and plugins.",
-		Covers:  "That the agent does not merely start: it drives the loop to a green gate, with kapi check --ship or kapi check passing.",
+		Covers:  "Whether the agent completes the task with a passing kapi check --ship or kapi check result.",
 		Misses: "Scored at catalog-gate depth by decision, so in-locale rendering is never verified. " +
 			"Two scenarios are blocked on a private npm registry absent from the sandbox rather than on any skill defect.",
 		Settings:  "claude -p in a sandboxed kapi, Gemini via env. Turn caps vary by scenario; sampling is not recorded.",
@@ -267,7 +283,8 @@ var evals = []Eval{
 		Spends:  true,
 		Local:   true,
 		Corpus:  "Seven tasks with one right answer each among the nineteen tools the server advertises, plus one task no tool should answer. Three passes each.",
-		Covers:  "The other door into kapi. An MCP client already holds the tool list, so it cannot fail to notice kapi; it fails by reaching for the wrong tool, and a near miss names two descriptions that are not telling each other apart.",
+		Covers: "Whether an agent selects the appropriate MCP tool from the advertised list. Incorrect selections " +
+			"can identify descriptions that need clearer distinctions.",
 		Misses: "Seven of nineteen tools have a scenario. The review and approval tools, redaction and translate are unmeasured. " +
 			"A wrong pick is recorded rather than diagnosed, and the negative is one prompt.",
 		Settings:  "claude -p with --strict-mcp-config, so the run sees this checkout's server and nothing the developer has configured. Each scenario keeps its own turn budget, because picking a tool can take a step or two. Sampling is not pinned.",

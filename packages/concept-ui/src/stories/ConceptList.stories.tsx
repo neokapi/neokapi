@@ -41,9 +41,8 @@ export const FilteredToPromotions: Story = {
 // ── Naming across locales ────────────────────────────────────────────────────
 
 /**
- * Terms listed Arabic first, each preferred in its own locale — the shape a
- * pushed multilingual store arrives in. Which term heads the card is the whole
- * point of these stories.
+ * Arabic terms appear first, with a preferred term in each locale. These
+ * stories verify which term is selected for the card heading.
  */
 const MULTILINGUAL: Concept[] = [
   {

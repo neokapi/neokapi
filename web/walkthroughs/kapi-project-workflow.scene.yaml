@@ -120,27 +120,27 @@ files:
 steps:
   - comment: A .kapi project keeps config-as-code — languages, content, flows — in a committed recipe beside a .kapi/ state dir.
   - command: kapi init --name demo --source-locale en --target-locale fr
-    narration: init scaffolds the {name}.kapi recipe and the .kapi/ state dir. It is idempotent — safe to re-run on an existing project.
+    narration: init creates the project recipe and working directory. It can be run again on an existing project.
     smoke: true
   - command: kapi ls
     narration: ls lists the files the recipe's content tracks. Here one JSON catalog, mapped to a messages.{lang}.json target per locale.
     smoke: true
   - comment: Seed the project content memory so the flow has matches to reuse.
   - command: kapi memory import project.memory.json
-    narration: memory import loads the committed content-memory bundle into the project's content memory, inside .kapi/work/store.db. The flow leverages it before any AI is asked.
+    narration: memory import loads the committed bundle into the project's content memory for reuse by the flow.
     smoke: true
   - command: kapi status
-    narration: status derives each locale's standing from the working tree. fr is at zero — pending work, never a build failure.
+    narration: status reports each locale's coverage. French has no translated content yet, which is pending work rather than a build failure.
     smoke: true
   - comment: One verb brings the project up to date.
   - command: kapi up
-    narration: up treats the recipe as the desired state. It runs the project's flow across every target locale, pass after pass, until each ship gate is met or the rest parks for a person. Here the content memory covers everything, so fr catches up in one pass.
+    narration: up runs the project's flow until each locale meets its ship gate or needs human input. Here content memory supplies all French translations in one pass.
     # offline:false — `up` is not wired into the wasm build; the run → merge
     # beats below do the same work in the embed.
     offline: false
   - comment: Under the hood, up loops plumbing you can run by hand.
   - command: kapi run memory-recycle -i messages.json
-    narration: run executes one pass of one named flow. In a project the pass is process-only — it commits results to the project store, not to files.
+    narration: run executes one pass of a named flow and stores the results for merge to write to files.
     # smoke:false — consumes the content memory seeded by the prior memory import step; W7 would
     # run it in isolation (no content memory) and leverage nothing.
     smoke: false
@@ -149,10 +149,10 @@ steps:
     # smoke:false — consumes the overlays committed by the prior run step.
     smoke: false
   - command: kapi status
-    narration: The grid `up` catches up toward — fr translated 100%. Coverage is derived from the files on every run, never tracked as state.
+    narration: French now has 100% translated coverage, derived from the current content.
     # smoke:false — depends on the merge step above having written the target.
     smoke: false
   - comment: extract and merge are also the interchange doors when a person translates.
   - command: kapi extract --target-lang fr
-    narration: extract emits a bilingual XLIFF per target locale, pre-filled from the content memory — the handoff a human translator works in. merge applies the returned file. up automates this loop; the plumbing stays addressable.
+    narration: extract emits a bilingual XLIFF per target locale, pre-filled from content memory. A translator edits that file, then merge applies the returned translations.
     smoke: true

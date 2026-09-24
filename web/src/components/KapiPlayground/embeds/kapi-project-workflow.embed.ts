@@ -23,7 +23,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi init --name demo --source-locale en --target-locale fr",
       narration:
-        "init scaffolds the {name}.kapi recipe and the .kapi/ state dir. It is idempotent — safe to re-run on an existing project.",
+        "init creates the project recipe and working directory. It can be run again on an existing project.",
     },
     {
       command: "kapi ls",
@@ -33,17 +33,17 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi memory import project.memory.json",
       narration:
-        "memory import loads the committed content-memory bundle into the project's content memory, inside .kapi/work/store.db. The flow leverages it before any AI is asked.",
+        "memory import loads the committed bundle into the project's content memory for reuse by the flow.",
     },
     {
       command: "kapi status",
       narration:
-        "status derives each locale's standing from the working tree. fr is at zero — pending work, never a build failure.",
+        "status reports each locale's coverage. French has no translated content yet, which is pending work rather than a build failure.",
     },
     {
       command: "kapi run memory-recycle -i messages.json",
       narration:
-        "run executes one pass of one named flow. In a project the pass is process-only — it commits results to the project store, not to files.",
+        "run executes one pass of a named flow and stores the results for merge to write to files.",
     },
     {
       command: "kapi merge",
@@ -52,13 +52,12 @@ const config: WalkthroughEmbedConfig = {
     },
     {
       command: "kapi status",
-      narration:
-        "The grid `up` catches up toward — fr translated 100%. Coverage is derived from the files on every run, never tracked as state.",
+      narration: "French now has 100% translated coverage, derived from the current content.",
     },
     {
       command: "kapi extract --target-lang fr",
       narration:
-        "extract emits a bilingual XLIFF per target locale, pre-filled from the content memory — the handoff a human translator works in. merge applies the returned file. up automates this loop; the plumbing stays addressable.",
+        "extract emits a bilingual XLIFF per target locale, pre-filled from content memory. A translator edits that file, then merge applies the returned translations.",
     },
   ],
 };

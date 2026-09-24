@@ -166,21 +166,16 @@ export default function Models(): ReactElement {
       <main className="container margin-vert--lg" style={{ maxWidth: 960 }}>
         <h1>AI Models</h1>
         <p style={{ fontSize: "1.05rem", color: "var(--ifm-color-emphasis-700)" }}>
-          The models kapi ships support for, with their ceilings and their place in the neokapi
-          lifecycle. This is the committed catalog the binary itself reads — the same file drives
-          the per-provider defaults and the output-token budgeting — so the list here is what your
-          build actually supports, not a hand-maintained copy that drifts.
+          Supported models, their token limits and their lifecycle status in neokapi. This page uses
+          the committed catalog that also supplies the binary's provider defaults and output-token
+          budgets.
         </p>
         <p>
-          Each provider leads with the models <strong>recommended</strong> for the work kapi does —
-          translation, review, terminology — which for most projects is a short list.{" "}
-          <strong>Advanced &amp; specialised</strong> holds models that are fully supported but not
-          the usual choice: capable-but-premium ones (Opus, Gemini Pro) that are overkill for
-          faithful content work, or ones tuned for other tasks (Fable, for creative writing).{" "}
-          <strong>Legacy</strong> holds superseded models — still callable, with a newer successor.
-          Nothing here is hidden or blocked: every model, in any group, can be named with{" "}
-          <code>--model</code>, and a model the provider stops serving is removed from the catalog
-          rather than kept as a tombstone.
+          Each provider lists <strong>recommended</strong> models first, followed by{" "}
+          <strong>Advanced &amp; specialised</strong> models for higher-cost or specialized use
+          cases. <strong>Legacy</strong> models remain available but have a newer successor. Select
+          any listed model with <code>--model</code>. Models are removed from the catalog when the
+          provider stops serving them.
         </p>
         <p>
           &ldquo;In neokapi since&rdquo; is the date the model id entered the source tree; models

@@ -142,8 +142,8 @@ updates:
         patterns: ["*"]
 
   # ── npm (root workspace covers all frontend packages) ──────────────────────
-  # cooldown here is load-bearing: it keeps Dependabot from opening npm PRs that
-  # the pnpm minimumReleaseAge gate in `vp install` would immediately fail.
+  # The cooldown matches the pnpm minimumReleaseAge gate so newly opened npm
+  # updates can pass dependency installation.
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -158,21 +158,11 @@ updates:
     # conflict on it — dependabot-pnpm-relock.yml exists to absorb exactly that.
     open-pull-requests-limit: 15
     groups:
-      # A single `update-types: [minor, patch]` group collapsed every npm update
-      # into one PR — #1439 carried 38 packages and failed 11 checks across
-      # builds, Frontend, both desktops and the l10n gate. A 38-package bump
-      # failing six suites has several independent causes, none of which can be
-      # isolated or reverted separately, and it re-conflicted on every merge to
-      # main. Closed unmerged.
-      #
-      # These groups are keyed to families rather than sliced arbitrarily,
-      # because several MUST move in lockstep — react/react-dom, storybook and
-      # its addons, tailwind and its plugins, lexical and its react binding,
-      # react-hook-form and its resolvers all break in a mixed state. Grouping
-      # by family keeps each PR individually revertable without ever producing
-      # a broken intermediate.
-      #
-      # Anything not matched here gets its own PR, which is the point.
+      # Group packages that must update together: React and React DOM,
+      # Storybook and its addons, Tailwind and its plugins, Lexical and its
+      # React binding, and React Hook Form and its resolvers. Separate family
+      # PRs make failures easier to isolate and updates easier to revert.
+      # Unmatched dependencies get individual PRs.
       npm-react:
         patterns: ["react", "react-dom", "@vitejs/plugin-react", "@types/react", "@types/react-dom"]
         update-types: [minor, patch]

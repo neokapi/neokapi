@@ -1,7 +1,7 @@
 # Documentation release channels
 
-Both documentation sites ship on two channels. Production describes the latest
-GA release; a second channel describes what main contains.
+Both documentation sites ship on two channels. The stable channel describes the latest
+GA release; the next channel describes `main`.
 
 | Site | Stable | Next | Host |
 |---|---|---|---|
@@ -14,13 +14,10 @@ releases. The next channel is built from every push to `main` and carries a
 banner naming the release in progress, so a reader knows which version the page
 describes before following it.
 
-One branch serves both sites. The two products version together, their GA tags
-have so far been cut on the same commit, and both docs builds read the same
-`packages/`, the same pseudo-locale action and the same recipe. Two branches
-would carry two copies of that shared tree and let the two stable sites drift
-against it. Split the branch in two (`docs/stable-kapi`, `docs/stable-bowrain`)
-on the day a GA tag of one product lands on a commit that is not a GA of the
-other.
+Both sites use one stable branch because the products share release commits,
+build dependencies and the content recipe. If their GA releases move to
+separate commits, use separate branches (`docs/stable-kapi` and
+`docs/stable-bowrain`).
 
 The bowrain **landing** at `https://bowrain.cloud/` keeps deploying from `main`.
 It is the product's front page rather than release documentation.
@@ -53,20 +50,15 @@ Two safeguards keep the channels apart:
 
 ### The two channel-root files on the apex
 
-The apex CloudFront router (`modules/apex-site` in `bowrain-infra`) resolves a
-clean URL under `/docs/` by appending `.html`, which suits a site built with
-`trailingSlash: false`, and answers the directory roots it knows (`/docs/` and
-`/docs/<locale>/`) from an explicit rule. `/docs/next/` and `/docs/next/qps/`
-are roots it does not know, so it asks S3 for `/docs/next.html` and
-`/docs/next/qps.html`. `deploy-landing.yml` writes those two files while
-assembling the site tree, and the channel resolves with no change at the edge.
-Every page below them already resolves, because appending `.html` is exactly
-right for them.
+The apex CloudFront router (`modules/apex-site` in `bowrain-infra`) appends
+`.html` to clean URLs under `/docs/`, matching `trailingSlash: false`.
+Explicit rules handle `/docs/` and `/docs/<locale>/`. The channel roots
+`/docs/next/` and `/docs/next/qps/` instead resolve to `/docs/next.html` and
+`/docs/next/qps.html`.
 
-Teaching the router about a channel segment would take a `docs_channels`
-variable interpolated into the function body, a generalized root check, and a
-`localeAt` that skips the channel segment before matching a locale. The two
-files cost less and stay in this repository.
+`deploy-landing.yml` creates these two files when assembling the site. Pages
+below the channel roots use the normal `.html` mapping. This keeps channel
+routing within the site deployment without changing the CloudFront function.
 
 ## Versions and download links
 
@@ -78,23 +70,19 @@ shallow. A local build with neither variable falls back to `git describe --tags`
 in the site config, and a build that finds no version leaves the banner and the
 switch off the page rather than naming a blank one.
 
-The stable site's installation page is spliced at build time:
+The stable site's installation page is updated at build time:
 `docs-kapi.yml` runs `scripts/update-website-downloads.sh <tag>` against the
 release being deployed and commits nothing. The rolling auto-PR that
 `release-docs.yml` opens still targets `main`, which keeps the next channel's
 committed page current.
 
-Build time is what the production page reads for a reason. The auto-PR route
-depends on someone merging it, and when Actions lost permission to open pull
-requests the branch `bot/release-downloads-kapi` carried a current page while
-the published install page advertised a release eleven candidates old. A splice
-that reads the release cannot drift from it.
+Updating production download links during the build keeps them tied to the
+release being deployed, independently of the auto-PR's merge status.
 
-The script refuses when a platform has no asset on the release yet, which is the
-state of every Windows row until the binaries are signed out of band the morning
-after a release (`scripts/publish-windows-signed.sh`). The page then keeps the
-links it carries and the step records a warning. Re-run the deploy after signing
-to pick the rest up.
+The script refuses to update links when a platform has no release asset.
+Windows assets become available after signing with
+`scripts/publish-windows-signed.sh`. Until then, the page retains its existing
+links and the step records a warning. Redeploy after signing to update them.
 
 ## A GA release moves the branch
 
@@ -109,8 +97,7 @@ to pick the rest up.
    with `ref: docs/stable`. `workflow_dispatch` is one of the two events
    `GITHUB_TOKEN` may raise that still start a run.
 
-A prerelease leaves the branch alone. Release candidates are what `/next/`
-already serves.
+Prereleases leave the stable branch unchanged. The next channel tracks `main`.
 
 The job runs on the release event and on the `workflow_dispatch` the Windows
 signing step already fires (`scripts/publish-windows-signed.sh` runs
@@ -174,5 +161,5 @@ make bowrain-docs-build-prod BOWRAIN_DOCS_BASE=/docs/next/
 make bowrain-docs-build-prod BOWRAIN_DOCS_BASE=/docs/ DOCS_CHANNEL=stable
 ```
 
-`DOCS_CHANNEL` defaults to `next`, so a local build and a PR preview both carry
-the banner and a reviewer sees it without arranging anything.
+`DOCS_CHANNEL` defaults to `next`. Local builds and PR previews therefore
+include the next-channel banner.

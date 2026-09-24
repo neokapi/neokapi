@@ -1,28 +1,23 @@
-# kapi × Claude Code — demo harness
+# kapi demo harness
 
-This harness **demonstrates and records kapi being driven by Claude Code**, as
-narrated videos. Each demo runs a *real, headless `claude` session* against the kapi
-Claude Code plugin, captures the transcript, screenshots the artifacts kapi produced,
-generates a voice-over, and composes everything into an MP4 with [Remotion](https://remotion.dev).
+The harness records narrated kapi demonstrations. Claude Code demos run a
+headless session with the kapi plugin, capture its transcript and output
+artifacts, synthesize narration, and compose the video with
+[Remotion](https://remotion.dev). Shell demos execute authored commands, and
+app demos record a running application.
 
-Nothing here is mocked: the Claude sessions are live, the kapi commands run for real
-(translating with Gemini, checking voice profile, importing terms…), and the
-before/after artifacts are screenshots of kapi's actual output.
+Recordings use real kapi commands and project infrastructure. Screenshots show
+the resulting artifacts.
 
 ## What it produces
 
 One narrated 1080p video per demo in `out/<id>.mp4`. Each video is structured as:
 
-```
-title card → real Claude Code terminal replay → artifact spotlights → outro
-```
-
-with a British-English narration track explaining the story, the spoken words
-captioned in the lower third as they are said, a short fade into the first
-scene and into the outro, and a slide between artifact spotlights. The title
-card carries the claim and one line; the outro carries one instruction and one
-pointer. See [The frame grid](#the-frame-grid) for the sizes and
-[The beat fields](#the-beat-fields) for what a scene can ask of its picture.
+a title card, terminal replay, artifact views and a closing card. The
+British-English narration is captioned in the lower third. Scenes use fades
+and slides between artifact views. The closing card provides a next action
+and reference. See [The frame grid](#the-frame-grid) for dimensions and
+[The beat fields](#the-beat-fields) for scene presentation options.
 
 ## The demos
 
@@ -107,10 +102,9 @@ Three manifest keys belong to this class:
     expectExit: [0, 1]
   ```
 
-  The declaration binds both ways: a step that declares 3 and exits 0 fails the
-  capture too, because the recording no longer shows what the demo says it shows.
-  A non-zero exit still reads as a failure on screen whether or not it was
-  declared — the declaration decides whether the take is sound, not how it looks.
+  The exit code must match the declaration: a step expecting 3 also fails
+  capture if it exits 0. Every nonzero exit is displayed as an error in the
+  recording, including expected failures.
 
 `s0-northsea-checks` uses all three.
 

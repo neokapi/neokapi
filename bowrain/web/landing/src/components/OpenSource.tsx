@@ -4,8 +4,7 @@ import { useReveal } from "../useReveal";
 import { useSectionSignals } from "../useSectionSignals";
 import { SECTION_OPEN_SOURCE } from "../sections";
 
-// Deliberately compact: the OSS foundation earns trust, but this page sells
-// the Bowrain outcome. The kapi story lives on the kapi site.
+// Licensing and export summary; link to kapi for toolchain details.
 export function OpenSource() {
   const sectionRef = useSectionSignals<HTMLElement>(SECTION_OPEN_SOURCE);
   const ref = useReveal();
@@ -57,10 +56,9 @@ export function OpenSource() {
 
           <div className="rounded-xl border border-border bg-card p-6 text-center">
             <Package className="mx-auto mb-3 h-8 w-8 text-foreground" />
-            <h3 className="text-base font-semibold">No lock-in at any layer</h3>
+            <h3 className="text-base font-semibold">Export your data</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Projects, terminology, and memory export in open formats. If you leave, your work
-              leaves with you.
+              Export projects, terms and content memory in open formats for use in other tools.
             </p>
           </div>
         </div>

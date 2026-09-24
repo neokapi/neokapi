@@ -130,7 +130,7 @@ export interface ContentItem {
   text?: string;
   /** "governed" | "approved" | "ai_shippable" | "pending", when the surface derives it. */
   ship_state?: string;
-  /** True when the decision that blessed this item cited a superseded source. */
+  /** True when the decision for this item cites a superseded source. */
   stale?: boolean;
 }
 
@@ -214,13 +214,13 @@ export interface ProjectUse {
   terms?: ProjectTermUse[];
 }
 
-/** A decision that blessed a unit, and the source it cited. */
+/** A unit decision and its source basis. */
 export interface BlessingRow {
   unit: string;
   variant?: string;
   status?: string;
   review_state?: string;
-  /** The source hash the decision blessed — its basis. */
+  /** The source hash recorded as the decision basis. */
   target_hash?: string;
   project?: string;
   stale?: boolean;

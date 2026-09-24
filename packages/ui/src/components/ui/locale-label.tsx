@@ -53,8 +53,7 @@ export function LocaleLabel({
   className,
   ...props
 }: LocaleLabelProps) {
-  // Subscribing to the dictionary is what makes a locale switch rename every
-  // language on the page, not only the strings around them.
+  // Subscribe so language labels refresh when the display locale changes.
   const { locale: activeLocale } = useNeokapi();
   const resolved = formatLocale(locale, {
     uiLocale: uiLocale ?? activeLocale,

@@ -18,14 +18,7 @@ import {
   type BandInfo,
 } from "./_shared";
 
-// The /evals cover page: a menu, not a catalogue.
-//
-// It used to carry every band, every layer and eighteen expandable cards, and
-// it was too much to take in at once. What a reader needs here is which three
-// kinds of evidence exist, how much of each is real, and a way in. The detail
-// lives one click away, on a page per band, which is also the unit anyone
-// actually arrives with: someone asking how fast the engine is was not also
-// asking about judge validation.
+// Summarize evaluation coverage by band; each band links to detailed results.
 
 function BandCard({ b }: { b: BandInfo }): ReactElement {
   const counts = bandTally(b);
@@ -102,9 +95,10 @@ export default function Evals(): ReactElement {
       <main className="container margin-vert--lg">
         <h1>Tests and Evals</h1>
         <p style={s.lede}>
-          Three bands, by what is under test. kapi's own code can be asserted. A model's output can
-          only be estimated. An agent's behaviour is scored scenario by scenario. Inside each band
-          the structure is the architecture.
+          Results are grouped by what is under test: engine correctness, model output and agent
+          behaviour. Engine tests assert expected results, model evaluations estimate quality, and
+          agent evaluations score individual scenarios. Each group follows the relevant
+          architecture.
         </p>
 
         <div style={s.strip}>
@@ -124,7 +118,7 @@ export default function Evals(): ReactElement {
             <span style={{ ...s.statN, color: c.layersUnmeasured ? tone.gap.fg : undefined }}>
               {c.layersUnmeasured}/{data.layers.length}
             </span>
-            <span style={s.statL}>layers with nothing behind them</span>
+            <span style={s.statL}>layers without measurements</span>
           </div>
         </div>
 

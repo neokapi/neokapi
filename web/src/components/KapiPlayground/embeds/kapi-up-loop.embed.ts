@@ -33,17 +33,15 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi status --review",
       narration:
-        "The worklist — every translated unit not yet approved, addressed by file, id, and locale, exactly as a review change-set names it.",
+        "List translated units awaiting approval, addressed by file, id and locale for a review change-set.",
     },
     {
       command: "kapi apply review.jsonl",
-      narration:
-        "apply records each review decision in the committed state store, bound to the translation's content hash. The decision is the one thing no cache can rebuild.",
+      narration: "apply records each review decision, bound to the translation's content hash.",
     },
     {
       command: "kapi status",
-      narration:
-        "fr is shippable — translated 100%, reviewed 100%. Produce, park, decide, release — the loop is auditable end to end.",
+      narration: "French is shippable, with 100% translated and 100% reviewed coverage.",
     },
   ],
 };

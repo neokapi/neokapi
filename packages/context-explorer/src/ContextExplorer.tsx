@@ -1,9 +1,6 @@
 // The assembled explorer (Apache-2.0).
-//
-// One selection, three panes. The ladder and the filter bar edit the same scope
-// tuple, and every pane re-asks its question at whatever the tuple now names —
-// which is what makes "the same explorer against a project and against a
-// workspace" one component set rather than two that resemble each other.
+// The ladder and filter bar update one scope tuple shared by all three panes.
+// This supports project and workspace queries through the same components.
 
 import { useState } from "react";
 import { cn } from "@neokapi/ui-primitives";

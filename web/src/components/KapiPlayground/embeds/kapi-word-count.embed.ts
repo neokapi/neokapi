@@ -12,7 +12,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi stats messages.json",
       narration:
-        "Reports blocks, words, characters, and segments — the numbers you paste into a quote.",
+        "Report block, word, character and segment counts to help estimate translation work.",
     },
   ],
 };

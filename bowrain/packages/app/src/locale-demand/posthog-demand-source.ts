@@ -1,22 +1,11 @@
-// ---------------------------------------------------------------------------
-// Locale demand — live PostHog source (phase 0, read-only).
+// PostHogDemandSource fetches locale-demand snapshots from the Bowrain server
+// and maps them to DemandSnapshot. The server stores the API key and caches
+// snapshots per project and range for an hour.
 //
-// `PostHogDemandSource` implements the `DemandDataSource` seam by calling the
-// bowrain server's PostHog connector endpoints
-// (/:ws/:id/connectors/posthog/demand) and mapping the wire snapshot into the
-// page's `DemandSnapshot` shape. The server owns the PostHog personal API key
-// (sealed at rest, masked on read) and caches snapshots per (project, range)
-// for an hour — this module never talks to PostHog directly.
-//
-// Mapping honesty rules:
-// - What the source cannot derive is *absent*, not zero: per-market/-language
-//   served rates are null ("—" in the UI), missing trends are empty arrays
-//   ("no data", muted), and countries PostHog reported without a resolvable
-//   ISO code fall off the map but stay in the totals.
-// - Coverage is a plain locale match against the project's configured
-//   locales (covered / not-covered). Partial coverage and plan estimates
-//   need the plan machinery — phase 1.
-// ---------------------------------------------------------------------------
+// Unavailable served rates are null and missing trends are empty arrays.
+// Countries without a resolvable ISO code remain in totals but are omitted
+// from the map. Coverage indicates whether a locale is configured in the
+// project; it does not estimate partial coverage or a translation plan.
 
 import type { ApiAdapter, PostHogDemandResponse } from "@neokapi/ui";
 import { countryDisplayName, countryFlagEmoji, countryNumericId } from "./country-codes";

@@ -10,20 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The trial sweep must collect a trial whose deadline has passed and leave
-// everything else alone.
-//
-// This test used to drive the schema in two stages — v1..v3, insert deadline-less
-// trials, then v4 — to prove v4's backfill dated the legacy rows production had
-// been accumulating since the first workspace. The billing migrations are now a
-// single consolidated baseline and that backfill is deliberately not carried
-// (see the ledger on Migrations): it repaired rows written before trial_ends_at
-// existed, production has long since been repaired by it, and a database built
-// from the baseline has no such rows. There is no longer a schema state in which
-// a trial can exist without a deadline, so the staged sequence cannot be built.
-//
-// What remains worth guarding is the behaviour the backfill existed to enable,
-// so that is what this now tests directly.
+// Verify that the trial sweep expires trials past their deadline and leaves
+// other subscriptions unchanged.
 func TestExpireTrials_CollectsOnlyOverdueTrials(t *testing.T) {
 	db := pgtest.NewTestDB(t)
 	ctx := t.Context()

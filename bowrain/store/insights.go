@@ -9,20 +9,12 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
-// ContextFunnelCounts gathers the four stages of the context funnel for one
-// project (see bowrain/core/insights).
+// ContextFunnelCounts queries the context funnel for one project. The arithmetic
+// is implemented in core/insights for database-independent testing.
 //
-// The queries are kept here, thin, and the arithmetic lives in core/insights so
-// it can be tested without a database — the interesting logic is what the
-// numbers MEAN, not how they are fetched.
-//
-// A note on "governed": profile binding is a property on the ladder
-// (workspace → project → stream → collection), not a column on a block. This
-// counts a block as governed when its project or its stream binds a profile,
-// which is the resolution that exists today. Once coordinates are declared on
-// collections, this query grows a per-collection arm and the number gets more
-// honest — it can only under-report now, never over-report, because a
-// collection binding without a project binding is not yet expressible.
+// Governed counts use the project's profile binding. This aggregate does not
+// resolve workspace, stream or collection bindings, so it can undercount content
+// covered only at those scopes.
 func (s *PostgresStore) ContextFunnelCounts(ctx context.Context, projectID, stream string) (insights.Counts, error) {
 	var c insights.Counts
 	stream = storeutil.DefaultStream(stream)
@@ -36,8 +28,8 @@ func (s *PostgresStore) ContextFunnelCounts(ctx context.Context, projectID, stre
 		return c, fmt.Errorf("insights: count indexed blocks: %w", err)
 	}
 
-	// Governed: all of them, if the project (or its stream) binds a profile;
-	// none otherwise. Coarse by construction — see the note above.
+	// Governed counts include all indexed blocks when the project has a profile
+	// binding; other binding scopes are not resolved by this query.
 	var bound bool
 	if err := s.db.QueryRowContext(ctx,
 		`SELECT COALESCE(properties::jsonb ->> $2, '') <> ''

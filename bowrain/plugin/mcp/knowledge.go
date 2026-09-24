@@ -264,19 +264,10 @@ func handleExperimentStatus(ctx context.Context, input MCPExperimentStatusInput)
 				Words:          impact.Words,
 				Partial:        impact.Partial,
 			}
-			// The impact's per-project breakdown (impact.Projects) is
-			// deliberately NOT carried into this summary, and under a partial
-			// walk that omission is load-bearing rather than incidental: the
-			// server's pass is sequential and aborts from the innermost loop,
-			// so projects it never reached are absent from that list entirely.
-			// Rendering it would read as "these are the projects affected"
-			// when the truth is "these are the projects examined" — an
-			// assistant naming two projects it never looked past is worse than
-			// one that names none.
-			// Consequence in this surface's voice, cause in the server's
-			// field. PartialReason states only why the walk stopped, so this
-			// sentence must not restate that: it says what the numbers mean,
-			// which is the part the reader needs.
+			// Omit the per-project breakdown: a partial scan can leave entire projects
+			// unvisited, so the list is not an exhaustive set of affected projects.
+			// Explain that totals are lower bounds, then append PartialReason, which
+			// states why the scan stopped.
 			if impact.Partial {
 				out.BlastRadius.CountsAre = "lower bounds: any project the scan did not reach contributes nothing to these totals"
 				if impact.PartialReason != "" {

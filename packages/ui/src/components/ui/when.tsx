@@ -45,8 +45,7 @@ export function When({
   className,
   ...props
 }: WhenProps) {
-  // Subscribing to the dictionary is what makes a locale switch re-render every
-  // date on the page, not only the strings around them.
+  // Subscribe so formatted dates refresh when the display locale changes.
   const { locale: activeLocale } = useNeokapi();
   const when = formatWhen(iso, {
     uiLocale: uiLocale ?? activeLocale,

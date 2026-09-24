@@ -2,32 +2,19 @@ package store
 
 import "context"
 
-// The ship gate's per-block verdict, persisted.
+// Ship-gate verdicts are persisted per (block, locale). Computing a verdict
+// requires source and target runs, so recomputing dashboard totals on every
+// request would require a whole-project read.
 //
-// A dashboard load reports, per locale and per collection, how many translated
-// blocks fail the ship gate and how many are on brand. Both are aggregates over
-// every translated block, and the predicate behind them reads the block's source
-// runs beside its target runs — something no SQL expression can decide. Derived
-// on the request, that is a whole-project read on every load: the answer is a
-// handful of counters, and the work to produce it grows with the customer's
-// corpus rather than with the answer.
+// Each verdict records its basis: the source hash, target revision and governance
+// fingerprint. Aggregates exclude verdicts with a changed basis and report them
+// as stale for recomputation. Unchanged projects need only aggregate queries;
+// edited projects require reading the affected blocks.
 //
-// So the verdict is computed once per (block, locale) and stored beside the
-// content it judged, and the dashboard asks the database to COUNT the verdicts.
-// A stored verdict names the basis it was computed under — the block's source
-// hash, the target row's revision, and a fingerprint of the governance in force
-// — so a verdict can never outlive the content or the rules that produced it: a
-// row whose basis no longer matches is not counted, it is reported as stale and
-// recomputed. Steady state costs two aggregates and no block read; an edited
-// corpus costs the blocks that were edited.
-//
-// Voice scores are deliberately NOT part of the basis. They are written by the
-// worker's draft scoring on every convergence pass, and folding them into the
-// basis would invalidate every verdict each time the loop ran — which is to say
-// it would put the whole-project read back. A voice score cannot change whether
-// a block FAILS the gate (that is checks and terms); it can only withhold an
-// otherwise-clean block from the compliant count, and that adjustment is applied
-// over the scored set, which the pass already holds.
+// Voice scores are excluded from the basis because draft scoring updates them
+// on every convergence pass. Checks and terms determine gate failures. A low
+// voice score can exclude a passing block from the compliant count; that
+// adjustment uses the scored blocks already available to the pass.
 
 // ShipGateRef names one (block, locale) pair.
 type ShipGateRef struct {
@@ -186,15 +173,10 @@ type ShipVerdictStore interface {
 	PutShipGateVerdicts(ctx context.Context, projectID, stream, gate string, verdicts []ShipGateVerdict) error
 }
 
-// ShipVerdicts finds the verdict store behind a content store, looking through
-// any decorator that names what it wraps.
-//
-// The probe has to look through, because a decorator cannot decline an
-// interface: a wrapper that forwarded ShipVerdictStore unconditionally would
-// answer for an inner store that keeps no verdicts, and the caller — which
-// reads an empty rollup as "nothing fails, nothing is stale" — would report a
-// project with no failing blocks and no work to do. Answering "the store behind
-// me keeps them, ask it" is the only forwarding that cannot lie.
+// ShipVerdicts finds a verdict store through decorators that expose their wrapped
+// store. Wrappers must not implement ShipVerdictStore unconditionally: an empty
+// rollup from an unsupported inner store would incorrectly report no failures
+// and no stale verdicts.
 func ShipVerdicts(cs ContentStore) (ShipVerdictStore, bool) {
 	for cs != nil {
 		if vs, ok := cs.(ShipVerdictStore); ok {

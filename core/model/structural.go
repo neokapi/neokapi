@@ -5,60 +5,30 @@ import (
 	"strings"
 )
 
-// A block's name is its STRUCTURAL address: where the block sits in the document
-// according to the document's own structure.
+// A block's name describes its position in the document's structure.
+// Reconciliation hashes the name as context and compares context independently
+// of content when matching blocks across reads.
 //
-// It is not decoration and it is not a counter. reconcile.Identify folds the
-// name into a block's context hash, and matching a re-read against the previous
-// read grades content and context as independent signals. A name that counts
-// blocks as they go past ("para3", "line5", "tu7") makes that signal worthless:
-// delete one paragraph and every name below it changes, so an unchanged block
-// looks moved and a decision recorded about it names something else.
+// Use author-supplied structure such as heading paths, keys and element paths.
+// Natural keys, including PO msgids and XLIFF unit IDs, should be retained.
+// Disambiguate repeated paths with an ordinal scoped to the smallest enclosing
+// structure, so edits in another section do not renumber these blocks.
 //
-// A structural name changes only when the document's structure changes:
+// Do not derive a block's name from its own text. Doing so changes both hashes
+// on a text edit and prevents reconciliation from recognizing the edit. Ancestor
+// text may be part of a path; a heading itself uses its parent trail and sibling
+// ordinal rather than its title.
 //
-//	getting-started/install/p2      a paragraph, under two headings
-//	messages.errors.notFound        a key path
-//	greeting                        a natural key the format already provides
-//
-// Formats that already had one — JSON and YAML name blocks by key path — were
-// stable from the start, which is the evidence for doing this everywhere.
-//
-// Two rules make a name usable as an identity signal:
-//
-//   - Derive it from structure the AUTHOR controls (headings, keys, element
-//     paths), never from a running count. Where a format gives a natural key —
-//     a PO msgid, a properties key, an XLIFF unit id — that key IS the name;
-//     inventing a counter beside it throws away the best signal in the file.
-//   - Where structure genuinely repeats, disambiguate with an ordinal scoped to
-//     the smallest enclosing structure, so an edit elsewhere cannot shift it.
-//   - NEVER derive a block's own name from its own text. Ancestors' text is
-//     fine and is what makes a path readable — a paragraph under "Setup" is
-//     genuinely addressed by that heading. But a HEADING must not be named by
-//     its own title, because reconcile.Identify folds the name into the context
-//     hash: name a heading after itself and editing it changes both hashes at
-//     once, so the block grades as new and loses the history it should have
-//     kept. Name a heading by its parent trail plus its ordinal among sibling
-//     headings instead. Then rewording it changes content alone and grades as
-//     an edit, which is what it is.
-//
-// Block.ID is a separate thing and is not affected. It is the block's identity
-// within its document — the skeleton join and the store key — and a counter
-// serves it well, because what it has to be is unique, not stable. See
-// blockid.go for the rule a reader that takes its ids from the document follows
-// instead.
+// Block.ID is separate: it must be unique within a read/write pass for skeleton
+// joins and storage, but need not be stable across reads. See blockid.go for
+// handling document-supplied IDs.
 
-// PathSeparator joins structural segments. A path reads like a location because
-// it is one.
+// PathSeparator joins structural path segments.
 const PathSeparator = "/"
 
-// NameOrdinalSeparator precedes the occurrence ordinal NameBuilder appends when
-// structure alone cannot tell two blocks apart.
-//
-// Exported because its presence is meaningful to readers of a name, not just to
-// the writer of one: a name carrying an ordinal is the reader saying "these two
-// are indistinguishable by structure", so anything that aligns or matches on
-// names must treat that side as positional rather than keyed.
+// NameOrdinalSeparator precedes the ordinal used to distinguish repeated
+// structural paths. Matchers can use its presence to recognize a positional
+// component rather than an author-supplied key.
 const NameOrdinalSeparator = "#"
 
 // StructuralPath joins segments into a block name, skipping empty ones so a

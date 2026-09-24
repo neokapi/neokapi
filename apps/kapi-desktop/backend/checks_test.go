@@ -463,9 +463,8 @@ func TestRunChecksVerdictRecordsCanaries(t *testing.T) {
 	assert.Empty(t, res.DidNotRunCause)
 }
 
-// TestRunChecksNeverPassesOverNothing covers the runs the panel used to show as
-// passing with a score of 100: content with no blocks, and a project where no
-// checker applies.
+// TestRunChecksNeverPassesOverNothing verifies that empty content and projects
+// with no applicable checker are reported as not checked, rather than passing.
 func TestRunChecksNeverPassesOverNothing(t *testing.T) {
 	t.Run("content with no blocks", func(t *testing.T) {
 		app := NewApp()

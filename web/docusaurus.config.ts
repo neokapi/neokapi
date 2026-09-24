@@ -934,11 +934,9 @@ const config: Config = {
         },
       };
     },
-    // The Vision Lab's ONNX models (~150 MB) live in static/models/vision, which
-    // Docusaurus copies into EVERY locale's output — doubling them on the GitHub
-    // Pages site (a real size problem; Pages builds were failing). The lab fetches
-    // them from the default-locale (root) path regardless of locale, so the
-    // per-locale copies are dead weight. Drop them from non-default locale builds.
+    // The Vision Lab fetches ONNX models from the default-locale root path.
+    // Remove duplicate copies from other locales to keep the site within the
+    // GitHub Pages size limit.
     function dropLocaleVisionModels(context: {
       i18n: { currentLocale: string; defaultLocale: string };
     }) {

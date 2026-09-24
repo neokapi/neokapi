@@ -10,14 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The whole point of keying governance on an item's identity rather than its
-// address: `git mv` a file and the record of who approved what survives.
-//
-// Every other row a project holds can be re-derived from a push. The decision
-// ledger cannot — it is the one thing a reset genuinely loses — so it is the
-// one this has to be proved on, at the level a person would check it: read the
-// approval back at the file's NEW path, after a push that carried no blocks at
-// all because the content did not change.
+// Verify that a file rename preserves review decisions keyed by item identity.
+// After a rename-only push, the approval must be readable at the new path even
+// though unchanged content required no block upload.
 func TestRenamingAFileKeepsItsApprovals(t *testing.T) {
 	deps := newTestWorkerDeps(t)
 	ctx := t.Context()

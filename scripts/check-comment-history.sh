@@ -1,60 +1,23 @@
 #!/usr/bin/env bash
 #
-# Guard: a comment describes what the code IS, not what it was changed from.
+# Guard: comments describe current behavior and constraints.
 #
-# Change narration rots. "Previously this returned nil" is true on the day it is
-# written and misleading a year later, when the reader has no way to tell whether
-# the comment describes the code in front of them or a state three refactors ago.
-# The code's history is in git, where it stays accurate for free.
+# The matcher flags explicit change narration: first-person change reports,
+# PR numbers used as timestamps, and rename notes. It does not broadly flag
+# "previously", "no longer" or "used to be": these can describe runtime state,
+# such as a decision whose basis no longer matches its source.
 #
-# ── What this guard does NOT match, and why ──────────────────────────────────
+# Preserve root-cause and constraint explanations when editing comments.
+# For example, a containment check needs to explain that an absolute source
+# path could otherwise expose arbitrary readable files. Lead with the current
+# invariant and retain the failure condition it prevents.
 #
-# This is the narrow half of a rule whose wide half is a judgement call, and the
-# split is deliberate.
-#
-# "previously", "no longer", "used to be" and "formerly" are NOT scanned as a
-# class, because in this codebase they are overwhelmingly DOMAIN vocabulary
-# rather than change narration. Staleness and drift are what the product is
-# about, so a comment reading
-#
-#     a decision whose basis no longer matches its source is stale
-#     the reservation records that `slug` was previously held by `workspaceID`
-#     cachedDocument streams a previously-recorded document from disk
-#
-# describes RUNTIME STATE — data that changed, not code that changed — and is
-# exactly right. A sweep in 2026-08 judged ~140 such sites one by one: roughly
-# two thirds were domain usage or load-bearing root-cause documentation, and
-# only a third were narration worth rewriting. A grep cannot tell those apart,
-# and a guard that flagged all of them would need a ~95-entry allowlist — which
-# is a tax on every future correct use, not a check.
-#
-# So the patterns below are only the markers that have no legitimate
-# current-state reading at all: a first-person report of a change ("we now
-# buffer"), a PR number offered as a timestamp ("as of #852"), and an explicit
-# rename note. Those are always narration.
-#
-# ── The rule the guard cannot enforce ────────────────────────────────────────
-#
-# ROOT-CAUSE AND CONSTRAINT COMMENTS STAY, even when they describe a past
-# failure. A comment explaining why a branch exists —
-#
-#     An absolute source_path used to be honoured outright, which let item
-#     metadata name any readable file on the host
-#
-# — is the reason the containment check may not be simplified away, and deleting
-# it to satisfy a grep loses the only record of why the code is shaped as it is.
-# When rewriting narration, lead with the invariant and keep the cause; delete
-# only when nothing about the present remains.
-#
-# Scope: tracked Go and TypeScript sources, comment lines only. Generated files
-# (*.pb.go, Wails bindings) are excluded — their comments come from a generator.
-#
+# Scope: tracked Go and TypeScript comment lines, excluding generated code.
 # Usage:
-#     ./scripts/check-comment-history.sh              # scan
-#     ./scripts/check-comment-history.sh --self-test  # prove the matcher both ways
+#     ./scripts/check-comment-history.sh
+#     ./scripts/check-comment-history.sh --self-test
 #
-# Wired into `make check-comment-history` (part of `make lint`) and `make
-# pre-push`.
+# Runs through make check-comment-history, make lint and make pre-push.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"

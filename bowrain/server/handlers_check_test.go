@@ -99,10 +99,8 @@ func TestCheckIssuesFromFindings_KeepsWhatTheFindingLocated(t *testing.T) {
 		string(raw))
 }
 
-// No checker populates Position yet — core/tools/rulecheck.go judges whole
-// texts and the shape flattenings it works over are not run offsets — so the
-// endpoint is honest about locating nothing rather than inventing a range.
-// This pins that: when the tools start locating, this test says so.
+// Rule checks evaluate whole text and do not populate Position with run offsets.
+// Verify that the endpoint leaves ranges absent when findings have no location.
 func TestRunChecksOnBlock_ReportsNoPositionYet(t *testing.T) {
 	block := model.NewBlock("b1", "Hello world")
 	block.SetTargetText(model.LocaleFrench, "Bonjour  le monde")

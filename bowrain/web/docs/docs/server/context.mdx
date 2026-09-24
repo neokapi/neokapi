@@ -1,7 +1,7 @@
 ---
 title: Context
 sidebar_label: Context
-description: The Context hub is Bowrain's front door to the graph a workspace is governed by. It holds one profile per point, who holds each point, the concepts with their terms, geography, constraints, relations and story, voice and corrections, change-sets with blast-radius previews and pilots, markets, observations, comments, and a tiered governance model.
+description: Manage workspace profiles, concepts, terms and voice rules. Review proposed changes, preview their effects on content and pilot them on selected streams.
 keywords: [context graph, voice profile, concepts, terms, relations, markets, change-sets, blast radius, pilots, governance, custodians, observations, bowrain]
 ---
 
@@ -10,21 +10,15 @@ import { PhaseFlow, SwimlaneDiagram } from "@neokapi/docs-shared";
 
 # Context
 
-The **Context** hub is where a team curates the language its content is written
-in. It gathers the terms, the voice rules, the discussions, the history,
-and the consequences of a change onto one surface, so a single page can tell the
-whole story of a term: where it came from, what it replaced, where it is banned,
-how it is said in each market, and what it would cost to change. Brand is the
-common case, the label most workspaces give their default profile, and one axis
-among several rather than the name of the mechanism.
+Use the **Context** hub to manage writing guidance and terms for a workspace.
+It shows where terms apply, their history and relations, and the effects of
+proposed changes. Profiles can be scoped to a brand, product, channel or other
+coordinate.
 
-The hub is the front door. The deeper pages on
-[voice and corrections](/server/context-voice) and
-[terms](/server/terminology) cover their corners in detail; this page
-explains how they fit together and the governance that holds them. Starting from
-existing material rather than a blank hub, a [context scan](/server/context-scan)
-reads a corpus and proposes the axes, a voice profile and term candidates to
-review.
+This page explains the hub and its approval process. See
+[Voice and corrections](/server/context-voice) and [Terms](/server/terminology)
+for detailed workflows. To derive initial proposals from existing content, run a
+[context scan](/server/context-scan).
 
 <ThemedVideo
   sources={{
@@ -41,13 +35,10 @@ at. A point is a coordinate, a product, a channel, a brand, a market, and a
 profile is what governs it. The workspace's own point, where content that
 declares no coordinates sits, is labelled **Brand**.
 
-Each card answers the same five questions about its point: which voice governs
-it and how large that voice is; how much vocabulary is in force, the workspace's
-concepts plus the rules the point's own voice adds; what the stored checks say,
-as a score over the blocks checked and the findings they raised; what is
-waiting in review; and who holds the point. A point nothing has checked says so
-rather than showing a zero. Opening a card gives the same five as sections, plus
-the collections sitting at the point and which project declared each.
+Each card shows the applicable voice profile, vocabulary, stored check results,
+pending reviews and custodians. Check results include scores and findings for
+the blocks checked. A point with no results is marked as unchecked.
+Opening a card shows these details and the collections and projects at that point.
 
 Check standing is scoped by the **voice**, not by the point: a stored check
 records the voice it resolved through, which is the narrowest coordinate the
@@ -62,41 +53,32 @@ one broad profile governing two points reads here as the two points it governs.
 
 ### Who holds a point
 
-The fifth question on a card is custody: the members whose `manage_voice` or
-`manage_terms` grant is bound to this point or one above it, with the region
-their membership names. A point nobody holds is listed as such. The list is one
-derivation with three readers: the operator's queue (who do we still need), the
-buyer's exposure (here is the content nobody governs), and the unit the plan
-counts as a custodian seat. It reports and never blocks: an ungoverned point is
-an org-chart gap, not a content defect. See
+Custodians are members with a `manage_voice` or `manage_terms` grant at the point
+or an ancestor. The card lists their grants and scopes. Points without a
+custodian are marked as unassigned; this does not prevent content processing.
+Custodian assignments also determine custodian seat usage. See
 [Members and roles](/server/members-and-roles#custodians-and-points).
 
 ### Axes
 
-The axes a workspace's content varies along are declared by its projects'
-recipes, never by the server. When a [context scan](/server/context-scan)
-proposes an axis and a person approves it, the approval is recorded as a
-pending recipe change; the next `kapi pull` on a connected project writes it
-into `kapi.yaml` as `defaults.coordinates.<axis>`, where git reviews it, and the
-axis exists once that lands and a push carries content at it. A structural axis,
-a product or a channel, is approved against a particular collection and lands as
-that collection's `channel:`. The server refuses content at a point whose axis
-no recipe declares, so the recipe remains the only thing that mints a
-coordinate.
+Projects declare axes in their recipes. Approving an axis proposed by a
+[context scan](/server/context-scan) records a pending recipe change. The next
+`kapi pull` writes a declared axis to `defaults.coordinates.<axis>` in
+`kapi.yaml` for review and commit. A structural product or channel axis is
+approved for a specific collection and written to its `channel:` field.
+
+The server accepts content at the new coordinate after the updated recipe is
+pushed. It rejects coordinates whose axes are absent from the recipe.
 
 ### Channel names
 
-Two projects can spell one channel differently, and neither can see it: a recipe
-declares its own channels and resolves them offline, and nothing inside it knows
-what the workspace's other project called the same surface. The workspace can
-see it, so it says so, naming the pair and why the two look alike, and stops
-there.
+Projects can use different names for the same channel. Bowrain identifies
+possible matches across a workspace and proposes them for review.
 
-Accepting records that the two name one channel; dismissing records that they
-do not, and that is what keeps the next push from raising the pair again.
-Neither rewrites a slug in any recipe. A project must resolve its coordinates
-the same way whether or not it has ever been connected, so the workspace owns
-equivalence and the recipe keeps resolution.
+Accepting a proposal records that the names refer to the same channel.
+Dismissing it records that they are distinct. Either decision prevents the pair
+from being proposed again. These decisions leave recipe slugs and local
+coordinate resolution unchanged.
 
 ## Concepts
 
@@ -113,15 +95,14 @@ concept opens its **dashboard**, a single page that gathers everything known
 about it:
 
 - its **terms**, per locale, each with its lifecycle status;
-- its **geography**: the per-market truth, side by side;
+- its **geography**: term status by market;
 - its **constraints**: where each term is banned or preferred, and any validity
   windows that bound when a designation applies;
 - its **relations**: the concepts one hop away, as a local widget;
 - its **timeline**: how the concept came to be;
 - and, on the platform, the **observations** and **discussion** attached to it.
 
-You read the graph one concept at a time, from the concept you care about
-outward; there is no whole-graph canvas to navigate.
+Follow relations from a concept dashboard to inspect related concepts.
 
 ## Relations
 
@@ -165,12 +146,10 @@ A **market** is a workspace-defined scope, a name plus the locales it covers
 the free validity tags a stable vocabulary: a term or relation scoped with
 `market: dach` is interpreted, filtered, and rendered consistently everywhere. A
 term's status can differ per market, and the concept dashboard's **geography**
-panel shows the per-market truth side by side, so "banned in Germany, fine
-elsewhere" is a state the hub can represent rather than a footnote someone has to
-remember. The dashboard's **constraints** panel reads the same per-market
-statuses and validity windows back as a plain summary: which term is banned or
-preferred where, and for how long. Markets are also the headline number a plan
-bounds; see [Billing and credits](/server/billing-and-credits#markets-and-brands).
+panel shows these differences side by side. For example, a term can be forbidden
+in Germany and permitted elsewhere. The **constraints** panel summarizes where
+and when each term is forbidden or preferred. Plans also limit the number of
+markets; see [Billing and credits](/server/billing-and-credits#markets-and-brands).
 
 ## The concept story
 
@@ -179,7 +158,7 @@ Every concept's dashboard carries a **story**: a visual, chronological
 immutable snapshot with a human-readable summary, which is where term-status
 transitions and relation changes are recorded), the **observations** recorded
 against it, its **comment** threads, and the **change-sets** that touched it. The
-story answers "how did this term get here" without archaeology across systems.
+timeline shows how a concept changed and the evidence behind those changes.
 Compliance scores are not part of the story; those are reported per project and
 locale on the hub's [Dashboard](#the-dashboard-and-the-decision-inbox), not per
 concept.
@@ -201,13 +180,11 @@ remain part of the story.
 
 ## Voice and corrections
 
-The hub's **Voice** section is the team's voice profiles and the
-correction-learning loop: correct content once and the rule that prevents the
-mistake from recurring is authored, versioned, and enforced. On the platform,
-every promoted rule is **concept-backed**: a promotion references the concept its
-term denotes, so a rule and the term it governs share one identity. The loop, its
-blast-radius preview, and progressive autonomy are covered in full on
-[Voice and corrections](/server/context-voice).
+The **Voice** section holds voice profiles and correction records. Repeated
+corrections can produce candidate rules for a reviewer to promote into a profile.
+Every promoted rule references the concept it governs. See
+[Voice and corrections](/server/context-voice) for candidate review,
+blast-radius previews and progressive autonomy.
 
 ## Experiments: change-sets and pilots
 
@@ -218,30 +195,30 @@ A **change-set** is a named draft of edits to the graph and to the vocabulary:
 create or update concepts, add or remove terms, change a term's status, add or
 remove relations, add or remove concept-backed voice rules. Operations accumulate
 in the draft; nothing touches the live graph until the change-set merges. Two
-capabilities make a change-set an experiment rather than paperwork:
+capabilities support evaluation before approval:
 
-- **Blast radius: a what-if you can see.** At any point the platform evaluates
+- **Blast-radius preview.** At any point the platform evaluates
   the draft against stored content across the workspace and reports which blocks,
   in which projects, collections, streams, and locales, would be newly flagged or
   resolved, with a source word count as a proxy for re-translation effort and a
-  sample of affected blocks to inspect. Nothing is persisted by the preview; it
-  is a measurement, not a change.
-- **Pilots: a what-if you can run.** A change-set can be bound to one or more
-  content [streams](/server/workspaces) as a pilot. While the pilot is active,
-  term lookups, term checks, and voice checks in those streams resolve through
-  the draft, a stream-scoped shadow over the workspace graph, so real content and
-  real checks exercise the proposal before anyone commits to it. Merging applies
-  the operations and retires the shadows; abandoning retires the shadows
-  untouched.
+  sample of affected blocks to inspect. The preview leaves stored content
+  unchanged.
+- **Pilots on selected streams.** Bind a change-set to one or more content
+  [streams](/server/workspaces) to evaluate it before merging. Voice checks use
+  the pilot's candidate profile on those streams. The trial report compares
+  proposed term changes without applying them to ordinary term checks, which
+  continue to use workspace terms. Merging applies the operations and
+  removes the pilot overrides. Abandoning removes the overrides without applying
+  the draft.
 
 ## Tiered governance
 
-Not every edit needs review, and the hub does not pretend otherwise. Edits are
-classified as **ordinary** or **governed**.
+Edits are classified as **ordinary** or **governed**. Only governed edits require
+approval by another person.
 
 **Ordinary edits**, such as definitions, notes, observations, comments, proposed
 terms and non-status term metadata, apply directly, produce a revision, and land
-in the audit trail. This is most curation, and it stays fast.
+in the audit trail.
 
 **Governed edits**, such as setting a term's status to `forbidden` or
 `preferred`, removing such a status, succession (`replaced_by`) relations,
@@ -288,7 +265,7 @@ case:
     { label: "Merged", sub: "ops applied, pilots retired", edge: "merge" },
   ]}
   skips={[{ from: 0, to: 3, label: "ordinary merge" }]}
-  caption="A governed change-set moves draft → in review → approved → merged; an ordinary one merges straight from draft. Merge re-validates each op against the current revision, so a stale draft conflicts loudly instead of clobbering."
+  caption="A governed change-set moves draft → in review → approved → merged; an ordinary one merges straight from draft. Merge re-validates each op against the current revision, so conflicting edits are rejected."
 />
 
 ## The dashboard and the decision inbox
@@ -322,7 +299,7 @@ edits apply directly, while governed edits become a submitted change-set
 proposal, so the same separation of duties holds whether an edit is made in the
 hub or from a project.
 
-AI assistants read the same governed truth through the bowrain plugin's
+AI assistants retrieve the same approved context through the bowrain plugin's
 [MCP](/cli/mcp) tools, concept search, a concept's story, and change-set status,
 so an assistant consults the hub's terms rather than guessing.
 

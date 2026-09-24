@@ -8,12 +8,8 @@ import (
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 )
 
-// Block access states (ABAC attribute on content). This is ACCESS CONTROL —
-// who may edit — not progress: the review ladder
-// (draft → translated → reviewed → signed-off) lives on the per-locale target.
-// The two used to share the word "draft", and "in_review" sat one letter from
-// "reviewed" on the other side of the same block; the values now name the
-// access consequence instead.
+// Block access states control editing permissions. Review progress is separate
+// and stored per target locale: draft, translated, reviewed or signed-off.
 const (
 	// BlockAccessOpen: normal permissions apply.
 	BlockAccessOpen = "open"

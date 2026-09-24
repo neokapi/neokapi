@@ -12,13 +12,9 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// This file gives the Apache desktop the visual concept/relation editing that
-// the deleted CLI relation commands used to provide. The methods drive a LOCAL
-// SQLite terms through the existing handle model (App.tbHandles) and return
-// snake_case DTOs that mirror the @neokapi/concept-ui view shapes, so the
-// framework concept UI can browse, relate, and re-status concepts against the
-// author's own local copy. There is no governance gate here — that lives on the
-// server, applied later on push.
+// These methods provide local concept and relation editing through App.tbHandles.
+// Their snake_case DTOs match @neokapi/concept-ui. Server governance is applied
+// when the project pushes its changes.
 
 // --- DTOs ---
 

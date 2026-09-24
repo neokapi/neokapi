@@ -16,12 +16,9 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
-// A review queue is only honest about what will pass if it carries the evidence
-// the server actually judges on. Approve-passing applies three bars — the
-// rule-based checks, terminology, and the voice bar — but the queue payload
-// carried only the blocks, so a surface could bucket on check findings alone
-// and call "passing" a set the server then refused. #1771 removed the dead `compliant` bucket rather
-// than guess; these cases pin the evidence that replaces the guess.
+// The review queue must include the evidence used by approve-passing: rule-based
+// checks, terms and voice scores. These tests verify that clients receive enough
+// evidence to classify pending targets consistently with the server.
 
 // pendingFrBlock builds a translatable block whose fr target is a pending
 // draft — a candidate for both the queue and the bulk approve-passing pass.

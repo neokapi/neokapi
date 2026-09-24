@@ -92,10 +92,8 @@ func TestFetchStaysInsideTheConnectorRoot(t *testing.T) {
 	assert.Contains(t, err.Error(), "outside the connector root")
 }
 
-// TestResolveSourcePathStaysInsideTheConnectorRoot covers the faithful-delivery
-// re-parse, which reads a source document chosen by item metadata. An absolute
-// source_path used to be honoured outright, so metadata could name any readable
-// file on the host and have its content parsed into the delivery.
+// TestResolveSourcePathStaysInsideTheConnectorRoot verifies that source re-parsing
+// cannot use item metadata to read files outside the connector root.
 func TestResolveSourcePathStaysInsideTheConnectorRoot(t *testing.T) {
 	root := t.TempDir()
 	base := filepath.Join(root, "checkout")

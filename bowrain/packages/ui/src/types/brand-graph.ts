@@ -382,10 +382,8 @@ export const CHANGE_SET_STATUSES: ChangeSetStatus[] = [
 ];
 
 /**
- * The statuses with no outgoing lifecycle edges (knowledge's transition
- * table). A UI that hand-lists "merged or abandoned" forgets the next
- * terminal member — superseded already proved it — so terminality is asked
- * of this set, never spelled inline.
+ * Terminal change-set statuses from the knowledge lifecycle. Use this set
+ * instead of listing terminal states in individual UI components.
  */
 export const TERMINAL_CHANGESET_STATUSES: ReadonlySet<ChangeSetStatus> = new Set([
   "merged",
@@ -624,15 +622,11 @@ export interface TrialFinding {
 }
 
 /**
- * The findings diff for one stream under a change-set's draft
- * (knowledge.TrialReport).
- *
- * The two halves have different standing and the report says which is which.
- * The VOICE half is live on the stream when `voice_bound` is set: a pilot
- * materialized a candidate profile and bound it there, and the profile resolver
- * reads that rung, so a check on this stream really does resolve through the
- * draft. The TERMS half is always computed for the report — no check resolves
- * terms per stream — which is what `terms_computed` states.
+ * Findings for a stream under the live and proposed graphs, matching
+ * knowledge.TrialReport. voice_bound identifies an active candidate-profile
+ * binding used by stream checks. Term changes are simulated for this report;
+ * regular checks do not resolve terms per stream. terms_computed marks that
+ * limitation.
  */
 export interface TrialReport {
   changeset_id: string;

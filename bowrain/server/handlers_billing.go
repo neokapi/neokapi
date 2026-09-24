@@ -310,11 +310,8 @@ func (s *Server) HandleCreateCheckout(c echo.Context) error {
 
 	ctx := c.Request().Context()
 
-	// Seats are the Stripe subscription quantity for a per-seat plan, so they are
-	// what the customer is charged for. Default to the workspace's current member
-	// count — the honest number — and reject anything below it, because a
-	// subscription with fewer seats than members would under-bill a workspace that
-	// is already over the limit.
+	// Default per-seat subscription quantity to current workspace membership.
+	// Reject a smaller quantity to avoid billing for fewer seats than are in use.
 	seats := 1
 	if billing.PerSeatPlans[plan] {
 		var err error

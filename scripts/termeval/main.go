@@ -86,7 +86,7 @@ func main() {
 	}
 }
 
-// Report is the whole measurement.
+// Report contains term evaluation measurements.
 type Report struct {
 	Note       string      `json:"note"`
 	Rows       []Row       `json:"rows"`

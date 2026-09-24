@@ -3,12 +3,9 @@ import { mcpTools } from "@neokapi/reference-data";
 import type { MCPSurface, MCPTool } from "@neokapi/reference-data";
 
 /**
- * The generated MCP reference, rendered from mcp-tools.json — which gen-refs
- * produces by connecting to a real `kapi mcp` server and issuing tools/list and
- * resources/templates/list, and which a CI drift gate keeps honest.
- *
- * Nothing here is written by hand. Register, retire, or reword a tool or an
- * address and this page follows, or the build fails.
+ * The generated MCP reference, rendered from mcp-tools.json. gen-refs produces
+ * the data by calling tools/list and resources/templates/list on a real
+ * `kapi mcp` server. CI rejects changes that leave the generated data stale.
  */
 
 function bySurface(surface: MCPSurface): MCPTool[] {

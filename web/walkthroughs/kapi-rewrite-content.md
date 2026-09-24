@@ -15,23 +15,19 @@ scenes:
 
 ## Story
 
-Editing content in any format is the inspect → apply pipeline. `kapi inspect`
-parses a file into one anchored record per block — the text, a stable content
-hash, and its structural role — so a person or an AI can address exactly the
-blocks to change. `kapi apply` is the one write verb: each change-set entry is
-one reviewed change, bound to its block's content hash, landed through the
-byte-faithful round-trip. If the file drifted since inspection, the entry
-refuses to land.
+`kapi inspect` reads a file into addressable blocks with text, a content hash and
+a structural role. A person or an assistant uses those records to construct a
+change-set. `kapi apply` checks each entry's content hash before writing through
+the format's writer; it rejects an entry if the source has changed.
 
 ## Scene 1 — rewrite-content (terminal)
 
 Inspect `release-notes.md` with `kapi inspect --jsonl`, preview a two-entry
-change-set with `kapi apply edits.jsonl --diff`, land it with `kapi apply`,
-and confirm the result still passes `kapi check`. No AI provider is required
-by any step; when an AI authors the edit, it does so against the same anchors.
+change-set with `kapi apply edits.jsonl --diff`, apply it with `kapi apply`,
+and check the result with `kapi check`. These steps require no AI provider.
 
 ## Closing
 
-Format, structure, and inline codes round-trip untouched — only the leaf text
-changes. The same pipeline scales to any format kapi reads, from Markdown to
-DOCX.
+The writer preserves the surrounding structure and inline codes when applying
+text edits. The same inspection and change-set workflow is available across
+supported writable formats.

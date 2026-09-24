@@ -176,20 +176,12 @@ func (d *FlowDefinition) CheckPlacement(reg *registry.ToolRegistry) error {
 	return errors.Join(errs...)
 }
 
-// CheckRedactionCoverage enforces a project's declared redaction policy over a
-// flow. ValidatePlacement only orders a redact step the flow already lists; it
-// says nothing when the flow lists none. So a project that declares
-// defaults.redaction still leaks if a flow reaches a remote sink with no redact
-// step at all — the one route ingest redaction cannot reach, because the flow
-// author composes the steps.
+// CheckRedactionCoverage rejects a flow that sends source to a remote sink
+// without a recoverable transformer when requireRedaction is set.
 //
-// When requireRedaction is set, a flow that egresses source to a remote sink
-// with no recoverable (vaulting) transformer anywhere in it is rejected: the
-// same fail-closed stance the push route takes, extended to flows. Ordering of
-// a redact step that IS present — including the AD-020 exemption for a remote
-// detector that feeds entity-driven redaction — stays ValidatePlacement's job,
-// so this check does not re-decide it. A nil registry or a project with no
-// declared policy disables it.
+// ValidatePlacement checks the order of existing redact steps, including the
+// AD-020 exemption for remote detection inputs. This check covers flows with no
+// redact step. A nil registry or unset requireRedaction disables it.
 func (d *FlowDefinition) CheckRedactionCoverage(reg *registry.ToolRegistry, requireRedaction bool) error {
 	if reg == nil || !requireRedaction {
 		return nil

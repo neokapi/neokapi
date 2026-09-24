@@ -166,16 +166,13 @@ format that can produce one.
 
 ## Confidence-gated escalation
 
-A frontier multimodal model reads hard handwriting, garbled scans, accented or
-noisy speech and ambiguous on-screen text far better than a small specialised
-model, because it brings a language prior and world knowledge to the
-disambiguation. It is also slower, costs per call, returns no calibrated
-confidence, and, the decisive risk for a faithfulness-first tool, fails
-*dishonestly*: handed an illegible crop it confabulates a plausible wrong word
-rather than admitting defeat.
+A larger multimodal model may resolve handwriting, damaged scans, noisy speech
+or ambiguous on-screen text that a small specialised model cannot read. It also
+adds latency and per-call cost, returns no calibrated confidence, and may invent
+plausible text for illegible input.
 
-So it is never the primary reader. It is a narrow escalation over only the units
-the fast local extractor was unsure of, fed only the slice in question.
+The local extractor remains the primary reader. Only low-confidence units are
+sent to the larger model, with the relevant media slice.
 
 <PhaseFlow
   nodes={[

@@ -435,16 +435,9 @@ func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "cannot submit an empty change-set"})
 	}
 
-	// The terms component's compare-and-swap.
-	//
-	// Submitting is the moment a proposal becomes something reviewers will act
-	// on, and a proposal is a DIFF: the client built these ops by comparing its
-	// terminology against the state it last pulled. If the workspace's
-	// terminology moved since, the diff describes a state that no longer
-	// exists — a term this proposal removes may have been re-promoted, a status
-	// it flips may already have been flipped — and merging it would apply an
-	// intention nobody now holds. Refusing here, rather than letting a reviewer
-	// approve a stale proposal, is the point.
+	// Reject a proposal if workspace terms have changed since the client last
+	// pulled them. The submitted operations describe a diff against that baseline;
+	// reviewing them against a newer state could approve unintended changes.
 	if err := s.assertTermsRef(c, c.Param("ws")); err != nil {
 		if resp, ok := governanceConflict(c, err); ok {
 			return resp

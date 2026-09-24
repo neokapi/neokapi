@@ -271,31 +271,16 @@ type ExpiredTrial struct {
 	StripeCustomerID string
 }
 
-// ExpireTrials downgrades every workspace whose local trial has run out — the
-// subscription AND the denormalized workspaces.plan cache — in ONE statement, and
-// returns the workspaces it downgraded.
+// ExpireTrials atomically downgrades expired trial subscriptions and their cached
+// workspaces.plan values, returning the affected workspaces. Authorization and
+// credit grants read that cache, so both writes must succeed or roll back together.
 //
-// Both writes must be atomic. The workspaces.plan cache is what the hot path
-// reads (WorkspaceAccessMiddleware → PlanGuard, and the monthly-credit grant):
-// if the subscription were downgraded but the cache write failed as a separate
-// step, the row would leave `trialing` and never be re-swept, leaving the
-// workspace on Pro limits (and, once its subscription is no longer `trialing`,
-// eligible for the Pro monthly credit grant) for nothing. Doing both in one
-// statement means a failure rolls back both and the next tick retries.
+// This operation writes the auth-owned workspace table directly to preserve that
+// transaction boundary. FOR UPDATE SKIP LOCKED prevents concurrent sweepers from
+// claiming the same row. Rechecking status = 'trialing' under the lock prevents a
+// concurrent paid conversion from being downgraded.
 //
-// This is the one place the billing store writes the auth-owned workspaces table
-// directly. The alternative — a separate cache-sync call after the downgrade —
-// is exactly the two-write drift above; and syncing the cache *before* the
-// downgrade would let a workspace that converts to a paid plan mid-sweep get its
-// cache clobbered to free. Atomicity is the only correct option, and billing is
-// the authority the cache mirrors.
-//
-// The row is claimed with FOR UPDATE SKIP LOCKED and the subscription UPDATE
-// re-asserts `status = 'trialing'`, so two sweepers can never both downgrade the
-// same workspace, and a checkout converting the trial mid-sweep serializes on the
-// same row lock (the re-check then excludes it, so the paid plan wins). The
-// workspace's one-time trial credit grant is left alone — it is the workspace's
-// grant regardless of plan, and clawing credits back would fail running jobs.
+// The one-time trial credit grant is retained regardless of plan.
 func (s *PgBillingStore) ExpireTrials(ctx context.Context, now time.Time, limit int) ([]ExpiredTrial, error) {
 	if limit <= 0 {
 		limit = 100

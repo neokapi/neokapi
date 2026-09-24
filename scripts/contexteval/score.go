@@ -12,15 +12,11 @@ import (
 	coretools "github.com/neokapi/neokapi/core/tools"
 )
 
-// Scoring reuses the framework's own check tools rather than reimplementing
-// them: term-check for term mandates, dnt-check for verbatim survival,
-// voice-vocab-check for forbidden-term hits, pattern-check for the regex-shaped
-// rules. That is deliberate and load-bearing — a model that "games" this eval
-// is a model that satisfies the checks kapi actually ships, and a check tool
-// the eval exercises cannot silently rot. It also means the eval inherits the
-// tools' semantics, blind spots included (whole-word matching does not catch a
-// German inflection of a forbidden term); the eval measures the system as
-// shipped, not an idealized scorer.
+// Scoring uses the framework's check tools: term-check for required terms,
+// dnt-check for verbatim preservation, voice-vocab-check for forbidden terms,
+// and pattern-check for regular-expression rules. Results therefore reflect
+// the shipped checks and their limitations. For example, whole-word matching
+// can miss an inflected form of a forbidden German term.
 
 // Counts is scored-vs-passed for a set of checks. Adherence is Passed/Scored.
 type Counts struct {

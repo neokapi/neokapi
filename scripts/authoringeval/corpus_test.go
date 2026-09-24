@@ -81,23 +81,10 @@ func TestEveryMechanismHasEvidence(t *testing.T) {
 	}
 }
 
-// TestBothProfilesAreValid.
-//
-// A profile kapi rejects makes every number a measurement of the fixture. The
-// contrast profile was written with `sentence_length: long`, which is not one
-// of the enum's values, and the run refused to start — this test moves that
-// from a runtime failure to a test failure.
-//
-// The calls below are what `kapi voice validate` runs (cli/voice.go): a
-// lenient parse for syntax, a strict decode for unknown fields, then the
-// semantic pass, whose verdict is over the blocking problems only, since an
-// unfamiliar tone is an advisory the guide renders as written. Running them
-// here instead of the binary keeps the check honest in two ways. It runs in
-// CI, where there is no kapi to find and the binary version skipped every
-// time; and it reads the schema this tree defines, where shelling out read
-// whichever kapi the machine had installed. On a developer laptop that is the
-// released build, and it rejected `forbidden_terms[].forms` months after the
-// field landed.
+// TestBothProfilesAreValid validates the fixtures against the current source
+// schema without requiring an installed binary. It follows kapi voice validate:
+// lenient syntax parsing, strict decoding of fields, then semantic validation.
+// Only blocking problems fail; unfamiliar tone values remain advisory.
 func TestBothProfilesAreValid(t *testing.T) {
 	for name, body := range map[string]string{"voice.yaml": referenceProfile, "contrast.yaml": contrastProfile} {
 		p, err := profile.LoadProfileYAML(strings.NewReader(body))

@@ -147,26 +147,13 @@ const convergePollInterval = 750 * time.Millisecond
 // position and re-creates the group at the current stream head.
 const convergeOnPushGroup = "convergence-onpush"
 
-// subscribeConvergeOnPush wires the continuous-convergence policy: a completed
-// push starts a convergence run for on-push projects (the default), replacing
-// the retired auto-translate-on-push automation. Manual projects converge only
-// on demand. Transport (push) stays pure; this is the project's own clock.
+// subscribeConvergeOnPush starts runs after completed pushes for on-push projects.
+// Manual projects run only on demand.
 //
-// Durability: this trigger is state-advancing — a lost EventPushCompleted means
-// convergence-on-push silently never happens — so it joins a consumer group
-// (SubscribeGroup → XREADGROUP) instead of tailing with Subscribe. A plain
-// Subscribe reads from the CURRENT stream position with no resume, so an event
-// published while the server was mid-deploy-rollover simply vanished. The
-// group's acknowledged position survives restarts (the resubscribing instance
-// drains everything published during its downtime) and exactly one instance in
-// the group handles each event.
-//
-// Idempotency (same argument as durable ingest, #1364): replaying an old push
-// event — the startup drain, or a redelivered un-acked entry — starts at worst
-// one extra convergence run over already-converged state, which derives
-// coverage, finds nothing pending, and terminates. StartRun's active-run guard
-// (DB partial unique index) additionally collapses a replay racing a live run
-// into joining that run.
+// A durable consumer group preserves its acknowledged position across restarts
+// and assigns each event to one instance. Replayed events may start an extra run;
+// already-converged state produces no work. StartRun's active-run guard joins an
+// existing run when replay races with one in progress.
 func (s *Server) subscribeConvergeOnPush() {
 	if s.EventBus == nil || s.convergence == nil {
 		return
@@ -589,27 +576,14 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 		o.createSourceReviewTasks(context.WithoutCancel(ctx), run)
 	}
 
-	// On completion (converged OR parked), the project's content enters the
-	// team's review queue — the single-player→multiplayer seam. Governed review
-	// is the default: only a project that explicitly set workflow_enabled=false
-	// skips the fan-out (the delegate checks). The fan-out covers BOTH outcomes
-	// — converged is the common one — and carries the run/items/locales linkage.
-	// Failed/canceled runs create nothing.
-	// A source-not-ready hold produced no translations, so it routes to SOURCE
-	// review (below), not the translation review queue — skip the completion
-	// tasks in that case to avoid a "review translations" task for work that was
-	// never done. A no-target-locales hold likewise produced nothing to review:
-	// the next action is configuration (add a target language), not review.
+	// Converged and parked runs create review tasks unless the project disables
+	// governed review. Failed and canceled runs create none. Source-not-ready
+	// holds route to source review; no-target-locale holds require configuration.
+	// Neither produces translation review tasks.
 	//
-	// run.Passes > 0 is the anti-loop gate (RV-B): a run that ran zero production
-	// passes derived 0 pending on its first pass — it translated nothing new, so
-	// there is no fresh draft work to review. That is exactly the shape of the
-	// completing run a review.completed triggers: every block is already
-	// approved, the derive finds nothing pending, the loop runs 0 passes and
-	// converges. Fanning review tasks back out for already-reviewed content would
-	// re-open the queue and let review → run → review loop forever. Gating on
-	// "the run actually produced work" breaks that loop while still fanning tasks
-	// out for every genuine translate/park run (which always ran ≥1 pass).
+	// Require at least one production pass before creating tasks. A completing
+	// run triggered by review.completed can converge without producing work;
+	// creating new tasks for it would restart the review/run cycle.
 	if (run.State == bstore.ConvergenceRunConverged || run.State == bstore.ConvergenceRunParked) &&
 		run.StallReason != convergence.StallSourceNotReady &&
 		run.StallReason != convergence.StallNoTargetLocales &&

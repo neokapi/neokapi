@@ -54,7 +54,7 @@ const POINTS: Point[] = [
     collection: "api-reference",
     voice: t("developer reference"),
     rule: t("The old name must not change."),
-    term: t("project: required; it is the wire field, not a word."),
+    term: t("project: required as the API field name."),
   },
 ];
 
@@ -70,19 +70,19 @@ const LADDER = [
   {
     scope: t("A project"),
     body: t(
-      "The recipe declares the axes every collection inherits: the brand, the kind of document, whatever else the content varies along. Declared once, at the broadest scope that is true.",
+      "Set shared coordinates in the project recipe, such as the brand and document type. Collections inherit these defaults.",
     ),
   },
   {
     scope: t("A collection"),
     body: t(
-      "This folder is the help centre; that one is the API reference. The collection carries the profile for everything inside it, overriding the project on the one axis it differs on and inheriting the rest.",
+      "Give each collection the coordinates it needs. A help-centre collection and an API-reference collection can use different channels while inheriting the same brand.",
     ),
   },
   {
     scope: t("An exception"),
     body: t(
-      "One document that belongs to the folder but not to its register, a deprecation notice inside the help centre, is given a collection of its own. Nobody carves out an exception unless it genuinely is one.",
+      "Place a document in a separate collection when it needs different guidance. For example, a deprecation notice may use a different register from nearby help articles.",
     ),
   },
 ];
@@ -137,7 +137,7 @@ export function Coordinates() {
         </dl>
 
         <div className="mt-12 grid gap-8 lg:grid-cols-[minmax(0,22rem)_1fr]">
-          {/* Inheritance: declared where it is cheapest, overridden where it must be. */}
+          {/* Project defaults and collection overrides. */}
           <div>
             <h3 className="text-base font-semibold">{t("Declared once, inherited down")}</h3>
             <ol className="mt-5 space-y-5 border-l border-border pl-5">

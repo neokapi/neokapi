@@ -116,11 +116,8 @@ func TermRulesFromConcepts(ctx context.Context, tb terms.Terminology, projectID 
 		// The one derivation every surface shares (terms.RuleForConcept), so
 		// the jobs mandate the renderings and forms the CLI gate accepts.
 		rule, ok := terms.RuleForConcept(concept, sourceLocale, targetLocale)
-		// A rule with neither a rendering nor a keep-verbatim claim demands
-		// nothing: "say this instead" needs a this. A do-not-translate rule has
-		// no replacement by construction and is exactly the case this used to
-		// drop, which left the ship gate enforcing a concept that never reached
-		// the drafter or recycle.
+		// Keep replacement rules and do-not-translate rules. A DNT rule has no
+		// replacement but must still reach drafting and content-memory reuse.
 		if !ok || (rule.Replacement == "" && !rule.DoNotTranslate) {
 			continue
 		}

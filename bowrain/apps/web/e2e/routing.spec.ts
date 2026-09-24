@@ -216,11 +216,7 @@ test.describe("Routing", () => {
     await page.goto(`/${wsSlug}`);
     await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 10000 });
 
-    // The desktop sidebar is a fixed icon rail — the collapse affordance it
-    // used to carry is gone, and so is the assertion that used to hide behind
-    // `if (await collapseBtn.isVisible())` and therefore never ran. What is
-    // worth pinning is that selecting a section reveals its surfaces, since
-    // that two-step is now the only route to most of them.
+    // Selecting an icon-rail section must reveal its navigation entries.
     await page.getByTestId("nav-context").click();
     for (const id of ["concepts", "voice", "memory", "activity"]) {
       await expect(page.getByTestId(`subnav-${id}`)).toBeVisible({ timeout: 10000 });

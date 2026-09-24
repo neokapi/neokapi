@@ -4,35 +4,18 @@
 #
 # "What does kapi actually send to the model?" — answered by running it.
 #
-# The scene builds a prompt up one layer at a time and prints the real thing at
-# each step, so the composition is something the reader watches happen rather
-# than something the docs assert:
-#
-#   bare translate        → framework task + placeholder constraint, and the content
-#   + --instruction       → the steering section appears, attributed to the flag
-#   a tag-bearing block   → the inline-tag constraint appears, only when earned
-#
-# Fully offline: --provider demo is the deterministic built-in stub, so every
-# step renders the exact prompt a paid provider would receive with no API key,
-# no network and no spend. That is the point of the scene, not a limitation of
-# it. Every runnable step works in the wasm embed.
-#
-# Deliberately NOT shown here: the glossary and brand-voice sections. Both are
-# project-level bindings (defaults.terms / defaults.voice) backed by
-# SQLite, which the browser build does not carry — demonstrating them here would
-# mean a step that works on the desktop and silently does nothing in the embed.
-# The docs page shows them in recipe form instead.
-#
-# Pairs with the docs page /framework/prompts.
+# Compare the default prompt with a custom instruction and an inline-tag rule.
+# The demo provider runs offline and renders the same assembled prompt that a
+# configured external provider would receive. Project-bound terms and voice
+# guidance are covered on /framework/prompts.
 
 id: kapi-explain-prompts
 scene: explain-prompts
 mode: interactive
 
 # messages.json is the kit fixture (greeting / farewell / cart). notice.html
-# carries an inline-tag string, so the tag constraint has a reason to appear —
-# a JSON string containing "<b>" would not: the JSON filter treats it as literal
-# text, and the block never earns the rule.
+# contains inline markup, which activates the tag constraint. In JSON, the same
+# characters would be literal text.
 seed:
   - messages.json
 files:
@@ -47,14 +30,14 @@ files:
 steps:
   - comment: kapi sends a prompt to a language model on your behalf. --explain-prompts prints exactly what it sent.
   - command: kapi translate messages.json --source-lang en --target-lang fr --provider demo --explain-prompts
-    narration: Start bare. The system turn carries the framework's task and its placeholder constraint. The user turn carries the source text and nothing else — content is data, never instruction.
+    narration: Inspect the default prompt. The system turn contains the task and placeholder constraint; the user turn contains the source content.
     smoke: true
   - comment: --provider demo is the offline stub, so this is a free preview of the prompt a paid provider would receive. No key, no network, no spend.
   - command: kapi translate messages.json --source-lang en --target-lang fr --provider demo --instruction "Informal register. Keep product names in English." --explain-prompts
-    narration: Add an instruction. A new section appears, attributed to the flag that produced it. This is how you steer the model — by adding to the prompt, not by replacing it.
+    narration: The instruction adds a prompt section labelled with the flag that supplied it.
     smoke: true
-  - comment: Constraints are earned, not constant.
+  - comment: The inline-tag constraint applies to content with markup.
   - command: kapi translate notice.html --source-lang en --target-lang fr --provider demo --explain-prompts
-    narration: This block carries an inline tag, so the prompt gains the tag-fidelity rule — reproduce every tag exactly. A block with no markup never sees it. Note the content turn is still pure content, with the tags rendered as placeholders.
+    narration: An inline tag adds the tag-fidelity rule to the prompt. Tags appear as placeholders in the content turn.
     smoke: true
   - comment: The same prompt goes to every provider. Swapping --provider changes the transport and the model, never the instructions.

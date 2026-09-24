@@ -15,40 +15,20 @@ import (
 	"github.com/neokapi/neokapi/core/safeio"
 )
 
-// Why plain text names blocks positionally, and why that is the right answer
-// here rather than a gap left open.
+// Plain text uses line numbers for block names because the format supplies no
+// keys, headings or other structural addresses.
 //
-// core/model/structural.go asks every reader to name a block by its structural
-// address — the heading trail, the key path, the natural key the format already
-// provides. A plain text file has none of those. It is, by definition, a
-// sequence of lines with no headings, no keys, no nesting and no author-visible
-// labels. There is nothing in the file for an address to be derived FROM.
+// Content-derived names would change on every edit and couple ContextHash to
+// ContentHash, removing the independent signals used for identity matching.
+// Inferred structures such as blank-line sections would also change without an
+// explicit author-supplied address.
 //
-// The alternatives were considered and are worse:
+// core/reconcile compares content before context. It can therefore retain a
+// block's identity when insertions or deletions shift its line number. Formats
+// with stable structural addresses should use those addresses instead.
 //
-//   - Derive the name from the block's own text. This was tried in this repo
-//     and reverted. It fixes deletion and breaks editing — fix a typo and the
-//     block becomes a different block and loses its history — and worse,
-//     model.ComputeIdentity folds Name into ContextHash, so a content-derived
-//     name collapses the two hashes into one and destroys the independent
-//     signal that identity matching depends on. Do not repeat it.
-//   - Invent a synthetic structure (blank-line "sections", first-line
-//     "titles"). That is a guess dressed as structure: it moves for reasons the
-//     author never expressed, and is less predictable than the line number it
-//     replaces, not more.
-//
-// So the line number stays, and is read as what it honestly is: a CONTEXT
-// signal, not an identity. core/reconcile is built for exactly this — it grades
-// content BEFORE context, so a line that shifted because something above it was
-// inserted or deleted still matches on its words and keeps its identity and its
-// history. Positional naming is acceptable here because the layer that resolves
-// identity compensates for it; it is not acceptable in a format that could have
-// done better.
-//
-// Every block also carries the line it starts on as an ADVISORY property, so a
-// tool can point at it in the file. Advisory means carried but never hashed into
-// identity — otherwise the locator would be the very thing that makes a block
-// look like it moved, since it shifts whenever anything above it does.
+// The starting line is also stored as an advisory property for source navigation.
+// Advisory properties are excluded from identity hashes.
 
 // propLine is the 1-based line a block starts on — the locator that lets a tool
 // point at the block in the file.

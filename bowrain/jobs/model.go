@@ -30,20 +30,15 @@ type TranslationJob struct {
 	Model            string `json:"model,omitempty"` // deployment/model name (e.g. "gpt-4o", "gpt-4o-mini")
 	PushID           string `json:"push_id,omitempty"`
 	StepID           string `json:"step_id,omitempty"` // automation step ID for run visibility (Bowrain AD-013)
-	// CreatedBy is the user who asked for this job, empty for the jobs the
-	// platform starts itself (automation fan-out, forge ingest, model sweep).
-	// It exists so a failure can reach the person waiting on it: without it
-	// every failure is system-initiated as far as the notification path can
-	// tell, and the only honest recipient is the workspace's owners.
+	// CreatedBy identifies the requesting user for failure notifications. Empty
+	// for platform-initiated jobs, whose failures are routed to workspace owners.
 	CreatedBy   string    `json:"created_by,omitempty"`
 	Status      JobStatus `json:"status"`
 	Progress    int       `json:"progress"` // 0-100
 	TotalBlocks int       `json:"total_blocks"`
 	DoneBlocks  int       `json:"done_blocks"`
-	// ViaMemory/ViaAI record the content memory-first split for this job: how many blocks were
-	// recycled from the project content memory vs. sent to the AI translator. The
-	// convergence produce emitter sums these across a locale's jobs to report a
-	// truthful "content memory N · AI M" (theme A2).
+	// ViaMemory and ViaAI count blocks reused from content memory and sent to AI.
+	// Convergence sums them across jobs for each locale.
 	ViaMemory   int       `json:"via_tm"`
 	ViaAI       int       `json:"via_ai"`
 	BatchSize   int       `json:"batch_size,omitempty"`

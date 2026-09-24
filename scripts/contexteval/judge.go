@@ -188,15 +188,13 @@ func (j *judgeTarget) judgePass(ctx context.Context, corpus TestCorpus, blocks [
 	return nil
 }
 
-// judgeOne asks the judge for a yes/no per criterion, blind: the prompt names
-// the target language, the source, the candidate translation and the rubric —
-// never the producing model, and never which variant the text came from.
+// judgeOne requests a yes/no assessment for each criterion. The prompt includes
+// the language, source, candidate translation and rubric, but omits the producing
+// model and experimental variant to reduce bias.
 //
-// The house vocabulary IS included. The mandates are deliberately non-naive
-// (that is what makes obedience measurable), so a judge who does not know them
-// penalizes obedience as unnaturalness; terminology itself is owned by the
-// deterministic checks and explicitly excluded from the rubric's scope. The
-// list is constant per target, so it identifies no model and no variant.
+// Required vocabulary is included so the judge can distinguish mandated wording
+// from awkward phrasing. Deterministic checks score terminology separately.
+// The vocabulary is constant per target and reveals neither model nor variant.
 func (j *judgeTarget) judgeOne(ctx context.Context, target, source, translation string) (map[string]bool, error) {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "Target language: %s\n\nSource (English):\n%s\n\nCandidate translation:\n%s\n", target, source, translation)

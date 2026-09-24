@@ -9,15 +9,14 @@ import { CycleDiagram, PipelineDiagram } from "@neokapi/docs-shared";
 
 # Keeping it alive
 
-A measurement framework is only as good as the process that re-runs it. Scores
-rot, specifications change, models improve, and new formats appear; without an
-upkeep loop the [dashboard](/format-maturity) would quietly drift from reality.
+The [dashboard](/format-maturity) needs regular updates as implementations,
+specifications and evaluation models change. The maintenance process schedules
+those updates and records their results.
 
 ## The runbook loop
 
-The maintainer's whole job is to point an AI assistant at the runbook on a loose
-cadence. Weekly to fortnightly is enough, and a longer absence produces stale
-badges rather than breakage. From there the loop is autonomous:
+A maintainer starts the runbook with an AI assistant every week or two. Delayed
+runs produce stale badges. The assistant then follows this cycle:
 
 <CycleDiagram
   steps={[
@@ -48,18 +47,17 @@ key property is that due-ness is computed from durable signals, not remembered:
 the ledger only records what each ritual last consumed, so a missed week is
 caught up rather than lost.
 
-## Calibration: keeping the measure honest
+## Calibration against human grades {#calibration-keeping-the-measure-honest}
 
 The prompts that drive the work, and the rubric they grade against, are versioned
-artifacts with a regression gate. Generic "improvements" are not monotonic, so an
-edit ships only when a paired before/after benchmark shows it helped.
+artifacts with a regression gate. An edit ships only when a paired before/after
+benchmark demonstrates an improvement.
 
 When a new model generation lands, the loop re-scores a small, human-graded
 **golden set** anchor-free and compares against the adjudicated grades for that
 exact rubric version. If agreement drops, scoring is **blocked** until the rubric
-or the prompts are brought back into line. This is what lets the framework trust
-an AI to do the work: the measure is re-validated against human judgment whenever
-the thing doing the measuring changes.
+or the prompts are corrected. This comparison validates automated scoring
+against human judgment whenever the evaluation model changes.
 
 ## Vigilance: upstream, corpus, security
 
@@ -98,7 +96,7 @@ published tier without anyone editing a list of formats by hand:
 
 A candidate is scanned in from the wider content world and scored against an
 **adoption-evidence bar**: real demand, a harvestable or generatable corpus, an
-identifiable spec source, and a clear statement of what kapi uniquely adds. Once
+identifiable spec source, and a clear statement of the capability kapi would provide. Once
 the maintainer accepts it, the `implement-format` skill builds the reader,
 writer, specification, and the per-axis artifacts; the next scoring run discovers
 it automatically, because the reporting set is derived from the real format

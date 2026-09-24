@@ -252,12 +252,9 @@ func TestRunExtractSkipsUnreadableFiles(t *testing.T) {
 	assert.Equal(t, "mystery.zzz", res.Skipped[0].Path)
 }
 
-// One handle per project, and it serves concurrent readers. A tab-cached block
-// store used to be the desktop's answer to "database is locked" — opening a
-// fresh pool per call let two operations collide on the file. The merged store
-// answers it once, for every subsystem, on the engine: one pool, whose writers
-// this process can order. Verify the identity, the concurrency, and that
-// CloseProject hands the project back.
+// The engine caches one store handle per project for concurrent readers and
+// serialized writers. Opening separate pools would bypass the shared write gate.
+// Verify handle identity, concurrent access and cleanup by CloseProject.
 func TestProjectStoreIsOneHandleAndServesConcurrentReaders(t *testing.T) {
 	dir := t.TempDir()
 	kapiPath := filepath.Join(dir, "test.kapi")

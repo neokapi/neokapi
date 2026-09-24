@@ -1,19 +1,11 @@
-// Command coordinatereport produces the data behind the /coordinate dashboard:
-// what governs each point a recipe declares, which of a block's prior answers
-// are offered as reference and which are withheld, and the two prompts side by
-// side.
+// Command coordinatereport generates the /coordinate dashboard data: resolved
+// governance, eligible and withheld prior versions, and paired prompts.
 //
-// Everything here is DETERMINISTIC. It calls the real resolver, the real
-// corpus and the real prompt builder, and spends no model calls — so it runs on
-// every pull request and its numbers are facts rather than samples. That is the
-// half of this system that can be proven rather than measured, and proving it
-// is what makes the measured half worth paying for.
+// It uses the production resolver, corpus and prompt builder without model calls.
+// A companion test regenerates the deterministic output and checks for drift.
 //
-//	go run ./scripts/coordinatereport                       # write the dashboard data
-//	go run ./scripts/coordinatereport -out /dev/stdout      # inspect it
-//
-// A companion test regenerates it and fails on drift, so the committed file
-// cannot silently disagree with the code it describes.
+//	go run ./scripts/coordinatereport
+//	go run ./scripts/coordinatereport -out /dev/stdout
 package main
 
 import (
@@ -72,7 +64,7 @@ func Marshal(r *Report) ([]byte, error) {
 	return []byte(b.String()), nil
 }
 
-// Report is the whole dashboard payload.
+// Report contains the coordinate dashboard data.
 type Report struct {
 	Note string `json:"_note"`
 	// Generated is when this ran, and Commit is what it ran against. Neither

@@ -15,22 +15,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A converge run that fails partway must leave the UI able to tell. Two things
-// used to conspire against that:
+// A partial convergence failure must refresh the UI and record the failed run.
+// The failure path must emit project:extracted and outputs-changed so project
+// status reflects completed work rather than pre-run values.
 //
-//   - the failure path returned before emitting "project:extracted" /
-//     "outputs-changed", so the home surfaces never re-derived and kept showing
-//     the pre-run numbers, and
-//   - nothing recorded that the run had failed at all, so a project whose
-//     catch-up died on its first locale was indistinguishable from a converged
-//     one.
-//
-// The fixture makes the failure real, offline, and deterministic without a
-// provider call: fr-FR is pre-written as a complete translation (so it is
-// already converged and the planner has nothing to do for it), while the
-// default flow's translate step names a provider that does not exist — so the
-// de-DE pass cannot even assemble its tool. The result is exactly the founder's
-// scenario: one locale done, one locale unproduced, and a failed run.
+// The fixture requires no provider call: fr-FR has a complete translation, while
+// the default flow names an unavailable provider. The de-DE pass fails during
+// tool setup, leaving one locale complete, one unproduced and the run failed.
 
 // newPartialFailureProject scaffolds a two-locale project where fr-FR is already
 // complete and de-DE's pass is guaranteed to fail.

@@ -406,16 +406,10 @@ func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *term
 		return nil, nil
 	}
 
-	// An absent baseline used to mean "skip", which is why terminology could
-	// never reach a workspace that had not first been pulled from: a fresh
-	// workspace has nothing to pull, so the pull established no baseline, so
-	// the push skipped — permanently.
-	//
-	// Terminology is RECIPE-OWNED: the local store is the authority. So the
-	// baseline is not a precondition for acting, it is only what stops a push
-	// proposing something the server already has. That is a re-askable fact,
-	// so ask for it. A workspace holding nothing yields an empty baseline, and
-	// every local concept is correctly a create — which is how seeding works.
+	// When no baseline exists, read workspace terms to establish one. The baseline
+	// prevents duplicate proposals; it is not required before the first push.
+	// An empty workspace yields an empty baseline, making every local concept a
+	// create operation.
 	if baseline == nil {
 		serverConcepts, serverRels, err := fetchServerConcepts(ctx, client)
 		if err != nil {

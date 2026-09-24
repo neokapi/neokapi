@@ -10,9 +10,8 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// docBlocks builds one item's blocks. Ids are minted by the store, so the order
-// a listing used to come back in was neither the order these were written nor
-// the order they are read in.
+// docBlocks builds ordered blocks for one item. Listing order must follow
+// document order independently of store-generated IDs.
 func docBlocks(names ...string) []*model.Block {
 	blocks := make([]*model.Block, 0, len(names))
 	for _, name := range names {

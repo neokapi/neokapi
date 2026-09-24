@@ -1,49 +1,26 @@
-// Package xmlesc holds the XML escapers that several format readers had
-// independently written identically. It sits at core/xmlesc rather than
-// core/xmlesc so that memory/ and terms/ can reach it too: they are
-// siblings of core/, not descendants, and Go's internal/ visibility rule
-// would otherwise keep them out.
+// Package xmlesc provides XML escaping shared by format readers, memory and terms.
+// [Attr] and [Text] use string replacement to preserve invalid UTF-8 bytes; see
+// [Text] for the byte-preservation contract.
 //
-// # Why this package is small on purpose
+// Format-specific escapers remain separate where their output differs:
 //
-// A repository-wide survey found 19 escaping helpers across 9 packages. Most
-// of them look like duplicates and are not: the differences encode what a
-// particular writer must emit to stay byte-stable against okapi's reference
-// output, which the parity suite asserts. Folding them together would silently
-// change round-trip bytes — the exact failure this package must not cause.
+//   - core/formats/xliff xmlEscapeText escapes > only inside ]]>, matching
+//     Okapi's XLIFFWriter.
+//   - core/formats/xml xmlEscapeAttrValue leaves > unchanged, while
+//     xmlEscapeString escapes double quotes in text to match the reference writer.
+//   - core/formats/ts xmlEscapeRune and xmlEscapeRuneEntity retain apostrophes
+//     in source but emit &apos; in numerusform.
+//   - core/formats/odf odfEscapeText escapes all five predefined XML entities.
+//   - core/formats/epub and core/formats/tmx iterate over runes, replacing
+//     invalid UTF-8 with U+FFFD.
+//   - core/formats/openxml xmlEscapeRune writes directly to a strings.Builder.
+//   - memory/tmx_export xmlEscape uses html.EscapeString and its numeric quote
+//     entities, but only when the input also contains &, < or >.
+//   - scripts/mkappcast xmlEscape uses encoding/xml.EscapeText, which also
+//     encodes tabs, newlines and carriage returns.
 //
-// So only the provably identical ones live here. [Attr] and [Text] were
-// byte-for-byte the same source in xliff, xliff2, openxml/wml and odf, which
-// makes replacing them a no-op by construction. Everything else stays where it
-// is, each carrying a comment naming what makes it different, so the next
-// reader does not have to repeat the analysis.
-//
-// # The escapers that deliberately did NOT move here
-//
-//   - core/formats/xliff xmlEscapeText — escapes `>` only inside `]]>`, to
-//     stay byte-identical to okapi's XLIFFWriter.
-//   - core/formats/xml xmlEscapeAttrValue — omits `>`, matching okapi-bridge's
-//     reference round-trip for ITS test01.xml.
-//   - core/formats/xml xmlEscapeString — escapes `"` in TEXT position, because
-//     okapi's reference writer emits &quot; in extracted content.
-//   - core/formats/ts xmlEscapeRune / xmlEscapeRuneEntity — `'` stays raw in
-//     <source> but becomes &apos; in <numerusform>, per the okapi reference.
-//   - core/formats/odf odfEscapeText — escapes all five predefined entities,
-//     `'` included.
-//   - core/formats/epub, core/formats/tmx — walk runes, so invalid UTF-8
-//     becomes U+FFFD; see [Text].
-//   - core/formats/openxml xmlEscapeRune — streams one rune into a Builder
-//     rather than returning a string.
-//   - memory/tmx_export xmlEscape — html.EscapeString, which uses numeric
-//     entities (&#39;, &#34;) and is guarded by a ContainsAny check, so quotes
-//     escape only when an &, < or > is also present.
-//   - scripts/mkappcast xmlEscape — encoding/xml's EscapeText, which also
-//     encodes tab, newline and carriage return.
-//
-// # The escaping rules
-//
-// Both functions escape by string replacement rather than by walking runes,
-// and that is load-bearing rather than incidental — see [Text] for why.
+// Preserve these differences when consolidating helpers: the parity tests depend
+// on the reference writer's exact escaping behavior.
 package xmlesc
 
 import (

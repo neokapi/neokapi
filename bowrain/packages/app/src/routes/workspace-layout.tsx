@@ -454,14 +454,9 @@ export function WorkspaceLayout() {
   // caches. No-op on web (the hook gates on kind === "desktop").
   useDesktopFreshness(ws, activeProjectId);
 
-  // The shell reads the open project for two things — the trail's project step
-  // and the title of the panel holding its sections — and both used to peek at
-  // the query cache from inside a useMemo. A cache read is not a subscription:
-  // nothing re-ran when the project finally arrived, so a project opened
-  // straight after creation kept its raw id in the trail ("project-1") until
-  // some unrelated state change happened to recompute the memo. This is the
-  // same query the project routes issue, deduplicated by key, so subscribing
-  // here costs no extra request and makes the shell react when it lands.
+  // Subscribe to the project query so the breadcrumb and panel title update
+  // when its name loads. Project routes use the same query key, so requests
+  // are deduplicated.
   const { data: fetchedProject } = useQuery({
     ...projectQueryOptions(
       adapter,

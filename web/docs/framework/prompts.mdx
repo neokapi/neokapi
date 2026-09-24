@@ -259,16 +259,13 @@ co-workers degrades quality; adding context does not.
 | `key`        | **Default.** The block's key (`settings.save`). |
 | `neighbours` | The key, plus the surrounding source blocks.    |
 
-The **key** is the cheapest disambiguation there is: it is already in your
-document, it costs a handful of tokens, and it settles the `Save` question
-outright. It is also stable (a key travels with its block), so sending it can
-never make a cached translation wrong.
+The **key** provides context already present in the document at a small token
+cost. A key such as `settings.save` can help distinguish a button label from
+other uses of “Save”. The key remains associated with its block.
 
-**Neighbours** cost tokens, and they make a block's translation depend on text
-that is not the block. The engine handles that honestly: the neighbourhood is
-fingerprinted into the cache key, so editing one string re-translates the strings
-around it rather than serving them from a cache produced under a neighbourhood
-that no longer exists. That correctness costs tokens, which is why it is opt-in.
+**Neighbours** provide more context and consume more tokens. Their content is
+included in the cache fingerprint, so editing a neighbouring string invalidates
+cached translations that depended on it. This option is disabled by default.
 
 ```bash
 kapi translate messages.json --target-lang fr --context neighbours

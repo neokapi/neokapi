@@ -1,19 +1,16 @@
 ---
 sidebar_position: 4
 title: Content memory
-description: The content memory holds the approved wording a workspace reuses, pairs of source and target text with the point and the context they were approved under, so a draft can recycle what the workspace has already settled.
+description: Store approved source and target wording with its approval context for reuse across workspace projects.
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Content memory
 
-The content memory holds the approved wording a workspace reuses. Each entry
-pairs a source segment with a target segment, and carries where and under what
-context it was approved, so a run can recycle what the workspace has already
-settled instead of drafting it again. It is the same store the engine keeps
-locally, held on the server instead, shared across every project in the
-workspace.
+Content memory stores approved wording for reuse across workspace projects.
+Each entry pairs source and target text with the context in which it was approved.
+A run can reuse eligible entries before drafting new text.
 
 <ThemedVideo
   sources={{

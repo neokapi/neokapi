@@ -364,16 +364,8 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   /**
-   * Headers for a multipart/form-data request: the same auth and CSRF headers
-   * as every other call, minus Content-Type — the browser must set that itself
-   * so the multipart boundary is generated.
-   *
-   * The upload methods used to hand-roll `this.token ? { Authorization } : {}`,
-   * which in cookie (BFF) mode produced no headers at all. When #1239 made the
-   * CSRF header mandatory on cookie-authenticated state-changing requests,
-   * every upload from the web app started coming back 403 "missing CSRF
-   * header" — file upload, collection upload, and brand-scan sources alike.
-   * Deriving from headers() keeps the auth contract in one place.
+   * Use the shared authentication and CSRF headers for multipart requests.
+   * Omit Content-Type so the browser supplies the multipart boundary.
    */
   private uploadHeaders(): Record<string, string> {
     const h = this.headers();
@@ -398,17 +390,9 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   /**
-   * Attempt to refresh the access token using the stored refresh token or cookie.
-   *
-   * The headers come from `headers()` for the same reason the uploads' do. In
-   * cookie (BFF) mode there is no in-memory refresh token, so the body is empty
-   * and the server reads the HttpOnly refresh cookie — which makes this an
-   * ambient-credential, state-changing request, and those must carry the CSRF
-   * header. A hand-rolled `{ "Content-Type": … }` omitted it, so every browser
-   * refresh came back 403 "missing CSRF header", `tryRefresh` reported failure,
-   * and `onSessionExpired` bounced the user to the identity provider as soon as
-   * the 15-minute access cookie lapsed (#1809). Deriving from `headers()` keeps
-   * the auth contract in one place.
+   * Refresh the access token using the saved token or HttpOnly refresh cookie.
+   * Cookie mode sends an empty body. Derive headers from headers() so the
+   * state-changing cookie request includes the required CSRF token.
    */
   private async tryRefresh(): Promise<boolean> {
     try {

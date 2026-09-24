@@ -1,16 +1,13 @@
 # Content checks: the verification engine
 
-This note describes how neokapi verifies content, the mechanism behind
-"checks that act like tests for AI output." It is a framework concern; it makes
-no reference to any platform built on top of it.
+This note describes the framework's content checks, finding model and scoring.
 
 ## What a check is
 
 A **check** is a rule that reads a block and emits findings. A **checkset** (or
-profile) is a named bundle of checks. Running a checkset over content is the
-content analogue of running a test suite over code: the checks are deterministic
-and repeatable even though the generation that produced the content was not. The
-checks do not make generation deterministic; they make it accountable.
+profile) is a named bundle of checks. Deterministic checks verify properties
+such as placeholder counts and term usage. Model-based checks assess qualities
+such as tone, with reliability measured through evaluation.
 
 ## One finding model
 
@@ -34,7 +31,7 @@ type Finding struct {
 
 Severity carries MQM-inspired penalty weights (neutral 0, minor 1, major 5,
 critical 25). Findings are the substantive output; the roll-up score is a
-convenience and is honest only when calibrated (see *Scoring*, below).
+summary that requires calibration (see *Scoring*, below).
 
 A checker is any type that implements `check.Checker` and writes its findings
 through `check.Annotate`, which attaches a single `FindingsAnnotation`
@@ -61,9 +58,8 @@ are objective and high-confidence:
 - **Register**: formality requirements per locale (for example, formal forms in
   de/ja). A lexical layer covers the cheap cases; a small model covers the rest.
 
-The value of the kernel compounds with volume, number of languages, and the
-non-determinism of the producer: one person writing one language rarely needs
-it; tens of thousands of strings translated by a machine into many languages do.
+These checks apply to both human-authored and generated content. They help
+identify repeated errors across large collections and multiple languages.
 
 ## Small models as checkers
 
@@ -72,9 +68,8 @@ reference examples?") are served by small, open, multilingual models run
 **in-process** through the same plugin pattern the segmenter uses: an ONNX model
 behind a build tag, driven over a line-delimited JSON protocol by a pure-Go
 host, so the native runtime never enters the main binary. Such a model is a
-read-only checker: it inspects output and emits findings; it does not generate,
-and it does not compete with the generator. Quality tiers by language on a
-multilingual backbone; uniform quality is not claimed.
+read-only checker that inspects output and emits findings. Evaluate its quality
+separately for each language.
 
 ## Scoring
 

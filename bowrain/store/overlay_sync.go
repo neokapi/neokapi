@@ -93,24 +93,15 @@ func UpsertBlockAnnotation(
 	return nil
 }
 
-// UpsertBlockTarget writes one (block, variant) target row. It is the ONLY
-// writer of the translations table, because the row's four content columns are
-// four views of one thing and a writer that fills some of them makes the target
-// invisible to every reader that consults the others:
+// UpsertBlockTarget writes a (block, variant) row through the shared translations
+// writer. All content representations must remain consistent:
+//   - locale is the VariantKey text form, including tone or channel qualifiers;
+//   - target_json is the full model.Target used by hydration, review and coverage;
+//   - text is model.RunsText output for history and search, without placeholders;
+//   - provider identifies the engine from Origin.
 //
-//   - `locale` is the VariantKey text form ("fr-FR" or "fr-FR;tone=…").
-//   - `target_json` is the full model.Target (runs + status + origin + score).
-//     It is the truth: block hydration, the review queue, the decision ledger,
-//     coverage and the context graph all read it.
-//   - `text` is model.RunsText of the same runs — placeholder-stripped, so it
-//     answers "what does this say" for history and search, never "what is the
-//     content".
-//   - `provider` is the producing engine off the same Origin.
-//
-// extra carries payload fields a writer keeps alongside the target that the
-// Target model has no room for (a tool's config fingerprint, say). It belongs
-// to whoever wrote the target, so a new target replaces it rather than
-// inheriting the previous writer's; nil writes an empty object.
+// extra holds producer metadata outside model.Target, such as a configuration
+// fingerprint. Each write replaces prior metadata; nil stores an empty object.
 func UpsertBlockTarget(
 	ctx context.Context,
 	ex Execer,
@@ -553,13 +544,9 @@ func SplitTargetStates(states []TargetLocaleState) (locales, approved []string) 
 // more than a query method can still use them.
 type Querier = storage.Querier
 
-// Runner is everything a *sql.DB and a *sql.Tx both do.
-//
-// It is what lets one body serve two callers: a verb invoked on its own, which
-// opens a transaction of its own, and the same verb invoked as one step of a
-// larger transition that has to land whole. Without it every write owns its
-// transaction, which is exactly why a push used to apply in pieces — one per
-// chunk, one per item, and more again after the loop.
+// Runner is the common query and execution interface of sql.DB and sql.Tx.
+// Write helpers use it to support standalone operations and operations inside a
+// larger atomic transition.
 type Runner = storage.Runner
 
 // VariantKeyText renders a VariantKey to its canonical text form for use as a

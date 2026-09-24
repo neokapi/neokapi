@@ -12,11 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// forgeInstallationBackends returns one store per backend the table ships on.
-// The store is a single *sql.DB implementation, so the point of running the
-// suite twice is the SCHEMA: the pair of migrations (Postgres 13, SQLite 12)
-// must actually apply, and the columns must scan identically on both drivers —
-// a BIGINT/INTEGER id and TEXT RFC3339 timestamps.
+// forgeInstallationBackends provides both database backends to verify migration
+// application and equivalent scanning of integer IDs and RFC3339 timestamps.
 func forgeInstallationBackends(t *testing.T) map[string]func(t *testing.T) *bstore.ForgeInstallationStore {
 	t.Helper()
 	return map[string]func(t *testing.T) *bstore.ForgeInstallationStore{

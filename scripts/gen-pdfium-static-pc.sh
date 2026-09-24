@@ -21,8 +21,7 @@
 #
 # NOTE on ICU coexistence: kapi static-links ICU 78. Use a PDFium build that is
 # ICU-less (or uses system ICU compatibly) to avoid duplicate-symbol/version
-# clashes at link time. This is the load-bearing integration risk to validate
-# per platform.
+# clashes at link time. Validate ICU compatibility on each platform.
 set -euo pipefail
 
 : "${PDFIUM_PREFIX:?set PDFIUM_PREFIX to a STATIC pdfium install (lib/ + include/)}"

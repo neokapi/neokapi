@@ -110,10 +110,8 @@ NEOKAPI_OKAPI_DIR     ?= $(NEOKAPI_CHECKOUTS_DIR)/okapi/Okapi
 NEOKAPI_DOCLANG_DIR   ?= $(NEOKAPI_CHECKOUTS_DIR)/doclang-project/doclang
 export NEOKAPI_WORKSPACE_DIR NEOKAPI_CHECKOUTS_DIR NEOKAPI_OKAPI_DIR NEOKAPI_DOCLANG_DIR
 
-# Historical override name for the upstream Okapi clone, kept because CI and
-# muscle memory pass it. Defined here rather than beside the contract-audit
-# block so TIKAL_JAR_GLOB (an immediate `:=`, defined earlier in the file) sees
-# a resolved value instead of the empty string.
+# OKAPI_REPO remains available for CI and local overrides. Define it before
+# immediately expanded variables such as TIKAL_JAR_GLOB use it.
 OKAPI_REPO ?= $(NEOKAPI_OKAPI_DIR)
 export OKAPI_REPO
 
@@ -350,15 +348,9 @@ check-tracked-binaries: ## Guard: no compiled executable (ELF/Mach-O/PE) is trac
 check-gofmt: ## Guard: every tracked .go file is gofmt-clean (gofmt -l -s); `make fmt` fixes
 	@./scripts/check-gofmt.sh
 
-# Not in `lint`: this one needs the pnpm workspace installed, so it runs in the
-# frontend CI job (which always runs on a pull request and has already done
-# `vp install`) rather than in the toolchain-free repo-guards job.
-#
-# The contract it protects is `vp check --fix` before committing frontend work.
-# A tree that is not already a fixed point of its own formatter makes that
-# contract rewrite files the contributor never touched, and the reviewer's job
-# becomes separating the two. Nothing else notices: the drift is committed
-# state, so every other check is green with it in place.
+# This guard requires the installed pnpm workspace and runs in frontend CI.
+# Keeping the committed tree formatted prevents vp check --fix from changing
+# unrelated files during later work.
 check-fmt-fixed-point: ## Guard: the tree is already a fixed point of `vp fmt` (needs `vp install`)
 	@vp fmt . --check
 
@@ -734,12 +726,9 @@ ci-build: i18n-catalogs ## Mirror the CI `build` job: build all three binaries (
 	@if cd bowrain && GOWORK=off go list -m all | grep -q 'neokapi/cli'; then echo "bowrain should not depend on cli"; exit 1; fi
 	@if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|labstack/echo|keycloak'; then exit 1; fi
 
-# The plugins/* modules are outside go.work, so nothing in the workspace build
-# would ever notice them drifting. They did: plugins/sat carried a stale
-# golang.org/x/text, which made `GOWORK=off go test ./...` — i.e. the whole of
-# `make test-sat-plugin` — refuse to run with "updates to go.mod needed", and
-# plugins/vision and plugins/pdfium had incomplete go.sum/go.mod. Tidy them here
-# so the module that no job builds still cannot rot.
+# Plugins outside go.work also need dependency checks. Tidy each module to
+# detect incomplete or stale go.mod and go.sum files, including modules not
+# built by other CI jobs.
 ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fail on drift
 	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain \
 	            plugins/sat plugins/check plugins/vision plugins/asr plugins/av plugins/pdfium \
@@ -985,10 +974,8 @@ parity-test: parity-sandbox i18n-catalogs ## Run the full parity test suite (#44
 	    $(GO) test -tags "fts5,parity" -count=1 -timeout 60m ./parity/...
 	@echo "Parity report: $(PARITY_REPORT)"
 
-# Parity output stays inside the sandbox. It used to be published to
-# web/static/data/ to back the /parity page; that page was retired with the
-# bridge's product surface (#1073), so the summary is a local maintainer
-# artifact now — nothing parity-related reaches the docs site.
+# Parity reports are local maintainer artifacts in the sandbox. They are
+# excluded from the published documentation site.
 PARITY_SUMMARY := $(PARITY_DIR)/parity-report.json
 
 parity-publish: parity-test ## Run the parity suite and write the per-filter summary to .parity/
@@ -2908,30 +2895,15 @@ stage-sourcecode-plugin: build-sourcecode-plugin
 	@cp -f plugins/sourcecode/manifest.json $(KAPI_ISO_DIR)/plugins/sourcecode/
 	@cp -f plugins/sourcecode/formats/sourcecode/schema.json $(KAPI_ISO_DIR)/plugins/sourcecode/formats/sourcecode/
 
-# ── The prose kapi governs, checked BY kapi ──────────────────────────────────
+# Distribution metadata is declared in kapi.yaml and checked under the project's
+# voice profile. scripts/check-vocabulary.sh covers surfaces kapi cannot read.
 #
-# These collections carry product copy in files no docs sweep reaches: the
-# description a package manager shows before anything is installed, the one
-# Windows shows in file properties, and the cask lines Homebrew prints. Each is
-# declared in kapi.yaml and governed by the project's voice profile, so the rule
-# is enforced by the engine rather than by a second implementation of it in
-# bash.
+# The isolated store starts empty, so import the repository's .kapi/ context
+# before checking. Without it, checks have no voice profile or term rules.
+# Import reads these files without modifying them.
 #
-# scripts/check-vocabulary.sh keeps only what kapi cannot open. When a surface
-# moves under a collection it comes OUT of that script — one rule, one enforcer
-# per surface.
-# A check reads the voice profile and the terms it judges against from the
-# project's store, and $(KAPI_ISO_ENV) points kapi at a throwaway one that
-# starts empty. So the gates below read this repository's own `.kapi/` layout
-# into it first: without this they would pass whatever they were given, which
-# is a gate that reports PASS and enforces nothing.
-#
-# It reads those files and leaves them as they are.
-#
-# KAPI_ACTOR=person because a context import is a person's decision and kapi
-# refuses an agent's. This build step is the repository's own, run against a
-# throwaway store, and a `make` invoked from a coding agent's shell inherits
-# that host's marker, which would fail every gate below it.
+# KAPI_ACTOR=person identifies this repository-defined import into a throwaway
+# store. Otherwise a calling agent's inherited marker would reject the import.
 import-dogfood-context: build ## Read the repository's own `.kapi/` layout into the isolated store the gates use
 	$(KAPI_ISO_ENV) KAPI_ACTOR=person $(BIN_DIR)/kapi context import -p $(CURDIR)/kapi.yaml
 
@@ -2946,19 +2918,9 @@ check-governed-prose: build stage-sourcecode-plugin import-dogfood-context ## Ga
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'deploy/homebrew/*.rb' \
 		-p $(CURDIR)/kapi.yaml
 
-# ── The prose kapi reads, gated on every PR ──────────────────────────────────
-#
-# The docs were governed by the voice profile and checked by nothing per-PR:
-# dogfood-sync.yml runs `kapi up` on a SCHEDULE, so a violation merged on a
-# Tuesday was found on Wednesday, by a bot, on main. scripts/check-vocabulary.sh
-# was the only per-PR enforcement, and it holds a second copy of the rule.
-#
-# This is the gate that lets the script stop owning these surfaces. A failing
-# finding fails it; an advisory one reports: TBX, the XLIFF Glossary module and
-# a handful of concept pages name the external standards they document, and the
-# rules those names trip are advisory by design.
-#
-# 379 + 71 files in under two seconds, so it is cheap enough to run on every PR.
+# Check documentation prose on each PR. Failing findings block the check;
+# advisory findings are reported. External standard names such as TBX and the
+# XLIFF Glossary module are covered by advisory terminology rules.
 check-docs-prose: build import-dogfood-context ## Gate: the documentation passes `kapi check` under the project's voice
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'web/docs/**/*.md' 'web/docs/**/*.mdx' \
 		-p $(CURDIR)/kapi.yaml

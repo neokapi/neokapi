@@ -550,22 +550,10 @@ type Config struct {
 	Model     string `json:"model"`
 	MaxTokens int    `json:"max_tokens,omitempty"`
 
-	// Temperature is the sampling temperature, or nil to leave the provider's
-	// own default alone.
-	//
-	// A pointer because 0 is a meaningful value: it asks for greedy decoding,
-	// which is exactly what an eval that wants to be reproducible should set.
-	// As a bare float64 with `omitempty`, 0 and "unset" were the same thing and
-	// greedy was unreachable — Bedrock still spells that mistake as
-	// `if cfg.Temperature > 0`.
-	//
-	// Whether it reaches the wire is a per-provider question, and the answer
-	// used to be no for four of six: Anthropic, OpenAI, Azure and Gemini
-	// accepted the field and never sent it, so a caller asking for determinism
-	// silently got whatever the API defaults to. TestEveryProviderSendsTemperature
-	// exists to keep that from coming back.
-	//
-	// Set it with new(expr): new(0.0) for greedy, new(0.7) for sampled.
+	// Temperature is the sampling temperature. Nil retains the provider default;
+	// a pointer permits an explicit zero value for greedy decoding.
+	// TestEveryProviderSendsTemperature verifies that providers send configured values.
+	// Use new(0.0) for zero or new(0.7) for a nonzero temperature.
 	Temperature *float64 `json:"temperature,omitempty"`
 }
 

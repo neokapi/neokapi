@@ -20,7 +20,7 @@ export type TermStatus =
   | "deprecated"
   | "forbidden";
 
-/** All term statuses, ordered most-blessed → most-restricted for menus. */
+/** All term statuses, ordered preferred to most restricted for menus. */
 export const TERM_STATUSES: readonly TermStatus[] = [
   "preferred",
   "approved",

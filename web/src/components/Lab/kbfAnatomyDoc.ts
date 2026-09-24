@@ -354,7 +354,7 @@ export const TERMS: AnatomyTerm[] = [
         "KBF anatomy explanation",
       ),
       t(
-        "A block with no entry for a locale is simply untranslated there — pending work, not an error. The second block in this example carries no targets yet.",
+        "A block with no entry for a locale is untranslated in that locale. The second block in this example has no targets yet.",
         "KBF anatomy explanation",
       ),
     ],

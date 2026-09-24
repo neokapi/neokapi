@@ -273,19 +273,13 @@ func demoteAmbiguousExacts(matches []Match, targetLocale model.LocaleID) {
 	}
 }
 
-// resolveNearestApproval settles a full-score disagreement by where each answer
-// was approved: the approval nearest the point the caller is asking from is the
-// one that governs there, and every other full-score answer demotes out of its
-// way. It reports whether it settled anything.
+// resolveNearestApproval resolves a full-score conflict by selecting the
+// approval nearest the caller's context point and demoting the other matches.
+// It reports whether it resolved a conflict.
 //
-// This is what stops one collection's reviewed wording from being answered by
-// another's. Both answers are real translations approved by a reader, so no
-// gate can tell them apart on quality; what tells them apart is that one of them
-// was approved where the string being written actually sits.
-//
-// A caller with no point in hand settles nothing — nearness to nowhere is not a
-// measurement — and the disagreement falls to the ambiguity rule, which is the
-// honest answer for a reader who cannot say where they are asking from.
+// This distinguishes wording approved for different collections when both
+// candidates otherwise qualify for full scores. Without a context point, the
+// conflict remains subject to the ambiguity rule.
 func resolveNearestApproval(matches []Match, targetLocale model.LocaleID, at string) bool {
 	if at == "" {
 		return false

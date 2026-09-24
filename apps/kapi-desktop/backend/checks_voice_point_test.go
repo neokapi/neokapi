@@ -12,11 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The two-point fixture below is the whole point of the test: the SAME sentence
-// sits in two collections at two points, and each point's voice forbids a word
-// the other's allows. A run that resolved one profile for the project would
-// report the same verdict on both files, and would report it against a point it
-// had not used.
+// The fixture places the same sentence in two collections with different voice
+// profiles. Each profile forbids a word allowed by the other. Resolving one
+// profile for the whole project would produce incorrect findings and coordinates.
 
 // supportPointVoice forbids "utilise" and says nothing about "cheap".
 const supportPointVoice = `name: Support Voice

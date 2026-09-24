@@ -1,11 +1,7 @@
-// Node-identity-based resolution of the selected flow step.
-//
-// React Flow nodes built by `stepsToGraph` carry the step's *position* in the
-// FlowSpec on `node.data` — `stepIndex` (+ optional `branchIndex` for a
-// parallel branch). Resolving selection/edit/delete by these indices instead
-// of by tool name is what makes duplicate-tool nodes addressable: selecting
-// the 2nd `translate` node edits the 2nd step, and deleting it removes only
-// that step (or branch), never every step that happens to use the same tool.
+// Resolve selected flow steps by node identity.
+// stepsToGraph stores stepIndex and optional branchIndex on node.data. Use those
+// positions for selection, editing and deletion so duplicate tool names remain
+// independently addressable.
 
 import type { FlowSpec, FlowStep } from "./types";
 

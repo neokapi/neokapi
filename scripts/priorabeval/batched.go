@@ -85,7 +85,7 @@ type SentTurn struct {
 	Text string `json:"text"`
 }
 
-// BatchedReport is the whole three-arm measurement.
+// BatchedReport contains measurements for all three experimental conditions.
 type BatchedReport struct {
 	// Blocks is how many the document held, and Scored how many of those carried
 	// a wording under test.

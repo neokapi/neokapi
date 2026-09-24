@@ -263,34 +263,20 @@ type streamItem struct {
 	isLayer   bool
 }
 
-// streamWrite is the genuinely streaming write path, used with a concurrent
-// (streaming) skeleton store: it consumes skeleton entries as the reader
-// produces them and emits output incrementally, matching each referenced block
-// — or embedded child layer — to content arriving on the Part stream. Nothing
-// is buffered up front: the only state held is the pending window of items that
-// arrived before their skeleton ref, which for a same-format round-trip (where
-// the reader writes each ref immediately before emitting its part) is at most
-// the reorder window of the tool chain — ~0 for order-preserving tools. The
-// output is byte-identical to the buffered writeFromSkeleton path.
+// streamWrite consumes a concurrent skeleton store and emits output as parts
+// arrive. It matches each skeleton reference to a block or embedded child layer.
+// The output matches writeFromSkeleton byte for byte.
 //
-// A dedicated goroutine owns the Part stream. It must, because the main loop
-// blocks in skeletonStore.Next() waiting for the reader's next skeleton entry,
-// and the reader cannot write that entry until it finishes emitting the parts
-// that precede it — including non-ref parts (Data, structural layers) that the
-// skeleton loop never asks for. Draining those concurrently is what keeps the
-// reader from stalling on a full Part channel while the loop is parked in
-// Next(). Blocks and rendered child layers are handed to the loop over an
-// unbuffered channel, so the drainer only runs ahead by the reorder window;
-// non-ref parts are discarded (exactly as the buffered path's block map ignores
-// them).
+// Pending content is bounded by the tool chain's reordering window. A dedicated
+// goroutine drains the Part stream so the reader can continue while the main
+// loop waits in skeletonStore.Next. Without that goroutine, non-referenced parts
+// could fill the channel and prevent the reader from writing the next skeleton
+// entry. Blocks and rendered child layers pass through an unbuffered channel;
+// non-referenced parts are discarded as in the buffered path.
 //
-// Child layers (`layer:<path>` refs) are the one place content is buffered:
-// an embedded layer's parts are collected through its LayerEnd and rendered by
-// the sub-format writer exactly as on the buffered path (writeChildLayer), so
-// the window there is bounded by the size of one embedded value — not the
-// document. Fully interleaving *inside* an embedded layer would require every
-// sub-format writer to stream too; embedded values are single string fields
-// (e.g. an HTML fragment), so that is deliberately out of scope.
+// Each embedded layer is buffered through LayerEnd, then rendered by
+// writeChildLayer. This adds buffering for one embedded value, such as an HTML
+// string, rather than the whole document.
 func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) error {
 	items := make(chan streamItem)
 	done := make(chan struct{})

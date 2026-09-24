@@ -179,11 +179,9 @@ export interface Invite {
 }
 
 /**
- * A redeemed invite: the workspace joined and the role now held. The workspace
- * fields are what the confirmation screen names and what the client switches
- * to — the accepting user has no other handle on a workspace they have only
- * just gained access to. `status` is the original shape's field, kept so a
- * caller that only checked it still can.
+ * Redeemed invite details: the joined workspace and assigned role.
+ * Workspace fields support confirmation and navigation. status is retained
+ * for callers that only inspect the result status.
  */
 export interface AcceptInviteResponse {
   status?: string;
@@ -441,10 +439,8 @@ export interface ProjectItem {
   name: string;
   format: string;
   /**
-   * The file this item's content was lifted out of, when the item is a
-   * generated catalog rather than the source itself. What a list SHOWS;
-   * `name` stays what everything ADDRESSES. Absent for an item that is its own
-   * source, which is most of them.
+   * Source filename for a generated catalog, used for display.
+   * name remains the item's identifier. Absent when the item is its own source.
    */
   source_path?: string;
   type: string;
@@ -1023,11 +1019,9 @@ export interface ItemTranslationStats {
   item_id: string;
   format: string;
   /**
-   * The file this item's content was lifted out of, when the item is a
-   * generated catalog rather than the source itself — a KBF bundle extracted
-   * from `App.tsx` is named `…/App.kbf.json`, because that path is its
-   * identity. What a list SHOWS; `item_name` stays what everything ADDRESSES.
-   * Absent for an item that is its own source, which is most of them.
+   * Source filename for a generated catalog. For example, App.kbf.json may
+   * contain content extracted from App.tsx. Display this path while retaining
+   * item_name as the identifier. Absent when the item is its own source.
    */
   source_path?: string;
   collection_id: string;
@@ -1198,9 +1192,8 @@ export interface BulkDeleteResult {
 }
 
 /**
- * The 409 a governed batch is refused with — deleting a concept is a change
- * the graph records, so it goes through a change-set rather than a delete.
- * `hint` names the route that opens one.
+ * 409 response for a governed batch refusal. Concept deletion requires a
+ * change-set; hint identifies the route for creating one.
  */
 export interface GovernedRefusal {
   error: string;
@@ -1360,18 +1353,12 @@ export interface FileCheckResult {
 // ---------------------------------------------------------------------------
 
 /**
- * The context a reviewer decides one unit in, as
- * `GET …/blocks/:ref/:bid/review-context` gathers it: the review model every
- * review client reads (`ReviewContext` in `@neokapi/contract-types`, generated
- * from core/review), with the rows only the platform holds beside it. The
- * five layers read in order: where the content sits and what governs it
- * (point), what surrounds it (neighbourhood), what the corpus already said
- * (history), what the checks found (judgement), and how the target was
- * produced and who decided on it (provenance).
+ * Review context returned by GET …/blocks/:ref/:bid/review-context. It combines
+ * the shared ReviewContext contract with platform data: scope, neighbouring
+ * content, history, findings and provenance.
  *
- * It is per-unit rather than per-queue-entry: a queue page already carries a
- * full block payload per row, so neighbours would roughly triple it and the
- * memory and term lookups are per-block matcher runs.
+ * Fetched per unit to avoid adding neighbour payloads and per-block memory and
+ * term lookups to every row of a paginated review queue.
  */
 export interface ReviewContext extends ReviewModel {
   block_id: string;
@@ -2743,21 +2730,15 @@ export interface ContextScanSource {
 }
 
 /**
- * What a scan proposes. Open by intent — gates and redaction rules are
- * governance bound at a point in the same way — but a kind arrives with the
- * inference that produces it, so this is the set that exists today.
+ * Supported scan proposal kinds. Add kinds with their corresponding inference
+ * and approval implementations.
  */
 export type ContextScanArtefactKind = "voice" | "terms";
 
 /**
- * One thing a scan proposes, and the point it would govern.
- *
- * `at` is that point as an axis map, the same open shape a sync context entry
- * carries. An ABSENT or EMPTY `at` means the project's default point — whatever
- * `defaults.coordinates` resolves to — which is the onboarding case: a scan
- * that finds no structure proposes one voice for the project.
- *
- * Only the fields matching `kind` are populated. Mirrors jobs.ArtefactProposal.
+ * A scan proposal and its scope, matching jobs.ArtefactProposal.
+ * at is an axis map. An absent or empty map selects the project defaults.
+ * Only fields matching kind are populated.
  */
 export interface ContextScanArtefact {
   at?: Record<string, string>;
@@ -2771,12 +2752,8 @@ export interface ContextScanArtefact {
 }
 
 /**
- * One dimension the corpus varies along, and the values it takes. The axis name
- * is the corpus' own vocabulary rather than a name from a fixed list: a project
- * has product lines, or regional markets, or audiences, and the context space is
- * whatever that project actually distinguishes.
- *
- * Mirrors tools.AxisProposal.
+ * A proposed axis and its values, matching tools.AxisProposal. Names are derived
+ * from the corpus, such as product lines, markets or audiences.
  */
 export interface ContextScanAxis {
   axis: string;
@@ -2799,13 +2776,9 @@ export interface ContextScanDraft {
 }
 
 /**
- * One axis a reviewer approved, and where it applies. Mirrors
- * server.ApproveAxisRequest.
- *
- * `collection` is required for the structural axes (`product`, `channel`) and
- * refused for the rest: those two are derived from a collection's `channel:`,
- * so approving one is a claim about a particular collection, and which one the
- * scan cannot know — it read a corpus, never the project's collections.
+ * An approved axis and its scope, matching server.ApproveAxisRequest.
+ * collection is required for structural product/channel axes and rejected for
+ * other axes. Structural axes derive from the selected collection's channel.
  */
 export interface ApproveAxisRequest {
   axis: string;

@@ -1,16 +1,9 @@
-// The context explorer, driven against a workspace.
+// Adapt workspace endpoints for the shared context explorer. The workspace
+// combines project context over shared terms.
 //
-// The same component set kapi renders against one project on disk, with the
-// dimensions free: a workspace holds every project's subgraph over one
-// vocabulary, so the ladder starts above the projects and the panes answer
-// across them. Nothing here is a second model — the source maps the endpoints
-// the workspace already serves into the answers the components read.
-//
-// Governance is DERIVED at this reach, and the capability says so. A workspace
-// recovers the points its content occupies by grouping what each project
-// declared on push; it does not walk a recipe. A point no content has been
-// pushed to is therefore invisible here and resolvable locally, which is the
-// honest difference between the two mounts rather than a gap in one of them.
+// Workspace governance is derived from coordinates declared in pushed content.
+// Points with no pushed content are absent from this view, even when a local
+// recipe can resolve them.
 
 import type {
   ContentAnswer,

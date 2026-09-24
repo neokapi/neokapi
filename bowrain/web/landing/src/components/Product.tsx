@@ -4,10 +4,8 @@ import { useReveal } from "../useReveal";
 import { useSectionSignals } from "../useSectionSignals";
 import { SECTION_PRODUCT } from "../sections";
 
-// Every claim here traces to a shipped code path (epic 011 claims discipline):
-// preview formats = the four format.PreviewBuilder implementations; presence,
-// not CRDT; automation actions per bowrain/server/automation.go; connectors
-// per the server-side registry (wordpress/figma/hubspot + file/git).
+// Preview support follows format.PreviewBuilder implementations. Automation
+// actions and connector availability follow the server registries.
 const CAPABILITIES = [
   {
     icon: PenTool,
@@ -19,7 +17,7 @@ const CAPABILITIES = [
   },
   {
     icon: ClipboardCheck,
-    title: t("Review with a memory"),
+    title: t("Review history"),
     body: t(
       "Block statuses, notes, and per-block history with rollback. A workspace audit log records who changed what, and can be cryptographically verified.",
     ),
@@ -43,17 +41,17 @@ const CAPABILITIES = [
   },
   {
     icon: Zap,
-    title: t("Automation that keeps pace"),
+    title: t("Content automation"),
     body: t(
-      "When content arrives, drafting starts; reviewers get tasks; people get notified. Runs are visible with per-step logs, so the state of any piece of content is a thing you can look up rather than ask about.",
+      "Configure incoming content to trigger drafting, review tasks and notifications. Inspect run status and per-step logs to track progress.",
     ),
     detail: [t("Draft on push"), t("Review tasks & notifications"), t("Run logs")],
   },
   {
     icon: Plug,
-    title: t("Connected to where content lives"),
+    title: t("Content connectors"),
     body: t(
-      "WordPress, Figma, and HubSpot connectors sync content in and publish approved text back. A GitHub or GitLab repository connects with no pipeline at all, or a developer drives it from their own checkout with kapi.",
+      "WordPress, Figma and HubSpot connectors import content and publish approved text. Connect a GitHub or GitLab repository, or sync a local checkout with kapi.",
     ),
     detail: [t("WordPress · Figma · HubSpot"), t("GitHub · GitLab"), t("kapi (developer & CI)")],
   },
@@ -72,7 +70,7 @@ export function Product() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "One editor, one review trail, one terms store and one content memory, shared by every project in the workspace, and the connectors that reach the systems your content already lives in.",
+              "Edit and review content across projects, share terms and content memory, and connect the systems where your team works.",
             )}
           </p>
         </div>

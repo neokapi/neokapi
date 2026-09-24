@@ -11,18 +11,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// A .kpz carries the project's FULL recipe — the same core/project.KapiProject
-// schema a .kapi file uses — so there is one source of truth for intent and no
-// parallel model (AD-025 §6). The recipe is manifest metadata, deliberately
-// EXCLUDED from the content RootHash: content defines package identity, intent
-// is metadata, mirroring how a workspace recipe already rides outside the hash.
+// A .kpz stores the full core/project.KapiProject recipe as manifest metadata
+// (AD-025 §6). The recipe is excluded from RootHash, which identifies content.
 //
-// On the wire the recipe is stored as a JSON string holding the YAML encoding
-// of the KapiProject. KapiProject is a yaml-tagged struct with an
-// `Extras map[string]yaml.Node` inline catch-all (and yaml-only fields like
-// flows' StepsSpec), so YAML is its faithful, lossless encoding; JSON-stringing
-// that YAML keeps the manifest a single JSON document while preserving every
-// recipe field, including platform Extras.
+// The manifest encodes the recipe as a JSON string containing YAML. KapiProject
+// uses YAML tags and yaml.Node extension fields, so the YAML representation
+// preserves fields that direct JSON serialization would omit.
 
 // WorkspaceMetaKey is the top-level Extras key under which a .kpz stashes its
 // ad-hoc workspace metadata (the merge-time output layout). It lives in the
@@ -113,63 +107,41 @@ var execClassTools = map[string]bool{
 // `exec` runs its configured command line, so a package may not name it.
 var execClassFormats = map[string]bool{"exec": true}
 
-// sideEffectingExtras are the recipe extension keys that bind a project to
-// something outside itself — a server, a hook, a scheduled automation. They are
-// stripped at EVERY Extras scope rather than only the top level, because the
-// scope an extension is registered at is a platform's choice
-// (core/project.RegisterExtension) and can change without this file being
-// touched. Sweeping by name everywhere means the denylist cannot quietly stop
-// applying because a key moved from `server:` to `defaults.server:`.
+// sideEffectingExtras lists extension keys that configure servers, hooks or
+// scheduled automations. They are removed at every Extras scope because an
+// extension's registered scope can change independently of this sanitizer.
 var sideEffectingExtras = map[string]bool{
 	"server":      true,
 	"hooks":       true,
 	"automations": true,
 }
 
-// SanitizeRecipe returns a copy of the recipe with everything side-effecting
-// removed, plus the list of removals in human-readable form (empty when the
-// recipe was already inert). A nil recipe returns (nil, nil).
+// SanitizeRecipe returns a recipe copy with executable configuration, external
+// bindings and paths outside the project removed. It also returns descriptions
+// of the removals. A nil recipe returns (nil, nil).
 //
-// A .kpz carries the full project recipe so a package is a runnable project in
-// a file (AD-025 §6) — which is exactly why the recipe cannot be trusted on the
-// way back in. The format's original contract asked the PACKER to sanitize
-// before packing; a hostile packer simply won't, so the guarantee has to hold
-// on ingest. Sanitizing on both sides costs nothing and means the answer no
-// longer depends on who wrote the archive.
+// Call this on ingest even if the packer also sanitizes the recipe: an archive
+// producer cannot be trusted to enforce the recipient's restrictions.
 //
-// What is removed:
+// The sanitizer removes:
 //
-//   - Side-effecting Extras ([sideEffectingExtras]) at every scope — top-level,
-//     `defaults:`, per-collection and per-item — so they re-activate only with
-//     explicit re-auth / re-arming.
-//   - Exec-class flow steps ([execClassTools]) anywhere in a flow — including
-//     nested `parallel` branches and `source_transforms` — and the per-tool
-//     config that would arm them (`defaults.tools`, `defaults.locales.*.tools`).
-//   - Exec-class format bindings ([execClassFormats]) on any content item.
-//   - Every path-valued field naming somewhere outside the project
-//     ([sanitizeRecipePath]): the redaction rules file and each content
-//     entry's `base` and `target`. A project's OWN recipe may point
-//     wherever its owner wants — that stays supported, and is asserted
-//     separately — but a packaged recipe is answering for a machine it has
-//     never seen, so it may only name places inside the project it lands in.
-//   - A kpz `out:` layout that is not a local path, since a package describes
-//     where its output goes relative to wherever it is merged, never an
-//     absolute or climbing destination. An explicit `merge -o` is the supported
-//     way to send output somewhere else.
+//   - Side-effecting Extras ([sideEffectingExtras]) at project, defaults,
+//     collection and item scope. These require explicit configuration after import.
+//   - Exec-class flow steps ([execClassTools]), including nested parallel branches
+//     and source_transforms, and their defaults.tools/defaults.locales.*.tools config.
+//   - Exec-class format bindings ([execClassFormats]) on content items.
+//   - Redaction-rule, base and target paths outside the project
+//     ([sanitizeRecipePath]). Locally authored recipes may use external paths;
+//     imported recipes are restricted to the recipient project.
+//   - A kpz out layout outside the merge directory. Users can select another
+//     destination explicitly with merge -o.
 //
-// Secrets never live in a recipe (they are in the OS keychain), so there is
-// nothing else to scrub.
+// Credentials are stored in the OS keychain rather than the recipe.
 //
-// Note that `requires:` survives, deliberately. It is the package's declaration
-// of which plugins its flows need, and dropping it would remove a statement of
-// fact without removing any capability: a recipe cannot install anything by
-// itself, and a plugin left undeclared simply fails later with a less useful
-// error. What acts on `requires:` is the prompt in LoadProjectInteractive, and
-// what bounds it is that an install resolves through the signed plugin registry
-// — a package can ask for a plugin neokapi publishes, not for code of its own.
-// That is the same line AD-038 draws for `--yes`: "install the plugin this
-// recipe asks for" and "run the commands this recipe names" are different
-// classes of decision, and only the second is withheld here.
+// requires is retained to declare plugin dependencies. Installation is handled by
+// LoadProjectInteractive through the signed registry; the recipe cannot install
+// arbitrary code. This preserves the distinction in AD-038 between installing a
+// registered plugin and executing recipe-supplied commands.
 func SanitizeRecipe(p *project.KapiProject) (*project.KapiProject, []string) {
 	if p == nil {
 		return nil, nil

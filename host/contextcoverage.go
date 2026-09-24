@@ -2,16 +2,9 @@ package host
 
 import "fmt"
 
-// What an answer with nothing in it has to say.
-//
-// Most projects meet kapi with no voice profile and no terms. The honest
-// answer to "what applies here" is then a short one, and for a while it was so
-// short that a caller read it as "there is nothing to do here" and carried on
-// without the project's context for the rest of the session.
-//
-// So an answer states its own coverage, and a thin one says what is worth
-// noticing while the work is done. It states no rule: there are none, and
-// inventing one is the only outcome worse than saying nothing.
+// Context coverage describes the evidence returned by a lookup. Results with
+// little or no context include advice on what to observe while working, without
+// presenting unrecorded guidance as established rules.
 
 // ContextCoverage says how much of a project's context stood behind one
 // answer. It describes the answer rather than the project: a search that found
@@ -27,23 +20,13 @@ const (
 	CoverageCovered ContextCoverage = "covered"
 )
 
-// coverageOf grades an answer by how many kinds of material stand behind it,
-// and separately by whether anything not yet established does.
+// coverageOf classifies the kinds of established material in a result.
+// Location results count voice profiles, terms and established rules; search
+// results count matching terms and prior wording. Two or more kinds are covered,
+// one is thin, and none is empty.
 //
-// kinds counts what is in force: for a location, the voice profile, the terms
-// bound at the point, and the rules the project has established and widened
-// (C-11); for a query, the terms it matched and the prior wording it found.
-// Two or more is `covered`, one is `thin`.
-//
-// suggestions are what somebody recorded and nobody has established. They
-// hold nothing to anything, so they never make an answer `covered`. They do
-// lift `empty` to `thin`, because a suggestion is evidence that someone looked
-// here: `empty` then means what it says, that nothing at all has been
-// recorded.
-//
-// Three grades, because the grade is read by a model deciding how much to lean
-// on the answer, and a finer scale would be a number nobody could act on
-// differently.
+// Pending suggestions raise empty to thin but never count as established material
+// for covered status.
 func coverageOf(kinds int, suggestions bool) ContextCoverage {
 	switch {
 	case kinds >= 2:
@@ -71,12 +54,8 @@ func countKinds(present ...bool) int {
 const coverageAdvice = "Notice as you work what this project calls its own things, " +
 	"which spellings it keeps to, who the text addresses, and how formal it is."
 
-// contextPointCoverageNote is the note a thin by-location answer carries.
-// Empty for an answer with two kinds of material behind it.
-//
-// A suggestion is named as a suggestion. It holds nothing to anything until a
-// person keeps it, and an answer that listed it beside the rules in force
-// would be handing a writer a rule the project has not agreed to.
+// contextPointCoverageNote returns advice for empty or thin location results.
+// Pending suggestions are identified separately from established rules.
 func contextPointCoverageNote(c ContextCoverage, suggestions int) string {
 	switch c {
 	case CoverageEmpty:
@@ -109,15 +88,9 @@ func verb(n int, one, many string) string {
 	return many
 }
 
-// contextSearchCoverageNote is the note a by-content answer carries when it
-// found nothing at all.
-//
-// It fires on an empty answer and on no other, which is where the two
-// primitives differ. A location graded thin is half-governed, and a writer
-// there gains from knowing what to watch for. A search graded thin found the
-// word and answered the question asked, so the same sentence would be a
-// lecture delivered on a successful call. The grade is on the answer either
-// way, for a caller that wants to branch on it.
+// contextSearchCoverageNote returns advice only for an empty search result.
+// A thin search already found relevant material, whereas a thin location result
+// can still benefit from guidance on missing context.
 func contextSearchCoverageNote(c ContextCoverage, query string) string {
 	if c != CoverageEmpty {
 		return ""

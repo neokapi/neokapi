@@ -228,10 +228,9 @@ written is a judgement, and neither is in a position to make it. The gate is the
 enforcing half, and it fails a target rather than guessing what should replace
 it.
 
-A plugin that shipped its own verdict would be a second implementation of *moved*,
-and the two would answer differently the day one of them learned about a new
-component. So a venue contributes the ref it publishes, and the comparison stays
-here.
+Venues contribute their published refs to the framework's shared comparison.
+Keeping this comparison in one place prevents inconsistent results when a
+component is added.
 
 ### Streams
 
@@ -243,12 +242,10 @@ is nothing to be behind.
 
 ## Consequences
 
-- Governance movement is observable without a round trip, and without a
-  monotonic cursor pretending to order it.
+- Governance changes are observable without a round trip or a monotonic cursor.
 - A writer can protect a governance write without blocking on content traffic,
   and a client that does not know about refs is not broken by them.
-- A caller holding a context answer for an hour learns that the ground moved,
-  once, at the moment it matters.
+- A caller receives a notice when previously retrieved context has changed.
 - Adding a component is a change in exactly two places, the struct and the
   comparison, because nothing else re-implements either.
 

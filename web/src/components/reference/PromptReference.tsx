@@ -6,11 +6,8 @@ import "./promptReference.css";
 
 /**
  * The generated prompt reference: every prompt kapi sends to a language model,
- * rendered from prompts.json — which gen-refs produces from the same builders
- * the binary uses, and a CI drift gate keeps honest.
- *
- * Nothing on this page is written by hand. Reword a prompt in the code and this
- * page changes with it, or the build fails.
+ * rendered from prompts.json. gen-refs uses the binary's prompt builders to
+ * produce this data. CI rejects changes that leave the generated data stale.
  */
 
 /** Who owns a section, in the user's terms. */

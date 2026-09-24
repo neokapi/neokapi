@@ -76,18 +76,18 @@ steps:
   # venues run them live. The bundle is the native serialization, so the import
   # needs no locale or format flags — the .memory.json suffix resolves it.
   - command: kapi memory import project.memory.json
-    narration: Load the committed content memory — the store `kapi up` leverages before any AI is asked.
+    narration: Load the committed content-memory bundle for reuse before translation.
   - comment: Step 1 — leverage content memory
   - command: kapi exec recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr
     narration: recycle is the first step of up's default flow. Exact and fuzzy matches fill from the content memory; the rest stay untranslated.
   - comment: Step 2 — pseudo-translate the remaining misses
   - command: kapi pseudo-translate step1_tm.json -o step2_translated.json
-    narration: Everything the content memory did not cover gets a locale-shaped placeholder — in up's default flow, this is where AI translation runs instead.
+    narration: Pseudo-translate the unmatched content. The default up flow uses AI translation at this step.
     # smoke:false — consumes step1_tm.json from the previous step; W7 would run
     # it in isolation (no skip token on step1_tm.json) and fail.
     smoke: false
   - comment: Step 3 — verify terminology compliance
   - command: kapi exec term-check step2_translated.json --source-lang en --target-lang fr
-    narration: The same terminology check up runs over each pass's output. Pre-flag violations before any vendor sees the content.
+    narration: Check the output against the required terminology. up applies the same check after each pass.
     # smoke:false — consumes step2_translated.json from the previous step.
     smoke: false

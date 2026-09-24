@@ -12,11 +12,8 @@ on:
       - "bowrain/web/docs/**"
       - "packages/docs-shared/**"
       - ".github/actions/pseudo-locale/**"
-      # The generated qps locale is a function of the docs, the recipe, the
-      # terms and the pinned kapi in the action below — so these belong here
-      # too. They are listable at all only because the action installs a
-      # released kapi instead of building one: from source the locale depended
-      # on the whole Go module graph, and no honest list existed.
+      # qps generation depends on the docs, recipe, terms and the pinned kapi
+      # release in the action. Include those inputs in the deployment triggers.
       - "kapi.yaml"
       - ".kapi/terms.json"
       - "scripts/pseudo-docs-i18n.sh"

@@ -10,21 +10,11 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// The corpus is built to stress the things batching is documented to break, not
-// to be representative prose.
-//
-// Two properties matter, and the literature is emphatic about both:
-//
-//   - Batch degradation is worst when each item's input is LONG. A corpus of
-//     nothing but "Save" would flatter every N and measure nothing.
-//   - The failure is structural — dropped, merged and renumbered segments, and
-//     mangled markup — not stylistic. So the corpus carries placeholders and
-//     inline tags whose survival is objectively checkable without a reference
-//     translation or a human.
-//
-// It also carries near-duplicate keys with the same source text ("Save" under two
-// different keys), because that is exactly where positional mapping used to
-// corrupt silently and where a key earns its tokens.
+// The corpus tests batching failures rather than representative prose quality.
+// Long inputs expose batch-size degradation. Placeholders and inline tags make
+// dropped, merged, renumbered or corrupted content measurable without a reference
+// translation. Duplicate source text under distinct keys tests response identity
+// and detects positional mapping errors.
 
 // Case is one corpus entry.
 type Case struct {

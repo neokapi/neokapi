@@ -12,13 +12,9 @@ import (
 // NAK retry and the DB attempt budget agree on the same ceiling.
 const defaultMaxJobAttempts = sqsMaxReceiveCount
 
-// defaultMaxJobDeferrals bounds how long a job will wait out an unavailable
-// dependency before it is failed. Deferrals are cheap — the job is parked, not
-// attempted — so the ceiling is generous: at the AI breaker's 30 s cooldown
-// this is roughly an hour of outage absorbed without losing work, which covers
-// every provider incident short of a sustained one. It is deliberately separate
-// from the retry budget so waiting never eats the attempts a job needs once the
-// dependency returns.
+// defaultMaxJobDeferrals limits waiting for unavailable dependencies separately
+// from retry attempts. At a 30-second breaker cooldown, the limit allows roughly
+// an hour of deferrals before failing the job.
 const defaultMaxJobDeferrals = 120
 
 // transientError marks a job failure the worker should NAK so the message

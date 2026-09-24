@@ -58,7 +58,7 @@ defaults:
                          # terminology, voice and source checks before translating
 ```
 
-`checked` is the default when unset: the same bar the server holds to, with no human bottleneck. `approved` additionally requires a human source sign-off (voice-critical or regulated content). `none` disables the gate entirely, the deliberate "draft freely, raw MT" opt-out for single-player work that wants translations regardless of source state:
+`checked` is the default and requires the automated source checks to pass. `approved` also requires human approval of the source, for example for voice-critical or regulated content. `none` disables the source gate and allows translation regardless of source state:
 
 ```yaml
 defaults:

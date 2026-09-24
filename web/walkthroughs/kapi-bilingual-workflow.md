@@ -30,5 +30,5 @@ merge wrote.
 
 ## Closing
 
-`kapi memory audit --batch` is the receipt: every merge is provenance-tagged,
-so you can prove what came from which translator return.
+`kapi memory audit --batch` reports the provenance of translations added by a
+merge, including the returned file they came from.

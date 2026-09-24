@@ -144,10 +144,8 @@ describe("concept bulk delete", () => {
     expect(deleteConcept).not.toHaveBeenCalled();
   });
 
-  // The desktop refuses locally — there is no server call to make — and used to
-  // throw a bare Error, so `governedRefusal` returned undefined and the browser
-  // rethrew the machine phrase instead of naming what was refused and what to
-  // do instead. `governedRefusalError` builds the envelope the server sends.
+  // Desktop refusals use governedRefusalError to match the server envelope,
+  // allowing the resource browser to explain the refusal and next action.
   it("reads a locally-raised refusal exactly as it reads the server's", async () => {
     const adapter = mockAdapter({
       bulkDeleteConcepts: vi.fn().mockRejectedValue(governedRefusalError("deleting concepts")),

@@ -70,11 +70,8 @@ type ledgerRecord struct {
 	draftBasis string
 }
 
-// decisionLedger indexes a stream's recorded decisions by unit and variant.
-//
-// A nil ledger answers for nothing, which is the honest reading when the store
-// keeps no ledger or the read failed: every target then reads as one the
-// platform has no record of, and stays where it is.
+// decisionLedger indexes stream decisions by unit and variant. A nil ledger
+// indicates unavailable decision data; targets retain their current state.
 type decisionLedger map[decisionUnitKey]ledgerRecord
 
 // loadDecisionLedger reads the stream's recorded decisions into the index the

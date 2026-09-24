@@ -173,10 +173,9 @@ func buildWorkspace(dir string, sc *Scenario, repoRoot, kapiBin, arm string) err
 	// --strict-mcp-config and that needs one to be strict about. Which config
 	// depends on what the scenario is measuring; the isolation does not.
 	if arm == armUnaided {
-		// The control gets the workspace and nothing else: no skill, no kapi
-		// server. Whatever it manages, it manages without kapi — and without
-		// the developer's other servers either, which is what makes it a
-		// control rather than a differently-equipped arm (#2237).
+		// The control receives the workspace without kapi's skill or MCP server.
+		// The developer's other servers are also excluded to keep the comparison
+		// independent of local tooling (#2237).
 		return writeEmptyMCPConfig(dir)
 	}
 	if surfaceOf(*sc) == surfaceMCP {
@@ -480,20 +479,9 @@ func runScenario(ctx context.Context, sc *Scenario, opts Options, arm string) Ru
 	if opts.Model != "" {
 		args = append(args, "--model", opts.Model)
 	}
-	// --strict-mcp-config on EVERY run, which is what makes this an eval of
-	// kapi rather than of whatever the developer happens to have configured.
-	//
-	// It used to be applied to MCP scenarios only, so skill scenarios inherited
-	// the driving machine's servers. Four transcripts from the 2026-08-27 sweep
-	// show it happening: in p12 the agent resolved `next-intl` through a
-	// documentation server and queried it before writing the advice it was
-	// scored on. That result is not reproducible anywhere else, and the control
-	// arm was not a control — it strips kapi from PATH and left every foreign
-	// server in both arms, so a scenario the developer's tooling could solve
-	// was solved in both and scored "no difference". See issue #2237.
-	//
-	// The kapi server is configured only where the scenario is about it; every
-	// other run gets a strict config naming nothing.
+	// Use --strict-mcp-config for every run to exclude the developer's MCP servers
+	// from both experimental and control arms (#2237). Configure the kapi server
+	// only for scenarios that require it; other runs receive an empty strict config.
 	config := emptyMCPConfig
 	if surfaceOf(*sc) == surfaceMCP && arm != armUnaided {
 		config = mcpConfigName

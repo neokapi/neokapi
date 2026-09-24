@@ -322,9 +322,8 @@ func TestHandleRunFlowWithProjectDefaults(t *testing.T) {
 	assert.Equal(t, "pseudo-translate", out.FlowName)
 }
 
-// TestHandleRunFlowProjectDefinedFlow verifies a flow declared in the project
-// recipe (not a built-in) is reachable and runs over MCP — the built-in-only
-// loop the porcelain used to hand-roll could not reach it.
+// TestHandleRunFlowProjectDefinedFlow verifies that MCP can execute a flow
+// from the project recipe, including flows outside the built-in registry.
 func TestHandleRunFlowProjectDefinedFlow(t *testing.T) {
 	a := testApp()
 	ctx := t.Context()

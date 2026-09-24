@@ -103,18 +103,12 @@ func Scaffold(name, targetDir string) error {
 
 // --- KapiMart seed functions ---
 
-// seedStore reads the context the scaffold just wrote into the sample
-// project's store and releases it. Opening creates `.kapi/` and both of the
-// project's databases, so nothing needs to make the state directory first.
+// seedStore imports the scaffolded sample context into its workspace store and
+// releases the handle. Opening the project creates the required local layout.
 //
-// It reads through a host App rather than from core/projectdb, because a
-// project's context lives in the workspace and only the host layer resolves
-// where that is. Seeding the checkout's own file instead would scaffold a
-// sample whose store the app then never reads.
-//
-// The pass is the one `kapi context import` runs, so the terms, the content
-// memory, the voice profile and the decision record all arrive together and
-// the sample opens with the context its committed files describe.
+// A host App resolves the workspace location; core/projectdb alone would open a
+// checkout-local store that the desktop does not use. The shared context-import
+// path loads terms, content memory, voice profiles and decision records.
 func seedStore(targetDir string) error {
 	ctx := context.Background()
 	app := &host.App{}

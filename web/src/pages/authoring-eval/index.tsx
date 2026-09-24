@@ -3,12 +3,9 @@ import Layout from "@theme/Layout";
 import report from "./_authoringeval.json";
 import { mono, tone, s as shared, ageDays, STALE_AFTER_DAYS } from "../evals/_shared";
 
-// The authoring dashboard: the voice checks, voice-infer, and whether the voice
-// guide steers writing or only improves it. Regenerate with `make authoring-eval`.
-//
-// Every number here is a per-document row you can open. A summary nobody can
-// drill into is a claim, and the point of this page is that each one is checkable
-// against the prose it came from.
+// Evaluate voice checks, profile inference and the effect of writing guidance.
+// Each summary links to the underlying document results.
+// Regenerate with `make authoring-eval`.
 
 interface Plant {
   text: string;
@@ -544,7 +541,7 @@ function SteerSection(): ReactElement | null {
           </div>
 
           <div style={s.card}>
-            <div style={s.label}>what actually moved</div>
+            <div style={s.label}>measured change</div>
             <p style={{ ...s.sub, marginTop: ".4rem", marginBottom: 0 }}>
               Counting the findings names the mechanism rather than leaving it to the reader.
               Against the reference profile the guided documents drew{" "}
@@ -599,7 +596,7 @@ function SteerSection(): ReactElement | null {
           </div>
 
           <details style={s.card}>
-            <summary>The guide, verbatim. The whole measurement is about this string</summary>
+            <summary>The exact guide used in the evaluation</summary>
             <pre style={s.pre}>{t.guide}</pre>
           </details>
 
@@ -673,11 +670,10 @@ export default function AuthoringEval(): ReactElement {
         <section>
           <h2 style={s.h2}>Do the voice checks find what the profile declares?</h2>
           <p style={s.sub}>
-            Recall is measured over the documents written against the profile, where every violation
-            is marked. False positives are measured over the documents written to it, where the
-            right answer is silence. Neither half can substitute for the other: an off-profile
-            document contains violations beyond the marked ones, so counting unmarked findings there
-            would measure how complete the marking is rather than how good the check is.
+            Recall is measured against marked violations in documents that intentionally depart from
+            the profile. False positives are measured on compliant documents, where no findings are
+            expected. Off-profile documents may contain additional unmarked violations, so they
+            cannot reliably measure false positives.
           </p>
           {r.checks.map((a) => (
             <CheckSection key={a.check} a={a} />

@@ -1,7 +1,7 @@
 # Agent evaluation runbook
 
-How to run the agent evaluation and read what it says. What it measures, and
-the rules it scores by, are on the contributor page
+This runbook covers evaluation setup, execution and result review. For the
+measures and scoring rules, see
 [Agent evaluation](../../web/docs/contribute/implementation/repo/agent-evaluation.md).
 
 The live phases drive Claude Code and Codex on the signed-in subscriptions and
@@ -9,9 +9,8 @@ consume plan allowance. Nothing here runs in CI.
 
 ## Before a run
 
-1. Build the binary under test once: `make build`. Every build stamps a new
-   binary, and the fingerprint covers the binary, so a rebuild between phases
-   starts a new study. Build again only when you mean to.
+1. Build the binary under test once: `make build`. The study fingerprint includes
+   the stamped binary. Rebuilding between phases requires a new study.
 2. Sign in to both hosts: `claude` with a claude.ai subscription, and `codex
    login` with ChatGPT. Preparation copies nothing else from your configuration.
 3. Choose where the cells live. The default is the system temporary directory,
@@ -33,19 +32,18 @@ make eval-grow        # Measure 2: three runs per host
 make eval-report      # report and review sheet from saved attempts; no model call
 ```
 
-Preflight prepares all fourteen cells the live phases use and prints, per cell,
-the server that answers, the rules held on a Measure 1 cell, and what Codex
-sees. A blocker line stops the live phases before any session starts. Read the
-notes too: a server tool the transcript reader cannot place, or a habit the
-server offers no tool for, is reported there.
+Preflight prepares the evaluation cells and reports each cell’s server,
+Measure 1 rules and Codex configuration. Blockers prevent live sessions from
+starting. Review the notes for tools the transcript reader cannot classify
+and evaluation behaviors with no corresponding server tool.
 
-The live phases share one ceiling, `EVAL_MAX_ATTEMPTS` (fourteen by default:
+The live phases share one attempt limit, `EVAL_MAX_ATTEMPTS` (fourteen by default:
 two smoke runs and three runs per host on each measure). It counts started
 attempts, failed ones included, across every phase in the evidence directory,
-and nothing resets it or retries on its own. A rate limit pauses the batch.
+without automatic resets or retries. A rate limit pauses the batch.
 Running a phase again resumes it: attempts already started are kept, and only
 sessions that never started are run. `EVAL_ARGS=-eval-sessions <id>,<id>` runs
-chosen sessions within the ceiling.
+chosen sessions within that limit.
 
 Evidence goes to `harness/out/eval` (`EVAL_DIR`), which is ignored. Changing
 the manifest, the fixture, the runner's code, the shipped skill or the binary
@@ -57,8 +55,8 @@ fresh `EVAL_DIR` for the new study and keep the old one.
 Each session leaves `harness/out/eval/<phase>/<session>/` with the prompt, the
 preparation record, the transcript, `result.json`, the first and final version
 of every file it changed under `first/` and `final/`, and the context log after
-the session. The report is recomputed from these, so a change to the scoring
-reaches runs already made: run `make eval-report` again.
+the session. The report is recomputed from these records. Run `make eval-report` again
+to apply updated scoring to existing results.
 
 Before reading a score, read three things:
 
@@ -86,8 +84,8 @@ learned: |
   The release notes always lead with the headline change.
 ```
 
-`keep` names entries by run and by the id the sheet shows. `learned` is anything
-the entries showed about the fixture that the key does not plant. Run `make
+`keep` identifies entries by run and review-sheet ID. Use `learned` for
+observations about the fixture that were not supplied in the evaluation key. Run `make
 eval-report` again and the report records the answers under Measure 4.
 `EVAL_ARGS=-eval-answers <path>` reads the answers from elsewhere.
 
@@ -102,4 +100,4 @@ renames what the evaluation reads, the change belongs in one place:
 - the shape of `kapi context log --json` and `kapi check --json`:
   `scripts/skilleval/eval_store.go`, whose tests read recordings in
   `scripts/skilleval/testdata/agenteval/`. Re-record them from the current
-  binary when the shape moves, and the tests say what the scoring now reads.
+  binary when the output schema changes, then verify the scoring tests.

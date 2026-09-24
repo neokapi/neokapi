@@ -71,12 +71,8 @@ func (s *cancellingLeaseStore) RenewLease(ctx context.Context, id string, epoch 
 	return owner, err
 }
 
-// TestWorkerShutdown_ParksTheJobInsteadOfFailingIt is the deploy-window
-// property. SIGTERM used to fail the running job with context.Canceled —
-// deliberately non-transient, so not retried — while the queue message was
-// deleted anyway, leaving the row for the fifteen-minute stale sweeper on
-// another instance at attempts + 1. It must go back to 'queued' instead, with
-// its retry budget intact.
+// TestWorkerShutdown_ParksTheJobInsteadOfFailingIt verifies that shutdown
+// requeues interrupted work without consuming its retry budget.
 func TestWorkerShutdown_ParksTheJobInsteadOfFailingIt(t *testing.T) {
 	f := newBillingWorkerFixture(t)
 	ctx := t.Context()

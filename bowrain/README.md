@@ -4,9 +4,12 @@
 [![Web Landing](https://github.com/neokapi/neokapi/actions/workflows/web-landing.yml/badge.svg)](https://github.com/neokapi/neokapi/actions/workflows/web-landing.yml)
 [![Pages Deploy](https://github.com/neokapi/neokapi/actions/workflows/pages-deploy.yml/badge.svg)](https://github.com/neokapi/neokapi/actions/workflows/pages-deploy.yml)
 
-Bowrain is the context graph your people and agents plug into — the coordinates that fix voice and tone for a specific time, place and audience (voice, vocabulary, approved wording, corrections), held across every project rather than one. kapi holds the same graph for a single project; the difference is reach, not capability. Built on the [neokapi framework](../README.md): a server that holds it together, connectors to the systems content already lives in, a web app and a desktop app for people, and a CLI plugin for the developer and CI route.
+Bowrain shares writing guidance, terms, approved wording and review decisions
+across projects. Its context graph connects content to the rules that apply to
+its audience, channel, language and other coordinates. Built on the
+[neokapi framework](../README.md), it provides a server, content connectors,
+web and desktop clients, and a CLI plugin for local projects and CI.
 
-This subtree (`bowrain/`) is licensed AGPL-3.0, with one exception: `bowrain/plugin/` carries its own Apache-2.0 [LICENSE](plugin/LICENSE), because the `kapi-bowrain` binary built from it links no AGPL code. The neokapi framework at the repository root is Apache-2.0; see the [root README](../README.md) for that side.
 
 ## Install
 
@@ -149,7 +152,7 @@ cat fr.json de.json             # translated catalogs
 `kapi init` scaffolds the project; when `--server` is given, the bowrain plugin
 *contributes* the server connection (writes the `server:` block + claim token).
 It is idempotent — running `kapi init --server …` inside an **existing** local
-kapi project simply connects it to bowrain, leaving an already-connected project
+kapi project connects it to bowrain, leaving an already-connected project
 untouched. (`--anonymous` skips sign-in; omit it to create the project under
 your account, or pass `--project <id>` to attach to an existing server project.)
 

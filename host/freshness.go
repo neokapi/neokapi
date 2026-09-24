@@ -10,24 +10,12 @@ import (
 	"github.com/neokapi/neokapi/core/ref/refcache"
 )
 
-// The freshness half of the retrieval surface (AD-037; the surface's freshness
-// contract).
+// Retrieval freshness (AD-037) reports whether cached governance has changed
+// since this process last read it. Callers decide whether that change requires
+// revising work based on an earlier retrieval.
 //
-// A retrieval answer is a snapshot of a graph that other processes move. An
-// assistant holds one for the length of a task — sometimes an hour — and the
-// wording it settles on is only as good as the context it read at the start. So
-// every answer says whether the governance under it has moved since this
-// process last looked.
-//
-// It reports; it never resolves. What a moved context means for work already
-// done is a judgement, and nothing here is in a position to make it.
-//
-// The comparison costs one small file read, and no network call at all. That is
-// deliberate: a retrieval is a read path an agent hits repeatedly inside a
-// single thought, and a design that phoned the venue each time would trade a
-// note nobody waits for against latency on every question asked. Refreshing
-// what the cache holds belongs to the transport — a push, a pull, a `kapi up`
-// — at the cadence it already runs at; this side only notices that it moved.
+// Each check reads a small local file without a network request. Push, pull and
+// kapi up refresh the transport cache; retrieval only observes those updates.
 
 // governanceWatch remembers the governance identities this process last read,
 // so a later read can say what moved underneath it.

@@ -28,12 +28,9 @@ func storeProject(t *testing.T, app *App) (*TabInfo, string) {
 	return tab, root
 }
 
-// The desktop used to build a second host.App for a converge run while a tab
-// held the project's stores open. Two Apps meant two connection pools on one
-// `.kapi/work/store.db`, and the in-process write gate is per pool: it could order
-// neither set of writers against the other, which is the starvation the merged
-// store exists to remove. A run-scoped App now borrows the engine's stores, so
-// the run, the tab and the review loop reach one handle.
+// Run-scoped Apps must borrow the engine's project stores. Separate connection
+// pools for one database cannot share the in-process write gate and may starve
+// review writes. The run, tab and review loop must use the same store handle.
 func TestBorrowEngine_RunAppReachesTheTabsStore(t *testing.T) {
 	app := NewApp()
 	tab, root := storeProject(t, app)

@@ -12,27 +12,16 @@ interface ThemedImageProps {
   className?: string;
 }
 
-// A theme-aware <img>, mirroring ThemedVideo. Both variants are emitted into the
-// DOM and toggled with CSS keyed off Docusaurus's `data-theme` attribute, rather
-// than reading the color mode through useColorMode() — that hook lives in
-// @docusaurus/theme-common, which resolves to a *different* module instance for
-// workspace-package consumers like this one, throwing a ReactContextError that
-// blanks the page (the same reason ThemedVideo toggles via CSS).
+// A theme-aware image, using the same CSS switching as ThemedVideo. Both variants
+// are rendered and selected through Docusaurus's data-theme attribute; identical
+// variants render one image. Avoid useColorMode here because workspace consumers
+// can resolve a separate @docusaurus/theme-common instance without its provider.
 //
-// Crucially, source paths run through useBaseUrl so they respect the site's
-// baseUrl (e.g. /web/bowrain/docs/) instead of resolving against the domain
-// root. The built-in @theme/ThemedImage does NOT do this, so raw "/img/…" paths
-// 404 in the browser despite the assets being deployed under the baseUrl.
-//
-// When both variants are the same file a single <img> is emitted.
-//
-// Source paths resolve against the site baseUrl, or — when a CDN origin is
-// configured (cdnBaseUrl customField, from $DOCS_CDN_URL) — against the CDN,
-// exactly as ThemedVideo does. This keeps large, release-only screenshots out
-// of the GitHub Pages artifact and the PR-preview bundle: they live once on R2
-// (published via `make publish-cdn-images` / `publish-cdn-bowrain-images`) and
-// are referenced by URL. useBaseUrl runs unconditionally (hooks rule); the CDN
-// form simply takes precedence.
+// Paths use the configured CDN origin, or useBaseUrl when no CDN is configured.
+// This supports non-root site deployments and keeps large screenshots outside
+// Pages and preview bundles. CDN images are published by make publish-cdn-images
+// and publish-cdn-bowrain-images. useBaseUrl must run unconditionally to preserve
+// hook order, even when the CDN path takes precedence.
 export default function ThemedImage({ alt, sources, className }: ThemedImageProps) {
   const { siteConfig } = useDocusaurusContext();
   const cdn = readCdnConfig(siteConfig);

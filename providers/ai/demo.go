@@ -117,10 +117,8 @@ func (p *DemoProvider) ChatStructured(ctx context.Context, messages []Message, s
 	}, nil
 }
 
-// demoTargetLocale reads the target locale from the prompt metadata the caller
-// attached to ctx. The demo provider used to regex "to <locale>" out of the
-// prompt text, which coupled it to the prompt's wording and broke silently
-// whenever the prompt changed. It reads structured intent instead.
+// demoTargetLocale reads the target locale from structured prompt metadata in
+// ctx. This keeps locale selection independent of prompt wording.
 func demoTargetLocale(ctx context.Context) model.LocaleID {
 	if m, ok := prompt.MetaFrom(ctx); ok {
 		return model.LocaleID(m.Param("target_locale"))
@@ -415,14 +413,9 @@ func matchCase(src, repl string) string {
 	return repl
 }
 
-// demoBatchTranslations decodes the batch prompt's JSON payload, translates each
-// segment, and returns JSON matching the batch_translations schema — echoing the
-// id it was given, because that is the contract the real providers are held to
-// and the demo must be held to the same one.
-//
-// This used to regex "[N] text" lines out of the prompt. Parsing the payload
-// means the demo breaks loudly if the payload shape changes, rather than quietly
-// returning nothing.
+// demoBatchTranslations decodes the batch JSON payload and returns demo
+// translations in the batch_translations schema, preserving each segment ID.
+// An invalid payload returns an empty translations array.
 func demoBatchTranslations(userTurn string, target model.LocaleID, terms map[string]string) string {
 	var payload struct {
 		Segments []struct {
@@ -490,14 +483,11 @@ var demoCapStopwords = map[string]bool{
 	"Here": true, "Then": true, "Now": true, "Get": true, "Try": true,
 }
 
-// demoVoiceInference derives an illustrative draft voice profile
-// from the corpus embedded in an inference prompt (the text after the
-// "Corpus:" delimiter line that voice-infer emits), using deterministic
-// surface heuristics: contraction, exclamation, pronoun, passive-voice, and
-// sentence-length counts, plus recurring capitalized terms. Like the demo
-// translator it is honest about being a stub — the guidelines and every
-// evidence note carry the ⟦demo⟧ marker. Returns JSON matching the
-// brand_voice_inference schema.
+// demoVoiceInference builds an illustrative voice profile from the corpus after
+// the Corpus delimiter. It uses deterministic counts of contractions, exclamations,
+// pronouns, passive constructions, sentence lengths and recurring capitalized terms.
+// Guidelines and evidence include the demo marker. The result uses the
+// brand_voice_inference JSON schema.
 func demoVoiceInference(userTurn string) string {
 	corpus := userTurn
 	if idx := strings.LastIndex(userTurn, prompt.CorpusDelimiter); idx >= 0 {

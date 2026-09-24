@@ -135,8 +135,8 @@ func EstimateConvergence(ctx context.Context, cs store.ContentStore, tm memory.S
 			continue // locale already fully covered over the ready source
 		}
 
-		// content-memory leverage: reuse the run's recycle partition so the split is truthful.
-		// A nil content memory (or an error) means no leverage — everything reads as AI work.
+		// Use the run's recycle partition to estimate content-memory reuse.
+		// A missing store or lookup error assigns all work to AI.
 		remainder := pending
 		if tm != nil {
 			rules := recycleTermRules(ctx, tb, proj.ID, source, target)

@@ -30,7 +30,7 @@ import (
 // DefaultOut is the dataset the dashboard reads.
 const DefaultOut = "web/src/pages/authoring-eval/_authoringeval.json"
 
-// Report is the whole dataset.
+// Report contains the authoring evaluation dataset.
 type Report struct {
 	Note string `json:"_note"`
 	// Date is a date and not a timestamp, so a rerun on the same day produces

@@ -14,38 +14,25 @@ scenes:
 
 ## Story
 
-The kapi loop keeps three verbs separate: a flow **produces** (it drives each unit
-as far up its lifecycle as a machine can, typically to *translated*), a person
-**reviews** (advancing what a machine can't decide, *translated → reviewed*), and
-a gate **releases**. This walkthrough is the middle verb — the human decision —
-and where it lands.
+This walkthrough records human approval of an existing translation. The project
+starts with translated content awaiting review. An approval is bound to the
+exact translation's content hash, so a later edit requires another review.
 
-A plain target file records that a translation *exists*, not that someone
-*blessed* it. So an approval can't live in the file, and it isn't derivable from
-anything. It lands in the project's committed **decision record** —
-`.kapi/state/`, one JSONL shard per document — bound to the content hash of the
-exact translation it approves. Delete the caches and a re-run rebuilds them; the
-decision record is the one thing it can't, so you commit it with your sources.
-
-The loop is `status` → `status --review` → `apply` → `status`.
+The sequence is `status` → `status --review` → `apply` → `status`.
 
 ## Scene 1 — review-and-approve (terminal)
 
 Start from an already-translated project. `kapi status` shows `fr` translated
-100%, reviewed 0% — the machine is done, the human review is pending.
-`kapi status --review` is the worklist: every translated unit not yet approved,
-addressed by file / id / locale. `kapi apply review.jsonl` records a
-`kind:"review"` decision in the unit-state record, content-hash bound. The closing
-`kapi status` shows reviewed coverage climb — derived straight back from the
-committed decision, so a `{ reviewed: … }` gate now counts it.
+100% and reviewed 0%. `kapi status --review` lists the units awaiting approval,
+addressed by file, id and locale. `kapi apply review.jsonl` records a
+`kind:"review"` decision. The closing `kapi status` shows the resulting increase
+in reviewed coverage, which counts toward a `{ reviewed: … }` gate.
 
 ## Closing
 
-Commit `.kapi/state/` and the approval travels with the project — the same
-loop a server-backed project runs by pushing its state to a remote instead of
-committing a file. The decision is the carrier; the caches are just speed.
+Review decisions are authored records, separate from derived caches. Use the
+project's context export or snapshot workflow to preserve them.
 
-The gate is the consequence: `kapi check --ship` exits 3 while a required
-review is missing, and clears once the decisions land — nothing re-translated,
-the recorded decision is what lifts it. The kapi-up-loop walkthrough shows
-that block-then-clear moment end to end.
+`kapi check --ship` exits 3 while required reviews are missing and passes once
+the gate's requirements are met. The kapi-up-loop walkthrough shows this
+transition without retranslating the approved content.

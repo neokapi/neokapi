@@ -5,9 +5,7 @@ import { useSectionSignals } from "../useSectionSignals";
 import { SECTION_APPS } from "../sections";
 import { docsUrl, KAPI_SITE_URL } from "../links";
 
-// Three places the same workspace is reachable from. The third is the point of
-// the open core: a developer never has to leave their checkout to be inside the
-// same graph as the reviewer.
+// Clients that access a shared workspace.
 const PLACES = [
   {
     icon: Globe2,
@@ -25,7 +23,7 @@ const PLACES = [
     icon: Terminal,
     where: t("From your checkout"),
     body: t(
-      "kapi resolves the same context locally, gates the same checks in CI, and answers your agents over MCP.",
+      "kapi retrieves project context, runs checks locally and in CI, and provides tools for AI assistants over MCP.",
     ),
   },
 ];
@@ -46,7 +44,7 @@ export function Apps() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "Same projects, same context, same review queue, whichever door you come through, because all three read the graph rather than a copy of it.",
+              "Access shared projects, context and review work from the browser, desktop app or kapi.",
             )}
           </p>
         </div>

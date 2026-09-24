@@ -48,8 +48,8 @@ The recipe keys are **`verified_gate`** (a single catch-all gate) and
 
 A project with **no** verified gate has no verified locales: every shippable
 locale reads as AI-only. Declaring `verified_gate` / `verified_gates` is how a
-project opts in to the stronger claim. This keeps the label honest: "verified"
-never appears unless a bar was declared and cleared.
+project defines the requirements for verification. A locale is labelled
+"verified" only after it passes those requirements.
 
 :::
 

@@ -7,30 +7,11 @@ import (
 	"time"
 )
 
-// How old the numbers are, read from the numbers themselves.
-//
-// This exists because of what an audit of the committed datasets turned up:
-// /pseudobench was rendering results measured on 2026-05-20 from a file
-// committed on 2026-07-03, and nothing anywhere said so. Three other datasets
-// carried no timestamp at all, so their pages could not have shown an age even
-// if they had wanted to.
-//
-// A stale dataset reads exactly like a fresh one. The only defence is to take
-// the date out of the data rather than trusting a card to be updated by hand,
-// so this walks each dataset and reports what it finds — including "the file
-// carries no date", which is itself a finding worth printing.
-
-// stampKeys are the spellings the harnesses use. They were written at different
-// times by different hands and never agreed on one; rather than renaming fields
-// in eight datasets and breaking eight dashboards, the reader accepts them all.
+// stampKeys lists the timestamp field names accepted across harness datasets.
 var stampKeys = []string{"generated", "generatedAt", "generated_at", "ranAt", "timestamp", "date"}
 
-// Freshness is what a dataset says about its own age.
-//
-// The date, and never the age. An age computed here would be baked into a
-// committed artifact and would go stale the next morning, so the drift test
-// that keeps the index honest would fail every day and get muted within a
-// week. The page does the subtraction, where the answer is always current.
+// Freshness records the measurement date. The page computes age at render time
+// so a committed index remains valid as time passes.
 type Freshness struct {
 	// Date is the measurement time the dataset records, RFC3339 or a bare day.
 	Date string `json:"date,omitempty"`
@@ -47,12 +28,8 @@ type Freshness struct {
 // reaching into individual results.
 // at, when set, is the key inside the dataset this card's numbers live under.
 //
-// Three cards read web/src/pages/skill-eval/_skilleval.json, which holds one
-// report per mode with its own `generated`. Taking the newest stamp anywhere in
-// the file gave all three the date of whichever mode ran last, so a trigger
-// sweep from yesterday and an MCP sweep from yesterday both claimed to have run
-// this morning. A stale dataset reading as fresh is the one thing this file
-// exists to prevent, and it was doing it to two cards in three.
+// A dataset may contain independent reports. When at is set, search only that
+// report so another mode's newer timestamp cannot make this result look fresh.
 func readFreshness(root, rel, at string) Freshness {
 	body, err := os.ReadFile(filepath.Join(root, rel))
 	if err != nil {
@@ -69,8 +46,7 @@ func readFreshness(root, rel, at string) Freshness {
 		}
 		section, ok := m[at]
 		if !ok {
-			// The card names a section the dataset does not have. Undated is
-			// the honest answer; guessing the file's date would be the bug.
+			// A missing report has no measurement date; do not use a sibling's date.
 			return Freshness{Undated: true}
 		}
 		doc = section

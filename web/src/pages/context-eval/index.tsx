@@ -4,16 +4,9 @@ import Layout from "@theme/Layout";
 import history from "./_contexteval.json";
 import { t } from "@neokapi/i18n-react/runtime";
 
-// The context-eval dashboard. kapi's value proposition is injecting context —
-// terminology, a voice guide, an instruction — to steer model output. This
-// page measures whether that context is actually followed, per model, as a
-// differential: the same engineered corpus translated with and without the
-// context, both passes scored by kapi's own check tools. Regenerate with
-// `make context-eval-publish`.
-//
-// Every claim on this page is computed from the committed history rather than
-// typed into the prose — a sentence that hardcodes a finding keeps asserting it
-// long after the data stops supporting it.
+// Compare adherence with and without project context on the same corpus.
+// Regenerate the committed measurements with `make context-eval-publish`.
+// Derive findings from those measurements so they remain current after each run.
 
 interface Counts {
   scored: number;
@@ -142,8 +135,7 @@ function overall(r: Run): { bare: Counts; steered: Counts } {
   return sum;
 }
 
-/** Lift bought per 1,000 context tokens — is the guide earning what it costs
- *  to send on this model? Null when either side is unmeasured. */
+/** Lift per 1,000 context tokens. Null when either side is unmeasured. */
 function liftPer1k(r: Run): number | null {
   const l = lift(overall(r));
   if (l == null || !r.context_tokens) return null;
@@ -210,7 +202,7 @@ const experiments: Experiment[] = [...new Set(real.map((r) => r.target))]
   .sort((a, b) => a.target.localeCompare(b.target));
 
 // Findings, computed from the data. The trend question that survives noise:
-// which models does the context actually move, and where is it dead weight?
+// which models show improved adherence when context is supplied?
 interface Findings {
   bestLift: { model: string; target: string; lift: number } | null;
   deadWeight: { model: string; target: string; lift: number }[];
@@ -699,8 +691,7 @@ function OverTime(): ReactElement | null {
       <h2>Over time</h2>
       <p>
         Overall lift by run date, per model, within one experiment. A model whose steerability
-        regresses behind a stable alias shows up here — which is the point of keeping the record
-        rather than measuring once.
+        regresses while retaining the same alias can be detected by comparing these runs.
       </p>
       {sections.map(({ e, comparable, dates }) => (
         <div key={e.target} style={{ marginBottom: 20 }}>
@@ -745,48 +736,44 @@ export default function ContextEval(): ReactElement {
   return (
     <Layout
       title="Context eval"
-      description="Whether models actually follow the context kapi injects — terms, voice profile, instruction — measured as lift: adherence with the context minus adherence without it, per model, per dimension, tracked over time."
+      description="Model adherence to terms, voice profiles and instructions, measured with and without context and tracked over time."
     >
       <main style={{ maxWidth: 940, margin: "0 auto", padding: "2.5rem 1.25rem 4rem" }}>
         <h1>Context eval</h1>
         <p style={{ fontSize: "1.05rem", color: "var(--ifm-color-emphasis-700)" }}>
-          kapi steers model output by injecting context: a terms store that mandates renderings, a
-          voice guide, an instruction. This page measures whether each model actually follows that
-          context — not whether it translates well, which is a different question. The sibling{" "}
-          <Link to="/batch-eval">batch eval</Link> measures structural integrity and cost; this one
-          measures obedience.
+          kapi supplies models with project context, including required terms, a voice guide and
+          instructions. This page measures how that context affects adherence to each requirement.
+          It does not assess overall translation quality. The{" "}
+          <Link to="/batch-eval">batch eval</Link> measures structural integrity and cost.
         </p>
 
         <h2>How it is measured</h2>
         <p>
-          The core metric is a <strong>differential</strong>. An engineered corpus is translated
-          twice through the production pipeline — once <em>bare</em> (no context) and once{" "}
-          <em>steered</em> (terms + voice profile + instruction, injected exactly as production
-          injects them) — and both passes are scored with kapi&rsquo;s own deterministic check tools
-          (term-check, dnt-check, voice-vocab-check, pattern-check). Two numbers fall out per
-          dimension: <strong>absolute adherence</strong> (did the steered output satisfy the
-          requirement) and <strong>lift</strong> (steered minus bare — how much the context moved
-          the model). Lift is the decision-relevant one: a model with high absolute adherence but no
-          lift already &ldquo;knew&rdquo; it, and our context earns no credit. A model with high
-          lift is genuinely <em>steerable</em>, which is what context injection is buying.
+          A test corpus is translated twice through the production pipeline: once <em>bare</em>{" "}
+          (without context) and once <em>steered</em> (with terms, a voice profile and
+          instructions). Both passes are scored with kapi&rsquo;s deterministic checks: term-check,
+          dnt-check, voice-vocab-check and pattern-check. Each dimension reports{" "}
+          <strong>absolute adherence</strong> (the proportion of requirements satisfied with
+          context) and <strong>lift</strong> (adherence with context minus adherence without it).
+          High adherence with no lift means the model already met those requirements without the
+          supplied context. Positive lift measures the improvement attributable to that context in
+          this corpus.
         </p>
         <p>
-          Every fixture is a trap: a naive translation violates the context. A mandated term whose
-          natural rendering differs from the mandate, a product name that reads like a common noun,
-          casual English tempting an informal register, a source that ends in the exclamation mark
-          the instruction forbids. There are distractors (a lowercase &ldquo;compass&rdquo; that is
-          a real compass and must be translated) and declared-winner conflicts (the terms store pins
-          a compound containing a forbidden word — the pin wins, and the scorer knows it). Results
-          are reported <strong>per dimension</strong> — terminology, voice, instruction — never as
-          one collapsed score: a model can be excellent at terminology and poor at voice, and the
-          collapsed number would hide the thing you would act on.
+          Fixtures test requirements a translation might otherwise violate: an unusual required
+          term, a product name that resembles a common noun, a formal register for casual source
+          text, or a ban on exclamation marks. Distractors test whether the model applies rules too
+          broadly. Conflicting rules have an explicit priority; for example, a required compound can
+          take precedence over a ban on one of its words. Results are reported separately for
+          <strong> terminology, voice and instructions</strong> so strengths in one dimension do not
+          obscure weaknesses in another.
         </p>
         <p>
-          The deterministic checks are the backbone. The genuinely subjective remainder of voice —
-          register, naturalness, restraint — is scored by a cross-family LLM judge under a fixed
-          yes/no rubric, blind to which model and which variant produced a text, and its scores are
-          published only once judge–human agreement has been measured above a stated bar. Until
-          then, judged numbers stay in the record but off this page.
+          Subjective voice qualities, including register, naturalness and restraint, are scored by
+          an LLM judge from a different model family. The judge uses a fixed yes/no rubric and
+          receives no information about the model or variant that produced the text. Scores are
+          published only after measured agreement with human reviewers exceeds the stated threshold.
+          Until then, they remain in the run record but are excluded from this page.
         </p>
 
         {!anyRuns ? (
@@ -801,9 +788,9 @@ export default function ContextEval(): ReactElement {
             <p>
               {f.bestLift && (
                 <>
-                  The most steerable model measured is <strong>{f.bestLift.model}</strong> (
+                  The model with the greatest measured lift is <strong>{f.bestLift.model}</strong> (
                   {f.bestLift.target}
-                  ), which the context moved by <strong>{pp(f.bestLift.lift)}</strong> overall.{" "}
+                  ), with an overall improvement of <strong>{pp(f.bestLift.lift)}</strong>.{" "}
                 </>
               )}
               {f.deadWeight.length > 0 ? (
@@ -815,21 +802,17 @@ export default function ContextEval(): ReactElement {
                       <strong>{d.model}</strong> ({d.target})
                     </span>
                   ))}{" "}
-                  the context produced no positive lift — on those models the injected guide is dead
-                  weight at this corpus, a cost with no measured return.
+                  the context produced no positive lift on this corpus.
                 </>
               ) : (
-                <>
-                  Every measured model shows positive lift — the context earns its tokens
-                  everywhere.
-                </>
+                <>Every measured model shows positive lift on this corpus.</>
               )}
               {f.weakestDim && (
                 <>
                   {" "}
                   The weakest dimension with context applied is{" "}
                   <strong>{f.weakestDim.dimension}</strong> at {f.weakestDim.rate.toFixed(1)}%
-                  steered adherence — the ceiling context injection currently hits.
+                  steered adherence.
                 </>
               )}
             </p>

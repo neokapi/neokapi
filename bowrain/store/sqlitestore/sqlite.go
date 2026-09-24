@@ -1487,9 +1487,8 @@ func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, stream, blockI
 		return fmt.Errorf("delete block: %w", err)
 	}
 
-	// Everything filed under the block's id on THIS stream goes with it — a
-	// branch holding the same id keeps its own rows, which is the whole point
-	// of a branch.
+	// Remove rows for this block only in the selected stream. Other branches
+	// may retain rows with the same block ID.
 	for _, table := range storeutil.BlockScopedTables() {
 		//nolint:gosec // table is a fixed literal from storeutil, never user input
 		q := `DELETE FROM ` + table + ` WHERE project_id=? AND stream=? AND block_id=?`
@@ -1517,9 +1516,8 @@ func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, stream, blockI
 // ---------------------------------------------------------------------------
 
 func (s *SQLiteStore) CreateVersion(ctx context.Context, projectID, stream, label, description string) (*platstore.Version, error) {
-	// A version is a point in ONE stream's history — the parameter has always
-	// said so, and the statements below used to ignore it and snapshot the whole
-	// project.
+	// Scope the snapshot to the requested stream so other branches do not
+	// contribute content or counts to this version.
 	stream = storeutil.DefaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

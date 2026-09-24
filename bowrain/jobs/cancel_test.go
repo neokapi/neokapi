@@ -7,10 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestCancelJob_LeavesTerminalJobsAlone: cancelling a job that just finished
-// used to flip it to failed / "cancelled by user", and the push aggregation
-// then reported the whole push as partly failed. A completed job cannot be
-// cancelled after the fact.
+// TestCancelJob_LeavesTerminalJobsAlone verifies that canceling a completed job
+// preserves its terminal status.
 func TestCancelJob_LeavesTerminalJobsAlone(t *testing.T) {
 	f := newBillingWorkerFixture(t)
 	ctx := t.Context()
@@ -33,10 +31,8 @@ func TestCancelJob_LeavesTerminalJobsAlone(t *testing.T) {
 	assert.Empty(t, got.Error)
 }
 
-// TestCancelJob_TakesTheLeaseFromTheWorker: cancelling a RUNNING job used to
-// stop nothing. The worker checks its lease at every chunk, and cancel left the
-// epoch alone — so the worker kept translating, kept billing, and then wrote
-// 'completed' back over the cancellation.
+// TestCancelJob_TakesTheLeaseFromTheWorker verifies that cancellation changes the
+// lease epoch so a running worker stops at its next lease check.
 func TestCancelJob_TakesTheLeaseFromTheWorker(t *testing.T) {
 	f := newBillingWorkerFixture(t)
 	ctx := t.Context()

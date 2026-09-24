@@ -84,11 +84,8 @@ type pendingReviewStore interface {
 	ListPendingReview(ctx context.Context, q platstore.PendingReviewQuery) ([]platstore.PendingReviewRef, int, error)
 }
 
-// runCollectionScopeCases pins the server-side collection filter. A
-// collection-scoped review session used to receive the project's whole queue
-// and narrow it in the browser over a bounded slice, so a collection larger
-// than the slice showed fewer entries than its own card counted — and the total
-// it reported was the project's, not the collection's.
+// runCollectionScopeCases verifies server-side collection filtering, including
+// page contents and totals for queues larger than one page.
 func runCollectionScopeCases(t *testing.T, s pendingReviewStore) {
 	t.Helper()
 	ctx := t.Context()

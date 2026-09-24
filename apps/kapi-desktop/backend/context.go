@@ -105,7 +105,7 @@ type ContextLivesResult struct {
 	Notes       []string               `json:"notes"`
 }
 
-// ContextBlessingDTO is a decision that blessed a unit, and the source it cited.
+// ContextBlessingDTO contains a unit approval and its source basis.
 type ContextBlessingDTO struct {
 	Unit       string `json:"unit"`
 	Variant    string `json:"variant,omitempty"`
@@ -491,13 +491,10 @@ func documentMatches(document, point string) bool {
 	return document == point || strings.HasPrefix(document, point+"/")
 }
 
-// ContextRelates answers "how it relates" for a term, a concept or a block.
-//
-// A subject that names a term or concept answers with where the project's
-// content uses it, read from the uses_term edges the up path materializes, so
-// the count here is the count the search pane and the platform report and all
-// three mean "as of the last extraction". A subject that names a block's
-// content key answers with the decisions that blessed it, from the same graph.
+// ContextRelates returns graph relationships for a term, concept or block.
+// Term and concept queries read uses_term edges produced by extraction, so usage
+// counts match the search pane and platform counts from the same extraction.
+// Block queries return decisions associated with the block's content key.
 func (a *App) ContextRelates(tabID, kind, subject string, limit int) (*ContextRelatesResult, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -557,8 +554,7 @@ func (a *App) ContextRelates(tabID, kind, subject string, limit int) (*ContextRe
 	return out, nil
 }
 
-// contextBlessings reads the decisions that blessed one block, from the
-// project's own context subgraph.
+// contextBlessings reads a block's decisions from the project's context subgraph.
 func (a *App) contextBlessings(ctx context.Context, op *openProject, contentKey string) ([]ContextBlessingDTO, error) {
 	root := filepath.Dir(op.Path)
 	g, err := a.hostEngine().ProjectGraph(ctx, root)

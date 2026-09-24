@@ -1,9 +1,6 @@
-// "How it relates" — occurrence, blessing, membership (Apache-2.0).
-//
-// The pane states its reach in its own header. A project-reach answer inside a
-// workspace is a smaller answer, not a wrong one, and saying so is the whole
-// contract: "which projects use this concept" answering from one project would
-// read as "only this project uses it", which is a lie the graph never told.
+// Occurrence, approval and membership relationships (Apache-2.0).
+// The header identifies whether results cover one project or the workspace.
+// Project-scoped results must not imply that no other project uses the concept.
 
 import { Badge, Separator, SimpleTooltip, cn } from "@neokapi/ui-primitives";
 import { EmptyHint, LocalePill, useResource } from "@neokapi/concept-ui";

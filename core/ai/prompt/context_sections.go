@@ -5,32 +5,13 @@ import (
 	"strings"
 )
 
-// Context is what kapi tells the model about a block *besides the block*.
-//
-// The distinction this type exists to enforce: there are two very different
-// things you can put in a translation prompt, and conflating them is how you get
-// a worse translation for more money.
-//
-//   - Segments the model must *emit*. Every one is a task competing for
-//     attention and a distractor for every other. Adding them degrades quality —
-//     measurably, and the failure mode at size is dropped and renumbered
-//     segments, not merely clumsier wording.
-//   - Reference material the model must *not translate*. This is close to free
-//     upside: it disambiguates without adding work.
-//
-// kapi used to send neither. The batch was co-workers with no reference at all,
-// which is the worst of both: the model saw 100 sibling strings it had to
-// translate and nothing at all that would tell it what any of them meant.
-//
-// A `Save` with no context is a coin flip between a verb and a noun — and in
-// German, between *Speichern* and *Speicherung*. `settings.save` settles it.
+// Context supplies reference material that helps interpret a block without
+// adding translation tasks. For example, the key settings.save identifies Save
+// as an action. Prompt instructions distinguish this reference material from the
+// segments the model must translate and return.
 type Context struct {
-	// Key is the block's key or path — `app.settings.title`, not `Save`.
-	//
-	// The cheapest disambiguation signal there is: it is already in the document,
-	// it costs a handful of tokens, and it is what every translation vendor
-	// sends. It is also *stable*: a block's key is a function of the block, so
-	// sending it cannot make a cached translation wrong.
+	// Key is the block's key or path, such as app.settings.title.
+	// It helps disambiguate short text and is already part of block identity.
 	Key string
 
 	// Before and After are the neighbouring source blocks, as reference. They are
@@ -43,30 +24,17 @@ type Context struct {
 	Before []string
 	After  []string
 
-	// Prior is what this same block said last time, and what was approved for
-	// it then. It is reference, never an answer: the model reads it, does not
-	// echo it, and is free to depart from it where the source has moved.
+	// Prior contains this block's previous source and approved target as
+	// reference for revising the translation after a source edit.
 	//
-	// It replaces what a fuzzy match was reaching for. A similarity score
-	// answered "is this the same thing, changed a bit?" by measuring
-	// characters; a version chain answers it outright, and can hand over all
-	// three terms — what the source said, what was approved for it, what the
-	// source says now — so the model can do the delta reasoning post-editing
-	// used to force onto a person.
-	//
-	// A caller must fill this only when the governing context has not moved
-	// since that answer was approved. A prior target is the most anchoring
-	// thing that can go in a prompt, and one approved under superseded rules
-	// pulls the model back toward wording those rules now reject — while the
-	// result is stamped with today's fingerprint and looks fresh.
-	// memory.Version.GovernedBy is the gate.
+	// Populate it only when the approval's governing context still matches the
+	// current context; memory.Version.GovernedBy performs that check. Otherwise
+	// superseded wording could influence a result stamped with a current fingerprint.
 	Prior *PriorVersion
 }
 
-// PriorVersion is one block's previous source and the target approved for it.
-// The JSON tags are load-bearing rather than decorative: a prior version rides
-// inside the batch payload, so these field names are text a model reads. Lower
-// case because everything else in that payload is.
+// PriorVersion pairs a block's previous source with its approved target.
+// The JSON field names are part of the batch payload sent to the model.
 type PriorVersion struct {
 	// Source is what the block said when Target was approved. Without it the
 	// target is an anchor with no explanation; with it the pair is a diff the
@@ -76,9 +44,8 @@ type PriorVersion struct {
 	Target string `json:"approved"`
 }
 
-// empty reports whether a prior version says nothing useful. Either half alone
-// is nothing: a source with no target teaches the model wording it must not
-// reuse, and a target with no source is the anchor without the explanation.
+// empty reports whether the prior version lacks either side of the approved
+// pair. Both are required to interpret the previous translation.
 func (p *PriorVersion) empty() bool {
 	return p == nil || strings.TrimSpace(p.Source) == "" || strings.TrimSpace(p.Target) == ""
 }

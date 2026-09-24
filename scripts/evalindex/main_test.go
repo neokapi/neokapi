@@ -10,13 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The registry is authored, so it can say anything. These tests are what stop
-// it: every claim it makes about the repository is checked against the
-// repository, and the ones it makes about itself are checked for coherence.
-//
-// A page whose job is evidence has to hold its own index to the standard it
-// holds the evals to. A card claiming an eval is measured, pointing at a data
-// file that does not exist, would be worse than no page at all.
+// Verify authored registry entries against repository files and coverage rules.
 
 func repoRoot(t *testing.T) string {
 	t.Helper()
@@ -85,12 +79,7 @@ func TestAnAbsentEvalPromisesNothing(t *testing.T) {
 	}
 }
 
-// TestABlockedEvalNamesTheBlocker.
-//
-// Blocked means the harness is written and something it drives returns nothing.
-// The card has to be runnable — a reader who does not believe it should be able
-// to reproduce the silence — and it has to name the issue, or "blocked" is
-// indistinguishable from an excuse.
+// Blocked evaluations must include reproduction steps, a results page and an issue reference.
 func TestABlockedEvalNamesTheBlocker(t *testing.T) {
 	for _, e := range evals {
 		if e.Status != StatusBlocked {
@@ -104,13 +93,7 @@ func TestABlockedEvalNamesTheBlocker(t *testing.T) {
 	}
 }
 
-// TestAJudgedEvalDeclaresItsValidation.
-//
-// A judge's opinion cannot be trusted above its measured agreement with a
-// person. An eval that publishes judged numbers without that measurement is
-// reporting the judge, not the thing under test — the failure mode this class of
-// eval is known for. So the card must either carry the validation or say the
-// status is unvalidated; there is no third option.
+// Model-judged evaluations must document human validation or be marked unvalidated.
 func TestAJudgedEvalDeclaresItsValidation(t *testing.T) {
 	for _, e := range evals {
 		if e.Method != MethodJudged || e.Status == StatusAbsent {
@@ -143,12 +126,7 @@ func TestASpendingEvalCommitsItsData(t *testing.T) {
 	}
 }
 
-// TestEveryEvalStatesWhatItMisses.
-//
-// Covers is advertising; Misses is evidence. An eval whose card says only what
-// it does invites a reader to assume the rest, and the assumption is always more
-// generous than the truth. Fully measured evals may omit it — but the ones this
-// page most needs a reader to understand are the partial ones.
+// Evaluations that are not fully measured must state their limitations.
 func TestEveryEvalStatesWhatItMisses(t *testing.T) {
 	for _, e := range evals {
 		if e.Status == StatusMeasured {
@@ -161,16 +139,7 @@ func TestEveryEvalStatesWhatItMisses(t *testing.T) {
 	}
 }
 
-// TestARegisteredHeadlineResolves.
-//
-// A headline is extracted from its dataset, so an extractor that guesses the
-// shape wrong returns nil and the row silently loses its number. That is how
-// the first version shipped: three of five extractors read keys the datasets do
-// not have — `bare.overall` where the scores are under `dimensions`, `level` as
-// a number where it is the string "L1" — and the only symptom was a blank
-// column that looked like a card without a headline.
-//
-// Registering an extractor is the claim that it works. This checks it.
+// Each registered extractor must resolve a headline from its current dataset.
 func TestARegisteredHeadlineResolves(t *testing.T) {
 	root := repoRoot(t)
 	index, err := Build()
@@ -193,12 +162,7 @@ func TestARegisteredHeadlineResolves(t *testing.T) {
 	}
 }
 
-// TestAFreshAtKeyExists.
-//
-// A card naming a section its dataset does not have reports Undated, which is
-// the honest fallback and an invisible one: the row just stops showing an age.
-// Three cards share _skilleval.json and each names its own mode, so a mode
-// renamed in the harness would silently un-date all of them.
+// Report-specific freshness keys must exist in their datasets. A missing key would hide the measurement date.
 func TestAFreshAtKeyExists(t *testing.T) {
 	root := repoRoot(t)
 	for _, e := range evals {

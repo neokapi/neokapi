@@ -15,16 +15,13 @@ scenes:
 
 ## Story
 
-You need to estimate the cost of a translation before kicking off a vendor
-job. `kapi stats` reads any supported format and outputs a quick breakdown —
-blocks, words, characters, segments — so you can put a number on the bill.
+`kapi stats` reports block, word, character and segment counts for supported
+formats. These counts help estimate translation work and cost.
 
 ## Scene 1 — stats (terminal)
 
-Point `kapi stats` at a JSON message catalog and watch it report word, block,
-and character counts across every dimension. The output is the kind of number
-you paste into a quote.
+Run `kapi stats` on a JSON message catalog and inspect the reported counts.
 
 ## Closing
 
-For multi-file projects, pass several files or a glob; the totals roll up.
+Pass several files or a glob to obtain combined totals for a larger project.

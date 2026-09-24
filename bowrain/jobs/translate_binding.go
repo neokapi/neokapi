@@ -69,21 +69,12 @@ type TranslateBinding struct {
 	BatchConcurrency int
 }
 
-// BuildTranslateConfig assembles the AI translate tool config for a server-side
-// translation, binding everything that governs the run:
-//
-//   - the voice profile resolved through the platform's ladder (collection →
-//     stream → project → workspace default), rendered into every prompt;
-//   - the per-locale term rules from the workspace terms, so the model is told
-//     the mandated renderings at generation time rather than term-check
-//     flagging them afterwards;
-//   - the do-not-translate terms, which are enforced by masking rather than
-//     asked for;
-//   - the content memory and the point, which together let a block be offered
-//     its own previously approved translation, read from the place it belongs
-//     to rather than from wherever the corpus answers first;
-//   - the surrounding blocks, so a bare "Save" is not a coin flip between a
-//     verb and a noun.
+// BuildTranslateConfig configures server-side translation with:
+//   - the voice profile resolved by collection, stream, project or workspace;
+//   - per-locale term rules from workspace terms;
+//   - do-not-translate terms protected by masking;
+//   - content memory scoped to the block's context;
+//   - surrounding blocks to help disambiguate short text.
 func BuildTranslateConfig(ctx context.Context, b TranslateBinding) tools.AITranslateConfig {
 	var source model.LocaleID
 	if b.Project != nil {
@@ -117,21 +108,12 @@ func BuildTranslateConfig(ctx context.Context, b TranslateBinding) tools.AITrans
 	return cfg
 }
 
-// GoverningFingerprint is the fingerprint of the context this binding puts a
-// unit under: the voice profile resolved through the platform's ladder and the
-// per-locale term rules, folded by coreprofile.GovernanceContext — the one
-// function every translation producer stamps onto what it writes.
+// GoverningFingerprint identifies the resolved voice profile and per-locale
+// term rules using coreprofile.GovernanceContext. Producers and reviewers record
+// this value so staleness checks use the same context definition.
 //
-// A review decision records it beside its verdict, so a decision made on the
-// platform and one made in a project are comparable against a single
-// definition of the context in force, and the staleness question ("do the
-// rules this answer was blessed under still hold?") has one answer wherever it
-// is asked.
-//
-// Empty for an ungoverned point — no voice profile and no terminology — which
-// reads correctly as an ad-hoc decision. Every resolution is best-effort, the
-// way BuildTranslateConfig's is: a store that cannot answer leaves its half
-// out rather than failing the decision.
+// The value is empty when no voice or terms apply. Resolution is best-effort:
+// unavailable stores are omitted without failing the decision.
 func (b TranslateBinding) GoverningFingerprint(ctx context.Context) string {
 	var source model.LocaleID
 	if b.Project != nil {

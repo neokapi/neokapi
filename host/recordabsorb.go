@@ -453,25 +453,15 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 			if !keep {
 				continue
 			}
-			// A pairing the project's own record contradicts. This unit's key
-			// survived a source rewrite, so its translation still sits beside a
-			// sentence it was never a translation of — and reading that adjacency
-			// as a pair is what taught the memory an exact answer for the NEW
-			// wording, so every `kapi up` recycled the stale target back over
-			// itself and reported the drift it had just confirmed.
+			// The project record shows that the target belongs to an earlier source.
+			// Learning it against the current source would create an incorrect exact
+			// match and allow later runs to recycle the stale target.
 			//
-			// The pair is not simply dropped. The wording it does translate is
-			// still in the block store (this runs before the pass re-extracts),
-			// and recovering it is not a guess. Kept under that source it stays
-			// reachable as leverage for the rewrite, which is what stops a
-			// one-word source edit from throwing a careful translation away.
-			// Unrecoverable — nothing extracted yet, or a store already re-read —
-			// means nothing is written: a memory with one fewer entry costs a
-			// lookup, an entry asserting a translation of the wrong sentence
-			// costs the translation.
+			// Recover the earlier source from the block store before re-extraction and
+			// retain that valid pair for future reuse. If the earlier source is no longer
+			// available, skip the pair rather than record an incorrect association.
 			//
-			// Two things say the pairing is superseded, and a unit needs only one
-			// of them.
+			// Either of the following conditions establishes that the pair is superseded.
 			blessed, superseded, serr := supersededSource(b, u, e, basis, srcRuns, tgtRuns, prior, corpus)
 			if serr != nil {
 				return res, serr
@@ -1383,22 +1373,14 @@ func saveRecordDigests(ctx context.Context, db *projectdb.DB, stamps map[string]
 	return nil
 }
 
-// recordChainUnit is the identity a block's version chain is keyed on: the
-// answer to "is the thing I am looking at now the same thing I approved before".
+// recordChainUnit returns the key for a block's version history, preferring its
+// resolved Unit, then structural address, then name. A Unit survives reconciled
+// edits; a structural address is translation-invariant; key paths and catalog
+// IDs are already suitable names.
 //
-// Three candidates, most durable first. A resolved Unit is matched rather than
-// named, so it survives a sibling being deleted. A structural address is
-// translation-invariant, which a structural NAME is not — a name carries its
-// ancestors' words, so the same paragraph is named differently in each
-// document's own language. A name is the right key for a format that has one
-// naturally: a key path or a catalog id is already invariant.
-//
-// It deliberately stops there rather than falling through to the block's ID, as
-// convergence.BlockKey does. An id is assigned per read, so keying a chain on
-// one would braid unrelated answers together and fragment a real chain, both
-// silently. For a version chain an unstable key is worse than no key: empty
-// says "this block has no history", which is merely unhelpful, while a wrong
-// key says "this block said that before", which is false.
+// Unlike convergence.BlockKey, it excludes the per-read block ID. Such an ID can
+// change across reads and associate unrelated versions. Empty means no stable
+// history key is available.
 
 // recordChainUnit is model.Block.ChainUnit, kept as a named call site because
 // the reasoning about WHY a chain is keyed this way belongs beside the write

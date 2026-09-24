@@ -6,18 +6,9 @@ import (
 	"strings"
 )
 
-// The default AI provider/model has exactly one resolver and one writer.
-//
-// Before this, every consumer read `ai.provider` / `ai.model` off an AppConfig
-// itself — the CLI's tool-config preprocessor, the `up --plan` annotation, the
-// Ollama pre-flight, the setup wizard's detection, `kapi models default`'s
-// read-back, and the desktop's model panel. Six call sites, no shared answer to
-// "what is configured, and where did it come from", so a scope bug in the
-// reader (see NewAppConfig) went unnoticed in all six at once and there was
-// nowhere to fix it but everywhere.
-//
-// ResolveAIDefault is that one answer, and SetAIDefault / ClearAIDefault are the
-// one write path. Every surface — CLI, desktop, plugin — calls these.
+// ResolveAIDefault, SetAIDefault and ClearAIDefault provide the shared read and
+// write paths for AI defaults. CLI, desktop and plugin callers use them so
+// provider/model selection and configuration provenance remain consistent.
 
 // AIDefaultSource names where a resolved default came from.
 type AIDefaultSource string

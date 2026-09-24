@@ -172,33 +172,33 @@ files:
 steps:
   - comment: The ship gate wants translated 100% and reviewed 100%. A machine can meet the first; only a person can meet the second.
   - command: kapi memory import project.memory.json
-    narration: Seed the project content memory from the committed bundle. The recipe's flow leverages it before any AI is asked — this scene never calls a provider.
+    narration: Import the committed bundle into the project's content memory. The flow reuses these translations without calling a provider.
     offline: false
   - command: kapi up --plan
-    narration: --plan previews the work without doing any. Per locale it reports the pending units, the exact content-memory leverage, what remains for AI, and a token estimate. No provider calls, no writes.
+    narration: --plan reports pending units, exact content-memory matches, remaining AI work and estimated tokens for each locale. It makes no provider calls or writes.
     offline: false
   - command: kapi up
-    narration: up produces. The content memory fills every fr unit, then the loop stops — the gate also wants review, and review needs a person. fr parks. Parking is the hand-off, not a failure; up exits zero.
+    narration: up fills all French targets from content memory, then parks the locale awaiting human review. The command exits zero.
     offline: false
   - command: kapi status --review
-    narration: The worklist — every translated unit not yet approved, addressed by file, id, and locale, exactly as a review change-set names it.
+    narration: List translated units awaiting approval, addressed by file, id and locale for a review change-set.
     # offline:true — runs live in the embed against the pre-produced project.
     # smoke:false — needs the multi-file project seeded; W7 runs commands in
     # isolation (same policy as kapi-review-and-approve).
     offline: true
     smoke: false
   - command: kapi check --ship
-    narration: The gate says no. Reviewed coverage is 0%, so check --ship fails with exit code 3 — the enforcement point a release pipeline runs.
+    narration: Reviewed coverage is 0%, so check --ship fails with exit code 3. A release pipeline can use this exit status to enforce the gate.
     offline: false
   - comment: A person reads the three translations and records the decisions.
   - command: kapi apply review.jsonl
-    narration: apply records each review decision in the committed state store, bound to the translation's content hash. The decision is the one thing no cache can rebuild.
+    narration: apply records each review decision, bound to the translation's content hash.
     offline: true
     smoke: false
   - command: kapi check --ship
-    narration: The same gate now passes — exit code 0. Nothing was re-translated; the recorded decisions cleared it.
+    narration: The ship check now passes with exit code 0. The recorded approvals satisfy the review requirement without retranslating the content.
     offline: false
   - command: kapi status
-    narration: fr is shippable — translated 100%, reviewed 100%. Produce, park, decide, release — the loop is auditable end to end.
+    narration: French is shippable, with 100% translated and 100% reviewed coverage.
     offline: true
     smoke: false

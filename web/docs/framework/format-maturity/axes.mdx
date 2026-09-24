@@ -132,13 +132,12 @@ skipped or did not build is shown as not run, and awards nothing.
 
 - **Corpus (C0–C3)**: the reference files that validate support, with
   provenance: committed exemplars, harvested wild files (license-checked and
-  hash-verified), and synthetic edge-case generators. Real and varied files are
-  what keep a parser honest, so the corpus is treated as evidence with a recorded
-  origin rather than a folder of fixtures.
+  hash-verified), and synthetic edge-case generators. A varied corpus tests the
+  parser against real documents as well as constructed edge cases. Each file's
+  origin is recorded.
 - **Security (S0–S4)**: how well the parser resists malicious or pathological
-  input: resource budgets, fuzzing, and clean sweeps over a hostile corpus. This
-  is the structural advantage of a memory-safe Go engine, made measurable.
-  Non-gating, for now.
+  input: resource budgets, fuzzing, and clean sweeps over a hostile corpus.
+  This axis does not affect the published support tier.
 
 ## Enablement: how we work with it
 
@@ -151,14 +150,13 @@ skipped or did not build is shown as not run, and awards nothing.
   with stable identity binding, to a live add-in embedded inside the native
   editor.
 
-## How a grade stays honest
+## Evidence behind each grade {#how-a-grade-stays-honest}
 
 Each axis level is **computed from evidence**. A deterministic floor inspects the
 format's own files and pins each axis level; a model may only *demote* a small
 set of quality dimensions, and only with a cited file or test as evidence; it
 can never promote a level above what the files support. A reproducibility check
-proves the floor alone fixes the level, so re-runs, and newer models, produce the
-same vector.
+verifies that repeated runs over the same evidence produce the same vector.
 
 The mechanisms that keep this true as the code, the specifications, and the
 models change are described in [Keeping it

@@ -144,7 +144,7 @@ const BowrainFeatures: ProductItem[] = [
     description: translate({
       id: "home.feature.graph.body",
       message:
-        "Profiles, vocabulary, and content memory held on the server and drawn on by every project, person, and agent — versioned and auditable, and learning from every correction. kapi holds the same graph for one project; the difference is reach, not capability.",
+        "Share versioned voice profiles, terms and content memory across projects. Review recurring corrections and promote approved rules into shared guidance.",
     }),
     link: "/getting-started/the-context-graph",
     linkText: translate({ id: "home.feature.graph.link", message: "The context graph" }),
@@ -164,7 +164,7 @@ const BowrainFeatures: ProductItem[] = [
     description: translate({
       id: "home.feature.connectors.body",
       message:
-        "Content platforms, design tools, code repositories, and a developer's checkout are peer routes into one workspace. Most run server-side, with nothing installed and nothing checked out.",
+        "Import content from content platforms, design tools, repositories or a local checkout. Server-side connectors run without a local installation.",
     }),
     link: "/server/connectors",
     linkText: translate({ id: "home.feature.connectors.link", message: "Connectors" }),
@@ -174,7 +174,7 @@ const BowrainFeatures: ProductItem[] = [
     description: translate({
       id: "home.feature.current.body",
       message:
-        "A connector sync, a push, or a developer's command starts a server run: reuse what memory holds, draft the rest, check everything, and park what needs a person into the review queue.",
+        "Start a server run from a connector sync, push or explicit command. Reuse eligible content memory, draft remaining text and check the results. Work needing a person goes to the review queue.",
     }),
     link: "/the-loop",
     linkText: translate({ id: "home.feature.current.link", message: "Keeping content caught up" }),
@@ -215,7 +215,7 @@ export default function Home() {
       description={translate({
         id: "home.meta.description",
         message:
-          "Bowrain — the context graph your people and agents plug into: record and steer the coordinates for content, so what you ship is compliant and on-profile for the audience it was written for",
+          "Bowrain shares writing guidance, terms and review decisions across projects, with collaborative editing and content automation.",
       })}
     >
       <HomepageHeader />

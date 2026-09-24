@@ -666,7 +666,8 @@ func checkNotShrinking(combined map[string]*Report, fresh *Report) error {
 		len(prior.Results), len(fresh.Results))
 }
 
-// wouldShrink asks the same question before anything is replaced.
+// wouldShrink checks the saved dataset before replacing it with a report
+// containing fewer recorded scenarios.
 func wouldShrink(target string, fresh *Report) error {
 	return checkNotShrinking(readDataset(target), fresh)
 }

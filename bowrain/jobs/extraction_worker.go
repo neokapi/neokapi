@@ -95,13 +95,9 @@ type ReviewQueueItem struct {
 	Locale      string
 }
 
-// RunExtractionWorker runs the extraction worker loop. It blocks until ctx is cancelled.
-//
-// The ack/nack branches mirror the translation loop's, because the failure
-// modes are the same: a provider 503 used to strand the job in 'processing'
-// forever — nack discarded, ack unconditional, no attempts column and no
-// sweeper — and the push-completion tracker then reported the push as in
-// progress until its thirty-minute timeout.
+// RunExtractionWorker processes extraction jobs until ctx is canceled. It uses
+// the translation worker's acknowledgement and retry policy so transient failures
+// remain eligible for retry.
 func RunExtractionWorker(ctx context.Context, deps *ExtractionWorkerDeps) error {
 	slog.Info("extraction worker started")
 	defer slog.Info("extraction worker stopped")

@@ -11,17 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestExportTranslatedFileIsNotImplemented pins the export contract.
-//
-// Server-side merged-file export has not existed since #136 — source bytes are
-// no longer stored in the Item model, so there is nothing to merge — and
-// `kapi pull` is the export path. The handler used to express that by returning
-// a stub error through serverErr, which rendered a 500: the web app showed "the
-// server hit an unexpected error, try again in a moment" for a condition that
-// is permanent, and the sentence naming the alternative never left the server
-// log. The editor e2e spec asserted on that sentence and had no way to see it.
-//
-// The status must stay non-5xx-generic and the body must keep naming the CLI.
+// TestExportTranslatedFileIsNotImplemented verifies that unsupported server-side
+// merged-file export returns a specific non-5xx response and directs the user to
+// kapi pull. Item rows do not retain source bytes for a merged-file export.
 func TestExportTranslatedFileIsNotImplemented(t *testing.T) {
 	s, token := newTestServer(t)
 	pid := createTestProject(t, s.GetEcho(), token, "Export Contract")

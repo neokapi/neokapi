@@ -232,9 +232,8 @@ func pgRunArray(expr string) string {
 // Text runs serialize flat — {"text":"literal"} — so the text is at ->>'text';
 // every other kind nests under its own discriminator and yields NULL there.
 //
-// WITH ORDINALITY holds the runs in document order, and that is the whole point
-// of aggregating rather than testing each run: "faithful write-back" written as
-// text + bold + text lives in no single run, and a per-run test cannot find it.
+// WITH ORDINALITY preserves document order when aggregating text. Searching the
+// combined text finds phrases that span multiple runs, including styled spans.
 func pgFlatRuns(arr string) string {
 	return `(SELECT string_agg(CASE
 			WHEN r->>'text' IS NOT NULL THEN r->>'text'

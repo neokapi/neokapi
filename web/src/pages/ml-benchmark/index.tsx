@@ -71,10 +71,9 @@ export default function MLBenchmark(): ReactElement {
         <p style={{ fontSize: "1.05rem", color: "var(--ifm-color-emphasis-700)" }}>
           kapi's subjective checks (voice/style similarity, register, do-not-translate by entity)
           are served by small, open, multilingual models run in-process through the same ONNX
-          runtime the segmenter uses. The cost a user pays is not the per-sentence inference — that
-          is cheap — but the <strong>model download</strong> and the{" "}
-          <strong>resident memory</strong>. This page measures both, so the choice between running a
-          check on your machine and running it server-side is grounded in numbers.
+          runtime the segmenter uses. This page measures inference time,{" "}
+          <strong>model download</strong> size and <strong>resident memory</strong> to help assess
+          the resources needed for local and server-side checks.
         </p>
 
         <h2>Measured cost per model</h2>
@@ -141,26 +140,23 @@ export default function MLBenchmark(): ReactElement {
         <h2>What the numbers say</h2>
         <ul>
           <li>
-            <strong>Per-sentence inference is not the cost.</strong> A loaded embedding model scores
-            a sentence in single-digit milliseconds — fast enough to run on every block in a
-            pipeline.
+            <strong>Inference is fast after loading.</strong> The measured embedding models score a
+            short sentence in single-digit milliseconds.
           </li>
           <li>
-            <strong>The full-precision footprint is the cost.</strong> The fp32 export of a
-            118M-parameter embedding model is a ~465 MB download and over a gigabyte of resident
-            memory — too heavy to load casually inside a CLI that runs next to your editor and your
-            build.
+            <strong>Full-precision models require substantial memory.</strong> The fp32 export of a
+            118M-parameter embedding model requires a download of about 465 MB and more than a
+            gigabyte of resident memory.
           </li>
           <li>
-            <strong>Quantization changes the verdict.</strong> The int8 export of the same model is
-            a ~129 MB download and ~40 MB resident — and slightly faster. That is small enough to
-            ship as an explicitly-installed plugin and cache, which makes a single small-model
-            checker viable to run on your machine.
+            <strong>Quantization reduces the footprint.</strong> The int8 export of the same model
+            requires about 129 MB to download and 40 MB of resident memory, with slightly faster
+            inference. It can be installed and cached as an optional local plugin.
           </li>
           <li>
-            <strong>Some models stay heavy even quantized.</strong> The generalist NER model is ~1.1
-            GB at full precision and still ~330 MB int8 — defensible as an opt-in download, but a
-            poor default for a laptop, and a natural fit for a server that hosts it once.
+            <strong>Some quantized models still require large downloads.</strong> The generalist NER
+            model is about 1.1 GB at full precision and 330 MB in int8. Hosting it on a shared
+            server avoids a separate download for each user.
           </li>
         </ul>
 
@@ -191,10 +187,9 @@ export default function MLBenchmark(): ReactElement {
           downloads and a heavier resident footprint when several run together.
         </p>
         <p>
-          The data points to <strong>Option A</strong>: int8 makes one small model cheap enough to
-          live in the CLI, while the heavy generalist model earns its keep server-side — which is
-          also where batch volume (tens of thousands of strings across many languages) is most
-          economical to process.
+          These measurements support <strong>Option A</strong> when local checks and shared server
+          capacity are both available: use the smaller model locally and share the larger model
+          across server requests.
         </p>
 
         <h2>How the model is acquired</h2>
@@ -220,11 +215,11 @@ export default function MLBenchmark(): ReactElement {
         <p>
           This is realized today as the <code>kapi-check</code> plugin (
           <code>kapi plugins install check</code>, then <code>kapi-check pull</code> downloads the
-          int8 model) and <code>kapi check --voice</code>, which scores each block against a brand
+          int8 model) and <code>kapi check --voice</code>, which scores each block against a voice
           profile's examples and reports an advisory finding below the <code>--voice-min</code>
           cosine cutoff. Because multilingual embedding cosines cluster high, that cutoff is
-          calibrated per profile rather than shipped as a universal number — the honest stance for a
-          proxy.
+          calibrated per profile. The score is a proxy for voice similarity, not a direct measure of
+          writing quality.
         </p>
       </main>
     </Layout>

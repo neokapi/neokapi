@@ -2,7 +2,7 @@
 id: bowrain-automation
 title: "Automate sync with local rules + CI"
 sidebar_label: "Automation"
-description: "Two layers of automation: local automations on the .kapi recipe + a CI pipeline or the server's converge-on-push policy."
+description: "Configure local automation in kapi.yaml and server runs through CI or the converge-on-push policy."
 ---
 
 import { PendingMedia } from "@neokapi/docs-shared";
@@ -12,8 +12,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 Bowrain has two layers of automation: **local rules** declared on the `kapi.yaml`
 recipe (top-level `automations:`) that run on the developer machine
 (for example a pre-push check gate), and the **server side**: the project's converge-on-push
-policy and CI pipelines. Together they make sync fully automated:
-code lands, results follow.
+policy and CI pipelines.
 
 ## Local rules
 
@@ -30,8 +29,8 @@ With `bowrain.converge: on-push` (the default), the server runs
 [a server run](/the-loop) after every push, with no workflow file needed. For
 explicit pipelines, [The loop in CI](/cli/ci/overview) covers GitHub Actions,
 GitLab CI, and the Bowrain GitHub App; the simplest GitHub workflow runs
-`kapi up` on every push to `main`, so the moment code lands the server catches
-up on the new source and completed work flows back.
+`kapi up` on every push to `main` to process changed source on the server and
+pull the results.
 
 Every run, from a push, from CI, or started manually, lands in the project's
 **Runs** view in the web and desktop app:

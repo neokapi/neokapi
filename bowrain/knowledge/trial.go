@@ -16,31 +16,17 @@ import (
 	"github.com/neokapi/neokapi/core/venue"
 )
 
-// The trial: what the checks say on one stream, before and after.
+// A trial compares findings for a pilot's content stream under the live graph
+// and the proposed graph. It uses the voice vocabulary matcher and terms lookup.
 //
-// The blast radius counts. A trial NAMES: for the one content stream a pilot
-// binds the draft to, it runs the same matchers the checks run — the voice
-// vocabulary matcher and the terms lookup — under the live graph and under the
-// graph the draft would produce, and reports the findings each side raises. A
-// reviewer reads the two lists and decides whether the draft says what they
-// meant it to say.
+// Voice evaluation uses a live stream binding: StartPilot materializes a
+// candidate profile and binds it to the stream. VoiceBound reports whether that
+// binding is active.
 //
-// What is live and what is computed, precisely, because the difference matters:
-//
-//   - The VOICE half is live on the stream. StartPilot materializes a candidate
-//     profile and binds it to the stream's profile property, and the profile
-//     resolver reads that rung, so a check running on this stream really does
-//     resolve through the draft. VoiceBound reports whether that binding is in
-//     place right now.
-//   - The TERMS half is computed here. No check resolves terms per stream — the
-//     terms read every check goes through names no stream — so the pilot's terms
-//     shadow is deliberately invisible to them (see terms.ShadowIDPrefix). This
-//     report applies the draft's ops to an in-memory copy of the graph and looks
-//     the block up under both, which is the same lookup with a different graph
-//     under it, but it is a computation and not a resolution.
-//
-// Saying so is the point. A trial that claimed to be a live check on both halves
-// would be inviting a reviewer to trust a mechanism that is not there.
+// Terms evaluation is simulated here. Regular term checks do not resolve by
+// stream, so they cannot see the pilot shadow (terms.ShadowIDPrefix). The trial
+// applies draft operations to an in-memory graph and compares lookups against
+// that graph with lookups against the live graph.
 
 // TrialFinding is one named finding on one block: enough to recognize the rule
 // that fired and the text it fired on.

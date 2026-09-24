@@ -9,12 +9,8 @@ import (
 	"github.com/stripe/stripe-go/v82"
 )
 
-// A Team purchase must land the workspace on Team.
-//
-// It used to land on Pro: handleCheckoutCompleted hardcoded PlanPro and left the
-// correction to `customer.subscription.updated` — an event Stripe only sends when
-// something *changes* after creation, so for a fresh subscription it may never
-// arrive. The buyer paid $20/seat and got the $25 flat plan's limits.
+// Verify that checkout.session.completed applies the purchased Team plan
+// without depending on a later subscription update event.
 func TestCheckoutCompleted_TeamPurchaseLandsOnTeam(t *testing.T) {
 	store := &recordingStore{}
 	handler := NewWebhookHandler(store, "whsec_test")
@@ -71,11 +67,9 @@ func TestCheckoutCompleted_PlanFallsBackToPro(t *testing.T) {
 	}
 }
 
-// A checkout.session.completed can arrive with no customer/subscription objects
-// (a minimal event, or a non-subscription session that isn't a credit pack).
-// Dereferencing them used to panic the handler — an event from Stripe's own CLI
-// fixtures crashed it (found while sandbox-testing before go-live). It must not
-// panic; the ids are left empty and reconciled by the later subscription events.
+// A checkout.session.completed event may omit customer or subscription objects.
+// The handler must accept this without panicking; subsequent subscription events
+// can provide the missing IDs.
 func TestCheckoutCompleted_NilCustomerAndSubscription_NoPanic(t *testing.T) {
 	store := &recordingStore{}
 	handler := NewWebhookHandler(store, "whsec_test")

@@ -22,9 +22,8 @@ func seedExtractionJob(t *testing.T, store ExtractionJobStore) *ExtractionJob {
 	return job
 }
 
-// TestExtractionStore_RetryOrFailSpendsItsBudget: one provider 503 used to
-// strand an extraction in 'processing' forever — the nack was discarded, the
-// ack unconditional, and there was no attempts column to retry against.
+// TestExtractionStore_RetryOrFailSpendsItsBudget verifies that extraction failures
+// are retried up to the configured attempt limit.
 func TestExtractionStore_RetryOrFailSpendsItsBudget(t *testing.T) {
 	store := newTestExtractionStore(t)
 	ctx := t.Context()

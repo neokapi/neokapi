@@ -883,11 +883,8 @@ func NewServer(cfg Config) *Server {
 		mcpCfg := mcpserver.Config{
 			JWTSecret:     cfg.JWTSecret,
 			OIDCIssuerURL: cfg.OIDCIssuerURL,
-			// The RFC 9728 resource identifier is this server's own address,
-			// which is what mcpserver.Config.PublicURL documents. It was being
-			// given OIDCPublicURL — the identity provider's — so the metadata
-			// announced the IdP as the protected resource. The authorization
-			// server is named separately, from OIDCIssuerURL, just below it.
+			// RFC 9728 resource metadata uses the server's public address. The identity
+			// provider is listed separately through OIDCIssuerURL.
 			PublicURL: cfg.AppPublicURL,
 		}
 		var mcpOpts []mcpserver.Option
@@ -1199,13 +1196,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// selects a stream; the project's default otherwise.
 	v1.GET("/projects/:id/ship.json", s.HandlePublicShipManifest)
 
-	// Pulse public activity dashboard (Bowrain AD-017). Unmounted by default —
-	// the platform's public surface is on-brand authoring, not l10n
-	// gamification. BOWRAIN_PULSE_ENABLED=true re-mounts the routes (and their
-	// access middleware); the handlers and cache stay in the tree so the OSS
-	// program can revive the surface.
-	// No auth required when mounted — access gated by workspace/project
-	// dashboard_visibility.
+	// Pulse public activity dashboard (Bowrain AD-017). BOWRAIN_PULSE_ENABLED
+	// controls whether these routes and their access middleware are mounted.
+	// When enabled, workspace/project dashboard_visibility controls public access.
 	if s.Config.PulseEnabled {
 		s.registerPulseRoutes(v1)
 	}
@@ -2032,11 +2025,10 @@ func (s *Server) registerConvergenceRoutes(g *echo.Group) {
 	g.PATCH("/:id/settings", s.HandleUpdateProjectSettings)
 }
 
-// readHeaderTimeout bounds the header-read phase so a slow client cannot hold a
-// connection open indefinitely (Slowloris). Request bodies can be large — block
-// pushes — and stream over slow links, so only the header deadline is set,
-// never a whole-request ReadTimeout. Both listeners below use it: a bound that
-// applies to one of two ways into the same server is not a bound.
+// readHeaderTimeout limits the header-read phase to prevent slow clients from
+// holding connections indefinitely. Both listeners use this deadline. Request
+// bodies may contain large block pushes over slow links, so a whole-request
+// ReadTimeout is not set.
 const readHeaderTimeout = 30 * time.Second
 
 // Start initializes the Echo server and starts listening.
@@ -2054,11 +2046,8 @@ func (s *Server) Start(addr string) error {
 		addr = fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port)
 	}
 
-	// When no gRPC server is configured, serve Echo from a server built here
-	// rather than from e.Start, which constructs an http.Server with the
-	// zero-value — that is, absent — header timeout. Both listeners answer the
-	// same internet and need the same bound; this one only lacked it because
-	// nothing along its path had occasion to set one.
+	// Construct the HTTP server explicitly to apply readHeaderTimeout. e.Start
+	// would create a server with no header-read deadline.
 	if s.GRPCServer == nil {
 		srv := &http.Server{
 			Addr:              addr,
@@ -2269,25 +2258,13 @@ func requestBaseURL(c echo.Context) string {
 	return fmt.Sprintf("%s://%s", c.Scheme(), host)
 }
 
-// corsConfig builds a CORS middleware configuration. In production only this
-// app's own origin (AppPublicURL) and the marketing landing origin
-// (PublicSiteURL) are allowed; in development the middleware dynamically allows
-// any localhost origin plus the landing.
+// corsConfig allows AppPublicURL and PublicSiteURL in production. Config.DevMode
+// additionally allows localhost origins for development.
 //
-// Which of the two applies is decided by Config.DevMode and nothing else. It
-// used to be decided by whether OIDCPublicURL happened to be set — an optional
-// field naming the identity provider — so a production deployment that
-// configured only the issuer URL, which the documentation described as
-// supported, silently served credentialed CORS to any localhost origin.
-//
-// Credentials are enabled so the landing (a DIFFERENT but same-site origin) can
-// read GET /api/v1/auth/whoami with the session cookie and render the signed-in
-// CTA. Per the Fetch spec, credentialed CORS forbids a "*" origin, so the
-// allowlist is kept to exactly the two trusted origins (app + landing). This is
-// BFF-safe — whoami returns only display JSON, never a token — and CSRF-safe:
-// the credentialed surface a cross-origin caller can reach is a read-only GET,
-// while every state-changing cookie request still passes the CSRF gate in
-// AuthMiddleware.
+// Credentialed CORS lets the same-site landing page read display-only identity
+// information from GET /api/v1/auth/whoami. Origins must be explicit because
+// credentialed requests cannot use a wildcard. State-changing cookie requests
+// remain subject to AuthMiddleware's CSRF check.
 func (s *Server) corsConfig() middleware.CORSConfig {
 	cfg := middleware.CORSConfig{
 		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete, http.MethodOptions},

@@ -208,9 +208,8 @@ func TestMergeFastForwardsTheParentOntoTheBranch(t *testing.T) {
 	assert.Empty(t, diff.Changes, "after a fast-forward the two streams agree")
 }
 
-// The refusal is the point of choosing fast-forward: a merge that had to pick
-// between two edits of one unit would be picking between two people's approved
-// wording.
+// Divergent edits must reject the fast-forward merge and preserve both versions
+// for an explicit review decision.
 func TestMergeRefusesWhenTheParentHasMoved(t *testing.T) {
 	s := newTestStore(t)
 	p := createTestProject(t, s)

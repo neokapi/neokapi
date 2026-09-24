@@ -1,15 +1,9 @@
-// The convergence event protocol and the one fold over it, shared across the
-// Apache/AGPL boundary.
+// Shared convergence event protocol and state reducer across the Apache/AGPL
+// boundary. The CLI, desktop and server expose core/convergence.Event, and this
+// module derives the corresponding render model.
 //
-// core/convergence.Event is the single protocol every venue speaks — the CLI's
-// live renderer, `kapi up --json`, the desktop's job feed, the server's SSE
-// stream. Every surface therefore needs the same fold: events in, render model
-// out. It lives here, once. (It used to live three times — kapi-desktop,
-// bowrain's UI package, and Go — and a locale that read "pending" on one
-// surface and "shippable" on another was the predictable result.)
-//
-// The fold is pure: no network, no DOM. Callers adapt their own transport
-// (Wails job feed, EventSource) into ConvergenceEvent and fold it here.
+// The reducer is pure. Callers adapt Wails feeds, EventSource or other transports
+// into ConvergenceEvent before applying it.
 
 import type {
   ConvergenceLocaleRow,

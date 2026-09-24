@@ -351,15 +351,13 @@ points at different weights over time. Re-run the sweep when the models move.
 - **Subscription-billed routes have no cost figure.** They are not billed per
   token and their reported token counts do not describe an API call. Costing them
   needs a sweep against the metered API.
-- **Streaming would lift the output ceiling**, which is the only thing now
-  bounding a batch. Whether that is worth wanting is an open question rather than
-  an obvious yes: the gain from batching flattens out well before the ceiling is
-  reached, so the honest reading is that the ceiling is not currently costing
-  anything. It is the wall an oversized batch hits, and nothing reaches it.
-- **The measurement is single-target.** German runs long, which stresses the
-  output budget, and that was the point. Whether a language that expands further,
-  or one that tokenizes badly, moves the curve is unmeasured; the harness takes a
-  target flag precisely so it can be.
+- **Streaming could raise the output ceiling.** The measured batching gains
+  flatten before that ceiling, so these results do not establish a benefit from
+  increasing it.
+- **The measurement is single-target.** German was selected to test the output
+  budget with comparatively long translations. Other languages may have different
+  length and tokenization costs. The harness accepts a target flag for further
+  measurements.
 
 ## Related
 

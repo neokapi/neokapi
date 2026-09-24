@@ -1,4 +1,4 @@
-# Format Engineering in neokapi: Knowledge Base
+# Format engineering reference
 
 A neokapi format faithfully re-implements an Okapi (Java) filter: it extracts
 translatable content as `model.Block`s of `model.Run`s, and round-trips
@@ -8,13 +8,13 @@ engine works* and *how to build and wire a format*. For the bar a format must
 clear and how to audit it, see [format-maturity.md](./format-maturity.md). All
 paths are relative to the repo root.
 
-## Where the other docs live (read these too)
+## Related documentation
 
-This hub deliberately cross-links rather than restates. The canonical companions:
+Use these references for the corresponding implementation details:
 
 | Topic | Document |
 |---|---|
-| Step-by-step "add a format" tutorial (reader/writer/Run handling) | `web/docs/contribute/formats.md` (published, correct) |
+| Step-by-step "add a format" tutorial (reader/writer/Run handling) | `web/docs/contribute/formats.md` |
 | Format-system architecture decision | `web/docs/contribute/architecture/engine/e-02-format-system.md` |
 | Bilingual format interop | `web/docs/contribute/architecture/multilingual/m-01-bilingual-interop.md` |
 | Parity testing decision | `web/docs/contribute/architecture/assurance/a-02-parity.md` |
@@ -251,7 +251,7 @@ builds a `GenericSkeleton` of literal bytes + `addContentPlaceholder`);
 defaults; many implement `ISimplifierRulesParameters` and embed an
 `InlineCodeFinder`; properties ships **4 default rules**; reproduce them for
 exact `getCodes().size()` parity); and `IEditorDescriptionProvider` (SWT GUI
-metadata, **non-load-bearing; do not port**).
+metadata, **not used at runtime; do not port**).
 
 **Find the test corpus:**
 
@@ -292,7 +292,7 @@ curl -s "https://gitlab.com/api/v4/projects/62298414/issues?labels=bug&state=ope
 Issue numbers are embedded in source comments and fixture names
 (`issue_NNN.properties` / `.fprm`); grep the checkout, then open `/-/issues/NNN`.
 
-## 7. Hard-won principles & failure modes
+## 7. Implementation rules and failure modes
 
 - **Faithful by default; prove equivalence in the comparator.** Native is
   byte-exact from a coalescing-buffer skeleton, so the canon gap is usually

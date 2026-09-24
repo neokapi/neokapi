@@ -34,9 +34,8 @@ func IsStripeWebhookSecret(v string) bool {
 	return strings.HasPrefix(v, webhookSecretPrefix)
 }
 
-// IsStripePriceID reports whether v looks like a Stripe price ID. A placeholder
-// price makes a plan simply not purchasable (GET /billing/plans reports it), which
-// is an honest degradation; sending it to Stripe would 400 at checkout instead.
+// IsStripePriceID checks the shape of a Stripe price ID. Missing or placeholder
+// IDs make the plan unavailable for purchase in GET /billing/plans.
 func IsStripePriceID(v string) bool {
 	return strings.HasPrefix(v, pricePrefix)
 }

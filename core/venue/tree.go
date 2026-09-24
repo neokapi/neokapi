@@ -10,26 +10,15 @@ import (
 	"github.com/neokapi/neokapi/core/reconcile"
 )
 
-// The tree is what a venue holds and what a producer read, said in one shape.
+// A tree represents the items and blocks held by a venue or read by a producer.
+// The producer fetches the venue's tree at a known reference and compares it with
+// its local scan before transferring changed content. This avoids a separate
+// negotiation request for each item.
 //
-// A push used to be a negotiation: the producer sent its hashes, the venue
-// answered with verdicts, and the producer descended one level per item to
-// learn which blocks were wanted — sequentially, once per item, before a byte
-// of content moved. A first push has no cache, so every item was new, and a
-// few hundred files cost a few hundred round trips.
-//
-// The producer was never missing the capability to work this out. It was
-// missing the venue's side of the comparison, and asking per item is not how
-// you get it — fetching is. One request answers with the whole tree at a known
-// ref; the producer diffs its scan against that locally and knows exactly which
-// blocks are missing. Two network operations, and the content is one of them.
-//
-// The tree is also what makes a push able to say what is GONE. A payload of
-// changed blocks cannot express a deletion — a removed string simply stops
-// being sent — so the venue, which upserts what arrives, kept it forever. A
-// declared tree says what each item holds NOW, and a declared scope says which
-// items the producer is speaking for, so absence within that scope is an
-// answer rather than a silence.
+// The declared tree also supplies the complete block set for each item in scope.
+// The venue can remove blocks missing from that set, while preserving items
+// outside the declared scope. A payload containing only changed blocks cannot
+// express those deletions.
 
 // TreeItem is one item's content, reduced to hashes.
 //

@@ -698,10 +698,8 @@ func prepareEvalSession(ctx context.Context, opts EvalOptions, session EvalSessi
 
 func (p EvalPrepared) blocked() bool { return len(p.Blockers) != 0 }
 
-// prepareEvalClaude lets Claude Code discover the project wiring rather
-// than replacing it: project settings are the only source, which is what makes
-// the `.mcp.json` and the skill directory `kapi init` wrote the thing under
-// test.
+// prepareEvalClaude uses project settings for discovery, allowing the evaluation
+// to test the .mcp.json and skill directory written by kapi init.
 func prepareEvalClaude(ctx context.Context, p *EvalPrepared) error {
 	token, err := pairedClaudeSubscriptionToken(ctx)
 	if err != nil {

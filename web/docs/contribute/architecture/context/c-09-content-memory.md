@@ -159,7 +159,7 @@ match is preferred over a plain fuzzy one.
 as an alternative-translation candidate and read by nothing. The fill floor
 catches the cosmetic edits an author actually makes (a trailing period, an added
 comma, a capitalised word), which score between 96 and 98 at realistic sentence
-length. The lookup floor below it is inert. A recipe that wants exact-only fill
+length. The lookup floor below it is inert. A recipe configured for exact-only fill
 sets `fillTargetThreshold: 100`, which is what the dogfood recipe does. A
 sub-exact fill is a pricing mechanism from a time when a person edited rather
 than wrote, and it is retiring in favour of the version chain below: a
@@ -207,12 +207,11 @@ maximally far from every answer that names a product. That is the right reading
 rather than a missing value: such an entry was never approved anywhere in
 particular.
 
-The ladder stops at the collection because that is the finest place a fill can
-honestly name itself at. A project flow resolves its governance once and bakes it
-into the tool chain before any content is read, and the chain is shared by every
-file of a binding group ([C-02](c-02-coordinates-and-governance.md), *One run,
-one resolution per collection*), so the point a `recycle` step asks from is its
-group's product and channel.
+The collection is the most specific scope available during a fill. A project
+flow resolves governance once before reading content, then shares the configured
+tool chain across every file in a binding group
+([C-02](c-02-coordinates-and-governance.md), *One run, one resolution per
+collection*). A `recycle` lookup therefore uses its group's context point.
 
 **A genuine tie is broken by the answer's own text, smallest byte sequence
 first.** Two approvals at one point, or two points equally far from the asker,
@@ -378,7 +377,7 @@ A bundle read by `kapi context import` lands in the same tables through the same
 importer ([C-11](c-11-context-operations.md)), so a project seeded from bundles
 and one grown from its own translations hold the same shape of entry.
 
-Two rules keep the absorbed record honest. A pair whose target does not carry its
+Two rules validate absorbed entries. A pair whose target does not carry its
 source's inline codes is refused rather than stored, the same predicate
 `recycle` fills by. And where the record answers one source string more than one
 way, each answer keeps an entry of its own under the point that approved it, so

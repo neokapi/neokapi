@@ -1017,13 +1017,8 @@ func storeBlocksTx(ctx context.Context, tx Runner, projectID, stream, itemName s
 	existingBlocks := map[string]existingBlock{}
 	oldTargetText := map[string]map[string]string{} // blockID → variant → prior text, for block_history
 	{
-		// Everything below is read back through each incoming block's resolved
-		// row id, so the prefetch is bounded to that id set. The source-id
-		// mapping is final by this point, which is what makes the set
-		// computable up front. It used to load the whole item — or, with no
-		// item scope, the whole project, which fed 75k ids into one IN(...)
-		// and blew Postgres's 65535-bind-parameter limit the first time a
-		// translation job ran against a real corpus.
+		// Bound the prefetch to incoming blocks' resolved row IDs. Loading the
+		// whole item or project could exceed PostgreSQL's bind-parameter limit.
 		var ids []string
 		seen := map[string]struct{}{}
 		for _, b := range blocks {
@@ -1637,11 +1632,8 @@ func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream str
 		args = append(args, item.Name)
 	}
 
-	// word_count is written at store time; NULL marks a row that predates the
-	// column, and only those rows pay the source_json decode. Deriving
-	// coverage used to deserialize every block's source runs on every call —
-	// at 74,916 blocks, minutes of JSON for numbers the write path already
-	// knew.
+	// Use stored word_count values. Only legacy rows with NULL word_count need
+	// source_json decoding.
 	q := fmt.Sprintf(
 		`SELECT id, item_name, translatable,
 			CASE WHEN word_count IS NULL THEN source_json ELSE '' END,
@@ -1728,9 +1720,8 @@ func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, stream, bloc
 		return fmt.Errorf("delete block: %w", err)
 	}
 
-	// Everything filed under the block's id on THIS stream goes with it — a
-	// branch holding the same id keeps its own rows, which is the whole point
-	// of a branch.
+	// Remove rows for this block only in the selected stream. Other branches
+	// may retain rows with the same block ID.
 	for _, table := range storeutil.BlockScopedTables() {
 		//nolint:gosec // table is a fixed literal from storeutil, never user input
 		q := `DELETE FROM ` + table + ` WHERE project_id=$1 AND stream=$2 AND block_id=$3`
@@ -1766,10 +1757,8 @@ func (s *PostgresStore) CreateVersion(ctx context.Context, projectID, stream, la
 
 	versionID := id.New()
 	now := time.Now().UTC()
-	// A version is a point in ONE stream's history — the parameter has always
-	// said so, and the two statements below used to ignore it and snapshot the
-	// whole project. With a branch holding its own rows under the same block
-	// ids, that would count every branch's copy into main's version.
+	// Scope the snapshot to the requested stream so other branches do not
+	// contribute content or counts to this version.
 	stream = storeutil.DefaultStream(stream)
 
 	var blockCount int

@@ -15,27 +15,18 @@ scenes:
 
 ## Story
 
-Pseudo-translation is the pre-flight check of the localization loop: prove the
-UI is ready _before_ any real translation is bought. It expands every string
-with locale-shaped accent characters and length padding, so truncation,
-concatenation, and hardcoded-string bugs surface immediately on screen — no
-API key, no waiting, no cost.
+Pseudo-translation helps identify truncation, concatenation and hardcoded-string
+problems before translation begins. It adds accented characters and length
+padding to strings without calling an external provider.
 
 ## Scene 1 — pseudo-translate (terminal)
 
-The user opens a JSON message catalog (`messages.json`), runs
-`kapi pseudo-translate ...` to generate a pseudo-locale
-pseudo-translation, then inspects the output JSON to confirm the
-expansion. The recording shows: source file → command → output file.
-
-The narration that should appear next to this recording in the docs:
-pseudo-translation expands every string with diacritical characters so
-truncation, clipping, or missing-string bugs are immediately visible
-when the UI re-renders. It is the pre-flight step of the development
-loop, not the translation pipeline.
+Open `messages.json`, run `kapi pseudo-translate ...`, and inspect the expanded
+strings in the output JSON. Loading that file in the application makes missing
+strings and layout problems easier to identify.
 
 ## Closing
 
-When the UI holds up, `kapi translate` produces the real translations for
-ad-hoc files, and `kapi up` catches a whole project up to its ship gates.
-For deeper checks, see [Rule-based checks](/framework/checks/rule-checks).
+After checking the layout, use `kapi translate` for individual files or `kapi up`
+for a project. See [Rule-based checks](/framework/checks/rule-checks) for further
+content checks.

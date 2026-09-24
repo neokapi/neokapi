@@ -131,23 +131,14 @@ func anyPending(pending map[model.LocaleID]bool, targets []model.LocaleID) bool 
 	return false
 }
 
-// advanceReviewLoop is the governed-review continuation shared by the per-block
-// review endpoint and the bulk approve-passing endpoint. It is called only after
-// a real transition of at least one target to reviewed (touched carries the
-// locales approved in this call). It (1) closes the review TASK(s) for any
-// touched locale that now has no block awaiting review — the human-routing layer
-// — and (2) when the project as a whole has zero blocks pending review for any
-// configured locale, publishes review.completed, which the durable
-// review-completion subscription turns into a completing convergence run →
-// delivery. It reports whether review.completed was published.
+// advanceReviewLoop continues governed review after at least one target is
+// reviewed. touched identifies the locales approved by the current request.
+// It closes tasks for touched locales with no pending blocks. When every
+// configured locale has no pending review, it publishes review.completed to
+// trigger convergence and delivery, and returns true.
 //
-// The completion condition is BLOCK-derived, not task-count-derived
-// (pendingReviewLocales): the loop continues exactly when the honest coverage
-// truth says nothing is left to review, independent of whether every review task
-// was created/assigned. Tasks are the "for you" projection on top. It is a no-op
-// (returns false) for a non-governed project — those never enter the review loop,
-// so their behavior is unchanged — and whenever any pending-review block remains,
-// so an approval that is not the project's last never publishes.
+// Completion is derived from block status, independently of task assignment.
+// It returns false for projects without governed review or with pending blocks.
 func (s *Server) advanceReviewLoop(ctx context.Context, proj *platstore.Project, stream string, touched []model.LocaleID, actor string) bool {
 	if proj == nil || s.ContentStore == nil || s.EventBus == nil {
 		return false

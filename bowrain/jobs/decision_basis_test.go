@@ -130,8 +130,7 @@ func TestDecisionLedger_NeedsDraft(t *testing.T) {
 	assert.True(t, ledger.needsDraft(stored[basisStaleSource], "de"),
 		"no target for the locale is work")
 
-	// With no ledger to read, every target reads as one the platform has no
-	// record of, which is the honest answer and the one that changes nothing.
+	// Without a ledger, targets have no recorded decision and remain unchanged.
 	assert.False(t, decisionLedger(nil).needsDraft(stored[basisStaleSource], "fr"))
 	assert.True(t, decisionLedger(nil).needsDraft(stored[basisStaleSource], "de"))
 }

@@ -61,14 +61,9 @@ func uploadPush(t *testing.T, deps *WorkerDeps, jobID, projectID string, blocks 
 	return job
 }
 
-// A push that fails partway leaves the project exactly as it found it.
-//
-// The failure is a real one from the protocol rather than an injected panic:
-// the push carries content AND a decisions payload whose expected ledger ref
-// does not match. The blocks are written first and the assertion fails after
-// them, which is precisely the shape that used to commit half a transition —
-// the content landed under its own transaction, the ledger refused, and the
-// job reported failure over a project that had already changed.
+// Verify that a failed push leaves the project unchanged. The push writes blocks
+// before encountering a decision-ledger reference mismatch, so rollback must
+// include those earlier content writes.
 func TestAFailedPushChangesNothing(t *testing.T) {
 	deps := newTestWorkerDeps(t)
 	ctx := t.Context()

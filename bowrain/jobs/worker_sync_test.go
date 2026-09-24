@@ -401,8 +401,7 @@ func TestProcessSyncPush_ItemMetadataWriteFailureFailsTheJob(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, StatusFailed, j.Status)
 
-	// The blocks were written before the item row was attempted, so they are
-	// the half of the transition that used to survive a failure like this.
+	// Blocks were written before the failing item operation and must roll back.
 	blocks, err := deps.ContentStore.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: projectID, Stream: "main", ItemName: "en.json", Limit: 10})
 	require.NoError(t, err)

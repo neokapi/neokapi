@@ -252,7 +252,7 @@ names.
 The **projection** is an index. Every row in it is a reading of the content
 files, source and target, so deleting it costs a re-extraction and nothing else.
 
-The **context store** is the truth for what a project has agreed: its terms
+The **context store** is the authoritative store for the project’s terms
 ([C-08](c-08-terms.md)), its voice profiles ([C-07](c-07-voice-profiles.md)),
 its content memory ([C-09](c-09-content-memory.md)) and its decision ledger
 ([C-04](c-04-unit-state-and-decisions.md)). Nothing reproduces a row in it, and

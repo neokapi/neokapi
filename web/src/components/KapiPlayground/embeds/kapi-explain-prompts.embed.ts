@@ -19,19 +19,18 @@ const config: WalkthroughEmbedConfig = {
       command:
         "kapi translate messages.json --source-lang en --target-lang fr --provider demo --explain-prompts",
       narration:
-        "Start bare. The system turn carries the framework's task and its placeholder constraint. The user turn carries the source text and nothing else — content is data, never instruction.",
+        "Inspect the default prompt. The system turn contains the task and placeholder constraint; the user turn contains the source content.",
     },
     {
       command:
         'kapi translate messages.json --source-lang en --target-lang fr --provider demo --instruction "Informal register. Keep product names in English." --explain-prompts',
-      narration:
-        "Add an instruction. A new section appears, attributed to the flag that produced it. This is how you steer the model — by adding to the prompt, not by replacing it.",
+      narration: "The instruction adds a prompt section labelled with the flag that supplied it.",
     },
     {
       command:
         "kapi translate notice.html --source-lang en --target-lang fr --provider demo --explain-prompts",
       narration:
-        "This block carries an inline tag, so the prompt gains the tag-fidelity rule — reproduce every tag exactly. A block with no markup never sees it. Note the content turn is still pure content, with the tags rendered as placeholders.",
+        "An inline tag adds the tag-fidelity rule to the prompt. Tags appear as placeholders in the content turn.",
     },
   ],
 };

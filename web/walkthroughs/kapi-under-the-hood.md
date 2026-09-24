@@ -17,34 +17,27 @@ scenes:
 
 ## Story
 
-`kapi up` is porcelain: one verb that catches a project up to its ship
-gates. This walkthrough is the plumbing track — the direct execution layer a
-localization engineer reaches for when one move at a time is the point. It
-pairs with the docs page [Understanding the CLI
-layers](/kapi/direct-execution-layer).
+This walkthrough covers direct execution of the steps used by `kapi up`. It
+accompanies [Understanding the CLI layers](/kapi/direct-execution-layer).
 
-Three layers, three verbs. `kapi exec <tool>` runs exactly one registry tool
-with nothing around it — here `recycle`, the content memory step of `up`'s default flow.
-`kapi run <flow>` executes one pass of one composed pipeline — here
-`leverage-check`, recycle followed by the deterministic rule-based checks; inside a
-project the pass commits to the project store, not to files. And
-`kapi extract` / `kapi merge` are the interchange doors: a bilingual XLIFF
-pre-filled from the content memory goes out to a human translator, and the returned file
-merges back onto the source with content memory write-back.
+`kapi exec <tool>` runs one registered tool, here `recycle` for content-memory
+reuse. `kapi run <flow>` executes one pass of a composed flow, here
+`leverage-check`, which combines reuse with deterministic checks. In a project,
+that pass stores results for `kapi merge` to write to files.
 
-Each beat is something `up` does automatically — re-extract on source drift,
-produce a pass, materialize the results. The plumbing stays addressable.
+`kapi extract` and `kapi merge` also support translator handoffs: extract emits
+XLIFF pre-filled from content memory, and merge applies the returned translations
+and records them in content memory.
 
 ## Scene 1 — under-the-hood (terminal)
 
-Seed the content memory with `kapi memory import`, run one tool with `kapi exec recycle`, run
-one composed pass with `kapi run leverage-check`, then walk the interchange:
-`kapi extract --target-lang fr` emits `out/messages.en-to-fr.xliff`, and
-`kapi merge -i` applies it back, writing `messages.fr.json`. Fully offline —
-content-memory leverage and deterministic checks only, no provider calls.
+Import the content-memory bundle, run `kapi exec recycle`, then run
+`kapi run leverage-check`. Use `kapi extract --target-lang fr` to emit
+`out/messages.en-to-fr.xliff` and `kapi merge -i` to write `messages.fr.json`.
+The example uses content-memory reuse and deterministic checks, with no provider
+calls.
 
 ## Closing
 
-Day to day, `kapi up` loops all of this for you. Reach down a layer when you
-need one tool's exact behavior, one flow pass, or a translator handoff — the
-porcelain and the plumbing share one engine.
+Use `kapi up` for repeated convergence. Use direct commands when you need a
+single tool, one flow pass or a translator handoff.

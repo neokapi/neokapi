@@ -1,108 +1,43 @@
-// Package safeio provides shared, resource-bounding primitives for parsing
-// untrusted input across every neokapi trust context — the CLI, the
-// multi-tenant bowrain server, and the cgo-less browser WASM build.
+// Package safeio provides resource limits and path confinement for untrusted
+// input in the CLI, server and browser WASM builds. It is pure Go and supports
+// both js/wasm and wasip1.
 //
-// # Why this package exists
+// # Consistent limits
 //
-// neokapi's ~49 native format readers consume attacker-controlled bytes. Go's
-// memory safety removes the dominant RCE risk class, but the residual risks are
-// real: decompression bombs, recursion-depth stack exhaustion, oversized
-// reads, and path traversal on any filesystem write derived from document
-// content. This package codifies the canonical Go mitigations for those
-// classes as small, composable, panic-free helpers so every reader applies the
-// *same* limits the *same* way.
-//
-// The package is pure Go (no cgo, no platform-specific syscalls beyond the
-// std library), so it builds for js/wasm and wasip1 exactly as it does for the
-// native CLI and server.
-//
-// # The identical-limits contract
-//
-// The most important rule, learned from the file-type CVE-2026-32630 disaster
-// (a streaming code path bounded zip entry sizes while the buffer code path did
-// not, so a 255 KB zip inflated to 257 MB through the unbounded entry point):
-//
-//	The same Budget MUST be applied on every input path — CLI file, server
-//	upload, and WASM buffer — for a given format. There is exactly one
-//	source of truth for the defaults: the package-level Default* values and
-//	[DefaultBudget]. Do not bound one entry point and leave another open.
-//
-// Because the defaults are package-level and the readers reach for the same
-// [DefaultBudget] / [DefaultZipLimits] regardless of caller, the limits are
-// identical across contexts by construction. A caller that needs to tighten or
-// loosen a bound composes a new [Budget] with the With* methods and threads it
-// through — but it must do so on *all* paths, never just one.
+// A format must apply the same [Budget] on every input path, including files,
+// uploads and WASM buffers. Limiting only one path leaves the others exposed to
+// oversized reads, decompression bombs or excessive recursion. Use [DefaultBudget]
+// and [DefaultZipLimits], or pass the same customized budget through every path.
 //
 // # Primitives
 //
-//   - [LimitedReader] / [Budget.Reader] — an io.Reader that returns a typed
-//     [LimitError] (wrapping [ErrByteBudget]) once more than N bytes are read,
-//     instead of io.LimitedReader's silent truncation-to-EOF.
-//   - [LimitedWriter] / [Budget.Writer] — the output-side analogue.
-//   - [DepthGuard] — an Enter/Leave recursion counter (and a [DepthGuard.Do]
-//     helper) that returns [ErrTooDeep] past a configured maximum, so deeply
-//     nested documents fail with an error rather than a non-recoverable Go
-//     stack-overflow panic.
-//   - [ZipLimits] / [ZipGuard] — per-entry uncompressed-size, inflate-ratio
-//     (zip-bomb), total-size, and entry-count caps mirroring Apache POI's
-//     ZipSecureFile semantics, checked on streaming read so a lying Zip64
-//     header cannot evade them.
-//   - [SafeJoin] / [OpenInRoot] — reject content-derived paths that escape a
-//     root, using filepath.IsLocal and os.Root confinement.
-//   - [Budget] — bundles the byte, depth, and zip limits with sane defaults
-//     and composes via the With* methods.
-//   - [NoCopyString] — a zero-copy string view over a document buffer, with
-//     the aliasing contract stated once rather than re-argued in a comment at
-//     every reader that needs it. The odd one out in this list: it bounds
-//     memory by NOT copying rather than by refusing to read, but it belongs
-//     here for the same reason as the rest — it is a rule about handling
-//     untrusted input bytes that every reader must apply identically.
-//   - [Admission] — a weighted byte semaphore capping the *total* bytes a
-//     file-level fan-out holds in flight at once (the per-document Budget
-//     bounds one read; Admission bounds concurrency × per-file peak). Sized
-//     by [DefaultMaxInflightBytes], overridable via [MaxInflightBytesEnv];
-//     [FileWeight] estimates each file's weight from its on-disk size.
+//   - [LimitedReader] and [Budget.Reader] return [LimitError], wrapping
+//     [ErrByteBudget], when input exceeds the limit. Unlike io.LimitedReader,
+//     they distinguish the limit from ordinary EOF.
+//   - [LimitedWriter] and [Budget.Writer] enforce output limits.
+//   - [DepthGuard] tracks recursive entry and exit and returns [ErrTooDeep]
+//     when the configured depth is exceeded.
+//   - [ZipLimits] and [ZipGuard] limit uncompressed entry size, inflation ratio,
+//     total size and entry count. Streaming checks enforce these limits even
+//     when archive headers understate the expanded size.
+//   - [SafeJoin] and [OpenInRoot] confine document-derived paths to a root,
+//     using filepath.IsLocal and os.Root.
+//   - [Budget] groups byte, depth and archive limits; With* methods customize them.
+//   - [NoCopyString] avoids copying a document buffer. Callers must follow its
+//     aliasing contract for the lifetime of the returned string.
+//   - [Admission] limits the total estimated memory held by concurrent file jobs.
+//     [DefaultMaxInflightBytes] supplies the default, [MaxInflightBytesEnv]
+//     overrides it, and [FileWeight] estimates a file's weight from its size.
 //
-// # Adoption status
+// # Reader integration
 //
-// The budget primitives are wired into the genuinely high-risk readers — the
-// ones that open archives, stream the whole input into memory, or recurse —
-// not (yet) all ~49. Each is wired at the same point as its exemplar, reaching
-// for [DefaultBudget] / [DefaultZipLimits] so the limits are uniform across the
-// CLI, server, and WASM contexts.
+// Archive readers validate metadata with [ZipLimits.CheckReader] and read entries
+// through [ZipLimits.ReadEntry] or [ZipLimits.OpenEntry]. Whole-input readers use
+// [Budget.Reader] to bound buffering. Recursive walkers use [DepthGuard]; iterative
+// walkers, such as the XML element stack, do not consume the Go call stack with
+// each nested element.
 //
-// Archive (zip) readers — validate the archive up front with
-// [ZipLimits.CheckReader] and read every entry through [ZipLimits.ReadEntry] /
-// [ZipLimits.OpenEntry], so a lying Zip64 header, a zip bomb, or an entry
-// flood is rejected before inflation:
-//
-//   - openxml, epub, idml, odf
-//
-// Whole-input streaming readers — bound the read that pulls the entire
-// document into memory with [Budget.Reader] using [DefaultBudget], so an
-// unbounded/oversized stream fails with a typed [LimitError] instead of
-// exhausting memory:
-//
-//   - json, yaml, properties, po, csv, markdown, mdx, plaintext, paraplaintext,
-//     xml, html
-//
-// Recursive-descent readers — bound the recursion with [DepthGuard] so a
-// pathologically nested document degrades to a clean truncation instead of a
-// Go stack-overflow panic:
-//
-//   - html bounds its recursive DOM and inline-element walk with a
-//     [DepthGuard] from [DefaultBudget].
-//
-// The xml reader needs no [DepthGuard]: its element walk is iterative (an
-// explicit element-frame stack driven by encoding/xml's streaming Decoder, not
-// Go recursion), so deeply nested input cannot overflow the stack; it adopts
-// only the byte budget. Likewise the odf and json subfilter recursion crosses
-// into a child reader (xml / a configured subformat) that carries its own
-// bounds, so the embedded-content path inherits the child's guards.
-//
-// Remaining readers (the smaller text/catalog formats — resx, androidxml,
-// xcstrings, arb, i18next, designtokens, ts, srt/vtt/ttml, dtd, mif, rtf, …)
-// are a follow-up: the adoption pattern is the one or two lines added to each
-// reader above. Track per-reader adoption as part of the format
-// security/hardening (S0–S4) axis.
+// A child reader handling embedded content must apply its own limits. Integration
+// is reader-specific; importing this package alone provides no protection. Track
+// coverage through each format's security and hardening assessment (S0–S4).
 package safeio

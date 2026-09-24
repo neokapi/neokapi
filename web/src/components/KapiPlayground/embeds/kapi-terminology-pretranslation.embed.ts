@@ -22,8 +22,7 @@ const config: WalkthroughEmbedConfig = {
   steps: [
     {
       command: "kapi memory import project.memory.json",
-      narration:
-        "Load the committed content memory — the store `kapi up` leverages before any AI is asked.",
+      narration: "Load the committed content-memory bundle for reuse before translation.",
     },
     {
       command:
@@ -34,12 +33,12 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi pseudo-translate step1_tm.json -o step2_translated.json",
       narration:
-        "Everything the content memory did not cover gets a locale-shaped placeholder — in up's default flow, this is where AI translation runs instead.",
+        "Pseudo-translate the unmatched content. The default up flow uses AI translation at this step.",
     },
     {
       command: "kapi exec term-check step2_translated.json --source-lang en --target-lang fr",
       narration:
-        "The same terminology check up runs over each pass's output. Pre-flag violations before any vendor sees the content.",
+        "Check the output against the required terminology. up applies the same check after each pass.",
     },
   ],
 };

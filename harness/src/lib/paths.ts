@@ -19,18 +19,14 @@ function isNeokapiCheckout(dir: string): boolean {
 }
 
 /**
- * Path to a neokapi checkout (provides the kapi source to build, the kapi binary, and
- * the Claude Code plugin dir). The harness lives at `<checkout>/harness/`, so the
- * enclosing checkout is the repo — this is the normal (and only expected) case.
+ * Resolve the checkout providing kapi source, binaries and the Claude Code plugin.
  * Resolution order:
- *   1. `NEOKAPI_REPO` env var (escape hatch for a standalone harness checkout)
- *   2. the enclosing `<checkout>/harness/` parent (the normal case)
- *   3. `$NEOKAPI_WORKSPACE_DIR/neokapi` — the primary checkout in the multi-repo
- *      workspace, whose default is the parent of the enclosing checkout
+ *    1. An explicitly set NEOKAPI_REPO.
+ *    2. The parent of this harness directory, if it is a neokapi checkout.
+ *    3. NEOKAPI_WORKSPACE_DIR/neokapi, defaulting to the parent workspace.
  *
- * Note: NEOKAPI_REPO is intentionally NOT read from `harness/.env` — the current
- * tree IS the repo, and pinning a path in .env broke worktrees (every worktree got
- * the same hard-coded checkout). Set the env var explicitly if you need the override.
+ * NEOKAPI_REPO is not loaded from harness/.env. A fixed checkout path there would
+ * make separate worktrees use the same source tree.
  */
 function resolveRepoRoot(): string {
   if (process.env.NEOKAPI_REPO) return path.resolve(process.env.NEOKAPI_REPO);
@@ -44,10 +40,8 @@ function resolveRepoRoot(): string {
 export const REPO_ROOT = resolveRepoRoot();
 
 /**
- * Where published kapi demo videos land in the neokapi docs site (served via the
- * docs-assets release). This is the one directory `scripts/publish-cdn-assets.sh
- * video-kapi` uploads and `.gitignore` excludes, so a demo that publishes
- * anywhere else reaches neither git nor the CDN.
+ * Staging directory for kapi documentation videos. scripts/publish-cdn-assets.sh
+ * video-kapi uploads this gitignored directory to the CDN.
  */
 export const DOCS_VIDEO_DIR = path.join(REPO_ROOT, "web", "static", "video", "kapi");
 
@@ -55,12 +49,10 @@ export const DOCS_VIDEO_DIR = path.join(REPO_ROOT, "web", "static", "video", "ka
 const BOWRAIN_DOCS_VIDEO_BASE = path.join(REPO_ROOT, "bowrain", "web", "docs", "static", "video");
 
 /**
- * The docs video directory a demo publishes into, derived from its brand + target.
- * kapi demos land in web/static/video/kapi; bowrain demos route to the matching
- * bowrain docs subdir — bowrain-web (target: web), bowrain-desktop (target:
- * bowrain-desktop), or bowrain-cli (shell/terminal demos). This is the single source
- * of truth for routing — without it every demo silently published to the kapi dir
- * unless a --docs-dir was passed by hand. An explicit --docs-dir still overrides.
+ * Select the documentation video directory from the demo's brand and target.
+ * Kapi uses web/static/video/kapi. Bowrain uses bowrain-web for web demos,
+ * bowrain-desktop for desktop demos and bowrain-cli for shell demos.
+ * An explicit --docs-dir overrides this default at the call site.
  */
 export function docsVideoDirFor(m: { brand?: string; target?: string; terminal?: string }): string {
   if (m.brand === "bowrain") {
@@ -90,12 +82,9 @@ export const KAPI_BIN = path.join(REPO_ROOT, "bin", "kapi");
 export const PLUGIN_MARKETPLACE_DIR = path.join(REPO_ROOT, "packages", "kapi-claude-plugin");
 
 /**
- * The kapi plugin itself, which is what `claude --plugin-dir` takes: a directory
- * holding `.claude-plugin/plugin.json` and the `skills/` beside it. Given the
- * marketplace root instead, claude loads a plugin named for that directory, finds
- * no `skills/` at that level and offers the session no kapi skill at all — the
- * capture then shows the assistant translating by hand, which is the opposite of
- * what every demo here exists to show.
+ * Plugin directory passed to claude --plugin-dir. It contains
+ * .claude-plugin/plugin.json and skills/. Passing the marketplace root would
+ * load no kapi skill because the skill directory is nested inside this plugin.
  */
 export const PLUGIN_DIR = path.join(PLUGIN_MARKETPLACE_DIR, "plugins", "kapi");
 
@@ -113,31 +102,20 @@ export const KAPI_ISO_PLUGINS = path.join(KAPI_ISO_DATA, "kapi", "plugins");
 export const KAPI_ISO_CACHE = path.join(KAPI_ISO, "cache"); // XDG_CACHE_HOME → <cache>/kapi/plugins-cache.json
 
 /**
- * Env vars that point kapi at the isolated state. Merge into PATH-augmented env.
+ * Environment overrides isolating kapi state. Merge these into the command's
+ * environment after configuring PATH.
  *
- * XDG_DATA_HOME (→ <data>/kapi/plugins) + KAPI_CONFIG_DIR isolate the user-level
- * data and config roots. But XDG_DATA_HOME alone does NOT stop kapi from also
- * discovering plugins from the *system* roots (Homebrew, /usr/share), so a
- * recording could surface host system-root plugins. To fully isolate plugin
- * discovery — matching the desktop recorder (record-desktop.ts) — we set
- * KAPI_PLUGINS_DIR to the isolated plugins dir and KAPI_PLUGINS_DIR_ONLY=1 so
- * discovery is restricted to that one dir (no user XDG root, no system roots).
- * Pointing KAPI_PLUGINS_DIR at the same dir XDG_DATA_HOME would resolve to
- * (KAPI_ISO_PLUGINS) avoids double-discovery because _ONLY skips the XDG root.
+ * XDG_DATA_HOME and KAPI_CONFIG_DIR isolate user data and configuration.
+ * KAPI_PLUGINS_DIR_ONLY restricts discovery to KAPI_PLUGINS_DIR, excluding both
+ * user and system plugin roots. XDG_CACHE_HOME prevents reuse of the developer's
+ * plugin cache.
  *
- * XDG_CACHE_HOME is part of the contract, not an optional extra: without it the
- * run shares the developer's real ~/.cache/kapi/plugins-cache.json, which only
- * self-invalidates on a version bump — the exact stale-cache hazard the
- * plugin-install demos wipe by hand (capture-script.ts). KAPI_NO_PROJECT keeps
- * a kapi call from binding a discovered project; the one demo class that DOES
- * want a project (bowrain CLI, sandbox in os.tmpdir() outside the repo) opts
- * back in explicitly.
+ * KAPI_NO_PROJECT disables upward project discovery. Demos that require project
+ * discovery opt in explicitly from a sandbox outside the repository.
  *
- * KAPI_DATA_DIR names the data root outright and WINS over XDG_DATA_HOME. That
- * root holds the workspace: every project's terms, voice profiles, content
- * memory and recorded decisions. A recording drives a released binary, which
- * resolves the platform default unless this says otherwise, so leaving it
- * unset would let a demo act on the developer's own context.
+ * KAPI_DATA_DIR takes precedence over XDG_DATA_HOME and isolates the workspace's
+ * terms, voice profiles, content memory and decisions. It must be set even when
+ * the XDG directories are overridden.
  */
 export function kapiIsolationEnv(): Record<string, string> {
   ensureDir(KAPI_ISO_CACHE);

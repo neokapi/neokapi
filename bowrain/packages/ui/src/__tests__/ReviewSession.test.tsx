@@ -294,10 +294,8 @@ describe("ReviewSession", () => {
     expect(screen.getByTestId("reviewer-target-cell").textContent).toContain("Bonjour le monde");
   });
 
-  // A collection is a QUERY scope, not a view filter. It used to narrow the
-  // loaded slice in the browser, so a collection with more pending work than
-  // the session's 1000-entry slice showed fewer entries than its own card
-  // counted — and the "N pending" it reported was the project's number.
+  // Apply collection scope in the server query so pagination and pending counts
+  // cover the entire collection.
   describe("a collection scope is asked of the server", () => {
     const twoItems: BlockInfo[] = [
       block("b1", "Hello world", "Bonjour le monde"),
@@ -372,12 +370,8 @@ describe("ReviewSession", () => {
     });
   });
 
-  // The queue's passing bucket is honest only if the entries carry the bars the
-  // server judges on. While the payload carried check findings alone, a target
-  // using a forbidden term or scoring below its profile's bar sat in "no failing
-  // checks" and was counted as about to be approved — by a server that refuses
-  // it. #1771 removed the guessed `off_brand` bucket rather than fake the
-  // evidence; these cases pin the evidence that replaced it.
+  // Passing counts must use the same checks, terms and voice evidence as the
+  // server's approve-passing endpoint.
   describe("bucketing on the bars the server applies", () => {
     it("keeps a term violation and a below-bar score out of the passing count", async () => {
       renderSession(stats, (a) => {
@@ -428,9 +422,7 @@ describe("ReviewSession", () => {
 
     it("counts the passing blocks the pass actually covers when a locale is filtered", async () => {
       const user = userEvent.setup();
-      // The pass forwards the locale filter and nothing else, so the count
-      // beside the button has to be over that locale — it used to be over the
-      // whole loaded queue while the sentence beside it said "in German".
+      // Count passing entries for the locale submitted to approve-passing.
       const bilingual: BlockInfo[] = [
         { ...block("b1", "Hello world", "Bonjour le monde"), targets: { "fr-FR": "Bonjour" } },
         { ...block("b2", "Goodbye now", "Au revoir"), targets: { "de-DE": "Auf Wiedersehen" } },

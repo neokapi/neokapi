@@ -120,23 +120,13 @@ func escapeLike(s string) string {
 	return r.Replace(s)
 }
 
-// ensureTextIndex brings the text rows up to date with the blocks, and is the
-// reason extraction pays nothing for this index.
+// ensureTextIndex indexes blocks marked text_indexed = 0 before a search.
+// PutBlock only marks changed blocks, avoiding index maintenance during extraction.
+// A subsequent search with no intervening writes does no indexing.
 //
-// The obvious design — maintain the index inside PutBlock — was built and
-// measured, and it cost too much to keep. Writing 2000 blocks went from 25ms to
-// 192ms: the two extra statements per block roughly doubled it, and indexing a
-// full sentence as three-character grams roughly doubled it again. Extraction
-// writes every block in the project, so that is a tax on the operation kapi
-// runs most, levied for a query it may never be asked.
-//
-// So PutBlock only marks the block: `text_indexed = 0`, one column value in a
-// statement it was issuing anyway, which benchmarks as no change at all. The
-// build happens here, before a search, over exactly the blocks that changed —
-// so a second search after no writes builds nothing.
-//
-// Payloads are JSON, so no SQL can flatten them — the build has to come back
-// through Go, which is also why it cannot be a trigger.
+// Per-block index maintenance increased a measured 2,000-block write from 25 ms
+// to 192 ms. Deferring it avoids that cost when no text search is requested.
+// Payloads are decoded and flattened in Go before indexing.
 func (k *cacheStore) ensureTextIndex(ctx context.Context) error {
 	var pending int
 	err := k.db.QueryRowContext(ctx,

@@ -62,11 +62,9 @@ export interface ScriptRunOptions {
 }
 
 /**
- * Run each script step for real and record it. The output event is marked as an
- * error whenever the command exited non-zero, declared or not — the screencast
- * shows what happened, and a gate that failed on camera should look like one.
- * The declaration decides something else: whether the take is sound enough to
- * narrate and ship.
+ * Execute each script step and record its output. Nonzero exits are always
+ * rendered as errors. Separately, expectExit determines whether the observed
+ * exit is valid for the demo and whether capture can proceed to publication.
  */
 export async function runScriptSteps(steps: ScriptStep[], opts: ScriptRunOptions): Promise<ScriptRun> {
   const events: TimelineEvent[] = [];

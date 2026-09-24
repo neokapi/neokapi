@@ -1,25 +1,21 @@
 # kapi-sourcecode
 
-Reads the prose out of source files — product strings, and on request comments —
-using tree-sitter grammars. It also locates the comments in source files for
-kapi's comment layer, in the languages its manifest lists.
+Extracts product strings and, when requested, comments from source files using
+tree-sitter grammars. It also locates comments for kapi's comment layer in the
+languages listed in its manifest.
 
-## Why a grammar and not a pattern
+## Selecting product strings
 
-In a Homebrew cask, these are both string literals:
+These Homebrew cask expressions both contain string literals:
 
 ```ruby
 desc "Desktop workbench for a project's content context"
 zap trash: ["~/Library/Caches/Kapi", "~/.config/kapi-desktop"]
 ```
 
-Only the first is prose. A regex cannot tell them apart, which is why every
-grep-based checker eventually grows a hand-curated exemption list. The syntax
-tree can: it knows one is the argument of `desc` and the other an element of an
-array under `zap`.
-
-So a recipe names the calls that hold prose, the way it already names the keys
-that hold prose in a YAML or JSON file:
+The syntax tree distinguishes the description from the filesystem paths by its
+position: the description is an argument to `desc`, while the paths belong to an
+array under `zap`. Configure the calls containing prose in the recipe:
 
 ```yaml
 - path: deploy/homebrew/*.rb
@@ -29,24 +25,16 @@ that hold prose in a YAML or JSON file:
       nodePathPatterns: [desc, caveats]
 ```
 
-`nodePathPatterns` is the analogue of the YAML reader's `keyPathPatterns`.
-Leaving it empty extracts every string the grammar exposes, each labelled with
-the call that owns it — which is how you find out what a file holds before
-narrowing it.
+`nodePathPatterns` works like the YAML reader's `keyPathPatterns`. Leave it empty
+to inspect all string literals exposed by the grammar, labelled by their
+containing call, before choosing narrower patterns.
 
-## Read-only, deliberately
+## Read-only extraction
 
-The manifest declares `capabilities: ["read"]` and there is no writer.
-
-A round-trip error in a document produces a mangled paragraph. A round-trip
-error in a program produces one that does not compile — or worse, one that does,
-with a changed string escape. kapi's write-back promise rests on byte-faithful
-round-trips proven over corpora, and source files would enter it at its weakest
-point.
-
-The thing that *does* want to write into source is i18n extraction: wrapping a
-literal in a translation call. That is a codemod, a different discipline with
-different correctness conditions, and it is deliberately not this.
+The format declares `capabilities: ["read"]` and provides no writer. Rewriting
+source literals requires preserving syntax and escape semantics, which this
+reader does not validate. Wrapping literals in translation calls requires a
+language-specific code transformation.
 
 ## Grammars
 
@@ -54,11 +42,10 @@ Ruby for product copy, and the comment languages below. Each grammar needs its
 prose-bearing node kinds mapped in `internal/proseread`; the walk itself is
 language-independent.
 
-One subtlety worth knowing before adding a language: a heredoc body is not a
-child of the call that opens it. `caveats <<~EOS` puts a `heredoc_beginning`
-under the call and parks the body at the top level, so attributing by parent
-alone credits the text to the enclosing block. Bodies appear in the same order
-as their openers, which is what makes the pairing safe.
+A heredoc body is a top-level node rather than a child of its opening call.
+For `caveats <<~EOS`, only `heredoc_beginning` appears under the call. The reader
+pairs bodies with their openers in source order; parent traversal alone would
+attribute the text to the enclosing block.
 
 ## Comments
 
@@ -243,8 +230,8 @@ runs as a subprocess, so a parser fault on a malformed file stays in the plugin.
 
 ## Release
 
-The plugin ships on its own tag line, `sourcecode-v*` — the kapi CLI release
-does not bundle plugin binaries.
+The plugin uses separate `sourcecode-v*` release tags. Install its binary
+separately from the kapi CLI.
 
 ```bash
 scripts/package-sourcecode-plugin.sh --version 0.1.0 --out-dir dist/
@@ -259,6 +246,6 @@ them to the release and registers the version in `neokapi/registry` so `kapi
 plugins install sourcecode` resolves. `workflow_dispatch` on that workflow is a
 build-only dry run: it never publishes and never writes to the registry.
 
-The registry must already declare a `sourcecode` plugin — `registry-update`
-refuses to create new top-level entries, so the register job fails with "plugin
-not declared" until the stub is added there once.
+Add the `sourcecode` entry to the registry before the first release.
+`registry-update` updates existing entries and returns "plugin not declared"
+when the entry is missing.

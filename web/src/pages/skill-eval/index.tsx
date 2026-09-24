@@ -8,14 +8,8 @@ import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import { readCdnConfig, cdnEnabled, cdnHref } from "@neokapi/docs-shared";
 import data from "./_skilleval.json";
 
-// The skill-eval dashboard: does the shipped Agent Skill fire on the tasks it
-// should, stay quiet on the ones it should not, and finish the job.
-//
-// Built to be drilled rather than read. The summary is four numbers; everything
-// below is the evidence, one row per scenario, expanding into the exact prompt,
-// the workspace the agent saw, the kapi commands it ran, and a diff of what it
-// changed. A verdict nobody can inspect is an opinion.
-//
+// Report when the shipped Agent Skill is selected and whether it completes tasks.
+// Each scenario expands into its prompt, workspace, commands and resulting diff.
 // Regenerate with `make skill-eval` (triggering) or `make skill-eval-completion`.
 
 interface FixtureFile {
@@ -1192,9 +1186,8 @@ function MessageCost({ results }: { results: Result[] }): ReactElement | null {
     <p style={{ maxWidth: "72ch", fontSize: ".92rem", color: "var(--ifm-color-emphasis-800)" }}>
       <strong>What it cost.</strong> Across {pairs.length} scenarios the agent sent{" "}
       <strong>{totalWith}</strong> messages with kapi and <strong>{totalWithout}</strong> without,
-      and the unaided arm was shorter on {cheaper} of them. That is the honest counterweight to the
-      counts below: on this suite kapi reaches answers the unaided agent cannot, and it is not the
-      cheaper route to the ones it can.
+      and the unaided arm used fewer messages in {cheaper} scenarios. Compare these message counts
+      with the completion results below to assess the additional interaction cost.
     </p>
   );
 }

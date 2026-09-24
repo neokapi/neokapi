@@ -226,8 +226,8 @@ func TestThrottlingIsNotAModelFailure(t *testing.T) {
 	}
 }
 
-// The two are recorded differently, and the difference is the whole point: a
-// failure is a point on the curve (0% intact), a throttle is a hole in it.
+// A model failure is a measured point with 0% intact blocks. Throttling leaves
+// an unmeasured gap because no model result was obtained.
 func TestUnmeasuredIsAHoleNotAZero(t *testing.T) {
 	t.Parallel()
 

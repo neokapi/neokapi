@@ -20,11 +20,9 @@ import (
 // writes on stdout under --output-format stream-json.
 func stream(lines ...string) string { return strings.Join(lines, "\n") + "\n" }
 
-// TestParseStreamRecordsTheCallAndWhatCameBack.
-//
-// The result arrives in a later event than the call, joined only by the id on
-// both. Matching them is the whole point: a tool list says the agent ran Bash,
-// and the pair says it ran kapi and got "no such command".
+// TestParseStreamRecordsTheCallAndWhatCameBack verifies that tool calls and
+// results are paired by ID even when they arrive in separate events. The
+// record must retain both the command and its result.
 func TestParseStreamRecordsTheCallAndWhatCameBack(t *testing.T) {
 	body := stream(
 		`{"type":"assistant","message":{"content":[{"type":"text","text":"Reading the recipe first."}]}}`,
@@ -98,12 +96,8 @@ func TestRecordScrubsEveryString(t *testing.T) {
 	assert.NotContains(t, string(body2), "/private/var")
 }
 
-// TestSessionIsWhole.
-//
-// The caps that used to be here — 400 events, 256KB, 1,200 characters per tool
-// result — cut exactly the part a reader opens a transcript for: the file the
-// agent read, the error it got. Uncapped transcripts are too large for git and
-// go to the CDN with the artefacts, which is what makes this affordable.
+// TestSessionIsWhole verifies that transcripts retain complete messages and
+// tool results. Transcripts are published to the CDN with the artifacts.
 func TestSessionIsWhole(t *testing.T) {
 	var r Run
 	big := strings.Repeat("y", 40_000)

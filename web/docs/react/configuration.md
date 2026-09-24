@@ -308,7 +308,7 @@ const preview: Preview = {
 export default preview;
 ```
 
-All three take the same options object. The loader fetches the catalog and the decorator renders the story in it, which matters for stories with a `play` function: Storybook runs loaders, then mounts the story, then runs `play`, so a story that fetched its catalog from the decorator re-keyed after `play` had already clicked, and the canvas showed the unopened state while the Interactions panel read as passed.
+All three take the same options object. The loader fetches the catalog before the decorator renders the story. Storybook then runs the story's `play` function. Loading the catalog at this stage prevents a later catalog update from remounting the story and discarding the state produced by `play`.
 
 And in `.storybook/main.ts`, enable the plugin so stories get the runtime transform:
 

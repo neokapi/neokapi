@@ -69,8 +69,8 @@ func TestEvalCellsDir(t *testing.T) {
 	}
 }
 
-// The ancestor check is what makes a chosen cells directory safe, so a recipe
-// above it blocks the batch the same way one above a temporary directory does.
+// A recipe above a selected cells directory must block the batch, just as one
+// above a temporary directory does, to prevent accidental project discovery.
 func TestEvalCellsDirIsCoveredByTheAncestorCheck(t *testing.T) {
 	cells := t.TempDir()
 	repo := filepath.Join(cells, "release-note-codex", evalRepoName)

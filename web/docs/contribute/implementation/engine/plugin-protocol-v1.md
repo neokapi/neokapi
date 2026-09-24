@@ -709,6 +709,6 @@ specification and its examples cannot drift apart:
 
 Out of tree, [neokapi/okapi-bridge](https://github.com/neokapi/okapi-bridge) is
 the reference implementation in a non-Go language: a JVM daemon exposing the
-Okapi Framework's Java filters over Mode C. Its role is to keep this protocol
-honest from the outside: it consumes released kapi versions and reports
-conformance on a schedule, never gating this repository.
+Okapi Framework's Java filters over Mode C. It tests the protocol against
+released kapi versions and reports conformance on a schedule. These external
+checks do not gate this repository.

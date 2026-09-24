@@ -11,23 +11,17 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
-// Project type + per-collection origin: which side owns a project's SOURCE
-// content, and therefore whether the Bowrain UI may mutate it.
+// Project type and collection origin determine who owns source content and
+// whether Bowrain may modify it. guardSourceMutation rejects source changes to
+// connector-owned content because a later sync would overwrite them. The API
+// exposes this restriction so clients can render the source read-only.
 //
-// The product boundary (CLAUDE.md) is that kapi and the repository own source;
-// Bowrain governs, reviews and configures but is never a source of truth for
-// connector-sourced content. Uploading or editing source into a project whose
-// content is synced from a connector is wrong — the next sync overwrites it — so
-// the source-mutation endpoints refuse it (guardSourceMutation) and the API
-// advertises the state so the UI renders the source read-only.
+// UI labels:
+//   - Connected: connector-owned source; review and configuration remain editable.
+//   - Managed: Bowrain-owned source; uploads, edits and deletions are allowed.
+//   - Hybrid: both connected and managed collections.
 //
-// Naming (surfaced verbatim to the UI):
-//   - Connected — content is connector-sourced (read-only source; review,
-//     governance and configuration still allowed).
-//   - Managed   — UI-native, Bowrain owns the source (uploads/edits/deletes ok).
-//   - Hybrid    — a project with both connected and managed collections.
-//
-// Origin is a per-COLLECTION property; the project type is the derived rollup.
+// Origin is stored per collection; project type is derived from those origins.
 const (
 	collectionOriginConnected = "connected"
 	collectionOriginManaged   = "managed"

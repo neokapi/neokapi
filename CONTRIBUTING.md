@@ -1,9 +1,8 @@
 # Contributing to neokapi
 
-Thanks for your interest in contributing. This document is a short orientation;
-the full contributor guide — architecture, conventions, and how the subsystems
-fit together — lives in the documentation under
-[`web/docs/contribute/`](web/docs/contribute/).
+This document covers contributor setup and repository conventions. See
+[`web/docs/contribute/`](web/docs/contribute/) for architecture and guides to
+extending the engine.
 
 ## Repository layout
 
@@ -55,42 +54,35 @@ Some suites need a PostgreSQL. They skip themselves when neither Docker nor
 with Docker running, `make test-integration` exercises the cross-store
 (SQLite/Postgres) parity lane.
 
-A fresh clone in the conventional layout needs no environment at all. A few
-build and audit targets do reach outside this repository — sibling repos and
-reference checkouts — and name those locations by environment variable; see
-[`docs/internals/workspace-paths.md`](docs/internals/workspace-paths.md) if
-your checkouts live somewhere else, or if `make check-abs-paths` fails.
+Build and audit targets use default paths for sibling repositories and
+reference checkouts. To use a different directory layout, see
+[`docs/internals/workspace-paths.md`](docs/internals/workspace-paths.md).
+That guide also explains failures from `make check-abs-paths`.
 
 ### Formatting: `make fmt` is a fixer, `make check-gofmt` is the check
 
 `make fmt` runs `gofmt -w -s` over the tree. It **rewrites files and exits 0**,
-so it can never fail a build — the check that does is `make check-gofmt`
-(`scripts/check-gofmt.sh`), which runs in the *Repo guards* CI job and in
-`make lint` / `make pre-push`.
+so use `make check-gofmt` (`scripts/check-gofmt.sh`) to detect formatting drift.
+That check runs in the *Repo guards* CI job and through `make lint` and
+`make pre-push`.
 
-**Review the comment diff of a tree-wide format sweep, not just the code
-diff.** `gofmt` canonicalises **doc comments**, and its canonicaliser reads
-`''` and ` `` ` as TeX-style quotes, rewriting them to `”` and `“`. A sweep can
-therefore silently change *prose meaning*: in #1444 a comment reading
-`SetupTrial inserted ''` — describing an empty SQL string literal — became
-`SetupTrial inserted ”`, which is valid Go and says nothing. Nothing failed.
+Review comment changes after formatting. `gofmt` interprets `''` and double
+backticks in doc comments as TeX quotation marks and replaces them with curly
+quotes. This can corrupt a description of an empty SQL string while leaving
+valid Go source.
 
-When a comment needs to mention such a literal, word it (`an empty string`) or
-use `""`; both survive gofmt. `make check-gofmt` warns explicitly when an
-offending file contains `''` or ` `` ` in a comment, so take that warning as
-"reword this", not "run `make fmt`".
+Write such literals as `an empty string` or `""`. If `make check-gofmt` warns
+about these quote sequences in a comment, reword the comment before formatting.
 
 ## Go conventions
 
-**Constructor style.** Match the constructor to the audience. Framework public
-API — the exported surface under `core/`, `memory/`, `terms/`, `providers/`
-that external callers and plugins build against — takes **functional options**
-(`New(required, ...Option)`), so a call site stays source-compatible as options
-grow and defaults stay centralised. Internal services — application wiring in
-`host/`, `cli/`, and the `bowrain/` platform — may take a **config struct**
-(`New(Config)`); it is plainer and fine when the caller and constructor evolve
-together in-tree. Both styles are already common in the codebase; the rule is
-just to pick by this boundary rather than by habit.
+Use functional options (`New(required, ...Option)`) for public framework APIs
+under `core/`, `memory/`, `terms/` and `providers/`. This keeps external callers
+source-compatible as optional settings are added.
+
+Internal application services in `host/`, `cli/` and `bowrain/` may use a config
+struct (`New(Config)`) when constructors and callers evolve together in the
+repository.
 
 ## Pull requests
 

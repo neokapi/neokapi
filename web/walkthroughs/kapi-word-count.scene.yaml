@@ -13,5 +13,5 @@ files: []
 steps:
   - comment: Size the content of a JSON file
   - command: kapi stats messages.json
-    narration: Reports blocks, words, characters, and segments — the numbers you paste into a quote.
+    narration: Report block, word, character and segment counts to help estimate translation work.
   - comment: Content stats help estimate translation costs

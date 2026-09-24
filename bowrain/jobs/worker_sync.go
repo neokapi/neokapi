@@ -237,13 +237,9 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		return err
 	}
 
-	// A malformed decisions payload fails the push — decisions are authored
-	// state, and dropping them silently is the exact failure shape this protocol
-	// keeps having to confess. A payload that decodes to nothing, on the other
-	// hand, is not a decisions write at all: everything downstream keys on the
-	// decoded records rather than the raw bytes, which is what stops a JSON
-	// `null` — four bytes of nothing — from asserting a component this push
-	// never touches.
+	// Reject malformed decisions rather than discard authored state. An empty
+	// decoded payload, including JSON null, does not assert or update the
+	// decision component.
 	var decisions []venue.UnitDecision
 	if len(manifest.Decisions) > 0 {
 		if err := json.Unmarshal(manifest.Decisions, &decisions); err != nil {
@@ -571,27 +567,17 @@ func pruneDeclaredItems(
 	return pruned, nil
 }
 
-// keepUndeclaredProperties carries forward the block properties a stored row
-// holds that this push declared no knowledge of.
+// keepUndeclaredProperties preserves stored properties that a push does not
+// declare. Different client versions may emit different property sets.
 //
-// A fleet is not one version. A CI runner pinned to an older kapi, or a laptop
-// that has not upgraded, reads the same files with a reader that records less —
-// and because the sync cache is not committed, a fresh checkout declares every
-// item, so the older producer really does push the whole corpus. Storing what it
-// sent as the whole truth would let it delete a field it has never heard of, and
-// two vintages would take turns adding and removing it.
+// The push declares reader-produced keys through core/venue.BlockPropertyKeys,
+// computed over all read blocks. A missing value for a declared key deletes the
+// stored property; an undeclared key is preserved. With no declared keys, the
+// push only adds or updates properties.
 //
-// Silence is not deletion; disagreement is. A push declares the keys its readers
-// emit (core/venue.BlockPropertyKeys), computed over every block it read rather
-// than the ones it sent — so a value genuinely removed at the source is removed
-// here, while a key this producer never emits survives untouched. A push that
-// declares nothing knows nothing: it adds and updates, and removes nothing.
-//
-// Derived locators are excluded. An advisory property says where a block was
-// found, so preserving one from a producer that no longer records it leaves a
-// locator pointing at nothing — worse than its absence.
-//
-// Best-effort: a push must not fail because the prior state could not be read.
+// Derived locators are excluded because preserving an old location could point
+// to content the current reader no longer identifies. Failure to read prior
+// state does not fail the push.
 func keepUndeclaredProperties(
 	ctx context.Context,
 	deps *WorkerDeps,

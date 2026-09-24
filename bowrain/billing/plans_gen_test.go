@@ -12,12 +12,9 @@ import (
 // relative to this package directory (bowrain/billing).
 const committedLandingCatalogPath = "../web/landing/src/generated/plans.json"
 
-// TestLandingPlanCatalogNoDrift is the modelcheck-style alarm: the committed
-// landing catalog must be byte-identical to what plans.go produces now. If a
-// credit allowance, limit, or plan flag changes in plans.go without a
-// regenerated plans.json, this fails and tells the developer exactly how to fix
-// it — so the landing facts and the billing source of truth can never silently
-// diverge.
+// TestLandingPlanCatalogNoDrift verifies that the committed landing plan catalog
+// matches generated output byte for byte. Changes to allowances, limits or flags
+// must be followed by regeneration.
 func TestLandingPlanCatalogNoDrift(t *testing.T) {
 	t.Parallel()
 

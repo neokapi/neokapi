@@ -7,17 +7,11 @@ import (
 	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 )
 
-// The registration functions below are split by *who supplies the config*, not
-// by what a host is capable of. A connector registry turns a type name and a
-// map of strings into a running connector, and on a multi-tenant server both
-// of those come from a tenant: adding a connector needs only
-// PermManageConnectors, which the built-in developer role carries. So a
-// registry that can build a connector whose config names a filesystem path
-// hands every tenant the host's filesystem, which is why the server registry
-// has no such connector in it.
-//
-// There is no "register everything" function. The two surfaces differ by a
-// security boundary, so naming which one you are is the point.
+// Connector registries are separated by configuration trust. Multi-tenant
+// servers accept tenant-supplied connector types and settings, so their registry
+// must exclude connectors that can read arbitrary host filesystem paths.
+// Choose the registry for the host's trust boundary; there is no all-connectors
+// registration function.
 
 // RegisterServer registers the connectors a multi-tenant Bowrain server (and
 // its ingest worker) may build from tenant-supplied configuration: the remote

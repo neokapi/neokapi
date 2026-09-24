@@ -28,22 +28,22 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi exec recycle messages.json -o step1.json --source-lang en --target-lang fr",
       narration:
-        "exec runs exactly one registry tool, nothing around it. recycle is the content memory step of up's default flow — exact and fuzzy matches fill the targets; the rest stay untranslated.",
+        "exec runs one registered tool. recycle fills targets from exact and fuzzy content-memory matches, leaving unmatched content untranslated.",
     },
     {
       command: "kapi run leverage-check -i messages.json",
       narration:
-        "run executes a composed flow once — recycle, then the deterministic rule-based checks. In a project the pass commits to the project store. up is this pass, looped until every gate is met or the rest parks.",
+        "run executes recycle followed by the deterministic checks and stores the results. up repeats the flow until the gates pass or remaining work requires human input.",
     },
     {
       command: "kapi extract --target-lang fr",
       narration:
-        "extract emits one bilingual XLIFF per source and target pair, pre-filled from the content memory — the handoff a human translator works in.",
+        "extract emits one bilingual XLIFF per source and target pair, pre-filled from content memory for a translator to edit.",
     },
     {
       command: "kapi merge -i out/messages.en-to-fr.xliff",
       narration:
-        "merge applies the returned file back onto the source and writes messages.fr.json. Applied targets also land in the content memory, so the next pass starts further ahead.",
+        "merge applies the returned translations to the source and writes messages.fr.json. The translations are also added to content memory for future reuse.",
     },
   ],
 };

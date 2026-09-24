@@ -16,7 +16,7 @@ your source lives.
 | Your source lives in | Start here | Anything to install? |
 | --- | --- | --- |
 | A content platform, a design tool, or documents | [From your content](#from-your-content) | No |
-| A repository, and nobody wants a pipeline | [From a repository](#from-a-repository) | No |
+| A repository without a CI pipeline | [From a repository](#from-a-repository) | No |
 | A repository a developer works in every day | [From a checkout](#from-a-checkout) | The kapi CLI |
 
 ## From your content

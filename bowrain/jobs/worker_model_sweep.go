@@ -15,26 +15,18 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// processModelSweepJob executes one durable model recommendation sweep for a
-// (project, locale): derive the fixture set from the project's own content,
-// translate it twice per candidate model — once with the project's full brand
-// context (voice + term rules + DNT, the #1334 binding) and once bare — score
-// both arms deterministically with the real core check tools, and persist one
-// (project, locale, model, fixture_digest) row per candidate.
+// processModelSweepJob compares candidate models for one project and locale.
+// It translates project fixtures with and without voice, term rules and DNT
+// context, scores both with deterministic checks, and upserts results by
+// (project, locale, model, fixture_digest).
 //
-// Cost is bounded by construction: ≤ maxSweepFixtures segments × 2 arms ×
-// len(candidates) LLM calls' worth of text per job, on the PLATFORM provider.
+// Input is bounded by maxSweepFixtures times two arms per candidate. Calls use
+// the platform provider. Usage is recorded as model_sweep, but BillingHooks are
+// not invoked and customer credits are not deducted.
 //
-// Billing: this is platform QC, not customer work. Token usage IS recorded to
-// ai_usage with the distinct "model_sweep" operation (the abuse cap and the
-// ops dashboards must see all traffic), but BillingHooks are deliberately
-// NEVER invoked — a sweep must not deduct customer credits.
-//
-// Failure policy: missing wiring (no sweep store/settings) is terminal —
-// retrying cannot help. A disabled flag at execution time completes the job as
-// a no-op (the gate is respected at both enqueue and execution). Every other
-// failure retries through the shared attempt budget: the sweep is idempotent
-// (results upsert by digest), so at-least-once delivery is safe.
+// Missing stores or settings fail terminally. A disabled sweep completes without
+// work. Other failures use the shared retry budget; digest-keyed upserts make
+// repeated execution safe.
 func processModelSweepJob(ctx context.Context, deps *WorkerDeps, job *TranslationJob, epoch int64) error {
 	stopHeartbeat := startLeaseHeartbeat(ctx, deps.JobStore, job.ID, epoch)
 	defer stopHeartbeat()
@@ -50,8 +42,7 @@ func processModelSweepJob(ctx context.Context, deps *WorkerDeps, job *Translatio
 		return err
 	}
 	if !deps.SweepSettings.ModelSweepsEnabled() {
-		// The founder turned the flag off between enqueue and execution: a
-		// normal race, not an operational failure. Record and stop.
+		// The setting may change after enqueue. Complete without work when disabled.
 		slog.InfoContext(ctx, "model sweep: model_sweeps.enabled is off; dropping job", "job_id", job.ID)
 		return deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusCompleted, "")
 	}

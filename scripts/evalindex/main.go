@@ -89,8 +89,7 @@ type Index struct {
 	Coverage Coverage   `json:"coverage"`
 }
 
-// Coverage is the honest summary: how much of the architecture is actually
-// measured.
+// Coverage summarizes evaluations by status and architecture layer.
 type Coverage struct {
 	Measured    int `json:"measured"`
 	Partial     int `json:"partial"`
@@ -208,15 +207,8 @@ func Build() (*Index, error) {
 
 	index := &Index{Note: indexNote, Bands: bands, Layers: layers, Evals: dated}
 	index.Coverage.PerBand = map[string]int{}
-	// Counted through a map over AllStatuses rather than a switch. The switch
-	// was the first version and it had no default, so adding StatusBlocked
-	// dropped every blocked eval from the totals silently — the tally test
-	// noticed, the code did not. A status missing from AllStatuses now panics
-	// here instead.
-	// Seeded with every status at zero. A map built only from what was counted
-	// loses its keys as counts reach zero — `absent` vanished from the JSON the
-	// moment the last unbuilt eval was built — and a consumer typed against the
-	// full set stops matching. The shape should not depend on the numbers.
+	// Initialize every status at zero to keep the serialized shape stable.
+	// Reject unregistered statuses rather than omitting them from the totals.
 	tally := map[Status]int{}
 	for _, st := range AllStatuses {
 		tally[st] = 0

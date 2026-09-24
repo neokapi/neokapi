@@ -116,7 +116,7 @@ Three Intl APIs that matter for other subsystems:
 
 ## Reusable formatter hooks
 
-Re-creating formatters on every render is fine (they're cheap), but memoizing is cleaner, and lets you share configuration across components. A tiny wrapper:
+A memoized hook reuses the formatter until its locale or options change and centralizes configuration for components:
 
 ```tsx
 import { useMemo } from "react";

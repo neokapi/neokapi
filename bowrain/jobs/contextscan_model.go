@@ -77,11 +77,8 @@ type ContextScanSource struct {
 	Runes int    `json:"runes"`
 }
 
-// ArtefactKind names what a proposed artefact is. The set is deliberately
-// small: these are the two things a corpus can be read for today. It is open by
-// intent — gates and redaction rules are governance bound at a point in exactly
-// the same way — but a kind arrives with the inference that produces it, never
-// before it.
+// ArtefactKind identifies a supported scan proposal type. Add a kind only when
+// its inference and approval paths are implemented.
 type ArtefactKind string
 
 const (
@@ -91,15 +88,9 @@ const (
 	ArtefactTerms ArtefactKind = "terms"
 )
 
-// ArtefactProposal is one thing a scan proposes, and the point it would govern.
-//
-// At is that point as an axis map — the same open shape
-// SyncContextEntry.coordinates carries. An EMPTY At means the project's default
-// point, whatever defaults.coordinates resolves to: a scan that finds no
-// structure proposes one voice for the project, which is the onboarding path
-// and stays a single click.
-//
-// Only the fields matching Kind are populated.
+// ArtefactProposal contains a scan proposal and its scope. At uses the same axis
+// map as SyncContextEntry.coordinates. An empty At selects the project's default
+// point from defaults.coordinates. Only fields matching Kind are populated.
 type ArtefactProposal struct {
 	At   map[string]string `json:"at,omitempty"`
 	Kind ArtefactKind      `json:"kind"`

@@ -1,27 +1,15 @@
-// Package ktb implements the Kapi-family terms format (kind
-// "kapi-terms"): a deterministic, lossless JSON serialization of a
-// neokapi terms.
+// Package ktb implements the Kapi terms format (kind "kapi-terms"), a
+// deterministic JSON representation of a terms store.
 //
-// It is the terms store analogue of the block format in core/kbf. TBX
-// (terms.ExportTBX) is the industry interchange form — lossy, because it
-// maps only the standard terminology fields (definition, subject field,
-// part-of-speech, gender, administrative status, usage note). ktb is the
-// native form that round-trips every field of terms.Concept, including the
-// fields TBX drops: the term Source (terminology vs brand_vocabulary), the
-// CompetitorTerm flag, and the extensible Properties map. A term's declared
-// surface forms travel in both, as the "forms" array here and as a private
-// x-surfaceForm termNote in TBX. That losslessness is
-// what lets a ktb document seed a fresh terms exactly, which is why it —
-// not TBX — is the terms store member of the .kpz package (see package kpz).
+// The format preserves every terms.Concept field, including Source,
+// CompetitorTerm and Properties, which TBX export omits. Surface forms appear
+// in the forms array; TBX carries them in private x-surfaceForm termNote fields.
+// The .kpz package uses ktb so a terms store can be reconstructed without loss.
 //
-// Since schema version 1.1 the file also carries the concept relations — the
-// edges of the brand knowledge graph (terms.ConceptRelation, AD-021) — in a
-// top-level relations array, so a snapshot transports the whole graph, not
-// just its nodes. 1.0 files (no relations) remain readable.
+// Schema version 1.1 includes terms.ConceptRelation records in a top-level
+// relations array. Version 1.0 files without that array remain readable.
 //
-// The concept model (terms.Concept) already carries JSON tags, so ktb
-// reuses it directly rather than mirroring it in a parallel wire type — one
-// source of truth, no drift. The serializer is deterministic: concepts and
-// relations sort by id, terms sort, timestamps normalize to UTC, HTML escaping
-// is off, and a trailing newline is emitted.
+// Serialization reuses the concept model's JSON tags. Concepts and relations
+// are sorted by ID, terms are sorted, timestamps use UTC, HTML escaping is
+// disabled, and the document ends with a newline.
 package ktb

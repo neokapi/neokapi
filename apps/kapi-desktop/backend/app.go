@@ -98,20 +98,15 @@ type App struct {
 	// network is touched.
 	aiToolFactory func(name string, cfg map[string]any, targetLang string) (tool.Tool, error)
 
-	// engine is the desktop's one host.App: the shared runtime used to derive
-	// convergence reports (per-locale coverage, ship gates, source readiness, the
-	// review queue) and to record review decisions — the same derivation `kapi
-	// status` / `kapi check --ship` use, so the desktop project view shows the
-	// same numbers as the CLI. Built lazily so its format and tool registries
-	// register once, not per request.
+	// engine owns the shared host runtime and project stores. It derives the
+	// same convergence reports and review decisions as the CLI. Lazy creation
+	// registers formats and tools once per process.
 	//
-	// It is also the OWNER of every project store this process holds. A run needs
-	// its own App — TargetLang and the per-run tool slots are single-occupancy —
-	// but not its own store: two host.Apps opening `.kapi/work/store.db` would put two
-	// connection pools on one file, and the write gate that keeps a converge run
-	// from starving the review loop's writes is per pool. Every other App the
-	// desktop builds borrows this one's stores (host.ShareProjectStores) and must
-	// never be Shut down; engineShutdown closes them, once, on the way out.
+	// Run-scoped Apps need independent TargetLang and tool slots, but borrow this
+	// App's stores through host.ShareProjectStores. Separate connection pools for
+	// the same database would bypass the per-pool write gate and allow extraction
+	// to starve review writes. Borrowing Apps must not call Shutdown;
+	// engineShutdown closes the owned stores once.
 	engine   *host.App
 	engineMu sync.Mutex
 
@@ -607,16 +602,13 @@ func (a *App) CloseProject(tabID string) {
 	a.releaseProjectResources(op)
 }
 
-// releaseProjectResources quiesces everything a tab holds on its directory —
-// the file watcher, the borrowed content memory/terms handles, and the project
-// store itself — WITHOUT removing the tab entry. CloseProject uses it on the way
-// out; ResetSampleProject uses it to free the directory before the backup
-// rename, then reloads the same tab in place.
+// releaseProjectResources stops the file watcher and releases the tab's borrowed
+// store handles and memoized project store without removing the tab entry.
+// CloseProject calls it before closing a tab. ResetSampleProject calls it before
+// renaming the directory, then reloads the tab in place.
 //
-// Closing the store is what makes the rename safe. It is one file for the whole
-// project now, so the handle the engine memoizes for this root would otherwise
-// survive the move — keeping a descriptor on the file at its old location and
-// handing that stale handle straight back to the reloaded tab.
+// Closing the memoized store prevents the reloaded tab from receiving a handle
+// to a database at its old location.
 func (a *App) releaseProjectResources(op *openProject) {
 	if op.watcher != nil {
 		op.watcher.Stop()

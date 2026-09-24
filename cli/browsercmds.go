@@ -6,27 +6,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// The browser (WebAssembly) command surface.
+// The browser command surface is used by kapi/cmd/kapi-wasm-cli through
+// kapiRun(argv), including the documentation playground, labs and snippet verifier.
 //
-// kapi ships a second binary — kapi/cmd/kapi-wasm-cli — that runs the CLI
-// inside the browser: the docs playground, the interactive labs, and the
-// snippet verifier all drive it through kapiRun(argv). That build used to
-// hand-roll its own list of cobra commands, which silently drifted from the
-// native binary: a verb renamed or added in KapiCommandSet stayed unchanged in
-// the browser list, and every such gap surfaced to a lab user as cobra's
-// unhelpful `unknown command "x" for "kapi"`.
+// BrowserCommandSet mirrors KapiCommandSet's commands, ordering and help groups.
+// Commands supported by the in-memory filesystem use browser-safe implementations;
+// the others report why they are unavailable.
 //
-// BrowserCommandSet is the fix. It mirrors KapiCommandSet exactly — same
-// commands, same order, same help groups — but constructs a browser-safe
-// command for every verb that can run against the in-memory filesystem, and an
-// explicit "not available in the browser" command for the handful that cannot.
-// A verb is therefore never missing: it either works, or it says why not.
-//
-// TestBrowserCommandSurface pins the mirror: it fails when a verb exists in one
-// set and not the other, and when a browserGap's help metadata drifts from the
-// native command it stands in for. Adding a command to KapiCommandSet is
-// consequently a decision — wire it up for the browser, or record why it can't
-// run there — never a silent omission.
+// TestBrowserCommandSurface checks command coverage and help metadata. Every new
+// native command needs either a browser implementation or an explicit browserGap.
 
 // browserGap describes a kapi verb that cannot run in the browser build,
 // together with the help metadata it must present so `kapi --help` reads the

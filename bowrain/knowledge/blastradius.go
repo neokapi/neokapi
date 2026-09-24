@@ -52,11 +52,8 @@ type EvalOptions struct {
 	// DefaultMaxSamples).
 	MaxSamples int
 
-	// Budget bounds how long the block walk may run. When it is exhausted the
-	// walk stops and the report is marked Partial rather than erroring — a floor
-	// on a workspace too large to finish is worth having, provided it says so.
-	// Zero means no budget; the walk then runs to completion or until the
-	// request's own context is cancelled.
+	// Budget limits the block scan. When exhausted, the scan stops and marks the
+	// report Partial. Zero means no limit beyond cancellation of the request context.
 	Budget time.Duration
 }
 
@@ -94,22 +91,13 @@ type ChangeSetImpact struct {
 	// reach.go. Nil only on a report built before the split existed.
 	Reach *Reach `json:"reach,omitempty"`
 
-	// Partial reports that the walk stopped before it had seen the whole
-	// workspace, so every count below is a floor and not a total.
+	// Partial indicates an incomplete scan. Counts are lower bounds, and the
+	// project breakdown may omit projects that the scan never reached.
 	//
-	// Without it a walk that ran out of time has the same shape as a walk that
-	// found nothing, and "0 blocks affected — safe to merge" is the most
-	// dangerous sentence this report can say when the truth is "we never got to
-	// look". A reader must be able to tell the two apart.
-	//
-	// The flag is top-level only, and deliberately: the walk is one sequential
-	// pass over projects, so it does not under-count each project evenly. When
-	// it stops, projects it had already passed are complete, the project it was
-	// in is under-counted, and projects it never reached are ABSENT FROM
-	// Projects ENTIRELY — a project only appears once it has a hit. So under
-	// Partial the breakdown is truncated, not merely low, and a missing project
-	// means "not reached", not "unaffected". Present it as a sample, never as
-	// an exhaustive per-project answer.
+	// The scan visits projects sequentially. Completed projects have full counts;
+	// the interrupted project may be undercounted. A missing project may be
+	// unvisited or unaffected, so consumers must present a partial breakdown
+	// as a sample.
 	Partial bool `json:"partial,omitempty"`
 	// PartialReason names why the walk stopped (e.g. "time budget exhausted").
 	PartialReason string `json:"partial_reason,omitempty"`
@@ -235,15 +223,9 @@ type ConceptUsage struct {
 	Projects    []ProjectUsage `json:"projects"`
 	Samples     []BlockSample  `json:"samples"`
 
-	// Partial reports that the walk stopped before it had seen the whole
-	// workspace, so every count above is a floor and not a total.
-	//
-	// A where-used report is read as "these are the places this concept is
-	// used", and on a workspace too large to finish scanning that sentence is
-	// false in the one direction that matters: a project the walk never reached
-	// is ABSENT from Projects entirely, not listed with a low number. Saying so
-	// is what makes a floor usable — refusing to answer at all is not an answer,
-	// and answering silently short is worse than either.
+	// Partial indicates an incomplete scan. Counts are lower bounds, and Projects
+	// may omit projects the scan never reached. Consumers must not interpret a
+	// missing project as unaffected.
 	Partial bool `json:"partial,omitempty"`
 	// PartialReason names why the walk stopped (e.g. "time budget exhausted").
 	PartialReason string `json:"partial_reason,omitempty"`
@@ -456,12 +438,10 @@ func voiceProfileIDs(ops []ChangeSetOp) []string {
 	return ids
 }
 
-// voiceImpactForBlock reuses core/profile.EvaluateBlastRadius — the single source
-// of brand-vocabulary blast-radius truth — per block against each touched
-// profile, summing the new/resolved counts and OR-ing the affected and
-// prescribed flags. prescribed marks a block a candidate rule does not merely
-// flag but tells you what to write instead — the signal that acting on it edits
-// the text rather than annotating it.
+// voiceImpactForBlock evaluates touched profiles using
+// core/profile.EvaluateBlastRadius. It sums new and resolved findings and
+// combines the affected and prescribed flags. A prescribed rule supplies
+// replacement text, indicating a text edit rather than an annotation.
 func voiceImpactForBlock(pairs []profilePair, colID, colName, blockID, text string) (newV, resolved int, affected, prescribed bool) {
 	if len(pairs) == 0 {
 		return 0, 0, false, false
@@ -816,23 +796,11 @@ func (e *Engine) resolveCollection(ctx context.Context, projectID, stream string
 	return "", b.ItemName
 }
 
-// evalLocales returns the locales a block is evaluated in: opts.Locales when set,
-// otherwise the block's own source locale (falling back to the project's default
-// source language).
-// blockText returns a block's text in locale, for a stored block that may not
-// know what language its source is in.
-//
-// The content store keeps a block's source runs but not the language they are
-// in — the PROJECT owns that — so a block read back from the store has an empty
-// SourceLocale. Block.Text compares the requested locale against that empty
-// field, decides the request is not for the source, and returns the TARGET in
-// that locale, which for a source-only project does not exist. Asking a stored
-// block for the project's own source language therefore returned "" for every
-// block in the workspace, and the whole blast radius read as a workspace with
-// nothing in it: total_blocks 0, affected 0, "no measurable impact on published
-// content" — the most dangerous sentence this report can say, and it said it on
-// every real deployment. evalLocales already falls back to the project's
-// language for exactly this case; this is the other half of that fallback.
+// evalLocales selects opts.Locales when provided, otherwise the block's source
+// locale or the project's default source language.
+// blockText returns text for a locale, using the project's source language when
+// the stored block has no SourceLocale. Without that fallback, Block.Text would
+// look for a target in the source language and could return empty text.
 func blockText(b *venue.StoredBlock, p *store.Project, locale model.LocaleID) string {
 	if b.SourceLocale == "" && p != nil && locale == p.DefaultSourceLanguage {
 		return b.SourceText()

@@ -5,8 +5,7 @@ import { useSectionSignals } from "../useSectionSignals";
 import { SECTION_HERO } from "../sections";
 
 export function Hero() {
-  // The hero carries an id so its CTA — the most-clicked link on the page —
-  // attributes to a section rather than to null.
+  // Attribute hero CTA events to this section.
   const sectionRef = useSectionSignals<HTMLElement>(SECTION_HERO);
 
   // Hoisted inline links: keeping these as JSX-expression variables (rather
@@ -82,7 +81,7 @@ export function Hero() {
           </a>
         </div>
 
-        {/* kapi is the open foundation, deliberately a footnote to the outcome above. */}
+        {/* Toolchain and server licensing. */}
         <p className="mt-6 text-sm text-muted-foreground/80">
           Built on the Apache-2.0 {kapiLink} toolchain. Bowrain’s server is AGPL-3.0. {githubLink}
         </p>

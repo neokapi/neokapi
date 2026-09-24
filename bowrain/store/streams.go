@@ -50,14 +50,8 @@ func (s *PostgresStore) CreateStream(ctx context.Context, st *platstore.Stream) 
 		return fmt.Errorf("insert stream: %w", err)
 	}
 
-	// A branch starts as its parent: the same content, the same translations,
-	// the same approvals. Everything is copied under the new stream and KEEPS
-	// ITS IDS — that is what makes the same unit the same unit on both sides,
-	// so a diff compares by key rather than guessing by content, and a branch
-	// inherits its governance instead of starting unreviewed.
-	//
-	// Ids used to be minted per stream here, which is why the same file on two
-	// streams read as two unrelated units and why nothing could be merged.
+	// Copy content, translations and approvals with their existing IDs so the
+	// branch remains comparable to its parent and retains review decisions.
 	parentStream := storeutil.DefaultStream(st.Parent)
 	if err := branchStreamContent(ctx, s.db.DB, st.ProjectID, parentStream, st.Name, now); err != nil {
 		return fmt.Errorf("branch %q from %q: %w", st.Name, parentStream, err)
@@ -66,24 +60,15 @@ func (s *PostgresStore) CreateStream(ctx context.Context, st *platstore.Stream) 
 	return nil
 }
 
-// branchStreamCopies names each stream-scoped table and the columns to carry
-// across, with the stream itself supplied by the caller. Written out per table
-// rather than derived, because a column list is what a copy IS: a table that
-// gains a column and is not named here would silently drop it on every branch,
-// and the compiler cannot see into SQL.
+// branchStreamCopies lists the tables and columns copied into a new stream.
+// Update these lists when adding a stream-scoped column.
 //
-// change_log is deliberately absent. A branch inherits content, not history:
-// its base_cursor already records where it started, and copying its parent's
-// log would make every unit read as changed on the branch the moment it was
-// created.
-// stamp names the column set to the branch time rather than copied, or "" for
-// a table with no such column. A copied row is new here, so its own clock
-// starts now; the content it carries is the parent's verbatim.
+// change_log is excluded: base_cursor records the branch point, and copying
+// history would mark inherited content as changed on the new branch.
+// stamp names a column to set to the branch time, or is empty.
 //
-// mintID marks a table whose id is the ROW's identity rather than the unit's.
-// items and blocks keep theirs — the same unit having the same id on both sides
-// is what makes a branch comparable to its parent — but a note is its own row,
-// keyed globally, so a copy is a new note and needs a new id.
+// mintID marks globally keyed rows, such as notes, that need new IDs. Items and
+// blocks preserve IDs so they can be compared with their parent stream.
 var branchStreamCopies = []struct {
 	table, columns, stamp string
 	mintID                bool
@@ -225,22 +210,10 @@ func (s *PostgresStore) DeleteStream(ctx context.Context, projectID, name string
 // Stream operations
 // ---------------------------------------------------------------------------
 
-// MergeStream fast-forwards a stream's parent onto it.
-//
-// FAST-FORWARD ONLY. The parent takes the branch's state wholesale, and the
-// merge is refused if the parent has moved since the branch was taken. Nothing
-// is combined: a merge that had to choose between two edits of one unit would
-// be choosing between two people's approved wording, and doing that silently is
-// the outcome this platform exists to prevent. A diverged parent is reported so
-// a person can decide.
-//
-// The fast-forward is a copy rather than a pointer move because the store holds
-// rows, not commits: the parent's content for this stream is replaced by the
-// branch's, ids intact, so every translation and approval arrives attached to
-// the content it belongs to.
-//
-// It used to move nothing at all — it counted the change log and wrote entries
-// into the parent, reporting a MergeResult that described work no row had done.
+// MergeStream copies a branch into its parent while preserving content IDs,
+// translations and approvals. It rejects the merge if the parent has changed
+// since branching; divergent edits require an explicit decision by a person.
+// The store copies rows because streams are stored as content rows, not commits.
 func (s *PostgresStore) MergeStream(ctx context.Context, projectID, streamName string, opts platstore.MergeOptions) (*platstore.MergeResult, error) {
 	stream, err := s.GetStream(ctx, projectID, streamName)
 	if err != nil {

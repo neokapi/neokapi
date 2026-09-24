@@ -946,10 +946,8 @@ export interface ApiAdapter {
   updateConcept(workspaceSlug: string, req: UpdateConceptRequest): Promise<void>;
   deleteConcept(workspaceSlug: string, conceptId: string): Promise<void>;
   /**
-   * Always refuses: deleting a concept is a governed transition, so a
-   * multi-select learns once — rather than once per row — that the batch
-   * belongs in a change-set. Rejects with an ApiError carrying status 409 and
-   * the {@link GovernedRefusal} envelope; read it with `governedRefusal`.
+   * Reject concept deletion with status 409 and a GovernedRefusal envelope.
+   * Use governedRefusal to offer a change-set workflow for the entire batch.
    */
   bulkDeleteConcepts(workspaceSlug: string, conceptIds: string[]): Promise<never>;
   importTermsCSV(
@@ -1206,16 +1204,11 @@ export interface ApiAdapter {
   ): Promise<ContextScanCheckResult>;
 
   /**
-   * Approve one axis a scan proposed: record the recipe line it implies, for a
-   * pull to write into `kapi.yaml`.
+   * Record an approved axis as a pending recipe change for kapi pull.
+   * The coordinate takes effect after the recipe is updated and content is pushed.
    *
-   * Nothing here declares a coordinate. The recipe is the only thing that
-   * mints one, so this returns a PENDING change and the axis becomes real once
-   * that line lands in git and a push carries content at it.
-   *
-   * Rejects with a 409 when the claim cannot be composed — a structural axis
-   * with no collection named, or a collection whose other half is not set yet.
-   * Those messages are written for the reviewer and should be shown as-is.
+   * Returns 409 when a structural axis lacks a collection or a required companion
+   * coordinate. Display the server's reviewer-facing error message.
    */
   approveAxis(
     workspaceSlug: string,
@@ -1456,10 +1449,8 @@ export interface ApiAdapter {
   ): Promise<void>;
   getConceptBlastRadius(workspaceSlug: string, conceptId: string): Promise<ConceptUsage>;
   /**
-   * Which projects use a concept, from the workspace context graph — two hops
-   * out of one vocabulary node rather than a scan over every stored block.
-   * getConceptBlastRadius stays for the change-set preview it was built for:
-   * that one asks what a draft WOULD do and must read the text to answer.
+   * Find projects associated with a concept through the workspace context graph.
+   * Use getConceptBlastRadius to evaluate a proposal against stored block text.
    */
   getConceptProjects(
     workspaceSlug: string,

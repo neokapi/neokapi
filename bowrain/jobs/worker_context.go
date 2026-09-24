@@ -74,16 +74,12 @@ func parseContextEntries(raw json.RawMessage) ([]*pb.SyncContextEntry, error) {
 	return entries, nil
 }
 
-// reconcileContext brings the server's collections in line with the context a
-// push declared, and returns what it did.
+// reconcileContext reconciles collections with pushed context and reports changes.
+// An empty workspaceID skips voice binding for an unclaimed project but still
+// reconciles collection structure.
 //
-// workspaceID is the workspace whose brand hub holds the voice profiles; an
-// empty one (an unclaimed project) skips the profile binding and reconciles
-// structure alone, which is the honest outcome — there is no hub to bind to.
-// collections is the store surface the reconcile writes through. It is a
-// parameter rather than deps.ContentStore because a push hands it the
-// transaction it is applying on, so a reconcile that moved existing governance
-// rolls back with the content that justified it.
+// collections may be a transaction-scoped store, allowing governance updates to
+// roll back with the content push.
 type collectionWriter interface {
 	ListCollections(ctx context.Context, projectID, stream string) ([]*store.Collection, error)
 	CreateCollection(ctx context.Context, c *store.Collection) error

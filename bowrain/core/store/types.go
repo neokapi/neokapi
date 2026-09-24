@@ -74,12 +74,10 @@ type Item struct {
 // Item.Properties keys this server assigns meaning to. Everything else in the
 // map is a producer's own and is stored untouched.
 const (
-	// ItemPropSourcePath is the file the item's content was lifted out of,
-	// when that is not the item itself. Set for a generated catalog — a KBF
-	// bundle extracted from `App.tsx` is named `…/App.kbf.json`, because that
-	// path is its identity — so a surface can show the item as its source
-	// without the item ever being renamed. Absent for every item that IS its
-	// own source, which is most of them.
+	// ItemPropSourcePath identifies the source file of a generated item. For
+	// example, a KBF catalog extracted from App.tsx retains its App.kbf.json item
+	// identity while the UI can display App.tsx as its source. Omitted when the
+	// item is its own source.
 	ItemPropSourcePath = "source_path"
 )
 
@@ -126,14 +124,9 @@ type BlockQuery struct {
 	Limit  int // Max results (0 = no limit)
 	Offset int // Pagination offset
 
-	// AfterID resumes a scan after the block id it names, which is how a
-	// caller walks a project's blocks a batch at a time. Blocks are returned in
-	// id order, so this is a keyset cursor: it costs the same on the thousandth
-	// batch as on the first, and — unlike Offset — a row updated mid-scan
-	// cannot shift the window and make the walk skip its neighbour.
-	//
-	// A whole-project read is what memory is spent on, so reach for this rather
-	// than for a limitless query. See EachBlockBatch, which is that walk.
+	// AfterID is a keyset cursor for scanning blocks in ID order. It avoids the
+	// increasing query cost of Offset and keeps row updates from shifting page
+	// boundaries. Use EachBlockBatch to bound memory use during project scans.
 	AfterID string
 
 	// BeforeID is the same keyset cursor pointing the other way: the blocks
@@ -209,11 +202,9 @@ type PendingReviewRef struct {
 	BlockID  string `json:"block_id"`
 	ItemName string `json:"item_name"`
 	Locale   string `json:"locale"`
-	// CollectionID is the collection of the item this block belongs to, "" for
-	// an item in no collection. A block whose item has no row for the stream
-	// reads as "" too — the item row is the only thing that knows, and a queue
-	// that dropped such a block would be worse than one that files it as
-	// ungrouped.
+	// CollectionID identifies the collection of the block's item. It is empty
+	// for ungrouped items and items without a row in the selected stream. The
+	// queue includes both cases in the ungrouped bucket.
 	CollectionID string `json:"collection_id"`
 }
 
@@ -281,14 +272,12 @@ const (
 	CollectionConnected CollectionKind = "connected"
 )
 
-// Collection groups items within a project.
-// Collections are project-scoped by default. When Stream is non-empty,
-// the collection is visible only within that stream.
+// Collection groups items within a project. A non-empty Stream restricts
+// visibility to that stream.
 //
-// A collection reached the server one of two ways, and Owner says which: the
-// web hub, the editor or a connector created it (workspace-owned), or a
-// project's recipe declared it and a push carried it up (recipe-owned). The
-// distinction is not cosmetic — it decides who may change the row.
+// Owner determines who may modify the collection. Collections created through
+// the web hub, editor or connectors are workspace-owned. Collections declared
+// in a project recipe and synchronized by push are recipe-owned.
 type Collection struct {
 	ID              string            `json:"id"`
 	ProjectID       string            `json:"project_id"`
@@ -607,26 +596,18 @@ type BlockStatRow struct {
 
 // TranslationDashboardStats holds aggregated translation metrics for a project.
 //
-// ItemStats may be a page rather than the full per-file list: the dashboard
-// endpoint accepts limit/offset (+ sort/dir) query parameters and slices the
-// list server-side. ItemTotal always carries the full item count so paged
-// consumers can render an honest "N of M" without fetching everything; without
-// a limit the endpoint returns every item and ItemTotal == len(ItemStats).
+// ItemStats can contain a page selected by limit/offset and sort/dir. ItemTotal
+// is the full count, allowing clients to display page progress. Without a limit,
+// the endpoint returns all items and ItemTotal equals len(ItemStats).
 type TranslationDashboardStats struct {
 	LocaleStats []LocaleTranslationStats `json:"locale_stats"`
 	ItemStats   []ItemTranslationStats   `json:"item_stats"`
 	ItemTotal   int                      `json:"item_total"`
 
-	// ItemBase is the directory prefix every item in scope shares, with a
-	// trailing slash, or empty when they share none. A recipe collection is
-	// declared with a `base:` and its items are named relative to the project
-	// root, so every row of a collection repeats that base — "bowrain/packages/
-	// app/src/…" on each of a thousand files, which is the part carrying no
-	// information at all. Consumers display names relative to it.
-	//
-	// It is computed over the whole scope rather than the returned page, so it
-	// does not move as the reader pages or re-sorts. That is why it is a field
-	// here and not something a client derives from ItemStats.
+	// ItemBase is the common directory prefix of items in scope, including a
+	// trailing slash, or empty if there is no common prefix. Consumers display
+	// item names relative to it. It is computed over the full scope so it stays
+	// stable across pagination and sorting.
 	ItemBase string `json:"item_base,omitempty"`
 
 	CollectionStats    []CollectionTranslationStats `json:"collection_stats"`
@@ -689,11 +670,9 @@ type LocaleTranslationStats struct {
 	// split rather than folded into it. Additive: producers that do not read
 	// the ledger's verdicts leave it 0.
 	RejectedAwaitingDraftBlocks int `json:"rejected_awaiting_draft_blocks,omitempty"`
-	// BasisUnknownBlocks counts pairs whose decision carries no basis at all.
-	// Such a record says nothing about the source it blessed, so it keeps its
-	// rung and ships as it did before — but the assumption behind that rung is
-	// reported rather than left silent, and it clears itself the next time the
-	// unit is decided.
+	// BasisUnknownBlocks counts decisions without a recorded source basis.
+	// These retain their existing lifecycle state and remain eligible to ship.
+	// Recording a new decision supplies a basis and clears the unknown status.
 	BasisUnknownBlocks int `json:"basis_unknown_blocks,omitempty"`
 	// ShipState is the derived per-locale ship state (see DeriveShipState).
 	// Empty when the producer did not derive it.
@@ -733,10 +712,10 @@ type LocaleTranslationStats struct {
 	ComplianceBasis ComplianceBasis `json:"compliance_basis,omitempty"`
 }
 
-// ComplianceBasis names the dimensions that govern a scope's compliance rate, so
-// consumers can present the number honestly: a checks-only rate says nothing
-// about voice. Rule-based checks always apply. Terms and voice are added where
-// they govern the locale, and a dimension left out is not governed there.
+// ComplianceBasis identifies the dimensions included in a compliance rate.
+// Rule-based checks always apply. Terms and voice are included when configured
+// for the locale. Consumers must distinguish checks-only rates from rates that
+// also include voice or terms.
 type ComplianceBasis string
 
 const (
@@ -917,15 +896,10 @@ type DecisionStore interface {
 	ListDraftBases(ctx context.Context, projectID, stream string) ([]DraftBasis, error)
 }
 
-// UnitDecisionReader reads ONE unit's latest decision. It sits beside
-// DecisionStore rather than inside it because the two answer different
-// questions: a reconciliation pass wants the project's ledger, and a surface
-// showing who decided the unit in front of the reviewer wants one row. Asking
-// the first question to answer the second reads the whole project's decisions
-// on every block a reviewer opens.
-//
-// Optional — assert for it — so a store that has only the ledger keeps
-// compiling; both real stores implement it.
+// UnitDecisionReader reads a unit's latest decision. It is separate from
+// DecisionStore so review surfaces can fetch one row without reading the
+// project's full ledger. Both persistent stores implement this optional
+// capability.
 type UnitDecisionReader interface {
 	// GetUnitDecision returns the latest decision for (item, unit, variant), or
 	// nil with no error when the ledger holds none: a unit awaiting its first
@@ -1067,15 +1041,11 @@ type ChannelAliasStore interface {
 	JudgeChannelAliasProposal(ctx context.Context, j ChannelAliasJudgement) (bool, error)
 }
 
-// BlockAccessStore is the optional capability behind the block access ladder
-// (ABAC): who may edit, distinct from the review ladder on the target. Assert
-// for it rather than for a concrete store type — a concrete-type assertion
-// dies the moment the store is wrapped, which is exactly how the access
-// endpoint went dead on every deployment that wraps its store in the
-// event-emitting decorator.
-// Every verb here names a stream: a block belongs to one, and the same id sits
-// on every branch that holds it, so who may edit it is a question about a
-// branch and not about a project.
+// BlockAccessStore is the optional capability for block editing permissions
+// (ABAC), separate from target review status. Assert this interface rather
+// than a concrete store type so decorated stores remain supported.
+// All methods are stream-scoped because the same block ID can occur on
+// multiple branches with different permissions.
 type BlockAccessStore interface {
 	// GetBlockAccess returns a block's access state and owner; a missing
 	// block reports open/empty.

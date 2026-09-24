@@ -17,15 +17,14 @@ import (
 	"github.com/neokapi/neokapi/core/venue"
 )
 
-// The decision ledger — the server side of core/state. A decision is a FACT
-// (who, when, which rung, and the hashes of the pairing it blesses — the
-// translation, and the source it was blessed for); the
-// unit_decisions table folds the event log to latest-per-(item, unit, variant),
-// block_history keeps the events, and target_json.status is a written
-// PROJECTION of the ledger so every existing status reader keeps working.
-// Freshness is derived at the point of use, never stored: a decision whose
-// TargetHash no longer matches the current translation is stale, and a source
-// edit demotes the projection (storeBlocks, "decision.stale").
+// The decision ledger is the server counterpart of core/state. It records the
+// reviewer, time, lifecycle state and source/target hashes for each decision.
+// unit_decisions stores the latest decision per (item, unit, variant), while
+// block_history retains events. target_json.status projects the ledger for
+// status readers.
+//
+// Freshness is derived when read. A target hash mismatch makes a decision stale;
+// source edits update the status projection through storeBlocks and decision.stale.
 
 // resolveItemIDPg is the item a decision names, by identity rather than address.
 //
@@ -468,19 +467,13 @@ type DecisionProjection struct {
 	DecisionTargetHash string
 }
 
-// SettleDecisionProjection reports the status a target row must project once
-// its block's source has moved to contentHash, and the history event that
-// records the move. Shared by both backends so they cannot disagree about when
-// an approval applies.
+// SettleDecisionProjection derives target status and a history event after the
+// source changes to contentHash. Both backends use it.
 //
-// A decision is about a PAIRING — this translation, of this source — and it is
-// a fact that is never rewritten. So the projection is re-derived rather than
-// only demoted: when the source moves away from the wording a decision blessed,
-// the projection drops to the presence baseline; when it moves BACK to that
-// wording with the translation still intact, the same decision applies again
-// and the unit needs no second review. A decision with no recorded basis grades
-// nothing — unknown is not a match — and leaves a row that is not an approval
-// exactly where it stands.
+// Decisions retain the source/target pairing reviewed. A different source lowers
+// status to the presence baseline. If the original source returns and the target
+// is unchanged, the prior decision applies again. A decision without a recorded
+// basis cannot establish a match and leaves a non-approved target unchanged.
 func SettleDecisionProjection(p DecisionProjection, contentHash string) (status, event string, changed bool) {
 	if p.DecisionStatus != "" && p.DecisionBasis != "" && p.DecisionBasis == contentHash &&
 		(p.DecisionTargetHash == "" || state.TargetHash(p.TargetText) == p.DecisionTargetHash) {

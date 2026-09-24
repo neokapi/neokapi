@@ -80,15 +80,9 @@ func (q *ChannelQueue) Enqueue(_ context.Context, jobID string) error {
 	}
 }
 
-// EnqueueAfter makes ChannelQueue a [DelayedQueue] by parking the re-enqueue on
-// a timer. The timer goroutine is fire-and-forget by necessity — the caller was
-// told the deferral was accepted and has already moved on — but a deferred job
-// is one the system promised to run again, so the send waits for room rather
-// than abandoning the job on a full buffer. That distinction matters: a full
-// buffer is precisely the load that produces retries, so dropping there loses
-// the jobs most in need of running. The delay is honored against ctx so a
-// shutting-down worker does not leave timers behind, and the two remaining ways
-// the send can fail — a closed queue, a cancelled context — are logged.
+// EnqueueAfter schedules a job on ChannelQueue after a delay. The send waits
+// for buffer space so load does not discard deferred work. Context cancellation
+// stops the timer; failed sends caused by cancellation or queue closure are logged.
 func (q *ChannelQueue) EnqueueAfter(ctx context.Context, jobID string, delay time.Duration) error {
 	if delay <= 0 {
 		return q.Enqueue(ctx, jobID)
@@ -162,10 +156,8 @@ func (q *ChannelQueue) Dequeue(ctx context.Context) (string, func(), func(), err
 		}
 		ack := func() {} // channel dequeue is already consuming
 		nack := func() {
-			// Returning the job to the queue is the whole point of a nack, so
-			// wait for room rather than dropping it. enqueueWaiting also takes
-			// q.mu, which a bare send did not: sending on the channel after
-			// Close had closed it would panic the worker.
+			// Wait for queue capacity when re-enqueuing a rejected job.
+			// enqueueWaiting also holds q.mu to prevent sends after Close.
 			if err := q.enqueueWaiting(ctx, jobID); err != nil {
 				slog.Error("nacked job was not re-queued", "job_id", jobID, "error", err)
 			}

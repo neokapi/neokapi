@@ -151,31 +151,21 @@ func (e *flowFileError) Unwrap() error { return e.Err }
 // flowMetricsIntervalDefault paces the pipeline-metrics snapshots.
 const flowMetricsIntervalDefault = 200 * time.Millisecond
 
-// RunFlowAllLocales executes a project flow across every locale pass it
-// applies to — the one multi-locale flow orchestrator shared by the kapi
-// CLI and Kapi Desktop (the desktop adapts the sink to Wails run events).
-// It owns the four concerns the desktop used to hand-roll:
+// RunFlowAllLocales executes each applicable locale pass of a project flow for
+// the CLI and desktop. The desktop adapts the sink to Wails run events.
 //
-//   - Locale-pass selection: flow.ResolveFlowLocales — the single
-//     applicability-based answer to "which locales does this flow run for"
-//     (tool cardinality + tool default locales + project targets). This is
-//     deliberately NOT convergence's need-based selection ("which locales
-//     still have work", cli/converge.go localesNeedingPass) — a flow run
-//     applies the flow; convergence reconciles remaining work.
-//   - Per-pass tool assembly: the CLI's project tool-building semantics
-//     (buildProjectFlowTools) — resource-ref resolution, project bindings,
-//     content memory injection, the AD-006 placement gate — including the per-tool
-//     cleanup contract the desktop's former copy leaked.
-//   - Per-file execution: sequential, file-writing (output paths resolved
-//     through the canonical project target resolver). The CLI's in-project
-//     process-only default (AD-026) is a different sink binding and stays
-//     with `kapi run`'s cobra path.
-//   - Event emission: the FlowRunEvent stream on the sink (nil = discard).
+// flow.ResolveFlowLocales selects passes from tool cardinality, tool defaults
+// and project targets. Unlike convergence's localesNeedingPass, it selects all
+// applicable passes without checking whether work remains.
 //
-// A source-only flow (all tools monolingual) runs once with no target. The
-// run stops at the first error, returned as a typed FlowToolBuildError or
-// flowFileError; context cancellation is not an error — the run completes
-// early with the files processed so far.
+// Each pass builds tools with resource references, project bindings, content
+// memory and placement validation, then cleans up those tools. Files execute
+// sequentially and write to resolved project target paths. The process-only
+// binding used by kapi run (AD-026) remains in the Cobra command path.
+//
+// Events are delivered to sink, or discarded when it is nil. A source-only flow
+// runs once without a target. The first failure returns FlowToolBuildError or
+// flowFileError. Cancellation completes early with the files processed so far.
 func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink RunEventSink) (*FlowRunResult, error) {
 	ctx = ctxOrBackground(ctx)
 	a.InitRegistries()

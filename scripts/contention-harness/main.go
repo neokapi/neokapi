@@ -175,12 +175,10 @@ func (m topology) real() bool { return m == topoProjectDB }
 
 // ─── Store paths ────────────────────────────────────────────────
 
-// storePaths resolves where each subsystem's database lives under a project
-// root, for one topology. Two subsystems sharing a path is the whole point:
-// the constructors accept it (the migration ledgers are separately named —
-// `cache_migrations`, `sievepen_migrations`, `termbase_migrations`, `state` —
-// and the table namespaces do not collide), so merging is a matter of
-// pointing them at the same file.
+// storePaths resolves each subsystem's database path for a topology.
+// Subsystems can share one file because their table namespaces and migration
+// ledgers (cache_migrations, sievepen_migrations, termbase_migrations and state)
+// are distinct.
 type storePaths struct {
 	memory string
 	terms  string
@@ -1007,11 +1005,9 @@ func openParentStores(ctx context.Context, root string, p storePaths, cfg config
 		return nil, err
 	}
 
-	// The shipped store needs no `write` wrapper at all: the permit is taken
-	// inside core/storage, by the same BeginTx and ExecContext every subsystem
-	// already calls. That absence is the point of this mode — in merged-gated
-	// the wrapper is what makes the numbers, and here nothing in the harness
-	// is doing anything.
+	// The shipped store acquires write permits inside core/storage's BeginTx
+	// and ExecContext. This mode exercises that gate without a harness wrapper;
+	// merged-gated uses the harness wrapper instead.
 	if cfg.mode.real() {
 		db, err := openRealProject(ctx, root, p)
 		if err != nil {
@@ -1199,16 +1195,10 @@ func convergeSim(ctx context.Context, ps *parentStores, cfg config, rec *recorde
 	return nil
 }
 
-// memoryRebuildSim is the content memory's FTS5 rebuild: DELETE followed by
-// INSERT … SELECT over whole tables, twice, once mid-run. It is the largest
-// single write the content memory ever makes, and under a merged store it
-// holds the same lock every other subsystem needs.
-//
-// It is also where this harness found a bug rather than a number: both rebuilds
-// used to issue their statements on context.Background(), so a write measured in
-// seconds could not be stopped by the caller that asked for it. They take a ctx
-// now, and it is the run's — which is why a rebuild still in flight at the end
-// of the window is cancelled rather than holding the store past it.
+// memoryRebuildSim models the content memory's FTS5 rebuild with DELETE and
+// INSERT ... SELECT over whole tables. In a merged store, the rebuild holds
+// the same write lock as every other subsystem. Both rebuilds use the run's
+// context so cancellation releases the store when the measurement window ends.
 func memoryRebuildSim(ctx context.Context, ps *parentStores, cfg config, rec *recorder) error {
 	select {
 	case <-ctx.Done():
@@ -1370,13 +1360,10 @@ type childHandle struct {
 	out  *strings.Builder
 }
 
-// startChild re-execs this binary in the given role. Goroutines sharing the
-// parent's pools would exercise SQLite's IN-process locking, which is not what
-// a `kapi status` beside a converge run does, and — more importantly for the
-// gated topology — an in-process write gate can only order writers that hold
-// the same handle. Running the status poller and the long extraction
-// transaction as real processes keeps two writers the gate cannot reach, so
-// the file-level lock is still genuinely contended.
+// startChild re-execs this binary in the given role. Separate processes
+// exercise file-level SQLite contention between a status poller and a long
+// extraction transaction. An in-process write gate cannot serialize these
+// writers because they do not share a handle.
 func startChild(ctx context.Context, role string, cfg config) (*childHandle, error) {
 	exe, err := os.Executable()
 	if err != nil {

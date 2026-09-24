@@ -13,24 +13,15 @@ import (
 	"github.com/neokapi/neokapi/memory/kmb"
 )
 
-// The governing context, on the way back in.
+// Compiling a content-memory bundle can restore a unit's governing fingerprint
+// from kmb.Origin.ContextFP to state.UnitState.GoverningFingerprint. Conversely,
+// the absorber copies that fingerprint from the decision record into the bundle
+// when learning a committed target.
 //
-// A content-memory bundle carries, beside each answer, the fingerprint of the
-// context the answer stands under (kmb.Origin.ContextFP). The decision record
-// carries the same value for the unit the answer was recorded for
-// (state.UnitState.GoverningFingerprint), and the two are written from each
-// other: the absorber lifts the record's fingerprint into the bundle when it
-// learns a committed target. Compiling a bundle into the store closes the loop
-// in the other direction, so a checkout whose record never held the fingerprint
-// (a record written before the field existed, a ledger rebuilt from a venue)
-// gains it from the bundle git carries, and the absorber that runs after the
-// compile finds it where it looks.
-//
-// Only a row that exists and describes the bundle's answer is written: the
-// record is the durable source, so a fingerprint it already holds stands, and
-// a row whose translation hash names other wording is about a different
-// answer. No row is created, because a bundle carries answers and the context
-// they stand under, never the decisions themselves.
+// Restoration updates only an existing record whose translation hash matches the
+// bundle's wording and whose fingerprint is empty. Existing fingerprints are
+// preserved. Bundles carry content and context, so they cannot create decision
+// records on their own.
 
 // compileMemoryBundle imports one committed content-memory bundle into the
 // project store and carries each entry's governing context back onto the

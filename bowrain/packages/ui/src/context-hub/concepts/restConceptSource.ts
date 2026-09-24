@@ -1,19 +1,11 @@
-// RestConceptDataSource — drives the framework concept UI (@neokapi/concept-ui)
-// against bowrain's REST surface through an ApiAdapter (AD-021). This is the
-// bowrain replacement for the deleted whole-graph view: the SAME components that
-// kapi-desktop runs against a local terms here get the FULL feature set —
-// every rich read (named markets, observations, comments, a revision timeline,
-// where-used) and governance-aware editing.
+// RestConceptDataSource connects @neokapi/concept-ui to Bowrain's REST API through
+// ApiAdapter. Web and desktop adapters share this factory. It maps wire DTOs to
+// concept-ui types and provides markets, observations, comments, revision history
+// and usage data.
 //
-// One factory builds the source for both workspace adapters (web RestApiAdapter,
-// desktop WailsApiAdapter — both implement ApiAdapter), so the source maps the
-// snake_case wire DTOs onto the camelCase concept-ui view types and threads
-// bowrain's governance through the edit methods: a governed transition (a term
-// status to/from forbidden/preferred, un-forbidding a term, or a REPLACED_BY
-// relation) is refused by the server with a 409 and a change-set hint. The source
-// catches that and surfaces it as a typed {@link GovernedEditError} (and an
-// optional onGovernedEdit callback) so the consuming view can offer "open it as
-// an experiment" instead of failing silently. Ordinary edits apply directly.
+// Ordinary edits apply directly. Governed edits refused with a 409 and change-set
+// hint become GovernedEditError, allowing the view to offer a change-set workflow.
+// An optional onGovernedEdit callback receives the same refusal.
 
 import type {
   Comment,

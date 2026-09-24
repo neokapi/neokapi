@@ -6,17 +6,13 @@ import { useSectionSignals } from "../useSectionSignals";
 import { SECTION_PLANS } from "../sections";
 import plansCatalog from "../generated/plans.json";
 
-// ── Facts (generated) vs marketing copy (hand-authored) ──────────────────────
-// The FACTUAL fields — plan ids, display credits, seat/project limits, per-seat
-// and self-serve flags — come from plans.json, which is generated from
-// bowrain/billing/plans.go by `go generate ./...` and drift-gated by
-// billing/plans_gen_test.go. Change a credit allowance or limit there and
-// regenerate; never hand-edit the numbers here.
+// Plan IDs, credit allowances, limits and billing flags come from plans.json,
+// generated from bowrain/billing/plans.go and checked by plans_gen_test.go.
+// Change those values in Go and regenerate the JSON.
 //
-// Everything below is hand-authored marketing copy the backend has no equivalent
-// for — dollar prices (they live in Stripe, DECISIONS L4), descriptions, feature
-// phrasing, icons, and CTA labels — keyed by plan id and woven together with the
-// generated facts at render time.
+// Descriptions, icons, CTA labels and dollar prices are authored here and joined
+// to generated fields by plan ID. Dollar prices are configured in Stripe
+// (DECISIONS L4).
 
 type PlanId = "free" | "pro" | "team" | "enterprise";
 

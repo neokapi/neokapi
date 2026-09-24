@@ -191,8 +191,8 @@ func runBlockQueryCases(t *testing.T, s blockQueryStore) {
 	})
 }
 
-// The editor filters and counts blocks server-side: one query answers the
-// progress bar the surfaces used to derive by downloading every block.
+// Verify that server-side filtering and counts supply editor progress without
+// requiring clients to download every block.
 func TestBlockQueryFilters_SQLite(t *testing.T) {
 	s, err := sqlitestore.NewSQLiteStore(t.TempDir() + "/store.db")
 	require.NoError(t, err)

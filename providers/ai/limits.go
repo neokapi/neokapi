@@ -4,18 +4,10 @@ import (
 	"context"
 )
 
-// What a model can actually emit — and why anyone should care.
-//
-// For translation, output size tracks input size: translating N tokens produces
-// roughly N tokens. So the constraint on "how much can we translate in one call"
-// is not the context window (1M on current frontier models) but the *max output*
-// (128k at best, 64k on Gemini, and far less if you don't ask for it). The two
-// differ by an order of magnitude, and the smaller one binds.
-//
-// kapi used to send a fixed 100 blocks per call with max_tokens defaulted to
-// 4096. Anything longer than a UI string overflowed that, the reply came back
-// truncated mid-JSON, and the run died with "unmarshal response" — a bug whose
-// real cause was that nothing in the system knew what the model could emit.
+// Translation batch sizing must account for output limits as well as input
+// context. Output grows with the source text, and exceeding the response budget
+// can truncate structured output mid-JSON. Providers expose these limits so the
+// caller can size batches and request an appropriate output budget.
 
 // Limits describes the hard ceilings of a configured model.
 type Limits struct {
@@ -28,20 +20,13 @@ type Limits struct {
 	ContextWindow int
 }
 
-// ConservativeMaxOutputTokens is what we assume when a model is unknown to us —
-// a plugin provider, a self-hosted endpoint, a model newer than this table. Low
-// enough that every current model honours it, so an unknown model produces a
-// smaller batch rather than a truncated response.
+// ConservativeMaxOutputTokens is the fallback output budget for providers or
+// models without declared limits, including plugins and self-hosted endpoints.
 const ConservativeMaxOutputTokens = 4096
 
-// NonStreamingMaxOutputTokens caps what we will ask for on a non-streaming call.
-//
-// The model ceilings below are the *streaming* ceilings. Asking a synchronous
-// request to produce 128k tokens is a request to hold an HTTP connection open
-// for many minutes, and the provider SDKs warn against it above roughly this
-// mark. So the ceiling that applies to a blocking call is this one, not the
-// model's — the model's ceiling is only reachable by streaming or via a batch
-// API.
+// NonStreamingMaxOutputTokens caps synchronous request budgets even when a
+// model supports larger responses. Large outputs can hold an HTTP connection
+// open for minutes; streaming and batch APIs have different constraints.
 const NonStreamingMaxOutputTokens = 16_000
 
 // EffectiveMaxOutputTokens is the ceiling that actually applies to a blocking
@@ -72,15 +57,9 @@ func LimitsOf(p LLMProvider) Limits {
 	return Limits{MaxOutputTokens: ConservativeMaxOutputTokens}
 }
 
-// LimitsForModel resolves a model ID to its known ceilings by longest-prefix
-// match, returning ok=false for a model this build has never heard of.
-//
-// The ceilings live in the model catalog (models.json), not a table here: a
-// model's output limit is a fact about the model, and it belongs with the model's
-// provider, status, and lifecycle rather than in a parallel map that has to be
-// kept in step by hand. An entry with no declared ceiling (a local Ollama model,
-// whose limit depends on the pulled quantisation) reports ok=false and falls back
-// to the conservative default, exactly as an unknown model does.
+// LimitsForModel resolves a model ID by longest-prefix match in models.json.
+// It returns ok=false for an unknown model or an entry without a declared output
+// limit, allowing the caller to use the conservative fallback.
 func LimitsForModel(model string) (Limits, bool) {
 	m, ok := ModelForID(model)
 	if !ok || m.MaxOutputTokens == 0 {

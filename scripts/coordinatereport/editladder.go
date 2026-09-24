@@ -25,9 +25,8 @@ import (
 // Measured on every run, because the answer depends on the scorer and the
 // scorer can change under us.
 
-// ladderOriginal is a realistic sentence rather than a two-word button. Length
-// is the whole point: a period is 8% of "Get started" and 1.7% of a sentence,
-// so a short fixture would answer a question nobody has.
+// ladderOriginal provides a full-sentence fixture. Edit percentages depend on
+// source length, so a two-word label alone would not represent ordinary prose.
 const ladderOriginal = "Click the button below when you're ready to continue with your account setup"
 
 const ladderTarget = "Klikk på knappen nedenfor når du er klar til å fortsette med kontooppsettet"
@@ -106,7 +105,7 @@ type LadderRung struct {
 	Diverges bool `json:"diverges,omitempty"`
 }
 
-// EditLadder is the whole measurement plus what it implies.
+// EditLadder records edit classification and reuse results.
 type EditLadder struct {
 	Original string       `json:"original"`
 	Target   string       `json:"target"`

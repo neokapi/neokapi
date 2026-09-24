@@ -182,19 +182,15 @@ func recordExecTrust(recipePath, digest, decision string) error {
 // what it would run, and how to answer.
 var ErrExecNotTrusted = errors.New("project not approved to run commands")
 
-// ensureExecTrust is the gate. It is a no-op for the overwhelming majority of
-// recipes, which name no exec-class step at all.
+// ensureExecTrust checks authorization for recipe-supplied commands.
+// It applies the first matching rule:
 //
-// Order of resolution:
-//
-//  1. No exec sites — nothing to decide.
-//  2. KAPI_TRUST_EXEC set affirmatively — granted for this process, not
-//     recorded (CI is stateless, and a container's config dir is not a place
-//     to persist a decision).
-//  3. A recorded decision at the current digest — honoured, silently.
-//  4. A terminal — show what would run, ask, record the answer.
-//  5. Otherwise — refuse. A non-interactive run has nobody to ask, and
-//     assuming yes would make the gate a formality.
+//  1. Recipes without exec sites need no authorization.
+//  2. An affirmative KAPI_TRUST_EXEC grants access for this process without
+//     persisting a decision.
+//  3. A recorded decision for the current exec-surface digest applies.
+//  4. An interactive terminal prompts and records the decision.
+//  5. Other runs return ErrExecNotTrusted.
 func (a *App) ensureExecTrust(recipePath string, proj *project.KapiProject, opts LoadProjectInteractiveOptions) error {
 	sites := project.ExecSurface(proj)
 	if len(sites) == 0 {

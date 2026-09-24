@@ -79,12 +79,9 @@ func TestFilesFromShellHandlesAbsolutePaths(t *testing.T) {
 	assert.Equal(t, "README.md", relToRepo(got[0], dir), "and it is named relative to the tree")
 }
 
-// TestTheLabLoadsAProfileCarryingOnlyNotes.
-//
-// loadProfile treated every validation problem as fatal, so the moment tone
-// stopped being an enum the lab refused to start — on the very register kapi
-// had inferred from ripgrep's own documentation. A note is not a failure, and
-// the distinction only helps if every gate reads it the same way.
+// TestTheLabLoadsAProfileCarryingOnlyNotes verifies that advisory validation
+// notes do not prevent loading a profile. Free-form tone descriptions are valid
+// even when the validator does not recognize them.
 func TestTheLabLoadsAProfileCarryingOnlyNotes(t *testing.T) {
 	p, err := loadProfile()
 	require.NoError(t, err, "the embedded profile loads")

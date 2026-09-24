@@ -435,28 +435,16 @@ func BlockPropertyKeys(blocks []*model.Block) []string {
 	return slices.Compact(keys)
 }
 
-// ItemBlockKeys is the complete set of block keys each item a producer read
-// holds — the sibling declaration to BlockPropertyKeys, and the same idea one
-// level up: it scopes DELETION, never transfer.
+// ItemBlockKeys declares the complete block-key set for each item the producer
+// read. The receiver uses this declaration to remove obsolete blocks; transfer
+// selection is handled separately.
 //
-// The problem it solves is that a push carries only what changed, so what it
-// carries cannot say what an item no longer holds. A string deleted at source —
-// a paragraph removed, a `t()` call taken out — simply stops being sent, and a
-// far side that upserts what arrives and prunes nothing keeps the block for
-// good: still counted in the item's totals, still listed in its content, still
-// queued for review, still dragging the coverage a ship gate reads.
+// Changed-block payloads alone cannot express deletion. The declaration must be
+// computed from the full scan, rather than a diff against the uncommitted sync
+// cache, so deletion also works in a fresh CI checkout.
 //
-// A key set is a positive assertion — "this item holds exactly these" — and
-// that is what makes it safe to delete from. A diff against the local sync
-// cache would be the cheaper wire and the wrong answer in the case that
-// matters: the cache is not committed, so CI runs from a fresh clone with no
-// cache at all and would detect no deletion ever, in precisely the environment
-// the loop actually runs in.
-//
-// Computed over every block the producer read, and only for the items it read.
-// An item outside a scoped `kapi push <path>` is absent rather than empty, and
-// absence is silence: the far side prunes the items this producer described and
-// leaves every other one alone.
+// Only scanned items are included. An omitted item is outside the producer's
+// scope and must be preserved; an included item with no keys is empty.
 func ItemBlockKeys(blocksByItem map[string][]*model.Block) map[string][]string {
 	if len(blocksByItem) == 0 {
 		return nil

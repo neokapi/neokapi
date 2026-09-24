@@ -53,8 +53,8 @@ the floor — it must not `npm install -g npm@latest`, which breaks the bundled
 
 `publish-npm.yml` then builds all four packages in dependency order and
 publishes any whose current version isn't yet on npm. The version guard makes
-re-runs idempotent — a tag whose version is already published is a no-op, so
-re-pushing or `workflow_dispatch` is always safe.
+re-runs idempotent: versions already published are skipped, including when
+re-running a tag or using `workflow_dispatch`.
 
 You can also trigger the workflow manually (`workflow_dispatch`) as a fallback;
 it publishes whatever versions in `package.json` aren't yet on npm.

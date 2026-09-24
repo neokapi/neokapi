@@ -1,23 +1,11 @@
-// Comprehension signals for the landing narrative.
+// Landing-page visibility and interaction signals.
 //
-// The page makes one argument — content has coordinates, and rules follow them
-// — across six sections. Whether that argument survives contact with a stranger
-// is a question about *which sections they reach and stay in*, so the page
-// reports section arrival, per-section dwell, and engagement with the two
-// interactive proofs.
+// section_viewed fires once per section after a minimum visibility period;
+// position orders the analytics funnel. landing_engagement summarizes section
+// dwell and widget interactions once per visit when the page is hidden.
+// These events measure exposure and interaction, not comprehension.
 //
-// Two event shapes, deliberately:
-//
-//   section_viewed      one per section, the first time it is at least half on
-//                       screen for longer than a scroll-past. Ordered by
-//                       `position`, so PostHog reads it as a funnel.
-//   landing_engagement  one summary per visit, flushed when the page is hidden.
-//                       Dwell is per-section but arrives as properties of a
-//                       single event: forty dwell events per visit would price
-//                       the answer out of the plan and bury the funnel.
-//
-// Everything routes through captureLandingEvent, so a keyless build (local dev,
-// fork, PR preview) records nothing and loads no analytics code at all.
+// captureLandingEvent disables collection and analytics loading in keyless builds.
 
 import { captureLandingEvent } from "./analytics";
 

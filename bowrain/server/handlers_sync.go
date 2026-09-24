@@ -419,17 +419,9 @@ func (s *Server) HandleSyncProxyChunkUpload(c echo.Context) error {
 		return apiErr(c, http.StatusRequestEntityTooLarge, "chunk too large")
 	}
 
-	// Store chunk as a content-addressed blob. The worker later downloads each
-	// chunk by its hash (from the commit manifest), so we need the chunk to be
-	// accessible via BlobStore.Download(hash). Content-addressed Upload gives
-	// us a stable key that matches the SHA-256 the client computes.
-	//
-	// Which is why :uploadId and :chunkIndex are not read here. They used to be
-	// parsed into an UploadOptions.Filename — but the key is the content hash,
-	// and neither blob store reads Filename at all, so the parse fed nothing.
-	// An unparseable :chunkIndex silently became 0 and changed no outcome; a
-	// 400 for one would reject a request that is, as far as this endpoint is
-	// concerned, perfectly well formed.
+	// Store the chunk under its content hash so the worker can retrieve it with
+	// BlobStore.Download(hash). The hash matches the client's commit manifest.
+	// The route's uploadId and chunkIndex do not determine the storage key.
 	if _, err := s.BlobStore.Upload(c.Request().Context(), data, storage.UploadOptions{
 		ContentType: "application/octet-stream",
 	}); err != nil {

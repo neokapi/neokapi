@@ -2,7 +2,7 @@
 sidebar_position: 1
 title: Introduction
 slug: /introduction
-description: Bowrain is the context graph your people and agents plug into, the coordinates that fix voice and tone for a specific time, place and audience, held across every project and connected to the systems content already lives in.
+description: Bowrain shares writing guidance, terms and content memory across projects, with collaborative editing, review, automation and content connectors.
 keywords: [bowrain, context graph, profiles, coordinates, governance, connectors, content memory, review, automation]
 ---
 
@@ -10,23 +10,17 @@ import { SwimlaneDiagram, ThemedVideo } from "@neokapi/docs-shared";
 
 # Bowrain
 
-Bowrain is **the context graph your people and agents plug into**: the
-coordinates that fix voice and tone for a specific time, place and audience,
-recorded in a form a machine can read. Profiles, vocabulary and content memory
-are held on a server and shared across every project, person, and agent, with
-collaborative editing, review, automation, and version history around them.
+Bowrain shares writing guidance, terms and content memory across projects.
+Its context graph connects content to the rules that apply to its audience,
+channel, language and other coordinates. Teams work through web and desktop
+clients backed by a shared server.
 
-New to the idea? Start with **[The context graph](/getting-started/the-context-graph)**:
-what a profile is, what coordinates are, and why a rename is one decision and
-five different rules.
+Start with [The context graph](/getting-started/the-context-graph) for the model
+and an example of applying different rules to the same feature name.
 
-Content reaches a workspace from the systems it already lives in. A content
-platform, a design file, a code repository, and a developer's checkout are peer
-routes in, and everything is ordinary project content once it arrives: same
-governance, same review, same history.
-
-A team shares one workspace through a browser and a native desktop app. The
-hub, the editor, review, presence and history all live on the server.
+Connectors import content from content platforms, design tools, repositories
+and local checkouts. Imported content uses the same editing, review and version
+history features regardless of its source.
 
 <ThemedVideo
   sources={{
@@ -40,12 +34,9 @@ hub, the editor, review, presence and history all live on the server.
 
 ### Shared, versioned governance
 
-Profiles, vocabulary, and content memory held on the server and shared across
-everyone, writers, reviewers, and AI tools alike, instead of living in each
-person's checkout. Changes are versioned and auditable: who approved a term,
-when a profile changed, what a piece of text used to say. And the context
-_learns_: repeated corrections become versioned, enforced rules, so what a team
-discovers by correcting real output is captured instead of lost. See
+Projects share server-hosted voice profiles, terms and content memory. Version
+history records changes and approvals. Recurring corrections provide evidence
+for candidate rules that reviewers can promote into a profile. See
 [Voice and corrections](/server/context-voice).
 
 ### Governed review
@@ -72,10 +63,9 @@ and publishes back to where it came from. See [Connectors](/server/connectors).
 
 ### AI that knows where it is
 
-The workspace's governed vocabulary, content memory, and voice checks are
-the context an AI agent reads, over [MCP](/cli/mcp), so generated and adapted
-copy is on-voice from the first draft, and corrections flow back into the
-shared, enforced checks.
+AI assistants can retrieve workspace terms, content memory and voice guidance
+over [MCP](/cli/mcp). Checks assess generated text against that guidance, and
+recorded corrections provide evidence for future rules.
 
 ### Automation
 
@@ -85,9 +75,8 @@ review completes: shared, event-driven workflows for the whole workspace. See
 
 ### Stewardship over time
 
-A persistent, versioned content store keeps the history of every block, branch,
-and language, so the work compounds: vocabulary decisions, voice corrections,
-and remembered text stay with the project as people and tools come and go.
+The content store records block history across branches and languages. Terms,
+corrections and approved wording remain available as project contributors change.
 
 ## How it fits together
 
@@ -132,6 +121,5 @@ and remembered text stay with the project as people and tools come and go.
 
 Bowrain is built on [kapi](https://neokapi.github.io/), the Apache-2.0
 toolchain that holds the context graph for one project and runs on its own,
-directly on files, with no server or account. Nothing is withheld from it.
-Reach for Bowrain when the graph has to reach further: several projects,
-several surfaces, hosted review, or a team working together.
+directly on local files without a server or account. Bowrain adds shared
+context, hosted review and collaboration across projects.

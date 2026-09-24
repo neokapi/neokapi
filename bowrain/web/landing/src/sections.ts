@@ -1,17 +1,8 @@
 import type { SectionSpec } from "./sectionSignals";
 
-// The narrative order, single-sourced.
-//
-// The page tells one argument monolingual-first: a rename is one decision and
-// five different rules (2), so content has coordinates (3), which the work
-// itself keeps current (4), enforced by checks you can run (5) — and a language
-// is then one more coordinate, not a second product (6). `position` is what the
-// section_viewed funnel is ordered by, so it is the narrative index, not the
-// DOM index: the tail sections a buyer reads out of order (apps, licensing,
-// plans) sit after the six beats and never displace them.
-//
-// Each object is a stable module constant because useSectionSignals takes it as
-// an effect dependency; an inline literal would re-subscribe on every render.
+// Stable section IDs and analytics positions. Position follows the intended
+// reading order, independently of DOM placement. Keep these as module constants:
+// useSectionSignals uses each object as an effect dependency.
 export const SECTION_HERO: SectionSpec = { id: "hero", position: 1 };
 export const SECTION_RENAME: SectionSpec = { id: "rename", position: 2 };
 export const SECTION_HOW: SectionSpec = { id: "how", position: 3 };

@@ -14,9 +14,9 @@ artifact rather than by track. The server, worker, web and desktop are AGPL-3.0.
 The **`kapi-bowrain` plugin is Apache-2.0** (`bowrain/plugin/LICENSE`): it is
 built from `bowrain/plugin/` and links nothing else under `bowrain/`, so it is a
 client of the server rather than a part of it. `make check-module-boundaries`
-asserts that linkage on every pull request, because the plugin manifest, the
-plugin registry and the Homebrew formula all declare Apache-2.0 and a new import
-is all it would take to make them wrong.
+checks that dependency boundary on every pull request. The plugin manifest,
+registry entry and Homebrew formula declare Apache-2.0 and must remain
+consistent with the binary's dependencies.
 
 Every archive on both tracks carries the license text of the work inside it,
 staged by `scripts/package-cli.sh` and gated by
@@ -43,12 +43,10 @@ edited in that script's plugin table, never in the tap. `kapi-sat` and
 > Cut a `bowrain-v*` release from a commit whose plugin matches a released kapi:
 > they need not be the same commit, but keep them close.
 >
-> One half of that is enforced. `TestShippedClientEndpointsAreRegistered`
-> (`bowrain/server/protocol_surface.go`) holds the server to answering every
-> stream endpoint any released plugin calls, so deleting a route with the client
-> change that stopped using it fails in CI rather than in someone's nightly.
-> Nothing yet checks the other direction, where a new plugin needs a server the
-> deployment has not got.
+> `TestShippedClientEndpointsAreRegistered`
+> (`bowrain/server/protocol_surface.go`) verifies that the server retains every
+> stream endpoint used by released plugins. Compatibility of a new plugin with
+> an older deployed server still requires a separate check.
 
 ### Coordinated (simultaneous) release
 

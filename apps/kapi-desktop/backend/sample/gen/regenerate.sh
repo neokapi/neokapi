@@ -15,7 +15,7 @@
 #
 #   kapimart/src/<locale>/*.{json,properties}   the committed targets
 #   kapimart/context/memory/memory.json           memory, every entry with a unit
-#   kapimart/context/state/*.jsonl                the approvals that blessed them
+#   kapimart/context/state/*.jsonl                their approval records
 #
 # Everything else stays untranslated on purpose. A file is committed only when
 # the historic translations cover it well enough to ship without English

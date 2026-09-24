@@ -1958,30 +1958,16 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName string, 
 	return streamIntoRecorder(ctx, reader, rec, path)
 }
 
-// streamIntoRecorder drains the reader once, appending every part to rec (when
-// there is one) and collecting the translatable blocks. rec may be nil — no cache
-// configured, or another worker already recording this document — in which case
-// it is a plain collecting read.
+// streamIntoRecorder reads each part once, optionally records it, and collects
+// content blocks. rec may be nil when caching is disabled or another worker is
+// already recording this document.
 //
-// The recorder's errors are HANDLED, never discarded:
+// An Add failure aborts recording: committing a partial document would make later
+// cache reads omit blocks and inflate coverage percentages. A Commit failure
+// aborts internally, leaving the next read to parse the source again.
 //
-//   - A dropped Add error was a *persistent* correctness fault, not a missed
-//     optimization. The part never reached the append log, yet Commit still wrote
-//     the index row — so every later read of this (path, config) replayed a SHORT
-//     document as if it were complete. Coverage's denominator is that block count,
-//     so the vanished units simply stopped existing and the locale's percentage
-//     climbed, sticky until the source changed or `.kapi/work/cache` was deleted. A
-//     document that cannot be fully recorded is therefore not recorded at all:
-//     Abort, stop recording, and let the next read re-parse the file. This is the
-//     handling core/flow's recordDocument has always had; the asymmetry was the bug.
-//
-//   - Commit's own failure is safe to degrade on (it aborts internally, so no index
-//     row is written and the next read is an honest miss).
-//
-// Both are still REPORTED. The read itself is unaffected — blocks come straight
-// from the reader, not from the recorder — so neither fails the command; but a
-// cache that silently never fills presents as nothing except an inexplicably slow
-// project, which is its own kind of swallowed error.
+// Both errors are reported without failing the command. The returned blocks come
+// directly from the reader and remain complete even when recording fails.
 func streamIntoRecorder(ctx context.Context, reader format.DataFormatReader, rec flow.DocumentRecorder, path string) ([]*model.Block, error) {
 	var blocks []*model.Block
 	for result := range reader.Read(ctx) {

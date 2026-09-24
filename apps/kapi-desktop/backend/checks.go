@@ -571,17 +571,12 @@ func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName string, fmt
 	return a.checksCLI().ReadBlocksForCheck(ctx, path, fmtName, fmtCfg, sourceLang)
 }
 
-// pointResolver answers what governs a file — the voice profile and the
-// vocabulary — at that file's own point, once per point.
+// pointResolver caches the voice profile and vocabulary for each resolved
+// channel reference. Files at the same context point share governance.
 //
-// A project binds both per profile, so the pair governing a file is the pair at
-// its point. Resolving once for the project and applying it everywhere checks
-// half a two-profile repository against the wrong rules, and reports each
-// finding against a point it did not use.
-//
-// Both resolutions read from disk, so each point is resolved once and reused.
-// The key is the resolved channel reference rather than the file: every file at
-// a point shares its governance, which is what makes the point the unit.
+// Resolution is per point because profiles can bind different voice and terms
+// stores. Applying one project-wide result would check files against the wrong
+// rules and attach incorrect governance coordinates to the findings.
 type pointResolver struct {
 	err  error // resolution error; strict check callers must inspect it
 	app  *App

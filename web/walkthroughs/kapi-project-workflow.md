@@ -19,37 +19,28 @@ scenes:
 
 ## Story
 
-A `.kapi` project is the day-to-day working model: capture the languages, the
-content globs, and the flows once in a committed recipe, then drive the project
-without repeating flags. The recipe sits beside a `.kapi/` state directory —
-the project store that accumulates block overlays and content memory as
-you work.
+A project recipe declares languages, content paths and flows so commands can
+reuse those settings. The checkout's derived working data sits under `.kapi/`;
+content memory and other authored context are held in the workspace.
 
-The verb that drives it is `kapi up`. It treats the recipe as the desired
-state: it runs the project's flow across every target locale, pass after pass,
-until each ship gate is met or the remainder parks for a person. `kapi status`
-shows the derived standing before and after — a locale that is behind is
-pending work, never a build failure.
+`kapi up` runs the project's flow across target locales until the ship gates are
+met or remaining work requires a person. `kapi status` reports progress. Missing
+target translations are pending work and do not fail an ordinary build.
 
-Under the hood, `up` loops plumbing you can run by hand. `kapi run <flow>`
-executes one pass of one named flow; inside a project a pass is
-**process-only** — it commits results to the project store rather than writing
-files. `kapi merge` materializes the localized files from the store. And when
-a person does the translating, `kapi extract` emits a bilingual file
-pre-filled from the content memory, and `merge` applies the return.
+The individual steps are also available directly. `kapi run <flow>` executes one
+pass and stores its results; `kapi merge` writes the target files. For a human
+translator, `kapi extract` emits a bilingual file pre-filled from content memory,
+and `merge` applies the returned translations.
 
 ## Scene 1 — project-workflow (terminal)
 
-Scaffold a project with `kapi init`, list the tracked content with `kapi ls`,
-seed the project content memory with `kapi memory import`, and read the
-before-grid with `kapi status`. Then `kapi up` brings the project up to date —
-the recipe's content memory-only flow fills real `fr` targets, no LLM, fully offline. The
-closing beats run the plumbing by hand: one `kapi run` pass into the store,
-`kapi merge` to write `messages.fr.json`, the after-grid at 100%, and
-`kapi extract` as the translator handoff.
+Create a project with `kapi init`, list its content with `kapi ls`, import the
+content-memory bundle and inspect `kapi status`. Run `kapi up`; the example's
+content-memory-only flow fills the French targets without a model call. Then
+show the individual `kapi run` and `kapi merge` steps, inspect the resulting
+coverage, and use `kapi extract` to prepare a translator handoff.
 
 ## Closing
 
-Commit the `kapi.yaml` recipe and anyone who clones the repository brings the
-same project up to date with one command — the recipe is the portable contract,
-and `kapi up` is the verb that reconciles reality to it.
+Commit `kapi.yaml` to share the workflow settings. Export or snapshot authored
+context when another checkout needs the same terms, memory and review decisions.

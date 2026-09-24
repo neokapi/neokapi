@@ -290,23 +290,13 @@ func (s sweepArmScore) Rate() float64 {
 	return float64(s.Adherent) / float64(s.Total)
 }
 
-// scoreSweepBlocks scores translated fixture blocks deterministically with the
-// REAL core check tools — the same ones the convergence loop's checks pass
-// runs (no LLM judge, zero extra AI spend):
+// scoreSweepBlocks uses deterministic checks to score translated fixtures:
+//   - term-check requires prescribed target renderings of source terms;
+//   - dnt-check requires protected source terms to remain unchanged;
+//   - MatchVocabulary and CalculateScore assess voice vocabulary against the
+//     profile's ComplianceBar.
 //
-//   - term-check (core/tools): every ruled source term present in the
-//     source must have its mandated rendering in the target — read back from
-//     the tool's term-check-passed property;
-//   - dnt-check (core/tools): every DNT term present in the source must
-//     survive verbatim into the target — read back from the tool's
-//     do-not-translate findings on the unified quality.findings annotation;
-//   - brand vocabulary: coreprofile.MatchVocabulary over the target plus the
-//     profile's compliance bar (coreprofile.CalculateScore ≥ ComplianceBar) — the same
-//     zero-AI matcher behind persistDraftVoiceScores and every HTTP scoring
-//     surface.
-//
-// A fixture whose block came back without a target counts as non-adherent: a
-// model that fails to produce is the worst possible adherence.
+// Missing targets count as non-adherent. Scoring makes no additional AI calls.
 func scoreSweepBlocks(ctx context.Context, blocks []*model.Block, locale model.LocaleID, sc *SweepContext) (sweepArmScore, error) {
 	score := sweepArmScore{Total: len(blocks)}
 	if len(blocks) == 0 {

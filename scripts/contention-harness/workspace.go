@@ -1,42 +1,23 @@
 package main
 
-// The workspace topology measures the store as it ships after the split: a
-// projection per checkout inside the tree, and one context store per project in
-// the user's workspace, shared by every checkout and every process.
+// The workspace topology measures a projection per checkout and one context
+// store per project, shared by checkouts and processes.
 //
-// The question it answers is the one the split creates. The context store is
-// now written by everything at once — an agent's MCP server recording an
-// observation, a review loop recording a decision, the desktop reading to
-// redraw — where before each checkout had a file of its own. The shape measured
-// here is deliberately the worst one the design admits:
+// The workload uses 16 agent processes writing decisions and promoting wording
+// to content memory every tenth round, a desktop process polling for changes,
+// and a CLI process running a long projection purge-and-refill transaction with
+// context writes between passes. This measures whether projection writes remain
+// isolated from concurrent context-store activity.
 //
-//	16 agent processes   each in a checkout of its own, writing small
-//	                     transactions into the SHARED context store: a decision
-//	                     into the unit working set every round, and wording
-//	                     promoted into the content memory every tenth
-//	 1 desktop process   polling the same context store for change, read only
-//	 1 CLI process       holding a long purge-and-refill transaction over ITS
-//	                     OWN projection, plus a context write between passes
+// The pass criteria require zero failed writes and p99 latency below 50 ms for
+// small writes. The projection transaction and content-memory promotions are
+// reported separately from the small-write latency gate.
 //
-// The CLI process is what makes the run worth doing. Under the embedded layout
-// its extraction transaction held the only file, so every one of those agent
-// writes queued behind it; the claim the split makes is that it now holds a
-// file none of them touch. The run either shows that or it does not.
+// Decisions use a single upsert. Content-memory promotions also maintain FTS5
+// tables and become more expensive as the corpus grows. The -memory-every flag
+// controls their frequency; setting it to 1 measures a heavier write workload.
 //
-// Pass bar: zero failed writes, and p99 latency under 50 ms for the small
-// writes. The CLI's purge-and-refill is excluded from the latency half: it is a
-// transaction over thousands of rows and is in the run as the antagonist.
-//
-// The two agent rates are a model of what an agent does, and the gap between
-// them is the point. A decision is one upsert and costs about half a
-// millisecond. Teaching the content memory maintains the FTS5 tables row by row,
-// costs about 12 ms on a fresh store and 30 ms on a dogfood-sized one, and
-// happens when a decision blesses wording worth reusing rather than on every
-// decision. Run it at the decision rate (-memory-every=1) and the store
-// saturates at dogfood scale: sixteen agents offer 16 promotions a second
-// against a service rate near 33, and the tail goes with it.
-//
-//	go run -tags fts5 ./scripts/contention-harness -mode=workspace
+// 	go run -tags fts5 ./scripts/contention-harness -mode=workspace
 
 import (
 	"context"
@@ -77,8 +58,8 @@ const (
 	nWSCLIWrite = "WS cli      context write"
 )
 
-// workspaceContentionKey is the project every process in the run opens. One key
-// is the whole point: sixteen checkouts, one context store.
+// workspaceContentionKey makes every checkout and process use the same
+// project context store.
 const workspaceContentionKey = workspace.ProjectKey("prj_contention")
 
 // gatedStreams are the streams the latency half of the pass bar is read from:
@@ -383,12 +364,9 @@ func runAgentChild(ctx context.Context, checkout string, cfg config) error {
 		u.Status = model.TargetStatusReviewed
 		_ = rec.observe(nWSDecision, func() error { return work.Put(runCtx, u) })
 
-		// Teaching the content memory is a PROMOTION, not an observation: it
-		// happens when a decision blesses wording worth reusing, which is a
-		// fraction of the decisions. Modelling it at the decision rate measures
-		// a converge run rather than an agent, and the two have very different
-		// costs — a memory Add maintains the FTS5 tables row by row and grows
-		// with the corpus, where a unit-state write is one upsert.
+		// Promote only a fraction of decisions into content memory. Each promotion
+		// maintains FTS5 tables and costs more as the corpus grows, while a unit-state
+		// write is one upsert. Using the decision rate would model a heavier workload.
 		if cfg.memoryEvery > 0 && i%cfg.memoryEvery == 0 {
 			e := makeEntry((seed + i) % max(cfg.entries, 1))
 			e.Variants[model.LocaleID("nb")] = []model.Run{

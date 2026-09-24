@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: Format support & maturity
-description: "neokapi measures and publishes how good its support for each document format is: a support tier you can rely on (the promise) and a multi-axis maturity score (the vector), kept honest as formats and the models that work on them change."
+description: "How neokapi measures format support, publishes support tiers, and maintains evidence for each maturity score."
 keywords: [format maturity, format support, support tiers, maturity axes, format-ops, faithful format support, parity, CI gate]
 ---
 
@@ -9,20 +9,17 @@ import { LanesDiagram } from "@neokapi/docs-shared";
 
 # Format support & maturity
 
-neokapi's distinguishing capability is faithful, deep processing of many native
-document [formats](/framework/formats). The **format-ops framework** is how that
-capability is kept honest: it **measures** how good support for each format
-actually is, **publishes** a support level users can rely on, and **drives** the
-recurring work that improves it, as formats evolve and the models that work on
-them change.
+neokapi reads and writes native document [formats](/framework/formats). The
+**format-ops framework** measures each format's support against committed
+evidence, publishes the results, and schedules maintenance as formats and
+implementations change.
 
-Support is *measured and proven*, and the measurement is reproducible:
-re-running it, or running it under a newer model, yields the same answer.
+A deterministic scorer derives the maturity levels from that evidence. Repeated
+runs over the same evidence produce the same levels.
 
 ## Two artifacts, kept separate
 
-neokapi publishes two different things per format, and keeping them distinct is
-the point.
+Each format has a maturity score and a published support tier.
 
 <LanesDiagram
   handoff="headline tier = min over gating axes"
@@ -64,29 +61,23 @@ the point.
   CI gate that fails the build on a regression.
 
 The headline tier is derived as the **minimum over the gating axes**, never an
-average. A scalar average is where a measurement stops meaning anything; a format
-that is strong on one axis and weak on a gating axis is honestly capped at the
-weak one. The vector explains and bounds the tier (a tier may never claim more
+average. This prevents a high score on one axis from hiding a weakness on
+another gating axis. The vector explains and bounds the tier (a tier may never claim more
 than its gating axes support), but the published tier moves only by a
 human-approved promotion or demotion, and a tier claim is valid only while a CI
 gate enforces it.
 
 ## Why it exists
 
-neokapi reads, changes, and writes content in its native format and writes it
-back faithfully: the non-translatable skeleton returns byte-for-byte, and only
-the text changes (see [Formats](/framework/formats)). That faithfulness is the
-framework's edge, and an edge that is merely claimed decays silently. A model
-upgrade, an upstream specification revision, or a newly added format can erode it
-without anyone noticing.
-
-The format-ops framework exists so the claim stays measured. Each format carries
+Format readers and writers must preserve content and structure during edits
+(see [Formats](/framework/formats)). Changes to an implementation or an upstream
+specification can introduce regressions. Format-ops tracks the evidence needed
+to detect them. Each format carries
 committed evidence (its reader and writer, a specification, reference corpora,
 and the tests that exercise them) and the audit computes a level per axis from
-that evidence, not from opinion. When the evidence is removed or rots, the score
+that evidence, not from opinion. When evidence is removed or becomes stale, the score
 falls on the next run; when a gate stops running, the tier can no longer be
-claimed. The system is also designed to maintain itself, so the measurement does
-not lag the code that it measures (see [Keeping it
+claimed. Scheduled maintenance keeps the measurement current with the code (see [Keeping it
 alive](/framework/format-maturity/keeping-it-alive)).
 
 ## The live dashboard

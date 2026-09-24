@@ -4,13 +4,21 @@
 [![Docs: kapi](https://github.com/neokapi/neokapi/actions/workflows/docs-kapi.yml/badge.svg)](https://github.com/neokapi/neokapi/actions/workflows/docs-kapi.yml)
 [![Pages Deploy](https://github.com/neokapi/neokapi/actions/workflows/pages-deploy.yml/badge.svg)](https://github.com/neokapi/neokapi/actions/workflows/pages-deploy.yml)
 
-> **Experimental.** Neokapi is an ongoing experiment and not yet recommended for production use.
+> **Experimental.** neokapi is an ongoing experiment and not yet recommended for production use.
 
-neokapi is a format-aware content engine in Go: parse any format (JSON, Markdown, HTML, config, office formats) into one unified content model, edit the content inside it, check it, and write it back byte-for-byte. The same engine resolves the context that applies to a piece of content (the terms, voice and rules that hold there) and makes that content work in every language.
+neokapi is a content engine in Go. It reads documents into a common content
+model, runs editing and checking tools, and writes changes through format-aware
+writers. The context graph resolves the terms, voice guidance and recorded
+decisions that apply to each piece of content.
 
-The engine carries the [Okapi Framework](https://okapiframework.org/) heritage forward (channel-based concurrent processing and pluggable tools) in an AI-native design. It governs source content first: the terms, voice and rules that hold at a point in the project, resolved where a piece of content sits and enforced as checks you can run, alongside AI ingestion and programmatic editing over the same model. Multilingual content extends those coordinates: extraction, translation, content memory and a terms store, XLIFF/PO interchange, and an Okapi-parity fidelity story.
+The engine supports source-language checks and multilingual workflows,
+including translation, content memory reuse and XLIFF/PO interchange. Concurrent
+processing flows and pluggable tools build on concepts from the
+[Okapi Framework](https://okapiframework.org/). Format fidelity and check coverage
+are verified separately; see the [format documentation](web/docs/framework/formats.md).
 
-The bowrain platform (the same context graph held across every project, built on neokapi) lives under [`bowrain/`](bowrain/) with its own [README](bowrain/README.md).
+The Bowrain platform adds shared project context and server workflows. Its code
+and documentation are under [`bowrain/`](bowrain/README.md).
 
 ## Install
 
@@ -23,7 +31,7 @@ Pre-built binaries for Linux, macOS, and Windows (amd64 + arm64) are on the [Rel
 
 ## Repository layout
 
-The framework + kapi CLI live at the root. Companion areas are clearly marked.
+The repository contains the framework, kapi applications and Bowrain platform.
 
 ```
 core/                       Framework: content model, formats, tools, flows, plugin system

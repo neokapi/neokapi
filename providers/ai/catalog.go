@@ -7,33 +7,20 @@ import (
 	"strings"
 )
 
-// The model catalog is the single source of truth for the models kapi ships
-// support for — their ceilings, their provider, and their lifecycle.
+// The embedded models.json catalog defines supported models, limits, providers
+// and lifecycle metadata. Provider defaults and model lookups derive from it.
 //
-// It exists because that knowledge used to be scattered: a DefaultXModel constant
-// per provider, a prefix→ceilings map in limits.go, a price table under
-// scripts/batcheval, and nothing at all for the question a user actually asks —
-// "is this model current, or has it been superseded, and when does it retire?"
-// Four places to update when a vendor ships a model, and no place that answered
-// the lifecycle question. Now there is one file, and the rest derive from it.
-//
-// It is DATA (models.json, embedded), not code, and it is CURATED, not generated:
-// the vendors' APIs return what is live today as a flat list of ids, but they do
-// not say when a model entered neokapi, what replaced it, or when it retires. Those
-// are our facts about our support, and they have to be maintained by hand — with
-// `scripts/modelcheck` as the drift alarm that flags when the curated list and the
-// live one disagree. See scripts/prompts/update-model-catalog.md.
+// The catalog is curated because live provider listings do not describe neokapi's
+// support history or replacement recommendations. scripts/modelcheck detects
+// differences from live listings; see scripts/prompts/update-model-catalog.md for
+// maintenance instructions.
 
 //go:embed models.json
 var modelsJSON []byte
 
-// ModelStatus is where a model sits in its neokapi life.
-//
-// There is no "retired" status: a model the provider has stopped serving is
-// removed from the catalog outright, not kept as a tombstone. The catalog is the
-// list of models kapi supports, and a dead model supports nothing. An upcoming
-// retirement is recorded as a date on a still-live entry (RetirementDate), not as
-// a terminal state.
+// ModelStatus describes a supported model's lifecycle. Superseded models remain
+// callable. Upcoming retirements use RetirementDate; models no longer served are
+// removed from the catalog.
 type ModelStatus string
 
 const (

@@ -300,10 +300,9 @@ func TestReconcileContext_NoVoiceCarriesStructureOnly(t *testing.T) {
 	assert.Empty(t, profiles)
 }
 
-// TestReconcileContext_UnclaimedProjectReconcilesStructure pins the degraded
-// case: a project not claimed into a workspace has no brand hub to bind a voice
-// in, and the honest outcome is the structure without the governance rather
-// than a failed push.
+// TestReconcileContext_UnclaimedProjectReconcilesStructure verifies that an
+// unclaimed project can reconcile collections without binding workspace voice
+// profiles.
 func TestReconcileContext_UnclaimedProjectReconcilesStructure(t *testing.T) {
 	deps := newContextTestDeps(t)
 	ctx := t.Context()

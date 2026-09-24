@@ -120,12 +120,10 @@ whole-block granularity.
 
 ## Content fidelity: context for ingestion
 
-The split above (translatable blocks plus an inert skeleton) is only part of
-the story. A document carries text that should not be *translated* but is still
-*meaningful*: code listings, image captions and alt-text, formulas, strings
-explicitly marked do-not-translate, and values a config rule excluded from
-translation. For a translation run this is noise; for feeding a document to an
-LLM or a retrieval index, it is exactly the context you want to keep.
+Documents also contain useful text outside the content selected for translation:
+code listings, image captions and alt-text, formulas, strings marked
+do-not-translate, and values excluded by configuration. An LLM or retrieval index
+may need this material to interpret the document.
 
 By default, neokapi readers **surface** this contextual content as
 non-translatable blocks rather than hiding it in the skeleton. Such a block is

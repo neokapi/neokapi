@@ -339,12 +339,10 @@ func (w *runEventWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// ApproveReviewItem promotes one review-queue unit to `reviewed`: it records an
-// `approved` decision in the project state store, bound to the content hash of
-// the translation it blesses, through the shared host.ApplyReviewDecision path.
-// After it returns, GetConvergence shows the unit reviewed and it leaves the
-// queue. The unit is addressed by (locale, file, key) as listed in the review
-// queue.
+// ApproveReviewItem records an approved review decision through
+// host.ApplyReviewDecision, bound to the translation's content hash. The unit is
+// addressed by the review queue's (locale, file, key) tuple. After approval,
+// GetConvergence reports it as reviewed and removes it from the queue.
 func (a *App) ApproveReviewItem(tabID, locale, file, key string) error {
 	return a.applyReviewDecision(tabID, locale, file, key, host.ReviewDecisionApproved, "")
 }

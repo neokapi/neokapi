@@ -11,14 +11,10 @@ improve. The bar itself (tiers, axes, levels) lives in
 [format-engineering.md](./format-engineering.md); the frozen research base
 behind the design in `docs/internals/research/format-ops/`.
 
-**The maintainer's whole job** is to point Claude at the runbook skill on a
-loose cadence (weekly to fortnightly is plenty; a 4–6 week absence produces
-stale badges and a longer next session, never breakage, because due work
-accumulates, is ranked, and is budgeted):
-
-```
-"Run the format-ops runbook."        # → .skills/format-ops/SKILL.md
-```
+Run the format-ops skill weekly or fortnightly, then review its pending decisions.
+Work accumulates between runs and is ranked within the next session's budget.
+Invoke `.skills/format-ops/SKILL.md` by asking the assistant to run the
+format-ops runbook.
 
 The skill then: (1) runs the reconcile preamble (§2.1), (2) reads the ledger
 and live signals and computes what is due, (3) proposes a ranked, budgeted
@@ -51,16 +47,16 @@ improvements go to the pending queue, never silently applied.
   includes regenerating it in the same run that invalidates it. (The
   existence proof: in one five-day window the scorer shipped v2, the dashboard
   stayed v1, and the docs snapshot cited a workflow that no longer existed.)
-- **The verification loop is the unit of unattended work.** A ritual is not
-  done when the agent says so; it is done when its check ran and its machine
-  output (exit status + output hash) is recorded in `runs[].evidence`. K3 and
+- **Require verification for unattended work.** A ritual is
+  complete only after its check runs and the machine output (exit status and
+  output hash) is recorded in `runs[].evidence`. K3 and
   the anti-gaming rules gate on these recorded outputs, not on bare
   watermarks. Rituals whose checks cannot run (sandbox missing, tool absent)
-  end `blocked`, which is a safe, durable state rather than a failure to hide.
+  end with a recorded `blocked` status.
 - **Deterministic oracles make autonomy safe.** Spec assertions, parity,
   external validators (CI conclusions), externally re-verified corpus hashes,
-  and snapshot-resolved citations are ground truth the model cannot argue
-  with. Anything the process can check deterministically, it must.
+  and snapshot-resolved citations provide independently verifiable evidence.
+  Use deterministic checks wherever they are available.
 - **Scorer/worker separation.** A change that improves a score may not touch
   the scorer, the rubric, the audit script, `constructs.yaml`,
   `integrations.yaml`, or relax an assertion (the change-control surface in

@@ -12,17 +12,9 @@ import (
 	"github.com/neokapi/neokapi/host"
 )
 
-// The point map: every coordinate point the recipe declares, and what governs
-// there.
-//
-// A point is a place content sits, so the map is the cross product the recipe
-// states — the project's own default point, then each profile's channels. It is
-// ResolveGovernanceFor rendered as a table, which is what makes coordinates
-// legible without reading the recipe.
-//
-// A project that declares no profiles has exactly one point, and it is listed.
-// Hiding the map for that case would make coordinates read as an advanced
-// feature rather than as the model the app is built on.
+// The point map lists the default context point and each profile/channel pair,
+// with governance resolved by ResolveGovernanceFor. A project without profiles
+// still has one row for its default point.
 
 // ProjectPointDTO is one point, and what governs content sitting there.
 type ProjectPointDTO struct {

@@ -27,9 +27,8 @@ const KEY = import.meta.env.VITE_POSTHOG_KEY;
 const HOST = import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com";
 const APP_HOST = "app.bowrain.cloud";
 
-// The narrative the page currently argues. Registered on every event so a later
-// rewrite is comparable against this one rather than silently averaged with it.
-// It is a label, not an experiment: nothing on the page branches on it.
+// Label events by page version for comparisons across revisions.
+// This metadata does not change page behavior.
 const HERO_NARRATIVE = "context-graph-monolingual-first";
 
 export function initAnalytics(): void {
@@ -75,11 +74,8 @@ function installSignupLinkForwarding(): void {
         url.searchParams.set("utm_source", "bowrain-landing");
       }
       if (anchor.href !== url.toString()) anchor.href = url.toString();
-      // The conversion event. It has been dropped once by a refactor that moved
-      // the capture off the click path, so it stays here, in the listener that
-      // is always installed, fired before the navigation the browser is already
-      // committed to. `section` needs every section to carry an id — including
-      // the hero, whose CTA is the most-clicked one on the page.
+      // Capture before navigation. Section IDs attribute each CTA to its location,
+      // including the hero.
       captureLandingEvent("signup_cta_clicked", {
         href: url.toString(),
         section: anchor.closest("section[id]")?.id ?? null,

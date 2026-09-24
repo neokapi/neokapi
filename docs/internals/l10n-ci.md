@@ -1,12 +1,8 @@
 # The dogfood loop in CI
 
-How this repository keeps its own multilingual surfaces current, and why almost
-none of it is bespoke.
-
-The repo dogfoods kapi, so this machinery is also a claim: whatever a customer
-would have to build here, the product is missing. Every step below is either
-something a customer would write the same way, or has a one-line reason it
-cannot be.
+This repository uses kapi to maintain its own multilingual content. The CI
+workflow combines kapi's convergence process with extraction, compilation and
+checks specific to the repository.
 
 Related: [CLAUDE.md](../../CLAUDE.md) for the isolation contract and the
 target-drift rule; the recipe itself (`kapi.yaml`) for what each collection is;
@@ -17,34 +13,25 @@ repository keeps in git.
 
 ## Where the loop's context comes from
 
-This loop runs the **system-installed** kapi, a released build. A project's
-context lives in the user's workspace, and kapi reads it from there and from
-nowhere else: the terms, the voice profiles, the wording already approved and
-the record of who approved it.
+The loop uses the **system-installed** released kapi. Project context is stored
+in the user's workspace: terms, voice profiles, approved wording and decisions.
 
-A runner's workspace starts empty, so the job reads this repository's own
-`.kapi/` into it with `kapi context import`, one step before `kapi up`. Reading
-those files puts them in force, which a person decides and kapi refuses an
-agent, so that step carries `KAPI_ACTOR=person`: the repository's own nightly,
-on its own checkout. A second run finds the store already holding what the files
-say.
+A CI runner starts with an empty workspace. Before `kapi up`, the job imports
+this repository's `.kapi/` export with `kapi context import`. The import runs
+with `KAPI_ACTOR=person` because applying exported context requires a person's
+authority. This is a repository-defined step on its own checkout; repeated
+imports preserve the same state.
 
-The files stay in git as an export. `kapi context snapshot` writes the same
-layout the nightly delivers, so the pull request a reviewer reads keeps its
-shape, and the export is what the import opens. Two make targets run the same
-read locally: `make import-dogfood-context` for the prose gates, against the
-throwaway store `$(KAPI_ISO_ENV)` points them at, and
-`make l10n-context-import` for the loop's own stages.
-
-This repository is the one place in the tree where a checkout's `.kapi/` layout
-is read on a run, and the isolation contract in [CLAUDE.md](../../CLAUDE.md) is
-what keeps every other in-repo invocation away from it.
+`kapi context snapshot` produces the exported layout kept in git.
+`make import-dogfood-context` imports it into the isolated store used by prose
+checks. `make l10n-context-import` imports it for the convergence loop.
+The isolation contract in [CLAUDE.md](../../CLAUDE.md) prevents other in-repo
+invocations from accessing the developer's project context.
 
 ## One verb, between two build stages
 
-The recipe declares every surface that converges as a content collection with a
-`target:` template. Bringing all of them up to date is three stages, and only two
-are make's business:
+The recipe declares each multilingual surface as a content collection with a
+`target:` template. The build runs extraction, convergence and compilation:
 
 | Stage | Make target | Whose job |
 | --- | --- | --- |
@@ -56,40 +43,28 @@ are make's business:
 `make -j`, with the `qps` probe (`l10n-pseudo`) between converge and compile and
 the collapse guard (`l10n-collapse-check`) after them.
 
-Stages 1 and 3 exist because
-[E-06](../../web/docs/contribute/architecture/engine/e-06-execution-trust.md) refuses a
-recipe that names a subprocess: "a recipe is trusted" is exactly the assumption
-execution trust exists to disprove. So the extractors and the catalog compilers
-stay outside the recipe, and stay make's job. That is the whole justification; if
-E-06 is ever revisited, both stages become recipe declarations and this
-document loses half its content.
+Extraction and compilation run outside the recipe because
+[E-06](../../web/docs/contribute/architecture/engine/e-06-execution-trust.md)
+requires explicit approval before a recipe can execute subprocesses. This
+build runs the React extractors and catalog compilers through Make.
 
-Stage 2 is one `kapi up`, and it is the same verb the nightly runs and the same
-verb the product tells a customer to run. It runs over the context the import
-put in the store: it re-extracts the block store from the working tree, runs the
-recipe's flow over every collection and locale, and materializes the targets
-(`defaults.materialize: on-converge`).
+Stage 2 runs `kapi up` over the imported project context. It extracts blocks
+from the working tree, processes the recipe's collections and languages, and
+writes targets according to `defaults.materialize: on-converge`.
 
-Nothing wipes the store. The store is the union of what git carries and what a
-venue pull brought home, so a wipe deletes precisely the half git does not
-hold: every approval a reviewer made on the server, gone from a build that
-reports success.
+Preserve the store between stages. It contains both imported git context and
+context pulled from a venue, including server-side review approvals that are
+absent from the export.
 
-One collection names no `target:` at all. `neokapi-docs-reference` binds the
-authored dossiers under `scripts/gen-refs/nativedocs/`, which
-`make generate-reference-docs` compiles into the reference dataset and
-`make generate-reference-pages` renders as the Format and Tool Reference, pages
-that carry a DO-NOT-EDIT banner and hold no prose of their own. Without a target
-the loop passes over it, and what the collection buys is the other half of a
-recipe: `kapi check` reads the project's declared content, so declaring the
-dossiers puts the register of the largest generated body of prose in this
-repository under the same bar as the prose an author writes by hand, at the one
-place a finding against it can be acted on.
+The source-only `neokapi-docs-reference` collection covers authored dossiers
+under `scripts/gen-refs/nativedocs/`. It has no `target:`, so convergence skips
+it. `make generate-reference-docs` compiles the dossiers into the reference
+dataset; `make generate-reference-pages` produces the Format and Tool Reference.
+Edit the dossiers rather than the generated pages.
 
-That bar is enforced. `make check-reference-prose` runs the check over the
-collection and fails on any critical, major or minor finding; the
-`reference-data-drift.yml` workflow runs it beside the dataset and page gates, so a
-dossier lands fresh and in register in the same change.
+`make check-reference-prose` checks the source collection and fails on critical,
+major or minor findings. `reference-data-drift.yml` runs it alongside the
+dataset and page checks.
 
 Four collections at `source/comments` declare the comments of the repository's
 Go, TypeScript, JavaScript, CSS, YAML, Markdown, MDX and HTML trees. Every item
@@ -102,11 +77,8 @@ sits in no collection and under no `defaults.exclude` pattern. It runs in
 `make lint`, `make pre-push` and the *Repo guards* job, and every generated tree
 the exclude list names carries its reason beside it in `kapi.yaml`.
 
-The recipe binds `flow: memory-recycle`: exact-match content-memory leverage and
-nothing else: no AI, no provider credentials, no network. A checkout with no
-credentials therefore converges from the context this repository exports
-alone. AI convergence
-happens at the server venue, on the org's keys; a deliberate local AI pass is
+The recipe uses `flow: memory-recycle` to reuse exact content-memory matches
+without provider credentials or network access. AI convergence happens at the server venue, on the org's keys; a deliberate local AI pass is
 `kapi run translate-ai`. `make l10n` pins the local venue by discovering no
 plugins (`KAPI_PLUGINS_DIR_ONLY=1`), so an install that carries kapi-bowrain
 does not silently turn a developer's regeneration into a server run.
@@ -152,18 +124,11 @@ can turn the markers off for the published pseudo builds. It expands the
 extracted source catalogs mechanically, which is why its output is byte-gated
 where the loop's is not.
 
-The byte gate holds only if the two gitignored trees between the stages are a
-function of the current source, and each stage keeps its own tree so.
-`neokapi-i18n extract` removes a catalog under `i18n/` that it would have
-written for the document it records and did not, which is the catalog of a
-source that has been deleted, moved or excluded. `l10n-pseudo` clears each
-`i18n-qps/` tree before kapi writes it, because kapi writes one target per
-catalog it reads and knows nothing of a file already there. Without either, a
-catalog for a deleted component stays in both trees, reaches the runtime
-dictionary through `l10n-compile`, and a checkout that has run the walk for
-weeks regenerates different bytes from a clean one: the author's own run and
-the gate's disagree, and the auto-fix commits a correction the author could
-not have produced.
+Deterministic regeneration requires removing obsolete intermediate catalogs.
+`neokapi-i18n extract` removes catalogs for deleted, moved or excluded source
+files. `l10n-pseudo` clears each `i18n-qps/` tree before writing targets.
+Otherwise, stale catalogs could reach runtime dictionaries and cause a
+previously used checkout to produce different output from a clean one.
 
 The two Docusaurus sites are pseudo-translated too, for a local preview:
 `scripts/pseudo-docs-i18n.sh` writes each site's `i18n/qps/` tree, which is
@@ -187,22 +152,19 @@ l10n-derived-paths` prints, so the Makefile and CI cannot disagree about it. It
 also fails on *untracked* output, because `git diff` alone cannot see an artifact
 for a surface that did not exist before.
 
-**Loop-owned** is the target-language tier `kapi up` writes out of the project
-store: the Go-surface catalogs, the runtime dictionaries, the subject catalogs,
-the rendered per-locale email templates, and the demo narration sidecars. A byte
-gate over this tier would require a checkout with no server to reproduce wording
-a reviewer approved on one, and would overwrite the wording the moment it could
-not, green every time and silent. So there is no byte gate here.
+**Loop-owned** artifacts are target-language outputs materialized from the
+project store: Go-surface catalogs, runtime dictionaries, subject catalogs,
+translated email templates and demo narration sidecars. Their wording may
+include server-side review decisions unavailable in a clean checkout, so this
+tier is not checked for byte-for-byte reproducibility.
 
-What replaces it is not a weaker version of the same question. Reproducibility
-cannot be asserted about this tier; **soundness** can, and it is a different
-question with a different answer. A derived artifact must parse, must carry
-exactly the interpolation placeholders its source carries, and must not have
-translated a machine identifier the recipe never declared translatable. None of
-those is coverage: a string the target does not carry falls back to its source,
-which is the pending state the loop absorbs. These are strings the target does
-carry and gets wrong, and the next convergence re-materializes them rather than
-repairing them.
+Instead, checks verify that artifacts parse, preserve source interpolation
+placeholders and leave machine identifiers unchanged. Coverage is reported
+separately: missing translations fall back to source and remain pending work.
+Malformed translations require corrections in the context that produces them;
+regeneration alone will reproduce the defect.
+
+
 
 - `scripts/check-derived-content.mjs`: the content reader. Every artifact is
   measured against the document it derives from: the `qps` probe where a surface

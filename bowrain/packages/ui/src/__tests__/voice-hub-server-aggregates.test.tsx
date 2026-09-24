@@ -1,7 +1,5 @@
-// The brand hub asks the server the questions it used to answer itself. These
-// tests pin the direction of that: each surface reads the aggregate endpoint,
-// and the fan-out it replaced is asserted absent — a panel that quietly folds a
-// page of concepts again would still render, and only these calls notice.
+// Verify that voice-hub surfaces use server aggregate endpoints and do not
+// recompute totals from paginated concept lists.
 import { describe, it, expect, vi } from "vite-plus/test";
 import type { ReactNode } from "react";
 import { render, screen, waitFor } from "@testing-library/react";

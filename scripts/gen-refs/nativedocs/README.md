@@ -13,37 +13,23 @@ nativedocs/
 └── checks/<check-id>.yaml     # the source-side checks of `kapi check`
 ```
 
-- The file name **must** be the registry id (the `id` in `formats.json` /
-  `tools.json`), e.g. `json`, `voice-check`. `gen-refs` **fails** on a file name
-  no built-in entry carries, naming the file and the id it failed to match: a
-  sidecar that binds to nothing documents nothing, and read-and-dropped it leaves
-  the entry it was written for shipping the registry's bare metadata. Renaming a
-  format or a tool therefore means renaming its sidecar in the same change,
-  and, when the rename went with a change of mechanism, rewriting the prose to
-  describe the current one rather than attaching stale copy to a live entry.
+- The filename must match a built-in registry ID, such as `json` or
+  `voice-check`. `gen-refs` rejects unmatched files. Rename the sidecar with its
+  format or tool, and update the documentation if the behavior changes.
 - `gen-refs` merges the sidecar into the entry: `displayName` / `description`
   override the registry values; everything else becomes the entry's `doc`,
   which the website renders and whose `parameters` map feeds `SchemaForm`'s
   `paramDocs`.
 
-### `checks/`: sidecars with no entry behind them
+### Source check documentation
 
-`content-lint`, `length-check` and `pattern-check` are the source-side checks
-`kapi check` runs directly (`core/check/sourcechecks.go`). They are check
-infrastructure rather than registry tools, so they carry no dataset entry and no
-schema, and nothing overlays their dossiers onto a card. A user still meets
-them by the rule ids their findings carry, and the behaviour is live, so they are
-documented here and held to the same register as the rest.
+The `checks/` sidecars document checks run directly by `kapi check`
+(`core/check/sourcechecks.go`). These checks have no registry entry or schema,
+so their sidecars do not generate Format or Tool Reference cards.
 
-The binding is `core/check.SourceCheckIDs`, and `gen-refs` holds `checks/` to it
-in **both** directions: a dossier naming no check fails the build, and a check
-with no dossier fails it too. Retiring a check therefore takes its dossier with
-it, and adding one asks for its dossier, which an exemption list cannot
-enforce.
-
-These dossiers have no generated page today. The Format and Tool Reference is
-built from the dataset, and a check is not in it; giving the check rules a
-reference section of their own is a separate piece of work.
+`gen-refs` compares the sidecars with `core/check.SourceCheckIDs` in both
+directions. Each check requires a sidecar, and each sidecar must name a check.
+Add or remove the sidecar together with the check implementation.
 
 ## Schema
 
@@ -89,6 +75,6 @@ make generate-reference-pages       # → web/docs/reference/{commands,formats,t
 make check-reference-prose          # the register gate over these files
 ```
 
-All three are gated by the *Reference Data Drift Gate* workflow, so an edit
-here lands together with the dataset and the pages it produces, and it lands
-clean: `check-reference-prose` fails on any critical, major or minor finding.
+The *Reference Data Drift Gate* workflow runs all three checks. Commit source
+edits with the regenerated datasets and pages. `check-reference-prose` fails on
+critical, major or minor findings.

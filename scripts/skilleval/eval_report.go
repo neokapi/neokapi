@@ -69,7 +69,7 @@ type EvalGrowHost struct {
 	Verdict       string  `json:"verdict"`
 }
 
-// EvalReport is the whole evaluation as saved evidence describes it.
+// EvalReport summarizes the evaluation's saved evidence.
 type EvalReport struct {
 	Schema      int               `json:"schema"`
 	CreatedAt   time.Time         `json:"created_at"`

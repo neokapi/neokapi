@@ -2,11 +2,8 @@
 // parity report written by the cli/parity/ test packages) and emits a
 // narrower per-filter summary at .parity/parity-report.json.
 //
-// The summary is a local maintainer artifact. It used to be published to
-// web/static/data/ to back the /parity dashboard; that page was retired
-// when the bridge left the product surface (#1073), so nothing
-// parity-related reaches the documentation site any more. The shape is
-// unchanged — one row per filter or step, plus totals:
+// The summary is a local maintainer artifact, excluded from the documentation
+// site. It contains one row per filter or step, plus totals.
 //
 //	{
 //	  "generated_at": "2026-04-29T...",
