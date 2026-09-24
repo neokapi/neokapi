@@ -1,130 +1,120 @@
 import React from "react";
 import Layout from "@theme/Layout";
 import Link from "@docusaurus/Link";
-import Translate, { translate } from "@docusaurus/Translate";
-
-// Labs overview: one map of every interactive in-browser lab, what each one
-// teaches, and a suggested order to visit them. Every lab runs the real kapi
-// WebAssembly engine on your own files — no install, no server, no API key
-// (cloud providers excepted).
-
-interface LabEntry {
-  to: string;
-  name: string;
-  teaches: string;
-}
-
-// Ordered as a suggested learning sequence: start with the content model, then
-// the CLI and the segmentation engines, then the format-specific and media labs.
-const LABS: LabEntry[] = [
-  {
-    to: "/lab",
-    name: translate({ id: "labs.lab.name", message: "Content Model Workspace" }),
-    teaches: translate({
-      id: "labs.lab.teaches",
-      message:
-        "The heart of the framework: watch the engine parse a file into Parts, Blocks, and Runs, run tools on it, and write it back. Start here.",
-    }),
-  },
-  {
-    to: "/playground-cli",
-    name: translate({ id: "labs.playgroundcli.name", message: "CLI Playground" }),
-    teaches: translate({
-      id: "labs.playgroundcli.teaches",
-      message: "Run real kapi commands in your browser, the way you would from a terminal.",
-    }),
-  },
-  {
-    to: "/lab/segmentation",
-    name: translate({ id: "labs.lab.segmentation.name", message: "Segmentation" }),
-    teaches: translate({
-      id: "labs.lab.segmentation.teaches",
-      message:
-        "Compare segmentation engines (SRX, UAX-29, hybrid, Intl.Segmenter, SaT, LLM) on your own text and see where they disagree.",
-    }),
-  },
-  {
-    to: "/lab/convert",
-    name: translate({ id: "labs.lab.convert.name", message: "File Conversion" }),
-    teaches: translate({
-      id: "labs.lab.convert.teaches",
-      message: "Re-express one format as another and inspect what survives the round trip.",
-    }),
-  },
-  {
-    to: "/lab/structure",
-    name: translate({ id: "labs.lab.structure.name", message: "Structure & Layout" }),
-    teaches: translate({
-      id: "labs.lab.structure.teaches",
-      message: "Recover reading order, outline, and geometry from a PDF.",
-    }),
-  },
-  {
-    to: "/lab/vision",
-    name: translate({ id: "labs.lab.vision.name", message: "Vision" }),
-    teaches: translate({
-      id: "labs.lab.vision.teaches",
-      message: "Run OCR and layout recognition on an image or an image embedded in a document.",
-    }),
-  },
-  {
-    to: "/lab/media",
-    name: translate({ id: "labs.lab.media.name", message: "Audio & Video" }),
-    teaches: translate({
-      id: "labs.lab.media.teaches",
-      message: "Transcribe audio and pull text out of video, the first step toward subtitles.",
-    }),
-  },
-  {
-    to: "/kbf-lab",
-    name: translate({ id: "labs.kbflab.name", message: "KBF Anatomy" }),
-    teaches: translate({
-      id: "labs.kbflab.teaches",
-      message:
-        "A worked reading of the Kapi Bundle Format — envelope, blocks, runs, targets, provenance — with a live round-trip through the engine.",
-    }),
-  },
-];
+import { LAB_ELECTIVES, LAB_LESSONS, LAB_MODES, lessonPath } from "../components/Lab/curriculum";
+import styles from "../components/Lab/curriculum.module.css";
 
 export default function LabsOverviewPage(): React.ReactElement {
   return (
     <Layout
-      title={translate({ id: "labs.page.title", message: "Labs" })}
-      description={translate({
-        id: "labs.page.description",
-        message:
-          "Interactive, in-browser labs that run the real kapi WebAssembly engine on your own files — the content model, translation, segmentation, conversion, structure, vision, and media — with a suggested order to explore them.",
-      })}
+      title="Labs"
+      description="A guided course in the neokapi content model, processing flows, and kapi projects, context and decisions."
     >
-      <main className="container margin-vert--lg">
-        <h1>
-          <Translate id="labs.heading">Labs</Translate>
-        </h1>
-        <p style={{ maxWidth: "44rem" }}>
-          <Translate id="labs.intro.lead">Every lab below runs the real</Translate>{" "}
-          <code>kapi</code>{" "}
-          <Translate id="labs.intro.mid">
-            engine in your browser via WebAssembly — no install, no server, and (cloud providers
-            aside) no API key. Drop in your own file and watch what the engine does. They are
-            ordered as a suggested path: begin with the
-          </Translate>{" "}
-          <strong>
-            <Translate id="labs.intro.first">Content Model Workspace</Translate>
-          </strong>{" "}
-          <Translate id="labs.intro.tail">
-            to see how kapi represents any document, then explore the labs that interest you.
-          </Translate>
-        </p>
-        <div className="row margin-top--md">
-          {LABS.map((lab) => (
-            <div key={lab.to} className="col col--6 margin-bottom--lg">
-              <Link className="card padding--lg" to={lab.to} style={{ height: "100%" }}>
-                <h3>{lab.name}</h3>
-                <p style={{ marginBottom: 0 }}>{lab.teaches}</p>
-              </Link>
+      <main className={styles.page}>
+        <header className={styles.hero}>
+          <p className={styles.eyebrow}>Experiments in content processing</p>
+          <h1>Learn the framework. Work with kapi.</h1>
+          <p className={styles.lead}>
+            Start with one document and follow its content through the engine. Then examine how kapi
+            applies context and records decisions across processing runs.
+          </p>
+          <p>
+            Each lesson presents a question, a prediction, an experiment and evidence to inspect.
+            Follow the sequence or choose a topic. The opening lessons need no installation or API
+            key.
+          </p>
+          <Link className={styles.start} to={lessonPath(LAB_LESSONS[0])}>
+            Start with the content model
+          </Link>
+        </header>
+        {(["framework", "kapi"] as const).map((stage) => (
+          <section
+            className={styles.stage}
+            id={stage}
+            key={stage}
+            aria-labelledby={`${stage}-heading`}
+          >
+            <h2 id={`${stage}-heading`}>
+              {stage === "framework" ? "The neokapi framework" : "Working with kapi"}
+            </h2>
+            <p>
+              {stage === "framework"
+                ? "Learn what a processing run reads, changes, preserves and checks. Begin here before using the full flow editor."
+                : "Build on the processing model to study recipes, applicable context and decisions. Recorded native cases cover capabilities beyond the browser runtime."}
+            </p>
+            <ol
+              className={styles.lessons}
+              start={
+                stage === "framework"
+                  ? 1
+                  : LAB_LESSONS.findIndex((lesson) => lesson.stage === stage) + 1
+              }
+            >
+              {LAB_LESSONS.filter((lesson) => lesson.stage === stage).map((lesson) => (
+                <li key={lesson.id}>
+                  <Link className={styles.lessonCard} to={lessonPath(lesson)}>
+                    <span className={styles.number} aria-hidden="true">
+                      {String(LAB_LESSONS.indexOf(lesson) + 1).padStart(2, "0")}
+                    </span>
+                    <div>
+                      <h3>{lesson.title}</h3>
+                      <p>{lesson.question}</p>
+                      <span className={styles.mode}>{LAB_MODES[lesson.mode].label}</span>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ))}
+        <section className={styles.stage} aria-labelledby="execution-heading">
+          <h2 id="execution-heading">Know what is running</h2>
+          <dl className={styles.modes}>
+            <div>
+              <dt>Live browser experiments</dt>
+              <dd>
+                Open an experiment to load its runtime. Basic exercises run locally; model-based
+                electives may need additional downloads and browser capabilities.
+              </dd>
             </div>
-          ))}
-        </div>
+            <div>
+              <dt>Recorded native experiments</dt>
+              <dd>
+                Inspect saved inputs, context and results. Use the reproduction instructions to run
+                or change a case with a local installation.
+              </dd>
+            </div>
+            <div>
+              <dt>AI and media</dt>
+              <dd>
+                Execution labels distinguish recorded model output, illustrative demo providers and
+                browser model bridges. A demo response demonstrates processing, not model quality.
+              </dd>
+            </div>
+          </dl>
+        </section>
+        <section className={styles.stage} id="electives" aria-labelledby="electives-heading">
+          <h2 id="electives-heading">Electives and workspaces</h2>
+          <p>
+            Apply the core concepts to additional formats and media, or explore without the lesson
+            sequence.
+          </p>
+          <ul className={styles.electives}>
+            {LAB_ELECTIVES.map((lab) => (
+              <li key={lab.to}>
+                <Link to={lab.to}>{lab.title}</Link>. {lab.description}
+              </li>
+            ))}
+            <li>
+              <Link to="/lab">Flow workspace</Link>. Compose a flow, explore scripting and inspect
+              execution traces.
+            </li>
+            <li>
+              <Link to="/playground-cli">CLI playground</Link>. Experiment with commands and the
+              browser filesystem.
+            </li>
+          </ul>
+        </section>
       </main>
     </Layout>
   );

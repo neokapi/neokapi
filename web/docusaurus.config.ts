@@ -1091,19 +1091,12 @@ const config: Config = {
           label: "Labs",
           position: "left",
           items: [
-            // A Labs overview heads the list (what each lab teaches + a
-            // suggested order). AI/ML (local LLM, OCR, ASR) is embedded inside
-            // the relevant labs; plugins load on demand from the navbar status
-            // widget. Old per-topic routes redirect to their new home.
-            { label: "Labs overview", to: "/labs" },
-            { label: "Content Model Workspace", to: "/lab" },
-            { label: "Segmentation", to: "/lab/segmentation" },
-            { label: "File Conversion", to: "/lab/convert" },
-            { label: "Structure & Layout", to: "/lab/structure" },
-            { label: "Vision", to: "/lab/vision" },
-            { label: "Audio & Video", to: "/lab/media" },
-            { label: "CLI Playground", to: "/playground-cli" },
-            { label: "KBF Anatomy", to: "/kbf-lab" },
+            { label: "Learning path", to: "/labs" },
+            { label: "Start: representing content", to: "/lab/representing-content" },
+            { label: "Working with kapi", to: "/labs#kapi" },
+            { label: "Electives", to: "/labs#electives" },
+            { label: "Flow workspace", to: "/lab" },
+            { label: "CLI playground", to: "/playground-cli" },
           ],
         },
         {

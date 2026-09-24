@@ -1,0 +1,416 @@
+{
+  "schema": "neokapi-context-lifecycle/v1",
+  "recordedAt": "2026-09-24T22:04:14.139Z",
+  "sourceCommit": "627e93ed644d3aed6789f2088bfe351b384191b8",
+  "sourceDirty": true,
+  "binarySha256": "8f9696f5ead32016267cd30b5165956aa9aa97b69fb112398d87f41b3f02f659",
+  "runnerSha256": "b62a8f03b3c6fccd2867066e5c0818cc9f3a0e36b5c4fd695cb8d8389326d590",
+  "recipeSha256": "6ee1aa96fdaec235911333289567eeb4545029323cee124be1919cf11c700c21",
+  "steps": [
+    {
+      "label": "Before observation",
+      "action": {
+        "command": [
+          "up",
+          "--passes",
+          "1",
+          "-p",
+          "kapi.yaml"
+        ],
+        "exitCode": 0,
+        "stdout": "Reconciled the source. No target languages are configured, so the per-language flow \"default (built-in)\" did not run.\n\nExtracted 2 block(s) from 1 file(s) into the project store.\nUp to date: the committed context and the occurrence graph match the sources.\n",
+        "stderr": "plan: no target languages, reconciling the source only\nSettled source: 0 block(s) checked, 0 held below the \"checked\" gate.\nExtracted 2 block(s) from 1 file(s) into the project store (nothing extracted yet).\n"
+      },
+      "source": "{\n  \"title\": \"Quickcast\",\n  \"description\": \"Quick cast forecasts the next hour.\"\n}\n",
+      "sourceSha256": "03b0e5131034f3e1465c02a127a50b9d9a420064dde15266521c17b3857f0c85",
+      "context": {
+        "command": [
+          "context",
+          "guide.json",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"point\": {\n    \"path\": \"guide.json\",\n    \"collection\": \"guide\",\n    \"default\": true\n  },\n  \"scope\": \"project\",\n  \"coverage\": \"empty\",\n  \"provenance\": {\n    \"project\": \"context-lifecycle\",\n    \"revision\": 1,\n    \"stale\": false\n  },\n  \"notes\": [\n    \"This project records nothing for this location yet. Notice as you work what this project calls its own things, which spellings it keeps to, who the text addresses, and how formal it is.\",\n    \"no voice profile is bound at this point, so no tone or style guidance applies\",\n    \"no terms are bound at this point, so terminology was not consulted\",\n    \"project scope: concept relations, revisions and market scoping live in a connected workspace\"\n  ]\n}\n",
+        "stderr": ""
+      },
+      "log": {
+        "command": [
+          "context",
+          "log",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"project\": \"context-lifecycle\",\n  \"operations\": []\n}\n",
+        "stderr": ""
+      },
+      "check": {
+        "command": [
+          "check",
+          "guide.json",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"schema\": \"kapi.check/v2\",\n  \"pass\": true,\n  \"verdict\": \"passed\",\n  \"target\": {\n    \"kind\": \"file\",\n    \"file\": \"guide.json\",\n    \"blocks\": 2\n  },\n  \"summary\": {\n    \"findings\": 0,\n    \"failing\": 0,\n    \"reporting\": 0,\n    \"score\": 100\n  },\n  \"findings\": [],\n  \"execution\": {\n    \"analyzers\": [\n      {\n        \"id\": \"reader.validation\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"Reader validation was not requested.\"\n      },\n      {\n        \"id\": \"hygiene\",\n        \"status\": \"passed\",\n        \"file\": \"guide.json\",\n        \"required\": true,\n        \"findings\": 0,\n        \"duration_ms\": 0.250041,\n        \"canary\": {\n          \"status\": \"caught\",\n          \"probes\": 2\n        }\n      },\n      {\n        \"id\": \"length\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No length limit was configured.\"\n      },\n      {\n        \"id\": \"pattern\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No explicit patterns were configured.\"\n      },\n      {\n        \"id\": \"voice.rules\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No voice profile or project terms were bound.\"\n      },\n      {\n        \"id\": \"voice.similarity\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"Similarity analysis was not requested.\"\n      },\n      {\n        \"id\": \"voice.llm\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"This command does not run semantic review.\"\n      }\n    ],\n    \"timings\": {\n      \"context_ms\": 4.937374999999999,\n      \"extraction_ms\": 0.101583,\n      \"analyzers_ms\": 0.250041,\n      \"report_ms\": 0.018125,\n      \"total_ms\": 5.712833\n    },\n    \"contexts\": [\n      {\n        \"file\": \"guide.json\",\n        \"voice\": {\n          \"selection\": \"project\",\n          \"applied\": false\n        },\n        \"terms_applied\": false,\n        \"point\": {}\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"at\": \"2026-09-24T22:04:14Z\",\n    \"context\": {\n      \"project\": \"context-lifecycle\",\n      \"revision\": 1,\n      \"stale\": false\n    },\n    \"tool\": {\n      \"name\": \"kapi\",\n      \"version\": \"v1.3.0-rc1-18-g0449f57cb-dirty\",\n      \"commit\": \"0449f57cb\"\n    },\n    \"analyzers\": [\n      {\n        \"id\": \"hygiene\",\n        \"ran\": 1\n      },\n      {\n        \"id\": \"length\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No length limit was configured.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"pattern\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No explicit patterns were configured.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"reader.validation\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"Reader validation was not requested.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.llm\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"This command does not run semantic review.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.rules\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No voice profile or project terms were bound.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.similarity\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"Similarity analysis was not requested.\",\n            \"inputs\": 1\n          }\n        ]\n      }\n    ]\n  }\n}\n",
+        "stderr": ""
+      },
+      "search": {
+        "command": [
+          "context",
+          "search",
+          "Quickcast",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"query\": \"Quickcast\",\n  \"scope\": \"project\",\n  \"coverage\": \"empty\",\n  \"provenance\": {\n    \"project\": \"context-lifecycle\",\n    \"revision\": 1,\n    \"stale\": false\n  },\n  \"notes\": [\n    \"This project records nothing about \\\"Quickcast\\\" yet. Notice as you work what this project calls its own things, which spellings it keeps to, who the text addresses, and how formal it is.\",\n    \"project scope: concept relations, revisions and market scoping live in a connected workspace\"\n  ]\n}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "label": "Suggested",
+      "action": {
+        "command": [
+          "context",
+          "observe",
+          "--term",
+          "Quickcast",
+          "--instead-of",
+          "Quick cast",
+          "--seen-in",
+          "guide.json",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"id\": \"2\",\n  \"seq\": 2,\n  \"project\": \"context-lifecycle\",\n  \"actor\": {\n    \"kind\": \"person\"\n  },\n  \"kind\": \"observe\",\n  \"subject\": {\n    \"kind\": \"term\",\n    \"term\": {\n      \"term\": \"Quick cast\",\n      \"replacement\": \"Quickcast\",\n      \"forms\": [\n        \"Quick-cast\",\n        \"QuickCast\",\n        \"quickcast\"\n      ],\n      \"case_sensitive\": true\n    }\n  },\n  \"evidence\": [\n    {\n      \"path\": \"guide.json\"\n    }\n  ],\n  \"scope\": {\n    \"level\": \"project\"\n  },\n  \"note\": \"recorded as a person in a codex shell\",\n  \"at\": \"2026-09-24T22:04:14.635699Z\",\n  \"status\": \"suggested\"\n}\n",
+        "stderr": ""
+      },
+      "source": "{\n  \"title\": \"Quickcast\",\n  \"description\": \"Quick cast forecasts the next hour.\"\n}\n",
+      "sourceSha256": "03b0e5131034f3e1465c02a127a50b9d9a420064dde15266521c17b3857f0c85",
+      "context": {
+        "command": [
+          "context",
+          "guide.json",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"point\": {\n    \"path\": \"guide.json\",\n    \"collection\": \"guide\",\n    \"default\": true\n  },\n  \"scope\": \"project\",\n  \"coverage\": \"thin\",\n  \"provenance\": {\n    \"project\": \"context-lifecycle\",\n    \"revision\": 2,\n    \"stale\": false\n  },\n  \"suggestions\": [\n    {\n      \"operation\": \"2\",\n      \"kind\": \"term\",\n      \"status\": \"suggested\",\n      \"term\": \"Quick cast\",\n      \"forms\": [\n        \"Quick-cast\",\n        \"QuickCast\",\n        \"quickcast\"\n      ],\n      \"replacement\": \"Quickcast\",\n      \"suggested_by\": \"person\",\n      \"at\": \"2026-09-24T22:04:14Z\",\n      \"evidence\": [\n        {\n          \"path\": \"guide.json\"\n        }\n      ]\n    }\n  ],\n  \"notes\": [\n    \"This project records little for this location, and 1 suggested rule here is waiting to be kept or dropped (`kapi context log`). Notice as you work what this project calls its own things, which spellings it keeps to, who the text addresses, and how formal it is.\",\n    \"no voice profile is bound at this point, so no tone or style guidance applies\",\n    \"no terms are bound at this point, so terminology was not consulted\",\n    \"project scope: concept relations, revisions and market scoping live in a connected workspace\"\n  ]\n}\n",
+        "stderr": ""
+      },
+      "log": {
+        "command": [
+          "context",
+          "log",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"project\": \"context-lifecycle\",\n  \"operations\": [\n    {\n      \"id\": \"2\",\n      \"seq\": 2,\n      \"project\": \"context-lifecycle\",\n      \"actor\": {\n        \"kind\": \"person\"\n      },\n      \"kind\": \"observe\",\n      \"subject\": {\n        \"kind\": \"term\",\n        \"term\": {\n          \"term\": \"Quick cast\",\n          \"replacement\": \"Quickcast\",\n          \"forms\": [\n            \"Quick-cast\",\n            \"QuickCast\",\n            \"quickcast\"\n          ],\n          \"case_sensitive\": true\n        }\n      },\n      \"evidence\": [\n        {\n          \"path\": \"guide.json\"\n        }\n      ],\n      \"scope\": {\n        \"level\": \"project\"\n      },\n      \"note\": \"recorded as a person in a codex shell\",\n      \"at\": \"2026-09-24T22:04:14.635699Z\",\n      \"status\": \"suggested\"\n    }\n  ]\n}\n",
+        "stderr": ""
+      },
+      "check": {
+        "command": [
+          "check",
+          "guide.json",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"schema\": \"kapi.check/v2\",\n  \"pass\": true,\n  \"verdict\": \"passed\",\n  \"target\": {\n    \"kind\": \"file\",\n    \"file\": \"guide.json\",\n    \"blocks\": 2\n  },\n  \"summary\": {\n    \"findings\": 1,\n    \"failing\": 0,\n    \"reporting\": 1,\n    \"score\": 100\n  },\n  \"findings\": [\n    {\n      \"rule\": \"voice.vocabulary\",\n      \"check\": \"voice\",\n      \"fails\": false,\n      \"message\": \"Suggested rule about \\\"Quick cast\\\", not yet established\",\n      \"suggestion\": \"Use \\\"Quickcast\\\" instead\",\n      \"location\": {\n        \"file\": \"guide.json\",\n        \"block\": \"description\",\n        \"anchor\": {\n          \"kind\": \"range\",\n          \"end\": {\n            \"run\": 0,\n            \"offset\": 10\n          }\n        },\n        \"snippet\": \"Quick cast\"\n      },\n      \"point\": {},\n      \"metadata\": {\n        \"replacement\": \"Quickcast\",\n        \"term\": \"Quick cast\"\n      },\n      \"suggested\": true\n    }\n  ],\n  \"execution\": {\n    \"analyzers\": [\n      {\n        \"id\": \"reader.validation\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"Reader validation was not requested.\"\n      },\n      {\n        \"id\": \"hygiene\",\n        \"status\": \"passed\",\n        \"file\": \"guide.json\",\n        \"required\": true,\n        \"findings\": 0,\n        \"duration_ms\": 0.09125,\n        \"canary\": {\n          \"status\": \"caught\",\n          \"probes\": 2\n        }\n      },\n      {\n        \"id\": \"length\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No length limit was configured.\"\n      },\n      {\n        \"id\": \"pattern\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No explicit patterns were configured.\"\n      },\n      {\n        \"id\": \"voice.rules\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No voice profile or project terms were bound.\"\n      },\n      {\n        \"id\": \"voice.similarity\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"Similarity analysis was not requested.\"\n      },\n      {\n        \"id\": \"voice.llm\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"This command does not run semantic review.\"\n      }\n    ],\n    \"timings\": {\n      \"context_ms\": 5.7885420000000005,\n      \"extraction_ms\": 0.135709,\n      \"analyzers_ms\": 0.09125,\n      \"report_ms\": 0.0025,\n      \"total_ms\": 6.55425\n    },\n    \"contexts\": [\n      {\n        \"file\": \"guide.json\",\n        \"voice\": {\n          \"selection\": \"project\",\n          \"applied\": false\n        },\n        \"terms_applied\": false,\n        \"point\": {}\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"at\": \"2026-09-24T22:04:14Z\",\n    \"context\": {\n      \"project\": \"context-lifecycle\",\n      \"revision\": 2,\n      \"stale\": false\n    },\n    \"tool\": {\n      \"name\": \"kapi\",\n      \"version\": \"v1.3.0-rc1-18-g0449f57cb-dirty\",\n      \"commit\": \"0449f57cb\"\n    },\n    \"analyzers\": [\n      {\n        \"id\": \"hygiene\",\n        \"ran\": 1\n      },\n      {\n        \"id\": \"length\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No length limit was configured.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"pattern\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No explicit patterns were configured.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"reader.validation\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"Reader validation was not requested.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.llm\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"This command does not run semantic review.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.rules\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No voice profile or project terms were bound.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.similarity\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"Similarity analysis was not requested.\",\n            \"inputs\": 1\n          }\n        ]\n      }\n    ]\n  }\n}\n",
+        "stderr": ""
+      },
+      "search": {
+        "command": [
+          "context",
+          "search",
+          "Quickcast",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"query\": \"Quickcast\",\n  \"scope\": \"project\",\n  \"coverage\": \"thin\",\n  \"provenance\": {\n    \"project\": \"context-lifecycle\",\n    \"revision\": 2,\n    \"stale\": false\n  },\n  \"suggestions\": [\n    {\n      \"operation\": \"2\",\n      \"kind\": \"term\",\n      \"status\": \"suggested\",\n      \"term\": \"Quick cast\",\n      \"forms\": [\n        \"Quick-cast\",\n        \"QuickCast\",\n        \"quickcast\"\n      ],\n      \"replacement\": \"Quickcast\",\n      \"note\": \"recorded as a person in a codex shell\",\n      \"suggested_by\": \"person\",\n      \"at\": \"2026-09-24T22:04:14Z\",\n      \"evidence\": [\n        {\n          \"path\": \"guide.json\"\n        }\n      ]\n    }\n  ],\n  \"notes\": [\n    \"project scope: concept relations, revisions and market scoping live in a connected workspace\"\n  ]\n}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "label": "Established",
+      "action": {
+        "command": [
+          "context",
+          "keep",
+          "2",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"kept\": [\n    {\n      \"id\": \"3\",\n      \"seq\": 3,\n      \"project\": \"context-lifecycle\",\n      \"actor\": {\n        \"kind\": \"person\"\n      },\n      \"kind\": \"keep\",\n      \"scope\": {\n        \"level\": \"project\"\n      },\n      \"target\": \"2\",\n      \"note\": \"recorded as a person in a codex shell\",\n      \"at\": \"2026-09-24T22:04:14.814217Z\",\n      \"status\": \"established\",\n      \"landed\": \"the project's terms store\"\n    }\n  ]\n}\n",
+        "stderr": ""
+      },
+      "source": "{\n  \"title\": \"Quickcast\",\n  \"description\": \"Quick cast forecasts the next hour.\"\n}\n",
+      "sourceSha256": "03b0e5131034f3e1465c02a127a50b9d9a420064dde15266521c17b3857f0c85",
+      "context": {
+        "command": [
+          "context",
+          "guide.json",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"point\": {\n    \"path\": \"guide.json\",\n    \"collection\": \"guide\",\n    \"default\": true\n  },\n  \"scope\": \"project\",\n  \"coverage\": \"thin\",\n  \"provenance\": {\n    \"project\": \"context-lifecycle\",\n    \"revision\": 3,\n    \"stale\": false\n  },\n  \"terms\": [\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quick cast\",\n      \"locale\": \"en\",\n      \"status\": \"forbidden\",\n      \"replacement\": \"Quickcast\",\n      \"discouraged\": true\n    },\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quick-cast\",\n      \"locale\": \"en\",\n      \"status\": \"forbidden\",\n      \"replacement\": \"Quickcast\",\n      \"discouraged\": true\n    },\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quickcast\",\n      \"locale\": \"en\",\n      \"status\": \"preferred\",\n      \"discouraged\": false\n    }\n  ],\n  \"terms_total\": 3,\n  \"rules\": [\n    {\n      \"say\": \"Quickcast\",\n      \"not\": [\n        \"Quick cast\",\n        \"Quick-cast\"\n      ],\n      \"locale\": \"en\",\n      \"from\": [\n        \"terms\"\n      ]\n    }\n  ],\n  \"rules_total\": 1,\n  \"notes\": [\n    \"This project records little for this location. Notice as you work what this project calls its own things, which spellings it keeps to, who the text addresses, and how formal it is.\",\n    \"no voice profile is bound at this point, so no tone or style guidance applies\",\n    \"project scope: concept relations, revisions and market scoping live in a connected workspace\"\n  ]\n}\n",
+        "stderr": ""
+      },
+      "log": {
+        "command": [
+          "context",
+          "log",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"project\": \"context-lifecycle\",\n  \"operations\": [\n    {\n      \"id\": \"3\",\n      \"seq\": 3,\n      \"project\": \"context-lifecycle\",\n      \"actor\": {\n        \"kind\": \"person\"\n      },\n      \"kind\": \"keep\",\n      \"scope\": {\n        \"level\": \"project\"\n      },\n      \"target\": \"2\",\n      \"note\": \"recorded as a person in a codex shell\",\n      \"at\": \"2026-09-24T22:04:14.814217Z\",\n      \"status\": \"established\"\n    },\n    {\n      \"id\": \"2\",\n      \"seq\": 2,\n      \"project\": \"context-lifecycle\",\n      \"actor\": {\n        \"kind\": \"person\"\n      },\n      \"kind\": \"observe\",\n      \"subject\": {\n        \"kind\": \"term\",\n        \"term\": {\n          \"term\": \"Quick cast\",\n          \"replacement\": \"Quickcast\",\n          \"forms\": [\n            \"Quick-cast\",\n            \"QuickCast\",\n            \"quickcast\"\n          ],\n          \"case_sensitive\": true\n        }\n      },\n      \"evidence\": [\n        {\n          \"path\": \"guide.json\"\n        }\n      ],\n      \"scope\": {\n        \"level\": \"project\"\n      },\n      \"note\": \"recorded as a person in a codex shell\",\n      \"at\": \"2026-09-24T22:04:14.635699Z\",\n      \"status\": \"established\",\n      \"established\": true\n    }\n  ]\n}\n",
+        "stderr": ""
+      },
+      "check": {
+        "command": [
+          "check",
+          "guide.json",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 3,
+        "stdout": "{\n  \"schema\": \"kapi.check/v2\",\n  \"pass\": false,\n  \"verdict\": \"failed\",\n  \"target\": {\n    \"kind\": \"file\",\n    \"file\": \"guide.json\",\n    \"blocks\": 2\n  },\n  \"summary\": {\n    \"findings\": 1,\n    \"failing\": 1,\n    \"reporting\": 0,\n    \"score\": 75\n  },\n  \"findings\": [\n    {\n      \"rule\": \"voice.vocabulary\",\n      \"check\": \"voice\",\n      \"fails\": true,\n      \"message\": \"Forbidden term \\\"Quick cast\\\" found in terms\",\n      \"suggestion\": \"Use \\\"Quickcast\\\" instead\",\n      \"location\": {\n        \"file\": \"guide.json\",\n        \"block\": \"description\",\n        \"anchor\": {\n          \"kind\": \"range\",\n          \"end\": {\n            \"run\": 0,\n            \"offset\": 10\n          }\n        },\n        \"snippet\": \"Quick cast\"\n      },\n      \"point\": {},\n      \"metadata\": {\n        \"concept_id\": \"term:en:quick-cast\",\n        \"replacement\": \"Quickcast\",\n        \"term\": \"Quick cast\"\n      }\n    }\n  ],\n  \"execution\": {\n    \"analyzers\": [\n      {\n        \"id\": \"reader.validation\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"Reader validation was not requested.\"\n      },\n      {\n        \"id\": \"hygiene\",\n        \"status\": \"passed\",\n        \"file\": \"guide.json\",\n        \"required\": true,\n        \"findings\": 0,\n        \"duration_ms\": 0.065375,\n        \"canary\": {\n          \"status\": \"caught\",\n          \"probes\": 2\n        }\n      },\n      {\n        \"id\": \"length\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No length limit was configured.\"\n      },\n      {\n        \"id\": \"pattern\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No explicit patterns were configured.\"\n      },\n      {\n        \"id\": \"voice.rules\",\n        \"status\": \"findings\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 1,\n        \"duration_ms\": 0.217542,\n        \"canary\": {\n          \"status\": \"caught\",\n          \"probes\": 1\n        }\n      },\n      {\n        \"id\": \"voice.similarity\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"Similarity analysis was not requested.\"\n      },\n      {\n        \"id\": \"voice.llm\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"This command does not run semantic review.\"\n      }\n    ],\n    \"timings\": {\n      \"context_ms\": 5.255625,\n      \"extraction_ms\": 0.09325,\n      \"analyzers_ms\": 0.28291700000000003,\n      \"report_ms\": 0.001959,\n      \"total_ms\": 5.98225\n    },\n    \"contexts\": [\n      {\n        \"file\": \"guide.json\",\n        \"voice\": {\n          \"selection\": \"project\",\n          \"applied\": false\n        },\n        \"terms_applied\": true,\n        \"point\": {}\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"at\": \"2026-09-24T22:04:14Z\",\n    \"context\": {\n      \"project\": \"context-lifecycle\",\n      \"revision\": 3,\n      \"stale\": false\n    },\n    \"tool\": {\n      \"name\": \"kapi\",\n      \"version\": \"v1.3.0-rc1-18-g0449f57cb-dirty\",\n      \"commit\": \"0449f57cb\"\n    },\n    \"analyzers\": [\n      {\n        \"id\": \"hygiene\",\n        \"ran\": 1\n      },\n      {\n        \"id\": \"length\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No length limit was configured.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"pattern\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No explicit patterns were configured.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"reader.validation\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"Reader validation was not requested.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.llm\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"This command does not run semantic review.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.rules\",\n        \"ran\": 1\n      },\n      {\n        \"id\": \"voice.similarity\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"Similarity analysis was not requested.\",\n            \"inputs\": 1\n          }\n        ]\n      }\n    ]\n  }\n}\n",
+        "stderr": "{\n  \"error\": \"quality gate failed\",\n  \"code\": \"gate\"\n}\n"
+      },
+      "search": {
+        "command": [
+          "context",
+          "search",
+          "Quickcast",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"query\": \"Quickcast\",\n  \"scope\": \"project\",\n  \"coverage\": \"thin\",\n  \"provenance\": {\n    \"project\": \"context-lifecycle\",\n    \"revision\": 3,\n    \"stale\": false\n  },\n  \"terms\": [\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quick cast\",\n      \"locale\": \"en\",\n      \"status\": \"forbidden\",\n      \"replacement\": \"Quickcast\",\n      \"discouraged\": true\n    },\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quickcast\",\n      \"locale\": \"en\",\n      \"status\": \"preferred\",\n      \"discouraged\": false\n    },\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quick-cast\",\n      \"locale\": \"en\",\n      \"status\": \"forbidden\",\n      \"replacement\": \"Quickcast\",\n      \"discouraged\": true\n    }\n  ],\n  \"notes\": [\n    \"this project's content has not been extracted yet, so term usage was not counted. Run `kapi up`\",\n    \"project scope: concept relations, revisions and market scoping live in a connected workspace\"\n  ]\n}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "label": "Source edited",
+      "action": {
+        "command": [],
+        "kind": "fixture-file-edit",
+        "exitCode": 0,
+        "stdout": "Changed the source description from one hour to two hours.",
+        "stderr": ""
+      },
+      "source": "{\n  \"title\": \"Quickcast\",\n  \"description\": \"Quick cast forecasts the next two hours.\"\n}\n",
+      "sourceSha256": "b85a8126bd35266bff23c794822df9dcf060b55cf8fccd591e2f883ea8abfba5",
+      "context": {
+        "command": [
+          "context",
+          "guide.json",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"point\": {\n    \"path\": \"guide.json\",\n    \"collection\": \"guide\",\n    \"default\": true\n  },\n  \"scope\": \"project\",\n  \"coverage\": \"thin\",\n  \"provenance\": {\n    \"project\": \"context-lifecycle\",\n    \"revision\": 3,\n    \"stale\": true,\n    \"stale_reason\": \"1 file(s) changed since kapi read them. `kapi up` reads them again\"\n  },\n  \"terms\": [\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quick cast\",\n      \"locale\": \"en\",\n      \"status\": \"forbidden\",\n      \"replacement\": \"Quickcast\",\n      \"discouraged\": true\n    },\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quick-cast\",\n      \"locale\": \"en\",\n      \"status\": \"forbidden\",\n      \"replacement\": \"Quickcast\",\n      \"discouraged\": true\n    },\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quickcast\",\n      \"locale\": \"en\",\n      \"status\": \"preferred\",\n      \"discouraged\": false\n    }\n  ],\n  \"terms_total\": 3,\n  \"rules\": [\n    {\n      \"say\": \"Quickcast\",\n      \"not\": [\n        \"Quick cast\",\n        \"Quick-cast\"\n      ],\n      \"locale\": \"en\",\n      \"from\": [\n        \"terms\"\n      ]\n    }\n  ],\n  \"rules_total\": 1,\n  \"notes\": [\n    \"This project records little for this location. Notice as you work what this project calls its own things, which spellings it keeps to, who the text addresses, and how formal it is.\",\n    \"1 file(s) changed since kapi read them. `kapi up` reads them again\",\n    \"no voice profile is bound at this point, so no tone or style guidance applies\",\n    \"project scope: concept relations, revisions and market scoping live in a connected workspace\"\n  ]\n}\n",
+        "stderr": ""
+      },
+      "log": {
+        "command": [
+          "context",
+          "log",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"project\": \"context-lifecycle\",\n  \"operations\": [\n    {\n      \"id\": \"3\",\n      \"seq\": 3,\n      \"project\": \"context-lifecycle\",\n      \"actor\": {\n        \"kind\": \"person\"\n      },\n      \"kind\": \"keep\",\n      \"scope\": {\n        \"level\": \"project\"\n      },\n      \"target\": \"2\",\n      \"note\": \"recorded as a person in a codex shell\",\n      \"at\": \"2026-09-24T22:04:14.814217Z\",\n      \"status\": \"established\"\n    },\n    {\n      \"id\": \"2\",\n      \"seq\": 2,\n      \"project\": \"context-lifecycle\",\n      \"actor\": {\n        \"kind\": \"person\"\n      },\n      \"kind\": \"observe\",\n      \"subject\": {\n        \"kind\": \"term\",\n        \"term\": {\n          \"term\": \"Quick cast\",\n          \"replacement\": \"Quickcast\",\n          \"forms\": [\n            \"Quick-cast\",\n            \"QuickCast\",\n            \"quickcast\"\n          ],\n          \"case_sensitive\": true\n        }\n      },\n      \"evidence\": [\n        {\n          \"path\": \"guide.json\"\n        }\n      ],\n      \"scope\": {\n        \"level\": \"project\"\n      },\n      \"note\": \"recorded as a person in a codex shell\",\n      \"at\": \"2026-09-24T22:04:14.635699Z\",\n      \"status\": \"established\",\n      \"established\": true\n    }\n  ]\n}\n",
+        "stderr": ""
+      },
+      "check": {
+        "command": [
+          "check",
+          "guide.json",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 3,
+        "stdout": "{\n  \"schema\": \"kapi.check/v2\",\n  \"pass\": false,\n  \"verdict\": \"failed\",\n  \"target\": {\n    \"kind\": \"file\",\n    \"file\": \"guide.json\",\n    \"blocks\": 2\n  },\n  \"summary\": {\n    \"findings\": 1,\n    \"failing\": 1,\n    \"reporting\": 0,\n    \"score\": 75\n  },\n  \"findings\": [\n    {\n      \"rule\": \"voice.vocabulary\",\n      \"check\": \"voice\",\n      \"fails\": true,\n      \"message\": \"Forbidden term \\\"Quick cast\\\" found in terms\",\n      \"suggestion\": \"Use \\\"Quickcast\\\" instead\",\n      \"location\": {\n        \"file\": \"guide.json\",\n        \"block\": \"description\",\n        \"anchor\": {\n          \"kind\": \"range\",\n          \"end\": {\n            \"run\": 0,\n            \"offset\": 10\n          }\n        },\n        \"snippet\": \"Quick cast\"\n      },\n      \"point\": {},\n      \"metadata\": {\n        \"concept_id\": \"term:en:quick-cast\",\n        \"replacement\": \"Quickcast\",\n        \"term\": \"Quick cast\"\n      }\n    }\n  ],\n  \"execution\": {\n    \"analyzers\": [\n      {\n        \"id\": \"reader.validation\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"Reader validation was not requested.\"\n      },\n      {\n        \"id\": \"hygiene\",\n        \"status\": \"passed\",\n        \"file\": \"guide.json\",\n        \"required\": true,\n        \"findings\": 0,\n        \"duration_ms\": 0.086708,\n        \"canary\": {\n          \"status\": \"caught\",\n          \"probes\": 2\n        }\n      },\n      {\n        \"id\": \"length\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No length limit was configured.\"\n      },\n      {\n        \"id\": \"pattern\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No explicit patterns were configured.\"\n      },\n      {\n        \"id\": \"voice.rules\",\n        \"status\": \"findings\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 1,\n        \"duration_ms\": 0.114,\n        \"canary\": {\n          \"status\": \"caught\",\n          \"probes\": 1\n        }\n      },\n      {\n        \"id\": \"voice.similarity\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"Similarity analysis was not requested.\"\n      },\n      {\n        \"id\": \"voice.llm\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"This command does not run semantic review.\"\n      }\n    ],\n    \"timings\": {\n      \"context_ms\": 4.86725,\n      \"extraction_ms\": 0.098875,\n      \"analyzers_ms\": 0.200708,\n      \"report_ms\": 0.001834,\n      \"total_ms\": 5.539333\n    },\n    \"contexts\": [\n      {\n        \"file\": \"guide.json\",\n        \"voice\": {\n          \"selection\": \"project\",\n          \"applied\": false\n        },\n        \"terms_applied\": true,\n        \"point\": {}\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"at\": \"2026-09-24T22:04:15Z\",\n    \"context\": {\n      \"project\": \"context-lifecycle\",\n      \"revision\": 3,\n      \"stale\": true,\n      \"stale_reason\": \"1 file(s) changed since kapi read them. `kapi up` reads them again\"\n    },\n    \"tool\": {\n      \"name\": \"kapi\",\n      \"version\": \"v1.3.0-rc1-18-g0449f57cb-dirty\",\n      \"commit\": \"0449f57cb\"\n    },\n    \"analyzers\": [\n      {\n        \"id\": \"hygiene\",\n        \"ran\": 1\n      },\n      {\n        \"id\": \"length\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No length limit was configured.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"pattern\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No explicit patterns were configured.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"reader.validation\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"Reader validation was not requested.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.llm\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"This command does not run semantic review.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.rules\",\n        \"ran\": 1\n      },\n      {\n        \"id\": \"voice.similarity\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"Similarity analysis was not requested.\",\n            \"inputs\": 1\n          }\n        ]\n      }\n    ]\n  }\n}\n",
+        "stderr": "{\n  \"error\": \"quality gate failed\",\n  \"code\": \"gate\"\n}\n"
+      },
+      "search": {
+        "command": [
+          "context",
+          "search",
+          "Quickcast",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"query\": \"Quickcast\",\n  \"scope\": \"project\",\n  \"coverage\": \"thin\",\n  \"provenance\": {\n    \"project\": \"context-lifecycle\",\n    \"revision\": 3,\n    \"stale\": true,\n    \"stale_reason\": \"1 file(s) changed since kapi read them. `kapi up` reads them again\"\n  },\n  \"terms\": [\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quick cast\",\n      \"locale\": \"en\",\n      \"status\": \"forbidden\",\n      \"replacement\": \"Quickcast\",\n      \"discouraged\": true\n    },\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quickcast\",\n      \"locale\": \"en\",\n      \"status\": \"preferred\",\n      \"discouraged\": false\n    },\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quick-cast\",\n      \"locale\": \"en\",\n      \"status\": \"forbidden\",\n      \"replacement\": \"Quickcast\",\n      \"discouraged\": true\n    }\n  ],\n  \"notes\": [\n    \"1 file(s) changed since kapi read them. `kapi up` reads them again\",\n    \"this project's content has not been extracted yet, so term usage was not counted. Run `kapi up`\",\n    \"project scope: concept relations, revisions and market scoping live in a connected workspace\"\n  ]\n}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "label": "Source read again",
+      "action": {
+        "command": [
+          "up",
+          "--passes",
+          "1",
+          "-p",
+          "kapi.yaml"
+        ],
+        "exitCode": 0,
+        "stdout": "Reconciled the source. No target languages are configured, so the per-language flow \"default (built-in)\" did not run.\n\nExtracted 2 block(s) from 1 file(s) into the project store.\nUp to date: the committed context and the occurrence graph match the sources.\n",
+        "stderr": "plan: no target languages, reconciling the source only\nSettled source: 0 block(s) checked, 0 held below the \"checked\" gate.\nExtracted 2 block(s) from 1 file(s) into the project store (1 source file(s) changed).\n"
+      },
+      "source": "{\n  \"title\": \"Quickcast\",\n  \"description\": \"Quick cast forecasts the next two hours.\"\n}\n",
+      "sourceSha256": "b85a8126bd35266bff23c794822df9dcf060b55cf8fccd591e2f883ea8abfba5",
+      "context": {
+        "command": [
+          "context",
+          "guide.json",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"point\": {\n    \"path\": \"guide.json\",\n    \"collection\": \"guide\",\n    \"default\": true\n  },\n  \"scope\": \"project\",\n  \"coverage\": \"thin\",\n  \"provenance\": {\n    \"project\": \"context-lifecycle\",\n    \"revision\": 3,\n    \"stale\": false\n  },\n  \"terms\": [\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quick cast\",\n      \"locale\": \"en\",\n      \"status\": \"forbidden\",\n      \"replacement\": \"Quickcast\",\n      \"discouraged\": true\n    },\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quick-cast\",\n      \"locale\": \"en\",\n      \"status\": \"forbidden\",\n      \"replacement\": \"Quickcast\",\n      \"discouraged\": true\n    },\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quickcast\",\n      \"locale\": \"en\",\n      \"status\": \"preferred\",\n      \"discouraged\": false\n    }\n  ],\n  \"terms_total\": 3,\n  \"rules\": [\n    {\n      \"say\": \"Quickcast\",\n      \"not\": [\n        \"Quick cast\",\n        \"Quick-cast\"\n      ],\n      \"locale\": \"en\",\n      \"from\": [\n        \"terms\"\n      ]\n    }\n  ],\n  \"rules_total\": 1,\n  \"notes\": [\n    \"This project records little for this location. Notice as you work what this project calls its own things, which spellings it keeps to, who the text addresses, and how formal it is.\",\n    \"no voice profile is bound at this point, so no tone or style guidance applies\",\n    \"project scope: concept relations, revisions and market scoping live in a connected workspace\"\n  ]\n}\n",
+        "stderr": ""
+      },
+      "log": {
+        "command": [
+          "context",
+          "log",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"project\": \"context-lifecycle\",\n  \"operations\": [\n    {\n      \"id\": \"3\",\n      \"seq\": 3,\n      \"project\": \"context-lifecycle\",\n      \"actor\": {\n        \"kind\": \"person\"\n      },\n      \"kind\": \"keep\",\n      \"scope\": {\n        \"level\": \"project\"\n      },\n      \"target\": \"2\",\n      \"note\": \"recorded as a person in a codex shell\",\n      \"at\": \"2026-09-24T22:04:14.814217Z\",\n      \"status\": \"established\"\n    },\n    {\n      \"id\": \"2\",\n      \"seq\": 2,\n      \"project\": \"context-lifecycle\",\n      \"actor\": {\n        \"kind\": \"person\"\n      },\n      \"kind\": \"observe\",\n      \"subject\": {\n        \"kind\": \"term\",\n        \"term\": {\n          \"term\": \"Quick cast\",\n          \"replacement\": \"Quickcast\",\n          \"forms\": [\n            \"Quick-cast\",\n            \"QuickCast\",\n            \"quickcast\"\n          ],\n          \"case_sensitive\": true\n        }\n      },\n      \"evidence\": [\n        {\n          \"path\": \"guide.json\"\n        }\n      ],\n      \"scope\": {\n        \"level\": \"project\"\n      },\n      \"note\": \"recorded as a person in a codex shell\",\n      \"at\": \"2026-09-24T22:04:14.635699Z\",\n      \"status\": \"established\",\n      \"established\": true\n    }\n  ]\n}\n",
+        "stderr": ""
+      },
+      "check": {
+        "command": [
+          "check",
+          "guide.json",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 3,
+        "stdout": "{\n  \"schema\": \"kapi.check/v2\",\n  \"pass\": false,\n  \"verdict\": \"failed\",\n  \"target\": {\n    \"kind\": \"file\",\n    \"file\": \"guide.json\",\n    \"blocks\": 2\n  },\n  \"summary\": {\n    \"findings\": 1,\n    \"failing\": 1,\n    \"reporting\": 0,\n    \"score\": 75\n  },\n  \"findings\": [\n    {\n      \"rule\": \"voice.vocabulary\",\n      \"check\": \"voice\",\n      \"fails\": true,\n      \"message\": \"Forbidden term \\\"Quick cast\\\" found in terms\",\n      \"suggestion\": \"Use \\\"Quickcast\\\" instead\",\n      \"location\": {\n        \"file\": \"guide.json\",\n        \"block\": \"description\",\n        \"anchor\": {\n          \"kind\": \"range\",\n          \"end\": {\n            \"run\": 0,\n            \"offset\": 10\n          }\n        },\n        \"snippet\": \"Quick cast\"\n      },\n      \"point\": {},\n      \"metadata\": {\n        \"concept_id\": \"term:en:quick-cast\",\n        \"replacement\": \"Quickcast\",\n        \"term\": \"Quick cast\"\n      }\n    }\n  ],\n  \"execution\": {\n    \"analyzers\": [\n      {\n        \"id\": \"reader.validation\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"Reader validation was not requested.\"\n      },\n      {\n        \"id\": \"hygiene\",\n        \"status\": \"passed\",\n        \"file\": \"guide.json\",\n        \"required\": true,\n        \"findings\": 0,\n        \"duration_ms\": 0.258166,\n        \"canary\": {\n          \"status\": \"caught\",\n          \"probes\": 2\n        }\n      },\n      {\n        \"id\": \"length\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No length limit was configured.\"\n      },\n      {\n        \"id\": \"pattern\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No explicit patterns were configured.\"\n      },\n      {\n        \"id\": \"voice.rules\",\n        \"status\": \"findings\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 1,\n        \"duration_ms\": 0.327833,\n        \"canary\": {\n          \"status\": \"caught\",\n          \"probes\": 1\n        }\n      },\n      {\n        \"id\": \"voice.similarity\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"Similarity analysis was not requested.\"\n      },\n      {\n        \"id\": \"voice.llm\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"This command does not run semantic review.\"\n      }\n    ],\n    \"timings\": {\n      \"context_ms\": 5.500834,\n      \"extraction_ms\": 0.163083,\n      \"analyzers_ms\": 0.5859989999999999,\n      \"report_ms\": 0.002208,\n      \"total_ms\": 6.720417\n    },\n    \"contexts\": [\n      {\n        \"file\": \"guide.json\",\n        \"voice\": {\n          \"selection\": \"project\",\n          \"applied\": false\n        },\n        \"terms_applied\": true,\n        \"point\": {}\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"at\": \"2026-09-24T22:04:15Z\",\n    \"context\": {\n      \"project\": \"context-lifecycle\",\n      \"revision\": 3,\n      \"stale\": false\n    },\n    \"tool\": {\n      \"name\": \"kapi\",\n      \"version\": \"v1.3.0-rc1-18-g0449f57cb-dirty\",\n      \"commit\": \"0449f57cb\"\n    },\n    \"analyzers\": [\n      {\n        \"id\": \"hygiene\",\n        \"ran\": 1\n      },\n      {\n        \"id\": \"length\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No length limit was configured.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"pattern\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No explicit patterns were configured.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"reader.validation\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"Reader validation was not requested.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.llm\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"This command does not run semantic review.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.rules\",\n        \"ran\": 1\n      },\n      {\n        \"id\": \"voice.similarity\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"Similarity analysis was not requested.\",\n            \"inputs\": 1\n          }\n        ]\n      }\n    ]\n  }\n}\n",
+        "stderr": "{\n  \"error\": \"quality gate failed\",\n  \"code\": \"gate\"\n}\n"
+      },
+      "search": {
+        "command": [
+          "context",
+          "search",
+          "Quickcast",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"query\": \"Quickcast\",\n  \"scope\": \"project\",\n  \"coverage\": \"thin\",\n  \"provenance\": {\n    \"project\": \"context-lifecycle\",\n    \"revision\": 3,\n    \"stale\": false\n  },\n  \"terms\": [\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quick cast\",\n      \"locale\": \"en\",\n      \"status\": \"forbidden\",\n      \"replacement\": \"Quickcast\",\n      \"discouraged\": true,\n      \"uses\": 1,\n      \"use_blocks\": 1,\n      \"top_uses\": [\n        {\n          \"document\": \"guide.json\",\n          \"block_id\": \"tu2\",\n          \"snippet\": \"Quick cast forecasts the next two hours.\"\n        }\n      ]\n    },\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quickcast\",\n      \"locale\": \"en\",\n      \"status\": \"preferred\",\n      \"discouraged\": false,\n      \"uses\": 1,\n      \"use_blocks\": 1,\n      \"top_uses\": [\n        {\n          \"document\": \"guide.json\",\n          \"block_id\": \"tu1\",\n          \"snippet\": \"Quickcast\"\n        }\n      ]\n    },\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quick-cast\",\n      \"locale\": \"en\",\n      \"status\": \"forbidden\",\n      \"replacement\": \"Quickcast\",\n      \"discouraged\": true\n    }\n  ],\n  \"notes\": [\n    \"project scope: concept relations, revisions and market scoping live in a connected workspace\"\n  ]\n}\n",
+        "stderr": ""
+      }
+    },
+    {
+      "label": "Reverted",
+      "action": {
+        "command": [
+          "context",
+          "revert",
+          "2",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"reverted\": [\n    {\n      \"id\": \"2\",\n      \"seq\": 2,\n      \"project\": \"context-lifecycle\",\n      \"actor\": {\n        \"kind\": \"person\"\n      },\n      \"kind\": \"observe\",\n      \"subject\": {\n        \"kind\": \"term\",\n        \"term\": {\n          \"term\": \"Quick cast\",\n          \"replacement\": \"Quickcast\",\n          \"forms\": [\n            \"Quick-cast\",\n            \"QuickCast\",\n            \"quickcast\"\n          ],\n          \"case_sensitive\": true\n        }\n      },\n      \"evidence\": [\n        {\n          \"path\": \"guide.json\"\n        }\n      ],\n      \"scope\": {\n        \"level\": \"project\"\n      },\n      \"note\": \"recorded as a person in a codex shell\",\n      \"at\": \"2026-09-24T22:04:14.635699Z\",\n      \"status\": \"reverted\",\n      \"established\": true\n    }\n  ],\n  \"retracted\": [\n    \"the project's terms store\"\n  ]\n}\n",
+        "stderr": ""
+      },
+      "source": "{\n  \"title\": \"Quickcast\",\n  \"description\": \"Quick cast forecasts the next two hours.\"\n}\n",
+      "sourceSha256": "b85a8126bd35266bff23c794822df9dcf060b55cf8fccd591e2f883ea8abfba5",
+      "context": {
+        "command": [
+          "context",
+          "guide.json",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"point\": {\n    \"path\": \"guide.json\",\n    \"collection\": \"guide\",\n    \"default\": true\n  },\n  \"scope\": \"project\",\n  \"coverage\": \"thin\",\n  \"provenance\": {\n    \"project\": \"context-lifecycle\",\n    \"revision\": 4,\n    \"stale\": false\n  },\n  \"terms\": [\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quickcast\",\n      \"locale\": \"en\",\n      \"status\": \"preferred\",\n      \"discouraged\": false\n    }\n  ],\n  \"terms_total\": 1,\n  \"rules\": [\n    {\n      \"say\": \"Quickcast\",\n      \"locale\": \"en\",\n      \"from\": [\n        \"terms\"\n      ]\n    }\n  ],\n  \"rules_total\": 1,\n  \"notes\": [\n    \"This project records little for this location. Notice as you work what this project calls its own things, which spellings it keeps to, who the text addresses, and how formal it is.\",\n    \"no voice profile is bound at this point, so no tone or style guidance applies\",\n    \"project scope: concept relations, revisions and market scoping live in a connected workspace\"\n  ]\n}\n",
+        "stderr": ""
+      },
+      "log": {
+        "command": [
+          "context",
+          "log",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"project\": \"context-lifecycle\",\n  \"operations\": [\n    {\n      \"id\": \"4\",\n      \"seq\": 4,\n      \"project\": \"context-lifecycle\",\n      \"actor\": {\n        \"kind\": \"person\"\n      },\n      \"kind\": \"revert\",\n      \"scope\": {\n        \"level\": \"project\"\n      },\n      \"target\": \"2\",\n      \"note\": \"recorded as a person in a codex shell\",\n      \"at\": \"2026-09-24T22:04:15.342736Z\",\n      \"status\": \"established\"\n    },\n    {\n      \"id\": \"3\",\n      \"seq\": 3,\n      \"project\": \"context-lifecycle\",\n      \"actor\": {\n        \"kind\": \"person\"\n      },\n      \"kind\": \"keep\",\n      \"scope\": {\n        \"level\": \"project\"\n      },\n      \"target\": \"2\",\n      \"note\": \"recorded as a person in a codex shell\",\n      \"at\": \"2026-09-24T22:04:14.814217Z\",\n      \"status\": \"established\"\n    },\n    {\n      \"id\": \"2\",\n      \"seq\": 2,\n      \"project\": \"context-lifecycle\",\n      \"actor\": {\n        \"kind\": \"person\"\n      },\n      \"kind\": \"observe\",\n      \"subject\": {\n        \"kind\": \"term\",\n        \"term\": {\n          \"term\": \"Quick cast\",\n          \"replacement\": \"Quickcast\",\n          \"forms\": [\n            \"Quick-cast\",\n            \"QuickCast\",\n            \"quickcast\"\n          ],\n          \"case_sensitive\": true\n        }\n      },\n      \"evidence\": [\n        {\n          \"path\": \"guide.json\"\n        }\n      ],\n      \"scope\": {\n        \"level\": \"project\"\n      },\n      \"note\": \"recorded as a person in a codex shell\",\n      \"at\": \"2026-09-24T22:04:14.635699Z\",\n      \"status\": \"reverted\"\n    }\n  ]\n}\n",
+        "stderr": ""
+      },
+      "check": {
+        "command": [
+          "check",
+          "guide.json",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"schema\": \"kapi.check/v2\",\n  \"pass\": true,\n  \"verdict\": \"passed\",\n  \"target\": {\n    \"kind\": \"file\",\n    \"file\": \"guide.json\",\n    \"blocks\": 2\n  },\n  \"summary\": {\n    \"findings\": 0,\n    \"failing\": 0,\n    \"reporting\": 0,\n    \"score\": 100\n  },\n  \"findings\": [],\n  \"execution\": {\n    \"analyzers\": [\n      {\n        \"id\": \"reader.validation\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"Reader validation was not requested.\"\n      },\n      {\n        \"id\": \"hygiene\",\n        \"status\": \"passed\",\n        \"file\": \"guide.json\",\n        \"required\": true,\n        \"findings\": 0,\n        \"duration_ms\": 0.0865,\n        \"canary\": {\n          \"status\": \"caught\",\n          \"probes\": 2\n        }\n      },\n      {\n        \"id\": \"length\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No length limit was configured.\"\n      },\n      {\n        \"id\": \"pattern\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"No explicit patterns were configured.\"\n      },\n      {\n        \"id\": \"voice.rules\",\n        \"status\": \"did_not_run\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"no forbidden, competitor or retired term and no prohibited pattern is declared for this content; no voice profile is bound\",\n        \"duration_ms\": 0.064917,\n        \"canary\": {\n          \"status\": \"impossible\",\n          \"probes\": 0,\n          \"reason\": \"no forbidden, competitor or retired term and no prohibited pattern is declared for this content; no voice profile is bound\"\n        }\n      },\n      {\n        \"id\": \"voice.similarity\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"Similarity analysis was not requested.\"\n      },\n      {\n        \"id\": \"voice.llm\",\n        \"status\": \"not_requested\",\n        \"file\": \"guide.json\",\n        \"required\": false,\n        \"findings\": 0,\n        \"reason\": \"This command does not run semantic review.\"\n      }\n    ],\n    \"timings\": {\n      \"context_ms\": 5.378667,\n      \"extraction_ms\": 0.106416,\n      \"analyzers_ms\": 0.151417,\n      \"report_ms\": 0.0015,\n      \"total_ms\": 6.055417\n    },\n    \"contexts\": [\n      {\n        \"file\": \"guide.json\",\n        \"voice\": {\n          \"selection\": \"project\",\n          \"applied\": false\n        },\n        \"terms_applied\": true,\n        \"point\": {}\n      }\n    ]\n  },\n  \"evaluation\": {\n    \"at\": \"2026-09-24T22:04:15Z\",\n    \"context\": {\n      \"project\": \"context-lifecycle\",\n      \"revision\": 4,\n      \"stale\": false\n    },\n    \"tool\": {\n      \"name\": \"kapi\",\n      \"version\": \"v1.3.0-rc1-18-g0449f57cb-dirty\",\n      \"commit\": \"0449f57cb\"\n    },\n    \"analyzers\": [\n      {\n        \"id\": \"hygiene\",\n        \"ran\": 1\n      },\n      {\n        \"id\": \"length\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No length limit was configured.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"pattern\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"No explicit patterns were configured.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"reader.validation\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"Reader validation was not requested.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.llm\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"This command does not run semantic review.\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.rules\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"did_not_run\",\n            \"reason\": \"no forbidden, competitor or retired term and no prohibited pattern is declared for this content; no voice profile is bound\",\n            \"inputs\": 1\n          }\n        ]\n      },\n      {\n        \"id\": \"voice.similarity\",\n        \"ran\": 0,\n        \"not_run\": [\n          {\n            \"status\": \"not_requested\",\n            \"reason\": \"Similarity analysis was not requested.\",\n            \"inputs\": 1\n          }\n        ]\n      }\n    ]\n  }\n}\n",
+        "stderr": ""
+      },
+      "search": {
+        "command": [
+          "context",
+          "search",
+          "Quickcast",
+          "-p",
+          "kapi.yaml",
+          "--json"
+        ],
+        "exitCode": 0,
+        "stdout": "{\n  \"query\": \"Quickcast\",\n  \"scope\": \"project\",\n  \"coverage\": \"thin\",\n  \"provenance\": {\n    \"project\": \"context-lifecycle\",\n    \"revision\": 4,\n    \"stale\": false\n  },\n  \"terms\": [\n    {\n      \"concept_id\": \"term:en:quick-cast\",\n      \"term\": \"Quickcast\",\n      \"locale\": \"en\",\n      \"status\": \"preferred\",\n      \"discouraged\": false,\n      \"uses\": 1,\n      \"use_blocks\": 1,\n      \"top_uses\": [\n        {\n          \"document\": \"guide.json\",\n          \"block_id\": \"tu1\",\n          \"snippet\": \"Quickcast\"\n        }\n      ]\n    }\n  ],\n  \"notes\": [\n    \"project scope: concept relations, revisions and market scoping live in a connected workspace\"\n  ]\n}\n",
+        "stderr": ""
+      }
+    }
+  ],
+  "binaryVersion": "kapi version v1.3.0-rc1-18-g0449f57cb-dirty",
+  "input": {
+    "title": "Quickcast",
+    "description": "Quick cast forecasts the next hour."
+  },
+  "recipe": "version: v1\nname: context-lifecycle\ndefaults:\n  source_language: en\ncollections:\n  - name: guide\n    source_only: true\n    content:\n      - path: guide.json\n        format:\n          name: json\n"
+}
