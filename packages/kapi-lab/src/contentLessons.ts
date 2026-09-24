@@ -59,7 +59,7 @@ export const CONTENT_LESSONS: ContentLesson[] = [
     id: "annotations",
     label: "Terms & check overlays",
     description:
-      "Tools communicate by attaching stand-off state, never by rewriting text: terminology matches and rule-based checks ride as overlays on the source. The Preview highlights each span in place; open a Block to read the overlay's properties.",
+      "Annotators attach findings and matches as stand-off state. The Preview highlights spans in place; open a Block to read an overlay’s properties and compare them with the source text.",
     sampleId: "support-reply",
     spec: { annotate: { term: true, qa: true, brand: true }, tab: "preview" },
   },
@@ -83,7 +83,7 @@ export const CONTENT_LESSONS: ContentLesson[] = [
     id: "roundtrip",
     label: "Round-trip: skeleton preserved",
     description:
-      "The writer splices block text back into the original file's skeleton. Pseudo-translate every block, then diff the output against the input: only the block text changed, and structure, markup and key order are byte-for-byte intact. That is the round-trip guarantee.",
+      "Pseudo-translate the sample, then compare the written output with the input. Inspect text changes separately from structure, markup, and key order. The diff provides preservation evidence for this fixture and writer.",
     sampleId: "messages-json",
     spec: { run: { argv: ["pseudo-translate", "{in}", "-o", "{out}"], diff: true }, tab: "raw" },
   },
