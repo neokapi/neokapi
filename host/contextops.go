@@ -11,8 +11,8 @@
 // Three things are worth knowing before reading on.
 //
 // A suggestion advises from the moment it is recorded and binds only once a
-// person keeps it. Until then it is projected into checks as an advisory
-// finding at neutral severity, which carries no penalty and trips no gate.
+// person keeps it. Until then it is projected into checks as a suggested
+// finding, which reports, weighs nothing in the score and never fails.
 //
 // Keeping writes the rule where the existing subsystems already read it:
 // through the same appliers `kapi apply` uses, into the project's terms store
@@ -110,9 +110,9 @@ type ContextCorrectRequest struct {
 	// use of the old wording is reported. Without it the correction is recorded
 	// as evidence and nothing else.
 	Suggest bool
-	// Severity is the severity the suggested rule carries once a person keeps
-	// it. Empty leaves it unset, which fails a check once established.
-	Severity string
+	// Advisory makes the suggested rule report without failing a check once a
+	// person keeps it. Unset, an established rule fails.
+	Advisory bool
 	// Note is whatever the actor wants to say about it.
 	Note string
 }
@@ -156,9 +156,9 @@ type ContextKeepRequest struct {
 	// Replacement, when set, replaces what the rule says to write instead. It
 	// edits one rule, so it takes one id.
 	Replacement string
-	// Severity, when set, replaces how hard the rule bites. `minor` and
-	// `neutral` report; everything else fails a check.
-	Severity string
+	// Advisory, when set, replaces whether the rule only reports (true) or
+	// fails a check (false).
+	Advisory *bool
 	// WidenTo widens the rule as it is kept: "workspace" puts it in force in
 	// every project, and an axis name drops that axis from the rule's point so
 	// it answers more widely.
@@ -383,7 +383,7 @@ func (a *App) RecordContextCorrection(ctx context.Context, req ContextCorrectReq
 		record.Subject = contextop.Subject{Kind: contextop.SubjectTerm, Term: &profile.TermRule{
 			Term:        req.From,
 			Replacement: req.To,
-			Severity:    req.Severity,
+			Advisory:    req.Advisory,
 			Note:        req.Note,
 		}}
 	}
@@ -569,7 +569,7 @@ func (s *contextOpsSession) keep(ctx context.Context, actor contextop.Actor, not
 		Note:    note,
 		Scope:   target.Scope,
 	}
-	if edited, changed := editSubject(target.Subject, req.Replacement, req.Severity); changed {
+	if edited, changed := editSubject(target.Subject, req.Replacement, req.Advisory); changed {
 		keep.Subject = edited
 		target.Subject = edited
 	}
@@ -599,9 +599,9 @@ func (s *contextOpsSession) keep(ctx context.Context, actor contextop.Actor, not
 
 // editSubject applies a keep's edits to the rule being kept, and reports
 // whether anything moved. A content-memory pair and a note carry no
-// replacement or severity, so an edit of either is a no-op.
-func editSubject(subject contextop.Subject, replacement, severity string) (contextop.Subject, bool) {
-	if replacement == "" && severity == "" {
+// replacement or advisory marking, so an edit of either is a no-op.
+func editSubject(subject contextop.Subject, replacement string, advisory *bool) (contextop.Subject, bool) {
+	if replacement == "" && advisory == nil {
 		return subject, false
 	}
 	apply := func(rule *profile.TermRule) bool {
@@ -609,8 +609,8 @@ func editSubject(subject contextop.Subject, replacement, severity string) (conte
 		if replacement != "" && rule.Replacement != replacement {
 			rule.Replacement, changed = replacement, true
 		}
-		if severity != "" && rule.Severity != severity {
-			rule.Severity, changed = severity, true
+		if advisory != nil && rule.Advisory != *advisory {
+			rule.Advisory, changed = *advisory, true
 		}
 		return changed
 	}

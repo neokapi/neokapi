@@ -30,20 +30,16 @@ style:
   prohibited_patterns:
     - regex: '\b(powerful|seamless(?:ly)?|effortless(?:ly)?|blazing|game-changing|cutting-edge|revolutionary|supercharged?|unleash)\b'
       description: Marketing superlatives and hype words
-      severity: major
     - regex: '\b(production-proven|everything you need|localize at scale|just point and go)\b'
       description: Brochure framing
-      severity: major
     - regex: '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]'
       description: Emoji in committed prose
-      severity: major
     # The leading (^|[^\w.-]) is the count guard: RE2 has no lookbehind, so the
     # delimiter before the number is matched rather than asserted. Without it a
     # version ("XLIFF 2.1 tools") and a standard's number ("BCP-47 languages")
     # both read as counts, because \b sits happily after a dot or a hyphen.
     - regex: '(^|[^\w.-])\d+\+?\s+(?:built-in\s+)?(formats|tools|providers|filters|languages)\b'
       description: Hardcoded counts that the code controls — name categories and link to the generated reference instead
-      severity: critical
     # "magic" carries two registers. The marketing one is a claim about the
     # product ("it just works, like magic"); the technical one names a file
     # signature ("magic bytes", "magic number", "magic string"). RE2 has neither
@@ -56,7 +52,6 @@ style:
     # no technical sense and need no such guard.
     - regex: '(?i)\b(?:magical(?:ly)?|magic\s+happens)\b|(?i)\b(?:(?:just\s+)?(?:like|pure|sheer)\s+magic|(?:it|that|this)(?:[''’]s|\s+is)\s+magic)\b(?:\s*[^\p{L}\p{N}\s_-]|$)'
       description: '"magic" as a claim about the product — state the mechanism; the technical sense (magic bytes, magic number) is not this rule'
-      severity: major
     # ── The fixed vocabulary (brand-communication.md §"The vocabulary is fixed")
     #
     # Patterns rather than vocabulary.forbidden_terms because MatchVocabulary is
@@ -81,13 +76,10 @@ style:
     # `SideEffect = "termbase-read"` needs no exception here.
     - regex: '\btermbases?\b'
       description: "termbase: the store is the terms store, and its contents are terms (TBX, the ISO standard, keeps its name)"
-      severity: major
     - regex: '\bglossar(y|ies)\b'
       description: "glossary: the store is the terms store (XLIFF 2.x's Glossary module keeps its name)"
-      severity: major
     - regex: '(?i)\blocali[sz](e|es|ed|ing|ation|ations)\b'
       description: Say multilingual content, or language — and recast the sentence rather than substituting a word for "localize"
-      severity: major
     # The leading (^|[^\w-]) is the third-party guard, the same shape the count
     # rule above uses: RE2 has no lookbehind, so the delimiter is matched rather
     # than asserted. It keeps another project's tool name out — Flutter's
@@ -95,19 +87,15 @@ style:
     # own prose still fails.
     - regex: '(?i)(^|[^\w-])l10n\b'
       description: Say multilingual content, or language (the l10n-* make targets are developer-facing internals and are not this rule)
-      severity: major
     - regex: '(?i)\btranslation memor(y|ies)\b'
       description: "translation memory: say content memory"
-      severity: major
     # `brand_voice` with an underscore is bowrain's recipe extension key, which a
     # doc is right to name; the space and hyphen forms are prose and the retired
     # `brand-voice.yaml` filename, which are not.
     - regex: '(?i)\bbrand[ -]voice\b'
       description: Voice is the mechanism — say voice profile. "Brand voice" belongs in prose about the common use case, never as the name of the thing
-      severity: major
     - regex: '\b(enterprise-grade|best-in-class|world-class|trusted by)\b'
       description: Credibility-by-assertion; show the mechanism instead
-      severity: major
 vocabulary:
   preferred_terms:
     - term: Bowrain
@@ -123,14 +111,14 @@ vocabulary:
   forbidden_terms:
     - term: simply
       replacement: ""
-      severity: minor
+      advisory: true
     - term: easily
       replacement: ""
-      severity: minor
+      advisory: true
     - term: solution
       replacement: ""
       note: Says nothing; name the thing the product actually does
-      severity: minor
+      advisory: true
 examples:
   - before: "Bowrain is a powerful enterprise-grade platform trusted by teams everywhere."
     after: "Bowrain is the context graph for your content — the one your people and your AI agents plug into."

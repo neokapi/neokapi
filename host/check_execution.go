@@ -138,13 +138,13 @@ func (e *checkExecution) completed(id, file string, findings int, start time.Tim
 // report assembles the Report one operation produces. Every check surface goes
 // through it, so the evaluation record is attached here rather than at each
 // caller: a surface added later carries it without being told to.
-func (e *checkExecution) report(ctx context.Context, a *App, cmd Command, target check.Target, diags []check.Diagnostic, gate check.Gate) check.Report {
+func (e *checkExecution) report(ctx context.Context, a *App, cmd Command, target check.Target, diags []check.Diagnostic) check.Report {
 	// Before the report's own clock: naming the context files a checkout holds
 	// opens the project store, which is not time spent assembling a report.
 	unread := a.contextUnreadWarning(ctx, cmd)
 
 	start := time.Now()
-	report := check.BuildReport(target, diags, gate)
+	report := check.BuildReport(target, diags)
 	if e != nil {
 		report.Warnings = check.MergeWarnings(e.warnings.merged(), unread)
 		e.Timings.ReportMS = elapsedMS(start)

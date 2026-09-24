@@ -15,20 +15,6 @@ const (
 	DimensionCompliance Dimension = "compliance"
 )
 
-// Severity re-exports the framework severity scale so voice findings share one
-// set of levels and penalty weights with every other checker.
-type Severity = check.Severity
-
-const (
-	SeverityNeutral  = check.SeverityNeutral
-	SeverityMinor    = check.SeverityMinor
-	SeverityMajor    = check.SeverityMajor
-	SeverityCritical = check.SeverityCritical
-)
-
-// SeverityWeight returns the framework penalty weight for a severity level.
-func SeverityWeight(s Severity) int { return check.SeverityWeight(s) }
-
 // VoiceFinding is the framework's unified check.Finding. A voice finding
 // sets Category to a brand Dimension; the same struct flows through scoring,
 // annotation, and bowrain governance as every other checker's findings.
@@ -55,13 +41,14 @@ type ComplianceScore struct {
 
 // CalculateScore computes the Voice Compliance Score from findings, always
 // presenting the five brand dimensions. Penalty aggregation uses the framework's
-// severity weights (neutral=0, minor=1, major=5, critical=25); the roll-up is
-// 100 − Σpenalty, clamped to [0,100].
+// weights (check.Weight: a failing finding 25, a reported one 1, a suggested
+// one 0); the roll-up is 100 − Σpenalty, clamped to [0,100]. The score is a
+// reported metric and gates nothing.
 func CalculateScore(findings []VoiceFinding) ComplianceScore {
 	penalties := make(map[Dimension]int)
 	counts := make(map[Dimension]int)
 	for _, f := range findings {
-		penalties[Dimension(f.Category)] += check.SeverityWeight(f.Severity)
+		penalties[Dimension(f.Category)] += check.Weight(f)
 		counts[Dimension(f.Category)]++
 	}
 

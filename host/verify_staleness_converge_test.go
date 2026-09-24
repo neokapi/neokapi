@@ -210,7 +210,7 @@ func TestStalenessGate_TermsMoveUnderAConvergedProject(t *testing.T) {
 	require.True(t, judged)
 	assert.False(t, gate.Pass, "targets produced under the old terminology are behind it")
 	require.NotEmpty(t, gate.Findings)
-	assert.Equal(t, "error", gate.Findings[0].Severity)
+	assert.True(t, gate.Findings[0].Fails)
 	assert.Equal(t, "fr", gate.Findings[0].Locale)
 	assert.Contains(t, gate.Findings[0].Message, "superseded context")
 	assert.Contains(t, gate.Findings[0].Message, "terms moved")

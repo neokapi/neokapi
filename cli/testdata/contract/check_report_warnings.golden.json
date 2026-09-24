@@ -1,5 +1,5 @@
 {
-  "schema": "kapi.check/v1",
+  "schema": "kapi.check/v2",
   "pass": true,
   "verdict": "passed",
   "target": {
@@ -10,18 +10,9 @@
   },
   "summary": {
     "findings": 0,
-    "critical": 0,
-    "major": 0,
-    "minor": 0,
-    "neutral": 0,
+    "failing": 0,
+    "reporting": 0,
     "score": 100
-  },
-  "gate": {
-    "max_critical": 0,
-    "max_major": -1,
-    "max_minor": -1,
-    "min_score": 0,
-    "failed": []
   },
   "findings": [],
   "warnings": [

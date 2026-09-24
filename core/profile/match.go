@@ -28,15 +28,15 @@ func (k VocabKind) String() string {
 	return "forbidden"
 }
 
-// VocabHit is one voice-vocabulary match in a piece of text: which rule matched,
-// at what byte range, and at what severity. It is the shared output of the
+// VocabHit is one term-rule match in a piece of text: which rule matched, at
+// what byte range, and whether it fails. It is the shared output of the
 // vocabulary matcher, consumed both by the voice-vocab check tool (which maps
 // the byte range onto run-anchored positions for the streaming pipeline) and by
 // the blast-radius evaluator (which only needs the counts and severities).
 type VocabHit struct {
 	Kind        VocabKind
 	Category    Dimension
-	Severity    Severity
+	Fails       bool
 	Term        string
 	Replacement string
 	Note        string
@@ -44,44 +44,39 @@ type VocabHit struct {
 	Scope       string // where the rule applies (TermRule.Scope); empty means everywhere
 	Start       int    // byte offset into the searched text (inclusive)
 	End         int    // byte offset into the searched text (exclusive)
-	// Advisory marks a hit against a rule nobody has confirmed yet. Its
-	// severity is SeverityNeutral, which carries no penalty and trips no gate
-	// threshold, so the hit is reported and settles nothing. A surface shows it
-	// as the proposal it is.
-	Advisory bool
+	// Suggested marks a hit against a suggested rule, one nobody has settled
+	// yet. It never fails, so the hit is reported and settles nothing. A
+	// surface shows it as the suggestion it is.
+	Suggested bool
 }
 
 // A TermRuleSet is one source of term rules matched together: the rules, what
-// kind of violation a hit against them is, and the severity a rule that names
-// none of its own takes.
+// kind of violation a hit against them is, and whether they are settled.
 //
-// The set is what carries kind and default severity, because a rule does not:
-// the same TermRule is a forbidden term in one list and a competitor's name in
-// another, and the two answer differently for how hard a hit bites. Grouping
-// them this way is what lets one match run cover every source a caller holds —
-// a voice profile's two lists, a tool's `term_rules:`, the concepts resolved
-// from a terms store — in a single pass over the text.
+// The set carries the kind because a rule does not: the same TermRule is a
+// forbidden term in one list and a competitor's name in another. Grouping them
+// this way is what lets one match run cover every source a caller holds (a
+// tool's `term_rules:`, the concepts resolved from a terms store, the
+// established and suggested rules a project holds) in a single pass over the
+// text.
 type TermRuleSet struct {
 	Rules []TermRule
 	Kind  VocabKind
 	// Category the hits are raised under. Zero means DimensionVocabulary.
 	Category Dimension
-	// Default severity for a rule that names none. Zero means SeverityMajor.
-	Default Severity
-	// Advisory marks a set whose rules nobody has confirmed: the candidates a
-	// project has accumulated but not yet decided on (core/contextop). Every
-	// hit against such a set is raised at SeverityNeutral, whatever the rule
-	// says, so a candidate is reported everywhere a rule would be and can never
-	// fail a check or a gate. The severity a candidate's rule carries takes
-	// effect when a person confirms it and the rule moves into the project's
-	// own store.
-	Advisory bool
+	// Suggested marks a set of suggested rules: ones a project has accumulated
+	// and nobody has settled (core/contextop). Every hit against such a set
+	// reports and never fails, whatever the rule says, so a suggestion is
+	// reported everywhere a rule would be and can never fail a check. The
+	// rule's own Advisory takes effect once it is established.
+	Suggested bool
 }
 
 // MatchTermRules returns every hit in text under the given rule sets. Matching
 // is whole-word and Unicode-aware (check.FindTerm), so "use" never matches
-// inside "user". A rule's own Severity, when set, overrides its set's default;
-// a rule naming no term is skipped.
+// inside "user". A hit fails unless its rule is advisory or its set is
+// suggested; a rule naming no term is skipped. Case follows
+// TermRule.MatchesCase.
 //
 // This is the single definition of what it means for a text to use a declared
 // term. Every caller reaches it: the voice-vocabulary gate through
@@ -116,26 +111,16 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 		if category == "" {
 			category = DimensionVocabulary
 		}
-		fallback := set.Default
-		if fallback == "" {
-			fallback = SeverityMajor
-		}
 		for _, rule := range set.Rules {
 			if strings.TrimSpace(rule.Term) == "" {
 				continue
 			}
-			sev := severityForRule(rule.Severity, fallback)
-			if set.Advisory {
-				// An unconfirmed rule is reported and never gates. Neutral is
-				// the level the framework already defines as carrying no
-				// penalty, so every existing threshold, score and readiness
-				// gate treats the hit as advice without being taught to.
-				sev = SeverityNeutral
-			}
+			// A suggested rule reports and never fails.
+			fails := !rule.Advisory && !set.Suggested
 			// Every shape the rule declares, matched exactly. See
 			// TermRule.Forms and core/check/forms.go.
 			find := check.FindTermForms
-			if rule.CaseSensitive {
+			if rule.MatchesCase() {
 				find = check.FindTermFormsCased
 			}
 			matches := find(text, rule.AllForms())
@@ -159,7 +144,7 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 				hits = append(hits, VocabHit{
 					Kind:        set.Kind,
 					Category:    category,
-					Severity:    sev,
+					Fails:       fails,
 					Term:        rule.Term,
 					Replacement: rule.Replacement,
 					Note:        rule.Note,
@@ -167,7 +152,7 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 					Scope:       rule.Scope,
 					Start:       h[0],
 					End:         h[1],
-					Advisory:    set.Advisory,
+					Suggested:   set.Suggested,
 				})
 			}
 		}
@@ -175,8 +160,8 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 	return hits
 }
 
-// VocabularyRuleSets is a profile's vocabulary as rule sets: forbidden terms at
-// major severity, a competitor's names at critical. A caller combining a
+// VocabularyRuleSets is a profile's vocabulary as rule sets: forbidden terms and
+// a competitor's names. A caller combining a
 // profile's rules with rules from elsewhere passes these alongside its own, so
 // one match run covers the lot. A nil profile declares no sets.
 func VocabularyRuleSets(p *VoiceProfile) []TermRuleSet {
@@ -184,8 +169,8 @@ func VocabularyRuleSets(p *VoiceProfile) []TermRuleSet {
 		return nil
 	}
 	return []TermRuleSet{
-		{Rules: p.Vocabulary.ForbiddenTerms, Kind: VocabForbidden, Default: SeverityMajor},
-		{Rules: p.Vocabulary.CompetitorTerms, Kind: VocabCompetitor, Default: SeverityCritical},
+		{Rules: p.Vocabulary.ForbiddenTerms, Kind: VocabForbidden},
+		{Rules: p.Vocabulary.CompetitorTerms, Kind: VocabCompetitor},
 	}
 }
 
@@ -237,20 +222,20 @@ func HitsToFindings(hits []VocabHit, text string, runs []model.Run) []VoiceFindi
 	for _, hit := range hits {
 		f := VoiceFinding{
 			Category:     string(hit.Category),
-			Severity:     hit.Severity,
+			Fails:        hit.Fails,
 			OriginalText: text[hit.Start:hit.End],
-			Advisory:     hit.Advisory,
+			Suggested:    hit.Suggested,
 		}
 		if len(runs) > 0 {
 			f.Position = model.RangeAnchorForBytes(runs, hit.Start, hit.End)
 		}
 		switch {
-		case hit.Advisory:
-			// A proposal reads as one. "Forbidden" would say a decision has been
-			// made, and nobody has made it yet.
-			f.Message = fmt.Sprintf("Proposed rule about %q, not yet confirmed", hit.Term)
+		case hit.Suggested:
+			// A suggestion reads as one. "Forbidden" would say a decision has
+			// been made, and nobody has made it yet.
+			f.Message = fmt.Sprintf("Suggested rule about %q, not yet established", hit.Term)
 			if hit.Note != "" {
-				f.Message = fmt.Sprintf("Proposed rule about %q, not yet confirmed: %s", hit.Term, hit.Note)
+				f.Message = fmt.Sprintf("Suggested rule about %q, not yet established: %s", hit.Term, hit.Note)
 			}
 		case hit.Kind == VocabCompetitor:
 			f.Message = fmt.Sprintf("Competitor term %q found", hit.Term)
@@ -304,21 +289,4 @@ func spanWithinAny(h [2]int, spans [][2]int) bool {
 		}
 	}
 	return false
-}
-
-// severityForRule maps a TermRule's textual severity onto the framework scale,
-// falling back to def when the rule does not set one.
-func severityForRule(s string, def Severity) Severity {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "neutral":
-		return SeverityNeutral
-	case "minor":
-		return SeverityMinor
-	case "major":
-		return SeverityMajor
-	case "critical":
-		return SeverityCritical
-	default:
-		return def
-	}
 }

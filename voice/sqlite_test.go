@@ -45,7 +45,7 @@ func testProfile() *coreprofile.VoiceProfile {
 				{Term: "use", Replacement: "", Note: "prefer over utilize"},
 			},
 			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "utilize", Replacement: "use", Severity: "major"},
+				{Term: "utilize", Replacement: "use"},
 			},
 		},
 		Examples: []coreprofile.VoiceExample{
@@ -147,7 +147,7 @@ func TestScoreStorage(t *testing.T) {
 			{Dimension: coreprofile.DimensionStyle, Score: 80, Penalty: 5, Issues: 1},
 		},
 		Findings: []coreprofile.VoiceFinding{
-			{Category: string(coreprofile.DimensionTone), Severity: coreprofile.SeverityMinor, Message: "too informal"},
+			{Category: string(coreprofile.DimensionTone), Message: "too informal"},
 		},
 		CheckedAt: time.Now(),
 	}

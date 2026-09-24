@@ -1,7 +1,7 @@
 {
   "generated_note": "Run `go run ./scripts/checkeval` to regenerate.",
-  "generated": "2026-08-26T22:55:38Z",
-  "commit": "a2639dd41",
+  "generated": "2026-09-23T22:37:39Z",
+  "commit": "0e103400c",
   "total": {
     "check": "all",
     "cases": 10,
@@ -154,8 +154,8 @@
       "tp": 1,
       "fp": 0,
       "fn": 0,
-      "score": 95,
-      "expect_score": 95,
+      "score": 75,
+      "expect_score": 75,
       "score_ok": true,
       "note": "unexpected {stray} in target → major (100-5)"
     },

@@ -57,7 +57,7 @@ function unitFor(item: ReviewItem): ReviewUnitDetail {
       ? [
           {
             category: "placeholder",
-            severity: "major",
+            fails: true,
             message: "placeholder {name} missing from target",
             fixable: false,
           },
@@ -547,7 +547,7 @@ const CONTEXT: ReviewContext = {
       guide: "Write in the second person. Keep sentences under twenty words.",
     },
     term_rules: [
-      { term: "cart", replacement: "basket", severity: "major" },
+      { term: "cart", replacement: "basket" },
       { term: "Kapimart", do_not_translate: true },
     ],
     terms_total: 40,
@@ -984,7 +984,7 @@ describe("ReviewPage source rows", () => {
         ref: "retail/web",
         default: false,
         voice: { name: "Kapimart retail" },
-        term_rules: [{ term: "cart", replacement: "basket", severity: "major" }],
+        term_rules: [{ term: "cart", replacement: "basket" }],
         terms_total: 1,
       },
       neighbourhood: {
@@ -1041,8 +1041,8 @@ describe("ReviewPage tone", () => {
                 // The third rule carries no severity, which is what every rule
                 // resolved from a terms store looks like.
                 term_rules: [
-                  { term: "cart", replacement: "basket", severity: "major" },
-                  { term: "sign in", replacement: "log in", severity: "minor" },
+                  { term: "cart", replacement: "basket" },
+                  { term: "sign in", replacement: "log in", advisory: true },
                   { term: "checkout", replacement: "pay" },
                   { term: "Kapimart", do_not_translate: true },
                 ],
@@ -1087,10 +1087,8 @@ describe("ReviewPage tone", () => {
       expect(el).not.toBeNull();
       return el!;
     });
-    // `major` is "a clear violation a reviewer would act on" and fails the
-    // unit, so it takes the destructive tone rather than the amber that read as
-    // a nit. The scale is core/check.Severity; the tones are the shared
-    // findingSeverityTone.
+    // A failing finding takes the destructive tone rather than the amber a
+    // reported one reads in; the tones are the shared findingOutcomeTone.
     expect(finding.querySelector(".text-destructive")).not.toBeNull();
     expect(finding.querySelector(".text-warning")).toBeNull();
   });

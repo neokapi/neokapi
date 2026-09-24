@@ -213,8 +213,8 @@ export default function CheckEval(): ReactElement {
         </table>
         <p style={{ fontSize: "0.85rem", color: "var(--ifm-color-emphasis-600)" }}>
           The <strong>Score</strong> column is the rolled-up compliance score (0–100) for the case.
-          Calibrated cases pin this value, so a change to the severity weights (neutral 0 / minor 1
-          / major 5 / critical 25) or to a checker&rsquo;s severity choice is caught as score drift,
+          Calibrated cases pin this value, so a change to the weights (a failing finding 25, a
+          reported one 1) or to whether a checker&rsquo;s finding fails is caught as score drift,
           not just a finding change (issue #758).
         </p>
 

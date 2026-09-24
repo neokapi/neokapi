@@ -41,7 +41,7 @@ func TestCheckNamedCommentLimitsProfile(t *testing.T) {
 
 	t.Run("the comment analyzers decide the verdict", func(t *testing.T) {
 		report := namedProfileCheck(t, limits, code, nil)
-		assert.Equal(t, check.VerdictPassed, report.Verdict, "kapi check fails on a critical finding by default: %v", report.DidNotRun)
+		assert.Equal(t, check.VerdictPassed, report.Verdict, "comment limits report unless marked fails: %v", report.DidNotRun)
 		body := limitFindings(report)["func/Body/comment"]
 		require.Len(t, body, 1, "%+v", report.Findings)
 		assert.Equal(t, "comment.length", body[0].Rule)
@@ -60,9 +60,10 @@ func TestCheckNamedCommentLimitsProfile(t *testing.T) {
 			assert.Equal(t, check.CanaryCaught, run.Canary.Status, id)
 		}
 
-		gated := namedProfileCheck(t, limits, code, map[string]string{"max-major": "0"})
+		failing := writeCheckInput(t, dir, "failing.yaml", "name: Comment limits\nstyle:\n  comments: {fails: true}\n")
+		gated := namedProfileCheck(t, failing, code, nil)
 		assert.Equal(t, check.VerdictFailed, gated.Verdict, gated.DidNotRun)
-		assert.Equal(t, []string{"major findings 2 exceed limit 0"}, gated.Gate.Failed)
+		assert.Equal(t, 2, gated.Summary.Failing)
 	})
 
 	t.Run("in a check scoped to a diff", func(t *testing.T) {

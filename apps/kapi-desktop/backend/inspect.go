@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -388,7 +389,7 @@ func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, so
 // (coreprofile.MatchPatterns). Findings ride on the "qa" overlay type (the model's
 // overlay enum has no dedicated voice type) tagged with
 // category="voice-vocabulary" or category="voice-pattern" plus the matched term
-// or rule, severity, kind and any preferred replacement. Returns nil when
+// or rule, whether it fails, kind and any preferred replacement. Returns nil when
 // nothing matches.
 func voiceOverlay(profile *coreprofile.VoiceProfile, runs []model.Run, source string) *model.Overlay {
 	hits := coreprofile.MatchVocabulary(profile, source)
@@ -400,7 +401,7 @@ func voiceOverlay(profile *coreprofile.VoiceProfile, runs []model.Run, source st
 	for _, h := range hits {
 		props := map[string]string{
 			"category": "voice-vocabulary",
-			"severity": string(h.Severity),
+			"fails":    strconv.FormatBool(h.Fails),
 			"term":     h.Term,
 		}
 		switch h.Kind {
@@ -437,7 +438,7 @@ func patternSpanProps(p coreprofile.PatternHit) map[string]string {
 	}
 	return map[string]string{
 		"category": "voice-pattern",
-		"severity": string(p.Severity),
+		"fails":    strconv.FormatBool(p.Fails),
 		"kind":     "pattern",
 		"pattern":  p.Regex,
 		"message":  message,

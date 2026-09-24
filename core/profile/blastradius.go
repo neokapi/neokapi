@@ -23,7 +23,7 @@ type EvalBlock struct {
 //   - ResolvedViolations — matches the baseline raised that the candidate does not.
 //   - AffectedBlocks   — blocks whose match set changed at all.
 //   - Improved/Degraded — blocks whose compliance score rose / fell.
-//   - CriticalCount    — new violations at critical severity (the riskiest).
+//   - FailingCount     — new violations that fail a check (the riskiest).
 //
 // Results are broken down per collection. Only the vocabulary checkset — the part
 // a promoted correction-rule changes — is scored here; subjective and ML-backed
@@ -48,13 +48,13 @@ func EvaluateBlastRadius(blocks []EvalBlock, baseline, candidate *VoiceProfile) 
 		baseKeys := hitKeySet(baseHits)
 		candKeys := hitKeySet(candHits)
 
-		newV, resolvedV, newCrit := 0, 0, 0
+		newV, resolvedV, newFailing := 0, 0, 0
 		prescribed := false
 		for k, h := range candKeys {
 			if _, ok := baseKeys[k]; !ok {
 				newV++
-				if h.severity == SeverityCritical {
-					newCrit++
+				if h.fails {
+					newFailing++
 				}
 				if h.replacement != "" {
 					prescribed = true
@@ -85,7 +85,7 @@ func EvaluateBlastRadius(blocks []EvalBlock, baseline, candidate *VoiceProfile) 
 		}
 		br.NewViolations += newV
 		br.ResolvedViolations += resolvedV
-		br.CriticalCount += newCrit
+		br.FailingCount += newFailing
 
 		if changed {
 			acc := cols[b.CollectionID]
@@ -122,10 +122,11 @@ func CandidateWithRule(baseline *VoiceProfile, r SuggestedRule) *VoiceProfile {
 	return c
 }
 
-// keyedHit carries the two properties a diff of two hit sets reads: how bad the
-// violation is, and whether the rule that raised it says what to write instead.
+// keyedHit carries the two properties a diff of two hit sets reads: whether the
+// violation fails, and whether the rule that raised it says what to write
+// instead.
 type keyedHit struct {
-	severity    Severity
+	fails       bool
 	replacement string
 }
 
@@ -136,7 +137,7 @@ func hitKeySet(hits []VocabHit) map[string]keyedHit {
 	m := make(map[string]keyedHit, len(hits))
 	for _, h := range hits {
 		m[fmt.Sprintf("%s|%d|%d", h.Category, h.Start, h.End)] = keyedHit{
-			severity:    h.Severity,
+			fails:       h.Fails,
 			replacement: h.Replacement,
 		}
 	}
@@ -144,11 +145,11 @@ func hitKeySet(hits []VocabHit) map[string]keyedHit {
 }
 
 // findingsFromHits projects hits onto the minimal findings the score needs
-// (category + severity drive the penalty weights).
+// (category and whether it fails drive the penalty weights).
 func findingsFromHits(hits []VocabHit) []VoiceFinding {
 	fs := make([]VoiceFinding, len(hits))
 	for i, h := range hits {
-		fs[i] = VoiceFinding{Category: string(h.Category), Severity: h.Severity}
+		fs[i] = VoiceFinding{Category: string(h.Category), Fails: h.Fails, Suggested: h.Suggested}
 	}
 	return fs
 }

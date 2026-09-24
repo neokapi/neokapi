@@ -63,7 +63,7 @@ capitalised forms of a compound and the lower-case spelling of a capitalised
 name, so this suggestion avoids `Quick cast`, `Quick-cast`, `QuickCast` and
 `quickcast`. From that moment a check reports those forms wherever they appear.
 The finding is a note. It carries no penalty, it does not lower a score, and it
-cannot fail a check or a gate, not even under `--strict`. That is what makes it
+cannot fail a check or a gate. That is what makes it
 safe to let an agent record suggestions while you work: whatever it suggests is
 visible and nothing it suggests can break a build.
 
@@ -95,13 +95,13 @@ kapi context keep 5
 
 Keeping writes the rule into the project's store, where every command that
 reads your project's context sees it, on any branch and in any worktree. From
-now on the rule bites at the severity it carries: `minor` and `neutral` report,
-and anything else fails a check.
+now on a use of the word fails a check, unless the rule is marked advisory, in
+which case it reports.
 
 Change the rule as you keep it:
 
 ```bash
-kapi context keep 5 --use "module" --severity critical
+kapi context keep 5 --use "module" --advisory
 ```
 
 Set it aside instead with `kapi context drop 5`. Either way the record stays in

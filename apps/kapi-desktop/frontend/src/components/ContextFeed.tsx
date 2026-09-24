@@ -47,7 +47,8 @@ import type { ContextFeed, ContextFeedEntry, ContextFeedGroup } from "../types/a
 /** The edit a person makes to a rule before accepting it. */
 export interface ContextRuleEdit {
   replacement?: string;
-  severity?: string;
+  /** Whether the rule only reports; absent leaves it as proposed. */
+  advisory?: boolean;
 }
 
 export interface ContextFeedProps {
@@ -72,7 +73,7 @@ export interface ContextFeedProps {
 }
 
 /** The severities a rule can carry. Minor and neutral report; the rest fail. */
-const SEVERITIES = ["neutral", "minor", "major", "critical"] as const;
+const OUTCOMES = ["fails", "reports"] as const;
 
 /** What each operation kind did, for the line above the subject. */
 const KIND_LABELS: Record<string, string> = {
@@ -129,7 +130,7 @@ export function ContextFeedList({
 
   const openEdit = useCallback((entry: ContextFeedEntry) => {
     setEditing(entry.id);
-    setEdit({ replacement: entry.subject.replacement ?? "", severity: entry.subject.severity });
+    setEdit({ replacement: entry.subject.replacement ?? "", advisory: entry.subject.advisory });
     window.setTimeout(() => editRef.current?.focus(), 0);
   }, []);
 
@@ -653,16 +654,16 @@ function EditForm({
         <div className="w-40">
           <Label className="text-xs">How hard it bites</Label>
           <Select
-            value={edit.severity ?? ""}
-            onValueChange={(severity) => onChange({ ...edit, severity })}
+            value={edit.advisory === undefined ? "" : edit.advisory ? "reports" : "fails"}
+            onValueChange={(outcome) => onChange({ ...edit, advisory: outcome === "reports" })}
           >
-            <SelectTrigger size="sm" className="mt-1 w-full" aria-label={t("Severity")}>
+            <SelectTrigger size="sm" className="mt-1 w-full" aria-label={t("Outcome")}>
               <SelectValue placeholder={t("Unchanged")} />
             </SelectTrigger>
             <SelectContent>
-              {SEVERITIES.map((severity) => (
-                <SelectItem key={severity} value={severity}>
-                  {severity}
+              {OUTCOMES.map((outcome) => (
+                <SelectItem key={outcome} value={outcome}>
+                  {outcome}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -670,7 +671,7 @@ function EditForm({
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground">
-        Minor and neutral report a violation. Major and critical fail a check.
+        A rule fails a check unless it is marked to report only.
       </p>
       <div className="flex items-center gap-2">
         <Button size="sm" data-slot="keep-edited" onClick={onKeep}>
@@ -752,9 +753,9 @@ function SubjectLine({ entry }: { entry: ContextFeedEntry }) {
             </span>
           </span>
         )}
-        {subject.severity && (
+        {subject.advisory && (
           <Badge variant="outline" className="text-xs" translate="no">
-            {subject.severity}
+            reports
           </Badge>
         )}
       </p>

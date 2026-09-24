@@ -28,7 +28,6 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: major
 `
 	sourceVoice = `id: source
 name: Source

@@ -48,7 +48,6 @@ vocabulary:
   forbidden_terms:
     - term: `+forbidden+`
       replacement: `+replacement+`
-      severity: major
 `)
 	// The violating document and the clean one, so a run has both a negative
 	// and a positive fixture in every project.

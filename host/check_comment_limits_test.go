@@ -81,6 +81,12 @@ func newLimitsGo() limitsGo {
 // Its comments sit at source/comments, whose voice sets the comment limits,
 // when apart is set, and at site/web, whose voice sets none, otherwise.
 func commentLimitsProject(t *testing.T, apart bool, file string) string {
+	return commentLimitsProjectWith(t, apart, file, "comments: {}")
+}
+
+// commentLimitsProjectWith is commentLimitsProject with the source voice's
+// comment rules written as comments.
+func commentLimitsProjectWith(t *testing.T, apart bool, file, comments string) string {
 	t.Helper()
 	isolateCheckExecution(t)
 	root := t.TempDir()
@@ -90,9 +96,9 @@ func commentLimitsProject(t *testing.T, apart bool, file string) string {
 		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
 		require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
 	}
-	comments := "true"
+	itemComments := "true"
 	if apart {
-		comments = "\n          channel: source/comments"
+		itemComments = "\n          channel: source/comments"
 	}
 	write("kapi.yaml", `version: v1
 name: comment-limits
@@ -109,10 +115,10 @@ collections:
     source_only: true
     content:
       - path: "code/*.go"
-        comments: `+comments+`
+        comments: `+itemComments+`
 `)
 	write(".kapi/profiles/site/voice.yaml", "name: Site\n")
-	write(".kapi/profiles/source/voice.yaml", "name: Source comments\nstyle:\n  sentence_length: short\n  comments: {}\n")
+	write(".kapi/profiles/source/voice.yaml", "name: Source comments\nstyle:\n  sentence_length: short\n  "+comments+"\n")
 	write("code/parse.go", file)
 	readProjectContext(t, root)
 	return root
@@ -139,20 +145,20 @@ func TestCheckHoldsCommentsToTheirLimits(t *testing.T) {
 		require.Len(t, found, 3, "%+v", report.Findings)
 
 		type want struct {
-			rule     string
-			severity check.Severity
-			message  string
-			snippet  string
+			rule    string
+			fails   bool
+			message string
+			snippet string
 		}
 		for block, w := range map[string]want{
-			"func/Parse":        {"comment.sentence-length", check.SeverityMinor, "Sentence has 55 words, over the limit of 50", g.sentences["func/Parse"]},
-			"func/Retry":        {"comment.sentence-length", check.SeverityMajor, "Sentence has 75 words, over the limit of 70", g.sentences["func/Retry"]},
-			"func/Body/comment": {"comment.length", check.SeverityMajor, "Comment has 105 words, over the limit of 100", ""},
+			"func/Parse":        {"comment.sentence-length", false, "Sentence has 55 words, over the limit of 50", g.sentences["func/Parse"]},
+			"func/Retry":        {"comment.sentence-length", false, "Sentence has 75 words, over the limit of 70", g.sentences["func/Retry"]},
+			"func/Body/comment": {"comment.length", false, "Comment has 105 words, over the limit of 100", ""},
 		} {
 			require.Len(t, found[block], 1, block)
 			d := found[block][0]
 			assert.Equal(t, w.rule, d.Rule, block)
-			assert.Equal(t, w.severity, d.Severity, block)
+			assert.Equal(t, w.fails, d.Fails, block)
 			assert.Equal(t, w.message, d.Message, block)
 			assert.Equal(t, w.snippet, d.Location.Snippet, block)
 			require.NotNil(t, d.Location.Lines, block)
@@ -173,18 +179,17 @@ func TestCheckHoldsCommentsToTheirLimits(t *testing.T) {
 			require.NotNil(t, run.Point, id)
 			assert.Equal(t, "comments", run.Point.Channel, id)
 		}
-		assert.Equal(t, check.VerdictPassed, report.Verdict, "kapi check fails on a critical finding by default, and these are minor and major")
+		assert.Equal(t, check.VerdictPassed, report.Verdict, "comment limits are style measures, so what they find reports")
 	})
 
-	t.Run("a major finding fails a gate that allows no major finding", func(t *testing.T) {
-		root := commentLimitsProject(t, true, g.src)
+	t.Run("limits marked fails make a finding over the failing grade fail", func(t *testing.T) {
+		root := commentLimitsProjectWith(t, true, g.src, "comments: {fails: true}")
 		cmd := executionCommand(t)
 		cmd.Flags().String(projectFlagName, filepath.Join(root, "kapi.yaml"), "")
-		require.NoError(t, cmd.Flags().Set("max-major", "0"))
 		report, err := (&App{SourceLang: "en"}).ComputeCheck(cmd, nil)
 		require.NoError(t, err)
 		assert.Equal(t, check.VerdictFailed, report.Verdict)
-		assert.Equal(t, []string{"major findings 2 exceed limit 0"}, report.Gate.Failed)
+		assert.Equal(t, 2, report.Summary.Failing)
 	})
 
 	t.Run("must fail: comments held to a voice that sets no limits report nothing", func(t *testing.T) {
@@ -254,19 +259,19 @@ func TestDiffCheckHoldsTouchedCommentsToTheirLimits(t *testing.T) {
 
 func TestShipGateHoldsCommentsToTheirLimits(t *testing.T) {
 	g := newLimitsGo()
-	root := commentLimitsProject(t, true, g.src)
+	root := commentLimitsProjectWith(t, true, g.src, "comments: {fails: true}")
 	out, err := (&App{}).computeVerify(sourceShipCommand(t, root), nil)
 	require.NoError(t, err)
 	qa, ok := gateByName(out, gateChecks)
 	require.True(t, ok)
 
-	severities := map[string]string{}
+	severities := map[string]bool{}
 	for _, f := range qa.Findings {
 		if strings.HasPrefix(f.Message, "Sentence has") || strings.Contains(f.Message, "words, over the limit") {
-			severities[f.Block] = f.Severity
+			severities[f.Block] = f.Fails
 		}
 	}
-	assert.Equal(t, map[string]string{"func/Parse": "warning", "func/Retry": "error", "func/Body/comment": "error"}, severities,
-		"the ship gate fails on a major finding and warns on a minor one")
+	assert.Equal(t, map[string]bool{"func/Parse": false, "func/Retry": true, "func/Body/comment": true}, severities,
+		"with limits marked fails, the ship gate fails over the upper grade and reports under it")
 	assert.False(t, qa.Pass)
 }

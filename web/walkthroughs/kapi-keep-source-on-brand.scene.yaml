@@ -44,14 +44,12 @@ files:
         forbidden_terms:
           - term: utilize
             replacement: use
-            severity: minor
+            advisory: true
           - term: game-changing
             replacement: ""
-            severity: major
         competitor_terms:
           - term: NoteCorp
             replacement: other note apps
-            severity: major
   - path: product-page.md
     content: |
       # Lumen Notes

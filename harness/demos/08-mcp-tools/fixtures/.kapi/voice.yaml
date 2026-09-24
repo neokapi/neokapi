@@ -34,11 +34,10 @@ vocabulary:
     - term: seamless
       replacement: simple
       note: Says nothing a reader can check
-      severity: major
     - term: leverage
       replacement: use
       note: Business register; Taskly writes the way its readers speak
-      severity: minor
+      advisory: true
 examples:
   - before: "Taskly leverages a seamless workflow engine for enterprise teams."
     after: "Taskly keeps every card for a project on one board, so your team can see the work."

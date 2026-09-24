@@ -20,7 +20,7 @@ import (
 // way. `kapi check` had a findings surface and `kapi exec <check>` gained one in
 // #1476; the flow verb is where a check actually lives in a recipe.
 //
-// The surface is the same kapi.check/v1 findings the other two print — same
+// The surface is the same kapi.check/v2 findings the other two print — same
 // table, same `.findings[]` and `.summary` under `--json` — nested inside the
 // run's own output so one run remains one document under every --output-format.
 //
@@ -91,13 +91,11 @@ func (c *flowFindings) observe(file string, b *model.Block) {
 func (c *flowFindings) report() *findingsReport {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	// The gate is open (every limit -1): this report carries findings, not a
-	// verdict, and BuildReport's counting, scoring and stable severity ordering
-	// are what it is called for. Files finish in whatever order they finish.
-	// Decide still marks a report over no block did_not_run, which is coverage
-	// and holds whatever the gate.
-	gate := check.Gate{MaxCritical: -1, MaxMajor: -1, MaxMinor: -1}
-	built := check.BuildReport(check.Target{Kind: "file", Blocks: c.blocks}, c.diags, gate)
+	// This report carries findings, not a verdict, and BuildReport's counting,
+	// scoring and stable ordering are what it is called for. Files finish in
+	// whatever order they finish. Decide still marks a report over no block
+	// did_not_run, which is coverage.
+	built := check.BuildReport(check.Target{Kind: "file", Blocks: c.blocks}, c.diags)
 	r := newFindingsReport(built)
 	return &r
 }

@@ -38,6 +38,17 @@ export function findingSeverityTone(severity: string | undefined | null): Findin
   }
 }
 
+/**
+ * The tone for a `core/check` finding, which fails or reports as the rule that
+ * raised it decides. A failing finding takes the destructive tone, a reported
+ * one warning, and one raised by a suggested rule stays muted: nobody has
+ * settled that rule yet.
+ */
+export function findingOutcomeTone(finding: { fails?: boolean; suggested?: boolean }): FindingTone {
+  if (finding.suggested) return "muted";
+  return finding.fails ? "destructive" : "warning";
+}
+
 /** Whether a `core/check` severity fails a unit rather than reporting on it. */
 export function findingFails(severity: string | undefined | null): boolean {
   return findingSeverityTone(severity) === "destructive";

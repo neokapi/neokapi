@@ -203,18 +203,20 @@ func newVoiceCheckCmd(a *App) *cobra.Command {
 			score := coreprofile.CalculateScore(findings)
 			score.ProfileID = profile.ID
 
+			failing := 0
+			for _, f := range findings {
+				if f.Fails && !f.Suggested {
+					failing++
+				}
+			}
 			out := output.VoiceCheckOutput{
 				Profile:    profile.Name,
 				Score:      score.Overall,
-				Passed:     true,
+				Passed:     failing == 0,
+				Failing:    failing,
 				AIChecked:  useAI,
 				Dimensions: score.Dimensions,
 				Findings:   findings,
-			}
-			if cmd.Flags().Changed("min-score") {
-				min, _ := cmd.Flags().GetInt("min-score")
-				out.MinScore = &min
-				out.Passed = score.Overall >= min
 			}
 			if err := output.Print(cmd, out); err != nil {
 				return err
@@ -232,7 +234,6 @@ func newVoiceCheckCmd(a *App) *cobra.Command {
 	// String flag shadowed the persistent Bool so GetBool("text") silently broke
 	// output-format resolution on all voice subcommands.
 	cmd.Flags().String("input-text", "", `text to check (use "-" or omit to read stdin)`)
-	cmd.Flags().Int("min-score", 0, "fail (non-zero exit) when the score is below this threshold")
 	// Only --json here (not output.AddFlags) to avoid colliding with --input-text.
 	cmd.Flags().Bool("json", false, "output results as JSON")
 	return cmd

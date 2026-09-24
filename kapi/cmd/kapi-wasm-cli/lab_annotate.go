@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall/js"
 
@@ -265,7 +266,7 @@ func voiceOverlay(runs []model.Run, source string) *model.Overlay {
 	for _, h := range hits {
 		props := map[string]string{
 			"category": "voice-vocabulary",
-			"severity": string(h.Severity),
+			"fails":    strconv.FormatBool(h.Fails),
 			"term":     h.Term,
 		}
 		switch h.Kind {
@@ -293,7 +294,7 @@ func voiceOverlay(runs []model.Run, source string) *model.Overlay {
 			Range: model.RangeAnchorForBytes(runs, p.Start, p.End),
 			Props: map[string]string{
 				"category": "voice-pattern",
-				"severity": string(p.Severity),
+				"fails":    strconv.FormatBool(p.Fails),
 				"kind":     "pattern",
 				"pattern":  p.Regex,
 				"message":  message,

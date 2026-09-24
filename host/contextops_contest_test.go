@@ -20,7 +20,7 @@ func TestAPersonsCorrectionNeverFailsTheirBuild(t *testing.T) {
 	suggested := proposeUtilise(t, app, root, agentIn("s1"))
 	_, err := app.KeepContextOperation(t.Context(), ContextKeepRequest{Actor: person, Project: recipeOf(root), ID: suggested.ID})
 	require.NoError(t, err)
-	require.Equal(t, check.VerdictFailed, checkWith(t, app, root, true).Verdict, "an established rule fails the gate")
+	require.Equal(t, check.VerdictFailed, checkWith(t, app, root).Verdict, "an established rule fails the gate")
 
 	correction, err := app.RecordContextCorrection(t.Context(), ContextCorrectRequest{
 		Actor: person, Project: recipeOf(root), From: "use", To: "utilise",
@@ -35,13 +35,13 @@ func TestAPersonsCorrectionNeverFailsTheirBuild(t *testing.T) {
 	assert.Equal(t, suggested.ID, rule.Operations[0].ID)
 	assert.Equal(t, []string{correction.ID}, rule.Operations[0].ContestedBy)
 
-	contested := checkWith(t, app, root, true)
+	contested := checkWith(t, app, root)
 	assert.NotEqual(t, check.VerdictFailed, contested.Verdict, "a person's own edit never fails their build")
 	assert.NotEmpty(t, vocabularyFindings(contested), "the contested rule still reports")
 
 	_, err = app.DropContextOperation(t.Context(), ContextDropRequest{Actor: person, Project: recipeOf(root), ID: correction.ID})
 	require.NoError(t, err)
-	assert.Equal(t, check.VerdictFailed, checkWith(t, app, root, true).Verdict, "setting the correction aside puts the rule back")
+	assert.Equal(t, check.VerdictFailed, checkWith(t, app, root).Verdict, "setting the correction aside puts the rule back")
 }
 
 // TestKeepSessionLeavesContestedSuggestions keeps a session and checks that the

@@ -3,7 +3,6 @@ package backend
 import (
 	"testing"
 
-	"github.com/neokapi/neokapi/core/check"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,7 +15,7 @@ import (
 func TestHasBlockingCheckFinding_TreatsAnIncompleteCheckAsBlocking(t *testing.T) {
 	incomplete := []DesktopFinding{{
 		Category: "check",
-		Severity: string(check.SeverityMajor),
+		Fails:    true,
 		Message:  "checks did not complete: placeholder: check plugin: connection refused",
 	}}
 	assert.True(t, hasBlockingCheckFinding(incomplete),
@@ -29,7 +28,6 @@ func TestHasBlockingCheckFinding_CleanUnitIsNotBlocked(t *testing.T) {
 	assert.False(t, hasBlockingCheckFinding(nil))
 	assert.False(t, hasBlockingCheckFinding([]DesktopFinding{{
 		Category: "placeholder",
-		Severity: string(check.SeverityMinor),
 		Message:  "cosmetic",
 	}}))
 }

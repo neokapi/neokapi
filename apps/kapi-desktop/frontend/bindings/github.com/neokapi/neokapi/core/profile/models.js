@@ -167,6 +167,15 @@ export class CommentRules {
              */
             this["density"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Fails makes a comment over a limit fail a check. Unset, the limits are
+             * style measures and what they find reports.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["fails"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -619,13 +628,14 @@ export class Pattern {
              */
             this["description"] = "";
         }
-        if (!("severity" in $$source)) {
+        if (/** @type {any} */(false)) {
             /**
-             * "minor", "major", "critical"
+             * Advisory makes a match report without failing a check. A pattern rule
+             * fails where the voice is bound unless it is marked advisory.
              * @member
-             * @type {string}
+             * @type {boolean | undefined}
              */
-            this["severity"] = "";
+            this["advisory"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -1057,7 +1067,9 @@ export class StyleRules {
 }
 
 /**
- * TermRule describes a vocabulary constraint for a specific term.
+ * TermRule is one "write this, not that" rule: the form to reject (Term and
+ * its Forms), the form to use (Replacement), a note, and whether a use of the
+ * rejected form fails a check.
  */
 export class TermRule {
     /**
@@ -1088,11 +1100,12 @@ export class TermRule {
         }
         if (/** @type {any} */(false)) {
             /**
-             * "minor", "major", "critical"
+             * Advisory makes a use of the term report without failing a check. A rule
+             * fails unless it is marked advisory.
              * @member
-             * @type {string | undefined}
+             * @type {boolean | undefined}
              */
-            this["severity"] = undefined;
+            this["advisory"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -1138,15 +1151,10 @@ export class TermRule {
         }
         if (/** @type {any} */(false)) {
             /**
-             * CaseSensitive matches the term and its forms in their own casing.
-             * 
-             * Off by default, so every profile written before this keeps behaving as it
-             * did. On for the rules whose whole content is capitalisation: inference
-             * read ripgrep's docs and wrote `term: Ripgrep, replacement: ripgrep`,
-             * which is the right rule and, folded, fires on every correct lowercase
-             * use. See issue #2241.
+             * CaseSensitive, when set, says whether the term and its forms match in
+             * their own casing. Unset, MatchesCase decides from the rule itself.
              * @member
-             * @type {boolean | undefined}
+             * @type {boolean | null | undefined}
              */
             this["case_sensitive"] = undefined;
         }

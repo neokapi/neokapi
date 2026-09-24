@@ -272,9 +272,9 @@ kapi up                      # reconcile the graph and the content
 kapi check --ship --json     # voice + terminology (+ rule-based) gates: all green
 ```
 
-The recipe carries the bindings; the thresholds ride on the check itself: the
-voice gate's score bar is `--min-score` (default 80), not a recipe field, and a
-translation-coverage bar is an optional top-level `ship_gate:` (see
+The recipe carries the bindings. The voice gate fails on a failing finding and
+reports the compliance score beside it; a translation-coverage bar is an
+optional top-level `ship_gate:` (see
 [translate.md](translate.md)). Without one, `kapi status` and `kapi up` report
 each language as not gated rather than shippable. Say which of these the
 project's CI should run, and on what: a check nobody runs governs nothing.
@@ -453,7 +453,7 @@ made. Terms and voice rules go in one change-set file:
 ```jsonl
 {"kind":"term","op":"upsert","term":"workspace","locale":"en","status":"preferred"}
 {"kind":"term","op":"upsert","term":"team space","locale":"en","status":"deprecated","replacement":"workspace"}
-{"kind":"voice","op":"add-rule","list":"competitor","term":"Globex","replacement":"our platform","severity":"major"}
+{"kind":"voice","op":"add-rule","list":"competitor","term":"Globex","replacement":"our platform"}
 ```
 
 These are the same `term` and `voice` entry kinds `kapi apply` always takes;
@@ -515,9 +515,9 @@ you are here (`kgrep`, [toolbox.md](toolbox.md)) and fix the hits through
 same way.
 
 Some hits are legitimate: a changelog entry or an API field keeps the name it
-was published with. Say so rather than rewriting history; a `deprecated` term is
-an advisory finding for exactly this reason, so the record and the gate can
-disagree in public without blocking anybody.
+was published with. Say so rather than rewriting history; a `deprecated` term
+raises a finding that reports and never fails for exactly this reason, so the
+record and the gate can disagree in public without blocking anybody.
 
 ## 6. Carry it to the server (only if connected)
 

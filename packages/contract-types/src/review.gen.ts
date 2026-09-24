@@ -87,7 +87,7 @@ export interface TermRule {
   term: string;
   replacement?: string;
   note?: string;
-  severity?: string;
+  advisory?: boolean;
   concept_id?: string;
   do_not_translate?: boolean;
   forms?: string[];
@@ -170,14 +170,14 @@ export interface ReviewJudgement {
  */
 export interface CheckFinding {
   category: string;
-  severity: string;
+  fails: boolean;
   message: string;
   suggestion?: string;
   position: Anchor;
   original_text?: string;
   check?: string;
   metadata?: Record<string, string>;
-  advisory?: boolean;
+  suggested?: boolean;
 }
 
 /**

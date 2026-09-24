@@ -87,7 +87,6 @@ const (
 	AgentHostCodex           = host.AgentHostCodex
 	VoiceProfileTemplate     = host.VoiceProfileTemplate
 	ConvergeMaxPassesDefault = host.ConvergeMaxPassesDefault
-	DefaultVoiceMinScore     = host.DefaultVoiceMinScore
 	DefaultVoiceSimilarity   = host.DefaultVoiceSimilarity
 	ExitError                = host.ExitError
 	ExitGate                 = host.ExitGate

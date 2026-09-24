@@ -47,7 +47,6 @@ vocabulary:
   forbidden_terms:
     - term: seamless
       replacement: uninterrupted
-      severity: major
 `
 
 const commentedRecipe = `version: v1
@@ -116,7 +115,6 @@ func TestApplyVoiceRule_NoOpIsByteStable(t *testing.T) {
 		List:        "forbidden",
 		Term:        "seamless",
 		Replacement: "uninterrupted",
-		Severity:    "major",
 	})
 	require.Equal(t, "skipped", res.Status, "detail: %s", res.Detail)
 
@@ -138,7 +136,6 @@ func TestSnapshotVoiceProfile_KeepsTheCommentary(t *testing.T) {
 		List:        "forbidden",
 		Term:        "mooring",
 		Replacement: "berth",
-		Severity:    "major",
 	})
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
@@ -271,7 +268,6 @@ func TestApplyNoOp_LeavesNoBackingUnderKapi(t *testing.T) {
 		List:        "forbidden",
 		Term:        "seamless",
 		Replacement: "uninterrupted",
-		Severity:    "major",
 	})
 	require.Equal(t, "skipped", res.Status, "detail: %s", res.Detail)
 

@@ -56,7 +56,7 @@ func TestCheckExecutionCLIAndMCPAgree(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, cliReport.Findings, mcpReport.Findings)
 			assert.Equal(t, cliReport.Summary, mcpReport.Summary)
-			assert.Equal(t, cliReport.Gate, mcpReport.Gate)
+			assert.Equal(t, cliReport.Summary.Failing, mcpReport.Summary.Failing)
 			require.NotNil(t, cliReport.Execution)
 			require.NotNil(t, mcpReport.Execution)
 			for _, report := range []*check.Report{&cliReport, &mcpReport} {
@@ -189,7 +189,6 @@ func TestCheckExecutionMCPUsesExplicitServerProject(t *testing.T) {
 vocabulary:
   forbidden_terms:
     - term: risk-free
-      severity: critical
 `), 0o644))
 	recipe := filepath.Join(dir, "custom.kapi")
 	require.NoError(t, os.WriteFile(recipe, []byte(`version: v1
@@ -210,7 +209,7 @@ collections:
 	_, report, err := app.checkFileMCP(t.Context(), checkFileInput{File: source})
 	require.NoError(t, err)
 	assert.False(t, report.Pass)
-	assert.Equal(t, 1, report.Summary.Critical)
+	assert.Equal(t, 1, report.Summary.Failing)
 	voiceRan := false
 	for _, run := range report.Execution.Analyzers {
 		if run.ID == "voice.rules" {

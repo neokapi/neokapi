@@ -43,8 +43,11 @@ Fill in `voice.yaml` from whatever signal is available:
 
 Keep it concrete: 2–4 personality adjectives, a handful of forbidden/competitor
 terms with replacements, and 2–3 before/after examples beat a long abstract
-description. Each vocabulary rule carries a `severity` (`minor`, `major`, or
-`critical`); `minor` only warns, the others fail the check. Phrasing to avoid
+description. A vocabulary rule fails the check unless it carries
+`advisory: true`, which makes it only report. A rule whose `replacement` is a
+capitalised product name (`term: QuickCast`, `replacement: Quickcast`) matches
+case-sensitively, so a lower-case slug is left alone; set `case_sensitive` to
+override. Phrasing to avoid
 that is a pattern rather than a term (`!{2,}`, a sentence opening with "Just")
 goes under `style.prohibited_patterns` as a regex with a message.
 
@@ -102,8 +105,8 @@ Pipe text via stdin (or pass `--input-text "..."`); always pass `--json`:
 echo "$DRAFT" | kapi voice check --pack marketing-blog --input-text - --json
 ```
 
-Returns a 0–100 `score` and `findings` (each with `severity`, `original_text`,
-`position`, `suggestion`). The rule-based check is deterministic and offline; add
+Returns `passed`, `failing` (the count of failing findings), a 0–100 `score`
+and `findings` (each with `fails`, `original_text`, `position`, `suggestion`). The rule-based check is deterministic and offline; add
 `--ai` for an LLM tone/style/clarity pass (needs a saved credential).
 
 ## 3. Fix what's flagged: you rewrite, kapi checks
@@ -147,7 +150,7 @@ land together, atomically:
 
 ```jsonl
 {"kind":"content","file":"blog-post.md","id":"p2","content_hash":"b74d…","text":"We use our infrastructure."}
-{"kind":"voice","op":"add-rule","list":"forbidden","term":"utilize","replacement":"use","severity":"minor"}
+{"kind":"voice","op":"add-rule","list":"forbidden","term":"utilize","replacement":"use"}
 ```
 
 ```bash
@@ -157,7 +160,8 @@ kapi apply changeset.jsonl
 The `voice` entry is written into the profile the recipe binds, inside the
 project's voice store, and the change is recorded, so `kapi context log` carries
 the one new rule and the next `kapi voice check` / `kapi check --ship` enforces
-it. `list` is `forbidden`, `competitor`, or `preferred`; the entry requires a
+it. `list` is `forbidden`, `competitor`, or `preferred`; add `"advisory":true`
+for a rule that reports without failing. The entry requires a
 kapi project. (Add an approved term instead with a `term` entry; see
 [create.md](create.md).)
 
@@ -173,7 +177,7 @@ echo "$DRAFT" | kapi voice rewrite --pack marketing-blog --input-text - --json
 
 A rule that names no replacement, and a match on a declared inflected form of a
 term, are left in place and reported under `skipped`: one entry per rule with
-`term`, `list` (`forbidden` or `competitor`), `severity`, `scope`, `matched`
+`term`, `list` (`forbidden` or `competitor`), `fails`, `scope`, `matched`
 (the spellings in the text), `count` and `reason` (`no_replacement` or
 `inflected_form`). The exit code stays 0. Read `skipped` before trusting an
 unchanged `rewritten`: empty means there was nothing to fix, entries mean
@@ -186,11 +190,12 @@ and apply through `kapi apply`.
 
 ## CI / quality gate
 
-`--min-score` makes `check` exit non-zero (code `3`, distinct from an operational
-error) when the score is below the threshold, while still printing the JSON:
+`check` exits `3` (distinct from an operational error) when at least one
+finding fails, while still printing the JSON. The score is reported and does
+not decide the exit code:
 
 ```bash
-kapi voice check RELEASE.md --pack professional-b2b --min-score 90 --json
+kapi voice check RELEASE.md --pack professional-b2b --json
 ```
 
 To translate the on-brand result into other languages, bind the same profile and

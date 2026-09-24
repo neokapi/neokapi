@@ -25,26 +25,20 @@ style:
   prohibited_patterns:
     - regex: "\u2014"
       description: An em dash; use a comma, a full stop or two sentences.
-      severity: major
       scope: prose
     - regex: '(?i)\bused to\b'
       not_after: '(?i)(?:(?:\b(?:is|are|was|were|be|been|being|get|gets|got|isn''t|aren''t|wasn''t|weren''t)|[''’]s)\s+(?:\w+\s+)?|[^\w\s)\]"''\x60’”]\s*|(?:^|\s)["“‘''\x60]|^\s*)$'
       description: The past-habitual "used to"; describe what the code does.
-      severity: major
       scope: prose
     - regex: "(?i)\\b(?:(?:is|are|was|were)\\s+not|isn't|aren't|wasn't|weren't)\\b[^.;!?]{1,80}?[,;:\u2014]\\s*(?:it|they|this|that)(?:\\s+is|\\s+are|\\s+was|\\s+were|'s)\\b"
       description: A negation reveal ("is not X, it is Y"); state what it is.
-      severity: major
       scope: prose
     - regex: "(?i)\\b(?:crucially|importantly|load[- ]bearing|worth noting)\\b"
       description: A significance label; state the claim.
-      severity: major
       scope: prose
     - regex: "(?i)\\bfor now\\b"
       description: Temporary or open work; describe what the code does, and track the work elsewhere.
-      severity: major
       scope: prose
     - regex: "(?i)\\bhistorically\\b"
       description: History; describe the code as it is.
-      severity: major
       scope: prose

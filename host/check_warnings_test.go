@@ -89,7 +89,7 @@ func TestCheckReportsProfileWarningsOnceAndLeavesTheOutcome(t *testing.T) {
 	assert.Equal(t, clean.Pass, warned.Pass)
 	assert.Equal(t, clean.DidNotRun, warned.DidNotRun)
 	assert.Equal(t, clean.Summary, warned.Summary)
-	assert.Equal(t, clean.Gate, warned.Gate)
+	assert.Equal(t, clean.Summary, warned.Summary)
 	assert.Equal(t, clean.Findings, warned.Findings)
 
 	var text bytes.Buffer

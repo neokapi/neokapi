@@ -29,7 +29,7 @@ func TestVoiceProfile_JSONRoundTrip(t *testing.T) {
 			PersonPOV:      "second",
 			Contractions:   "sometimes",
 			ProhibitedPatterns: []Pattern{
-				{Regex: `\bsynergy\b`, Description: "avoid corporate jargon", Severity: "minor"},
+				{Regex: `\bsynergy\b`, Description: "avoid corporate jargon", Advisory: true},
 			},
 		},
 		Vocabulary: VocabularyRules{
@@ -37,7 +37,7 @@ func TestVoiceProfile_JSONRoundTrip(t *testing.T) {
 				{Term: "workspace", Replacement: "", Note: "use instead of 'project'"},
 			},
 			ForbiddenTerms: []TermRule{
-				{Term: "cheap", Replacement: "affordable", Severity: "major"},
+				{Term: "cheap", Replacement: "affordable"},
 			},
 			Abbreviations: map[string]string{"API": "Application Programming Interface"},
 		},

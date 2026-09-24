@@ -143,21 +143,14 @@ func TestCheckGofmtDisagreementFailsTheGate(t *testing.T) {
 	require.Len(t, report.Findings, 1)
 	f := report.Findings[0]
 	assert.Equal(t, "formatter.gofmt", f.Rule)
-	assert.Equal(t, check.SeverityMajor, f.Severity)
+	assert.True(t, f.Fails)
 	assert.Equal(t, "func/Parse/comment", f.Location.Block)
 	require.NotNil(t, f.Location.Lines)
 	assert.Equal(t, format.LineRange{First: 4, Last: 4}, *f.Location.Lines)
 	assert.Contains(t, f.Suggestion, "// Indented with spaces.")
-	assert.False(t, report.Pass, "a comment gofmt would rewrite does not pass, whatever the severity limits allow")
-	require.NotEmpty(t, report.Gate.Failed)
-	assert.Contains(t, report.Gate.Failed[0], "formatter.gofmt")
-
-	lenient := executionCommand(t)
-	lenient.Flags().Bool("lenient", true, "")
-	report, err = (&App{SourceLang: "en"}).ComputeCheck(lenient, []string{file})
-	require.NoError(t, err)
-	assert.True(t, report.Pass, "--lenient reports the disagreement and fails nothing")
-	assert.Len(t, report.Findings, 1)
+	assert.False(t, report.Pass, "a comment gofmt would rewrite does not pass")
+	assert.True(t, f.Fails, "a formatter's disagreement fails")
+	assert.Equal(t, "formatter.gofmt", f.Rule)
 }
 
 func TestSourceUnitsLeaveCommentsOnlyFilesAlone(t *testing.T) {

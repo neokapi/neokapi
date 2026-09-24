@@ -77,7 +77,7 @@ type changeEntry struct {
 	// brand
 	List        string `json:"list,omitempty"`
 	Replacement string `json:"replacement,omitempty" jsonschema:"replacement term for kind=voice; content entries use text"`
-	Severity    string `json:"severity,omitempty"`
+	Advisory    bool   `json:"advisory,omitempty"`
 
 	// recipe
 	Path  string          `json:"path,omitempty"`

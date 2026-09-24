@@ -49,7 +49,7 @@ func TestAudienceSampleConstraintSurvivesEveryChannel(t *testing.T) {
 
 			var critical bool
 			for _, f := range findings {
-				if f.Severity == SeverityCritical {
+				if f.Fails {
 					critical = true
 				}
 			}
@@ -64,7 +64,7 @@ func TestAudienceSampleConstraintSurvivesEveryChannel(t *testing.T) {
 func TestStylePatternsRemainReplaceableByAChannel(t *testing.T) {
 	p := &VoiceProfile{
 		Name:  "presentation",
-		Style: StyleRules{ProhibitedPatterns: []Pattern{{Regex: "legacy", Severity: "critical"}}},
+		Style: StyleRules{ProhibitedPatterns: []Pattern{{Regex: "legacy"}}},
 		Channels: map[string]ChannelOverride{
 			"child": {Style: &StyleRules{SentenceLength: "short"}},
 		},
@@ -82,7 +82,7 @@ func TestStylePatternsRemainReplaceableByAChannel(t *testing.T) {
 func TestValidateWarnsWhenAnOverrideDropsABasePattern(t *testing.T) {
 	p := &VoiceProfile{
 		Name:  "harbor",
-		Style: StyleRules{ProhibitedPatterns: []Pattern{{Regex: `(?i)risk-free`, Severity: "critical"}}},
+		Style: StyleRules{ProhibitedPatterns: []Pattern{{Regex: `(?i)risk-free`}}},
 		Channels: map[string]ChannelOverride{
 			"child": {Style: &StyleRules{SentenceLength: "short"}},
 		},
@@ -111,7 +111,7 @@ func TestValidateWarnsWhenAnOverrideDropsABasePattern(t *testing.T) {
 func TestValidateStaysQuietWhenTheRuleIsAlsoAConstraint(t *testing.T) {
 	p := &VoiceProfile{
 		Name:  "harbor",
-		Style: StyleRules{ProhibitedPatterns: []Pattern{{Regex: `(?i)risk-free`, Severity: "critical"}}},
+		Style: StyleRules{ProhibitedPatterns: []Pattern{{Regex: `(?i)risk-free`}}},
 		Constraints: []Constraint{{
 			ID: "assurance", Version: 1, Source: "service-facts.md",
 			Statement: "Do not promise risk-free appointments.",

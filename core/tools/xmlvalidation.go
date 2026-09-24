@@ -109,7 +109,7 @@ func NewXMLValidationTool(cfg *XMLValidationConfig) *tool.BaseTool {
 			v.SetProperty(PropXMLValidError, errMsg)
 			check.Annotate(v, "xml-validation", []check.Finding{{
 				Category: "xml-well-formedness",
-				Severity: check.SeverityMajor,
+				Fails:    true,
 				Message:  "Text is not well-formed XML: " + errMsg,
 			}})
 		}

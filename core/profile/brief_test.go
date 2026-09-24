@@ -33,7 +33,7 @@ func TestRenderVoiceBrief(t *testing.T) {
 		Style: StyleRules{
 			SentenceLength:     "short",
 			PersonPOV:          "second",
-			ProhibitedPatterns: []Pattern{{Regex: `(?i)\b(?:endpoint|payload)\b`, Description: "implementation vocabulary", Severity: "major"}},
+			ProhibitedPatterns: []Pattern{{Regex: `(?i)\b(?:endpoint|payload)\b`, Description: "implementation vocabulary"}},
 		},
 		Vocabulary: VocabularyRules{ForbiddenTerms: []TermRule{{Term: "seat", Replacement: "person"}}},
 		Examples:   []VoiceExample{{Before: "Utilize the seat", After: "Use the person"}},

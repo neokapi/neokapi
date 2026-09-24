@@ -63,7 +63,7 @@ func desktopCheckFacts(t *testing.T, res *CheckRunResult) facetest.CheckFacts {
 	for _, f := range res.Files {
 		for _, d := range f.Findings {
 			got.Findings = append(got.Findings, facetest.FindingFacts{
-				Severity:   d.Severity,
+				Fails:      d.Fails,
 				Message:    d.Message,
 				Suggestion: d.Suggestion,
 			})
@@ -74,7 +74,7 @@ func desktopCheckFacts(t *testing.T, res *CheckRunResult) facetest.CheckFacts {
 }
 
 // What the desktop does find, it finds the same way: the profile's vocabulary
-// rules produce the same finding, with the same severity and the same
+// rules produce the same finding, failing alike, with the same
 // suggestion, as the verb and the tool.
 func TestFaceParity_DesktopChecksAgreeOnTheProfileFindings(t *testing.T) {
 	app, tab, p := openFixture(t)

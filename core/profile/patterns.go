@@ -11,12 +11,12 @@ import (
 )
 
 // PatternHit is one prohibited-pattern match in a piece of text: which rule
-// matched, at what byte range, and at what severity. It is the pattern-side
+// matched, at what byte range, and whether it fails. It is the pattern-side
 // counterpart of VocabHit and carries the same byte offsets, so both feed the
 // same run-anchored finding mapping.
 type PatternHit struct {
 	Category    Dimension
-	Severity    Severity
+	Fails       bool
 	Regex       string // the rule's regex source, as authored
 	Description string // the rule's human description; may be empty
 	Start       int    // byte offset into the searched text (inclusive)
@@ -52,15 +52,14 @@ func compilePattern(src string) *regexp.Regexp {
 // folding and no implicit word boundaries, because the rule IS the regex; an
 // author who wants either writes `(?i)` or `\b`. Matches are leftmost and
 // non-overlapping within a rule and independent across rules, so two rules that
-// describe the same span each raise their own hit. Patterns default to major
-// severity; a rule's own Severity, when set, overrides the default. A nil
+// describe the same span each raise their own hit. A hit fails unless the rule
+// is marked advisory. A nil
 // profile, an empty regex, a regex that does not compile, and a zero-width match
 // all yield nothing.
 //
 // This is the single source of prohibited-pattern matching. Without it a rule
 // declared in a profile existed only as prompt prose for the LLM (RenderVoiceGuide),
-// so a pack could mark a rule critical and have it decide nothing while minor
-// vocabulary rules decided the score.
+// so a pack could declare a rule and have it decide nothing.
 func MatchPatterns(p *VoiceProfile, text string) []PatternHit {
 	if p == nil || text == "" {
 		return nil
@@ -89,7 +88,6 @@ func MatchPatterns(p *VoiceProfile, text string) []PatternHit {
 		if re == nil {
 			continue
 		}
-		sev := severityForRule(pat.Severity, SeverityMajor)
 		var notAfter *regexp.Regexp
 		if src := strings.TrimSpace(pat.NotAfter); src != "" {
 			if notAfter = compilePattern(src); notAfter == nil {
@@ -112,7 +110,7 @@ func MatchPatterns(p *VoiceProfile, text string) []PatternHit {
 			}
 			found = append(found, PatternHit{
 				Category:    DimensionStyle,
-				Severity:    sev,
+				Fails:       !pat.Advisory,
 				Regex:       pat.Regex,
 				Description: pat.Description,
 				Start:       m[0],
@@ -144,7 +142,7 @@ func PatternHitsToFindings(hits []PatternHit, text string, runs []model.Run) []V
 	for _, hit := range hits {
 		f := VoiceFinding{
 			Category:     string(hit.Category),
-			Severity:     hit.Severity,
+			Fails:        hit.Fails,
 			OriginalText: text[hit.Start:hit.End],
 		}
 		if len(runs) > 0 {
@@ -237,8 +235,7 @@ func UnmetRequiredPatterns(p *VoiceProfile, text string) []Pattern {
 // RequiredPatternFindings maps unsatisfied required patterns onto voice
 // findings. A required pattern's violation is an absence, so a finding carries
 // no snippet and no position: there is no text to point at, which is the whole
-// complaint. Patterns default to major severity; a rule's own Severity, when
-// set, overrides the default.
+// complaint. A finding fails unless the rule is marked advisory.
 func RequiredPatternFindings(unmet []Pattern) []VoiceFinding {
 	if len(unmet) == 0 {
 		return nil
@@ -247,7 +244,7 @@ func RequiredPatternFindings(unmet []Pattern) []VoiceFinding {
 	for _, pat := range unmet {
 		f := VoiceFinding{
 			Category: string(DimensionStyle),
-			Severity: severityForRule(pat.Severity, SeverityMajor),
+			Fails:    !pat.Advisory,
 			// The regex is the rule's identity — the only thing an author has to
 			// trace a finding back to the line in the profile that raised it.
 			Metadata: map[string]string{"pattern": pat.Regex},

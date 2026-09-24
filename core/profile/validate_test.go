@@ -37,12 +37,12 @@ func TestValidateProfile_Valid(t *testing.T) {
 			PersonPOV:      "second",
 			Contractions:   "always",
 			ProhibitedPatterns: []Pattern{
-				{Regex: `\b(synergy|leverage)\b`, Description: "jargon", Severity: "minor"},
+				{Regex: `\b(synergy|leverage)\b`, Description: "jargon", Advisory: true},
 			},
 		},
 		Vocabulary: VocabularyRules{
 			ForbiddenTerms: []TermRule{
-				{Term: "utilize", Replacement: "use", Severity: "minor"},
+				{Term: "utilize", Replacement: "use", Advisory: true},
 				// A forbidden term with an empty replacement ("remove it") is valid.
 				{Term: "in order to", Replacement: ""},
 			},
@@ -89,21 +89,21 @@ func TestValidateProfile_InvalidEnums(t *testing.T) {
 	assert.Contains(t, fields["tone.formality"], "casual, neutral, formal, technical")
 }
 
-func TestValidateProfile_BadRegexAndSeverity(t *testing.T) {
+func TestValidateProfile_BadRegex(t *testing.T) {
 	p := &VoiceProfile{
 		Name: "Bad patterns",
 		Style: StyleRules{
 			ProhibitedPatterns: []Pattern{
-				{Regex: "(unclosed", Severity: "minor"},    // uncompilable regex
-				{Regex: `\bok\b`, Severity: "showstopper"}, // unknown severity
-				{Regex: "", Severity: "minor"},             // empty regex
+				{Regex: "(unclosed", Advisory: true}, // uncompilable regex
+				{Regex: `\bok\b`},                    // fine
+				{Regex: "", Advisory: true},          // empty regex
 			},
 		},
 	}
 	fields := problemFields(ValidateProfile(p))
 	assert.Contains(t, fields, "style.prohibited_patterns[0].regex")
 	assert.Contains(t, fields["style.prohibited_patterns[0].regex"], "invalid regex")
-	assert.Contains(t, fields, "style.prohibited_patterns[1].severity")
+	assert.NotContains(t, fields, "style.prohibited_patterns[1].regex")
 	assert.Equal(t, "pattern regex is empty", fields["style.prohibited_patterns[2].regex"])
 }
 
@@ -111,15 +111,15 @@ func TestValidateProfile_EmptyTerms(t *testing.T) {
 	p := &VoiceProfile{
 		Name: "Empty terms",
 		Vocabulary: VocabularyRules{
-			PreferredTerms:  []TermRule{{Term: "  "}},                  // whitespace-only term
-			ForbiddenTerms:  []TermRule{{Term: "", Severity: "minor"}}, // empty term
-			CompetitorTerms: []TermRule{{Term: "Globex", Severity: "nope"}},
+			PreferredTerms:  []TermRule{{Term: "  "}},               // whitespace-only term
+			ForbiddenTerms:  []TermRule{{Term: "", Advisory: true}}, // empty term
+			CompetitorTerms: []TermRule{{Term: "Globex"}},
 		},
 	}
 	fields := problemFields(ValidateProfile(p))
 	assert.Equal(t, "term is empty", fields["vocabulary.preferred_terms[0].term"])
 	assert.Equal(t, "term is empty", fields["vocabulary.forbidden_terms[0].term"])
-	assert.Contains(t, fields, "vocabulary.competitor_terms[0].severity")
+	assert.NotContains(t, fields, "vocabulary.competitor_terms[0].term")
 }
 
 func TestDecodeProfileStrict_UnknownField(t *testing.T) {

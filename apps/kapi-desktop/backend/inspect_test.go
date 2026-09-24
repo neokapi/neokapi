@@ -40,7 +40,6 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: major
 `
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RelStatePath("voice.yaml")), []byte(voiceYAML), 0o644))

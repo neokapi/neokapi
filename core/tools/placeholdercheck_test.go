@@ -43,7 +43,7 @@ func TestPlaceholderCheck_Dropped(t *testing.T) {
 		"Hallo, Sie haben {count} Nachrichten", true)
 	require.Len(t, f, 1)
 	assert.Equal(t, "placeholder", f[0].Category)
-	assert.Equal(t, check.SeverityCritical, f[0].Severity)
+	assert.True(t, f[0].Fails)
 	assert.Equal(t, "{name}", f[0].OriginalText)
 }
 
@@ -51,7 +51,7 @@ func TestPlaceholderCheck_DroppedPrintf(t *testing.T) {
 	f := runPlaceholder(t, "Loaded %d items in %s", "Elemente geladen", true)
 	require.Len(t, f, 2) // %d and %s both dropped
 	for _, x := range f {
-		assert.Equal(t, check.SeverityCritical, x.Severity)
+		assert.True(t, x.Fails)
 	}
 }
 
@@ -59,7 +59,7 @@ func TestPlaceholderCheck_Extra(t *testing.T) {
 	f := runPlaceholder(t,
 		"Hello {name}", "Hallo {name} {stray}", true)
 	require.Len(t, f, 1)
-	assert.Equal(t, check.SeverityMajor, f[0].Severity)
+	assert.True(t, f[0].Fails)
 	assert.Equal(t, "{stray}", f[0].OriginalText)
 
 	// FlagExtra off → no finding for the stray.
@@ -120,7 +120,7 @@ func TestPlaceholderCheck_InlineCodes(t *testing.T) {
 		[]model.Run{phRun("documentedCount"), text(" documented formats")},
 		[]model.Run{text(" dokumentierte Formate")}, true)
 	require.Len(t, f, 1)
-	assert.Equal(t, check.SeverityCritical, f[0].Severity)
+	assert.True(t, f[0].Fails)
 	assert.Equal(t, "ph:documentedCount", f[0].OriginalText)
 	assert.Contains(t, f[0].Message, "missing from the de target")
 
@@ -129,7 +129,7 @@ func TestPlaceholderCheck_InlineCodes(t *testing.T) {
 		[]model.Run{text("Install")},
 		[]model.Run{phRun("count"), text(" Installieren")}, true)
 	require.Len(t, f, 1)
-	assert.Equal(t, check.SeverityMajor, f[0].Severity)
+	assert.True(t, f[0].Fails)
 	assert.Equal(t, "ph:count", f[0].OriginalText)
 	assert.Empty(t, runPlaceholderRuns(t,
 		[]model.Run{text("Install")},
@@ -226,7 +226,7 @@ func TestPlaceholderCheck_ICUBreakages(t *testing.T) {
 		source     string
 		target     string
 		wantText   string
-		wantSever  check.Severity
+		wantFails  bool
 		wantCount  int
 		wantSubstr string
 	}{
@@ -235,7 +235,7 @@ func TestPlaceholderCheck_ICUBreakages(t *testing.T) {
 			source:    "The {berth} is free.",
 			target:    "Kaiplassen er ledig.",
 			wantText:  "{berth}",
-			wantSever: check.SeverityCritical,
+			wantFails: true,
 			wantCount: 1,
 		},
 		{
@@ -243,7 +243,7 @@ func TestPlaceholderCheck_ICUBreakages(t *testing.T) {
 			source:    "Berth {berth} holds {count, plural, one {# vessel} other {# vessels}}.",
 			target:    "Kaiplassen rommer {count, plural, one {# fartøy} other {# fartøyer}}.",
 			wantText:  "{berth}",
-			wantSever: check.SeverityCritical,
+			wantFails: true,
 			wantCount: 1,
 		},
 		{
@@ -251,7 +251,7 @@ func TestPlaceholderCheck_ICUBreakages(t *testing.T) {
 			source:    "{count, plural, one {# berth} other {# berths}} here.",
 			target:    "{count} kaiplasser her.",
 			wantText:  "{count, plural}",
-			wantSever: check.SeverityCritical,
+			wantFails: true,
 			wantCount: 3, // the picker is gone, the # with it, and a bare {count} appeared
 		},
 		{
@@ -259,7 +259,7 @@ func TestPlaceholderCheck_ICUBreakages(t *testing.T) {
 			source:    "{count, plural, one {# berth} other {# berths}}",
 			target:    "{antall, plural, one {# kaiplass} other {# kaiplasser}}",
 			wantText:  "{count, plural}",
-			wantSever: check.SeverityCritical,
+			wantFails: true,
 			wantCount: 2, // {count, plural} missing, {antall, plural} extra
 		},
 		{
@@ -267,7 +267,7 @@ func TestPlaceholderCheck_ICUBreakages(t *testing.T) {
 			source:    "{count, plural, one {# berth} other {# berths}}",
 			target:    "{count, plural, one {en kaiplass} other {flere kaiplasser}}",
 			wantText:  "#",
-			wantSever: check.SeverityCritical,
+			wantFails: true,
 			wantCount: 1,
 		},
 		{
@@ -275,7 +275,7 @@ func TestPlaceholderCheck_ICUBreakages(t *testing.T) {
 			source:    "{count, plural, one {{vessel} has # berth} other {{vessel} has # berths}}",
 			target:    "{count, plural, one {# kaiplass} other {# kaiplasser}}",
 			wantText:  "{vessel}",
-			wantSever: check.SeverityCritical,
+			wantFails: true,
 			wantCount: 1,
 		},
 		{
@@ -283,7 +283,7 @@ func TestPlaceholderCheck_ICUBreakages(t *testing.T) {
 			source:    "{count, plural, offset:1 one {# other} other {# others}}",
 			target:    "{count, plural, one {# annen} other {# andre}}",
 			wantText:  "{count, plural, offset:1}",
-			wantSever: check.SeverityCritical,
+			wantFails: true,
 			wantCount: 2, // the offset picker missing, the offset-free one extra
 		},
 		{
@@ -291,7 +291,7 @@ func TestPlaceholderCheck_ICUBreakages(t *testing.T) {
 			source:    "{count, plural, one {# berth} other {# berths}}",
 			target:    "{count, plural, one {# kaiplass for {vessel}} other {# kaiplasser}}",
 			wantText:  "{vessel}",
-			wantSever: check.SeverityMajor,
+			wantFails: true,
 			wantCount: 1,
 		},
 	}
@@ -308,7 +308,7 @@ func TestPlaceholderCheck_ICUBreakages(t *testing.T) {
 			}
 			require.NotNilf(t, found, "no finding for %q in %+v", tt.wantText, f)
 			assert.Equal(t, "placeholder", found.Category)
-			assert.Equal(t, tt.wantSever, found.Severity)
+			assert.Equal(t, tt.wantFails, found.Fails)
 		})
 	}
 }
@@ -324,7 +324,7 @@ func TestPlaceholderCheck_NonICUStylesUnaffected(t *testing.T) {
 	f := runPlaceholder(t, "Welcome back, {{name}}", "Willkommen zurück", true)
 	require.Len(t, f, 1)
 	assert.Equal(t, "{{name}}", f[0].OriginalText)
-	assert.Equal(t, check.SeverityCritical, f[0].Severity)
+	assert.True(t, f[0].Fails)
 }
 
 // A printf conversion inside a sub-message is not ICU syntax, and dropping it
@@ -339,5 +339,5 @@ func TestPlaceholderCheck_ICUKeepsNonBracePlaceholders(t *testing.T) {
 		"{count, plural, one {en kaiplass} other {flere kaiplasser}}", true)
 	require.Len(t, f, 1)
 	assert.Equal(t, "%s", f[0].OriginalText)
-	assert.Equal(t, check.SeverityCritical, f[0].Severity)
+	assert.True(t, f[0].Fails)
 }

@@ -39,10 +39,6 @@ const (
 	gateSource = "source"
 )
 
-// DefaultVoiceMinScore is the voice compliance score below which the voice
-// gate fails when the user does not override it with --min-score.
-const DefaultVoiceMinScore = 80
-
 // verifyFinding is a single actionable problem found by one of the verify
 // gates. The shape is shared by the human and JSON renderers and is the unit
 // an AI assistant reads, fixes, and re-runs against.
@@ -55,7 +51,7 @@ type verifyFinding struct {
 	// Block is the block the finding sits in, when the gate resolves one.
 	Block      string `json:"block,omitempty"`
 	Locale     string `json:"locale,omitempty"`
-	Severity   string `json:"severity"`
+	Fails      bool   `json:"fails"`
 	Message    string `json:"message"`
 	Suggestion string `json:"suggestion,omitempty"`
 	// Point is the governance point the finding's block was checked at, when a
@@ -100,8 +96,8 @@ type verifySummary struct {
 	Failed    int `json:"failed"`
 	DidNotRun int `json:"did_not_run"`
 	Findings  int `json:"findings"`
-	Errors    int `json:"errors"`   // findings with severity "error"
-	Warnings  int `json:"warnings"` // findings with severity "warning"
+	Failing   int `json:"failing"`   // findings that fail their gate
+	Reporting int `json:"reporting"` // findings that only report
 }
 
 // verifyOutput is the single structured result of a project-gates run.
@@ -116,7 +112,7 @@ type verifyOutput struct {
 	Gates          []verifyGateResult `json:"gates"`
 	Summary        verifySummary      `json:"summary"`
 	// Warnings are the configuration warnings of the voice profiles the gates
-	// loaded, each once, as a kapi.check/v1 report carries them. They never
+	// loaded, each once, as a kapi.check/v2 report carries them. They never
 	// change a gate's verdict or the run's.
 	Warnings []check.Warning `json:"warnings,omitempty"`
 }
@@ -174,7 +170,7 @@ func (o verifyOutput) FormatText(w io.Writer) error {
 				}
 				loc += "[" + f.Locale + "]"
 			}
-			t.Row(severityCell(s, f.Severity), s.Dim(loc), f.Message)
+			t.Row(outcomeCell(s, f.Fails), s.Dim(loc), f.Message)
 			if f.Suggestion != "" {
 				t.Row("", "", s.Muted.Render("↳ "+f.Suggestion))
 			}
@@ -189,9 +185,9 @@ func (o verifyOutput) FormatText(w io.Writer) error {
 	case check.VerdictDidNotRun:
 		verdict = gs.Warn.Render("DID NOT RUN")
 	}
-	fmt.Fprintf(w, "%s: %d gate(s), %d passed, %d failed, %d did not run, %d finding(s) (%d error, %d warning)\n",
+	fmt.Fprintf(w, "%s: %d gate(s), %d passed, %d failed, %d did not run, %d finding(s) (%d failing, %d reported)\n",
 		verdict, o.Summary.Gates, o.Summary.Passed, o.Summary.Failed, o.Summary.DidNotRun,
-		o.Summary.Findings, o.Summary.Errors, o.Summary.Warnings)
+		o.Summary.Findings, o.Summary.Failing, o.Summary.Reporting)
 	if o.Verdict == check.VerdictDidNotRun {
 		// The causes share an exit code, so the sentence is what tells a broken
 		// checker from a gate with nothing to check.
@@ -208,19 +204,13 @@ func (o verifyOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// severityCell renders a finding's severity with the style its urgency asks
-// for. It spans both severity vocabularies in play: the verify gates emit
-// error/warning, core/check emits critical/major/minor.
-func severityCell(s *output.Styles, sev string) string {
-	label := strings.ToUpper(sev)
-	switch strings.ToLower(sev) {
-	case "error", "critical":
-		return s.Error.Render(label)
-	case "warning", "major":
-		return s.Warn.Render(label)
-	default:
-		return s.Muted.Render(label)
+// outcomeCell renders what a finding does to a check: FAILS in the error
+// style, REPORTS muted.
+func outcomeCell(s *output.Styles, fails bool) string {
+	if fails {
+		return s.Error.Render("FAILS")
 	}
+	return s.Muted.Render("REPORTS")
 }
 
 // gateSelection records which gates the user asked to run. With no --gate, every
@@ -519,7 +509,7 @@ func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, r
 	for _, sf := range sc.Pending {
 		g.Findings = append(g.Findings, verifyFinding{
 			Gate:       gateSource,
-			Severity:   "error",
+			Fails:      true,
 			Message:    fmt.Sprintf("source %s readiness %d%% is below the required %d%%", sf.State, int(sf.Actual), sf.Required),
 			Suggestion: "run the source checks (e.g. voice/terminology) and resolve findings, or relax the source gate",
 		})
@@ -558,9 +548,9 @@ func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, un
 		if lc.FailingChecks > 0 {
 			g.Pass = false
 			g.Findings = append(g.Findings, verifyFinding{
-				Gate:     gateShip,
-				Locale:   lc.Locale,
-				Severity: "error",
+				Gate:   gateShip,
+				Locale: lc.Locale,
+				Fails:  true,
 				Message: fmt.Sprintf("%s: %d unit(s) fail the project's bound checks",
 					scope, lc.FailingChecks),
 				Suggestion: "fix the findings the checks gate lists for this locale, then re-run",
@@ -573,9 +563,9 @@ func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, un
 		if lc.Stale > 0 {
 			g.Pass = false
 			g.Findings = append(g.Findings, verifyFinding{
-				Gate:     gateShip,
-				Locale:   lc.Locale,
-				Severity: "error",
+				Gate:   gateShip,
+				Locale: lc.Locale,
+				Fails:  true,
 				Message: fmt.Sprintf("%s: %d unit(s) stale, so the source changed since the translation was decided",
 					scope, lc.Stale),
 				Suggestion: "re-review the stale units (kapi status --review) or retranslate them",
@@ -586,9 +576,9 @@ func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, un
 		if lc.TermsNotChecked > 0 {
 			g.Pass = false
 			g.Findings = append(g.Findings, verifyFinding{
-				Gate:     gateShip,
-				Locale:   lc.Locale,
-				Severity: "error",
+				Gate:   gateShip,
+				Locale: lc.Locale,
+				Fails:  true,
 				Message: fmt.Sprintf("%s: %d unit(s) have no terminology result, because terms govern them and their targets could not be read to check",
 					scope, lc.TermsNotChecked),
 				Suggestion: "write these targets in a format kapi can read back, so their terminology can be checked",
@@ -602,7 +592,7 @@ func (a *App) verifyShip(cmd Command, proj *project.KapiProject, root string, un
 			g.Findings = append(g.Findings, verifyFinding{
 				Gate:       gateShip,
 				Locale:     lc.Locale,
-				Severity:   "error",
+				Fails:      true,
 				Message:    fmt.Sprintf("%s: %s coverage %d%% is below the required %d%%", scope, sf.State, int(sf.Actual), sf.Required),
 				Suggestion: "translate or review more content for this locale, or relax its ship gate",
 			})
@@ -633,11 +623,10 @@ func buildVerifyOutput(gates []verifyGateResult) verifyOutput {
 		}
 		for _, f := range g.Findings {
 			out.Summary.Findings++
-			switch f.Severity {
-			case "error":
-				out.Summary.Errors++
-			case "warning":
-				out.Summary.Warnings++
+			if f.Fails {
+				out.Summary.Failing++
+			} else {
+				out.Summary.Reporting++
 			}
 		}
 	}
@@ -650,7 +639,7 @@ func buildVerifyOutput(gates []verifyGateResult) verifyOutput {
 
 // decideGate settles one gate's verdict. A gate that measured content (it
 // reports coverage or analyzer runs) is judged by check.Report.Decide, the rule
-// every kapi.check/v1 report follows: a missed canary makes it did_not_run, a
+// every kapi.check/v2 report follows: a missed canary makes it did_not_run, a
 // failure fails it, and no blocks, or no analyzer that showed it can fail,
 // leaves it did_not_run. A gate that measures something other than content
 // (ship coverage, source readiness, staleness) keeps its pass or fail. A gate
@@ -669,7 +658,9 @@ func decideGate(g *verifyGateResult) {
 			r.Target.Blocks = g.Coverage.Blocks
 		}
 		if !g.Pass {
-			r.Gate.Failed = []string{g.Gate + " gate failed"}
+			// A gate that failed counts as one failing finding in the report
+			// Decide judges.
+			r.Findings = []check.Diagnostic{{Rule: g.Gate, Fails: true}}
 		}
 		r.Decide()
 		g.Verdict, g.DidNotRun, g.DidNotRunCause = r.Verdict, r.DidNotRun, r.DidNotRunCause
@@ -745,7 +736,7 @@ func unboundGate(gate, missing, fix string) verifyGateResult {
 		DidNotRun:      []string{fmt.Sprintf("%s was requested but the project has no %s", flag, missing)},
 		Findings: []verifyFinding{{
 			Gate:       gate,
-			Severity:   "error",
+			Fails:      true,
 			Message:    fmt.Sprintf("%s gate was requested with %s but the project has no %s, so there is nothing to check", gate, flag, missing),
 			Suggestion: fmt.Sprintf("%s, or drop %s to skip this gate", fix, flag),
 		}},
@@ -776,7 +767,7 @@ func (a *App) ungovernedTermsGate(cmd Command, proj *project.KapiProject, root s
 		DidNotRun:      []string{fmt.Sprintf("%s was requested, and the terms bound at %s govern none of the content in scope", flag, where)},
 		Findings: []verifyFinding{{
 			Gate:       gateTerms,
-			Severity:   "error",
+			Fails:      true,
 			Message:    fmt.Sprintf("%s gate was requested with %s, and no content in scope sits where terms govern its language (terms are bound at %s)", gateTerms, flag, where),
 			Suggestion: "give the content a channel whose profile binds terms, or add terms for the language it is in",
 		}},
@@ -851,8 +842,6 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		return nil, err
 	}
 	defer voice.close()
-
-	minScore, _ := cmd.Flags().GetInt("min-score")
 
 	// Source files to score: explicit args, else the project's source content.
 	files, err := a.voiceSourceFiles(proj, root, args)
@@ -999,16 +988,13 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		return nil, nil
 	}
 
-	score := coreprofile.CalculateScore(allFindings)
-	if score.Overall < minScore {
-		gate.Pass = false
-		// Lead with a summary finding so the assistant sees the score gap
-		// even when individual term findings are sparse.
-		gate.Findings = append([]verifyFinding{{
-			Gate:     gateVoice,
-			Severity: "error",
-			Message:  fmt.Sprintf("voice compliance score %d is below the required minimum %d", score.Overall, minScore),
-		}}, gate.Findings...)
+	// The gate fails on a failing finding. The compliance score is a reported
+	// metric and gates nothing.
+	for _, f := range allFindings {
+		if f.Fails && !f.Suggested {
+			gate.Pass = false
+			break
+		}
 	}
 	return &gate, nil
 }
@@ -1040,16 +1026,11 @@ func runVoiceVocabOnBlock(ctx context.Context, vocab *coretools.VoiceVocabCheckT
 }
 
 func voiceFindingToVerify(file, block string, f coreprofile.VoiceFinding) verifyFinding {
-	sev := "warning"
-	switch f.Severity {
-	case coreprofile.SeverityMajor, coreprofile.SeverityCritical:
-		sev = "error"
-	}
 	return verifyFinding{
 		Gate:       gateVoice,
 		File:       file,
 		Block:      block,
-		Severity:   sev,
+		Fails:      f.Fails && !f.Suggested,
 		Message:    f.Message,
 		Suggestion: f.Suggestion,
 	}
@@ -1470,18 +1451,18 @@ func (a *App) verifyTerminology(cmd Command, proj *project.KapiProject, units []
 			if cerr := RunCheckTool(ctx, tc, b); cerr != nil {
 				return gate, governed, fmt.Errorf("terminology gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
 			}
-			// A rule's severity decides whether it fails the gate or only
-			// reports: the tool has already sorted the violations into the two
-			// properties, so a minor rule warns here rather than blocking.
+			// A rule fails the gate unless it is advisory: the tool has already
+			// sorted the violations into the two properties, so an advisory
+			// rule reports here rather than blocking.
 			if b.Properties[coretools.PropTermCheckPassed] == "false" {
 				gate.Pass = false
 			}
 			for _, v := range []struct {
-				prop     string
-				severity string
+				prop  string
+				fails bool
 			}{
-				{coretools.PropTermCheckErrors, "error"},
-				{coretools.PropTermCheckWarnings, "warning"},
+				{coretools.PropTermCheckErrors, true},
+				{coretools.PropTermCheckWarnings, false},
 			} {
 				for m := range strings.SplitSeq(b.Properties[v.prop], "; ") {
 					if strings.TrimSpace(m) == "" {
@@ -1491,7 +1472,7 @@ func (a *App) verifyTerminology(cmd Command, proj *project.KapiProject, units []
 						Gate:       gateTerms,
 						File:       u.DisplayPath,
 						Locale:     u.Locale,
-						Severity:   v.severity,
+						Fails:      v.fails,
 						Message:    m,
 						Suggestion: "use the term rule's required translation",
 					})
@@ -1654,7 +1635,7 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 				Gate:       gateChecks,
 				File:       u.DisplayPath,
 				Locale:     u.Locale,
-				Severity:   "error",
+				Fails:      true,
 				Message:    message,
 				Suggestion: suggestion,
 			})
@@ -1681,15 +1662,11 @@ func (a *App) verifyChecks(cmd Command, proj *project.KapiProject, root string, 
 					continue
 				}
 				failing := checkFindingFails(f)
-				sev := verifySeverity(f.Severity)
-				if failing {
-					sev = "error"
-				}
 				gate.Findings = append(gate.Findings, verifyFinding{
 					Gate:       gateChecks,
 					File:       u.DisplayPath,
 					Locale:     u.Locale,
-					Severity:   sev,
+					Fails:      failing,
 					Message:    f.Message,
 					Suggestion: checkFindingSuggestion(f),
 				})
@@ -1728,23 +1705,11 @@ func doNotTranslateTerms(rules []coreprofile.TermRule) map[string]bool {
 	return dnt
 }
 
-// verifySeverity maps a check.Severity to the "error"/"warning" severity the
-// verify output uses: critical/major problems are errors, minor/neutral are
-// warnings.
-func verifySeverity(s check.Severity) string {
-	switch s {
-	case check.SeverityCritical, check.SeverityMajor:
-		return "error"
-	default:
-		return "warning"
-	}
-}
-
 // checkFailingCategories are the finding categories verify treats as gate
 // failures: integrity problems that break the translation (dropped/extra
 // placeholders or tags, missing required codes, untranslated/empty targets).
-// Cosmetic issues (whitespace, doubled words, length ratios) are reported as
-// warnings but do not fail the gate.
+// Cosmetic issues (whitespace, doubled words, length ratios) are reported and
+// do not fail the gate.
 var checkFailingCategories = map[string]bool{
 	"empty-target":                  true,
 	"pattern-mismatch":              true,
@@ -1766,8 +1731,8 @@ func checkFindingFails(f check.Finding) bool {
 	if checkFailingCategories[f.Category] {
 		return true
 	}
-	// Any major/critical finding fails regardless of category.
-	return f.Severity == check.SeverityMajor || f.Severity == check.SeverityCritical
+	// A failing finding fails regardless of category.
+	return f.Fails && !f.Suggested
 }
 
 // checkFindingSuggestion returns a short remediation hint for the assistant for the
@@ -1779,7 +1744,7 @@ func checkFindingSuggestion(f check.Finding) string {
 	case "pattern-mismatch", "missing-code", "non-deletable-span-missing":
 		return "keep every placeholder/tag from the source in the target"
 	case "placeholder":
-		if f.Severity == check.SeverityMajor {
+		if f.Metadata["kind"] == "extra" {
 			return "remove placeholders/tags that are not present in the source"
 		}
 		return "keep every placeholder/tag from the source in the target"
@@ -2149,8 +2114,8 @@ func firstNonEmpty(vals ...string) string {
 	return ""
 }
 
-// sortFindings orders findings deterministically (by file, locale, severity,
-// message) so JSON output and tests are stable. Currently applied per gate at
+// sortFindings orders findings deterministically (by file, locale, failing
+// first, message) so JSON output and tests are stable. Currently applied per gate at
 // build time; exported helper kept small for reuse.
 func sortFindings(fs []verifyFinding) {
 	sort.SliceStable(fs, func(i, j int) bool {
@@ -2160,8 +2125,8 @@ func sortFindings(fs []verifyFinding) {
 		if fs[i].Locale != fs[j].Locale {
 			return fs[i].Locale < fs[j].Locale
 		}
-		if fs[i].Severity != fs[j].Severity {
-			return fs[i].Severity < fs[j].Severity
+		if fs[i].Fails != fs[j].Fails {
+			return fs[i].Fails
 		}
 		return fs[i].Message < fs[j].Message
 	})
@@ -2181,7 +2146,6 @@ func AddGateFlag(cmd Command) {
 func AddVerifyFlags(cmd Command) {
 	cmd.Flags().String("source-lang", "", "source language (overrides the project's source_language)")
 	AddGateFlag(cmd)
-	cmd.Flags().Int("min-score", DefaultVoiceMinScore, "voice compliance score below which the voice gate fails")
 	cmd.Flags().String("locale", "", "scope terminology and the rule-based checks to a single target locale (e.g. fr)")
 	cmd.Flags().String("termstore", "", "named terms or path to a terms store (defaults to the project terms store)")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")

@@ -14,8 +14,9 @@ The voice-profile subsystem keeps generated and translated content in voice. Its
 core type, `profile.VoiceProfile`, is a portable YAML document describing tone,
 style, vocabulary rules, examples, and locale, channel and persona overrides. Two
 registered tools evaluate text against a profile: a deterministic, offline
-`voice-vocab-check` and an LLM-based `voice-check`. Findings carry a severity and
-a run-anchored position and roll up into an MQM-inspired 0–100 compliance score.
+`voice-vocab-check` and an LLM-based `voice-check`. Each finding says whether it
+fails a check, carries a run-anchored position, and rolls up into a reported
+0–100 compliance score.
 
 The `kapi voice` command tree exposes this as a text-first, JSON-first surface
 that works fully offline against a starter pack, a standalone YAML file, the
@@ -60,16 +61,17 @@ embedded starter packs and the voice store:
   register outside the conventional set loads, and validation reports it as an
   advisory note.
 - **`StyleRules`**: active voice, sentence length, point of view, contractions,
-  and prohibited/required regular-expression patterns. A `Pattern` carries a
-  severity, an optional `rate` (`max` matches per `per_words` words, which turns
+  and prohibited/required regular-expression patterns. A `Pattern` carries an
+  optional `advisory` flag, an optional `rate` (`max` matches per `per_words` words, which turns
   a prohibition into a ceiling; under the ceiling nothing is reported, over it
   every match is), and an optional `scope` (`prose`, `code` or `heading`; empty
   means everywhere). The style enums stay closed, because code reads them.
 - **`VocabularyRules`**: preferred, forbidden and competitor term rules, plus
-  abbreviations. A `TermRule` carries the term, an optional replacement, note
-  and severity, `forms` (the other surface shapes the term takes, declared
+  abbreviations. A `TermRule` carries the term, an optional replacement, a
+  note, `advisory`, `forms` (the other surface shapes the term takes, declared
   rather than derived, which `kapi voice expand` fills in by asking a model once
-  in the profile's own language), `case_sensitive` (off by default), `scope`
+  in the profile's own language), `case_sensitive` (unset by default, see
+  below), `scope`
   (the same values a pattern takes), `do_not_translate` (what gives a bare term
   with no replacement its meaning), and `concept_id`, which ties the rule to a
   concept in the terms store and the graph and stays empty for a standalone
@@ -92,11 +94,23 @@ terminology in. `term-check`, `translate`, `recycle` and `dnt-check` all read
 own vocabulary, from the terms store, or from a recipe, and
 `profile.TermRuleMap` is the single projection of that list into the map a
 prompt renders and the context fingerprint hashes, so the staleness gate and the
-producers cannot disagree about what governed a target. A rule's severity
-decides whether a violation fails or only reports (`minor` and `neutral` warn),
-and a rule with an empty replacement is skipped by the tools unless it is marked
-do-not-translate, because "say this instead" needs a this. How the store and the
-rules are located in a text is [C-08](c-08-terms.md)'s subject.
+producers cannot disagree about what governed a target. A violation of a rule
+or a pattern fails a check unless the rule is marked `advisory: true`, which
+makes it report; an unset marking fails, because rules resolved from a terms
+store carry none and must not be silently downgraded. A rule with an empty
+replacement is skipped by the tools unless it is marked do-not-translate,
+because "say this instead" needs a this.
+
+`TermRule.MatchesCase` decides whether a rule matches in its own casing. A rule
+whose preferred form is capitalised, as a product name is, matches case
+sensitively, so "write Quickcast, not QuickCast" flags `QuickCast` and leaves
+the lower-case slug `quickcast` alone. A rule whose rejected form differs from
+the preferred one only in case (`term: Ripgrep, replacement: ripgrep`) is case
+sensitive too. Every other rule matches regardless of case, and
+`case_sensitive: true|false` overrides the default in either direction.
+`term-check` compares a source term with a replacement in another language, so
+it reads only the explicit field. How the store and the rules are located in a
+text is [C-08](c-08-terms.md)'s subject.
 
 ### Shared constraints and factual guidance
 
@@ -106,7 +120,7 @@ shared constraints remain attached to the selected profile. Profile selection
 still chooses one governing profile, with no implicit merge between profiles.
 
 Each constraint carries an ID, version, source reference and statement. A
-`prohibited_pattern` has an RE2 expression and emits critical findings through
+`prohibited_pattern` has an RE2 expression and emits failing findings through
 `profile.PatternFindings`, the shared style-and-constraint path used by the
 voice tool and `profile.Findings`. Metadata preserves the constraint's ID,
 version and source. A `guidance` record carries a factual requirement into full
@@ -143,8 +157,8 @@ without exposing editing controls for them.
 A finding is `profile.VoiceFinding`, a type alias to `check.Finding` from the
 framework's content-verification core (`core/check`). It carries a free-form
 `Category` (a voice finding sets it to one of the fixed dimensions: tone, style,
-vocabulary, clarity, compliance), a severity, a human message, an optional
-suggestion, the original text, optional metadata, and a **`Position
+vocabulary, clarity, compliance), `Fails`, `Suggested`, a human message, an
+optional suggestion, the original text, optional metadata, and a **`Position
 model.Anchor`**, so a finding is anchored to the runs it concerns, the same
 run-range model overlays and redaction use
 ([F-02](../foundations/f-02-content-model.md)).
@@ -153,13 +167,23 @@ Tools attach findings to a block as a `VoiceAnnotation` (annotation type
 `voice`), which also carries the profile id, the overall score and its own
 position.
 
-`profile.CalculateScore` rolls findings up using the MQM-inspired penalty weights
-in `core/check.SeverityWeight` (neutral 0, minor 1, major 5, critical 25) per
-dimension. Each dimension starts at 100 and is reduced by its penalty, clamped at
-0; the overall score is 100 minus the total penalty. The dimensions are fixed, so
-a compliance score always has a consistent shape.
+`Fails` is decided by the rule that raised the finding. A term rule, a
+prohibited or required pattern, and a shared constraint fail unless the rule is
+marked advisory. A finding raised by a suggested rule, one recorded by
+`kapi context observe` or `correct` and not yet kept, carries `Suggested` and
+never fails. The style measures report: the voice-similarity
+check, the model-backed `voice-check`, and the comment limits under
+`style.comments`, which fail only when the profile sets `style.comments.fails:
+true`.
 
-This finding, severity and scoring path is shared across every checker
+`profile.CalculateScore` rolls findings up per dimension using the weights in
+`core/check.Weight`: a failing finding weighs 25, a reported one 1, a suggested
+one 0. Each dimension starts at 100 and is reduced by its penalty, clamped at
+0; the overall score is 100 minus the total penalty. The dimensions are fixed, so
+a compliance score always has a consistent shape. The score is reported beside
+the findings and gates nothing.
+
+This finding and scoring path is shared across every checker
 (terminology, do-not-translate, placeholder, register, voice) rather than being
 bespoke to voice. Voice is one checkset over the generic core.
 
@@ -276,7 +300,7 @@ Locale and channel overrides apply on top via `--locale`/`--channel`; an explici
 | --- | --- |
 | `new` | Scaffold a commented, schema-valid profile YAML, optionally seeded from a pack. |
 | `guide` / `show` | Render the profile as a markdown voice guide to inject into an assistant's context. |
-| `check` | Score text against the profile: vocabulary always, `--ai` adds the model check. `--min-score` turns it into a gate. |
+| `check` | Score text against the profile: vocabulary always, `--ai` adds the model check. Exits with the quality-gate code when a finding fails. |
 | `rewrite` | Substitute forbidden and competitor terms for their approved replacements: deterministic, offline, no model. A rule that matches without a replacement is reported under `skipped`. |
 | `expand` | Ask a model for the surface forms each vocabulary term takes and write them into the profile as `forms:`, for review in a diff. |
 | `validate` | Check a profile document against the schema; blocking problems fail, advisory notes print after the verdict. |
@@ -299,10 +323,11 @@ it survives. A project that unbinds its voice has the section removed on the
 next run rather than left claiming a voice `guide` cannot resolve.
 
 `check` reads its subject from `--input-text`, a positional file, or stdin.
-`check --min-score` returns the quality-gate sentinel when the score is below the
-threshold, which the CLI maps to a distinct exit code
-([S-01](../surfaces/s-01-kapi-cli.md)) so skills and CI can tell a failed gate
-from an operational error. `kapi check --voice` is the project-level style
+It returns the quality-gate sentinel when at least one finding fails, which the
+CLI maps to a distinct exit code ([S-01](../surfaces/s-01-kapi-cli.md)) so
+skills and CI can tell a failed check from an operational error. Each finding
+prints as `[fails/<category>]` or `[reports/<category>]`, and the JSON output
+carries `passed`, `failing` and `score`. `kapi check --voice` is the project-level style
 gate, with `--voice-min` setting the similarity cutoff.
 
 ### Fixing off-voice content
@@ -319,8 +344,8 @@ that would corrupt markup is rejected.
 forbidden and competitor terms for their approved replacements by rule, offline,
 through the same matcher as the vocabulary check (`profile.RewriteVocabulary`).
 A rule that names no replacement, and a match on a declared inflected form of a
-term, stay in the text and are reported under `skipped` with the term, its list
-and severity, the spellings matched and the reason, so a caller can tell an
+term, stay in the text and are reported under `skipped` with the term, its list,
+whether it fails, the spellings matched and the reason, so a caller can tell an
 unchanged text with nothing to fix from one that still carries violations. The
 exit code stays 0. It does not call a model and does not touch tone, style or
 phrasing; those are the caller's to rewrite.
@@ -332,7 +357,7 @@ every future draft is checked against it) is a `voice` entry in the same `kapi
 apply` change-set, alongside the content fix that justifies it:
 
 ```json
-{"kind":"voice","op":"add-rule","list":"forbidden","term":"utilize","replacement":"use","severity":"minor"}
+{"kind":"voice","op":"add-rule","list":"forbidden","term":"utilize","replacement":"use","advisory":true}
 ```
 
 The entry adds a term rule to the named vocabulary list (`forbidden`,
@@ -343,7 +368,7 @@ embedded in the binary and a project that wants to change one imports it first.
 
 A rule somebody notices while working is a term rule.
 `kapi context observe --term use --instead-of utilise` records a suggestion,
-which checks report at `neutral` severity and fail nothing on; a person keeping
+which checks report and fail nothing on; a person keeping
 it writes the rule into the project's terms store, where every check reads it
 beside the voice's vocabulary. See [C-11](c-11-context-operations.md).
 

@@ -66,16 +66,18 @@ func TestCommentDoubleSpaces(t *testing.T) {
 // prose, which reports any run of two or more spaces between words.
 func TestContentLintChoosesTheDoubleSpaceRule(t *testing.T) {
 	const aligned = "SMTP_HOST  the host\nSMTP_PORT  the port"
-	find := func(b *model.Block) map[string]Severity {
+	find := func(b *model.Block) map[string]bool {
 		findings, err := runTool(NewContentLintTool())(b)
 		assert.NoError(t, err)
-		out := map[string]Severity{}
+		out := map[string]bool{}
 		for _, f := range findings {
-			out[f.Category] = f.Severity
+			out[f.Category] = f.Fails
 		}
 		return out
 	}
 	assert.NotContains(t, find(commentCanary("func/Parse", true, aligned)), "double-spaces", "aligned text in a comment is layout")
-	assert.Equal(t, SeverityMinor, find(CanaryBlock(aligned))["double-spaces"], "must fail: the same text outside a comment keeps the prose rule, at minor")
-	assert.Equal(t, SeverityMajor, find(commentCanary("func/Parse", true, "A slip  here."))["double-spaces"], "a double space in a comment is major")
+	prose := find(CanaryBlock(aligned))
+	assert.Contains(t, prose, "double-spaces", "must fail: the same text outside a comment keeps the prose rule")
+	assert.False(t, prose["double-spaces"], "a double space in prose reports")
+	assert.Contains(t, find(commentCanary("func/Parse", true, "A slip  here.")), "double-spaces", "a double space between words in a comment is reported")
 }

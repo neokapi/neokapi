@@ -76,7 +76,7 @@ func TestDNTCheck_StepConfigMakesTheGuardrailCapableOfFailing(t *testing.T) {
 	f := findings(b)
 	require.Len(t, f, 1, "the translated do-not-translate term must be reported")
 	assert.Equal(t, "do-not-translate", f[0].Category)
-	assert.Equal(t, check.SeverityCritical, f[0].Severity)
+	assert.True(t, f[0].Fails)
 	assert.Equal(t, "Acme Cloud", f[0].OriginalText)
 	assert.Contains(t, f[0].Message, "nb", "the finding names the locale the run asked for")
 }
@@ -133,7 +133,7 @@ func TestPlaceholderCheck_StepRunCatchesADroppedPlaceholder(t *testing.T) {
 	f := findings(b)
 	require.Len(t, f, 1)
 	assert.Equal(t, "placeholder", f[0].Category)
-	assert.Equal(t, check.SeverityCritical, f[0].Severity)
+	assert.True(t, f[0].Fails)
 	assert.Contains(t, f[0].Message, "{count}")
 	assert.Contains(t, f[0].Message, "nb", "the locale checked is the run's")
 }
@@ -143,7 +143,7 @@ func TestPlaceholderCheck_StepConfigFlagExtra(t *testing.T) {
 	on := runStep(t, "placeholder-check", nil, "nb",
 		stepBlock("You have items", "Du har {count} varer"))
 	require.Len(t, findings(on), 1, "an extra placeholder is reported by default")
-	assert.Equal(t, check.SeverityMajor, findings(on)[0].Severity)
+	assert.True(t, findings(on)[0].Fails)
 
 	off := runStep(t, "placeholder-check", map[string]any{"flagExtra": false}, "nb",
 		stepBlock("You have items", "Du har {count} varer"))

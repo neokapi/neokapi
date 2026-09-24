@@ -236,7 +236,8 @@ collections:
   (`kapi terms import terms.csv -s en -t fr`); `kapi exec term-check <file>` and
   the translation flow then enforce it with no `--termstore` flag. Rules without
   a store go under a flow step's `term_rules:` (one `term`, its `replacement`,
-  a `severity`, optionally a `concept_id`), the same shape a voice profile's
+  `advisory: true` for a rule that only reports, optionally a `concept_id`),
+  the same shape a voice profile's
   vocabulary uses; `term-check`, `translate`, `recycle`, `dnt-check` and
   `pseudo-translate` all take it.
 - **Locales + content**: `kapi run <flow>`, `kapi extract`, and `kapi merge`

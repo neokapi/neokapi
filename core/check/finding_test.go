@@ -8,34 +8,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSeverityWeight(t *testing.T) {
+func TestWeight(t *testing.T) {
 	tests := []struct {
-		sev  Severity
+		name string
+		f    Finding
 		want int
 	}{
-		{SeverityNeutral, 0},
-		{SeverityMinor, 1},
-		{SeverityMajor, 5},
-		{SeverityCritical, 25},
-		{Severity("bogus"), 0},
+		{"failing", Finding{Fails: true}, FailingWeight},
+		{"reporting", Finding{}, ReportingWeight},
+		{"suggested weighs nothing even when marked failing", Finding{Fails: true, Suggested: true}, 0},
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.want, SeverityWeight(tt.sev), "weight for %q", tt.sev)
+		assert.Equal(t, tt.want, Weight(tt.f), tt.name)
 	}
-}
-
-func TestParseSeverity(t *testing.T) {
-	assert.Equal(t, SeverityNeutral, ParseSeverity("neutral"))
-	assert.Equal(t, SeverityCritical, ParseSeverity("critical"))
-	// Unknown defaults to minor so it is never silently zero-weighted.
-	assert.Equal(t, SeverityMinor, ParseSeverity("nonsense"))
-	assert.Equal(t, SeverityMinor, ParseSeverity(""))
 }
 
 func TestFindingJSONUsesCategory(t *testing.T) {
 	f := Finding{
 		Category:     "terminology",
-		Severity:     SeverityMajor,
+		Fails:        true,
 		Message:      "forbidden term",
 		Suggestion:   "use this instead",
 		OriginalText: "leverage",
@@ -44,11 +35,11 @@ func TestFindingJSONUsesCategory(t *testing.T) {
 	b, err := json.Marshal(f)
 	require.NoError(t, err)
 	assert.Contains(t, string(b), `"category":"terminology"`)
-	assert.Contains(t, string(b), `"severity":"major"`)
+	assert.Contains(t, string(b), `"fails":true`)
 
 	var back Finding
 	require.NoError(t, json.Unmarshal(b, &back))
 	assert.Equal(t, f.Category, back.Category)
-	assert.Equal(t, f.Severity, back.Severity)
+	assert.Equal(t, f.Fails, back.Fails)
 	assert.Equal(t, "vocab-1", back.Metadata["rule"])
 }

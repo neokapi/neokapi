@@ -13,7 +13,7 @@ import (
 func constraintProfile() *VoiceProfile {
 	return &VoiceProfile{
 		Name:  "Harbor Help",
-		Style: StyleRules{PersonPOV: "second", ProhibitedPatterns: []Pattern{{Regex: "legacy", Severity: "critical"}}},
+		Style: StyleRules{PersonPOV: "second", ProhibitedPatterns: []Pattern{{Regex: "legacy"}}},
 		Constraints: []Constraint{{
 			ID: "assurance", Version: 1, Source: "service-facts.md#assurances",
 			Statement: "Do not promise risk-free appointments.", Kind: ConstraintProhibitedPattern, Regex: `risk-free`,
@@ -44,7 +44,7 @@ func TestConstraintsSurvivePresentationOverrides(t *testing.T) {
 			assert.Empty(t, Findings(resolved, "legacy", nil), "legacy style replacement stays intact")
 			findings := Findings(resolved, "This is risk-free.", nil)
 			require.Len(t, findings, 1)
-			assert.Equal(t, SeverityCritical, findings[0].Severity)
+			assert.True(t, findings[0].Fails)
 			assert.Equal(t, "assurance", findings[0].Metadata["constraint_id"])
 			assert.Equal(t, "1", findings[0].Metadata["constraint_version"])
 			assert.Equal(t, "service-facts.md#assurances", findings[0].Metadata["constraint_source"])

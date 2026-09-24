@@ -42,11 +42,9 @@ style:
   prohibited_patterns:
     - regex: '\bseamless\b'
       description: Marketing superlative
-      severity: major
   required_patterns:
     - regex: '(?i)\bstart free trial\b'
       description: Every landing page carries the call to action
-      severity: major
 `)
 	carries = write("docs/carries.md", "A seamless page.\n\nStart free trial today.\n")
 	missing = write("docs/missing.md", "A seamless page.\n\nNothing asks the reader to act.\n")

@@ -44,8 +44,14 @@ Read `execution.contexts` to confirm the effective voice selection, profile and
 channel, then the findings and `execution.analyzers`. Fix the relevant findings
 within the requested scope and re-check.
 
+Each finding has `fails`. The check fails (exit 3) when at least one finding
+fails; `summary.failing` counts them. Fix every failing finding. A finding with
+`fails: false` reports: an advisory rule, a style measure such as a comment
+limit, or `suggested: true` for a rule nobody has confirmed yet. Weigh those
+and fix what the context supports. The `score` is reported and decides nothing.
+
 Unsupported semantic guidance still needs review against the retrieved context:
-a passing score covers only the checks that ran. If the same finding persists or
+a passing verdict covers only the checks that ran. If the same finding persists or
 contradicts the governing guidance, report the unresolved issue rather than
 rewriting unrelated text around it.
 
@@ -105,9 +111,9 @@ Fix the named configuration when it is in scope, or report it.
 kapi check --ship --json
 ```
 
-The ship gate adds the project's release policy: the voice score bar
-(`--min-score`, default 80) and, where the recipe declares one, the
-translation-coverage bar in `ship_gate:`. See [project.md](project.md) and
+The ship gate adds the project's release policy: the voice gate, which fails
+on a failing finding and reports the compliance score, and, where the recipe
+declares one, the translation-coverage bar in `ship_gate:`. See [project.md](project.md) and
 [translate.md](translate.md).
 
 The optional Claude Code Stop hook runs these project gates when installed.

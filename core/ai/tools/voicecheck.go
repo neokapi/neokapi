@@ -258,12 +258,12 @@ func (t *VoiceCheckTool) annotate(v tool.BlockView) error {
 
 	t.addUsage(resp.Usage)
 
-	// Convert LLM findings to VoiceFinding structs.
+	// Convert LLM findings to VoiceFinding structs. A judge's reading of tone
+	// and style is a measure, so its findings report and never fail a check.
 	var findings []coreprofile.VoiceFinding
 	for _, f := range result.Findings {
 		findings = append(findings, coreprofile.VoiceFinding{
 			Category:   f.Dimension,
-			Severity:   coreprofile.Severity(f.Severity),
 			Message:    f.Message,
 			Suggestion: *f.Suggestion,
 		})

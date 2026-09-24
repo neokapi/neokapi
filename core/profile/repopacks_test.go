@@ -169,7 +169,7 @@ func TestRepoVoicePacksJudgeMagicByRegister(t *testing.T) {
 				}
 				require.NotEmpty(t, got, "the marketing sense of %q must still be caught", tt.text)
 				for _, f := range got {
-					assert.Equal(t, SeverityMajor, f.Severity)
+					assert.True(t, f.Fails)
 				}
 			})
 		}

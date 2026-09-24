@@ -32,17 +32,15 @@ style:
   prohibited_patterns:
     - regex: '\bsynergy\b'
       description: Corporate filler.
-      severity: minor
+      advisory: true
 vocabulary:
   preferred_terms:
     - term: log in
       replacement: sign in
-      severity: major
       note: One spelling across the product.
   forbidden_terms:
     - term: bulletproof
       replacement: reliable
-      severity: critical
 examples:
   - before: Utilize the portal.
     after: Use the portal.
@@ -73,7 +71,7 @@ vocabulary:
   preferred_terms:
     - term: ticket
       replacement: request
-      severity: minor
+      advisory: true
 `
 
 // campaignVoiceYAML belongs to a profile whose window has closed, so nothing

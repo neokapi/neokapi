@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestCheckTextMCP proves the check_text MCP tool returns a kapi.check/v1 Report
+// TestCheckTextMCP proves the check_text MCP tool returns a kapi.check/v2 Report
 // — the verifier half of the author→check→revise loop — flagging a doubled word
 // from the default hygiene checkset.
 func TestCheckTextMCP(t *testing.T) {
@@ -19,7 +19,7 @@ func TestCheckTextMCP(t *testing.T) {
 
 	_, report, err := a.checkTextMCP(context.Background(), checkTextInput{Text: "We we shipped it"})
 	require.NoError(t, err)
-	assert.Equal(t, "kapi.check/v1", report.Schema)
+	assert.Equal(t, "kapi.check/v2", report.Schema)
 	assert.Equal(t, "text", report.Target.Kind)
 	assert.Positive(t, ruleCounts(report)["hygiene.doubled-word"], "doubled word must be flagged: %+v", report.Findings)
 }

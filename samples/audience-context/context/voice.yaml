@@ -48,7 +48,6 @@ vocabulary:
     - term: video call
       replacement: video appointment
       note: Use the service term consistently.
-      severity: major
 channels:
   child:
     tone:

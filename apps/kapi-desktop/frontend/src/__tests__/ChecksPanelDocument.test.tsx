@@ -42,7 +42,7 @@ const tree: ContentTree = {
 
 const vocab: DesktopFinding = {
   category: "vocabulary",
-  severity: "major",
+  fails: true,
   message: 'Forbidden term "utilize" found',
   suggestion: 'Use "use" instead',
   original_text: "utilize",
@@ -57,7 +57,7 @@ const vocab: DesktopFinding = {
 
 const dnt: DesktopFinding = {
   category: "do-not-translate",
-  severity: "critical",
+  fails: true,
   message: 'Do-not-translate term "dashboard" is missing from the de target',
   original_text: "dashboard",
   block_id: "b1",
@@ -71,7 +71,7 @@ const dnt: DesktopFinding = {
 
 const placeholder: DesktopFinding = {
   category: "placeholder",
-  severity: "critical",
+  fails: true,
   message: "Placeholder {name} is missing from the de target",
   original_text: "{name}",
   block_id: "b2",
@@ -87,7 +87,7 @@ const placeholder: DesktopFinding = {
 
 const quotedOnly: DesktopFinding = {
   category: "register",
-  severity: "neutral",
+  fails: false,
   message: "Tone reads more formal than the brand's register",
   original_text: "Please",
   block_id: "b1",
@@ -243,7 +243,7 @@ describe("findingHighlights", () => {
     );
     expect(Object.keys(out)).toEqual(["b1"]);
     expect(out.b1).toEqual([
-      { side: "source", anchor: { kind: "block" }, tone: "muted", label: quotedOnly.message },
+      { side: "source", anchor: { kind: "block" }, tone: "warning", label: quotedOnly.message },
     ]);
   });
 

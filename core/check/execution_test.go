@@ -11,7 +11,7 @@ import (
 )
 
 func TestExecutionIsOptionalAndPreservesReport(t *testing.T) {
-	report := BuildReport(Target{Kind: "text", Blocks: 1}, nil, DefaultGate())
+	report := BuildReport(Target{Kind: "text", Blocks: 1}, nil)
 	legacy, err := json.Marshal(report)
 	require.NoError(t, err)
 	assert.NotContains(t, string(legacy), "execution")
@@ -44,11 +44,11 @@ func BenchmarkReportJSONMarshal(b *testing.B) {
 			diags := make([]Diagnostic, count)
 			for i := range diags {
 				diags[i] = Diagnostic{
-					Rule: "hygiene.doubled-word", Check: "hygiene", Severity: SeverityMinor,
+					Rule: "hygiene.doubled-word", Check: "hygiene",
 					Message: "Repeated word.", Location: Location{File: "sample.json", Block: fmt.Sprintf("block-%d", i)},
 				}
 			}
-			report := BuildReport(Target{Kind: "file", File: "sample.json", Blocks: count}, diags, DefaultGate())
+			report := BuildReport(Target{Kind: "file", File: "sample.json", Blocks: count}, diags)
 			report.Execution = &Execution{Analyzers: []AnalyzerExecution{
 				{ID: "hygiene", Status: AnalyzerFindings, Required: true, Findings: count},
 			}}
@@ -65,13 +65,13 @@ func BenchmarkReportJSONMarshal(b *testing.B) {
 
 func TestExecutionPreservesFindingDetailsOnWire(t *testing.T) {
 	finding := Finding{
-		Category: "preferred-term", Severity: SeverityMajor, Message: "Use the approved term.",
+		Category: "preferred-term", Fails: true, Message: "Use the approved term.",
 		Suggestion: "service", OriginalText: "product",
 		Position: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2}),
 		Metadata: map[string]string{"constraint_id": "service-description", "version": "1"},
 	}
 	diagnostic := DiagnosticFrom(finding, "voice", Location{File: "app.json", Block: "title"})
-	report := BuildReport(Target{Kind: "file", File: "app.json", Blocks: 1}, []Diagnostic{diagnostic}, DefaultGate())
+	report := BuildReport(Target{Kind: "file", File: "app.json", Blocks: 1}, []Diagnostic{diagnostic})
 	report.Execution = &Execution{Analyzers: []AnalyzerExecution{{ID: "voice.rules", Status: AnalyzerFindings, Required: true, Findings: 1}}}
 	data, err := json.Marshal(report)
 	require.NoError(t, err)

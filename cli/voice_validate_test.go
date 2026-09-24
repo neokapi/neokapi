@@ -63,12 +63,12 @@ style:
   prohibited_patterns:
     - regex: '\b(synergy|leverage)\b'
       description: jargon
-      severity: minor
+      advisory: true
 vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: minor
+      advisory: true
 `)
 	out, runErr := runVoiceValidate(t, path)
 
@@ -115,7 +115,7 @@ tone:
 style:
   prohibited_patterns:
     - regex: "(unclosed"
-      severity: minor
+      advisory: true
     - regex: '\bok\b'
       severity: showstopper
 vocabulary:
@@ -141,8 +141,8 @@ vocabulary:
 	// Uncompilable regex.
 	assert.Contains(t, fields, "style.prohibited_patterns[0].regex")
 	assert.Contains(t, fields["style.prohibited_patterns[0].regex"], "invalid regex")
-	// Unknown severity.
-	assert.Contains(t, fields, "style.prohibited_patterns[1].severity")
+	// A retired severity key is an unknown field.
+	assert.Contains(t, fields["severity"], "unknown field")
 	// Empty term.
 	assert.Equal(t, "term is empty", fields["vocabulary.forbidden_terms[0].term"])
 }

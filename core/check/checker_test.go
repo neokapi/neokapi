@@ -14,11 +14,11 @@ func TestAnnotateWritesFindingsAnnotation(t *testing.T) {
 	v := tool.NewBlockView(b)
 
 	findings := []Finding{
-		{Category: "terminology", Severity: SeverityMajor, Message: "forbidden term"},
+		{Category: "terminology", Fails: true, Message: "forbidden term"},
 	}
 	score := Annotate(v, "acme-checkset", findings)
 
-	assert.Equal(t, 100-5, score.Overall)
+	assert.Equal(t, 100-FailingWeight, score.Overall)
 
 	ann, ok := v.Annotations()[AnnotationKey]
 	require.True(t, ok, "annotation written under %q", AnnotationKey)

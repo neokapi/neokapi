@@ -384,7 +384,7 @@ func reviewJudgement(
 	fail := func(what string, err error) {
 		j.Findings = append(j.Findings, check.Finding{
 			Category: "check",
-			Severity: check.SeverityMajor,
+			Fails:    true,
 			Message:  fmt.Sprintf("checks did not complete: %s: %v", what, err),
 			Check:    what,
 		})

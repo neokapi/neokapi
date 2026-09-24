@@ -91,7 +91,7 @@ namesakes' contract.
 ## Command surface
 
 Content checks and release gates have separate response shapes. Ordinary
-`check` emits `kapi.check/v1`; `check --ship` groups findings under project gates.
+`check` emits `kapi.check/v2`; `check --ship` groups findings under project gates.
 The release checker resolves source-only content separately from source/target
 pairs, including in mixed projects. Explicit files that match a declared target
 retain that pairing; other named files receive source checks with their declared

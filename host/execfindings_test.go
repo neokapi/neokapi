@@ -92,19 +92,19 @@ func TestFindingsCollectorReportsWhatTheCheckFound(t *testing.T) {
 
 	require.Len(t, report.Findings, 1)
 	d := report.Findings[0]
-	assert.Equal(t, check.SeverityCritical, d.Severity)
+	assert.True(t, d.Fails)
 	assert.Equal(t, "dnt-check.do-not-translate", d.Rule, "the rule id names the tool that was run")
 	assert.Equal(t, "src/app.xlf", d.Location.File)
 	assert.Equal(t, "save", d.Location.Block)
-	assert.Equal(t, 1, report.Summary.Critical)
+	assert.Equal(t, 1, report.Summary.Failing)
 	assert.Equal(t, 1, report.Target.Blocks)
 
 	var buf bytes.Buffer
 	report.FormatTable(&buf)
 	out := buf.String()
-	assert.Contains(t, out, "CRITICAL")
+	assert.Contains(t, out, "FAILS")
 	assert.Contains(t, out, "Acme Cloud")
-	assert.Contains(t, out, "1 finding(s) (1 critical")
+	assert.Contains(t, out, "1 failing, 0 reported")
 }
 
 // A clean run says so, rather than printing nothing — "no output" and "no

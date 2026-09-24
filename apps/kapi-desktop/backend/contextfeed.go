@@ -72,13 +72,13 @@ type ContextSubjectDTO struct {
 	// Kind is "term", "memory", "note", or empty for an operation that acts
 	// on another.
 	Kind string `json:"kind,omitempty"`
-	// Term, Replacement and Severity are the rule, for a term subject: Term is
+	// Term, Replacement and Advisory are the rule, for a term subject: Term is
 	// the form to avoid, Forms the other forms it avoids, and Replacement the
 	// form to use.
 	Term        string   `json:"term,omitempty"`
 	Forms       []string `json:"forms,omitempty"`
 	Replacement string   `json:"replacement,omitempty"`
-	Severity    string   `json:"severity,omitempty"`
+	Advisory    bool     `json:"advisory,omitempty"`
 	// Source, Target and TargetLocale are the wording pair, for a content
 	// memory subject.
 	Source       string `json:"source,omitempty"`
@@ -219,10 +219,10 @@ type ContextDecisionRequest struct {
 	Project string `json:"project"`
 	// ID is the operation being decided.
 	ID string `json:"id"`
-	// Replacement and Severity edit the rule as it is kept. Empty leaves the
-	// rule as suggested.
+	// Replacement and Advisory edit the rule as it is kept. Empty (nil)
+	// leaves the rule as suggested.
 	Replacement string `json:"replacement,omitempty"`
-	Severity    string `json:"severity,omitempty"`
+	Advisory    *bool  `json:"advisory,omitempty"`
 	// WidenTo widens the rule in the same step: "workspace", or an axis name
 	// the rule stops being specific about.
 	WidenTo string `json:"widen_to,omitempty"`
@@ -420,7 +420,7 @@ func (a *App) KeepContextSuggestion(req ContextDecisionRequest) (*ContextFeedEnt
 		Project:     recipe,
 		ID:          req.ID,
 		Replacement: req.Replacement,
-		Severity:    req.Severity,
+		Advisory:    req.Advisory,
 		WidenTo:     req.WidenTo,
 		Note:        req.Note,
 	})
@@ -942,7 +942,7 @@ func subjectDTO(s contextop.Subject) ContextSubjectDTO {
 	switch s.Kind {
 	case contextop.SubjectTerm:
 		if s.Term != nil {
-			out.Term, out.Forms, out.Replacement, out.Severity = s.Term.Term, s.Term.Forms, s.Term.Replacement, s.Term.Severity
+			out.Term, out.Forms, out.Replacement, out.Advisory = s.Term.Term, s.Term.Forms, s.Term.Replacement, s.Term.Advisory
 		}
 	case contextop.SubjectMemory:
 		if s.Memory != nil {

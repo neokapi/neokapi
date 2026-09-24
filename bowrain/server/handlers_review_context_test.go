@@ -13,7 +13,6 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/review"
@@ -88,7 +87,7 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 		ID: "p-ctx", Scope: wsID, Name: "Bowrain Voice", MinScore: 90,
 		Tone: coreprofile.ToneProfile{Formality: "neutral", Guidelines: "Say what the product does"},
 		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{{Term: "leverage", Replacement: "use", Severity: "major"}},
+			ForbiddenTerms: []coreprofile.TermRule{{Term: "leverage", Replacement: "use"}},
 		},
 	}
 	require.NoError(t, s.VoiceStore.CreateProfile(ctx, profile))
@@ -102,7 +101,7 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 		ProjectID: projID, Stream: "main", BlockID: middleID, ProfileID: profile.ID,
 		Locale: "fr", Score: 62, CheckedAt: time.Now().UTC(),
 		Findings: []coreprofile.VoiceFinding{{
-			Category: "compliance", Severity: check.SeverityMajor,
+			Category: "compliance", Fails: true,
 			Message: "Uses a forbidden term", OriginalText: "utiliser", Suggestion: "employer",
 		}},
 	}))

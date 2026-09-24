@@ -72,9 +72,9 @@ func TestRunCmd_FlowsDirectoryFlowRunsOverTheProject(t *testing.T) {
 	out, err := runRunCmd(t, processOnlyApp(t), recipe, "guard", "--target-lang", "nb")
 	require.NoError(t, err, out)
 
-	assert.Contains(t, out, "CRITICAL")
+	assert.Contains(t, out, "FAILS")
 	assert.Contains(t, out, "Acme Cloud")
-	assert.Contains(t, out, "1 finding(s) (1 critical")
+	assert.Contains(t, out, "1 failing, 0 reported")
 	assert.Contains(t, out, "app.xlf", "the finding names the file it is in")
 	assert.NoFileExists(t, filepath.Join(root, "guard"),
 		"the flow name is a flow, and a run must not read or write a file by that name")

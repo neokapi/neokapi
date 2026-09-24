@@ -54,7 +54,7 @@ func TestCommentDensityFindings(t *testing.T) {
 			}
 			require.Len(t, got, 1)
 			assert.Equal(t, CategoryCommentDensity, got[0].Category)
-			assert.Equal(t, SeverityMajor, got[0].Severity)
+			assert.Equal(t, limits.Fails, got[0].Fails, "density is a style measure: it fails only when the limits say so")
 		})
 	}
 

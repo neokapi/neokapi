@@ -52,8 +52,9 @@ type TrialFinding struct {
 	Rule string `json:"rule"`
 	// Replacement is what the rule says to write instead, when it says.
 	Replacement string `json:"replacement,omitempty"`
-	// Severity is the voice half's severity; empty for a term finding.
-	Severity string `json:"severity,omitempty"`
+	// Fails says whether the voice half's finding fails a check; false for a
+	// term finding.
+	Fails bool `json:"fails,omitempty"`
 	// ConceptID locates a term finding in the graph.
 	ConceptID string `json:"concept_id,omitempty"`
 
@@ -305,7 +306,7 @@ func vocabKeySet(hits []coreprofile.VocabHit) map[string]TrialFinding {
 			Kind:        "voice",
 			Rule:        h.Term,
 			Replacement: h.Replacement,
-			Severity:    string(h.Severity),
+			Fails:       h.Fails,
 			ConceptID:   h.ConceptID,
 		}
 	}

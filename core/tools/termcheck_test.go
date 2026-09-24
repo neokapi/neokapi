@@ -169,7 +169,7 @@ func TestTermCheckTool_CommandSpansAreNotTerms(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			rules := append(slices.Clone(rules), coreprofile.TermRule{Term: "kapi", DoNotTranslate: true, CaseSensitive: true})
+			rules := append(slices.Clone(rules), coreprofile.TermRule{Term: "kapi", DoNotTranslate: true, CaseSensitive: new(true)})
 			tl := tools.NewTermCheckTool(&tools.TermCheckConfig{TermRules: rules, TargetLocale: "nb"})
 			block := model.NewBlock("tu1", tt.source)
 			block.SetTargetText("nb", tt.target)

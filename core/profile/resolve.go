@@ -245,7 +245,7 @@ func rulesCover(rules []TermRule, rule TermRule) bool {
 	for _, r := range rules {
 		for _, have := range r.AllForms() {
 			for _, want := range forms {
-				if have == want || (!r.CaseSensitive && strings.EqualFold(have, want)) {
+				if have == want || (!r.MatchesCase() && strings.EqualFold(have, want)) {
 					return true
 				}
 			}

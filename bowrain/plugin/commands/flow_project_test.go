@@ -83,7 +83,7 @@ func TestDirFlow_RunsOverTheCollectionsAndGates(t *testing.T) {
 	err := runLocalAutomations(cmd, proj, project.HookPrePush)
 	require.Error(t, err)
 	assert.Equal(t, cli.ExitGate, cli.ExitCode(cmd, err))
-	assert.Contains(t, err.Error(), `flow "guard" found 1 finding(s) (1 critical`)
+	assert.Contains(t, err.Error(), `flow "guard" found 1 finding(s), 1 failing`)
 	assert.Contains(t, stdout.String(), "Acme Cloud")
 }
 

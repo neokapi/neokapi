@@ -24,7 +24,7 @@ const issues: CheckIssue[] = [
 const findings: CheckFinding[] = [
   {
     category: "compliance",
-    severity: "major",
+    fails: true,
     message: "Uses a term the profile forbids.",
     original_text: "Réinitialisez",
     suggestion: "Changez",

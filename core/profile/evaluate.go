@@ -37,7 +37,7 @@ type BlastRadius struct {
 	DegradedBlocks     int `json:"degraded_blocks"`
 	NewViolations      int `json:"new_violations"`
 	ResolvedViolations int `json:"resolved_violations"`
-	CriticalCount      int `json:"critical_count"`
+	FailingCount       int `json:"failing_count"`
 	// PrescribedBlocks counts the affected blocks on which the candidate does
 	// more than flag: at least one violation it newly raises carries a
 	// replacement, so the guidance is "write this instead" rather than "look at

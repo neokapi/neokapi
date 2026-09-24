@@ -110,7 +110,7 @@ A person's correction that reverses an established rule contests the rule: it
 reports instead of failing until a person keeps it again or drops the
 correction, so your own edit never fails your build.`,
 		Example: "  kapi context correct \"sign in\" \"log in\" --seen-in web/src/auth.tsx\n" +
-			"  kapi context correct utilise use --seen-in docs/guide.md --suggest --severity minor",
+			"  kapi context correct utilise use --seen-in docs/guide.md --suggest --advisory",
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, err := RequireProjectPath(cmd)
@@ -120,7 +120,7 @@ correction, so your own edit never fails your build.`,
 			seenIn, _ := cmd.Flags().GetStringSlice("seen-in")
 			quote, _ := cmd.Flags().GetString("quote")
 			suggest, _ := cmd.Flags().GetBool("suggest")
-			severity, _ := cmd.Flags().GetString("severity")
+			advisory, _ := cmd.Flags().GetBool("advisory")
 			note, _ := cmd.Flags().GetString("note")
 			res, err := a.RecordContextCorrection(cmd.Context(), host.ContextCorrectRequest{
 				Project:  projectPath,
@@ -128,7 +128,7 @@ correction, so your own edit never fails your build.`,
 				To:       args[1],
 				Evidence: evidenceFrom(seenIn, quote),
 				Suggest:  suggest,
-				Severity: severity,
+				Advisory: advisory,
 				Note:     note,
 			})
 			if err != nil {
@@ -140,7 +140,7 @@ correction, so your own edit never fails your build.`,
 	cmd.Flags().StringSlice("seen-in", nil, "a file the change was made in (repeatable)")
 	cmd.Flags().String("quote", "", "the sentence the change was made in")
 	cmd.Flags().Bool("suggest", false, "also record the rule the change implies, as a suggestion")
-	cmd.Flags().String("severity", "", "how hard that rule bites once kept: minor or neutral report, anything else fails a check")
+	cmd.Flags().Bool("advisory", false, "make that rule report without failing a check once kept")
 	cmd.Flags().String("note", "", "why")
 	AddProjectFlag(cmd)
 	return cmd
@@ -219,9 +219,9 @@ func newContextKeepCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "keep [id...]",
 		Short: "Establish suggestions as rules",
-		Long: `Keep suggestions, which establishes each rule at the severity it
-carries and writes it where the rest of kapi reads it: the project's terms or
-its content memory.
+		Long: `Keep suggestions, which establishes each rule and writes it where the rest
+of kapi reads it: the project's terms or its content memory. An established rule
+fails a check unless it is marked advisory.
 
 Name one or more operations by id, or keep everything one agent session
 suggested with --session. A contested suggestion disagrees with another rule,
@@ -229,13 +229,13 @@ and waits until you choose: a session keep leaves it and says so, and naming it
 is refused with the other side named. Drop the side you do not want, then keep
 the other.
 
-Change the rule as you keep it with --use and --severity, and widen it past the
+Change the rule as you keep it with --use and --advisory, and widen it past the
 point its evidence was seen at with --widen-to.`,
 		Example: "  kapi context keep 7\n" +
 			"  kapi context keep 7 9 12\n" +
 			"  kapi context keep --session s0ab4e399\n" +
 			"  kapi context keep 7 --use \"content memory\"\n" +
-			"  kapi context keep 7 --severity critical\n" +
+			"  kapi context keep 7 --advisory=false\n" +
 			"  kapi context keep 7 --widen-to workspace",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, err := RequireProjectPath(cmd)
@@ -244,7 +244,6 @@ point its evidence was seen at with --widen-to.`,
 			}
 			session, _ := cmd.Flags().GetString("session")
 			use, _ := cmd.Flags().GetString("use")
-			severity, _ := cmd.Flags().GetString("severity")
 			widenTo, _ := cmd.Flags().GetString("widen-to")
 			note, _ := cmd.Flags().GetString("note")
 			res, err := a.KeepContextOperations(cmd.Context(), host.ContextKeepRequest{
@@ -252,7 +251,7 @@ point its evidence was seen at with --widen-to.`,
 				IDs:         args,
 				Session:     session,
 				Replacement: use,
-				Severity:    severity,
+				Advisory:    confirmAdvisory(cmd),
 				WidenTo:     widenTo,
 				Note:        note,
 			})
@@ -264,7 +263,7 @@ point its evidence was seen at with --widen-to.`,
 	}
 	cmd.Flags().String("session", "", "keep everything one agent session suggested that nothing disagrees with")
 	cmd.Flags().String("use", "", "change what the rule says to write instead (one id)")
-	cmd.Flags().String("severity", "", "change how hard the rule bites: minor or neutral report, anything else fails a check")
+	cmd.Flags().Bool("advisory", false, "make the rule report without failing a check (--advisory=false makes it fail)")
 	cmd.Flags().String("widen-to", "", "widen as you keep: \"workspace\", or the name of an axis the rule should stop being specific about")
 	cmd.Flags().String("note", "", "why")
 	AddProjectFlag(cmd)
@@ -458,4 +457,14 @@ func parseSince(value string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("--since takes a date (2006-01-02) or an instant (2006-01-02T15:04:05Z), not %q", value)
 	}
 	return at, nil
+}
+
+// confirmAdvisory is the --advisory edit a confirmation asks for: nil when the
+// flag was not given, so the rule keeps what it says.
+func confirmAdvisory(cmd *cobra.Command) *bool {
+	if !cmd.Flags().Changed("advisory") {
+		return nil
+	}
+	v, _ := cmd.Flags().GetBool("advisory")
+	return &v
 }

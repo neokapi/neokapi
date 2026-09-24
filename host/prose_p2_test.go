@@ -48,12 +48,7 @@ func TestProseP2_go(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, check.VerdictFailed, report.Verdict)
 		require.Len(t, findingsOf(report, formatterCheck), 1)
-
-		lenient := executionCommand(t)
-		lenient.Flags().Bool("lenient", true, "")
-		report, err = (&App{SourceLang: "en"}).ComputeCheck(lenient, []string{file})
-		require.NoError(t, err)
-		assert.Equal(t, check.VerdictPassed, report.Verdict, report.DidNotRun)
+		assert.True(t, findingsOf(report, formatterCheck)[0].Fails)
 	})
 
 	t.Run("the comment layer and its formatter catch their canaries", func(t *testing.T) {
@@ -101,7 +96,7 @@ func TestProseP2_go(t *testing.T) {
 				formatter := findingsOf(report, formatterCheck)
 				require.Len(t, formatter, 1)
 				assert.Equal(t, "formatter.gofmt", formatter[0].Rule)
-				assert.Equal(t, check.SeverityMajor, formatter[0].Severity)
+				assert.True(t, formatter[0].Fails)
 				assert.Equal(t, check.VerdictFailed, report.Verdict)
 			})
 		}

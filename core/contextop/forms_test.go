@@ -68,12 +68,12 @@ func TestObservedRule(t *testing.T) {
 	assert.Equal(t, "Quick cast", rule.Term)
 	assert.Equal(t, []string{"Quick-cast", "QuickCast", "quickcast"}, rule.Forms)
 	assert.Equal(t, "Quickcast", rule.Replacement)
-	assert.True(t, rule.CaseSensitive, "a form that differs only in case must not match the term itself")
+	assert.True(t, rule.MatchesCase(), "a form that differs only in case must not match the term itself")
 
 	plain := contextop.ObservedRule("use", []string{"utilise"})
 	assert.Equal(t, "utilise", plain.Term)
 	assert.Equal(t, "use", plain.Replacement)
-	assert.False(t, plain.CaseSensitive)
+	assert.False(t, plain.MatchesCase())
 
 	bare := contextop.ObservedRule("use", nil)
 	assert.Equal(t, "use", bare.Term)

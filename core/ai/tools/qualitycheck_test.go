@@ -44,17 +44,17 @@ func checkScripted(content string) func(context.Context, []aiprovider.Message, a
 	}
 }
 
-// TestAICheck_SeverityMapping pins the LLM-severity → core/check mapping:
-// error→major, warning→minor, info and anything unknown → neutral.
+// TestAICheck_SeverityMapping pins the LLM-severity → core/check mapping: an
+// error fails, and a warning, info or anything unknown reports.
 func TestAICheck_SeverityMapping(t *testing.T) {
 	cases := []struct {
 		llm  string
-		want check.Severity
+		want bool
 	}{
-		{"error", check.SeverityMajor},
-		{"warning", check.SeverityMinor},
-		{"info", check.SeverityNeutral},
-		{"bogus", check.SeverityNeutral},
+		{"error", true},
+		{"warning", false},
+		{"info", false},
+		{"bogus", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.llm, func(t *testing.T) {
@@ -63,7 +63,7 @@ func TestAICheck_SeverityMapping(t *testing.T) {
 			)))
 			findings := check.Findings(coretool.NewBlockView(block))
 			require.Len(t, findings, 1)
-			assert.Equal(t, tc.want, findings[0].Severity)
+			assert.Equal(t, tc.want, findings[0].Fails)
 		})
 	}
 }
@@ -78,7 +78,7 @@ func TestAICheck_MalformedResponseDegrades(t *testing.T) {
 	findings := check.Findings(coretool.NewBlockView(block))
 	require.Len(t, findings, 1)
 	assert.Equal(t, "parse-error", findings[0].Category)
-	assert.Equal(t, check.SeverityNeutral, findings[0].Severity, "a parse failure carries no penalty")
+	assert.False(t, findings[0].Fails, "a parse failure carries no penalty")
 	assert.Equal(t, raw, findings[0].Message)
 	assert.Equal(t, "mock", block.Properties["qa-provider"])
 }

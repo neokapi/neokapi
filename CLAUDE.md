@@ -326,7 +326,7 @@ that bite most often:
   *contents* — the concepts, and dnt-check's list of strings.
 
   **The constraint on wording is a term rule, at every scope.** One term, what
-  to use instead, how hard it bites: `profile.TermRule`, carrying an optional
+  to use instead, whether a use of it fails: `profile.TermRule`, carrying an optional
   `ConceptID` that ties it to the concept in the terms store and the graph. It
   is what the voice profile has always written under `vocabulary:`, and since
   #2170 it is also what term-check, translate and recycle take, under one key —
@@ -334,10 +334,12 @@ that bite most often:
   is the single projection to the prompt's map, because that map feeds the
   context fingerprint the staleness gate recomputes.
 
-  A rule's `severity` decides whether a violation fails or only reports —
-  `minor`/`neutral` warn, everything else (including unset) fails, because rules
-  resolved from a terms store carry no severity and must not be silently
-  downgraded. A rule with an empty `Replacement` is skipped by the tools: in a
+  A rule fails a check unless it is marked `advisory: true`, which makes a
+  violation only report. Unset fails, because rules resolved from a terms store
+  carry no marking and must not be silently downgraded. A suggested rule (a
+  candidate nobody has confirmed) reports and never fails, and each finding in
+  the check report carries `fails` (plus `suggested: true` for a candidate).
+  A rule with an empty `Replacement` is skipped by the tools: in a
   voice profile a bare term is meaningful, but "say this instead" needs a this.
 
   Three words were tried before `term_rules:` and all three were taken —

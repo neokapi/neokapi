@@ -95,25 +95,24 @@ type StatusFacts struct {
 
 // FindingFacts is one thing a check objected to.
 type FindingFacts struct {
-	Severity   string `json:"severity"`
+	Fails      bool   `json:"fails"`
 	Message    string `json:"message"`
 	Suggestion string `json:"suggestion"`
 }
 
 // CheckFacts is what a check objected to.
 //
-// The verdict is deliberately absent. Each face gates on its own bar (the CLI
-// takes it from flags, the MCP tools apply check.DefaultGate, and the desktop
-// reports a score with no gate at all), so a contract that included pass/fail
-// would fail on a difference the faces are entitled to have. What they may not
-// disagree about is what is wrong with the content.
+// The verdict is deliberately absent: the desktop reports a score with no
+// verdict at all, so a contract that included pass/fail would fail on a
+// difference the faces are entitled to have. What they may not disagree about
+// is what is wrong with the content, and whether it fails.
 type CheckFacts struct {
 	Findings []FindingFacts `json:"findings"`
 }
 
 // CheckFactsFrom projects a check report.
 //
-// Severity, message and suggestion are the facts all three faces carry. The
+// Whether it fails, message and suggestion are the facts all three faces carry. The
 // report's rule ids and gate live on two of them, and holding the third to a
 // field it has no place to put would fail the contract for a shape difference
 // rather than a disagreement.
@@ -121,7 +120,7 @@ func CheckFactsFrom(r check.Report) CheckFacts {
 	var f CheckFacts
 	for _, d := range r.Findings {
 		f.Findings = append(f.Findings, FindingFacts{
-			Severity:   string(d.Severity),
+			Fails:      d.Fails,
 			Message:    d.Message,
 			Suggestion: d.Suggestion,
 		})
@@ -137,7 +136,7 @@ func SortFindings(f []FindingFacts) {
 		if f[i].Message != f[j].Message {
 			return f[i].Message < f[j].Message
 		}
-		return f[i].Severity < f[j].Severity
+		return !f[i].Fails && f[j].Fails
 	})
 }
 

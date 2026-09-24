@@ -121,7 +121,7 @@ const resolvedContext: ReviewContext = {
     findings: [
       {
         category: "compliance",
-        severity: "major",
+        fails: true,
         message: "Uses a term the profile forbids.",
         original_text: "Réinitialisez",
         suggestion: "Changez",

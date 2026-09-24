@@ -120,11 +120,11 @@ func testProfile() *coreprofile.VoiceProfile {
 		},
 		Vocabulary: coreprofile.VocabularyRules{
 			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "synergy", Replacement: "collaboration", Severity: "minor"},
-				{Term: "leverage", Replacement: "use", Severity: "minor"},
+				{Term: "synergy", Replacement: "collaboration", Advisory: true},
+				{Term: "leverage", Replacement: "use", Advisory: true},
 			},
 			CompetitorTerms: []coreprofile.TermRule{
-				{Term: "Acrolinx", Severity: "critical"},
+				{Term: "Acrolinx"},
 			},
 			PreferredTerms: []coreprofile.TermRule{
 				{Term: "platform", Note: "Use instead of 'tool'"},

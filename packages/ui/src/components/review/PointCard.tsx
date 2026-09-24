@@ -26,17 +26,16 @@ import type { ReviewTermHitView } from "./types";
  * host that carries neither leaves those rows out.
  */
 
-/** A rule whose severity only reports. Everything else fails a check. */
+/** A rule marked advisory only reports. Everything else fails a check. */
 function warnsOnly(rule: TermRule): boolean {
-  const s = (rule.severity ?? "").toLowerCase();
-  return s === "minor" || s === "neutral";
+  return rule.advisory === true;
 }
 
 /**
  * One term rule bound at this point, drawn as context.
  *
  * The card says what the model was told about a word, so a rule is neutral
- * whatever its severity: the bite ("blocks approval" / "warns only") reads in
+ * whether or not it fails: the bite ("blocks approval" / "warns only") reads in
  * the tooltip, and a do-not-translate rule is marked by a lock rather than by
  * a fill. Red belongs to the Checks card, where a finding says this unit broke
  * a rule. See packages/ui/docs/judgement-colours.md.

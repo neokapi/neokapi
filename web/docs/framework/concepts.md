@@ -118,7 +118,8 @@ make up the [content model](/framework/content-model).
   analogue of a unit test). See [Checks](/framework/checks).
 
 - **Finding**: a single issue a check reports, anchored to where it occurs and
-  carrying a severity. Findings travel with the content as overlays.
+  saying whether it fails the check or only reports. Findings travel with the
+  content as overlays.
 
 :::note Project vocabulary
 The recipe (`kapi.yaml`) and its model are framework code (`core/project`), as

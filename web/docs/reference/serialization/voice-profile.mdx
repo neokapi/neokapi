@@ -112,7 +112,7 @@ Each entry under `prohibited_patterns` and `required_patterns` is a **Pattern**:
 | --- | --- | --- |
 | `regex` | string | The pattern, in Go regular-expression syntax. Required. |
 | `description` | string | What the rule is for; shown with the finding and rendered into the guide. |
-| `severity` | string | `minor`, `major`, or `critical`. Decides the score penalty and whether the finding fails a strict check. |
+| `advisory` | bool | `true` makes a match report without failing a check. Unset, a match fails. Optional. |
 | `rate` | object | A density ceiling instead of a ban: `max` matches allowed per `per_words` words (`per_words` defaults to 1,000). Under the ceiling nothing is reported; over it, every match is. A `max` of 0 is rejected at validation. Optional. |
 | `scope` | string | Where the rule applies: unset means everywhere; `prose` skips fenced blocks and inline code; `code` applies only inside them; `heading` applies only to headings. Optional. |
 | `not_after` | string | A regular expression tested against the text before each match; a match it matches there is not a violation. Anchor it with `$`. Optional, and only for `prohibited_patterns`. |
@@ -122,7 +122,7 @@ style:
   prohibited_patterns:
     - regex: "—"
       description: "Em dashes read as machine-written; one per thousand words is the ceiling."
-      severity: minor
+      advisory: true
       rate: { max: 1, per_words: 1000 }
       scope: prose
 ```
@@ -141,7 +141,6 @@ style:
     - regex: '(?i)\bused to\b'
       not_after: '(?i)(?:(?:\b(?:is|are|was|were|be|been|being|get|gets|got|isn''t|aren''t|wasn''t|weren''t)|[''’]s)\s+(?:\w+\s+)?|[^\w\s)\]"''\x60’”]\s*|(?:^|\s)["“‘''\x60]|^\s*)$'
       description: "A comment describes what the code does, not what it used to do."
-      severity: major
       scope: prose
 ```
 
@@ -155,15 +154,16 @@ comment is not a word.
 
 | Field | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `sentence_words.minor` | int | 50 | A sentence over this many words is a minor finding. |
-| `sentence_words.major` | int | 70 | A sentence over this many words is a major finding. Must be above `minor`. |
+| `sentence_words.minor` | int | 50 | A sentence over this many words is a finding that reports. |
+| `sentence_words.major` | int | 70 | A sentence over this many words is a finding, which fails when `fails` is set. Must be above `minor`. |
 | `comment_words` | int | 100 | The most words a comment that documents no declaration may hold. |
 | `doc_words` | int | 150 | The most words a declaration's doc comment may hold. |
 | `package_doc_words` | int | 300 | The most words the doc comment of a package or module may hold. |
 | `density.ratio` | number | 1 | The most comment lines a change may add for each code line it adds. |
 | `density.min_comment_lines` | int | 8 | How many comment lines a change adds before `density.ratio` applies. |
+| `fails` | bool | false | Makes a sentence over `sentence_words.major`, a comment over a length limit and a change over the density limit fail a check. Unset, the limits are style measures and every finding they raise reports. |
 
-A comment over a length limit is a major finding, and so is a change over the
+A comment over a length limit is a finding, and so is a change over the
 density limit. Density is measured in a check scoped to a diff: it counts the
 lines the change adds to each file, a comment line being one that holds a
 comment and nothing else and a code line one that holds anything outside a
@@ -207,11 +207,11 @@ in a profile and a rule handed to a tool read identically.
 | `term` | string | The word or phrase the rule is about. Required. |
 | `replacement` | string | What to say instead. A rule with no replacement is skipped by the tools unless `do_not_translate` is set, because "say this instead" needs a this. |
 | `note` | string | Why, shown with the finding. Optional. |
-| `severity` | string | `minor`, `major`, or `critical`. `minor` warns; everything else, including unset, fails, because rules resolved from a terms store carry no severity and must not be silently downgraded. |
+| `advisory` | bool | `true` makes a use of the term report without failing a check. Unset, a use fails, because rules resolved from a terms store carry no marking and must not be silently downgraded. |
 | `concept_id` | string | The concept in the terms store and the graph this rule denotes. Set when a rule is promoted from a concept-backed correction; empty for a standalone profile. |
 | `do_not_translate` | bool | The term must survive verbatim into every target. Gives a bare term with no replacement its meaning. |
 | `forms` | string[] | The other surface shapes the term takes (inflections, declensions, conjugations), matched alongside `term`. Matching is exact, so the forms are declared rather than derived; `kapi voice expand` asks a model for them in the profile's language and writes them here as a diff. |
-| `case_sensitive` | bool | Match the term and its forms in their own casing. Off by default; on for a rule whose whole content is capitalisation (`term: Ripgrep`, `replacement: ripgrep`). |
+| `case_sensitive` | bool | Whether the term and its forms match in their own casing. Unset, a rule whose `replacement` is capitalised matches case-sensitively, as a product name does (`term: QuickCast`, `replacement: Quickcast` flags `QuickCast` and leaves a lower-case URL slug `quickcast` alone), and so does a rule whose `term` differs from its `replacement` only in case (`term: Ripgrep`, `replacement: ripgrep`); any other rule matches regardless of case. `true` or `false` overrides the default. `term-check` compares a source term with a replacement in another language, so it matches in the term's own casing only when this is `true`. |
 | `replacement_forms` | string[] | Other forms of `replacement` in the language it is written in, such as the plural. `term-check` accepts a translation that contains any of them. |
 | `accepted` | object[] | Further wordings that satisfy the rule, each with `text` and optional `forms`: the admitted and approved terms a concept carries beside its preferred one. `replacement` stays the wording a translation is asked to use. |
 | `scope` | string | The same values a pattern's `scope` takes. Empty means everywhere. |
@@ -221,7 +221,7 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: minor
+      advisory: true
       forms: [utilizes, utilized, utilizing]
       scope: prose
   preferred_terms:
@@ -275,7 +275,6 @@ channels:
       forbidden_terms:
         - term: authenticate
           replacement: sign in
-          severity: major
 ```
 
 A **persona override** (`personas.<name>`) layers an individual author's voice
@@ -289,7 +288,8 @@ inside the profile's guardrails:
 
 Resolution applies the locale override first, then the channel, then the
 persona. A channel and a persona can only tighten vocabulary. Every rule an
-earlier layer set keeps applying at its own severity, and a later preferred
+earlier layer set keeps applying as written, so a later layer that restates a
+forbidden term as `advisory` leaves the earlier rule failing, and a later preferred
 term that names a term an earlier layer forbids, lists as a competitor, or
 already words its own way is dropped. The merge order enforces this, whoever
 wrote the override, and `kapi voice validate` warns about each preferred term
@@ -305,8 +305,10 @@ it drops.
 
 `min_score` is the minimum voice-compliance score a block must reach to count
 as compliant in roll-ups. When a profile does not set one, the default of 80
-applies: a bar calibrated so that a single critical vocabulary hit already
-drops a block below it, while a handful of minor issues does not.
+applies: a bar calibrated so that a single failing finding already drops a
+block below it, while a handful of findings that only report does not. The bar
+shapes roll-ups and dashboards; whether a check fails depends on its failing
+findings alone.
 
 A profile that cannot be read resolves to the default bar, so roll-ups over
 historical scores stay comparable.

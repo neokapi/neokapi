@@ -7,24 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSeverityWeight(t *testing.T) {
-	tests := []struct {
-		severity Severity
-		expected int
-	}{
-		{SeverityNeutral, 0},
-		{SeverityMinor, 1},
-		{SeverityMajor, 5},
-		{SeverityCritical, 25},
-		{Severity("unknown"), 0},
-	}
-	for _, tt := range tests {
-		t.Run(string(tt.severity), func(t *testing.T) {
-			assert.Equal(t, tt.expected, SeverityWeight(tt.severity))
-		})
-	}
-}
-
 func TestCalculateScore_NoFindings(t *testing.T) {
 	score := CalculateScore(nil)
 
@@ -39,23 +21,23 @@ func TestCalculateScore_NoFindings(t *testing.T) {
 
 func TestCalculateScore_MixedSeverities(t *testing.T) {
 	findings := []VoiceFinding{
-		{Category: string(DimensionTone), Severity: SeverityMinor, Message: "too casual", Position: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 5})},
-		{Category: string(DimensionTone), Severity: SeverityMajor, Message: "wrong emotion", Position: model.SpanAnchor(model.RunPos{Run: 0, Offset: 10}, model.RunPos{Run: 0, Offset: 20})},
-		{Category: string(DimensionVocabulary), Severity: SeverityCritical, Message: "competitor term", Position: model.SpanAnchor(model.RunPos{Run: 0, Offset: 30}, model.RunPos{Run: 0, Offset: 40})},
+		{Category: string(DimensionTone), Message: "too casual", Position: model.SpanAnchor(model.RunPos{Run: 0}, model.RunPos{Run: 0, Offset: 5})},
+		{Category: string(DimensionTone), Fails: true, Message: "wrong emotion", Position: model.SpanAnchor(model.RunPos{Run: 0, Offset: 10}, model.RunPos{Run: 0, Offset: 20})},
+		{Category: string(DimensionVocabulary), Fails: true, Message: "competitor term", Position: model.SpanAnchor(model.RunPos{Run: 0, Offset: 30}, model.RunPos{Run: 0, Offset: 40})},
 	}
 
 	score := CalculateScore(findings)
 
-	// Total penalty: 1 + 5 + 25 = 31
-	assert.Equal(t, 69, score.Overall)
+	// Total penalty: 1 + 25 + 25 = 51
+	assert.Equal(t, 49, score.Overall)
 	assert.Len(t, score.Findings, 3)
 
 	// Check per-dimension breakdown
 	for _, dim := range score.Dimensions {
 		switch dim.Dimension {
 		case DimensionTone:
-			assert.Equal(t, 94, dim.Score) // 100 - 1 - 5
-			assert.Equal(t, 6, dim.Penalty)
+			assert.Equal(t, 74, dim.Score) // 100 - 1 - 25
+			assert.Equal(t, 26, dim.Penalty)
 			assert.Equal(t, 2, dim.Issues)
 		case DimensionVocabulary:
 			assert.Equal(t, 75, dim.Score) // 100 - 25
@@ -75,7 +57,7 @@ func TestCalculateScore_ClampAtZero(t *testing.T) {
 	for i := range findings {
 		findings[i] = VoiceFinding{
 			Category: string(DimensionCompliance),
-			Severity: SeverityCritical,
+			Fails:    true,
 			Message:  "critical issue",
 			Position: model.SpanAnchor(model.RunPos{Run: 0, Offset: i * 10}, model.RunPos{Run: 0, Offset: i*10 + 5}),
 		}

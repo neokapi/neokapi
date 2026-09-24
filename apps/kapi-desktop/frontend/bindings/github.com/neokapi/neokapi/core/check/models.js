@@ -110,13 +110,15 @@ export class Finding {
              */
             this["category"] = "";
         }
-        if (!("severity" in $$source)) {
+        if (!("fails" in $$source)) {
             /**
-             * Severity drives the penalty weight and the gate.
+             * Fails says whether the finding fails a check. The rule that raised it
+             * decides: an established term or a voice pattern fails unless the rule is
+             * marked advisory, and a style measure or a suggestion reports.
              * @member
-             * @type {Severity}
+             * @type {boolean}
              */
-            this["severity"] = Severity.$zero;
+            this["fails"] = false;
         }
         if (!("message" in $$source)) {
             /**
@@ -175,16 +177,14 @@ export class Finding {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Advisory marks a finding raised against a rule nobody has confirmed: a
-             * candidate a project has accumulated and not yet decided on
-             * (core/contextop). Such a finding is always SeverityNeutral, which carries
-             * no penalty and trips no gate threshold, so it is reported and settles
-             * nothing. The flag is what lets a surface show it as the proposal it is
-             * rather than as a rule that was broken.
+             * Suggested marks a finding raised by a suggested rule: one a project has
+             * accumulated and nobody has settled (core/contextop). Such a finding never
+             * fails and weighs nothing in the score. A surface reads the flag to show
+             * it as the suggestion it is rather than as a rule that was broken.
              * @member
              * @type {boolean | undefined}
              */
-            this["advisory"] = undefined;
+            this["suggested"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -208,40 +208,6 @@ export class Finding {
         return new Finding(/** @type {Partial<Finding>} */($$parsedSource));
     }
 }
-
-/**
- * Severity is the impact level of a Finding. The four levels carry MQM-inspired
- * penalty weights (see SeverityWeight) used by score aggregation.
- * @readonly
- * @enum {string}
- */
-export const Severity = {
-    /**
-     * The Go zero value for the underlying type of the enum.
-     */
-    $zero: "",
-
-    /**
-     * SeverityNeutral is informational; it carries no penalty.
-     */
-    SeverityNeutral: "neutral",
-
-    /**
-     * SeverityMinor is a low-impact issue (style nit, soft preference).
-     */
-    SeverityMinor: "minor",
-
-    /**
-     * SeverityMajor is a clear violation a reviewer would act on.
-     */
-    SeverityMajor: "major",
-
-    /**
-     * SeverityCritical is a release-blocking violation (e.g. a translated
-     * do-not-translate term, a dropped placeholder).
-     */
-    SeverityCritical: "critical",
-};
 
 /**
  * Warning is a problem in the configuration a check ran under, as opposed to

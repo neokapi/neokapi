@@ -230,7 +230,7 @@ func personaTestProfile() *VoiceProfile {
 		Tone:  ToneProfile{Formality: "casual", Humor: "light", Personality: []string{"friendly"}},
 		Style: StyleRules{PersonPOV: "second", ActiveVoice: true},
 		Vocabulary: VocabularyRules{
-			ForbiddenTerms: []TermRule{{Term: "utilize", Replacement: "use", Severity: "major"}},
+			ForbiddenTerms: []TermRule{{Term: "utilize", Replacement: "use"}},
 			PreferredTerms: []TermRule{{Term: "sign in"}},
 		},
 		Channels: map[string]ChannelOverride{

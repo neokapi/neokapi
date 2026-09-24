@@ -68,8 +68,8 @@ const point: ReviewPoint = {
     guide: "Speak in the second person.",
   },
   term_rules: [
-    { term: "cart", replacement: "basket", severity: "major" },
-    { term: "sign in", replacement: "log in", severity: "minor" },
+    { term: "cart", replacement: "basket" },
+    { term: "sign in", replacement: "log in", advisory: true },
     { term: "Kapimart", do_not_translate: true },
   ],
   terms_total: 40,

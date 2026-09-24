@@ -42,7 +42,7 @@ func TestVoiceEvaluation_JSONRoundTrip(t *testing.T) {
 			DegradedBlocks:     7,
 			NewViolations:      3,
 			ResolvedViolations: 12,
-			CriticalCount:      1,
+			FailingCount:       1,
 			Collections: []CollectionBlastRadius{
 				{
 					CollectionID:   "col-1",
@@ -71,7 +71,7 @@ func TestVoiceEvaluation_JSONRoundTrip(t *testing.T) {
 				TargetText:   "Bienvenue sur notre plateforme",
 				Finding: VoiceFinding{
 					Category:   string(DimensionTone),
-					Severity:   SeverityMajor,
+					Fails:      true,
 					Message:    "Too informal for formal voice profile",
 					Suggestion: "Use a more professional greeting",
 				},
@@ -159,6 +159,6 @@ func TestBlastRadius_ZeroValues(t *testing.T) {
 
 	assert.Equal(t, 100, decoded.TotalBlocks)
 	assert.Equal(t, 0, decoded.AffectedBlocks)
-	assert.Equal(t, 0, decoded.CriticalCount)
+	assert.Equal(t, 0, decoded.FailingCount)
 	assert.Nil(t, decoded.Collections)
 }

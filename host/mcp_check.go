@@ -33,7 +33,7 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 			"context://<project-relative-path> resource for the applicable guidance. Supply context_path " +
 			"to check with that destination's voice and terms; without it, project guidance is not resolved. " +
 			"Explicit profile_pack/profile_file are available only without context_path. Returns a " +
-			"kapi.check/v1 Report with findings, analyzer coverage and configuration warnings, which never " +
+			"kapi.check/v2 Report with findings, analyzer coverage and configuration warnings, which never " +
 			"change pass; pass is not semantic approval. " +
 			"After saving edits, use check_file to verify the actual file.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in checkTextInput) (*mcp.CallToolResult, check.Report, error) {
@@ -45,7 +45,7 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 		Description: "Check a file you changed against the voice and terms in force at its location, in any " +
 			"format kapi reads (Markdown, JSON, Word, XLIFF and more). Run it on every file you changed and fix " +
 			"what it reports before you say the work is done. To check only what a change touched, pass diff, " +
-			"diff_against (a git revision), staged, or diff_range (A..B). Returns a kapi.check/v1 report: " +
+			"diff_against (a git revision), staged, or diff_range (A..B). Returns a kapi.check/v2 report: " +
 			"findings, and which analyzers covered the content. A pass is not semantic approval.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in checkFileInput) (*mcp.CallToolResult, check.Report, error) {
 		return a.checkFileMCP(ctx, in)
@@ -137,7 +137,7 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 			cmd = c
 		}
 	}
-	return nil, execution.report(ctx, a, cmd, target, diags, check.DefaultGate()), nil
+	return nil, execution.report(ctx, a, cmd, target, diags), nil
 }
 
 // resolveTextCheckContext resolves a lexical destination, not an input file.
@@ -299,14 +299,9 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 		execution.recordContexts(in.File, "", opts, blocks)
 		target.Blocks = len(blocks)
 		diags = fileDiags
-		report := execution.report(ctx, a, cmd, target, diags, check.DefaultGate())
-		if validateMode == format.ValidationStrict {
-			applyStrictValidationGate(&report)
-		}
-		ApplyFormatterGate(&report)
-		return nil, report, nil
+		return nil, execution.report(ctx, a, cmd, target, diags), nil
 	}
-	return nil, execution.report(ctx, a, cmd, target, diags, check.DefaultGate()), nil
+	return nil, execution.report(ctx, a, cmd, target, diags), nil
 }
 
 // mcpCheckOptions resolves the shared content-check options for the MCP tools,
@@ -369,7 +364,7 @@ func (a *App) checkDiffMCP(ctx context.Context, cmd Command, recipe string, in c
 	if err != nil {
 		return nil, check.Report{}, err
 	}
-	run := diffCheckRun{src: src, cmd: cmd, opts: opts, gate: check.DefaultGate()}
+	run := diffCheckRun{src: src, cmd: cmd, opts: opts}
 	if in.File != "" {
 		run.named = []string{in.File}
 	}

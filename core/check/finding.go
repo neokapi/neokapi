@@ -2,63 +2,34 @@
 // AI checks over content, acting as tests for AI output — deterministic and
 // repeatable even when the generation that produced the content was not. A
 // Checker inspects a block (read-only) and emits Findings; Findings carry a
-// category, a severity, a human message, an optional suggested fix, and the
-// run-range they apply to. Every checker — deterministic rule, small ML model,
-// or LLM judge — emits the same Finding, so one scoring, annotation, and
+// category, whether they fail, a human message, an optional suggested fix, and
+// the run-range they apply to. Every checker — deterministic rule, small ML
+// model, or LLM judge — emits the same Finding, so one scoring, annotation, and
 // governance path serves terminology, do-not-translate, placeholder integrity,
 // register, and voice profile alike.
 package check
 
 import "github.com/neokapi/neokapi/core/model"
 
-// Severity is the impact level of a Finding. The four levels carry MQM-inspired
-// penalty weights (see SeverityWeight) used by score aggregation.
-type Severity string
-
+// Penalty weights for the reported compliance score. A failing finding weighs
+// enough that one of them keeps a block below the default compliance bar; a
+// reported one costs a point.
 const (
-	// SeverityNeutral is informational; it carries no penalty.
-	SeverityNeutral Severity = "neutral"
-	// SeverityMinor is a low-impact issue (style nit, soft preference).
-	SeverityMinor Severity = "minor"
-	// SeverityMajor is a clear violation a reviewer would act on.
-	SeverityMajor Severity = "major"
-	// SeverityCritical is a release-blocking violation (e.g. a translated
-	// do-not-translate term, a dropped placeholder).
-	SeverityCritical Severity = "critical"
+	FailingWeight   = 25
+	ReportingWeight = 1
 )
 
-// SeverityWeight returns the MQM-inspired penalty weight for a severity:
-// neutral=0, minor=1, major=5, critical=25.
-func SeverityWeight(s Severity) int {
-	switch s {
-	case SeverityMinor:
-		return 1
-	case SeverityMajor:
-		return 5
-	case SeverityCritical:
-		return 25
-	case SeverityNeutral:
+// Weight returns the score penalty a finding carries. A finding raised by a
+// suggested rule weighs nothing: it is advice, and a rule nobody has settled
+// must not move a score.
+func Weight(f Finding) int {
+	switch {
+	case f.Suggested:
 		return 0
+	case f.Fails:
+		return FailingWeight
 	default:
-		return 0
-	}
-}
-
-// ParseSeverity normalizes a string to a Severity, defaulting to SeverityMinor
-// for unrecognized input so an unknown level is never silently dropped to zero
-// penalty.
-func ParseSeverity(s string) Severity {
-	switch Severity(s) {
-	case SeverityNeutral:
-		return SeverityNeutral
-	case SeverityMinor:
-		return SeverityMinor
-	case SeverityMajor:
-		return SeverityMajor
-	case SeverityCritical:
-		return SeverityCritical
-	default:
-		return SeverityMinor
+		return ReportingWeight
 	}
 }
 
@@ -70,8 +41,10 @@ type Finding struct {
 	// "placeholder", "register", or a brand dimension such as "tone"). Free-form
 	// so new checkers add categories without touching the core.
 	Category string `json:"category"`
-	// Severity drives the penalty weight and the gate.
-	Severity Severity `json:"severity"`
+	// Fails says whether the finding fails a check. The rule that raised it
+	// decides: an established term or a voice pattern fails unless the rule is
+	// marked advisory, and a style measure or a suggestion reports.
+	Fails bool `json:"fails"`
 	// Message is the human-readable explanation.
 	Message string `json:"message"`
 	// Suggestion is an optional remediation hint (e.g. the preferred term).
@@ -91,11 +64,9 @@ type Finding struct {
 	// Metadata carries checker-specific detail (model name, confidence, the
 	// matched rule id) without widening the struct per checker.
 	Metadata map[string]string `json:"metadata,omitempty"`
-	// Advisory marks a finding raised against a rule nobody has confirmed: a
-	// candidate a project has accumulated and not yet decided on
-	// (core/contextop). Such a finding is always SeverityNeutral, which carries
-	// no penalty and trips no gate threshold, so it is reported and settles
-	// nothing. The flag is what lets a surface show it as the proposal it is
-	// rather than as a rule that was broken.
-	Advisory bool `json:"advisory,omitempty"`
+	// Suggested marks a finding raised by a suggested rule: one a project has
+	// accumulated and nobody has settled (core/contextop). Such a finding never
+	// fails and weighs nothing in the score. A surface reads the flag to show
+	// it as the suggestion it is rather than as a rule that was broken.
+	Suggested bool `json:"suggested,omitempty"`
 }

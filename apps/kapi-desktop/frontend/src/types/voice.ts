@@ -24,7 +24,8 @@ export interface PatternRate {
 export interface Pattern {
   regex: string;
   description: string;
-  severity: string;
+  /** A match reports without failing a check. */
+  advisory?: boolean;
   rate?: PatternRate;
   /** Where it applies: prose, code or heading. Empty means everywhere. */
   scope?: string;
@@ -40,12 +41,13 @@ export interface StyleRules {
   required_patterns?: Pattern[];
 }
 
-/** One term, what to use instead, and how hard it bites. */
+/** One term, what to use instead, and whether a use of it fails a check. */
 export interface TermRule {
   term: string;
   replacement?: string;
   note?: string;
-  severity?: string;
+  /** A use reports without failing a check. */
+  advisory?: boolean;
   /** Ties the rule to a concept in the terms store. */
   concept_id?: string;
   do_not_translate?: boolean;
@@ -262,14 +264,10 @@ export interface ProjectVoiceResult {
   notes?: string[];
 }
 
-/**
- * Whether a rule's severity fails a check or only reports it.
- *
- * `minor` and `neutral` warn; everything else fails, unset included — a rule
- * resolved from a terms store carries no severity and must not be silently
- * downgraded.
- */
-export function severityFails(severity?: string): boolean {
-  const s = (severity ?? "").toLowerCase();
-  return s !== "minor" && s !== "neutral";
+/** The two outcomes a rule can have, as the editor offers them. */
+export const RULE_OUTCOMES: FieldValueSet = { values: ["fails", "reports"], open: false };
+
+/** A rule's outcome as the editor names it: a rule fails unless it is advisory. */
+export function ruleOutcome(advisory?: boolean): "fails" | "reports" {
+  return advisory ? "reports" : "fails";
 }

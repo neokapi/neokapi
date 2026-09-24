@@ -19,30 +19,27 @@ style:
     prohibited_patterns:
         - regex: '\x{2014}'
           description: Em dashes. The corpus contains none across ~25 entries; asides are carried by parentheses, semicolons, or a new sentence.
-          severity: minor
+          advisory: true
           scope: prose
         - regex: (?i)\b(blazing(ly)?[ -]fast|lightning[ -]fast|revolutionary|game[ -]?chang(er|ing)|seamless(ly)?|effortless(ly)?|best[ -]in[ -]class|supercharge[ds]?)\b
           description: Marketing superlatives. Speed claims in the corpus are always concrete and measured (`real 0m1.783s` vs `real 0m2.458s`), never adjectival.
-          severity: major
           scope: prose
         - regex: (?i)\b(bloated|inferior|obsolete|crappy|garbage|clunky|no reason to use)\b
           description: Disparaging other tools. grep, The Silver Searcher and PCRE2 are all discussed neutrally or accommodatingly.
-          severity: major
           scope: prose
         - regex: (?i)(scheduled for (Q[1-4]|\w+ \d{4})|will be released (on|in|by)|ETA\b|coming soon)
           description: 'Release-date promises. The corpus states the opposite policy explicitly: "releases are made on a best effort basis and no dates will ever be given."'
-          severity: major
         - regex: (?i)\b(it should be noted that|please be aware that|please note that)\b
           description: 'Padded caveat openers. The corpus uses bare "Note that ..." or a parenthetical "(Note: ...)".'
-          severity: minor
+          advisory: true
           scope: prose
         - regex: (?i)\b(utilize|leverage|facilitate)\b
           description: Latinate substitutes for plain verbs. The corpus uses "use", "uses", "lets you" without exception.
-          severity: minor
+          advisory: true
           scope: prose
         - regex: '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}]'
           description: Emoji and decorative symbols. Absent from the entire corpus, including headings and warnings.
-          severity: minor
+          advisory: true
 vocabulary:
     preferred_terms:
         - term: ripgrep
@@ -150,29 +147,24 @@ personas:
         avoided_terms:
             - term: crate
               replacement: part of ripgrep
-              severity: major
               forms: [crates]
             - term: struct
               replacement: leave it out
-              severity: major
               forms: [structs]
             - term: trait
               replacement: leave it out
-              severity: major
               forms: [traits]
             - term: API
               replacement: leave it out
-              severity: major
             - term: implementation
               replacement: how it works
-              severity: minor
+              advisory: true
             - term: instantiate
               replacement: create
-              severity: major
               forms: [instantiates, instantiated, instantiating]
             - term: glob matcher
               replacement: file name pattern
-              severity: minor
+              advisory: true
     developer:
         style:
             active_voice: true
@@ -182,19 +174,15 @@ personas:
         avoided_terms:
             - term: simply
               scope: prose
-              severity: major
             - term: just
               scope: prose
               replacement: say what it takes instead
-              severity: major
             - term: easy
               scope: prose
               replacement: say what it takes instead
-              severity: major
               forms: [easily]
             - term: straightforward
               scope: prose
-              severity: major
             - term: under the hood
               replacement: name the module
-              severity: minor
+              advisory: true

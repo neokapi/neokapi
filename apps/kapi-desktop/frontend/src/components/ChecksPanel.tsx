@@ -20,7 +20,7 @@ import {
   PageHeader,
   ScrollArea,
   FindingSnippet,
-  findingSeverityTone,
+  findingOutcomeTone,
   findingToneBadgeClass,
 } from "@neokapi/ui-primitives";
 import type { ContentTree } from "@neokapi/ui-primitives/preview";
@@ -85,19 +85,10 @@ export interface ChecksPanelProps {
   previewTree?: ContentTree;
 }
 
-/** A finding severity as a badge: the shared tone, and the word the panel uses for it. */
-function severityBadge(severity: string): { className: string; label: string } {
-  const className = findingToneBadgeClass(findingSeverityTone(severity));
-  switch (severity) {
-    case "critical":
-      return { className, label: "Critical" };
-    case "major":
-      return { className, label: "Major" };
-    case "minor":
-      return { className, label: "Minor" };
-    default:
-      return { className, label: "Info" };
-  }
+/** What a finding does to the check as a badge: the shared tone, and the word the panel uses for it. */
+function outcomeBadge(finding: DesktopFinding): { className: string; label: string } {
+  const className = findingToneBadgeClass(findingOutcomeTone(finding));
+  return finding.fails ? { className, label: "Fails" } : { className, label: "Reports" };
 }
 
 function shortPath(p: string): string {
@@ -114,7 +105,7 @@ function shortPath(p: string): string {
  * finding.
  */
 function FindingInContext({ finding }: { finding: DesktopFinding }) {
-  const tone = findingSeverityTone(finding.severity);
+  const tone = findingOutcomeTone(finding);
   const onSource = finding.field !== "target";
   const sideRuns = onSource ? finding.source_runs : finding.target_runs;
   const hasRuns = !!sideRuns && sideRuns.length > 0;
@@ -311,7 +302,7 @@ export function ChecksPanel({
         </span>
       );
     }
-    const sev = severityBadge(finding.severity);
+    const sev = outcomeBadge(finding);
     return (
       <>
         <Badge variant="outline" className={sev.className}>
@@ -487,7 +478,7 @@ export function ChecksPanel({
                 </div>
                 <div className="space-y-2">
                   {file.findings.map((finding, idx) => {
-                    const sev = severityBadge(finding.severity);
+                    const sev = outcomeBadge(finding);
                     const key = `${file.path}#${finding.block_id ?? ""}#${idx}`;
                     return (
                       <Card key={key} data-testid="finding-card">

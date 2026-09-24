@@ -2937,14 +2937,14 @@ import-dogfood-context: build ## Read the repository's own `.kapi/` layout into 
 
 check-governed-prose: build stage-sourcecode-plugin import-dogfood-context ## Gate: the collections holding distribution prose pass `kapi check`
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'packaging/nfpm.yaml' \
-		-p $(CURDIR)/kapi.yaml --max-major 0
+		-p $(CURDIR)/kapi.yaml
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'apps/kapi-desktop/build/windows/info.json' \
-		-p $(CURDIR)/kapi.yaml --max-major 0
-	@# The cask needs the sourcecode plugin, staged above. Minors are allowed
-	@# here and nowhere else in this target: `caveats` embeds an aligned command
-	@# sample, so the consecutive-spaces rule fires on formatting that is correct.
+		-p $(CURDIR)/kapi.yaml
+	@# The cask needs the sourcecode plugin, staged above. Its `caveats` embeds
+	@# an aligned command sample, so the consecutive-spaces rule reports on
+	@# formatting that is correct; that rule is advisory and fails nothing.
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'deploy/homebrew/*.rb' \
-		-p $(CURDIR)/kapi.yaml --max-major 0
+		-p $(CURDIR)/kapi.yaml
 
 # ── The prose kapi reads, gated on every PR ──────────────────────────────────
 #
@@ -2953,37 +2953,37 @@ check-governed-prose: build stage-sourcecode-plugin import-dogfood-context ## Ga
 # Tuesday was found on Wednesday, by a bot, on main. scripts/check-vocabulary.sh
 # was the only per-PR enforcement, and it holds a second copy of the rule.
 #
-# This is the gate that lets the script stop owning these surfaces. Minors are
-# allowed (--max-major 0): TBX, the XLIFF Glossary module and a handful of
-# concept pages name the external standards they document, and those read as
-# MINOR by design. Majors and criticals fail.
+# This is the gate that lets the script stop owning these surfaces. A failing
+# finding fails it; an advisory one reports: TBX, the XLIFF Glossary module and
+# a handful of concept pages name the external standards they document, and the
+# rules those names trip are advisory by design.
 #
 # 379 + 71 files in under two seconds, so it is cheap enough to run on every PR.
 check-docs-prose: build import-dogfood-context ## Gate: the documentation passes `kapi check` under the project's voice
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'web/docs/**/*.md' 'web/docs/**/*.mdx' \
-		-p $(CURDIR)/kapi.yaml --max-major 0
+		-p $(CURDIR)/kapi.yaml
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'bowrain/web/docs/docs/**/*.md' 'bowrain/web/docs/docs/**/*.mdx' \
-		-p $(CURDIR)/kapi.yaml --max-major 0
+		-p $(CURDIR)/kapi.yaml
 	@# The two site taglines. They are declared in the docs collections but sit
 	@# beside docs/ rather than inside it, so the globs above do not reach them.
 	@# A collection that nothing gates is a declaration, not a check.
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'web/brand.json' 'bowrain/web/docs/brand.json' \
-		-p $(CURDIR)/kapi.yaml --max-major 0
+		-p $(CURDIR)/kapi.yaml
 	@# The two READMEs: prose kapi has always been able to read, that no
 	@# collection declared. A reader meets the README before anything else.
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'README.md' 'bowrain/README.md' \
-		-p $(CURDIR)/kapi.yaml --max-major 0
+		-p $(CURDIR)/kapi.yaml
 	@# NOT the agent skill, and not by omission. Gating cli/skills reports 30
-	@# majors, every one of them correct-by-design: @angular/localize and
+	@# failing findings, every one of them correct-by-design: @angular/localize and
 	@# expo-localization are third-party identifiers, gen-l10n is a Flutter tool,
 	@# and EVALS.md quotes user prompts verbatim because the skill description is
 	@# intent-matching vocabulary — it must contain the words a user types.
 	@# check-vocabulary.sh lists it under PENDING_SURFACES for the same reason.
 	@# Deciding what a matching surface owes the vocabulary rule comes first.
 
-check-reference-prose: build import-dogfood-context ## Register gate: the authored reference dossiers pass `kapi check` with no findings
+check-reference-prose: build import-dogfood-context ## Register gate: the authored reference dossiers pass `kapi check` with no failing finding
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'scripts/gen-refs/nativedocs/*/*.yaml' \
-		-p $(CURDIR)/kapi.yaml --max-major 0 --max-minor 0
+		-p $(CURDIR)/kapi.yaml
 
 # Superseded by generate-reference-docs; kept as an alias for existing callers.
 generate-format-docs: generate-reference-docs

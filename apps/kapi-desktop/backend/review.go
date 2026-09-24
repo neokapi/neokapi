@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -173,7 +172,7 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, sourceLang
 	fail := func(what string, err error) []DesktopFinding {
 		return append(findings, DesktopFinding{
 			Category: "check",
-			Severity: string(check.SeverityMajor),
+			Fails:    true,
 			Message:  fmt.Sprintf("checks did not complete: %s: %v", what, err),
 			BlockID:  b.ID,
 		})

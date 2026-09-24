@@ -360,7 +360,7 @@ func checkIssuesFromFindings(findings []check.Finding) []CheckIssueResponse {
 	for _, f := range findings {
 		issue := CheckIssueResponse{
 			Type:         f.Category,
-			Severity:     checkWireSeverity(f.Severity),
+			Severity:     checkWireSeverity(f.Fails && !f.Suggested),
 			Message:      f.Message,
 			Suggestion:   f.Suggestion,
 			OriginalText: f.OriginalText,
@@ -374,14 +374,12 @@ func checkIssuesFromFindings(findings []check.Finding) []CheckIssueResponse {
 	return result
 }
 
-// checkWireSeverity maps a core/check.Severity onto the two-valued severity the
-// endpoint has always returned: critical/major are "error", minor/neutral
+// checkWireSeverity maps whether a finding fails onto the two-valued severity
+// the endpoint returns: a failing finding is "error", one that reports
 // "warning".
-func checkWireSeverity(s check.Severity) string {
-	switch s {
-	case check.SeverityCritical, check.SeverityMajor:
+func checkWireSeverity(fails bool) string {
+	if fails {
 		return "error"
-	default:
-		return "warning"
 	}
+	return "warning"
 }

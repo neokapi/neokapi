@@ -54,10 +54,14 @@ function renderBrand(data: any): string {
   const fhtml = findings
     .slice(0, 8)
     .map((f) => {
-      const sev = String(f.severity ?? "info").toLowerCase();
+      // A kapi finding says whether it fails; the badge reuses the major/minor
+      // colours for failing and reported findings.
+      const failing = f.fails === true;
+      const sev = failing ? "major" : "minor";
+      const label = failing ? "fails" : "reports";
       const orig = f.original_text ?? f.original ?? f.text ?? "";
       const sug = f.suggestion ?? f.replacement ?? "";
-      return `<div class="finding"><span class="sev ${sev}">${sev}</span>
+      return `<div class="finding"><span class="sev ${sev}">${label}</span>
         <div class="ftext"><span class="orig">${esc(orig)}</span>${sug ? ` → <span class="sug">${esc(sug)}</span>` : ""}
         ${f.message ? `<div style="color:#aab4d0;margin-top:4px">${esc(f.message)}</div>` : ""}</div></div>`;
     })

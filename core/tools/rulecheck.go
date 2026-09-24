@@ -297,7 +297,7 @@ func (h *checkRouteHandler) checkTextIssues(conf *RuleCheckConfig, v tool.BlockV
 	if conf.CheckEmptyTarget && tgtShape == "" && srcShape != "" {
 		findings = append(findings, check.Finding{
 			Category: "empty-target",
-			Severity: check.SeverityMajor,
+			Fails:    true,
 			Message:  "Target is empty but source has content",
 		})
 	}
@@ -306,7 +306,6 @@ func (h *checkRouteHandler) checkTextIssues(conf *RuleCheckConfig, v tool.BlockV
 	if conf.CheckEmptySource && srcShape == "" && tgtShape != "" {
 		findings = append(findings, check.Finding{
 			Category: "empty-source",
-			Severity: check.SeverityMinor,
 			Message:  "Target is not empty but source is empty",
 		})
 	}
@@ -318,7 +317,6 @@ func (h *checkRouteHandler) checkTextIssues(conf *RuleCheckConfig, v tool.BlockV
 		if srcLeading != tgtLeading {
 			findings = append(findings, check.Finding{
 				Category: "leading-whitespace",
-				Severity: check.SeverityMinor,
 				Message:  "Leading whitespace differs between source and target",
 			})
 		}
@@ -331,7 +329,6 @@ func (h *checkRouteHandler) checkTextIssues(conf *RuleCheckConfig, v tool.BlockV
 		if srcTrailing != tgtTrailing {
 			findings = append(findings, check.Finding{
 				Category: "trailing-whitespace",
-				Severity: check.SeverityMinor,
 				Message:  "Trailing whitespace differs between source and target",
 			})
 		}
@@ -341,7 +338,6 @@ func (h *checkRouteHandler) checkTextIssues(conf *RuleCheckConfig, v tool.BlockV
 	if conf.CheckDoubleSpaces && check.DoubleSpaces(tgtShape) {
 		findings = append(findings, check.Finding{
 			Category: "double-spaces",
-			Severity: check.SeverityMinor,
 			Message:  "Target contains double spaces",
 		})
 	}
@@ -351,7 +347,6 @@ func (h *checkRouteHandler) checkTextIssues(conf *RuleCheckConfig, v tool.BlockV
 		if word := check.DoubledWord(tgtShape, conf.DoubledWordExceptions); word != "" {
 			findings = append(findings, check.Finding{
 				Category:     "doubled-word",
-				Severity:     check.SeverityMinor,
 				Message:      fmt.Sprintf("Target contains doubled word: %q", word),
 				OriginalText: word,
 			})
@@ -369,7 +364,6 @@ func (h *checkRouteHandler) checkTextIssues(conf *RuleCheckConfig, v tool.BlockV
 			if conf.TargetSameAsSourceWithNumbers || !isNumberOnly(sourceText) {
 				findings = append(findings, check.Finding{
 					Category: "target-same-as-source",
-					Severity: check.SeverityMinor,
 					Message:  "Target is identical to source",
 				})
 			}
@@ -428,7 +422,7 @@ func (h *checkRouteHandler) checkCharacterIssues(conf *RuleCheckConfig, sourceTe
 			if strings.ContainsRune(targetText, ch) {
 				findings = append(findings, check.Finding{
 					Category:     "forbidden-char",
-					Severity:     check.SeverityMajor,
+					Fails:        true,
 					Message:      fmt.Sprintf("Target contains forbidden character %q (U+%04X)", ch, ch),
 					OriginalText: string(ch),
 				})
@@ -442,7 +436,6 @@ func (h *checkRouteHandler) checkCharacterIssues(conf *RuleCheckConfig, sourceTe
 			if strings.ContainsRune(sourceText, ch) && !strings.ContainsRune(targetText, ch) {
 				findings = append(findings, check.Finding{
 					Category:     "required-char-missing",
-					Severity:     check.SeverityMinor,
 					Message:      fmt.Sprintf("Source contains %q (U+%04X) but target does not", ch, ch),
 					OriginalText: string(ch),
 				})
@@ -490,7 +483,7 @@ func (h *checkRouteHandler) checkConsistencyIssues(conf *RuleCheckConfig, source
 		alternatives := alternativesExcluding(h.sourceToTargets[normSource], normTarget)
 		return []check.Finding{{
 			Category: "inconsistency",
-			Severity: check.SeverityMajor,
+			Fails:    true,
 			Message:  "Source has more than one translation; also seen as: " + strings.Join(alternatives, ", "),
 		}}
 	}
@@ -500,7 +493,7 @@ func (h *checkRouteHandler) checkConsistencyIssues(conf *RuleCheckConfig, source
 		alternatives := alternativesExcluding(h.targetToSources[normTarget], normSource)
 		return []check.Finding{{
 			Category: "inconsistency",
-			Severity: check.SeverityMajor,
+			Fails:    true,
 			Message:  "Different sources share this translation; also from: " + strings.Join(alternatives, ", "),
 		}}
 	}
@@ -536,7 +529,6 @@ func (h *checkRouteHandler) checkLengthIssues(conf *RuleCheckConfig, sourceText,
 			if pct > maxPct {
 				findings = append(findings, check.Finding{
 					Category: "max-length",
-					Severity: check.SeverityMinor,
 					Message:  fmt.Sprintf("Target is %d%% of source length (max allowed: %d%%)", pct, maxPct),
 				})
 			}
@@ -556,7 +548,6 @@ func (h *checkRouteHandler) checkLengthIssues(conf *RuleCheckConfig, sourceText,
 			if pct < minPct {
 				findings = append(findings, check.Finding{
 					Category: "min-length",
-					Severity: check.SeverityMinor,
 					Message:  fmt.Sprintf("Target is %d%% of source length (min required: %d%%)", pct, minPct),
 				})
 			}
@@ -569,7 +560,6 @@ func (h *checkRouteHandler) checkLengthIssues(conf *RuleCheckConfig, sourceText,
 		if tgtLen > conf.AbsoluteMaxCharLength {
 			findings = append(findings, check.Finding{
 				Category: "absolute-max-length",
-				Severity: check.SeverityMinor,
 				Message:  fmt.Sprintf("Target has %d characters (max allowed: %d)", tgtLen, conf.AbsoluteMaxCharLength),
 			})
 		}
@@ -581,7 +571,6 @@ func (h *checkRouteHandler) checkLengthIssues(conf *RuleCheckConfig, sourceText,
 		if wordCount > conf.MaxWords {
 			findings = append(findings, check.Finding{
 				Category: "max-words",
-				Severity: check.SeverityMinor,
 				Message:  fmt.Sprintf("Target has %d words (max allowed: %d)", wordCount, conf.MaxWords),
 			})
 		}
@@ -661,7 +650,7 @@ func NewRuleCheckTool(cfg *RuleCheckConfig) *tool.BaseTool {
 			if conf.CheckEmptyTarget && srcShape != "" {
 				check.Annotate(v, "qa", []check.Finding{{
 					Category: "empty-target",
-					Severity: check.SeverityMajor,
+					Fails:    true,
 					Message:  "Target is empty but source has content",
 				}})
 			}
@@ -781,7 +770,7 @@ func checkRunConstraints(source, target []model.Run) []check.Finding {
 		missing := srcCount - tgtCount
 		findings = append(findings, check.Finding{
 			Category: "non-deletable-span-missing",
-			Severity: check.SeverityMajor,
+			Fails:    true,
 			Message:  fmt.Sprintf("Non-deletable %s span %q is missing from target (%d missing)", kind, typ, missing),
 		})
 	}
@@ -804,7 +793,7 @@ func checkRunConstraints(source, target []model.Run) []check.Finding {
 		extra := tgtCount - srcCount
 		findings = append(findings, check.Finding{
 			Category: "non-cloneable-span-duplicated",
-			Severity: check.SeverityMajor,
+			Fails:    true,
 			Message:  fmt.Sprintf("Non-cloneable %s span %q was duplicated in target (%d extra)", kind, typ, extra),
 		})
 	}
@@ -921,7 +910,7 @@ func corruptionFindings(text string) []check.Finding {
 		if strings.Contains(text, pattern) {
 			findings = append(findings, check.Finding{
 				Category:     "mojibake",
-				Severity:     check.SeverityMajor,
+				Fails:        true,
 				Message:      fmt.Sprintf("Possible mojibake detected: %q (UTF-8 decoded as Latin-1)", pattern),
 				OriginalText: pattern,
 			})
@@ -933,7 +922,7 @@ func corruptionFindings(text string) []check.Finding {
 	if strings.ContainsRune(text, unicode.ReplacementChar) {
 		findings = append(findings, check.Finding{
 			Category: "replacement-char",
-			Severity: check.SeverityMajor,
+			Fails:    true,
 			Message:  "Target contains Unicode replacement character U+FFFD",
 		})
 	}
@@ -943,7 +932,7 @@ func corruptionFindings(text string) []check.Finding {
 		if r <= 0x1F && r != '\t' && r != '\n' && r != '\r' {
 			findings = append(findings, check.Finding{
 				Category: "control-char",
-				Severity: check.SeverityMajor,
+				Fails:    true,
 				Message:  fmt.Sprintf("Target contains control character U+%04X", r),
 			})
 			break // Report once.
@@ -959,7 +948,6 @@ func checkCharset(text, charsetName string) []check.Finding {
 	if err != nil || enc == nil {
 		return []check.Finding{{
 			Category: "charset-lookup-error",
-			Severity: check.SeverityMinor,
 			Message:  fmt.Sprintf("Unknown character set encoding %q", charsetName),
 		}}
 	}
@@ -969,7 +957,6 @@ func checkCharset(text, charsetName string) []check.Finding {
 		if err != nil {
 			return []check.Finding{{
 				Category:     "charset-violation",
-				Severity:     check.SeverityMinor,
 				Message:      fmt.Sprintf("Character %q (U+%04X) cannot be encoded in %s", r, r, charsetName),
 				OriginalText: string(r),
 			}}
@@ -994,7 +981,7 @@ func (h *checkRouteHandler) checkPatterns(sourceText, targetText string) []check
 				}
 				findings = append(findings, check.Finding{
 					Category:     "forbidden-pattern",
-					Severity:     check.SeverityMajor,
+					Fails:        true,
 					Message:      desc,
 					OriginalText: m,
 				})
@@ -1018,7 +1005,6 @@ func (h *checkRouteHandler) checkPatterns(sourceText, targetText string) []check
 					}
 					findings = append(findings, check.Finding{
 						Category:     "pattern-mismatch",
-						Severity:     check.SeverityMinor,
 						Message:      desc,
 						OriginalText: m,
 					})
@@ -1033,7 +1019,6 @@ func (h *checkRouteHandler) checkPatterns(sourceText, targetText string) []check
 				}
 				findings = append(findings, check.Finding{
 					Category: "pattern-mismatch",
-					Severity: check.SeverityMinor,
 					Message:  desc,
 				})
 			}
@@ -1058,7 +1043,6 @@ func checkCodeDifferencesRuns(source, target []model.Run, strictOrder bool) []ch
 		if tgtCount < srcCount {
 			findings = append(findings, check.Finding{
 				Category: "missing-code",
-				Severity: check.SeverityMinor,
 				Message:  fmt.Sprintf("Inline code %q missing from target (%d in source, %d in target)", typ, srcCount, tgtCount),
 			})
 		}
@@ -1068,7 +1052,6 @@ func checkCodeDifferencesRuns(source, target []model.Run, strictOrder bool) []ch
 		if tgtCount > srcCount {
 			findings = append(findings, check.Finding{
 				Category: "extra-code",
-				Severity: check.SeverityMinor,
 				Message:  fmt.Sprintf("Extra inline code %q in target (%d in source, %d in target)", typ, srcCount, tgtCount),
 			})
 		}
@@ -1080,7 +1063,6 @@ func checkCodeDifferencesRuns(source, target []model.Run, strictOrder bool) []ch
 			if sourceTypes[i] != targetTypes[i] {
 				findings = append(findings, check.Finding{
 					Category: "code-order",
-					Severity: check.SeverityMinor,
 					Message:  "Inline code order differs between source and target",
 				})
 				break

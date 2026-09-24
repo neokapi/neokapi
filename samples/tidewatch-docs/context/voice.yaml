@@ -26,10 +26,8 @@ style:
   prohibited_patterns:
     - regex: '\b(world-class|best-in-class|industry-leading|game-changing|next-generation)\b'
       description: Brochure framing — say what the software does instead
-      severity: major
     - regex: '\b(guarantees?|ensures?)\s+(safety|safe\s)'
       description: Northsea never claims safety; state the constraint that was checked
-      severity: critical
 vocabulary:
   preferred_terms:
     - term: berth
@@ -48,11 +46,10 @@ vocabulary:
     - term: seamless
       replacement: unified
       note: Says nothing a reader can check
-      severity: major
     - term: leverage
       replacement: use
       note: Business register; Northsea writes plainly
-      severity: minor
+      advisory: true
 examples:
   - before: "Our seamless platform leverages best-in-class forecasting to guarantee safe movements."
     after: "Tidewatch compares the forecast with the constraints of the berth, and raises an alert when a movement stops being safe."

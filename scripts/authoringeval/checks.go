@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -45,7 +46,7 @@ import (
 // Finding is one thing a check reported, in the shape both checks return.
 type Finding struct {
 	Category     string `json:"category"`
-	Severity     string `json:"severity"`
+	Fails        bool   `json:"fails"`
 	Message      string `json:"message"`
 	OriginalText string `json:"original_text"`
 }
@@ -149,7 +150,10 @@ func offlineCheckWithProfile(ctx context.Context, bin, workdir, profile, text st
 	cmd.Env = append(os.Environ(), isolationEnv(workdir)...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
+	// A failing finding exits 3 with the report on stdout: the check ran and
+	// found something, which is the result this eval measures.
+	var exitErr *exec.ExitError
+	if err := cmd.Run(); err != nil && (!errors.As(err, &exitErr) || exitErr.ExitCode() != 3) {
 		return checkResult{}, fmt.Errorf("%w: %s", err, strings.TrimSpace(stderr.String()))
 	}
 	var res checkResult

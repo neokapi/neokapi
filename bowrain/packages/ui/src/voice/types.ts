@@ -157,7 +157,11 @@ export interface VoiceFinding {
    * touching the core, and it is typed as such here.
    */
   category: string;
-  severity: VoiceSeverity;
+  /**
+   * Whether the finding fails a check, as the rule that raised it decides: a
+   * rule fails unless it is marked advisory, and a style measure reports.
+   */
+  fails: boolean;
   message: string;
   suggestion?: string;
   /** Run-anchored span over the checked runs. */
@@ -175,12 +179,11 @@ export interface VoiceFinding {
   /** Checker-specific detail: the matched rule id, a replacement, a concept id. */
   metadata?: Record<string, string>;
   /**
-   * Marks a finding raised against a rule nobody has confirmed: a candidate the
-   * project has accumulated and not yet decided on. Such a finding is always
-   * `neutral`, so it carries no penalty and trips no gate; read it to show the
-   * finding as the proposal it is rather than as a rule that was broken.
+   * Marks a finding raised by a suggested rule, one nobody has kept. It never
+   * fails and weighs nothing in the score; read it to show the finding as the
+   * suggestion it is rather than as a rule that was broken.
    */
-  advisory?: boolean;
+  suggested?: boolean;
 }
 
 export interface DimensionScore {

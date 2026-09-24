@@ -213,7 +213,8 @@ function findingSpan(finding: BlockFinding, index: number): OverlaySpan {
     text: finding.original_text,
     props: props({
       category: finding.category,
-      severity: finding.severity,
+      // The same two-valued word a check issue carries, so one list paints both.
+      severity: finding.fails ? "error" : "warning",
       message: finding.message,
       suggestion: finding.suggestion,
       replacement: finding.metadata?.replacement,

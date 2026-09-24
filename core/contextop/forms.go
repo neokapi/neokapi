@@ -26,7 +26,7 @@ func ObservedRule(term string, insteadOf []string) profile.TermRule {
 	rule := profile.TermRule{Term: forms[0], Forms: forms[1:], Replacement: term}
 	for _, form := range forms {
 		if strings.EqualFold(form, term) {
-			rule.CaseSensitive = true
+			rule.CaseSensitive = new(true)
 			break
 		}
 	}

@@ -25,13 +25,13 @@ func TestVerifyGateLabel_TextShowsChecksAndJSONKeepsTheID(t *testing.T) {
 			Gate: gateChecks,
 			Pass: false,
 			Findings: []verifyFinding{{
-				Gate:     gateChecks,
-				File:     "docs/index.md",
-				Severity: "error",
-				Message:  "placeholder {count} is missing from the target",
+				Gate:    gateChecks,
+				File:    "docs/index.md",
+				Fails:   true,
+				Message: "placeholder {count} is missing from the target",
 			}},
 		}},
-		Summary: verifySummary{Gates: 1, Failed: 1, Findings: 1, Errors: 1},
+		Summary: verifySummary{Gates: 1, Failed: 1, Findings: 1, Failing: 1},
 	}
 
 	var buf bytes.Buffer

@@ -295,19 +295,22 @@ annotates all of them because context is what it is for. A pass that filtered to
 one caller's three statuses would be a pass only that caller could use.
 
 The matcher is rule-shaped rather than profile-shaped: `MatchTermRules` takes
-term rule *sets*, each carrying the kind of violation a hit is and the severity
-a rule that names none of its own takes. A voice profile contributes two sets
-(forbidden terms at major, a competitor's at critical) through
-`VocabularyRuleSets`; a tool contributes its own. That is what lets one match
+term rule *sets*, each carrying the kind of violation a hit is. A voice profile
+contributes two sets (forbidden terms and a competitor's) through
+`VocabularyRuleSets`; a tool contributes its own. A hit fails unless its rule is
+marked `advisory`. Each rule's `MatchesCase` decides whether it matches in its
+own casing ([C-07](c-07-voice-profiles.md)): case sensitively when the preferred
+form is capitalised or differs from the rejected one only in case, regardless
+of case otherwise, and as `case_sensitive` says when the rule sets it. That is what lets one match
 run cover every source a caller holds, and what keeps a rule-carrying tool from
 being a second-class citizen of the vocabulary gate.
 
-A set may be marked `Advisory`, which is how the candidates a project has
+A set may be marked `Suggested`, which is how the candidates a project has
 accumulated reach the same pass ([C-11](c-11-context-operations.md)). Every hit
-against such a set is raised at `neutral` severity whatever its rule declares,
-and carries `Advisory` through the hit, the finding and the diagnostic. A rule
-nobody has confirmed is therefore reported wherever a decided term would be, and
-weighs nothing in the score and nothing in the gate.
+against such a set reports and never fails, whatever its rule declares, and
+carries `Suggested` through the hit, the finding and the diagnostic. A rule
+nobody has confirmed is therefore reported wherever a decided term would be,
+weighs nothing in the score, and fails no check.
 
 What a consumer does with an occurrence is its own business. The voice
 vocabulary gate raises a finding, presenting it through `HitsToFindings`, the
@@ -372,9 +375,9 @@ above.
 
 ### Competitor terms
 
-A term carries a competitor flag. `voice-vocab-check` surfaces competitor terms
-found in source text as critical-severity voice findings, and forbidden terms as
-major-severity, using the store's voice-vocabulary term source
+A term carries a competitor flag. `voice-vocab-check` surfaces competitor and
+forbidden terms found in source text as failing voice findings, and a retired
+term as one that reports, using the store's voice-vocabulary term source
 ([C-07](c-07-voice-profiles.md)). This gives the framework a minimal hook for
 voice guardrails without depending on the whole voice module.
 
@@ -394,8 +397,11 @@ The framework ships terminology tools as ordinary pipeline stages:
   containment as described above. A do-not-translate rule names no rendering:
   the target keeps its term verbatim, as the term, a declared form or the
   source's own occurrence, in that casing, with placeholder names masked on both
-  sides. A rule's severity sorts a violation into an error or a warning, and the
-  verify gate reports both while failing only on the first. It probes canaries
+  sides. A violation of a rule fails, and one of a rule marked `advisory`
+  reports; the verify gate reports both and fails only on the first. The
+  bilingual comparison matches a rule in its own casing only when the tool or
+  the rule sets `case_sensitive`, because the replacement is written in another
+  language and its capitalisation says nothing about the source term. It probes canaries
   under its own configuration: a target with the rendering deleted, one holding
   a word that opens like the rendering and ends differently, the shape of
   "Kaiplan" for `kaiplass`, and a target that does not keep a do-not-translate

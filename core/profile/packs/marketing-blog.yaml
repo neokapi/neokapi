@@ -17,24 +17,24 @@ style:
   prohibited_patterns:
     - regex: '\b(in order to)\b'
       description: Wordy phrase (use 'to' instead)
-      severity: minor
+      advisory: true
     - regex: '\b(at the end of the day)\b'
       description: Cliche phrase
-      severity: minor
+      advisory: true
 vocabulary:
   forbidden_terms:
     - term: in order to
       replacement: to
-      severity: minor
+      advisory: true
     - term: at the end of the day
       replacement: ultimately
-      severity: minor
+      advisory: true
     - term: it goes without saying
       replacement: ""
-      severity: minor
+      advisory: true
     - term: thought leader
       replacement: expert
-      severity: minor
+      advisory: true
   preferred_terms:
     - term: imagine
       note: Use to draw readers into scenarios

@@ -213,7 +213,7 @@ func constraintFindings(p *VoiceProfile, text string, runs []model.Run) []VoiceF
 	findings := []VoiceFinding{}
 	if err := constraintError(p); err != nil {
 		return append(findings, VoiceFinding{
-			Category: "style", Severity: SeverityCritical, Message: err.Error(),
+			Category: "style", Fails: true, Message: err.Error(),
 			Metadata: map[string]string{"constraint_error": "true"},
 		})
 	}
@@ -223,7 +223,7 @@ func constraintFindings(p *VoiceProfile, text string, runs []model.Run) []VoiceF
 		}
 		c := r.Constraint
 		rules := &VoiceProfile{Style: StyleRules{ProhibitedPatterns: []Pattern{{
-			Regex: c.Regex, Description: c.Statement, Severity: "critical",
+			Regex: c.Regex, Description: c.Statement,
 		}}}}
 		for _, finding := range PatternHitsToFindings(MatchPatterns(rules, text), text, runs) {
 			finding.Metadata["constraint_id"] = c.ID

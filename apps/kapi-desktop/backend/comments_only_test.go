@@ -33,7 +33,6 @@ vocabulary:
   forbidden_terms:
     - term: utilize
       replacement: use
-      severity: major
 `)
 
 	var comments project.ContentComments

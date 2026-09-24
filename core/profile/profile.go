@@ -210,7 +210,9 @@ type StyleRules struct {
 type Pattern struct {
 	Regex       string `json:"regex" yaml:"regex"`
 	Description string `json:"description" yaml:"description"`
-	Severity    string `json:"severity" yaml:"severity"` // "minor", "major", "critical"
+	// Advisory makes a match report without failing a check. A pattern rule
+	// fails where the voice is bound unless it is marked advisory.
+	Advisory bool `json:"advisory,omitempty" yaml:"advisory,omitempty"`
 
 	// Rate turns a prohibition into a ceiling: not "never" but "not this
 	// often".
@@ -300,12 +302,16 @@ type VocabularyRules struct {
 	Abbreviations   map[string]string `json:"abbreviations,omitempty" yaml:"abbreviations,omitempty"`
 }
 
-// TermRule describes a vocabulary constraint for a specific term.
+// TermRule is one "write this, not that" rule: the form to reject (Term and
+// its Forms), the form to use (Replacement), a note, and whether a use of the
+// rejected form fails a check.
 type TermRule struct {
 	Term        string `json:"term" yaml:"term"`
 	Replacement string `json:"replacement,omitempty" yaml:"replacement,omitempty"`
 	Note        string `json:"note,omitempty" yaml:"note,omitempty"`
-	Severity    string `json:"severity,omitempty" yaml:"severity,omitempty"` // "minor", "major", "critical"
+	// Advisory makes a use of the term report without failing a check. A rule
+	// fails unless it is marked advisory.
+	Advisory bool `json:"advisory,omitempty" yaml:"advisory,omitempty"`
 	// ConceptID is the knowledge-graph concept this rule denotes (one node type:
 	// the concept). It is populated when the platform promotes a rule from a
 	// concept-backed correction; it stays empty for standalone profiles (a
@@ -331,14 +337,9 @@ type TermRule struct {
 	// model's; the matching stays exact and language-neutral.
 	Forms []string `json:"forms,omitempty" yaml:"forms,omitempty"`
 
-	// CaseSensitive matches the term and its forms in their own casing.
-	//
-	// Off by default, so every profile written before this keeps behaving as it
-	// did. On for the rules whose whole content is capitalisation: inference
-	// read ripgrep's docs and wrote `term: Ripgrep, replacement: ripgrep`,
-	// which is the right rule and, folded, fires on every correct lowercase
-	// use. See issue #2241.
-	CaseSensitive bool `json:"case_sensitive,omitempty" yaml:"case_sensitive,omitempty"`
+	// CaseSensitive, when set, says whether the term and its forms match in
+	// their own casing. Unset, MatchesCase decides from the rule itself.
+	CaseSensitive *bool `json:"case_sensitive,omitempty" yaml:"case_sensitive,omitempty"`
 
 	// Scope limits where the rule applies, with the same values a Pattern uses.
 	// Empty means everywhere, which is what every existing rule does.
@@ -362,6 +363,32 @@ type TermRule struct {
 	// preferred one. Replacement stays the wording a translation is asked to
 	// use, and a check accepts Replacement or any of these.
 	Accepted []Rendering `json:"accepted,omitempty" yaml:"accepted,omitempty"`
+}
+
+// MatchesCase reports whether the rule matches its term and forms in their own
+// casing. CaseSensitive answers when it is set. Otherwise a rule matches case
+// sensitively when the form it asks for is capitalised, as a product or
+// feature name is ("write Quickcast, not QuickCast" must not fire on the
+// lower-case slug "quickcast"), or when its whole content is capitalisation
+// (a rejected form that differs from the preferred one only in case, such as
+// `term: Ripgrep, replacement: ripgrep`).
+func (r TermRule) MatchesCase() bool {
+	if r.CaseSensitive != nil {
+		return *r.CaseSensitive
+	}
+	preferred := strings.TrimSpace(r.Replacement)
+	if preferred == "" {
+		return false
+	}
+	if strings.ToLower(preferred) != preferred {
+		return true
+	}
+	for _, f := range r.AllForms() {
+		if strings.EqualFold(f, preferred) && f != preferred {
+			return true
+		}
+	}
+	return false
 }
 
 // Rendering is one acceptable wording for what a rule requires, with the

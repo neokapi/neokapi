@@ -1,5 +1,5 @@
 {
-  "_about": "Labeled eval corpus for the content checks. Each case is an input (source, optional target) plus the finding categories a correct check SHOULD produce (expect) and, where calibrated, the rolled-up compliance score it must yield (expect_score, 0-100). The check-eval harness (scripts/checkeval) runs the checks over these cases and reports precision/recall/F1 AND score calibration; a regression test gates both. expect_score pins the severity weighting (neutral 0 / minor 1 / major 5 / critical 25): a DNT or dropped-placeholder violation is critical (100-25=75), a stray extra placeholder is major (100-5=95). Seed it from the checkers' unit + adversarial cases; grow it from a real correction stream behind a privacy filter. See issues #759 and #758.",
+  "_about": "Labeled eval corpus for the content checks. Each case is an input (source, optional target) plus the finding categories a correct check SHOULD produce (expect) and, where calibrated, the rolled-up compliance score it must yield (expect_score, 0-100). The check-eval harness (scripts/checkeval) runs the checks over these cases and reports precision/recall/F1 AND score calibration; a regression test gates both. expect_score pins the weighting (a failing finding 25, a reported one 1): a DNT violation, a dropped placeholder and a stray extra placeholder each fail (100-25=75). Seed it from the checkers' unit + adversarial cases; grow it from a real correction stream behind a privacy filter. See issues #759 and #758.",
   "cases": [
     {
       "id": "dnt-translated",
@@ -82,7 +82,7 @@
       "target": "Hallo {name} {stray}",
       "target_lang": "de",
       "expect": ["placeholder"],
-      "expect_score": 95,
+      "expect_score": 75,
       "note": "unexpected {stray} in target → major (100-5)"
     },
     {

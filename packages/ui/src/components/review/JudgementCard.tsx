@@ -77,9 +77,9 @@ export function JudgementCard({
               ? t("{count} findings, {failing} failing", { count: list.length, failing })
               : t("{count} findings", { count: list.length })}
           </span>
-          {top?.severity && (
+          {top && findingLabel(top) && (
             <Badge variant="outline" className={findingToneBadgeClass(top.tone)}>
-              {top.severity}
+              {findingLabel(top)}
             </Badge>
           )}
         </>
@@ -122,9 +122,9 @@ export function JudgementCard({
               data-testid={f.id}
               data-tone={f.tone}
             >
-              {f.severity && (
+              {findingLabel(f) && (
                 <Badge variant="outline" className={findingToneBadgeClass(f.tone)}>
-                  {f.severity}
+                  {findingLabel(f)}
                 </Badge>
               )}
               {f.field === "source" && (
@@ -176,4 +176,14 @@ export function JudgementCard({
       <AIPreReview score={aiScore} model={aiModel} findings={aiFindings} />
     </LayerCard>
   );
+}
+
+/**
+ * The word a finding's badge carries: the severity a checker outside
+ * core/check used, or whether a core/check finding fails or reports.
+ */
+function findingLabel(f: ReviewFindingView): string | undefined {
+  if (f.severity) return f.severity;
+  if (f.fails === undefined) return undefined;
+  return f.fails ? t("fails") : t("reports");
 }

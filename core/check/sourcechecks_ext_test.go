@@ -54,15 +54,15 @@ func TestContentLintFindings(t *testing.T) {
 		name         string
 		source       string
 		wantCategory string
-		wantSeverity check.Severity
+		wantFails    bool
 	}{
-		{"empty", "", "empty", check.SeverityMajor},
-		{"whitespace only", "   \t  ", "empty", check.SeverityMajor},
-		{"leading whitespace", " Hello world", "leading-whitespace", check.SeverityMinor},
-		{"trailing whitespace", "Hello world ", "trailing-whitespace", check.SeverityMinor},
-		{"double spaces", "Hello  world", "double-spaces", check.SeverityMinor},
-		{"doubled word", "the the quick brown fox", "doubled-word", check.SeverityMinor},
-		{"control char", "Hello\x07world", "control-char", check.SeverityMinor},
+		{"empty", "", "empty", true},
+		{"whitespace only", "   \t  ", "empty", true},
+		{"leading whitespace", " Hello world", "leading-whitespace", false},
+		{"trailing whitespace", "Hello world ", "trailing-whitespace", false},
+		{"double spaces", "Hello  world", "double-spaces", false},
+		{"doubled word", "the the quick brown fox", "doubled-word", false},
+		{"control char", "Hello\x07world", "control-char", false},
 	}
 
 	for _, tc := range tests {
@@ -77,7 +77,7 @@ func TestContentLintFindings(t *testing.T) {
 			findings := blockFindings(result.Resource.(*model.Block))
 			f, ok := findFinding(findings, tc.wantCategory)
 			require.Truef(t, ok, "expected a %q finding, got %v", tc.wantCategory, findings)
-			assert.Equal(t, tc.wantSeverity, f.Severity)
+			assert.Equal(t, tc.wantFails, f.Fails)
 		})
 	}
 }
@@ -133,7 +133,7 @@ func TestSourceLengthToolMaxCharsAndWords(t *testing.T) {
 	findings := blockFindings(result.Resource.(*model.Block))
 	f, ok := findFinding(findings, "max-chars-exceeded")
 	require.True(t, ok)
-	assert.Equal(t, check.SeverityMajor, f.Severity)
+	assert.True(t, f.Fails)
 	assert.Contains(t, f.Message, "Source has 25")
 	_, ok = findFinding(findings, "max-words-exceeded")
 	assert.True(t, ok)
@@ -181,14 +181,13 @@ func TestSourcePatternToolValidation(t *testing.T) {
 
 // runReadiness seeds a block, runs the source-readiness stamp over it, and
 // returns the stamped source status.
-func runReadiness(t *testing.T, blockSeverity string, seed func(b *model.Block)) model.SourceStatus {
+func runReadiness(t *testing.T, seed func(b *model.Block)) model.SourceStatus {
 	t.Helper()
 	block := model.NewBlock("tu1", "Our product is the best.")
 	if seed != nil {
 		seed(block)
 	}
-	tl, err := check.NewSourceReadinessTool(blockSeverity)
-	require.NoError(t, err)
+	tl := check.NewSourceReadinessTool()
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 	return result.Resource.(*model.Block).SourceStatus
@@ -196,17 +195,17 @@ func runReadiness(t *testing.T, blockSeverity string, seed func(b *model.Block))
 
 func TestSourceReadiness_CleanSourceIsChecked(t *testing.T) {
 	t.Parallel()
-	got := runReadiness(t, "", nil)
+	got := runReadiness(t, nil)
 	assert.Equal(t, model.SourceStatusChecked, got)
 }
 
 func TestSourceReadiness_VoiceFindingStaysAuthored(t *testing.T) {
 	t.Parallel()
-	got := runReadiness(t, "", func(b *model.Block) {
+	got := runReadiness(t, func(b *model.Block) {
 		b.SetAnno("voice", &profile.VoiceAnnotation{
 			Findings: []profile.VoiceFinding{{
 				Category: "vocabulary",
-				Severity: check.SeverityCritical,
+				Fails:    true,
 				Message:  "competitor term",
 			}},
 		})
@@ -216,11 +215,11 @@ func TestSourceReadiness_VoiceFindingStaysAuthored(t *testing.T) {
 
 func TestSourceReadiness_UnifiedFindingStaysAuthored(t *testing.T) {
 	t.Parallel()
-	got := runReadiness(t, "", func(b *model.Block) {
+	got := runReadiness(t, func(b *model.Block) {
 		b.SetAnno(check.AnnotationKey, &check.FindingsAnnotation{
 			Findings: []check.Finding{{
 				Category: "terminology",
-				Severity: check.SeverityMajor,
+				Fails:    true,
 				Message:  "non-preferred term",
 			}},
 		})
@@ -228,13 +227,12 @@ func TestSourceReadiness_UnifiedFindingStaysAuthored(t *testing.T) {
 	assert.Equal(t, model.SourceStatusAuthored, got)
 }
 
-func TestSourceReadiness_MinorFindingToleratedByDefault(t *testing.T) {
+func TestSourceReadiness_ReportingFindingTolerated(t *testing.T) {
 	t.Parallel()
-	got := runReadiness(t, "", func(b *model.Block) {
+	got := runReadiness(t, func(b *model.Block) {
 		b.SetAnno("voice", &profile.VoiceAnnotation{
 			Findings: []profile.VoiceFinding{{
 				Category: "style",
-				Severity: check.SeverityMinor,
 				Message:  "soft preference",
 			}},
 		})
@@ -242,23 +240,9 @@ func TestSourceReadiness_MinorFindingToleratedByDefault(t *testing.T) {
 	assert.Equal(t, model.SourceStatusChecked, got)
 }
 
-func TestSourceReadiness_MinorFindingBlocksWhenStrict(t *testing.T) {
-	t.Parallel()
-	got := runReadiness(t, "minor", func(b *model.Block) {
-		b.SetAnno("voice", &profile.VoiceAnnotation{
-			Findings: []profile.VoiceFinding{{
-				Category: "style",
-				Severity: check.SeverityMinor,
-				Message:  "soft preference",
-			}},
-		})
-	})
-	assert.Equal(t, model.SourceStatusAuthored, got)
-}
-
 func TestSourceReadiness_CleanReCheckKeepsApproval(t *testing.T) {
 	t.Parallel()
-	got := runReadiness(t, "", func(b *model.Block) {
+	got := runReadiness(t, func(b *model.Block) {
 		b.SourceStatus = model.SourceStatusApproved
 	})
 	assert.Equal(t, model.SourceStatusApproved, got)
@@ -266,12 +250,12 @@ func TestSourceReadiness_CleanReCheckKeepsApproval(t *testing.T) {
 
 func TestSourceReadiness_BlockingFindingRegressesApproval(t *testing.T) {
 	t.Parallel()
-	got := runReadiness(t, "", func(b *model.Block) {
+	got := runReadiness(t, func(b *model.Block) {
 		b.SourceStatus = model.SourceStatusApproved
 		b.SetAnno("voice", &profile.VoiceAnnotation{
 			Findings: []profile.VoiceFinding{{
-				Severity: check.SeverityCritical,
-				Message:  "forbidden term",
+				Fails:   true,
+				Message: "forbidden term",
 			}},
 		})
 	})
@@ -281,8 +265,7 @@ func TestSourceReadiness_BlockingFindingRegressesApproval(t *testing.T) {
 func TestSourceReadiness_NonTranslatableUntouched(t *testing.T) {
 	t.Parallel()
 	block := &model.Block{ID: "x", Translatable: false, Source: []model.Run{{Text: &model.TextRun{Text: "code"}}}}
-	tl, err := check.NewSourceReadinessTool("")
-	require.NoError(t, err)
+	tl := check.NewSourceReadinessTool()
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)
 	assert.Empty(t, result.Resource.(*model.Block).SourceStatus, "non-translatable source must not be stamped")
@@ -298,8 +281,7 @@ func TestSourceReadiness_PlaceholderOnlySourceIsStamped(t *testing.T) {
 	block := &model.Block{ID: "price", Translatable: true, Source: []model.Run{
 		{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:var", Data: "{p.price}", Equiv: "p.price"}},
 	}}
-	tl, err := check.NewSourceReadinessTool("")
-	require.NoError(t, err)
+	tl := check.NewSourceReadinessTool()
 	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
 	assert.Equal(t, model.SourceStatusChecked, result.Resource.(*model.Block).SourceStatus,
 		"a placeholder-only source is authored content and must be able to reach `checked`")
@@ -308,12 +290,4 @@ func TestSourceReadiness_PlaceholderOnlySourceIsStamped(t *testing.T) {
 	empty := &model.Block{ID: "e", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "  "}}}}
 	result = processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: empty})
 	assert.Empty(t, result.Resource.(*model.Block).SourceStatus)
-}
-
-func TestSourceReadiness_InvalidSeverityRejected(t *testing.T) {
-	t.Parallel()
-	_, err := check.NewSourceReadinessTool("nonsense")
-	require.ErrorContains(t, err, "blockSeverity")
-	_, err = check.NewSourceReadinessTool("critical")
-	require.NoError(t, err)
 }

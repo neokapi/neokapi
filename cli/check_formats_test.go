@@ -54,7 +54,6 @@ style:
   prohibited_patterns:
     - regex: '\bseamless\b'
       description: Marketing superlative
-      severity: critical
 `
 	require.NoError(t, os.WriteFile(layoutVoicePath(t, root), []byte(profile), 0o644))
 
@@ -94,7 +93,7 @@ func TestCheck_ReadsProjectDeclaredFormatConfig(t *testing.T) {
 		assert.NotEqual(t, "voice.style", f.Rule,
 			"the recipe's keyPathPatterns exclude `command:`, so its text is not checked: %+v", f.Location)
 	}
-	assert.Zero(t, report.Summary.Critical)
+	assert.Zero(t, report.Summary.Failing)
 	assert.True(t, report.Pass)
 }
 

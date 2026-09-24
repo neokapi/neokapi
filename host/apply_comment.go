@@ -428,7 +428,6 @@ func (a *App) checkWrittenComments(ctx context.Context, cmd Command, file, diff,
 		opts:  checkRunOptions{formats: formats, execution: execution, sourceLocale: sourceLocale},
 		voice: voice,
 		vocab: vocab,
-		gate:  check.DefaultGate(),
 	})
 }
 
@@ -452,7 +451,7 @@ func printCommentResults(w io.Writer, results []commentFileResult) {
 		case f.Check != nil:
 			fmt.Fprintf(w, "check %s: %s, %d finding(s)\n", DisplayName(f.File), f.Check.Verdict, len(f.Check.Findings))
 			for _, d := range f.Check.Findings {
-				fmt.Fprintf(w, "  %s %s %s: %s\n", d.Severity, d.Rule, d.Location.Block, d.Message)
+				fmt.Fprintf(w, "  %s %s %s: %s\n", diagnosticOutcome(d), d.Rule, d.Location.Block, d.Message)
 			}
 		}
 	}

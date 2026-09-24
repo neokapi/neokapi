@@ -197,10 +197,8 @@ func runFlowAction(cmd *cobra.Command, action project.ActionConfig, proj *projec
 		OnFindings: func(f cli.FlowFindings) {
 			reports++
 			found.Findings += f.Summary.Findings
-			found.Critical += f.Summary.Critical
-			found.Major += f.Summary.Major
-			found.Minor += f.Summary.Minor
-			found.Neutral += f.Summary.Neutral
+			found.Failing += f.Summary.Failing
+			found.Reporting += f.Summary.Reporting
 			if f.DidNotRunCause != "" {
 				notRun = append(notRun, f)
 			}
@@ -209,10 +207,10 @@ func runFlowAction(cmd *cobra.Command, action project.ActionConfig, proj *projec
 	if err != nil {
 		return fmt.Errorf("flow %q: %w", flowName, err)
 	}
-	if found.Findings > 0 && failOnError {
+	if found.Failing > 0 && failOnError {
 		return cli.WithExitCode(cli.ExitGate, fmt.Errorf(
-			"flow %q found %d finding(s) (%d critical, %d major, %d minor)",
-			flowName, found.Findings, found.Critical, found.Major, found.Minor))
+			"flow %q found %d finding(s), %d failing",
+			flowName, found.Findings, found.Failing))
 	}
 	var notRunErr error
 	switch {

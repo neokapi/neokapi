@@ -115,7 +115,7 @@ func bareRun(t *testing.T, root string, args []string) (check.Report, string, in
 }
 
 // noReaderCode is the warning code a program branches on. It is part of the
-// kapi.check/v1 contract, so the test spells it out rather than importing it.
+// kapi.check/v2 contract, so the test spells it out rather than importing it.
 const noReaderCode = "format.no_reader"
 
 // assertUnreadReported holds a run to naming the file it could not read, and

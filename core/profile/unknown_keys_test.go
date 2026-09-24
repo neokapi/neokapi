@@ -126,7 +126,7 @@ func TestEveryWarningCarriesACode(t *testing.T) {
 	p := &VoiceProfile{
 		Name:       "Docs",
 		Tone:       ToneProfile{Formality: "calm and matter-of-fact"},
-		Style:      StyleRules{ProhibitedPatterns: []Pattern{{Regex: `\bsimply\b`, Severity: "major"}}},
+		Style:      StyleRules{ProhibitedPatterns: []Pattern{{Regex: `\bsimply\b`}}},
 		Vocabulary: VocabularyRules{ForbiddenTerms: []TermRule{{Term: "utilize", Replacement: "use"}}},
 		Channels: map[string]ChannelOverride{"docs": {
 			Style:      &StyleRules{},
@@ -145,4 +145,18 @@ func TestEveryWarningCarriesACode(t *testing.T) {
 		CodePreferredTermDropped: true,
 		CodeOverrideDropsPattern: true,
 	}, codes)
+}
+
+// A retired severity key names the key that decides whether a rule fails.
+func TestUnknownKeys_SeverityNamesAdvisory(t *testing.T) {
+	found, err := UnknownKeys([]byte("name: X\nvocabulary:\n  forbidden_terms:\n    - term: utilize\n      severity: minor\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(found) != 1 || found[0].Field != "vocabulary.forbidden_terms[0].severity" {
+		t.Fatalf("want one problem on the severity key, got %+v", found)
+	}
+	if !strings.Contains(found[0].Message, "advisory: true") {
+		t.Errorf("the message names advisory: %q", found[0].Message)
+	}
 }

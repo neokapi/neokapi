@@ -200,7 +200,8 @@ rules leave code out with `scope: prose` instead.
 
 Use the approved (preferred) term; avoid deprecated/forbidden ones. A bound
 terms store also feeds the translation step, and so does a `term_rules:` list in
-the translate step's config (one term, its replacement, a severity), the same
+the translate step's config (one term, its replacement, `advisory: true` for a
+rule that only reports), the same
 shape the voice profile's `vocabulary:` writes.
 
 ## Publish (format round-trip)

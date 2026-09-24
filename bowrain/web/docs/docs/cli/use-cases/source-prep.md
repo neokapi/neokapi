@@ -87,8 +87,11 @@ Run it, then gate on the findings: the flow annotates the content, and
 ```bash
 kapi run source-checks --target-lang fr
 kapi check src/locales/en/*.json --target src/locales/fr/app.json \
-  --target-lang fr --max-critical 0
+  --target-lang fr
 ```
+
+The command exits non-zero when a finding fails; advisory findings are
+reported and fail nothing.
 
 ### Scoping and Content Stats
 

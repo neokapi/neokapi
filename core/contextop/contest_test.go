@@ -21,11 +21,11 @@ func TestContest_TwoSuggestionsDisagree(t *testing.T) {
 	ctx := context.Background()
 	ledger := contextop.NewLedger(openWorkspace(t), contextop.Allow)
 
-	a, err := ledger.Append(ctx, contextop.Record{Project: "prj", Actor: agent("claude", "s1"), Kind: contextop.KindObserve, Subject: termRule("utilise", "use", "")})
+	a, err := ledger.Append(ctx, contextop.Record{Project: "prj", Actor: agent("claude", "s1"), Kind: contextop.KindObserve, Subject: termRule("utilise", "use", false)})
 	require.NoError(t, err)
-	b, err := ledger.Append(ctx, contextop.Record{Project: "prj", Actor: agent("claude", "s2"), Kind: contextop.KindObserve, Subject: termRule("utilise", "employ", "")})
+	b, err := ledger.Append(ctx, contextop.Record{Project: "prj", Actor: agent("claude", "s2"), Kind: contextop.KindObserve, Subject: termRule("utilise", "employ", false)})
 	require.NoError(t, err)
-	other, err := ledger.Append(ctx, contextop.Record{Project: "elsewhere", Actor: agent("claude", "s3"), Kind: contextop.KindObserve, Subject: termRule("utilise", "apply", "")})
+	other, err := ledger.Append(ctx, contextop.Record{Project: "elsewhere", Actor: agent("claude", "s3"), Kind: contextop.KindObserve, Subject: termRule("utilise", "apply", false)})
 	require.NoError(t, err)
 
 	st, by := status(t, ledger, a.ID)
@@ -48,10 +48,10 @@ func TestContest_SuggestionAgainstAnEstablishedRule(t *testing.T) {
 	ctx := context.Background()
 	ledger := contextop.NewLedger(openWorkspace(t), contextop.Allow)
 
-	rule, err := ledger.Append(ctx, contextop.Record{Project: "prj", Actor: person("asgeir"), Kind: contextop.KindEdit, Subject: termRule("sign in", "log in", "")})
+	rule, err := ledger.Append(ctx, contextop.Record{Project: "prj", Actor: person("asgeir"), Kind: contextop.KindEdit, Subject: termRule("sign in", "log in", false)})
 	require.NoError(t, err)
 	// The suggestion avoids the form the rule says to use.
-	suggestion, err := ledger.Append(ctx, contextop.Record{Project: "prj", Actor: agent("claude", "s1"), Kind: contextop.KindObserve, Subject: termRule("log in", "sign in", "")})
+	suggestion, err := ledger.Append(ctx, contextop.Record{Project: "prj", Actor: agent("claude", "s1"), Kind: contextop.KindObserve, Subject: termRule("log in", "sign in", false)})
 	require.NoError(t, err)
 
 	st, _ := status(t, ledger, rule.ID)
@@ -65,7 +65,7 @@ func TestContest_APersonsCorrectionReversesAnEstablishedRule(t *testing.T) {
 	ctx := context.Background()
 	ledger := contextop.NewLedger(openWorkspace(t), contextop.Allow)
 
-	rule, err := ledger.Append(ctx, contextop.Record{Project: "prj", Actor: agent("claude", "s1"), Kind: contextop.KindObserve, Subject: termRule("sign in", "log in", "")})
+	rule, err := ledger.Append(ctx, contextop.Record{Project: "prj", Actor: agent("claude", "s1"), Kind: contextop.KindObserve, Subject: termRule("sign in", "log in", false)})
 	require.NoError(t, err)
 	_, err = ledger.Append(ctx, contextop.Record{Project: "prj", Actor: person("asgeir"), Kind: contextop.KindKeep, Target: rule.ID})
 	require.NoError(t, err)
@@ -98,8 +98,8 @@ func TestContest_APersonsCorrectionReversesAnEstablishedRule(t *testing.T) {
 
 func TestResolve_ContestedRulesAdvise(t *testing.T) {
 	records := []contextop.Record{
-		{ID: "1", Seq: 1, Project: "prj", Kind: contextop.KindObserve, Subject: termRule("utilise", "use", ""), Status: contextop.StatusContested},
-		{ID: "2", Seq: 2, Project: "prj", Kind: contextop.KindObserve, Subject: termRule("leverage", "use", ""), Status: contextop.StatusEstablished, Established: true},
+		{ID: "1", Seq: 1, Project: "prj", Kind: contextop.KindObserve, Subject: termRule("utilise", "use", false), Status: contextop.StatusContested},
+		{ID: "2", Seq: 2, Project: "prj", Kind: contextop.KindObserve, Subject: termRule("leverage", "use", false), Status: contextop.StatusEstablished, Established: true},
 	}
 	res := contextop.Resolve(records, nil, contextop.ResolveRequest{Project: "prj"})
 	require.Len(t, res.Advisory, 1)

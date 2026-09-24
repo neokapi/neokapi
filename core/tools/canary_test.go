@@ -53,7 +53,7 @@ func inertChecker(*model.Block) ([]check.Finding, error) { return nil, nil }
 func TestVoiceVocabCanaries(t *testing.T) {
 	ctx := context.Background()
 	forbidden := &coreprofile.VoiceProfile{ID: "p"}
-	forbidden.Vocabulary.ForbiddenTerms = []coreprofile.TermRule{{Term: "risk-free", Severity: "critical"}}
+	forbidden.Vocabulary.ForbiddenTerms = []coreprofile.TermRule{{Term: "risk-free"}}
 	forbidden.Vocabulary.CompetitorTerms = []coreprofile.TermRule{{Term: "Acme"}}
 	forbidden.Style.ProhibitedPatterns = []coreprofile.Pattern{{Regex: `(?i)\bsimply\b`}}
 

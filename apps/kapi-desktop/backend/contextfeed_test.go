@@ -132,7 +132,7 @@ func TestKeepingWithAnEditIsWhatTheAgentReadsNext(t *testing.T) {
 		Project:     key,
 		ID:          proposal.ID,
 		Replacement: "sign in",
-		Severity:    "minor",
+		Advisory:    new(true),
 		Note:        "the store says sign in",
 	})
 	require.NoError(t, err)
@@ -146,7 +146,7 @@ func TestKeepingWithAnEditIsWhatTheAgentReadsNext(t *testing.T) {
 	rule, ok := read.Operations[0].Rule()
 	require.True(t, ok)
 	assert.Equal(t, "sign in", rule.Replacement, "the person's edit is the rule in force")
-	assert.Equal(t, "minor", rule.Severity)
+	assert.True(t, rule.Advisory)
 
 	feed, err := app.ContextFeed(key, 0)
 	require.NoError(t, err)

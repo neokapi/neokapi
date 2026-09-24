@@ -145,7 +145,7 @@ func (t *AICheckTool) annotate(v tool.BlockView) error {
 	for _, iss := range result.Issues {
 		findings = append(findings, check.Finding{
 			Category:   iss.Type,
-			Severity:   aiCheckSeverity(iss.Severity),
+			Fails:      iss.Severity == "error",
 			Message:    iss.Description,
 			Suggestion: iss.Suggestion,
 		})
@@ -155,17 +155,4 @@ func (t *AICheckTool) annotate(v tool.BlockView) error {
 	v.SetProperty("qa-checks", strings.Join(t.checks, ","))
 
 	return nil
-}
-
-// aiCheckSeverity maps the LLM structured-output severity ("error"/"warning"/
-// "info") onto the unified core/check severity scale.
-func aiCheckSeverity(s string) check.Severity {
-	switch s {
-	case "error":
-		return check.SeverityMajor
-	case "warning":
-		return check.SeverityMinor
-	default: // "info" and any unrecognized value carry no penalty.
-		return check.SeverityNeutral
-	}
 }

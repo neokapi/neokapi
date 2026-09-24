@@ -5,7 +5,7 @@ package format
 // opt-in and DEFAULT-OFF: the zero ValidationMode (ValidationOff) leaves a
 // reader's behavior byte-identical to before — no diagnostics are recorded and
 // the lenient extraction path is untouched. The `kapi check --validate` flag
-// turns it on and folds the diagnostics into the kapi.check/v1 Report.
+// turns it on and folds the diagnostics into the kapi.check/v2 Report.
 //
 // The contract lives in core/format and imports nothing from core/check: the
 // framework's format layer must stay platform-agnostic. The check layer maps

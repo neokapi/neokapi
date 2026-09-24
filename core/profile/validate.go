@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/check"
 	"gopkg.in/yaml.v3"
 )
 
@@ -108,12 +107,6 @@ var (
 	validPersonPOV      = []string{"first_plural", "second", "third"}
 	validContractions   = []string{"always", "sometimes", "never"}
 	validCategory       = []string{"tone", "style", "vocabulary"}
-	validSeverity       = []string{
-		string(check.SeverityNeutral),
-		string(check.SeverityMinor),
-		string(check.SeverityMajor),
-		string(check.SeverityCritical),
-	}
 )
 
 // ValidateProfile checks a VoiceProfile for structural problems and returns one
@@ -282,7 +275,6 @@ func validatePatterns(add func(field, msg string), base string, patterns []Patte
 				add(f+".regex", fmt.Sprintf("invalid regex %q: %v", pat.Regex, err))
 			}
 		}
-		checkEnum(add, f+".severity", pat.Severity, validSeverity)
 		validatePatternRule(add, f, pat)
 		if src := strings.TrimSpace(pat.NotAfter); src != "" {
 			if _, err := regexp.Compile(src); err != nil {
@@ -293,7 +285,7 @@ func validatePatterns(add func(field, msg string), base string, patterns []Patte
 }
 
 // validateTerms checks a list of vocabulary term rules: the term text must be
-// non-empty and any severity must be a known level. A forbidden term may carry
+// non-empty. A forbidden term may carry
 // an empty replacement (meaning "remove the term"), so the replacement is not
 // required.
 func validateTerms(add func(field, msg string), base string, terms []TermRule) {
@@ -302,7 +294,6 @@ func validateTerms(add func(field, msg string), base string, terms []TermRule) {
 		if strings.TrimSpace(t.Term) == "" {
 			add(f+".term", "term is empty")
 		}
-		checkEnum(add, f+".severity", t.Severity, validSeverity)
 	}
 }
 
@@ -348,7 +339,6 @@ func FieldValues() map[string]FieldValueSet {
 		"style.person_pov":      {Values: slices.Clone(validPersonPOV)},
 		"style.contractions":    {Values: slices.Clone(validContractions)},
 		"examples.category":     {Values: slices.Clone(validCategory)},
-		"severity":              {Values: slices.Clone(validSeverity)},
 		"scope":                 {Values: []string{ScopeProse, ScopeCode, ScopeHeading}},
 	}
 }

@@ -71,7 +71,6 @@ func TestRunChecksOnBlock_MapsFindingsToWireShape(t *testing.T) {
 func TestCheckIssuesFromFindings_KeepsWhatTheFindingLocated(t *testing.T) {
 	located := check.Finding{
 		Category:     "doubled-word",
-		Severity:     check.SeverityMinor,
 		Message:      `Target contains doubled word: "le"`,
 		Suggestion:   "Remove the repetition",
 		OriginalText: "le le",
@@ -79,7 +78,7 @@ func TestCheckIssuesFromFindings_KeepsWhatTheFindingLocated(t *testing.T) {
 	}
 	unlocated := check.Finding{
 		Category: "empty-target",
-		Severity: check.SeverityMajor,
+		Fails:    true,
 		Message:  "Target is empty but source has content",
 	}
 

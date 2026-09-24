@@ -25,11 +25,8 @@ style:
 vocabulary:
     forbidden_terms:
         - term: utilize
-          severity: major
         - term: leverage
-          severity: major
         - term: cutting-edge
-          severity: major
 `
 
 const mixedVoice = `name: Mixed
@@ -40,7 +37,7 @@ vocabulary:
         - term: utilize
           replacement: use
         - term: leverage
-          severity: minor
+          advisory: true
     competitor_terms:
         - term: Globex
 `
@@ -80,7 +77,7 @@ func TestVoiceRewrite_ReportsSkippedRules(t *testing.T) {
 	for _, s := range out.Skipped {
 		terms = append(terms, s.Term)
 		assert.Equal(t, profile.RewriteSkipNoReplacement, s.Reason)
-		assert.Equal(t, profile.SeverityMajor, s.Severity)
+		assert.True(t, s.Fails)
 		assert.Equal(t, "forbidden", s.List)
 	}
 	assert.Equal(t, []string{"utilize", "leverage", "cutting-edge"}, terms)
@@ -99,10 +96,10 @@ func TestVoiceRewrite_MixedProfileChangesAndSkips(t *testing.T) {
 	assert.Equal(t, []output.VoiceChange{{From: "utilize", To: "use", Count: 1}}, out.Changes)
 	require.Len(t, out.Skipped, 2)
 	assert.Equal(t, "leverage", out.Skipped[0].Term)
-	assert.Equal(t, profile.SeverityMinor, out.Skipped[0].Severity)
+	assert.False(t, out.Skipped[0].Fails)
 	assert.Equal(t, "Globex", out.Skipped[1].Term)
 	assert.Equal(t, "competitor", out.Skipped[1].List)
-	assert.Equal(t, profile.SeverityCritical, out.Skipped[1].Severity)
+	assert.True(t, out.Skipped[1].Fails)
 }
 
 func TestVoiceRewrite_HumanOutputSummarisesSkipped(t *testing.T) {
@@ -112,7 +109,7 @@ func TestVoiceRewrite_HumanOutputSummarisesSkipped(t *testing.T) {
 		"--input-text", "Leverage our cutting-edge workspace to utilize your content.")
 	require.NoError(t, runErr)
 	assert.Contains(t, raw, "3 violation(s) found, not rewritten: utilize, leverage, cutting-edge")
-	assert.Contains(t, raw, `"leverage" [major/forbidden]: no replacement in the profile`)
+	assert.Contains(t, raw, `"leverage" [fails/forbidden]: no replacement in the profile`)
 	assert.Contains(t, raw, "verify with 'kapi voice check'")
 }
 

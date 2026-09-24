@@ -16,13 +16,6 @@ type VoiceAnnotation struct {
 // AnnotationType returns the type identifier for this annotation.
 func (a *VoiceAnnotation) TypeName() string { return "voice" }
 
-// FindingSeverities implements check.SeverityLister so the source-readiness
-// gate (core/check) folds voice findings into its severity roll-up
-// without a dependency cycle.
-func (a *VoiceAnnotation) FindingSeverities() []check.Severity {
-	out := make([]check.Severity, len(a.Findings))
-	for i, f := range a.Findings {
-		out[i] = f.Severity
-	}
-	return out
-}
+// CheckFindings implements check.FindingLister so the source-readiness gate
+// (core/check) reads voice findings without a dependency cycle.
+func (a *VoiceAnnotation) CheckFindings() []check.Finding { return a.Findings }

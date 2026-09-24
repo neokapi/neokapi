@@ -40,7 +40,7 @@ func TestCheckChannelVocabularyAppliesOnlyInItsChannel(t *testing.T) {
 			found := utilizeFindings(draft)
 			require.Len(t, found, want, "the child channel's forbidden term applies in that channel only")
 			for _, d := range found {
-				assert.Equal(t, check.SeverityMajor, d.Severity, "the rule keeps the severity the channel gave it")
+				assert.True(t, d.Fails, "the rule keeps the severity the channel gave it")
 			}
 
 			file := filepath.Join(root, channel, "page.json")

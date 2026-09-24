@@ -5,6 +5,7 @@
 // locale override's vocabulary is edited exactly as the profile's own is, and
 // an override is not a second, thinner surface for the same decision.
 
+import { RULE_OUTCOMES, ruleOutcome } from "../../types/voice";
 import { memo } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Button, Input, Textarea, TagInput, Switch, Label, cn } from "@neokapi/ui-primitives";
@@ -116,11 +117,11 @@ function TermRuleListEditorInner({
               />
             </Field>
             <ValueField
-              id={`severity-${rule.term}`}
-              label={t("Severity")}
-              value={rule.severity ?? ""}
-              onChange={(v) => update({ ...rule, severity: v })}
-              set={sets.severity}
+              id={`outcome-${rule.term}`}
+              label={t("Outcome")}
+              value={ruleOutcome(rule.advisory)}
+              onChange={(v) => update({ ...rule, advisory: v === "reports" })}
+              set={RULE_OUTCOMES}
             />
           </div>
           <Field label={t("Note")}>
@@ -200,7 +201,7 @@ function PatternListEditorInner({
       label={label}
       items={patterns}
       onChange={onChange}
-      blank={(): Pattern => ({ regex: "", description: "", severity: "" })}
+      blank={(): Pattern => ({ regex: "", description: "" })}
       addLabel={t("Add pattern")}
       emptyHint={emptyHint}
       testid={testid}
@@ -225,11 +226,11 @@ function PatternListEditorInner({
           </div>
           <div className="grid gap-2 sm:grid-cols-4">
             <ValueField
-              id={`pattern-severity-${pattern.regex}`}
-              label={t("Severity")}
-              value={pattern.severity}
-              onChange={(v) => update({ ...pattern, severity: v })}
-              set={sets.severity}
+              id={`pattern-outcome-${pattern.regex}`}
+              label={t("Outcome")}
+              value={ruleOutcome(pattern.advisory)}
+              onChange={(v) => update({ ...pattern, advisory: v === "reports" })}
+              set={RULE_OUTCOMES}
             />
             <ValueField
               id={`pattern-scope-${pattern.regex}`}

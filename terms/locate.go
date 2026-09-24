@@ -65,11 +65,11 @@ type Occurrence struct {
 	// graph. Empty for a rule that names none, which a standalone profile with
 	// no backing store is entitled to.
 	ConceptID string
-	// Severity and Kind come from the rule that matched and are empty for a
-	// store match, which carries Status and Competitor instead. Nothing here is
-	// a judgement about whether the occurrence is a problem: a term being used
+	// Fails and Kind come from the rule that matched and are empty for a store
+	// match, which carries Status and Competitor instead. Nothing here is a
+	// judgement about whether the occurrence is a problem: a term being used
 	// is a fact, and which uses are violations is the consuming gate's policy.
-	Severity profile.Severity
+	Fails    bool
 	Category profile.Dimension
 	Kind     profile.VocabKind
 	// Status is the concept's standing for a store match: preferred, approved,
@@ -90,10 +90,10 @@ type Occurrence struct {
 	// it stands.
 	DoNotTranslate bool
 	Source         OccurrenceSource
-	// Advisory marks a hit against a rule nobody has confirmed: one of the
-	// candidates a project has accumulated (core/contextop). It carries
-	// SeverityNeutral, so the consuming gate reports it and nothing else.
-	Advisory bool
+	// Suggested marks a hit against a suggested rule: one a project has
+	// accumulated and nobody has settled (core/contextop). It never fails, so
+	// the consuming gate reports it and nothing else.
+	Suggested bool
 	// Start and End are byte offsets into the searched text, for a consumer that
 	// reports over flat text rather than over runs.
 	Start, End int
@@ -161,12 +161,12 @@ func ruleOccurrences(req LocateRequest) []Occurrence {
 			Replacement:    h.Replacement,
 			Note:           h.Note,
 			ConceptID:      h.ConceptID,
-			Severity:       h.Severity,
+			Fails:          h.Fails,
 			Category:       h.Category,
 			Kind:           h.Kind,
 			DoNotTranslate: dnt[strings.ToLower(h.Term)],
 			Source:         SourceRule,
-			Advisory:       h.Advisory,
+			Suggested:      h.Suggested,
 			Start:          h.Start,
 			End:            h.End,
 		})
@@ -324,13 +324,13 @@ func (o Occurrence) Hit() profile.VocabHit {
 	return profile.VocabHit{
 		Kind:        o.Kind,
 		Category:    o.Category,
-		Severity:    o.Severity,
+		Fails:       o.Fails,
 		Term:        o.Term,
 		Replacement: o.Replacement,
 		Note:        o.Note,
 		ConceptID:   o.ConceptID,
 		Start:       o.Start,
 		End:         o.End,
-		Advisory:    o.Advisory,
+		Suggested:   o.Suggested,
 	}
 }

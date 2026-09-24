@@ -238,7 +238,8 @@ export interface FormatInfo {
 /** One content-check finding, flattened for the Checks panel. */
 export interface DesktopFinding {
   category: string;
-  severity: string; // "neutral" | "minor" | "major" | "critical"
+  /** Whether the finding fails the check; one that does not fail reports. */
+  fails: boolean;
   message: string;
   suggestion?: string;
   original_text?: string;
@@ -292,7 +293,8 @@ export type RunAnchor = Anchor;
 /** One content-verification result as the engine produces it (core/check.Finding). */
 export interface CheckFinding {
   category: string;
-  severity: string; // "neutral" | "minor" | "major" | "critical"
+  /** Whether the finding fails the check; one that does not fail reports. */
+  fails: boolean;
   message: string;
   suggestion?: string;
   position: RunAnchor;
@@ -742,7 +744,8 @@ export interface ContextSubject {
   kind?: string;
   term?: string;
   replacement?: string;
-  severity?: string;
+  /** The rule reports without failing a check. */
+  advisory?: boolean;
   /** The other forms a term rule avoids, beside `term`. */
   forms?: string[];
   source?: string;
@@ -850,7 +853,8 @@ export interface ContextDecisionRequest {
   id: string;
   /** Edits applied as the rule is kept. */
   replacement?: string;
-  severity?: string;
+  /** Whether the rule only reports; absent leaves it as proposed. */
+  advisory?: boolean;
   /** "workspace", or an axis the rule stops being specific about. */
   widen_to?: string;
   note?: string;

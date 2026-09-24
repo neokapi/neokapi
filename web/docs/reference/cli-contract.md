@@ -130,7 +130,7 @@ Under `--json` (or `--jq` / `--output-format=json`), a failing command prints a 
 | 0 | (none) | Success |
 | 1 | `error` | Operational error |
 | 2 | `usage` | Usage / invocation error (also grep-style "trouble" for the toolbox utilities) |
-| 3 | `gate` | A quality or voice gate failed (e.g. `kapi voice check --min-score`), distinct from an operational error so CI can tell "the content isn't good enough" from "the tool broke" |
+| 3 | `gate` | A check failed: at least one finding fails (`kapi check`, `kapi check --ship`, `kapi voice check`), distinct from an operational error so CI can tell "the content isn't good enough" from "the tool broke" |
 | 4 | `did_not_run` | `kapi check` reached no verdict: it checked no content, or one of its checks reported nothing on the known-bad sample it runs beside the content. Never a pass |
 | 130 | `signal` | Interrupted (SIGINT/SIGTERM); no error line is printed |
 
@@ -197,8 +197,16 @@ and cannot be combined with `profile_file` or `profile_pack`. The result keeps
 the destination need not exist. Unscoped snippet checks retain their explicit
 profile options. See [Checks](/framework/checks) for report coverage.
 
+The check report schema is `kapi.check/v2`. Its `summary` carries `findings`,
+`failing`, `reporting` and `score`. Each finding carries `fails` (a boolean the
+rule that raised it sets) and, when a suggested rule raised it,
+`suggested: true`. Findings sort failing first, then by rule. The verdict fails
+when at least one finding fails; the score is reported and decides nothing.
+`kapi check --ship` findings carry the same `fails`, and its summary counts
+`failing` and `reporting`.
+
 The optional `execution.contexts` array adds per-input guidance selection to
-`kapi.check/v1` without changing existing report fields. Entries contain `file`
+`kapi.check/v2` without changing the other report fields. Entries contain `file`
 or `context_path`, `voice` (`selection`, `applied`, optional `name`, `source`,
 `profile` and `channel`), `terms_applied`, and, when a project resolved the
 guidance, `point` (`profile`, `channel`, and `comments` for the point a file's
@@ -210,7 +218,7 @@ it. Explicit voice overrides retain their behavior and are identified as
 `override`; MCP field descriptions state that omitting overrides preserves
 file-scoped project guidance. See [Checks](/framework/checks) for interpretation.
 
-The optional `evaluation` object is additive to `kapi.check/v1` and says what
+The optional `evaluation` object is additive to `kapi.check/v2` and says what
 the run was evaluated against. It contains `at` (RFC 3339 in UTC), `tool`
 (`name`, `version`, `commit`) and `analyzers`, an entry per analyzer with `id`,
 `ran` and, for the inputs it produced no usable result for, `not_run` entries
@@ -218,20 +226,20 @@ carrying `status`, `reason` and `inputs`. A run inside a project also carries
 `context` (`project`, `name`, `revision`, `stale`, `stale_reason`), the same
 shape the MCP context replies carry as `provenance`, and a run a plugin served
 carries `plugins` (`name`, `version`, `serves`). `Decide` never reads the
-record, so it leaves `pass`, `verdict`, `summary`, `gate` and the exit code as
+record, so it leaves `pass`, `verdict`, `summary` and the exit code as
 they are, and the human output carries none of it. Every producer of a
-`kapi.check/v1` Report supplies it: `kapi check` whole or scoped to a diff, the
+`kapi.check/v2` Report supplies it: `kapi check` whole or scoped to a diff, the
 report `kapi apply` returns for a comment edit it re-checked, and the MCP
 `check_file` and `check_text` tools. `kapi check --ship` reports gates rather
 than a Report and carries no evaluation record, and neither does the findings
 roll-up of `kapi exec <check>`. See [Checks](/framework/checks) for the fields.
 
-The optional `warnings` array is also additive to `kapi.check/v1`, and the
+The optional `warnings` array is also additive to `kapi.check/v2`, and the
 `kapi check --ship` result carries the same array at its top level. Each entry
 contains `code`, `message`, `source` and, when the warning concerns one key,
 `key`. The array is omitted when a run has none. Warnings describe the
 configuration a check ran under, and they never change `pass`, `verdict`,
-`summary`, `gate` or the exit code. The MCP `check_text` and `check_file` tools
+`summary` or the exit code. The MCP `check_text` and `check_file` tools
 return them in the same report, and the `check_report_warnings` golden in
 `cli/contract_golden_test.go` pins the shape. See [Checks](/framework/checks)
 for the codes.
@@ -262,8 +270,8 @@ None of them takes an actor. The kind is `agent`, the name is the client's own
 argument naming an actor or a session is refused by the schema. Evidence is
 required where a rule is stated: `context_observe` refuses a term rule with no
 `path`, and `context_correct` declares `path` as required and refuses a blank
-one. A recorded operation is a suggestion, so a check reports it at `neutral`
-severity with `advisory: true` and no gate counts it. The record carries
+one. A recorded operation is a suggestion, so a check reports it with
+`"fails": false` and `"suggested": true`. The record carries
 `contested_by` when it disagrees with another rule.
 
 There is no MCP tool for keeping, dropping, reverting or widening, and none is

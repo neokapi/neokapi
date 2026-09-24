@@ -166,7 +166,7 @@ func TestLedger_PolicyRefusesAnAgentConfirmation(t *testing.T) {
 
 	proposed, err := ledger.Append(ctx, contextop.Record{
 		Project: "prj_docs", Actor: agent("claude", "s1"),
-		Kind: contextop.KindObserve, Subject: termRule("utilise", "use", ""),
+		Kind: contextop.KindObserve, Subject: termRule("utilise", "use", false),
 	})
 	require.NoError(t, err)
 
@@ -197,7 +197,7 @@ func TestLedger_DefaultPolicyIsPersonDecides(t *testing.T) {
 	ledger := contextop.NewLedger(openWorkspace(t), nil)
 	_, err := ledger.Append(ctx, contextop.Record{
 		Project: "prj_docs", Actor: agent("claude", "s1"),
-		Kind: contextop.KindObserve, Subject: termRule("utilise", "use", ""),
+		Kind: contextop.KindObserve, Subject: termRule("utilise", "use", false),
 	})
 	require.NoError(t, err)
 	_, err = ledger.Append(ctx, contextop.Record{

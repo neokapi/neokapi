@@ -74,7 +74,6 @@ vocabulary:
   forbidden_terms:
     - term: ` + term + `
       replacement: ` + replacement + `
-      severity: major
 `
 }
 

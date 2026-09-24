@@ -78,7 +78,7 @@ func TestVerify_ExplicitVoiceUnboundDidNotRun(t *testing.T) {
 	assert.False(t, g.Pass)
 	require.NotEmpty(t, g.Findings)
 	assert.Contains(t, g.Findings[0].Message, "defaults.voice")
-	assert.Equal(t, "error", g.Findings[0].Severity)
+	assert.True(t, g.Findings[0].Fails)
 	require.Len(t, out.Gates, 1, "only the explicitly requested gate ran")
 }
 
