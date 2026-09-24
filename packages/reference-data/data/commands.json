@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-24T00:11:52Z",
+  "generatedAt": "2026-09-24T00:37:58Z",
   "commands": [
     {
       "id": "add",
@@ -678,8 +678,8 @@
         }
       ],
       "examples": [
-        "kapi context drop 7",
-        "kapi context drop 7 --note \"we say it both ways on purpose\""
+        "kapi context drop 0n794e2gk7",
+        "kapi context drop 0n794e2gk7 --note \"we say it both ways on purpose\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -806,12 +806,12 @@
         }
       ],
       "examples": [
-        "kapi context keep 7",
-        "kapi context keep 7 9 12",
+        "kapi context keep 0n794e2gk7",
+        "kapi context keep 0n794e2gk7 0n79gkq853",
         "kapi context keep --session s0ab4e399",
-        "kapi context keep 7 --use \"content memory\"",
-        "kapi context keep 7 --advisory=false",
-        "kapi context keep 7 --widen-to workspace"
+        "kapi context keep 0n794e2gk7 --use \"content memory\"",
+        "kapi context keep 0n794e2gk7 --advisory=false",
+        "kapi context keep 0n794e2gk7 --widen-to workspace"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -857,7 +857,7 @@
       ],
       "use": "log",
       "short": "Show how this project's context came to be",
-      "long": "List what has been observed, corrected, imported and decided about\nthis project's context, newest first.\n\nEach line carries an operation's id, when it happened, who did it, what it was\nabout and where it stands: suggested and waiting for a person, established and\nin force, contested by another rule it names, or withdrawn, dropped or\nreverted.\n\nThe id is what the other verbs take. Narrow the list with --status to see what\nis waiting for a decision, or with --session to see what one agent run did.\n\"--session this\" is that run reading back its own work.",
+      "long": "List what has been observed, corrected, imported and decided about\nthis project's context, newest first.\n\nEach line carries an operation's id, when it happened, who did it, what it was\nabout and where it stands: suggested and waiting for a person, established and\nin force, contested by another rule it names, or withdrawn, dropped or\nreverted.\n\nThe id is what the other verbs take: the short form a line shows, or any start\nof it that names one operation. Narrow the list with --status to see what is\nwaiting for a decision, or with --session to see what one agent run did.\n\"--session this\" is that run reading back its own work.",
       "flags": [
         {
           "name": "actor",
@@ -1032,7 +1032,7 @@
         }
       ],
       "examples": [
-        "kapi context revert 7",
+        "kapi context revert 0n794e2gk7",
         "kapi context revert --session 0ab4e399"
       ],
       "offlineCapable": true,
@@ -1151,8 +1151,8 @@
         }
       ],
       "examples": [
-        "kapi context widen 7 --to workspace",
-        "kapi context widen 7 --to mode"
+        "kapi context widen 0n794e2gk7 --to workspace",
+        "kapi context widen 0n794e2gk7 --to mode"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -1181,8 +1181,8 @@
         }
       ],
       "examples": [
-        "kapi context withdraw 7",
-        "kapi context withdraw 7 --note \"recorded the wrong way round\""
+        "kapi context withdraw 0n794e2gk7",
+        "kapi context withdraw 0n794e2gk7 --note \"recorded the wrong way round\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
