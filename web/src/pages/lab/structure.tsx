@@ -2,6 +2,7 @@ import React from "react";
 import Layout from "@theme/Layout";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import { PdfExplorer } from "@site/src/components/Lab";
+import { LabLaunch } from "@site/src/components/Lab/LabLaunch";
 import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
 
 // Structure & Layout lab: how the engine recovers a document's *shape* — the
@@ -21,23 +22,23 @@ export default function StructureLabPage(): React.ReactElement {
   ];
   return (
     <Layout
-      title="Structure & Layout Lab"
-      description="A PDF is just ink on a page until something recovers its reading order, its outline, and the place of every block. Drop one in and watch neokapi reconstruct its structure — privately, in your browser."
+      title="Structure and layout"
+      description="Examine the reading order, outline and page geometry recovered from a PDF."
     >
       <LabPageShell
-        title="Structure & Layout"
+        title="Structure and layout"
         lede={
           <>
-            A document is more than its words — it has a reading order, an outline, and a place for
-            every block on the page. Drop in a PDF and neokapi recovers all three, right here in
-            your browser. Switch to <strong>Layout</strong> to see each block in its place on the
-            page, <strong>Structure</strong> for the outline, and <strong>Blocks</strong> for the
-            extracted content — so you can see exactly what it found and where. Nothing is fetched
-            until you press Run.
+            Compare a PDF with its extracted reading order, outline and block positions. Open
+            <strong> Layout</strong> to inspect page geometry, <strong>Structure</strong> for the
+            inferred outline, and <strong>Blocks</strong> for the content. Check the recovered order
+            against the original page, especially around tables and columns.
           </>
         }
       >
-        <PdfExplorer samples={samples} />
+        <LabLaunch description="Open the workspace, then run the sample to load the engine and PDF reader. The first run downloads these assets. This browser experiment uses the Go engine with a browser PDF bridge.">
+          <PdfExplorer samples={samples} />
+        </LabLaunch>
       </LabPageShell>
     </Layout>
   );

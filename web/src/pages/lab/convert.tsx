@@ -1,6 +1,7 @@
 import React from "react";
 import Layout from "@theme/Layout";
 import { ConversionExplorer } from "@site/src/components/Lab";
+import { LabLaunch } from "@site/src/components/Lab/LabLaunch";
 import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
 
 // The Conversion Lab: read a document in one format, re-express it in another —
@@ -13,23 +14,23 @@ import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
 export default function ConversionLabPage(): React.ReactElement {
   return (
     <Layout
-      title="Conversion Lab"
-      description="Turn a document into another format — Markdown, HTML, XLIFF, JSON and more — without losing its structure or inline formatting. See the before and after, side by side, right in your browser."
+      title="Conversion lab"
+      description="Compare document formats and inspect which structures each output can represent."
     >
       <LabPageShell
-        title="Conversion Lab"
+        title="Conversion lab"
         lede={
           <>
-            Pick a document. neokapi reads it and understands its structure — headings, lists,
-            tables, inline styling — which you can explore in the <strong>Preview</strong>,{" "}
-            <strong>Blocks</strong>, <strong>Structure</strong> and <strong>Layout</strong> tabs.
-            That one content model never changes; each output-format pill on the right re-serializes
-            it, showing the <strong>Rendered</strong> page and its raw <strong>Source</strong> side
-            by side, so you can confirm nothing was lost in the move. It all runs in your browser.
+            Read a sample into the content model and compare its representations in different output
+            formats. Inspect headings, lists and inline content in both the rendered output and its
+            source. Each destination format has different expressive limits: identify what survives,
+            what changes, and what requires a format-aware round trip through the original file.
           </>
         }
       >
-        <ConversionExplorer defaultSampleId="article-md" defaultTarget="doclang" />
+        <LabLaunch>
+          <ConversionExplorer defaultSampleId="article-md" defaultTarget="doclang" />
+        </LabLaunch>
       </LabPageShell>
     </Layout>
   );

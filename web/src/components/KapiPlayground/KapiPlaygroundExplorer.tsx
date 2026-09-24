@@ -1,4 +1,6 @@
-import React, { Suspense } from "react";
+import React from "react";
+import { ChunkSafeSuspense } from "../ChunkErrorBoundary";
+import { lazyWithRetry } from "../../lib/chunkReload";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 import { FileText, FolderGit2, Play } from "lucide-react";
 import { useKapiPlaygroundConfig } from "./config";
@@ -14,7 +16,7 @@ import "./explorer.css";
 // Selecting a sample seeds the in-memory FS and stages a suggested command at
 // the prompt. The heavy kit (xterm + wasm) is one async chunk, loaded once.
 
-const LazyExplorer = React.lazy(async () => {
+const LazyExplorer = lazyWithRetry(async () => {
   const { KapiEmbed, LOOSE_SAMPLES, PROJECT_SAMPLES } = await import("@neokapi/kapi-playground");
   type KapiEmbedHandle = import("@neokapi/kapi-playground").KapiEmbedHandle;
   type LooseSample = import("@neokapi/kapi-playground").LooseSample;
@@ -140,11 +142,23 @@ const LazyExplorer = React.lazy(async () => {
 
 export default function KapiPlaygroundExplorer(): React.ReactElement {
   return (
-    <BrowserOnly fallback={<p>Loading the in-browser terminal…</p>}>
+    <BrowserOnly
+      fallback={
+        <p role="status" aria-live="polite">
+          Loading the in-browser terminal…
+        </p>
+      }
+    >
       {() => (
-        <Suspense fallback={<p>Loading the in-browser terminal…</p>}>
+        <ChunkSafeSuspense
+          fallback={
+            <p role="status" aria-live="polite">
+              Loading the in-browser terminal…
+            </p>
+          }
+        >
           <LazyExplorer />
-        </Suspense>
+        </ChunkSafeSuspense>
       )}
     </BrowserOnly>
   );

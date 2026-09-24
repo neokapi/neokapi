@@ -3,6 +3,7 @@ import { createMainConfig } from "@neokapi/storybook-config/main";
 const config = createMainConfig(
   {
     stories: [
+      "../../web/src/components/Lab/LabLaunch.stories.tsx",
       "../../packages/ui/src/**/*.stories.@(ts|tsx)",
       "../../packages/flow-editor/src/**/*.stories.@(ts|tsx)",
       "../../packages/editor-grid/src/**/*.stories.@(ts|tsx)",

@@ -3,17 +3,13 @@ import Layout from "@theme/Layout";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import { AudioExplorer, VideoExplorer } from "@site/src/components/Lab";
+import { LabLaunch } from "@site/src/components/Lab/LabLaunch";
 import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
 import { readCdnConfig, cdnEnabled, cdnHref } from "@neokapi/docs-shared";
 
-// Audio & Video lab: the multimodal content pipeline in your browser.
-// Audio — Whisper speech recognition (onnxruntime-web, the kapi-asr model
-// family) turns speech into timing-anchored subtitle cues. Video — ffmpeg.wasm
-// (kapi-av) demuxes the clip into an audio track + sampled frames, Whisper
-// transcribes the speech, and PP-OCRv5 (kapi-vision) reads on-screen text. The
-// same engines the native plugins run; only the runtime differs. Mounting a tab
-// loads nothing — each explorer fetches its models only on its own Transcribe /
-// Process action.
+// Browser recognition bridges recover speech and on-screen text as timed
+// content. Native kapi integrates the corresponding operations through plugins.
+// Each explorer requests models only when its processing action is invoked.
 
 type Tab = "audio" | "video";
 
@@ -48,30 +44,28 @@ export default function MediaLabPage(): React.ReactElement {
 
   return (
     <Layout
-      title="Audio & Video Lab"
-      description="Turn what people say and what appears on screen into time-stamped captions — ready to subtitle a clip in another language. Runs privately on your device; nothing is uploaded."
+      title="Audio and video"
+      description="Inspect speech recognition and on-screen text as timed content in audio and video."
     >
       <LabPageShell
-        title="Audio & Video"
+        title="Audio and video"
         lede={
           <>
-            Caption and translate what people <em>say</em> and what appears <em>on screen</em>. Add
-            an audio or video file and neokapi turns the speech — and any on-screen text — into
-            time-stamped captions you can review, translate, and play back in sync. It runs entirely
-            on your device, so nothing is uploaded, and each tab only fetches what it needs the
-            first time you press play.
+            Compare speech and on-screen text with the timed content recovered from a clip. Check
+            wording and timestamps against playback. These experiments run recognition and media
+            processing through browser bridges; native kapi integrates these operations through
+            plugins.
           </>
         }
         heroExtra={
           <div
             className="mt-4 inline-flex gap-1 rounded-xl border p-1"
-            role="tablist"
+            role="group"
             aria-label="Audio or video"
           >
             <button
               type="button"
-              role="tab"
-              aria-selected={tab === "audio"}
+              aria-pressed={tab === "audio"}
               className={tabClass(tab === "audio")}
               onClick={() => setTab("audio")}
             >
@@ -79,8 +73,7 @@ export default function MediaLabPage(): React.ReactElement {
             </button>
             <button
               type="button"
-              role="tab"
-              aria-selected={tab === "video"}
+              aria-pressed={tab === "video"}
               className={tabClass(tab === "video")}
               onClick={() => setTab("video")}
             >
@@ -89,11 +82,17 @@ export default function MediaLabPage(): React.ReactElement {
           </div>
         }
       >
-        {tab === "audio" ? (
-          <AudioExplorer samples={samples} />
-        ) : (
-          <VideoExplorer samples={samples} modelBase={modelBase} />
-        )}
+        <LabLaunch
+          key={tab}
+          label={`Open ${tab} experiment`}
+          description="Open the workspace to select a clip. Transcribe or Process downloads the required models and media tools on first use. Downloads can be substantial; progress appears in the workspace. Processing stays on your device. Switching between audio and video closes the current experiment."
+        >
+          {tab === "audio" ? (
+            <AudioExplorer samples={samples} />
+          ) : (
+            <VideoExplorer samples={samples} modelBase={modelBase} />
+          )}
+        </LabLaunch>
       </LabPageShell>
     </Layout>
   );
