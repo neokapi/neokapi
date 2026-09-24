@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import RunGate from "./RunGate";
 import type { RunGate as RunGateState } from "./useRunGate";
 
@@ -41,12 +41,38 @@ export default function GateOverlay({
   label,
   engine,
 }: GateOverlayProps): React.ReactElement | null {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const overlay = overlayRef.current;
+    const parent = overlay?.parentElement;
+    if (gate.ready || !overlay || !parent) return;
+    const originals = new Map<Element, string | null>();
+    const protectPreview = () => {
+      for (const sibling of parent.children) {
+        if (sibling === overlay || originals.has(sibling)) continue;
+        originals.set(sibling, sibling.getAttribute("inert"));
+        sibling.setAttribute("inert", "");
+      }
+    };
+    protectPreview();
+    // Samples and result placeholders can mount while the engine downloads.
+    const observer = new MutationObserver(protectPreview);
+    observer.observe(parent, { childList: true });
+    return () => {
+      observer.disconnect();
+      for (const [element, original] of originals) {
+        if (original === null) element.removeAttribute("inert");
+        else element.setAttribute("inert", original);
+      }
+    };
+  }, [gate.ready]);
   if (gate.ready) return null;
   return (
     // A translucent veil rather than an opaque sheet: the lab's idle body shows
     // through, dimmed — a static preview of what Run will bring to life. The
-    // overlay intercepts all pointer events, so the preview stays inert.
-    <div className="absolute inset-0 z-40 bg-background/85 backdrop-blur-[2px]">
+    // overlay intercepts pointer events; sibling inert attributes also block
+    // keyboard focus and remove the covered preview from the accessibility tree.
+    <div ref={overlayRef} className="absolute inset-0 z-40 bg-background/85 backdrop-blur-[2px]">
       <RunGate
         gate={gate}
         title={title}

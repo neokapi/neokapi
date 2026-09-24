@@ -11,7 +11,7 @@ import type { RunGate as RunGateState } from "./useRunGate";
 // run" model). One component, one copy pattern, for every lab and embed:
 //
 //   idle     title · one-line description · [▶ Run in your browser]
-//            "~13 MB engine · runs locally — nothing leaves your machine"
+//            "Browser engine · runs locally"
 //   booting  spinner + "Starting the engine…" (+ download progress bars)
 //   error    the message + Retry
 //
@@ -52,9 +52,6 @@ export interface RunGateProps {
   compact?: boolean;
 }
 
-/** The wasm engine module is ~13 MB (gzipped) on first fetch. */
-const ENGINE_SIZE = "~13 MB";
-
 function fmtSize(bytes?: number): string {
   if (!bytes) return "";
   if (bytes >= 1_000_000_000) return `${(bytes / 1_000_000_000).toFixed(1)} GB`;
@@ -76,13 +73,13 @@ export default function RunGate({
   compact = false,
 }: RunGateProps): React.ReactElement {
   const mgr = usePluginManager();
-  const booting = gate.armed && gate.status === "booting";
+  const booting = gate.armed && (gate.status === "idle" || gate.status === "booting");
   const error = gate.status === "error";
   // Engine already running (activated by a sibling lab or the navbar widget):
   // pressing Run attaches instantly — no engine download this time.
   const warm = engine && !gate.armed && mgr.state.engine.phase === "ready";
 
-  // Engine download fraction (the ~13 MB module), when the server reports a length.
+  // Engine download fraction when the server reports a length.
   const bp = gate.bootProgress;
   const engineFrac = bp && bp.total ? Math.min(1, bp.loaded / bp.total) : null;
 
@@ -91,16 +88,16 @@ export default function RunGate({
     .map((id) => ({ id, st: mgr.state.plugins[id] }))
     .filter((p) => p.st?.phase === "downloading");
 
-  // "~13 MB engine + PDFium (5 MB)" — what the first press will fetch.
+  // Describe requested assets; report actual transfer sizes during loading.
   const parts = [
-    ...(engine ? [`${ENGINE_SIZE} engine`] : []),
+    ...(engine ? ["Browser engine"] : []),
     ...gate.requires.map((id) => {
       const d = PLUGIN_DESCRIPTORS.find((x) => x.id === id);
       return d?.sizeBytes ? `${pluginLabel(id)} (${fmtSize(d.sizeBytes)})` : pluginLabel(id);
     }),
   ];
   const downloadNote = warm
-    ? "engine already running, so it starts instantly"
+    ? "Browser engine already loaded"
     : parts.length > 0
       ? parts.join(" + ")
       : "first download on demand";
@@ -151,7 +148,7 @@ export default function RunGate({
         )}
 
         {error && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" role="alert">
             <p className="m-0 text-xs text-destructive">Failed to start: {gate.error}</p>
             <Button type="button" variant="outline" size="sm" onClick={gate.run}>
               Retry
@@ -236,7 +233,7 @@ export default function RunGate({
       )}
 
       {error && (
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-2" role="alert">
           <p className="text-sm text-destructive">Failed to start: {gate.error}</p>
           <Button type="button" variant="outline" size="sm" onClick={gate.run}>
             Retry
