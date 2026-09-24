@@ -289,7 +289,7 @@ func TestLedger_ResolvesATypedPrefix(t *testing.T) {
 	for _, term := range []string{"utilise", "leverage", "synergy"} {
 		r, err := ledger.Append(ctx, contextop.Record{
 			Project: "prj_docs", Actor: agent("claude", "s1"),
-			Kind: contextop.KindObserve, Subject: termRule(term, "use", ""),
+			Kind: contextop.KindObserve, Subject: termRule(term, "use", false),
 		})
 		require.NoError(t, err)
 		written = append(written, r)
