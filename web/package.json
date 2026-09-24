@@ -35,7 +35,7 @@
     "@neokapi/ui-primitives": "*",
     "clsx": "^2.1.0",
     "icu": "2.2.1",
-    "motion": "^13.1.1",
+    "motion": "^13.4.0",
     "prism-react-renderer": "^2.4.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
