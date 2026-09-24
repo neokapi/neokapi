@@ -119,11 +119,8 @@ func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
 
 // checkPattern refuses a value that is not a MessageFormat pattern.
 //
-// A block's text is MessageFormat source, not plain text: the reader leaves ICU
-// syntax — braces, the `#` placeholder, quoting apostrophes — inside the text
-// runs, so a writer cannot tell an argument a tool meant from a brace it typed.
-// What it can tell is whether the result still parses, and writing one that
-// does not produces a file whose next read fails somewhere else entirely.
+// Inline argument runs are rendered with their original tokens before parsing.
+// A malformed target is rejected before its bytes reach the output.
 func checkPattern(block *model.Block, text string) error {
 	if _, err := parse(text); err != nil {
 		name := block.ID
@@ -169,8 +166,13 @@ func (w *Writer) writeBlock(part *model.Part) error {
 // getBlockText returns the appropriate text from a block, preferring target
 // text when a locale is set.
 func (w *Writer) getBlockText(block *model.Block) string {
+	runs := block.Source
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return block.TargetText(w.Locale)
+		runs = block.Target(w.Locale).Runs
 	}
-	return block.SourceText()
+	text := model.RenderRunsWithData(runs)
+	if raw, ok := format.VerbatimFor(block, "messageformat.raw", text); ok {
+		return raw
+	}
+	return text
 }

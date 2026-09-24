@@ -29,9 +29,10 @@ func parse(pattern string) ([]node, error) {
 
 // segment represents a translatable segment extracted from the pattern.
 type segment struct {
-	path string // Dot-delimited path (e.g., "count.one", "gender.male.count.other")
-	text string // The plain text content of this segment
-	hash bool   // Whether the segment contains # references
+	start, end int    // Byte offsets of a leaf branch body in the original pattern.
+	path       string // Dot-delimited path (e.g., "count.one", "gender.male.count.other")
+	text       string // The plain text content of this segment
+	hash       bool   // Whether the segment contains # references
 }
 
 // extractSegments recursively extracts translatable segments from parsed nodes.
@@ -74,6 +75,12 @@ func extractSegments(nodes []node, pathPrefix string) []segment {
 			}
 			branchPath += n.ArgName + "." + br.Keyword
 			subSegments := extractSegments(br.Body, branchPath)
+			if !icu.HasPicker(br.Body) {
+				for i := range subSegments {
+					subSegments[i].start = br.Start
+					subSegments[i].end = br.End
+				}
+			}
 			segments = append(segments, subSegments...)
 		}
 	}

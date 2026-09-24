@@ -225,7 +225,7 @@ func (r *Reader) emitLine(ctx context.Context, ch chan<- model.PartResult, conte
 	// Extract translatable segments from this pattern.
 	segments := extractSegments(pl.nodes, "")
 
-	if r.skeletonStore != nil && len(segments) == 1 {
+	if r.skeletonStore != nil && len(segments) == 1 && !icu.HasPicker(pl.nodes) {
 		// Simple case: one block per line, use skeleton ref. A single segment is
 		// a branchless leaf, so there is no framing prose to surface and the raw
 		// line is not preserved in the skeleton — leave this path untouched.
@@ -235,24 +235,30 @@ func (r *Reader) emitLine(ctx context.Context, ch chan<- model.PartResult, conte
 		r.skelText(lineEnding)
 
 		block := r.createBlock(blockID, segments[0], pl, &names)
+		format.RecordVerbatim(block, "messageformat.raw", pl.raw, model.RenderRunsWithData(block.Source))
 		return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	}
 
 	if r.skeletonStore != nil {
-		// Complex case: multiple segments per line (plural/select). Store the
-		// entire line as skeleton text for byte-exact roundtrip.
-		r.skelText(pl.raw + lineEnding)
+		// Keep picker syntax in the skeleton and bind every leaf branch to its
+		// block, so edits reach the corresponding branch during writeback.
 		if !emitFrames() {
 			return false
 		}
+		cursor := 0
 		for _, seg := range segments {
 			*blockCounter++
 			blockID := fmt.Sprintf("tu%d", *blockCounter)
+			r.skelText(pl.raw[cursor:seg.start])
+			r.skelRef(blockID)
+			cursor = seg.end
 			block := r.createBlock(blockID, seg, pl, &names)
+			format.RecordVerbatim(block, "messageformat.raw", pl.raw[seg.start:seg.end], model.RenderRunsWithData(block.Source))
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return false
 			}
 		}
+		r.skelText(pl.raw[cursor:] + lineEnding)
 		return true
 	}
 
