@@ -24,6 +24,9 @@ export default function FilesPanel({
   onChange: () => void;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState("");
+  const [uploadError, setUploadError] = useState("");
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   // viewDir is the panel's own browsing position — completely independent of the
   // terminal's cwd. It starts at the runtime cwd and can be browsed freely
@@ -61,11 +64,37 @@ export default function FilesPanel({
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
-    for (const f of files) {
-      const buf = new Uint8Array(await f.arrayBuffer());
-      runtime.vol.writeFile(joinPath(viewDir, f.name), buf);
+    const destination = viewDir;
+    setUploading(true);
+    setUploadError("");
+    setUploadStatus("");
+    const added: string[] = [];
+    const failures: string[] = [];
+    for (const file of files) {
+      try {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const original = file.name.replace(/[\\/]/g, "_");
+        if (!original || original === "." || original === "..") {
+          throw new Error("Choose a file with a valid name.");
+        }
+        const dot = original.lastIndexOf(".");
+        const stem = dot > 0 ? original.slice(0, dot) : original;
+        const extension = dot > 0 ? original.slice(dot) : "";
+        let name = original;
+        let suffix = 1;
+        while (runtime.vol.exists(joinPath(destination, name))) {
+          name = `${stem} (${suffix++})${extension}`;
+        }
+        runtime.vol.writeFile(joinPath(destination, name), bytes);
+        added.push(name);
+      } catch (error) {
+        failures.push(`${file.name}: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
     if (fileInput.current) fileInput.current.value = "";
+    setUploading(false);
+    setUploadStatus(added.length ? `Added to ${destination}: ${added.join(", ")}.` : "");
+    setUploadError(failures.join(" "));
     onChange();
   }
 
@@ -98,18 +127,41 @@ export default function FilesPanel({
         <span className="kapi-pg-files-title">Files</span>
         <button
           type="button"
-          className="kapi-pg-icon-btn kapi-pg-icon-btn--accent"
+          className="kapi-pg-btn kapi-pg-btn--sm"
+          disabled={uploading}
           onClick={() => fileInput.current?.click()}
           aria-label="Upload files"
           title="Upload files"
         >
           <Upload size={16} aria-hidden="true" />
+          <span>{uploading ? "Adding files…" : "Upload files"}</span>
         </button>
-        <input ref={fileInput} type="file" multiple hidden onChange={onUpload} />
+        <input
+          ref={fileInput}
+          aria-label="Choose files to upload"
+          type="file"
+          multiple
+          hidden
+          disabled={uploading}
+          onChange={onUpload}
+        />
       </div>
       <div className="kapi-pg-files-cwd" title={viewDir}>
         {viewDir}
       </div>
+      <p className="kapi-pg-files-help">
+        Use uploaded filenames in commands. Duplicate names get a numbered suffix.
+      </p>
+      {uploadStatus && (
+        <p className="kapi-pg-files-help" role="status">
+          {uploadStatus}
+        </p>
+      )}
+      {uploadError && (
+        <p className="kapi-pg-files-help" role="alert">
+          {uploadError}
+        </p>
+      )}
       <ul className="kapi-pg-file-list">
         {viewDir !== "/" && (
           <li className="kapi-pg-file-row">

@@ -3,6 +3,7 @@ import { createMainConfig } from "@neokapi/storybook-config/main";
 const config = createMainConfig(
   {
     stories: [
+      "../../web/src/components/KapiPlayground/PlaygroundDialog.stories.tsx",
       "../../web/src/components/Lab/LabLaunch.stories.tsx",
       "../../web/src/components/Lab/KapiLessonEvidence.stories.tsx",
       "../../packages/ui/src/**/*.stories.@(ts|tsx)",
