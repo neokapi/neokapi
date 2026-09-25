@@ -13,11 +13,15 @@
 // the toolbox proxies to their standalone binary names.
 //
 //   Run: node --experimental-strip-types scripts/verify-snippets/command-surface-smoke.ts
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve as pathResolve, join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { runInThisContext } from "node:vm";
 import { createMemFS } from "./memfs.ts";
+import { LOOSE_SAMPLES } from "../../packages/kapi-playground/src/samples.ts";
+import { CLI_EXAMPLES } from "../../packages/kapi-playground/src/cliExamples.ts";
+import { parseCommand } from "../../packages/kapi-playground/src/argv.ts";
+import { getFixture } from "../../packages/kapi-playground/src/fixtures.ts";
 import { SAMPLES } from "../../packages/kapi-lab/src/samples.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -323,6 +327,51 @@ for (const id of ["checkout-messageformat", "checkout-checks"]) {
     ok(`${id}: writer changes text`, output !== sample.content);
     ok(`${id}: writer retains placeholder and plural selectors`, output.includes("{name}") && output.includes("{count, plural,") && output.includes("one {") && output.includes("other {"));
     ok(`${id}: writer applies edits inside plural branches`, !output.includes("Your cart is empty") && !output.includes("item is ready for checkout") && !output.includes("items are ready for checkout"));
+  }
+}
+
+// Execute the exact strings shown in the sample picker and terminal help.
+// No Translator bridge is installed in Node, so the browser provider takes
+// its documented deterministic demo fallback without model downloads or API calls.
+console.log("command-surface-smoke: public CLI examples");
+for (const sample of LOOSE_SAMPLES) {
+  const directory = `/cli-example-${sample.id}`;
+  mem.vol.mkdirp(directory);
+  mem.process.chdir(directory);
+  mem.vol.writeFile(`${directory}/${sample.file.path}`, enc.encode(sample.file.content));
+  const result = await run(...parseCommand(sample.suggested));
+  ok(`sample ${sample.id}: ${sample.suggested}`, result.code === 0, result.out.trim().slice(0, 180));
+}
+mem.vol.mkdirp("/cli-help");
+mem.process.chdir("/cli-help");
+mem.vol.writeFile("/cli-help/messages.json", enc.encode(getFixture("messages.json")!.content));
+for (const command of CLI_EXAMPLES) {
+  const result = await run(...parseCommand(command));
+  ok(`terminal help: ${command}`, result.code === 0, result.out.trim().slice(0, 180));
+  if (command.includes("--jq")) ok("stats jq selects a numeric word count", /^\d+\s*$/.test(result.out.trim()), result.out.trim());
+}
+
+// Walkthrough embeds carry runnable command sequences and their complete seeds.
+// Import each generated config directly so the guard exercises what the page runs.
+const embedDirectory = join(REPO_ROOT, "web/src/components/KapiPlayground/embeds");
+for (const filename of readdirSync(embedDirectory).filter((name) => name.endsWith(".embed.ts"))) {
+  const { default: config } = await import(pathToFileURL(join(embedDirectory, filename)).href);
+  const directory = `/embed-${config.id}`;
+  mem.vol.mkdirp(directory);
+  mem.process.chdir(directory);
+  for (const fixture of config.seed ?? []) {
+    const file = getFixture(fixture);
+    if (!file) throw new Error(`Unknown embed fixture ${fixture}`);
+    mem.vol.mkdirp(dirname(`${directory}/${file.name}`));
+    mem.vol.writeFile(`${directory}/${file.name}`, enc.encode(file.content));
+  }
+  for (const file of config.files ?? []) {
+    mem.vol.mkdirp(dirname(`${directory}/${file.path}`));
+    mem.vol.writeFile(`${directory}/${file.path}`, enc.encode(file.content));
+  }
+  for (const step of config.steps) {
+    const result = await run(...parseCommand(step.command));
+    ok(`${config.id}: ${step.command}`, result.code === 0, result.out.trim().slice(0, 180));
   }
 }
 

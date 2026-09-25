@@ -15,7 +15,7 @@
 // in their own `workspaceSamples.ts`; that module now re-exports from here so
 // there is exactly one copy of every sample byte.
 
-import { getFixture } from "./fixtures";
+import { getFixture } from "./fixtures.ts";
 import type { KapiFile } from "./store";
 
 // ── Loose ad-hoc files ──────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ export const LOOSE_SAMPLES: LooseSample[] = [
     label: "HTML page",
     filename: "page.html",
     kind: "text · HTML",
-    suggested: "kapi word-count page.html",
+    suggested: "kapi stats page.html",
     file: fixtureFile("page.html"),
   },
   {
@@ -71,12 +71,12 @@ export const LOOSE_SAMPLES: LooseSample[] = [
   },
   {
     id: "mt",
-    label: "On-device translate",
+    label: "Browser translation or demo",
     filename: "messages.json",
     kind: "text · JSON",
     // Machine-translate via the browser's built-in, on-device Translator API
     // (desktop Chrome 138+); falls back to the illustrative demo engine elsewhere.
-    suggested: "kapi mt-translate messages.json --target-lang fr --provider browser",
+    suggested: "kapi exec mt-translate messages.json --target-lang fr --provider browser",
     file: fixtureFile("messages.json"),
   },
 ];

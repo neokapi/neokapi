@@ -4,7 +4,7 @@ import { openKapi } from "./store";
 import "./styles.css";
 
 export interface RunnableSnippetProps {
-  /** The command to show and run, e.g. "kapi word-count messages.json". */
+  /** The command to show and run, e.g. "kapi stats messages.json". */
   cmd: string;
   /** Fixture names seeded into the session before the command runs. */
   seed?: string[];
