@@ -206,15 +206,17 @@ export default function KapiEmbed({
   // wise the embed shows a Start gate and boots on the reader's press.
   const [started, setStarted] = useState<boolean>(() => bootOnMount || isBooted());
   const [error, setError] = useState<string>("");
+  const [bootAttempt, setBootAttempt] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
   const [maximized, setMaximized] = useState(false);
   const termRef = useRef<KapiTerminalHandle>(null);
+  const pendingRequest = useRef<KapiRunRequest | null>(null);
   const bump = useCallback(() => setRefreshKey((k) => k + 1), []);
   // Was the runtime already warm when this embed mounted? If so, skip the
-  // "Loading (~13 MB)" copy — there is no fetch on a re-open.
+  // download copy — there is no fetch on a re-open.
   const wasWarm = useRef(isBooted());
   // Live engine-boot download progress (bytes), so we render a real bar instead
-  // of an indeterminate spinner while the ~13 MB wasm downloads.
+  // of an indeterminate spinner while the engine downloads.
   const [bootProgress, setBootProgress] = useState<BootProgress | null>(null);
 
   // Drive a run request against a ready terminal: seed fixtures, then type/run
@@ -255,6 +257,7 @@ export default function KapiEmbed({
     () => ({
       openWith: (req: KapiRunRequest) => {
         if (runtime) void drive(runtime, req);
+        else pendingRequest.current = req;
       },
       reset: (resetSeed?: string[]) => {
         if (!runtime) return;
@@ -307,20 +310,25 @@ export default function KapiEmbed({
     };
     // Boot once started; the initial seed is applied above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [started, wasmExecUrl, wasmUrl]);
+  }, [started, wasmExecUrl, wasmUrl, bootAttempt]);
 
   // Once the terminal is mounted and the runtime is ready, drive the initial
   // command (the one supplied at mount time).
   useEffect(() => {
     if (!runtime) return;
-    void drive(runtime, {
-      cmd,
-      steps,
-      autoRun,
-      seed: undefined,
-      files: undefined,
-      binaryFiles: undefined,
-    });
+    const pending = pendingRequest.current;
+    pendingRequest.current = null;
+    void drive(
+      runtime,
+      pending ?? {
+        cmd,
+        steps,
+        autoRun,
+        seed: undefined,
+        files: undefined,
+        binaryFiles: undefined,
+      },
+    );
     // Run the initial command once per (runtime) — seed already applied above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runtime]);
@@ -330,10 +338,17 @@ export default function KapiEmbed({
       <div className="kapi-pg-notice">
         <strong>Could not load the kapi CLI.</strong>
         <p>{error}</p>
-        <p>
-          The module is built by <code>make web-wasm-cli</code> and served from{" "}
-          <code>{wasmUrl}</code>.
-        </p>
+        <button
+          type="button"
+          className="kapi-pg-btn"
+          onClick={() => {
+            setError("");
+            setBootProgress(null);
+            setBootAttempt((attempt) => attempt + 1);
+          }}
+        >
+          Retry loading
+        </button>
       </div>
     );
   }
@@ -351,8 +366,8 @@ export default function KapiEmbed({
           ▶ Run in your browser
         </button>
         <span className="kapi-pg-loading-sub">
-          ~13&nbsp;MB engine · runs locally — nothing leaves your machine. Nothing loads until you
-          press Run.
+          The engine loads when you press Run. Files stay in this browser session. Download any
+          results you want to keep.
         </span>
       </div>
     );
