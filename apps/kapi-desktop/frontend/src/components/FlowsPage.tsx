@@ -427,7 +427,8 @@ export function FlowsPage({
           </SimpleTooltip>
           {isReadOnly && (
             <span className="flex items-center gap-1 text-[11px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted">
-              <Lock size={9} /> {isBuiltIn ? "Built-in (read-only)" : "Flow file (edit it in flows_dir)"}
+              <Lock size={9} />{" "}
+              {isBuiltIn ? "Built-in (read-only)" : "Flow file (edit it in flows_dir)"}
             </span>
           )}
           <div className="ml-auto flex gap-2">
