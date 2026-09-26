@@ -224,7 +224,7 @@ def approvals(review_path, out_path):
             held[src] += 1
             continue
         rows.append({"kind": "review", "file": u["file"], "id": u["key"],
-                     "locale": u["locale"], "status": "reviewed"})
+                     "locale": u["locale"], "status": "established"})
 
     missed = [src for src, n in held.items() if n == 0]
     if missed:

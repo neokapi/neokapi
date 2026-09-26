@@ -362,7 +362,7 @@ func (g *pushGovernor) withdrawsSignOff(blockID string, b *model.Block, locale s
 // venue's ledger holds for its unit: the same test as withdrawsSignOff, read
 // off the record's own pairing against the ledger's.
 func withdrawsInRecord(held, d venue.UnitDecision) bool {
-	if held.ReviewState != venue.ReviewStateSignedOff && held.Status != string(model.TargetStatusEstablished) {
+	if held.Status != string(model.TargetStatusEstablished) {
 		return false
 	}
 	if model.TargetStatus(d.Status).Rank() >= model.TargetStatusEstablished.Rank() {
@@ -449,7 +449,7 @@ func (g *pushGovernor) allowWithdrawal(locale string) (bool, string) {
 	if err == nil {
 		return true, ""
 	}
-	reason := venue.RefusedSignOffWithdrawal
+	reason := venue.RefusedEstablishedWithdrawal
 	if refusal, ok := errors.AsType[review.Refusal](err); ok {
 		reason = refusal.Reason
 	}
@@ -562,11 +562,7 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 					// permission UNDO an approval by sending it back.
 					continue
 				}
-				kind := venue.VerdictApproval
-				if target.Status == model.TargetStatusEstablished {
-					kind = venue.VerdictSignOff
-				}
-				allowed, reason := g.allow(blockID, locale, kind, true)
+				allowed, reason := g.allow(blockID, locale, venue.VerdictApproval, true)
 				if allowed {
 					g.noteAccepted(blockID, group.ItemName, b.Name, locale, prior, target.Status)
 					continue
@@ -634,7 +630,7 @@ func (g *pushGovernor) vetDecisions(held []venue.UnitDecision, decisions []venue
 			if inLedger && withdrawsInRecord(prior, d) {
 				locale := decisionLocale(d)
 				allowed := false
-				reason := venue.RefusedSignOffWithdrawal
+				reason := venue.RefusedEstablishedWithdrawal
 				if locale != "" {
 					// A variant this venue cannot read is a language it cannot
 					// check a permission for, and the sign-off stands.
@@ -662,7 +658,7 @@ func (g *pushGovernor) vetDecisions(held []venue.UnitDecision, decisions []venue
 		}
 
 		locale := decisionLocale(d)
-		kind := d.VerdictKind()
+		kind := venue.VerdictApproval
 		refuse := func(reason string) {
 			g.counts[refusalRef{locale: refusalLocale(locale, d.Variant), kind: kind, reason: reason}]++
 			if inLedger && prior.CarriesVerdict() {

@@ -13,7 +13,7 @@ import (
 // older status-less overlays still hydrate cleanly.
 func TestApplyTargetOverlay_CarriesStatus(t *testing.T) {
 	b := model.NewBlock("tu1", "Hello")
-	require.NoError(t, applyTargetOverlay(b, model.LocaleFrench, []byte(`{"text":"Bonjour","status":"reviewed"}`)))
+	require.NoError(t, applyTargetOverlay(b, model.LocaleFrench, []byte(`{"text":"Bonjour","status":"established"}`)))
 	tgt := b.Target(model.LocaleFrench)
 	require.NotNil(t, tgt)
 	assert.Equal(t, "Bonjour", b.TargetText(model.LocaleFrench))

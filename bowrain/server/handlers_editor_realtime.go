@@ -92,7 +92,7 @@ const legacyTranslationStatusProperty = "translation-status"
 // unit re-enters the work queue, matching host/convergereport.go's
 // ReviewDecisionRejected → draft mapping). The status lives on
 // Block.Targets[Variant(locale)].Status — the framework target ladder
-// (draft → translated → reviewed → signed-off) that convergence/coverage and
+// (draft→translated→established) that convergence/coverage and
 // ship gates consume — so reviewing French never touches German. The legacy
 // block-global Properties["translation-status"] is no longer written.
 //

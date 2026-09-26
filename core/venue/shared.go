@@ -89,7 +89,7 @@ type UnitDecision struct {
 	// before the basis was tracked — unknown, which readers must not confuse
 	// with a source that has moved.
 	ContentHash string `json:"contentHash,omitempty"`
-	ReviewState string `json:"reviewState,omitempty"` // approved | rejected | signed-off
+	ReviewState string `json:"reviewState,omitempty"` // approved | rejected
 	DecidedBy   string `json:"by,omitempty"`          // "" human · "ai/<model>" · "agent/<client>" · server identity
 	DecidedAt   string `json:"at,omitempty"`          // RFC 3339
 	Note        string `json:"note,omitempty"`

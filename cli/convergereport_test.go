@@ -21,7 +21,7 @@ func TestProjectConvergence_Composes(t *testing.T) {
 	require.Len(t, report.Locales, 1)
 	assert.Equal(t, "nb", report.Locales[0].Locale)
 	assert.Equal(t, 100, report.Locales[0].Pct["translated"])
-	assert.Equal(t, 0, report.Locales[0].Pct["reviewed"], "no approved corrections yet")
+	assert.Equal(t, 0, report.Locales[0].Pct["established"], "no approved corrections yet")
 	assert.False(t, report.Locales[0].Shippable, "reviewed:50 unmet")
 
 	// Both translated units await review.
@@ -31,7 +31,7 @@ func TestProjectConvergence_Composes(t *testing.T) {
 	writeReviewedCorrection(t, root, "Apple", "Eple")
 	report2, err := a.ProjectConvergence(context.Background(), filepath.Join(root, "kapi.yaml"), "en")
 	require.NoError(t, err)
-	assert.Equal(t, 50, report2.Locales[0].Pct["reviewed"])
+	assert.Equal(t, 50, report2.Locales[0].Pct["established"])
 	assert.True(t, report2.Locales[0].Shippable)
 	assert.Len(t, report2.Review, 1)
 }
@@ -47,7 +47,7 @@ func TestApproveReviewUnit_PromotesAndLeavesQueue(t *testing.T) {
 	before, err := a.ProjectConvergence(context.Background(), proj, "en")
 	require.NoError(t, err)
 	require.Len(t, before.Review, 2, "both nb units await review")
-	assert.Equal(t, 0, before.Locales[0].Pct["reviewed"])
+	assert.Equal(t, 0, before.Locales[0].Pct["established"])
 
 	// Approve the first queued unit by its (locale, file, key).
 	item := before.Review[0]
@@ -57,7 +57,7 @@ func TestApproveReviewUnit_PromotesAndLeavesQueue(t *testing.T) {
 
 	after, err := a.ProjectConvergence(context.Background(), proj, "en")
 	require.NoError(t, err)
-	assert.Equal(t, 50, after.Locales[0].Pct["reviewed"], "1 of 2 units now reviewed")
+	assert.Equal(t, 50, after.Locales[0].Pct["established"], "1 of 2 units now reviewed")
 	require.Len(t, after.Review, 1, "the approved unit left the queue")
 	assert.NotEqual(t, item.Key, after.Review[0].Key, "the remaining item is the other unit")
 

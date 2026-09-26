@@ -88,8 +88,8 @@ collections:
     target: "{lang}.json"
 ship_gates:
   - when: { locales: [ja] }
-    gate: { translated: 100, reviewed: 0 }
-  - gate: { translated: 100, reviewed: 80 }
+    gate: { translated: 100, established: 0 }
+  - gate: { translated: 100, established: 80 }
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
@@ -146,7 +146,7 @@ defaults:
 collections:
   - path: en.json
     target: "{lang}.json"
-ship_gate: { translated: 100, reviewed: 50 }
+ship_gate: { translated: 100, established: 50 }
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),

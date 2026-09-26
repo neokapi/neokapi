@@ -538,7 +538,7 @@ func scopeLabel(lc LocaleCoverage) string {
 // withholds it.
 //
 // The blocking rung is the *lowest* unmet one (gate.Result.Blocking), so the
-// verdict points at the work that unblocks the rest — saying "blocked: sign-off"
+// verdict points at the work that unblocks the rest — saying "blocked: review"
 // while translation is also short would send someone to the wrong task.
 func shipCell(lc LocaleCoverage, s *output.Styles) string {
 	// Staleness is read before the gate, and whether or not one applies: a stale

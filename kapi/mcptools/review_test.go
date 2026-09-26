@@ -27,7 +27,7 @@ collections:
     content:
       - path: en.json
         target: "{lang}.json"
-ship_gate: { translated: 100, reviewed: 100 }
+ship_gate: { translated: 100, established: 100 }
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
@@ -240,7 +240,7 @@ name: rev-clean
 defaults:
   source_language: en
   target_languages: [nb]
-  source_gate: checked
+  source_gate: written
 collections:
   - name: app
     content:
@@ -281,7 +281,7 @@ func TestHandleReviewUnit_AcceptsASourceLanguageUnit(t *testing.T) {
 	assert.Equal(t, "en", out.Unit.Language)
 	assert.Equal(t, "Apple", out.Unit.Source)
 	assert.Empty(t, out.Unit.Target)
-	assert.Equal(t, "checked", out.Unit.Status)
+	assert.Equal(t, "written", out.Unit.Status)
 	require.NotNil(t, out.Unit.Context)
 	assert.Equal(t, "en.json", out.Unit.Context.Point.Path)
 	assert.True(t, out.Unit.Context.Point.IsSource)

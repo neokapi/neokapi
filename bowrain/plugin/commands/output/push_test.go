@@ -205,8 +205,8 @@ func TestPushOutput_FormatText_RefusedVerdicts(t *testing.T) {
 				BlocksPushed: 47,
 				VerdictsRefused: []venue.DecisionRefusal{
 					{Locale: "fr-FR", Kind: venue.VerdictApproval, Reason: venue.RefusedNoReviewPermission, Count: 2},
-					{Locale: "de-DE", Kind: venue.VerdictSignOff, Reason: venue.RefusedSeparationOfDuties, Count: 1},
-					{Locale: "nb-NO", Kind: venue.VerdictDemotion, Reason: venue.RefusedSignOffWithdrawal, Count: 2},
+					{Locale: "de-DE", Kind: venue.VerdictApproval, Reason: venue.RefusedSeparationOfDuties, Count: 1},
+					{Locale: "nb-NO", Kind: venue.VerdictDemotion, Reason: venue.RefusedEstablishedWithdrawal, Count: 2},
 				},
 				VerdictsRetired: 5,
 			},

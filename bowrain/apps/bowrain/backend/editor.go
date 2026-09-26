@@ -816,7 +816,7 @@ func stampHumanEditOrigin(b *model.Block, loc model.LocaleID) {
 	}
 }
 
-// demoteStaleReviewOnEdit drops a reviewed/signed-off Target.Status back to
+// demoteStaleReviewOnEdit drops a established Target.Status back to
 // translated when an edit changed the target's runs. A review decision judges
 // ONE specific translation, so rewriting it invalidates the approval; the
 // offline cache applies the same rule as the server (server.editor.go), so a

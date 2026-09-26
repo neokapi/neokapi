@@ -77,7 +77,7 @@ func TestReviewBasis_SourceEditWithdrawsTheUnit(t *testing.T) {
 	// Converged: both units reviewed, nothing planned, the locale ships.
 	before := converged(t)
 	require.Len(t, before.Locales, 1)
-	assert.Equal(t, 100, before.Locales[0].Pct["reviewed"])
+	assert.Equal(t, 100, before.Locales[0].Pct["established"])
 	assert.Zero(t, before.Locales[0].Stale)
 	assert.True(t, before.Locales[0].Shippable)
 	assert.Empty(t, before.Review, "nothing is awaiting review")
@@ -94,7 +94,7 @@ func TestReviewBasis_SourceEditWithdrawsTheUnit(t *testing.T) {
 	assert.False(t, after.Locales[0].Verified)
 	assert.Equal(t, 50, after.Locales[0].Pct["translated"],
 		"the stale unit reads at draft, below translated — a target exists, but not of this source")
-	assert.Equal(t, 50, after.Locales[0].Pct["reviewed"])
+	assert.Equal(t, 50, after.Locales[0].Pct["established"])
 	require.Len(t, after.Review, 1, "the stale unit is back in the review queue")
 	assert.Equal(t, "Apricot", after.Review[0].Source)
 
@@ -124,7 +124,7 @@ func TestReviewBasis_SourceEditWithdrawsTheUnit(t *testing.T) {
 
 	restored := converged(t)
 	assert.Zero(t, restored.Locales[0].Stale)
-	assert.Equal(t, 100, restored.Locales[0].Pct["reviewed"])
+	assert.Equal(t, 100, restored.Locales[0].Pct["established"])
 	assert.True(t, restored.Locales[0].Shippable)
 	assert.Empty(t, restored.Review)
 	assert.Len(t, commitAndReadUnits(t, root), 2, "no new decision was needed")
@@ -369,7 +369,7 @@ func TestReviewBasis_MissingBasisIsUnknownNotStale(t *testing.T) {
 	require.Len(t, rep.Locales, 1)
 	assert.Zero(t, rep.Locales[0].Stale, "no basis is not drift")
 	assert.Equal(t, 1, rep.Locales[0].BasisUnknown, "but the assumption is counted, not silent")
-	assert.Equal(t, 50, rep.Locales[0].Pct["reviewed"], "the decision keeps its rung")
+	assert.Equal(t, 50, rep.Locales[0].Pct["established"], "the decision keeps its rung")
 
 	// And it clears itself: deciding the unit again records a basis.
 	writeReviewedCorrection(t, root, "Banana", "")

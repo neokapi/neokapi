@@ -631,7 +631,7 @@ type LocaleTranslationStats struct {
 	TotalWords       int     `json:"total_words"`
 	Percentage       float64 `json:"percentage"`
 	// ApprovedBlocks counts translatable blocks whose target for this locale
-	// carries a review decision (Target.Status reviewed or signed-off).
+	// carries a review decision (Target.Status established).
 	ApprovedBlocks int `json:"approved_blocks"`
 	// FailingChecks counts translated blocks whose target for this locale fails
 	// the project's ship gate — a rule-based check with error severity, OR a

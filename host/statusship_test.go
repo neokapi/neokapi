@@ -55,14 +55,13 @@ func renderStatus(t *testing.T, out StatusOutput) string {
 // TestStatusShipColumnIsAVerdict is the shape of the reworked view: every gated
 // scope reads `ready` or `blocked: <gate>`, and never a percentage.
 func TestStatusShipColumnIsAVerdict(t *testing.T) {
-	twoBar := gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 100}}
-	threeBar := gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 100}, "signed-off": {Pct: 100}}
+	twoBar := gate.Gate{"translated": {Pct: 100}, "established": {Pct: 100}}
 
 	out := StatusOutput{Locales: []LocaleCoverage{
 		covRow("de", twoBar, rep("translated", 4)...),
-		covRow("fr", twoBar, rep("reviewed", 4)...),
+		covRow("fr", twoBar, rep("established", 4)...),
 		covRow("ja", twoBar, append(rep("translated", 1), rep("", 3)...)...),
-		covRow("nb", threeBar, rep("reviewed", 4)...),
+		covRow("nb", twoBar, append(rep("established", 2), rep("translated", 2)...)...),
 	}}
 
 	text := renderStatus(t, out)
@@ -79,7 +78,7 @@ func TestStatusShipColumnIsAVerdict(t *testing.T) {
 	assert.Contains(t, lines["de"], "blocked: review", "translated but unreviewed")
 	assert.Contains(t, lines["fr"], "ready", "clears every bar")
 	assert.Contains(t, lines["ja"], "blocked: translate", "the lowest unmet gate, not review")
-	assert.Contains(t, lines["nb"], "blocked: sign-off", "only the top bar is left")
+	assert.Contains(t, lines["nb"], "blocked: review", "only the top bar is left")
 
 	assert.NotContains(t, text, "shippable", "the verdict is `ready`, not a percentage-adjacent word")
 	assert.Contains(t, text, "1 of 4 scopes ready to ship")
@@ -88,13 +87,13 @@ func TestStatusShipColumnIsAVerdict(t *testing.T) {
 // TestStatusPipelineColumnTracksTheGate: the bar is distance to the ship bar, so
 // its percentage must equal the gate progress and read 100 exactly when ready.
 func TestStatusPipelineColumnTracksTheGate(t *testing.T) {
-	twoBar := gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 100}}
+	twoBar := gate.Gate{"translated": {Pct: 100}, "established": {Pct: 100}}
 
 	de := covRow("de", twoBar, rep("translated", 4)...)
 	assert.Equal(t, 50, de.ShipProgress, "half the bar cleared")
-	assert.Equal(t, "reviewed", de.Blocking)
+	assert.Equal(t, "established", de.Blocking)
 
-	fr := covRow("fr", twoBar, rep("reviewed", 4)...)
+	fr := covRow("fr", twoBar, rep("established", 4)...)
 	assert.Equal(t, 100, fr.ShipProgress)
 	assert.True(t, fr.Shippable)
 	assert.Empty(t, fr.Blocking)
@@ -122,7 +121,7 @@ func TestStatusUngatedScopeHasNoBarAndNoVerdict(t *testing.T) {
 // TestStatusPipelineDegradesInANarrowTerminal keeps the number when the bar will
 // not fit: the percentage is the information, the bar is only the affordance.
 func TestStatusPipelineDegradesInANarrowTerminal(t *testing.T) {
-	row := covRow("de", gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 100}}, rep("translated", 4)...)
+	row := covRow("de", gate.Gate{"translated": {Pct: 100}, "established": {Pct: 100}}, rep("translated", 4)...)
 
 	wide := pipelineCell(row, true)
 	assert.Contains(t, wide, "█")
@@ -140,7 +139,7 @@ func TestStatusAllReadySummary(t *testing.T) {
 	g := gate.Gate{"translated": {Pct: 100}}
 	out := StatusOutput{Locales: []LocaleCoverage{
 		covRow("de", g, rep("translated", 2)...),
-		covRow("fr", g, rep("reviewed", 2)...),
+		covRow("fr", g, rep("established", 2)...),
 	}}
 	assert.Contains(t, renderStatus(t, out), "2 of 2 scopes ready to ship")
 }
@@ -149,10 +148,9 @@ func TestStatusAllReadySummary(t *testing.T) {
 // a verdict reads as the work that clears them.
 func TestStatusBlockingLabelsAreActions(t *testing.T) {
 	tests := map[string]string{
-		"draft":      "draft",
-		"translated": "translate",
-		"reviewed":   "review",
-		"signed-off": "sign-off",
+		"draft":       "draft",
+		"translated":  "translate",
+		"established": "review",
 	}
 	for rung, want := range tests {
 		t.Run(rung, func(t *testing.T) {
@@ -163,7 +161,7 @@ func TestStatusBlockingLabelsAreActions(t *testing.T) {
 		"a blocked scope with no recorded rung still says something true")
 	assert.Equal(t, "review", shipBlockingLabel(LocaleCoverage{
 		Gated:   true,
-		Pending: []gate.Shortfall{{State: "reviewed"}},
+		Pending: []gate.Shortfall{{State: "established"}},
 	}), "the label falls back to the first pending shortfall")
 }
 

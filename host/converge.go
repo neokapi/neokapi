@@ -120,7 +120,7 @@ type ConvergeOutput struct {
 	// source block is shared by every target), mirroring the server's run row.
 	BlockedOnSource int `json:"blockedOnSource,omitempty"`
 	// SourceGate is the resolved source-first gate level applied
-	// (none|authored|checked|approved), for observability. Empty when no gate
+	// (none|written|established), for observability. Empty when no gate
 	// was evaluated (no content).
 	SourceGate string `json:"sourceGate,omitempty"`
 	// StallReason is the machine-readable cause a run did not converge — set to
@@ -662,7 +662,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 				Type:            convergence.EventLog,
 				Stage:           convergence.StageSettleSource,
 				BlockedOnSource: held,
-				Message: fmt.Sprintf("Settled source: %d block(s) checked, %d held below the %q gate.",
+				Message: fmt.Sprintf("Settled source: %d block(s), %d held at the %q gate.",
 					total, held, sourceGate),
 			})
 		}

@@ -4,7 +4,7 @@
 // picture `kapi status`, `kapi status --review`, and `kapi check --ship` report.
 //
 // It owns the report TYPES and the per-block ladder helpers (the meaning of the
-// draft→translated→reviewed→signed-off and authored→checked→approved ladders), so
+// draft→translated→established and written→established ladders), so
 // any surface — the CLI over files, a future server over its store — derives the
 // same shape from the same rules (rolled up via core/gate). The IO-bound
 // orchestration (resolving content units, reading blocks, loading review state)
@@ -79,16 +79,16 @@ type LocaleCoverage struct {
 	// clear next. Empty when the scope ships.
 	Blocking string `json:"blocking,omitempty"`
 	// Verified reports whether the scope clears its verified gate — the second,
-	// independent bar meaning a person reviewed or signed off the content. It is
+	// independent bar meaning a person established the content. It is
 	// evaluated exactly like Shippable but against the recipe's verified gate.
 	// With no verified gate configured for the scope, Verified is false (nothing
 	// is verified by default): a shippable-but-unverified locale is flagged AI in
 	// a language picker, a verified one carries no badge.
 	Verified bool `json:"verified"`
-	// AIReviewed counts units whose reviewed/signed-off rung was reached by an
+	// AIReviewed counts units whose established rung was reached by an
 	// autonomous AI decision ("ai/…" identity). They read as reviewed in Pct —
 	// with an "(ai)" qualifier in displays — but do not satisfy a gate's
-	// reviewed/signed-off threshold unless it says `by: any` (core/gate).
+	// established threshold unless it says `by: any` (core/gate).
 	AIReviewed int `json:"aiReviewed,omitempty"`
 	// Stale counts units whose decision was recorded against source wording that
 	// has since changed (state.UnitState.SourceStale). They tally at `draft` —
@@ -143,7 +143,7 @@ type LocaleCoverage struct {
 }
 
 // SourceCoverage is the source-readiness view for the project: how far its source
-// content has progressed along the authoring ladder (authored → checked →
+// content has progressed along the authoring ladder (written →
 // approved) and whether it clears the optional source gate. Source content is
 // shared across all target locales, so this rolls up project-wide over the
 // distinct source files (deduped), not per-locale.
@@ -181,12 +181,11 @@ type ReviewQueueItem struct {
 	// wording awaiting attention, rather than a translation of it.
 	IsSource bool `json:"isSource,omitempty"`
 	// Status is the unit's rung on its own ladder: `translated` for a queued
-	// translation, and the settled source rung (authored|checked|approved) for
+	// translation, and the settled source rung (written|established) for
 	// a source unit.
 	Status string `json:"status,omitempty"`
-	// Held reports a source unit ranked below the project's source gate, so the
-	// loop holds its translations. False for a translation, and for a source
-	// unit that clears the gate and is queued for a sign-off the gate asks for.
+	// Held reports a source unit the project's source gate holds, so the loop
+	// holds its translations. False for a translation.
 	Held bool `json:"held,omitempty"`
 	// Collection is the parent content-collection name (empty for a bare
 	// entry), so a review surface can filter the queue to one collection.
@@ -407,13 +406,13 @@ func TargetState(b *model.Block, locale string) string {
 	return string(model.TargetStatusTranslated)
 }
 
-// SourceState derives a translatable block's source-authoring state: a committed
+// SourceState derives a translatable block's source state: a committed
 // SourceStatus is authoritative, else a present, non-empty source counts as
-// `authored` (the presence baseline).
+// `written` (the presence baseline).
 //
-// Presence is model.RunsHaveContent — the same run-aware question the source
-// readiness gate asks (check.NewSourceReadinessTool), so a placeholder-only unit
-// is authored content here too rather than a hole in the source ladder.
+// Presence is model.RunsHaveContent, the same run-aware question the source
+// settle step asks (check.SettleSourceStatus), so a placeholder-only unit is
+// written content here too.
 func SourceState(b *model.Block) string {
 	if !model.RunsHaveContent(b.SourceRuns()) {
 		return ""

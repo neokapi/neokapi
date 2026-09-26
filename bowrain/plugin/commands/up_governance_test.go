@@ -24,8 +24,8 @@ func refusedPush() *transfer.PushResult {
 		BlocksPushed: 3,
 		Governance: &venue.PushGovernance{Refusals: []venue.DecisionRefusal{
 			{Locale: "fr-FR", Kind: venue.VerdictApproval, Reason: venue.RefusedNoReviewPermission, Count: 2},
-			{Locale: "de-DE", Kind: venue.VerdictSignOff, Reason: venue.RefusedSeparationOfDuties, Count: 1},
-			{Locale: "nb", Kind: venue.VerdictDemotion, Reason: venue.RefusedSignOffWithdrawal, Count: 1},
+			{Locale: "de-DE", Kind: venue.VerdictApproval, Reason: venue.RefusedSeparationOfDuties, Count: 1},
+			{Locale: "nb", Kind: venue.VerdictDemotion, Reason: venue.RefusedEstablishedWithdrawal, Count: 1},
 			{Locale: "nb", Kind: venue.VerdictDemotion, Reason: venue.RefusedStaleRejection, Count: 1},
 		}},
 		VerdictsRetired: 5,

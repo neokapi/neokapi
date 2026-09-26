@@ -212,7 +212,7 @@ func TestPushReviewGovernance(t *testing.T) {
 
 		report := jobGovernance(t, deps, "push-job-signoff")
 		require.Len(t, report.Refusals, 1)
-		assert.Equal(t, venue.VerdictSignOff, report.Refusals[0].Kind)
+		assert.Equal(t, venue.VerdictApproval, report.Refusals[0].Kind)
 		assert.Equal(t, "de", report.Refusals[0].Locale)
 		assert.Equal(t, venue.RefusedNoReviewPermission, report.Refusals[0].Reason)
 		assert.Equal(t, 1, report.Refusals[0].Count)
@@ -363,7 +363,7 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 	// written later.
 	signedOff := venue.UnitDecision{
 		ItemName: item, Unit: "b1", Variant: locale,
-		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateSignedOff,
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
 		TargetHash: state.TargetHash(text), ContentHash: state.SourceHash(source),
 		DecidedBy: "u-reviewer", DecidedAt: "2026-09-03T10:00:00Z", Updated: "2026-09-03T10:00:00Z",
 	}
@@ -409,20 +409,20 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 			"the venue's rung stands")
 		d, ok := heldDecision(t, deps, pid, "b1", locale)
 		require.True(t, ok)
-		assert.Equal(t, venue.ReviewStateSignedOff, d.ReviewState, "and so does its ledger record")
+		assert.Equal(t, venue.ReviewStateApproved, d.ReviewState, "and so does its ledger record")
 		assert.Equal(t, "u-reviewer", d.DecidedBy)
 
 		report := jobGovernance(t, deps, "push-job-withdraw")
 		require.Len(t, report.Refusals, 1)
 		assert.Equal(t, venue.DecisionRefusal{
-			Locale: locale, Kind: venue.VerdictDemotion, Reason: venue.RefusedSignOffWithdrawal, Count: 1,
+			Locale: locale, Kind: venue.VerdictDemotion, Reason: venue.RefusedEstablishedWithdrawal, Count: 1,
 		}, report.Refusals[0], "stated twice, on the block and in its record, and counted once")
 		require.Len(t, report.Units, 1)
 		unit := report.Units[0]
 		assert.Equal(t, "b1", unit.Unit)
-		assert.Equal(t, venue.RefusedSignOffWithdrawal, unit.Reason)
+		assert.Equal(t, venue.RefusedEstablishedWithdrawal, unit.Reason)
 		require.NotNil(t, unit.Held, "the record the venue kept travels back for the producer to hold")
-		assert.Equal(t, venue.ReviewStateSignedOff, unit.Held.ReviewState)
+		assert.Equal(t, venue.ReviewStateApproved, unit.Held.ReviewState)
 		assert.Equal(t, "u-reviewer", unit.Held.DecidedBy)
 		assert.Equal(t, signedOff.TargetHash, unit.Held.TargetHash)
 	})
@@ -482,7 +482,7 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 					assert.True(t, jobGovernance(t, deps, "push-job-reject").Empty())
 					return
 				}
-				assert.Equal(t, venue.ReviewStateSignedOff, d.ReviewState)
+				assert.Equal(t, venue.ReviewStateApproved, d.ReviewState)
 				assert.Len(t, jobGovernance(t, deps, "push-job-reject").Refusals, 1)
 			})
 		}
@@ -529,7 +529,7 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 			permits map[string]bool
 			want    string
 		}{
-			{"without permission", map[string]bool{}, venue.ReviewStateSignedOff},
+			{"without permission", map[string]bool{}, venue.ReviewStateApproved},
 			{"with permission", map[string]bool{locale: true}, ""},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -625,7 +625,7 @@ func TestPushReviewGovernance_AuditsAcceptedRungs(t *testing.T) {
 		decision string
 	}{
 		{"approval", model.TargetStatusEstablished, venue.ReviewStateApproved, "approved"},
-		{"sign-off", model.TargetStatusEstablished, venue.ReviewStateSignedOff, "signed-off"},
+		{"sign-off", model.TargetStatusEstablished, venue.ReviewStateApproved, "signed-off"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -129,7 +129,7 @@ func newGovernedReviewProject(t *testing.T, app *App) (*TabInfo, string) {
 			Name:    "App",
 			Content: []project.ContentItem{{Path: "locales/en.json", Target: "locales/{lang}.json"}},
 		}},
-		ShipGate: gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 50}},
+		ShipGate: gate.Gate{"translated": {Pct: 100}, "established": {Pct: 50}},
 	}
 	path := filepath.Join(root, project.RecipeFileName)
 	require.NoError(t, project.Save(path, proj))

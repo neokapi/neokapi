@@ -88,7 +88,7 @@ func TestAFailedPushChangesNothing(t *testing.T) {
 	// decisions ref the ledger does not match, so the whole thing must refuse.
 	decisions, err := json.Marshal([]map[string]any{{
 		"item": "en.json", "unit": "b1", "variant": "nb",
-		"status": "reviewed", "reviewState": "approved", "by": "someone", "updated": "2026-08-20T00:00:00Z",
+		"status": "established", "reviewState": "approved", "by": "someone", "updated": "2026-08-20T00:00:00Z",
 	}})
 	require.NoError(t, err)
 

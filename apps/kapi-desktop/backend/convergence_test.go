@@ -306,7 +306,7 @@ func TestApproveReviewItem_PromotesToReviewed(t *testing.T) {
 	require.NoError(t, err)
 	for _, lc := range after.Locales {
 		if lc.Locale == "fr-FR" {
-			assert.Equal(t, 50, lc.Pct["reviewed"], "1 of 2 fr-FR units approved")
+			assert.Equal(t, 50, lc.Pct["established"], "1 of 2 fr-FR units approved")
 		}
 	}
 	// The approved unit left the queue.

@@ -256,7 +256,7 @@ func TestGoverningBasis_OnlyAnApprovalVouches(t *testing.T) {
 		{
 			name: "a sign-off vouches the same way",
 			unit: state.UnitState{Status: model.TargetStatusEstablished, Origin: origin,
-				GoverningFingerprint: "fp-approved", Decision: state.Decision{ReviewState: "signed-off"}},
+				GoverningFingerprint: "fp-approved", Decision: state.Decision{ReviewState: "established"}},
 			want: "fp-approved",
 		},
 		{

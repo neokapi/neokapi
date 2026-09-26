@@ -139,7 +139,7 @@ func (a *App) settleAndCountHeldSource(ctx context.Context, root, sourceLang str
 // reviewedIndex maps each unit (document + block identity + locale) to its
 // committed review decision, loaded from the project state store (core/state).
 // A unit reads at its
-// decided rung — reviewed/signed-off for an approval, draft for a rejection —
+// decided rung — established for an approval, draft for a rejection —
 // only while the recorded decision still judges the CURRENT translation: the
 // decision carries the targetHash it applied to, so an edit since the decision
 // invalidates it and the unit drops back to the `translated` presence baseline
@@ -327,7 +327,7 @@ func (r reviewedIndex) decided(scope string, b *model.Block, locale string) bool
 }
 
 // approvesTarget reports whether a graded decision is an APPROVAL that still
-// holds: reviewed or signed-off, with both halves of the pairing it blessed
+// holds: established, with both halves of the pairing it blessed
 // still on disk (which is what `applies` from grade already says).
 //
 // A rejection is a decision too, and `decided` counts it; it is not an
@@ -505,7 +505,7 @@ func scopeAliases(scope string) []string {
 // `reviewed` (loaded from the project state store) upgrades a unit from the
 // `translated` presence baseline to its decided rung. Units promoted by an
 // autonomous AI decision ("ai/…" identity) are tallied separately: they read as
-// reviewed in the display percentages, but a gate's reviewed/signed-off
+// reviewed in the display percentages, but a gate's established
 // threshold only admits them under `by: any` (core/gate approver classes).
 //
 // `excl` (optional, nil = off) is the check-findings set (#1078 G4): a unit in

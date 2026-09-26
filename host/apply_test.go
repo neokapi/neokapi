@@ -53,7 +53,7 @@ func TestReadChangeSetIndentedStream(t *testing.T) {
   "file": "src/i18n/nb.json",
   "id": "berth.title",
   "locale": "nb",
-  "status": "reviewed"
+  "status": "established"
 }
 {
   "kind": "review",
@@ -61,7 +61,7 @@ func TestReadChangeSetIndentedStream(t *testing.T) {
   "file": "src/i18n/nb.json",
   "id": "berth.empty",
   "locale": "nb",
-  "status": "reviewed"
+  "status": "established"
 }
 `), 0o644))
 	got, err := readChangeSet(context.Background(), path)

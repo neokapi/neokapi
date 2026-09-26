@@ -22,7 +22,7 @@ import (
 
 // signOffBody is the request body for signing one locale off.
 func signOffBody(locale string) string {
-	return fmt.Sprintf(`{"target_locale":%q,"reviewed":true,"status":"signed-off","item_name":"greetings.txt"}`, locale)
+	return fmt.Sprintf(`{"target_locale":%q,"reviewed":true,"status":"established","item_name":"greetings.txt"}`, locale)
 }
 
 // TestHandleReviewBlockSignOffRungs walks every (starting rung, request) pair
@@ -126,7 +126,7 @@ func TestHandleReviewBlockSignOffResponse(t *testing.T) {
 	rec, err := callReviewBlockBodyAs(t, srv, pid, ids["Hello"], signOffBody("fr"), platauth.PermAll)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Contains(t, rec.Body.String(), `"status":"signed-off"`)
+	assert.Contains(t, rec.Body.String(), `"status":"established"`)
 	assert.Contains(t, rec.Body.String(), `"reviewed":true`)
 }
 

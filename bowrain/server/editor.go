@@ -810,7 +810,7 @@ func editorUpdateBlockTargetRuns(ctx context.Context, cs store.ContentStore, pro
 	return err
 }
 
-// demoteStaleReviewOnEdit drops a reviewed/signed-off Target.Status back to
+// demoteStaleReviewOnEdit drops a established Target.Status back to
 // translated when an edit actually changed the target's content. A review
 // decision judges ONE specific translation, so rewriting the text invalidates
 // the approval. The host review model binds every decision to the content hash

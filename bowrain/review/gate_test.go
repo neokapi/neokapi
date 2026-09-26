@@ -166,13 +166,13 @@ func TestGateAllowWithdrawal(t *testing.T) {
 			name:    "another language is another permission",
 			cfg:     review.Config{Actor: actor, Permits: permits("fr")},
 			locale:  "de",
-			wantErr: venue.RefusedSignOffWithdrawal,
+			wantErr: venue.RefusedEstablishedWithdrawal,
 		},
 		{
 			name:    "a gate with no way to ask refuses",
 			cfg:     review.Config{Actor: actor},
 			locale:  "fr",
-			wantErr: venue.RefusedSignOffWithdrawal,
+			wantErr: venue.RefusedEstablishedWithdrawal,
 		},
 		{
 			name: "the author may withdraw the sign-off on their own writing",

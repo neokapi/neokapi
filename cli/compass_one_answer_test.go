@@ -91,7 +91,7 @@ func approveLocale(t *testing.T, a *App, recipe, root, locale string, accept fun
 		}
 		line, merr := json.Marshal(map[string]string{
 			"kind": "review", "op": "add", "file": item.File,
-			"id": item.Key, "locale": item.Locale, "status": "reviewed",
+			"id": item.Key, "locale": item.Locale, "status": "established",
 		})
 		require.NoError(t, merr)
 		lines = append(lines, string(line))

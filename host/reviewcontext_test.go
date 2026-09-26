@@ -75,7 +75,7 @@ func TestAssembleReviewContextComposesTheSharedLayers(t *testing.T) {
 
 	assert.Equal(t, review.ProvenanceOf(blocks[2], "nb", unit), got.Provenance)
 	assert.Equal(t, "approved", got.Provenance.ReviewState)
-	assert.Equal(t, "reviewed", got.Provenance.Status)
+	assert.Equal(t, "established", got.Provenance.Status)
 	require.NotNil(t, got.Provenance.Origin)
 	assert.Equal(t, "ai", got.Provenance.Origin.Kind, "the format's own provenance wins")
 	assert.Equal(t, "nb", got.Point.Language)

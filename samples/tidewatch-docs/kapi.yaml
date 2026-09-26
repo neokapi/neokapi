@@ -55,9 +55,9 @@ collections:
 # continuous work rather than a break.
 ship_gate:
   translated: 100
-  reviewed: 50
+  established: 50
 verified_gate:
-  reviewed: 100
+  established: 100
 
 flows:
   # Recycle first, then draft the remainder. skipMatched is what makes the second

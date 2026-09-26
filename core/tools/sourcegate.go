@@ -11,11 +11,11 @@ import (
 
 // SourceGateConfig configures the source-gate leading stage.
 type SourceGateConfig struct {
-	// Gate is the resolved source-first gate level (authored|checked|approved|
+	// Gate is the resolved source-first gate level (written|established|
 	// none). Empty resolves to the default (checked) via ResolveSourceGate — a
 	// typo must not silently disable the gate, so an unrecognized value also
 	// gates at checked.
-	Gate string `json:"gate,omitempty" schema:"title=Source Gate,description=Minimum source-authoring status a block must reach before its translations are produced,enum=none|authored|checked|approved,default=checked"`
+	Gate string `json:"gate,omitempty" schema:"title=Source Gate,description=Minimum source-authoring status a block must reach before its translations are produced,enum=none|written|established,default=checked"`
 }
 
 // SourceGateTool is the leading source-transform stage of source-first
@@ -24,7 +24,7 @@ type SourceGateConfig struct {
 // runs FIRST in the converge flow and, per translatable source block:
 //
 //  1. settles the source — runs the provider-free source checks and stamps
-//     SourceStatus (authored→checked) via the shared check.SettleSourceStatus,
+//     SourceStatus (written) via the shared check.SettleSourceStatus,
 //     the same derivation the server settle and `kapi check` use; and
 //  2. gates the block — a block whose settled SourceStatus ranks below the
 //     configured gate is HELD (model.Block.SetSourceHeld): it stays in the

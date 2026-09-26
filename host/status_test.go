@@ -33,8 +33,8 @@ collections:
     target: "{lang}.json"
 ship_gates:
   - when: { locales: [ja] }
-    gate: { translated: 100, reviewed: 0 }
-  - gate: { translated: 100, reviewed: 80 }
+    gate: { translated: 100, established: 0 }
+  - gate: { translated: 100, established: 80 }
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
@@ -134,61 +134,33 @@ defaults:
 }
 
 // TestStatus_SourceReadiness: the source axis reports the rung the source
-// actually settles at, on a format that cannot carry a per-block status in its
-// own bytes. Reading `SourceStatus` off a freshly parsed JSON catalog reports
-// the presence baseline for every block, so `kapi status` printed `checked 0%`
-// seconds after the same run's settle line said every block was checked — a
-// number contradicted by its own sibling, and a `source_gate` above `authored`
-// that could never pass on a catalog format at all.
+// settles at, on a format that cannot carry a per-block status in its own
+// bytes: written for every present unit, established only by a person.
 func TestStatus_SourceReadiness(t *testing.T) {
-	t.Chdir(writeSourceGateProject(t, "source_gate: { checked: 100 }"))
+	t.Chdir(writeSourceGateProject(t, "source_gate: { written: 100 }"))
 	out := runStatusJSON(t)
 
 	require.NotNil(t, out.Source, "source readiness must be reported")
 	assert.Equal(t, 3, out.Source.Total)
-	assert.Equal(t, 100, out.Source.Pct["authored"], "all source present → authored baseline")
-	assert.Equal(t, 100, out.Source.Pct["checked"],
-		"clean source settles to checked; the catalog has nowhere to carry the stamp, so it must be derived")
-	assert.Equal(t, 0, out.Source.Pct["approved"], "approval is authored, never derived from content")
+	assert.Equal(t, 100, out.Source.Pct["written"], "all source present is written")
+	assert.Equal(t, 0, out.Source.Pct["established"], "establishing is a person's decision, never derived from content")
 	assert.True(t, out.Source.Gated)
-	assert.True(t, out.Source.Shippable, "checked:100 is met once the clean source settles")
+	assert.True(t, out.Source.Shippable, "written:100 is met by present source")
 }
 
-// TestStatus_SourceReadiness_ApprovalIsNotDerived: settling reaches `checked`
-// and stops. `approved` is somebody's decision, so a gate that asks for it stays
-// pending however clean the source is.
-// TestStatus_SourceReadiness_UngovernedSourceIsNotChecked: source that no voice
-// and no terms govern was checked against nothing. It reads as authored, so a
-// project fresh from `kapi init` does not report its source as checked.
-func TestStatus_SourceReadiness_UngovernedSourceIsNotChecked(t *testing.T) {
-	t.Chdir(writeSourceProject(t, "", ""))
+// TestStatus_SourceReadiness_EstablishedIsNotDerived: a gate that asks for
+// established source stays pending however clean the source is.
+func TestStatus_SourceReadiness_EstablishedIsNotDerived(t *testing.T) {
+	t.Chdir(writeSourceGateProject(t, "source_gate: { established: 100 }"))
 	out := runStatusJSON(t)
 
 	require.NotNil(t, out.Source)
-	assert.Equal(t, 3, out.Source.Total)
-	assert.Equal(t, 100, out.Source.Pct["authored"])
-	assert.Equal(t, 0, out.Source.Pct["checked"], "nothing governs the source, so nothing checked it")
-}
-
-func TestStatus_SourceReadiness_ApprovalIsNotDerived(t *testing.T) {
-	t.Chdir(writeSourceGateProject(t, "source_gate: { approved: 100 }"))
-	out := runStatusJSON(t)
-
-	require.NotNil(t, out.Source)
-	assert.Equal(t, 100, out.Source.Pct["checked"])
-	assert.False(t, out.Source.Shippable, "approved:100 is unmet by a settle")
-}
-
-func TestStatus_SourceReadiness_AuthoredGateClears(t *testing.T) {
-	// An {authored: 100} gate is satisfied by the presence baseline.
-	t.Chdir(writeSourceGateProject(t, "source_gate: { authored: 100 }"))
-	out := runStatusJSON(t)
-	require.NotNil(t, out.Source)
-	assert.True(t, out.Source.Shippable, "authored:100 is met when all source is present")
+	assert.Equal(t, 100, out.Source.Pct["written"])
+	assert.False(t, out.Source.Shippable, "established:100 is unmet by a settle")
 }
 
 func TestVerify_SourceGate(t *testing.T) {
-	t.Chdir(writeSourceGateProject(t, "source_gate: { approved: 100 }"))
+	t.Chdir(writeSourceGateProject(t, "source_gate: { established: 100 }"))
 
 	// Without --ship: the source gate is not evaluated (source drift is non-blocking).
 	a := &App{}
@@ -202,7 +174,7 @@ func TestVerify_SourceGate(t *testing.T) {
 	assert.False(t, hasGate(parsed, gateSource), "source gate must be opt-in (--ship)")
 
 	// With --ship: the source gate runs and fails (the source settles to
-	// `checked`; nobody has approved it).
+	// `written`; nobody has established it).
 	a2 := &App{}
 	cmd2 := NewEnvCommand(context.Background(), "verify")
 	AddProjectFlag(cmd2)
@@ -214,7 +186,7 @@ func TestVerify_SourceGate(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(out2), &parsed2))
 	sg, has := findGate(parsed2, gateSource)
 	require.True(t, has, "--ship adds the source gate")
-	assert.False(t, sg.Pass, "source is below approved:100")
+	assert.False(t, sg.Pass, "source is below established:100")
 	assert.NotEmpty(t, sg.Findings)
 	assert.Error(t, runErr, "a failed source gate exits non-zero")
 }

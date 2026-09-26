@@ -230,7 +230,7 @@ func (s UnitState) Key() Key { return Key{Scope: s.Scope, Unit: s.Unit, Variant:
 
 // Stale reports whether this state was recorded against a different translation
 // than targetHash — i.e. the translation changed since the decision, so the
-// decision (an approval/sign-off) no longer applies and the unit drops back down
+// decision (an approval) no longer applies and the unit drops back down
 // the ladder. An unset TargetHash on either side is treated as "not stale" (no
 // content to compare).
 func (s UnitState) Stale(targetHash string) bool {

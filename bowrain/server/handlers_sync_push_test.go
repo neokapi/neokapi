@@ -332,7 +332,7 @@ func TestSyncPushCommit_VerdictPrecheck(t *testing.T) {
 	}
 	signOff := venue.UnitDecision{
 		ItemName: "en.json", Unit: "b2", Variant: "de",
-		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateSignedOff,
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
 		Updated: "2026-09-03T10:00:00Z",
 	}
 	basis := venue.UnitDecision{
@@ -348,7 +348,7 @@ func TestSyncPushCommit_VerdictPrecheck(t *testing.T) {
 		report := commitGovernance(t, rec)
 		require.Len(t, report.Refusals, 2, "one line per language and kind; the basis is no verdict")
 		assert.Equal(t, venue.DecisionRefusal{
-			Locale: "de", Kind: venue.VerdictSignOff, Reason: venue.RefusedNoReviewPermission, Count: 1,
+			Locale: "de", Kind: venue.VerdictApproval, Reason: venue.RefusedNoReviewPermission, Count: 1,
 		}, report.Refusals[0])
 		assert.Equal(t, venue.DecisionRefusal{
 			Locale: "fr", Kind: venue.VerdictApproval, Reason: venue.RefusedNoReviewPermission, Count: 1,

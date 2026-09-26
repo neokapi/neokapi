@@ -27,7 +27,7 @@ import (
 // (HandleApprovePassing).
 
 // targetApproved reports whether a block's target for a locale carries a review
-// decision — reviewed or signed-off on the model.TargetStatus ladder. Governed
+// decision — established on the model.TargetStatus ladder. Governed
 // delivery ships only these.
 func targetApproved(b *model.Block, loc model.LocaleID) bool {
 	t := b.Target(loc)
@@ -36,7 +36,7 @@ func targetApproved(b *model.Block, loc model.LocaleID) bool {
 
 // targetPendingReview reports whether a block's target for a locale is awaiting
 // human review: it has committed, non-empty content that has not yet reached the
-// reviewed rung (i.e. draft or translated). A reviewed/signed-off target — or a
+// reviewed rung (i.e. draft or translated). A established target — or a
 // block with no non-empty target for the locale — is not pending. This is the
 // per-block "still needs a reviewer" predicate the review-loop continuation and
 // the bulk approve-passing endpoint both key on.
@@ -253,7 +253,7 @@ const reviewCompletionGroup = "review-completion"
 // Idempotency / anti-loop (the load-bearing argument):
 //
 //   - The completing run derives coverage over content that is now fully
-//     approved. Every block already carries a reviewed/signed-off target, so the
+//     approved. Every block already carries a established target, so the
 //     derive finds 0 pending locales, the loop runs 0 production passes
 //     (LoopResult.Passes == 0), converges immediately, and emits
 //     run.completed(converged). RV-A's approval-gated materializeDelivery then

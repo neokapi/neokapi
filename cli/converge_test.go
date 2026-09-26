@@ -179,7 +179,7 @@ func TestConverge_MissingExplicitDefaultFlow(t *testing.T) {
 // cannot satisfy (reviewed needs a human) parks after the pass cap — never an error.
 func TestConverge_UntilGateParksUnreachableGate(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": {Pct: 100}})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"established": {Pct: 100}})
 
 	out, err := runConverge(t, a, recipe, ConvergeOptions{UntilGate: true, MaxPasses: 2})
 	require.NoError(t, err, "parked work is reported, never a build failure")

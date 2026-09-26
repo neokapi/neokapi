@@ -361,7 +361,7 @@ func (s *Server) precheckPushVerdicts(c echo.Context, raw json.RawMessage) venue
 		if locale == "" {
 			locale = d.Variant
 		}
-		counts[[3]string{locale, d.VerdictKind(), venue.RefusedNoReviewPermission}]++
+		counts[[3]string{locale, venue.VerdictApproval, venue.RefusedNoReviewPermission}]++
 	}
 	if len(counts) == 0 {
 		return venue.PushGovernance{}

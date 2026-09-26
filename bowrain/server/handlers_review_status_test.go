@@ -287,7 +287,7 @@ func TestHandleReviewBlockSignedOff(t *testing.T) {
 	rec, err = callReviewBlockAs(t, srv, pid, bid, "fr", true, translator|platauth.PermReview)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Contains(t, rec.Body.String(), `"status":"signed-off"`)
+	assert.Contains(t, rec.Body.String(), `"status":"established"`)
 	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
 		"re-approve must not demote signed-off to reviewed")
 
@@ -355,7 +355,7 @@ func TestHandleReviewBlockRejectDemotesToDraft(t *testing.T) {
 
 	// An unknown demotion rung is a 400 …
 	rec, err = callReviewBlockBodyAs(t, srv, pid, bid,
-		`{"target_locale":"fr","reviewed":false,"status":"signed-off"}`, platauth.PermAll)
+		`{"target_locale":"fr","reviewed":false,"status":"established"}`, platauth.PermAll)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
 	// … and so is a status alongside an approval.

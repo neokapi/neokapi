@@ -103,7 +103,7 @@ func frTranslated(t *testing.T, recipe string) int {
 	return strings.Count(string(data), "⟦fr⟧")
 }
 
-// TestConvergeSourceGate_HoldsWhenSourceBelowGate: with source_gate: approved,
+// TestConvergeSourceGate_HoldsWhenSourceBelowGate: with source_gate: established,
 // no file-read source block can reach `approved` (settlement promotes clean
 // source only to `checked`), so every block is held — nothing is translated and
 // the run surfaces source_not_ready with a blocked-on-source count. This is the

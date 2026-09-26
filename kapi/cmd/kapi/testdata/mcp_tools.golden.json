@@ -189,40 +189,6 @@
     }
   },
   {
-    "name": "approve_unit",
-    "input_schema": {
-      "additionalProperties": false,
-      "properties": {
-        "file": {
-          "description": "Target file path, as listed by review_queue",
-          "type": "string"
-        },
-        "key": {
-          "description": "Unit key, as listed by review_queue",
-          "type": "string"
-        },
-        "locale": {
-          "description": "Target locale, as listed by review_queue",
-          "type": "string"
-        },
-        "note": {
-          "description": "Reviewer note (the reason, for reject_unit)",
-          "type": "string"
-        },
-        "project": {
-          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
-          "type": "string"
-        }
-      },
-      "required": [
-        "locale",
-        "file",
-        "key"
-      ],
-      "type": "object"
-    }
-  },
-  {
     "name": "check_file",
     "input_schema": {
       "additionalProperties": false,
@@ -612,6 +578,69 @@
     }
   },
   {
+    "name": "pre_review_unit",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "description": "Target file path, as listed by review_queue",
+          "type": "string"
+        },
+        "key": {
+          "description": "Unit key, as listed by review_queue",
+          "type": "string"
+        },
+        "locale": {
+          "description": "Target locale, as listed by review_queue",
+          "type": "string"
+        },
+        "project": {
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
+          "type": "string"
+        },
+        "reasons": {
+          "description": "What you found, one entry per issue; empty when nothing needs saying",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "message": {
+                "description": "What is wrong, in a sentence",
+                "type": "string"
+              },
+              "severity": {
+                "description": "critical, major, minor or info",
+                "type": "string"
+              },
+              "suggestion": {
+                "description": "Wording that would fix it",
+                "type": "string"
+              }
+            },
+            "required": [
+              "message"
+            ],
+            "type": "object"
+          },
+          "type": [
+            "null",
+            "array"
+          ]
+        },
+        "score": {
+          "description": "How well the translation stands, from 0 (unusable) to 100 (nothing to change)",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "locale",
+        "file",
+        "key",
+        "score"
+      ],
+      "type": "object"
+    }
+  },
+  {
     "name": "redact",
     "input_schema": {
       "$id": "redact",
@@ -691,40 +720,6 @@
     }
   },
   {
-    "name": "reject_unit",
-    "input_schema": {
-      "additionalProperties": false,
-      "properties": {
-        "file": {
-          "description": "Target file path, as listed by review_queue",
-          "type": "string"
-        },
-        "key": {
-          "description": "Unit key, as listed by review_queue",
-          "type": "string"
-        },
-        "locale": {
-          "description": "Target locale, as listed by review_queue",
-          "type": "string"
-        },
-        "note": {
-          "description": "Reviewer note (the reason, for reject_unit)",
-          "type": "string"
-        },
-        "project": {
-          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
-          "type": "string"
-        }
-      },
-      "required": [
-        "locale",
-        "file",
-        "key"
-      ],
-      "type": "object"
-    }
-  },
-  {
     "name": "review_queue",
     "input_schema": {
       "additionalProperties": false,
@@ -764,40 +759,6 @@
         },
         "locale": {
           "description": "Language of the unit, as listed by review_queue: a target locale, or the project's source language for a source unit",
-          "type": "string"
-        },
-        "project": {
-          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)",
-          "type": "string"
-        }
-      },
-      "required": [
-        "locale",
-        "file",
-        "key"
-      ],
-      "type": "object"
-    }
-  },
-  {
-    "name": "sign_off_unit",
-    "input_schema": {
-      "additionalProperties": false,
-      "properties": {
-        "file": {
-          "description": "Target file path, as listed by review_queue",
-          "type": "string"
-        },
-        "key": {
-          "description": "Unit key, as listed by review_queue",
-          "type": "string"
-        },
-        "locale": {
-          "description": "Target locale, as listed by review_queue",
-          "type": "string"
-        },
-        "note": {
-          "description": "Reviewer note (the reason, for reject_unit)",
           "type": "string"
         },
         "project": {

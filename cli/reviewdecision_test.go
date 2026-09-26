@@ -43,7 +43,7 @@ func TestApplyReviewDecision_ApprovedMatchesApprove(t *testing.T) {
 
 	after, err := a.ProjectConvergence(context.Background(), proj, "en")
 	require.NoError(t, err)
-	assert.Equal(t, 50, after.Locales[0].Pct["reviewed"], "1 of 2 units reviewed")
+	assert.Equal(t, 50, after.Locales[0].Pct["established"], "1 of 2 units reviewed")
 	require.Len(t, after.Review, 1, "the approved unit left the queue")
 
 	// A redundant approval is a no-op.
@@ -80,7 +80,7 @@ func TestApplyReviewDecision_RejectedReturnsToDraft(t *testing.T) {
 	assert.NotEqual(t, item.Key, after.Review[0].Key)
 	assert.Equal(t, 50, after.Locales[0].Pct["translated"], "the rejected unit reads draft, below translated")
 	assert.Equal(t, 100, after.Locales[0].Pct["draft"], "draft is the rejected unit's rung")
-	assert.Equal(t, 0, after.Locales[0].Pct["reviewed"])
+	assert.Equal(t, 0, after.Locales[0].Pct["established"])
 
 	// The note survives in the committed state artifact.
 	f := struct{ Units []state.UnitState }{Units: commitAndReadUnits(t, root)}

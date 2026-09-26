@@ -24,7 +24,7 @@
 // pre-review auto-approval). The legacy short form (`reviewed: 100`) keeps its
 // spelling and, like the extended default, requires human review: an
 // AI-approved unit reads as reviewed in status displays (with an "(ai)"
-// qualifier) but does NOT satisfy a reviewed/signed-off threshold unless the
+// qualifier) but does NOT satisfy a established threshold unless the
 // gate says `by: any`. This is the deliberate, honest default — an autonomous
 // AI approving its own work never silently ships a gate that was written when
 // "reviewed" could only mean a person.
@@ -52,7 +52,7 @@ import (
 // Approver classes for a threshold's By axis.
 const (
 	// ByHuman counts only human (or human-directed agent) decisions toward a
-	// decision rung — the default for reviewed/signed-off thresholds.
+	// decision rung — the default for established thresholds.
 	ByHuman = "human"
 	// ByAny counts every decision, including autonomous AI approvals
 	// (identities prefixed "ai/").
@@ -138,7 +138,7 @@ type Gate map[string]Threshold
 type Ladder []string
 
 // TargetLadder is the ladder for committed translations, derived from the
-// canonical model order (draft → translated → reviewed → signed-off).
+// canonical model order (draft→translated→established).
 func TargetLadder() Ladder {
 	statuses := model.TargetStatusLadder()
 	l := make(Ladder, len(statuses))
@@ -149,7 +149,7 @@ func TargetLadder() Ladder {
 }
 
 // SourceLadder is the ladder for source authoring readiness, derived from the
-// canonical model order (authored → checked → approved). A source gate
+// canonical model order (written→established). A source gate
 // (project source_gate) evaluates coverage against it, mirroring TargetLadder.
 func SourceLadder() Ladder {
 	statuses := model.SourceStatusLadder()

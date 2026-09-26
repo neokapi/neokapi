@@ -274,7 +274,7 @@ type decidedContent struct {
 // is part of what the record says: the same verdict on the same pairing under a
 // moved context is a new decision, recorded again.
 //
-// Only an approval or a sign-off re-stamps the record's BASIS, the source it
+// Only an approval re-stamps the record's BASIS, the source it
 // vouches for and the context it vouches for it under. An approval made on the
 // source in front of the reviewer, under the governance in force where they are
 // deciding, is the project saying this answer stands there, so the readers that
@@ -434,10 +434,9 @@ type ReviewUnitInfo struct {
 	// empty, its Status is a rung of the authoring ladder, and its decision is
 	// recorded under the source locale variant.
 	IsSource bool `json:"is_source,omitempty"`
-	// Status is the unit's effective ladder state (draft|translated|reviewed|
-	// signed-off), with a fresh state-store decision applied over the presence
+	// Status is the unit's effective ladder state (draft|translated|established), with a fresh state-store decision applied over the presence
 	// baseline. For a source unit it is the settled authoring rung
-	// (authored|checked|approved).
+	// (written|established).
 	Status string `json:"status"`
 	// ReviewState/Note/By carry the last recorded decision when it still judges
 	// the current pairing — the translation it blessed, of the source it blessed

@@ -106,7 +106,7 @@ func TestUp_SinglePass(t *testing.T) {
 // build failure. This is the default `up` behavior (no flag needed).
 func TestUp_ParksUnreachableGate(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": {Pct: 100}})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"established": {Pct: 100}})
 
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, "parked work is reported, never a build failure")
@@ -117,7 +117,7 @@ func TestUp_ParksUnreachableGate(t *testing.T) {
 // TestUp_PassesCapsLoop: --passes N caps the until-gate loop at N passes.
 func TestUp_PassesCapsLoop(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": {Pct: 100}})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"established": {Pct: 100}})
 
 	out, err := runUp(t, a, recipe, "--passes", "2")
 	require.NoError(t, err, out)
@@ -296,7 +296,7 @@ func TestUp_MaterializeFlagForces(t *testing.T) {
 // the filesystem, so that is what this asks.
 func TestUp_MaterializeSkipsParkedLocale(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": gate.Threshold{Pct: 100}})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"established": gate.Threshold{Pct: 100}})
 
 	out, err := runUp(t, a, recipe, "--materialize")
 	require.NoError(t, err, out)

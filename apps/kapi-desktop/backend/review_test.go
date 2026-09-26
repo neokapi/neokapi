@@ -45,7 +45,7 @@ func newReviewProject(t *testing.T, app *App) (*TabInfo, string) {
 			Name:    "App",
 			Content: []project.ContentItem{{Path: "locales/en.json", Target: "locales/{lang}.json"}},
 		}},
-		ShipGate: gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 50}},
+		ShipGate: gate.Gate{"translated": {Pct: 100}, "established": {Pct: 50}},
 	}
 	path := filepath.Join(root, "project.kapi")
 	require.NoError(t, project.Save(path, proj))
@@ -282,7 +282,7 @@ func TestUpdateReviewTarget_EditsFileAndInvalidatesDecision(t *testing.T) {
 	require.NoError(t, app.ApproveReviewItem(tab.ID, "fr-FR", file, "greeting"))
 	d, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
 	require.NoError(t, err)
-	assert.Equal(t, "reviewed", d.Status)
+	assert.Equal(t, "established", d.Status)
 
 	require.NoError(t, app.UpdateReviewTarget(tab.ID, "fr-FR", file, "greeting", "Salut {name}"))
 
@@ -301,7 +301,7 @@ func TestUpdateReviewTarget_EditsFileAndInvalidatesDecision(t *testing.T) {
 	require.NoError(t, app.ApproveReviewItem(tab.ID, "fr-FR", file, "greeting"))
 	d3, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
 	require.NoError(t, err)
-	assert.Equal(t, "reviewed", d3.Status)
+	assert.Equal(t, "established", d3.Status)
 }
 
 // TestUpdateReviewTarget_RecordsAHumanOrigin: the reviewer who rewrites an AI

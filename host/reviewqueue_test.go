@@ -54,7 +54,7 @@ collections:
 }
 
 func TestReviewQueue_ListsEveryLanguageWithASourceLane(t *testing.T) {
-	root := writeUnifiedQueueProject(t, "approved", "nb, fr")
+	root := writeUnifiedQueueProject(t, "established", "nb, fr")
 	recipe := filepath.Join(root, "kapi.yaml")
 
 	cases := []struct {
@@ -129,7 +129,7 @@ func TestReviewQueue_ListsEveryLanguageWithASourceLane(t *testing.T) {
 // The source rows lead the queue: the source gate holds the fan-out, so the
 // work that unblocks the rest is read first.
 func TestReviewQueue_SourceUnitsSortFirst(t *testing.T) {
-	root := writeUnifiedQueueProject(t, "approved", "nb")
+	root := writeUnifiedQueueProject(t, "established", "nb")
 	queue, err := (&App{}).ReviewQueue(t.Context(), filepath.Join(root, "kapi.yaml"), "en", ReviewQueueOptions{})
 	require.NoError(t, err)
 	require.Len(t, queue.Pending, 4)
@@ -144,7 +144,7 @@ func TestReviewQueue_SourceUnitsSortFirst(t *testing.T) {
 // language stays in the summary at count 0: a project with a source lane can
 // always be reviewed at its source.
 func TestReviewQueue_ApprovedSourceStaysSelectableAtZero(t *testing.T) {
-	root := writeUnifiedQueueProject(t, "approved", "nb")
+	root := writeUnifiedQueueProject(t, "established", "nb")
 	recipe := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
@@ -168,7 +168,7 @@ func TestReviewQueue_ApprovedSourceStaysSelectableAtZero(t *testing.T) {
 // language at count 0 so a reviewer can open source review even when the loop
 // asks for nothing.
 func TestReviewQueue_SourceLaneSelectableWhenNothingIsPending(t *testing.T) {
-	root := writeUnifiedQueueProject(t, "checked", "nb")
+	root := writeUnifiedQueueProject(t, "written", "nb")
 	// Drop the translations: an absent target is upstream of review, and the
 	// default `checked` gate asks nobody to sign off a clean source.
 	require.NoError(t, os.Remove(filepath.Join(root, "nb.json")))
@@ -185,7 +185,7 @@ func TestReviewQueue_SourceLaneSelectableWhenNothingIsPending(t *testing.T) {
 // queue-driven: a clean source under the default gate lists no source rows, yet
 // the source entry sits above the targets that do have work.
 func TestReviewQueue_CleanSourceListsTheSourceLanguageBesideTargets(t *testing.T) {
-	root := writeUnifiedQueueProject(t, "checked", "nb, fr")
+	root := writeUnifiedQueueProject(t, "written", "nb, fr")
 	queue, err := (&App{}).ReviewQueue(t.Context(), filepath.Join(root, "kapi.yaml"), "en", ReviewQueueOptions{})
 	require.NoError(t, err)
 	for _, it := range queue.Pending {
@@ -202,7 +202,7 @@ func TestReviewQueue_CleanSourceListsTheSourceLanguageBesideTargets(t *testing.T
 // source-language unit is answered from its source file, with the authoring
 // rung and the point that governs it.
 func TestReviewUnit_AnswersASourceLanguageUnit(t *testing.T) {
-	root := writeUnifiedQueueProject(t, "approved", "nb")
+	root := writeUnifiedQueueProject(t, "established", "nb")
 	recipe := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
@@ -256,7 +256,7 @@ func runReviewStatus(t *testing.T, recipe string, flags map[string]string, langs
 // `kapi status --review` is the CLI's window on the one queue: source rows sit
 // beside the translations, marked, and --lang narrows the listing.
 func TestStatusReview_ListsSourceUnitsAndFiltersByLanguage(t *testing.T) {
-	root := writeUnifiedQueueProject(t, "approved", "nb")
+	root := writeUnifiedQueueProject(t, "established", "nb")
 	recipe := filepath.Join(root, "kapi.yaml")
 
 	var all reviewQueueOutput
@@ -287,7 +287,7 @@ func TestStatusReview_ListsSourceUnitsAndFiltersByLanguage(t *testing.T) {
 	assert.Contains(t, text, "kapi apply", "the approval instruction stays")
 	assert.Contains(t, text, "approve source wording in the Review page of Kapi Desktop",
 		"the CLI records no source decision, and says so rather than naming a command that does not exist")
-	assert.Contains(t, text, "rank below the project's source gate", "a held source unit says why the loop is waiting")
+	assert.Contains(t, text, "are held at the project's source gate", "a held source unit says why the loop is waiting")
 	// The table draws an em dash for an empty cell; the prose beside it carries
 	// none.
 	for line := range strings.SplitSeq(text, "\n") {
@@ -302,7 +302,7 @@ func TestStatusReview_ListsSourceUnitsAndFiltersByLanguage(t *testing.T) {
 // beside the target work, because it reads the same Languages set the queue
 // built.
 func TestStatusReview_ListsTheSourceLaneWhenSourceIsClean(t *testing.T) {
-	root := writeUnifiedQueueProject(t, "checked", "nb")
+	root := writeUnifiedQueueProject(t, "written", "nb")
 	recipe := filepath.Join(root, "kapi.yaml")
 
 	var out reviewQueueOutput
@@ -315,7 +315,7 @@ func TestStatusReview_ListsTheSourceLaneWhenSourceIsClean(t *testing.T) {
 
 // A target unit keeps answering as it did, with the language fields filled in.
 func TestReviewUnit_TargetUnitCarriesItsLanguage(t *testing.T) {
-	root := writeUnifiedQueueProject(t, "checked", "nb")
+	root := writeUnifiedQueueProject(t, "written", "nb")
 	info, err := (&App{}).ReviewUnitWithContext(t.Context(), filepath.Join(root, "kapi.yaml"), "en",
 		ReviewUnitRef{File: "nb.json", Key: "a", Locale: "nb"})
 	require.NoError(t, err)

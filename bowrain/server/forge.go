@@ -434,7 +434,7 @@ func (s *Server) deliverToForges(ctx context.Context, ev platev.Event) {
 // empty.
 //
 // Governed projects (workflow_enabled != "false") ship only APPROVED
-// translations (RV-A): a reviewed or signed-off target is a person's decision
+// translations (RV-A): a established target is a person's decision
 // to ship; a draft/translated one is not, so unreviewed drafts are withheld
 // until approved. A non-governed project keeps the kapi-drafts-ship semantics —
 // any committed target delivers — so this path stays byte-for-byte identical
@@ -461,7 +461,7 @@ func (s *Server) materializeDelivery(ctx context.Context, proj *platstore.Projec
 				if sb.Block == nil || !sb.Block.HasTarget(locale) {
 					continue
 				}
-				// Governed delivery ships only approved (reviewed/signed-off)
+				// Governed delivery ships only approved (established)
 				// targets; a governed item/locale with zero approved blocks is
 				// skipped as empty, exactly as an untranslated one is.
 				if governed && !targetApproved(sb.Block, locale) {

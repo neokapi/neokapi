@@ -73,7 +73,7 @@ func TestRunUp_EmbeddedConverge(t *testing.T) {
 // per-scope detail — and is a result, never an error.
 func TestRunUp_ParksUnreachableGate(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"reviewed": {Pct: 100}})
+	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"established": {Pct: 100}})
 
 	out, err := a.RunUp(context.Background(), recipe, "", UpOptions{UntilGate: true, MaxPasses: 2})
 	require.NoError(t, err, "parked work is a result, not an error")
