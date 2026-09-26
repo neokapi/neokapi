@@ -109,8 +109,10 @@ python3 "$GEN/lib/targets.py" approvals "$WORK/review.json" "$WORK/approve.jsonl
 "$KAPI" apply -p "$P/kapi.yaml" "$WORK/approve.jsonl" >/dev/null
 
 # The decisions are in the ledger from the moment they are applied. The sample
-# ships them as files, so write the record back out beside the other context.
-KAPI_ACTOR=person "$KAPI" context snapshot -p "$P/kapi.yaml" --out "$P/context" >/dev/null
+# ships them in a context file beside the other context, which scaffolding
+# merges the way a pull does.
+rm -rf "$P/context/state" "$P/context/context.kpz"
+KAPI_ACTOR=person "$KAPI" context export -p "$P/kapi.yaml" -o "$P/context/context.kpz" >/dev/null
 
 # The corpus must not already hold the answers, or the absorber correctly
 # declines to learn them and the memory comes back empty of provenance. The

@@ -157,32 +157,5 @@ ok(
   !queue2?.pending?.find((u: any) => u.key === "greeting"),
 );
 
-// ── 6. snapshot: the recorded decisions are written out as the record ─────────
-// A decision is durable in the ledger the moment it is made. `kapi context
-// snapshot` writes the project's context out as files, the record among them:
-// per-document JSONL shards under <out>/state/ (one line per unit), written
-// through the sandbox FS. --out is required; this names the project's own
-// .kapi/ so the shards land where the assertions below read them.
-const s6 = await run(["context", "snapshot", "-p", P, "--out", "/project/.kapi"]);
-ok("context snapshot exits 0 in wasm", s6.code === 0, `code=${s6.code}`);
-let shards: string[] = [];
-try {
-  shards = mem.vol.readdir("/project/.kapi/state/").filter((n) => n.endsWith(".jsonl"));
-} catch {
-  /* leave empty */
-}
-ok("the snapshot wrote the decision record (.kapi/state/*.jsonl)", shards.length > 0, `shards=${shards.length}`);
-const recordedUnits: any[] = shards.flatMap((n) =>
-  dec
-    .decode(mem.vol.readFile("/project/.kapi/state/" + n))
-    .split("\n")
-    .filter((l) => l.trim() !== "")
-    .map((l) => JSON.parse(l)),
-);
-ok(
-  "the written record holds the reviewed unit with a targetHash",
-  !!recordedUnits.find((u: any) => u.status === "reviewed" && u.targetHash),
-);
-
 console.log(failures === 0 ? "\nALL REVIEW SMOKE CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);
