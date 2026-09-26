@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/neokapi/neokapi/core/check"
@@ -12,9 +13,8 @@ import (
 // SourceGateConfig configures the source-gate leading stage.
 type SourceGateConfig struct {
 	// Gate is the resolved source-first gate level (none|written|established).
-	// Empty resolves to the default (written) via ResolveSourceGate; a typo
-	// must not silently disable the gate, so an unrecognized value also gates
-	// at written.
+	// Empty resolves to the default (written); any other value outside the
+	// three levels is refused when the tool is built.
 	Gate string `json:"gate,omitempty" schema:"title=Source Gate,description=What a block's source must satisfy before its translations are produced: written (its checks pass) or established (a person reviewed it),enum=none|written|established,default=written"`
 }
 
@@ -107,14 +107,17 @@ func (t *SourceGateTool) gateOne(ctx context.Context, part *model.Part) {
 }
 
 // NewSourceGateFromConfig builds the source-gate tool from a config map (the
-// schema-driven flow path). It resolves the gate string through the canonical
-// ResolveSourceGate so an unset/unknown value lands on the default (written).
+// schema-driven flow path). An unset gate is the default (written); a value
+// that names no gate is an error.
 func NewSourceGateFromConfig(config map[string]any, _ string) (tool.Tool, error) {
 	var cfg SourceGateConfig
 	if raw, ok := config["gate"].(string); ok {
 		cfg.Gate = raw
 	}
-	gate, _ := model.ResolveSourceGate(cfg.Gate)
+	gate, known := model.ResolveSourceGate(cfg.Gate)
+	if !known {
+		return nil, fmt.Errorf("source-gate: gate %q is not a source gate. Use written (the default), established or none", cfg.Gate)
+	}
 	return NewSourceGateTool(gate), nil
 }
 

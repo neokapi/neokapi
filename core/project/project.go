@@ -196,6 +196,8 @@ type Defaults struct {
 	//   "none"        — the deliberate opt-out: no gate, every present source
 	//                   fans out on push. You have to choose it.
 	//
+	// Any other value fails the recipe's validation.
+	//
 	// It is the level-based, per-project counterpart of the coverage-bar
 	// SourceGate on KapiProject (which `kapi check --ship` evaluates); this one
 	// governs the convergence fan-out.
@@ -1053,6 +1055,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	}
 	if err := p.Defaults.Voice.validate("defaults.voice"); err != nil {
 		return err
+	}
+	if _, known := model.ResolveSourceGate(p.Defaults.SourceGate); !known {
+		return fmt.Errorf("defaults.source_gate: %q is not a source gate. Use written (the default), established or none", p.Defaults.SourceGate)
 	}
 	if err := validateDirectives("defaults.comments.directives", p.Defaults.Comments.Directives, nil); err != nil {
 		return err

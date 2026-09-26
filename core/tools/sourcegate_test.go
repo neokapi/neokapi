@@ -141,3 +141,13 @@ func (m staticMemoryProvider) Lookup(_ context.Context, req corememory.Request) 
 func (m staticMemoryProvider) PriorVersion(context.Context, corememory.VersionRequest) (corememory.Version, bool) {
 	return corememory.Version{}, false
 }
+
+func TestSourceGateFromConfig_RefusesAnUnknownGate(t *testing.T) {
+	_, err := NewSourceGateFromConfig(map[string]any{"gate": "checked"}, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `gate "checked" is not a source gate`)
+
+	tl, err := NewSourceGateFromConfig(map[string]any{}, "")
+	require.NoError(t, err)
+	assert.NotNil(t, tl)
+}
