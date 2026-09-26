@@ -18,7 +18,7 @@ import (
 
 // listFlowsJSON runs `kapi flows --json -p <recipe>` and returns what it
 // listed and what it wrote to stderr.
-func listFlowsJSON(t *testing.T, a *App, recipe string, opts FlowCmdOptions) ([]output.FlowInfo, string) {
+func listFlowsJSON(t *testing.T, a *App, recipe string) ([]output.FlowInfo, string) {
 	t.Helper()
 	cmd := NewEnvCommand(context.Background(), "flows")
 	fs := cmd.Flags()
@@ -29,7 +29,7 @@ func listFlowsJSON(t *testing.T, a *App, recipe string, opts FlowCmdOptions) ([]
 	var out, errOut bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&errOut)
-	require.NoError(t, a.ListFlows(cmd, opts))
+	require.NoError(t, a.ListFlows(cmd))
 	var got output.FlowsListOutput
 	require.NoError(t, json.Unmarshal(out.Bytes(), &got), out.String())
 	return got.Flows, errOut.String()
@@ -45,7 +45,7 @@ func TestListFlows_SaysWhenTheRecipeDoesNotLoad(t *testing.T) {
 	require.NotEqual(t, string(body), broken)
 	require.NoError(t, os.WriteFile(recipe, []byte(broken), 0o644))
 
-	flows, stderr := listFlowsJSON(t, a, recipe, FlowCmdOptions{})
+	flows, stderr := listFlowsJSON(t, a, recipe)
 	assert.NotEmpty(t, flows, "the built-in flows still list")
 	for _, f := range flows {
 		assert.NotEqual(t, "guard", f.Name)
@@ -69,11 +69,7 @@ func TestListFlows_ListsTheProjectsFlows(t *testing.T) {
 	}
 	require.NoError(t, project.Save(recipe, loaded))
 
-	flows, _ := listFlowsJSON(t, a, recipe, FlowCmdOptions{
-		ExtraFlows: func() []output.FlowInfo {
-			return []output.FlowInfo{{Name: "guard", Description: "from a plugin"}, {Name: "plugin-only"}}
-		},
-	})
+	flows, _ := listFlowsJSON(t, a, recipe)
 	byName := map[string][]output.FlowInfo{}
 	for _, f := range flows {
 		byName[f.Name] = append(byName[f.Name], f)
@@ -91,6 +87,4 @@ func TestListFlows_ListsTheProjectsFlows(t *testing.T) {
 
 	require.Len(t, byName["broken"], 1, "a file that will not run is listed with its problem")
 	assert.Contains(t, byName["broken"][0].Description, "declares no steps")
-
-	assert.Len(t, byName["plugin-only"], 1, "a plugin's flows are still listed")
 }

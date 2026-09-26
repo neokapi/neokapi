@@ -540,9 +540,9 @@ With `-p`:
 
 - The flow name is looked up in the project's `flows` map first, then as
   `<flows_dir>/<name>.yaml` when the recipe names a `flows_dir`
-  (`core/project.LoadDirFlow`), then among the built-in flows, and finally the
-  plugin fallback (`host.ResolveProjectFlow`, which `kapi up` resolves
-  `defaults.flow` through as well)
+  (`core/project.LoadDirFlow`), then among the built-in flows
+  (`host.ResolveProjectFlow`, which `kapi up` resolves `defaults.flow` through
+  as well)
 - `defaults.source_language` and `defaults.target_languages[0]` provide
   defaults (CLI flags override)
 - For single-file flows, `--input` selects the file. The project's

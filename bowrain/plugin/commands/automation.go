@@ -183,7 +183,7 @@ func runFlowAction(cmd *cobra.Command, action project.ActionConfig, proj *projec
 		app.SourceLang, app.TargetLang = savedSource, savedTarget
 		app.FormatFlag, app.Encoding = savedFormat, savedEncoding
 	}()
-	runCmd := cli.NewRunCmd(app, cli.RunCmdOptions{})
+	runCmd := cli.NewRunCmd(app)
 	runCmd.SetContext(cmd.Context())
 	runCmd.SetOut(out)
 	runCmd.SetErr(cmd.ErrOrStderr())
@@ -198,7 +198,6 @@ func runFlowAction(cmd *cobra.Command, action project.ActionConfig, proj *projec
 	reports := 0
 	var notRun []cli.FlowFindings
 	err := app.RunFromProject(runCmd, flowName, recipePath, cli.RunCmdOptions{
-		FallbackRunE: app.ResolveFallbackRunE(cli.RunCmdOptions{}),
 		OnFindings: func(f cli.FlowFindings) {
 			reports++
 			found.Findings += f.Summary.Findings

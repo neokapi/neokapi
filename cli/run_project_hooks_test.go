@@ -17,7 +17,7 @@ import (
 // RunFromProject: the real flag set, no --input, no --target-lang.
 func projectRunCmd(t *testing.T, a *App, recipe string) (*cobra.Command, *bytes.Buffer) {
 	t.Helper()
-	cmd := NewRunCmd(a, RunCmdOptions{})
+	cmd := NewRunCmd(a)
 	require.NoError(t, cmd.Flags().Set("project", recipe))
 	cmd.SetContext(t.Context())
 	var out bytes.Buffer

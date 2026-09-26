@@ -13,8 +13,8 @@ import (
 type CommandFactory func(parent *cobra.Command, app *App)
 
 // AppInitializer mutates an *App after construction. Plugins use this to
-// install fields like FallbackRunE / ExtraFlows hooks that don't fit a
-// dedicated registry. Called once per App after InitRegistries.
+// install App fields that do not fit a dedicated registry (the AI setup
+// prompter, a plugin capturing its App). Called once per App after InitRegistries.
 type AppInitializer func(app *App)
 
 var (

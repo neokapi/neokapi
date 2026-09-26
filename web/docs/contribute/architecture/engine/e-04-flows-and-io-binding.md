@@ -98,10 +98,10 @@ Invoke a single tool directly as a tool command. Use a flow to compose tools;
   A name resolves to the most specific definition, by one rule on every
   surface (`kapi run`, `kapi up`'s `defaults.flow`, `kapi flows`, the MCP
   `list_flows` and `run_flow` tools, Kapi Desktop's flows page and runner;
-  `host.ResolveProjectFlow`, with `host.FlowList` as the one listing): the
-  recipe's inline flow, then
-  the file of that name, then the built-in flow of that name, then a plugin's
-  fallback. A project that declares `translate` runs its own, and `kapi flows`
+  `host.ResolveProjectFlow`, with `host.FlowList` as the one listing): the recipe's inline flow, then
+  the file of that name, then the built-in flow of that name. A plugin
+  contributes the tools and formats a flow's steps name, and no flows of its
+  own. A project that declares `translate` runs its own, and `kapi flows`
   lists it in place of the built-in. The porcelain verbs (`kapi translate`,
   `kapi pseudo-translate`) belong to kapi, so they always run the built-in
   flow they are named for. The directory

@@ -38,18 +38,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// FlowCmdOptions configures the flow and run commands.
-type FlowCmdOptions struct {
-	// FallbackRunE is called when the flow name doesn't match a built-in flow.
-	// If nil, unknown flow names return an error.
-	FallbackRunE func(cmd Command, flowName string, args []string) error
-
-	// ExtraFlows returns additional flows for the list command (e.g. project flows).
-	ExtraFlows func() []output.FlowInfo
-}
-
 // RunFlow executes a flow by name with the given input files.
-func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string, opts FlowCmdOptions) error {
+func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string) error {
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
 	// Directories and globs expand exactly as the tool runner expands them
 	// (recursive, hidden dirs and junk files skipped), so the flow-backed
@@ -101,16 +91,6 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string, opts Fl
 		return a.runMultipleFiles(ctx, cmd, flowName, inputPaths, concurrency, outputFlag)
 	}
 
-	// No --input: try fallback (e.g. project flow). Read at run time so
-	// plugin App initializers have already installed the App-level
-	// FallbackRunE.
-	fallback := opts.FallbackRunE
-	if fallback == nil {
-		fallback = a.FallbackRunE
-	}
-	if fallback != nil {
-		return fallback(cmd, flowName, []string{flowName})
-	}
 	return errors.New("--input (-i) is required")
 }
 
@@ -225,19 +205,12 @@ func FlowListing(recipePath string) ([]output.FlowInfo, error) {
 
 // ListFlows outputs the list of available flows: FlowList for the recipe in
 // scope.
-func (a *App) ListFlows(cmd Command, opts FlowCmdOptions) error {
+func (a *App) ListFlows(cmd Command) error {
 	recipePath, err := ResolveProjectPath(cmd)
 	if err != nil {
 		return err
 	}
-	// Read ExtraFlows at run time — plugins install via
-	// RegisterAppInitializer which fires during PersistentPreRun, after
-	// NewFlowsCmd has already constructed the cobra command.
-	extra := opts.ExtraFlows
-	if extra == nil {
-		extra = a.ExtraFlows
-	}
-	flows, err := FlowList(recipePath, extra)
+	flows, err := FlowList(recipePath)
 	if err != nil {
 		// The built-in flows still list; the project's are named as missing
 		// rather than silently absent.
@@ -247,26 +220,10 @@ func (a *App) ListFlows(cmd Command, opts FlowCmdOptions) error {
 }
 
 // FlowList is the one list of flows every surface shows (`kapi flows`, the
-// MCP list_flows tool, Kapi Desktop): FlowListing for the recipe at recipePath,
-// then any flow extra adds under a name nothing else resolves, since a
-// plugin's flow runs only for such a name. The error is FlowListing's, with
-// the list still filled.
-func FlowList(recipePath string, extra func() []output.FlowInfo) ([]output.FlowInfo, error) {
-	flows, err := FlowListing(recipePath)
-	if extra == nil {
-		return flows, err
-	}
-	listed := BuiltinFlowNames()
-	for _, f := range flows {
-		listed[f.Name] = true
-	}
-	for _, f := range extra() {
-		if !listed[f.Name] {
-			listed[f.Name] = true
-			flows = append(flows, f)
-		}
-	}
-	return flows, err
+// MCP list_flows tool, Kapi Desktop): FlowListing for the recipe at
+// recipePath. The error is FlowListing's, with the list still filled.
+func FlowList(recipePath string) ([]output.FlowInfo, error) {
+	return FlowListing(recipePath)
 }
 
 // FlowSource names where a listed flow comes from, in the terms

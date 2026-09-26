@@ -40,7 +40,7 @@ func KapiCommandSet(a *App) []*cobra.Command {
 	cmds = append(cmds, NewTranslateCmd(a), NewPseudoTranslateCmd(a))
 
 	// Primary commands.
-	runCmd := NewRunCmd(a, RunCmdOptions{})
+	runCmd := NewRunCmd(a)
 	runCmd.GroupID = "advanced"
 	cmds = append(cmds, runCmd)
 	cmds = append(cmds, NewExtractCmd(a, ExtractCmdOptions{}))
@@ -70,7 +70,7 @@ func KapiCommandSet(a *App) []*cobra.Command {
 
 	// Management commands.
 	cmds = append(cmds,
-		NewFlowsCmd(a, FlowCmdOptions{}),
+		NewFlowsCmd(a),
 		NewToolsCmd(a),
 		NewFormatsCmd(a),
 		NewPluginCmd(a),

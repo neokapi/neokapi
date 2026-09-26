@@ -14,7 +14,7 @@ import (
 func TestRunCmd_ProjectFlag(t *testing.T) {
 	app := &App{}
 
-	cmd := NewRunCmd(app, RunCmdOptions{})
+	cmd := NewRunCmd(app)
 
 	// Verify the -p/--project flag exists.
 	f := cmd.Flags().Lookup("project")

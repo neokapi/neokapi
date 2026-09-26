@@ -75,7 +75,7 @@ func processOnlyProjectFixture(t *testing.T, targets []model.LocaleID) (recipe, 
 // command, capturing combined stdout/stderr.
 func runRunCmd(t *testing.T, a *App, recipe, flow string, flags ...string) (string, error) {
 	t.Helper()
-	cmd := NewRunCmd(a, RunCmdOptions{})
+	cmd := NewRunCmd(a)
 	args := append([]string{flow, "--project", recipe}, flags...)
 	cmd.SetArgs(args)
 	var out bytes.Buffer

@@ -153,7 +153,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 	cmds = append(cmds, NewTranslateCmd(a), NewPseudoTranslateCmd(a))
 
 	// Primary commands.
-	runCmd := NewRunCmd(a, RunCmdOptions{})
+	runCmd := NewRunCmd(a)
 	runCmd.GroupID = "advanced"
 	cmds = append(cmds, runCmd)
 	cmds = append(cmds, NewExtractCmd(a, ExtractCmdOptions{}))
@@ -183,7 +183,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 	// Management commands. Content memory and terms run against the in-memory backends
 	// the wasm entrypoint seeds from embedded fixtures — no SQLite, no cgo.
 	cmds = append(cmds,
-		NewFlowsCmd(a, FlowCmdOptions{}),
+		NewFlowsCmd(a),
 		NewToolsCmd(a),
 		NewFormatsCmd(a),
 		newBrowserGapCmd("plugin"),

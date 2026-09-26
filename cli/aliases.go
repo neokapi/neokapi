@@ -39,7 +39,6 @@ type (
 	RegistryPluginEntry           = host.RegistryPluginEntry
 	EnvCommand                    = host.EnvCommand
 	ExtractCmdOptions             = host.ExtractCmdOptions
-	FlowCmdOptions                = host.FlowCmdOptions
 	FlowRunEvent                  = host.FlowRunEvent
 	FlowRunOptions                = host.FlowRunOptions
 	GrepOptions                   = host.GrepOptions

@@ -118,12 +118,12 @@ func buildCommandSubtree() *cobra.Command {
 	// alongside its own commands. We expose the full set so a power user
 	// running `kapi-bowrain command run translate` has the same surface
 	// as the legacy `bowrain` binary.
-	runCmd := cli.NewRunCmd(app, cli.RunCmdOptions{})
+	runCmd := cli.NewRunCmd(app)
 	runCmd.GroupID = "advanced"
 	cmd.AddCommand(runCmd)
 	cmd.AddCommand(cli.NewExtractCmd(app, cli.ExtractCmdOptions{}))
 	cmd.AddCommand(cli.NewMergeCmd(app, cli.MergeCmdOptions{}))
-	cmd.AddCommand(cli.NewFlowsCmd(app, cli.FlowCmdOptions{}))
+	cmd.AddCommand(cli.NewFlowsCmd(app))
 	cmd.AddCommand(cli.NewToolsCmd(app))
 	cmd.AddCommand(cli.NewFormatsCmd(app))
 	cmd.AddCommand(cli.NewRegistryCmd(app))

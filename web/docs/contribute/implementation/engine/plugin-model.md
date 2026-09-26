@@ -100,7 +100,7 @@ func init() {
 }
 ```
 
-`AppInitializer` is invoked from the host's `PersistentPreRun` after `app.Init()`. Plugins use it to install fields like `app.FallbackRunE` (project flow resolution) that need to see the fully-initialized `App`.
+`AppInitializer` is invoked from the host's `PersistentPreRun` after `app.Init()`. A plugin uses it to capture or configure the fully initialized `App`, for example to keep a handle its command bodies read.
 
 `MCPToolFactory` is invoked by the shared `app.NewMCPCmd("kapi")` when the `mcp` subcommand starts. Each registered factory is given the `*mcp.Server` and the `*cli.App` and adds its tools.
 
