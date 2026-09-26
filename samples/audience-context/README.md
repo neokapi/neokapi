@@ -4,8 +4,8 @@ This English-only sample adapts the audience experiment at `1266554d2`.
 The original experiment and its results remain available at that commit.
 
 Four collections bind child, teen, adult and older-adult channels explicitly.
-Each channel replaces presentation preferences. A top-level critical wording
-constraint survives those overrides. Shared factual guidance remains visible
+Each channel replaces presentation preferences. A top-level wording constraint,
+whose matches fail the check, survives those overrides. Shared factual guidance remains visible
 for a writer or reviewer; deterministic checks do not verify its meaning.
 
 Read [the fixture facts and reading situations](service-facts.md). The wording
@@ -24,7 +24,7 @@ files into the store with `kapi context import ./context` (the recipe binds the
 voice by the name that import stores it under, `harbor-help`), disables project
 and plugin discovery outside that fixture, and uses throwaway configuration and
 cache directories. It records the binary and source hashes, context answer,
-raw check output and process exit status. It fails if a critical wording
+raw check output and process exit status. It fails if a failing wording
 violation disappears in any audience.
 
 The JSON artifact uses `schema: neokapi-audience-coverage/v1`. Top-level fields

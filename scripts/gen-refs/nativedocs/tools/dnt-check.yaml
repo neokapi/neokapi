@@ -5,8 +5,8 @@ overview: |
   The **Do-Not-Translate Check** tool guards terms that must reach the target
   unchanged: product names, trademarks, code identifiers. For each configured
   term that appears in the source as a whole word, it verifies the term is
-  present verbatim in the target; when it is missing, the block is flagged with a
-  critical finding (the "the AI translated your product name" case). It is
+  present verbatim in the target; when it is missing, the block carries a
+  finding that fails the check (the "the AI translated your product name" case). It is
   read-only: it annotates findings and never rewrites content.
 
   The list of protected terms is supplied programmatically rather than as a
@@ -29,7 +29,7 @@ limitations:
   - Requires a configured target locale; blocks without a target for that locale are skipped.
 processingNotes:
   - Operates on translatable blocks that have a target for the configured locale; other parts pass through unchanged.
-  - Findings are emitted in the "do-not-translate" category at critical severity.
+  - Findings are emitted in the "do-not-translate" category, and every one fails the check.
 examples:
   - title: Case-insensitive preservation
     description: Accept a case-folded match for protected terms in the target.

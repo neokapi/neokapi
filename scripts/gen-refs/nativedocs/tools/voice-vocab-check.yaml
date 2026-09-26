@@ -7,17 +7,17 @@ overview: |
   The **Voice Vocabulary Check** tool is the deterministic gate a voice profile
   carries: the forbidden terms, the competitor terms and the prohibited style
   patterns, matched over each block's source text with no model and no network.
-  A forbidden term reports at major severity and a competitor term at critical,
-  each defaulting from the profile and overridable per rule; where the rule names
-  a replacement, the finding carries it as the suggestion. Terms match whole-word
+  A forbidden term and a competitor term each fail the check unless the rule is
+  marked advisory, which makes a match report only; where the rule names a
+  replacement, the finding carries it as the suggestion. Terms match whole-word
   and Unicode-aware, so `use` never fires inside `user`; style patterns match as
   the regular expression the author wrote them as.
 
   When the project binds a terms store, the tool enforces that too: the
   vocabulary the project *decided*, alongside the lists the profile carries. A
-  competitor entry reports critical, a forbidden one major and a retired one
-  minor, the softer reading for a word that was the project's own until a
-  decision replaced it. The alternative comes from the concept: its preferred
+  competitor or forbidden entry fails unless it is marked advisory, and a
+  retired one only reports, the softer reading for a word that was the
+  project's own until a decision replaced it. The alternative comes from the concept: its preferred
   term in the same language, or the replacement the term's note names. Lookup
   asks in the block's own language and, when that names a region, in the bare
   language beneath it, so a project writing `en-GB` is still held to a decision
