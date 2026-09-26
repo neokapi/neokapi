@@ -2016,7 +2016,7 @@ l10n-compile: i18n-react-build ## Stage 3: catalogs → runtime dictionaries, em
 	@# committed English dataset, the Go-surface catalogs and the translated
 	@# dossiers this stage has on disk. The qps variant is build-derived; a
 	@# target locale's is loop output and follows its catalog.
-	$(GO) run ./scripts/gen-refs -locales-only -locales "qps $(L10N_COMPILE_LANGS)"
+	$(GO) run $(GOTAGS) ./scripts/gen-refs -locales-only -locales "qps $(L10N_COMPILE_LANGS)"
 	@# Recursive rather than a prerequisite: the Go catalogs must compile from
 	@# the JSON on disk now, and a sibling prerequisite carries no ordering
 	@# under `make -j`.
@@ -2315,7 +2315,7 @@ bench-stress: bench-run ## Stress-run full corpus and publish to docs (slow, ~30
 # false positive or a missed finding — mirroring how `make parity` gates format
 # faithfulness. The corpus grows from real corrections (issue #759).
 check-eval: ## Run the content-check quality eval → web/src/pages/check-eval/_eval.json
-	$(GO) run ./scripts/checkeval
+	$(GO) run $(GOTAGS) ./scripts/checkeval
 	@echo "Published check-eval report → web/src/pages/check-eval/_eval.json"
 
 # ── Conversion eval ──────────────────────────────────────────────────────────
@@ -2431,19 +2431,19 @@ eval-index: ## Rebuild the /evals cover-page data
 # `flaky` rather than rounded to a pass.
 SKILLEVAL_ARGS ?=
 skill-eval: build ## Measure whether the Agent Skill fires on the right tasks (spends, local only)
-	$(GO) run ./scripts/skilleval -mode trigger $(SKILLEVAL_ARGS)
+	$(GO) run $(GOTAGS) ./scripts/skilleval -mode trigger $(SKILLEVAL_ARGS)
 
 # The expensive half: drives each positive to a green gate rather than stopping
 # at activation. Needs a built kapi, and takes far longer per scenario.
 skill-eval-completion: build ## Drive each positive scenario to a green gate (slow, spends, local only)
-	$(GO) run ./scripts/skilleval -mode completion -repeat 1 -concurrency 3 -timeout 90m $(SKILLEVAL_ARGS)
+	$(GO) run $(GOTAGS) ./scripts/skilleval -mode completion -repeat 1 -concurrency 3 -timeout 90m $(SKILLEVAL_ARGS)
 
 # The other door. An MCP client holds kapi's nineteen tools in context already,
 # so it cannot fail to notice kapi; it fails by picking the wrong tool. Scored
 # on which tool the agent reached for, not on whether it reached kapi at all.
 # Needs a built kapi, because the agent is pointed at this checkout's binary.
 mcp-eval: build ## Measure whether an agent picks the right kapi MCP tool (spends, local only)
-	$(GO) run ./scripts/skilleval -mode trigger -surface mcp -repeat 3 $(SKILLEVAL_ARGS)
+	$(GO) run $(GOTAGS) ./scripts/skilleval -mode trigger -surface mcp -repeat 3 $(SKILLEVAL_ARGS)
 
 # Paired studies keep the same task across the baseline, CLI skill and MCP.
 # Live runs use the signed-in subscriptions and a persistent attempt ceiling.
@@ -2455,19 +2455,19 @@ PAIRED_EVAL_FLAGS = -paired-manifest "$(PAIRED_EVAL_MANIFEST)" -paired-dir "$(PA
 .PHONY: paired-eval-preflight paired-eval-smoke paired-eval-diagnostic paired-eval-pilot paired-eval-score
 
 paired-eval-preflight: ## Prepare the paired agent study without model calls (build kapi first)
-	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase preflight
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase preflight
 
 paired-eval-smoke: ## Run a bounded subscription-backed smoke batch (consumes plan allowance)
-	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase smoke -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase smoke -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
 
 paired-eval-diagnostic: ## Test explicitly instructed integration use within the shared subscription ceiling
-	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase diagnostic -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase diagnostic -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
 
 paired-eval-pilot: ## Run the paired pilot within the persistent attempt ceiling (consumes plan allowance)
-	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase pilot -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase pilot -paired-live -paired-max-attempts $(PAIRED_EVAL_MAX_ATTEMPTS)
 
 paired-eval-score: ## Summarize saved paired attempts without model calls
-	$(GO) run ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase score
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(PAIRED_EVAL_FLAGS) -paired-phase score
 
 # The agent evaluation: whether coding agents find, apply and grow a project's
 # context through kapi. It runs over a generated documentation repository whose
@@ -2495,19 +2495,19 @@ EVAL_FLAGS = -eval-manifest "$(EVAL_MANIFEST)" -eval-dir "$(EVAL_DIR)" -timeout 
 .PHONY: eval-preflight eval-smoke eval-apply eval-grow eval-report
 
 eval-preflight: ## Build the evaluation fixture and every cell, and verify the wiring (no model calls; make build first)
-	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase preflight
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(EVAL_FLAGS) -eval-phase preflight
 
 eval-smoke: ## Run one agent-evaluation grow session per host (consumes plan allowance)
-	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase smoke -eval-live -eval-max-attempts $(EVAL_MAX_ATTEMPTS)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(EVAL_FLAGS) -eval-phase smoke -eval-live -eval-max-attempts $(EVAL_MAX_ATTEMPTS)
 
 eval-apply: ## Run Measure 1: do agents apply the rules a project holds (consumes plan allowance)
-	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase apply -eval-live -eval-max-attempts $(EVAL_MAX_ATTEMPTS)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(EVAL_FLAGS) -eval-phase apply -eval-live -eval-max-attempts $(EVAL_MAX_ATTEMPTS)
 
 eval-grow: ## Run Measure 2: do agents record a project's conventions (consumes plan allowance)
-	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase grow -eval-live -eval-max-attempts $(EVAL_MAX_ATTEMPTS)
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(EVAL_FLAGS) -eval-phase grow -eval-live -eval-max-attempts $(EVAL_MAX_ATTEMPTS)
 
 eval-report: ## Render the agent-evaluation report and review sheet from saved attempts (no model calls)
-	$(GO) run ./scripts/skilleval $(EVAL_FLAGS) -eval-phase report
+	$(GO) run $(GOTAGS) ./scripts/skilleval $(EVAL_FLAGS) -eval-phase report
 
 PRIORAB_ARGS ?=
 # Costs model calls. Two halves: a deterministic consistency check (does the
@@ -2518,7 +2518,7 @@ prior-ab-eval: ## Measure whether a block's prior version changes what the model
 
 BATCHEVAL_ARGS ?=
 batch-eval: ## Sweep batch size and score structural integrity (demo stub unless -models given)
-	$(GO) run ./scripts/batcheval $(BATCHEVAL_ARGS)
+	$(GO) run $(GOTAGS) ./scripts/batcheval $(BATCHEVAL_ARGS)
 
 # The published sweep behind the /batch-eval dashboard. Re-run it when the models
 # move: an alias like `sonnet` or `gemini-3.5-flash` points at different weights
@@ -2575,9 +2575,9 @@ update-model-catalog: ## Refresh providers/ai/models.json against the providers'
 	claude -p "$$(cat scripts/prompts/update-model-catalog.md)"
 
 batch-eval-publish: ## Sweep the real models → /batch-eval dashboard data (costs calls)
-	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_GEMINI) -blocks $(BATCHEVAL_BLOCKS) \
+	$(GO) run $(GOTAGS) ./scripts/batcheval -models $(BATCHEVAL_GEMINI) -blocks $(BATCHEVAL_BLOCKS) \
 		-n $(BATCHEVAL_N) -repeat 2 -concurrency 4 -append $(BATCHEVAL_DATA)
-	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_CLAUDE) -blocks $(BATCHEVAL_BLOCKS) \
+	$(GO) run $(GOTAGS) ./scripts/batcheval -models $(BATCHEVAL_CLAUDE) -blocks $(BATCHEVAL_BLOCKS) \
 		-n $(BATCHEVAL_N) -repeat 1 -concurrency 3 -append $(BATCHEVAL_DATA)
 # Bedrock rate-limits on *requests*, so the small batch sizes — which issue the most
 # calls — are the ones that get throttled. Low concurrency, and a throttled N is
@@ -2586,7 +2586,7 @@ batch-eval-publish: ## Sweep the real models → /batch-eval dashboard data (cos
 # which CI does not hold — the evals-refresh workflow sets EVALS_SKIP_BEDROCK=1
 # and the leg stays a desktop responsibility.
 ifeq ($(strip $(EVALS_SKIP_BEDROCK)),)
-	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_BEDROCK) -blocks $(BATCHEVAL_BLOCKS) \
+	$(GO) run $(GOTAGS) ./scripts/batcheval -models $(BATCHEVAL_BEDROCK) -blocks $(BATCHEVAL_BLOCKS) \
 		-n $(BATCHEVAL_N) -repeat 1 -concurrency 2 -append $(BATCHEVAL_DATA)
 else
 	@echo "EVALS_SKIP_BEDROCK set — skipping the Bedrock batch-eval leg (no AWS credentials)"
@@ -2605,7 +2605,7 @@ endif
 # NOTHING about any model, and says so.
 CONTEXTEVAL_ARGS ?=
 context-eval: ## Measure context-adherence lift (demo stub unless -models given)
-	$(GO) run ./scripts/contexteval $(CONTEXTEVAL_ARGS)
+	$(GO) run $(GOTAGS) ./scripts/contexteval $(CONTEXTEVAL_ARGS)
 
 # The published sweep behind the /context-eval dashboard. Steerability is model-
 # and time-specific — an alias like `sonnet` points at different weights over
@@ -2642,28 +2642,28 @@ CONTEXTEVAL_CANDIDATES ?= scripts/contexteval/candidates.json
 CONTEXTEVAL_LABELS     ?= scripts/contexteval/labels.json
 
 judge-candidates: ## Sweep and save translations to label (costs calls)
-	$(GO) run ./scripts/contexteval -models $(CONTEXTEVAL_CLAUDE) \
+	$(GO) run $(GOTAGS) ./scripts/contexteval -models $(CONTEXTEVAL_CLAUDE) \
 	    -targets $(CONTEXTEVAL_TARGETS) -repeat 1 -concurrency 3 \
 	    -save-outputs $(CONTEXTEVAL_CANDIDATES)
 	@echo "Candidates → $(CONTEXTEVAL_CANDIDATES). Now: make judge-label"
 
 judge-label: ## Label saved translations for judge validation (interactive, free)
-	@$(GO) run ./scripts/contexteval -label $(CONTEXTEVAL_CANDIDATES) -labels $(CONTEXTEVAL_LABELS)
+	@$(GO) run $(GOTAGS) ./scripts/contexteval -label $(CONTEXTEVAL_CANDIDATES) -labels $(CONTEXTEVAL_LABELS)
 
 judge-validate: ## Measure judge–human agreement over the labels and record it
-	$(GO) run ./scripts/contexteval -judge $(CONTEXTEVAL_JUDGE_FOR_CLAUDE) \
+	$(GO) run $(GOTAGS) ./scripts/contexteval -judge $(CONTEXTEVAL_JUDGE_FOR_CLAUDE) \
 	    -judge-validate $(CONTEXTEVAL_LABELS) -append $(CONTEXTEVAL_DATA)
 
 context-eval-publish: ## Sweep real models for context adherence → /context-eval dashboard data (costs calls)
-	$(GO) run ./scripts/contexteval -models $(CONTEXTEVAL_GEMINI) -targets $(CONTEXTEVAL_TARGETS) \
+	$(GO) run $(GOTAGS) ./scripts/contexteval -models $(CONTEXTEVAL_GEMINI) -targets $(CONTEXTEVAL_TARGETS) \
 		-repeat 2 -concurrency 4 -judge $(CONTEXTEVAL_JUDGE_FOR_GEMINI) -append $(CONTEXTEVAL_DATA)
-	$(GO) run ./scripts/contexteval -models $(CONTEXTEVAL_CLAUDE) -targets $(CONTEXTEVAL_TARGETS) \
+	$(GO) run $(GOTAGS) ./scripts/contexteval -models $(CONTEXTEVAL_CLAUDE) -targets $(CONTEXTEVAL_TARGETS) \
 		-repeat 1 -concurrency 3 -judge $(CONTEXTEVAL_JUDGE_FOR_CLAUDE) -append $(CONTEXTEVAL_DATA)
 # Bedrock rate-limits on requests; low concurrency, and a throttled run is
 # recorded as unmeasured rather than as 0% adherence. The leg needs AWS
 # credentials CI does not hold — evals-refresh sets EVALS_SKIP_BEDROCK=1.
 ifeq ($(strip $(EVALS_SKIP_BEDROCK)),)
-	$(GO) run ./scripts/contexteval -models $(CONTEXTEVAL_BEDROCK) -targets $(CONTEXTEVAL_TARGETS) \
+	$(GO) run $(GOTAGS) ./scripts/contexteval -models $(CONTEXTEVAL_BEDROCK) -targets $(CONTEXTEVAL_TARGETS) \
 		-repeat 1 -concurrency 2 -judge $(CONTEXTEVAL_JUDGE_FOR_CLAUDE) -append $(CONTEXTEVAL_DATA)
 else
 	@echo "EVALS_SKIP_BEDROCK set — skipping the Bedrock context-eval leg (no AWS credentials)"
@@ -2677,9 +2677,9 @@ endif
 # -dump prints the per-item disagreements so a low kappa can be inspected.
 CONTEXTEVAL_LABELS ?= scripts/contexteval/evaldata/nb-labels.json
 context-eval-validate: ## Measure judge–human agreement on the labeled seed set → dashboard gate
-	$(GO) run ./scripts/contexteval -judge $(CONTEXTEVAL_JUDGE_FOR_CLAUDE) \
+	$(GO) run $(GOTAGS) ./scripts/contexteval -judge $(CONTEXTEVAL_JUDGE_FOR_CLAUDE) \
 		-judge-validate $(CONTEXTEVAL_LABELS) -append $(CONTEXTEVAL_DATA) $(CONTEXTEVAL_VALIDATE_ARGS)
-	$(GO) run ./scripts/contexteval -judge $(CONTEXTEVAL_JUDGE_FOR_GEMINI) \
+	$(GO) run $(GOTAGS) ./scripts/contexteval -judge $(CONTEXTEVAL_JUDGE_FOR_GEMINI) \
 		-judge-validate $(CONTEXTEVAL_LABELS) -append $(CONTEXTEVAL_DATA) $(CONTEXTEVAL_VALIDATE_ARGS)
 
 # ── Frontend Checks ──────────────────────────────────────────────────────────
@@ -2880,10 +2880,10 @@ BRIDGE_PLUGIN ?= $(NEOKAPI_WORKSPACE_DIR)/okapi-bridge/dist/plugin
 BRIDGE_ARG     = $(if $(WITH_BRIDGE),$(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),$(error WITH_BRIDGE=1 but no bridge plugin at $(BRIDGE_PLUGIN))),)
 
 generate-reference-docs: i18n-catalogs ## Generate the reference dataset from THIS repo (built-in + in-repo plugins) → packages/reference-data/data. WITH_BRIDGE=1 adds okapi-bridge (not committed).
-	$(GO) run ./scripts/gen-refs $(BRIDGE_ARG)
+	$(GO) run $(GOTAGS) ./scripts/gen-refs $(BRIDGE_ARG)
 
 check-reference-docs: i18n-catalogs ## Drift gate: fail if the committed reference dataset is stale vs. source (gates the built-in subset)
-	$(GO) run ./scripts/gen-refs -check $(BRIDGE_ARG)
+	$(GO) run $(GOTAGS) ./scripts/gen-refs -check $(BRIDGE_ARG)
 
 # Register gate over the authored dossiers the reference dataset is compiled
 # from — the recipe's `neokapi-docs-reference` collection, held to the same bar
@@ -2962,10 +2962,10 @@ check-reference-prose: build import-dogfood-context ## Register gate: the author
 generate-format-docs: generate-reference-docs
 
 generate-contract-types: ## Generate the shared TS contract + content-model types and the content JSON Schema from Go (core/schema, core/proto/content/v1)
-	$(GO) run ./scripts/gen-contract-types
+	$(GO) run $(GOTAGS) ./scripts/gen-contract-types
 
 check-contract-types: ## Drift gate: fail if the committed contract/content types or content JSON Schema are stale vs. Go
-	$(GO) run ./scripts/gen-contract-types -check
+	$(GO) run $(GOTAGS) ./scripts/gen-contract-types -check
 
 generate-translatability: ## Generate the W3C translatability table for the Go readers from packages/i18n-react (TS is the single definition)
 	node --no-warnings --experimental-strip-types scripts/gen-translatability.ts
