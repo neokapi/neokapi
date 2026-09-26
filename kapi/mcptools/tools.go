@@ -431,7 +431,7 @@ func handleListFlows(a *cli.App, input ListFlowsInput) (*mcp.CallToolResult, Lis
 	if err != nil {
 		return nil, ListFlowsOutput{}, err
 	}
-	flows, err := host.FlowList(recipePath, a.ExtraFlows)
+	flows, err := host.FlowList(recipePath)
 	out := ListFlowsOutput{Flows: make([]FlowEntry, 0, len(flows))}
 	if err != nil {
 		out.Warning = err.Error()
