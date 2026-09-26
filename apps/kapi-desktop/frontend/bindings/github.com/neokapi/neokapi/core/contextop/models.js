@@ -101,11 +101,18 @@ export class Standing {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Against counts the signals against the rule.
+             * Against counts the signals against the rule, and AgainstBy names them.
              * @member
              * @type {number | undefined}
              */
             this["against"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["against_by"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -119,12 +126,16 @@ export class Standing {
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType2;
+        const $$createField5_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("merges" in $$parsedSource) {
             $$parsedSource["merges"] = $$createField2_0($$parsedSource["merges"]);
         }
         if ("uses" in $$parsedSource) {
             $$parsedSource["uses"] = $$createField3_0($$parsedSource["uses"]);
+        }
+        if ("against_by" in $$parsedSource) {
+            $$parsedSource["against_by"] = $$createField5_0($$parsedSource["against_by"]);
         }
         return new Standing(/** @type {Partial<Standing>} */($$parsedSource));
     }
