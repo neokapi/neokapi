@@ -121,13 +121,13 @@ describe("GovernanceSettings (workspace policy)", () => {
     await userEvent.click(screen.getByLabelText("Subject"));
     await userEvent.click(screen.getByRole("option", { name: "Group" }));
     await userEvent.type(screen.getByLabelText("Subject id"), "g1");
-    await userEvent.type(screen.getByLabelText("Denied permissions"), "review, sign_off");
+    await userEvent.type(screen.getByLabelText("Denied permissions"), "review, translate");
     await userEvent.click(screen.getByRole("button", { name: "Add deny" }));
     await waitFor(() =>
       expect(api.createDenyRule).toHaveBeenCalledWith("northsea", {
         subject_type: "group",
         subject_id: "g1",
-        permissions: ["review", "sign_off"],
+        permissions: ["review", "translate"],
       }),
     );
   });

@@ -19,7 +19,7 @@ import type { ContentNode } from "@neokapi/ui-primitives/preview";
 import type { BlockInfo, BlockTermMatch, CheckIssue, ReviewContext } from "../../types/api";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
-import { getBlockStatus, getTargetText, targetLadderStatus } from "../editor/blockStatus";
+import { getBlockStatus, getTargetText } from "../editor/blockStatus";
 import { findingViews, latestNote, termHitViews } from "./reviewContext";
 import { Check, Pencil, X } from "../icons";
 
@@ -60,7 +60,7 @@ export interface ReviewInspectorProps {
   marked: boolean;
   onClose: () => void;
   onApprove: () => void;
-  /** Sign the target off: the rung above reviewed on the target ladder. */
+  /** Reject the target: it drops to draft and re-enters the work queue. */
   onReject: () => void;
   onEditToggle: () => void;
   onSaveEdit: (result: UnifiedSaveResult) => void | Promise<void>;
@@ -101,8 +101,7 @@ export function ReviewInspector({
   onCancelEdit,
   onToggleMark,
 }: ReviewInspectorProps) {
-  const bucket = block ? getBlockStatus(block, locale) : "not-started";
-  const status = block ? targetLadderStatus(block, locale) : "not-started";
+  const status = block ? getBlockStatus(block, locale) : "not-started";
   // An empty translation is nothing to approve (the server 422s it) and nothing
   // to reject (clearing it is a server-side no-op).
   const hasTarget = block ? getTargetText(block, locale).trim().length > 0 : false;
@@ -279,7 +278,7 @@ export function ReviewInspector({
             size="sm"
             variant="success"
             onClick={onApprove}
-            disabled={busy || bucket === "established" || !hasTarget || !canApprove}
+            disabled={busy || status === "established" || !hasTarget || !canApprove}
             title={
               canApprove ? undefined : "Approving needs the review permission for this language"
             }

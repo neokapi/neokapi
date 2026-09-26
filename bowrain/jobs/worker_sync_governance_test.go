@@ -201,16 +201,16 @@ func TestPushReviewGovernance(t *testing.T) {
 		assert.Equal(t, string(model.TargetStatusTranslated), d.Status)
 	})
 
-	t.Run("a sign-off without permission is refused as a sign-off", func(t *testing.T) {
+	t.Run("an established block without permission is refused as an approval", func(t *testing.T) {
 		deps, pid := setup(t, pushAuthority{review: map[string]bool{}})
 		push := governedPush{
 			projectID: pid, actor: "u-translator", item: item,
 			blocks: []*model.Block{reviewedBlock("b1", "Hello", "de", "Guten Tag", model.TargetStatusEstablished)},
 		}
-		require.NoError(t, push.run(t, deps, "job-signoff"))
+		require.NoError(t, push.run(t, deps, "job-rung"))
 		assert.Equal(t, model.TargetStatusTranslated, storedTarget(t, deps, pid, item, "de"))
 
-		report := jobGovernance(t, deps, "push-job-signoff")
+		report := jobGovernance(t, deps, "push-job-rung")
 		require.Len(t, report.Refusals, 1)
 		assert.Equal(t, venue.VerdictApproval, report.Refusals[0].Kind)
 		assert.Equal(t, "de", report.Refusals[0].Locale)
@@ -346,28 +346,28 @@ func TestPushReviewGovernance(t *testing.T) {
 	})
 }
 
-// A push that lowers a target the venue holds at signed-off, keeping the
-// translation and the source the sign-off blessed, is withdrawing that
-// sign-off. The web asks review permission for the language before it lets an
+// A push that lowers a target the venue holds at established, keeping the
+// translation and the source the approval blessed, is withdrawing that
+// approval. The web asks review permission for the language before it lets an
 // un-review or a rejection do the same, and the worker asks the same question.
 // A refused withdrawal keeps the venue's rung and ledger record, and the record
 // travels back so the producer can hold the same; an edited translation is not
 // a withdrawal and lands at translated, as an edit on the web does.
-func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
+func TestPushReviewGovernance_ApprovalWithdrawal(t *testing.T) {
 	const item = "en.json"
 	const locale = "fr"
 	const source, text = "Hello", "Bonjour"
 
-	// signedOff is the ledger record a sign-off leaves, as a push carries it;
+	// approved is the ledger record an approval leaves, as a push carries it;
 	// withdrawn is the same unit's record after a local un-review: the basis,
 	// written later.
-	signedOff := venue.UnitDecision{
+	approved := venue.UnitDecision{
 		ItemName: item, Unit: "b1", Variant: locale,
 		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
 		TargetHash: state.TargetHash(text), ContentHash: state.SourceHash(source),
 		DecidedBy: "u-reviewer", DecidedAt: "2026-09-03T10:00:00Z", Updated: "2026-09-03T10:00:00Z",
 	}
-	withdrawn := signedOff.AsBasis(model.TargetStatusTranslated)
+	withdrawn := approved.AsBasis(model.TargetStatusTranslated)
 	withdrawn.Updated = "2026-09-04T10:00:00Z"
 
 	// venueHolding is a venue holding the unit at one rung, decided by a
@@ -378,7 +378,7 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 		deps.ReviewAuthority = pushAuthority{review: map[string]bool{locale: true}}
 		pid := "gov-withdraw-" + t.Name()
 		require.NoError(t, deps.ContentStore.CreateProject(t.Context(),
-			&store.Project{ID: pid, Name: "Signed off"}))
+			&store.Project{ID: pid, Name: "Established"}))
 		first := governedPush{
 			projectID: pid, actor: "u-reviewer", item: item,
 			blocks:    []*model.Block{reviewedBlock("b1", source, locale, text, rung)},
@@ -391,7 +391,7 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 	}
 
 	// withdrawal is the push a local un-review produces: the same translation
-	// at translated, and the basis where the sign-off was.
+	// at translated, and the basis where the approval was.
 	withdrawal := func(pid, actor string) governedPush {
 		return governedPush{
 			projectID: pid, actor: actor, item: item,
@@ -400,8 +400,8 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 		}
 	}
 
-	t.Run("without review permission the sign-off stands and is reported", func(t *testing.T) {
-		deps, pid := venueHolding(t, model.TargetStatusEstablished, signedOff, pushAuthority{review: map[string]bool{}})
+	t.Run("without review permission the approval stands and is reported", func(t *testing.T) {
+		deps, pid := venueHolding(t, model.TargetStatusEstablished, approved, pushAuthority{review: map[string]bool{}})
 		require.NoError(t, withdrawal(pid, "u-translator").run(t, deps, "job-withdraw"),
 			"a refused withdrawal never fails the push")
 
@@ -424,11 +424,11 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 		require.NotNil(t, unit.Held, "the record the venue kept travels back for the producer to hold")
 		assert.Equal(t, venue.ReviewStateApproved, unit.Held.ReviewState)
 		assert.Equal(t, "u-reviewer", unit.Held.DecidedBy)
-		assert.Equal(t, signedOff.TargetHash, unit.Held.TargetHash)
+		assert.Equal(t, approved.TargetHash, unit.Held.TargetHash)
 	})
 
 	t.Run("with review permission the withdrawal lands and is audited", func(t *testing.T) {
-		deps, pid := venueHolding(t, model.TargetStatusEstablished, signedOff, pushAuthority{review: map[string]bool{locale: true}})
+		deps, pid := venueHolding(t, model.TargetStatusEstablished, approved, pushAuthority{review: map[string]bool{locale: true}})
 		bus := &recordingBus{}
 		deps.EventBus = bus
 		require.NoError(t, withdrawal(pid, "u-reviewer-2").run(t, deps, "job-withdraw-ok"))
@@ -467,7 +467,7 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 			{"accepted", map[string]bool{locale: true}, model.TargetStatusDraft},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
-				deps, pid := venueHolding(t, model.TargetStatusEstablished, signedOff, pushAuthority{review: tc.permits})
+				deps, pid := venueHolding(t, model.TargetStatusEstablished, approved, pushAuthority{review: tc.permits})
 				push := governedPush{
 					projectID: pid, actor: "u-translator", item: item,
 					blocks:    []*model.Block{reviewedBlock("b1", source, locale, text, model.TargetStatusDraft)},
@@ -489,7 +489,7 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 	})
 
 	t.Run("an edited translation is not a withdrawal and lands at translated", func(t *testing.T) {
-		deps, pid := venueHolding(t, model.TargetStatusEstablished, signedOff, pushAuthority{review: map[string]bool{}})
+		deps, pid := venueHolding(t, model.TargetStatusEstablished, approved, pushAuthority{review: map[string]bool{}})
 		edited := withdrawn
 		edited.TargetHash = state.TargetHash("Salut")
 		push := governedPush{
@@ -500,7 +500,7 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 		require.NoError(t, push.run(t, deps, "job-edit"))
 
 		assert.Equal(t, model.TargetStatusTranslated, storedTarget(t, deps, pid, item, locale),
-			"a sign-off judged one translation; rewriting it invalidates the sign-off, as an edit on the web does")
+			"an approval judged one translation; rewriting it invalidates the approval, as an edit on the web does")
 		d, ok := heldDecision(t, deps, pid, "b1", locale)
 		require.True(t, ok)
 		assert.Empty(t, d.ReviewState)
@@ -508,7 +508,7 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 		assert.True(t, jobGovernance(t, deps, "push-job-edit").Empty())
 	})
 
-	t.Run("a basis record alone does not overwrite a standing sign-off", func(t *testing.T) {
+	t.Run("a basis record alone does not overwrite a standing approval", func(t *testing.T) {
 		for _, tc := range []struct {
 			name    string
 			permits map[string]bool
@@ -518,8 +518,8 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 			{"with permission", map[string]bool{locale: true}, ""},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
-				deps, pid := venueHolding(t, model.TargetStatusEstablished, signedOff, pushAuthority{review: tc.permits})
-				// The block as it was pulled, still at signed-off; only the
+				deps, pid := venueHolding(t, model.TargetStatusEstablished, approved, pushAuthority{review: tc.permits})
+				// The block as it was pulled, still established; only the
 				// record says otherwise.
 				push := governedPush{
 					projectID: pid, actor: "u-translator", item: item,
@@ -545,14 +545,14 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 	})
 
 	t.Run("a permission that cannot be resolved fails the push rather than deciding", func(t *testing.T) {
-		deps, pid := venueHolding(t, model.TargetStatusEstablished, signedOff, pushAuthority{failWith: errors.New("auth store unreachable")})
+		deps, pid := venueHolding(t, model.TargetStatusEstablished, approved, pushAuthority{failWith: errors.New("auth store unreachable")})
 		require.Error(t, withdrawal(pid, "u-reviewer").run(t, deps, "job-unanswerable"))
 		assert.Equal(t, model.TargetStatusEstablished, storedTarget(t, deps, pid, item, locale),
 			"the transition rolled back")
 
 		deps.ReviewAuthority = nil
 		require.Error(t, withdrawal(pid, "u-reviewer").run(t, deps, "job-nogate"),
-			"a deployment with no way to ask refuses a push that withdraws a sign-off")
+			"a deployment with no way to ask refuses a push that withdraws an approval")
 		assert.Equal(t, model.TargetStatusEstablished, storedTarget(t, deps, pid, item, locale))
 	})
 }

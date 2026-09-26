@@ -152,7 +152,7 @@ func TestTermAwareShipPredicateUnification(t *testing.T) {
 		"predicate: clean target is compliant")
 
 	// (2) Dashboard ship-state + compliant pass agrees: both violators fail the
-	// ship gate (pending, not governed/ai_shippable) and count against compliant.
+	// ship gate (pending, not established/translated) and count against compliant.
 	stats, err := editorGetDashboardStats(ctx, s.ContentStore, proj, "main")
 	require.NoError(t, err)
 	require.NoError(t, applyShipStates(ctx, s.ContentStore, s.VoiceStore, projID, "main", gate, stats))

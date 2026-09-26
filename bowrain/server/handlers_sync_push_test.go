@@ -330,7 +330,7 @@ func TestSyncPushCommit_VerdictPrecheck(t *testing.T) {
 		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
 		DecidedBy: "someone@example.com", Updated: "2026-09-03T10:00:00Z",
 	}
-	signOff := venue.UnitDecision{
+	germanApproval := venue.UnitDecision{
 		ItemName: "en.json", Unit: "b2", Variant: "de",
 		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
 		Updated: "2026-09-03T10:00:00Z",
@@ -343,7 +343,7 @@ func TestSyncPushCommit_VerdictPrecheck(t *testing.T) {
 	t.Run("a pusher who may not review is told which verdicts will not land", func(t *testing.T) {
 		rec := commitWithDecisions(t, srv, pid,
 			platauth.PermManageFiles|platauth.PermTranslate|platauth.PermViewContent, nil,
-			[]venue.UnitDecision{approval, signOff, basis})
+			[]venue.UnitDecision{approval, germanApproval, basis})
 
 		report := commitGovernance(t, rec)
 		require.Len(t, report.Refusals, 2, "one line per language and kind; the basis is no verdict")
@@ -358,14 +358,14 @@ func TestSyncPushCommit_VerdictPrecheck(t *testing.T) {
 	t.Run("a reviewer's verdicts pass the pre-check", func(t *testing.T) {
 		rec := commitWithDecisions(t, srv, pid,
 			platauth.PermManageFiles|platauth.PermReview|platauth.PermViewContent, nil,
-			[]venue.UnitDecision{approval, signOff})
+			[]venue.UnitDecision{approval, germanApproval})
 		assert.True(t, commitGovernance(t, rec).Empty())
 	})
 
 	t.Run("review permission is scoped to the languages the membership names", func(t *testing.T) {
 		rec := commitWithDecisions(t, srv, pid,
 			platauth.PermManageFiles|platauth.PermReview|platauth.PermViewContent, []string{"fr"},
-			[]venue.UnitDecision{approval, signOff})
+			[]venue.UnitDecision{approval, germanApproval})
 
 		report := commitGovernance(t, rec)
 		require.Len(t, report.Refusals, 1, "reviewing French says nothing about German")

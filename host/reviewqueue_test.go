@@ -17,7 +17,7 @@ import (
 // language is the project's source.
 
 // writeUnifiedQueueProject writes a project with work waiting in three
-// languages: two source units under an `approved` source gate, and two
+// languages: two source units under an `established` source gate, and two
 // translated units in each of nb and fr with nothing approved.
 //
 // It runs under the dogfood isolation contract (CLAUDE.md): every root this run
@@ -98,7 +98,7 @@ func TestReviewQueue_ListsEveryLanguageWithASourceLane(t *testing.T) {
 					assert.Equal(t, "en.json", it.File, "a source row addresses the source file")
 					assert.Empty(t, it.Target, "a source row has no translation half")
 					assert.Equal(t, string(model.SourceStatusWritten), it.Status)
-					assert.True(t, it.Held, "an approved gate holds a merely-checked unit")
+					assert.True(t, it.Held, "an established gate holds a unit that is only written")
 				} else {
 					assert.False(t, it.IsSource)
 					assert.Equal(t, string(model.TargetStatusTranslated), it.Status)
@@ -170,7 +170,7 @@ func TestReviewQueue_ApprovedSourceStaysSelectableAtZero(t *testing.T) {
 func TestReviewQueue_SourceLaneSelectableWhenNothingIsPending(t *testing.T) {
 	root := writeUnifiedQueueProject(t, "written", "nb")
 	// Drop the translations: an absent target is upstream of review, and the
-	// default `checked` gate asks nobody to sign off a clean source.
+	// default `written` gate asks nobody to establish a clean source.
 	require.NoError(t, os.Remove(filepath.Join(root, "nb.json")))
 	require.NoError(t, os.Remove(filepath.Join(root, "fr.json")))
 

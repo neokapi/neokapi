@@ -71,13 +71,10 @@ describe("getBlockStatus — per-locale Target.Status", () => {
     expect(getBlockStatus(block, "de")).toBe("translated");
   });
 
-  it("maps the ladder: draft, translated, reviewed, signed-off", () => {
+  it("maps the ladder: draft, translated, established", () => {
     expect(getBlockStatus(makeBlock({ fr: { text: "x", status: "draft" } }), "fr")).toBe("draft");
     expect(getBlockStatus(makeBlock({ fr: { text: "x", status: "translated" } }), "fr")).toBe(
       "translated",
-    );
-    expect(getBlockStatus(makeBlock({ fr: { text: "x", status: "established" } }), "fr")).toBe(
-      "established",
     );
     expect(getBlockStatus(makeBlock({ fr: { text: "x", status: "established" } }), "fr")).toBe(
       "established",
@@ -124,7 +121,7 @@ describe("getBlockStatus — per-locale Target.Status", () => {
 
   it("ignores the legacy block-global property for locales with no target text", () => {
     // Pre-migration block: the block-GLOBAL legacy flag plus a target in fr
-    // only. de has no translation at all and must not read as reviewed —
+    // only. de has no translation at all and must not read as established:
     // convergence counts nothing for de, and the UI must agree with coverage.
     const block = makeBlock({ fr: "Bonjour" }, { "translation-status": "reviewed" });
     expect(getBlockStatus(block, "fr")).toBe("established");
@@ -134,15 +131,13 @@ describe("getBlockStatus — per-locale Target.Status", () => {
 
 describe("statusAfterEdit — an edit invalidates a stale review decision", () => {
   it("demotes established to translated when the text changes", () => {
-    const reviewed = makeBlock({ fr: { text: "Bonjour", status: "established" } });
-    expect(statusAfterEdit(reviewed, "fr", "Salut")).toBe("translated");
-    const signedOff = makeBlock({ fr: { text: "Bonjour", status: "established" } });
-    expect(statusAfterEdit(signedOff, "fr", "Salut")).toBe("translated");
+    const established = makeBlock({ fr: { text: "Bonjour", status: "established" } });
+    expect(statusAfterEdit(established, "fr", "Salut")).toBe("translated");
   });
 
   it("keeps the status when re-saving identical content", () => {
-    const reviewed = makeBlock({ fr: { text: "Bonjour", status: "established" } });
-    expect(statusAfterEdit(reviewed, "fr", "Bonjour")).toBe("established");
+    const established = makeBlock({ fr: { text: "Bonjour", status: "established" } });
+    expect(statusAfterEdit(established, "fr", "Bonjour")).toBe("established");
   });
 
   it("leaves rungs at or below translated alone", () => {
@@ -162,18 +157,18 @@ describe("statusAfterEdit — an edit invalidates a stale review decision", () =
     const plain = "Bonjour monde";
     const before = "\uE001Bonjour\uE002 monde";
     const moved = "Bonjour \uE001monde\uE002";
-    const reviewed: BlockInfo = {
+    const established: BlockInfo = {
       ...makeBlock({ fr: { text: plain, status: "established" } }),
       targets_coded: { fr: before },
     };
-    expect(statusAfterEdit(reviewed, "fr", plain, moved)).toBe("translated");
-    expect(statusAfterEdit(reviewed, "fr", plain, before)).toBe("established");
+    expect(statusAfterEdit(established, "fr", plain, moved)).toBe("translated");
+    expect(statusAfterEdit(established, "fr", plain, before)).toBe("established");
   });
 
   it("falls back to plain text when no coded text is available", () => {
-    const reviewed = makeBlock({ fr: { text: "Bonjour", status: "established" } });
-    expect(statusAfterEdit(reviewed, "fr", "Bonjour", "Bonjour")).toBe("established");
-    expect(statusAfterEdit(reviewed, "fr", "Salut", "Salut")).toBe("translated");
+    const established = makeBlock({ fr: { text: "Bonjour", status: "established" } });
+    expect(statusAfterEdit(established, "fr", "Bonjour", "Bonjour")).toBe("established");
+    expect(statusAfterEdit(established, "fr", "Salut", "Salut")).toBe("translated");
   });
 });
 

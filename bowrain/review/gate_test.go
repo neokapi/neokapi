@@ -144,8 +144,8 @@ func TestGateAllow(t *testing.T) {
 	}
 }
 
-// Withdrawing a sign-off is held to the review permission alone, as the web's
-// un-review of a signed-off target is. The separation-of-duties policy judges
+// Withdrawing an approval is held to the review permission alone, as the web's
+// un-review of an established target is. The separation-of-duties policy judges
 // who may bless work; a withdrawal blesses nothing, so it is not asked.
 func TestGateAllowWithdrawal(t *testing.T) {
 	const actor = "u-1"
@@ -175,7 +175,7 @@ func TestGateAllowWithdrawal(t *testing.T) {
 			wantErr: venue.RefusedEstablishedWithdrawal,
 		},
 		{
-			name: "the author may withdraw the sign-off on their own writing",
+			name: "the author may withdraw the approval on their own writing",
 			cfg: review.Config{
 				Actor: actor, Permits: permits("fr"),
 				Policy: policy{mode: platauth.SoDBlock}, Authors: wrote,

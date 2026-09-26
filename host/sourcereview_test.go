@@ -25,19 +25,18 @@ func sourceStatuses(t *testing.T, a *App, recipe, root string) []string {
 	return states
 }
 
-// `approved` was a rung the ladder could not reach: the settle derivation only
-// ever stamps authored or checked, and check.NewSourceReadinessTool's
-// "a clean re-check never undoes a human sign-off" branch was waiting on a
-// sign-off no code path could record. A project asking for `source_gate:
-// approved` therefore held its fan-out forever.
-func TestApproveSourceUnit_ReachesApprovedAndSurvivesARecheck(t *testing.T) {
+// The settle derivation only ever stamps a source written, so `established` is
+// reached by a person's approval alone, and a re-settle must keep it. A project
+// asking for `source_gate: established` would otherwise hold its fan-out
+// forever.
+func TestApproveSourceUnit_ReachesEstablishedAndSurvivesARecheck(t *testing.T) {
 	a, _, recipe, root := newSourceSettleProject(t, "established")
 
 	before := sourceStatuses(t, a, recipe, root)
 	require.Len(t, before, 2)
 	for _, s := range before {
 		assert.Equal(t, string(model.SourceStatusWritten), s,
-			"a clean source settles to checked, and nothing can lift it further")
+			"a clean source settles to written, and nothing but an approval lifts it further")
 	}
 
 	changed, err := a.ApproveSourceUnit(t.Context(), recipe, "en", SourceUnitRef{
@@ -78,10 +77,10 @@ func TestApproveSourceUnit_DroppedWhenTheSourceIsEdited(t *testing.T) {
 		"an edited sentence carries no approval")
 }
 
-// The queue is what a person is asked to look at. Under an `approved` gate that
-// is everything not yet signed off, and the item says whether the loop is
-// already held on it.
-func TestComputeSourceQueue_ListsWhatNeedsSignOff(t *testing.T) {
+// The queue is what a person is asked to look at. Under an `established` gate
+// that is everything not yet established, and the item says whether the loop
+// is already held on it.
+func TestComputeSourceQueue_ListsWhatNeedsEstablishing(t *testing.T) {
 	a, _, recipe, root := newSourceSettleProject(t, "established")
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -90,10 +89,10 @@ func TestComputeSourceQueue_ListsWhatNeedsSignOff(t *testing.T) {
 
 	queue, err := a.computeSourceQueue(t.Context(), proj, root, units)
 	require.NoError(t, err)
-	require.Len(t, queue, 2, "both units clear the checks but neither is signed off")
+	require.Len(t, queue, 2, "both units clear the checks but neither is established")
 	for _, it := range queue {
 		assert.Equal(t, "src/en.json", it.File)
-		assert.True(t, it.Held, "an approved gate holds a merely-checked unit")
+		assert.True(t, it.Held, "an established gate holds a unit that is only written")
 		assert.False(t, it.Established)
 		assert.Equal(t, string(model.SourceStatusWritten), it.Status)
 	}
@@ -109,9 +108,9 @@ func TestComputeSourceQueue_ListsWhatNeedsSignOff(t *testing.T) {
 	assert.Equal(t, "farewell", queue[0].Key)
 }
 
-// With the default `checked` gate, a clean source needs nobody: the queue is
-// empty rather than listing every unit for a signature the gate never asks for.
-func TestComputeSourceQueue_EmptyUnderTheCheckedGate(t *testing.T) {
+// With the default `written` gate, a clean source needs nobody: the queue is
+// empty rather than listing every unit for an approval the gate never asks for.
+func TestComputeSourceQueue_EmptyUnderTheWrittenGate(t *testing.T) {
 	a, _, recipe, root := newSourceSettleProject(t, "written")
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -127,7 +126,7 @@ func TestComputeSourceQueue_EmptyUnderTheCheckedGate(t *testing.T) {
 // not: settleSourceStates honoured a committed approval while the in-flow
 // source gate re-derived readiness from the checks alone, so `kapi status`
 // called a unit approved and the run beside it held that same unit below an
-// `approved` gate, with nothing on either surface to say why.
+// `established` gate, with nothing on either surface to say why.
 func TestSourceStateSeeder_MakesTheInFlowGateAgreeWithTheReport(t *testing.T) {
 	a, _, recipe, root := newSourceSettleProject(t, "established")
 
@@ -167,6 +166,6 @@ func TestSourceStateSeeder_MakesTheInFlowGateAgreeWithTheReport(t *testing.T) {
 			other++
 		}
 	}
-	assert.Equal(t, 1, approved, "the approved unit clears an approved gate in-flow")
+	assert.Equal(t, 1, approved, "the approved unit clears an established gate in-flow")
 	assert.Equal(t, 1, other, "the unapproved one still does not")
 }

@@ -18,7 +18,7 @@ const buttonVariants = cva(
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
-        // Approve, sign off, publish. Hover softens the fill by a tenth rather
+        // Approve, publish, merge. Hover softens the fill by a tenth rather
         // than the fifth `default` uses, so the label keeps its contrast.
         success:
           "bg-success text-success-foreground hover:bg-success/90 focus-visible:border-success focus-visible:ring-success/40 dark:focus-visible:ring-success/50",

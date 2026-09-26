@@ -214,9 +214,8 @@ export const ReviewedBlock: Story = {
 
 /**
  * One card per rung of the shared content ladder, badged by `StatusBadge`
- * rather than by a colour map of the platform's own. `signed-off` reaches a
- * badge here because the card reads the wire `Target.Status` the payload
- * carries; the bucket the server counts by collapses it into `reviewed`.
+ * rather than by a colour map of the platform's own, plus the `not-started`
+ * bucket a locale with no target text falls in.
  */
 export const StatusLadder: Story = {
   render: () => (

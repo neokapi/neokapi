@@ -102,8 +102,8 @@ type BlockReader interface {
 	Properties() map[string]string
 	Property(key string) string
 
-	// SourceStatus reports the block's authoring lifecycle state (authored →
-	// checked → approved); "" means the authored baseline.
+	// SourceStatus reports the block's authoring lifecycle state (written →
+	// established); "" means no committed status yet.
 	SourceStatus() model.SourceStatus
 }
 
@@ -151,7 +151,7 @@ type PropertyWriter interface {
 	// SetSourceStatus stamps the block's authoring lifecycle state. This is
 	// metadata about the source, not a rewrite of its runs, so it is available
 	// at the read-only Annotate tier (like SetProperty) — a check tool that
-	// clears a block stamps `checked` without touching the source content.
+	// clears a block stamps `written` without touching the source content.
 	SetSourceStatus(s model.SourceStatus)
 }
 

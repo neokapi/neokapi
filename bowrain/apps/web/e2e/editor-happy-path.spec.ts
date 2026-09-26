@@ -168,7 +168,7 @@ test.describe("Editor happy path", () => {
     await expect(page.getByText(/kapi pull/)).toBeVisible();
 
     // Assert the merged content through the served API instead: the block
-    // carries the edited fr target with per-locale reviewed status, and the
+    // carries the edited fr target with per-locale established status, and the
     // OTHER target locale (de) is untouched by the fr review (task 3).
     const blocksResp = await fetch(
       `${BASE_URL}/api/v1/${wsSlug}/${projectId}/blocks/main?item=${encodeURIComponent(FILE_NAME)}`,

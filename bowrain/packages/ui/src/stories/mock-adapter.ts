@@ -1024,7 +1024,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
                   key: "blk-0",
                   source: [{ text: "Sign in to continue" }],
                   target: [{ text: "Connectez-vous pour continuer" }],
-                  status: "reviewed",
+                  status: "established",
                 },
               ],
               after: [{ key: "blk-2", source: [{ text: "Click here to continue" }] }],

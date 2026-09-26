@@ -290,7 +290,7 @@ func (c *EditorClient) GetEditorBlocks(ctx context.Context, ws, projectID, itemN
 
 // EditorBlockQuery narrows QueryEditorBlocks. Every field is optional: the
 // zero value pages the project's blocks unfiltered. Status is one of
-// "not-started", "draft", "translated", "reviewed" and needs Locale, which
+// "not-started", "draft", "translated", "established" and needs Locale, which
 // also scopes the target side of Text.
 type EditorBlockQuery struct {
 	ItemName     string

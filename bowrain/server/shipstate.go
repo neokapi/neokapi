@@ -44,12 +44,10 @@ import (
 // the scoring profile's bar (VoiceProfile.ComplianceBar).
 // A term-non-compliant block is treated exactly like a failing check: it counts
 // against the compliance rate AND, at full coverage, against FailingChecks, so
-// it can never be governed or ai_shippable. A block below its voice bar counts
-// against the rate only.
+// it can never be established or translated. A block below its voice bar
+// counts against the rate only.
 // A block with no terminology result in a locale terms govern withholds the
-// scope's ship state as a failing check does, and a locale terminology does not
-// govern is approved rather than governed once every block is approved
-// (store.DeriveShipState).
+// scope's ship state as a failing check does (store.DeriveShipState).
 // A block no bar fails that lacks a result for a governing dimension (an empty
 // target where terms govern, an unscored block where a voice profile governs)
 // is counted in NotCheckedBlocks, and one in a locale neither terms nor a voice

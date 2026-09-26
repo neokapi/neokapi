@@ -63,7 +63,6 @@ function reviewer(over: Partial<ReviewEntry> = {}) {
       position={{ index: 1, total: 3 }}
       editing={false}
       onApprove={() => {}}
-      onSignOff={() => {}}
       onReject={() => {}}
       onEditToggle={() => {}}
       onSaveEdit={() => {}}

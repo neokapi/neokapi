@@ -51,8 +51,8 @@ func seedBlockQueryProject(t *testing.T, s blockQueryStore) string {
 
 	draft := target("Hello world", "Hei verden", model.TargetStatusDraft)
 	translated := target("Goodbye", "Ha det", model.TargetStatusTranslated)
-	reviewed := target("Approved text", "Godkjent", model.TargetStatusEstablished)
-	signedOff := target("Signed text", "Signert", model.TargetStatusEstablished)
+	approved := target("Approved text", "Godkjent", model.TargetStatusEstablished)
+	settled := target("Settled text", "Avgjort", model.TargetStatusEstablished)
 	untranslated := target("Nothing yet", "", model.TargetStatusNew)
 	// Text with no committed rung is translated — the editor's fallback when
 	// no legacy property and no machine provenance says otherwise.
@@ -65,7 +65,7 @@ func seedBlockQueryProject(t *testing.T, s blockQueryStore) string {
 	frozen.Translatable = false
 
 	require.NoError(t, s.StoreBlocksForItem(ctx, proj.ID, "main", "a.md",
-		[]*model.Block{draft, translated, reviewed, signedOff}))
+		[]*model.Block{draft, translated, approved, settled}))
 	require.NoError(t, s.StoreBlocksForItem(ctx, proj.ID, "main", "b.md",
 		[]*model.Block{untranslated, rungless, machine, frozen}))
 	return proj.ID
@@ -91,7 +91,7 @@ func runBlockQueryCases(t *testing.T, s blockQueryStore) {
 			platstore.BlockStatusNotStarted:  {"Nothing yet"},
 			platstore.BlockStatusDraft:       {"Hello world", "Machine made"},
 			platstore.BlockStatusTranslated:  {"Goodbye", "No rung"},
-			platstore.BlockStatusEstablished: {"Approved text", "Signed text"},
+			platstore.BlockStatusEstablished: {"Approved text", "Settled text"},
 		} {
 			tr := true
 			got, err := s.GetBlocks(ctx, platstore.BlockQuery{

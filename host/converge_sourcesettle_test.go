@@ -130,7 +130,7 @@ func TestConverge_SourceSettleClean_StillConverges(t *testing.T) {
 	out, err := runSourceSettleConverge(t, a, cmd, recipe)
 	require.NoError(t, err)
 	assert.True(t, out.Converged, "a clean source settles and the run converges")
-	assert.Zero(t, out.BlockedOnSource, "clean source blocks are not held at the checked gate")
+	assert.Zero(t, out.BlockedOnSource, "clean source blocks are not held at the written gate")
 	_, statErr := os.Stat(filepath.Join(dir, "src", "fr.json"))
 	require.NoError(t, statErr, "the locale is written")
 }

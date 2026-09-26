@@ -19,7 +19,7 @@ import (
 // has no home; a focused settle pass over the source-locale blocks is the
 // smaller, consistent change.
 //
-// Settlement is deliberately provider-free: the automated gate (`checked`) is
+// Settlement is deliberately provider-free: the automated gate (`written`) is
 // satisfied by deterministic source checks (source content hygiene today;
 // terminology/brand extensible), so holding an unsettled corpus never itself
 // burns AI credits — exactly the "no surprise AI spend" the first-run decision

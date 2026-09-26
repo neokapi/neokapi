@@ -527,7 +527,7 @@ func scopeLabel(lc LocaleCoverage) string {
 }
 
 // shipCell renders the ship verdict: the state the scope ships at
-// (`established`, governed; `translated`, AI-shippable), `blocked: <rung>`
+// (`established`, or `translated` as AI translation), `blocked: <rung>`
 // naming the first unmet gate, or `not gated` when no gate matches the scope
 // and nothing withholds it.
 //
@@ -770,6 +770,6 @@ func AddStatusFlags(cmd Command) {
 	cmd.Flags().Bool("review", false, "list the units awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated unit with `kapi apply` (kind:\"review\")")
 	cmd.Flags().StringSlice("lang", nil, "with --review, list only these languages (repeatable, or comma-separated); the source language is one of them")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
-	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, state, not_governed}) instead of the coverage grid; state is established (governed) or translated (AI-shippable), and a language picker offers only shippable locales and badges the ones not established as AI-translated")
+	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, state, not_governed}) instead of the coverage grid; state is established, translated, withheld or not_gated, and a language picker offers only shippable locales and badges the ones not established as AI-translated")
 	cmd.Flags().String("emit", "", "with --ship, write the manifest to this path (e.g. ship.json) instead of stdout")
 }

@@ -59,7 +59,7 @@ func TestReach_BanWithoutAReplacementIsAnnotate(t *testing.T) {
 	assert.Equal(t, 1, imp.Reach.Annotate.Collections)
 	assert.Equal(t, 1, imp.Reach.Annotate.Projects)
 	assert.Equal(t, 2, imp.Reach.Annotate.Targets, "both committed translations are re-checked")
-	assert.Equal(t, 1, imp.Reach.Annotate.Approved, "only the reviewed one leaves a state someone signed off")
+	assert.Equal(t, 1, imp.Reach.Annotate.Approved, "only the established one leaves a state a person approved")
 	assert.Equal(t, []string{"de", "nb"}, imp.Reach.Annotate.Locales)
 	assert.Empty(t, imp.Reach.TransformProjects)
 }

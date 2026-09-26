@@ -70,13 +70,13 @@ export const Sizes: Story = {
         <div key={size} className="flex items-center gap-2">
           <span className="w-16 text-xs text-muted-foreground">{size}</span>
           <Button variant="success" size={size}>
-            Sign off
+            Approve
           </Button>
           <Button variant="warning" size={size}>
             Needs attention
           </Button>
           <Button variant="success" size={size} disabled>
-            Sign off
+            Approve
           </Button>
         </div>
       ))}

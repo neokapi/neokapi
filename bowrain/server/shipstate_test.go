@@ -35,15 +35,15 @@ func textRun(s string) model.Run {
 // seedShipStateProject creates a project (en → fr, de, es, it) with two items
 // in two collections:
 //
-//	a.json (col-a): b1, plain text.   fr reviewed; de/es/it translated.
-//	b.json (col-b): b2, text + {name} placeholder. fr reviewed (placeholder
+//	a.json (col-a): b1, plain text.   fr established; de/es/it translated.
+//	b.json (col-b): b2, text + {name} placeholder. fr established (placeholder
 //	                kept); de translated (placeholder kept); it drops the
 //	                placeholder (failing check); es untranslated.
 //
-// Expected per-locale states — global: fr governed, de ai_shippable,
+// Expected per-locale states — global: fr established, de translated,
 // es pending (partial coverage), it pending (failing check). Collection col-a:
-// everything fully covered and clean (fr governed, de/es/it ai_shippable);
-// col-b: fr governed, de ai_shippable, es pending (no target), it pending
+// everything fully covered and clean (fr established, de/es/it translated);
+// col-b: fr established, de translated, es pending (no target), it pending
 // (failing check attributed here).
 func seedShipStateProject(t *testing.T, cs *bstore.PostgresStore) string {
 	t.Helper()

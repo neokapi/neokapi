@@ -32,7 +32,7 @@ import { MarkedSource } from "./MarkedSource";
 import { VisualEditorToolbar } from "./VisualEditorToolbar";
 import { TermCreationPopover } from "./TermCreationPopover";
 import { ContextPanel } from "./ContextPanel";
-import { getTargetText, targetLadderStatus } from "./blockStatus";
+import { getBlockStatus, getTargetText } from "./blockStatus";
 import { InlineCodeLegend } from "@neokapi/ui-primitives";
 import { FormatVocabularyBadge } from "./FormatVocabularyBadge";
 import {
@@ -62,7 +62,7 @@ export interface VisualEditorCardProps {
   onSave: (result: UnifiedSaveResult) => void | Promise<void>;
   onCancel: () => void;
   onApprove: () => void;
-  /** Sign the target off: the rung above reviewed on the target ladder. */
+  /** Reject the target: it drops to draft and re-enters the work queue. */
   onReject: () => void;
   memoryMatches: MemoryMatchInfo[];
   termMatches: BlockTermMatch[];
@@ -132,7 +132,7 @@ export function VisualEditorCard({
   const [codeView, setCodeView] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
 
-  const status = targetLadderStatus(block, targetLocale);
+  const status = getBlockStatus(block, targetLocale);
 
   const sourceSpans = block.source_spans || [];
   const sourceCodedText = block.source_coded || block.source;

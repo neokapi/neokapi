@@ -624,7 +624,7 @@ export function ReviewSurface({
   );
 
   // The reading pane's keyboard model: move through the document, decide on the
-  // block being read (a approve, s sign off, r reject), open it for correction,
+  // block being read (a approve, r reject), open it for correction,
   // hold it for the batch. Held while a text field has focus, so typing a
   // translation is never a decision.
   useEffect(() => {
@@ -892,8 +892,6 @@ export function ReviewSurface({
           setEditing(false);
         }}
         onApprove={() => selectedBlock && void setStatus(selectedBlock, true)}
-        // Signing off promotes the target to the rung above reviewed, the one
-        // the ship gates keyed on "at least signed-off" coverage read.
         // A rejection demotes the target to draft so the unit re-enters the work
         // queue (host's rejected → draft mapping), not merely back to translated.
         onReject={() => selectedBlock && void setStatus(selectedBlock, false, "draft")}

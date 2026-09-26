@@ -27,7 +27,7 @@ func TestProjectConvergence_Composes(t *testing.T) {
 	// Both translated units await review.
 	assert.Len(t, report.Review, 2)
 
-	// Approving one lifts reviewed coverage and shrinks the queue on the next call.
+	// Approving one lifts established coverage and shrinks the queue on the next call.
 	writeReviewedCorrection(t, root, "Apple", "Eple")
 	report2, err := a.ProjectConvergence(context.Background(), filepath.Join(root, "kapi.yaml"), "en")
 	require.NoError(t, err)
@@ -38,7 +38,7 @@ func TestProjectConvergence_Composes(t *testing.T) {
 
 // TestApproveReviewUnit_PromotesAndLeavesQueue drives the approval path: a queue
 // item, approved by (locale, file, key), records the correction and drops from
-// the queue while reviewed coverage climbs.
+// the queue while established coverage climbs.
 func TestApproveReviewUnit_PromotesAndLeavesQueue(t *testing.T) {
 	root := writeReviewProject(t)
 	proj := filepath.Join(root, "kapi.yaml")

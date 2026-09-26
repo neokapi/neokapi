@@ -52,7 +52,7 @@ export const LargeProject: Story = {
 
 /**
  * Server-derived ship states: the ship-readiness band lists each locale's
- * state (governed / AI-shippable / pending) and the collection heatmap carries
+ * state (established / translated / pending) and the collection heatmap carries
  * the compact rollup indicators.
  */
 export const WithShipStates: Story = {

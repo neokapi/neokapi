@@ -82,7 +82,7 @@ const contentAtPoint: ContentAnswer = {
       collection: "docs",
       locale: "en",
       text: "Sign in to see your invoices.",
-      ship_state: "governed",
+      ship_state: "established",
     },
     {
       id: "b-2",
@@ -96,7 +96,7 @@ const contentAtPoint: ContentAnswer = {
   ],
   items_total: 24,
   coverage: [
-    { locale: "en", units: 24, covered: 24, ship_state: "governed" },
+    { locale: "en", units: 24, covered: 24, ship_state: "established" },
     { locale: "nb", units: 24, covered: 20, ship_state: "pending", stale: 3 },
   ],
   notes: [],

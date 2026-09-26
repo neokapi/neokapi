@@ -59,12 +59,12 @@ describe("FormatPreview — block identity and decoration", () => {
     const c = render(
       createElement(FormatPreview, {
         tree,
-        blockAttrs: (id: string) => ({ className: `host-${id}`, "data-status": "reviewed" }),
+        blockAttrs: (id: string) => ({ className: `host-${id}`, "data-status": "established" }),
       }),
     );
 
     expect(blockEl(c, "b2").className).toContain("host-b2");
-    expect(blockEl(c, "b2").getAttribute("data-status")).toBe("reviewed");
+    expect(blockEl(c, "b2").getAttribute("data-status")).toBe("established");
   });
 });
 

@@ -935,8 +935,8 @@ export interface WordCountResult {
  * Ship state for one locale scope (project-wide or one collection), derived
  * server-side (store.DeriveShipState): `established` = fully translated, checks
  * pass, terminology has a result wherever it governs, and a person established
- * every translation (governed); `translated` = the same short of every
- * translation established (AI-shippable); `pending` = anything less. Whether
+ * every translation; `translated` = the same short of every translation
+ * established, so the scope ships as AI translation; `pending` = anything less. Whether
  * terminology governs the locale at all is `compliance_basis`.
  */
 export type ShipState = "established" | "translated" | "pending";

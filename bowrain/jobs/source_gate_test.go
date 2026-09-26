@@ -33,9 +33,9 @@ func TestGateBlocksBySource(t *testing.T) {
 		blk("nontrans", false, model.SourceStatusNew), // no source to gate → passes
 	}
 
-	// checked gate: a committed authored status is held; checked/approved,
-	// non-translatable, AND never-settled (New) blocks pass through — the worker
-	// is not the settle phase and must not strand unstamped blocks.
+	// written gate: a source that fails its checks is held; written,
+	// established, non-translatable AND never-settled (New) blocks pass through
+	// — the worker is not the settle phase and must not strand unstamped blocks.
 	kept := gateBlocksBySource(blocks, model.SourceGateWritten)
 	got := map[string]bool{}
 	for _, sb := range kept {

@@ -128,7 +128,7 @@ export interface ContentItem {
   collection?: string;
   locale?: string;
   text?: string;
-  /** "governed" | "approved" | "ai_shippable" | "pending", when the surface derives it. */
+  /** "established" | "translated" | "withheld" | "not_gated" | "pending", when the surface derives it. */
   ship_state?: string;
   /** True when the decision for this item cites a superseded source. */
   stale?: boolean;
@@ -139,7 +139,7 @@ export interface LocaleCoverage {
   locale: string;
   units: number;
   covered: number;
-  /** "governed" | "approved" | "ai_shippable" | "pending". */
+  /** "established" | "translated" | "withheld" | "not_gated" | "pending". */
   ship_state?: string;
   stale?: number;
 }

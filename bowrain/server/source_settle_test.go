@@ -165,12 +165,12 @@ func TestReGateOnSourceChange(t *testing.T) {
 		srcBlk{"keep", "Stable, well-formed source.", model.SourceStatusNew},
 		srcBlk{"edit", "Original text.", model.SourceStatusNew})
 
-	// First settle: both clean → checked, both admitted.
+	// First settle: both clean → written, both admitted.
 	res1, err := s.convergence.settleSource(t.Context(), "p")
 	require.NoError(t, err)
 	assert.Equal(t, 0, res1.BlockedOnSource)
 
-	// Approve both (a human sign-off) so we can prove the reset drops approval.
+	// Approve both (a person's approval) so we can prove the reset drops it.
 	approveBlocks(t, cs, "p")
 
 	// Edit ONE block's source in place — keeping its stored properties (the
@@ -179,13 +179,13 @@ func TestReGateOnSourceChange(t *testing.T) {
 	editStoredBlockSource(t, cs, "p", "edit", "Rewritten, different text.")
 
 	// Second settle: the edited block resets (its approval is stale) and is
-	// re-checked to `checked`; the untouched block keeps its approval.
+	// re-settled to `written`; the untouched block keeps its approval.
 	res2, err := s.convergence.settleSource(t.Context(), "p")
 	require.NoError(t, err)
 
 	byID := settledStatusByID(t, cs, "p")
 	assert.Equal(t, model.SourceStatusEstablished, byID["keep"], "the untouched block keeps its approval")
-	assert.Equal(t, model.SourceStatusWritten, byID["edit"], "the changed block re-gates to checked (approval dropped)")
+	assert.Equal(t, model.SourceStatusWritten, byID["edit"], "the changed block re-gates to written (approval dropped)")
 	_ = res2
 }
 
@@ -207,9 +207,9 @@ func settledStatusByID(t *testing.T, cs *sqlitestore.SQLiteStore, projectID stri
 	return out
 }
 
-// approveBlocks stamps every stored block Approved and persists it (preserving
-// its stored properties, incl. the settled-hash) — a stand-in for a human source
-// sign-off.
+// approveBlocks stamps every stored block established and persists it
+// (preserving its stored properties, incl. the settled-hash) — a stand-in for a
+// person approving the source.
 func approveBlocks(t *testing.T, cs *sqlitestore.SQLiteStore, projectID string) {
 	t.Helper()
 	got, err := cs.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: projectID, Stream: "main"})
@@ -245,10 +245,10 @@ func editStoredBlockSource(t *testing.T, cs *sqlitestore.SQLiteStore, projectID,
 // before any job is spawned). Exercises the real settle + gate + produce path.
 func TestDrive_HoldsOnSource(t *testing.T) {
 	s, cs, runStore := sourceFirstHarness(t)
-	// Gate at `approved` (human sign-off); review fan-out is on by default, so
-	// the reused create_source_review automation fires. A clean, non-empty source
-	// settles to `checked` — which is below `approved`, so the whole locale is
-	// held on source.
+	// Gate at `established` (a person's approval); review fan-out is on by
+	// default, so the reused create_source_review automation fires. A clean,
+	// non-empty source settles to `written`, which is below `established`, so
+	// the whole locale is held on source.
 	mkProject(t, cs, "p", map[string]string{"source_gate": "established"})
 	storeSourceBlock(t, cs, "p", "a.json", "b1", "A well-formed sentence.", model.SourceStatusNew)
 

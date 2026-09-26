@@ -151,7 +151,7 @@ func Fixture() ([]*graph.Node, []*graph.Edge) {
 
 	// A decision blessing project B's block.
 	blessing := contextgraph.UnitState{
-		Unit: "hero", Variant: "nb", Status: "reviewed", ReviewState: "approved", TargetHash: "th-b1",
+		Unit: "hero", Variant: "nb", Status: "established", ReviewState: "approved", TargetHash: "th-b1",
 	}
 	add(contextgraph.UnitStateNode(ScopeB, blessing))
 	link(contextgraph.BlessesEdge(ScopeB, blessing, SharedContentKey))

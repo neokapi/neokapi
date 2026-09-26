@@ -38,8 +38,8 @@ export const RejectedStale: Story = {
   },
 };
 
-export const SignedOff: Story = {
-  name: "Recycled from content memory, signed off",
+export const Approved: Story = {
+  name: "Recycled from content memory, approved",
   args: {
     provenance: {
       origin: { kind: "memory", timestamp: "2026-08-29T18:40:00Z" },

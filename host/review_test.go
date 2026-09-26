@@ -229,7 +229,7 @@ func TestReview_EmptyQueueWhenNothingTranslated(t *testing.T) {
 // TestReview_EditAfterApprovalInvalidatesReview proves the state model's upgrade
 // over the old content-keyed .memory.json: an approval is bound to the targetHash of the
 // translation it blessed, so editing that translation drops the unit back below
-// the reviewed rung — something the content-keyed content memory index could not express.
+// the established rung — something the content-keyed content memory index could not express.
 func TestReview_EditAfterApprovalInvalidatesReview(t *testing.T) {
 	root := writeReviewProject(t)
 	t.Chdir(root)

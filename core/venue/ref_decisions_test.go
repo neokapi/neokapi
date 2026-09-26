@@ -31,11 +31,11 @@ func TestDecisionsComponentCountsDecisionsNotProduction(t *testing.T) {
 		"records of what was produced leave the component where it is")
 
 	decisions := map[string]UnitDecision{
-		"a rejection":     {ItemName: "docs/intro.md", Unit: "u5", Variant: "nb", ReviewState: "rejected", TargetHash: "t5"},
-		"a parked unit":   {ItemName: "docs/intro.md", Unit: "u6", Variant: "nb", Parked: true},
-		"an assignee":     {ItemName: "docs/intro.md", Unit: "u7", Variant: "nb", Assignee: "ben"},
-		"a note":          {ItemName: "docs/intro.md", Unit: "u8", Variant: "nb", Note: "check the term"},
-		"a reviewed rung": {ItemName: "docs/intro.md", Unit: "u9", Variant: "nb", Status: "established"},
+		"a rejection":         {ItemName: "docs/intro.md", Unit: "u5", Variant: "nb", ReviewState: "rejected", TargetHash: "t5"},
+		"a parked unit":       {ItemName: "docs/intro.md", Unit: "u6", Variant: "nb", Parked: true},
+		"an assignee":         {ItemName: "docs/intro.md", Unit: "u7", Variant: "nb", Assignee: "ben"},
+		"a note":              {ItemName: "docs/intro.md", Unit: "u8", Variant: "nb", Note: "check the term"},
+		"an established rung": {ItemName: "docs/intro.md", Unit: "u9", Variant: "nb", Status: "established"},
 	}
 	for name, rec := range decisions {
 		t.Run(name, func(t *testing.T) {

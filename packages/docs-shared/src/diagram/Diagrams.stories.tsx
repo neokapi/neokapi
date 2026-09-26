@@ -233,10 +233,9 @@ export const ConvergenceTargetLadder: Story = {
         { grade: "2", name: "translated", gloss: "a real translation exists" },
         {
           grade: "3",
-          name: "reviewed",
+          name: "established",
           gloss: "a person approved this exact pair",
         },
-        { grade: "4", name: "signed-off", gloss: "final" },
       ]}
       caption="Target lifecycle — how far a translation has progressed."
     />
@@ -248,16 +247,11 @@ export const ConvergenceSourceLadder: Story = {
   render: () => (
     <AxisLadderDiagram
       rungs={[
-        { grade: "1", name: "authored", gloss: "source content exists" },
+        { grade: "1", name: "written", gloss: "source content exists" },
         {
           grade: "2",
-          name: "checked",
-          gloss: "clears its brand & terminology checks",
-        },
-        {
-          grade: "3",
-          name: "approved",
-          gloss: "a person signed off on the source",
+          name: "established",
+          gloss: "a person approved the source",
         },
       ]}
       caption="Source authoring readiness — the source-side counterpart."

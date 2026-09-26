@@ -488,7 +488,6 @@ export {
   getTargetText,
   withTargetEntry,
   withTargetStatus,
-  targetLadderStatus,
   blockStatusTone,
   statusDotClass,
   statusBorderClass,

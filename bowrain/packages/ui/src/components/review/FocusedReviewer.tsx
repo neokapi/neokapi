@@ -17,7 +17,7 @@ import { entityLabel } from "../editor/entityMarks";
 import { FormattedSourceDisplay } from "../editor/FormattedSourceDisplay";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
-import { getTargetText, targetLadderStatus } from "../editor/blockStatus";
+import { getBlockStatus, getTargetText } from "../editor/blockStatus";
 import { blockToContentNode } from "../../preview/toContentTree";
 import { AnchoredTarget, findingViews, latestNote, termHitViews } from "./reviewContext";
 import {
@@ -90,7 +90,7 @@ export interface FocusedReviewerProps {
   /** The context fetch is in flight for this entry. */
   contextLoading?: boolean;
   onApprove: () => void;
-  /** Sign the target off: the rung above reviewed on the target ladder. */
+  /** Reject the target: it drops to draft and re-enters the work queue. */
   onReject: () => void;
   onEditToggle: () => void;
   onSaveEdit: (result: UnifiedSaveResult) => void | Promise<void>;
@@ -167,7 +167,7 @@ export function FocusedReviewer({
   onEntityPromote,
 }: FocusedReviewerProps) {
   const { block, locale, issues } = entry;
-  const status = targetLadderStatus(block, locale);
+  const status = getBlockStatus(block, locale);
   const verdict = entryVerdict(entry);
   const [selection, setSelection] = useState("");
 

@@ -1118,8 +1118,8 @@ func ProjectDNTTerms(proj *store.Project) []string {
 // PASSED THROUGH: the worker is not the settle phase, and holding an unstamped
 // block here would silently strand every non-source-first path (auto-translate,
 // projects that never ran a settle pass). The gate holds only what settlement
-// committed below it — an authored/checked block a settle pass demoted or left
-// short. A non-translatable block (no source to gate) and a disabled gate
+// committed below it — a block a settle pass left short of the gate, or one
+// whose source fails its checks. A non-translatable block (no source to gate) and a disabled gate
 // (SourceGateNone) always pass.
 func gateBlocksBySource(blocks []*venue.StoredBlock, gate model.SourceGateLevel) []*venue.StoredBlock {
 	if gate == model.SourceGateNone {

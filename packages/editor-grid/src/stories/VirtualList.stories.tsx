@@ -6,18 +6,18 @@ interface Row {
   id: string;
   source: string;
   target: string;
-  status: "not-started" | "draft" | "translated" | "reviewed";
+  status: "not-started" | "draft" | "translated" | "established";
 }
 
 const STATUS_ACCENT: Record<Row["status"], string> = {
   "not-started": "transparent",
   draft: "#d97706",
   translated: "#2563eb",
-  reviewed: "#16a34a",
+  established: "#16a34a",
 };
 
 function makeRows(n: number): Row[] {
-  const statuses: Row["status"][] = ["not-started", "draft", "translated", "reviewed"];
+  const statuses: Row["status"][] = ["not-started", "draft", "translated", "established"];
   return Array.from({ length: n }, (_, i) => ({
     id: `b${i}`,
     source: `Source string number ${i + 1} — the quick brown fox jumps over the lazy dog.`,

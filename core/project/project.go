@@ -107,16 +107,16 @@ type KapiProject struct {
 	ShipGates []ShipGateRule       `yaml:"ship_gates,omitempty" json:"ship_gates,omitempty"`
 	Gates     map[string]gate.Gate `yaml:"gates,omitempty" json:"gates,omitempty"`
 
-	// Established gates decide when a scope ships `established`, meaning
-	// governed: a person established the work (e.g. {established: 100}). A
-	// scope that clears its ship gate but not its established gate ships
-	// `translated`, AI-shippable, and a language picker marks it AI. Same
+	// Established gates decide when a scope ships `established`: a person
+	// established the work (e.g. {established: 100}). A scope that clears its
+	// ship gate but not its established gate ships `translated`, as AI
+	// translation, and a language picker marks it AI. Same
 	// additive forms and precedence as the ship gate, resolving a rule's
 	// `gate: <name>` reference against the same Gates registry:
 	//   EstablishedGate  — a single catch-all gate.
 	//   EstablishedGates — a when/gate rule list; most-specific rule wins.
 	// With no established gate configured, no scope ships `established`. A
-	// project that delivers only governed content says so in its ship gate
+	// project that delivers only established content says so in its ship gate
 	// (e.g. {established: 100}).
 	EstablishedGate  gate.Gate      `yaml:"established_gate,omitempty" json:"established_gate,omitempty"`
 	EstablishedGates []ShipGateRule `yaml:"established_gates,omitempty" json:"established_gates,omitempty"`
@@ -186,15 +186,15 @@ type Defaults struct {
 	// never translated into N locales only to be redone when it changes
 	// (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
 	//
-	// Values:
-	//   ""         — unset; the runner applies the default gate (`checked`).
-	//   "authored" — the presence baseline (any non-empty source qualifies).
-	//   "checked"  — the DEFAULT: source cleared its automated terminology,
-	//                voice, and source hygiene checks (no human bottleneck).
-	//   "approved" — a human/agent signed off the source (voice-critical or
-	//                regulated projects).
-	//   "none"     — the deliberate opt-out: no gate, raw MT / fan-out on push
-	//                exactly as before source-first. You have to choose it.
+	// Values (model.ResolveSourceGate):
+	//   ""            — unset; the runner applies the default gate (`written`).
+	//   "written"     — the DEFAULT: a written source translates once it clears
+	//                   its automated terminology, voice and source hygiene
+	//                   checks (no human bottleneck).
+	//   "established" — a person has established the source (voice-critical or
+	//                   regulated projects). A failing finding still holds it.
+	//   "none"        — the deliberate opt-out: no gate, every present source
+	//                   fans out on push. You have to choose it.
 	//
 	// It is the level-based, per-project counterpart of the coverage-bar
 	// SourceGate on KapiProject (which `kapi check --ship` evaluates); this one

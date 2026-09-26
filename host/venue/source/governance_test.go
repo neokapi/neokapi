@@ -178,10 +178,10 @@ func TestRetireRefusedVerdicts(t *testing.T) {
 	})
 }
 
-// A sign-off the venue kept is written back as the venue holds it. The local
-// record took the sign-off back, the venue refused to, and without this step
+// An approval the venue kept is written back as the venue holds it. The local
+// record took the approval back, the venue refused to, and without this step
 // every push would take it back again, be refused again, and report it again.
-func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
+func TestRetireRefusedVerdicts_RestoresAKeptApproval(t *testing.T) {
 	withdrawn := approvedUnit("greeting", "fr")
 	withdrawn.Status = model.TargetStatusTranslated
 	withdrawn.Decision = state.Decision{}
@@ -218,7 +218,7 @@ func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
 			"the project's record folds to what the venue holds, so the next push has nothing to send")
 		require.Len(t, after, 1)
 		assert.Equal(t, venue.ReviewStateApproved, after[0].ReviewState)
-		assert.Equal(t, "reviewer@example.com", after[0].DecidedBy, "the sign-off still names the person who made it")
+		assert.Equal(t, "reviewer@example.com", after[0].DecidedBy, "the approval still names the person who made it")
 		assert.Equal(t, string(model.TargetStatusEstablished), after[0].Status)
 
 		diff, err := st.RecordDiff(t.Context())
@@ -242,7 +242,7 @@ func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
 			}},
 		})
 		require.NoError(t, err)
-		assert.Zero(t, retired, "the local record cannot invent the sign-off's decider; a pull settles it")
+		assert.Zero(t, retired, "the local record cannot invent the approval's decider; a pull settles it")
 
 		after, err := c.projectDecisions(t.Context())
 		require.NoError(t, err)

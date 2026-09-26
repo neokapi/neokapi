@@ -198,7 +198,7 @@ export const WithCoverage: Story = {
           gated: true,
           shippable: true,
         },
-        // fr: high coverage, partly reviewed → in review.
+        // fr: high coverage, partly established → in review.
         {
           collection: "Website",
           locale: "fr",
@@ -322,8 +322,8 @@ export const ThreeLanguages: Story = {
   },
 };
 
-// Coverage cells reframed as ship-gate ladder states (Shippable / In review /
-// Draft / —) from the convergence report, with the project strip summarizing
+// Coverage cells reframed as ship-gate ladder states (Established or Ships
+// translated / In review / Draft / —) from the convergence report, with the project strip summarizing
 // shippable-ness per language. Three languages ⇒ the labelled (Option A) layout.
 export const WithShipGates: Story = {
   args: {

@@ -113,7 +113,7 @@ export function getTargetCoded(block: BlockInfo, locale: string): string {
 /**
  * The per-locale status an edited target carries after saving for `locale`. A
  * review decision judges ONE specific translation, so changing the content
- * invalidates a stale reviewed/signed-off status — the server demotes it to
+ * invalidates a stale established status: the server demotes it to
  * translated whenever the runs differ (demoteStaleReviewOnEdit); the optimistic
  * write mirrors that so the chip matches what a reload fetches. Re-saving
  * identical content, and every rung at or below translated, keeps the status.
@@ -165,21 +165,6 @@ export function getBlockStatus(block: BlockInfo, locale: string): BlockStatus {
     return "draft";
   }
   return "translated";
-}
-
-/**
- * The ladder value to badge for a locale: the wire `Target.Status` the payload
- * carries, and the derived bucket for one that carries none. Rendering the wire
- * value is what lets `signed-off` reach a badge at all, since the bucket
- * collapses it into `reviewed`; a locale with no target text stays
- * `not-started`, which is what the server counts it as.
- *
- * Hand the result to `StatusBadge ladder="content"`.
- */
-export function targetLadderStatus(block: BlockInfo, locale: string): string {
-  const bucket = getBlockStatus(block, locale);
-  if (bucket === "not-started") return bucket;
-  return getTargetStatus(block, locale) || bucket;
 }
 
 /** Where a bucket sits on the shared content ladder. */

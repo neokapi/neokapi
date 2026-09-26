@@ -565,7 +565,7 @@ func TestGetBlockStats(t *testing.T) {
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", "messages.json", []*model.Block{b1, b2, b3}))
 
 	// Store blocks for item 2: 1 translatable with both French and German
-	// targets; only German carries a review decision (signed-off).
+	// targets; only German carries a review decision (established).
 	b4 := model.NewBlock("b4", "Settings")
 	b4.SetTargetText(model.LocaleFrench, "Paramètres")
 	b4.SetTargetText(model.LocaleGerman, "Einstellungen")
@@ -642,10 +642,10 @@ func TestGetBlockStats(t *testing.T) {
 		for _, bs := range stats {
 			switch {
 			case bs.ItemName == "messages.json" && len(bs.TargetLocales) > 0:
-				// b1: reviewed fr target → approved.
+				// b1: established fr target → approved.
 				assert.Equal(t, []string{string(model.LocaleFrench)}, bs.ApprovedLocales)
 			case bs.ItemName == "strings.xml":
-				// b4: fr merely translated, de signed-off → only de approved.
+				// b4: fr merely translated, de established → only de approved.
 				assert.Equal(t, []string{string(model.LocaleGerman)}, bs.ApprovedLocales)
 			default:
 				assert.Empty(t, bs.ApprovedLocales)

@@ -26,22 +26,22 @@ func gate(t *testing.T, gt *SourceGateTool, b *model.Block) {
 }
 
 // TestSourceGateTool_SettlesAndHoldsBelowGate: the source-gate stage settles a
-// clean block to `checked` and, under the `approved` gate, holds it (checked is
-// below approved) — stamping the hold marker and counting it.
+// clean block to `written` and, under the `established` gate, holds it (written
+// is below established) — stamping the hold marker and counting it.
 func TestSourceGateTool_SettlesAndHoldsBelowGate(t *testing.T) {
 	b := srcBlock("Hello world")
 	gt := NewSourceGateTool(model.SourceGateEstablished)
 	gate(t, gt, b)
 
-	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus, "settled to checked")
-	assert.True(t, b.SourceHeld(), "checked is below approved → held")
+	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus, "settled to written")
+	assert.True(t, b.SourceHeld(), "written is below established → held")
 	held, total := gt.Snapshot()
 	assert.Equal(t, 1, held)
 	assert.Equal(t, 1, total)
 }
 
-// TestSourceGateTool_AdmitsAtGate: a clean block clears the default (checked)
-// gate — settled to checked, not held, any stale marker cleared.
+// TestSourceGateTool_AdmitsAtGate: a clean block clears the default (written)
+// gate — settled to written, not held, any stale marker cleared.
 func TestSourceGateTool_AdmitsAtGate(t *testing.T) {
 	b := srcBlock("Hello world")
 	b.SetSourceHeld(true) // a stale hold from a prior pass
@@ -49,7 +49,7 @@ func TestSourceGateTool_AdmitsAtGate(t *testing.T) {
 	gate(t, gt, b)
 
 	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
-	assert.False(t, b.SourceHeld(), "clean source clears the checked gate; the stale hold is cleared")
+	assert.False(t, b.SourceHeld(), "clean source clears the written gate; the stale hold is cleared")
 	held, _ := gt.Snapshot()
 	assert.Equal(t, 0, held)
 }
@@ -68,15 +68,15 @@ func TestSourceGateTool_NoneIsPassthrough(t *testing.T) {
 	assert.Equal(t, 0, total)
 }
 
-// TestSourceGateTool_WhitespaceHeldAtChecked: a whitespace-only source trips the
-// major content-lint finding, so it stays at the authored baseline and is held
-// below the checked gate — the partial-hold case.
-func TestSourceGateTool_WhitespaceHeldAtChecked(t *testing.T) {
+// TestSourceGateTool_WhitespaceHeldAtWritten: a whitespace-only source trips
+// the major content-lint finding, so it stays unsettled and is held below the
+// written gate — the partial-hold case.
+func TestSourceGateTool_WhitespaceHeldAtWritten(t *testing.T) {
 	b := srcBlock("   ")
 	gt := NewSourceGateTool(model.SourceGateWritten)
 	gate(t, gt, b)
 
-	assert.Equal(t, model.SourceStatusNew, b.SourceStatus, "a major source finding keeps it at authored")
+	assert.Equal(t, model.SourceStatusNew, b.SourceStatus, "a major source finding keeps it unsettled")
 	assert.True(t, b.SourceHeld())
 }
 

@@ -13,7 +13,7 @@ const est = (
   source: Partial<ConvergenceEstimate["source"]>,
   pending: number,
 ): ConvergenceEstimate => ({
-  source: { gate: "checked", total: 14, ready: 0, held: 14, ...source },
+  source: { gate: "written", total: 14, ready: 0, held: 14, ...source },
   totals: { pending },
 });
 
@@ -46,7 +46,7 @@ test("a project that opted out of the gate needs only pending work", () => {
 });
 
 test("describeReadiness names whichever half is missing", () => {
-  assert.match(describeReadiness(est({ ready: 0, held: 14 }, 0)), /14 of 14 .*"checked" gate/);
+  assert.match(describeReadiness(est({ ready: 0, held: 14 }, 0)), /14 of 14 .*"written" gate/);
   assert.match(describeReadiness(est({ ready: 14, held: 0 }, 0)), /every locale already covered/);
   assert.match(describeReadiness(est({ ready: 14, held: 0 }, 6)), /6 unit\(s\) pending/);
 });

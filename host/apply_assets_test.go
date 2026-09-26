@@ -115,7 +115,7 @@ func TestApplyMemoryEntry_reviewStatus(t *testing.T) {
 
 	base := changeEntry{Kind: kindMemory, Source: "Save", Target: "Enregistrer", SourceLocale: "en", TargetLocale: "fr"}
 
-	// A signed-off status is accepted and applied.
+	// An established status is accepted and applied.
 	so := base
 	so.Status = "established"
 	res := a.applyAssetEntry(ctx, cmd, so)

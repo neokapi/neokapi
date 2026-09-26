@@ -1067,8 +1067,7 @@ export interface GateShortfall {
 }
 
 /** A scope's standing against its ship and established gates (Go
- * convergence.ShipState): established (governed), translated (AI-shippable),
- * withheld, or not_gated. */
+ * convergence.ShipState): established, translated, withheld or not_gated. */
 export type ShipState = "established" | "translated" | "withheld" | "not_gated";
 
 /** Per-(collection, locale) target coverage + ship-gate standing. */

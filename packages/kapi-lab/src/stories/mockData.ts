@@ -32,7 +32,7 @@ export const richBlock: ContentNode = {
   },
   targetMeta: {
     "fr-FR": {
-      status: "reviewed",
+      status: "established",
       score: 0.98,
       origin: { kind: "ai", engine: "anthropic", tool: "translate" },
     },
