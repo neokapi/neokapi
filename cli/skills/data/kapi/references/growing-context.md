@@ -42,7 +42,8 @@ Term rules and corrections require evidence so reviewers can compare the
 proposal with its source.
 
 Two suggestions that name different forms for one word are **contested**: both
-advise, each names the other, and a person chooses by dropping one.
+advise, each names the other, and a person chooses one with `kapi context keep
+<id> --choose`.
 
 One call records one thing. Do not batch a session's worth of observations into
 a single sentence, and do not wait until the end of the task to record them.
@@ -90,6 +91,9 @@ yourself when it turns out wrong: over the CLI with `kapi context withdraw
 <id>`, and over MCP with `context_withdraw`. That is how a
 run cleans up after itself. For everything else, end your task by reporting what
 you recorded and the command above for reviewing it, and let the user decide.
+A person reviews what kapi learned, whenever it suits them, with `kapi context
+digest` or the Learned section of Kapi Desktop; nothing you record waits on that
+review, because a suggestion advises from the moment it is recorded.
 
 ---
 

@@ -229,7 +229,9 @@ The fold marks a disagreement `contested` and names the other side in
 `ContestedBy`:
 
 - Two suggestions about the same word are both contested, each naming the
-  other. Both advise, and neither can be kept until a person drops one.
+  other. Both advise, and neither can be kept until a person chooses one:
+  `host.App.ChooseContextSide` (`kapi context keep --choose`) drops the rivals
+  and keeps the chosen side, one operation per step.
 - A suggestion that contradicts an established rule is contested by the rule,
   and the rule stays in force.
 - A person's correction that reverses an established rule contests the rule.
