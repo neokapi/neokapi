@@ -120,7 +120,6 @@
   },
   "kapi-desktop": {
     "apps/kapi-desktop/frontend/src/components/ChecksPanel.tsx | dyn-label-splice | sev.label": 2,
-    "apps/kapi-desktop/frontend/src/components/ContextHub.tsx | dyn-label-splice | s.label": 1,
     "apps/kapi-desktop/frontend/src/components/MemoriesPage.tsx | ternary-attr-complex | title": 1,
     "apps/kapi-desktop/frontend/src/components/ProjectStanding.tsx | dyn-label-splice | p.label": 1,
     "apps/kapi-desktop/frontend/src/components/ReviewPage.tsx | dyn-label-splice | c.label": 1,

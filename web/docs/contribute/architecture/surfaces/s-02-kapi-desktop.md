@@ -20,8 +20,9 @@ people and agents have recorded about their context
 ([C-11](../context/c-11-context-operations.md)). Projects open from there as
 tabs, several at a time, and each gets a visual surface: a project home that
 opens on what the project stands at and a map of its coordinate points, a
-Context hub holding the graph explorer, the voice profile, the terms, the
-content memory and the project's own recorded operations, a checks panel, a
+Context hub that opens on the digest of what kapi learned about how the project
+writes, beside the graph explorer, the voice profile, the terms and the content
+memory, a checks panel, a
 review queue, governance editing on the recipe, a runner that brings the project
 up to date through the same venue the CLI uses, a tool reference, and an
 OS-keychain credential vault. It depends on the framework and `host` only. It
@@ -151,9 +152,9 @@ The stores are sections of one hub, beside the graph:
 
 | Section | What it shows |
 | --- | --- |
+| **Learned** | the digest of what kapi learned about how the project writes since the person last looked (below), where a person reviews it |
 | **Explorer** | the context graph, through `@neokapi/context-explorer`; the governs pane renders the same guide the retrieval surface serves ([C-06](../context/c-06-retrieval.md)) |
 | **Agent View** | the resolved context for one file as an agent receives it: `AgentContextAt` calls the desktop's `ContextAt` and renders the answer's own `FormatText`, so the body on screen is the `context://` resource body rather than a second rendering of it |
-| **Recorded** | the project's context operations ([C-11](../context/c-11-context-operations.md)), grouped by session, with the evidence behind each and the decisions a person takes on them |
 | **Voice** | the whole resolved profile per point: tone, style patterns with severities and rates, term rules, examples, and the locale, channel and persona overrides as authored ([C-07](../context/c-07-voice-profiles.md)); the profile is edited here |
 | **Terms** | the terms store: search, facets, provenance, concept relations |
 | **Content Memory** | the content memory: search, facets, activity, provenance, the languages gate |
@@ -176,8 +177,8 @@ The app is meant to sit open beside an agent that is working. The agent runs in
 another process, through the CLI or its MCP server, and records what it learns
 as context operations in this machine account's workspace log
 ([C-11](../context/c-11-context-operations.md)). The desktop reads that log and
-shows it as a feed: on the workspace home across every project, and in a
-project's Context hub for that project alone.
+shows it in two places: as a feed of every project's operations on the
+workspace home, and as each project's digest in its Context hub.
 
 The feed groups by session. An agent session is the id its operations carry, so
 one run is one card however long it lasts. A person at a terminal and a tool
@@ -219,9 +220,47 @@ recorded elsewhere appears within a second. The previous answer stays mounted th
 keeps the scroll position and a half-typed edit through an agent recording in
 the middle of it.
 
-A count of suggestions awaiting a decision sits beside each project on the home
-and on the hub's Recorded tab. It is absent at zero rather than shown as a
-zero.
+Beside each project on the home sits what its digest holds that the person has
+not seen, "4 new since Tuesday" (`host.App.ContextNews`, one fold of the log
+for every project). A project with nothing new shows nothing: the home carries
+no count of work waiting.
+
+### The digest
+
+A project's Context hub opens on **Learned**, the digest of what kapi learned
+about how the project writes. Review there is discovery, never a gate: a
+suggestion advises agents and checks from the moment it is recorded, and one
+nobody answers keeps advising, so the digest reads as news and carries no count
+of unread work. `host.App.ContextDigest` assembles it from the operation log,
+the same call `kapi context digest` prints, and the desktop renders it in five
+sections, in this order:
+
+| Section | What a person does |
+| --- | --- |
+| **Needs you** | the conflicts: two rules that disagree about one word, or a rule the evidence turned against. Choosing a side keeps it and sets the others aside (`ChooseContextSide`) |
+| **Established** | the rules that came into force, with what they rest on ("merged in #412", "your correction in docs/billing.md", "kept by you"). Revert takes one back out |
+| **Suggested** | suggestions grouped by theme (names and spellings, words to avoid, how the project writes, wording in other languages), then by collection where they sit in more than one. Keep, change then keep, drop, or keep a whole group (`KeepContextGroup`) |
+| **Drift** | an established rule whose latest usage count (from a whole-project `kapi check` or `kapi up`) writes a rejected form more often than the count taken when the rule came into force, or the first count after it |
+| **Numbers** | "kapi knows 23 rules for Fernwell; 4 are new this week" |
+
+Each item states its rule as a sentence ("Write Quickcast, not Quick cast or
+QuickCast"), the quotation it was seen in with a link that opens the explorer at
+that file, its standing as plain counts, and who noticed it. Where a check has
+counted the rule's forms, the item carries the project's own words back to it:
+`docs/ says "studio" 41 times and "business" twice`.
+
+"Since you last looked" is a marker per project in this machine account's kapi
+config (`context-digest.json` under the config root), never in the log. The
+panel reads the digest from the marker once when it opens, holds that instant
+for as long as it stays open, and moves the marker to now, so what was new when
+the person arrived stays marked new until they leave. Items the person has seen
+stay in the digest under "Earlier". A digest with nothing new says "Nothing new
+since Tuesday" beside the numbers.
+
+The keys act on the item under the cursor: `j`/`k` move, `a` keeps (or chooses
+a side), `c` changes the form to write and keeps, `d` drops, `g` keeps the
+group, `u` reverts a rule in force, and `o` opens the file. A project with no
+checkout on this machine shows its digest without the decisions.
 
 ### Governance editing
 

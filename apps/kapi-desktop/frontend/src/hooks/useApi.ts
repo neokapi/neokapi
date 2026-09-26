@@ -48,9 +48,10 @@ import type {
   AgentContextView,
   WorkspaceHome,
   WorkspaceRemoval,
+  ContextDigest,
   ContextFeed,
   ContextFeedEntry,
-  ContextAwaiting,
+  ContextNews,
   ContextDecisionRequest,
   ContextRevertRequest,
   ContextRevertSummary,
@@ -451,11 +452,8 @@ export const api = {
   /** The whole workspace's feed, or one project's when a key is given. */
   contextFeed: (projectKey: string, limit: number) =>
     call<ContextFeed>("ContextFeed", projectKey, limit),
-  /** The feed of the project a tab holds. */
-  projectContextFeed: (tabID: string, limit: number) =>
-    call<ContextFeed>("ProjectContextFeed", tabID, limit),
-  /** How many candidates each project has awaiting a decision. */
-  contextAwaitingCounts: () => call<ContextAwaiting[]>("ContextAwaitingCounts"),
+  /** What each project's digest holds that the person has not seen. */
+  contextNews: () => call<ContextNews[]>("ContextNews"),
   /** Make a candidate binding, with whatever edit and widening was asked for. */
   keepContextSuggestion: (req: ContextDecisionRequest) =>
     call<ContextFeedEntry>("KeepContextSuggestion", req),
@@ -474,6 +472,18 @@ export const api = {
   /** Move an established rule to a broader point. */
   widenContextRule: (req: ContextDecisionRequest) =>
     call<ContextFeedEntry>("WidenContextRule", req),
+  /** What kapi learned about the tab's project; `since` empty reads the marker. */
+  projectContextDigest: (tabID: string, since: string) =>
+    call<ContextDigest>("ProjectContextDigest", tabID, since),
+  /** Record that the person looked now; returns the marker it replaced. */
+  markProjectContextDigestSeen: (tabID: string) =>
+    call<string>("MarkProjectContextDigestSeen", tabID),
+  /** Keep a group of suggestions in one step. */
+  keepContextGroup: (projectKey: string, ids: string[]) =>
+    call<number>("KeepContextGroup", projectKey, ids),
+  /** Settle a conflict: set the rivals aside and keep the chosen rule. */
+  chooseContextSide: (req: ContextDecisionRequest) =>
+    call<ContextFeedEntry>("ChooseContextSide", req),
 
   // Settings
   getSettings: () =>

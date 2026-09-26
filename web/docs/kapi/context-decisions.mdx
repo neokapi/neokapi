@@ -9,8 +9,8 @@ keywords: [kapi, context, observe, correct, keep, drop, withdraw, revert, widen,
 
 A new project starts with no terms, voice profile or approved wording. You can
 build its context as you work: record a consistent product name, suggest a
-preferred spelling, or capture a correction. Review each suggestion before
-establishing it as a rule.
+preferred spelling, or capture a correction. A suggestion advises from the
+moment it is recorded, and you review what kapi learned when it suits you.
 
 The following commands record observations, show their history and manage the
 rules that checks enforce.
@@ -19,6 +19,7 @@ rules that checks enforce.
 | --- | --- |
 | `kapi context observe` | record something you noticed, such as the form the project uses for a name, with where you saw it |
 | `kapi context correct` | record wording somebody changed, and the rule it implies |
+| `kapi context digest` | show what kapi learned about how the project writes since you last looked |
 | `kapi context log` | show what has been recorded and decided |
 | `kapi context keep` | establish suggestions as rules |
 | `kapi context drop` | set a suggestion aside |
@@ -60,6 +61,62 @@ kapi derives spelling variants, including hyphenation and capitalisation. This
 suggestion identifies `Quick cast`, `Quick-cast`, `QuickCast` and `quickcast` as
 alternatives to avoid. Checks report these forms, but suggested rules have no
 effect on scores or gate results until you keep them.
+
+## Reviewing what kapi learned {#reviewing-what-kapi-learned}
+
+`kapi context digest` answers one question: what did kapi learn about how this
+project writes since you last looked? Nothing in it is waiting on you. A
+suggestion you leave alone keeps advising agents and checks, and an item you
+have already seen stays in the digest under "Earlier" rather than piling up.
+
+```bash
+kapi context digest
+```
+
+```
+Since you last looked (Tuesday 22 September 09:14):
+
+Needs you
+  These rules say different things about the same word. Choose one, and the others are set aside.
+    0njy7pxnst  Write log in, not login.
+          noticed by codex
+    0njy7pwmtj  Write sign in, not login.
+          noticed by claude
+
+Established
+  0njy7pghcn  Write studio, not business.
+        seen "Our business plan" in docs/billing.md
+        docs/ says "studio" 41 times and "business" twice
+        merged in #412 · your correction in docs/billing.md
+
+Suggested
+  Names and spellings
+    0njy7pfhjp  Write Quickcast, not Quick cast, Quick-cast, QuickCast or quickcast.
+          seen "Try Quick cast today" in docs/intro.md
+          seen in 2 sessions · noticed by claude
+
+kapi knows 23 rules for Fernwell; 4 are new this week. 1 suggestion is advising.
+```
+
+The sections come in the order you read them: conflicts that need you, the
+rules that came into force and what they rest on, suggestions grouped by theme
+(names and spellings, words to avoid, how the project writes), content drifting
+away from an established rule, and the project in numbers. Each line starts
+with the id the other verbs take:
+
+```bash
+kapi context keep 0njy7pfhjp                  # keep a suggestion
+kapi context keep 0njy7pfhjp --use Quickcast  # change the form to write, then keep
+kapi context drop 0njy7pfhjp                  # set it aside
+kapi context keep 0njy7pwmtj --choose         # choose a side of a conflict
+kapi context revert 0njy7pghcn                # take an established rule back out
+```
+
+Reading the digest moves your "since you last looked" marker, which kapi keeps
+in your own kapi configuration and never in the project. `--peek` leaves it
+where it is, and an agent reading the digest never moves it. `--json` prints
+the same sections for a program. Kapi Desktop shows the same digest when you
+open a project's Context, with keys for each action.
 
 ## Establishing a rule {#keeping-is-what-makes-a-rule-bind}
 
@@ -136,9 +193,10 @@ kept rule.
 
 Two suggestions that name different forms for one word are **contested**. Both
 still advise, the log marks each `[contested by #<id>]` with the other side named,
-and neither can be kept until you choose: drop the one you do not want, then
-keep the other. `kapi context keep --session` leaves a contested suggestion
-where it is and says so.
+and neither can be kept on its own until you choose. `kapi context keep <id>
+--choose` chooses one: it drops the other suggestions and keeps this one.
+`kapi context keep --session` leaves a contested suggestion where it is and
+says so.
 
 A suggestion that contradicts an established rule is contested too, and the
 rule stays in force. When you correct wording against an established rule

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T08:24:05Z",
+  "generatedAt": "2026-09-26T09:09:07Z",
   "commands": [
     {
       "id": "add",
@@ -683,6 +683,44 @@
       "demoMode": false
     },
     {
+      "id": "context.digest",
+      "path": [
+        "context",
+        "digest"
+      ],
+      "use": "digest",
+      "short": "Show what kapi learned about how this project writes since you last looked",
+      "long": "Show what kapi learned about how this project writes, in the order a person\nreads it: conflicts that need you, rules that became established and on what\nevidence, suggestions grouped by theme, content drifting away from an\nestablished rule, and the project in numbers.\n\nNothing here is a queue. A suggestion nobody answers keeps advising, and an\nitem you have already seen stays in the digest under \"Earlier\". Each line\ncarries the id the other verbs take: keep a suggestion with\n\"kapi context keep \u003cid\u003e\", change it as you keep it with --use, drop it with\n\"kapi context drop \u003cid\u003e\", and take an established rule back out with\n\"kapi context revert \u003cid\u003e\".\n\nReading the digest moves your \"since you last looked\" marker, which is kept in\nthis machine's kapi config and never in the project. --peek leaves it where it\nis. An agent reading the digest never moves it.",
+      "flags": [
+        {
+          "name": "peek",
+          "usage": "leave the \"since you last looked\" marker where it is",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "since",
+          "usage": "show what is new after a date (2006-01-02) or instant, in place of the marker",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context digest",
+        "kapi context digest --peek",
+        "kapi context digest --since 2026-09-01",
+        "kapi context digest --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "context.drop",
       "path": [
         "context",
@@ -784,11 +822,17 @@
       ],
       "use": "keep [id...]",
       "short": "Establish suggestions as rules",
-      "long": "Keep suggestions, which establishes each rule and writes it where the rest\nof kapi reads it: the project's terms or its content memory. An established rule\nfails a check unless it is marked advisory.\n\nName one or more operations by id, or keep everything one agent session\nsuggested with --session. A contested suggestion disagrees with another rule,\nand waits until you choose: a session keep leaves it and says so, and naming it\nis refused with the other side named. Drop the side you do not want, then keep\nthe other.\n\nChange the rule as you keep it with --use and --advisory, and widen it past the\npoint its evidence was seen at with --widen-to.",
+      "long": "Keep suggestions, which establishes each rule and writes it where the rest\nof kapi reads it: the project's terms or its content memory. An established rule\nfails a check unless it is marked advisory.\n\nName one or more operations by id, or keep everything one agent session\nsuggested with --session. A contested suggestion disagrees with another rule,\nand waits until you choose: a session keep leaves it and says so, and naming it\nis refused with the other side named. Choose it with --choose, which drops the\nrival suggestions (or reverts a rival established rule) and keeps this one.\n\nChange the rule as you keep it with --use and --advisory, and widen it past the\npoint its evidence was seen at with --widen-to.",
       "flags": [
         {
           "name": "advisory",
           "usage": "make the rule report without failing a check (--advisory=false makes it fail)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "choose",
+          "usage": "settle a conflict for this rule: set the rules it disagrees with aside, then keep it (one id)",
           "default": "false",
           "type": "bool"
         },
@@ -825,7 +869,8 @@
         "kapi context keep --session s0ab4e399",
         "kapi context keep 0n794e2gk7 --use \"content memory\"",
         "kapi context keep 0n794e2gk7 --advisory=false",
-        "kapi context keep 0n794e2gk7 --widen-to workspace"
+        "kapi context keep 0n794e2gk7 --widen-to workspace",
+        "kapi context keep 0n794e2gk7 --choose"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

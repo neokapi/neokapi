@@ -294,6 +294,22 @@
             "long": "Record that somebody changed wording: what was there, what replaced\nit, and where.\n\nA correction is evidence about how this project writes, and the cheapest there\nis, because the judgement has already been made. On its own it records the\nchange and nothing else.\n\nWith --suggest it also records the rule the change implies, so the next use of\nthe old wording is reported. That rule is a suggestion: checks report it and\nnone of them fails on it until a person keeps it.\n\nA person's correction that reverses an established rule contests the rule: it\nreports instead of failing until a person keeps it again or drops the\ncorrection, so your own edit never fails your build.",
             "short": "Record that wording was changed at a place"
           },
+          "digest": {
+            "example": "  kapi context digest\n  kapi context digest --peek\n  kapi context digest --since 2026-09-01\n  kapi context digest --json",
+            "flags": {
+              "peek": {
+                "usage": "leave the \"since you last looked\" marker where it is"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              },
+              "since": {
+                "usage": "show what is new after a date (2006-01-02) or instant, in place of the marker"
+              }
+            },
+            "long": "Show what kapi learned about how this project writes, in the order a person\nreads it: conflicts that need you, rules that became established and on what\nevidence, suggestions grouped by theme, content drifting away from an\nestablished rule, and the project in numbers.\n\nNothing here is a queue. A suggestion nobody answers keeps advising, and an\nitem you have already seen stays in the digest under \"Earlier\". Each line\ncarries the id the other verbs take: keep a suggestion with\n\"kapi context keep \u003cid\u003e\", change it as you keep it with --use, drop it with\n\"kapi context drop \u003cid\u003e\", and take an established rule back out with\n\"kapi context revert \u003cid\u003e\".\n\nReading the digest moves your \"since you last looked\" marker, which is kept in\nthis machine's kapi config and never in the project. --peek leaves it where it\nis. An agent reading the digest never moves it.",
+            "short": "Show what kapi learned about how this project writes since you last looked"
+          },
           "drop": {
             "example": "  kapi context drop 0n794e2gk7\n  kapi context drop 0n794e2gk7 --note \"we say it both ways on purpose\"",
             "flags": {
@@ -361,10 +377,13 @@
             "short": "Read context files, or a context file, into this project"
           },
           "keep": {
-            "example": "  kapi context keep 0n794e2gk7\n  kapi context keep 0n794e2gk7 0n79gkq853\n  kapi context keep --session s0ab4e399\n  kapi context keep 0n794e2gk7 --use \"content memory\"\n  kapi context keep 0n794e2gk7 --advisory=false\n  kapi context keep 0n794e2gk7 --widen-to workspace",
+            "example": "  kapi context keep 0n794e2gk7\n  kapi context keep 0n794e2gk7 0n79gkq853\n  kapi context keep --session s0ab4e399\n  kapi context keep 0n794e2gk7 --use \"content memory\"\n  kapi context keep 0n794e2gk7 --advisory=false\n  kapi context keep 0n794e2gk7 --widen-to workspace\n  kapi context keep 0n794e2gk7 --choose",
             "flags": {
               "advisory": {
                 "usage": "make the rule report without failing a check (--advisory=false makes it fail)"
+              },
+              "choose": {
+                "usage": "settle a conflict for this rule: set the rules it disagrees with aside, then keep it (one id)"
               },
               "note": {
                 "usage": "why"
@@ -382,7 +401,7 @@
                 "usage": "widen as you keep: \"workspace\", or the name of an axis the rule should stop being specific about"
               }
             },
-            "long": "Keep suggestions, which establishes each rule and writes it where the rest\nof kapi reads it: the project's terms or its content memory. An established rule\nfails a check unless it is marked advisory.\n\nName one or more operations by id, or keep everything one agent session\nsuggested with --session. A contested suggestion disagrees with another rule,\nand waits until you choose: a session keep leaves it and says so, and naming it\nis refused with the other side named. Drop the side you do not want, then keep\nthe other.\n\nChange the rule as you keep it with --use and --advisory, and widen it past the\npoint its evidence was seen at with --widen-to.",
+            "long": "Keep suggestions, which establishes each rule and writes it where the rest\nof kapi reads it: the project's terms or its content memory. An established rule\nfails a check unless it is marked advisory.\n\nName one or more operations by id, or keep everything one agent session\nsuggested with --session. A contested suggestion disagrees with another rule,\nand waits until you choose: a session keep leaves it and says so, and naming it\nis refused with the other side named. Choose it with --choose, which drops the\nrival suggestions (or reverts a rival established rule) and keeps this one.\n\nChange the rule as you keep it with --use and --advisory, and widen it past the\npoint its evidence was seen at with --widen-to.",
             "short": "Establish suggestions as rules"
           },
           "locales": {

@@ -27,11 +27,11 @@ export function useAppInit() {
     queryKey: qk.workspaceProjects(),
     queryFn: () => api.listWorkspaceProjects(),
   });
-  // How many candidates each project has awaiting a decision, for the count
-  // beside its row. It follows the same event the project list does.
-  const awaitingQuery = useQuery({
-    queryKey: qk.contextAwaiting(),
-    queryFn: () => api.contextAwaitingCounts(),
+  // What each project's digest holds that the person has not seen, for the
+  // line beside its row. It follows the same event the project list does.
+  const newsQuery = useQuery({
+    queryKey: qk.contextNews(),
+    queryFn: () => api.contextNews(),
   });
 
   // Optimistic dismissal — flips immediately, before the settings refetch.
@@ -76,9 +76,9 @@ export function useAppInit() {
 
   // Per Wails v3 docs: common:ApplicationStarted fires after all
   // ServiceStartup hooks complete — data is guaranteed available.
-  useInvalidateOnEvent("common:ApplicationStarted", [qk.workspaceProjects(), qk.contextAwaiting()]);
+  useInvalidateOnEvent("common:ApplicationStarted", [qk.workspaceProjects(), qk.contextNews()]);
   // The backend's workspace watcher, and every registration this app makes.
-  useInvalidateOnEvent("workspace:changed", [qk.workspaceProjects(), qk.contextAwaiting()]);
+  useInvalidateOnEvent("workspace:changed", [qk.workspaceProjects(), qk.contextNews()]);
 
   // Intercept external link clicks and open in the system browser.
   useEffect(() => {
@@ -111,7 +111,7 @@ export function useAppInit() {
   return {
     workspace,
     workspaceError,
-    awaiting: awaitingQuery.data ?? null,
+    news: newsQuery.data ?? null,
     samplesDismissed,
     refreshWorkspace,
     forgetProject,

@@ -339,7 +339,7 @@ function SessionCard({
             <When iso={group.last} relative className="text-xs text-muted-foreground" />
             {group.awaiting > 0 && (
               <Badge variant="secondary" data-slot="session-awaiting">
-                {group.awaiting} awaiting you
+                {group.awaiting} suggested
               </Badge>
             )}
           </div>
@@ -827,7 +827,7 @@ function StatusBadge({
   if (status === "suggested") {
     return (
       <Badge variant="secondary" className="text-xs">
-        Awaiting you
+        Suggested
       </Badge>
     );
   }
@@ -841,16 +841,6 @@ function StatusBadge({
   return (
     <Badge variant="outline" className="text-xs text-muted-foreground">
       {status === "dropped" ? "Dropped" : status === "withdrawn" ? "Withdrawn" : "Undone"}
-    </Badge>
-  );
-}
-
-/** A count of suggestions, quiet at zero. */
-export function AwaitingBadge({ count, label }: { count: number; label?: string }) {
-  if (count <= 0) return null;
-  return (
-    <Badge variant="secondary" data-slot="awaiting-badge">
-      {label ?? `${count} awaiting you`}
     </Badge>
   );
 }

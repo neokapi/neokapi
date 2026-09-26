@@ -21,6 +21,10 @@ once per unit, and every client renders it. The desktop's detail pane and the
 MCP `review_unit` tool receive the same object; a client that draws a subset
 chooses it in its own projection, and every client receives the whole.
 
+Content is reviewed unit by unit. What kapi learned about how a project writes
+is reviewed differently: as discovery in a **digest** that reads as news and
+never gates the work (below).
+
 The bar the design is held to is an invariant:
 
 > **A reviewer sees at least what the model was told.**
@@ -261,6 +265,41 @@ translation or arrives with a moved source is an edit and lands at
 `translated`, as an edit in the editor does. Taking back an approval at
 `reviewed` is translation work on every surface and passes ungated.
 
+### Context is reviewed as discovery, in a digest
+
+A context suggestion (a term rule, a note about how the project writes, a
+wording pair) advises agents and checks from the moment it is recorded, and an
+established rule is what fails a check ([C-11](../context/c-11-context-operations.md)).
+A suggestion nobody answers keeps advising. Reviewing context is therefore
+reading what kapi learned and answering the few things that need a person;
+nothing waits on it, and there is no queue to clear.
+
+`host.App.ContextDigest` (`host/contextdigest.go`) assembles one project's
+digest from the operation log, and every surface reads it: the desktop's
+Learned section ([S-02](s-02-kapi-desktop.md)) and `kapi context digest`, with
+`--json` for a program. Its sections come in the order a person reads them:
+conflicts (`contested` records, each with the rules on its other side), rules
+established and on what evidence, suggestions grouped by theme and then by
+collection, drift away from an established rule, and the project in numbers.
+Every item carries the id the context verbs take, its rule as a sentence, the
+quotation it was seen in, its standing as plain counts and who noticed it.
+
+The actions are the context operations a person already has, and each is an
+operation in the log: keep, keep with a changed form (`--use`), drop, revert,
+and choosing a side of a conflict (`host.App.ChooseContextSide`, `kapi context
+keep --choose`), which drops each rival suggestion, reverts a rival established
+rule and keeps the chosen one, one operation per step.
+
+"Since you last looked" belongs to the reader. It is a marker per project in the
+machine account's config (`host.ContextDigestMarkerPath`), never in the log,
+and only a person moves it: `kapi context digest` moves it after printing unless
+`--peek` is given or the actor is an agent. The digest flags each item as new or
+not and keeps the ones already seen, so a surface shows them under "Earlier".
+
+The digest is shaped for the surfaces that read it later: the request names a
+project by recipe path or workspace key and an optional instant to read from,
+and the answer carries no rendering beyond the sentences and the text form.
+
 ## Consequences
 
 The context graph gains its first reader on a decision surface. The model is
@@ -284,6 +323,7 @@ with the least screen has the same facts as the one with the most.
 - [C-04: Unit state and decisions](../context/c-04-unit-state-and-decisions.md): what a decision records
 - [C-06: Context retrieval](../context/c-06-retrieval.md): the two primitives Review consumes
 - [S-01: The kapi CLI](s-01-kapi-cli.md): `kapi status --review` and `kapi apply`
-- [S-02: Kapi Desktop](s-02-kapi-desktop.md): the queue and the document view
+- [S-02: Kapi Desktop](s-02-kapi-desktop.md): the queue, the document view and the digest
+- [C-11: Context operations](../context/c-11-context-operations.md): the operations the digest reads and the actions it offers
 - [S-03: Agent surfaces](s-03-agent-surfaces.md): the MCP review tools
 - [S-06: The visual editor data model](s-06-visual-editor.md): the kit the document view is built on

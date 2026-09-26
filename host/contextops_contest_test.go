@@ -79,7 +79,7 @@ func TestKeepSessionLeavesContestedSuggestions(t *testing.T) {
 
 	_, err = app.KeepContextOperation(t.Context(), ContextKeepRequest{Actor: person, Project: recipeOf(root), ID: disputed.ID})
 	require.Error(t, err, "naming a contested suggestion is refused until a person chooses")
-	assert.Contains(t, err.Error(), "kapi context drop")
+	assert.Contains(t, err.Error(), "--choose")
 
 	_, err = app.DropContextOperation(t.Context(), ContextDropRequest{Actor: person, Project: recipeOf(root), ID: other.ID})
 	require.NoError(t, err)

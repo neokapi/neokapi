@@ -159,13 +159,21 @@ export const WorkspaceUnreadable: Story = {
 
 /**
  * An agent has been working in KapiMart while the app was open: its proposal
- * is on the feed with the evidence behind it, and the count beside the project
- * says how many decisions are waiting.
+ * is on the feed with the evidence behind it, and the line beside the project
+ * says what is new since the person last looked there.
  */
 export const WithRecordedWork: Story = {
   args: {
     samplesDismissed: true,
-    awaiting: [{ project_key: "prj_kapimart", project_name: "KapiMart", count: 1 }],
+    news: [
+      {
+        project: "prj_kapimart",
+        project_name: "KapiMart",
+        new: 1,
+        conflicts: 0,
+        since: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+      },
+    ],
     feed: CONTEXT_FEED,
     workspace: workspace([
       {

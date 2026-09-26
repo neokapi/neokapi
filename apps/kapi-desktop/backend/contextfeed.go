@@ -189,13 +189,6 @@ type ContextFeedGroup struct {
 	Entries []ContextFeedEntry `json:"entries"`
 }
 
-// ContextAwaiting is how many suggestions one project has awaiting a decision.
-type ContextAwaiting struct {
-	ProjectKey  string `json:"project_key"`
-	ProjectName string `json:"project_name,omitempty"`
-	Count       int    `json:"count"`
-}
-
 // ContextFeed is what a person and the agents beside them have recorded.
 type ContextFeed struct {
 	// ProjectKey is the project the feed was narrowed to, empty for the whole
@@ -203,15 +196,6 @@ type ContextFeed struct {
 	ProjectKey string `json:"project_key,omitempty"`
 	// Groups are the sessions, newest first.
 	Groups []ContextFeedGroup `json:"groups"`
-	// Awaiting is the per-project count of suggestions awaiting a decision,
-	// over the whole workspace whatever the feed was narrowed to, so the home
-	// screen can show a count beside every project from one read.
-	Awaiting []ContextAwaiting `json:"awaiting"`
-	// AwaitingTotal sums Awaiting over the workspace.
-	AwaitingTotal int `json:"awaiting_total"`
-	// AwaitingHere counts the suggestions awaiting a decision in what this feed
-	// shows, which is the whole workspace when it was not narrowed.
-	AwaitingHere int `json:"awaiting_here"`
 	// Truncated reports that the limit cut the feed short.
 	Truncated bool `json:"truncated"`
 	// ReadOnly reports a workspace that answers reads and refuses decisions.
@@ -311,20 +295,6 @@ func (a *App) ContextFeed(projectKey string, limit int) (*ContextFeed, error) {
 	return a.contextFeed(ctx, workspace.ProjectKey(projectKey), limit)
 }
 
-// ProjectContextFeed reads the context operations of the project a tab holds.
-func (a *App) ProjectContextFeed(tabID string, limit int) (*ContextFeed, error) {
-	op := a.getOpenProject(tabID)
-	if op == nil {
-		return nil, fmt.Errorf("project tab %q not found", tabID)
-	}
-	if op.workspaceKey == "" {
-		return nil, errors.New("this tab holds no project the workspace knows")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
-	defer cancel()
-	return a.contextFeed(ctx, op.workspaceKey, limit)
-}
-
 // contextFeed folds the log once and builds both the feed and the per-project
 // counts from that one read.
 func (a *App) contextFeed(ctx context.Context, key workspace.ProjectKey, limit int) (*ContextFeed, error) {
@@ -341,8 +311,6 @@ func (a *App) contextFeed(ctx context.Context, key workspace.ProjectKey, limit i
 	}
 	ledger := contextop.NewLedger(ws, contextop.PersonDecides)
 
-	// The counts cover the workspace whatever the feed shows, so the home
-	// screen reads every project's badge from one call.
 	all, err := ledger.Records(ctx, contextop.Filter{})
 	if err != nil {
 		return nil, err
@@ -351,20 +319,12 @@ func (a *App) contextFeed(ctx context.Context, key workspace.ProjectKey, limit i
 	out := &ContextFeed{
 		ProjectKey: string(key),
 		Groups:     []ContextFeedGroup{},
-		Awaiting:   []ContextAwaiting{},
 		ReadOnly:   ws.Describe().ReadOnly,
 	}
-	awaiting := map[workspace.ProjectKey]int{}
 	shown := make([]contextop.Record, 0, len(all))
 	for _, r := range all {
-		if decidable(r) {
-			awaiting[r.Project]++
-		}
 		if key != "" && r.Project != key {
 			continue
-		}
-		if decidable(r) {
-			out.AwaitingHere++
 		}
 		shown = append(shown, r)
 	}
@@ -372,42 +332,6 @@ func (a *App) contextFeed(ctx context.Context, key workspace.ProjectKey, limit i
 		shown, out.Truncated = shown[:limit], true
 	}
 	out.Groups = groupContextFeed(shown, registry, a.hostEngine().GovernanceInstant())
-	for _, count := range sortedAwaiting(awaiting) {
-		count.ProjectName = registry.name(workspace.ProjectKey(count.ProjectKey))
-		out.Awaiting = append(out.Awaiting, count)
-		out.AwaitingTotal += count.Count
-	}
-	return out, nil
-}
-
-// ContextAwaitingCounts reports how many suggestions each project has awaiting a
-// decision, for a home screen that shows the badge without reading the feed.
-func (a *App) ContextAwaitingCounts() ([]ContextAwaiting, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
-	defer cancel()
-
-	ws, err := a.hostEngine().Workspace(ctx)
-	if err != nil {
-		return nil, err
-	}
-	registry, err := a.contextProjectIndex(ctx, ws)
-	if err != nil {
-		return nil, err
-	}
-	records, err := contextop.NewLedger(ws, contextop.PersonDecides).Records(ctx, contextop.Filter{})
-	if err != nil {
-		return nil, err
-	}
-	awaiting := map[workspace.ProjectKey]int{}
-	for _, r := range records {
-		if decidable(r) {
-			awaiting[r.Project]++
-		}
-	}
-	out := sortedAwaiting(awaiting)
-	for i := range out {
-		out[i].ProjectName = registry.name(workspace.ProjectKey(out[i].ProjectKey))
-	}
 	return out, nil
 }
 
@@ -966,20 +890,4 @@ func scopeDTO(s contextop.Scope) ContextScopeDTO {
 		level = contextop.LevelProject
 	}
 	return ContextScopeDTO{Level: string(level), Coordinates: s.Coordinates, Describe: s.Describe()}
-}
-
-// sortedAwaiting orders the per-project counts by size, then by key, so the
-// list is stable between reads.
-func sortedAwaiting(counts map[workspace.ProjectKey]int) []ContextAwaiting {
-	out := make([]ContextAwaiting, 0, len(counts))
-	for key, count := range counts {
-		out = append(out, ContextAwaiting{ProjectKey: string(key), Count: count})
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].Count != out[j].Count {
-			return out[i].Count > out[j].Count
-		}
-		return out[i].ProjectKey < out[j].ProjectKey
-	})
-	return out
 }

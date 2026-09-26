@@ -177,7 +177,7 @@ describe("the feed of recorded context operations", () => {
     expect(session.textContent).toContain("claude");
     expect(session.textContent).toContain("studio");
     expect(session.querySelector("[data-slot='session-awaiting']")?.textContent).toContain(
-      "1 awaiting you",
+      "1 suggested",
     );
   });
 

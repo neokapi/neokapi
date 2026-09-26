@@ -851,6 +851,11 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 				opts.usage.count(advisory, b.SourceText())
 			}
 		}
+		// Established rules are counted too, so content moving away from a
+		// rule after it came into force shows as drift.
+		for _, b := range g.blocks {
+			opts.usage.countEstablished(g.at.coordinates, b.SourceText())
+		}
 		// Word rules are terms wherever they are held: the terms store, the
 		// rules established across the workspace, and a bound starter pack's
 		// terms. One analyzer checks them all.
@@ -1433,6 +1438,15 @@ func (t *checkTerms) contextAt(point project.GovernancePoint) (contextop.Resolut
 		return contextop.Resolution{}, nil
 	}
 	return t.rules.at(point)
+}
+
+// coordinatesAt is the coordinates of one point, nil when the project has
+// recorded no context operations.
+func (t *checkTerms) coordinatesAt(point project.GovernancePoint) (map[string]string, error) {
+	if t == nil || t.rules == nil {
+		return nil, nil
+	}
+	return t.rules.coordinatesAt(point)
 }
 
 // ProjectTermsForFile resolves the vocabulary the project decided for one file:

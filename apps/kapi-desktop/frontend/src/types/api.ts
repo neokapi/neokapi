@@ -833,11 +833,15 @@ export interface ContextFeedGroup {
   entries: ContextFeedEntry[];
 }
 
-/** How many candidates one project has awaiting a decision. */
-export interface ContextAwaiting {
-  project_key: string;
+/** What one project's digest holds that the person has not seen. */
+export interface ContextNews {
+  project: string;
   project_name?: string;
-  count: number;
+  /** Items recorded since the person last looked. */
+  new: number;
+  conflicts: number;
+  /** The person's marker, absent when they never looked. */
+  since?: string;
 }
 
 /** What a person and the agents beside them have recorded. */
@@ -845,13 +849,106 @@ export interface ContextFeed {
   /** The project the feed was narrowed to, absent for the whole workspace. */
   project_key?: string;
   groups: ContextFeedGroup[];
-  /** Per-project counts, over the whole workspace whatever the feed shows. */
-  awaiting: ContextAwaiting[];
-  awaiting_total: number;
-  /** Candidates awaiting a decision in what this feed shows. */
-  awaiting_here: number;
   truncated: boolean;
   read_only: boolean;
+}
+
+/** A term rule as the operation log holds it. */
+export interface DigestTermRule {
+  term?: string;
+  replacement?: string;
+  forms?: string[];
+  advisory?: boolean;
+}
+
+/** What a digest item is about, as the operation log holds it. */
+export interface DigestSubject {
+  kind?: string;
+  term?: DigestTermRule;
+  memory?: { source: string; target: string; target_locale: string; source_locale?: string };
+  text?: string;
+}
+
+/** How often the project's content writes a rule's forms. */
+export interface DigestUsage {
+  preferred: string;
+  preferred_count: number;
+  rejected: string[];
+  rejected_count: number;
+  within?: string;
+  line: string;
+}
+
+/** One rule, suggestion or fact as the digest shows it. */
+export interface DigestItem {
+  id: string;
+  short: string;
+  status: string;
+  /** "names", "words", "writing" or "memory". */
+  theme: string;
+  sentence: string;
+  subject: DigestSubject;
+  quote?: ContextEvidence;
+  collection?: string;
+  standing?: string;
+  usage?: DigestUsage;
+  noticed_by: { kind: string; name?: string; session?: string };
+  at: string;
+  /** Recorded (or established) after the person last looked. */
+  new: boolean;
+  scope: string;
+  keepable: boolean;
+  droppable: boolean;
+  revertible: boolean;
+  established_at?: string;
+  how?: string[];
+}
+
+/** A disagreement a person settles by choosing a side. */
+export interface DigestConflict {
+  sides: DigestItem[];
+  by_evidence: boolean;
+  reason: string;
+}
+
+/** The suggestions of one theme in one collection. */
+export interface DigestGroup {
+  collection?: string;
+  items: DigestItem[];
+}
+
+/** One theme's suggestions. */
+export interface DigestTheme {
+  theme: string;
+  title: string;
+  groups: DigestGroup[];
+}
+
+/** Content moving away from an established rule. */
+export interface DigestDrift {
+  rule: DigestItem;
+  line: string;
+  rejected: number;
+  before: number;
+}
+
+/** What kapi learned about how one project writes since the person last looked. */
+export interface ContextDigest {
+  project: string;
+  project_name?: string;
+  /** When the person last looked, absent when never. */
+  since?: string;
+  conflicts: DigestConflict[];
+  established: DigestItem[];
+  suggested: DigestTheme[];
+  drift: DigestDrift[];
+  numbers: {
+    rules: number;
+    new_this_week: number;
+    suggested: number;
+    conflicts: number;
+    new: number;
+  };
 }
 
 /** One decision about one operation. */
