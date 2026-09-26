@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -13,8 +14,8 @@ import (
 // The report, rendered from saved attempts with no model call and no kapi.
 //
 // Every score is recomputed here from what each attempt saved, so a change to
-// the scoring rules reaches runs already made. Measure 3 has its own heading,
-// which the settling wave fills.
+// the scoring rules reaches runs already made. Measure 3 needs no saved
+// attempt: it is measured afresh each time a report is built.
 
 // EvalApplyRow is one Measure 1 run.
 type EvalApplyRow struct {
@@ -86,6 +87,9 @@ type EvalReport struct {
 	Grow        []EvalGrowRow     `json:"grow"`
 	ApplyHosts  []EvalApplyHost   `json:"apply_hosts"`
 	GrowHosts   []EvalGrowHost    `json:"grow_hosts"`
+	// Settle is Measure 3, which needs no live run and is measured whenever a
+	// report is built.
+	Settle *EvalSettle `json:"settle,omitempty"`
 	// Review is a person's answers to the review sheet, when given.
 	Review      *EvalReviewAnswers `json:"review,omitempty"`
 	ReviewSheet string             `json:"review_sheet,omitempty"`
@@ -157,6 +161,11 @@ func buildEvalReport(dir string, record evalStudyRecord, fixture EvalFixture, an
 	for _, host := range record.Manifest.Hosts {
 		report.Hosts = append(report.Hosts, host.Host)
 	}
+	settle, err := measureEvalSettle(context.Background())
+	if err != nil {
+		return report, fmt.Errorf("measure settling: %w", err)
+	}
+	report.Settle = &settle
 	paths, err := evalAttemptPaths(dir)
 	if err != nil {
 		return report, err
@@ -391,8 +400,7 @@ func renderEvalReport(report EvalReport) string {
 		out.WriteString("\n")
 	}
 
-	out.WriteString("## Measure 3: settling\n\n")
-	out.WriteString("Settling is measured by the wave that builds the settling logic it tests.\n\n")
+	renderEvalSettle(&out, report.Settle)
 
 	out.WriteString("## Measure 4: review is worth it\n\n")
 	switch {
