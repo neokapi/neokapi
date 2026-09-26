@@ -1567,6 +1567,9 @@ func mergeFlowNodeConfig(base, over map[string]any) map[string]any {
 // cleanup function. Uses ToolInfo.Requires to drive resource setup (terms,
 // content memory) rather than hardcoding tool names.
 func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Command) ([]tool.Tool, func(), error) {
+	if err := registry.RenamedToolError(registry.ToolID(toolName)); err != nil {
+		return nil, nil, err
+	}
 	if a.ToolReg == nil || !a.ToolReg.Has(registry.ToolID(toolName)) {
 		return nil, nil, fmt.Errorf("tool %q not found in registry", toolName)
 	}

@@ -132,10 +132,10 @@ type FileRunnerConfig struct {
 	//
 	// A source file records wording, never whether a person approved that
 	// wording; that lives in the project's state store, which the framework
-	// knows nothing about. Without this the source-gate stage re-derives
+	// knows nothing about. Without this the translate-after stage re-derives
 	// readiness from the checks alone on every run, so a committed approval was
 	// invisible in-flow: `kapi status` reported a unit `established` while the
-	// run beside it held the same unit below an `established` gate, and the two
+	// run beside it held the same unit below `translate_after: established`, and the two
 	// disagreed with nothing to say why.
 	//
 	// It is a host-supplied function value like DetectFormat and

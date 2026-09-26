@@ -963,13 +963,16 @@ jobs:
   # surface on the push/nightly full gate. This job closes that window cheaply:
   # it races ONLY the Go packages the PR changed (scripts/test-race-changed.sh;
   # capped with a fixed-core-set fallback so a wide refactor can't turn it into
-  # a second full test wall). -short keeps the slow suites out.
+  # a second full test wall). -short keeps the slow suites out. Each module's
+  # run has its own 480s timeout, which is what catches a hang; the job limit
+  # only has to fit a change that spans several modules (bowrain/server alone
+  # races for about four minutes).
   race-changed:
     name: Race (changed packages)
     runs-on: ubuntu-latest
     needs: changes
     if: github.event_name == 'pull_request' && needs.changes.outputs.any_go == 'true'
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
         with:

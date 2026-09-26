@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T08:20:58Z",
+  "generatedAt": "2026-09-26T14:46:14Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -1494,7 +1494,7 @@
     },
     {
       "name": "review_queue",
-      "description": "List the review queue: every unit awaiting a person, addressed by (file, key, locale). One queue holds every language, the project's source language among them: a translated unit not yet approved is one row, and a source unit the project's source gate is waiting on is another, marked `isSource`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; units annotated by an AI pre-review carry their score. Lean by design: call review_unit for a unit's context (the point governing it, its neighbourhood, its prior version, its findings).",
+      "description": "List the review queue: every unit awaiting a person, addressed by (file, key, locale). One queue holds every language, the project's source language among them: a translated unit not yet approved is one row, and a source unit held below the project's translate_after level is another, marked `isSource`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; units annotated by an AI pre-review carry their score. Lean by design: call review_unit for a unit's context (the point governing it, its neighbourhood, its prior version, its findings).",
       "surface": "review",
       "params": [
         {
@@ -1780,37 +1780,6 @@
       ]
     },
     {
-      "name": "source-gate",
-      "description": "Source Gate",
-      "surface": "all-tools",
-      "params": [
-        {
-          "name": "text",
-          "type": "string",
-          "required": true,
-          "description": "The content (text) to run the tool over."
-        },
-        {
-          "name": "gate",
-          "type": "string",
-          "required": false,
-          "description": "What a block's source must satisfy before its translations are produced: written (its checks pass) or established (a person reviewed it)"
-        },
-        {
-          "name": "project",
-          "type": "string",
-          "required": false,
-          "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins."
-        },
-        {
-          "name": "target_lang",
-          "type": "string",
-          "required": false,
-          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
-        }
-      ]
-    },
-    {
       "name": "stats",
       "description": "Size files before processing them. Reports per-file and total content metrics: blocks (translatable and not), words, characters (with and without spaces, plus the unique-character inventory), segments when available, and a by-role breakdown. Works on any supported format (Word, PowerPoint, JSON, XLIFF, Markdown, HTML, …) and returns the same JSON `kapi stats --json` emits.",
       "surface": "translation",
@@ -1997,6 +1966,37 @@
           "type": "boolean",
           "required": false,
           "description": "Skip blocks that already have a target translation"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "translate-after",
+      "description": "Translate After",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "level",
+          "type": "string",
+          "required": false,
+          "description": "What a block's source must reach before its translations are produced: written (its checks pass) or established (a person reviewed it); none holds nothing"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "The project whose first target language this call defaults to: its kapi.yaml recipe, its root directory, or any path inside it. Defaults to the project the MCP server started in. An explicit target_lang wins."
         },
         {
           "name": "target_lang",

@@ -90,13 +90,14 @@ export interface ConvergenceOutcome {
   locales?: ConvergenceLocaleOutcome[];
   parkedScopes?: ParkedScope[];
   materializedFiles?: number;
-  /** Translatable source blocks the run held below the project's source gate.
+  /** Translatable source blocks the run held below the project's translate_after
+   *  level.
    *  Their translations were not produced, in any language: source content is
    *  shared, so this is one count for the whole fan-out rather than one per
    *  locale. */
   blockedOnSource?: number;
-  /** The source gate the run applied (authored|checked|approved). */
-  sourceGate?: string;
+  /** The translate_after level the run applied (none|written|established). */
+  translateAfter?: string;
   /** Why the run did not converge. `source_not_ready` means every pending
    *  locale had nothing producible, because the source is unsettled. */
   stallReason?: string;

@@ -15,20 +15,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newSourceGateProject writes a one-file project whose converge flow translates
+// newTranslateAfterProject writes a one-file project whose converge flow translates
 // via the deterministic demo provider (no network, no key, no spend) and sets
-// defaults.source_gate to the given level. It returns the app, a flag-carrying
-// command, and the recipe path — the fixture the source-gate converge tests
+// defaults.translate_after to the given level. It returns the app, a flag-carrying
+// command, and the recipe path — the fixture the translate-after converge tests
 // share.
-func newSourceGateProject(t *testing.T, gate string) (*App, *EnvCommand, string) {
-	return newSourceGateProjectWith(t, gate,
+func newTranslateAfterProject(t *testing.T, level string) (*App, *EnvCommand, string) {
+	return newTranslateAfterProjectWith(t, level,
 		`{"greeting":"Hello world","farewell":"Goodbye now"}`)
 }
 
-// newSourceGateProjectWith is newSourceGateProject with an explicit source JSON
+// newTranslateAfterProjectWith is newTranslateAfterProject with an explicit source JSON
 // body, so a test can control which blocks settle clean vs. flag a source-side
 // check finding.
-func newSourceGateProjectWith(t *testing.T, gate, sourceJSON string) (*App, *EnvCommand, string) {
+func newTranslateAfterProjectWith(t *testing.T, level, sourceJSON string) (*App, *EnvCommand, string) {
 	t.Helper()
 	dir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "src"), 0o755))
@@ -37,12 +37,12 @@ func newSourceGateProjectWith(t *testing.T, gate, sourceJSON string) (*App, *Env
 
 	proj := &project.KapiProject{
 		Version: project.CurrentVersion,
-		Name:    "SourceGateTest",
+		Name:    "TranslateAfterTest",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr"},
 			Flow:            "translate",
-			SourceGate:      gate,
+			TranslateAfter:  level,
 		},
 		Collections: []project.Collection{
 			{Name: "docs", Path: "src/en.json", Target: "src/{lang}.json"},
@@ -103,17 +103,17 @@ func frTranslated(t *testing.T, recipe string) int {
 	return strings.Count(string(data), "⟦fr⟧")
 }
 
-// TestConvergeSourceGate_HoldsWhenSourceBelowGate: with source_gate: established,
+// TestConvergeTranslateAfter_HoldsWhenSourceBelowLevel: with translate_after: established,
 // no file-read source block can reach `established` (settlement promotes clean
 // source only to `written`), so every block is held — nothing is translated and
 // the run surfaces source_not_ready with a blocked-on-source count. This is the
 // local parity with the server holding an un-settled source (epic 019).
-func TestConvergeSourceGate_HoldsWhenSourceBelowGate(t *testing.T) {
-	a, cmd, recipe := newSourceGateProject(t, string(model.SourceGateEstablished))
+func TestConvergeTranslateAfter_HoldsWhenSourceBelowLevel(t *testing.T) {
+	a, cmd, recipe := newTranslateAfterProject(t, string(model.TranslateAfterEstablished))
 	out, events := runConverge(t, a, cmd, recipe)
 
-	assert.Equal(t, 2, out.BlockedOnSource, "both source blocks held below the established gate")
-	assert.Equal(t, string(model.SourceGateEstablished), out.SourceGate)
+	assert.Equal(t, 2, out.BlockedOnSource, "both source blocks held below the established level")
+	assert.Equal(t, string(model.TranslateAfterEstablished), out.TranslateAfter)
 	assert.Equal(t, convergence.StallSourceNotReady, out.StallReason)
 	assert.False(t, out.Converged)
 	assert.Equal(t, 0, frTranslated(t, recipe), "no translation was produced")
@@ -129,59 +129,59 @@ func TestConvergeSourceGate_HoldsWhenSourceBelowGate(t *testing.T) {
 	assert.True(t, sawSettle, "a settle_source stage event was emitted")
 }
 
-// TestConvergeSourceGate_NoneDraftsFreely: source_gate: none is the opt-out —
+// TestConvergeTranslateAfter_NoneDraftsFreely: translate_after: none is the opt-out —
 // no settle, no hold; every block translates exactly as before source-first.
-func TestConvergeSourceGate_NoneDraftsFreely(t *testing.T) {
-	a, cmd, recipe := newSourceGateProject(t, string(model.SourceGateNone))
+func TestConvergeTranslateAfter_NoneDraftsFreely(t *testing.T) {
+	a, cmd, recipe := newTranslateAfterProject(t, string(model.TranslateAfterNone))
 	out, events := runConverge(t, a, cmd, recipe)
 
 	assert.Equal(t, 0, out.BlockedOnSource)
 	assert.Empty(t, out.StallReason)
-	assert.Equal(t, 2, frTranslated(t, recipe), "source drafted freely under the none gate")
+	assert.Equal(t, 2, frTranslated(t, recipe), "source drafted freely at level none")
 
 	for _, ev := range events {
 		assert.NotEqual(t, convergence.StageSettleSource, ev.Stage, "the none opt-out emits no settle event")
 	}
 }
 
-// TestConvergeSourceGate_AtGateTranslates: with the DEFAULT gate (written),
-// clean source reaches `written` on settlement, clears the gate, and translates
+// TestConvergeTranslateAfter_AtLevelTranslates: with the DEFAULT level (written),
+// clean source reaches `written` on settlement, reaches the level, and translates
 // normally — nothing is held.
-func TestConvergeSourceGate_AtGateTranslates(t *testing.T) {
-	// Empty source_gate → resolves to the default (written).
-	a, cmd, recipe := newSourceGateProject(t, "")
+func TestConvergeTranslateAfter_AtLevelTranslates(t *testing.T) {
+	// Empty translate_after → resolves to the default (written).
+	a, cmd, recipe := newTranslateAfterProject(t, "")
 	out, _ := runConverge(t, a, cmd, recipe)
 
-	assert.Equal(t, 0, out.BlockedOnSource, "clean source reaches written and clears the default gate")
-	assert.Equal(t, string(model.SourceGateWritten), out.SourceGate)
+	assert.Equal(t, 0, out.BlockedOnSource, "clean source reaches written and reaches the default level")
+	assert.Equal(t, string(model.TranslateAfterWritten), out.TranslateAfter)
 	assert.Empty(t, out.StallReason)
 	assert.Equal(t, 2, frTranslated(t, recipe), "written source translated")
 }
 
-// TestConvergeSourceGate_PartialTranslatesReadyReportsHeld: with the default
-// (written) gate over a mixed source — one clean block (settles to written →
+// TestConvergeTranslateAfter_PartialTranslatesReadyReportsHeld: with the default
+// (written) level over a mixed source — one clean block (settles to written →
 // translates) and one whitespace-only block (a major source-side check finding
 // keeps it unsettled → held) — the run translates the ready
 // block, holds the un-ready one, reports the held count, and is NOT
 // source_not_ready (partial progress advanced), mirroring the server's
 // partial-item handling (epic 019).
-func TestConvergeSourceGate_PartialTranslatesReadyReportsHeld(t *testing.T) {
-	a, cmd, recipe := newSourceGateProjectWith(t, string(model.SourceGateWritten),
+func TestConvergeTranslateAfter_PartialTranslatesReadyReportsHeld(t *testing.T) {
+	a, cmd, recipe := newTranslateAfterProjectWith(t, string(model.TranslateAfterWritten),
 		`{"greeting":"Hello world","blank":"   "}`)
 	out, _ := runConverge(t, a, cmd, recipe)
 
-	assert.Equal(t, 1, out.BlockedOnSource, "the whitespace-only block is held below the written gate")
+	assert.Equal(t, 1, out.BlockedOnSource, "the whitespace-only block is held below the written level")
 	assert.Empty(t, out.StallReason, "a partial run is not source_not_ready — ready work advanced")
 	assert.Equal(t, 1, frTranslated(t, recipe), "the clean block translated; the held block did not")
 }
 
-// TestConvergeSourceGate_HeldRunDoesNotMaterialize: a full source-hold with
+// TestConvergeTranslateAfter_HeldRunDoesNotMaterialize: a full source-hold with
 // defaults.materialize: on-converge must NOT write localized files — the run
 // produced no translations, so materializing source-fallback output would be
-// exactly the silent skip → junk output the source gate prevents (matches the
+// exactly the silent skip → junk output the translate_after hold prevents (matches the
 // server, which skips its post-run work on source_not_ready).
-func TestConvergeSourceGate_HeldRunDoesNotMaterialize(t *testing.T) {
-	a, cmd, recipe := newSourceGateProject(t, string(model.SourceGateEstablished))
+func TestConvergeTranslateAfter_HeldRunDoesNotMaterialize(t *testing.T) {
+	a, cmd, recipe := newTranslateAfterProject(t, string(model.TranslateAfterEstablished))
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 

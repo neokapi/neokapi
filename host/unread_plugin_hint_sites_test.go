@@ -60,8 +60,8 @@ func TestEveryNoReaderMessageNamesThePlugin(t *testing.T) {
 	require.Len(t, events, 1)
 	assert.Contains(t, events[0].Message, "Install the plugin that supplies it (kapi plugins install okapi-bridge).")
 
-	assert.Equal(t, `No reader for format "okf_idml": its content is not counted in the source gate. Install the plugin that supplies it (kapi plugins install okapi-bridge).`,
-		sourceGateUnreadMessage(nil, "okf_idml"))
-	assert.Equal(t, `No reader for format "frob": its content is not counted in the source gate. No known plugin supplies it.`,
-		sourceGateUnreadMessage(nil, "frob"))
+	assert.Equal(t, `No reader for format "okf_idml": its source is not settled or counted before translation. Install the plugin that supplies it (kapi plugins install okapi-bridge).`,
+		translateAfterUnreadMessage(nil, "okf_idml"))
+	assert.Equal(t, `No reader for format "frob": its source is not settled or counted before translation. No known plugin supplies it.`,
+		translateAfterUnreadMessage(nil, "frob"))
 }

@@ -48,69 +48,69 @@ func (s SourceStatus) EffectiveRank() int {
 	return s.Rank()
 }
 
-// SourceGateLevel is what a block's source must satisfy before its
+// TranslateAfterLevel is what a block's source must reach before its
 // translations may be produced: the runtime counterpart of the recipe's
-// `defaults.source_gate` string. The fan-out is held for any block that does
-// not satisfy it.
-type SourceGateLevel string
+// `defaults.translate_after` string. The fan-out is held for any block whose
+// source has not reached it.
+type TranslateAfterLevel string
 
 const (
-	// SourceGateNone disables the gate: every present source translates.
-	SourceGateNone SourceGateLevel = "none"
-	// SourceGateWritten is the default: a written source translates once it
+	// TranslateAfterNone holds nothing: every present source translates.
+	TranslateAfterNone TranslateAfterLevel = "none"
+	// TranslateAfterWritten is the default: a written source translates once it
 	// passes its checks. A source with a failing finding is held.
-	SourceGateWritten SourceGateLevel = "written"
-	// SourceGateEstablished holds a source until a person has established it,
+	TranslateAfterWritten TranslateAfterLevel = "written"
+	// TranslateAfterEstablished holds a source until a person has established it,
 	// for regulated or voice-critical projects. A failing finding still holds it.
-	SourceGateEstablished SourceGateLevel = "established"
+	TranslateAfterEstablished TranslateAfterLevel = "established"
 )
 
-// DefaultSourceGate is the gate applied when a project does not set
-// `defaults.source_gate`.
-const DefaultSourceGate = SourceGateWritten
+// DefaultTranslateAfter is the level applied when a project does not set
+// `defaults.translate_after`.
+const DefaultTranslateAfter = TranslateAfterWritten
 
-// ResolveSourceGate maps a recipe's `defaults.source_gate` string onto a gate
-// level, applying the default for an empty value and treating an unrecognized
-// value as the default too, so a typo never disables the gate. The second
-// result reports whether the input named a recognized level.
-func ResolveSourceGate(raw string) (SourceGateLevel, bool) {
-	switch SourceGateLevel(raw) {
+// ResolveTranslateAfter maps a recipe's `defaults.translate_after` string onto
+// a level, applying the default for an empty value and treating an
+// unrecognized value as the default too, so a typo never disables the hold.
+// The second result reports whether the input named a recognized level.
+func ResolveTranslateAfter(raw string) (TranslateAfterLevel, bool) {
+	switch TranslateAfterLevel(raw) {
 	case "":
-		return DefaultSourceGate, true
-	case SourceGateNone, SourceGateWritten, SourceGateEstablished:
-		return SourceGateLevel(raw), true
+		return DefaultTranslateAfter, true
+	case TranslateAfterNone, TranslateAfterWritten, TranslateAfterEstablished:
+		return TranslateAfterLevel(raw), true
 	default:
-		return DefaultSourceGate, false
+		return DefaultTranslateAfter, false
 	}
 }
 
 // Admits reports whether a source at status s, whose checks fail when failing
-// is true, clears this gate, so its source may be translated. A disabled gate
-// (SourceGateNone) admits everything; any other gate holds a source the settle
-// step has not stamped yet (New), because nothing has checked it.
-func (g SourceGateLevel) Admits(s SourceStatus, failing bool) bool {
+// is true, has reached this level, so its source may be translated. Level
+// `none` (TranslateAfterNone) admits everything; any other level holds a source
+// the settle step has not stamped yet (New), because nothing has checked it.
+func (g TranslateAfterLevel) Admits(s SourceStatus, failing bool) bool {
 	switch g {
-	case SourceGateNone:
+	case TranslateAfterNone:
 		return true
-	case SourceGateEstablished:
+	case TranslateAfterEstablished:
 		return !failing && s == SourceStatusEstablished
 	default:
 		return !failing && s.Rank() >= SourceStatusWritten.Rank()
 	}
 }
 
-// PropSourceHeld is the block property the source-gate leading stage sets on a
-// block whose source ranks below the active source gate: the marker a producer
+// PropSourceHeld is the block property the translate-after leading stage sets
+// on a block whose source is below the active level: the marker a producer
 // (recycle, translate) reads to skip translating an un-settled source. It is the
 // in-stream, file-read counterpart of the server's per-item gateItemsBySource
-// hold — the local converge re-reads source from files each pass, so the hold
+// hold. The local converge re-reads source from files each pass, so the hold
 // rides on the block rather than on a persisted store row. Value "1" means held;
 // absent (or any other value) means producible.
 const PropSourceHeld = "__source_held"
 
-// SetSourceHeld marks (held=true) or clears (held=false) a block's source-gate
-// hold via its Properties. It is idempotent and never allocates a map to clear a
-// marker that was never set.
+// SetSourceHeld marks (held=true) or clears (held=false) a block's
+// translate-after hold via its Properties. It is idempotent and never allocates
+// a map to clear a marker that was never set.
 func (b *Block) SetSourceHeld(held bool) {
 	if !held {
 		if b.Properties != nil {
@@ -124,15 +124,15 @@ func (b *Block) SetSourceHeld(held bool) {
 	b.Properties[PropSourceHeld] = "1"
 }
 
-// SourceHeld reports whether a block carries the source-gate hold marker — its
-// source ranks below the active gate, so a producer must not translate it.
+// SourceHeld reports whether a block carries the translate-after hold marker:
+// its source is below the active level, so a producer must not translate it.
 func (b *Block) SourceHeld() bool {
 	return b.Properties[PropSourceHeld] == "1"
 }
 
 // PropSourceFailing is the block property the source settle step
 // (check.SettleSourceStatus) sets on a block whose source fails its checks.
-// A source gate other than `none` holds such a block. Value "1" means failing;
+// A translate_after level other than `none` holds such a block. Value "1" means failing;
 // absent means the source passes.
 const PropSourceFailing = "__source_failing"
 
@@ -156,7 +156,7 @@ func (b *Block) SourceFailing() bool {
 	return b.Properties[PropSourceFailing] == "1"
 }
 
-// AdmitsBlock reports whether a settled block clears this gate.
-func (g SourceGateLevel) AdmitsBlock(b *Block) bool {
+// AdmitsBlock reports whether a settled block has reached this level.
+func (g TranslateAfterLevel) AdmitsBlock(b *Block) bool {
 	return g.Admits(b.SourceStatus, b.SourceFailing())
 }

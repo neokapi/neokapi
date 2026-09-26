@@ -251,7 +251,7 @@ func TestUp_ItemChannelOverrideSurvivesAConvergeRun(t *testing.T) {
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr"},
 			Flow:            "translate",
-			SourceGate:      string(model.SourceGateNone),
+			TranslateAfter:  string(model.TranslateAfterNone),
 			Voice:           &project.VoiceBinding{Profile: "house"},
 		},
 		Profiles: map[string]project.Profile{

@@ -150,7 +150,7 @@ needs another click.
 Target review is the second gate. The loop settles the source **before** it
 translates ([the loop is source-first](/the-loop)), so a run has an upstream
 worklist: **source review**. When a run finds source that has not cleared the
-project's `source_gate`, it holds the fan-out for that content and routes it to
+project's `translate_after` level, it holds the fan-out for that content and routes it to
 a person instead of paying to translate an unsettled source into every
 language.
 
@@ -167,7 +167,7 @@ A source reviewer works the same content on the **source** side: terms, do-not-
 translate marks, placeholders, and context, before the fan-out. Clearing the
 task lifts the affected source to the gate; the next run translates the
 now-approved content, memory first. A project that wants raw fan-out sets
-`source_gate: none`.
+`translate_after: none`.
 
 ## The review inbox
 

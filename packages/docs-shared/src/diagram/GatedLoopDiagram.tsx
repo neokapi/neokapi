@@ -17,7 +17,7 @@ import "./diagram.css";
             steps: ["term-check + protect", "voice-check", "source checks"],
           },
           {
-            kind: "gate", label: "source ship-gate", sub: "source_gate",
+            kind: "gate", label: "source hold", sub: "translate_after",
             hold: "hold — settle your source first",
           },
           {
@@ -48,7 +48,7 @@ export interface LoopPhase {
 export interface LoopGate {
   kind: "gate";
   label: string;
-  /** Mono sub-line (the recipe key that decides the bar, e.g. "source_gate"). */
+  /** Mono sub-line (the recipe key that decides the bar, e.g. "translate_after"). */
   sub?: string;
   /** Label on the amber "held" branch when the gate is not met. */
   hold?: string;

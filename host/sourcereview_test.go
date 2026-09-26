@@ -20,14 +20,14 @@ func sourceStatuses(t *testing.T, a *App, recipe, root string) []string {
 	require.NoError(t, err)
 	units, err := a.UnitsFromProject(proj, root, "")
 	require.NoError(t, err)
-	states, _, _, err := a.settleSourceStates(t.Context(), root, "en", model.SourceGateNone, units)
+	states, _, _, err := a.settleSourceStates(t.Context(), root, "en", model.TranslateAfterNone, units)
 	require.NoError(t, err)
 	return states
 }
 
 // The settle derivation only ever stamps a source written, so `established` is
 // reached by a person's approval alone, and a re-settle must keep it. A project
-// asking for `source_gate: established` would otherwise hold its fan-out
+// asking for `translate_after: established` would otherwise hold its fan-out
 // forever.
 func TestApproveSourceUnit_ReachesEstablishedAndSurvivesARecheck(t *testing.T) {
 	a, _, recipe, root := newSourceSettleProject(t, "established")
@@ -124,9 +124,9 @@ func TestComputeSourceQueue_EmptyUnderTheWrittenGate(t *testing.T) {
 
 // The report and the run have to agree about a unit. Before the seeder they did
 // not: settleSourceStates honoured a committed approval while the in-flow
-// source gate re-derived readiness from the checks alone, so `kapi status`
-// called a unit approved and the run beside it held that same unit below an
-// `established` gate, with nothing on either surface to say why.
+// translate-after stage re-derived readiness from the checks alone, so `kapi status`
+// called a unit approved and the run beside it held that same unit below
+// `translate_after: established`, with nothing on either surface to say why.
 func TestSourceStateSeeder_MakesTheInFlowGateAgreeWithTheReport(t *testing.T) {
 	a, _, recipe, root := newSourceSettleProject(t, "established")
 

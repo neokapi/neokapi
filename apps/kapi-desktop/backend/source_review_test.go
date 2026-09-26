@@ -89,7 +89,7 @@ func TestReviewQueue_SourceRowsAndApprove(t *testing.T) {
 	recipe := filepath.Join(root, "project.kapi")
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	proj.Defaults.SourceGate = string(model.SourceGateEstablished)
+	proj.Defaults.TranslateAfter = string(model.TranslateAfterEstablished)
 	require.NoError(t, project.Save(recipe, proj))
 
 	tab2, err := app.OpenProject(recipe)

@@ -46,7 +46,7 @@ func newRejectionRedraft(t *testing.T) *rejectionRedraft {
 		Name:                  "Redraft",
 		DefaultSourceLanguage: "en",
 		TargetLanguages:       []model.LocaleID{redraftLocale},
-		Properties:            map[string]string{store.SourceGateProperty: string(model.SourceGateNone)},
+		Properties:            map[string]string{store.TranslateAfterProperty: string(model.TranslateAfterNone)},
 	}))
 	source := &model.Block{ID: redraftUnit, Name: redraftUnit, Translatable: true}
 	source.SetSourceText(redraftSource)

@@ -167,9 +167,9 @@ func TestHandlePreReview_AnnotatesWithoutDeciding(t *testing.T) {
 	require.Error(t, err, "a score outside 0-100 is refused")
 }
 
-// writeMCPSourceGateProject scaffolds a project whose source gate asks for a
+// writeMCPTranslateAfterProject scaffolds a project whose translate_after asks for a
 // human, so the queue carries source units beside the nb translations.
-func writeMCPSourceGateProject(t *testing.T) string {
+func writeMCPTranslateAfterProject(t *testing.T) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "1")
 	root := t.TempDir()
@@ -178,7 +178,7 @@ name: rev-source
 defaults:
   source_language: en
   target_languages: [nb]
-  source_gate: established
+  translate_after: established
 collections:
   - name: app
     content:
@@ -197,7 +197,7 @@ collections:
 // units it is being asked to look at, marked, with the per-language counts
 // beside them.
 func TestHandleReviewQueue_ListsSourceUnitsAndFiltersByLanguage(t *testing.T) {
-	root := writeMCPSourceGateProject(t)
+	root := writeMCPTranslateAfterProject(t)
 	a := testApp()
 	proj := filepath.Join(root, "kapi.yaml")
 
@@ -239,7 +239,7 @@ name: rev-clean
 defaults:
   source_language: en
   target_languages: [nb]
-  source_gate: written
+  translate_after: written
 collections:
   - name: app
     content:
@@ -267,7 +267,7 @@ collections:
 // review_unit answers for a source-language unit: the wording, its rung on the
 // authoring ladder, and the point governing it.
 func TestHandleReviewUnit_AcceptsASourceLanguageUnit(t *testing.T) {
-	root := writeMCPSourceGateProject(t)
+	root := writeMCPTranslateAfterProject(t)
 	a := testApp()
 	proj := filepath.Join(root, "kapi.yaml")
 

@@ -105,6 +105,19 @@ func TestStepsToGraph_SourceTransformsRejected(t *testing.T) {
 	require.ErrorContains(t, err, "ordered steps")
 }
 
+// A step naming a renamed tool id, sequential or in a parallel branch, fails
+// with the id that replaced it.
+func TestStepsToGraph_RenamedToolRejected(t *testing.T) {
+	_, _, err := StepsToGraph(&StepsSpec{Steps: []FlowStep{{Tool: "source-gate"}, {Tool: "translate"}}})
+	require.ErrorContains(t, err, `step[0]: tool "source-gate" is now "translate-after"`)
+
+	_, _, err = StepsToGraph(&StepsSpec{Steps: []FlowStep{
+		{Tool: "recycle"},
+		{Parallel: []FlowStep{{Tool: "qa"}, {Tool: "source-gate"}}},
+	}})
+	require.ErrorContains(t, err, `step[1].parallel: step[1]: tool "source-gate" is now "translate-after"`)
+}
+
 func TestStepsToGraph_TransformerAsOrderedStep(t *testing.T) {
 	spec := &StepsSpec{
 		Steps: []FlowStep{{Tool: "redact"}, {Tool: "translate"}},

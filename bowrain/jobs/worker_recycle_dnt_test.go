@@ -36,14 +36,14 @@ func TestWorkerRecycle_DoNotTranslateDecidesWhatIsRecycled(t *testing.T) {
 
 	const projectID, wsSlug = "proj-dnt-recycle", "dnt-recycle"
 
-	// No source gate, so the estimate prices every block and its split can be
+	// No translate_after hold, so the estimate prices every block and its split can be
 	// compared with the run's.
 	require.NoError(t, cs.CreateProject(ctx, &store.Project{
 		ID:                    projectID,
 		Name:                  projectID,
 		DefaultSourceLanguage: "en",
 		TargetLanguages:       []model.LocaleID{"fr"},
-		Properties:            map[string]string{store.SourceGateProperty: string(model.SourceGateNone)},
+		Properties:            map[string]string{store.TranslateAfterProperty: string(model.TranslateAfterNone)},
 	}))
 	require.NoError(t, cs.StoreBlocksForItem(ctx, projectID, "main", "en.json", []*model.Block{
 		model.NewBlock("b1", "Open kapi to begin"),

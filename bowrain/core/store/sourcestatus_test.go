@@ -31,11 +31,11 @@ func TestPropsForStore_NoStatus(t *testing.T) {
 	assert.Equal(t, b.Properties, PropsForStore(b))
 }
 
-func TestSourceGateFor(t *testing.T) {
-	assert.Equal(t, model.SourceGateWritten, SourceGateFor(nil), "nil project → default")
-	assert.Equal(t, model.SourceGateWritten, SourceGateFor(&Project{}), "unset → default")
-	assert.Equal(t, model.SourceGateNone,
-		SourceGateFor(&Project{Properties: map[string]string{SourceGateProperty: "none"}}))
-	assert.Equal(t, model.SourceGateEstablished,
-		SourceGateFor(&Project{Properties: map[string]string{SourceGateProperty: "established"}}))
+func TestTranslateAfterFor(t *testing.T) {
+	assert.Equal(t, model.TranslateAfterWritten, TranslateAfterFor(nil), "nil project → default")
+	assert.Equal(t, model.TranslateAfterWritten, TranslateAfterFor(&Project{}), "unset → default")
+	assert.Equal(t, model.TranslateAfterNone,
+		TranslateAfterFor(&Project{Properties: map[string]string{TranslateAfterProperty: "none"}}))
+	assert.Equal(t, model.TranslateAfterEstablished,
+		TranslateAfterFor(&Project{Properties: map[string]string{TranslateAfterProperty: "established"}}))
 }

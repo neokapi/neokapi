@@ -118,12 +118,12 @@ const (
 	// StallChecksFailing: coverage is complete but bound checks demote units
 	// below the gate, so the locale parks on failing terminology/length checks.
 	StallChecksFailing StallReason = "checks_failing"
-	// StallSourceNotReady: the source itself is below the source-first gate
+	// StallSourceNotReady: the source itself is below the translate_after level
 	// (terminology/voice/source hygiene not settled, or human source review pending),
 	// so the fan-out is HELD on source rather than translating an unsettled,
 	// non-compliant source into N locales (strategy 2026-07-dogfood doc 07 / roadmap
 	// epic 019). The run creates a source-review task and parks; settling the
-	// source (or lowering `defaults.source_gate`) lets the next run translate.
+	// source (or lowering `defaults.translate_after`) lets the next run translate.
 	StallSourceNotReady StallReason = "source_not_ready"
 	// StallNoTargetLocales: a project the venue holds for its per-language work
 	// has none to do, because it names no target language. It is a configuration
@@ -187,10 +187,10 @@ type Event struct {
 
 	// Source-first fields (settle_source stage / pass_done / done). SettledSource
 	// is how many source blocks the settlement phase stamped this pass;
-	// BlockedOnSource is how many remain below the source gate — the count the UI
+	// BlockedOnSource is how many remain below the translate_after level — the count the UI
 	// renders as "N segments need source review before translating" and the
 	// signal that a run held on source (source_not_ready). Both are omitted when
-	// zero, so a project with no source gate (or a fully-settled source) carries
+	// zero, so a project at `translate_after: none` (or with a fully-settled source) carries
 	// neither (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
 	SettledSource   int `json:"settledSource,omitempty"`
 	BlockedOnSource int `json:"blockedOnSource,omitempty"`

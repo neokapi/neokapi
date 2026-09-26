@@ -90,7 +90,7 @@ the languages that have work rather than a lane switch.
 
 A row's `status` is its rung on its own ladder: `translated` for a queued
 translation, and the settled authoring rung for a source unit, with `held`
-marking one the project's source gate is holding the fan-out on.
+marking one the project's `translate_after` level is holding the fan-out on.
 
 `host.App.ReviewQueue` derives it, merging the target derivation and the source
 derivation over one project read. The listing is unified and the storage is not:

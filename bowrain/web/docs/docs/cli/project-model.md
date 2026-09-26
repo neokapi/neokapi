@@ -130,7 +130,7 @@ assets:
 | `flows_dir`    | string         | A directory, relative to the recipe, holding one YAML file per flow. No default |
 | `ship_gate`    | gate           | The bar a locale must clear to be shippable (see [Gates](#gates))       |
 | `ship_gates`   | list           | Per-scope ship gates, each a `when:` selector plus a gate               |
-| `source_gate`  | gate           | The bar the source must clear before a run fans out; `none` opts out   |
+| `source_gate`  | gate           | The coverage bar the source must clear for `kapi check --ship`         |
 | `established_gate`, `established_gates` | gate, list | The bar for a locale to ship established: a person established the content |
 | `gates`        | map            | Named gates the rules above may reference                               |
 | `bowrain`      | object         | Bowrain-server connection coordinates (venue key)                       |
@@ -289,7 +289,7 @@ A profile's `termstore:` is the one binding that does not cross to the server, w
 
 ## Gates
 
-A gate names the rung of the target ladder a scope must reach, and who may have approved it, for the scope to count as shippable. `ship_gate` sets the bar for every locale; `ship_gates` refines it per scope with a `when:` selector, so a legal collection can wait for a person while a help collection ships on checks; `source_gate` is the source-side bar a run must clear before it fans out, and `source_gate: none` opts out. The ship state the server derives from these is described under [Ship states](/server/review#ship-states).
+A gate names the rung of the target ladder a scope must reach, and who may have approved it, for the scope to count as shippable. `ship_gate` sets the bar for every locale; `ship_gates` refines it per scope with a `when:` selector, so a legal collection can wait for a person while a help collection ships on checks; `source_gate` is the source-side coverage bar `kapi check --ship` evaluates. The per-block hold before a run fans out is `defaults.translate_after`, and `translate_after: none` opts out of it. The ship state the server derives from these is described under [Ship states](/server/review#ship-states).
 
 ## Tool configuration
 

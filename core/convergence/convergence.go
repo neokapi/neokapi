@@ -158,7 +158,7 @@ type SourceCoverage struct {
 
 // ReviewQueueItem is one unit awaiting human review, with short previews for
 // listing. A translated unit not yet approved is one row; a source unit the
-// project's source gate is waiting on is another, carrying IsSource. Named for
+// project's translate_after level holds is another, carrying IsSource. Named for
 // the queue it is a row of, so it reads apart from the governance review item a
 // connected workspace holds.
 type ReviewQueueItem struct {
@@ -178,7 +178,7 @@ type ReviewQueueItem struct {
 	// translation, and the settled source rung (written|established) for
 	// a source unit.
 	Status string `json:"status,omitempty"`
-	// Held reports a source unit the project's source gate holds, so the loop
+	// Held reports a source unit the project's translate_after level holds, so the loop
 	// holds its translations. False for a translation.
 	Held bool `json:"held,omitempty"`
 	// Collection is the parent content-collection name (empty for a bare

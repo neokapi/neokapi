@@ -132,15 +132,15 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, toolSchema(&CaseTransformConfig{Mode: CaseLower, ApplySource: true}, toolMeta("case-transform", "Case Transform", schema.CategoryTextProcessing,
 		withTags("text-processing"), withWritesOutput(), withCardinality(schema.Monolingual))))
 
-	// source-gate is the leading source-transform stage of source-first
-	// convergence (epic 019): it settles the source authoring status and holds
-	// blocks below the configured source gate so downstream producers skip an
-	// un-settled source. Monolingual (it reasons about the source only) and a
+	// translate-after is the leading source-transform stage of source-first
+	// convergence: it settles the source authoring status and holds each block
+	// whose source is below the configured level, so downstream producers skip
+	// an un-settled source. Monolingual (it reasons about the source only) and a
 	// source-content transformer, so it sits at the head of a flow's leading
 	// source-transform stage.
-	reg.RegisterWithSchema("source-gate", func() tool.Tool {
-		return NewSourceGateTool(model.DefaultSourceGate)
-	}, toolSchema(&SourceGateConfig{Gate: string(model.DefaultSourceGate)}, toolMeta("source-gate", "Source Gate", schema.CategoryTranslation,
+	reg.RegisterWithSchema("translate-after", func() tool.Tool {
+		return NewTranslateAfterTool(model.DefaultTranslateAfter)
+	}, toolSchema(&TranslateAfterConfig{Level: string(model.DefaultTranslateAfter)}, toolMeta("translate-after", "Translate After", schema.CategoryTranslation,
 		withTags(schema.TagL10n), withCardinality(schema.Monolingual))))
 
 	RegisterSegmentation(reg)
@@ -324,7 +324,7 @@ func registerConfigFactories(reg *registry.ToolRegistry) {
 	reg.SetConfigFactory("tag-protect", NewTagProtectFromConfig)
 	reg.SetConfigFactory("external-command", NewExternalCommandFromConfig)
 	// segmentation's ConfigFactory is set by RegisterGroup (it's a ToolGroup).
-	reg.SetConfigFactory("source-gate", NewSourceGateFromConfig)
+	reg.SetConfigFactory("translate-after", NewTranslateAfterFromConfig)
 	reg.SetConfigFactory("recycle", NewMemoryLeverageFromConfig)
 	reg.SetConfigFactory("diff-leverage", NewDiffLeverageFromConfig)
 	reg.SetConfigFactory("script", NewScriptFromConfig)

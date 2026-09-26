@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T08:20:58Z",
+  "generatedAt": "2026-09-26T14:46:14Z",
   "kind": "tool",
   "entries": [
     {
@@ -3860,53 +3860,6 @@
       }
     },
     {
-      "id": "source-gate",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "▒ Šöüŕçé Ĝàţé ▒",
-      "category": "translation",
-      "tags": [
-        "l10n"
-      ],
-      "cardinality": "monolingual",
-      "schema": {
-        "$id": "source-gate",
-        "title": "▒ Šöüŕçé Ĝàţé ▒",
-        "type": "object",
-        "toolMeta": {
-          "id": "source-gate",
-          "category": "translation",
-          "displayName": "▒ Šöüŕçé Ĝàţé ▒",
-          "tags": [
-            "l10n"
-          ],
-          "cardinality": "monolingual"
-        },
-        "properties": {
-          "gate": {
-            "type": "string",
-            "title": "▒ Šöüŕçé Ĝàţé ▒",
-            "description": "▒ Ŵĥàţ à ƃļöçķ'š šöüŕçé ḿüšţ šàţîšƒý ƃéƒöŕé îţš ţŕàñšļàţîöñš àŕé þŕöđüçéđ: ŵŕîţţéñ (îţš çĥéçķš þàšš) öŕ éšţàƃļîšĥéđ (à þéŕšöñ ŕéṽîéŵéđ îţ) ▒",
-            "default": "written",
-            "options": [
-              {
-                "value": "none",
-                "label": "▒ ñöñé ▒"
-              },
-              {
-                "value": "written",
-                "label": "▒ ŵŕîţţéñ ▒"
-              },
-              {
-                "value": "established",
-                "label": "▒ éšţàƃļîšĥéđ ▒"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
       "id": "span-classify",
       "source": "built-in",
       "kind": "tool",
@@ -4468,6 +4421,53 @@
             "hasSchema": false
           }
         ]
+      }
+    },
+    {
+      "id": "translate-after",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "▒ Ţŕàñšļàţé Àƒţéŕ ▒",
+      "category": "translation",
+      "tags": [
+        "l10n"
+      ],
+      "cardinality": "monolingual",
+      "schema": {
+        "$id": "translate-after",
+        "title": "▒ Ţŕàñšļàţé Àƒţéŕ ▒",
+        "type": "object",
+        "toolMeta": {
+          "id": "translate-after",
+          "category": "translation",
+          "displayName": "▒ Ţŕàñšļàţé Àƒţéŕ ▒",
+          "tags": [
+            "l10n"
+          ],
+          "cardinality": "monolingual"
+        },
+        "properties": {
+          "level": {
+            "type": "string",
+            "title": "▒ Ţŕàñšļàţé Àƒţéŕ ▒",
+            "description": "▒ Ŵĥàţ à ƃļöçķ'š šöüŕçé ḿüšţ ŕéàçĥ ƃéƒöŕé îţš ţŕàñšļàţîöñš àŕé þŕöđüçéđ: ŵŕîţţéñ (îţš çĥéçķš þàšš) öŕ éšţàƃļîšĥéđ (à þéŕšöñ ŕéṽîéŵéđ îţ); ñöñé ĥöļđš ñöţĥîñĝ ▒",
+            "default": "written",
+            "options": [
+              {
+                "value": "none",
+                "label": "▒ ñöñé ▒"
+              },
+              {
+                "value": "written",
+                "label": "▒ ŵŕîţţéñ ▒"
+              },
+              {
+                "value": "established",
+                "label": "▒ éšţàƃļîšĥéđ ▒"
+              }
+            ]
+          }
+        }
       }
     },
     {

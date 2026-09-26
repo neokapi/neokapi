@@ -52,7 +52,7 @@ func monolingualProject(t *testing.T) (recipe, root string) {
 name: northsea
 defaults:
   source_language: en-GB
-  source_gate: none
+  translate_after: none
 profiles:
   northsea:
     channels: [docs]

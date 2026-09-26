@@ -53,7 +53,7 @@ func seedMultiLocaleProject(t *testing.T, s *Server, wsID string, blocks []*mode
 		WorkspaceID:           wsID,
 		DefaultSourceLanguage: "en",
 		TargetLanguages:       []model.LocaleID{"fr", "de"},
-		Properties:            map[string]string{"source_gate": "none"},
+		Properties:            map[string]string{"translate_after": "none"},
 	}
 	require.NoError(t, s.ContentStore.CreateProject(ctx, proj))
 	require.NoError(t, s.ContentStore.StoreItem(ctx, proj.ID, "main", &platstore.Item{

@@ -1592,7 +1592,7 @@ export interface ConvergenceRun {
   current_locale?: string;
   /** Last observable progress — a frozen value while awaiting jobs reads as "waiting…". */
   last_activity?: string;
-  /** How many source blocks the settle phase held below the gate ("settle first"). */
+  /** How many source blocks the settle phase held below translate_after ("settle first"). */
   blocked_on_source?: number;
   created_at?: string;
   finished_at?: string;
@@ -1657,7 +1657,7 @@ export interface LoopRollup {
 
 /** The source-first readiness split of a convergence estimate. */
 export interface ConvergenceSourceReadiness {
-  /** Resolved gate level: none | authored | checked | approved. */
+  /** Resolved defaults.translate_after level: none | written | established. */
   gate: string;
   total: number;
   ready: number;

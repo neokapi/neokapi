@@ -673,32 +673,31 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
-             * SourceGate is the source-first convergence gate: the SourceStatus a
-             * source block must reach before its translations are produced. Source-first
-             * convergence settles the source (terminology + voice + source hygiene) and gates
-             * the fan-out on it, so an unsettled, non-compliant, un-term-checked source is
-             * never translated into N locales only to be redone when it changes
-             * (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
+             * TranslateAfter is the SourceStatus a source block must reach before its
+             * translations are produced. Source-first convergence settles the source
+             * (terminology, voice and source hygiene) and holds each block's fan-out
+             * until its source reaches this level, so an unsettled, non-compliant source
+             * is translated into N locales only once it is ready.
              * 
-             * Values (model.ResolveSourceGate):
-             *   ""            — unset; the runner applies the default gate (`written`).
+             * Values (model.ResolveTranslateAfter):
+             *   ""            — unset; the runner applies the default level (`written`).
              *   "written"     — the DEFAULT: a written source translates once it clears
              *                   its automated terminology, voice and source hygiene
              *                   checks (no human bottleneck).
              *   "established" — a person has established the source (voice-critical or
              *                   regulated projects). A failing finding still holds it.
-             *   "none"        — the deliberate opt-out: no gate, every present source
+             *   "none"        — the deliberate opt-out: no hold, every present source
              *                   fans out on push. You have to choose it.
              * 
              * Any other value fails the recipe's validation.
              * 
-             * It is the level-based, per-project counterpart of the coverage-bar
-             * SourceGate on KapiProject (which `kapi check --ship` evaluates); this one
-             * governs the convergence fan-out.
+             * The coverage bar SourceGate on KapiProject, which `kapi check --ship`
+             * evaluates, is a separate setting; this one holds the convergence fan-out
+             * block by block.
              * @member
              * @type {string | undefined}
              */
-            this["source_gate"] = undefined;
+            this["translate_after"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**

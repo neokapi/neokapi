@@ -77,7 +77,7 @@ func (o reviewQueueOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "Units marked `source` are the project's own source language. `kapi apply` records target-language decisions only; approve source wording in the Review page of Kapi Desktop.")
 	}
 	if held > 0 {
-		fmt.Fprintf(w, "%d source unit(s) are held at the project's source gate, so the loop holds their translations.\n", held)
+		fmt.Fprintf(w, "%d source unit(s) are held below the project's translate_after level, so the loop holds their translations.\n", held)
 	}
 	return nil
 }
@@ -198,7 +198,7 @@ func (o ReviewQueueOptions) wants(lang string) bool {
 
 // ReviewQueue lists every unit awaiting a person, in one queue across the
 // project's languages: the translated units not yet approved, and the source
-// units the project's source gate or its `established` rung is waiting on. Source
+// units the project's translate_after level holds or its `established` rung is waiting on. Source
 // units carry IsSource and sort first.
 //
 // The listing is unified; the storage is not. A source decision is recorded

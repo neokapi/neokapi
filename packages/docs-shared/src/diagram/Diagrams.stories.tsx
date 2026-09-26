@@ -390,8 +390,8 @@ export const GatedLoop: Story = {
         },
         {
           kind: "gate",
-          label: "source ship-gate",
-          sub: "source_gate",
+          label: "source hold",
+          sub: "translate_after",
           hold: "hold — settle your source first",
         },
         {
@@ -426,13 +426,13 @@ export const GatedLoopMonolingual: Story = {
         },
         {
           kind: "gate",
-          label: "source ship-gate",
-          sub: "source_gate",
+          label: "source hold",
+          sub: "translate_after",
           hold: "hold — settle your source first",
         },
         { kind: "done", label: "on brand" },
       ]}
-      caption="A monolingual project stops after the first half: settle the source, clear its gate."
+      caption="A monolingual project stops after the first half: settle the source until it reaches translate_after."
     />
   ),
 };

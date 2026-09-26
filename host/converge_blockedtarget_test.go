@@ -55,7 +55,7 @@ func newBlockedTargetProject(t *testing.T, targetTemplate string) (*App, *EnvCom
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr", "de"},
 			Flow:            "translate",
-			SourceGate:      string(model.SourceGateNone),
+			TranslateAfter:  string(model.TranslateAfterNone),
 		},
 		Collections: []project.Collection{
 			{Name: "app", Path: "src/en.json", Target: targetTemplate},

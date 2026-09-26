@@ -553,7 +553,7 @@ const estimate = (ws: string, pid: string, token: string) =>
  * pre-translate step already covered, leaves PENDING_LOCALE untouched, so the
  * settled project still owes a locale the work the walk starts on camera.
  *
- * The alternative, `source_gate: none` on the project, would route around the
+ * The alternative, `translate_after: none` on the project, would route around the
  * gate the demo is about.
  */
 async function settleSourceWithRun(ws: string, pid: string, token: string): Promise<void> {

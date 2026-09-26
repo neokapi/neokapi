@@ -452,27 +452,27 @@ bounded profile against the current time and labels it `active`, `upcoming` or
 | `flow`             | string              | The project's default flow, the composed flow `kapi up` runs to catch up every locale. A key in `flows:`, a file in `flows_dir:`, or a built-in name (e.g. `translate`), resolved as `kapi run` resolves it. Empty runs the built-in default (recycle → translate) |
 | `materialize`      | string              | Who delivers translated files. `manual` (default) leaves delivery to `kapi merge` or `kapi up --materialize`; `on-converge` makes `kapi up` write a locale's files to the collection's `target:` only once its gated scopes are shippable |
 | `jobs`             | int                 | How many target languages one `kapi up` pass runs concurrently. `0` (default) leaves it to the runner (4); `--jobs` overrides per run |
-| `source_gate`      | string              | Source-first convergence level: the source status a block must reach before it is translated (see [source_gate](#defaults-source-gate)) |
+| `translate_after`  | string              | The source status a block must reach before the loop translates it (see [translate_after](#defaults-translate-after)) |
 
 Individual content items can override `redaction` per entry (`ContentItem.redaction`).
 
-#### source_gate {#defaults-source-gate}
+#### translate_after {#defaults-translate-after}
 
-`defaults.source_gate` is the **source-first convergence** gate: the source
-status a block must reach before the loop translates it. It gates the fan-out,
-and is distinct from the top-level [`source_gate`](#source_gate) coverage bar
-that `kapi check --ship` evaluates. Source-first convergence settles the source
-(terminology, voice, source checks) and holds the fan-out on it, so an unsettled,
-non-compliant, un-term-checked source is never translated into every locale only
-to be redone when it changes. See
+`defaults.translate_after` is the source status a block must reach before the
+loop translates it. The loop holds each block's fan-out until its source gets
+there. It is a separate setting from the top-level [`source_gate`](#source_gate)
+coverage bar that `kapi check --ship` evaluates. Source-first convergence
+settles the source (terminology, voice, source checks) and holds the fan-out on
+it, so an unsettled, non-compliant source is translated into every locale once
+it is ready rather than redone when it changes. See
 [Convergence: source first](/kapi/convergence#source-first).
 
 ```yaml
 defaults:
-  source_gate: written   # the default: written source whose checks pass
-                         # translates (no human bottleneck)
-  # source_gate: established  # wait until a person establishes the source
-  # source_gate: none      # opt out: raw fan-out, no source gate
+  translate_after: written   # the default: written source whose checks pass
+                             # translates (no human bottleneck)
+  # translate_after: established  # wait until a person establishes the source
+  # translate_after: none         # opt out: raw fan-out, no hold
 ```
 
 | Value      | Meaning                                                                 |
@@ -482,7 +482,7 @@ defaults:
 | `established` | A person established the source (voice-critical or regulated content)  |
 | `none`        | Deliberate opt-out: translate without settling the source first         |
 
-On a connected project, a below-gate source **holds** the convergence run
+On a connected project, a source below this level **holds** the convergence run
 (`source_not_ready`) and opens a source-review task rather than translating; the
 source-side coverage bar and this convergence level are independent controls.
 
@@ -803,9 +803,9 @@ Every source unit clears its bound voice and terminology checks before
 **coverage bar** evaluated by `kapi check --ship`; source drift never blocks an
 ordinary build.
 
-This is distinct from [`defaults.source_gate`](#defaults-source-gate), the
-**source-first convergence** level (`written` / `established` / `none`) that decides
-whether the loop translates a block at all. The coverage bar answers *is the
+[`defaults.translate_after`](#defaults-translate-after) is a separate setting:
+the level (`written` / `established` / `none`) a block's source must reach before
+the loop translates it. The coverage bar answers *is the
 source shippable?*; the convergence level answers *may this source be translated
 yet?*.
 

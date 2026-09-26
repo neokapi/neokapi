@@ -57,7 +57,7 @@ func newContestedConvergeProject(t *testing.T) (*App, *EnvCommand, string) {
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb"},
 			Flow:            "recycle-only",
-			SourceGate:      string(model.SourceGateNone),
+			TranslateAfter:  string(model.TranslateAfterNone),
 			Materialize:     project.MaterializeOnConverge,
 		},
 		Profiles: map[string]project.Profile{

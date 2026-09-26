@@ -214,8 +214,8 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 			return nil
 		}
 
-		// Source-gate hold (epic 019): skip a block whose source ranks below the
-		// active source gate — the leading source-gate stage marked it, and an
+		// Translate-after hold: skip a block whose source is below the active
+		// translate_after level. The leading translate-after stage marked it, and an
 		// un-settled source must not be recycled into a target either. No-op when
 		// the gate is off or the source cleared (marker absent).
 		if v.Property(model.PropSourceHeld) == "1" {

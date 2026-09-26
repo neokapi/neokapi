@@ -161,10 +161,10 @@ export class Event {
             /**
              * Source-first fields (settle_source stage / pass_done / done). SettledSource
              * is how many source blocks the settlement phase stamped this pass;
-             * BlockedOnSource is how many remain below the source gate — the count the UI
+             * BlockedOnSource is how many remain below the translate_after level — the count the UI
              * renders as "N segments need source review before translating" and the
              * signal that a run held on source (source_not_ready). Both are omitted when
-             * zero, so a project with no source gate (or a fully-settled source) carries
+             * zero, so a project at `translate_after: none` (or with a fully-settled source) carries
              * neither (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
              * @member
              * @type {number | undefined}
@@ -722,7 +722,7 @@ export class ReviewQueue {
 /**
  * ReviewQueueItem is one unit awaiting human review, with short previews for
  * listing. A translated unit not yet approved is one row; a source unit the
- * project's source gate is waiting on is another, carrying IsSource. Named for
+ * project's translate_after level holds is another, carrying IsSource. Named for
  * the queue it is a row of, so it reads apart from the governance review item a
  * connected workspace holds.
  */
@@ -786,7 +786,7 @@ export class ReviewQueueItem {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Held reports a source unit the project's source gate holds, so the loop
+             * Held reports a source unit the project's translate_after level holds, so the loop
              * holds its translations. False for a translation.
              * @member
              * @type {boolean | undefined}
@@ -1072,12 +1072,12 @@ export const StallReason = {
     StallChecksFailing: "checks_failing",
 
     /**
-     * StallSourceNotReady: the source itself is below the source-first gate
+     * StallSourceNotReady: the source itself is below the translate_after level
      * (terminology/voice/source hygiene not settled, or human source review pending),
      * so the fan-out is HELD on source rather than translating an unsettled,
      * non-compliant source into N locales (strategy 2026-07-dogfood doc 07 / roadmap
      * epic 019). The run creates a source-review task and parks; settling the
-     * source (or lowering `defaults.source_gate`) lets the next run translate.
+     * source (or lowering `defaults.translate_after`) lets the next run translate.
      */
     StallSourceNotReady: "source_not_ready",
 

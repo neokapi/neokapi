@@ -11,8 +11,8 @@ import (
 // stamps its SourceStatus at the written baseline unless a person has
 // established it, and records whether the source fails its checks
 // (model.Block.SetSourceFailing). It is the one derivation both venues share,
-// the Bowrain server's settle pass and the local converge's source-gate stage,
-// so they gate a block on identical findings.
+// the Bowrain server's settle pass and the local converge's translate-after
+// stage, so they hold a block on identical findings.
 //
 // It is provider-free: gating on deterministic checks never spends AI credits
 // on an unready corpus.

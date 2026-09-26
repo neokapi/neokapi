@@ -45,7 +45,7 @@ type Defaults struct {
     Flow            string                    `yaml:"flow,omitempty"`         // the flow `kapi up` runs
     Materialize     string                    `yaml:"materialize,omitempty"`  // "manual" (default) or "on-converge"
     Jobs            int                       `yaml:"jobs,omitempty"`         // target languages converged concurrently
-    SourceGate      string                    `yaml:"source_gate,omitempty"`  // authored | checked (default) | approved | none
+    TranslateAfter  string                    `yaml:"translate_after,omitempty"` // written (default) | established | none
     LocaleFormat    string                    `yaml:"locale_format,omitempty"`
     Concurrency     int                       `yaml:"concurrency,omitempty"`
     ParallelBlocks  int                       `yaml:"parallel_blocks,omitempty"`
@@ -327,9 +327,12 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   files only when its gated scopes are all shippable.
 - `jobs` (int): how many target languages one `kapi up` pass converges
   concurrently; `up --jobs` overrides per run.
-- `source_gate` (`written` | `established` | `none`): the source status a
+- `translate_after` (`written` | `established` | `none`): the source status a
   block must reach before its translations are produced; `written` is the
-  default applied when unset.
+  default applied when unset. Any other value fails the load. A recipe that
+  still writes `defaults.source_gate` fails to load and names
+  `defaults.translate_after`; the top-level `source_gate` coverage bar is a
+  separate key.
 - `merge` (`MergeDefaults.ConflictPolicy`): how `kapi merge` resolves a
   translator's target against an existing on-disk target or content-memory entry
   (`translator-wins` default, `existing-wins`, `newest-wins`). See
@@ -451,10 +454,12 @@ the full extension model.
   RFC3339 instant.
 - `defaults.merge.conflict_policy`, `defaults.memory.fuzzy_threshold` (0..100),
   `defaults.redaction.detectors`, `defaults.materialize` and `defaults.voice`
-  are each shape-checked. `defaults.source_gate` is read by the runner, which
-  applies `written` when it is unset.
+  are each shape-checked. `defaults.translate_after` must name `written`,
+  `established` or `none`; the runner applies `written` when it is unset.
 - Each flow must have at least one step
 - Each step must have a non-empty `tool` field (unless it uses `parallel`)
+- A step naming a renamed tool id (`source-gate`) fails with the id that
+  replaced it (`translate-after`)
 - Steps with `parallel` can omit `tool` (the parallel branches provide tools)
 - Each `requires:` entry must have a non-empty plugin name and a well-formed
   semver constraint (`^1.0`, `>=1.4.0`, `1.4.0`, `~1.4.2`, or `*`). Unless

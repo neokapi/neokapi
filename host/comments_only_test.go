@@ -245,7 +245,7 @@ func commentsOnlyYAMLProject(t *testing.T, spelled string) (*App, string, *proje
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr"},
 			Flow:            "recycle-only",
-			SourceGate:      string(model.SourceGateNone),
+			TranslateAfter:  string(model.TranslateAfterNone),
 		},
 		Collections: []project.Collection{{
 			Name:    "config",

@@ -149,7 +149,7 @@ describe("ConvergenceRunView — source hold", () => {
           converged: false,
           passes: 1,
           blockedOnSource: 12,
-          sourceGate: "approved",
+          translateAfter: "established",
           stallReason: "source_not_ready",
         }}
       />,
@@ -157,7 +157,7 @@ describe("ConvergenceRunView — source hold", () => {
     const hold = document.querySelector('[data-slot="convergence-source-hold"]');
     expect(hold).not.toBeNull();
     expect(hold!.textContent).toContain("12 segments need source review");
-    expect(hold!.textContent).toContain("approved");
+    expect(hold!.textContent).toContain("established");
     expect(hold!.textContent).toContain("source lane");
   });
 

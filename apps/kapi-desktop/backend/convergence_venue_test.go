@@ -119,7 +119,7 @@ name: VenueConverge
 defaults:
   source_language: en-US
   target_languages: [nb-NO]
-  source_gate: none
+  translate_after: none
   flow: pseudo
 collections:
   - name: App

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// heldBlock builds a translatable block carrying the source-gate hold marker.
+// heldBlock builds a translatable block carrying the translate-after hold marker.
 func heldBlock(id, text string) *model.Block {
 	b := model.NewBlock(id, text)
 	b.Translatable = true
@@ -30,7 +30,7 @@ func pushBlock(t *testing.T, tl *tools.AITranslateTool, b *model.Block) {
 // TestAITranslate_SkipsSourceHeld_SinglePath: a block held on its un-settled
 // source is not translated on the single-block path — the provider is never
 // called and no target is written — while an un-held block translates normally
-// (epic 019: the local source gate holds an un-ready source).
+// (the local translate-after stage holds an un-ready source).
 func TestAITranslate_SkipsSourceHeld_SinglePath(t *testing.T) {
 	mock, calls := newTranslateMock(t)
 	tl := tools.NewAITranslateTool(mock, singleBlockConfig())

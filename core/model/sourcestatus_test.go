@@ -33,16 +33,16 @@ func TestSetSourceHeldFalseNoAlloc(t *testing.T) {
 	}
 }
 
-func TestResolveSourceGateDefault(t *testing.T) {
+func TestResolveTranslateAfterDefault(t *testing.T) {
 	// Unset resolves to the default (checked); a typo also falls back to the
 	// default and is flagged.
-	if g, ok := ResolveSourceGate(""); g != DefaultSourceGate || !ok {
-		t.Fatalf("empty gate = (%q,%v), want (%q,true)", g, ok, DefaultSourceGate)
+	if g, ok := ResolveTranslateAfter(""); g != DefaultTranslateAfter || !ok {
+		t.Fatalf("empty level = (%q,%v), want (%q,true)", g, ok, DefaultTranslateAfter)
 	}
-	if g, ok := ResolveSourceGate("bogus"); g != DefaultSourceGate || ok {
-		t.Fatalf("unknown gate = (%q,%v), want (%q,false)", g, ok, DefaultSourceGate)
+	if g, ok := ResolveTranslateAfter("bogus"); g != DefaultTranslateAfter || ok {
+		t.Fatalf("unknown level = (%q,%v), want (%q,false)", g, ok, DefaultTranslateAfter)
 	}
-	if g, _ := ResolveSourceGate("none"); g != SourceGateNone {
-		t.Fatalf("none gate = %q, want none", g)
+	if g, _ := ResolveTranslateAfter("none"); g != TranslateAfterNone {
+		t.Fatalf("none level = %q, want none", g)
 	}
 }
