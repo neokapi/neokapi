@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T09:55:07Z",
+  "generatedAt": "2026-09-26T10:03:28Z",
   "commands": [
     {
       "id": "add",
@@ -7486,7 +7486,7 @@
         },
         {
           "name": "ship",
-          "usage": "emit the minimal ship.json picker manifest (locale → {shippable, state, not_governed}) instead of the coverage grid; state is established (governed) or translated (AI-shippable), and a language picker offers only shippable locales and badges the ones not established as AI-translated",
+          "usage": "emit the minimal ship.json picker manifest (locale → {shippable, state, not_governed}) instead of the coverage grid; state is established, translated, withheld or not_gated, and a language picker offers only shippable locales and badges the ones not established as AI-translated",
           "default": "false",
           "type": "bool"
         },

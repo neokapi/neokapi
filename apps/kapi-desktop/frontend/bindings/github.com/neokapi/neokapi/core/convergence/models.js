@@ -377,8 +377,8 @@ export class LocaleCoverage {
              * ShipState is the scope's standing in one value: established, translated,
              * withheld or not_gated. Shippable is true for every state but withheld,
              * because nothing holds the others back, so a reader that only asks "does
-             * it ship" offers and delivers them all. Only ShipState tells governed
-             * content from AI-shippable content and a met gate from no gate, and every
+             * it ship" offers and delivers them all. Only ShipState tells established
+             * content from translated content and a met gate from no gate, and every
              * surface that states a verdict reads it.
              * @member
              * @type {ShipState}
@@ -897,9 +897,9 @@ export class ReviewQueueItem {
 
 /**
  * ShipState is a scope's standing against its ship and established gates, in
- * the words of the unit ladder: a scope ships `established` (governed: a person
- * established the content) or `translated` (AI-shippable: translated, with its
- * checks green), or it is withheld, or no gate speaks for it.
+ * the words of the unit ladder: a scope ships `established` (a person
+ * established the content) or `translated` (translated, with its checks green,
+ * and shipped as AI translation), or it is withheld, or no gate speaks for it.
  * @readonly
  * @enum {string}
  */
@@ -911,14 +911,14 @@ export const ShipState = {
 
     /**
      * ShipStateEstablished: an established gate matches the scope, the scope
-     * clears it, and nothing withholds it. Governed content.
+     * clears it, and nothing withholds it.
      */
     ShipStateEstablished: "established",
 
     /**
      * ShipStateTranslated: a ship gate matches the scope and the scope clears
-     * it, nothing withholds it, and no established gate is met. AI-shippable
-     * content.
+     * it, nothing withholds it, and no established gate is met. The scope ships
+     * as AI translation.
      */
     ShipStateTranslated: "translated",
 
