@@ -366,17 +366,19 @@ holds nothing back, because a reading is not a run. The gate also refuses
 anything foreign: an indiscriminate delivery would otherwise carry a source edit
 into main with no review and no CI.
 
-The gate asks nothing of the context. A night that converged and approved
-nothing is the ordinary night for a repository whose source moves daily and
-whose reviewers approve in batches. What the run brought home to the context is
-reported by the `kapi context push` step, which names the operations it shared
-on `refs/kapi/context`.
+The gate does not require the run to have decided anything. A night that
+converged and approved nothing is the ordinary night for a repository whose
+source moves daily and whose reviewers approve in batches. What the run brought
+home to the context is reported by the `kapi context push` step, which names the
+operations it shared on `refs/kapi/context`.
 
-A **removal** of an owned artifact refuses the run. A rewrite carries content to
-read; a deletion carries none, and the tree holds no decision that could account
-for one, so a catalog or a sidecar that disappeared is an erasure. An artifact
-the loop no longer produces is removed in a reviewed change to the recipe or the
-Makefile.
+It does require a decision behind a **removal**. A rewrite carries content to
+read; a deletion carries none. The nightly passes the number of operations
+`kapi context push` shared as `--decisions`, and a catalog or a sidecar that
+disappeared in a run that shared none is an erasure. A run that brought
+decisions home may remove an owned artifact, which is how a narration sidecar
+that became identical to its source is dropped. The decisions account for the
+removal only: the content of every other artifact the run wrote is still read.
 
 Delivery is `scripts/auto-pr.sh`: what survives the gate goes up as a pull
 request on the rolling `bot/dogfood-sync` branch, never as a push to main, so a

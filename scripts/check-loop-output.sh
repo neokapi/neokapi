@@ -48,9 +48,13 @@
 # sidecar defect refuse the run exactly as before: a sidecar overlays its master
 # scene for scene, so there is no leaf to take out of one.
 #
-# A removed artifact is refused whatever else the run did. A removal carries no
-# content to read, and nothing in the tree records a decision that could account
-# for one, so an owned artifact that disappeared is an erasure.
+# A removal carries no content to read, so what excuses one is the context: an
+# owned artifact that disappeared is delivered only when the run brought
+# decisions home. `--decisions N` passes that count, which the nightly takes
+# from the operations its `kapi context push` step shared on refs/kapi/context.
+# With the default of 0, a catalog or a sidecar the run removed is an erasure
+# and refuses the run. A sidecar that became identical to its source is dropped
+# by design, and it is dropped because a decision changed its wording.
 #
 # Usage:
 #     ./scripts/check-loop-output.sh                 # gate the working tree
@@ -58,6 +62,7 @@
 #     ./scripts/check-loop-output.sh --derived 'a b' # override the derived set
 #     ./scripts/check-loop-output.sh --pairs 'L a:b' # override the content pairs
 #     ./scripts/check-loop-output.sh --hold-back     # withhold defective leaves
+#     ./scripts/check-loop-output.sh --decisions N   # decisions the run brought home
 #     ./scripts/check-loop-output.sh --self-test     # prove the gate both ways
 #
 # Wired into .github/workflows/dogfood-sync.yml between `kapi up` and the
@@ -205,10 +210,12 @@ withheld_output() {
 # ── the gate ─────────────────────────────────────────────────────────────────
 #
 # $1 is the repository to inspect; $2 the whitespace-separated derived pathspecs;
-# $3 the content pairs, one locale per line. Returns 0 when the tree is
-# committable, 1 when it refuses.
+# $3 the content pairs, one locale per line; $4 non-empty to hold defective
+# leaves back; $5 the number of decisions the run brought home. Returns 0 when
+# the tree is committable, 1 when it refuses.
 gate() {
   local repo="$1" derived_spec="$2" content_pairs="${3:-}" hold="${4:-}"
+  local decisions="${5:-0}"
   local rec path
   local all_entries=() all_paths=() derived_paths=()
   local refused_foreign=() derived_entries=()
@@ -253,17 +260,20 @@ gate() {
   done
 
   # A run's own output is judged by what is in it. What a run *removed* has no
-  # content to read, and the tree holds no record of a decision that could
-  # account for it, so a catalog or a sidecar that disappeared is an erasure.
+  # content to read, so the decisions the run brought home are the authority
+  # there: a catalog or a sidecar that disappeared in a run that decided
+  # nothing is an erasure.
   local refused_deleted=()
-  local j=0
-  while [ "$j" -lt "${#derived_entries[@]}" ]; do
-    rec="${derived_entries[$j]}"
-    j=$((j + 1))
-    case "${rec:0:2}" in
-      *D*) refused_deleted+=("$rec") ;;
-    esac
-  done
+  if [ "$decisions" -eq 0 ]; then
+    local j=0
+    while [ "$j" -lt "${#derived_entries[@]}" ]; do
+      rec="${derived_entries[$j]}"
+      j=$((j + 1))
+      case "${rec:0:2}" in
+        *D*) refused_deleted+=("$rec") ;;
+      esac
+    done
+  fi
 
   local content_status=0
   local content_out="" withheld_out="" defect_out="" withheld_count=0
@@ -296,14 +306,15 @@ gate() {
       summary "### Loop output gate" "" "The run left nothing to commit."
       return 0
     fi
-    echo "check-loop-output: ${#derived_entries[@]} derived change(s) carry sound content"
+    echo "check-loop-output: ${#derived_entries[@]} derived change(s) carry sound content;" \
+      "${decisions} decision(s) brought home"
     if [ -n "$withheld_out" ]; then
       held_back_block "$withheld_count" "$withheld_out"
     fi
     echo "derived:"
     report "${derived_entries[@]}"
     summary "### Loop output gate" "" \
-      "${#derived_entries[@]} derived change(s) carry sound content."
+      "${#derived_entries[@]} derived change(s) carry sound content. Decisions brought home: \`${decisions}\`."
     if [ -n "$withheld_out" ]; then
       summary "" "\`${withheld_count}\` string(s) held back, so those surfaces fall back to their source:" \
         "" '```' "$(render_withheld "$withheld_out")" '```'
@@ -338,12 +349,12 @@ EOF
   if [ "${#refused_deleted[@]}" -gt 0 ]; then
     cat >&2 <<'EOF'
 
-The run removed artifacts the loop owns. A removal carries no content to read,
-and the tree holds no decision that accounts for it, so it is an erasure. Remove
-an artifact the loop no longer produces in a reviewed change to the recipe or
-the Makefile, never in a convergence run.
+The run removed artifacts the loop owns and brought no decisions home. A
+removal carries no content to read, so with nothing decided behind it, it is an
+erasure. The nightly passes the count of operations `kapi context push` shared
+as --decisions; a run that shared none has nothing to account for a removal.
 
-Refused, removed:
+Refused, removed with no decision behind it:
 EOF
     report "${refused_deleted[@]}" >&2
   fi
@@ -492,7 +503,7 @@ expect() {
   local label="$1" repo="$2" want="$3"
   shift 3
   local out rc=0 path
-  out="$(gate "$repo" "$SELFTEST_DERIVED" "$SELFTEST_PAIRS" "${HOLD:-}" 2>&1)" || rc=$?
+  out="$(gate "$repo" "$SELFTEST_DERIVED" "$SELFTEST_PAIRS" "${HOLD:-}" "${DECISIONS:-0}" 2>&1)" || rc=$?
   if [ "$rc" -ne "$want" ]; then
     echo "✖ self-test: ${label} — expected exit ${want}, got ${rc}:"
     printf '%s\n' "$out" | sed 's/^/    /'
@@ -584,8 +595,31 @@ self_test() {
   git -C "$repo" checkout -q -- .
   rm -f "$repo/harness/demos/demo-a/demo.nb.yaml"
   rm -f "$repo/core/i18n/catalogs/nb.json"
-  expect "deleting a catalog is refused" "$repo" 1 \
+  expect "deleting a catalog in a run that decided nothing is refused" "$repo" 1 \
     "core/i18n/catalogs/nb.json" "erasure"
+
+  DECISIONS=0
+  expect "deleting a catalog with --decisions 0 is refused" "$repo" 1 \
+    "core/i18n/catalogs/nb.json" "erasure"
+
+  # Decisions the run brought home account for the removal. They do not buy
+  # anything else past the gate: what the run wrote is still read.
+  DECISIONS=3
+  expect "deleting a catalog with --decisions 3 commits" "$repo" 0 \
+    "core/i18n/catalogs/nb.json" "3 decision(s)"
+
+  printf '%s' "${SELFTEST_SIDECAR//id: discover/id: oppdag}" \
+    >"$repo/harness/demos/demo-a/demo.nb.yaml"
+  expect "decisions do not excuse unsound content beside a removal" "$repo" 1 \
+    "harness/demos/demo-a/demo.nb.yaml" "oppdag" "identifier"
+  rm -f "$repo/harness/demos/demo-a/demo.nb.yaml"
+
+  printf 'package flow // edited\n' >"$repo/core/flow/executor.go"
+  expect "decisions do not excuse a source edit" "$repo" 1 \
+    "core/flow/executor.go" "outside the loop's scope"
+  DECISIONS=""
+  git -C "$repo" checkout -q -- .
+  rm -f "$repo/core/i18n/catalogs/nb.json"
 
   printf 'package flow // edited\n' >"$repo/core/flow/executor.go"
   expect "a source edit is refused" "$repo" 1 \
@@ -747,16 +781,41 @@ self_test() {
     echo "✓ self-test: a checkout that cannot name its derived set is fatal, not permissive"
   fi
 
+  local count
+  for count in "" "three" "-1"; do
+    rc=0
+    out="$("$0" --repo "$repo" --decisions "$count" 2>&1)" || rc=$?
+    if [ "$rc" -eq 2 ] && printf '%s\n' "$out" | grep -qF "non-negative integer"; then
+      echo "✓ self-test: --decisions '${count}' is refused, not read as a count"
+    else
+      echo "✖ self-test: --decisions '${count}' was accepted (exit ${rc}):"
+      printf '%s\n' "$out" | sed 's/^/    /'
+      SELFTEST_STATUS=1
+    fi
+  done
+
   return "$SELFTEST_STATUS"
 }
 
 # ── entry point ──────────────────────────────────────────────────────────────
 
 main() {
-  local repo="" derived="" pairs="" mode="gate" hold=""
+  local repo="" derived="" pairs="" mode="gate" hold="" decisions=0
 
   while [ $# -gt 0 ]; do
     case "$1" in
+      --decisions)
+        decisions="${2:-}"
+        # A count that is not one is refused rather than read as zero or as
+        # many: either reading would decide a removal on a typo.
+        case "$decisions" in
+          '' | *[!0-9]*)
+            echo "check-loop-output: --decisions takes a non-negative integer, got '${decisions}'" >&2
+            return 2
+            ;;
+        esac
+        shift 2
+        ;;
       --repo)
         repo="${2:-}"
         shift 2
@@ -807,7 +866,7 @@ main() {
     pairs="$(resolve_pairs "$repo")" || return 2
   fi
 
-  gate "$repo" "$derived" "$pairs" "$hold"
+  gate "$repo" "$derived" "$pairs" "$hold" "$decisions"
 }
 
 main "$@"

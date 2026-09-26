@@ -137,6 +137,9 @@ jobs:
           log="$RUNNER_TEMP/kapi-push.log"
           kapi context push | tee "$log"
           pushed="$(sed -n 's/^Pushed \([0-9][0-9]*\) operation.*/\1/p' "$log")"
+          # The count is also what the gate below takes as the decisions that
+          # account for a removed artifact.
+          echo "pushed=${pushed:-0}" >> "$GITHUB_OUTPUT"
           echo "note=\`kapi context push\` shared ${pushed:-0} context operation(s) on refs/kapi/context." >> "$GITHUB_OUTPUT"
 
       # The pipeline's third stage, the other thing kapi cannot do for itself. A
@@ -175,15 +178,20 @@ jobs:
       # Coverage is not what it asks. A locale short of its source is the pending
       # state this loop absorbs, and a night that approved nothing is an ordinary
       # night. What the run brought home to the context is reported by the push
-      # step above. An owned artifact the run *removed* refuses it: a removal
-      # carries no content to read.
+      # step above. What a run *removed* still needs a decision behind it: a
+      # removal carries no content to read, so the gate takes the number of
+      # operations the push step shared as `--decisions`, and refuses a removed
+      # artifact when that number is 0. A plan dispatch skips the push step,
+      # its output is empty, and the gate reads 0.
       #
       # Runs unconditionally rather than behind has-changes, so the gate reads
       # the tree itself rather than the action's account of it. A clean tree
       # (a `plan` dispatch, or a run with nothing to catch up) passes.
       - name: Refuse derived content that must not be committed
         id: gate
-        run: ./scripts/check-loop-output.sh --hold-back
+        env:
+          PUSHED: ${{ steps.record.outputs.pushed }}
+        run: ./scripts/check-loop-output.sh --hold-back --decisions "${PUSHED:-0}"
 
       # The action reports; delivery is this workflow's own step, and it is a
       # pull request rather than a push to main. Approved wording is content
