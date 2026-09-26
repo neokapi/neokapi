@@ -343,13 +343,18 @@ const (
 //
 // Widening to a broader point drops the axes the rule should stop being
 // specific about, so a rule seen in one product's reference pages can be
-// widened to the brand by dropping product and mode. Widening to the workspace
+// widened to the brand by dropping product and mode. Widening to the project
+// drops the profile the evidence was seen under, and widening to the workspace
 // drops the project too.
 type Scope struct {
 	Level Level `json:"level,omitempty"`
 	// Coordinates are the axes of the point (project.MergeCoordinates), omitted
 	// where the rule answers regardless of them.
 	Coordinates map[string]string `json:"coordinates,omitempty"`
+	// AllProfiles says a project-level rule holds under every profile of the
+	// project, rather than under the profile its evidence was seen under
+	// (Basis.Profile). A person sets it by widening the rule to the project.
+	AllProfiles bool `json:"all_profiles,omitempty"`
 }
 
 // Covers reports whether a subject at this scope answers at the point given.
@@ -369,6 +374,9 @@ func (s Scope) Describe() string {
 	level := s.Level
 	if level == "" {
 		level = LevelProject
+	}
+	if s.AllProfiles && level == LevelProject {
+		level += " (every profile)"
 	}
 	if len(s.Coordinates) == 0 {
 		return string(level)

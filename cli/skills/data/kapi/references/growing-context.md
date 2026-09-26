@@ -82,6 +82,7 @@ kapi context keep 0n794e2gk7 0n79gkq853   # establish rules, and write them
 kapi context keep --session s4f1c2        # keep everything one run suggested
 kapi context drop 0n794e2gk7              # set a suggestion aside
 kapi context revert --session s4f1c2      # undo everything one run recorded
+kapi context widen 0n794e2gk7 --to project   # a rule settled under one profile, under every profile
 kapi context widen 0n794e2gk7 --to workspace # put an established rule in force everywhere
 ```
 

@@ -22,6 +22,11 @@ func (c *Concept) ScopeToProfile(profile string) {
 	c.Properties[PropProfile] = profile
 }
 
+// Unscope removes the concept's profile, so it holds across the project.
+func (c *Concept) Unscope() {
+	delete(c.Properties, PropProfile)
+}
+
 // AtProfile keeps the concepts that hold where a profile governs: the ones
 // scoped to no profile, and the ones scoped to that profile. An empty profile
 // is the project's default point, where only unscoped concepts hold.

@@ -79,6 +79,10 @@ type changeEntry struct {
 	// Profile scopes a new term's concept to the profile a rule's evidence was
 	// seen at. Only a kept or settled rule sets it; an apply never does.
 	Profile string `json:"-"`
+	// AllProfiles clears the profile a term's concept is scoped to, so it
+	// holds across the project. Only a rule a person widened to the project
+	// sets it; an apply never does.
+	AllProfiles bool `json:"-"`
 	// Advisory, for a discouraged term, makes a use of it report without
 	// failing a check.
 	Advisory bool `json:"advisory,omitempty" jsonschema:"for kind=term with a discouraged status: a use reports without failing a check"`

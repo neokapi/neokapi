@@ -80,7 +80,7 @@ func (l *Ledger) Append(ctx context.Context, r Record) (Record, error) {
 		Actor:    r.Actor,
 		Kind:     r.Kind,
 		Subject:  r.Subject.Kind,
-		Widening: r.Kind == KindWiden || (r.Kind == KindKeep && r.Scope.Level == LevelWorkspace),
+		Widening: r.Kind == KindWiden || (r.Kind == KindKeep && (r.Scope.Level == LevelWorkspace || r.Scope.AllProfiles)),
 		Editing:  r.Kind == KindKeep && r.Subject.Kind != SubjectNone,
 	}
 	if r.Target != "" {
@@ -290,7 +290,7 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 			if act.Subject.Kind != SubjectNone {
 				records[i].Subject = act.Subject
 			}
-			if act.Scope.Level != "" || len(act.Scope.Coordinates) > 0 {
+			if act.Scope.Level != "" || len(act.Scope.Coordinates) > 0 || act.Scope.AllProfiles {
 				records[i].Scope = act.Scope
 			}
 		case KindDrop:
