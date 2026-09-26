@@ -19,7 +19,13 @@ import (
 func TestUpFlagSurface_EveryFlagHereExistsOnTheBuiltinUp(t *testing.T) {
 	builtin := cli.NewUpCmd(&cli.App{})
 
-	upCmd.Flags().VisitAll(func(f *pflag.Flag) {
+	// LocalFlags: the flags a parent command lends (--yes, --config) are the
+	// host root's and reach both commands alike, as does the --help cobra adds
+	// to any command it has run.
+	upCmd.LocalFlags().VisitAll(func(f *pflag.Flag) {
+		if f.Name == "help" {
+			return
+		}
 		assert.NotNil(t, builtin.Flags().Lookup(f.Name),
 			"`kapi up --%s` is rejected as an unknown flag before this plumbing runs; register it in cli/up.go as well", f.Name)
 	})
