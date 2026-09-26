@@ -44,8 +44,10 @@ import (
 )
 
 // targets are the packages checked: every Apache module that reaches a
-// project store. Bowrain keeps its own stores and is outside the line.
-var targets = []string{"./core/...", "./host/...", "./cli/...", "./kapi/...", "./apps/kapi-desktop/backend/..."}
+// project store, including the kapi-bowrain plugin, which writes what it pulls
+// from a server into the project's stores. The rest of bowrain/ keeps its own
+// stores on the server.
+var targets = []string{"./core/...", "./host/...", "./cli/...", "./kapi/...", "./apps/kapi-desktop/backend/...", "./bowrain/plugin/..."}
 
 // exempt packages write the stores by design: the projector itself, and the
 // project store that opens them.

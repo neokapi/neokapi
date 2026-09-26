@@ -3,7 +3,7 @@ package projector_test
 import (
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -110,7 +110,7 @@ func TestMeasureWriteLatency(t *testing.T) {
 		})
 	}
 	wg.Wait()
-	sort.Slice(spent, func(i, j int) bool { return spent[i] < spent[j] })
+	slices.Sort(spent)
 	pct := func(q float64) time.Duration { return spent[int(q*float64(len(spent)-1))] }
 	t.Logf("%d writes from %d writers: p50 %s, p90 %s, p99 %s, max %s",
 		len(spent), writers, pct(0.50), pct(0.90), pct(0.99), spent[len(spent)-1])

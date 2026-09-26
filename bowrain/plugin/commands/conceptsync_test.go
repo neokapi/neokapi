@@ -242,7 +242,7 @@ func pullInto(t *testing.T, srv *httptest.Server) (*terms.SQLiteStore, *bproject
 
 // editConcept applies mutate to the named concept and upserts it, simulating a
 // local edit between pull and push.
-func editConcept(t *testing.T, tb *terms.SQLiteStore, conceptID string, mutate func(*terms.Concept)) {
+func editConcept(t *testing.T, tb terms.Store, conceptID string, mutate func(*terms.Concept)) {
 	t.Helper()
 	c, ok, err := tb.GetConcept(context.Background(), conceptID)
 	require.NoError(t, err)
