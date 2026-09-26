@@ -446,13 +446,16 @@
             "short": "Record something you noticed about how this project writes"
           },
           "rebuild": {
-            "example": "  kapi context rebuild",
+            "example": "  kapi context rebuild\n  kapi context rebuild --checkpoint",
             "flags": {
+              "checkpoint": {
+                "usage": "keep a checkpoint of the rebuilt stores for the next rebuild to start from"
+              },
               "project": {
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               }
             },
-            "long": "Empty this project's terms, content memory and voice profiles, and the rules\nit widened to the whole workspace, and write them again from the context log.\n\nEvery change to a project's context is recorded in the log with what it wrote,\nso the stores hold nothing the log does not. Rebuilding gives the same stores\nthe changes left behind. Use it when a store is damaged, or after operations from\nanother machine were merged into the log.",
+            "long": "Empty this project's terms, content memory and voice profiles, and the rules\nit widened to the whole workspace, and write them again from the context log.\n\nEvery change to a project's context is recorded in the log with what it wrote,\nso the stores hold nothing the log does not. Rebuilding gives the same stores\nthe changes left behind. Use it when a store is damaged, or after operations from\nanother machine were merged into the log.\n\nWith --checkpoint it keeps a copy of the stores as they stand afterwards, so the\nnext rebuild starts there and replays only the changes after it.",
             "short": "Rebuild this project's stores from the context log"
           },
           "restore": {
