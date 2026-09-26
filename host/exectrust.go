@@ -185,7 +185,8 @@ var ErrExecNotTrusted = errors.New("project not approved to run commands")
 // ensureExecTrust checks authorization for recipe-supplied commands.
 // It applies the first matching rule:
 //
-//  1. Recipes without exec sites need no authorization.
+//  1. Recipes without exec sites need no authorization, and a browser build
+//     grants it to every recipe (execTrustImplied).
 //  2. An affirmative KAPI_TRUST_EXEC grants access for this process without
 //     persisting a decision.
 //  3. A recorded decision for the current exec-surface digest applies.
@@ -198,7 +199,7 @@ func (a *App) ensureExecTrust(recipePath string, proj *project.KapiProject, opts
 	}
 	digest := project.ExecSurfaceDigest(sites)
 
-	if execTrustEnvGranted() {
+	if execTrustImplied || execTrustEnvGranted() {
 		a.execTrustGranted = true
 		return nil
 	}
@@ -293,7 +294,7 @@ func (a *App) checkExecToolAllowed(toolName string) error {
 	if !project.IsExecClassTool(toolName) {
 		return nil
 	}
-	if a.execTrustGranted || execTrustEnvGranted() {
+	if execTrustImplied || a.execTrustGranted || execTrustEnvGranted() {
 		return nil
 	}
 	if a.execTrustRecordedAllow() {
