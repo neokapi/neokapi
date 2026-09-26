@@ -101,6 +101,14 @@ export class Standing {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Applied counts the agent edits that wrote the rule's preferred form.
+             * @member
+             * @type {number | undefined}
+             */
+            this["applied"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Against counts the signals against the rule, and AgainstBy names them.
              * @member
              * @type {number | undefined}
@@ -126,7 +134,7 @@ export class Standing {
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType2;
-        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("merges" in $$parsedSource) {
             $$parsedSource["merges"] = $$createField2_0($$parsedSource["merges"]);
@@ -135,7 +143,7 @@ export class Standing {
             $$parsedSource["uses"] = $$createField3_0($$parsedSource["uses"]);
         }
         if ("against_by" in $$parsedSource) {
-            $$parsedSource["against_by"] = $$createField5_0($$parsedSource["against_by"]);
+            $$parsedSource["against_by"] = $$createField6_0($$parsedSource["against_by"]);
         }
         return new Standing(/** @type {Partial<Standing>} */($$parsedSource));
     }
