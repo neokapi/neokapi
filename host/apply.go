@@ -76,6 +76,9 @@ type changeEntry struct {
 	// Replacement, for kind=term, is the wording to use instead of a
 	// discouraged term; content entries use text.
 	Replacement string `json:"replacement,omitempty" jsonschema:"for kind=term: the wording to use instead of a discouraged term; content entries use text"`
+	// Profile scopes a new term's concept to the profile a rule's evidence was
+	// seen at. Only a kept or settled rule sets it; an apply never does.
+	Profile string `json:"-"`
 	// Advisory, for a discouraged term, makes a use of it report without
 	// failing a check.
 	Advisory bool `json:"advisory,omitempty" jsonschema:"for kind=term with a discouraged status: a use reports without failing a check"`
@@ -194,6 +197,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		diffOut = cmd.ErrOrStderr()
 	}
 
+	edited := map[string][]string{}
 	for _, file := range fileOrder {
 		report := &coretools.ApplyReport{}
 		byID, byHash := buildEditMaps(byFile[file])
@@ -217,6 +221,15 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 		out.Content.Skipped = append(out.Content.Skipped, report.Skipped...)
 		out.Content.Stale = append(out.Content.Stale, report.Stale...)
 		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
+		if texts := appliedTexts(byFile[file], report.Applied); !diff && len(texts) > 0 {
+			edited[file] = texts
+		}
+	}
+	if len(edited) > 0 {
+		if resolved, rerr := a.commandActor(); rerr == nil {
+			recipe, _ := ResolveProjectPath(cmd)
+			a.noteAgentEdits(ctx, recipe, resolved.Actor, edited)
+		}
 	}
 	if len(comments) > 0 {
 		out.Comments = a.applyComments(ctx, cmd, comments, diff, backupSuffix, a.applyFormatterTrust(cmd, path == "" || path == StdinName), "")

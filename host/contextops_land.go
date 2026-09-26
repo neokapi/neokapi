@@ -198,16 +198,23 @@ func (s *contextOpsSession) retractFromProject(ctx context.Context, r contextop.
 // per form a term rule avoids, or the term alone as the form the project uses
 // when the rule avoids nothing.
 func (s *contextOpsSession) assetEntries(r contextop.Record) []changeEntry {
+	// A rule holds at the point its evidence was seen: a profile's point when
+	// a profile governed there. Widening past it is a person's act.
+	profile := r.Basis.Profile
+	if r.Scope.Level == contextop.LevelWorkspace {
+		profile = ""
+	}
 	switch {
 	case r.Subject.Kind == contextop.SubjectTerm && r.Subject.Term != nil:
 		rule := *r.Subject.Term
 		if rule.Replacement == "" {
 			return []changeEntry{{
-				Kind:   kindTerm,
-				Op:     "upsert",
-				Term:   rule.Term,
-				Locale: s.sourceLocale(),
-				Status: string(model.TermPreferred),
+				Kind:    kindTerm,
+				Op:      "upsert",
+				Term:    rule.Term,
+				Locale:  s.sourceLocale(),
+				Status:  string(model.TermPreferred),
+				Profile: profile,
 			}}
 		}
 		forms := storedForms(rule)
@@ -222,6 +229,7 @@ func (s *contextOpsSession) assetEntries(r contextop.Record) []changeEntry {
 				Status:      string(model.TermForbidden),
 				Advisory:    rule.Advisory,
 				Competitor:  rule.Competitor,
+				Profile:     profile,
 			})
 		}
 		return out

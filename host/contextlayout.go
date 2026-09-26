@@ -42,6 +42,9 @@ type contextSource struct {
 	path string
 	rel  string
 	kind contextSourceKind
+	// profile names the profile a file under `.kapi/profiles/<name>/` belongs
+	// to. The word rules it carries hold only where that profile governs.
+	profile string
 }
 
 type contextSourceKind int
@@ -73,10 +76,10 @@ func (a *App) readContextSource(ctx context.Context, db *projectdb.DB, writer *p
 func (a *App) readContextSourceInto(ctx context.Context, db *projectdb.DB, batch *projector.Batch, root string, src contextSource) (int, error) {
 	switch src.kind {
 	case sourceKindTerms:
-		tb := batch.Terms()
-		if tb == nil {
+		if batch.Terms() == nil {
 			return 0, fmt.Errorf("read terms: %w", projectdb.ErrNoStore)
 		}
+		tb := scopedTerms(batch.Terms(), src.profile)
 		f, err := os.Open(src.path)
 		if err != nil {
 			return 0, fmt.Errorf("open terms source: %w", err)
@@ -100,7 +103,7 @@ func (a *App) readContextSourceInto(ctx context.Context, db *projectdb.DB, batch
 		}
 		var tb terms.Terminology
 		if t := batch.Terms(); t != nil {
-			tb = t
+			tb = scopedTerms(t, src.profile)
 		}
 		words, err := a.compileVoiceSource(ctx, db, store, tb, src)
 		if err != nil {
@@ -140,7 +143,7 @@ func committedContextSources(layout project.Layout) ([]contextSource, error) {
 	var out []contextSource
 	seen := map[string]bool{}
 
-	add := func(path string, kind contextSourceKind) error {
+	add := func(path string, kind contextSourceKind, profile string) error {
 		abs := resolveUnder(layout.Root, path)
 		if seen[abs] {
 			return nil
@@ -156,15 +159,15 @@ func committedContextSources(layout project.Layout) ([]contextSource, error) {
 			return nil
 		}
 		seen[abs] = true
-		out = append(out, contextSource{path: abs, rel: relSlash(layout.Root, abs), kind: kind})
+		out = append(out, contextSource{path: abs, rel: relSlash(layout.Root, abs), kind: kind, profile: profile})
 		return nil
 	}
 
-	if err := add(filepath.Join(layout.StateDir, ktb.ConventionalName), sourceKindTerms); err != nil {
+	if err := add(filepath.Join(layout.StateDir, ktb.ConventionalName), sourceKindTerms, ""); err != nil {
 		return nil, err
 	}
 	for _, name := range profileDirNames(export) {
-		if err := add(filepath.Join(export.ProfileDir(name), ktb.ConventionalName), sourceKindTerms); err != nil {
+		if err := add(filepath.Join(export.ProfileDir(name), ktb.ConventionalName), sourceKindTerms, name); err != nil {
 			return nil, err
 		}
 	}
@@ -174,13 +177,16 @@ func committedContextSources(layout project.Layout) ([]contextSource, error) {
 		return nil, err
 	}
 	for _, p := range memoryPaths {
-		if err := add(p, sourceKindMemory); err != nil {
+		if err := add(p, sourceKindMemory, ""); err != nil {
 			return nil, err
 		}
 	}
 
-	for _, p := range voiceProfilePaths(layout) {
-		if err := add(p, sourceKindVoice); err != nil {
+	if err := add(filepath.Join(layout.StateDir, VoiceConventionalName), sourceKindVoice, ""); err != nil {
+		return nil, err
+	}
+	for _, name := range profileDirNames(export) {
+		if err := add(filepath.Join(export.ProfileDir(name), VoiceConventionalName), sourceKindVoice, name); err != nil {
 			return nil, err
 		}
 	}
@@ -206,19 +212,6 @@ func bundlePathsIn(dir string) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
-}
-
-// voiceProfilePaths lists the voice profiles a `.kapi/` layout holds: the
-// project default first, then one per profile directory in name order. The
-// order puts the default ahead of the overrides, so an id both of them claim is
-// settled the way a layout's own order settles it.
-func voiceProfilePaths(layout project.Layout) []string {
-	export := layout.Export()
-	out := []string{filepath.Join(layout.StateDir, VoiceConventionalName)}
-	for _, n := range profileDirNames(export) {
-		out = append(out, filepath.Join(export.ProfileDir(n), VoiceConventionalName))
-	}
-	return out
 }
 
 // profileDirNames lists the per-profile override directories a layout holds,
@@ -277,4 +270,26 @@ func projectStoreExists(path string) bool {
 	}
 	_, statErr := os.Stat(layout.StorePath())
 	return statErr == nil
+}
+
+// profileTerms scopes every concept written through it to one profile, so the
+// word rules a profile's own voice or terms file carries hold only where that
+// profile governs.
+type profileTerms struct {
+	terms.Terminology
+	profile string
+}
+
+func (p profileTerms) AddConcept(ctx context.Context, c terms.Concept) error {
+	c.ScopeToProfile(p.profile)
+	return p.Terminology.AddConcept(ctx, c)
+}
+
+// scopedTerms is tb, scoping what is written through it to profile when one is
+// named.
+func scopedTerms(tb terms.Terminology, profile string) terms.Terminology {
+	if profile == "" {
+		return tb
+	}
+	return profileTerms{Terminology: tb, profile: profile}
 }

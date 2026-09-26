@@ -2038,9 +2038,9 @@ func (a *App) ResolveTermsStore(cmd Command, point project.GovernancePoint) (Sto
 		return StoreSelection{}, err
 	}
 	if bound != "" {
-		return StoreSelection{Path: bound}, nil
+		return StoreSelection{Path: bound, Profile: rc.Profile}, nil
 	}
-	return StoreSelection{Root: root}, nil
+	return StoreSelection{Root: root, Profile: rc.Profile}, nil
 }
 
 // governedTermsPath returns the file behind the terms store a resolved
@@ -2107,43 +2107,61 @@ func (a *App) ResolveTermRulesFor(cmd Command, targetLang string, point project.
 // governing the point selects that store by name. Otherwise the project's own
 // terms answer.
 //
-// point scopes the resolution to the terms binding governing there; the zero
-// point is the project-wide answer.
+// point scopes the resolution to the terms binding governing there, and to the
+// concepts that hold at the profile governing there: a concept scoped to one
+// profile (terms.PropProfile) holds only where that profile governs. The zero
+// point is the project-wide answer, which lists every concept.
 func (a *App) projectConcepts(cmd Command, point project.GovernancePoint) ([]sqlterms.Concept, error) {
+	concepts, profile, err := a.storeConcepts(cmd, point)
+	if err != nil || zeroPoint(point) {
+		return concepts, err
+	}
+	return sqlterms.AtProfile(concepts, profile), nil
+}
+
+// zeroPoint reports the point that names no location, which asks for the
+// project-wide answer.
+func zeroPoint(point project.GovernancePoint) bool {
+	return point.Profile == "" && point.Collection == "" && point.Path == ""
+}
+
+// storeConcepts reads every concept in the terms store governing a point, with
+// the profile governing there.
+func (a *App) storeConcepts(cmd Command, point project.GovernancePoint) ([]sqlterms.Concept, string, error) {
 	sel, err := a.ResolveTermsStore(cmd, point)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	ctx := CmdContext(cmd)
 	if sel.InProject() {
 		db, err := a.ProjectDB(ctx, sel.Root)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		if db.Terms() == nil {
-			return nil, nil
+			return nil, "", nil
 		}
 		concepts, err := db.Terms().Concepts(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("list terms concepts: %w", err)
+			return nil, "", fmt.Errorf("list terms concepts: %w", err)
 		}
-		return concepts, nil
+		return concepts, sel.Profile, nil
 	}
 	if sel.Path != "" {
 		if _, statErr := os.Stat(sel.Path); statErr == nil {
 			tb, err := sqlterms.NewSQLiteStore(sel.Path)
 			if err != nil {
-				return nil, fmt.Errorf("open terms %q: %w", sel.Path, err)
+				return nil, "", fmt.Errorf("open terms %q: %w", sel.Path, err)
 			}
 			defer tb.Close()
 			concepts, err := tb.Concepts(ctx)
 			if err != nil {
-				return nil, fmt.Errorf("list terms concepts: %w", err)
+				return nil, "", fmt.Errorf("list terms concepts: %w", err)
 			}
-			return concepts, nil
+			return concepts, sel.Profile, nil
 		}
 	}
-	return nil, nil
+	return nil, "", nil
 }
 
 // runProjectStepsOver runs a project flow's steps over an explicit input set.

@@ -114,8 +114,9 @@ backs it and nothing contradicts it:
   [the kapi loop in CI](/kapi/convergence-in-ci#settle-suggestions-after-a-merge)).
 
 Other evidence adds to a suggestion's **standing** without establishing it:
-another session recording the same rule, and your content writing the
-preferred form. `kapi context log` ends each suggestion's line with its
+another session recording the same rule, an agent's edit writing the preferred
+form, and your content writing it, which `kapi check` over the whole project
+and `kapi up` count. `kapi context log` ends each suggestion's line with its
 standing as plain counts, and the context answer shows the same counts:
 
 ```
@@ -165,7 +166,10 @@ Nothing is erased. Reverted operations stay in the log, marked reverted.
 
 A rule initially applies at the context coordinates of its evidence. For
 example, a term recorded in one product's reference pages does not apply to
-another product's tutorials.
+another product's tutorials. When a profile governs where the evidence was
+seen, the established rule holds only where that profile governs. So do the word
+rules `kapi context import` reads in for one profile: they land in the terms
+store scoped to that profile.
 
 To apply an established rule across the workspace:
 

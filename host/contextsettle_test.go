@@ -100,7 +100,57 @@ func TestSettle_ACheckCountsUses(t *testing.T) {
 	assert.Equal(t, proposed.ID, op.Operations[0].ID, "content moving to the avoided form contests it")
 }
 
-// TestSettle_AMergeIsEvidence:a change that reached the default branch
+// TestSettle_UpCountsUses: a `kapi up` run reads the whole source, and records
+// how it writes a suggestion's forms as a check of the whole project does.
+func TestSettle_UpCountsUses(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := contextOpsProject(t, "ctxops-upusage")
+	proposed := proposeUtilise(t, app, root, agentIn("s1"))
+
+	_, err := app.RunUp(t.Context(), recipeOf(root), "", UpOptions{UntilGate: true, MaxPasses: 1})
+	require.NoError(t, err)
+
+	got, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	var usage *contextop.Signal
+	for _, op := range got.Operations {
+		if op.Kind == contextop.KindSignal && op.Target == proposed.ID {
+			usage = op.Signal
+		}
+	}
+	require.NotNil(t, usage, "the run records a usage count")
+	assert.Equal(t, contextop.SignalUsage, usage.Source)
+	assert.Equal(t, 1, usage.Rejected)
+}
+
+// TestSettle_AnAgentsEditAddsStanding: an agent's applied edit writing the
+// preferred form adds to the suggestion's standing and establishes nothing; a
+// person's apply records no such signal.
+func TestSettle_AnAgentsEditAddsStanding(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := contextOpsProject(t, "ctxops-applied")
+	proposed := proposeUtilise(t, app, root, agentIn("s1"))
+	edits := map[string][]string{filepath.Join(root, "config", "app.yaml"): {"We use the widget every day."}}
+
+	app.noteAgentEdits(t.Context(), recipeOf(root), person, edits)
+	app.noteAgentEdits(t.Context(), recipeOf(root), agentIn("s2"), edits)
+
+	got, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root), Subjects: true})
+	require.NoError(t, err)
+	var rule *ContextOperation
+	for i, op := range got.Operations {
+		if op.ID == proposed.ID {
+			rule = &got.Operations[i]
+		}
+	}
+	require.NotNil(t, rule)
+	assert.Equal(t, contextop.StatusSuggested, rule.Status, "an agent following a suggestion settles nothing")
+	require.NotNil(t, rule.Standing)
+	assert.Equal(t, 1, rule.Standing.Applied, "only the agent's edit is recorded")
+	assert.Contains(t, rule.line(), "applied in 1 agent edit")
+}
+
+// TestSettle_AMergeIsEvidence: a change that reached the default branch
 // writing the preferred form establishes the suggestion, naming the pull
 // request, and settling the same range again records nothing new.
 func TestSettle_AMergeIsEvidence(t *testing.T) {

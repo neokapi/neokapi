@@ -50,8 +50,9 @@ a single sentence, and do not wait until the end of the task to record them.
 A `kapi context <path>` answer lists the suggestions at that point, each with
 its standing as plain counts (`seen in 3 sessions · 14 of 15 uses in docs/ ·
 merged in #412`), so a later session builds on what an earlier one recorded
-instead of working it out again. Recording the same rule again adds to its
-standing and establishes nothing.
+instead of working it out again. Recording the same rule again, or applying an
+edit that writes its preferred form, adds to its standing and establishes
+nothing.
 
 ## What the entry says about you
 

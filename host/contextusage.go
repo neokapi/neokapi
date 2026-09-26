@@ -2,12 +2,16 @@ package host
 
 import (
 	"context"
+	"maps"
+	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
@@ -131,4 +135,114 @@ func (a *App) recordContextUsage(ctx context.Context, recipe string, u *contextU
 		}
 	}
 	_, _ = s.reconcile(ctx, before)
+}
+
+// countProjectUsage reads the source content a `kapi up` run converged and
+// records how it writes each suggestion's forms, as a whole-project check does.
+// A project with no suggestion reads nothing. Every failure is swallowed, for
+// the reason recordContextUsage gives.
+func (a *App) countProjectUsage(ctx context.Context, cmd Command, recipe string, files []project.ResolvedFile) {
+	rules, err := a.newContextRules(cmd, recipe)
+	if err != nil || rules == nil {
+		return
+	}
+	usage := newContextUsage(rules.records, rules.key)
+	if len(usage.byTerm) == 0 {
+		return
+	}
+	formats, err := a.newCheckFormats(cmd)
+	if err != nil {
+		return
+	}
+	for _, rf := range files {
+		at, rerr := rules.at(project.GovernancePoint{Path: filepath.ToSlash(rf.Relative)})
+		if rerr != nil || len(at.Advisory) == 0 {
+			continue
+		}
+		name, cfg := formats.forFile(a, rf.Path)
+		blocks, berr := a.readBlocksAs(ctx, rf.Path, name, cfg, a.SourceLocale())
+		if berr != nil {
+			continue
+		}
+		for _, b := range blocks {
+			usage.count(at.Advisory, b.SourceText())
+		}
+	}
+	a.recordContextUsage(ctx, recipe, usage)
+}
+
+// appliedTexts are the new wordings of the entries an edit applied.
+func appliedTexts(entries []changeEntry, applied []string) []string {
+	var out []string
+	for _, e := range entries {
+		if e.ID != "" && slices.Contains(applied, e.ID) {
+			out = append(out, e.Text)
+		}
+	}
+	return out
+}
+
+// applyActor is who records that an agent's edit followed a suggestion: the
+// apply that wrote it.
+var applyActor = contextop.Actor{Kind: contextop.ActorTool, Name: "apply"}
+
+// noteAgentEdits records that an agent's applied edits write the form a
+// suggestion prefers, one signal per suggestion and file. It adds to the
+// suggestion's standing and establishes nothing: an agent following a
+// suggestion is no person's signal. Every failure is swallowed, as
+// recordContextUsage's are.
+func (a *App) noteAgentEdits(ctx context.Context, recipe string, actor contextop.Actor, texts map[string][]string) {
+	if actor.Kind != contextop.ActorAgent || len(texts) == 0 {
+		return
+	}
+	s, err := a.contextOps(ctx, recipe)
+	if err != nil {
+		return
+	}
+	records, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Subjects: true})
+	if err != nil {
+		return
+	}
+	usage := newContextUsage(records, s.key)
+	if len(usage.byTerm) == 0 {
+		return
+	}
+	files := make([]string, 0, len(texts))
+	for file := range texts {
+		files = append(files, file)
+	}
+	sort.Strings(files)
+	for _, file := range files {
+		rel := file
+		if filepath.IsAbs(file) {
+			rel = relSlash(s.root, file)
+		}
+		_, point := s.basisAt([]contextop.Evidence{{Path: rel}})
+		for _, key := range slices.Sorted(maps.Keys(usage.byTerm)) {
+			r := usage.byTerm[key]
+			rule, _ := r.Rule()
+			if !r.Scope.Covers(point.Coordinates) {
+				continue
+			}
+			use := formMatcher([]string{rule.Replacement}, rule.MatchesCase())
+			n := 0
+			for _, text := range texts[file] {
+				n += countUses(text, use)
+			}
+			if n == 0 {
+				continue
+			}
+			if _, err := s.ledger.Append(ctx, contextop.Record{
+				Actor:   applyActor,
+				Kind:    contextop.KindSignal,
+				Target:  r.ID,
+				Project: r.Project,
+				Signal: &contextop.Signal{
+					Source: contextop.SignalApplied, Preferred: n, Within: rel, Session: actor.Session,
+				},
+			}); err != nil {
+				return
+			}
+		}
+	}
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/comment"
+	"github.com/neokapi/neokapi/core/contextop"
 )
 
 // markingOxfmt writes an executable named oxfmt into dir and returns its path.
@@ -98,7 +99,7 @@ func applyEditsMCPWith(t *testing.T, a *App, entries ...map[string]any) applyEdi
 	require.NoError(t, err)
 	var in applyEditsInput
 	require.NoError(t, json.Unmarshal(data, &in))
-	_, out, err := a.applyEditsMCP(t.Context(), in)
+	_, out, err := a.applyEditsMCP(t.Context(), contextop.Actor{Kind: contextop.ActorAgent}, in)
 	require.NoError(t, err)
 	return out
 }

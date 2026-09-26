@@ -25,7 +25,11 @@ import (
 //     fresh cell, and what the agent recorded is read back and scored against
 //     the key: recall on the names and spellings, precision, and whether the
 //     decoy was ever proposed as a rule.
-//   - Measure 3, settling, is built together with the settling logic it tests.
+//   - Measure 3, settling. Scripted logs from four machines (sessions, a merge,
+//     corrections, a person's digest) are merged in every order, settling after
+//     each merge: the expected rules are established, no other, and every rule
+//     ends at the same status whatever the order. No model call; a Go test runs
+//     it in CI (eval_settle.go).
 //   - Measure 4, review is worth it. The grow runs' records become a review
 //     sheet a person reads in a few minutes, and the report records their
 //     answers.

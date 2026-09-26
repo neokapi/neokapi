@@ -675,6 +675,11 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		if err != nil {
 			return err
 		}
+		// The run read the whole source, so how it writes each suggestion's
+		// forms is evidence for and against the suggestion (core/contextop).
+		if !opts.noChecks {
+			a.countProjectUsage(ctx, cmd, projectPath, resolved)
+		}
 		d := res.Final.Detail.(derivedState)
 		return a.finishConverge(ctx, cmd, proj, projectPath, flowLabel, res.Passes, d.cov, locales,
 			sourceGate, blockedOnSource, totalSource, facts, opts, emitter.Emit)
