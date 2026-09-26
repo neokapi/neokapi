@@ -10,29 +10,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The terms store and the voice vocabulary can state the same rule. The
+// The terms store and a starter pack's terms can state the same rule. The
 // answer states it once, with every wording to avoid on one line.
 func TestSayThisNotThatStatesEachRuleOnce(t *testing.T) {
 	hits := []ContextTermHit{
 		{ConceptID: "c1", Term: "the Ledger", Locale: "en", Status: "forbidden", Discouraged: true, Replacement: "Fernwell Ledger", Definition: "The product."},
 		{ConceptID: "c1", Term: "Fernwell Ledger", Locale: "en", Status: "preferred", Definition: "The product."},
 	}
-	voice := &coreprofile.VoiceProfile{Vocabulary: coreprofile.VocabularyRules{
-		ForbiddenTerms: []coreprofile.TermRule{
-			{Term: "the Ledger", Replacement: "Fernwell Ledger"},
-			{Term: "Fernwell", Replacement: "Fernwell Ledger", Note: "never alone"},
-			{Term: "seat", Replacement: "person"},
-			{Term: "synergy"},
-		},
-		PreferredTerms: []coreprofile.TermRule{{Term: "person", Note: "who uses the studio"}},
-	}}
+	voice := (&coreprofile.VoiceProfile{}).Carry("pack fernwell", []coreprofile.TermRule{
+		{Replacement: "person", Note: "who uses the studio"},
+		{Term: "the Ledger", Replacement: "Fernwell Ledger"},
+		{Term: "Fernwell", Replacement: "Fernwell Ledger", Note: "never alone"},
+		{Term: "seat", Replacement: "person"},
+		{Term: "synergy"},
+	})
 	binding := []coreprofile.TermRule{{Term: "seat", Replacement: "person"}}
 
 	rules, total := sayThisNotThat(hits, binding, voice, 0)
 	require.Equal(t, 3, total)
-	assert.Equal(t, ContextRule{Say: "Fernwell Ledger", Not: []string{"the Ledger", "Fernwell"}, Note: "The product.", Locale: "en", From: []string{"terms", "voice"}}, rules[0])
-	assert.Equal(t, ContextRule{Say: "person", Not: []string{"seat"}, Note: "who uses the studio", From: []string{"workspace", "voice"}}, rules[1])
-	assert.Equal(t, ContextRule{Not: []string{"synergy"}, From: []string{"voice"}}, rules[2])
+	assert.Equal(t, ContextRule{Say: "Fernwell Ledger", Not: []string{"the Ledger", "Fernwell"}, Note: "The product.", Locale: "en", From: []string{"terms", "pack fernwell"}}, rules[0])
+	assert.Equal(t, ContextRule{Say: "person", Not: []string{"seat"}, Note: "who uses the studio", From: []string{"workspace", "pack fernwell"}}, rules[1])
+	assert.Equal(t, ContextRule{Not: []string{"synergy"}, From: []string{"pack fernwell"}}, rules[2])
 
 	assert.Equal(t, `- Fernwell Ledger, not "the Ledger" or "Fernwell": The product.`, ruleLine(rules[0], false))
 	assert.Equal(t, `- Avoid "synergy"`, ruleLine(rules[2], false))
@@ -49,8 +47,8 @@ func TestContextAnswerTextIsTaskShaped(t *testing.T) {
 		Name:        "Fernwell",
 		Description: "Plain, for studio owners who are not accountants.",
 		Style:       coreprofile.StyleRules{SentenceLength: "short"},
-		Vocabulary:  coreprofile.VocabularyRules{ForbiddenTerms: []coreprofile.TermRule{{Term: "seat", Replacement: "person"}}},
 	}
+	voice.Carry("pack fernwell", []coreprofile.TermRule{{Term: "seat", Replacement: "person"}})
 	res := &ContextAnswer{
 		Point:      ContextPoint{Path: "docs/billing.md", Default: true},
 		Scope:      ScopeProject,

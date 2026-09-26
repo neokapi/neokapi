@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T06:15:08Z",
+  "generatedAt": "2026-09-26T06:44:10Z",
   "commands": [
     {
       "id": "add",
@@ -7683,6 +7683,12 @@
       "short": "Import terms from CSV, JSON, TBX, or a native .terms.json bundle",
       "flags": [
         {
+          "name": "advisory",
+          "usage": "mark every imported concept advisory: a use of its forbidden terms reports without failing a check",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "delimiter",
           "usage": "CSV field delimiter (default: comma)",
           "type": "string"
@@ -7750,6 +7756,7 @@
         "kapi terms import terms.csv -s en -t fr --header",
         "kapi terms import vocab.csv -s en --monolingual --header",
         "kapi terms import terms.tbx --format tbx",
+        "kapi terms import house-style.csv -s en --monolingual --advisory",
         "kapi terms import seeds/terms.json"
       ],
       "offlineCapable": true,
@@ -8766,110 +8773,6 @@
       "demoMode": false
     },
     {
-      "id": "voice.expand",
-      "path": [
-        "voice",
-        "expand"
-      ],
-      "use": "expand",
-      "short": "Fill in the surface forms a profile's terms take (writes the profile)",
-      "long": "Ask a model for the other shapes each vocabulary term takes (inflections,\ndeclensions, conjugations) and write them into the profile as `forms:`.\n\nThe check matches those forms exactly, so this is authoring-time work whose\nresult you review in a diff. Run it again after adding terms; rules that already\ncarry forms are left alone unless --overwrite is given.\n\n  kapi voice expand --profile-file voice.yaml --language nb\n  kapi voice expand --profile-file voice.yaml --dry-run",
-      "flags": [
-        {
-          "name": "api-key",
-          "usage": "API key for the AI provider",
-          "type": "string"
-        },
-        {
-          "name": "channel",
-          "usage": "apply channel-specific overrides",
-          "type": "string"
-        },
-        {
-          "name": "credential",
-          "usage": "saved credential name (see 'kapi credentials list')",
-          "type": "string"
-        },
-        {
-          "name": "dry-run",
-          "usage": "print what would be added and write nothing",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "file",
-          "usage": "explicit path to resource file",
-          "type": "string"
-        },
-        {
-          "name": "language",
-          "usage": "language the terms are in (defaults to the project's source language)",
-          "type": "string"
-        },
-        {
-          "name": "local",
-          "usage": "use resource in current directory",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "locale",
-          "usage": "apply locale-specific overrides",
-          "type": "string"
-        },
-        {
-          "name": "model",
-          "usage": "AI model name",
-          "type": "string"
-        },
-        {
-          "name": "name",
-          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
-          "type": "string"
-        },
-        {
-          "name": "overwrite",
-          "usage": "redo rules that already carry forms",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "built-in starter pack name",
-          "type": "string"
-        },
-        {
-          "name": "persona",
-          "usage": "apply an author persona's overrides (within the profile guardrails)",
-          "type": "string"
-        },
-        {
-          "name": "profile",
-          "usage": "voice profile name in the local store",
-          "type": "string"
-        },
-        {
-          "name": "profile-file",
-          "usage": "path to a standalone profile YAML",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
-          "type": "string"
-        },
-        {
-          "name": "provider",
-          "usage": "AI provider (default: anthropic)",
-          "type": "string"
-        }
-      ],
-      "offlineCapable": false,
-      "runnableInBrowser": true,
-      "demoMode": true
-    },
-    {
       "id": "voice.guide",
       "path": [
         "voice",
@@ -9399,7 +9302,7 @@
       ],
       "use": "validate \u003cfile.yaml|-\u003e",
       "short": "Validate a voice profile YAML (structure, enums, regex, terms)",
-      "long": "Validate a voice profile YAML and report structural problems.\n\nPass a file path, or \"-\" to read the profile from stdin. Validation reports:\n\n  - YAML syntax or type errors that stop the profile from parsing\n  - unknown fields (typo'd or unsupported keys)\n  - missing required fields (only 'name' is required)\n  - invalid enum values (tone formality/emotion/humor, style sentence_length/\n    person_pov/contractions, example category, rule severity)\n  - regex in style prohibited_patterns/required_patterns that does not compile\n  - vocabulary term rules with an empty term\n  - style comments limits that are not a positive number of words, or a minor\n    sentence limit that is not below the major one\n\nExit codes: 0 when the profile is valid, 1 when it has any problem. With --json\nthe result is {\"valid\": bool, \"errors\": [{\"field\", \"message\"}]}.",
+      "long": "Validate a voice profile YAML and report structural problems.\n\nPass a file path, or \"-\" to read the profile from stdin. Validation reports:\n\n  - YAML syntax or type errors that stop the profile from parsing\n  - unknown fields (typo'd or unsupported keys)\n  - missing required fields (only 'name' is required)\n  - invalid enum values (tone formality/emotion/humor, style sentence_length/\n    person_pov/contractions, example category, rule severity)\n  - regex in style prohibited_patterns/required_patterns that does not compile\n  - word rules under terms: that name neither a term nor a replacement\n  - style comments limits that are not a positive number of words\n\nExit codes: 0 when the profile is valid, 1 when it has any problem. With --json\nthe result is {\"valid\": bool, \"errors\": [{\"field\", \"message\"}]}.",
       "flags": [
         {
           "name": "color",

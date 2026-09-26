@@ -21,7 +21,9 @@ The project's terms store is authoritative. `.terms.json` bundles provide a
 portable representation for exchange and review. Terms flow through the streaming pipeline as first-class annotation types
 whose positions are run-anchored, so a match survives run-preserving edits. One
 pass, `terms.Locate`, finds every declared term in a text, whether it was
-declared in a voice profile, in a tool's `term_rules:` or in the store.
+declared in the store, in a tool's `term_rules:` or in a voice file's `terms:`.
+Every "write this, not that" rule is a term: a voice profile holds none
+([C-07](c-07-voice-profiles.md)).
 
 ## Context
 
@@ -63,9 +65,10 @@ type Concept struct {
     ProjectID      string
     Domain         string
     Definition     string
-    Source         TermSource // terminology, or voice vocabulary
+    Source         TermSource // terminology, or brand_vocabulary
     Terms          []Term
     DoNotTranslate bool       // the source term travels into every target unchanged
+    Advisory       bool       // a use of its forbidden, competitor or retired terms reports without failing
     Properties     map[string]string
     CreatedAt      time.Time
     UpdatedAt      time.Time
@@ -208,7 +211,7 @@ can request exact-only, or exact-plus-fuzzy, without changing the pipeline.
 
 `LookupAllTiered` asks a different question (*which declared terms does this
 passage use*) and answers it with `check.TermMatcher`, the single definition of
-what it means for a text to use a term. The voice-profile vocabulary rules, the
+what it means for a text to use a term. The word-rule check, the
 do-not-translate check and the occurrence graph scan with the same matcher, so a
 word is a hit for the whole gate or for none of it. A store term is found under
 its text and under each form it declares, and the match names the term, so
@@ -228,7 +231,7 @@ blocks, a kapi command in quotes such as 'kapi check --staged', an indented
 example command line up to its shell comment, and a flag name such as
 `--diff-range`. Code keeps its words in a translation, so a term written in the
 source's code owes no rendering whatever the rule's scope, and the same word in
-the prose beside it still does. A voice term rule reports where a term is
+the prose beside it still does. A source word rule reports where a term is
 written rather than what a translation owes, so it reads code and leaves it out
 only when its `scope` is `prose`. A
 do-not-translate rule reads the source with only its placeholders as syntax, so
@@ -265,12 +268,14 @@ unranked substring queries.
 
 ### Locating declared terms: one pass, two sources
 
-A term is declared in two places. A voice profile lists the words a product
-forbids and a competitor's names it must not print, and a tool's `term_rules:`
-lists the wording a piece of content is held to; the terms store holds the
-concepts the project has decided, which is where `kapi apply` writes. Both are
-the same kind of statement about the same words, so a gate that asks them
-separately is two gates that can disagree about whether a word is in use.
+A term is declared in two places. The terms store holds the concepts the
+project has decided, which is where `kapi apply`, `kapi context keep` and
+`kapi terms import` write. A caller holds rules of its own: a tool's
+`term_rules:` lists the wording a piece of content is held to, a bound starter
+pack carries its terms beside its voice, and the rules established across the
+workspace apply to every project in it. Both are the same kind of statement
+about the same words, so a gate that asks them separately is two gates that can
+disagree about whether a word is in use.
 
 `terms.Locate` asks once. It takes the rules the caller holds and the bound
 store, matches the rules through `profile.MatchTermRules` and the store through
@@ -286,21 +291,22 @@ matter.
 An occurrence is a **use**, not a verdict. The pass reports every declared term
 it finds, including the preferred and approved ones, and says nothing about
 whether any of them is a problem. Which uses are violations is the consuming
-gate's policy and lives there: the voice vocabulary gate objects to a
+gate's policy and lives there: the word-rule gate objects to a
 competitor's name, a forbidden term and a retired one, and `term-lookup`
 annotates all of them because context is what it is for. A pass that filtered to
 one caller's three statuses would be a pass only that caller could use.
 
 The matcher is rule-shaped rather than profile-shaped: `MatchTermRules` takes
-term rule *sets*, each carrying the kind of violation a hit is. A voice profile
-contributes two sets (forbidden terms and a competitor's) through
-`VocabularyRuleSets`; a tool contributes its own. A hit fails unless its rule is
-marked `advisory`. Each rule's `MatchesCase` decides whether it matches in its
+term rule *sets*, each carrying the kind of violation a hit is and, for a set
+the store did not declare, where it comes from (`From`). The store contributes
+the word rules it imposes on source content through `terms.SourceWordRules`; a
+voice file contributes the terms it carries through `CarriedRuleSets`; a tool
+contributes its own. A hit fails unless its rule is marked `advisory`. Each rule's `MatchesCase` decides whether it matches in its
 own casing ([C-07](c-07-voice-profiles.md)): case sensitively when the preferred
 form is capitalised or differs from the rejected one only in case, regardless
 of case otherwise, and as `case_sensitive` says when the rule sets it. That is what lets one match
 run cover every source a caller holds, and what keeps a rule-carrying tool from
-being a second-class citizen of the vocabulary gate.
+being a second-class citizen of the word-rule gate.
 
 A set may be marked `Suggested`, which is how the candidates a project has
 accumulated reach the same pass ([C-11](c-11-context-operations.md)). Every hit
@@ -309,13 +315,16 @@ carries `Suggested` through the hit, the finding and the diagnostic. A rule
 nobody has confirmed is therefore reported wherever a decided term would be,
 weighs nothing in the score, and fails no check.
 
-What a consumer does with an occurrence is its own business. The voice
-vocabulary gate raises a finding, presenting it through `HitsToFindings`, the
-mapping every check surface shares (`kapi check`, the `check_text` and
-`check_file` MCP tools, the desktop panel). It names the terms store when the
-store is what declared the term, because "forbidden by the profile" and
-"forbidden in terms" send a writer to different places to argue with the
-decision. Locating is the part they share.
+What a consumer does with an occurrence is its own business. The word-rule
+gate raises a finding, presenting it through `HitsToFindings`, the mapping every
+check surface shares (`kapi check`, the `check_text` and `check_file` MCP
+tools, the desktop panel). Every finding has one message shape
+(`Forbidden term "x" found`, `Competitor term "x" found`, `Retired term "x"
+found`), and one whose rule the store did not declare carries `metadata.from`
+naming the source (`pack technical-docs`, a workspace rule), so a writer knows
+where to argue with the decision. `kapi check` reports these findings under the
+`terms` analyzer with rule id `terms.vocabulary`, wherever the rule is held.
+Locating is the part the consumers share.
 
 ### Annotations
 
@@ -370,13 +379,18 @@ then* reads identically wherever it is asked.
 transitions; it does not impose a review workflow, which is left to a layer
 above.
 
-### Competitor terms
+### Word rules and advisory concepts
 
-A term carries a competitor flag. `voice-vocab-check` surfaces competitor and
-forbidden terms found in source text as failing voice findings, and a retired
-term as one that reports, using the store's voice-vocabulary term source
-([C-07](c-07-voice-profiles.md)). This gives the framework a minimal hook for
-voice guardrails without depending on the whole voice module.
+Every word rule is a term, so the terms store holds one word list. A term
+carries a competitor flag for a rival's name, and a concept carries an
+`advisory` marking. The word-rule gate (`voice-vocab-check`) surfaces competitor
+and forbidden terms found in source text as failing findings and a retired
+(deprecated) term as one that reports. On an advisory concept every such use
+reports without failing. A person marks a concept advisory with
+`kapi context keep --advisory`, `kapi terms import --advisory` (which marks every
+imported concept), an `x-advisory` descrip in TBX, an `advisory` column in CSV,
+or `"advisory": true` on a `kind: term` change-set entry, which also takes
+`"competitor": true`.
 
 ### Pipeline tools
 
@@ -409,8 +423,8 @@ The framework ships terminology tools as ordinary pipeline stages:
   acceptable target-locale translation is present, and flags blocks where it is
   missing. A source term whose concept is forbidden or deprecated redirects
   through its *use-instead* or *replaced-by* relation, so the expected rendering
-  is the replacement's. Forbidden, deprecated and competitor detection is
-  `voice-vocab-check`'s job, not this one's.
+  is the replacement's. Forbidden, deprecated and competitor detection in the
+  source belongs to `voice-vocab-check`.
 - **`dnt-check`** (validate): checks that do-not-translate terms survive
   verbatim into the target. It takes `term_rules:` like every governed step and
   unions the rules marked do-not-translate with the strings a recipe, `--terms`
@@ -499,8 +513,8 @@ a language that inflects and about a form spelled the same as another term.
   generalization.
 - Concept relations give UIs a graph substrate without a separate graph database
   in the framework.
-- The competitor flag gives voice guardrails a hook without a dependency on the
-  voice module.
+- One word list: a forbidden, competitor or retired term is decided once, in
+  the store, and every check reads it there.
 - The same storage backends as the content memory keep the dependency footprint
   small and cross-compilation simple.
 
@@ -510,8 +524,8 @@ a language that inflects and about a form spelled the same as another term.
   layout.
 - [C-03: The context store and graph](c-03-context-store-and-graph.md): where
   the projection lives and how occurrence is indexed.
-- [C-07: Voice profiles](c-07-voice-profiles.md): the `TermRule` shape and the
-  vocabulary gate.
+- [C-07: Voice profiles](c-07-voice-profiles.md): the `TermRule` shape, the
+  voice files that carry terms, and the word-rule gate.
 - [C-09: Content memory](c-09-content-memory.md): shared matching
   infrastructure, and the source-versus-state contrast.
 - [E-03: Tool System](../engine/e-03-tool-system.md): the pipeline-tool

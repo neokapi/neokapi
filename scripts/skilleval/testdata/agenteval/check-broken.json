@@ -1,7 +1,7 @@
 {
   "schema": "kapi.check/v1",
-  "pass": true,
-  "verdict": "passed",
+  "pass": false,
+  "verdict": "failed",
   "target": {
     "kind": "diff",
     "file": "git diff 85d170cf7f94644f6f6b4a57b2c260be869ac754",
@@ -9,24 +9,15 @@
   },
   "summary": {
     "findings": 4,
-    "critical": 0,
-    "major": 4,
-    "minor": 0,
-    "neutral": 0,
+    "failing": 4,
+    "reporting": 0,
     "score": 80
-  },
-  "gate": {
-    "max_critical": 0,
-    "max_major": -1,
-    "max_minor": -1,
-    "min_score": 0,
-    "failed": []
   },
   "findings": [
     {
-      "rule": "voice.vocabulary",
-      "check": "voice",
-      "severity": "major",
+      "rule": "terms.vocabulary",
+      "check": "terms",
+      "fails": true,
       "message": "Forbidden term \"log in\" found",
       "suggestion": "Use \"sign in\" instead",
       "location": {
@@ -56,9 +47,9 @@
       }
     },
     {
-      "rule": "voice.vocabulary",
-      "check": "voice",
-      "severity": "major",
+      "rule": "terms.vocabulary",
+      "check": "terms",
+      "fails": true,
       "message": "Forbidden term \"e-mail\" found",
       "suggestion": "Use \"email\" instead",
       "location": {
@@ -88,9 +79,9 @@
       }
     },
     {
-      "rule": "voice.vocabulary",
-      "check": "voice",
-      "severity": "major",
+      "rule": "terms.vocabulary",
+      "check": "terms",
+      "fails": true,
       "message": "Forbidden term \"employee\" found",
       "suggestion": "Use \"team member\" instead",
       "location": {
@@ -120,9 +111,9 @@
       }
     },
     {
-      "rule": "voice.vocabulary",
-      "check": "voice",
-      "severity": "major",
+      "rule": "terms.vocabulary",
+      "check": "terms",
+      "fails": true,
       "message": "Forbidden term \"!\" found",
       "suggestion": "Use \".\" instead",
       "location": {
@@ -182,11 +173,23 @@
         "reason": "No explicit patterns were configured."
       },
       {
-        "id": "voice.rules",
+        "id": "terms",
         "status": "findings",
         "file": "README.md",
         "required": false,
         "findings": 4,
+        "duration_ms": 0.077708,
+        "canary": {
+          "status": "caught",
+          "probes": 1
+        }
+      },
+      {
+        "id": "voice.rules",
+        "status": "passed",
+        "file": "README.md",
+        "required": false,
+        "findings": 0,
         "duration_ms": 0.077708,
         "canary": {
           "status": "caught",

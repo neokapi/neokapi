@@ -120,10 +120,14 @@ type Concept struct {
 	// Deliberately independent of whether a target term exists. A translated
 	// term needs an entry per locale; an untranslated one is the same string
 	// everywhere, including locales the store has never heard of.
-	DoNotTranslate bool              `json:"do_not_translate,omitempty"`
-	Properties     map[string]string `json:"properties,omitempty"` // extensible metadata
-	CreatedAt      time.Time         `json:"created_at"`
-	UpdatedAt      time.Time         `json:"updated_at"`
+	DoNotTranslate bool `json:"do_not_translate,omitempty"`
+	// Advisory makes a use of the concept's forbidden, competitor or retired
+	// terms report without failing a check. A concept's rules fail unless it is
+	// marked advisory.
+	Advisory   bool              `json:"advisory,omitempty"`
+	Properties map[string]string `json:"properties,omitempty"` // extensible metadata
+	CreatedAt  time.Time         `json:"created_at"`
+	UpdatedAt  time.Time         `json:"updated_at"`
 }
 
 // SourceTerm returns the first term matching the given locale. Locales are
@@ -339,4 +343,16 @@ type Terminology interface {
 
 	// Close releases resources.
 	Close() error
+}
+
+// MarkingAdvisory wraps a store so every concept written through it is marked
+// advisory: an import of a terms file whose rules should report without
+// failing a check.
+func MarkingAdvisory(tb Terminology) Terminology { return advisoryWriter{tb} }
+
+type advisoryWriter struct{ Terminology }
+
+func (w advisoryWriter) AddConcept(ctx context.Context, concept Concept) error {
+	concept.Advisory = true
+	return w.Terminology.AddConcept(ctx, concept)
 }

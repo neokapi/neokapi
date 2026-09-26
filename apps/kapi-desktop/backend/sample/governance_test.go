@@ -123,14 +123,15 @@ func TestCommittedVoiceProfileValidates(t *testing.T) {
 	require.NoError(t, err, "the committed voice profile must decode strictly")
 	assert.Empty(t, profile.ValidateProfile(p), "the committed voice profile must validate")
 
-	assert.NotEmpty(t, p.Vocabulary.ForbiddenTerms, "the profile must carry term rules to check against")
+	words := p.CarriedTerms().Rules
+	assert.True(t, profile.HasWordRules(p), "the voice file must carry term rules to check against")
 	assert.NotEmpty(t, p.Channels, "the profile must bend per channel, or the channels teach nothing")
 
 	// A rule tied to a concept is what lets a finding lead back to the
 	// definition it came from.
 	var linked int
-	for _, r := range p.Vocabulary.ForbiddenTerms {
-		if r.ConceptID != "" {
+	for _, r := range words {
+		if r.Term != "" && r.ConceptID != "" {
 			linked++
 		}
 	}

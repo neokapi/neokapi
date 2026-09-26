@@ -29,7 +29,6 @@ function makeProfile(overrides: Partial<VoiceProfile> = {}): VoiceProfile {
       person_pov: "second",
       contractions: "sometimes",
     },
-    vocabulary: {},
     examples: [],
     workspace_id: "ws-1",
     version: 1,

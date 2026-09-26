@@ -80,12 +80,7 @@ func TestBlockTermCompliance_Directions(t *testing.T) {
 		"a profile with no block rule governs nothing")
 
 	// PRESENCE (brand vocabulary): a forbidden brand rule matched in the target.
-	profile := &coreprofile.VoiceProfile{
-		ID: "p",
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{{Term: "cheap"}},
-		},
-	}
+	profile := (&coreprofile.VoiceProfile{ID: "p"}).Carry("voice file", []coreprofile.TermRule{{Term: "cheap"}})
 	assert.Equal(t, violation, blockTermCompliance(ctx, mkFrBlock("Affordable", "cheap stuff"), "en", "fr", nil, profile),
 		"a forbidden brand-vocabulary term in the target is a violation")
 	assert.Equal(t, compliant, blockTermCompliance(ctx, mkFrBlock("Affordable", "budget-friendly"), "en", "fr", nil, profile),

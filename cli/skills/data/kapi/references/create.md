@@ -109,9 +109,9 @@ kapi apply changeset.jsonl
   records the change, so `kapi context log` carries the one new term and the
   next `kapi check draft.md` enforces it.
 
-The asset kinds `kapi apply` accepts (`term`, `memory`, `voice`, `recipe`) and
-their fields are summarized in [edit.md](edit.md); the voice-vocabulary case is
-detailed in [voice.md](voice.md). Asset entries require a kapi project, because
+The asset kinds `kapi apply` accepts (`term`, `memory`, `recipe`) and
+their fields are summarized in [edit.md](edit.md); a word rule is a `term`
+entry, detailed in [voice.md](voice.md). Asset entries require a kapi project, because
 the stores they write belong to one.
 
 After applying, run `kapi check draft.md --json` again to check the draft against

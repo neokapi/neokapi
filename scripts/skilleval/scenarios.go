@@ -111,17 +111,12 @@ style:
     sentence_length: short
     person_pov: second
     contractions: sometimes
-vocabulary:
-    preferred_terms:
-        - term: use
-          note: Preferred over 'utilize' and 'leverage'
-    forbidden_terms:
-        - term: utilize
-          severity: major
-        - term: leverage
-          severity: major
-        - term: cutting-edge
-          severity: major
+terms:
+    - replacement: use
+      note: Preferred over 'utilize' and 'leverage'
+    - term: utilize
+    - term: leverage
+    - term: cutting-edge
 `
 
 // A term seed with real entries. EVALS.md records that scenario 7 shipped with
@@ -321,10 +316,8 @@ style:
     active_voice: true
     sentence_length: short
     person_pov: second
-vocabulary:
-    forbidden_terms:
-        - term: Tideguard
-          severity: major
+terms:
+    - term: Tideguard
 `
 
 var scenarios = []Scenario{

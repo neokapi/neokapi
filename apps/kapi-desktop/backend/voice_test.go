@@ -77,16 +77,6 @@ func TestProjectVoiceCarriesTheWholeProfile(t *testing.T) {
 	require.Len(t, def.Profile.Style.ProhibitedPatterns, 1)
 	assert.True(t, def.Profile.Style.ProhibitedPatterns[0].Advisory)
 
-	// A rule's advisory marking decides whether a violation fails or only
-	// reports, so it travels with the rule rather than being inferred at the
-	// surface.
-	require.Len(t, def.Profile.Vocabulary.PreferredTerms, 1)
-	assert.Equal(t, "log in", def.Profile.Vocabulary.PreferredTerms[0].Term)
-	assert.Equal(t, "sign in", def.Profile.Vocabulary.PreferredTerms[0].Replacement)
-	assert.False(t, def.Profile.Vocabulary.PreferredTerms[0].Advisory)
-	require.Len(t, def.Profile.Vocabulary.ForbiddenTerms, 1)
-	assert.False(t, def.Profile.Vocabulary.ForbiddenTerms[0].Advisory)
-
 	require.Len(t, def.Profile.Examples, 1)
 	assert.Equal(t, "Use the portal.", def.Profile.Examples[0].After)
 

@@ -40,19 +40,26 @@ func testProfile() *coreprofile.VoiceProfile {
 			PersonPOV:      "second",
 			Contractions:   "sometimes",
 		},
-		Vocabulary: coreprofile.VocabularyRules{
-			PreferredTerms: []coreprofile.TermRule{
-				{Term: "use", Replacement: "", Note: "prefer over utilize"},
-			},
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "utilize", Replacement: "use"},
-			},
-		},
 		Examples: []coreprofile.VoiceExample{
 			{Before: "Utilize the feature", After: "Use the feature", Explanation: "simpler"},
 		},
 		CreatedBy: "test-user",
 	}
+}
+
+// TestStoredProfileHoldsNoWordRules: word rules a profile carries from its
+// voice file are terms, so the voice store keeps the voice alone.
+func TestStoredProfileHoldsNoWordRules(t *testing.T) {
+	ctx := t.Context()
+	store := newTestStore(t)
+
+	profile := testProfile().Carry("voice file", []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}})
+	require.NoError(t, store.CreateProfile(ctx, profile))
+
+	got, err := store.GetProfile(ctx, "p1")
+	require.NoError(t, err)
+	assert.Equal(t, "Friendly Tech", got.Name)
+	assert.Empty(t, got.CarriedTerms().Rules, "the store keeps no word rules")
 }
 
 func TestProfileCRUD(t *testing.T) {
@@ -72,8 +79,6 @@ func TestProfileCRUD(t *testing.T) {
 	assert.Equal(t, "Friendly Tech", got.Name)
 	assert.Equal(t, "neutral", got.Tone.Formality)
 	assert.True(t, got.Style.ActiveVoice)
-	assert.Len(t, got.Vocabulary.PreferredTerms, 1)
-	assert.Len(t, got.Vocabulary.ForbiddenTerms, 1)
 	assert.Len(t, got.Examples, 1)
 	assert.Equal(t, "test-user", got.CreatedBy)
 
@@ -500,9 +505,8 @@ func TestProfilePersonasRoundTrip(t *testing.T) {
 	p := testProfile()
 	p.Personas = map[string]coreprofile.PersonaOverride{
 		"jordan": {
-			Tone:      &coreprofile.ToneProfile{Formality: "casual", Humor: "frequent"},
-			Preferred: []coreprofile.TermRule{{Term: "let's"}},
-			Avoided:   []coreprofile.TermRule{{Term: "synergy"}},
+			Tone:  &coreprofile.ToneProfile{Formality: "casual", Humor: "frequent"},
+			Style: &coreprofile.StyleRules{PersonPOV: "first_plural"},
 		},
 	}
 	require.NoError(t, store.CreateProfile(ctx, p))
@@ -513,20 +517,19 @@ func TestProfilePersonasRoundTrip(t *testing.T) {
 	persona := got.Personas["jordan"]
 	require.NotNil(t, persona.Tone)
 	assert.Equal(t, "frequent", persona.Tone.Humor)
-	require.Len(t, persona.Preferred, 1)
-	assert.Equal(t, "let's", persona.Preferred[0].Term)
-	require.Len(t, persona.Avoided, 1)
-	assert.Equal(t, "synergy", persona.Avoided[0].Term)
+	require.NotNil(t, persona.Style)
+	assert.Equal(t, "first_plural", persona.Style.PersonPOV)
 
 	// An update preserves personas through the version/round-trip path.
 	got.Personas["jordan"] = coreprofile.PersonaOverride{
-		Avoided: []coreprofile.TermRule{{Term: "leverage"}},
+		Tone: &coreprofile.ToneProfile{Formality: "formal"},
 	}
 	require.NoError(t, store.UpdateProfile(ctx, got))
 	updated, err := store.GetProfile(ctx, "p1")
 	require.NoError(t, err)
-	require.Len(t, updated.Personas["jordan"].Avoided, 1)
-	assert.Equal(t, "leverage", updated.Personas["jordan"].Avoided[0].Term)
+	require.NotNil(t, updated.Personas["jordan"].Tone)
+	assert.Equal(t, "formal", updated.Personas["jordan"].Tone.Formality)
+	assert.Nil(t, updated.Personas["jordan"].Style)
 }
 
 // TestProfileMinScoreRoundTrip verifies that every store read path preserves

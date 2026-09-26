@@ -78,7 +78,7 @@ func (s *MCPServer) registerPhase2Tools() {
 	// rewrite_in_voice: rule-based substitution plus the guide for the rest.
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "rewrite_in_voice",
-		Description: "Rewrite text to match a voice profile by substituting its forbidden and competitor terms. " +
+		Description: "Rewrite text to match a voice profile by substituting the forbidden and competitor terms of the workspace terms store. " +
 			"Returns the rewritten text, a summary of the substitutions, the rules that matched and were left in " +
 			"place under skipped (no replacement, or an inflected form) with the term, list, severity and reason, " +
 			"and the voice guide for the tone and style edits the caller makes by hand. " +
@@ -105,8 +105,10 @@ func (s *MCPServer) handleScoreVoiceCompliance(ctx context.Context, req *mcp.Cal
 		return nil, scoreVoiceComplianceOutput{}, err
 	}
 
-	runs := []model.Run{{Text: &model.TextRun{Text: input.Text}}}
-	findings := coreprofile.Findings(profile, input.Text, runs)
+	findings, err := s.voiceFindings(ctx, profile, model.LocaleID(input.Locale), input.Text)
+	if err != nil {
+		return nil, scoreVoiceComplianceOutput{}, err
+	}
 	score := coreprofile.CalculateScore(findings)
 	score.ProfileID = profile.ID
 	score.WordCount = model.CountWords(input.Text)
@@ -140,12 +142,16 @@ func (s *MCPServer) handleSuggestCorrections(ctx context.Context, req *mcp.CallT
 		return nil, suggestCorrectionsOutput{}, err
 	}
 
-	// Vocabulary only, deliberately: this tool rewrites text, and a term rule
+	// Word rules only, deliberately: this tool rewrites text, and a term rule
 	// carries the replacement that makes a swap mechanical. A prohibited pattern
 	// describes a shape, not a substitution, so folding pattern findings in here
 	// would emit corrections with nothing to correct to. Patterns are reported by
 	// the scoring and check tools, which say what is wrong without rewriting it.
-	findings := coreprofile.HitsToFindings(coreprofile.MatchVocabulary(profile, input.Text), input.Text, nil)
+	sets, err := s.wordRuleSets(ctx, profile, model.LocaleID(input.Locale))
+	if err != nil {
+		return nil, suggestCorrectionsOutput{}, err
+	}
+	findings := coreprofile.HitsToFindings(coreprofile.MatchTermRules(sets, input.Text), input.Text, nil)
 	var corrections []correction
 	corrected := input.Text
 
@@ -199,9 +205,13 @@ func (s *MCPServer) handleRewriteInVoice(ctx context.Context, req *mcp.CallToolR
 	}
 
 	// The rule-based substitution the framework defines, so this tool and
-	// the kapi voice_rewrite tool agree with the vocabulary check on what a
+	// the kapi voice_rewrite tool agree with the word-rule check on what a
 	// hit is and on what they report.
-	result := coreprofile.RewriteVocabulary(resolved, input.Text)
+	sets, err := s.wordRuleSets(ctx, resolved, model.LocaleID(input.Locale))
+	if err != nil {
+		return nil, rewriteInVoiceOutput{}, err
+	}
+	result := coreprofile.RewriteTermRules(sets, input.Text)
 	var changes []string
 	for _, c := range result.Changes {
 		changes = append(changes, fmt.Sprintf("Replaced %s term %q with %q", c.List, c.Term, c.Replacement))

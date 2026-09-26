@@ -10,6 +10,7 @@ import (
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/core/model"
@@ -216,32 +217,32 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 }
 
 // recheckRuleViolations re-checks existing reviewed/signed-off targets against a
-// newly promoted forbidden brand rule, scoped to the promoted term so an existing
-// target that only tripped an OLDER rule is not swept up. It reuses the canonical
-// brand-vocabulary matcher (core/profile.MatchVocabulary — the single source the
-// voice-vocab-check tool and the blast radius both call) as the oracle.
+// newly promoted forbidden term, scoped to that term so an existing target that
+// only tripped an OLDER rule is not swept up. The oracle is the workspace terms
+// store's word rule for the term, in whatever language the store holds it,
+// matched by core/profile.MatchTermRules (the matcher the voice gate and the
+// blast radius both call).
 func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, term, actor string) error {
-	if s.VoiceStore == nil || profileID == "" {
-		return nil
-	}
-	profile, err := s.VoiceStore.GetProfile(ctx, profileID)
-	if err != nil {
-		return fmt.Errorf("read voice profile %s: %w", profileID, err)
-	}
-	if profile == nil {
-		return nil
-	}
 	lowerTerm := strings.ToLower(strings.TrimSpace(term))
 	if lowerTerm == "" {
 		return nil
 	}
-	violates := func(sb *venue.StoredBlock, _, tgtLoc model.LocaleID) bool {
-		for _, hit := range coreprofile.MatchVocabulary(profile, sb.Block.TargetText(tgtLoc)) {
-			if strings.ToLower(hit.Term) == lowerTerm {
-				return true
-			}
+	rules, err := s.workspaceWordRules(ctx, s.workspaceSlug(ctx, "", wsID), "")
+	if err != nil {
+		return fmt.Errorf("read the word rules of workspace %s: %w", wsID, err)
+	}
+	var promoted []coreprofile.TermRule
+	for _, r := range rules {
+		if strings.ToLower(r.Term) == lowerTerm {
+			promoted = append(promoted, r)
 		}
-		return false
+	}
+	if len(promoted) == 0 {
+		return nil
+	}
+	sets := voicescope.WordRuleSets(promoted)
+	violates := func(sb *venue.StoredBlock, _, tgtLoc model.LocaleID) bool {
+		return len(coreprofile.MatchTermRules(sets, sb.Block.TargetText(tgtLoc))) > 0
 	}
 	return s.recheckWorkspaceTargets(ctx, wsID, "rule:"+profileID+":"+lowerTerm, violates, actor)
 }

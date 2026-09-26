@@ -11,6 +11,7 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/core/id"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
@@ -106,8 +107,8 @@ type EvaluateRuleRequest struct {
 }
 
 // HandleEvaluateRulePromotion computes the blast radius of promoting a candidate
-// rule: it runs the profile's vocabulary checks over the project's stored content
-// with and without the rule, and reports how many blocks the change would newly
+// rule: it runs the workspace terms store's word rules over the project's stored
+// content with and without the rule, and reports how many blocks the change would newly
 // flag, what it resolves, and the per-item breakdown — the number a reviewer sees
 // before the rule lands. Nothing is persisted.
 func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
@@ -126,10 +127,19 @@ func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	baseline, err := s.VoiceStore.GetProfile(ctx, c.Param("id"))
-	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	profile, err := s.VoiceStore.GetProfile(ctx, c.Param("id"))
+	if err != nil || !profileInRequestWorkspace(c, profile) {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "voice profile not found"})
 	}
+	project, err := s.ContentStore.GetProject(ctx, req.ProjectID)
+	if err != nil || project == nil || project.WorkspaceID != profile.Scope {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "project not found"})
+	}
+	rules, err := s.workspaceWordRules(ctx, c.Param("ws"), project.DefaultSourceLanguage)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	baseline := voicescope.WordRuleSets(rules)
 	candidate := coreprofile.CandidateWithRule(baseline, coreprofile.SuggestedRule{Term: req.Term, Replacement: req.Replacement})
 
 	// Walked a batch at a time, projecting as it goes: the evaluation wants an
@@ -296,24 +306,13 @@ func (s *Server) maybeAutoPromote(ctx echo.Context, profile *coreprofile.VoicePr
 			return "", false
 		}
 
-		// Link the rule into the brand knowledge graph (AD-021) before promoting,
-		// so the auto-promoted TermRule denotes its concept. Best-effort: a
-		// terms hiccup must not cost the loop an auto-promotion it earned.
-		rule := *sug
-		conceptID, kgEvents, linkErr := s.linkRuleToConcept(rctx, ctx.Param("ws"), wsID, rule)
-		if linkErr != nil {
-			slog.Warn("brand: failed to fully link auto-promoted rule to knowledge graph",
-				"profile_id", profile.ID, "term", sug.Term, "error", linkErr)
+		changed, conceptID, kgEvents, err := s.promoteRuleToTerms(rctx, ctx.Param("ws"), wsID, *sug)
+		if err != nil {
+			slog.Warn("voice: auto-promotion into the terms store failed",
+				"profile_id", profile.ID, "term", sug.Term, "error", err)
+			return "", false
 		}
-		// Stamp the concept whenever the link produced one, even on a partial
-		// failure, so the rule denotes the concept the published kgEvents announce
-		// (no orphaned creation event). Empty when nothing was created.
-		if conceptID != "" {
-			rule.ConceptID = conceptID
-		}
-
-		updated, changed, err := coreprofile.PromoteAndSave(rctx, s.VoiceStore, profile.ID, rule)
-		if err != nil || !changed {
+		if !changed {
 			return "", false
 		}
 		_ = s.VoiceStore.RecordRuleDecision(rctx, &coreprofile.RuleDecision{
@@ -323,12 +322,11 @@ func (s *Server) maybeAutoPromote(ctx echo.Context, profile *coreprofile.VoicePr
 			Dimension:       sug.Dimension,
 			Status:          coreprofile.RuleDecisionPromoted,
 			CorrectionCount: sug.CorrectionCount,
-			PromotedVersion: updated.Version,
 			Auto:            true,
-			ConceptID:       rule.ConceptID,
+			ConceptID:       conceptID,
 			DecidedAt:       time.Now().UTC(),
 		})
-		s.publishVoiceRuleEvent(EventVoiceRuleAutoPromoted, wsID, userID, profile.ID, sug.Term, sug.Replacement, updated.Version)
+		s.publishVoiceRuleEvent(EventVoiceRuleAutoPromoted, wsID, userID, profile.ID, sug.Term, sug.Replacement, 0)
 		s.publishKnowledgeEvents(ctx, kgEvents)
 		return sug.Term, true
 	}

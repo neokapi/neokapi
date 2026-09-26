@@ -162,8 +162,8 @@ func PatternHitsToFindings(hits []PatternHit, text string, runs []model.Run) []V
 	return findings
 }
 
-// Findings is the profile's deterministic gate at BLOCK scope: forbidden and
-// competitor vocabulary plus prohibited style patterns, mapped onto voice
+// Findings is a voice file's deterministic gate at BLOCK scope: the word rules
+// the file carries plus the voice's prohibited style patterns, mapped onto
 // findings in that order. runs anchors the findings' positions; pass nil for
 // plain text.
 //
@@ -174,12 +174,12 @@ func PatternHitsToFindings(hits []PatternHit, text string, runs []model.Run) []V
 // The required patterns are not here, and the omission is the rule's semantics
 // rather than a gap: see [DocumentFindings].
 func Findings(p *VoiceProfile, text string, runs []model.Run) []VoiceFinding {
-	findings := HitsToFindings(MatchVocabulary(p, text), text, runs)
+	findings := HitsToFindings(MatchCarriedTerms(p, text), text, runs)
 	return append(findings, PatternFindings(p, text, runs)...)
 }
 
 // PatternFindings applies presentation patterns and shared constraints without
-// vocabulary matching, for tools that locate terms in a separate shared pass.
+// word-rule matching, for tools that locate terms in a separate shared pass.
 func PatternFindings(p *VoiceProfile, text string, runs []model.Run) []VoiceFinding {
 	findings := PatternHitsToFindings(MatchPatterns(p, text), text, runs)
 	return append(findings, constraintFindings(p, text, runs)...)
@@ -273,7 +273,7 @@ func PatternRuleCount(p *VoiceProfile) int {
 }
 
 // BlockRuleCount is how many rules [Findings] applies to one block of text: the
-// forbidden and competitor vocabulary, the prohibited style patterns and the
+// word rules the voice file carries, the prohibited style patterns and the
 // applicable prohibited-pattern constraints. The required patterns apply at
 // document scope and are not counted. A profile with no block rule has nothing
 // to find in a block, so a block held to it alone was not checked.
@@ -281,8 +281,13 @@ func BlockRuleCount(p *VoiceProfile) int {
 	if p == nil {
 		return 0
 	}
-	return len(p.Vocabulary.ForbiddenTerms) + len(p.Vocabulary.CompetitorTerms) +
-		len(p.Style.ProhibitedPatterns) + constraintPatternCount(p)
+	words := 0
+	for _, r := range p.CarriedTerms().Rules {
+		if strings.TrimSpace(r.Term) != "" {
+			words++
+		}
+	}
+	return words + len(p.Style.ProhibitedPatterns) + constraintPatternCount(p)
 }
 
 // span is a half-open byte range of the text.

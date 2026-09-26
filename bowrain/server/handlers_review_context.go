@@ -181,14 +181,21 @@ func (s *Server) fillReviewPoint(
 				Source: "store:" + resolved.ID,
 				Guide:  coreprofile.RenderVoiceGuideCompact(resolved),
 			}
-			rules := profileTermRules(resolved)
-			p.TermRules = review.LeadTermRules(rules, sb.Block.SourceText())
-			p.TermsTotal = len(rules)
 			// The bar the profile sets is known as soon as the profile is, so
 			// an unscored unit still reads what it will be held to.
 			bar := resolved.ComplianceBar()
 			out.VoiceBar = &bar
 		}
+	}
+
+	// The word rules are terms: the workspace terms store's in the source
+	// language, and any the bound voice's file carries.
+	if rules, rerr := s.workspaceWordRules(ctx, ws, proj.DefaultSourceLanguage); rerr != nil {
+		p.Notes = append(p.Notes, "the word rules here could not be read: "+rerr.Error())
+	} else {
+		rules = rulesWithTerm(append(rules, profile.CarriedTerms().Rules...))
+		p.TermRules = review.LeadTermRules(rules, sb.Block.SourceText())
+		p.TermsTotal = len(rules)
 	}
 
 	if terms, terr := editorLookupTermsForBlock(ctx, s.ContentStore, s.wsStores, ws, proj.ID, stream, sb.Block.ID, string(loc)); terr != nil {
@@ -213,21 +220,13 @@ func (s *Server) fillReviewPoint(
 	return profile
 }
 
-// profileTermRules is the profile's vocabulary as one list of term rules: the
-// preferred renderings, the forbidden terms and the competitor terms, in the
-// order the guidance states them. A rule with no term is dropped, since there
-// is nothing for a reviewer to check against.
-func profileTermRules(p *coreprofile.VoiceProfile) []coreprofile.TermRule {
+// rulesWithTerm keeps the rules that name a term. A rule naming only a
+// preferred form gives a reviewer nothing to check against.
+func rulesWithTerm(rules []coreprofile.TermRule) []coreprofile.TermRule {
 	out := []coreprofile.TermRule{}
-	for _, set := range [][]coreprofile.TermRule{
-		p.Vocabulary.PreferredTerms,
-		p.Vocabulary.ForbiddenTerms,
-		p.Vocabulary.CompetitorTerms,
-	} {
-		for _, rule := range set {
-			if strings.TrimSpace(rule.Term) != "" {
-				out = append(out, rule)
-			}
+	for _, rule := range rules {
+		if strings.TrimSpace(rule.Term) != "" {
+			out = append(out, rule)
 		}
 	}
 	return out

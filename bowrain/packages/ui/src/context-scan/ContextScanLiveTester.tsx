@@ -17,7 +17,8 @@ export interface ContextScanLiveTesterProps {
 
 /**
  * Deterministic live tester for a draft profile: paste sample copy and watch
- * the vocabulary rules score it. The check is stateless and costs no AI
+ * the workspace's terms and the draft's patterns score it. The check is
+ * stateless and costs no AI
  * credits, so it can run on every pause in typing.
  */
 export function ContextScanLiveTester({ profile, debounceMs = 500 }: ContextScanLiveTesterProps) {
@@ -42,8 +43,8 @@ export function ContextScanLiveTester({ profile, debounceMs = 500 }: ContextScan
       <div>
         <h2 className="text-sm font-semibold">Try it on your copy</h2>
         <p className="text-xs text-muted-foreground mt-1">
-          Paste a sentence or two; the draft&rsquo;s vocabulary rules score it as you type. No AI
-          credits are used.
+          Paste a sentence or two; the workspace&rsquo;s terms and the draft&rsquo;s patterns score
+          it as you type. No AI credits are used.
         </p>
       </div>
       <Textarea

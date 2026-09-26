@@ -19,6 +19,7 @@ import (
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // These cases pin what the endpoint hands a surface, layer by layer, and what
@@ -81,14 +82,16 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	tb, terr := s.wsStores.getTerms("rc")
 	require.NoError(t, terr)
 	seedTermUnificationConcepts(t, tb)
+	// A word rule on the source language: the workspace forbids "leverage".
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "c-leverage", Terms: []terms.Term{
+		{Text: "use", Locale: "en", Status: model.TermPreferred},
+		{Text: "leverage", Locale: "en", Status: model.TermForbidden},
+	}}))
 
-	// The profile bound at this point, with a raised bar and a vocabulary rule.
+	// The profile bound at this point, with a raised bar.
 	profile := &coreprofile.VoiceProfile{
 		ID: "p-ctx", Scope: wsID, Name: "Bowrain Voice", MinScore: 90,
 		Tone: coreprofile.ToneProfile{Formality: "neutral", Guidelines: "Say what the product does"},
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{{Term: "leverage", Replacement: "use"}},
-		},
 	}
 	require.NoError(t, s.VoiceStore.CreateProfile(ctx, profile))
 	proj, err := s.ContentStore.GetProject(ctx, projID)

@@ -4,13 +4,13 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
-// persistDraftVoiceScores runs the profile's deterministic gate
-// (coreprofile.Findings — the same zero-AI vocabulary and pattern matching behind
-// every HTTP scoring surface) over freshly persisted draft targets and stores one voice
+// persistDraftVoiceScores runs the deterministic voice gate (the same zero-AI
+// word-rule and pattern matching behind every HTTP scoring surface) over freshly persisted draft targets and stores one voice
 // score per block. This is what makes the dashboard's compliance rate
 // voice-informed without any extra AI spend: every server-side draft the
 // convergence loop produces (content memory-recycled or AI-translated) leaves a measured
@@ -25,6 +25,14 @@ func persistDraftVoiceScores(ctx context.Context, deps *WorkerDeps, job *Transla
 	if deps == nil || deps.VoiceStore == nil || profile == nil || job == nil {
 		return
 	}
+	// The word rules are terms: the workspace terms store's rules in the target
+	// language, then any the profile's file carries.
+	rules, err := voicescope.WordRules(ctx, resolveJobTerms(deps, job), locale)
+	if err != nil {
+		slog.WarnContext(ctx, "reading the word rules failed; scoring drafts against the voice alone",
+			"job_id", job.ID, "error", err)
+	}
+	sets := append(voicescope.WordRuleSets(rules), coreprofile.CarriedRuleSets(profile)...)
 	stored := 0
 	for _, b := range blocks {
 		if b == nil || !b.Translatable {
@@ -37,7 +45,8 @@ func persistDraftVoiceScores(ctx context.Context, deps *WorkerDeps, job *Transla
 		// Anchor findings to a single synthetic text run over the checked text,
 		// exactly like the HTTP check surfaces (HandleCheckVoice).
 		runs := []model.Run{{Text: &model.TextRun{Text: text}}}
-		findings := coreprofile.Findings(profile, text, runs)
+		findings := coreprofile.HitsToFindings(coreprofile.MatchTermRules(sets, text), text, runs)
+		findings = append(findings, coreprofile.PatternFindings(profile, text, runs)...)
 		score := coreprofile.CalculateScore(findings)
 		err := deps.VoiceStore.StoreScore(ctx, &coreprofile.StoredScore{
 			ProjectID:      job.ProjectID,

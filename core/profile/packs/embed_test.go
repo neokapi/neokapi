@@ -27,7 +27,28 @@ func TestLoad(t *testing.T) {
 	assert.NotEmpty(t, p.Tone.Personality)
 	assert.Equal(t, "formal", p.Tone.Formality)
 	assert.NotEmpty(t, p.Examples)
-	assert.NotEmpty(t, p.Vocabulary.ForbiddenTerms)
+	carried := p.CarriedTerms()
+	assert.Equal(t, "pack professional-b2b", carried.From, "a pack's terms name the pack")
+	assert.Equal(t, From("professional-b2b"), carried.From)
+	assert.True(t, profile.HasWordRules(p), "the pack carries terms that reject a word")
+}
+
+// TestEveryPackCarriesItsTerms: each pack lists its word rules under `terms:`,
+// and loading it carries them named as coming from that pack.
+func TestEveryPackCarriesItsTerms(t *testing.T) {
+	names, err := List()
+	require.NoError(t, err)
+	for _, name := range names {
+		p, err := Load(name)
+		require.NoError(t, err)
+		carried := p.CarriedTerms()
+		assert.Equal(t, From(name), carried.From, "pack %q", name)
+		assert.NotEmpty(t, carried.Rules, "pack %q carries terms", name)
+		for _, r := range carried.Rules {
+			assert.True(t, r.Term != "" || r.Replacement != "", "pack %q has an empty rule", name)
+		}
+		assert.Empty(t, p.VoiceOnly().CarriedTerms().Rules, "the voice alone carries no terms")
+	}
 }
 
 func TestLoadAll(t *testing.T) {

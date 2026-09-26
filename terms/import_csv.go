@@ -86,7 +86,7 @@ func ImportCSV(ctx context.Context, tb Terminology, reader io.Reader, opts CSVIm
 }
 
 // bilingualConcept builds a concept from a source/target CSV row. Layout:
-// source_term, target_term[, domain][, definition][, status][, term_source][, competitor].
+// source_term, target_term[, domain][, definition][, status][, term_source][, competitor][, advisory].
 // Returns ok=false when the row lacks a source or target term.
 func bilingualConcept(row []string, conceptID string, opts CSVImportOptions) (Concept, bool) {
 	if len(row) < 2 {
@@ -133,6 +133,7 @@ func bilingualConcept(row []string, conceptID string, opts CSVImportOptions) (Co
 		Domain:     domain,
 		Definition: definition,
 		Source:     termSource,
+		Advisory:   len(row) > 7 && strings.EqualFold(strings.TrimSpace(row[7]), "true"),
 		Terms: []Term{
 			{
 				Text:           sourceTerm,
@@ -151,7 +152,7 @@ func bilingualConcept(row []string, conceptID string, opts CSVImportOptions) (Co
 }
 
 // monolingualConcept builds a single-locale concept from a CSV row. Layout:
-// term[, definition][, domain][, status][, term_source][, competitor]. The term
+// term[, definition][, domain][, status][, term_source][, competitor][, advisory]. The term
 // is placed in opts.SourceLocale; opts.TargetLocale is ignored. This lets a
 // concept or voice-vocabulary list import without a translation pair.
 // Returns ok=false when the row lacks a term.
@@ -199,6 +200,7 @@ func monolingualConcept(row []string, conceptID string, opts CSVImportOptions) (
 		Domain:     domain,
 		Definition: definition,
 		Source:     termSource,
+		Advisory:   len(row) > 6 && strings.EqualFold(strings.TrimSpace(row[6]), "true"),
 		Terms: []Term{
 			{
 				Text:           term,
@@ -210,7 +212,10 @@ func monolingualConcept(row []string, conceptID string, opts CSVImportOptions) (
 	}, true
 }
 
-// ExportCSV writes all concepts as CSV source/target pairs.
+// ExportCSV writes all concepts as CSV source/target pairs, in the bilingual
+// layout ImportCSV reads, so an export imports back with its term source,
+// competitor and advisory markings. The concept ID follows as a last column,
+// which ImportCSV ignores.
 //
 // The flush is explicit, and its error is the export's error. csv.Writer
 // buffers, so Write reports only what has already spilled to the destination —
@@ -222,7 +227,7 @@ func ExportCSV(ctx context.Context, tb Terminology, writer io.Writer, sourceLoca
 	csvWriter := csv.NewWriter(writer)
 
 	if includeHeader {
-		if err := csvWriter.Write([]string{"source", "target", "domain", "definition", "status", "concept_id", "term_source", "competitor_term"}); err != nil {
+		if err := csvWriter.Write([]string{"source", "target", "domain", "definition", "status", "term_source", "competitor_term", "advisory", "concept_id"}); err != nil {
 			return fmt.Errorf("write CSV header: %w", err)
 		}
 	}
@@ -242,15 +247,20 @@ func ExportCSV(ctx context.Context, tb Terminology, writer io.Writer, sourceLoca
 			if target.CompetitorTerm {
 				competitorStr = "true"
 			}
+			advisoryStr := ""
+			if concept.Advisory {
+				advisoryStr = "true"
+			}
 			if err := csvWriter.Write([]string{
 				sourceTerm.Text,
 				target.Text,
 				concept.Domain,
 				concept.Definition,
 				string(target.Status),
-				concept.ID,
 				string(concept.Source),
 				competitorStr,
+				advisoryStr,
+				concept.ID,
 			}); err != nil {
 				return fmt.Errorf("write CSV row: %w", err)
 			}

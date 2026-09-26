@@ -10,7 +10,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -45,7 +44,7 @@ func TestReach_BanWithoutAReplacementIsAnnotate(t *testing.T) {
 			"de", "Nutze foobar hier", model.TargetStatusDraft),
 	)
 
-	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	e := NewEngine(bs, tb, nil)
 	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, []ChangeSetOp{
 		mustOp(t, 0, OpTermStatus, TermStatusPayload{
 			ConceptID: "c1", Locale: "en-US", Text: "foobar",
@@ -84,7 +83,7 @@ func TestReach_BanWithAReplacementIsTransform(t *testing.T) {
 			"nb", "Bruk foobar her", model.TargetStatusSignedOff),
 	)
 
-	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	e := NewEngine(bs, tb, nil)
 	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, []ChangeSetOp{
 		mustOp(t, 0, OpTermStatus, TermStatusPayload{
 			ConceptID: "old", Locale: "en-US", Text: "foobar",
@@ -102,39 +101,6 @@ func TestReach_BanWithAReplacementIsTransform(t *testing.T) {
 	require.Len(t, imp.Reach.TransformProjects, 1)
 	assert.Equal(t, "proj1", imp.Reach.TransformProjects[0].ProjectID)
 	assert.Equal(t, "Docs", imp.Reach.TransformProjects[0].ProjectName)
-}
-
-// A voice rule that names what to write instead is the same instruction from the
-// other side of the graph, and classifies the same way.
-func TestReach_VoiceRuleWithReplacementIsTransform(t *testing.T) {
-	ctx := context.Background()
-
-	bs := newFakeBlockSource()
-	bs.addProject(&store.Project{ID: "proj1", Name: "Site", WorkspaceID: "ws"})
-	bs.addBlocks("proj1", "main",
-		srcBlock("b1", "home.json", "en-US", "Embrace synergy across teams"),
-		srcBlock("b2", "home.json", "en-US", "We deliver leverage daily"),
-	)
-
-	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", Scope: "ws"}
-	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
-
-	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, []ChangeSetOp{
-		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{
-			ProfileID: "p1", List: VoiceListForbidden,
-			Rule: coreprofile.TermRule{Term: "synergy", Replacement: "teamwork"},
-		}),
-		mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{
-			ProfileID: "p1", List: VoiceListForbidden,
-			Rule: coreprofile.TermRule{Term: "leverage"},
-		}),
-	}, EvalOptions{})
-	require.NoError(t, err)
-
-	require.NotNil(t, imp.Reach)
-	assert.Equal(t, 1, imp.Reach.Transform.Blocks, "the rule naming a successor prescribes a rewrite")
-	assert.Equal(t, 1, imp.Reach.Annotate.Blocks, "the rule that only bans a word flags it")
-	assert.Equal(t, 2, imp.AffectedBlocks, "the split partitions the affected blocks exactly")
 }
 
 // A block reached in several locales is one block to act on, not several, and
@@ -157,7 +123,7 @@ func TestReach_CountsEachBlockOnceAcrossLocales(t *testing.T) {
 			"nb", "Bruk foobar her", model.TargetStatusReviewed),
 	)
 
-	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	e := NewEngine(bs, tb, nil)
 	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, []ChangeSetOp{
 		mustOp(t, 0, OpTermStatus, TermStatusPayload{
 			ConceptID: "c1", Locale: "en-US", Text: "foobar",

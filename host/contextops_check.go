@@ -158,7 +158,7 @@ func advisoryDiagnostics(sets []profile.TermRuleSet, text string, runs []model.R
 	findings := profile.HitsToFindings(hits, text, runs)
 	out := make([]check.Diagnostic, 0, len(findings))
 	for _, f := range findings {
-		out = append(out, check.DiagnosticFrom(f, "voice", loc))
+		out = append(out, check.DiagnosticFrom(f, "terms", loc))
 	}
 	return out
 }

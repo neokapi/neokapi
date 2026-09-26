@@ -195,14 +195,14 @@ unless it lists forms, which then replace those endings. A source term in anothe
 language matches as written or in its listed forms, which
 `kapi terms expand --locale <source language>` proposes. A term inside the
 source's inline code, a quoted `kapi` command, an example command line or a flag
-name is not demanded, because code keeps its words in a translation. Voice term
-rules leave code out with `scope: prose` instead.
+name is not demanded, because code keeps its words in a translation. Source
+word rules leave code out with `scope: prose` instead.
 
 Use the approved (preferred) term; avoid deprecated/forbidden ones. A bound
 terms store also feeds the translation step, and so does a `term_rules:` list in
 the translate step's config (one term, its replacement, `advisory: true` for a
 rule that only reports), the same
-shape the voice profile's `vocabulary:` writes.
+shape as every word rule, including the `terms:` a voice file carries.
 
 ## Publish (format round-trip)
 

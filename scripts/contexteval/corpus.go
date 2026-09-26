@@ -149,7 +149,7 @@ func (c Context) HouseStyle() []string {
 		out = append(out, fmt.Sprintf("%s → %s", r.Term, r.Replacement))
 	}
 	if c.Profile != nil {
-		for _, r := range c.Profile.Vocabulary.ForbiddenTerms {
+		for _, r := range c.Profile.CarriedTerms().Rules {
 			out = append(out, fmt.Sprintf("avoid %q (use %q)", r.Term, r.Replacement))
 		}
 	}
@@ -339,11 +339,11 @@ func contextFor(target string) Context {
 		// scores swap adherence ("was the mandated replacement used"), which
 		// needs a declared replacement to check against. (The compact guide now
 		// renders bare bans too; scoring them would need a different check.)
-		profile.Vocabulary.ForbiddenTerms = []coreprofile.TermRule{
+		profile.Carry("corpus", []coreprofile.TermRule{
 			{Term: "einfach", Replacement: "direkt", Note: "filler minimizer"},
 			{Term: "Nutzer", Replacement: "Benutzer"},
 			{Term: "App", Replacement: "Anwendung"},
-		}
+		})
 	case "fr":
 		ctx.TermRules = termRules(map[string]string{
 			"dashboard": "poste de pilotage",
@@ -361,10 +361,10 @@ func contextFor(target string) Context {
 			"Compass":   "Compass",
 			"tidectl":   "tidectl",
 		})
-		profile.Vocabulary.ForbiddenTerms = []coreprofile.TermRule{
+		profile.Carry("corpus", []coreprofile.TermRule{
 			{Term: "simplement", Replacement: "directement", Note: "filler minimizer"},
 			{Term: "bateau", Replacement: "navire"},
-		}
+		})
 	case "en-GB":
 		ctx.TermRules = termRules(map[string]string{
 			"sign in":   "log on",
@@ -373,10 +373,10 @@ func contextFor(target string) Context {
 			"Compass":   "Compass",
 			"tidectl":   "tidectl",
 		})
-		profile.Vocabulary.ForbiddenTerms = []coreprofile.TermRule{
+		profile.Carry("corpus", []coreprofile.TermRule{
 			{Term: "leverage", Replacement: "use"},
 			{Term: "seamless", Replacement: "unified"},
-		}
+		})
 		ctx.Instruction = instruction + " Use British English spelling."
 	case "nb":
 		// Norwegian mandates are chosen inflection-safe: term-check matches
@@ -396,10 +396,10 @@ func contextFor(target string) Context {
 			"Compass":   "Compass",
 			"tidectl":   "tidectl",
 		})
-		profile.Vocabulary.ForbiddenTerms = []coreprofile.TermRule{
+		profile.Carry("corpus", []coreprofile.TermRule{
 			{Term: "båt", Replacement: "farkost", Note: "casual register"},
 			{Term: "sømløs", Replacement: "helhetlig"},
-		}
+		})
 	}
 	ctx.DNT = []string{"Tidewatch", "Compass", "tidectl"}
 	return ctx

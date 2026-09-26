@@ -359,11 +359,6 @@ export const sampleContextScanProfile: VoiceProfile = {
     person_pov: "second",
     contractions: "sometimes",
   },
-  vocabulary: {
-    preferred_terms: [{ term: "workspace", note: "Preferred over 'account'." }],
-    forbidden_terms: [{ term: "synergy", severity: "major" }],
-    competitor_terms: [{ term: "QuickPay" }],
-  },
   examples: [
     {
       before: "Leverage our synergistic platform.",
@@ -1648,12 +1643,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     },
     checkVoiceDraft: async (_ws, profile, text): Promise<ContextScanCheckResult> => {
       checkVoiceDraftCalls.push({ profileName: profile.name, text });
-      // Deterministic: forbidden/competitor terms in the sample text lower
-      // the score and surface findings, mirroring the vocabulary matcher.
-      const rules = [
-        ...(profile.vocabulary.forbidden_terms ?? []),
-        ...(profile.vocabulary.competitor_terms ?? []),
-      ];
+      // Deterministic: the workspace's forbidden and competitor terms in the
+      // sample text lower the score and surface findings, mirroring the
+      // word-rule matcher.
+      const rules = [{ term: "synergy" }, { term: "QuickPay" }];
       const findings = rules
         .filter((r) => text.toLowerCase().includes(r.term.toLowerCase()))
         .map((r) => ({
@@ -2176,9 +2169,9 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       ],
       cleared: [
         {
-          kind: "voice",
+          kind: "term",
           rule: "synergy",
-          fails: true,
+          concept_id: "c-synergy",
           block_id: "b-2",
           item_name: "home.json",
           collection_name: "Pages",

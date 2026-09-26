@@ -123,32 +123,29 @@ func (s ChangeSetStatus) IsValid() bool {
 	}
 }
 
-// OpType identifies one of the eleven change-set operations (AD-021). Each op
+// OpType identifies one of the nine change-set operations (AD-021). Each op
 // is self-contained: it carries an op-specific JSON payload and is re-validated
 // at merge against the concept's current revision.
 type OpType string
 
 const (
-	OpConceptCreate   OpType = "concept.create"
-	OpConceptUpdate   OpType = "concept.update"
-	OpConceptDelete   OpType = "concept.delete"
-	OpTermAdd         OpType = "term.add"
-	OpTermUpdate      OpType = "term.update"
-	OpTermRemove      OpType = "term.remove"
-	OpTermStatus      OpType = "term.status"
-	OpRelationAdd     OpType = "relation.add"
-	OpRelationRemove  OpType = "relation.remove"
-	OpVoiceRuleAdd    OpType = "voice.rule.add"
-	OpVoiceRuleRemove OpType = "voice.rule.remove"
+	OpConceptCreate  OpType = "concept.create"
+	OpConceptUpdate  OpType = "concept.update"
+	OpConceptDelete  OpType = "concept.delete"
+	OpTermAdd        OpType = "term.add"
+	OpTermUpdate     OpType = "term.update"
+	OpTermRemove     OpType = "term.remove"
+	OpTermStatus     OpType = "term.status"
+	OpRelationAdd    OpType = "relation.add"
+	OpRelationRemove OpType = "relation.remove"
 )
 
-// IsValid reports whether o is one of the eleven known op types.
+// IsValid reports whether o is one of the nine known op types.
 func (o OpType) IsValid() bool {
 	switch o {
 	case OpConceptCreate, OpConceptUpdate, OpConceptDelete,
 		OpTermAdd, OpTermUpdate, OpTermRemove, OpTermStatus,
-		OpRelationAdd, OpRelationRemove,
-		OpVoiceRuleAdd, OpVoiceRuleRemove:
+		OpRelationAdd, OpRelationRemove:
 		return true
 	default:
 		return false
@@ -216,8 +213,7 @@ type ConceptRevision struct {
 	CreatedAt   time.Time       `json:"created_at"`
 }
 
-// ChangeSet is a named, reviewable draft of edits to the graph and to brand
-// voice vocabulary. Ops accumulate in the draft; nothing touches the live
+// ChangeSet is a named, reviewable draft of edits to the concept graph. Ops accumulate in the draft; nothing touches the live
 // graph until merge. It moves through draft → in_review → approved → merged,
 // or is abandoned.
 type ChangeSet struct {

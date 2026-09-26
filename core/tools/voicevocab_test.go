@@ -57,14 +57,11 @@ func (f *fakeTerminology) Close() error { return nil }
 
 func TestVoiceVocabCheckForbiddenTerms(t *testing.T) {
 	t.Parallel()
-	profile := &coreprofile.VoiceProfile{
+	profile := (&coreprofile.VoiceProfile{
 		ID: "test-profile",
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "cheap", Replacement: "affordable", Note: "avoid negative connotation"},
-			},
-		},
-	}
+	}).Carry("test", []coreprofile.TermRule{
+		{Term: "cheap", Replacement: "affordable", Note: "avoid negative connotation"},
+	})
 
 	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
@@ -98,13 +95,7 @@ func TestVoiceVocabCheckForbiddenTerms(t *testing.T) {
 
 func TestVoiceVocabCheckCompetitorTerms(t *testing.T) {
 	t.Parallel()
-	profile := &coreprofile.VoiceProfile{
-		Vocabulary: coreprofile.VocabularyRules{
-			CompetitorTerms: []coreprofile.TermRule{
-				{Term: "Acme Corp", Replacement: "our platform"},
-			},
-		},
-	}
+	profile := (&coreprofile.VoiceProfile{}).Carry("test", []coreprofile.TermRule{{Term: "Acme Corp", Replacement: "our platform", Competitor: true}})
 
 	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
@@ -134,13 +125,7 @@ func TestVoiceVocabCheckCompetitorTerms(t *testing.T) {
 
 func TestVoiceVocabCheckPreferredTermSuggestion(t *testing.T) {
 	t.Parallel()
-	profile := &coreprofile.VoiceProfile{
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "users", Replacement: "customers"},
-			},
-		},
-	}
+	profile := (&coreprofile.VoiceProfile{}).Carry("test", []coreprofile.TermRule{{Term: "users", Replacement: "customers"}})
 
 	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
@@ -168,13 +153,7 @@ func TestVoiceVocabCheckPreferredTermSuggestion(t *testing.T) {
 
 func TestVoiceVocabCheckEmitsConceptIDMetadata(t *testing.T) {
 	t.Parallel()
-	profile := &coreprofile.VoiceProfile{
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "cheap", Replacement: "affordable", ConceptID: "concept-affordable"},
-			},
-		},
-	}
+	profile := (&coreprofile.VoiceProfile{}).Carry("test", []coreprofile.TermRule{{Term: "cheap", Replacement: "affordable", ConceptID: "concept-affordable"}})
 
 	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
@@ -203,13 +182,7 @@ func TestVoiceVocabCheckStandaloneOmitsConceptID(t *testing.T) {
 	t.Parallel()
 	// A standalone profile (no concept on the rule) emits findings without a
 	// concept_id metadata key.
-	profile := &coreprofile.VoiceProfile{
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "cheap", Replacement: "affordable"},
-			},
-		},
-	}
+	profile := (&coreprofile.VoiceProfile{}).Carry("test", []coreprofile.TermRule{{Term: "cheap", Replacement: "affordable"}})
 
 	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
@@ -307,16 +280,7 @@ func TestVoiceVocabCheckTermsStandaloneConcept(t *testing.T) {
 
 func TestVoiceVocabCheckNoViolations(t *testing.T) {
 	t.Parallel()
-	profile := &coreprofile.VoiceProfile{
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "cheap"},
-			},
-			CompetitorTerms: []coreprofile.TermRule{
-				{Term: "Acme Corp"},
-			},
-		},
-	}
+	profile := (&coreprofile.VoiceProfile{}).Carry("test", []coreprofile.TermRule{{Term: "cheap"}, {Term: "Acme Corp", Competitor: true}})
 
 	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
@@ -340,13 +304,7 @@ func TestVoiceVocabCheckNoViolations(t *testing.T) {
 
 func TestVoiceVocabCheckSkipsEmptyText(t *testing.T) {
 	t.Parallel()
-	profile := &coreprofile.VoiceProfile{
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "cheap"},
-			},
-		},
-	}
+	profile := (&coreprofile.VoiceProfile{}).Carry("test", []coreprofile.TermRule{{Term: "cheap"}})
 
 	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
@@ -369,13 +327,7 @@ func TestVoiceVocabCheckSkipsEmptyText(t *testing.T) {
 
 func TestVoiceVocabCheckCaseInsensitive(t *testing.T) {
 	t.Parallel()
-	profile := &coreprofile.VoiceProfile{
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "cheap"},
-			},
-		},
-	}
+	profile := (&coreprofile.VoiceProfile{}).Carry("test", []coreprofile.TermRule{{Term: "cheap"}})
 
 	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
@@ -402,14 +354,9 @@ func TestVoiceVocabCheckCaseInsensitive(t *testing.T) {
 
 func TestVoiceVocabCheckWithResolver(t *testing.T) {
 	t.Parallel()
-	profile := &coreprofile.VoiceProfile{
+	profile := (&coreprofile.VoiceProfile{
 		ID: "resolved-vocab",
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "cheap", Replacement: "affordable"},
-			},
-		},
-	}
+	}).Carry("test", []coreprofile.TermRule{{Term: "cheap", Replacement: "affordable"}})
 
 	resolver := &mockProfileResolver{profile: profile}
 	rc := coreprofile.ResolveContext{ExplicitProfileID: "resolved-vocab"}
@@ -465,14 +412,9 @@ func TestVoiceVocabCheckWithResolverNilProfile(t *testing.T) {
 
 func TestVoiceVocabCheckAddsAnnotation(t *testing.T) {
 	t.Parallel()
-	profile := &coreprofile.VoiceProfile{
+	profile := (&coreprofile.VoiceProfile{
 		ID: "voice-1",
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "stuff"},
-			},
-		},
-	}
+	}).Carry("test", []coreprofile.TermRule{{Term: "stuff"}})
 
 	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
@@ -624,15 +566,15 @@ func (r *recordingTerminology) LookupAll(_ context.Context, _ string, opts terms
 	return nil, nil
 }
 
-// TestVoiceVocabCheckNamesWhereTheDecisionLives pins both phrasings. A rule the
-// profile declared and a concept the terms store declared read differently on
-// purpose: they send a writer to different places to argue with the decision.
-// The two are produced by one mapping, and a wording change on either side that
-// silently adopts the other's is the drift this asserts against.
+// TestVoiceVocabCheckNamesWhereTheDecisionLives pins where a word rule is
+// held. Every word rule is a term and reads the same way; a rule a voice file
+// or starter pack carries names that source in the finding's `from`
+// metadata, so a writer knows where to argue with the decision, and a rule in
+// the terms store names none.
 func TestVoiceVocabCheckNamesWhereTheDecisionLives(t *testing.T) {
 	t.Parallel()
 
-	messageFor := func(t *testing.T, tool *tools.VoiceVocabCheckTool, text string) string {
+	findingFor := func(t *testing.T, tool *tools.VoiceVocabCheckTool, text string) coreprofile.VoiceFinding {
 		t.Helper()
 		in := make(chan *model.Part, 1)
 		out := make(chan *model.Part, 1)
@@ -642,41 +584,55 @@ func TestVoiceVocabCheckNamesWhereTheDecisionLives(t *testing.T) {
 		ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation]((<-out).Resource.(*model.Block), "voice")
 		require.True(t, ok)
 		require.Len(t, ann.Findings, 1)
-		return ann.Findings[0].Message
+		return ann.Findings[0]
 	}
 
-	t.Run("a profile rule reads as the profile's", func(t *testing.T) {
+	t.Run("a carried rule names its source", func(t *testing.T) {
 		t.Parallel()
-		p := &coreprofile.VoiceProfile{
+		p := (&coreprofile.VoiceProfile{
 			ID: "p1",
-			Vocabulary: coreprofile.VocabularyRules{
-				ForbiddenTerms: []coreprofile.TermRule{{Term: "cheap", Replacement: "affordable"}},
-			},
-		}
-		assert.Equal(t, `Forbidden term "cheap" found`,
-			messageFor(t, tools.NewVoiceVocabCheckTool(p, nil), "This is a cheap product"))
+		}).Carry("pack technical-docs", []coreprofile.TermRule{{Term: "cheap", Replacement: "affordable"}})
+		f := findingFor(t, tools.NewVoiceVocabCheckTool(p, nil), "This is a cheap product")
+		assert.Equal(t, `Forbidden term "cheap" found`, f.Message)
+		assert.Equal(t, "pack technical-docs", f.Metadata["from"])
+		assert.True(t, f.Fails)
 	})
 
-	t.Run("a terms store concept names the store", func(t *testing.T) {
+	t.Run("a terms store concept names no other source", func(t *testing.T) {
 		t.Parallel()
 		tb := &fakeTerminology{matches: []terms.TermMatch{{
 			Concept:  terms.Concept{ID: "c1", Source: terms.TermSourceBrandVocabulary},
 			Term:     terms.Term{Text: "cheap", Status: model.TermForbidden},
 			Position: model.TextRange{Start: 10, End: 15},
 		}}}
-		assert.Equal(t, `Forbidden term "cheap" found in terms`,
-			messageFor(t, tools.NewVoiceVocabCheckTool(nil, tb).InSourceLocale("en"), "This is a cheap product"))
+		f := findingFor(t, tools.NewVoiceVocabCheckTool(nil, tb).InSourceLocale("en"), "This is a cheap product")
+		assert.Equal(t, `Forbidden term "cheap" found`, f.Message)
+		assert.NotContains(t, f.Metadata, "from")
+		assert.True(t, f.Fails)
 	})
 
-	t.Run("a retired term reads as the softer complaint", func(t *testing.T) {
+	t.Run("a retired term reads as the softer complaint and reports", func(t *testing.T) {
 		t.Parallel()
 		tb := &fakeTerminology{matches: []terms.TermMatch{{
 			Concept:  terms.Concept{ID: "c2", Source: terms.TermSourceBrandVocabulary},
 			Term:     terms.Term{Text: "cheap", Status: model.TermDeprecated},
 			Position: model.TextRange{Start: 10, End: 15},
 		}}}
-		assert.Equal(t, `Retired term "cheap" found in terms`,
-			messageFor(t, tools.NewVoiceVocabCheckTool(nil, tb).InSourceLocale("en"), "This is a cheap product"))
+		f := findingFor(t, tools.NewVoiceVocabCheckTool(nil, tb).InSourceLocale("en"), "This is a cheap product")
+		assert.Equal(t, `Retired term "cheap" found`, f.Message)
+		assert.False(t, f.Fails, "a retired term reports without failing")
+	})
+
+	t.Run("an advisory concept reports without failing", func(t *testing.T) {
+		t.Parallel()
+		tb := &fakeTerminology{matches: []terms.TermMatch{{
+			Concept:  terms.Concept{ID: "c3", Source: terms.TermSourceBrandVocabulary, Advisory: true},
+			Term:     terms.Term{Text: "cheap", Status: model.TermForbidden},
+			Position: model.TextRange{Start: 10, End: 15},
+		}}}
+		f := findingFor(t, tools.NewVoiceVocabCheckTool(nil, tb).InSourceLocale("en"), "This is a cheap product")
+		assert.Equal(t, `Forbidden term "cheap" found`, f.Message)
+		assert.False(t, f.Fails, "an advisory concept reports without failing")
 	})
 }
 

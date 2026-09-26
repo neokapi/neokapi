@@ -359,20 +359,19 @@ func TestReviewRecheck_RulePromotionScopedToPromotedTerm(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	ctx := context.Background()
 
-	// A profile with two forbidden terms: "ancien" (old) and "utiliser" (just
-	// promoted). Both are enforced rules, but only "utiliser" is being promoted now.
-	profile := &coreprofile.VoiceProfile{
-		ID:    "p-rc",
-		Name:  "RC Voice",
-		Scope: wsID,
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "ancien"},
-				{Term: "utiliser"},
-			},
-		},
-	}
+	// Two forbidden terms in the workspace terms store: "ancien" (old) and
+	// "utiliser" (just promoted). Both are enforced rules, but only "utiliser" is
+	// being promoted now.
+	profile := &coreprofile.VoiceProfile{ID: "p-rc", Name: "RC Voice", Scope: wsID}
 	require.NoError(t, s.VoiceStore.CreateProfile(ctx, profile))
+	tb, err := s.wsStores.getTerms("rc")
+	require.NoError(t, err)
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "c-ancien", Terms: []terms.Term{
+		{Text: "ancien", Locale: "fr", Status: model.TermForbidden},
+	}}))
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "c-utiliser", Terms: []terms.Term{
+		{Text: "utiliser", Locale: "fr", Status: model.TermForbidden},
+	}}))
 
 	// b1's target contains the just-promoted "utiliser"; b2's contains only the
 	// older "ancien". Both approved.

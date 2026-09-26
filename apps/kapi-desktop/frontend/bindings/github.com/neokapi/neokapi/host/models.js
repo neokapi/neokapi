@@ -654,7 +654,7 @@ export class ContextRule {
         if (/** @type {any} */(false)) {
             /**
              * Note says what the rule is about: the concept's definition or the
-             * voice rule's note.
+             * rule's note.
              * @member
              * @type {string | undefined}
              */
@@ -662,7 +662,8 @@ export class ContextRule {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Locale is the language the rule is stated in, empty for a voice rule.
+             * Locale is the language the rule is stated in, empty for a rule held
+             * outside the terms store.
              * @member
              * @type {string | undefined}
              */
@@ -670,7 +671,8 @@ export class ContextRule {
         }
         if (!("from" in $$source)) {
             /**
-             * From names where the rule is held: `terms`, `voice` or `workspace`.
+             * From names where the rule is held: `terms`, `workspace`, or the pack
+             * (`pack technical-docs`) or voice file whose terms apply.
              * @member
              * @type {string[]}
              */

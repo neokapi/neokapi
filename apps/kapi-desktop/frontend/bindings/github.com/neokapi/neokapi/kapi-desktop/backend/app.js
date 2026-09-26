@@ -1502,9 +1502,10 @@ export function InspectFile(tabID, filePath) {
  *   - term overlays (type "term") from the project's auto-opened terms
  *     (LookupAll over each block's source text), carrying the matched surface
  *     form, its preferred target translation and domain;
- *   - voice-vocabulary overlays (type "qa", props.category="voice-vocabulary")
- *     from the voice profile governing the point this file sits at
- *     (voiceResolver via coreprofile.MatchVocabulary);
+ *   - word-rule overlays (type "qa", props.category="voice-vocabulary") from
+ *     the terms: the forbidden, competitor and retired terms of the project's
+ *     terms store and the terms the voice governing this file's point carries
+ *     (coreprofile.MatchTermRules), beside that voice's prohibited patterns;
  *   - rule-based check overlays (type "qa") from the shared source-only shape rules
  *     (double spaces, doubled words — check.HygieneOverlay).
  * 
@@ -2304,8 +2305,8 @@ export function RunAIPreReview(tabID, locale, scope, policy) {
 
 /**
  * RunChecks runs the project's content checks (placeholder + do-not-translate
- * when a target exists, voice vocabulary on the source when a voice profile is
- * bound) over the content files the Active Filter selects (its collections +
+ * when a target exists, terms and the voice's patterns on the source when
+ * they are bound) over the content files the Active Filter selects (its collections +
  * glob; all when empty), for the filter's target languages — source-side checks
  * run once per file, target-side checks run once per filtered language, and the
  * panel no longer carries its own language picker. With no languages selected,

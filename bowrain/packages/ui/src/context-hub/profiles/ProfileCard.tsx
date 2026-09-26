@@ -70,11 +70,6 @@ export function ProfileCard({ profile, conceptCount, onSelect, className }: Prof
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {profile.is_default && <Badge variant="outline">Default</Badge>}
-          {profile.pending_changes > 0 && (
-            <Badge className="border-transparent bg-warning/15 text-warning">
-              {profile.pending_changes} in review
-            </Badge>
-          )}
         </div>
       </div>
 

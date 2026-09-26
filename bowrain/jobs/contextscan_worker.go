@@ -767,14 +767,19 @@ func extractContextScanTerms(ctx context.Context, prov aiprovider.LLMProvider, c
 	return dedupeContextScanTerms(terms), usage, nil
 }
 
-// mergeContextScanTerms folds the drafted vocabulary's preferred terms into the
-// candidate terms (they are product vocabulary the corpus itself
-// evidenced) and deduplicates case-insensitively, keeping first occurrence.
+// mergeContextScanTerms folds the preferred forms among the draft's carried
+// word rules into the candidate terms (they are product vocabulary the corpus
+// itself evidenced) and deduplicates case-insensitively, keeping first
+// occurrence. A candidate term has no status, so the draft's forbidden and
+// competitor rules have no place here and are dropped.
 func mergeContextScanTerms(terms []tools.TermEntry, draft *coreprofile.VoiceProfile, domain string) []tools.TermEntry {
 	if draft != nil {
-		for _, rule := range draft.Vocabulary.PreferredTerms {
+		for _, rule := range draft.CarriedTerms().Rules {
+			if rule.Term != "" || rule.Replacement == "" {
+				continue
+			}
 			terms = append(terms, tools.TermEntry{
-				Term:       rule.Term,
+				Term:       rule.Replacement,
 				Definition: rule.Note,
 				Domain:     domain,
 			})

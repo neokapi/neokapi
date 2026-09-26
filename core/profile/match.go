@@ -9,30 +9,35 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// VocabKind distinguishes the two kinds of vocabulary violation a profile can
-// raise: a forbidden term (a word the brand avoids) and a competitor term (a
-// rival's name that must not appear).
+// VocabKind distinguishes the kinds of word-rule violation: a forbidden term
+// (a word the project avoids), a competitor term (a rival's name that must not
+// appear) and a retired term (a word the project used until a decision
+// replaced it).
 type VocabKind int
 
 const (
 	VocabForbidden VocabKind = iota
 	VocabCompetitor
+	VocabRetired
 )
 
-// String names the vocabulary list a rule of this kind sits in, as the
-// profile YAML and the change-set entry spell it: "forbidden" or "competitor".
+// String names the kind as the change-set entry spells it: "forbidden",
+// "competitor" or "retired".
 func (k VocabKind) String() string {
-	if k == VocabCompetitor {
+	switch k {
+	case VocabCompetitor:
 		return "competitor"
+	case VocabRetired:
+		return "retired"
 	}
 	return "forbidden"
 }
 
-// VocabHit is one term-rule match in a piece of text: which rule matched, at
+// VocabHit is one word-rule match in a piece of text: which rule matched, at
 // what byte range, and whether it fails. It is the shared output of the
-// vocabulary matcher, consumed both by the voice-vocab check tool (which maps
+// word-rule matcher, consumed both by the voice-vocab check tool (which maps
 // the byte range onto run-anchored positions for the streaming pipeline) and by
-// the blast-radius evaluator (which only needs the counts and severities).
+// the blast-radius evaluator (which only needs the counts).
 type VocabHit struct {
 	Kind        VocabKind
 	Category    Dimension
@@ -42,26 +47,30 @@ type VocabHit struct {
 	Note        string
 	ConceptID   string // knowledge-graph concept this rule denotes; empty for standalone profiles
 	Scope       string // where the rule applies (TermRule.Scope); empty means everywhere
-	Start       int    // byte offset into the searched text (inclusive)
-	End         int    // byte offset into the searched text (exclusive)
+	// From names where the rule is held when that is not the terms store: a
+	// starter pack ("pack technical-docs"), a voice file, the workspace.
+	From  string
+	Start int // byte offset into the searched text (inclusive)
+	End   int // byte offset into the searched text (exclusive)
 	// Suggested marks a hit against a suggested rule, one nobody has settled
 	// yet. It never fails, so the hit is reported and settles nothing. A
 	// surface shows it as the suggestion it is.
 	Suggested bool
 }
 
-// A TermRuleSet is one source of term rules matched together: the rules, what
-// kind of violation a hit against them is, and whether they are settled.
+// A TermRuleSet is one source of word rules matched together: the rules, what
+// kind of violation a hit against them is, where they are held, and whether
+// they are settled. A rule marked Competitor is a competitor term whatever the
+// set's kind.
 //
-// The set carries the kind because a rule does not: the same TermRule is a
-// forbidden term in one list and a competitor's name in another. Grouping them
-// this way is what lets one match run cover every source a caller holds (a
-// tool's `term_rules:`, the concepts resolved from a terms store, the
-// established and suggested rules a project holds) in a single pass over the
-// text.
+// Grouping them this way is what lets one match run cover every source a
+// caller holds (a tool's `term_rules:`, a starter pack's terms, the established
+// and suggested rules a project holds) in a single pass over the text.
 type TermRuleSet struct {
 	Rules []TermRule
 	Kind  VocabKind
+	// From names where the rules are held, carried onto every hit.
+	From string
 	// Category the hits are raised under. Zero means DimensionVocabulary.
 	Category Dimension
 	// Suggested marks a set of suggested rules: ones a project has accumulated
@@ -115,6 +124,10 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 			if strings.TrimSpace(rule.Term) == "" {
 				continue
 			}
+			kind := set.Kind
+			if rule.Competitor {
+				kind = VocabCompetitor
+			}
 			// A suggested rule reports and never fails.
 			fails := !rule.Advisory && !set.Suggested
 			// Every shape the rule declares, matched exactly. See
@@ -142,7 +155,7 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 					continue
 				}
 				hits = append(hits, VocabHit{
-					Kind:        set.Kind,
+					Kind:        kind,
 					Category:    category,
 					Fails:       fails,
 					Term:        rule.Term,
@@ -150,6 +163,7 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 					Note:        rule.Note,
 					ConceptID:   rule.ConceptID,
 					Scope:       rule.Scope,
+					From:        set.From,
 					Start:       h[0],
 					End:         h[1],
 					Suggested:   set.Suggested,
@@ -160,22 +174,20 @@ func MatchTermRules(sets []TermRuleSet, text string) []VocabHit {
 	return hits
 }
 
-// VocabularyRuleSets is a profile's vocabulary as rule sets: forbidden terms and
-// a competitor's names. A caller combining a
-// profile's rules with rules from elsewhere passes these alongside its own, so
-// one match run covers the lot. A nil profile declares no sets.
-func VocabularyRuleSets(p *VoiceProfile) []TermRuleSet {
-	if p == nil {
+// CarriedRuleSets is the word rules a profile's voice file carries (a starter
+// pack's terms) as a rule set, named for where they come from. A caller
+// combining them with rules from elsewhere passes this alongside its own, so
+// one match run covers the lot. A profile carrying no rules declares no sets.
+func CarriedRuleSets(p *VoiceProfile) []TermRuleSet {
+	carried := p.CarriedTerms()
+	if len(carried.Rules) == 0 {
 		return nil
 	}
-	return []TermRuleSet{
-		{Rules: p.Vocabulary.ForbiddenTerms, Kind: VocabForbidden},
-		{Rules: p.Vocabulary.CompetitorTerms, Kind: VocabCompetitor},
-	}
+	return []TermRuleSet{{Rules: carried.Rules, Kind: VocabForbidden, From: carried.From}}
 }
 
-// HasDeterministicRules reports whether p declares a rule the vocabulary check
-// applies to text: a forbidden or competitor term, a prohibited or required
+// HasDeterministicRules reports whether p declares a rule the voice check
+// applies to text: a word rule its file carries, a prohibited or required
 // pattern, or a prohibited-pattern constraint in scope. Invalid constraints
 // count too, because they report on every block. A profile holding only tone,
 // guidance or comment limits declares none.
@@ -183,10 +195,8 @@ func HasDeterministicRules(p *VoiceProfile) bool {
 	if p == nil {
 		return false
 	}
-	for _, set := range VocabularyRuleSets(p) {
-		if slices.ContainsFunc(set.Rules, func(rule TermRule) bool { return strings.TrimSpace(rule.Term) != "" }) {
-			return true
-		}
+	if HasWordRules(p) {
+		return true
 	}
 	patterns := slices.Concat(p.Style.ProhibitedPatterns, p.Style.RequiredPatterns)
 	if slices.ContainsFunc(patterns, func(pat Pattern) bool { return strings.TrimSpace(pat.Regex) != "" }) {
@@ -195,17 +205,23 @@ func HasDeterministicRules(p *VoiceProfile) bool {
 	return constraintError(p) != nil || constraintPatternCount(p) > 0
 }
 
-// MatchVocabulary returns every forbidden- and competitor-term hit in text under
-// the profile's vocabulary rules. A nil profile yields no hits.
-//
-// It is the profile-shaped reading of [MatchTermRules], for the callers that
-// hold a whole profile and want its whole vocabulary: the check tool, the
-// blast-radius evaluator, the scoring surfaces.
-func MatchVocabulary(p *VoiceProfile, text string) []VocabHit {
-	return MatchTermRules(VocabularyRuleSets(p), text)
+// HasWordRules reports whether the profile's voice file carries a word rule
+// that rejects a term.
+func HasWordRules(p *VoiceProfile) bool {
+	return slices.ContainsFunc(p.CarriedTerms().Rules, func(rule TermRule) bool { return strings.TrimSpace(rule.Term) != "" })
 }
 
-// HitsToFindings maps vocabulary hits onto voice findings: the presentation
+// MatchCarriedTerms returns every hit in text under the word rules the
+// profile's voice file carries. A nil profile yields no hits.
+//
+// It is the profile-shaped reading of [MatchTermRules], for the callers that
+// hold a whole voice file and want all of its rules: the blast-radius
+// evaluator and the scoring surfaces.
+func MatchCarriedTerms(p *VoiceProfile, text string) []VocabHit {
+	return MatchTermRules(CarriedRuleSets(p), text)
+}
+
+// HitsToFindings maps word-rule hits onto findings: the presentation
 // message, the structured replacement and concept_id metadata, the offending
 // snippet, and the run-anchored position. text is the searched string the hits
 // index into (hit.Start/hit.End are byte offsets into it); runs are the source
@@ -213,7 +229,9 @@ func MatchVocabulary(p *VoiceProfile, text string) []VocabHit {
 // pass nil when matching against plain, run-less text (the position is then left
 // zero). It is the single hit→finding mapping shared by the streaming pipeline
 // tool, the /check endpoint, and the check_vocabulary MCP tool, so none of them
-// diverge on matching semantics, message wording, or concept propagation.
+// diverge on matching semantics, message wording, or concept propagation. A
+// word rule reads the same wherever it is held; the "from" metadata names a
+// source other than the terms store.
 func HitsToFindings(hits []VocabHit, text string, runs []model.Run) []VoiceFinding {
 	if len(hits) == 0 {
 		return nil
@@ -239,6 +257,8 @@ func HitsToFindings(hits []VocabHit, text string, runs []model.Run) []VoiceFindi
 			}
 		case hit.Kind == VocabCompetitor:
 			f.Message = fmt.Sprintf("Competitor term %q found", hit.Term)
+		case hit.Kind == VocabRetired:
+			f.Message = fmt.Sprintf("Retired term %q found", hit.Term)
 		default:
 			f.Message = fmt.Sprintf("Forbidden term %q found", hit.Term)
 			if hit.Note != "" {
@@ -273,6 +293,12 @@ func HitsToFindings(hits []VocabHit, text string, runs []model.Run) []VoiceFindi
 				f.Metadata = make(map[string]string)
 			}
 			f.Metadata["concept_id"] = hit.ConceptID
+		}
+		if hit.From != "" {
+			if f.Metadata == nil {
+				f.Metadata = make(map[string]string)
+			}
+			f.Metadata["from"] = hit.From
 		}
 		findings = append(findings, f)
 	}

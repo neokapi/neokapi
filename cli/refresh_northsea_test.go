@@ -152,12 +152,12 @@ func TestRefresh_NorthseaDrift(t *testing.T) {
 	require.NoError(t, err, declined)
 	assert.Contains(t, declined, "README.md")
 
-	// --- Approve. The rename lands as term and voice entries in one change-set.
+	// --- Approve. The rename lands as term entries in one change-set: word
+	// rules are terms, so the voice profile has no part in it.
 	changeset := filepath.Join(root, "refresh.jsonl")
 	require.NoError(t, os.WriteFile(changeset, []byte(
 		`{"kind":"term","op":"upsert","term":"Tideguard","locale":"en-GB","status":"preferred"}`+"\n"+
-			`{"kind":"term","op":"upsert","term":"Tidewatch","locale":"en-GB","status":"deprecated","replacement":"Tideguard"}`+"\n"+
-			`{"kind":"voice","op":"add-rule","list":"preferred","term":"Tideguard"}`+"\n"), 0o644))
+			`{"kind":"term","op":"upsert","term":"Tidewatch","locale":"en-GB","status":"deprecated","replacement":"Tideguard"}`+"\n"), 0o644))
 
 	applyOut, err := runCLI(t, NewApplyCmd(a), changeset, "--project", recipe)
 	require.NoError(t, err, applyOut)
@@ -174,9 +174,9 @@ func TestRefresh_NorthseaDrift(t *testing.T) {
 	assert.Contains(t, terms, "deprecated")
 
 	voice := readFile(t, filepath.Join(root, "context", "voice.yaml"))
-	assert.Contains(t, voice, "Tideguard")
+	assert.NotContains(t, voice, "Tideguard", "the rename is a term decision, held in terms")
 	assert.Contains(t, voice, "# Northsea house voice.",
-		"the voice profile is edited rather than re-emitted, so its comments survive an approved change")
+		"the voice profile is edited rather than re-emitted, so its comments survive a snapshot")
 
 	// --- Verify. A newly retired name starts flagging the surfaces that still
 	// carry it, which is what makes the applied decision observable.

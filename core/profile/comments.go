@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/check"
+	"gopkg.in/yaml.v3"
 )
 
 // CommentRules are the limits a check holds the comments in source files to,
@@ -13,8 +14,8 @@ import (
 // limit counts words, and a code span, a reference or a link in a comment is
 // never a word.
 type CommentRules struct {
-	// SentenceWords grades a sentence by the words it holds.
-	SentenceWords *SentenceWordLimits `json:"sentence_words,omitempty" yaml:"sentence_words,omitempty"`
+	// SentenceWords is the most words a sentence may hold.
+	SentenceWords *WordLimit `json:"sentence_words,omitempty" yaml:"sentence_words,omitempty"`
 	// CommentWords is the most words a comment that documents no declaration
 	// may hold.
 	CommentWords *int `json:"comment_words,omitempty" yaml:"comment_words,omitempty"`
@@ -38,11 +39,31 @@ type DensityLimits struct {
 	MinCommentLines *int     `json:"min_comment_lines,omitempty" yaml:"min_comment_lines,omitempty"`
 }
 
-// SentenceWordLimits are the word counts above which a sentence is a minor
-// finding and a major one.
-type SentenceWordLimits struct {
-	Minor *int `json:"minor,omitempty" yaml:"minor,omitempty"`
-	Major *int `json:"major,omitempty" yaml:"major,omitempty"`
+// WordLimit is a number of words. It reads from YAML as a plain number, and a
+// mapping of graded limits is refused with the form to write instead.
+type WordLimit int
+
+// UnmarshalYAML reads the limit.
+func (w *WordLimit) UnmarshalYAML(n *yaml.Node) error {
+	if n.Kind == yaml.MappingNode {
+		return fmt.Errorf("line %d: sentence_words is one number: the most words a sentence may hold (write "+
+			"`sentence_words: 50`); `fails: true` beside it makes a sentence over the limit fail a check", n.Line)
+	}
+	var v int
+	if err := n.Decode(&v); err != nil {
+		return err
+	}
+	*w = WordLimit(v)
+	return nil
+}
+
+// words is the limit as a plain number, or nil.
+func (w *WordLimit) words() *int {
+	if w == nil {
+		return nil
+	}
+	v := int(*w)
+	return &v
 }
 
 // Limits returns the limits the rules set, each one they leave out at its
@@ -57,10 +78,7 @@ func (r *CommentRules) Limits() check.CommentLimits {
 			*dst = *v
 		}
 	}
-	if s := r.SentenceWords; s != nil {
-		set(&l.SentenceMinor, s.Minor)
-		set(&l.SentenceMajor, s.Major)
-	}
+	set(&l.SentenceWords, r.SentenceWords.words())
 	set(&l.CommentWords, r.CommentWords)
 	set(&l.DocWords, r.DocWords)
 	set(&l.PackageDocWords, r.PackageDocWords)
@@ -86,7 +104,8 @@ func (r *CommentRules) clone() *CommentRules {
 		Fails:           r.Fails,
 	}
 	if s := r.SentenceWords; s != nil {
-		c.SentenceWords = &SentenceWordLimits{Minor: cloneInt(s.Minor), Major: cloneInt(s.Major)}
+		v := *s
+		c.SentenceWords = &v
 	}
 	if d := r.Density; d != nil {
 		c.Density = &DensityLimits{MinCommentLines: cloneInt(d.MinCommentLines)}
@@ -107,8 +126,7 @@ func cloneInt(v *int) *int {
 }
 
 // validateCommentRules adds a problem for each limit under base, such as
-// "style.comments", that is not a positive number of words, and for a
-// sentence's minor limit that does not sit below its major one.
+// "style.comments", that is not a positive number of words.
 func validateCommentRules(add func(field, msg string), base string, r *CommentRules) {
 	if r == nil {
 		return
@@ -118,10 +136,7 @@ func validateCommentRules(add func(field, msg string), base string, r *CommentRu
 			add(base+"."+field, fmt.Sprintf("a limit is a positive number of words (got %d); leave the key out to use the default", *v))
 		}
 	}
-	if s := r.SentenceWords; s != nil {
-		positive("sentence_words.minor", s.Minor)
-		positive("sentence_words.major", s.Major)
-	}
+	positive("sentence_words", r.SentenceWords.words())
 	positive("comment_words", r.CommentWords)
 	positive("doc_words", r.DocWords)
 	positive("package_doc_words", r.PackageDocWords)
@@ -132,9 +147,6 @@ func validateCommentRules(add func(field, msg string), base string, r *CommentRu
 		if d.MinCommentLines != nil && *d.MinCommentLines <= 0 {
 			add(base+".density.min_comment_lines", fmt.Sprintf("a limit is a positive number of lines (got %d); leave the key out to use the default", *d.MinCommentLines))
 		}
-	}
-	if l := r.Limits(); l.SentenceMinor > 0 && l.SentenceMajor > 0 && l.SentenceMinor >= l.SentenceMajor {
-		add(base+".sentence_words", fmt.Sprintf("the minor limit (%d words) must be below the major limit (%d words)", l.SentenceMinor, l.SentenceMajor))
 	}
 }
 

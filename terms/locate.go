@@ -1,13 +1,12 @@
 // This file answers one question for the whole engine: which declared terms
 // does this passage use, and where exactly.
 //
-// A term can be declared in two places. A voice profile lists the words a brand
-// forbids and a competitor's names it must not print; a tool's `term_rules:`
-// lists the wording a piece of content is held to; and the bound terms store
-// holds the concepts a project has actually decided, which is what `kapi apply`
-// writes to. Both are the same kind of statement about the same words, so
-// answering them separately is how two gates come to disagree about whether a
-// word is in use.
+// A term can be declared in two kinds of place. The bound terms store holds the
+// concepts a project has decided, which is what `kapi apply` and `kapi context
+// keep` write to; rule sets hold word rules from elsewhere: a starter pack's
+// terms, a tool's `term_rules:`, the rules established across the workspace.
+// Both are the same kind of statement about the same words, so answering them
+// separately is how two gates come to disagree about whether a word is in use.
 //
 // This package answers them together. It matches with check.TermMatcher through
 // profile.MatchTermRules, so a word is a hit for the whole gate or for none of
@@ -15,8 +14,8 @@
 // and it hands back occurrences already anchored to the block's runs, so no
 // consumer re-derives a position from a byte offset.
 //
-// What a consumer does with an occurrence is its own business: the voice
-// vocabulary gate raises a finding, term-check reports a violation, dnt-check
+// What a consumer does with an occurrence is its own business: the word-rule
+// gate raises a finding, term-check reports a violation, dnt-check
 // asserts the target preserved it, and term-locate writes it onto the block as
 // an annotation. Locating is the part they share.
 package terms
@@ -36,8 +35,8 @@ import (
 type OccurrenceSource string
 
 const (
-	// SourceRule is a rule the caller held: a voice profile's vocabulary, a
-	// tool's `term_rules:`, a recipe's list.
+	// SourceRule is a rule the caller held: a starter pack's terms, a tool's
+	// `term_rules:`, a rule established across the workspace.
 	SourceRule OccurrenceSource = "rule"
 	// SourceStore is a concept in the bound terms store.
 	SourceStore OccurrenceSource = "store"
@@ -77,6 +76,9 @@ type Occurrence struct {
 	Status model.TermStatus
 	// Competitor marks a store term recorded as a rival's name.
 	Competitor bool
+	// Advisory marks a store match whose concept is advisory: a use of its
+	// terms reports without failing.
+	Advisory bool
 	// Concept is the store concept the occurrence denotes, for a consumer that
 	// needs more of it than the id — its sibling terms in another language,
 	// say. Nil for a rule hit, which denotes no concept of its own.
@@ -90,6 +92,9 @@ type Occurrence struct {
 	// it stands.
 	DoNotTranslate bool
 	Source         OccurrenceSource
+	// From names where a rule hit's rule is held (TermRuleSet.From). Empty for
+	// a store match.
+	From string
 	// Suggested marks a hit against a suggested rule: one a project has
 	// accumulated and nobody has settled (core/contextop). It never fails, so
 	// the consuming gate reports it and nothing else.
@@ -108,14 +113,12 @@ type LocateRequest struct {
 	Text string
 	Runs []model.Run
 	// RuleSets are the declared terms the caller holds, whatever their origin.
-	// A caller with a voice profile passes profile.VocabularyRuleSets(p); a
-	// caller with a tool's `term_rules:` passes its own set; a caller with both
-	// passes both, and one pass covers them.
+	// A caller with a starter pack passes profile.CarriedRuleSets(p); a caller
+	// with a tool's `term_rules:` passes its own set; a caller with both passes
+	// both, and one pass covers them.
 	RuleSets []profile.TermRuleSet
-	// Store is the bound terms store, consulted when non-nil. Every source in
-	// it is consulted rather than the voice vocabulary alone: a term decision
-	// lands in the terminology source, so a vocabulary-only filter would
-	// enforce a source nothing writes to and ignore the one everything does.
+	// Store is the bound terms store, consulted when non-nil, every concept in
+	// it whatever its source.
 	Store Terminology
 	// Locale is the language the store is asked in. The lookup matches a locale
 	// exactly, so the region is tried and then the language beneath it.
@@ -164,6 +167,7 @@ func ruleOccurrences(req LocateRequest) []Occurrence {
 			Fails:          h.Fails,
 			Category:       h.Category,
 			Kind:           h.Kind,
+			From:           h.From,
 			DoNotTranslate: dnt[strings.ToLower(h.Term)],
 			Source:         SourceRule,
 			Suggested:      h.Suggested,
@@ -236,6 +240,7 @@ func storeOccurrences(ctx context.Context, req LocateRequest) ([]Occurrence, err
 				ConceptID:      m.Concept.ID,
 				Category:       profile.DimensionVocabulary,
 				Competitor:     m.Term.CompetitorTerm,
+				Advisory:       m.Concept.Advisory,
 				Concept:        &concept,
 				Score:          m.Score,
 				MatchType:      m.MatchType,
@@ -317,7 +322,7 @@ func PreferredTerm(ctx context.Context, store Terminology, m TermMatch, loc mode
 	return ReplacementFromNote(m.Term.Note), nil
 }
 
-// Hit presents the occurrence as a vocabulary hit, so a consumer can pass it
+// Hit presents the occurrence as a word-rule hit, so a consumer can pass it
 // to profile.HitsToFindings and get the message, suggestion and concept
 // metadata every vocabulary surface shares rather than wording its own.
 func (o Occurrence) Hit() profile.VocabHit {
@@ -329,6 +334,7 @@ func (o Occurrence) Hit() profile.VocabHit {
 		Replacement: o.Replacement,
 		Note:        o.Note,
 		ConceptID:   o.ConceptID,
+		From:        o.From,
 		Start:       o.Start,
 		End:         o.End,
 		Suggested:   o.Suggested,

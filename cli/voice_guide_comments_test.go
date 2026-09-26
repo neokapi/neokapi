@@ -85,7 +85,7 @@ func TestVoiceGuideAnswersForAFilesContentAndForItsComments(t *testing.T) {
 	assert.Contains(t, goComments, "# Voice Guide: source comments")
 	assert.Contains(t, goComments, "- Code comments:")
 	assert.Contains(t, goComments, "  - A declaration's doc comment: at most 120 words")
-	assert.Contains(t, goComments, "  - A sentence over 50 words is a minor finding, and over 70 words a major one")
+	assert.Contains(t, goComments, "  - A sentence: at most 50 words")
 
 	yamlGuide := voiceGuide(t, filepath.Join("config", "app.yaml"))
 	assert.Contains(t, yamlGuide, "# Voice Guide: site", "a file a reader parses is written under its own point")

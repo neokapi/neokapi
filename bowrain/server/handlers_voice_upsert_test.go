@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,8 +41,7 @@ func TestVoiceUpsert_CreateThenIdempotentRepush(t *testing.T) {
 	payload := `{
 		"name": "Acme Voice",
 		"description": "How Acme sounds.",
-		"tone": {"formality": "neutral", "personality": ["clear", "direct"]},
-		"vocabulary": {"forbidden_terms": [{"term": "utilize", "replacement": "use"}]}
+		"tone": {"formality": "neutral", "personality": ["clear", "direct"]}
 	}`
 
 	rec, res := upsertVoiceProfile(t, srv, wsID, "u-1", payload)
@@ -67,11 +65,8 @@ func TestVoiceUpsert_CreateThenIdempotentRepush(t *testing.T) {
 }
 
 // TestVoiceUpsert_NewVersionPreservesServerEdits is the no-clobber path: a
-// profile edited server-side (description edit + a rule promoted by the
-// correction-learning loop) receives a pushed change as a NEW version — the
-// edited state is archived in the version history (no field loss), and the
-// promoted rule survives in the live vocabulary even though the pushed profile
-// does not carry it.
+// profile edited server-side receives a pushed change as a NEW version, and the
+// edited state is archived in the version history (no field loss).
 func TestVoiceUpsert_NewVersionPreservesServerEdits(t *testing.T) {
 	srv := setupVoiceLoopServer(t)
 	ctx := context.Background()
@@ -80,102 +75,45 @@ func TestVoiceUpsert_NewVersionPreservesServerEdits(t *testing.T) {
 	created := `{
 		"name": "Acme Voice",
 		"description": "Original description.",
-		"tone": {"formality": "neutral"},
-		"vocabulary": {"forbidden_terms": [{"term": "utilize", "replacement": "use"}]}
+		"tone": {"formality": "neutral"}
 	}`
 	rec, res := upsertVoiceProfile(t, srv, wsID, "u-1", created)
 	require.Equal(t, http.StatusCreated, rec.Code)
 	profileID := res.Profile.ID
 
-	// Server-side edit 1: a reviewer refines the description → v2 (v1 archived).
+	// A server-side edit: a reviewer refines the description → v2 (v1 archived).
 	live, err := srv.VoiceStore.GetProfile(ctx, profileID)
 	require.NoError(t, err)
 	live.Description = "Refined on the server."
 	require.NoError(t, srv.VoiceStore.UpdateProfile(ctx, live))
 
-	// Server-side edit 2: the correction loop promotes "synergy" → v3, with a
-	// recorded promoted decision (mirroring HandlePromoteSuggestedRule).
-	promotedProfile, changed, err := coreprofile.PromoteAndSave(ctx, srv.VoiceStore, profileID,
-		coreprofile.SuggestedRule{Term: "synergy", Replacement: "teamwork", CorrectionCount: 3})
-	require.NoError(t, err)
-	require.True(t, changed)
-	require.NoError(t, srv.VoiceStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
-		ProfileID: profileID, Term: "synergy", Replacement: "teamwork",
-		Status: coreprofile.RuleDecisionPromoted, PromotedVersion: promotedProfile.Version,
-	}))
-
-	// The push carries a local change (new tone guideline) from a brand.yaml
-	// that predates both server-side edits: no "synergy" rule, old description.
+	// The push carries a local change (new tone guideline) from a voice file
+	// that predates the server-side edit.
 	pushed := `{
 		"name": "Acme Voice",
 		"description": "Original description.",
-		"tone": {"formality": "neutral", "guidelines": "Lead with the benefit."},
-		"vocabulary": {"forbidden_terms": [{"term": "utilize", "replacement": "use"}]}
+		"tone": {"formality": "neutral", "guidelines": "Lead with the benefit."}
 	}`
 	rec2, res2 := upsertVoiceProfile(t, srv, wsID, "u-2", pushed)
 	require.Equal(t, http.StatusOK, rec2.Code)
 	assert.Equal(t, "updated", res2.Action)
 	require.NotNil(t, res2.Profile)
-	assert.Equal(t, 4, res2.Profile.Version, "the pushed change must land as a new version")
-
-	// The pushed change is live…
+	assert.Equal(t, 3, res2.Profile.Version, "the pushed change must land as a new version")
 	assert.Equal(t, "Lead with the benefit.", res2.Profile.Tone.Guidelines)
-	// …and the promoted rule survived even though the push did not carry it.
-	terms := make([]string, 0, len(res2.Profile.Vocabulary.ForbiddenTerms))
-	for _, r := range res2.Profile.Vocabulary.ForbiddenTerms {
-		terms = append(terms, r.Term)
-	}
-	assert.Contains(t, terms, "synergy", "a server-promoted rule must survive a push that predates it")
-	assert.Contains(t, terms, "utilize")
 
-	// The server-edited state is archived, not lost: v3's snapshot carries the
+	// The server-edited state is archived, not lost: v2's snapshot carries the
 	// refined description.
-	v3, err := srv.VoiceStore.GetProfileVersion(ctx, profileID, 3)
+	v2, err := srv.VoiceStore.GetProfileVersion(ctx, profileID, 2)
 	require.NoError(t, err)
-	assert.Equal(t, "Refined on the server.", v3.Snapshot.Description,
+	assert.Equal(t, "Refined on the server.", v2.Snapshot.Description,
 		"the pre-push server state must be recoverable from the version history")
 
-	// Idempotence holds after preservation: the same stale brand.yaml re-pushed
-	// compares equal to the merged live profile and no-ops.
+	// The same voice file re-pushed compares equal to the live profile and
+	// no-ops.
 	rec3, res3 := upsertVoiceProfile(t, srv, wsID, "u-2", pushed)
 	require.Equal(t, http.StatusOK, rec3.Code)
 	assert.Equal(t, "unchanged", res3.Action)
-	assert.Equal(t, 4, res3.Profile.Version)
-}
-
-// TestVoiceUpsert_DemotedRuleStaysGone proves preservation respects a
-// server-side demote: a promoted-then-demoted rule is absent from the live
-// profile and a push must not resurrect it.
-func TestVoiceUpsert_DemotedRuleStaysGone(t *testing.T) {
-	srv := setupVoiceLoopServer(t)
-	ctx := context.Background()
-	const wsID = "ws-upsert-demote"
-
-	rec, res := upsertVoiceProfile(t, srv, wsID, "u-1", `{"name":"Acme Voice","tone":{"formality":"neutral"}}`)
-	require.Equal(t, http.StatusCreated, rec.Code)
-	profileID := res.Profile.ID
-
-	// Promote then demote "synergy" server-side; the decision row stays
-	// promoted (it durably records the promotion) but the live rule is gone.
-	promotedProfile, changed, err := coreprofile.PromoteAndSave(ctx, srv.VoiceStore, profileID,
-		coreprofile.SuggestedRule{Term: "synergy", Replacement: "teamwork", CorrectionCount: 3})
-	require.NoError(t, err)
-	require.True(t, changed)
-	require.NoError(t, srv.VoiceStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
-		ProfileID: profileID, Term: "synergy", Replacement: "teamwork",
-		Status: coreprofile.RuleDecisionPromoted, PromotedVersion: promotedProfile.Version,
-	}))
-	_, demoted, err := coreprofile.DemoteAndSave(ctx, srv.VoiceStore, profileID, "synergy")
-	require.NoError(t, err)
-	require.True(t, demoted)
-
-	rec2, res2 := upsertVoiceProfile(t, srv, wsID, "u-1",
-		`{"name":"Acme Voice","tone":{"formality":"formal"}}`)
-	require.Equal(t, http.StatusOK, rec2.Code)
-	assert.Equal(t, "updated", res2.Action)
-	for _, r := range res2.Profile.Vocabulary.ForbiddenTerms {
-		assert.False(t, strings.EqualFold("synergy", r.Term), "a demoted rule must not be resurrected by a push")
-	}
+	assert.Equal(t, 3, res3.Profile.Version)
 }
 
 // TestVoiceUpsert_RequiresManageVoice proves the upsert is guarded by the same

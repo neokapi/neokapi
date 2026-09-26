@@ -80,26 +80,10 @@ describe("VoiceProfileEditor", () => {
     expect(tone.getByLabelText("Formality").tagName).toBe("INPUT");
   });
 
-  it("adds a term rule", async () => {
-    const { save } = renderEditor();
-    const preferred = screen.getByTestId("preferred-terms");
-    await userEvent.click(within(preferred).getByRole("button", { name: /Add rule/ }));
-
-    const terms = within(screen.getByTestId("preferred-terms")).getAllByLabelText("Term");
-    await userEvent.type(terms[terms.length - 1], "utilise");
-    await userEvent.click(screen.getByRole("button", { name: /Save/ }));
-
-    const sent = save.mock.calls[0][0];
-    expect(sent.vocabulary?.preferred_terms?.map((r) => r.term)).toEqual(["log in", "utilise"]);
-  });
-
-  it("removes a term rule", async () => {
-    const { save } = renderEditor();
-    const forbidden = screen.getByTestId("forbidden-terms");
-    await userEvent.click(within(forbidden).getAllByRole("button", { name: "Remove" })[0]);
-    await userEvent.click(screen.getByRole("button", { name: /Save/ }));
-
-    expect(save.mock.calls[0][0].vocabulary?.forbidden_terms).toEqual([]);
+  it("points word rules at the project's terms", () => {
+    renderEditor();
+    expect(screen.getByTestId("voice-terms-note")).toHaveTextContent("Word rules are terms");
+    expect(screen.queryByTestId("preferred-terms")).toBeNull();
   });
 
   it("shows the problems a refused save reports, and does not close", async () => {
@@ -166,21 +150,5 @@ describe("VoiceProfileEditor", () => {
     expect(save.mock.calls[0][0].locales?.["nb-NO"].cultural_notes).toBe(
       "Direct address, no hedging.",
     );
-  });
-
-  it("adds a term rule to one channel's vocabulary", async () => {
-    const { save } = renderEditor();
-    const forbidden = screen.getByTestId("channel-docs-forbidden");
-    await userEvent.click(within(forbidden).getByRole("button", { name: /Add rule/ }));
-    await userEvent.type(
-      within(screen.getByTestId("channel-docs-forbidden")).getByLabelText("Term"),
-      "authenticate",
-    );
-    await userEvent.click(screen.getByRole("button", { name: /Save/ }));
-
-    const docs = save.mock.calls[0][0].channels?.docs;
-    expect(docs?.vocabulary?.forbidden_terms?.map((r) => r.term)).toEqual(["authenticate"]);
-    // The channel's tone travels with the vocabulary edit.
-    expect(docs?.tone?.formality).toBe("formal");
   });
 });

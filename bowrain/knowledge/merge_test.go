@@ -9,7 +9,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -69,7 +68,7 @@ func TestMergeChangeSet_OrdinaryAppliesAndRecordsRevision(t *testing.T) {
 	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
 	require.NoError(t, err)
 
-	e := NewEngine(nil, tb, newFakeProfileStore(), store)
+	e := NewEngine(nil, tb, store)
 	res, err := e.MergeChangeSet(ctx, ws, store, *loaded)
 	require.NoError(t, err)
 
@@ -124,7 +123,7 @@ func TestMergeChangeSet_GovernedRejectedWithoutSoD(t *testing.T) {
 	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
 	require.NoError(t, err)
 
-	e := NewEngine(nil, tb, newFakeProfileStore(), store)
+	e := NewEngine(nil, tb, store)
 	_, err = e.MergeChangeSet(ctx, ws, store, *loaded)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "separation of duties")
@@ -165,7 +164,7 @@ func TestMergeChangeSet_GovernedSucceedsWithOtherUserApprove(t *testing.T) {
 	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
 	require.NoError(t, err)
 
-	e := NewEngine(nil, tb, newFakeProfileStore(), store)
+	e := NewEngine(nil, tb, store)
 	res, err := e.MergeChangeSet(ctx, ws, store, *loaded)
 	require.NoError(t, err)
 	assert.Equal(t, 1, res.RevisionsCreated)
@@ -206,7 +205,7 @@ func TestMergeChangeSet_BaseRevConflictAbortsNoWrites(t *testing.T) {
 	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
 	require.NoError(t, err)
 
-	e := NewEngine(nil, tb, newFakeProfileStore(), store)
+	e := NewEngine(nil, tb, store)
 	res, err := e.MergeChangeSet(ctx, ws, store, *loaded)
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrMergeConflict)
@@ -226,44 +225,6 @@ func TestMergeChangeSet_BaseRevConflictAbortsNoWrites(t *testing.T) {
 	assert.Equal(t, ChangeSetDraft, still.Status)
 }
 
-func TestMergeChangeSet_VoiceRuleAddBumpsProfile(t *testing.T) {
-	ctx := context.Background()
-	ws := "ws"
-
-	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", Scope: ws, Version: 3}
-	profiles := newFakeProfileStore(profile)
-
-	store := newMemStore()
-	cs := &ChangeSet{ID: "cs1", WorkspaceID: ws, Name: "Forbid synergy", CreatedBy: "alice"}
-	require.NoError(t, store.CreateChangeSet(ctx, cs))
-	// voice.rule.add is always governed.
-	appendOp(t, store, ws, cs.ID, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{
-		ProfileID: "p1", List: VoiceListForbidden,
-		Rule: coreprofile.TermRule{Term: "synergy", Replacement: "teamwork"},
-	})
-	driveToApproved(t, store, ws, cs.ID)
-	require.NoError(t, store.AddReview(ctx, &ChangeSetReview{
-		WorkspaceID: ws, ChangesetID: cs.ID, Reviewer: "bob", Verdict: VerdictApprove,
-	}))
-
-	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
-	require.NoError(t, err)
-
-	e := NewEngine(nil, terms.NewInMemoryStore(), profiles, store)
-	res, err := e.MergeChangeSet(ctx, ws, store, *loaded)
-	require.NoError(t, err)
-
-	assert.Equal(t, []string{"p1"}, res.ProfilesTouched)
-	assert.Empty(t, res.ConceptsTouched, "a voice-only change-set touches no concepts")
-
-	updated, err := profiles.GetProfile(ctx, "p1")
-	require.NoError(t, err)
-	require.Len(t, updated.Vocabulary.ForbiddenTerms, 1)
-	assert.Equal(t, "synergy", updated.Vocabulary.ForbiddenTerms[0].Term)
-	assert.Equal(t, "teamwork", updated.Vocabulary.ForbiddenTerms[0].Replacement)
-	assert.Equal(t, 4, updated.Version, "the profile version is bumped like AD-019 promotion")
-}
-
 func TestMergeChangeSet_RemovesPilots(t *testing.T) {
 	ctx := context.Background()
 	ws := "ws"
@@ -281,9 +242,9 @@ func TestMergeChangeSet_RemovesPilots(t *testing.T) {
 	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
 	require.NoError(t, err)
 
-	e := NewEngine(nil, tb, newFakeProfileStore(), store)
+	e := NewEngine(nil, tb, store)
 
-	// Pilot the change-set on a stream (no voice ops → no stream binding needed).
+	// Pilot the change-set on a stream.
 	_, err = e.StartPilot(ctx, ws, store, *loaded, "proj1", "pilot/widgets")
 	require.NoError(t, err)
 	pilots, err := store.ListPilots(ctx, ws, cs.ID)
@@ -310,8 +271,8 @@ func TestMergeChangeSet_RemovesPilots(t *testing.T) {
 }
 
 // TestMergeChangeSet_RelationOpBaseRevDoesNotConflict pins this regression: a
-// relation op (and, by the same token, a voice op) carries no concept-revision
-// pin — conceptIDOf returns "" for it — so detectConflicts must skip it even
+// relation op carries no concept-revision pin (conceptIDOf returns "" for
+// it), so detectConflicts must skip it even
 // when it has a non-zero BaseRev and a concept in the workspace has advanced
 // past that revision. The contrast sub-case shows a concept.update pinned to the
 // same stale base IS flagged, proving the guard discriminates by op kind rather
@@ -341,7 +302,7 @@ func TestMergeChangeSet_RelationOpBaseRevDoesNotConflict(t *testing.T) {
 		loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
 		require.NoError(t, err)
 
-		e := NewEngine(nil, tb, newFakeProfileStore(), store)
+		e := NewEngine(nil, tb, store)
 		res, err := e.MergeChangeSet(ctx, ws, store, *loaded)
 		require.NoError(t, err)
 		assert.Empty(t, res.Conflicts)
@@ -375,7 +336,7 @@ func TestMergeChangeSet_RelationOpBaseRevDoesNotConflict(t *testing.T) {
 		loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
 		require.NoError(t, err)
 
-		e := NewEngine(nil, tb, newFakeProfileStore(), store)
+		e := NewEngine(nil, tb, store)
 		res, err := e.MergeChangeSet(ctx, ws, store, *loaded)
 		require.ErrorIs(t, err, ErrMergeConflict)
 		require.Len(t, res.Conflicts, 1)

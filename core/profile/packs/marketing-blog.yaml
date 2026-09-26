@@ -21,27 +21,24 @@ style:
     - regex: '\b(at the end of the day)\b'
       description: Cliche phrase
       advisory: true
-vocabulary:
-  forbidden_terms:
-    - term: in order to
-      replacement: to
-      advisory: true
-    - term: at the end of the day
-      replacement: ultimately
-      advisory: true
-    - term: it goes without saying
-      replacement: ""
-      advisory: true
-    - term: thought leader
-      replacement: expert
-      advisory: true
-  preferred_terms:
-    - term: imagine
-      note: Use to draw readers into scenarios
-    - term: here's the thing
-      note: Use to introduce key insights conversationally
-    - term: let's
-      note: Creates a collaborative feeling with the reader
+terms:
+  - term: in order to
+    replacement: to
+    advisory: true
+  - term: at the end of the day
+    replacement: ultimately
+    advisory: true
+  - term: it goes without saying
+    advisory: true
+  - term: thought leader
+    replacement: expert
+    advisory: true
+  - replacement: imagine
+    note: Use to draw readers into scenarios
+  - replacement: here's the thing
+    note: Use to introduce key insights conversationally
+  - replacement: let's
+    note: Creates a collaborative feeling with the reader
 examples:
   - before: "This article will discuss the benefits of automated testing."
     after: "Ever shipped a bug that a five-minute test would have caught? Let's talk about how automated testing saves your future self."

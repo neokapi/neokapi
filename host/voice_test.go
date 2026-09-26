@@ -10,14 +10,10 @@ import (
 )
 
 func testProfile() *profile.VoiceProfile {
-	return &profile.VoiceProfile{
-		ID:   "test",
-		Name: "Test",
-		Vocabulary: profile.VocabularyRules{
-			ForbiddenTerms:  []profile.TermRule{{Term: "utilize", Replacement: "use"}},
-			CompetitorTerms: []profile.TermRule{{Term: "Globex", Replacement: "Acme"}},
-		},
-	}
+	return (&profile.VoiceProfile{ID: "test", Name: "Test"}).Carry("pack test", []profile.TermRule{
+		{Term: "utilize", Replacement: "use"},
+		{Term: "Globex", Replacement: "Acme", Competitor: true},
+	})
 }
 
 func TestSlugify(t *testing.T) {
@@ -67,15 +63,15 @@ func TestVoiceProfileTemplateParses(t *testing.T) {
 	if p.Name == "" {
 		t.Error("template profile has no name")
 	}
-	// The template's forbidden-term example must round-trip into a usable rule.
+	// The template's word-rule example must round-trip into a usable rule.
 	var hasUtilize bool
-	for _, r := range p.Vocabulary.ForbiddenTerms {
+	for _, r := range p.CarriedTerms().Rules {
 		if r.Term == "utilize" && r.Replacement == "use" {
 			hasUtilize = true
 		}
 	}
 	if !hasUtilize {
-		t.Errorf("template forbidden terms missing utilize→use: %+v", p.Vocabulary.ForbiddenTerms)
+		t.Errorf("template terms missing utilize→use: %+v", p.CarriedTerms().Rules)
 	}
 }
 

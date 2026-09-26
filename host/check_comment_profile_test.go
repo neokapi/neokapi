@@ -11,7 +11,7 @@ import (
 )
 
 // commentLimitsProfile is a voice profile that sets the default comment limits and
-// declares no term or pattern.
+// declares no pattern and carries no term.
 const commentLimitsProfile = "name: Comment limits\nstyle:\n  comments: {}\n"
 
 // namedProfileCheck checks file with the voice profile at profile named on the
@@ -63,7 +63,7 @@ func TestCheckNamedCommentLimitsProfile(t *testing.T) {
 		failing := writeCheckInput(t, dir, "failing.yaml", "name: Comment limits\nstyle:\n  comments: {fails: true}\n")
 		gated := namedProfileCheck(t, failing, code, nil)
 		assert.Equal(t, check.VerdictFailed, gated.Verdict, gated.DidNotRun)
-		assert.Equal(t, 2, gated.Summary.Failing)
+		assert.Equal(t, 3, gated.Summary.Failing)
 	})
 
 	t.Run("in a check scoped to a diff", func(t *testing.T) {
@@ -110,14 +110,16 @@ func TestCheckNamedCommentLimitsProfile(t *testing.T) {
 		assert.Equal(t, check.VerdictDidNotRun, report.Verdict)
 	})
 
-	t.Run("must fail: a profile holding a term keeps voice.rules required", func(t *testing.T) {
-		withTerm := writeCheckInput(t, dir, "term.yaml", "name: Comments and a term\nvocabulary:\n  forbidden_terms:\n    - term: risk-free\nstyle:\n  comments: {}\n")
+	t.Run("must fail: a profile file carrying a term keeps the terms analyzer required", func(t *testing.T) {
+		withTerm := writeCheckInput(t, dir, "term.yaml", "name: Comments and a term\nterms:\n  - term: risk-free\nstyle:\n  comments: {}\n")
 		report := namedProfileCheck(t, withTerm, code, nil)
-		rules := analyzerRun(t, report, "voice.rules")
-		assert.Equal(t, check.AnalyzerPassed, rules.Status)
-		assert.True(t, rules.Required)
-		require.NotNil(t, rules.Canary)
-		assert.Equal(t, check.CanaryCaught, rules.Canary.Status)
+		words := analyzerRun(t, report, "terms")
+		assert.Equal(t, check.AnalyzerPassed, words.Status)
+		assert.True(t, words.Required)
+		require.NotNil(t, words.Canary)
+		assert.Equal(t, check.CanaryCaught, words.Canary.Status)
+		assert.Equal(t, check.AnalyzerNotApplicable, analyzerRun(t, report, "voice.rules").Status,
+			"the voice itself holds only comment limits")
 		assert.Equal(t, check.VerdictPassed, report.Verdict, report.DidNotRun)
 	})
 }

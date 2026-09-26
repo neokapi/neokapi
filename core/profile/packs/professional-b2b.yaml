@@ -19,28 +19,26 @@ style:
     - regex: '!\s*$'
       description: Exclamation marks (too informal for B2B)
       advisory: true
-vocabulary:
-  forbidden_terms:
-    - term: leverage
-      replacement: use
-      advisory: true
-    - term: synergy
-      replacement: collaboration
-      advisory: true
-    - term: paradigm shift
-      replacement: significant change
-      advisory: true
-    - term: circle back
-      replacement: follow up
-      advisory: true
-    - term: move the needle
-      replacement: make progress
-      advisory: true
-  preferred_terms:
-    - term: solution
-      note: Use when describing products/services
-    - term: platform
-      note: Preferred over 'tool' or 'system'
+terms:
+  - term: leverage
+    replacement: use
+    advisory: true
+  - term: synergy
+    replacement: collaboration
+    advisory: true
+  - term: paradigm shift
+    replacement: significant change
+    advisory: true
+  - term: circle back
+    replacement: follow up
+    advisory: true
+  - term: move the needle
+    replacement: make progress
+    advisory: true
+  - replacement: solution
+    note: Use when describing products/services
+  - replacement: platform
+    note: Preferred over 'tool' or 'system'
 examples:
   - before: "Hey! We've got this awesome new feature that's gonna blow your mind!"
     after: "We are pleased to introduce a new capability that addresses a key challenge in enterprise workflows."

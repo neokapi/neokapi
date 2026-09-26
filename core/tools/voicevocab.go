@@ -15,19 +15,22 @@ import (
 
 // VoiceVocabConfig holds configuration for the voice vocabulary check tool.
 type VoiceVocabConfig struct {
-	Profile *coreprofile.VoiceProfile `schema:"description=Voice profile containing vocabulary rules"`
+	Profile *coreprofile.VoiceProfile `schema:"description=Voice profile whose pattern rules the check applies"`
 }
 
 func (c *VoiceVocabConfig) ToolName() string { return "voice-vocab-check" }
 func (c *VoiceVocabConfig) Reset()           {}
 func (c *VoiceVocabConfig) Validate() error  { return nil }
 
-// VoiceVocabCheckTool checks text against voice vocabulary rules (preferred/forbidden/competitor terms).
-// This is a rule-based check that runs before the LLM-based voice-check.
+// VoiceVocabCheckTool is the deterministic check of word rules and a voice's
+// patterns: the terms store's forbidden, competitor and retired terms, the
+// word rules a caller holds (a starter pack's terms, the rules established
+// across the workspace), and the voice's prohibited patterns. It runs before
+// the model-based voice-check.
 type VoiceVocabCheckTool struct {
 	tool.BaseTool
 	profile     *coreprofile.VoiceProfile
-	terminology terms.Terminology           // optional — the project's decided vocabulary
+	terminology terms.Terminology           // optional: the project's terms store
 	resolver    coreprofile.ProfileResolver // optional: lazy profile resolution
 	rc          coreprofile.ResolveContext  // context for resolver
 	resolved    bool                        // true after first resolution attempt
@@ -36,10 +39,10 @@ type VoiceVocabCheckTool struct {
 	// rather than on every block, so without it a caller with a terms store bound
 	// would look its vocabulary up in the empty language and match nothing.
 	sourceLocale model.LocaleID
-	// extra are rule sets from outside the profile and the terms store: the
-	// workspace-wide rules a person widened, and the candidates a project has
-	// accumulated and not yet decided on (core/contextop). They go through the
-	// same matcher as everything else, so one pass covers the lot.
+	// extra are rule sets from outside the terms store: the workspace-wide
+	// rules a person widened, and the candidates a project has accumulated and
+	// not yet decided on (core/contextop). They go through the same matcher as
+	// everything else, so one pass covers the lot.
 	extra []coreprofile.TermRuleSet
 }
 
@@ -66,20 +69,22 @@ func (t *VoiceVocabCheckTool) InSourceLocale(loc model.LocaleID) *VoiceVocabChec
 	return t
 }
 
-// NewVoiceVocabCheckTool creates a new voice vocabulary check tool.
+// NewVoiceVocabCheckTool creates the word-rule and pattern check. profile
+// supplies the patterns and the word rules its voice file carries; tb the
+// terms store. Either may be nil.
 func NewVoiceVocabCheckTool(profile *coreprofile.VoiceProfile, tb terms.Terminology) *VoiceVocabCheckTool {
 	t := &VoiceVocabCheckTool{
 		profile:     profile,
 		terminology: tb,
 	}
 	t.ToolName = "voice-vocab-check"
-	t.ToolDescription = "Checks text against voice vocabulary rules (forbidden, competitor, preferred terms)"
+	t.ToolDescription = "Checks text against word rules (forbidden, competitor and retired terms) and a voice's prohibited patterns"
 	t.Cfg = &VoiceVocabConfig{Profile: profile}
 	t.Annotate = t.annotateBlock
 	return t
 }
 
-// NewVoiceVocabCheckToolWithResolver creates a voice vocabulary check tool that
+// NewVoiceVocabCheckToolWithResolver creates the word-rule and pattern check that
 // lazily resolves its profile from the organizational context hierarchy.
 func NewVoiceVocabCheckToolWithResolver(resolver coreprofile.ProfileResolver, rc coreprofile.ResolveContext, tb terms.Terminology) *VoiceVocabCheckTool {
 	t := &VoiceVocabCheckTool{
@@ -88,7 +93,7 @@ func NewVoiceVocabCheckToolWithResolver(resolver coreprofile.ProfileResolver, rc
 		rc:          rc,
 	}
 	t.ToolName = "voice-vocab-check"
-	t.ToolDescription = "Checks text against voice vocabulary rules (forbidden, competitor, preferred terms)"
+	t.ToolDescription = "Checks text against word rules (forbidden, competitor and retired terms) and a voice's prohibited patterns"
 	t.Cfg = &VoiceVocabConfig{}
 	t.Annotate = t.annotateBlock
 	return t
@@ -119,10 +124,10 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	// nothing else declares.
 	findings := coreprofile.PatternFindings(t.profile, sourceText, sourceRuns)
 
-	// Every declared term, from the profile's vocabulary and from the bound
-	// terms store, located in one pass. Both are the same kind of statement
-	// about the same words, and a gate that asked them separately would be two
-	// gates that can disagree.
+	// Every declared term, from the terms store and from the rule sets held
+	// beside it, located in one pass. They are the same kind of statement about
+	// the same words, and a gate that asked them separately would be two gates
+	// that can disagree.
 	lookupIn := v.SourceLocale()
 	if lookupIn == "" {
 		lookupIn = t.sourceLocale
@@ -130,7 +135,7 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	occurrences, err := terms.Locate(v.Context(), terms.LocateRequest{
 		Text:     sourceText,
 		Runs:     sourceRuns,
-		RuleSets: append(coreprofile.VocabularyRuleSets(t.profile), t.extra...),
+		RuleSets: append(coreprofile.CarriedRuleSets(t.profile), t.extra...),
 		Store:    t.terminology,
 		Locale:   lookupIn,
 	})
@@ -157,7 +162,7 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 }
 
 // Canaries returns the known-bad inputs this checker must flag under its
-// configuration: the first term of each vocabulary list the profile declares,
+// configuration: the first term of the word rules the profile's file carries,
 // text the first checkable prohibited pattern matches, text the first applicable
 // constraint pattern matches, and a term the bound terms store forbids, retires
 // or names as a competitor's in the lookup language.
@@ -177,7 +182,7 @@ func (t *VoiceVocabCheckTool) Canaries(ctx context.Context) (canaries []check.Ca
 			}
 			return false
 		}
-		for _, set := range coreprofile.VocabularyRuleSets(p) {
+		for _, set := range coreprofile.CarriedRuleSets(p) {
 			for _, rule := range set.Rules {
 				term := strings.TrimSpace(rule.Term)
 				if term != "" && add(fmt.Sprintf("%s term %q", set.Kind, term), term, "`"+term+"`") {
@@ -303,10 +308,10 @@ func matchingText(pattern string) (string, bool) {
 // A rule the caller declared is a violation by construction, so it keeps the
 // kind its rule set gave it and fails unless the rule is advisory or
 // suggested. A store match is graded by the concept's standing: a competitor's
-// name and a forbidden term fail. A retired term reports, because the word was
-// the project's own until a decision replaced it, and a check should not turn
-// every legacy spelling in a corpus into a build failure the day a term is
-// retired.
+// name and a forbidden term fail unless the concept is advisory. A retired
+// term reports, because the word was the project's own until a decision
+// replaced it, and a check should not turn every legacy spelling in a corpus
+// into a build failure the day a term is retired.
 func violations(occurrences []terms.Occurrence) []terms.Occurrence {
 	out := make([]terms.Occurrence, 0, len(occurrences))
 	for _, occ := range occurrences {
@@ -316,11 +321,11 @@ func violations(occurrences []terms.Occurrence) []terms.Occurrence {
 		}
 		switch {
 		case occ.Competitor:
-			occ.Kind, occ.Fails = coreprofile.VocabCompetitor, true
+			occ.Kind, occ.Fails = coreprofile.VocabCompetitor, !occ.Advisory
 		case occ.Status == model.TermForbidden:
-			occ.Kind, occ.Fails = coreprofile.VocabForbidden, true
+			occ.Kind, occ.Fails = coreprofile.VocabForbidden, !occ.Advisory
 		case occ.Status == model.TermDeprecated:
-			occ.Kind, occ.Fails = coreprofile.VocabForbidden, false
+			occ.Kind, occ.Fails = coreprofile.VocabRetired, false
 		default:
 			continue
 		}
@@ -329,17 +334,13 @@ func violations(occurrences []terms.Occurrence) []terms.Occurrence {
 	return out
 }
 
-// findingsFor presents located occurrences as voice findings.
+// findingsFor presents located occurrences as findings.
 //
-// The mapping is profile.HitsToFindings, the one every vocabulary surface
-// shares — the /check endpoint, the check_vocabulary MCP tool, the desktop
-// panel — so the streaming tool cannot drift from them on message wording,
-// suggestion phrasing or concept propagation.
-//
-// On top of it, an occurrence the terms store declared says so. The two
-// phrasings are deliberate: "forbidden by the profile" and "forbidden in terms"
-// send a writer to different places to argue with the decision, and a single
-// wording would hide which one is holding them.
+// The mapping is profile.HitsToFindings, the one every word-rule surface
+// shares (the /check endpoint, the check_vocabulary MCP tool, the desktop
+// panel), so the streaming tool cannot drift from them on message wording,
+// suggestion phrasing or concept propagation. A word rule reads the same
+// wherever it is held.
 func findingsFor(occurrences []terms.Occurrence, text string, runs []model.Run) []coreprofile.VoiceFinding {
 	if len(occurrences) == 0 {
 		return nil
@@ -348,24 +349,5 @@ func findingsFor(occurrences []terms.Occurrence, text string, runs []model.Run) 
 	for _, occ := range occurrences {
 		hits = append(hits, occ.Hit())
 	}
-	findings := coreprofile.HitsToFindings(hits, text, runs)
-	for i, occ := range occurrences {
-		if occ.Source == terms.SourceStore {
-			findings[i].Message = storeMessage(occ)
-		}
-	}
-	return findings
-}
-
-// storeMessage names the terms store as where the decision lives. A retired
-// term reads as the softer complaint it is: the word was the project's own
-// until a decision replaced it.
-func storeMessage(occ terms.Occurrence) string {
-	switch {
-	case occ.Competitor:
-		return fmt.Sprintf("Competitor term %q found in terms", occ.Term)
-	case occ.Status == model.TermDeprecated:
-		return fmt.Sprintf("Retired term %q found in terms", occ.Term)
-	}
-	return fmt.Sprintf("Forbidden term %q found in terms", occ.Term)
+	return coreprofile.HitsToFindings(hits, text, runs)
 }

@@ -32,11 +32,16 @@
                 ]
               },
               "advisory": {
+                "description": "for kind=term with a discouraged status: a use reports without failing a check",
                 "type": "boolean"
               },
               "comment_sha256": {
                 "description": "for kind=comment: the comment_sha256 check_file reports for the comment; an edit to a comment whose bytes differ is refused as changed",
                 "type": "string"
+              },
+              "competitor": {
+                "description": "for kind=term: the term is a competitor's name",
+                "type": "boolean"
               },
               "content_hash": {
                 "type": "string"
@@ -108,9 +113,6 @@
                   "object"
                 ]
               },
-              "list": {
-                "type": "string"
-              },
               "locale": {
                 "type": "string"
               },
@@ -121,7 +123,7 @@
                 "type": "string"
               },
               "replacement": {
-                "description": "replacement term for kind=voice; content entries use text",
+                "description": "for kind=term: the wording to use instead of a discouraged term; content entries use text",
                 "type": "string"
               },
               "replaces": {

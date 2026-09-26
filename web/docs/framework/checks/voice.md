@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Voice profiles
-description: "The voice profile is one checkset over neokapi's content-verification engine: a machine-readable profile of tone, style, and vocabulary whose findings annotate Blocks like every other check."
+description: "The voice profile is one checkset over neokapi's content-verification engine: a machine-readable profile of tone, style measures and pattern rules whose findings annotate Blocks like every other check."
 keywords: [voice profile, content checks, writing style, terminology, term rules, MCP, AI assistant]
 ---
 
@@ -41,12 +41,13 @@ kapi voice guide --pack friendly-dtc
 # an LLM analysis of tone, style, and clarity, whose findings report.
 kapi voice check --profile-file voice.yaml release-notes.md
 
-# Rewrite off-voice content: deterministic vocabulary substitution, no model.
-# A rule with no replacement is reported under "skipped" rather than applied.
+# Rewrite off-voice content: deterministic substitution of the terms the
+# profile's file carries, no model. A rule with no replacement is reported
+# under "skipped" rather than applied.
 kapi voice rewrite --profile-file voice.yaml --input-text "Leverage our solution"
 
-# Ask a model for the inflected forms of each vocabulary term, written as a diff
-kapi voice expand --profile-file voice.yaml --language nb
+# Ask a model for the inflected forms of each term, written as a diff
+kapi terms expand --locale nb
 
 # Manage profiles in the local store
 kapi voice profiles
@@ -54,7 +55,7 @@ kapi voice profiles
 
 ## What voice checks assess
 
-The default vocabulary and pattern checks assess encoded rules. `kapi check
+The default word-rule and pattern checks assess encoded rules. `kapi check
 --voice` adds advisory similarity to profile examples through the `kapi-check`
 plugin; it does not request an LLM judgment. `kapi voice check --ai` and the raw
 `voice-check` tool explicitly request semantic model review.
@@ -75,7 +76,9 @@ Empty content skips model analysis and emits no score.
 
 ## Voice profiles
 
-A profile captures tone, style, and vocabulary as rules:
+A profile captures tone, style measures and pattern rules. Word rules ("write
+this, not that") are [terms](/framework/terminology), and a voice file may
+carry them beside the voice under a top-level `terms:` list:
 
 ```yaml
 name: "Acme Corp"
@@ -93,17 +96,15 @@ style:
   person_pov: second # "you" / "your"
   contractions: sometimes
 
-vocabulary:
-  preferred_terms:
-    - term: "workspace"
-      note: "Use instead of 'account' or 'organization'"
-  forbidden_terms:
-    - term: "leverage"
-      replacement: "use"
-      advisory: true
-  competitor_terms:
-    - term: "Slack"
-      replacement: "messaging platform"
+terms:
+  - replacement: "workspace"
+    note: "Use instead of 'account' or 'organization'"
+  - term: "leverage"
+    replacement: "use"
+    advisory: true
+  - term: "Slack"
+    replacement: "messaging platform"
+    competitor: true
 
 examples:
   - before: "Users can leverage the platform to achieve synergy."
@@ -115,20 +116,21 @@ examples:
 Profiles support **locale overrides** (e.g. `formal` and third-person POV for
 `ja`), **channel overrides** (e.g. casual, frequent humor for
 `social_media`) and **persona overrides** (an individual author's voice).
-Channel and persona overrides replace whole Tone/Style sections, and their
-vocabulary can only tighten the profile's; locale overrides merge individual
-fields.
+Channel and persona overrides replace whole Tone/Style sections; locale
+overrides merge individual fields. No override carries word rules.
 
 Three rule fields do most of the work beyond the example above:
 
-- A vocabulary entry is a **term rule**: `term`, `replacement`, `advisory`,
-  and optionally `forms` (the inflections the exact matcher also recognises,
-  which `kapi voice expand` fills in), `case_sensitive`, `scope` (`prose`,
-  `code`, `heading`), `do_not_translate`, and a `concept_id` tying the rule to
-  a concept in the terms store. The same shape is what a flow step accepts under
+- A `terms:` entry is a **term rule**: `term`, `replacement`, `note`,
+  `advisory`, `competitor` for a rival's name, and optionally `forms` (the
+  inflections the exact matcher also recognises), `case_sensitive` and `scope`
+  (`prose`, `code`, `heading`). A rule with only a `replacement` names a
+  preferred form and rejects nothing. `kapi voice import` and
+  `kapi context import` move a file's `terms:` into the project's terms store
+  and report how many; a file that lists its words under `vocabulary:` is
+  converted the same way. The same shape is what a flow step accepts under
   `term_rules:` for `term-check`, `translate`, `recycle`, `dnt-check` and
-  `pseudo-translate`, so a rule authored in the profile and a rule handed to a
-  tool read identically. A use of the term fails a check unless the rule is
+  `pseudo-translate`. A use of the term fails a check unless the rule is
   marked `advisory: true`, which makes it report. A rule whose `replacement`
   is capitalised, such as a product name (`term: QuickCast`, `replacement:
   Quickcast`), matches case-sensitively, so a lower-case URL slug `quickcast`
@@ -146,8 +148,8 @@ Every field is listed in the
 
 ## Compliance scoring
 
-Compliance is scored 0–100 across five dimensions: Tone, Style, Vocabulary,
-Clarity, and overall voice compliance. Each finding reduces the score by a
+Compliance is scored 0–100 across five dimensions: Tone, Style, Vocabulary
+(the word-rule findings), Clarity, and overall voice compliance. Each finding reduces the score by a
 weight set by what it does to a check:
 
 | Finding                        | Weight | Example                        |
@@ -163,8 +165,10 @@ on whether a finding fails.
 
 Built-in packs provide ready-to-use starting points (`professional-b2b`,
 `friendly-dtc`, `technical-docs`, `marketing-blog`, and `customer-support`),
-each with tone settings, style rules, vocabulary constraints, and before/after
-examples to customize.
+each with tone settings, style rules, before/after examples to customize, and
+terms under `terms:`. Where a pack is bound as the voice, its terms apply beside
+the project's own, and a finding they raise names the pack (`pack
+technical-docs`).
 
 ## Pipeline integration
 
@@ -182,11 +186,11 @@ The `voice-check` tool runs in the pipeline alongside other tools:
 
 It uses an LLM to analyze content against the profile and attaches compliance
 scores and findings to each Block as annotations. The faster, rule-based
-`voice-vocab-check` tool checks forbidden and competitor terms without LLM
-calls. Voice vocabulary also flows through the ordinary terminology tools:
-`term-check` and `dnt-check` are the registered tools, and `term-check` takes
-the profile's rules as `term_rules:`, so a forbidden or competitor term fires
-there too, and voice guardrails and terminology share one enforcement path.
+`voice-vocab-check` tool checks the voice's patterns and the forbidden,
+competitor and retired terms that govern the text without LLM calls. Word
+rules are terms, so they also flow through the ordinary terminology tools:
+`term-check` and `dnt-check` take them as `term_rules:`, and voice guardrails
+and terminology share one enforcement path.
 The `term-lookup` and `term-enforce` stages in `terms/tool.go` are library
 code rather than recipe names: the runner appends them behind any tool whose
 schema requires terms, and neither appears in `kapi tools`.
@@ -258,7 +262,7 @@ type Store interface {
 
 The framework ships a SQLite backend (`voice/sqlite.go`) built on
 the shared `core/storage` migration system, with JSON columns for the complex
-tone/style/vocabulary fields. Inside a project the voice tables live in the
+tone and style fields. Inside a project the voice tables live in the
 project's own store; a standalone store is `voice.db`. The interface
 is designed for extension: server deployments can add a scope-partitioned
 PostgreSQL backend.
@@ -277,7 +281,7 @@ findings := []profile.VoiceFinding{
 score := profile.CalculateScore(findings) // score.Overall = 94 (100 - 5 - 1)
 
 // ResolveProfile layers locale, then channel, then persona overrides on a base
-// profile; a persona's vocabulary can only tighten the profile's
+// profile
 resolved := profile.ResolveProfile(base, "ja", "", "")
 ```
 
@@ -294,7 +298,7 @@ import (
 // VoiceAnnotation plus voice-score / voice-findings properties
 checkTool := aitool.NewVoiceCheckTool(llmProvider, profile)
 
-// Rule-based: fast forbidden/competitor-term enforcement, no LLM calls
+// Rule-based: word rules and prohibited patterns, no LLM calls
 vocabTool := tools.NewVoiceVocabCheckTool(profile, terminology)
 ```
 
@@ -309,7 +313,8 @@ all, _ := packs.LoadAll()
 ```
 
 Packs are YAML files embedded via `go:embed`; each returns a
-`*profile.VoiceProfile` ready to use or customize.
+`*profile.VoiceProfile` ready to use or customize, carrying the pack's terms
+(`CarriedTerms`, from `pack <name>`).
 
 ### Content model integration
 

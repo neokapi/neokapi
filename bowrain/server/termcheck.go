@@ -25,9 +25,8 @@ import (
 //
 //   - PRESENCE: the target CONTAINS a forbidden or competitor term — drawn from
 //     the terms store (LookupAll, the same matcher the concept blast radius and RV-E
-//     use) AND from the voice profile's vocabulary (core/profile.MatchVocabulary,
-//     the single brand-vocab matcher the voice-vocab-check tool and blast radius
-//     call).
+//     use) AND from the voice profile's own rules (core/profile.Findings: the
+//     word rules its file carries and its patterns).
 //   - ABSENCE: the source uses a concept that MANDATES a preferred or approved
 //     rendering for the target locale and the target OMITS it, or the concept is
 //     marked do-not-translate and the target does not keep the term verbatim.

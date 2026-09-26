@@ -1,6 +1,9 @@
 package profile
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 // EvalBlock is the minimal content unit the blast-radius evaluator scores: a
 // block's identity, the collection it belongs to, and its text. Callers load
@@ -12,11 +15,10 @@ type EvalBlock struct {
 	Text           string
 }
 
-// EvaluateBlastRadius reports the impact of moving the vocabulary checks from the
-// baseline profile to the candidate profile across a set of blocks — the number
-// shown before a rule is promoted so a team sees what a change will do before it
-// lands. For each block it runs both profiles' vocabulary matchers and diffs the
-// results:
+// EvaluateBlastRadius reports the impact of moving from the baseline word rules
+// to the candidate word rules across a set of blocks: the number shown before a
+// rule is promoted, so a team sees what a change will do before it lands. For
+// each block it matches both rule sets and diffs the results:
 //
 //   - NewViolations    — matches the candidate raises that the baseline did not
 //     (the content a newly-promoted rule would start flagging).
@@ -25,10 +27,10 @@ type EvalBlock struct {
 //   - Improved/Degraded — blocks whose compliance score rose / fell.
 //   - FailingCount     — new violations that fail a check (the riskiest).
 //
-// Results are broken down per collection. Only the vocabulary checkset — the part
-// a promoted correction-rule changes — is scored here; subjective and ML-backed
+// Results are broken down per collection. Only the word rules, the part a
+// promoted correction changes, are scored here; subjective and model-backed
 // checks are out of scope for a deterministic blast-radius preview.
-func EvaluateBlastRadius(blocks []EvalBlock, baseline, candidate *VoiceProfile) BlastRadius {
+func EvaluateBlastRadius(blocks []EvalBlock, baseline, candidate []TermRuleSet) BlastRadius {
 	// Collections starts as a non-nil empty slice so it marshals to JSON `[]`,
 	// never `null` — clients (the web blast-radius preview) index `.length`/`.map`
 	// on it directly and a null crashes the render.
@@ -43,8 +45,8 @@ func EvaluateBlastRadius(blocks []EvalBlock, baseline, candidate *VoiceProfile) 
 	var colOrder []string
 
 	for _, b := range blocks {
-		baseHits := MatchVocabulary(baseline, b.Text)
-		candHits := MatchVocabulary(candidate, b.Text)
+		baseHits := MatchTermRules(baseline, b.Text)
+		candHits := MatchTermRules(candidate, b.Text)
 		baseKeys := hitKeySet(baseHits)
 		candKeys := hitKeySet(candHits)
 
@@ -113,13 +115,19 @@ func EvaluateBlastRadius(blocks []EvalBlock, baseline, candidate *VoiceProfile) 
 	return br
 }
 
-// CandidateWithRule returns a copy of baseline with the suggested rule applied —
-// the candidate profile to evaluate a promotion against, without mutating the
-// baseline.
-func CandidateWithRule(baseline *VoiceProfile, r SuggestedRule) *VoiceProfile {
-	c := baseline.Clone()
-	ApplySuggestedRule(c, r)
-	return c
+// CandidateWithRule returns baseline with the suggested rule applied to its
+// rules: the candidate to evaluate a promotion against. The baseline is left
+// as it was.
+func CandidateWithRule(baseline []TermRuleSet, r SuggestedRule) []TermRuleSet {
+	out := slices.Clone(baseline)
+	for i, set := range out {
+		if set.Kind == VocabForbidden && !set.Suggested {
+			out[i].Rules, _ = ApplySuggestedRule(set.Rules, r)
+			return out
+		}
+	}
+	rules, _ := ApplySuggestedRule(nil, r)
+	return append(out, TermRuleSet{Rules: rules, Kind: VocabForbidden})
 }
 
 // keyedHit carries the two properties a diff of two hit sets reads: whether the

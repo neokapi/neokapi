@@ -1,0 +1,3 @@
+
+		ALTER TABLE tb_concepts ADD COLUMN advisory INTEGER NOT NULL DEFAULT 0;
+		

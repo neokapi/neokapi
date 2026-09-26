@@ -408,13 +408,13 @@ func TestApplyAssetEntriesRecordOperations(t *testing.T) {
 	// An agent naming itself on an asset entry is refused before anything is
 	// written, because applying one is a decision.
 	refused := app.applyRecordedAssetEntry(t.Context(), cmd, changeEntry{
-		Kind: kindVoice, Op: "add-rule", List: "forbidden", Term: "leverage", Replacement: "use",
+		Kind: kindTerm, Term: "leverage", Replacement: "use", Locale: "en", Status: "forbidden",
 		Actor: &contextop.Actor{Kind: contextop.ActorAgent, Name: "claude", Session: "s1"},
 	})
 	assert.Equal(t, "error", refused.Status)
 	assert.Contains(t, refused.Detail, "may not edit")
-	assert.NoFileExists(t, filepath.Join(root, ".kapi", "voice.yaml"),
-		"the refusal came before the committed source moved")
+	assert.NoFileExists(t, filepath.Join(root, ".kapi", "terms.json"),
+		"the refusal came before anything moved")
 }
 
 // TestContextLogFilters covers the narrowing `kapi context log` offers.

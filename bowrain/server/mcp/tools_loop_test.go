@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +21,8 @@ func TestLoopTools_SuggestedRulesAndPromote(t *testing.T) {
 			{Term: "leverage", Replacement: "use", CorrectionCount: 3, Dimension: coreprofile.DimensionVocabulary},
 		},
 	}
-	ms, err := NewMCPServer(store, Config{})
+	tb := newTestTermsStore(t)
+	ms, err := NewMCPServerWithStore(store, nil, Config{}, WithTermsResolver(singleTermsResolver{tb: tb}))
 	require.NoError(t, err)
 
 	// get_suggested_rules → both candidates pending.
@@ -31,13 +33,26 @@ func TestLoopTools_SuggestedRulesAndPromote(t *testing.T) {
 		assert.Equal(t, coreprofile.RuleDecisionPending, c.Status)
 	}
 
-	// promote_rule → utilize becomes an enforced forbidden term.
-	_, prom, err := ms.handlePromoteRule(ctx, nil, promoteRuleInput{ProfileID: "p1", Term: "utilize", Replacement: "use"})
+	// promote_rule names no language and no project: it cannot place the term.
+	_, _, err = ms.handlePromoteRule(ctx, nil, promoteRuleInput{ProfileID: "p1", Term: "utilize", Replacement: "use"})
+	require.ErrorContains(t, err, "locale or project_id is required")
+
+	// promote_rule → utilize becomes a forbidden term in the workspace terms
+	// store, joined to the concept of its replacement.
+	_, prom, err := ms.handlePromoteRule(ctx, nil, promoteRuleInput{ProfileID: "p1", Term: "utilize", Replacement: "use", Locale: "en"})
 	require.NoError(t, err)
 	assert.True(t, prom.Promoted)
-	p, _ := store.GetProfile(ctx, "p1")
-	require.Len(t, p.Vocabulary.ForbiddenTerms, 1)
-	assert.Equal(t, "utilize", p.Vocabulary.ForbiddenTerms[0].Term)
+	concepts, err := tb.Concepts(ctx)
+	require.NoError(t, err)
+	rules := terms.SourceWordRules(concepts, "en")
+	require.Len(t, rules, 1)
+	assert.Equal(t, "utilize", rules[0].Term)
+	assert.Equal(t, "use", rules[0].Replacement)
+
+	// Promoting it again changes nothing.
+	_, prom, err = ms.handlePromoteRule(ctx, nil, promoteRuleInput{ProfileID: "p1", Term: "utilize", Replacement: "use", Locale: "en"})
+	require.NoError(t, err)
+	assert.False(t, prom.Promoted)
 
 	// get_suggested_rules again → utilize now filtered (promoted), leverage remains.
 	_, out, err = ms.handleGetSuggestedRules(ctx, nil, getSuggestedRulesInput{WorkspaceID: "ws1", ProfileID: "p1", MinCount: 3})

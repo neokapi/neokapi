@@ -12,7 +12,6 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tool"
-	"gopkg.in/yaml.v3"
 )
 
 // `kapi exec voice-infer` had no output at all: the tool drafted a profile,
@@ -114,12 +113,16 @@ func (c *voiceInferCollector) Result() (flow.CollectorResult, error) {
 	if err != nil {
 		return flow.CollectorResult{}, err
 	}
-	return flow.CollectorResult{Name: "profile", Data: voiceDraft{Profile: draft, Blocks: blocks}}, nil
+	return flow.CollectorResult{Name: "profile", Data: voiceDraft{Profile: draft, Terms: draft.CarriedTerms().Rules, Blocks: blocks}}, nil
 }
 
 // voiceDraft is the drafted profile, rendered as a profile.
 type voiceDraft struct {
 	Profile *coreprofile.VoiceProfile `json:"profile"`
+	// Terms are the word rules the corpus shows. They are terms, written
+	// beside the voice under `terms:`, and importing the file moves them into
+	// the project's terms.
+	Terms []coreprofile.TermRule `json:"terms,omitempty"`
 	// Blocks is how much text the draft was made from, so a reader can tell a
 	// profile inferred from a corpus apart from one inferred from a paragraph.
 	Blocks int `json:"blocks"`
@@ -130,7 +133,7 @@ func (d voiceDraft) FormatTable(w io.Writer) {
 	if d.Profile == nil {
 		return
 	}
-	out, err := yaml.Marshal(d.Profile)
+	out, err := coreprofile.EncodeVoiceFile(d.Profile)
 	if err != nil {
 		return
 	}

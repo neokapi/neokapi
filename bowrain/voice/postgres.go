@@ -64,7 +64,7 @@ func (s *PostgresVoiceStore) Close() error {
 // forgotten in one of the reads is invisible — the row still scans, the field
 // just comes back zero, which is exactly how min_score reached the API, the
 // wire and four UI surfaces while the store silently dropped it.
-const profileColumns = `id, workspace_id, name, description, tone, style, vocabulary, examples,
+const profileColumns = `id, workspace_id, name, description, tone, style, examples,
 	locales, channels, personas, autonomy, constraints, min_score, version, created_at, updated_at, created_by`
 
 func (s *PostgresVoiceStore) CreateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
@@ -83,10 +83,6 @@ func (s *PostgresVoiceStore) CreateProfile(ctx context.Context, profile *corepro
 	style, err := json.Marshal(profile.Style)
 	if err != nil {
 		return fmt.Errorf("marshal style: %w", err)
-	}
-	vocab, err := json.Marshal(profile.Vocabulary)
-	if err != nil {
-		return fmt.Errorf("marshal vocabulary: %w", err)
 	}
 	examples, err := json.Marshal(profile.Examples)
 	if err != nil {
@@ -116,9 +112,9 @@ func (s *PostgresVoiceStore) CreateProfile(ctx context.Context, profile *corepro
 
 	_, err = s.run().ExecContext(ctx,
 		`INSERT INTO voice_profiles (`+profileColumns+`)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
 		profile.ID, profile.Scope, profile.Name, profile.Description,
-		string(tone), string(style), string(vocab), string(examples),
+		string(tone), string(style), string(examples),
 		string(locales), string(channels), string(personas), string(autonomy), string(constraints),
 		profile.MinScore, profile.Version, now, now, profile.CreatedBy)
 	if err != nil {
@@ -165,10 +161,6 @@ func (s *PostgresVoiceStore) UpdateProfile(ctx context.Context, profile *corepro
 	if err != nil {
 		return fmt.Errorf("marshal style: %w", err)
 	}
-	vocab, err := json.Marshal(profile.Vocabulary)
-	if err != nil {
-		return fmt.Errorf("marshal vocabulary: %w", err)
-	}
 	examples, err := json.Marshal(profile.Examples)
 	if err != nil {
 		return fmt.Errorf("marshal examples: %w", err)
@@ -197,12 +189,12 @@ func (s *PostgresVoiceStore) UpdateProfile(ctx context.Context, profile *corepro
 
 	res, err := s.run().ExecContext(ctx,
 		`UPDATE voice_profiles
-		 SET name=$1, description=$2, tone=$3, style=$4, vocabulary=$5, examples=$6,
-		     locales=$7, channels=$8, personas=$9, autonomy=$10, constraints=$11, min_score=$12,
-		     version=$13, updated_at=$14
-		 WHERE id=$15`,
+		 SET name=$1, description=$2, tone=$3, style=$4, examples=$5,
+		     locales=$6, channels=$7, personas=$8, autonomy=$9, constraints=$10, min_score=$11,
+		     version=$12, updated_at=$13
+		 WHERE id=$14`,
 		profile.Name, profile.Description,
-		string(tone), string(style), string(vocab), string(examples),
+		string(tone), string(style), string(examples),
 		string(locales), string(channels), string(personas), string(autonomy), string(constraints),
 		profile.MinScore, profile.Version, now, profile.ID)
 	if err != nil {
@@ -391,9 +383,8 @@ func (s *PostgresVoiceStore) GetSuggestedRules(ctx context.Context, workspaceID 
 
 	// Back-fill the knowledge-graph concept each suggested term already denotes, so
 	// the concept-backed suggestion story is visible in the candidate list (AD-021).
-	// A correction aggregate carries no concept_id of its own; the authoritative
-	// link lives on the promoted TermRule (the live profile vocabulary) and, durably
-	// across a later demote, on the rule decision.
+	// A correction aggregate carries no concept_id of its own; the link lives on
+	// the rule decision, which keeps it across a later demote.
 	if len(result) > 0 {
 		byTerm, err := s.conceptIDsByTerm(ctx, workspaceID)
 		if err != nil {
@@ -411,25 +402,19 @@ func (s *PostgresVoiceStore) GetSuggestedRules(ctx context.Context, workspaceID 
 }
 
 // conceptIDsByTerm builds a lower-cased term → knowledge-graph concept ID map for
-// a workspace, so correction-derived suggestions can surface the concept a term
-// already denotes. It draws from two authoritative sources: the durable rule
-// decisions (which retain a promoted term's concept even after it is demoted and
-// the live profile no longer carries it) and the live profiles' enforced
-// vocabulary (the current truth, which wins on conflict).
+// a workspace from the durable rule decisions, so correction-derived
+// suggestions can surface the concept a term already denotes, including after
+// a promoted term is demoted.
 func (s *PostgresVoiceStore) conceptIDsByTerm(ctx context.Context, workspaceID string) (map[string]string, error) {
 	byTerm := map[string]string{}
 	if err := s.collectDecisionConcepts(ctx, workspaceID, byTerm); err != nil {
-		return nil, err
-	}
-	if err := s.collectVocabConcepts(ctx, workspaceID, byTerm); err != nil {
 		return nil, err
 	}
 	return byTerm, nil
 }
 
 // collectDecisionConcepts records each promoted term's concept from the durable
-// rule-decision log into byTerm (keyed lower-cased), covering terms that were
-// later demoted out of the live profile.
+// rule-decision log into byTerm (keyed lower-cased).
 func (s *PostgresVoiceStore) collectDecisionConcepts(ctx context.Context, workspaceID string, byTerm map[string]string) error {
 	rows, err := s.run().QueryContext(ctx,
 		`SELECT d.term, d.concept_id
@@ -446,35 +431,6 @@ func (s *PostgresVoiceStore) collectDecisionConcepts(ctx context.Context, worksp
 			return fmt.Errorf("scan rule-decision concept: %w", err)
 		}
 		byTerm[strings.ToLower(strings.TrimSpace(term))] = conceptID
-	}
-	return rows.Err()
-}
-
-// collectVocabConcepts overlays the concept IDs carried by the live profiles'
-// forbidden and competitor terms — the current, authoritative link — onto byTerm.
-func (s *PostgresVoiceStore) collectVocabConcepts(ctx context.Context, workspaceID string, byTerm map[string]string) error {
-	rows, err := s.run().QueryContext(ctx,
-		`SELECT vocabulary FROM voice_profiles WHERE workspace_id = $1`, workspaceID)
-	if err != nil {
-		return fmt.Errorf("load profile vocabularies: %w", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var vocabJSON string
-		if err := rows.Scan(&vocabJSON); err != nil {
-			return fmt.Errorf("scan profile vocabulary: %w", err)
-		}
-		var v coreprofile.VocabularyRules
-		if err := json.Unmarshal([]byte(vocabJSON), &v); err != nil {
-			continue
-		}
-		for _, group := range [][]coreprofile.TermRule{v.ForbiddenTerms, v.CompetitorTerms} {
-			for _, rule := range group {
-				if rule.ConceptID != "" {
-					byTerm[strings.ToLower(strings.TrimSpace(rule.Term))] = rule.ConceptID
-				}
-			}
-		}
 	}
 	return rows.Err()
 }
@@ -723,11 +679,11 @@ type scanner = storage.Scanner
 
 func scanProfile(row scanner) (*coreprofile.VoiceProfile, error) {
 	var p coreprofile.VoiceProfile
-	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, personasJSON, autonomyJSON, constraintsJSON string
+	var toneJSON, styleJSON, examplesJSON, localesJSON, channelsJSON, personasJSON, autonomyJSON, constraintsJSON string
 
 	err := row.Scan(
 		&p.ID, &p.Scope, &p.Name, &p.Description,
-		&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
+		&toneJSON, &styleJSON, &examplesJSON,
 		&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON, &constraintsJSON,
 		&p.MinScore, &p.Version, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy)
 	if err != nil {
@@ -742,9 +698,6 @@ func scanProfile(row scanner) (*coreprofile.VoiceProfile, error) {
 	}
 	if err := json.Unmarshal([]byte(styleJSON), &p.Style); err != nil {
 		return nil, fmt.Errorf("unmarshal style: %w", err)
-	}
-	if err := json.Unmarshal([]byte(vocabJSON), &p.Vocabulary); err != nil {
-		return nil, fmt.Errorf("unmarshal vocabulary: %w", err)
 	}
 	if err := json.Unmarshal([]byte(examplesJSON), &p.Examples); err != nil {
 		return nil, fmt.Errorf("unmarshal examples: %w", err)

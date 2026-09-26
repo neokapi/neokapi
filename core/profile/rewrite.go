@@ -55,12 +55,12 @@ type RewriteResult struct {
 	Skipped []RewriteSkip
 }
 
-// RewriteVocabulary substitutes the profile's forbidden and competitor terms
-// with the replacement each rule names and reports every rule that matched
-// and could not be substituted.
+// RewriteTermRules substitutes the terms the rule sets reject with the
+// replacement each rule names and reports every rule that matched and could
+// not be substituted.
 //
-// Matching is [MatchVocabulary], so the rewrite sees exactly the hits the
-// vocabulary check reports: whole words, declared forms, case sensitivity,
+// Matching is [MatchTermRules], so the rewrite sees exactly the hits the
+// word-rule check reports: whole words, declared forms, case sensitivity,
 // scope and containment suppression all apply. A hit is substituted when its
 // rule names a replacement and the matched text is the term itself, in any
 // casing for a case-insensitive rule. Every other hit stays in the text and is
@@ -70,9 +70,9 @@ type RewriteResult struct {
 // Where two rules claim overlapping text, the hit that starts first wins, and
 // the longer one on a tie. A hit inside replaced text is neither substituted
 // nor reported, because the text it matched is gone.
-func RewriteVocabulary(p *VoiceProfile, text string) RewriteResult {
+func RewriteTermRules(sets []TermRuleSet, text string) RewriteResult {
 	res := RewriteResult{Text: text}
-	hits := MatchVocabulary(p, text)
+	hits := MatchTermRules(sets, text)
 	if len(hits) == 0 {
 		return res
 	}

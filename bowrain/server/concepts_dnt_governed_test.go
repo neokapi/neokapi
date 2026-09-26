@@ -41,7 +41,7 @@ func TestDoNotTranslateChangeMergesOnlyAfterReview(t *testing.T) {
 		WorkspaceID: kgTestWS, ChangesetID: "cs-dnt", Op: knowledge.OpConceptUpdate,
 		Payload: json.RawMessage(`{"concept_id": "c-kapi", "do_not_translate": true}`), CreatedBy: owner,
 	}))
-	engine := knowledge.NewEngine(nil, tb, nil, h.fake)
+	engine := knowledge.NewEngine(nil, tb, h.fake)
 	flag := func() bool {
 		t.Helper()
 		c, ok, err := tb.GetConcept(ctx, "c-kapi")

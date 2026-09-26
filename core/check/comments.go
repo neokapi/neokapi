@@ -37,10 +37,8 @@ const (
 // holds a letter or a digit, so a code span, a reference or a link is never a
 // word, and neither is a dash standing alone.
 type CommentLimits struct {
-	// SentenceMinor and SentenceMajor are the word counts above which a
-	// sentence is a minor finding and a major one.
-	SentenceMinor int
-	SentenceMajor int
+	// SentenceWords is the most words a sentence may hold.
+	SentenceWords int
 	// CommentWords is the most words a comment that documents no declaration
 	// may hold.
 	CommentWords int
@@ -63,8 +61,8 @@ type CommentLimits struct {
 // comment limits and names no number of its own.
 func DefaultCommentLimits() CommentLimits {
 	return CommentLimits{
-		SentenceMinor: 50, SentenceMajor: 70,
-		CommentWords: 100, DocWords: 150, PackageDocWords: 300,
+		SentenceWords: 50,
+		CommentWords:  100, DocWords: 150, PackageDocWords: 300,
 		DensityRatio: 1, DensityMinLines: 8,
 	}
 }
@@ -204,9 +202,9 @@ func CommentSentences(ctx context.Context, seg SentenceBreak, v *model.HygieneVi
 }
 
 // CommentSentenceFindings reports each sentence of a comment block that holds
-// more words than limits allow: a minor finding above SentenceMinor, and a
-// major one above SentenceMajor. It reports nothing on a block the comment
-// layer did not build.
+// more words than SentenceWords allows. A finding fails when the limits say
+// so, and reports otherwise. It reports nothing on a block the comment layer
+// did not build.
 func CommentSentenceFindings(ctx context.Context, seg SentenceBreak, b *model.Block, limits CommentLimits, loc model.LocaleID) ([]Finding, error) {
 	if !comment.IsBlock(b) {
 		return nil, nil
@@ -218,17 +216,13 @@ func CommentSentenceFindings(ctx context.Context, seg SentenceBreak, b *model.Bl
 	}
 	var findings []Finding
 	for _, s := range sentences {
-		fails, limit := limits.Fails, limits.SentenceMajor
-		switch {
-		case s.Words > limits.SentenceMajor:
-		case s.Words > limits.SentenceMinor:
-			fails, limit = false, limits.SentenceMinor
-		default:
+		limit := limits.SentenceWords
+		if s.Words <= limit {
 			continue
 		}
 		findings = append(findings, Finding{
 			Category:     CategorySentenceLength,
-			Fails:        fails,
+			Fails:        limits.Fails,
 			Message:      fmt.Sprintf("Sentence has %d words, over the limit of %d", s.Words, limit),
 			Position:     v.Range(s.Start, s.End),
 			OriginalText: readText(v, s.Start, s.End),
@@ -267,19 +261,20 @@ func CommentLengthFindings(b *model.Block, limits CommentLimits) []Finding {
 }
 
 // CommentSentenceCanaries are the comments the sentence-length check must flag
-// under limits: a sentence one word past the minor limit, and one a word past
-// the major limit wrapped over three lines, which a check that ends a sentence
-// at each line break reads as three short ones.
+// under limits: a sentence one word past the limit, and one a word past it
+// wrapped over three lines, which a check that ends a sentence at each line
+// break reads as three short ones.
 func CommentSentenceCanaries(limits CommentLimits) []Canary {
 	return []Canary{
 		{
-			Name:   fmt.Sprintf("a sentence of %d words", limits.SentenceMinor+1),
-			Block:  commentCanary("func/Canary", true, canarySentence(limits.SentenceMinor+1, 1)),
-			Expect: CategorySentenceLength,
+			Name:     fmt.Sprintf("a sentence of %d words", limits.SentenceWords+1),
+			Block:    commentCanary("func/Canary", true, canarySentence(limits.SentenceWords+1, 1)),
+			Expect:   CategorySentenceLength,
+			MustFail: limits.Fails,
 		},
 		{
-			Name:     fmt.Sprintf("a sentence of %d words wrapped over three lines", limits.SentenceMajor+1),
-			Block:    commentCanary("func/Canary", true, canarySentence(limits.SentenceMajor+1, 3)),
+			Name:     fmt.Sprintf("a sentence of %d words wrapped over three lines", limits.SentenceWords+1),
+			Block:    commentCanary("func/Canary", true, canarySentence(limits.SentenceWords+1, 3)),
 			Expect:   CategorySentenceLength,
 			MustFail: limits.Fails,
 		},

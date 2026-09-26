@@ -59,8 +59,8 @@ collections:
 	return root
 }
 
-// markupFinding is a voice finding reduced to whether its block is a comment
-// and the word it caught.
+// markupFinding is a voice or terms finding reduced to whether its block is a
+// comment and the word it caught.
 type markupFinding struct {
 	comment bool
 	caught  string
@@ -70,7 +70,7 @@ func markupFindings(t *testing.T, findings []check.Diagnostic, apart bool) []mar
 	t.Helper()
 	var out []markupFinding
 	for _, d := range findings {
-		if d.Check != "voice" {
+		if d.Check != "voice" && d.Check != "terms" {
 			continue
 		}
 		isComment := strings.HasPrefix(d.Location.Block, "comment/")

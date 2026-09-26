@@ -16,18 +16,18 @@ import (
 	"github.com/neokapi/neokapi/terms/ktb"
 )
 
-// The fixture's two points hold content to different rules. site/web forbids
-// the term "utilize" and retires ScopedName for SiteName. source/comments
+// The fixture's two points hold content to different rules. site/web's voice
+// prohibits "utilize" and its terms retire ScopedName for SiteName. source/comments
 // prohibits an unowned FIXME and retires LegacyName for SourceName. The YAML
 // value and the comments each use those words, so a block held to the other
 // point reports what that point forbids.
 const (
 	siteVoice = `id: site
 name: Site
-vocabulary:
-  forbidden_terms:
-    - term: utilize
-      replacement: use
+style:
+  prohibited_patterns:
+    - regex: '(?i)\butilize\b'
+      description: write "use", not utilize
 `
 	sourceVoice = `id: source
 name: Source
@@ -172,7 +172,7 @@ func blockKind(block string) string {
 func governedFindings(findings []check.Diagnostic) []governedFinding {
 	var out []governedFinding
 	for _, d := range findings {
-		if d.Check == "voice" {
+		if d.Check == "voice" || d.Check == "terms" {
 			out = append(out, governedFinding{file: filepath.Base(d.Location.File), block: blockKind(d.Location.Block), caught: caughtWord(d.Message)})
 		}
 	}
@@ -244,12 +244,13 @@ func wantPoint(block string, apart bool) check.Point {
 	return sitePoint
 }
 
-// assertPoints holds every voice finding to the point its block sits at.
+// assertPoints holds every voice and terms finding to the point its block
+// sits at.
 func assertPoints(t *testing.T, findings []check.Diagnostic, apart bool) {
 	t.Helper()
 	checked := 0
 	for _, d := range findings {
-		if d.Check != "voice" {
+		if d.Check != "voice" && d.Check != "terms" {
 			continue
 		}
 		checked++

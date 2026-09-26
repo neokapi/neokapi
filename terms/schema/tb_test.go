@@ -31,6 +31,7 @@ func TestTermsSQLiteGolden(t *testing.T) {
 		{"tb_sqlite_v3.golden.sql", RenderTermsSQLiteV3()},
 		{"tb_sqlite_v4.golden.sql", RenderTermsSQLiteV4()},
 		{"tb_sqlite_v5.golden.sql", RenderTermsSQLiteV5()},
+		{"tb_sqlite_v6.golden.sql", RenderTermsSQLiteV6()},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -195,6 +196,22 @@ func TestTermsPostgresSemanticEquivalence(t *testing.T) {
 	assertStmtSetEqual(t, "v4 brand graph", pgV4Reference, RenderTermsPostgresV4("workspace_id"))
 	assertStmtSetEqual(t, "v6 forms", `ALTER TABLE tb_terms ADD COLUMN IF NOT EXISTS forms JSONB NOT NULL DEFAULT '[]';`, RenderTermsPostgresV6())
 	assertStmtSetEqual(t, "v7 do not translate", `ALTER TABLE tb_concepts ADD COLUMN IF NOT EXISTS do_not_translate BOOLEAN NOT NULL DEFAULT FALSE;`, RenderTermsPostgresV7())
+	assertStmtSetEqual(t, "v8 advisory", `ALTER TABLE tb_concepts ADD COLUMN IF NOT EXISTS advisory BOOLEAN NOT NULL DEFAULT FALSE;`, RenderTermsPostgresV8())
+}
+
+// TestTermsPostgresBaselineCarriesAdvisory pins that a database created from
+// the baseline has the advisory column, so version 8 is a no-op there and the
+// column exists whichever route a database took.
+func TestTermsPostgresBaselineCarriesAdvisory(t *testing.T) {
+	for _, stmt := range normalizeStatements(RenderTermsPostgresBaseline("workspace_id")) {
+		if strings.HasPrefix(stmt, "CREATE TABLE IF NOT EXISTS tb_concepts ") {
+			if !strings.Contains(stmt, "advisory BOOLEAN NOT NULL DEFAULT FALSE") {
+				t.Errorf("baseline tb_concepts has no advisory column: %s", stmt)
+			}
+			return
+		}
+	}
+	t.Fatal("baseline creates no tb_concepts table")
 }
 
 // TestTermsPostgresBaselineCarriesDoNotTranslate pins that a database created

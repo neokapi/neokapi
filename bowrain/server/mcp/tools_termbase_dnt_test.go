@@ -25,11 +25,18 @@ func (p *recordingProposer) ProposeConcept(_ context.Context, workspace, _ strin
 	return "cs-proposed", nil
 }
 
-func newTermAddServer(t *testing.T, opts ...Option) (*MCPServer, terms.Store) {
+// newTestTermsStore returns an empty in-memory SQLite terms store.
+func newTestTermsStore(t *testing.T) terms.Store {
 	t.Helper()
 	tb, err := terms.NewSQLiteStore(":memory:")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = tb.Close() })
+	return tb
+}
+
+func newTermAddServer(t *testing.T, opts ...Option) (*MCPServer, terms.Store) {
+	t.Helper()
+	tb := newTestTermsStore(t)
 	ms, err := NewMCPServerWithStore(&memVoiceStore{}, nil, Config{}, append([]Option{WithTermsResolver(singleTermsResolver{tb: tb})}, opts...)...)
 	require.NoError(t, err)
 	return ms, tb

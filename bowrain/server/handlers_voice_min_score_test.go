@@ -151,12 +151,6 @@ func authoredProfileRequest(name, mark string, minScore int) VoiceProfileRequest
 				{Regex: "y" + mark, Description: "yes " + mark, Advisory: true},
 			},
 		},
-		Vocabulary: coreprofile.VocabularyRules{
-			PreferredTerms:  []coreprofile.TermRule{{Term: "use-" + mark, Replacement: "utilize"}},
-			ForbiddenTerms:  []coreprofile.TermRule{{Term: "bad-" + mark}},
-			CompetitorTerms: []coreprofile.TermRule{{Term: "rival-" + mark}},
-			Abbreviations:   map[string]string{"abbr": mark},
-		},
 		Examples: []coreprofile.VoiceExample{
 			{Before: "before " + mark, After: "after " + mark, Explanation: "why", Category: "tone"},
 		},
@@ -167,7 +161,7 @@ func authoredProfileRequest(name, mark string, minScore int) VoiceProfileRequest
 			"email": {Tone: &coreprofile.ToneProfile{Formality: "formal", Personality: []string{mark}}},
 		},
 		Personas: map[string]coreprofile.PersonaOverride{
-			"jordan": {Avoided: []coreprofile.TermRule{{Term: "synergy-" + mark}}},
+			"jordan": {Tone: &coreprofile.ToneProfile{Formality: "casual", Personality: []string{mark}}},
 		},
 		MinScore: minScore,
 	}

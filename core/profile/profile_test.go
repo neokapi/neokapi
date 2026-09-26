@@ -32,15 +32,6 @@ func TestVoiceProfile_JSONRoundTrip(t *testing.T) {
 				{Regex: `\bsynergy\b`, Description: "avoid corporate jargon", Advisory: true},
 			},
 		},
-		Vocabulary: VocabularyRules{
-			PreferredTerms: []TermRule{
-				{Term: "workspace", Replacement: "", Note: "use instead of 'project'"},
-			},
-			ForbiddenTerms: []TermRule{
-				{Term: "cheap", Replacement: "affordable"},
-			},
-			Abbreviations: map[string]string{"API": "Application Programming Interface"},
-		},
 		Examples: []VoiceExample{
 			{Before: "Click here", After: "Select the option", Category: "style"},
 		},
@@ -56,6 +47,7 @@ func TestVoiceProfile_JSONRoundTrip(t *testing.T) {
 		UpdatedAt: now,
 		CreatedBy: "user-1",
 	}
+	profile.Carry("pack test", []TermRule{{Term: "cheap", Replacement: "affordable"}})
 
 	data, err := json.Marshal(profile)
 	require.NoError(t, err)
@@ -72,15 +64,18 @@ func TestVoiceProfile_JSONRoundTrip(t *testing.T) {
 	assert.Equal(t, profile.Style.ActiveVoice, decoded.Style.ActiveVoice)
 	assert.Equal(t, profile.Style.PersonPOV, decoded.Style.PersonPOV)
 	assert.Len(t, decoded.Style.ProhibitedPatterns, 1)
-	assert.Len(t, decoded.Vocabulary.PreferredTerms, 1)
-	assert.Len(t, decoded.Vocabulary.ForbiddenTerms, 1)
-	assert.Equal(t, "API", firstKey(decoded.Vocabulary.Abbreviations))
 	assert.Len(t, decoded.Examples, 1)
 	assert.Contains(t, decoded.Locales, model.LocaleID("ja-JP"))
 	assert.Contains(t, decoded.Channels, "support")
 	assert.Equal(t, profile.Scope, decoded.Scope)
 	assert.Equal(t, profile.Version, decoded.Version)
 	assert.Equal(t, profile.CreatedBy, decoded.CreatedBy)
+
+	// Carried word rules ride beside the profile in memory and are never
+	// serialized with it.
+	assert.NotContains(t, string(data), "cheap")
+	assert.NotContains(t, string(data), `"vocabulary"`)
+	assert.Empty(t, decoded.CarriedTerms().Rules)
 }
 
 func TestVoiceProfile_EmptyOptionalFields(t *testing.T) {
@@ -102,13 +97,6 @@ func TestVoiceProfile_EmptyOptionalFields(t *testing.T) {
 	assert.Nil(t, decoded.Locales)
 	assert.Nil(t, decoded.Channels)
 	assert.Empty(t, decoded.CreatedBy)
-}
-
-func firstKey(m map[string]string) string {
-	for k := range m {
-		return k
-	}
-	return ""
 }
 
 func TestVoiceProfile_ComplianceBar(t *testing.T) {

@@ -52,9 +52,10 @@ func inertChecker(*model.Block) ([]check.Finding, error) { return nil, nil }
 
 func TestVoiceVocabCanaries(t *testing.T) {
 	ctx := context.Background()
-	forbidden := &coreprofile.VoiceProfile{ID: "p"}
-	forbidden.Vocabulary.ForbiddenTerms = []coreprofile.TermRule{{Term: "risk-free"}}
-	forbidden.Vocabulary.CompetitorTerms = []coreprofile.TermRule{{Term: "Acme"}}
+	forbidden := (&coreprofile.VoiceProfile{ID: "p"}).Carry("test", []coreprofile.TermRule{
+		{Term: "risk-free"},
+		{Term: "Acme", Competitor: true},
+	})
 	forbidden.Style.ProhibitedPatterns = []coreprofile.Pattern{{Regex: `(?i)\bsimply\b`}}
 
 	store := terms.NewInMemoryStore(terms.WithMaxConcepts(0))
@@ -69,9 +70,9 @@ func TestVoiceVocabCanaries(t *testing.T) {
 		store   terms.Terminology
 		probes  int
 	}{
-		{"profile vocabulary and patterns", forbidden, nil, 3},
+		{"carried terms and patterns", forbidden, nil, 2},
 		{"terms store only", nil, store, 1},
-		{"both", forbidden, store, 4},
+		{"both", forbidden, store, 3},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -105,8 +105,8 @@ type CheckRunResult struct {
 }
 
 // RunChecks runs the project's content checks (placeholder + do-not-translate
-// when a target exists, voice vocabulary on the source when a voice profile is
-// bound) over the content files the Active Filter selects (its collections +
+// when a target exists, terms and the voice's patterns on the source when
+// they are bound) over the content files the Active Filter selects (its collections +
 // glob; all when empty), for the filter's target languages — source-side checks
 // run once per file, target-side checks run once per filtered language, and the
 // panel no longer carries its own language picker. With no languages selected,
@@ -234,46 +234,59 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			// loop's own read-failure branch above already guards against.
 			var checkErr error
 
-			// Voice vocabulary — source-side, against the profile AND the
-			// vocabulary governing THIS file's point. Passing no terminology
-			// reports what the profile forbids and stays silent about every
-			// term the project itself retired. Runs once per file (independent
-			// of how many target languages are checked).
+			// Source-side, once per file (independent of how many target
+			// languages are checked): the terms and the voice governing THIS
+			// file's point, as two analyzers the way `kapi check` runs them.
 			profile := points.at(ctx, rf.Collection, rf.Relative)
 			if points != nil && points.err != nil {
 				return points.err
 			}
-			vocabulary := points.termsAt(ctx, rf.Collection, rf.Relative)
+			fileTerms := points.termsAt(ctx, rf.Collection, rf.Relative)
 			if points != nil && points.err != nil {
 				return points.err
 			}
-			if profile != nil {
-				vocab := coretools.NewVoiceVocabCheckTool(
-					profile, vocabulary,
-				).InSourceLocale(pctx.SourceLocale)
+			// runSource runs one source-side checker over the file's blocks and
+			// records it under its analyzer id.
+			runSource := func(id, what string, tool *coretools.VoiceVocabCheckTool, voice *coreprofile.VoiceProfile) {
 				before := len(fileFindings)
 				for _, b := range sourceBlocks {
-					if cerr := host.RunCheckTool(ctx, vocab, b); cerr != nil {
-						checkErr = fmt.Errorf("voice vocabulary: %w", cerr)
-						break
+					if cerr := host.RunCheckTool(ctx, tool, b); cerr != nil {
+						checkErr = fmt.Errorf("%s: %w", what, cerr)
+						return
 					}
-					if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
+					if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, model.AnnoVoice); ok {
 						for _, f := range ann.Findings {
 							fileFindings = append(fileFindings, toDesktopFinding(f, b, "source", sourceLang, filePoint))
 							allFindings = append(allFindings, f)
 						}
 					}
+					b.DelAnno(model.AnnoVoice)
 				}
-				if checkErr == nil {
-					canary, cerr := host.ProbeVoiceRules(ctx, vocab, profile)
-					if cerr != nil {
-						checkErr = fmt.Errorf("voice vocabulary: %w", cerr)
-					} else {
-						// A profile the project binds may govern tone alone, so one
-						// with nothing to catch leaves only its own analyzer unrun.
-						record("voice.rules", rf.Relative, len(fileFindings)-before, canary, false)
-					}
+				canary, cerr := host.ProbeVoiceRules(ctx, tool, voice)
+				if cerr != nil {
+					checkErr = fmt.Errorf("%s: %w", what, cerr)
+					return
 				}
+				// A project binds its terms and voice as configuration, and a
+				// voice may govern tone alone, so one with nothing to catch
+				// leaves only its own analyzer unrun.
+				record(id, rf.Relative, len(fileFindings)-before, canary, false)
+			}
+			// Word rules are terms wherever they are held: the terms store and a
+			// bound starter pack's terms. One analyzer checks them all.
+			words := coreprofile.CarriedRuleSets(profile)
+			if fileTerms != nil || len(words) > 0 {
+				runSource("terms", "terms",
+					coretools.NewVoiceVocabCheckTool(nil, fileTerms).
+						InSourceLocale(pctx.SourceLocale).
+						Holding(words...),
+					nil)
+			}
+			// The voice's own rules: its prohibited and required patterns and
+			// its constraints.
+			if voice := profile.VoiceOnly(); checkErr == nil && voice != nil &&
+				(coreprofile.HasDeterministicRules(voice) || len(words) == 0) {
+				runSource("voice.rules", "voice", coretools.NewVoiceVocabCheckTool(voice, nil), voice)
 			}
 
 			// Target-side checks, once per filtered language.

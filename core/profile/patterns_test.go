@@ -156,14 +156,13 @@ func TestPatternHitsToFindings_AnchorsToRuns(t *testing.T) {
 // outweighs a minor vocabulary rule. Before the pattern matcher existed only the
 // vocabulary rules scored, so a profile's critical rule decided nothing.
 func TestFindings_PatternsAndVocabularyScoreTogether(t *testing.T) {
-	p := &VoiceProfile{
+	p := (&VoiceProfile{
 		Style: StyleRules{ProhibitedPatterns: []Pattern{
 			{Regex: `\bgonna\b`, Description: "Casual contraction"},
 		}},
-		Vocabulary: VocabularyRules{ForbiddenTerms: []TermRule{
-			{Term: "leverage", Replacement: "use", Advisory: true},
-		}},
-	}
+	}).Carry("test", []TermRule{
+		{Term: "leverage", Replacement: "use", Advisory: true},
+	})
 	text := "We leverage this and it is gonna work"
 
 	findings := Findings(p, text, nil)
@@ -174,7 +173,7 @@ func TestFindings_PatternsAndVocabularyScoreTogether(t *testing.T) {
 	assert.True(t, findings[1].Fails)
 
 	withPattern := CalculateScore(findings).Overall
-	vocabOnly := CalculateScore(HitsToFindings(MatchVocabulary(p, text), text, nil)).Overall
+	vocabOnly := CalculateScore(HitsToFindings(MatchCarriedTerms(p, text), text, nil)).Overall
 	assert.Less(t, withPattern, vocabOnly, "the critical pattern must move the score")
 }
 

@@ -75,6 +75,15 @@ type profileShape struct {
 		PersonPOV      string `yaml:"person_pov"`
 		Contractions   string `yaml:"contractions"`
 	} `yaml:"style"`
+	// Terms are the word rules a voice file carries beside the voice. A rule
+	// that names a term rejects it; one naming only a replacement is a
+	// preferred form.
+	Terms []struct {
+		Term       string `yaml:"term"`
+		Competitor bool   `yaml:"competitor"`
+	} `yaml:"terms"`
+	// Vocabulary is the list a voice file written before word rules moved to
+	// terms carries. The reference profile is written that way.
 	Vocabulary struct {
 		ForbiddenTerms []struct {
 			Term string `yaml:"term"`
@@ -167,7 +176,7 @@ func compareToReference(res *InferResult, draft string) (*InferResult, error) {
 		scalar("style.contractions", want.Style.Contractions, got.Style.Contractions),
 		scalar("style.active_voice", strconv.FormatBool(want.Style.ActiveVoice), strconv.FormatBool(got.Style.ActiveVoice)),
 		setRecovery("tone.personality", want.Tone.Personality, got.Tone.Personality),
-		setRecovery("vocabulary.forbidden_terms", termList(want), termList(got)),
+		setRecovery("terms", termList(want), termList(got)),
 	}
 
 	for _, f := range res.Fields {
@@ -221,8 +230,15 @@ func extra(want, got []string) []string {
 	return out
 }
 
+// termList is the terms a profile's word rules reject, competitors aside,
+// from its `terms:` list and a legacy `vocabulary:` list alike.
 func termList(p profileShape) []string {
-	out := make([]string, 0, len(p.Vocabulary.ForbiddenTerms))
+	out := make([]string, 0, len(p.Terms)+len(p.Vocabulary.ForbiddenTerms))
+	for _, t := range p.Terms {
+		if strings.TrimSpace(t.Term) != "" && !t.Competitor {
+			out = append(out, t.Term)
+		}
+	}
 	for _, t := range p.Vocabulary.ForbiddenTerms {
 		out = append(out, t.Term)
 	}

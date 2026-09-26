@@ -577,7 +577,7 @@ func Catalog() []CatalogEntry {
 		},
 		{
 			ID:      IDTermForms,
-			Tool:    "voice-expand",
+			Tool:    "terms-expand",
 			Summary: "List the other surface forms a term takes in one language, so the check can match them without guessing at morphology.",
 			Turns:   TermForms{Language: "nb", MaxPerTerm: 8}.Turns("løsning\nutnytte"),
 		},

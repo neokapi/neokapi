@@ -42,11 +42,15 @@ tone:
   # Restrained, because a berthing instruction is read under time pressure.
   personality: [clear, restrained]
   formality: neutral
-vocabulary:
-  # Marketing register: never in operational prose.
-  forbidden_terms:
-    - term: seamless
-      replacement: uninterrupted
+style:
+  prohibited_patterns:
+    # Marketing register: never in operational prose.
+    - regex: '(?i)\bworld-class\b'
+      description: Marketing register
+# The word rules this voice brings; importing it moves them into terms.
+terms:
+  - term: seamless
+    replacement: uninterrupted
 `
 
 const commentedRecipe = `version: v1
@@ -102,19 +106,19 @@ func readGovernanceContext(t *testing.T, a *App, recipe string) {
 	require.Equal(t, 1, res.VoiceProfiles, "the authored profile reached the store")
 }
 
-// TestApplyVoiceRule_NoOpIsByteStable: applying a rule the profile already
-// carries decides nothing, so neither governance file may move a byte.
-func TestApplyVoiceRule_NoOpIsByteStable(t *testing.T) {
+// TestApplyTerm_NoOpIsByteStable: applying a word rule the import already
+// moved into terms decides nothing, so neither governance file may move a byte.
+func TestApplyTerm_NoOpIsByteStable(t *testing.T) {
 	a, cmd, _, recipe, voice := newGovernanceProject(t)
 	readGovernanceContext(t, a, recipe)
 	voiceBefore, recipeBefore := digestOf(t, voice), digestOf(t, recipe)
 
 	res := a.applyAssetEntry(context.Background(), cmd, changeEntry{
-		Kind:        kindVoice,
-		Op:          "add-rule",
-		List:        "forbidden",
+		Kind:        kindTerm,
 		Term:        "seamless",
 		Replacement: "uninterrupted",
+		Locale:      "en-GB",
+		Status:      "forbidden",
 	})
 	require.Equal(t, "skipped", res.Status, "detail: %s", res.Detail)
 
@@ -122,20 +126,20 @@ func TestApplyVoiceRule_NoOpIsByteStable(t *testing.T) {
 	assert.Equal(t, recipeBefore, digestOf(t, recipe), "an applied no-op rewrote the recipe")
 }
 
-// TestSnapshotVoiceProfile_KeepsTheCommentary: a rule that lands in the store
-// and is written back out keeps every comment and the authored key order. A
-// decision that changes three lines of vocabulary and also deletes the file's
-// explanation of itself is not a reviewable diff.
+// TestSnapshotVoiceProfile_KeepsTheCommentary: a word rule lands in terms, and
+// a snapshot writes the voice profile back out with every comment and the
+// authored key order. A decision about one word that also deletes the voice
+// file's explanation of itself is not a reviewable diff.
 func TestSnapshotVoiceProfile_KeepsTheCommentary(t *testing.T) {
 	a, cmd, _, recipe, voice := newGovernanceProject(t)
 	readGovernanceContext(t, a, recipe)
 
 	res := a.applyAssetEntry(context.Background(), cmd, changeEntry{
-		Kind:        kindVoice,
-		Op:          "add-rule",
-		List:        "forbidden",
+		Kind:        kindTerm,
 		Term:        "mooring",
 		Replacement: "berth",
+		Locale:      "en-GB",
+		Status:      "forbidden",
 	})
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
@@ -154,9 +158,11 @@ func TestSnapshotVoiceProfile_KeepsTheCommentary(t *testing.T) {
 	} {
 		assert.Contains(t, got, comment)
 	}
-	assert.Contains(t, got, "term: mooring", "the rule landed")
-	assert.Contains(t, got, "term: seamless", "and the rule already there survived")
 	assert.Contains(t, got, "description: |", "the block scalar stayed a block scalar")
+	termsFile, err := os.ReadFile(filepath.Join(filepath.Dir(voice), "terms.json"))
+	require.NoError(t, err)
+	assert.Contains(t, string(termsFile), "mooring", "the rule landed in terms")
+	assert.Contains(t, string(termsFile), "seamless", "and the rule the voice file brought is there too")
 }
 
 // TestApplyRecipeField_NoOpIsByteStable: setting a recipe field to the value it
@@ -198,40 +204,6 @@ func TestApplyRecipeField_KeepsTheCommentary(t *testing.T) {
 	assert.Contains(t, got, "# Every surface the harbour publishes to.")
 }
 
-// TestApplyVoiceRule_BindingWriteKeepsTheRecipeCommentary is the recipe half of
-// the same defect, and the one that bites first: a project with no voice binding
-// gets one written by the first applied rule, and that write used to take the
-// commented tutorial `kapi init` had produced a moment earlier with it.
-func TestApplyVoiceRule_BindingWriteKeepsTheRecipeCommentary(t *testing.T) {
-	a, cmd, root, recipe, _ := newGovernanceProject(t)
-	unbound := `version: v1
-name: northsea
-# The languages this project is written in. One, for now.
-defaults:
-  source_language: en-GB
-collections:
-  # Every surface the harbour publishes to.
-  - name: northsea-docs
-    content:
-      - path: "docs/**/*.md"
-`
-	require.NoError(t, os.WriteFile(recipe, []byte(unbound), 0o644))
-	require.NoError(t, os.Remove(filepath.Join(root, project.RelStatePath("voice.yaml"))))
-
-	res := a.applyAssetEntry(context.Background(), cmd, changeEntry{
-		Kind: kindVoice, Op: "add-rule", List: "forbidden",
-		Term: "seamless", Replacement: "uninterrupted",
-	})
-	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
-
-	after, err := os.ReadFile(recipe)
-	require.NoError(t, err)
-	got := string(after)
-	assert.Contains(t, got, "voice:", "the binding was written")
-	assert.Contains(t, got, "# The languages this project is written in. One, for now.")
-	assert.Contains(t, got, "# Every surface the harbour publishes to.")
-}
-
 // TestApplyNoOp_LeavesNoBackingUnderKapi is the gate-integrity case, stated the
 // way the erasure gate reads a tree: an apply that decided nothing leaves no
 // changed file under `.kapi/` at all, so it cannot stand as the backing that
@@ -263,11 +235,11 @@ func TestApplyNoOp_LeavesNoBackingUnderKapi(t *testing.T) {
 	require.NotEmpty(t, before, "the fixture must have something under .kapi to be able to see it move")
 
 	res := a.applyAssetEntry(context.Background(), cmd, changeEntry{
-		Kind:        kindVoice,
-		Op:          "add-rule",
-		List:        "forbidden",
+		Kind:        kindTerm,
 		Term:        "seamless",
 		Replacement: "uninterrupted",
+		Locale:      "en-GB",
+		Status:      "forbidden",
 	})
 	require.Equal(t, "skipped", res.Status, "detail: %s", res.Detail)
 

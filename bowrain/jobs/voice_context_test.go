@@ -252,9 +252,6 @@ func TestJobTranslateConfig_CarriesVoiceContext(t *testing.T) {
 		ID:   "bp-1",
 		Name: "Acme Voice",
 		Tone: coreprofile.ToneProfile{Formality: "casual", Guidelines: "Address the reader as a peer"},
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}},
-		},
 	}
 	tb := terms.NewInMemoryStore()
 	seedConcept(t, tb, "c1", "", "dashboard", "tableau de bord", model.TermPreferred)
@@ -273,6 +270,5 @@ func TestJobTranslateConfig_CarriesVoiceContext(t *testing.T) {
 	guide := coreprofile.RenderVoiceGuideCompact(cfg.Profile)
 	assert.Contains(t, guide, "formality: casual")
 	assert.Contains(t, guide, "Address the reader as a peer")
-	assert.Contains(t, guide, `"utilize" → "use"`)
 	assert.Equal(t, []coreprofile.TermRule{{Term: "dashboard", Replacement: "tableau de bord", ConceptID: "c1"}}, cfg.TermRules)
 }

@@ -237,9 +237,9 @@ Before you kept anything, the suggestion read as a note and the check passed:
 
 ```
   outcome  rule              location                                    message
-  REPORTS  voice.vocabulary  docs/guide.md:getting-started/next-steps/p  Suggested rule about "utilise", not yet established: Every other page in docs/ says "use".
+  REPORTS  terms.vocabulary  docs/guide.md:getting-started/next-steps/p  Suggested rule about "utilise", not yet established: Every other page in docs/ says "use".
                                                                          ↳ Use "use" instead
-  REPORTS  voice.vocabulary  docs/guide.md:getting-started/p             Suggested rule about "utilise", not yet established: Every other page in docs/ says "use".
+  REPORTS  terms.vocabulary  docs/guide.md:getting-started/p             Suggested rule about "utilise", not yet established: Every other page in docs/ says "use".
                                                                          ↳ Use "use" instead
 
 PASS configured checks: 0 failing, 2 reported · score 100/100
@@ -252,9 +252,9 @@ were loaded. After you keep the rule, the check fails on uses of “utilise”:
 
 ```
   outcome  rule              location                                    message
-  FAILS    voice.vocabulary  docs/guide.md:getting-started/next-steps/p  Forbidden term "utilise" found in terms
+  FAILS    terms.vocabulary  docs/guide.md:getting-started/next-steps/p  Forbidden term "utilise" found
                                                                          ↳ Use "use" instead
-  FAILS    voice.vocabulary  docs/guide.md:getting-started/p             Forbidden term "utilise" found in terms
+  FAILS    terms.vocabulary  docs/guide.md:getting-started/p             Forbidden term "utilise" found
                                                                          ↳ Use "use" instead
 
 FAIL configured checks: 2 failing, 0 reported · score 50/100

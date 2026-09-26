@@ -152,6 +152,8 @@ func ImportTBX(ctx context.Context, tb Terminology, reader io.Reader, opts TBXIm
 				}
 			case strings.ToLower(tbxDoNotTranslateDescripType):
 				concept.DoNotTranslate = strings.EqualFold(strings.TrimSpace(d.Value), "true")
+			case strings.ToLower(tbxAdvisoryDescripType):
+				concept.Advisory = strings.EqualFold(strings.TrimSpace(d.Value), "true")
 			}
 		}
 
@@ -293,6 +295,10 @@ const tbxFormNoteType = "x-surfaceForm"
 // a category private to this producer, and a reader that does not know it skips
 // the descrip.
 const tbxDoNotTranslateDescripType = "x-doNotTranslate"
+
+// tbxAdvisoryDescripType is the local concept descrip that marks a concept's
+// rules advisory: a use of its forbidden terms reports without failing.
+const tbxAdvisoryDescripType = "x-advisory"
 
 // parseTBXStatus maps TBX administrativeStatus / normativeAuthorization values
 // (and a few plain status spellings) onto the terms store status vocabulary.

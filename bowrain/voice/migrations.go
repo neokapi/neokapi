@@ -5,7 +5,13 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // Migrations is the voice schema as a consolidated, idempotent baseline.
 // Version 5 includes the profile constraints column. CREATE serves fresh
 // databases; idempotent ALTER statements extend existing tables. Versions 1-4
-// are retired and the next baseline version is 6.
+// are retired.
+//
+// Versions issued after the baseline:
+//
+//	6  drop the profile vocabulary column (word rules live in the terms store)
+//
+// Retired numbers are never reused. The next migration is version 7.
 var Migrations = []storage.Migration{
 	{
 		Version:     5,
@@ -18,7 +24,6 @@ var Migrations = []storage.Migration{
 				description  TEXT NOT NULL DEFAULT '',
 				tone         JSONB NOT NULL DEFAULT '{}',
 				style        JSONB NOT NULL DEFAULT '{}',
-				vocabulary   JSONB NOT NULL DEFAULT '{}',
 				examples     JSONB NOT NULL DEFAULT '[]',
 				locales      JSONB NOT NULL DEFAULT '{}',
 				channels     JSONB NOT NULL DEFAULT '{}',
@@ -106,5 +111,10 @@ var Migrations = []storage.Migration{
 				PRIMARY KEY (profile_id, term)
 			);
 		`,
+	},
+	{
+		Version:     6,
+		Description: "drop the profile vocabulary column",
+		SQL:         `ALTER TABLE voice_profiles DROP COLUMN IF EXISTS vocabulary;`,
 	},
 }

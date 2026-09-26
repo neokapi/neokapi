@@ -20,13 +20,10 @@ func sweepStored(id, text string) *venue.StoredBlock {
 
 func sweepTestContext() *SweepContext {
 	return &SweepContext{
-		Profile: &coreprofile.VoiceProfile{
-			ID: "prof-1", Name: "Voice", Version: 3,
-			Vocabulary: coreprofile.VocabularyRules{
-				CompetitorTerms: []coreprofile.TermRule{{Term: "Localizely"}},
-				ForbiddenTerms:  []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}},
-			},
-		},
+		Profile: (&coreprofile.VoiceProfile{ID: "prof-1", Name: "Voice", Version: 3}).Carry("test", []coreprofile.TermRule{
+			{Term: "Localizely", Competitor: true},
+			{Term: "utilize", Replacement: "use"},
+		}),
 		TermRules: []coreprofile.TermRule{{Term: "save", Replacement: "enregistrer"}},
 		DNT:       []string{"Kapiflow"},
 	}

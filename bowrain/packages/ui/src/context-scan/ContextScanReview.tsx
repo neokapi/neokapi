@@ -1,19 +1,12 @@
 import { Badge, Button, Card, Checkbox, Input, Label, Switch } from "@neokapi/ui-primitives";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
-import type {
-  VoiceProfile,
-  ToneProfile,
-  StyleRules,
-  VocabularyRules,
-  VoiceExample,
-} from "../voice/types";
+import type { VoiceProfile, ToneProfile, StyleRules, VoiceExample } from "../voice/types";
 import type { ContextScanDraft, ContextScanFieldEvidence, ContextScanTerm } from "../types/api";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { PersonalityTagPicker } from "../voice/PersonalityTagPicker";
 import { ToneSpectrumSelector } from "../voice/ToneSpectrumSelector";
-import { VocabularyEditor } from "../voice/VocabularyEditor";
 import { ExamplesEditor } from "../voice/ExamplesEditor";
 import { VoicePreview } from "../voice/VoicePreview";
 import {
@@ -126,7 +119,6 @@ function ContextScanReviewEditor({
   const [description, setDescription] = useState(proposedProfile.description ?? "");
   const [tone, setTone] = useState<ToneProfile>(proposedProfile.tone);
   const [style, setStyle] = useState<StyleRules>(proposedProfile.style);
-  const [vocabulary, setVocabulary] = useState<VocabularyRules>(proposedProfile.vocabulary);
   const [examples, setExamples] = useState<VoiceExample[]>(proposedProfile.examples ?? []);
   const [selectedTerms, setSelectedTerms] = useState<Set<number>>(
     () => new Set(proposedTerms.map((_, i) => i)),
@@ -138,8 +130,8 @@ function ContextScanReviewEditor({
 
   /** The draft as currently edited — fed to the live tester and to Approve. */
   const editedProfile = useMemo<VoiceProfile>(
-    () => ({ ...proposedProfile, name, description, tone, style, vocabulary, examples }),
-    [proposedProfile, name, description, tone, style, vocabulary, examples],
+    () => ({ ...proposedProfile, name, description, tone, style, examples }),
+    [proposedProfile, name, description, tone, style, examples],
   );
 
   const toggleTerm = useCallback((index: number) => {
@@ -161,7 +153,6 @@ function ContextScanReviewEditor({
         description,
         tone,
         style,
-        vocabulary,
         examples,
       });
       const terms: ContextScanTerm[] = proposedTerms.filter((_, i) => selectedTerms.has(i));
@@ -191,7 +182,6 @@ function ContextScanReviewEditor({
     description,
     tone,
     style,
-    vocabulary,
     examples,
     proposedTerms,
     selectedTerms,
@@ -330,15 +320,6 @@ function ContextScanReviewEditor({
               setStyle((prev) => ({ ...prev, contractions: v as StyleRules["contractions"] }))
             }
           />
-        </Card>
-
-        {/* Vocabulary */}
-        <Card className="p-5 space-y-4">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <h2 className="text-sm font-semibold">Vocabulary</h2>
-            <FieldEvidence evidence={evidence.vocabulary} />
-          </div>
-          <VocabularyEditor vocabulary={vocabulary} onChange={setVocabulary} />
         </Card>
 
         {/* Examples */}

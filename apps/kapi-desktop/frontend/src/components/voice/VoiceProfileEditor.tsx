@@ -14,7 +14,7 @@ import { t } from "@neokapi/i18n-react/runtime";
 import { call } from "../../hooks/useApi";
 import { qk } from "../../lib/queryKeys";
 import { Field, NumberField } from "./fields";
-import { AbbreviationsEditor, ExampleListEditor, TermRuleListEditor } from "./lists";
+import { ExampleListEditor } from "./lists";
 import {
   ChannelOverridesEditor,
   LocaleOverridesEditor,
@@ -26,7 +26,6 @@ import type { ValueSets } from "./lists";
 import type {
   FieldValueSet,
   ProfileProblem,
-  TermRule,
   VoiceEditTarget,
   VoiceExample,
   VoiceProfile,
@@ -52,7 +51,6 @@ export interface VoiceProfileEditorProps {
 // new object on every render.
 const EMPTY_TONE = {} as const;
 const EMPTY_STYLE = {} as const;
-const EMPTY_RULES: TermRule[] = [];
 const EMPTY_EXAMPLES: VoiceExample[] = [];
 const EMPTY_MAP = {} as const;
 
@@ -131,11 +129,6 @@ export function VoiceProfileEditor({
     (patch: Partial<VoiceProfile>) => setDraft((d) => ({ ...d, ...patch })),
     [],
   );
-  const patchVocabulary = useCallback(
-    (patch: Partial<NonNullable<VoiceProfile["vocabulary"]>>) =>
-      setDraft((d) => ({ ...d, vocabulary: { ...d.vocabulary, ...patch } })),
-    [],
-  );
   const setTone = useCallback(
     (tone: NonNullable<VoiceProfile["tone"]>) => setDraft((d) => ({ ...d, tone })),
     [],
@@ -159,22 +152,6 @@ export function VoiceProfileEditor({
   const setPersonas = useCallback(
     (personas: NonNullable<VoiceProfile["personas"]>) => setDraft((d) => ({ ...d, personas })),
     [],
-  );
-  const setPreferred = useCallback(
-    (preferred_terms: TermRule[]) => patchVocabulary({ preferred_terms }),
-    [patchVocabulary],
-  );
-  const setForbidden = useCallback(
-    (forbidden_terms: TermRule[]) => patchVocabulary({ forbidden_terms }),
-    [patchVocabulary],
-  );
-  const setCompetitor = useCallback(
-    (competitor_terms: TermRule[]) => patchVocabulary({ competitor_terms }),
-    [patchVocabulary],
-  );
-  const setAbbreviations = useCallback(
-    (abbreviations: Record<string, string>) => patchVocabulary({ abbreviations }),
-    [patchVocabulary],
   );
 
   return (
@@ -287,38 +264,15 @@ export function VoiceProfileEditor({
       </section>
 
       <Separator />
-      <section className="space-y-3">
+      <section className="space-y-1" data-testid="voice-terms-note">
         <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          {t("Vocabulary")}
+          {t("Terms")}
         </h3>
-        <TermRuleListEditor
-          label={t("Say this")}
-          rules={draft.vocabulary?.preferred_terms ?? EMPTY_RULES}
-          onChange={setPreferred}
-          sets={values}
-          emptyHint={t("No wording is preferred over another.")}
-          testid="preferred-terms"
-        />
-        <TermRuleListEditor
-          label={t("Never say")}
-          rules={draft.vocabulary?.forbidden_terms ?? EMPTY_RULES}
-          onChange={setForbidden}
-          sets={values}
-          emptyHint={t("No wording is forbidden.")}
-          testid="forbidden-terms"
-        />
-        <TermRuleListEditor
-          label={t("Competitor names")}
-          rules={draft.vocabulary?.competitor_terms ?? EMPTY_RULES}
-          onChange={setCompetitor}
-          sets={values}
-          emptyHint={t("No competitor is named.")}
-          testid="competitor-terms"
-        />
-        <AbbreviationsEditor
-          abbreviations={draft.vocabulary?.abbreviations ?? EMPTY_MAP}
-          onChange={setAbbreviations}
-        />
+        <p className="text-sm text-muted-foreground">
+          {t(
+            "Word rules are terms, held in the project's terms beside this voice. A voice holds tone, style, patterns and examples.",
+          )}
+        </p>
       </section>
 
       <Separator />

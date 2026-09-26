@@ -18,11 +18,17 @@ export {
     PersonaOverride,
     ProfileProblem,
     Rendering,
-    SentenceWordLimits,
     StyleRules,
     TermRule,
     ToneProfile,
-    VocabularyRules,
     VoiceExample,
     VoiceProfile
 } from "./models.js";
+
+import * as $models from "./models.js";
+
+/**
+ * WordLimit is a number of words. It reads from YAML as a plain number, and a
+ * mapping of graded limits is refused with the form to write instead.
+ * @typedef {$models.WordLimit} WordLimit
+ */

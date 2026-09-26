@@ -54,7 +54,7 @@ type ReviewUnitDetail struct {
 	// no project content memory open).
 	MemoryScore int `json:"tm_score,omitempty"`
 	// Findings are the unit's current check findings (placeholder integrity,
-	// do-not-translate, voice vocabulary — the same checkers the Checks panel
+	// do-not-translate, terms and voice patterns — the same checkers the Checks panel
 	// runs, scoped to this one block).
 	Findings []DesktopFinding `json:"findings"`
 	// AIReviewScore/AIReviewModel surface a fresh AI pre-review annotation from
@@ -147,7 +147,7 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 }
 
 // blockCheckFindings runs the registered content checkers over one block for a
-// locale — voice vocabulary on the source when a profile is bound, placeholder
+// locale — terms and the voice's patterns on the source, placeholder
 // integrity and do-not-translate on the target — the ChecksPanel checkset
 // scoped to a single unit.
 //
@@ -173,15 +173,17 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, sourceLang
 		})
 	}
 
-	if profile != nil {
-		// InSourceLocale, like the Checks panel: the vocabulary lookup asks in
-		// the source language for a block carrying no locale of its own, which
-		// is most of them. Without it a term rule resolved from the terms store
-		// (which is keyed by language) matches nothing here while matching in
-		// Checks, and the two panels disagree about the same unit.
+	if profile != nil || tb != nil {
+		// One pass covers the terms (the store's and the ones the voice's file
+		// carries) and the voice's patterns. InSourceLocale, like the Checks
+		// panel: the terms lookup asks in the source language for a block
+		// carrying no locale of its own, which is most of them. Without it a
+		// term from the terms store (which is keyed by language) matches
+		// nothing here while matching in Checks, and the two panels disagree
+		// about the same unit.
 		vocab := coretools.NewVoiceVocabCheckTool(profile, tb).InSourceLocale(model.LocaleID(sourceLang))
 		if err := host.RunCheckTool(ctx, vocab, b); err != nil {
-			return fail("voice vocabulary", err)
+			return fail("terms and voice", err)
 		}
 		if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
 			for _, f := range ann.Findings {

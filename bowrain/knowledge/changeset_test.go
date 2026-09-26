@@ -6,7 +6,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -82,15 +81,9 @@ func TestValidateOp(t *testing.T) {
 		{"relation.remove valid", mustOp(t, 1, OpRelationRemove, RelationRemovePayload{RelationID: "r1"}), false},
 		{"relation.remove missing id", mustOp(t, 1, OpRelationRemove, RelationRemovePayload{}), true},
 
-		// voice.rule.add
-		{"voice.rule.add valid", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy"}}), false},
-		{"voice.rule.add missing profile", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy"}}), true},
-		{"voice.rule.add bad list", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: "nope", Rule: coreprofile.TermRule{Term: "synergy"}}), true},
-		{"voice.rule.add missing term", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListPreferred}), true},
-
-		// voice.rule.remove
-		{"voice.rule.remove valid", mustOp(t, 1, OpVoiceRuleRemove, VoiceRuleRemovePayload{ProfileID: "p1", List: VoiceListForbidden, Term: "synergy"}), false},
-		{"voice.rule.remove missing term", mustOp(t, 1, OpVoiceRuleRemove, VoiceRuleRemovePayload{ProfileID: "p1", List: VoiceListForbidden}), true},
+		// retired: word rules are terms
+		{"voice.rule.add retired", mustOp(t, 1, OpType("voice.rule.add"), map[string]any{"profile_id": "p1", "list": "forbidden", "rule": map[string]string{"term": "synergy"}}), true},
+		{"voice.rule.remove retired", mustOp(t, 1, OpType("voice.rule.remove"), map[string]any{"profile_id": "p1", "list": "forbidden", "term": "synergy"}), true},
 
 		// structural
 		{"unknown op type", mustOp(t, 1, OpType("concept.frobnicate"), map[string]string{}), true},
@@ -124,8 +117,7 @@ func TestIsGovernedOp(t *testing.T) {
 		{"relation.add REPLACED_BY governed", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: terms.ConceptRelation{RelationType: graph.LabelReplacedBy}}), true, false},
 		{"relation.add RELATED ordinary", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: terms.ConceptRelation{RelationType: graph.LabelRelated}}), false, false},
 		{"concept.delete governed", mustOp(t, 1, OpConceptDelete, ConceptDeletePayload{ConceptID: "c1"}), true, false},
-		{"voice.rule.add governed", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "x"}}), true, false},
-		{"voice.rule.remove governed", mustOp(t, 1, OpVoiceRuleRemove, VoiceRuleRemovePayload{ProfileID: "p1", List: VoiceListForbidden, Term: "x"}), true, false},
+		{"voice.rule.add retired", mustOp(t, 1, OpType("voice.rule.add"), map[string]string{}), false, true},
 		{"concept.create ordinary", mustOp(t, 1, OpConceptCreate, ConceptCreatePayload{Concept: terms.Concept{ID: "c1"}}), false, false},
 		{"concept.update ordinary", mustOp(t, 1, OpConceptUpdate, ConceptUpdatePayload{ConceptID: "c1"}), false, false},
 		{"term.add ordinary", mustOp(t, 1, OpTermAdd, TermAddPayload{ConceptID: "c1"}), false, false},
@@ -411,7 +403,6 @@ func TestCheckBaseRev(t *testing.T) {
 		{"term.remove", mustOp(t, 1, OpTermRemove, TermRemovePayload{ConceptID: "tr"}), "tr"},
 		{"term.status", mustOp(t, 1, OpTermStatus, TermStatusPayload{ConceptID: "ts"}), "ts"},
 		{"relation.add has no concept id", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: terms.ConceptRelation{ID: "r1"}}), ""},
-		{"voice.rule.add has no concept id", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1"}), ""},
 	}
 	for _, tt := range conceptIDCases {
 		t.Run("conceptID/"+tt.name, func(t *testing.T) {
@@ -441,9 +432,19 @@ func TestEnumIsValid(t *testing.T) {
 	for _, o := range []OpType{
 		OpConceptCreate, OpConceptUpdate, OpConceptDelete,
 		OpTermAdd, OpTermUpdate, OpTermRemove, OpTermStatus,
-		OpRelationAdd, OpRelationRemove, OpVoiceRuleAdd, OpVoiceRuleRemove,
+		OpRelationAdd, OpRelationRemove,
 	} {
 		assert.True(t, o.IsValid(), o)
 	}
 	assert.False(t, OpType("concept.frobnicate").IsValid())
+	assert.False(t, OpType("voice.rule.add").IsValid())
+}
+
+// TestRetiredOpNamesTheFix pins the error a retired voice.rule op earns: word
+// rules are terms, so it says which term op to use instead.
+func TestRetiredOpNamesTheFix(t *testing.T) {
+	err := ValidateOp(mustOp(t, 1, OpType("voice.rule.add"), map[string]string{}))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "retired")
+	assert.Contains(t, err.Error(), "term.add")
 }

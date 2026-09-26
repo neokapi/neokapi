@@ -30,7 +30,7 @@ func List() ([]string, error) {
 	return names, nil
 }
 
-// Load loads a starter pack by name and returns a VoiceProfile.
+// Load loads a starter pack by name: the voice, carrying the pack's terms.
 func Load(name string) (*coreprofile.VoiceProfile, error) {
 	data, err := packsFS.ReadFile(name + ".yaml")
 	if err != nil {
@@ -40,8 +40,15 @@ func Load(name string) (*coreprofile.VoiceProfile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("pack %q: %w", name, err)
 	}
+	// A pack's terms apply where the pack is bound, beside the project's own,
+	// and name the pack as where they come from.
+	carried := profile.CarriedTerms()
+	profile.Carry(From(name), carried.Rules)
 	return profile, nil
 }
+
+// From names a pack as where its terms come from: "pack technical-docs".
+func From(name string) string { return "pack " + name }
 
 // LoadAll loads all starter packs.
 func LoadAll() ([]*coreprofile.VoiceProfile, error) {

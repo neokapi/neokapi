@@ -8,7 +8,7 @@ import (
 )
 
 func sampleProfile() *VoiceProfile {
-	return &VoiceProfile{
+	return (&VoiceProfile{
 		Name:        "Acme Voice",
 		Description: "Friendly but precise.",
 		Tone: ToneProfile{
@@ -21,16 +21,11 @@ func sampleProfile() *VoiceProfile {
 			ActiveVoice:  true,
 			Contractions: "always",
 		},
-		Vocabulary: VocabularyRules{
-			ForbiddenTerms: []TermRule{
-				{Term: "utilize", Replacement: "use"},
-				{Term: "leverage", Replacement: "use"},
-			},
-			CompetitorTerms: []TermRule{
-				{Term: "Globex", Replacement: "Acme"},
-			},
-		},
-	}
+	}).Carry("pack acme", []TermRule{
+		{Term: "utilize", Replacement: "use"},
+		{Term: "leverage", Replacement: "use"},
+		{Term: "Globex", Replacement: "Acme", Competitor: true},
+	})
 }
 
 func TestRenderVoiceGuideDeterministic(t *testing.T) {
@@ -45,8 +40,9 @@ func TestRenderVoiceGuideDeterministic(t *testing.T) {
 		"# Voice Guide: Acme Voice",
 		"- Personality: friendly, direct",
 		"- Use active voice",
+		"## Terms (pack acme)\n",
 		"~~utilize~~ → use **use**",
-		"### Competitor Terms",
+		"~~Globex~~ → use **Acme**",
 	} {
 		if !strings.Contains(first, want) {
 			t.Errorf("guide missing %q\n---\n%s", want, first)
@@ -84,7 +80,7 @@ func TestRenderVoiceGuideCompact(t *testing.T) {
 // sentence-length ceilings, point of view, prohibited patterns, and forbidden/
 // competitor terms even when they carry no replacement.
 func TestRenderVoiceGuideCompactAllFields(t *testing.T) {
-	p := &VoiceProfile{
+	p := (&VoiceProfile{
 		Name:        "Full Voice",
 		Description: "Everything populated.",
 		Tone: ToneProfile{
@@ -104,16 +100,11 @@ func TestRenderVoiceGuideCompactAllFields(t *testing.T) {
 				{Regex: `\bvery\b`, Advisory: true}, // description-less: the regex must surface
 			},
 		},
-		Vocabulary: VocabularyRules{
-			ForbiddenTerms: []TermRule{
-				{Term: "synergy", Replacement: "teamwork"},
-				{Term: "world-class"}, // no replacement: must still render as a ban
-			},
-			CompetitorTerms: []TermRule{
-				{Term: "Globex"}, // no replacement: must still render as a ban
-			},
-		},
-	}
+	}).Carry("test", []TermRule{
+		{Term: "synergy", Replacement: "teamwork"},
+		{Term: "world-class"},              // no replacement: must still render as a ban
+		{Term: "Globex", Competitor: true}, // no replacement: must still render as a ban
+	})
 
 	got := RenderVoiceGuideCompact(p)
 	for _, want := range []string{
@@ -164,9 +155,10 @@ vocabulary:
 	if p.Name != "Test Voice" {
 		t.Errorf("name = %q", p.Name)
 	}
-	if len(p.Vocabulary.ForbiddenTerms) != 1 || p.Vocabulary.ForbiddenTerms[0].Replacement != "teamwork" {
-		t.Errorf("forbidden terms not parsed: %+v", p.Vocabulary.ForbiddenTerms)
-	}
+	carried := p.CarriedTerms()
+	assert.Equal(t, CarriedFromVoiceFile, carried.From)
+	assert.Equal(t, []TermRule{{Term: "synergy", Replacement: "teamwork"}}, carried.Rules,
+		"the file's vocabulary list travels with the profile as word rules")
 }
 
 func TestLoadProfileYAMLInvalid(t *testing.T) {
@@ -187,18 +179,11 @@ func TestLoadProfileYAMLInvalid(t *testing.T) {
 // the real rule and was rendered for preferred terms only, so the section where
 // it was the entire meaning was the one that dropped it.
 func TestGuideDoesNotBanAWordInFavourOfItself(t *testing.T) {
-	p := &VoiceProfile{
-		Name: "ripgrep",
-		Vocabulary: VocabularyRules{
-			CompetitorTerms: []TermRule{
-				{Term: "grep", Replacement: "grep", Note: "Named plainly; no put-downs."},
-				{Term: "ag", Replacement: "The Silver Searcher"},
-			},
-			ForbiddenTerms: []TermRule{
-				{Term: "Ripgrep", Replacement: "ripgrep", Note: "Lowercase in every occurrence."},
-			},
-		},
-	}
+	p := (&VoiceProfile{Name: "ripgrep"}).Carry("test", []TermRule{
+		{Term: "grep", Replacement: "grep", Note: "Named plainly; no put-downs.", Competitor: true},
+		{Term: "ag", Replacement: "The Silver Searcher", Competitor: true},
+		{Term: "Ripgrep", Replacement: "ripgrep", Note: "Lowercase in every occurrence."},
+	})
 	got := RenderVoiceGuide(p)
 
 	assert.NotContains(t, got, "~~grep~~ → use **grep**", "a word is never banned in favour of itself")
@@ -211,17 +196,24 @@ func TestGuideDoesNotBanAWordInFavourOfItself(t *testing.T) {
 	assert.Contains(t, got, "- ~~Ripgrep~~ → use **ripgrep**: Lowercase in every occurrence.")
 }
 
+// The carried terms render as one list, so a ban with no replacement and a
+// preferred form must still read differently.
+func TestGuideTellsABanFromAPreferredForm(t *testing.T) {
+	p := (&VoiceProfile{Name: "pack"}).Carry("pack test", []TermRule{
+		{Term: "world-class"},
+		{Replacement: "sign in", Note: "Two words."},
+	})
+	got := RenderVoiceGuide(p)
+	assert.Contains(t, got, "## Terms (pack test)\n- ~~world-class~~\n- **sign in**: Two words.\n")
+}
+
 // TestCompactGuideDropsTheNoOpSwapToo: the translation path renders its own
 // term list, and had the same defect.
 func TestCompactGuideDropsTheNoOpSwapToo(t *testing.T) {
-	p := &VoiceProfile{
-		Vocabulary: VocabularyRules{
-			CompetitorTerms: []TermRule{
-				{Term: "grep", Replacement: "grep"},
-				{Term: "ag", Replacement: "The Silver Searcher"},
-			},
-		},
-	}
+	p := (&VoiceProfile{}).Carry("test", []TermRule{
+		{Term: "grep", Replacement: "grep", Competitor: true},
+		{Term: "ag", Replacement: "The Silver Searcher", Competitor: true},
+	})
 	got := RenderVoiceGuideCompact(p)
 	assert.NotContains(t, got, `"grep" → "grep"`)
 	assert.Contains(t, got, `"ag" → "The Silver Searcher"`)

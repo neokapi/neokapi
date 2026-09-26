@@ -364,12 +364,6 @@ func (s *Server) HandleAddChangeSetOp(c echo.Context) error {
 	if err := knowledge.ValidateOp(op); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	// Authoring a voice op is a governed brand action.
-	if isVoiceOpType(op.Op) {
-		if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
-			return err
-		}
-	}
 	if err := s.KnowledgeStore.AppendOp(c.Request().Context(), &op); err != nil {
 		return serverErr(c, err)
 	}
@@ -997,12 +991,6 @@ func pilotStreams(pilots []*knowledge.Pilot) map[string][]string {
 		m[p.ProjectID] = append(m[p.ProjectID], p.Stream)
 	}
 	return m
-}
-
-// isVoiceOpType reports whether an op type targets a voice profile (and is
-// therefore a governed brand edit requiring manage_voice to author).
-func isVoiceOpType(o knowledge.OpType) bool {
-	return o == knowledge.OpVoiceRuleAdd || o == knowledge.OpVoiceRuleRemove
 }
 
 // changesetEvent builds a change-set-scoped knowledge event for a lifecycle

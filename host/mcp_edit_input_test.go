@@ -80,5 +80,5 @@ func TestApplyCLIRejectsVoiceWordingFieldBeforeEditing(t *testing.T) {
 	after, err := os.ReadFile(file)
 	require.NoError(t, err)
 	assert.Equal(t, source, string(after))
-	assert.NoError(t, validateContentWording([]changeEntry{{Kind: kindVoice, Replacement: "Preferred term"}}))
+	assert.NoError(t, validateContentWording([]changeEntry{{Kind: kindTerm, Replacement: "Preferred term"}}))
 }

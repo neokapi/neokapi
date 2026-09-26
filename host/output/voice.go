@@ -239,11 +239,23 @@ type VoiceImportOutput struct {
 	Name   string `json:"name"`
 	Action string `json:"action"` // "created" | "updated"
 	Path   string `json:"path,omitempty"`
+	// Terms counts the word rules the file carried, which the import moved into
+	// the project's terms store: word rules are terms.
+	Terms int `json:"terms,omitempty"`
+	// TermsNotStored says why the word rules the file carried were not stored,
+	// when they were not.
+	TermsNotStored string `json:"terms_not_stored,omitempty"`
 }
 
 // FormatText confirms the import.
 func (o VoiceImportOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "%s voice profile %q (id: %s)\n", o.Action, o.Name, o.ID)
+	if o.Terms > 0 {
+		fmt.Fprintf(w, "moved %d word rule(s) from the file into the project's terms\n", o.Terms)
+	}
+	if o.TermsNotStored != "" {
+		fmt.Fprintf(w, "word rules not stored: %s\n", o.TermsNotStored)
+	}
 	return nil
 }
 

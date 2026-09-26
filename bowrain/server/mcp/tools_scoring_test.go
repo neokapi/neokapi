@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -120,64 +122,62 @@ func findingForTerm(findings []coreprofile.VoiceFinding, term string) bool {
 	return false
 }
 
-// personaScoringServer returns a server whose single profile "hexP" forbids
-// "utilize" (brand guardrail) and defines a "jordan" persona that additionally
-// avoids "synergy". contentStore is nil so an explicit profile_id short-circuits
-// scope resolution.
-func personaScoringServer() *MCPServer {
+// wordRulesServer returns a server whose single profile "hexP" holds no words
+// and whose workspace terms store forbids "utilize" (use "use"), bans
+// "leverage" with no replacement, and names "Globex" as a competitor.
+// contentStore is nil so an explicit profile_id short-circuits scope
+// resolution.
+func wordRulesServer(t *testing.T) *MCPServer {
+	t.Helper()
+	tb := newTestTermsStore(t)
+	for _, c := range []terms.Concept{
+		{ID: "use", Terms: []terms.Term{
+			{Text: "use", Locale: "en", Status: model.TermPreferred},
+			{Text: "utilize", Locale: "en", Status: model.TermForbidden},
+		}},
+		{ID: "leverage", Terms: []terms.Term{{Text: "leverage", Locale: "en", Status: model.TermForbidden}}},
+		{ID: "globex", Terms: []terms.Term{{Text: "Globex", Locale: "en", Status: model.TermForbidden, CompetitorTerm: true}}},
+	} {
+		require.NoError(t, tb.AddConcept(t.Context(), c))
+	}
 	return &MCPServer{
 		voiceStore: &memVoiceStore{profiles: []*coreprofile.VoiceProfile{{
 			ID:    "hexP",
-			Name:  "WithPersona",
+			Name:  "WordRules",
 			Scope: "ws1",
-			Vocabulary: coreprofile.VocabularyRules{
-				ForbiddenTerms: []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}},
-			},
 			Personas: map[string]coreprofile.PersonaOverride{
-				"jordan": {Avoided: []coreprofile.TermRule{{Term: "synergy"}}},
+				"jordan": {Tone: &coreprofile.ToneProfile{Formality: "casual"}},
 			},
 		}}},
+		tbResolver: singleTermsResolver{tb: tb},
 	}
 }
 
-func TestScoreVoiceCompliance_PersonaRespected(t *testing.T) {
-	ms := personaScoringServer()
+func TestScoreVoiceCompliance_FlagsTheWorkspaceTerms(t *testing.T) {
+	ms := wordRulesServer(t)
 
-	// With the persona, its avoided term is flagged on top of the brand's own.
-	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
-		ProfileID: "hexP",
-		Text:      "utilize synergy today",
-		Persona:   "jordan",
-	})
-	require.NoError(t, err)
-	assert.True(t, findingForTerm(out.Score.Findings, "utilize"), "brand forbidden term is always flagged")
-	assert.True(t, findingForTerm(out.Score.Findings, "synergy"), "persona avoided term is flagged when the persona is applied")
+	for _, in := range []scoreVoiceComplianceInput{
+		{ProfileID: "hexP", Text: "utilize synergy today", Locale: "en-US"},
+		{ProfileID: "hexP", Text: "utilize synergy today"},
+		{ProfileID: "hexP", Text: "utilize synergy today", Persona: "jordan"},
+	} {
+		_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, in)
+		require.NoError(t, err)
+		assert.True(t, findingForTerm(out.Score.Findings, "utilize"), "the workspace's forbidden term is flagged (%+v)", in)
+		assert.False(t, findingForTerm(out.Score.Findings, "synergy"), "a word no rule names is not")
+	}
 }
 
-func TestScoreVoiceCompliance_NoPersonaDoesNotApplyPersonaVocab(t *testing.T) {
-	ms := personaScoringServer()
+func TestScoreVoiceCompliance_NoTermsStoreChecksTheVoiceAlone(t *testing.T) {
+	ms := wordRulesServer(t)
+	ms.tbResolver = nil
 
 	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
 		ProfileID: "hexP",
 		Text:      "utilize synergy today",
 	})
 	require.NoError(t, err)
-	assert.True(t, findingForTerm(out.Score.Findings, "utilize"), "brand forbidden term is flagged")
-	assert.False(t, findingForTerm(out.Score.Findings, "synergy"), "persona avoided term is not flagged without the persona")
-}
-
-func TestScoreVoiceCompliance_UnknownPersonaFallsBackToBaseProfile(t *testing.T) {
-	ms := personaScoringServer()
-
-	// An unknown persona is not an error: it leaves the base profile in force.
-	_, out, err := ms.handleScoreVoiceCompliance(t.Context(), nil, scoreVoiceComplianceInput{
-		ProfileID: "hexP",
-		Text:      "utilize synergy today",
-		Persona:   "nobody",
-	})
-	require.NoError(t, err)
-	assert.True(t, findingForTerm(out.Score.Findings, "utilize"), "brand forbidden term is still flagged")
-	assert.False(t, findingForTerm(out.Score.Findings, "synergy"), "an unknown persona adds nothing")
+	assert.Empty(t, out.Score.Findings)
 }
 
 func TestScoreVoiceCompliance_StreamBindingBeatsProject(t *testing.T) {
@@ -199,47 +199,37 @@ func TestScoreVoiceCompliance_StreamBindingBeatsProject(t *testing.T) {
 }
 
 // TestRewriteInVoice_ReportsSkipped proves the rewrite substitutes what the
-// profile names a replacement for and lists what it matched and left in
-// place, so an agent can tell an unchanged text with nothing to fix from one
-// that still carries violations.
+// workspace terms store names a replacement for and lists what it matched and
+// left in place, so an agent can tell an unchanged text with nothing to fix
+// from one that still carries violations.
 func TestRewriteInVoice_ReportsSkipped(t *testing.T) {
-	ms := &MCPServer{
-		voiceStore: &memVoiceStore{profiles: []*coreprofile.VoiceProfile{{
-			ID:    "hexN",
-			Name:  "Northwind",
-			Scope: "ws1",
-			Vocabulary: coreprofile.VocabularyRules{
-				ForbiddenTerms: []coreprofile.TermRule{
-					{Term: "utilize", Replacement: "use"},
-					{Term: "leverage"},
-				},
-				CompetitorTerms: []coreprofile.TermRule{{Term: "Globex"}},
-			},
-		}}},
-	}
+	ms := wordRulesServer(t)
 
 	_, out, err := ms.handleRewriteInVoice(t.Context(), nil, rewriteInVoiceInput{
-		ProfileID: "hexN",
+		ProfileID: "hexP",
 		Text:      "Leverage Globex to utilize your content.",
+		Locale:    "en",
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, "Leverage Globex to use your content.", out.Rewritten)
 	assert.Equal(t, []string{`Replaced forbidden term "utilize" with "use"`}, out.Changes)
 	require.Len(t, out.Skipped, 2)
-	assert.Equal(t, "leverage", out.Skipped[0].Term)
-	assert.Equal(t, "forbidden", out.Skipped[0].List)
-	assert.True(t, out.Skipped[0].Fails)
-	assert.Equal(t, coreprofile.RewriteSkipNoReplacement, out.Skipped[0].Reason)
-	assert.Equal(t, "Globex", out.Skipped[1].Term)
-	assert.Equal(t, "competitor", out.Skipped[1].List)
-	assert.True(t, out.Skipped[1].Fails)
+	skipped := map[string]coreprofile.RewriteSkip{}
+	for _, sk := range out.Skipped {
+		skipped[sk.Term] = sk
+	}
+	assert.Equal(t, "forbidden", skipped["leverage"].List)
+	assert.True(t, skipped["leverage"].Fails)
+	assert.Equal(t, coreprofile.RewriteSkipNoReplacement, skipped["leverage"].Reason)
+	assert.Equal(t, "competitor", skipped["Globex"].List)
+	assert.True(t, skipped["Globex"].Fails)
 	assert.NotEmpty(t, out.Guide)
 }
 
 // TestRewriteInVoice_CleanText: a text with no hits reports nothing skipped.
 func TestRewriteInVoice_CleanText(t *testing.T) {
-	ms := personaScoringServer()
+	ms := wordRulesServer(t)
 
 	_, out, err := ms.handleRewriteInVoice(t.Context(), nil, rewriteInVoiceInput{
 		ProfileID: "hexP",

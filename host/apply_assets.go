@@ -18,16 +18,16 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// applyAssetEntry lands one asset change (a term, content memory pair, voice
-// rule, or recipe field).
+// applyAssetEntry lands one asset change (a term, content memory pair, or
+// recipe field).
 //
-// A term, a pair and a rule are CONTEXT, and land in the project's stores in
-// the user's workspace: the terms store, the content memory and the voice
-// profile the recipe binds by name. A recipe field is CONFIGURATION, and lands
-// in `kapi.yaml` in the checkout. Nothing here writes a context file.
+// A term and a pair are CONTEXT, and land in the project's stores in the
+// user's workspace: the terms store and the content memory. A recipe field is
+// CONFIGURATION, and lands in `kapi.yaml` in the checkout. Nothing here writes
+// a context file.
 //
-// Applying is idempotent: a term, pair or rule already there with the same
-// value is a "skipped" no-op, safe to re-run in a check→fix loop.
+// Applying is idempotent: a term or pair already there with the same value is
+// a "skipped" no-op, safe to re-run in a check→fix loop.
 //
 // No AI provider or credential is touched. Every asset kind requires a kapi
 // project; without one the result is a precise error so the caller exits on the
@@ -45,8 +45,6 @@ func (a *App) applyAssetEntry(ctx context.Context, cmd Command, e changeEntry) a
 		return a.applyTermEntry(ctx, cmd, e)
 	case kindMemory:
 		return a.applyMemoryEntry(ctx, cmd, e)
-	case kindVoice:
-		return a.applyVoiceEntry(ctx, cmd, e)
 	case kindRecipe:
 		return a.applyRecipeEntry(cmd, e)
 	default:
@@ -104,14 +102,15 @@ func (a *App) applyRecordedAssetEntry(ctx context.Context, cmd Command, e change
 
 // assetSubject reads an asset entry as the context subject it decides, and
 // reports whether the entry decides one. A recipe field is configuration rather
-// than context, and a voice-profile vocabulary rule is recorded by the voice
-// profile's own history, so neither records an operation here.
+// than context, so it records no operation here.
 func assetSubject(e changeEntry) (contextop.Subject, bool) {
 	switch e.Kind {
 	case kindTerm:
 		return contextop.Subject{Kind: contextop.SubjectTerm, Term: &coreprofile.TermRule{
 			Term:        e.Term,
 			Replacement: e.Replacement,
+			Advisory:    e.Advisory,
+			Competitor:  e.Competitor,
 		}}, true
 	case kindMemory:
 		return contextop.Subject{Kind: contextop.SubjectMemory, Memory: &contextop.MemoryPair{
@@ -163,12 +162,11 @@ func (a *App) resolveProjectRoot(cmd Command) (recipePath, root string, err erro
 // term → the project's terms store
 // ---------------------------------------------------------------------------
 
-// landedTerms, landedMemory and landedVoice name where a change went, for the
-// one line a surface prints beside the result.
+// landedTerms and landedMemory name where a change went, for the one line a
+// surface prints beside the result.
 const (
 	landedTerms  = "the project's terms store"
 	landedMemory = "the project's content memory"
-	landedVoice  = "voice profile "
 )
 
 // applyTermEntry upserts a term into the project's terms store.
@@ -215,6 +213,8 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 		Replacement:    e.Replacement,
 		Replaces:       e.Replaces,
 		DoNotTranslate: e.DoNotTranslate,
+		Advisory:       e.Advisory,
+		Competitor:     e.Competitor,
 	})
 	if !changed {
 		res.Status = "skipped"
@@ -230,149 +230,24 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 	return res
 }
 
-// termDecision is one term entry as apply reads it off the ledger.
-type termDecision struct {
-	Text        string
-	Locale      model.LocaleID
-	Status      model.TermStatus
-	Replacement string
-	// Replaces names the concept the term joins: a concept id, or the text of a
-	// term that concept already declares.
-	Replaces string
-	// DoNotTranslate sets (true) or clears (false) the do-not-translate flag on
-	// the concept the term joins; nil leaves it.
-	DoNotTranslate *bool
-}
+// termDecision is one term entry as apply reads it off the ledger
+// (terms.Decision).
+type termDecision = terms.Decision
 
-// upsertTerm lands a term decision in the concept set.
-//
-// The term joins a CONCEPT rather than getting one of its own wherever the
-// entry says which: the concept that already declares it, else the one
-// `replaces` names, else the one that declares the replacement. Only a decision
-// that names nothing already in the graph opens a new concept. That is what
-// makes the decision answerable later — "what should this say instead" is the
-// preferred term of the concept the retired word sits in, so a term filed on
-// its own island can never be answered, however clearly the decision was
-// written. A replacement no concept declares yet is added to the joined concept
-// as its preferred term, for the same reason.
-//
-// It is idempotent: an entry already recorded this way returns changed=false so
-// apply reports a skipped no-op. Terms are matched case-insensitively on text
-// within a locale; a new concept is keyed by a stable id so reading the same
-// decision again is reproducible.
-//
-// target is the index of the one concept the decision touched, which is the
-// concept the caller writes back to the store.
-func upsertTerm(concepts []terms.Concept, d termDecision) (out []terms.Concept, target int, changed bool) {
-	// Canonical before it reaches the store or the concept id, so a decision
-	// written as "en_US" joins the concept "en-US" already holds.
-	d.Locale = model.NormalizeLocale(d.Locale)
-	now := time.Now().UTC()
-	noteWant := terms.ReplacementNote(d.Replacement)
-
-	target = indexOfTerm(concepts, d.Text, d.Locale)
-	if target < 0 && d.Replaces != "" {
-		target = indexOfConcept(concepts, d.Replaces, d.Locale)
-	}
-	if target < 0 && d.Replacement != "" {
-		target = indexOfTerm(concepts, d.Replacement, d.Locale)
-	}
-
-	if target < 0 {
-		concepts = append(concepts, terms.Concept{
-			ID:        conceptID(d.Text, d.Locale),
-			Source:    terms.TermSourceTerminology,
-			CreatedAt: now,
-			UpdatedAt: now,
-		})
-		target = len(concepts) - 1
-		changed = true
-	}
-
-	c := &concepts[target]
-	if ti := termIndex(c, d.Text, d.Locale); ti >= 0 {
-		t := &c.Terms[ti]
-		if t.Status != d.Status || t.Text != d.Text || (noteWant != "" && t.Note != noteWant) {
-			t.Status = d.Status
-			t.Text = d.Text
-			if noteWant != "" {
-				t.Note = noteWant
-			}
-			changed = true
-		}
-	} else {
-		c.Terms = append(c.Terms, terms.Term{
-			Text:   d.Text,
-			Locale: d.Locale,
-			Status: d.Status,
-			Note:   noteWant,
-		})
-		changed = true
-	}
-
-	// The replacement becomes the concept's preferred term when the graph does
-	// not have it yet — including under another concept, which would otherwise
-	// end up declaring the same word twice. A term the entry itself declares
-	// preferred is not retired in favour of anything, so its replacement, if it
-	// named one, stays in the note rather than contradicting it.
-	if d.Replacement != "" && d.Status.Discouraged() && indexOfTerm(concepts, d.Replacement, d.Locale) < 0 {
-		c.Terms = append(c.Terms, terms.Term{
-			Text:   d.Replacement,
-			Locale: d.Locale,
-			Status: model.TermPreferred,
-		})
-		changed = true
-	}
-
-	if d.DoNotTranslate != nil && c.DoNotTranslate != *d.DoNotTranslate {
-		c.DoNotTranslate = *d.DoNotTranslate
-		changed = true
-	}
-
-	if changed {
-		c.UpdatedAt = now
-	}
-	return concepts, target, changed
+// upsertTerm lands a term decision in the concept set (terms.UpsertDecision).
+func upsertTerm(concepts []terms.Concept, d termDecision) ([]terms.Concept, int, bool) {
+	return terms.UpsertDecision(concepts, d)
 }
 
 // indexOfTerm returns the index of the concept declaring text in locale, or -1.
 func indexOfTerm(concepts []terms.Concept, text string, locale model.LocaleID) int {
-	for ci := range concepts {
-		if termIndex(&concepts[ci], text, locale) >= 0 {
-			return ci
-		}
-	}
-	return -1
-}
-
-// indexOfConcept resolves a join key — a concept id, or the text of a term the
-// concept declares in locale — to a concept index, or -1.
-func indexOfConcept(concepts []terms.Concept, key string, locale model.LocaleID) int {
-	for ci := range concepts {
-		if concepts[ci].ID == key {
-			return ci
-		}
-	}
-	return indexOfTerm(concepts, key, locale)
+	return terms.IndexOfTerm(concepts, text, locale)
 }
 
 // termIndex returns the index of the concept's term with this text in this
 // locale, or -1.
 func termIndex(c *terms.Concept, text string, locale model.LocaleID) int {
-	for ti := range c.Terms {
-		if c.Terms[ti].Locale == locale && strings.EqualFold(c.Terms[ti].Text, text) {
-			return ti
-		}
-	}
-	return -1
-}
-
-// conceptID derives a stable, filesystem-safe concept id from the term text and
-// locale so re-applying the same term re-seeds the same concept. The locale is
-// embedded in canonical form: the id is persisted, and two spellings of one
-// locale must mint one concept.
-func conceptID(text string, locale model.LocaleID) string {
-	return "term:" + string(model.NormalizeLocale(locale)) + ":" + slugify(text)
+	return terms.TermIndex(c, text, locale)
 }
 
 // ---------------------------------------------------------------------------
@@ -567,54 +442,7 @@ func memoryEntryID(source string, srcLocale, tgtLocale model.LocaleID) string {
 // voice → the voice profile the recipe binds, in the project's voice store
 // ---------------------------------------------------------------------------
 
-// applyVoiceEntry adds a vocabulary rule to the voice profile the recipe binds,
-// in the project's voice store.
-func (a *App) applyVoiceEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
-	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Term}
-
-	if e.Op != "" && e.Op != "add-rule" {
-		return errResult(res, fmt.Sprintf("voice: unsupported op %q (want \"add-rule\")", e.Op))
-	}
-	if strings.TrimSpace(e.Term) == "" {
-		return errResult(res, "voice: empty term")
-	}
-	if e.List != "forbidden" && e.List != "competitor" && e.List != "preferred" {
-		return errResult(res, fmt.Sprintf("voice: unknown list %q (want forbidden, competitor, or preferred)", e.List))
-	}
-
-	recipePath, root, err := a.resolveProjectRoot(cmd)
-	if err != nil {
-		return errResult(res, err.Error())
-	}
-	w, err := a.Projector(ctx, root)
-	if err != nil {
-		return errResult(res, err.Error())
-	}
-	store := voiceWriter(w.With(projector.Origin{By: "apply"}))
-	if store == nil {
-		return errResult(res, fmt.Sprintf("voice: %v", projectdb.ErrNoStore))
-	}
-
-	profile, err := a.boundVoiceProfileForWrite(ctx, store, recipePath, root)
-	if err != nil {
-		return errResult(res, err.Error())
-	}
-
-	if !upsertVoiceRule(profile, e.List, e.Term, e.Replacement, e.Advisory) {
-		res.Status = "skipped"
-		res.Detail = "already present"
-		return res
-	}
-	if err := store.UpdateProfile(ctx, profile); err != nil {
-		return errResult(res, fmt.Sprintf("write voice profile %s: %v", profile.ID, err))
-	}
-
-	res.Status = "applied"
-	res.Detail = landedVoice + profile.ID
-	return res
-}
-
-// boundVoiceProfileForWrite returns the voice profile a rule lands in: the one
+// boundVoiceProfileForWrite returns the voice profile an edit lands in: the one
 // the recipe binds by name at the project's default point.
 //
 // A project that binds none gets a profile of its own, created in the store and
@@ -628,7 +456,7 @@ func (a *App) boundVoiceProfileForWrite(ctx context.Context, store coreprofile.S
 	if bv := proj.Defaults.Voice; bv != nil {
 		switch {
 		case bv.Pack != "":
-			return nil, fmt.Errorf("voice: defaults.voice binds the starter pack %q, which is read-only. Bind a profile of this project's own to apply rules", bv.Pack)
+			return nil, fmt.Errorf("voice: defaults.voice binds the starter pack %q, which is read-only. Bind a profile of this project's own to edit it", bv.Pack)
 		case bv.Profile != "":
 			if p, gerr := lookupProfileIn(ctx, store, bv.Profile); gerr == nil {
 				return p, nil
@@ -662,41 +490,6 @@ func createVoiceProfile(ctx context.Context, store coreprofile.Store, name strin
 		return nil, fmt.Errorf("create voice profile %s: %w", id, err)
 	}
 	return profile, nil
-}
-
-// upsertVoiceRule adds a term rule to the named vocabulary list. It is
-// idempotent: a rule with the same term, replacement, and advisory marking
-// already on the list returns changed=false.
-func upsertVoiceRule(profile *coreprofile.VoiceProfile, list, term, replacement string, advisory bool) bool {
-	rule := coreprofile.TermRule{Term: term, Replacement: replacement, Advisory: advisory}
-	target := voiceRuleList(profile, list)
-	for _, existing := range *target {
-		if existing.Term == term && existing.Replacement == replacement && existing.Advisory == advisory {
-			return false
-		}
-	}
-	// Replace an existing rule for the same term (different replacement/advisory)
-	// rather than appending a duplicate.
-	for i := range *target {
-		if (*target)[i].Term == term {
-			(*target)[i] = rule
-			return true
-		}
-	}
-	*target = append(*target, rule)
-	return true
-}
-
-// voiceRuleList returns a pointer to the vocabulary slice named by list.
-func voiceRuleList(profile *coreprofile.VoiceProfile, list string) *[]coreprofile.TermRule {
-	switch list {
-	case "forbidden":
-		return &profile.Vocabulary.ForbiddenTerms
-	case "competitor":
-		return &profile.Vocabulary.CompetitorTerms
-	default: // "preferred"
-		return &profile.Vocabulary.PreferredTerms
-	}
 }
 
 // ---------------------------------------------------------------------------

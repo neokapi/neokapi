@@ -38,13 +38,13 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 	section(&b, "Tone", toneLines(p))
 	section(&b, "Style Rules", styleLines(p))
 
-	var vocab strings.Builder
-	vocabList(&vocab, "Preferred Terms", p.Vocabulary.PreferredTerms)
-	vocabList(&vocab, "Forbidden Terms", p.Vocabulary.ForbiddenTerms)
-	vocabList(&vocab, "Competitor Terms", p.Vocabulary.CompetitorTerms)
-	if vocab.Len() > 0 {
-		b.WriteString("## Vocabulary\n")
-		b.WriteString(vocab.String())
+	// The word rules the voice file carries: a starter pack's terms.
+	if carried := p.CarriedTerms(); len(carried.Rules) > 0 {
+		fmt.Fprintf(&b, "## Terms (%s)\n", carried.From)
+		for _, t := range carried.Rules {
+			b.WriteString(termLine(t) + "\n")
+		}
+		b.WriteString("\n")
 	}
 
 	// Examples
@@ -77,19 +77,6 @@ func section(b *strings.Builder, title string, lines []string) {
 	fmt.Fprintf(b, "## %s\n", title)
 	for _, l := range lines {
 		b.WriteString(l + "\n")
-	}
-	b.WriteString("\n")
-}
-
-// vocabList writes one vocabulary list under its own heading, or nothing when
-// the list is empty.
-func vocabList(b *strings.Builder, title string, rules []TermRule) {
-	if len(rules) == 0 {
-		return
-	}
-	fmt.Fprintf(b, "### %s\n", title)
-	for _, t := range rules {
-		b.WriteString(termLine(t) + "\n")
 	}
 	b.WriteString("\n")
 }
@@ -156,7 +143,7 @@ func commentLimitLines(p *VoiceProfile) []string {
 	l := p.Style.Comments.Limits()
 	return []string{
 		"- Code comments:",
-		fmt.Sprintf("  - A sentence over %d words is a minor finding, and over %d words a major one", l.SentenceMinor, l.SentenceMajor),
+		fmt.Sprintf("  - A sentence: at most %d words", l.SentenceWords),
 		fmt.Sprintf("  - A comment that documents no declaration: at most %d words", l.CommentWords),
 		fmt.Sprintf("  - A declaration's doc comment: at most %d words", l.DocWords),
 		fmt.Sprintf("  - A package or module doc comment: at most %d words", l.PackageDocWords),
@@ -237,9 +224,9 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 
 	if p.Style.Comments != nil {
 		l := p.Style.Comments.Limits()
-		fmt.Fprintf(&b, " Code comments: a sentence over %d words is flagged (a major finding over %d), and so is a comment over %d words, "+
+		fmt.Fprintf(&b, " Code comments: a sentence over %d words is flagged, and so is a comment over %d words, "+
 			"a doc comment over %d or a package doc comment over %d, and a change adding %d or more comment lines and more than %s for each code line.",
-			l.SentenceMinor, l.SentenceMajor, l.CommentWords, l.DocWords, l.PackageDocWords,
+			l.SentenceWords, l.CommentWords, l.DocWords, l.PackageDocWords,
 			l.DensityMinLines, strconv.FormatFloat(l.DensityRatio, 'f', -1, 64))
 	}
 
@@ -304,11 +291,18 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 func termLine(t TermRule) string {
 	var b strings.Builder
 	switch {
-	case t.Replacement != "" && t.Replacement != t.Term:
+	case t.Term == "":
+		// A preferred form, which rejects nothing.
+		fmt.Fprintf(&b, "- **%s**", t.Replacement)
+	case t.Replacement == "":
+		// A ban with nothing to use instead. It shares a list with preferred
+		// forms, so it is struck through to read as one.
+		fmt.Fprintf(&b, "- ~~%s~~", t.Term)
+	case t.Replacement != t.Term:
 		fmt.Fprintf(&b, "- ~~%s~~ → use **%s**", t.Term, t.Replacement)
 	default:
-		// Either no replacement, or one identical to the term. Neither is a
-		// swap, so neither is struck through.
+		// A replacement identical to the term states a convention for the
+		// word, not a swap, so it is not struck through.
 		fmt.Fprintf(&b, "- **%s**", t.Term)
 	}
 	if t.Note != "" {
@@ -520,7 +514,7 @@ func literalWord(piece string) string {
 const maxPatternWords = 12
 
 // termSwaps returns deterministic "term → replacement" hints derived from
-// forbidden and competitor terms that declare a replacement.
+// the carried word rules that declare a replacement.
 func termSwaps(p *VoiceProfile) []string {
 	if p == nil {
 		return nil
@@ -536,14 +530,13 @@ func termSwaps(p *VoiceProfile) []string {
 			}
 		}
 	}
-	add(p.Vocabulary.ForbiddenTerms)
-	add(p.Vocabulary.CompetitorTerms)
+	add(p.CarriedTerms().Rules)
 	sort.Strings(swaps)
 	return swaps
 }
 
-// termBans returns deterministic quoted bans derived from forbidden and
-// competitor terms that declare NO replacement — the counterpart of termSwaps,
+// termBans returns deterministic quoted bans derived from the carried word
+// rules that declare NO replacement — the counterpart of termSwaps,
 // so a bare ban still reaches the model instead of being dead context.
 func termBans(p *VoiceProfile) []string {
 	if p == nil {
@@ -557,8 +550,7 @@ func termBans(p *VoiceProfile) []string {
 			}
 		}
 	}
-	add(p.Vocabulary.ForbiddenTerms)
-	add(p.Vocabulary.CompetitorTerms)
+	add(p.CarriedTerms().Rules)
 	sort.Strings(bans)
 	return bans
 }

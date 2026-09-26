@@ -50,6 +50,14 @@ fails; `summary.failing` counts them. Fix every failing finding. A finding with
 limit, or `suggested: true` for a rule nobody has confirmed yet. Weigh those
 and fix what the context supports. The `score` is reported and decides nothing.
 
+Every word rule is a term, and every word-rule finding has rule id
+`terms.vocabulary` (`Forbidden term "x" found`, `Competitor term "x" found`,
+`Retired term "x" found`) wherever the rule is held. `metadata.from` names a
+source other than the project's terms: a bound pack (`pack technical-docs`) or a
+rule established across the workspace. The voice's pattern rules are
+`voice.style` and its siblings, and a translation's term findings come from the
+`terms.target` analyzer.
+
 Unsupported semantic guidance still needs review against the retrieved context:
 a passing verdict covers only the checks that ran. If the same finding persists or
 contradicts the governing guidance, report the unresolved issue rather than

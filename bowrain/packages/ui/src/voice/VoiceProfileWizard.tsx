@@ -1,22 +1,14 @@
 import { Button, Card, Input, Label, Switch } from "@neokapi/ui-primitives";
 import { useState, useCallback } from "react";
-import type {
-  VoiceProfile,
-  ToneProfile,
-  StyleRules,
-  VocabularyRules,
-  VoiceExample,
-  PersonaOverride,
-} from "./types";
+import type { VoiceProfile, ToneProfile, StyleRules, VoiceExample, PersonaOverride } from "./types";
 import { ArrowLeft, Check } from "../components/icons";
-import { defaultTone, defaultStyle, defaultVocabulary } from "./defaults";
+import { defaultTone, defaultStyle } from "./defaults";
 import { DEFAULT_MIN_SCORE } from "./complianceBar";
 import { MIN_SCORE_HELP, minScoreFieldValue, parseMinScore } from "./minScore";
 import { ToneSpectrumSelector } from "./ToneSpectrumSelector";
 import { PersonalityTagPicker } from "./PersonalityTagPicker";
 import { VoicePreview } from "./VoicePreview";
 import { PatternListEditor } from "./PatternListEditor";
-import { VocabularyEditor } from "./VocabularyEditor";
 import { ExamplesEditor } from "./ExamplesEditor";
 import { PersonasEditor } from "./PersonasEditor";
 import {
@@ -43,7 +35,7 @@ const steps = [
   { key: "identity", label: "Identity" },
   { key: "tone", label: "Tone" },
   { key: "style", label: "Style" },
-  { key: "content", label: "Vocabulary & Examples" },
+  { key: "content", label: "Examples" },
   { key: "personas", label: "Personas" },
 ] as const;
 
@@ -55,9 +47,6 @@ export function VoiceProfileWizard({ profile, onSave, onCancel }: VoiceProfileWi
   const [description, setDescription] = useState(profile?.description ?? "");
   const [tone, setTone] = useState<ToneProfile>(profile?.tone ?? defaultTone());
   const [style, setStyle] = useState<StyleRules>(profile?.style ?? defaultStyle());
-  const [vocabulary, setVocabulary] = useState<VocabularyRules>(
-    profile?.vocabulary ?? defaultVocabulary(),
-  );
   const [examples, setExamples] = useState<VoiceExample[]>(profile?.examples ?? []);
   const [personas, setPersonas] = useState<Record<string, PersonaOverride>>(
     profile?.personas ?? {},
@@ -87,12 +76,11 @@ export function VoiceProfileWizard({ profile, onSave, onCancel }: VoiceProfileWi
       description,
       tone,
       style,
-      vocabulary,
       examples,
       personas,
       min_score: bar.value,
     });
-  }, [name, description, tone, style, vocabulary, examples, personas, minScoreText, onSave]);
+  }, [name, description, tone, style, examples, personas, minScoreText, onSave]);
 
   const isLastStep = currentIndex === steps.length - 1;
   const canProceed = currentStep === "identity" ? name.trim().length > 0 && minScore.valid : true;
@@ -324,14 +312,9 @@ export function VoiceProfileWizard({ profile, onSave, onCancel }: VoiceProfileWi
           )}
 
           {currentStep === "content" && (
-            <div className="space-y-6">
-              <Card className="p-5">
-                <VocabularyEditor vocabulary={vocabulary} onChange={setVocabulary} />
-              </Card>
-              <Card className="p-5">
-                <ExamplesEditor examples={examples} onChange={setExamples} />
-              </Card>
-            </div>
+            <Card className="p-5">
+              <ExamplesEditor examples={examples} onChange={setExamples} />
+            </Card>
           )}
 
           {currentStep === "personas" && (

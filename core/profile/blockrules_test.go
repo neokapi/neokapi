@@ -15,9 +15,12 @@ func TestBlockRuleCountIsTheRulesFindingsAppliesToABlock(t *testing.T) {
 	required := &VoiceProfile{Name: "doc", Style: StyleRules{RequiredPatterns: []Pattern{{Regex: `©`}}}}
 	assert.Zero(t, BlockRuleCount(required), "a required pattern applies to a document, not a block")
 
-	forbidden := &VoiceProfile{Name: "f", Vocabulary: VocabularyRules{ForbiddenTerms: []TermRule{{Term: "cheap"}}}}
-	competitor := &VoiceProfile{Name: "c", Vocabulary: VocabularyRules{CompetitorTerms: []TermRule{{Term: "Acme"}}}}
+	forbidden := (&VoiceProfile{Name: "f"}).Carry("test", []TermRule{{Term: "cheap"}})
+	competitor := (&VoiceProfile{Name: "c"}).Carry("test", []TermRule{{Term: "Acme", Competitor: true}})
 	prohibited := &VoiceProfile{Name: "p", Style: StyleRules{ProhibitedPatterns: []Pattern{{Regex: `!!`}}}}
+	preferred := (&VoiceProfile{Name: "pf"}).Carry("test", []TermRule{{Replacement: "sign in"}})
+	assert.Zero(t, BlockRuleCount(preferred), "a preferred form rejects nothing")
+
 	for _, c := range []struct {
 		profile *VoiceProfile
 		text    string

@@ -205,20 +205,16 @@ func TestStalenessGate_MovingTheVoiceMovesTheContext(t *testing.T) {
 	gate, _ := f.run(t)
 	require.True(t, gate.Pass, "the fixture starts current")
 
-	// The voice profile gains a rule and a revision — the governing context has
-	// moved, and every target written under the old one is now behind it.
+	// The voice profile gains a rule and a revision, so the governing context
+	// has moved, and every target written under the old one is now behind it.
 	moved := `name: Staleness Voice
 version: 2
 tone:
   formality: neutral
-vocabulary:
-  forbidden_terms:
-    - term: utilize
-      replacement: use
-      advisory: true
-  competitor_terms:
-    - term: Globex
-      replacement: our platform
+style:
+  prohibited_patterns:
+    - regex: '(?i)\bGlobex\b'
+      description: Name no other platform
 `
 	require.NoError(t, os.WriteFile(layoutVoicePath(t, f.root), []byte(moved), 0o644))
 	readProjectContext(t, f.root)

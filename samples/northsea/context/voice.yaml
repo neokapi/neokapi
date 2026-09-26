@@ -32,28 +32,26 @@ style:
       description: Brochure framing — say what the software does instead
     - regex: '\b(guarantees?|ensures?)\s+(safety|safe\s)'
       description: Northsea never claims safety; state the constraint that was checked
-vocabulary:
-  preferred_terms:
-    - term: berth
-      note: The place a vessel occupies alongside. The house term everywhere in prose and in the interface.
-    - term: vessel
-      note: Not "ship" and not "boat" — the arrivals model calls everything a vessel.
-    - term: alert
-      note: One statement about one movement. Never a general weather warning.
-    - term: Compass
-      note: The fleet and berth-plan product. Capitalised, never translated.
-    - term: Tidewatch
-      note: The forecasting and alerting product. Capitalised, never translated.
-    - term: tidectl
-      note: The command line. Always lowercase, always as one word.
-  forbidden_terms:
-    - term: seamless
-      replacement: unified
-      note: Says nothing a reader can check
-    - term: leverage
-      replacement: use
-      note: Business register; Northsea writes plainly
-      advisory: true
+terms:
+  - term: seamless
+    replacement: unified
+    note: Says nothing a reader can check
+  - term: leverage
+    replacement: use
+    advisory: true
+    note: "Business register; Northsea writes plainly"
+  - replacement: berth
+    note: The place a vessel occupies alongside. The house term everywhere in prose and in the interface.
+  - replacement: vessel
+    note: "Not \"ship\" and not \"boat\" — the arrivals model calls everything a vessel."
+  - replacement: alert
+    note: One statement about one movement. Never a general weather warning.
+  - replacement: Compass
+    note: The fleet and berth-plan product. Capitalised, never translated.
+  - replacement: Tidewatch
+    note: The forecasting and alerting product. Capitalised, never translated.
+  - replacement: tidectl
+    note: The command line. Always lowercase, always as one word.
 examples:
   - before: "Our seamless platform leverages best-in-class forecasting to guarantee safe movements."
     after: "Tidewatch compares the forecast with the constraints of the berth, and raises an alert when a movement stops being safe."

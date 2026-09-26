@@ -69,18 +69,6 @@ export const voiceFixture: ProjectVoiceResult = {
             },
           ],
         },
-        vocabulary: {
-          preferred_terms: [
-            {
-              term: "log in",
-              replacement: "sign in",
-              note: "One spelling across the product.",
-              concept_id: "c-signin",
-            },
-          ],
-          forbidden_terms: [{ term: "bulletproof" }],
-          abbreviations: { API: "application programming interface" },
-        },
         examples: [
           {
             before: "Utilize the portal.",

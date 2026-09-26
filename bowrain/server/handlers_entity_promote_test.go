@@ -112,7 +112,7 @@ func TestPromoteEntityToConcept_DoNotTranslateIsProposed(t *testing.T) {
 	require.NoError(t, fake.SetChangeSetStatus(ctx, wsID, sets[0].ID, knowledge.ChangeSetApproved))
 	cs, err := fake.GetChangeSet(ctx, wsID, sets[0].ID)
 	require.NoError(t, err)
-	_, err = knowledge.NewEngine(nil, tb, nil, fake).MergeChangeSet(ctx, wsID, fake, *cs)
+	_, err = knowledge.NewEngine(nil, tb, fake).MergeChangeSet(ctx, wsID, fake, *cs)
 	require.NoError(t, err)
 
 	merged, ok, err := tb.GetConcept(ctx, concept.ID)

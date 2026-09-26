@@ -132,8 +132,6 @@ profile governs:
   nowhere. `kapi voice validate` refuses the same key.
 - `voice.unfamiliar_value`: a tone value outside the usual set, kept and
   rendered into the voice guide as written.
-- `voice.preferred_term_dropped`: a channel or persona preferred term that
-  resolution drops, because a profile rule already governs the term.
 - `voice.override_drops_pattern`: a base style pattern that stops applying where
   a channel or persona supplies its own style.
 - `format.no_reader`: a file the project declares as content, in a format no
@@ -292,10 +290,10 @@ downstream gate.
 
 A finding's `fails` field is determined by the rule and its status:
 
-- An established rule fails: a term in the terms store, a term rule, a voice
-  profile's prohibited or required pattern. A rule marked `advisory: true`
-  reports instead. A retired term in the terms store reports; a forbidden or
-  competitor term fails.
+- An established rule fails: a forbidden or competitor term in the terms store,
+  a term rule, a voice profile's prohibited or required pattern. A rule marked
+  `advisory: true`, or a terms-store concept marked advisory, reports instead. A
+  retired term in the terms store reports.
 - A suggested rule, one recorded by `kapi context observe` or `correct` and not
   yet confirmed, reports and never fails. Its finding carries `suggested: true`
   and reads `Suggested rule about "X", not yet established`.
@@ -348,10 +346,15 @@ checkset):
   `--max-words`).
 - **Patterns**: regex that must not appear (`--forbid`) or must appear
   (`--require`) in the content.
-- **Voice vocabulary**: forbidden/competitor/preferred-term rules from a bound
-  [voice profile](/framework/checks/voice). Optional `--voice` adds an advisory
-  similarity comparison with profile examples. LLM voice review is a separate
-  tool or an explicit AI voice command.
+- **Word rules**: the forbidden, competitor and retired terms that govern the
+  content, from the terms store, the rules established across the workspace, and
+  a starter pack bound as the voice. They are one analyzer, `terms`, with rule id
+  `terms.vocabulary`, and a finding from a pack or a workspace rule names its
+  source in `metadata.from`.
+- **Voice patterns**: the prohibited and required patterns of a bound
+  [voice profile](/framework/checks/voice), the `voice.rules` analyzer. Optional
+  `--voice` adds an advisory similarity comparison with profile examples. LLM
+  voice review is a separate tool or an explicit AI voice command.
 - **Formatter agreement**: for the comments in source code, a comment the
   language's formatter would rewrite is a `formatter.<formatter>` finding, such
   as `formatter.gofmt`, and it fails. The comment reader and the formatter
@@ -359,10 +362,10 @@ checkset):
   [Comments in source code](/kapi/recipes/verify-content#comments-in-source-code).
 - **Comment limits**: where the voice profile at a comment's point sets
   [comment limits](/reference/serialization/voice-profile#comment-limits), a
-  sentence over the lower or upper word limit is a `comment.sentence-length`
+  sentence over the word limit is a `comment.sentence-length`
   finding, and a comment over the limit for what it documents is a
   `comment.length` finding. These report; with `style.comments.fails: true` a
-  sentence over the upper limit, a comment over its length limit and a
+  sentence over the limit, a comment over its length limit and a
   too-dense change fail. Sentences are split with the UAX #29
   sentence break over the comment's prose: the lines a comment wraps over are
   joined first, a blank line, a divider line, a list item, a heading or a
@@ -381,8 +384,9 @@ against its source):
 - **Placeholder integrity**: catch a dropped `{count}` or a corrupted `<b>` in
   the translation.
 - **Do-not-translate**: terms that must survive verbatim into the target.
-The separate `term-check` tool checks target terminology against rules from
-the project [terms store](/framework/terminology).
+- **Target terms**: the `terms.target` analyzer holds a translation to the
+  renderings the project [terms store](/framework/terminology) requires, through
+  the `term-check` tool.
 
 The full rule-based family (whitespace, inline-code integrity, cross-block
 consistency, optional LLM review) is documented under

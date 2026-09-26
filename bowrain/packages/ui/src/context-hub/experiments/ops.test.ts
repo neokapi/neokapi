@@ -76,16 +76,8 @@ describe("isGovernedOp", () => {
     expect(isGovernedOp(replaced)).toBe(true);
     expect(isGovernedOp(related)).toBe(false);
   });
-  it("always flags concept.delete and voice-rule ops", () => {
+  it("always flags concept.delete", () => {
     expect(isGovernedOp(mkOp("concept.delete", { concept_id: "c-1" }))).toBe(true);
-    expect(
-      isGovernedOp(
-        mkOp("voice.rule.add", { profile_id: "p-1", list: "forbidden", rule: { term: "x" } }),
-      ),
-    ).toBe(true);
-    expect(
-      isGovernedOp(mkOp("voice.rule.remove", { profile_id: "p-1", list: "preferred", term: "x" })),
-    ).toBe(true);
   });
   it("treats ordinary term/relation/concept edits as ungoverned", () => {
     expect(
@@ -134,19 +126,6 @@ describe("opDiffRow / opSummary", () => {
     expect(row.summary).toBe("Prefer “Paiement” (fr-FR)");
     expect(row.tone).toBe("success");
   });
-  it("summarises a voice rule with its replacement", () => {
-    const row = opDiffRow(
-      mkOp("voice.rule.add", {
-        profile_id: "p-1",
-        list: "preferred",
-        rule: { term: "utilize", replacement: "use" },
-      }),
-    );
-    expect(row.summary).toBe("Add preferred rule “utilize” → prefer “use”");
-    expect(row.verb).toBe("Add preferred rule");
-    expect(row.tone).toBe("success");
-    expect(row.governed).toBe(true);
-  });
   it("renders a relation as a readable phrase", () => {
     expect(
       opSummary(
@@ -172,7 +151,6 @@ describe("opDiffRow / opSummary", () => {
 describe("opCategory", () => {
   it("maps each op to its part of the graph", () => {
     expect(opCategory("term.status")).toBe("term");
-    expect(opCategory("voice.rule.add")).toBe("voice");
     expect(opCategory("relation.remove")).toBe("relation");
     expect(opCategory("concept.create")).toBe("concept");
   });
@@ -190,14 +168,13 @@ describe("groupOps + governedOpCount", () => {
         from: "approved",
         to: "forbidden",
       }),
-      mkOp("voice.rule.add", { profile_id: "p-1", list: "forbidden", rule: { term: "utilize" } }),
       mkOp("relation.remove", { relation_id: "r-1" }),
     ];
     const groups = groupOps(ops);
-    expect(groups.map((g) => g.category)).toEqual(["term", "voice", "relation", "concept"]);
+    expect(groups.map((g) => g.category)).toEqual(["term", "relation", "concept"]);
     expect(groups[0].rows).toHaveLength(1);
     expect(CATEGORY_LABEL.term).toBe("Terms");
-    expect(governedOpCount(ops)).toBe(2);
+    expect(governedOpCount(ops)).toBe(1);
   });
 });
 

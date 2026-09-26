@@ -54,8 +54,7 @@ style:
       description: '"magic" as a claim about the product — state the mechanism; the technical sense (magic bytes, magic number) is not this rule'
     # ── The fixed vocabulary (brand-communication.md §"The vocabulary is fixed")
     #
-    # Patterns rather than vocabulary.forbidden_terms because MatchVocabulary is
-    # whole-word: `localize` there would not match "localization", and the
+    # Patterns rather than terms because a term matches whole words: `localize` there would not match "localization", and the
     # inflections are the point — a noun-only rule misses the form that actually
     # survives a sweep.
     #
@@ -96,29 +95,24 @@ style:
       description: Voice is the mechanism — say voice profile. "Brand voice" belongs in prose about the common use case, never as the name of the thing
     - regex: '\b(enterprise-grade|best-in-class|world-class|trusted by)\b'
       description: Credibility-by-assertion; show the mechanism instead
-vocabulary:
-  preferred_terms:
-    - term: Bowrain
-      note: The platform — capitalized as a product name
-    - term: workspace
-      note: The tenant boundary a team works inside; not "account" or "org"
-    - term: context graph
-      note: What Bowrain holds — the relationships that govern content, not a content store
-    - term: content memory
-      note: The store of source and target pairs
-    - term: terms store
-      note: The store of approved terminology
-  forbidden_terms:
-    - term: simply
-      replacement: ""
-      advisory: true
-    - term: easily
-      replacement: ""
-      advisory: true
-    - term: solution
-      replacement: ""
-      note: Says nothing; name the thing the product actually does
-      advisory: true
+terms:
+  - term: simply
+    advisory: true
+  - term: easily
+    advisory: true
+  - term: solution
+    advisory: true
+    note: "Says nothing; name the thing the product actually does"
+  - replacement: Bowrain
+    note: "The platform — capitalized as a product name"
+  - replacement: workspace
+    note: 'The tenant boundary a team works inside; not "account" or "org"'
+  - replacement: context graph
+    note: "What Bowrain holds — the relationships that govern content, not a content store"
+  - replacement: content memory
+    note: The store of source and target pairs
+  - replacement: terms store
+    note: The store of approved terminology
 examples:
   - before: "Bowrain is a powerful enterprise-grade platform trusted by teams everywhere."
     after: "Bowrain is the context graph for your content — the one your people and your AI agents plug into."
@@ -143,8 +137,3 @@ locales:
       neokapi, kapi-desktop), CLI commands, flags, file formats, code
       identifiers, or file paths. Headings in sentence case. Compound nouns
       close up in Norwegian — never leave an English noun pair half-translated.
-    vocabulary_overrides:
-      - term: arbeidsområde
-        note: workspace — the tenant boundary, not "arbeidsplass"
-      - term: innholdsminne
-        note: content memory — matches the terms store entry

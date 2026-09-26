@@ -5,9 +5,11 @@
 # against it with no flags.
 #
 # The register bends per surface (channels:, below): a walkthrough and a
-# contract are not written the same way. The vocabulary does not bend — a word
-# the storefront does not use is not used in the release notes either, and the
-# terms it names are the ones the committed terms record defines.
+# contract are not written the same way. The word rules (terms:, below) hold on
+# every surface: a word the storefront does not use is not used in the release
+# notes either. They are terms, so reading the context in lands them in the
+# project's terms store beside the committed terms record, on the concepts that
+# record defines.
 name: KapiMart
 description: >-
   KapiMart writes for the person integrating the storefront and the person
@@ -41,34 +43,29 @@ style:
     - regex: '\b(?:blazing|effortless(?:ly)?|seamless(?:ly)?|world-class)\b'
       description: Marketing superlative
       scope: prose
-vocabulary:
-  preferred_terms:
-    - term: shopping cart
-      note: The object the buyer fills, named in full on first use.
-      concept_id: km-001
-    - term: checkout
-      note: The act of paying, one word.
-      concept_id: km-002
-  forbidden_terms:
-    # The storefront strings say "Your cart is empty" while the terms record
-    # names the concept "shopping cart". Bound to the concept so a reader can
-    # follow the rule back to the definition it came from.
-    - term: cart
-      replacement: shopping cart
-      advisory: true
-      concept_id: km-001
-      scope: prose
-      note: >-
-        "cart" is admitted, not preferred: it is ambiguous beside the delivery
-        sense. Write it in full.
-    - term: frequently asked questions
-      replacement: FAQ
-      advisory: true
-      concept_id: km-057
-      note: The heading is the abbreviation; the expansion reads as filler.
-  abbreviations:
-    FAQ: Frequently asked questions
-    SKU: Stock keeping unit
+terms:
+  # The storefront strings say "Your cart is empty" while the terms record
+  # names the concept "shopping cart". Bound to the concept so a reader can
+  # follow the rule back to the definition it came from.
+  - term: cart
+    replacement: shopping cart
+    advisory: true
+    concept_id: km-001
+    scope: prose
+    note: >-
+      "cart" is admitted, not preferred: it is ambiguous beside the delivery
+      sense. Write it in full.
+  - term: frequently asked questions
+    replacement: FAQ
+    advisory: true
+    concept_id: km-057
+    note: The heading is the abbreviation; the expansion reads as filler.
+  - replacement: shopping cart
+    note: The object the buyer fills, named in full on first use.
+    concept_id: km-001
+  - replacement: checkout
+    note: The act of paying, one word.
+    concept_id: km-002
 examples:
   - before: Your cart is empty!
     after: Your shopping cart is empty.

@@ -9,21 +9,16 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
-// A trial compares findings for a pilot's content stream under the live graph
-// and the proposed graph. It uses the voice vocabulary matcher and terms lookup.
+// A trial compares term findings for a pilot's content stream under the live
+// graph and the proposed graph.
 //
-// Voice evaluation uses a live stream binding: StartPilot materializes a
-// candidate profile and binds it to the stream. VoiceBound reports whether that
-// binding is active.
-//
-// Terms evaluation is simulated here. Regular term checks do not resolve by
+// The evaluation is simulated here. Regular term checks do not resolve by
 // stream, so they cannot see the pilot shadow (terms.ShadowIDPrefix). The trial
 // applies draft operations to an in-memory graph and compares lookups against
 // that graph with lookups against the live graph.
@@ -31,17 +26,13 @@ import (
 // TrialFinding is one named finding on one block: enough to recognize the rule
 // that fired and the text it fired on.
 type TrialFinding struct {
-	// Kind is "term" or "voice" — which half of the gate raised it.
+	// Kind is "term": the gate that raised it.
 	Kind string `json:"kind"`
-	// Rule names what fired: the designation for a term finding, the matched
-	// term for a voice finding.
+	// Rule names what fired: the designation.
 	Rule string `json:"rule"`
 	// Replacement is what the rule says to write instead, when it says.
 	Replacement string `json:"replacement,omitempty"`
-	// Fails says whether the voice half's finding fails a check; false for a
-	// term finding.
-	Fails bool `json:"fails,omitempty"`
-	// ConceptID locates a term finding in the graph.
+	// ConceptID locates the finding in the graph.
 	ConceptID string `json:"concept_id,omitempty"`
 
 	BlockID        string         `json:"block_id"`
@@ -71,14 +62,9 @@ type TrialReport struct {
 	RaisedTotal  int `json:"raised_total"`
 	ClearedTotal int `json:"cleared_total"`
 
-	// VoiceBound is the candidate profile the pilot bound to this stream, when
-	// one is bound. Its presence is what makes the voice half of this report a
-	// description of what checks on this stream actually resolve, rather than
-	// only of what they would resolve.
-	VoiceBound string `json:"voice_bound,omitempty"`
 	// TermsComputed is always true and says so on the wire: no check resolves
-	// terms per stream, so the terms half of this report is applied here rather
-	// than resolved on the branch.
+	// terms per stream, so this report is applied here rather than resolved on
+	// the branch.
 	TermsComputed bool `json:"terms_computed"`
 
 	Partial       bool      `json:"partial,omitempty"`
@@ -110,10 +96,6 @@ func (e *Engine) TrialFindings(ctx context.Context, workspaceID string, cs Chang
 	if err != nil {
 		return nil, fmt.Errorf("build after terms: %w", err)
 	}
-	pairs, err := e.voicePairs(ctx, ops)
-	if err != nil {
-		return nil, fmt.Errorf("build voice candidates: %w", err)
-	}
 
 	limit := opts.MaxSamples
 	if limit <= 0 {
@@ -135,7 +117,7 @@ func (e *Engine) TrialFindings(ctx context.Context, workspaceID string, cs Chang
 	walkErr := e.walkBlocks(ctx, workspaceID, scoped, func(p *store.Project, st string, b *venue.StoredBlock, locale model.LocaleID, text, colID, colName string) error {
 		report.TotalBlocks++
 
-		raised, cleared, err := diffFindings(ctx, before, after, pairs, locale, text)
+		raised, cleared, err := diffFindings(ctx, before, after, locale, text)
 		if err != nil {
 			return err
 		}
@@ -180,42 +162,13 @@ func (e *Engine) TrialFindings(ctx context.Context, workspaceID string, cs Chang
 	if report.Cleared == nil {
 		report.Cleared = []TrialFinding{}
 	}
-	report.VoiceBound = e.boundVoiceProfile(ctx, cs, ops, projectID, stream)
 	return report, nil
 }
 
-// boundVoiceProfile returns the pilot candidate profile currently bound to the
-// stream, or "" when none is. It reports the binding rather than assuming it:
-// a pilot started before the draft grew its voice ops has no candidate, and a
-// stream someone re-pointed by hand has someone else's.
-func (e *Engine) boundVoiceProfile(ctx context.Context, cs ChangeSet, ops []ChangeSetOp, projectID, stream string) string {
-	ids := voiceProfileIDs(ops)
-	if len(ids) == 0 {
-		return ""
-	}
-	streams, err := e.streamStore()
-	if err != nil {
-		return ""
-	}
-	s, err := streams.GetStream(ctx, projectID, stream)
-	if err != nil || s == nil || s.Properties == nil {
-		return ""
-	}
-	current := s.Properties[coreprofile.PropertyProfileID]
-	for _, id := range ids {
-		if current == pilotProfileID(cs.ID, stream, id) {
-			return current
-		}
-	}
-	return ""
-}
-
 // diffFindings names what each side of the gate raises on one block's text under
-// the two graphs. Both halves reuse the matchers the checks reuse — the same
-// MatchVocabulary the voice-vocabulary tool runs, the same LookupAll the term
-// gate runs — so a trial can never disagree with the check it predicts for a
-// reason of its own.
-func diffFindings(ctx context.Context, before, after *terms.InMemoryStore, pairs []profilePair, locale model.LocaleID, text string) (raised, cleared []TrialFinding, err error) {
+// the two graphs. It reuses the LookupAll the term gate runs, so a trial can
+// never disagree with the check it predicts for a reason of its own.
+func diffFindings(ctx context.Context, before, after *terms.InMemoryStore, locale model.LocaleID, text string) (raised, cleared []TrialFinding, err error) {
 	beforeSet, err := forbiddenTerms(ctx, before, locale, text)
 	if err != nil {
 		return nil, nil, err
@@ -232,23 +185,6 @@ func diffFindings(ctx context.Context, before, after *terms.InMemoryStore, pairs
 	for _, k := range sortedKeys(beforeSet) {
 		if _, ok := afterSet[k]; !ok {
 			cleared = append(cleared, beforeSet[k])
-		}
-	}
-
-	for _, pr := range pairs {
-		baseHits := coreprofile.MatchVocabulary(pr.baseline, text)
-		candHits := coreprofile.MatchVocabulary(pr.candidate, text)
-		baseKeys := vocabKeySet(baseHits)
-		candKeys := vocabKeySet(candHits)
-		for _, k := range sortedKeys(candKeys) {
-			if _, ok := baseKeys[k]; !ok {
-				raised = append(raised, candKeys[k])
-			}
-		}
-		for _, k := range sortedKeys(baseKeys) {
-			if _, ok := candKeys[k]; !ok {
-				cleared = append(cleared, baseKeys[k])
-			}
 		}
 	}
 	return raised, cleared, nil
@@ -279,24 +215,6 @@ func forbiddenTerms(ctx context.Context, tb *terms.InMemoryStore, locale model.L
 		}
 	}
 	return out, nil
-}
-
-// vocabKeySet keys each vocabulary hit by category and byte range, matching how
-// core/profile diffs the two profiles' hits: both sides score identical text, so
-// positions align.
-func vocabKeySet(hits []coreprofile.VocabHit) map[string]TrialFinding {
-	out := make(map[string]TrialFinding, len(hits))
-	for _, h := range hits {
-		key := fmt.Sprintf("%s|%d|%d", h.Category, h.Start, h.End)
-		out[key] = TrialFinding{
-			Kind:        "voice",
-			Rule:        h.Term,
-			Replacement: h.Replacement,
-			Fails:       h.Fails,
-			ConceptID:   h.ConceptID,
-		}
-	}
-	return out
 }
 
 func sortedKeys(m map[string]TrialFinding) []string {

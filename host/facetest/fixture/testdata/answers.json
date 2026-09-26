@@ -82,13 +82,8 @@
   "check": {
     "findings": [
       {
-        "fails": true,
-        "message": "Forbidden term \"translation memory\" found",
-        "suggestion": "Use \"content memory\" instead"
-      },
-      {
         "fails": false,
-        "message": "Retired term \"translation memory\" found in terms",
+        "message": "Retired term \"translation memory\" found",
         "suggestion": "Use \"content memory\" instead"
       }
     ]

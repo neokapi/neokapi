@@ -65,8 +65,8 @@ func TestSaveVoiceProfileWritesTheStore(t *testing.T) {
 	require.NoError(t, err)
 	profile := *pointOf(t, res, "project default").Profile
 	profile.Tone.Guidelines = "Lead with what changed."
-	profile.Vocabulary.PreferredTerms = append(profile.Vocabulary.PreferredTerms,
-		coreprofile.TermRule{Term: "utilise", Replacement: "use", Advisory: true})
+	profile.Style.ProhibitedPatterns = append(profile.Style.ProhibitedPatterns,
+		coreprofile.Pattern{Regex: `\butilise\b`, Description: "Write use.", Advisory: true})
 
 	saved, err := app.SaveVoiceProfile(tab.ID, "", profile)
 	require.NoError(t, err)
@@ -84,8 +84,8 @@ func TestSaveVoiceProfileWritesTheStore(t *testing.T) {
 	reread := pointOf(t, again, "project default")
 	require.NotNil(t, reread.Profile)
 	assert.Equal(t, "Lead with what changed.", reread.Profile.Tone.Guidelines)
-	require.Len(t, reread.Profile.Vocabulary.PreferredTerms, 2)
-	assert.Equal(t, "utilise", reread.Profile.Vocabulary.PreferredTerms[1].Term)
+	require.Len(t, reread.Profile.Style.ProhibitedPatterns, 2)
+	assert.Equal(t, `\butilise\b`, reread.Profile.Style.ProhibitedPatterns[1].Regex)
 
 	// The file the checkout carries is the import source and stays as it was.
 	body, rerr := os.ReadFile(filepath.Join(root, ".kapi", "voice.yaml"))

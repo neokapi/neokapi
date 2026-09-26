@@ -26,19 +26,21 @@ func TestTermRuleRenderings(t *testing.T) {
 }
 
 func TestCloneCopiesRenderings(t *testing.T) {
-	p := &VoiceProfile{Vocabulary: VocabularyRules{ForbiddenTerms: []TermRule{{
+	p := (&VoiceProfile{}).Carry("test", []TermRule{{
 		Term:             "alert",
 		Replacement:      "varsel",
 		ReplacementForms: []string{"varsler"},
 		Accepted:         []Rendering{{Text: "alarm", Forms: []string{"alarmer"}}},
-	}}}}
+	}})
 	c := p.Clone()
-	c.Vocabulary.ForbiddenTerms[0].ReplacementForms[0] = "changed"
-	c.Vocabulary.ForbiddenTerms[0].Accepted[0].Text = "changed"
-	c.Vocabulary.ForbiddenTerms[0].Accepted[0].Forms[0] = "changed"
+	cr := c.CarriedTerms().Rules
+	cr[0].ReplacementForms[0] = "changed"
+	cr[0].Accepted[0].Text = "changed"
+	cr[0].Accepted[0].Forms[0] = "changed"
 
-	orig := p.Vocabulary.ForbiddenTerms[0]
+	orig := p.CarriedTerms().Rules[0]
 	assert.Equal(t, []string{"varsler"}, orig.ReplacementForms)
 	assert.Equal(t, "alarm", orig.Accepted[0].Text)
 	assert.Equal(t, []string{"alarmer"}, orig.Accepted[0].Forms)
+	assert.Equal(t, "test", c.CarriedTerms().From)
 }

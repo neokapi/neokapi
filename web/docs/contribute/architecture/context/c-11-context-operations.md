@@ -140,7 +140,7 @@ The flag is what a surface reads to show the finding as a suggestion rather than
 a broken rule, and `HitsToFindings` words the message accordingly: *Suggested
 rule about "utilise", not yet established*.
 
-Suggested-rule checks run before and independently of the vocabulary analyzer.
+Suggested-rule checks run before and independently of the `terms` analyzer.
 This allows projects without a voice profile or terms store to report
 suggestions. Suggested findings have zero scoring weight and do not affect
 gates or the analyzer's canary validation.
@@ -172,8 +172,9 @@ leaves each contested suggestion for later, naming the other side.
 ### Keeping writes through the existing appliers
 
 `kapi apply` is the one write verb, and its asset entries write the project's
-terms store, voice store or content memory ([C-08](c-08-terms.md),
-[C-07](c-07-voice-profiles.md), [C-09](c-09-content-memory.md)). Keeping a
+terms store or content memory ([C-08](c-08-terms.md),
+[C-09](c-09-content-memory.md)). A word rule is a term, so keeping one writes a
+concept, marked advisory when the rule is. Keeping a
 rule builds the same change-set entry and runs the same applier, so retrieval,
 checks, drafting, the governing fingerprint and `kapi context snapshot` all see
 it with no second code path. A term rule with several forms to avoid lands each

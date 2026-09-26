@@ -17,7 +17,7 @@ func TestWarningsNeverChangeTheOutcome(t *testing.T) {
 		Source:  ".kapi/voice.yaml",
 		Key:     "channels.docs.vocab",
 	}}
-	critical := []Diagnostic{{Rule: "voice.vocabulary", Check: "voice", Fails: true}}
+	critical := []Diagnostic{{Rule: "terms.vocabulary", Check: "terms", Fails: true}}
 	for _, tc := range []struct {
 		name    string
 		target  Target

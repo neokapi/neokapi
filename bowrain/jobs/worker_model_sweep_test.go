@@ -51,8 +51,8 @@ func TestModelSweep_EndToEnd(t *testing.T) {
 	profile := &coreprofile.VoiceProfile{
 		Scope: wsID,
 		Name:  "Acme Voice",
-		Vocabulary: coreprofile.VocabularyRules{
-			CompetitorTerms: []coreprofile.TermRule{{Term: "Localizely"}},
+		Style: coreprofile.StyleRules{
+			ProhibitedPatterns: []coreprofile.Pattern{{Regex: `\bLocalizely\b`, Description: "Name no competitor"}},
 		},
 	}
 	require.NoError(t, bs.CreateProfile(ctx, profile))

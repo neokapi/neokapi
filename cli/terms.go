@@ -72,7 +72,7 @@ func newTermsImportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "import [file]",
 		Short:   "Import terms from CSV, JSON, TBX, or a native .terms.json bundle",
-		Example: "  kapi terms import terms.csv -s en -t fr --header\n  kapi terms import vocab.csv -s en --monolingual --header\n  kapi terms import terms.tbx --format tbx\n  kapi terms import seeds/terms.json",
+		Example: "  kapi terms import terms.csv -s en -t fr --header\n  kapi terms import vocab.csv -s en --monolingual --header\n  kapi terms import terms.tbx --format tbx\n  kapi terms import house-style.csv -s en --monolingual --advisory\n  kapi terms import seeds/terms.json",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, _ := cmd.Flags().GetString("format")
@@ -82,6 +82,7 @@ func newTermsImportCmd(a *App) *cobra.Command {
 			hasHeader, _ := cmd.Flags().GetBool("header")
 			delimiter, _ := cmd.Flags().GetString("delimiter")
 			monolingual, _ := cmd.Flags().GetBool("monolingual")
+			advisory, _ := cmd.Flags().GetBool("advisory")
 			format, err := ResolveTermsImportFormat(format, args[0])
 			if err != nil {
 				return err
@@ -92,6 +93,10 @@ func newTermsImportCmd(a *App) *cobra.Command {
 				return err
 			}
 			defer releaseTerms()
+			into := tb
+			if advisory {
+				into = terms.MarkingAdvisory(tb)
+			}
 
 			f, err := os.Open(args[0])
 			if err != nil {
@@ -114,15 +119,15 @@ func newTermsImportCmd(a *App) *cobra.Command {
 				} else if format == "tsv" {
 					opts.Delimiter = '\t'
 				}
-				count, err = terms.ImportCSV(cmd.Context(), tb, f, opts)
+				count, err = terms.ImportCSV(cmd.Context(), into, f, opts)
 			case "json":
-				count, err = terms.ImportJSON(cmd.Context(), tb, f)
+				count, err = terms.ImportJSON(cmd.Context(), into, f)
 			case "tbx":
-				count, err = terms.ImportTBX(cmd.Context(), tb, f, terms.TBXImportOptions{
+				count, err = terms.ImportTBX(cmd.Context(), into, f, terms.TBXImportOptions{
 					Domain: domain,
 				})
 			case "bundle":
-				count, err = ImportKTBFile(cmd.Context(), tb, f)
+				count, err = ImportKTBFile(cmd.Context(), into, f)
 			default:
 				return fmt.Errorf("unsupported format: %s (use csv, tsv, json, tbx, or bundle)", format)
 			}
@@ -157,6 +162,7 @@ func newTermsImportCmd(a *App) *cobra.Command {
 	cmd.Flags().Bool("header", false, "CSV has header row")
 	cmd.Flags().String("delimiter", "", "CSV field delimiter (default: comma)")
 	cmd.Flags().Bool("monolingual", false, "import a single-locale concept list (term[, definition]) with no translation pair")
+	cmd.Flags().Bool("advisory", false, "mark every imported concept advisory: a use of its forbidden terms reports without failing a check")
 
 	return cmd
 }

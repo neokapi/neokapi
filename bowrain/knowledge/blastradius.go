@@ -9,7 +9,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -284,16 +283,12 @@ type BlockSample struct {
 // EvaluateChangeSet computes the blast radius of a change-set's ops over the
 // stored content of a workspace, without persisting anything. It walks every
 // project's "main" stream (plus any pilot streams named in opts), and for each
-// block in each evaluated locale compares the live graph and voice profiles
-// (the "before") against the candidates the ops would produce (the "after"):
-//
-//   - Voice impact reuses core/profile.EvaluateBlastRadius, run per block against
-//     each voice profile the change-set's voice ops touch.
-//   - Term/concept/relation impact compares the terms the block contains under
-//     the before and after terms stores: a block is affected when a term it
-//     contains gains or loses forbidden status, or when its USE_INSTEAD
-//     replacement guidance changes. Newly-forbidden terms count as new
-//     violations; no-longer-forbidden terms as resolved.
+// block in each evaluated locale compares the terms the block contains under
+// the live graph (the "before") and under the candidate the ops would produce
+// (the "after"): a block is affected when a term it contains gains or loses
+// forbidden status, or when its USE_INSTEAD replacement guidance changes.
+// Newly-forbidden terms count as new violations; no-longer-forbidden terms as
+// resolved.
 //
 // cs is accepted for symmetry with the persisted lifecycle (and to let callers
 // pass a loaded change-set); the ops slice is authoritative for the evaluation.
@@ -310,33 +305,24 @@ func (e *Engine) EvaluateChangeSet(ctx context.Context, workspaceID string, cs C
 		return nil, fmt.Errorf("build after terms: %w", err)
 	}
 
-	// Voice side: one (baseline, candidate) pair per profile the voice ops touch.
-	pairs, err := e.voicePairs(ctx, ops)
-	if err != nil {
-		return nil, fmt.Errorf("build voice candidates: %w", err)
-	}
-
 	t := newTree(opts.maxSamples())
 	reach := newReachAcc()
 
 	walkErr := e.walkBlocks(ctx, workspaceID, opts, func(p *store.Project, stream string, b *venue.StoredBlock, locale model.LocaleID, text, colID, colName string) error {
 		t.scan()
 
-		vNew, vResolved, vAffected, vPrescribed := voiceImpactForBlock(pairs, colID, colName, b.ID, text)
-		tNew, tResolved, tAffected, tPrescribed, err := termImpact(ctx, before, after, locale, text)
+		newV, resolved, affected, prescribed, err := termImpact(ctx, before, after, locale, text)
 		if err != nil {
 			return err
 		}
 
-		newV := vNew + tNew
-		resolved := vResolved + tResolved
-		if !vAffected && !tAffected {
+		if !affected {
 			return nil
 		}
 
 		words := b.WordCount()
 		targets, approved := blockTargetLocales(b)
-		reach.observe(p.ID+"\x00"+stream+"\x00"+b.ID, vPrescribed || tPrescribed,
+		reach.observe(p.ID+"\x00"+stream+"\x00"+b.ID, prescribed,
 			p, collKey(colID, colName), words, targets, approved)
 		t.hit(p, colID, colName, stream, locale, newV, resolved, words, 0, BlockSample{
 			ProjectID:      p.ID,
@@ -375,95 +361,6 @@ func (e *Engine) EvaluateChangeSet(ctx context.Context, workspaceID string, cs C
 		impact.PartialReason = "the scan reached this preview's time budget before it had covered the workspace"
 	}
 	return impact, nil
-}
-
-// profilePair pairs a baseline voice profile with the candidate the change-set's
-// voice ops would produce for it.
-type profilePair struct {
-	baseline  *coreprofile.VoiceProfile
-	candidate *coreprofile.VoiceProfile
-}
-
-// voicePairs loads each profile the change-set's voice ops reference and builds
-// its candidate. Profiles that cannot be loaded (absent, or no ProfileStore)
-// are skipped so a voice op against a missing profile simply contributes no
-// impact rather than failing the whole evaluation.
-func (e *Engine) voicePairs(ctx context.Context, ops []ChangeSetOp) ([]profilePair, error) {
-	ids := voiceProfileIDs(ops)
-	if len(ids) == 0 || e.profiles == nil {
-		return nil, nil
-	}
-	pairs := make([]profilePair, 0, len(ids))
-	for _, id := range ids {
-		baseline, err := e.profiles.GetProfile(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		if baseline == nil {
-			continue
-		}
-		pairs = append(pairs, profilePair{
-			baseline:  baseline,
-			candidate: ApplyVoiceOpsToProfile(baseline, ops),
-		})
-	}
-	return pairs, nil
-}
-
-// voiceProfileIDs returns the distinct profile IDs the voice ops target, in
-// first-seen order.
-func voiceProfileIDs(ops []ChangeSetOp) []string {
-	var ids []string
-	seen := map[string]bool{}
-	add := func(id string) {
-		if id != "" && !seen[id] {
-			seen[id] = true
-			ids = append(ids, id)
-		}
-	}
-	for _, op := range ops {
-		switch op.Op {
-		case OpVoiceRuleAdd:
-			var p VoiceRuleAddPayload
-			if decodePayload(op, &p) == nil {
-				add(p.ProfileID)
-			}
-		case OpVoiceRuleRemove:
-			var p VoiceRuleRemovePayload
-			if decodePayload(op, &p) == nil {
-				add(p.ProfileID)
-			}
-		}
-	}
-	return ids
-}
-
-// voiceImpactForBlock evaluates touched profiles using
-// core/profile.EvaluateBlastRadius. It sums new and resolved findings and
-// combines the affected and prescribed flags. A prescribed rule supplies
-// replacement text, indicating a text edit rather than an annotation.
-func voiceImpactForBlock(pairs []profilePair, colID, colName, blockID, text string) (newV, resolved int, affected, prescribed bool) {
-	if len(pairs) == 0 {
-		return 0, 0, false, false
-	}
-	eb := []coreprofile.EvalBlock{{
-		BlockID:        blockID,
-		CollectionID:   colID,
-		CollectionName: colName,
-		Text:           text,
-	}}
-	for _, pr := range pairs {
-		br := coreprofile.EvaluateBlastRadius(eb, pr.baseline, pr.candidate)
-		newV += br.NewViolations
-		resolved += br.ResolvedViolations
-		if br.AffectedBlocks > 0 {
-			affected = true
-		}
-		if br.PrescribedBlocks > 0 {
-			prescribed = true
-		}
-	}
-	return newV, resolved, affected, prescribed
 }
 
 // ---------------------------------------------------------------------------

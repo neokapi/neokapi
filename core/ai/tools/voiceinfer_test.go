@@ -53,15 +53,19 @@ func TestInferVoiceProfileDemoProviderDraft(t *testing.T) {
 		"corpus is full of contractions; 'never' would mean the corpus was ignored")
 	assert.Equal(t, "casual", draft.Tone.Formality)
 
-	// Vocabulary: the recurring capitalized product name surfaces as a
-	// preferred term.
-	require.NotEmpty(t, draft.Vocabulary.PreferredTerms)
-	names := make([]string, 0, len(draft.Vocabulary.PreferredTerms))
-	for _, tr := range draft.Vocabulary.PreferredTerms {
-		names = append(names, tr.Term)
+	// Word rules: the recurring capitalized product name surfaces as a
+	// preferred form the draft carries beside the voice, named as inferred.
+	carried := draft.CarriedTerms()
+	assert.Equal(t, tools.InferredTermsFrom, carried.From)
+	require.NotEmpty(t, carried.Rules)
+	names := make([]string, 0, len(carried.Rules))
+	for _, tr := range carried.Rules {
+		if tr.Term == "" {
+			names = append(names, tr.Replacement)
+		}
 		assert.NotEmpty(t, tr.Note)
 	}
-	assert.Contains(t, names, "Bowrain")
+	assert.Contains(t, names, "Bowrain", "a preferred form names the replacement and no term")
 
 	// Examples: at least one before/after pair with all parts populated.
 	require.NotEmpty(t, draft.Examples)

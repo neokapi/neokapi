@@ -13,10 +13,10 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 **Goal:** flag forbidden, competitor, and off-preferred terms in your _source_ content and rewrite what fails, so what goes to translation (or production) is already on-brand. This is source governance, before any translation. The profile format lives in [Voice profile](/framework/checks/voice); setting one up takes [ten minutes](/kapi/recipes/brand-guide-in-10-minutes).
 
 The video below walks the whole path on one repository, in one language. A
-drafted context graph (recipe, voice profile, vocabulary) is reviewed and
+drafted context graph (recipe, voice profile, terms) is reviewed and
 confirmed; `kapi check` runs as a gate over operator documentation,
 interface strings and a marketing page; the failures are corrected three ways in
-the source and once as a vocabulary decision the graph keeps, so the next check
+the source and once as a term decision the graph keeps, so the next check
 enforces what the last one passed. No server, no model, no second language.
 
 <ThemedVideo
@@ -32,9 +32,9 @@ enforces what the last one passed. No server, no model, no second language.
 
 With a voice profile bound in the project (Project Settings), the **Checks** view enforces it over everything the project tracks:
 
-1. **Run the checks.** Voice vocabulary findings appear alongside hygiene and length, each named by rule, located to a block, with the suggested wording.
+1. **Run the checks.** Word-rule and voice findings appear alongside hygiene and length, each named by rule, located to a block, with the suggested wording.
 2. **Fix at the block.** Open the flagged file, correct the wording, re-run; the score climbs as findings clear.
-3. **Fix the rule as well as the draft.** A recurring off-brand term belongs in the profile: add it as a vocabulary rule under **Context → Voice** so every later check enforces it.
+3. **Fix the rule as well as the draft.** A recurring off-brand term belongs in the project's terms: add it under **Context → Terms** so every later check enforces it.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">
@@ -66,14 +66,14 @@ kapi apply edits.jsonl               # write through the faithful round-trip
 kapi check blog-post.md --profile-file brand/voice.yaml
 ```
 
-An edit whose content hash drifted, or that would corrupt an inline code, is left unchanged and reported; see [Edit content](/kapi/recipes/rewrite-content). For deterministic term substitution with no assistant (vocabulary only), `kapi voice rewrite --profile-file brand/voice.yaml` reads stdin or `--input-text` and reports each change. To also add the missing rule while fixing the draft, ship both in one change-set:
+An edit whose content hash drifted, or that would corrupt an inline code, is left unchanged and reported; see [Edit content](/kapi/recipes/rewrite-content). For deterministic substitution of the terms a voice file carries, with no assistant, `kapi voice rewrite --profile-file brand/voice.yaml` reads stdin or `--input-text` and reports each change. To also add the missing rule while fixing the draft, ship both in one change-set:
 
 ```jsonl
 {"kind":"content","file":"blog-post.md","id":"paragraph-0","content_hash":"b74d19…","text":"Today we use our infrastructure..."}
-{"kind":"voice","op":"add-rule","list":"forbidden","term":"leverage","replacement":"use"}
+{"kind":"term","op":"upsert","term":"leverage","locale":"en","status":"forbidden","replacement":"use"}
 ```
 
-The `voice` entry lands in the profile the recipe binds, inside the project's voice store, so the next check enforces it (requires a kapi project). A use of the term then fails; add `"advisory":true` to have it report instead.
+The `term` entry lands in the project's terms, so the next check enforces it (requires a kapi project). A use of the term then fails; add `"advisory":true` to have it report instead, or `"competitor":true` for a competitor's name.
 
 </TabItem>
 </Tabs>

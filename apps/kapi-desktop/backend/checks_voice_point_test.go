@@ -13,23 +13,23 @@ import (
 )
 
 // The fixture places the same sentence in two collections with different voice
-// profiles. Each profile forbids a word allowed by the other. Resolving one
+// profiles. Each profile prohibits a pattern allowed by the other. Resolving one
 // profile for the whole project would produce incorrect findings and coordinates.
 
-// supportPointVoice forbids "utilise" and says nothing about "cheap".
+// supportPointVoice prohibits "utilise" and says nothing about "cheap".
 const supportPointVoice = `name: Support Voice
-vocabulary:
-  forbidden_terms:
-    - term: utilise
-      replacement: use
+style:
+  prohibited_patterns:
+    - regex: '(?i)\butilise\b'
+      description: Write use
 `
 
-// promoPointVoice forbids "cheap" and says nothing about "utilise".
+// promoPointVoice prohibits "cheap" and says nothing about "utilise".
 const promoPointVoice = `name: Promo Voice
-vocabulary:
-  forbidden_terms:
-    - term: cheap
-      replacement: affordable
+style:
+  prohibited_patterns:
+    - regex: '(?i)\bcheap\b'
+      description: Write affordable
 `
 
 // newTwoPointProject scaffolds two collections at two points, each with its own
@@ -84,8 +84,8 @@ func newTwoPointProject(t *testing.T, app *App) (*TabInfo, string) {
 	return tab, root
 }
 
-// findingsFor returns the vocabulary findings reported for one file — the ones
-// a voice profile's term rules produce.
+// findingsFor returns the style findings reported for one file: the ones a
+// voice profile's pattern rules produce.
 func findingsFor(res *CheckRunResult, suffix string) []DesktopFinding {
 	var out []DesktopFinding
 	for _, f := range res.Files {
@@ -93,7 +93,7 @@ func findingsFor(res *CheckRunResult, suffix string) []DesktopFinding {
 			continue
 		}
 		for _, fi := range f.Findings {
-			if fi.Category == string(coreprofile.DimensionVocabulary) {
+			if fi.Category == string(coreprofile.DimensionStyle) {
 				out = append(out, fi)
 			}
 		}
@@ -115,15 +115,13 @@ func TestChecksJudgeEachFileByItsOwnPointsVoice(t *testing.T) {
 	docs := findingsFor(res, "docs/help.json")
 	promo := findingsFor(res, "promo/spring.json")
 
-	// The same sentence, two verdicts: each point forbids the word its own
-	// voice forbids, and says nothing about the other's.
-	require.Len(t, docs, 1, "support's voice forbids utilise only")
-	assert.Equal(t, "utilise", docs[0].Rule)
-	assert.Equal(t, "use", docs[0].Replacement)
+	// The same sentence, two verdicts: each point prohibits the pattern its
+	// own voice prohibits, and says nothing about the other's.
+	require.Len(t, docs, 1, "support's voice prohibits utilise only")
+	assert.Contains(t, docs[0].Message, "Write use")
 
-	require.Len(t, promo, 1, "promo's voice forbids cheap only")
-	assert.Equal(t, "cheap", promo[0].Rule)
-	assert.Equal(t, "affordable", promo[0].Replacement)
+	require.Len(t, promo, 1, "promo's voice prohibits cheap only")
+	assert.Contains(t, promo[0].Message, "Write affordable")
 }
 
 func TestAFindingNamesThePointItWasJudgedAt(t *testing.T) {

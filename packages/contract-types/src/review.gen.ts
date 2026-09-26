@@ -84,10 +84,11 @@ export interface Rendering {
  * bites. Mirrors core/profile.TermRule.
  */
 export interface TermRule {
-  term: string;
+  term?: string;
   replacement?: string;
   note?: string;
   advisory?: boolean;
+  competitor?: boolean;
   concept_id?: string;
   do_not_translate?: boolean;
   forms?: string[];

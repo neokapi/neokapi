@@ -35,6 +35,7 @@ type Concept struct {
     Source         TermSource        // "terminology" or "brand_vocabulary"
     Terms          []Term            // terms across locales
     DoNotTranslate bool              // the source term travels into every target unchanged
+    Advisory       bool              // a use of its discouraged terms reports without failing
     Properties     map[string]string // extensible metadata
     CreatedAt      time.Time
     UpdatedAt      time.Time
@@ -136,8 +137,9 @@ The `terms/schema` package declares the tables once and emits them in two SQL di
 
 `terms.Locate(ctx, LocateRequest)` is the one pass that finds every declared
 term in a text. A `LocateRequest` carries the text and its runs, the
-`profile.TermRuleSet`s the caller holds (a voice profile's vocabulary through
-`profile.VocabularyRuleSets`, a tool's `term_rules:` as its own set, or both),
+`profile.TermRuleSet`s the caller holds (the terms a voice file carries through
+`profile.CarriedRuleSets`, the rules established across the workspace, a tool's
+`term_rules:` as its own set), each naming where it is held in `From`,
 the bound `Terminology` store, the locale, and the domains, minimum score and
 validity scope passed through to the store lookup. It returns `Occurrence`s:
 the matched text (for a store term, the form as the text spells it), the rule or

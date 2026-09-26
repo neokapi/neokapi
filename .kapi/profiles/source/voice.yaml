@@ -17,7 +17,7 @@ tone:
 style:
   sentence_length: short
   comments:
-    sentence_words: { minor: 50, major: 70 }
+    sentence_words: 50
     comment_words: 100
     doc_words: 150
     package_doc_words: 300

@@ -327,25 +327,35 @@ that bite most often:
 
   **The constraint on wording is a term rule, at every scope.** One term, what
   to use instead, whether a use of it fails: `profile.TermRule`, carrying an optional
-  `ConceptID` that ties it to the concept in the terms store and the graph. It
-  is what the voice profile has always written under `vocabulary:`, and since
-  #2170 it is also what term-check, translate and recycle take, under one key —
-  `term_rules:`. Each tool projects the list for itself; `profile.TermRuleMap`
-  is the single projection to the prompt's map, because that map feeds the
-  context fingerprint the staleness gate recomputes.
+  `ConceptID` that ties it to the concept in the terms store and the graph, and
+  `competitor: true` for a rival's name. Word rules are terms: there is one word
+  list, and a voice profile holds none. The voice keeps tone, style measures,
+  pattern rules and guidance; a voice file may carry word rules beside the voice
+  under `terms:` (the starter packs do), and `kapi context import` moves them
+  into the terms store, converting a legacy `vocabulary:` list on the way. A
+  bound starter pack's terms apply beside the project's own, named as coming
+  from the pack. `kapi check` reports every word rule under the `terms`
+  analyzer (rule `terms.vocabulary`), wherever the rule is held. term-check,
+  translate and recycle take the same rules under one key, `term_rules:`. Each
+  tool projects the list for itself; `profile.TermRuleMap` is the single
+  projection to the prompt's map, because that map feeds the context
+  fingerprint the staleness gate recomputes.
 
   A rule fails a check unless it is marked `advisory: true`, which makes a
-  violation only report. Unset fails, because rules resolved from a terms store
-  carry no marking and must not be silently downgraded. A suggested rule (a
+  violation only report. A terms-store concept carries the same marking
+  (`advisory`), set by `kapi context keep --advisory` or `kapi terms import
+  --advisory`; unset fails. A suggested rule (a
   candidate nobody has confirmed) reports and never fails, and each finding in
   the check report carries `fails` (plus `suggested: true` for a candidate).
-  A rule with an empty `Replacement` is skipped by the tools: in a
-  voice profile a bare term is meaningful, but "say this instead" needs a this.
+  A rule with an empty `Replacement` is skipped by the translation tools: as a
+  word rule a bare term is meaningful ("avoid this"), but "say this instead"
+  needs a this.
 
   Three words were tried before `term_rules:` and all three were taken —
   `terms:` by dnt-check, `concepts:` by `profiles.<n>.concept`, and
   `preferred_terms:` (shipped in #2169) by the voice profile's
-  `vocabulary.preferred_terms`. Map the whole family before renaming any of it;
+  `vocabulary.preferred_terms`, which is retired. Map the whole family before
+  renaming any of it;
   see `strategy/terms-vocabulary-alignment.md`.
 
   The persisted discriminators followed too (#1522): `model.Origin.Kind`, the

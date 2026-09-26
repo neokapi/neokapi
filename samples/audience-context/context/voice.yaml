@@ -36,18 +36,16 @@ constraints:
       Appointments are not recorded. Screen sharing requires consent and can
       be stopped. The adviser cannot control the device or open its files.
     kind: guidance
-vocabulary:
-  preferred_terms:
-    - term: video appointment
-      note: The service name for a scheduled conversation with an adviser.
-    - term: support line
-      note: The non-emergency phone route to a person.
-    - term: Harbor Help
-      note: Product name. Keep its spelling in every language.
-  forbidden_terms:
-    - term: video call
-      replacement: video appointment
-      note: Use the service term consistently.
+terms:
+  - term: video call
+    replacement: video appointment
+    note: Use the service term consistently.
+  - replacement: video appointment
+    note: The service name for a scheduled conversation with an adviser.
+  - replacement: support line
+    note: The non-emergency phone route to a person.
+  - replacement: Harbor Help
+    note: Product name. Keep its spelling in every language.
 channels:
   child:
     tone:

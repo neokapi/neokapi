@@ -2,8 +2,8 @@
 id: c-07-voice-profiles
 sidebar_position: 7
 title: "C-07: Voice profiles"
-description: "Architecture decision: a voice-profile subsystem with portable YAML profiles, built-in starter packs, a deterministic vocabulary check and an LLM-based voice check, one resolution chain, and a kapi voice command tree that works fully offline."
-keywords: [voice profile, voice check, voice rewrite, vocabulary, term rules, tone, starter packs, MCP, architecture decision, neokapi]
+description: "Architecture decision: a voice-profile subsystem with portable YAML profiles, built-in starter packs, a deterministic word-rule and pattern check and an LLM-based voice check, one resolution chain, and a kapi voice command tree that works fully offline."
+keywords: [voice profile, voice check, voice rewrite, term rules, tone, starter packs, MCP, architecture decision, neokapi]
 ---
 
 # C-07: Voice profiles
@@ -12,7 +12,9 @@ keywords: [voice profile, voice check, voice rewrite, vocabulary, term rules, to
 
 The voice-profile subsystem keeps generated and translated content in voice. Its
 core type, `profile.VoiceProfile`, is a portable YAML document describing tone,
-style, vocabulary rules, examples, and locale, channel and persona overrides. Two
+style measures, pattern rules, guidance, examples, and locale, channel and
+persona overrides. Word rules ("write this, not that") are terms
+([C-08](c-08-terms.md)), and a profile holds none. Two
 registered tools evaluate text against a profile: a deterministic, offline
 `voice-vocab-check` and an LLM-based `voice-check`. Each finding says whether it
 fails a check, carries a run-anchored position, and rolls up into a reported
@@ -32,9 +34,8 @@ and rewritten. The subsystem has to satisfy several constraints at once:
 - **Portable and reviewable.** A profile is a YAML document a team commits and
   reviews, with no backing store required, the same way a recipe is portable
   ([C-01](c-01-project-model.md)).
-- **Offline by default, AI-optional.** A vocabulary check (forbidden,
-  competitor and preferred terms, plus regular-expression patterns) is
-  deterministic and needs no network. A model-backed check for the subjective
+- **Offline by default, AI-optional.** The check of word rules and
+  regular-expression patterns is deterministic and needs no network. A model-backed check for the subjective
   dimensions is opt-in and credential-gated.
 - **Composable with the rest of the engine.** Voice evaluation runs as registered
   tools ([E-03](../engine/e-03-tool-system.md)) so it composes into flows, reuses
@@ -44,9 +45,9 @@ and rewritten. The subsystem has to satisfy several constraints at once:
   MCP client, and from the bundled agent skill
   ([S-03](../surfaces/s-03-agent-surfaces.md)).
 
-Terms ([C-08](c-08-terms.md)) handle consistency at the concept level; a voice
-profile is the broader, prose-level guardrail. The two intersect at vocabulary
-rules, which the vocabulary check can cross-reference against a terms store.
+Terms ([C-08](c-08-terms.md)) hold every word rule; a voice profile is the
+broader, prose-level guardrail. The two meet in the deterministic check, which
+applies the terms that govern the text beside the voice's patterns.
 
 ## Decision
 
@@ -66,40 +67,54 @@ embedded starter packs and the voice store:
   a prohibition into a ceiling; under the ceiling nothing is reported, over it
   every match is), and an optional `scope` (`prose`, `code` or `heading`; empty
   means everywhere). The style enums stay closed, because code reads them.
-- **`VocabularyRules`**: preferred, forbidden and competitor term rules, plus
-  abbreviations. A `TermRule` carries the term, an optional replacement, a
-  note, `advisory`, `forms` (the other surface shapes the term takes, declared
-  rather than derived, which `kapi voice expand` fills in by asking a model once
-  in the profile's own language), `case_sensitive` (unset by default, see
-  below), `scope`
-  (the same values a pattern takes), `do_not_translate` (what gives a bare term
-  with no replacement its meaning), and `concept_id`, which ties the rule to a
-  concept in the terms store and the graph and stays empty for a standalone
-  profile.
 - **`VoiceExample`s**: before/after rewrites with explanations.
 - **`LocaleOverride`, `ChannelOverride` and persona maps**: adjustments resolved
-  on top of the base profile, in that order. A channel's or persona's tone and
-  style replace the resolved ones. Their vocabulary goes through one tighten-only
-  merge: forbidden and competitor terms extend the resolved lists, and a
-  preferred term is dropped where an earlier rule already governs one of its
-  forms, so neither override can re-allow or reword what the profile or a locale
-  set. `ValidateProfile` warns about each preferred term the merge drops.
+  on top of the base profile, in that order. A locale adjusts formality, humour,
+  point of view, cultural notes and examples; a channel's or persona's tone and
+  style replace the resolved ones. None of them carries word rules.
 
 The profile also carries versioning fields (a version snapshot per update, and
 named tag references) for stores that track history.
 
+### Word rules are terms
+
+A word rule is a `profile.TermRule`: the form to reject (`term` and its
+`forms`), the form to use (`replacement`), a note, `advisory`, `competitor` for
+a rival's name, `case_sensitive` (unset by default, see below), `scope` (the
+same values a pattern takes), `do_not_translate` (what gives a bare term with no
+replacement its meaning), and `concept_id`, which ties the rule to a concept in
+the terms store and the graph. A rule with a `replacement` and no `term` names a
+preferred form and rejects nothing. `forms` are declared rather than derived:
+`kapi terms expand` fills them in by asking a model once in the term's own
+language.
+
+The rules live in the terms store. A voice file may carry word rules beside the
+voice under a top-level `terms:` list, as the starter packs do.
+`profile.ParseVoiceFile` splits the two: the profile holds the voice, and the
+file's rules ride beside it in memory (`CarriedTerms`, with the source they come
+from) and are never stored with the profile. `kapi voice import` and
+`kapi context import` move a file's rules into the project's terms store and
+report how many. A file that lists its words under `vocabulary:` is read the
+same way: a forbidden term becomes a rule, a competitor term a rule marked
+`competitor`, and a preferred term a preferred form, or an advisory rule when it
+names a different replacement. A bound starter pack's terms apply beside the
+project's own, and a finding they raise names the pack (`pack technical-docs`)
+in its `from` metadata.
+
 `profile.TermRule` is also the one shape every governed step takes its
 terminology in. `term-check`, `translate`, `recycle` and `dnt-check` all read
-`term_rules:` as `[]profile.TermRule`, whether the rules come from the profile's
-own vocabulary, from the terms store, or from a recipe, and
+`term_rules:` as `[]profile.TermRule`, whether the rules come from the terms
+store, a voice file or a recipe, and
 `profile.TermRuleMap` is the single projection of that list into the map a
 prompt renders and the context fingerprint hashes, so the staleness gate and the
 producers cannot disagree about what governed a target. A violation of a rule
 or a pattern fails a check unless the rule is marked `advisory: true`, which
-makes it report; an unset marking fails, because rules resolved from a terms
-store carry none and must not be silently downgraded. A rule with an empty
-replacement is skipped by the tools unless it is marked do-not-translate,
-because "say this instead" needs a this.
+makes it report; an unset marking fails. A terms-store concept carries the same
+marking, so a rule resolved from the store reports only when a person marked the
+concept advisory. A rule with an empty
+replacement is skipped by the translation tools unless it is marked
+do-not-translate, because "say this instead" needs a this; the check reads the
+same bare term as "avoid this".
 
 `TermRule.MatchesCase` decides whether a rule matches in its own casing. A rule
 whose preferred form is capitalised, as a product name is, matches case
@@ -190,10 +205,11 @@ bespoke to voice. Voice is one checkset over the generic core.
 ### The tools
 
 - **`voice-vocab-check`** (`core/tools`): deterministic and offline. It scans
-  source text for forbidden, competitor and preferred-term violations and pattern
-  hits, emitting findings with positions. It optionally takes a terms store to
-  filter by voice vocabulary. It is an annotate-class tool: it writes the
-  annotation, never the content. This is the fast first pass.
+  source text for the forbidden, competitor and retired terms of a terms store,
+  the word rules a caller holds (a starter pack's terms, the rules established
+  across the workspace) and the voice's prohibited patterns, emitting findings
+  with positions. It is an annotate-class tool: it writes the annotation, never
+  the content. This is the fast first pass.
 - **`voice-check`** (`core/ai/tools`): model-backed. It asks a provider
   ([E-07](../engine/e-07-model-providers.md)) to score the subjective dimensions
   against the rendered voice guide. It declares that it requires credentials and
@@ -202,6 +218,13 @@ bespoke to voice. Voice is one checkset over the generic core.
 - **`voice-infer`** (`core/ai/tools`): model-backed inference of a profile from
   existing content, for a team that has a body of writing and no written-down
   voice.
+
+`kapi check` reports the two halves as separate analyzers. Every word rule,
+wherever it is held, is the `terms` analyzer with rule id `terms.vocabulary` and
+one message shape (`Forbidden term "x" found`, `Competitor term …`,
+`Retired term …`); a finding from a pack or a workspace rule carries
+`metadata.from`. The voice's pattern rules are the `voice.rules` analyzer
+(`voice.style` and its siblings), and the bilingual term check is `terms.target`.
 
 Both checks resolve their profile eagerly, when it is supplied programmatically,
 or lazily through a resolver against a context hierarchy, so a host can defer
@@ -216,7 +239,7 @@ check enforces, and a scope it never hears is a wider one.
 
 A style pattern's scope follows what it asserts. A prohibited pattern says "this
 text must not contain X", which every block answers on its own, so
-`profile.Findings` matches it per block beside the vocabulary rules. A required
+`profile.Findings` matches it per block beside the word rules. A required
 pattern says "this text must contain X" (the call to action, the trademark line,
 the safety notice), and that is a claim about the document: no paragraph of a
 page carries it, the page does. `profile.DocumentFindings` therefore evaluates
@@ -300,12 +323,11 @@ Locale and channel overrides apply on top via `--locale`/`--channel`; an explici
 | --- | --- |
 | `new` | Scaffold a commented, schema-valid profile YAML, optionally seeded from a pack. |
 | `guide` / `show` | Render the profile as a markdown voice guide to inject into an assistant's context. |
-| `check` | Score text against the profile: vocabulary always, `--ai` adds the model check. Exits with the quality-gate code when a finding fails. |
-| `rewrite` | Substitute forbidden and competitor terms for their approved replacements: deterministic, offline, no model. A rule that matches without a replacement is reported under `skipped`. |
-| `expand` | Ask a model for the surface forms each vocabulary term takes and write them into the profile as `forms:`, for review in a diff. |
+| `check` | Score text against the profile: its patterns and the word rules its file carries always, `--ai` adds the model check. Exits with the quality-gate code when a finding fails. |
+| `rewrite` | Substitute the forbidden and competitor terms the profile's file carries for their approved replacements: deterministic, offline, no model. A rule that matches without a replacement is reported under `skipped`. |
 | `validate` | Check a profile document against the schema; blocking problems fail, advisory notes print after the verdict. |
 | `profiles` | List profiles: the voice store plus the built-in packs. |
-| `import` | Import a profile YAML into the voice store. |
+| `import` | Import a profile YAML into the voice store, and the word rules it carries into the project's terms store. |
 | `pack` | Install a built-in starter pack into the voice store. |
 | `pointer` | Write the marker-delimited section into the project's assistant file (`CLAUDE.md`, or an `AGENTS.md` already at the root) that tells an assistant the voice is held by kapi and that `guide` retrieves it. |
 
@@ -340,9 +362,13 @@ byte-faithful round-trip with **no provider involved**: structure and inline
 codes are preserved, each block is drift-guarded by its content hash, and an edit
 that would corrupt markup is rejected.
 
-`kapi voice rewrite` is a separate, deterministic helper: it substitutes
-forbidden and competitor terms for their approved replacements by rule, offline,
-through the same matcher as the vocabulary check (`profile.RewriteVocabulary`).
+`kapi voice rewrite` is a separate, deterministic helper: it substitutes the
+forbidden and competitor terms of the word rules a voice file carries (a starter
+pack's terms, a file's `terms:` list) for their approved replacements by rule,
+offline, through the same matcher as the word-rule check
+(`profile.RewriteTermRules`). A profile read from the voice store carries no word
+rules, so the project's terms are applied by `kapi check` and fixed through
+`kapi apply`.
 A rule that names no replacement, and a match on a declared inflected form of a
 term, stay in the text and are reported under `skipped` with the term, its list,
 whether it fails, the spellings matched and the reason, so a caller can tell an
@@ -350,27 +376,27 @@ unchanged text with nothing to fix from one that still carries violations. The
 exit code stays 0. It does not call a model and does not touch tone, style or
 phrasing; those are the caller's to rewrite.
 
-### A vocabulary rule is a change-set entry
+### A word rule is a change-set entry
 
-Fixing a recurring off-voice term at the *source* (adding a vocabulary rule so
-every future draft is checked against it) is a `voice` entry in the same `kapi
-apply` change-set, alongside the content fix that justifies it:
+Fixing a recurring off-voice term at the *source* (adding a word rule so every
+future draft is checked against it) is a `term` entry in the same `kapi apply`
+change-set, alongside the content fix that justifies it:
 
 ```json
-{"kind":"voice","op":"add-rule","list":"forbidden","term":"utilize","replacement":"use","advisory":true}
+{"kind":"term","op":"upsert","term":"utilize","locale":"en","status":"forbidden","replacement":"use","advisory":true}
 ```
 
-The entry adds a term rule to the named vocabulary list (`forbidden`,
-`competitor` or `preferred`) of the profile the recipe binds, inside the
-project's voice store. The entry is idempotent, and the context policy refuses
-one that names an agent as its actor before anything is written. A binding that points at a starter pack is rejected: a pack is
-embedded in the binary and a project that wants to change one imports it first.
+The entry writes the concept into the project's terms store. `advisory` makes a
+use of the term report without failing, and `competitor` records the term as a
+competitor's name. The context policy refuses an entry that names an agent as its
+actor before anything is written. A change-set has no `voice` kind; an entry
+that uses one is refused with a message that gives the `term` form.
 
 A rule somebody notices while working is a term rule.
 `kapi context observe --term use --instead-of utilise` records a suggestion,
 which checks report and fail nothing on; a person keeping
-it writes the rule into the project's terms store, where every check reads it
-beside the voice's vocabulary. See [C-11](c-11-context-operations.md).
+it writes the rule into the project's terms store, where every check reads it.
+See [C-11](c-11-context-operations.md).
 
 ### Authoring a profile
 
@@ -427,9 +453,9 @@ installed.
 
 `host/mcp_voice.go` registers two offline voice tools on the shared `kapi mcp`
 stdio server ([S-01](../surfaces/s-01-kapi-cli.md)) so non-CLI agents get parity:
-`voice_check` scores text using the deterministic vocabulary rules, and
-`voice_rewrite` substitutes forbidden and competitor terms and reports under
-`skipped` what it matched and left in place.
+`voice_check` scores text using the voice's patterns and the word rules its file
+carries, and `voice_rewrite` substitutes forbidden and competitor terms and
+reports under `skipped` what it matched and left in place.
 
 These are hand-authored because each wraps a *resource* (a voice profile, a
 terms store, a content memory) rather than a single processing tool. The
@@ -441,22 +467,23 @@ of what applies at a point rather than a thing to ask for separately.
 
 - A voice profile is a portable YAML document that works with or without a store,
   reviewable in a diff and reusable across the CLI, MCP, flows and skills.
-- The deterministic vocabulary check gives an instant, offline, reproducible
+- The deterministic word-rule and pattern check gives an instant, offline, reproducible
   signal; the model check is a bounded, credential-gated opt-in for the
   subjective dimensions.
 - Findings are run-anchored and annotation-shaped, so they compose with the
   content model and surface uniformly rather than through a bespoke side channel.
 - The MQM-style scoring is a single function over findings, so every surface
   computes the same score the same way.
-- One term-rule shape serves the profile, the terms store and every governed
-  step, so a rule declared anywhere is enforced and fingerprinted the same way.
+- There is one word list: every word rule is a term, and one term-rule shape
+  serves the terms store, a voice file and every governed step, so a rule
+  declared anywhere is enforced and fingerprinted the same way.
 
 ## See also
 
 - [C-02: Coordinates and governance](c-02-coordinates-and-governance.md): which
   profile governs which content.
-- [C-08: Terms](c-08-terms.md): concept-level consistency the vocabulary rules
-  intersect, and the one pass that locates declared terms.
+- [C-08: Terms](c-08-terms.md): the store that holds every word rule, and the
+  one pass that locates declared terms.
 - [E-03: Tool System](../engine/e-03-tool-system.md): the checks as
   registered tools.
 - [E-07: AI Providers](../engine/e-07-model-providers.md):

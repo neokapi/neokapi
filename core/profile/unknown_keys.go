@@ -41,7 +41,7 @@ func UnknownKeys(data []byte) ([]ProfileProblem, error) {
 		return nil, err
 	}
 	var found []ProfileProblem
-	walkKeys(&doc, reflect.TypeFor[VoiceProfile](), "", &found)
+	walkKeys(&doc, reflect.TypeFor[voiceFileDoc](), "", &found)
 	if len(found) > 0 {
 		return found, nil
 	}
@@ -56,6 +56,15 @@ func UnknownKeys(data []byte) ([]ProfileProblem, error) {
 }
 
 var yamlUnmarshaler = reflect.TypeFor[yaml.Unmarshaler]()
+
+// retiredWordKeys are the keys a channel, locale or persona override used for
+// word rules before word rules moved to terms.
+var retiredWordKeys = map[string]bool{
+	"vocabulary":           true,
+	"vocabulary_overrides": true,
+	"preferred_terms":      true,
+	"avoided_terms":        true,
+}
 
 // walkKeys follows node through the type yaml.v3 decodes it into, and records
 // each mapping key that type has no field for. A type with its own
@@ -110,6 +119,16 @@ func walkKeys(node *yaml.Node, t reflect.Type, path string, found *[]ProfileProb
 					Field: joinKey(path, key.Value),
 					Message: fmt.Sprintf("key \"severity\" (line %d) is ignored: a rule fails a check unless it says "+
 						"`advisory: true`, which makes it report only", key.Line),
+					Warning: true,
+				})
+			case !open && retiredWordKeys[key.Value]:
+				// Word rules are terms. The file's own `terms:` list is read;
+				// a channel's, locale's or persona's list has nowhere to go.
+				*found = append(*found, ProfileProblem{
+					Code:  CodeUnknownKey,
+					Field: joinKey(path, key.Value),
+					Message: fmt.Sprintf("key %q (line %d) is ignored: word rules are terms, and a voice holds none. "+
+						"Record these rules as terms bound where this content sits", key.Value, key.Line),
 					Warning: true,
 				})
 			case !open:

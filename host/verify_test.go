@@ -16,18 +16,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// verifyVoiceYAML binds a voice profile with a critical competitor term, so a
-// single occurrence in the source drops the compliance score below the default
-// threshold (100 - 25 = 75 < 80) and fails the voice gate.
+// verifyVoiceYAML binds a voice profile whose pattern names no other platform,
+// so the competitor's name in the source fails the voice gate. The file also
+// carries word rules, which the import moves into terms: the same name as a
+// competitor term fails the terminology gate over the source.
 const verifyVoiceYAML = `name: Verify Voice
-vocabulary:
-  forbidden_terms:
-    - term: utilize
-      replacement: use
-      advisory: true
-  competitor_terms:
-    - term: Globex
-      replacement: our platform
+style:
+  prohibited_patterns:
+    - regex: '(?i)\bGlobex\b'
+      description: Name no other platform
+terms:
+  - term: utilize
+    replacement: use
+    advisory: true
+  - term: Globex
+    replacement: our platform
+    competitor: true
 `
 
 // writeVerifyProject creates a temp project that binds a voice profile and a

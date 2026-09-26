@@ -44,10 +44,9 @@ collections:
 `)
 	write(".kapi/voice.yaml", "name: "+name+`
 description: The voice of one project and no other.
-vocabulary:
-  forbidden_terms:
-    - term: `+forbidden+`
-      replacement: `+replacement+`
+terms:
+  - term: `+forbidden+`
+    replacement: `+replacement+`
 `)
 	// The violating document and the clean one, so a run has both a negative
 	// and a positive fixture in every project.
@@ -207,8 +206,8 @@ func TestMCPServerAnswersForTwoProjects(t *testing.T) {
 		report := reportOf(t, callTool(t, ctx, session, "check_file", map[string]any{
 			"file": filepath.Join(alpha, "docs", "bad.md"),
 		}))
-		assert.Positive(t, ruleCounts(report)["voice.vocabulary"],
-			"alpha's voice must govern a call that named no project")
+		assert.Positive(t, ruleCounts(report)["terms.vocabulary"],
+			"alpha's word rules must govern a call that named no project")
 	})
 
 	t.Run("a named project governs the call", func(t *testing.T) {
@@ -216,8 +215,8 @@ func TestMCPServerAnswersForTwoProjects(t *testing.T) {
 			"file":    filepath.Join(beta, "docs", "bad.md"),
 			"project": filepath.Join(beta, "kapi.yaml"),
 		}))
-		assert.Positive(t, ruleCounts(report)["voice.vocabulary"],
-			"beta's voice must govern a call that named beta")
+		assert.Positive(t, ruleCounts(report)["terms.vocabulary"],
+			"beta's word rules must govern a call that named beta")
 	})
 
 	t.Run("a path inside the project names it", func(t *testing.T) {
@@ -225,7 +224,7 @@ func TestMCPServerAnswersForTwoProjects(t *testing.T) {
 			"file":    filepath.Join(beta, "docs", "bad.md"),
 			"project": filepath.Join(beta, "docs", "good.md"),
 		}))
-		assert.Positive(t, ruleCounts(report)["voice.vocabulary"])
+		assert.Positive(t, ruleCounts(report)["terms.vocabulary"])
 	})
 
 	t.Run("the other project's voice does not reach this one", func(t *testing.T) {
@@ -235,8 +234,8 @@ func TestMCPServerAnswersForTwoProjects(t *testing.T) {
 			"file":    filepath.Join(beta, "docs", "bad.md"),
 			"project": filepath.Join(alpha, "kapi.yaml"),
 		}))
-		assert.Zero(t, ruleCounts(report)["voice.vocabulary"],
-			"must fail: alpha's voice reported beta's forbidden term")
+		assert.Zero(t, ruleCounts(report)["terms.vocabulary"],
+			"must fail: alpha's word rules reported beta's forbidden term")
 	})
 
 	t.Run("the clean document passes in its own project", func(t *testing.T) {
@@ -244,7 +243,7 @@ func TestMCPServerAnswersForTwoProjects(t *testing.T) {
 			"file":    filepath.Join(beta, "docs", "good.md"),
 			"project": beta,
 		}))
-		assert.Zero(t, ruleCounts(report)["voice.vocabulary"])
+		assert.Zero(t, ruleCounts(report)["terms.vocabulary"])
 	})
 
 	t.Run("a project that holds no project is refused by name", func(t *testing.T) {
@@ -266,8 +265,8 @@ func TestMCPServerAnswersForTwoProjects(t *testing.T) {
 			"context_path": "docs/new.md",
 			"project":      beta,
 		}))
-		assert.Positive(t, ruleCounts(report)["voice.vocabulary"],
-			"beta's voice must govern a draft for a beta destination")
+		assert.Positive(t, ruleCounts(report)["terms.vocabulary"],
+			"beta's word rules must govern a draft for a beta destination")
 	})
 }
 
@@ -337,7 +336,7 @@ func TestMCPConcurrentCallsAcrossProjects(t *testing.T) {
 				}
 				hits := 0
 				for _, f := range report.Findings {
-					if f.Rule == "voice.vocabulary" {
+					if f.Rule == "terms.vocabulary" {
 						hits++
 					}
 				}

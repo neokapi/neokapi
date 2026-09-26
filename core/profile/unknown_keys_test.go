@@ -52,13 +52,17 @@ func TestUnknownKeysNamesEachKeyTheLoadDrops(t *testing.T) {
 			assert.Equal(t, `unknown key "brand_voice" (line 2) is ignored when the profile loads; `+
 				"check its spelling and the section it sits under", p.Message)
 		}
+		if p.Field == "channels.docs.vocabulary" {
+			assert.Contains(t, p.Message, "word rules are terms",
+				"a channel's word list names where word rules live")
+		}
 	}
 	assert.ElementsMatch(t, []string{
 		"brand_voice",
 		"tone.formalty",
 		"style.prohibited_patterns[0].sevrity",
 		"channels.docs.vocab",
-		"channels.docs.vocabulary.forbidden_terms[0].replacment",
+		"channels.docs.vocabulary",
 		"examples[0].explanaton",
 	}, fields)
 }
@@ -115,7 +119,7 @@ personas:
 			require.NoError(t, err)
 			assert.Len(t, problems, refused)
 			for _, p := range problems {
-				assert.True(t, strings.HasPrefix(p.Message, "unknown key "),
+				assert.True(t, strings.HasPrefix(p.Message, "unknown key ") || strings.HasPrefix(p.Message, "key "),
 					"the walk placed %s itself rather than falling back to the decoder's wording", p.Field)
 			}
 		})
@@ -123,16 +127,14 @@ personas:
 }
 
 func TestEveryWarningCarriesACode(t *testing.T) {
-	p := &VoiceProfile{
-		Name:       "Docs",
-		Tone:       ToneProfile{Formality: "calm and matter-of-fact"},
-		Style:      StyleRules{ProhibitedPatterns: []Pattern{{Regex: `\bsimply\b`}}},
-		Vocabulary: VocabularyRules{ForbiddenTerms: []TermRule{{Term: "utilize", Replacement: "use"}}},
+	p := (&VoiceProfile{
+		Name:  "Docs",
+		Tone:  ToneProfile{Formality: "calm and matter-of-fact"},
+		Style: StyleRules{ProhibitedPatterns: []Pattern{{Regex: `\bsimply\b`}}},
 		Channels: map[string]ChannelOverride{"docs": {
-			Style:      &StyleRules{},
-			Vocabulary: &VocabularyRules{PreferredTerms: []TermRule{{Term: "utilize", Replacement: "employ"}}},
+			Style: &StyleRules{},
 		}},
-	}
+	}).Carry("test", []TermRule{{Term: "utilize", Replacement: "use"}})
 	problems := ValidateProfile(p)
 	require.Empty(t, Blocking(problems))
 	codes := map[string]bool{}
@@ -142,7 +144,6 @@ func TestEveryWarningCarriesACode(t *testing.T) {
 	}
 	assert.Equal(t, map[string]bool{
 		CodeUnfamiliarValue:      true,
-		CodePreferredTermDropped: true,
 		CodeOverrideDropsPattern: true,
 	}, codes)
 }

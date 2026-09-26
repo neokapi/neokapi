@@ -192,16 +192,12 @@ func dedupeTerms(in []string) []string {
 	return out
 }
 
-// RuleTerms is every term in a profile's vocabulary, in rule order.
+// RuleTerms is every term the word rules a voice file carries reject, in rule
+// order.
 func RuleTerms(p *coreprofile.VoiceProfile) []string {
-	if p == nil {
-		return nil
-	}
 	var out []string
-	for _, set := range [][]coreprofile.TermRule{
-		p.Vocabulary.ForbiddenTerms, p.Vocabulary.CompetitorTerms, p.Vocabulary.PreferredTerms,
-	} {
-		for _, r := range set {
+	for _, r := range p.CarriedTerms().Rules {
+		if r.Term != "" {
 			out = append(out, r.Term)
 		}
 	}

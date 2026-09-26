@@ -118,11 +118,11 @@ of them applies where by naming it:
 
 | Store              | Holds                                                | Bound by                          |
 | ------------------ | ---------------------------------------------------- | --------------------------------- |
-| **voice profile**  | tone, register, preferred and forbidden vocabulary   | `defaults.voice` or a profile's `voice:`, by profile name |
-| **terms**          | the approved word for each concept, per language     | the project's own terms, or a profile's `termstore:` |
+| **voice profile**  | tone, register, style measures and pattern rules     | `defaults.voice` or a profile's `voice:`, by profile name |
+| **terms**          | the approved word for each concept, per language, and every word to avoid | the project's own terms, or a profile's `termstore:` |
 | **content memory** | source/target pairs already produced and reviewed    | the project's own content memory  |
 
-A profile binds a voice and a vocabulary to its whole product; the collection's
+A profile binds a voice and a set of terms to its whole product; the collection's
 channel then refines the voice, selecting a channel-specific override inside the
 bound profile when one exists. A point that declares no override of its own
 falls back to the project default, the right answer for a voice that reads the
@@ -131,15 +131,17 @@ same everywhere.
 Two recipe keys sit beside these bindings. A collection with no target language
 can say so with `source_only: true`, so a run reads and checks it and writes
 nothing back; the [project file reference](/reference/project-file#collections)
-covers it. And the wording rules a voice profile carries under `vocabulary:`
-have the same shape as the `term_rules:` a check or a translation step takes:
-a term, its replacement and whether a violation fails the check. The [voice profile
+covers it. And every wording rule ("write this, not that") is a term: it has
+the same shape as the `term_rules:` a check or a translation step takes, a term,
+its replacement and whether a violation fails the check. A voice file may carry
+such rules beside the voice under `terms:`, as the starter packs do, and
+`kapi context import` moves them into the project's terms. The [voice profile
 reference](/reference/serialization/voice-profile#term-rules) lists the fields.
 
 ### Where a profile's context lives
 
 All of it is in the project's stores, under one profile id per voice. A profile
-that overrides the voice names the id it uses; one that overrides the vocabulary
+that overrides the voice names the id it uses; one that overrides the terms
 names a terms store with `termstore:`. A profile that names neither is governed
 by the project defaults.
 
@@ -149,7 +151,7 @@ profiles:
     channels: [docs]
     voice:
       profile: acme-labs      # this product's voice
-    termstore: labs-terms     # this product's vocabulary, a store by name
+    termstore: labs-terms     # this product's terms, a store by name
 ```
 
 Content memory and the decision record belong to the project rather than to a
@@ -188,9 +190,9 @@ The rungs behave differently:
   into a file per product-and-channel pair. A channel the profile has no entry
   for takes the base voice.
 
-Vocabulary applies to every channel. The words a product will and will not use
-are the same on every surface it ships on, which is why rung 3 moves the
-register and leaves the term list alone.
+Terms apply to every channel. The words a product will and will not use are the
+same on every surface it ships on, which is why rung 3 moves the register and
+leaves the terms alone.
 
 kapi validates governance declarations when loading the recipe. It rejects
 unknown channels, unqualified channel references, invalid slugs and voice
@@ -269,8 +271,9 @@ Suggested, not yet established:
 Nothing else is recorded for this file. If you notice a name or spelling the project keeps to, record it with context_observe (or `kapi context observe`).
 ```
 
-The word list merges the terms bound at the point with the voice profile's
-vocabulary, so a rule held in both places is one line. The voice shows only the
+The word list merges the terms bound at the point, the rules established across
+the workspace and the terms of a starter pack bound as the voice, so a rule held
+in two places is one line naming both. The voice shows only the
 fields the profile sets. `kapi voice guide <path>` prints the full profile.
 
 Context queries, runs, checks and pushes use the same governance resolver. The
@@ -407,7 +410,8 @@ documentation uses.
 
 What a language adds is an override *inside* the voice profile, next to the
 channel overrides: a `locales:` entry carries the formality, the point of view,
-the vocabulary and the examples that hold for that language only. So the thing
+the cultural notes and the examples that hold for that language only. Terms
+carry their renderings per language. So the thing
 you author for one language is the thing that governs every other, and the loop
 that keeps the languages in step is [convergence](/kapi/convergence).
 

@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -30,7 +29,7 @@ func TestTrialFindings_WalksOnlyTheBoundStream(t *testing.T) {
 	bs.addBlocks("proj1", "trial/ban", srcBlock("t1", "g.md", "en-US", "Please use foobar on the branch"))
 	bs.addBlocks("proj2", "main", srcBlock("o1", "g.md", "en-US", "foobar elsewhere entirely"))
 
-	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	e := NewEngine(bs, tb, nil)
 	ops := []ChangeSetOp{
 		mustOp(t, 0, OpTermStatus, TermStatusPayload{
 			ConceptID: "c1", Locale: "en-US", Text: "foobar",
@@ -62,7 +61,7 @@ func TestTrialFindings_NamesTheRuleOnBothSides(t *testing.T) {
 	bs.addProject(&store.Project{ID: "proj1", Name: "Docs", WorkspaceID: "ws"})
 	bs.addBlocks("proj1", "main", srcBlock("b1", "g.md", "en-US", "the kaputt widget"))
 
-	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	e := NewEngine(bs, tb, nil)
 	ops := []ChangeSetOp{
 		// One term stops being forbidden…
 		mustOp(t, 0, OpTermStatus, TermStatusPayload{
@@ -90,37 +89,6 @@ func TestTrialFindings_NamesTheRuleOnBothSides(t *testing.T) {
 	assert.Equal(t, "banned", rep.Cleared[0].ConceptID)
 
 	assert.True(t, rep.TermsComputed, "the terms half is applied here, not resolved on the branch")
-	assert.Empty(t, rep.VoiceBound, "a terms-only draft binds no candidate profile")
-}
-
-// The voice half comes from MatchVocabulary — the same matcher the
-// voice-vocabulary check runs — so a trial cannot disagree with the check it
-// predicts for a reason of its own.
-func TestTrialFindings_VoiceHalfCarriesSeverityAndReplacement(t *testing.T) {
-	ctx := context.Background()
-
-	bs := newFakeBlockSource()
-	bs.addProject(&store.Project{ID: "proj1", Name: "Site", WorkspaceID: "ws"})
-	bs.addBlocks("proj1", "main", srcBlock("b1", "home.json", "en-US", "Embrace synergy across teams"))
-
-	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", Scope: "ws"}
-	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
-	ops := []ChangeSetOp{
-		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{
-			ProfileID: "p1", List: VoiceListForbidden,
-			Rule: coreprofile.TermRule{Term: "synergy", Replacement: "teamwork"},
-		}),
-	}
-
-	rep, err := e.TrialFindings(ctx, "ws", ChangeSet{ID: "cs1"}, ops, "proj1", "main", EvalOptions{})
-	require.NoError(t, err)
-
-	require.Len(t, rep.Raised, 1)
-	assert.Equal(t, "voice", rep.Raised[0].Kind)
-	assert.Equal(t, "synergy", rep.Raised[0].Rule)
-	assert.Equal(t, "teamwork", rep.Raised[0].Replacement)
-	assert.True(t, rep.Raised[0].Fails)
-	assert.Contains(t, rep.Raised[0].Text, "synergy")
 }
 
 // A draft that changes nothing on this stream says so, rather than reporting an
@@ -135,7 +103,7 @@ func TestTrialFindings_QuietStreamIsAnAnswer(t *testing.T) {
 	bs.addProject(&store.Project{ID: "proj1", Name: "Docs", WorkspaceID: "ws"})
 	bs.addBlocks("proj1", "main", srcBlock("b1", "g.md", "en-US", "nothing to see here"))
 
-	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	e := NewEngine(bs, tb, nil)
 	rep, err := e.TrialFindings(ctx, "ws", ChangeSet{ID: "cs1"}, []ChangeSetOp{
 		mustOp(t, 0, OpTermStatus, TermStatusPayload{
 			ConceptID: "c1", Locale: "en-US", Text: "foobar",
@@ -164,7 +132,7 @@ func TestTrialFindings_CapsTheListsAndKeepsTheTotals(t *testing.T) {
 		bs.addBlocks("proj1", "main", srcBlock(string(rune('a'+i)), "g.md", "en-US", "a foobar here"))
 	}
 
-	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	e := NewEngine(bs, tb, nil)
 	rep, err := e.TrialFindings(ctx, "ws", ChangeSet{ID: "cs1"}, []ChangeSetOp{
 		mustOp(t, 0, OpTermStatus, TermStatusPayload{
 			ConceptID: "c1", Locale: "en-US", Text: "foobar",
@@ -179,7 +147,7 @@ func TestTrialFindings_CapsTheListsAndKeepsTheTotals(t *testing.T) {
 }
 
 func TestTrialFindings_RefusesAnUnboundTrial(t *testing.T) {
-	e := NewEngine(newFakeBlockSource(), terms.NewInMemoryStore(), newFakeProfileStore(), nil)
+	e := NewEngine(newFakeBlockSource(), terms.NewInMemoryStore(), nil)
 	_, err := e.TrialFindings(context.Background(), "ws", ChangeSet{ID: "cs1"}, nil, "proj1", "", EvalOptions{})
 	require.Error(t, err)
 }

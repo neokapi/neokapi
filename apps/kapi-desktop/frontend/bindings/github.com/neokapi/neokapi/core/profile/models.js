@@ -47,14 +47,8 @@ export class AutonomyConfig {
 }
 
 /**
- * ChannelOverride provides channel-specific adjustments to a voice profile.
- * 
- * Tone and Style replace the resolved tone and style wholesale. Vocabulary is
- * written the way the profile's own vocabulary is, and ResolveProfile layers it
- * after any locale override and before any persona. It can only tighten the
- * rules resolved so far: its forbidden and competitor terms extend those lists,
- * and a preferred term is dropped where an earlier rule already governs the
- * term, so a channel never re-allows a word the profile forbids.
+ * ChannelOverride provides channel-specific adjustments to a voice profile:
+ * a tone and style that replace the resolved ones where the channel applies.
  */
 export class ChannelOverride {
     /**
@@ -76,13 +70,6 @@ export class ChannelOverride {
              */
             this["style"] = undefined;
         }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {VocabularyRules | null | undefined}
-             */
-            this["vocabulary"] = undefined;
-        }
 
         Object.assign(this, $$source);
     }
@@ -95,16 +82,12 @@ export class ChannelOverride {
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType1;
         const $$createField1_0 = $$createType3;
-        const $$createField2_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tone" in $$parsedSource) {
             $$parsedSource["tone"] = $$createField0_0($$parsedSource["tone"]);
         }
         if ("style" in $$parsedSource) {
             $$parsedSource["style"] = $$createField1_0($$parsedSource["style"]);
-        }
-        if ("vocabulary" in $$parsedSource) {
-            $$parsedSource["vocabulary"] = $$createField2_0($$parsedSource["vocabulary"]);
         }
         return new ChannelOverride(/** @type {Partial<ChannelOverride>} */($$parsedSource));
     }
@@ -126,9 +109,9 @@ export class CommentRules {
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
             /**
-             * SentenceWords grades a sentence by the words it holds.
+             * SentenceWords is the most words a sentence may hold.
              * @member
-             * @type {SentenceWordLimits | null | undefined}
+             * @type {WordLimit | null | undefined}
              */
             this["sentence_words"] = undefined;
         }
@@ -186,12 +169,8 @@ export class CommentRules {
      * @returns {CommentRules}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType7;
-        const $$createField4_0 = $$createType9;
+        const $$createField4_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("sentence_words" in $$parsedSource) {
-            $$parsedSource["sentence_words"] = $$createField0_0($$parsedSource["sentence_words"]);
-        }
         if ("density" in $$parsedSource) {
             $$parsedSource["density"] = $$createField4_0($$parsedSource["density"]);
         }
@@ -275,8 +254,8 @@ export class Constraint {
      * @returns {Constraint}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType10;
-        const $$createField7_0 = $$createType12;
+        const $$createField6_0 = $$createType6;
+        const $$createField7_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scope" in $$parsedSource) {
             $$parsedSource["scope"] = $$createField6_0($$parsedSource["scope"]);
@@ -336,7 +315,7 @@ export class ConstraintException {
      * @returns {ConstraintException}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType10;
+        const $$createField0_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scope" in $$parsedSource) {
             $$parsedSource["scope"] = $$createField0_0($$parsedSource["scope"]);
@@ -386,8 +365,8 @@ export class ConstraintResolution {
      * @returns {ConstraintResolution}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType13;
-        const $$createField2_0 = $$createType12;
+        const $$createField0_0 = $$createType9;
+        const $$createField2_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraint" in $$parsedSource) {
             $$parsedSource["constraint"] = $$createField0_0($$parsedSource["constraint"]);
@@ -522,7 +501,7 @@ export class FieldValueSet {
      * @returns {FieldValueSet}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType14;
+        const $$createField0_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("values" in $$parsedSource) {
             $$parsedSource["values"] = $$createField0_0($$parsedSource["values"]);
@@ -571,13 +550,6 @@ export class LocaleOverride {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {TermRule[] | undefined}
-             */
-            this["vocabulary_overrides"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
              * @type {VoiceExample[] | undefined}
              */
             this["example_overrides"] = undefined;
@@ -592,14 +564,10 @@ export class LocaleOverride {
      * @returns {LocaleOverride}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType16;
-        const $$createField5_0 = $$createType18;
+        const $$createField4_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("vocabulary_overrides" in $$parsedSource) {
-            $$parsedSource["vocabulary_overrides"] = $$createField4_0($$parsedSource["vocabulary_overrides"]);
-        }
         if ("example_overrides" in $$parsedSource) {
-            $$parsedSource["example_overrides"] = $$createField5_0($$parsedSource["example_overrides"]);
+            $$parsedSource["example_overrides"] = $$createField4_0($$parsedSource["example_overrides"]);
         }
         return new LocaleOverride(/** @type {Partial<LocaleOverride>} */($$parsedSource));
     }
@@ -693,7 +661,7 @@ export class Pattern {
      * @returns {Pattern}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType20;
+        const $$createField3_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rate" in $$parsedSource) {
             $$parsedSource["rate"] = $$createField3_0($$parsedSource["rate"]);
@@ -751,19 +719,9 @@ export class PatternRate {
 }
 
 /**
- * PersonaOverride layers an individual author's voice on top of a brand
- * profile. It is shaped like ChannelOverride — an optional Tone and Style that
- * replace the resolved tone/style — plus additive vocabulary deltas: Preferred
- * terms the author leans on and Avoided terms the author personally steers
- * clear of.
- * 
- * A persona composes strictly inside the brand's guardrails. Its deltas can
- * only tighten vocabulary, never loosen it: Avoided terms add to the profile's
- * forbidden set, and a Preferred term that an earlier layer already forbids,
- * lists as a competitor term, or words its own way is dropped rather than
- * re-allowed. This "brand always wins" rule is enforced by ResolveProfile's
- * merge order, not by trusting the persona author, so a personal voice can
- * never override a brand prohibition.
+ * PersonaOverride layers an individual author's voice on top of a profile: a
+ * tone and style that replace the resolved ones, applied after any channel's,
+ * so a persona's win over a channel's.
  */
 export class PersonaOverride {
     /**
@@ -785,20 +743,6 @@ export class PersonaOverride {
              */
             this["style"] = undefined;
         }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {TermRule[] | undefined}
-             */
-            this["preferred_terms"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {TermRule[] | undefined}
-             */
-            this["avoided_terms"] = undefined;
-        }
 
         Object.assign(this, $$source);
     }
@@ -811,20 +755,12 @@ export class PersonaOverride {
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType1;
         const $$createField1_0 = $$createType3;
-        const $$createField2_0 = $$createType16;
-        const $$createField3_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tone" in $$parsedSource) {
             $$parsedSource["tone"] = $$createField0_0($$parsedSource["tone"]);
         }
         if ("style" in $$parsedSource) {
             $$parsedSource["style"] = $$createField1_0($$parsedSource["style"]);
-        }
-        if ("preferred_terms" in $$parsedSource) {
-            $$parsedSource["preferred_terms"] = $$createField2_0($$parsedSource["preferred_terms"]);
-        }
-        if ("avoided_terms" in $$parsedSource) {
-            $$parsedSource["avoided_terms"] = $$createField3_0($$parsedSource["avoided_terms"]);
         }
         return new PersonaOverride(/** @type {Partial<PersonaOverride>} */($$parsedSource));
     }
@@ -928,51 +864,12 @@ export class Rendering {
      * @returns {Rendering}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType14;
+        const $$createField1_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField1_0($$parsedSource["forms"]);
         }
         return new Rendering(/** @type {Partial<Rendering>} */($$parsedSource));
-    }
-}
-
-/**
- * SentenceWordLimits are the word counts above which a sentence is a minor
- * finding and a major one.
- */
-export class SentenceWordLimits {
-    /**
-     * Creates a new SentenceWordLimits instance.
-     * @param {Partial<SentenceWordLimits>} [$$source = {}] - The source object to create the SentenceWordLimits.
-     */
-    constructor($$source = {}) {
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {number | null | undefined}
-             */
-            this["minor"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {number | null | undefined}
-             */
-            this["major"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new SentenceWordLimits instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {SentenceWordLimits}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new SentenceWordLimits(/** @type {Partial<SentenceWordLimits>} */($$parsedSource));
     }
 }
 
@@ -1049,9 +946,9 @@ export class StyleRules {
      * @returns {StyleRules}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType22;
-        const $$createField5_0 = $$createType22;
-        const $$createField6_0 = $$createType24;
+        const $$createField4_0 = $$createType16;
+        const $$createField5_0 = $$createType16;
+        const $$createField6_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("prohibited_patterns" in $$parsedSource) {
             $$parsedSource["prohibited_patterns"] = $$createField4_0($$parsedSource["prohibited_patterns"]);
@@ -1069,7 +966,8 @@ export class StyleRules {
 /**
  * TermRule is one "write this, not that" rule: the form to reject (Term and
  * its Forms), the form to use (Replacement), a note, and whether a use of the
- * rejected form fails a check.
+ * rejected form fails a check. A rule with a Replacement and no Term names a
+ * preferred form and rejects nothing.
  */
 export class TermRule {
     /**
@@ -1077,12 +975,12 @@ export class TermRule {
      * @param {Partial<TermRule>} [$$source = {}] - The source object to create the TermRule.
      */
     constructor($$source = {}) {
-        if (!("term" in $$source)) {
+        if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {string}
+             * @type {string | undefined}
              */
-            this["term"] = "";
+            this["term"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -1106,6 +1004,14 @@ export class TermRule {
              * @type {boolean | undefined}
              */
             this["advisory"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Competitor marks the rejected form as a competitor's name.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["competitor"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -1141,8 +1047,8 @@ export class TermRule {
              * produced non-words for Norwegian and reached none of the forms it
              * actually uses.
              * 
-             * `kapi voice expand` fills these in, asking a model once in the profile's
-             * own language and writing the result into a diff. The knowledge is the
+             * `kapi terms expand` fills these in, asking a model once in the terms'
+             * own language and writing the result for review. The knowledge is the
              * model's; the matching stays exact and language-neutral.
              * @member
              * @type {string[] | undefined}
@@ -1163,13 +1069,8 @@ export class TermRule {
              * Scope limits where the rule applies, with the same values a Pattern uses.
              * Empty means everywhere, which is what every existing rule does.
              * 
-             * A term needs this at least as much as a pattern does, and for a reason
-             * this repository created: fixing #2240 pushed word lists OUT of
-             * prohibited_patterns and INTO forbidden_terms, because a term renders to
-             * the model as the word itself while a pattern rendered as its description.
-             * A "no implementation vocabulary" rule written the recommended way could
-             * then not say "in prose", and fired inside the code sample the document
-             * exists to explain.
+             * A word rule about implementation vocabulary says "prose" here, so it
+             * does not fire inside the code sample the document exists to explain.
              * @member
              * @type {string | undefined}
              */
@@ -1206,18 +1107,18 @@ export class TermRule {
      * @returns {TermRule}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType14;
-        const $$createField9_0 = $$createType14;
-        const $$createField10_0 = $$createType26;
+        const $$createField7_0 = $$createType10;
+        const $$createField10_0 = $$createType10;
+        const $$createField11_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
-            $$parsedSource["forms"] = $$createField6_0($$parsedSource["forms"]);
+            $$parsedSource["forms"] = $$createField7_0($$parsedSource["forms"]);
         }
         if ("replacement_forms" in $$parsedSource) {
-            $$parsedSource["replacement_forms"] = $$createField9_0($$parsedSource["replacement_forms"]);
+            $$parsedSource["replacement_forms"] = $$createField10_0($$parsedSource["replacement_forms"]);
         }
         if ("accepted" in $$parsedSource) {
-            $$parsedSource["accepted"] = $$createField10_0($$parsedSource["accepted"]);
+            $$parsedSource["accepted"] = $$createField11_0($$parsedSource["accepted"]);
         }
         return new TermRule(/** @type {Partial<TermRule>} */($$parsedSource));
     }
@@ -1281,80 +1182,12 @@ export class ToneProfile {
      * @returns {ToneProfile}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType14;
+        const $$createField0_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("personality" in $$parsedSource) {
             $$parsedSource["personality"] = $$createField0_0($$parsedSource["personality"]);
         }
         return new ToneProfile(/** @type {Partial<ToneProfile>} */($$parsedSource));
-    }
-}
-
-/**
- * VocabularyRules defines term usage constraints.
- */
-export class VocabularyRules {
-    /**
-     * Creates a new VocabularyRules instance.
-     * @param {Partial<VocabularyRules>} [$$source = {}] - The source object to create the VocabularyRules.
-     */
-    constructor($$source = {}) {
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {TermRule[] | undefined}
-             */
-            this["preferred_terms"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {TermRule[] | undefined}
-             */
-            this["forbidden_terms"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {TermRule[] | undefined}
-             */
-            this["competitor_terms"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {{ [_ in string]?: string } | undefined}
-             */
-            this["abbreviations"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new VocabularyRules instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {VocabularyRules}
-     */
-    static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType16;
-        const $$createField1_0 = $$createType16;
-        const $$createField2_0 = $$createType16;
-        const $$createField3_0 = $$createType27;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("preferred_terms" in $$parsedSource) {
-            $$parsedSource["preferred_terms"] = $$createField0_0($$parsedSource["preferred_terms"]);
-        }
-        if ("forbidden_terms" in $$parsedSource) {
-            $$parsedSource["forbidden_terms"] = $$createField1_0($$parsedSource["forbidden_terms"]);
-        }
-        if ("competitor_terms" in $$parsedSource) {
-            $$parsedSource["competitor_terms"] = $$createField2_0($$parsedSource["competitor_terms"]);
-        }
-        if ("abbreviations" in $$parsedSource) {
-            $$parsedSource["abbreviations"] = $$createField3_0($$parsedSource["abbreviations"]);
-        }
-        return new VocabularyRules(/** @type {Partial<VocabularyRules>} */($$parsedSource));
     }
 }
 
@@ -1412,7 +1245,10 @@ export class VoiceExample {
 }
 
 /**
- * VoiceProfile defines a voice profile configuration with tone, style, and vocabulary rules.
+ * VoiceProfile defines a voice: tone, style measures, pattern rules, guidance
+ * and examples. Word rules ("write this, not that") are terms, held in the
+ * terms store; a profile read from a file carries the file's own word rules
+ * beside it (see CarriedTerms).
  */
 export class VoiceProfile {
     /**
@@ -1462,13 +1298,6 @@ export class VoiceProfile {
              * @type {StyleRules}
              */
             this["style"] = (new StyleRules());
-        }
-        if (!("vocabulary" in $$source)) {
-            /**
-             * @member
-             * @type {VocabularyRules}
-             */
-            this["vocabulary"] = (new VocabularyRules());
         }
         if (!("examples" in $$source)) {
             /**
@@ -1571,15 +1400,14 @@ export class VoiceProfile {
      * @returns {VoiceProfile}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType28;
+        const $$createField0_0 = $$createType21;
         const $$createField4_0 = $$createType0;
         const $$createField5_0 = $$createType2;
-        const $$createField6_0 = $$createType4;
-        const $$createField7_0 = $$createType18;
-        const $$createField8_0 = $$createType30;
-        const $$createField9_0 = $$createType32;
-        const $$createField10_0 = $$createType34;
-        const $$createField12_0 = $$createType35;
+        const $$createField6_0 = $$createType12;
+        const $$createField7_0 = $$createType23;
+        const $$createField8_0 = $$createType25;
+        const $$createField9_0 = $$createType27;
+        const $$createField11_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField0_0($$parsedSource["constraints"]);
@@ -1590,62 +1418,58 @@ export class VoiceProfile {
         if ("style" in $$parsedSource) {
             $$parsedSource["style"] = $$createField5_0($$parsedSource["style"]);
         }
-        if ("vocabulary" in $$parsedSource) {
-            $$parsedSource["vocabulary"] = $$createField6_0($$parsedSource["vocabulary"]);
-        }
         if ("examples" in $$parsedSource) {
-            $$parsedSource["examples"] = $$createField7_0($$parsedSource["examples"]);
+            $$parsedSource["examples"] = $$createField6_0($$parsedSource["examples"]);
         }
         if ("locales" in $$parsedSource) {
-            $$parsedSource["locales"] = $$createField8_0($$parsedSource["locales"]);
+            $$parsedSource["locales"] = $$createField7_0($$parsedSource["locales"]);
         }
         if ("channels" in $$parsedSource) {
-            $$parsedSource["channels"] = $$createField9_0($$parsedSource["channels"]);
+            $$parsedSource["channels"] = $$createField8_0($$parsedSource["channels"]);
         }
         if ("personas" in $$parsedSource) {
-            $$parsedSource["personas"] = $$createField10_0($$parsedSource["personas"]);
+            $$parsedSource["personas"] = $$createField9_0($$parsedSource["personas"]);
         }
         if ("autonomy" in $$parsedSource) {
-            $$parsedSource["autonomy"] = $$createField12_0($$parsedSource["autonomy"]);
+            $$parsedSource["autonomy"] = $$createField11_0($$parsedSource["autonomy"]);
         }
         return new VoiceProfile(/** @type {Partial<VoiceProfile>} */($$parsedSource));
     }
 }
+
+/**
+ * WordLimit is a number of words. It reads from YAML as a plain number, and a
+ * mapping of graded limits is refused with the form to write instead.
+ * @typedef {number} WordLimit
+ */
 
 // Private type creation functions
 const $$createType0 = ToneProfile.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = StyleRules.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = VocabularyRules.createFrom;
+const $$createType4 = DensityLimits.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = SentenceWordLimits.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = DensityLimits.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = ConstraintScope.createFrom;
-const $$createType11 = ConstraintException.createFrom;
+const $$createType6 = ConstraintScope.createFrom;
+const $$createType7 = ConstraintException.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = Constraint.createFrom;
+const $$createType10 = $Create.Array($Create.Any);
+const $$createType11 = VoiceExample.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = Constraint.createFrom;
-const $$createType14 = $Create.Array($Create.Any);
-const $$createType15 = TermRule.createFrom;
+const $$createType13 = PatternRate.createFrom;
+const $$createType14 = $Create.Nullable($$createType13);
+const $$createType15 = Pattern.createFrom;
 const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = VoiceExample.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = PatternRate.createFrom;
-const $$createType20 = $Create.Nullable($$createType19);
-const $$createType21 = Pattern.createFrom;
-const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = CommentRules.createFrom;
-const $$createType24 = $Create.Nullable($$createType23);
-const $$createType25 = Rendering.createFrom;
-const $$createType26 = $Create.Array($$createType25);
-const $$createType27 = $Create.Map($Create.Any, $Create.Any);
-const $$createType28 = $Create.Array($$createType13);
-const $$createType29 = LocaleOverride.createFrom;
-const $$createType30 = $Create.Map($Create.Any, $$createType29);
-const $$createType31 = ChannelOverride.createFrom;
-const $$createType32 = $Create.Map($Create.Any, $$createType31);
-const $$createType33 = PersonaOverride.createFrom;
-const $$createType34 = $Create.Map($Create.Any, $$createType33);
-const $$createType35 = AutonomyConfig.createFrom;
+const $$createType17 = CommentRules.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = Rendering.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = $Create.Array($$createType9);
+const $$createType22 = LocaleOverride.createFrom;
+const $$createType23 = $Create.Map($Create.Any, $$createType22);
+const $$createType24 = ChannelOverride.createFrom;
+const $$createType25 = $Create.Map($Create.Any, $$createType24);
+const $$createType26 = PersonaOverride.createFrom;
+const $$createType27 = $Create.Map($Create.Any, $$createType26);
+const $$createType28 = AutonomyConfig.createFrom;

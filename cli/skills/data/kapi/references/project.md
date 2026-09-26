@@ -143,7 +143,7 @@ collections:
   `profiles:`, list the channels that product ships on, and bind each *named*
   collection to one of them with `channel:`. Runs split per distinct resolution,
   so each product's content is translated and checked under its own voice and
-  vocabulary:
+  terms:
 
   ```yaml
   profiles:
@@ -169,7 +169,7 @@ collections:
   answered by the profile the store holds under its own name. An explicit
   `--profile` still beats the recipe.
   The channel additionally picks the override inside the selected profile's
-  voice (its tone, its style, and vocabulary rules that add to the profile's),
+  voice (its tone, its style, or both),
   so a landing register lives beside the voice it varies rather than in a
   second file. A channel no profile declares, and a bare channel two profiles
   declare, both fail the load; kapi will not quietly translate that content in
@@ -239,8 +239,8 @@ collections:
   the translation flow then enforce it with no `--termstore` flag. Rules without
   a store go under a flow step's `term_rules:` (one `term`, its `replacement`,
   `advisory: true` for a rule that only reports, optionally a `concept_id`),
-  the same shape a voice profile's
-  vocabulary uses; `term-check`, `translate`, `recycle`, `dnt-check` and
+  the same shape as every word rule, including the `terms:` a voice file
+  carries; `term-check`, `translate`, `recycle`, `dnt-check` and
   `pseudo-translate` all take it.
 - **Locales + content**: `kapi run <flow>`, `kapi extract`, and `kapi merge`
   apply the project's locales and content globs without `-i` / `--target-lang`.

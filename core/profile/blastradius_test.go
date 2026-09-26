@@ -12,7 +12,7 @@ import (
 // the web blast-radius preview indexes `.length`/`.map` on it and a null crashes
 // the whole page (full-screen error boundary).
 func TestEvaluateBlastRadius_CollectionsNeverNullJSON(t *testing.T) {
-	baseline := profileWith(nil, nil)
+	baseline := CarriedRuleSets(profileWith(nil, nil))
 	candidate := CandidateWithRule(baseline, SuggestedRule{Term: "nonexistentword"})
 
 	// No blocks at all — the case most likely to leave Collections nil.
@@ -38,7 +38,7 @@ func blocks() []EvalBlock {
 }
 
 func TestEvaluateBlastRadius_PromotingForbiddenTerm(t *testing.T) {
-	baseline := profileWith(nil, nil)
+	baseline := CarriedRuleSets(profileWith(nil, nil))
 	candidate := CandidateWithRule(baseline, SuggestedRule{Term: "utilize", Replacement: "use", CorrectionCount: 4})
 
 	br := EvaluateBlastRadius(blocks(), baseline, candidate)
@@ -81,15 +81,15 @@ func TestEvaluateBlastRadius_PromotingForbiddenTerm(t *testing.T) {
 }
 
 func TestEvaluateBlastRadius_CandidateDoesNotMutateBaseline(t *testing.T) {
-	baseline := profileWith([]TermRule{{Term: "existing"}}, nil)
+	baseline := CarriedRuleSets(profileWith([]TermRule{{Term: "existing"}}, nil))
 	_ = CandidateWithRule(baseline, SuggestedRule{Term: "utilize"})
-	if got := len(baseline.Vocabulary.ForbiddenTerms); got != 1 {
-		t.Fatalf("baseline mutated: ForbiddenTerms = %d, want 1", got)
+	if got := len(baseline[0].Rules); got != 1 {
+		t.Fatalf("baseline mutated: rules = %d, want 1", got)
 	}
 }
 
 func TestEvaluateBlastRadius_NoOpRule(t *testing.T) {
-	baseline := profileWith(nil, nil)
+	baseline := CarriedRuleSets(profileWith(nil, nil))
 	// A term that appears in none of the blocks.
 	candidate := CandidateWithRule(baseline, SuggestedRule{Term: "nonexistentword"})
 	br := EvaluateBlastRadius(blocks(), baseline, candidate)
@@ -100,8 +100,8 @@ func TestEvaluateBlastRadius_NoOpRule(t *testing.T) {
 
 func TestEvaluateBlastRadius_ResolvedAndImproved(t *testing.T) {
 	// Baseline flags a competitor term; the candidate drops it — content improves.
-	baseline := profileWith(nil, []TermRule{{Term: "Globex"}})
-	candidate := profileWith(nil, nil)
+	baseline := CarriedRuleSets(profileWith(nil, []TermRule{{Term: "Globex"}}))
+	candidate := CarriedRuleSets(profileWith(nil, nil))
 	bs := []EvalBlock{
 		{BlockID: "b1", CollectionID: "c1", Text: "We beat Globex every day"},
 		{BlockID: "b2", CollectionID: "c1", Text: "Nothing to see here"},
@@ -123,8 +123,8 @@ func TestEvaluateBlastRadius_ResolvedAndImproved(t *testing.T) {
 
 func TestEvaluateBlastRadius_FailingCount(t *testing.T) {
 	// Promoting a competitor term is critical severity.
-	baseline := profileWith(nil, nil)
-	candidate := profileWith(nil, []TermRule{{Term: "Globex"}})
+	baseline := CarriedRuleSets(profileWith(nil, nil))
+	candidate := CarriedRuleSets(profileWith(nil, []TermRule{{Term: "Globex"}}))
 	bs := []EvalBlock{{BlockID: "b1", CollectionID: "c1", Text: "Globex is the rival"}}
 	br := EvaluateBlastRadius(bs, baseline, candidate)
 	if br.NewViolations != 1 {
@@ -136,26 +136,21 @@ func TestEvaluateBlastRadius_FailingCount(t *testing.T) {
 }
 
 func TestProfileClone_Independent(t *testing.T) {
-	p := &VoiceProfile{
-		Name:       "base",
-		Tone:       ToneProfile{Personality: []string{"warm"}},
-		Vocabulary: VocabularyRules{ForbiddenTerms: []TermRule{{Term: "utilize"}}, Abbreviations: map[string]string{"e.g.": "for example"}},
-		Locales:    map[model.LocaleID]LocaleOverride{"de": {Formality: "formal"}},
-	}
+	p := (&VoiceProfile{
+		Name:    "base",
+		Tone:    ToneProfile{Personality: []string{"warm"}},
+		Locales: map[model.LocaleID]LocaleOverride{"de": {Formality: "formal"}},
+	}).Carry("pack test", []TermRule{{Term: "utilize", Forms: []string{"utilizes"}}})
 	c := p.Clone()
-	c.Vocabulary.ForbiddenTerms = append(c.Vocabulary.ForbiddenTerms, TermRule{Term: "leverage"})
+	c.CarriedTerms().Rules[0].Forms[0] = "utilizing"
 	c.Tone.Personality[0] = "cold"
-	c.Vocabulary.Abbreviations["i.e."] = "that is"
 	c.Locales["fr"] = LocaleOverride{Formality: "casual"}
 
-	if len(p.Vocabulary.ForbiddenTerms) != 1 {
-		t.Errorf("clone leaked into baseline ForbiddenTerms: %+v", p.Vocabulary.ForbiddenTerms)
+	if got := p.CarriedTerms().Rules[0].Forms[0]; got != "utilizes" {
+		t.Errorf("clone leaked into baseline carried terms: %q", got)
 	}
 	if p.Tone.Personality[0] != "warm" {
 		t.Errorf("clone leaked into baseline Personality: %v", p.Tone.Personality)
-	}
-	if _, ok := p.Vocabulary.Abbreviations["i.e."]; ok {
-		t.Errorf("clone leaked into baseline Abbreviations: %v", p.Vocabulary.Abbreviations)
 	}
 	if _, ok := p.Locales["fr"]; ok {
 		t.Errorf("clone leaked into baseline Locales: %v", p.Locales)

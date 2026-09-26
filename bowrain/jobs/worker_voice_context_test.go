@@ -43,9 +43,6 @@ func TestWorkerVoiceContext_EndToEnd(t *testing.T) {
 		Scope: "ws-1",
 		Name:  "Acme Voice",
 		Tone:  coreprofile.ToneProfile{Formality: "casual", Personality: []string{"friendly"}},
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}},
-		},
 	}
 	require.NoError(t, bs.CreateProfile(ctx, profile))
 
@@ -105,7 +102,6 @@ func TestWorkerVoiceContext_EndToEnd(t *testing.T) {
 	guide := coreprofile.RenderVoiceGuideCompact(cfg.Profile)
 	assert.Contains(t, guide, "personality: friendly")
 	assert.Contains(t, guide, "formality: casual")
-	assert.Contains(t, guide, `"utilize" → "use"`)
 	assert.Equal(t, []coreprofile.TermRule{{Term: "dashboard", Replacement: "tableau de bord", ConceptID: "c-dashboard"}}, cfg.TermRules)
 
 	// And the full worker path completes a demo translation with them bound.

@@ -127,10 +127,10 @@ func (c *SweepContext) Empty() bool {
 //
 //   - terms traps: the source contains a terms store source term, so the
 //     mandated rendering is checkable in the target (term-check);
-//   - voice traps: the source tempts the profile's forbidden/competitor
-//     vocabulary (coreprofile.MatchVocabulary against the source — a model that
-//     carries the term over is non-compliant) or matches a mechanical prohibited
-//     style pattern;
+//   - voice traps: the source tempts a forbidden/competitor word rule the
+//     profile carries (coreprofile.MatchCarriedTerms against the source: a
+//     model that carries the term over is non-compliant) or matches a
+//     mechanical prohibited style pattern;
 //   - dnt traps: the source carries a do-not-translate term whose verbatim
 //     survival dnt-check verifies.
 //
@@ -227,15 +227,15 @@ func containsAnyTerm(text string, terms []string) bool {
 	return false
 }
 
-// isVoiceTrap reports whether the source text tempts the profile's vocabulary
-// rules (a forbidden/competitor term present in the source is likely to be
+// isVoiceTrap reports whether the source text tempts a word rule the profile
+// carries (a forbidden/competitor term present in the source is likely to be
 // carried into a target unless steered) or matches a mechanical prohibited
-// style pattern.
+// style pattern: what the voice score sweepVoiceAdherent applies can see.
 func isVoiceTrap(text string, profile *coreprofile.VoiceProfile) bool {
 	if profile == nil {
 		return false
 	}
-	return len(coreprofile.MatchVocabulary(profile, text)) > 0 || len(coreprofile.MatchPatterns(profile, text)) > 0
+	return len(coreprofile.MatchCarriedTerms(profile, text)) > 0 || len(coreprofile.MatchPatterns(profile, text)) > 0
 }
 
 // SweepFixtureDigest keys sweep results to exactly what was measured: the
@@ -293,8 +293,8 @@ func (s sweepArmScore) Rate() float64 {
 // scoreSweepBlocks uses deterministic checks to score translated fixtures:
 //   - term-check requires prescribed target renderings of source terms;
 //   - dnt-check requires protected source terms to remain unchanged;
-//   - MatchVocabulary and CalculateScore assess voice vocabulary against the
-//     profile's ComplianceBar.
+//   - Findings and CalculateScore assess the voice (its patterns and the word
+//     rules its file carries) against the profile's ComplianceBar.
 //
 // Missing targets count as non-adherent. Scoring makes no additional AI calls.
 func scoreSweepBlocks(ctx context.Context, blocks []*model.Block, locale model.LocaleID, sc *SweepContext) (sweepArmScore, error) {
