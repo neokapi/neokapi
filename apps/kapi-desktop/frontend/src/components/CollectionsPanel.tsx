@@ -339,7 +339,7 @@ function LanguageTimeline({
   const color = (s: string) => STAGE_COLOR[s] ?? STAGE_COLOR.none;
   const stageLabel = (s: string) =>
     ({
-      shippable: "Shippable",
+      shippable: "Ships",
       review: "In review",
       translated: "Translated",
       none: "Not started",
@@ -598,7 +598,7 @@ export function CollectionsPanel({
   const [formats, setFormats] = useState<FormatInfo[]>(propFormats ?? []);
   const [status, setStatus] = useState<ProjectStatus | null>(propStatus ?? null);
   // Ship-gate ladder standing per (collection, locale) — drives the coverage
-  // cells (Shippable / In review / Draft / —) and the project-wide strip.
+  // cells (Established or Ships / In review / Draft / —) and the project-wide strip.
   const [convergence, setConvergence] = useState<ConvergenceReport | null>(propConvergence ?? null);
   // Flow validity (unknown tools, undeclared plugins) so we never offer to run a
   // broken flow — the run menus disable invalid flows with the reason.
@@ -1664,7 +1664,7 @@ export function CollectionsPanel({
     if (!cs || cs.blockCount === 0 || !cs.targetLanguages.includes(lang)) return null;
     return Math.round(((cs.coverage?.[lang] ?? 0) / cs.blockCount) * 100);
   };
-  // One coverage cell: a ship-gate rung (Shippable / In review / Draft / —) with
+  // One coverage cell: a ship-gate rung (Established or Ships / In review / Draft / —) with
   // the translated % as a secondary figure once convergence is available; the
   // translated-only bar/tile before then.
   const langCell = (coll: Collection, lang: string) => {

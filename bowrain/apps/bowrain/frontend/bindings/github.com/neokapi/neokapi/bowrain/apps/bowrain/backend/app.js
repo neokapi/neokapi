@@ -1602,9 +1602,9 @@ export function RetryConnection() {
 }
 
 /**
- * ReviewBlock marks a block as reviewed, signed off or un-reviewed for a
- * target locale. status picks the rung: with reviewed=true it is "" for an
- * approval or "signed-off" for a sign-off; with reviewed=false it is "" or
+ * ReviewBlock marks a block as established or un-reviewed for a
+ * target locale. status picks the rung: with reviewed=true it is "" (an
+ * approval, landing on established); with reviewed=false it is "" or
  * "translated" for a plain un-review, "draft" for a reviewer rejection (the
  * unit re-enters the work queue).
  * @param {string} projectID
