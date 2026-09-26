@@ -14,7 +14,7 @@
 #                                         (Redis)    │  ingest + xlate │   (Gemini/…)
 #                                                    └────────────────┘
 #   Jobs run on SQS (ElasticMQ), events on Redis Streams, and push payloads/blobs
-#   in S3 (MinIO) — the same managed-service code paths the AWS deployment uses.
+#   in S3 (a Versity S3 gateway) — the same managed-service code paths the AWS deployment uses.
 #
 # Usage:
 #   cp .env.example .env            # optional: set GEMINI_API_KEY etc.
@@ -125,35 +125,35 @@ services:
   # ── Object storage (S3-compatible; mirrors Amazon S3 in production) ──────────
   # The server and worker use the same s3blob code path here as against real S3;
   # only the endpoint and credentials differ. This is what gives local/prod parity.
-  minio:
-    # quay.io, because the minio/minio Docker Hub repository no longer resolves.
-    # Pinned to the release the test suites use (bowrain/testutil/testimage), so
-    # the local stack and the tests stand up the same server.
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-    command: ["server", "/data", "--console-address", ":9001"]
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+  s3:
+    # The Versity S3 gateway (Apache-2.0) over a directory, pinned to the
+    # release the test suites use (bowrain/testutil/testimage), so the local
+    # stack and the tests stand up the same server.
+    image: versity/versitygw:v1.8.0
+    command: ["--access", "bowrainlocal", "--secret", "bowrainlocal-secret", "posix", "/data"]
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9000:7070"
     volumes:
-      - minio-data:/data
+      - s3-data:/data
 
   # One-shot: create the blob bucket, mirroring the Terraform S3 bucket in prod.
-  minio-init:
-    image: minio/mc:latest
+  s3-init:
+    image: amazon/aws-cli:2.27.50
     depends_on:
-      minio:
+      s3:
         condition: service_started
+    environment:
+      AWS_ACCESS_KEY_ID: bowrainlocal
+      AWS_SECRET_ACCESS_KEY: bowrainlocal-secret
+      AWS_DEFAULT_REGION: us-east-1
     entrypoint:
       - /bin/sh
       - -c
       - |
-        until mc alias set local http://minio:9000 minioadmin minioadmin; do
-          echo 'waiting for minio...'; sleep 1;
+        until aws --endpoint-url http://s3:7070 s3api head-bucket --bucket bowrain-blobs 2>/dev/null \
+          || aws --endpoint-url http://s3:7070 s3 mb s3://bowrain-blobs; do
+          echo 'waiting for s3...'; sleep 1;
         done
-        mc mb --ignore-existing local/bowrain-blobs
         echo 'bucket ready'
 
   # ── Job queue (SQS-compatible; mirrors Amazon SQS in production) ─────────────
@@ -216,17 +216,17 @@ services:
       BOWRAIN_REDIS_URL: redis://redis:6379
       # Event bus on Redis Streams (ElastiCache in prod) — no separate broker.
       BOWRAIN_EVENT_BACKEND: redis
-      # Object storage via MinIO (S3-compatible) — identical s3blob code path to
+      # Object storage via the S3 gateway — identical s3blob code path to
       # Amazon S3 in production. S3_PUBLIC_ENDPOINT is the host the browser uses,
       # so pre-signed URLs the server mints still resolve client-side.
       BLOB_STORAGE_BACKEND: s3
       S3_BLOB_BUCKET: bowrain-blobs
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT: http://s3:7070
       S3_PUBLIC_ENDPOINT: http://localhost:9000
       S3_FORCE_PATH_STYLE: "true"
       AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_ACCESS_KEY_ID: bowrainlocal
+      AWS_SECRET_ACCESS_KEY: bowrainlocal-secret
       # Job queue via LocalStack (SQS-compatible) — same sqsqueue code path as AWS.
       BOWRAIN_QUEUE_BACKEND: sqs
       SQS_ENDPOINT: http://elasticmq:9324
@@ -254,7 +254,7 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
-      minio-init:
+      s3-init:
         condition: service_completed_successfully
       sqs-init:
         condition: service_completed_successfully
@@ -274,16 +274,16 @@ services:
       BOWRAIN_REDIS_URL: redis://redis:6379
       # Event bus on Redis Streams (ElastiCache in prod) — no separate broker.
       BOWRAIN_EVENT_BACKEND: redis
-      # Object storage via MinIO — same bucket and s3blob code path as the server,
+      # Object storage via the S3 gateway — same bucket and s3blob code path as the server,
       # so both read/write the same push payloads through S3, not a shared disk.
       BLOB_STORAGE_BACKEND: s3
       S3_BLOB_BUCKET: bowrain-blobs
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT: http://s3:7070
       S3_PUBLIC_ENDPOINT: http://localhost:9000
       S3_FORCE_PATH_STYLE: "true"
       AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_ACCESS_KEY_ID: bowrainlocal
+      AWS_SECRET_ACCESS_KEY: bowrainlocal-secret
       # Job queue via LocalStack (SQS) — same queues the server enqueues to.
       BOWRAIN_QUEUE_BACKEND: sqs
       SQS_ENDPOINT: http://elasticmq:9324
@@ -306,7 +306,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      minio-init:
+      s3-init:
         condition: service_completed_successfully
       sqs-init:
         condition: service_completed_successfully
@@ -333,5 +333,5 @@ services:
 volumes:
   postgres-data:
   blob-data:
-  minio-data:
+  s3-data:
   web-dist:
