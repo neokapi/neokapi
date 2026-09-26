@@ -1,8 +1,8 @@
 package host
 
 import (
-	"github.com/neokapi/neokapi/core/projector"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 )
