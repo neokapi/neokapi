@@ -89,13 +89,13 @@ Ask about it by content and the graph answers with both halves:
 $ kapi context search mooring
 Terms
   berth                    ok (en-GB, preferred)  [operations]
-  mooring                  discouraged — say "berth" (en-GB, deprecated)  [operations]
+  mooring                  discouraged, say "berth" (en-GB, deprecated)  [operations]
   mooring_id               ok (en-GB, admitted)  [api]
 ```
 
 **What the recipe says, and what it still cannot.** The rename is not in the
 enforced vocabulary, because it does not need to be. A **deprecated** term is
-enforced as a **minor** finding, because retiring a word never fails anybody's
+reported as a finding that never fails, because retiring a word never fails anybody's
 build, so the changelog keeps the retired name, the gate says so, and nothing is
 blocked. The record and the gate agree without an exception mechanism.
 
@@ -110,20 +110,21 @@ its own `termstore:` governs exactly the files its channels carry, because
 `kapi check` resolves the vocabulary per file the way it resolves the voice. Below the file there is no point to bind, which is the open case
 named at the end of
 [C-02](../../web/docs/contribute/architecture/context/c-02-coordinates-and-governance.md).
-Until it exists, the advisory severity is what makes the arrangement liveable.
+Until it exists, a retired term reporting rather than failing is what makes the
+arrangement liveable.
 
 ## The enforced vocabulary
 
 Two rules, from two sources, and the sample ships one violation of each:
 
-| Rule | Source | Severity | Where the sample violates it | Point |
+| Rule | Source | Outcome | Where the sample violates it | Point |
 | --- | --- | --- | --- | --- |
-| `seamless` → `unified` | `context/voice.yaml` | major | `landing/index.html`, Compass section | `northsea/landing` |
-| `ship` → `vessel` | `context/terms.json` (deprecated) | minor | `app/strings.en.json`, `fleet.search.placeholder` | `northsea/app` |
+| `seamless` → `unified` | `context/voice.yaml`, moved into the terms by the import | fails | `landing/index.html`, Compass section | `northsea/landing` |
+| `ship` → `vessel` | `context/terms.json` (deprecated) | reports | `app/strings.en.json`, `fleet.search.placeholder` | `northsea/app` |
 
-The severity difference is the point. A word the voice profile forbids is a
-defect; a word the vocabulary retired is a migration, and a migration that fails
-builds is a migration nobody finishes.
+The difference in outcome is the point. A forbidden word is a defect and fails
+the check; a word the terms retired is a migration and only reports, because a
+migration that fails builds is a migration nobody finishes.
 
 A third word, `dock`, appears in the landing page testimonial and is **not**
 decided yet. It is the sample's correction: a reviewer decides it during the
@@ -139,7 +140,7 @@ kapi context import ./context             # read the sample's context into your 
 kapi up                                   # reconcile the graph and the sources
 kapi context docs/berths.md               # where am I, and what governs here
 kapi context search mooring               # what do we call this, and everywhere it lands
-kapi check --strict                       # exit 3, one major and the rest advisory
+kapi check                                # exit 3, one finding fails and the rest report
 ```
 
 The import comes first: until it runs, the files under `context/` are a copy
@@ -160,7 +161,7 @@ ksed -i 's/by ship name/by vessel name/' app/strings.en.json
 
 echo '{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}' > decisions.jsonl
 kapi apply decisions.jsonl                # one entry, reaching record and gate
-kapi check --strict                       # now it finds "dock", major — exit 3
+kapi check                                # now it finds "dock", and it fails: exit 3
 ```
 
 One entry is the whole decision. `forbidden` is chosen over `deprecated`
@@ -173,7 +174,7 @@ Fix the last one and converge:
 ksed -i 's/could not dock when the pilot called/could not reach its berth when the pilot called/' landing/index.html
 kapi up                                    # 3 source files changed, re-extracted
 kapi status                                # the source axis, on one line
-kapi check --strict                        # exit 0, with two advisory findings left
+kapi check                                 # exit 0, with two findings that report
 ```
 
 The two that remain are the changelog's, and they are correct: the record says
@@ -223,14 +224,14 @@ printf '%s\n%s\n' \
 kapi apply refresh.jsonl
 
 kapi up
-kapi check --strict
+kapi check
 ```
 
 The term decisions land in the project's terms store, and `kapi.yaml` is edited
 rather than re-emitted, so its comments and key order survive.
 `kapi context search Tidewatch` shows the decision. The check that follows reports the retired
 name wherever the documentation still carries it, each finding naming Tideguard
-as the fix, advisory as a retirement always is, and exactly the sweep the
+as the fix, reporting rather than failing as a retirement always does, and exactly the sweep the
 decision created.
 
 `TestRefresh_NorthseaDrift` (`cli/refresh_northsea_test.go`) drives this same
@@ -253,7 +254,7 @@ left is filed and visible in the sample's own output rather than worked around.
 
 | Gap | Issue |
 | --- | --- |
-| No point beneath the file, so a vocabulary decision cannot carry an exception for a passage. A whole surface can keep a retired name, since a profile with its own `terms:` does that, but two paragraphs of one file cannot. Advisory severity is what makes that liveable today | [C-02](../../web/docs/contribute/architecture/context/c-02-coordinates-and-governance.md) |
+| No point beneath the file, so a vocabulary decision cannot carry an exception for a passage. A whole surface can keep a retired name, since a profile with its own `terms:` does that, but two paragraphs of one file cannot. A retired term reporting rather than failing is what makes that liveable today | [C-02](../../web/docs/contribute/architecture/context/c-02-coordinates-and-governance.md) |
 
 Fixed while this sample was being built, each found by running the journey on
 it: [#1900](https://github.com/neokapi/neokapi/issues/1900) (monolingual

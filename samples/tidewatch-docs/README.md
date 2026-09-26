@@ -27,7 +27,7 @@ samples/tidewatch-docs/
 ├── context/                  # read in with `kapi context import ./context`
 │   ├── voice.yaml            # the Northsea voice, cut to the docs channel
 │   ├── terms.json            # the vocabulary this sample ships
-│   ├── memory/               # approved Norwegian wording, the recycle corpus
+│   ├── memory/               # established Norwegian wording, the recycle corpus
 │   └── state/                # the review record
 ├── .kapi/
 │   └── .gitignore            # work/ is derived; the rest of .kapi/ is config
@@ -47,7 +47,7 @@ the point of having both:
 | --- | --- | --- |
 | The target | `site/locales/<lang>.json`, **committed** | `i18n/<lang>/…`, **gitignored** |
 | Why | the app's catalogs are the record a reviewer diffs | a Docusaurus i18n tree is build output, regenerated from the source plus the project's context |
-| The reviewable record is | the catalogs, plus the decisions | the approved wording, plus the decisions |
+| The reviewable record is | the catalogs, plus the decisions | the established wording, plus the decisions |
 
 Both are real conventions. This repository's own docs collections are arranged
 the second way. What matters is that generated translations never arrive in a
@@ -78,15 +78,17 @@ i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
 
 `.github/workflows/kapi.yml` uses the two published actions as published.
 `neokapi/setup-kapi@v1` installs and caches the CLI, `neokapi/kapi-action@v1`
-runs one kapi command and reports what it found. Delivery is the workflow's own
-step, which is why the action does not commit for you.
+runs one kapi command and reports what it found. A runner starts with an empty
+context store, so each job reads `context/` in and pulls what earlier runs
+pushed to the repository's context ref (`context: backend: git` in
+`kapi.yaml`).
 
 Three jobs, and the relationship between them is the whole arrangement:
 
 | Job | On | What it does |
 | --- | --- | --- |
 | `plan` | pull request | a dry run: what is pending, what recycles, what the remainder would cost, posted as one sticky comment, plus a coverage summary |
-| `converge` | push to `main` | runs the loop and commits the content it moved |
+| `converge` | push to `main` | runs the loop and pushes the context it recorded, so the next run reads the same drafts |
 | `build` | both | builds the site, and **depends on neither of the other two** |
 
 `fail-on-parked` stays `false`, deliberately. *Parked* means work remains that the
@@ -105,11 +107,11 @@ Three independent mechanisms, all visible in this sample:
    reviewer works on the locale where it stands, and the next `kapi up` reads
    the same drafts back rather than paying a provider for them again
    (`content memory 0 · drafts 60 · AI 0`).
-2. **The source gate is about the source.** `kapi check --strict` passes here with
-   one advisory finding, `integrating.md` keeping `mooring_id`, the field name
-   the published wire contract keeps after the vocabulary retired the word. A
-   retired term is a **minor** finding, because a migration that fails builds is a
-   migration nobody finishes.
+2. **The check on the source is about the source.** `kapi check` passes here
+   with one finding that reports, `integrating.md` keeping `mooring_id`, the
+   field name the published wire contract keeps after the terms retired the
+   word. A retired term reports and never fails, because a migration that fails
+   builds is a migration nobody finishes.
 3. **The build policy is asymmetric.** `docusaurus.config.ts` throws on a broken
    link in the source locale and warns in a target locale, for the same reason.
 
@@ -130,7 +132,7 @@ Report coverage the way CI does:
 
 ```bash
 kapi status --json --jq '.locales[]
-  | "\(.locale)  translated \(.pct.translated)%  reviewed \(.pct.reviewed)%"'
+  | "\(.locale)  translated \(.pct.translated)%  established \(.pct.established)%"'
 ```
 
 Review Norwegian, and it clears the ship gate while Dutch does not:
@@ -138,10 +140,10 @@ Review Norwegian, and it clears the ship gate while Dutch does not:
 ```bash
 kapi status --review --json --jq '.pending[]
   | select(.locale == "nb")
-  | {kind: "review", op: "add", file, id: .key, locale, status: "reviewed"}' > nb.json
+  | {kind: "review", op: "add", file, id: .key, locale, status: "established"}' > nb.json
 kapi apply nb.json
 kapi status
-kapi check --strict                       # PASS: the source is what a PR is held to
+kapi check                                # PASS: the source is what a PR is held to
 ```
 
 Dutch takes the same route, from the drafts in the project store. Nothing under
@@ -151,7 +153,7 @@ Dutch takes the same route, from the drafts in the project store. Nothing under
 ```bash
 kapi status --review --json --jq '.pending[]
   | select(.locale == "nl")
-  | {kind: "review", op: "add", file, id: .key, locale, status: "reviewed"}' > nl.json
+  | {kind: "review", op: "add", file, id: .key, locale, status: "established"}' > nl.json
 kapi apply nl.json
 kapi up                                   # 0 passes, 8 files materialized
 ls i18n/nl
