@@ -445,6 +445,16 @@
             "long": "Record something you noticed about how this project writes: a\nproduct name as it spells it, a spelling it is consistent about, who its text\naddresses, the register it keeps.\n\nFor a name or spelling, pass --term with the form the project uses and\n--instead-of with a form it avoids. kapi derives the other forms to avoid: the\nspaced, hyphenated and closed spellings of a compound, each part capitalised,\nand the lower-case spelling of a capitalised term. \"--term Quickcast\n--instead-of 'Quick cast'\" avoids Quick cast, Quick-cast, QuickCast and\nquickcast. The parts of a closed word come from an --instead-of form that\nbreaks it, so a word with none varies only its case.\n\nEverything recorded is a suggestion. Checks report it wherever the word\nappears, no check fails on it, and it is established when a person keeps it\nwith \"kapi context keep\". Without --term an observation is a fact in prose.\n\nSay where you saw it with --seen-in and --quote.",
             "short": "Record something you noticed about how this project writes"
           },
+          "rebuild": {
+            "example": "  kapi context rebuild",
+            "flags": {
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              }
+            },
+            "long": "Empty this project's terms, content memory and voice profiles, and the rules\nit widened to the whole workspace, and write them again from the context log.\n\nEvery change to a project's context is recorded in the log with what it wrote,\nso the stores hold nothing the log does not. Rebuilding gives the same stores\nthe changes left behind. Use it when a store is damaged, or after operations from\nanother machine were merged into the log.",
+            "short": "Rebuild this project's stores from the context log"
+          },
           "restore": {
             "example": "  kapi context restore context.kpz\n  kapi context restore context.kpz --merge\n  kapi context restore context.kpz --replace\n  kapi context restore --workspace backups/everything.kpz",
             "flags": {
