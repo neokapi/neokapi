@@ -25,11 +25,6 @@ import (
 // recorded, and every answer that reads the context says how far apart the two
 // were at the last contact.
 
-// ExitUnreachable is the exit code of a pull or push that could not reach the
-// context backend. Nothing changed on either side, and the operations waiting
-// to be pushed stay queued.
-const ExitUnreachable = 5
-
 // RemoteOpener builds the remote for one backend kind. The S3 adapter
 // registers itself this way, so this package does not link its client.
 type RemoteOpener func(ctx context.Context, spec project.ContextBackend) (workspace.Remote, error)
