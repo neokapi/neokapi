@@ -120,7 +120,7 @@ func TestContextSyncOfflineAndLocal(t *testing.T) {
 	_, err := app.PushProjectContext(ctx, recipeOf(first))
 	require.Error(t, err)
 	assert.Equal(t, ExitUnreachable, ExitCode(nil, err))
-	assert.Contains(t, err.Error(), "1 operation wait")
+	assert.Contains(t, err.Error(), "1 operation waits")
 	status := app.ContextSyncStatus(ctx, first)
 	require.NotNil(t, status)
 	assert.Equal(t, 1, status.ToPush, "an unreachable backend leaves the queue as it was")

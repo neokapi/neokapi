@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/neokapi/neokapi/host/output"
@@ -81,6 +83,19 @@ queued for the next push.`,
 	}
 	AddProjectFlag(cmd)
 	return cmd
+}
+
+// newRetiredContextCmd answers a verb that no longer exists with the one that
+// does its work, rather than reading it as a path to answer for.
+func newRetiredContextCmd(verb, instead string) *cobra.Command {
+	return &cobra.Command{
+		Use:                verb,
+		Hidden:             true,
+		DisableFlagParsing: true,
+		RunE: func(*cobra.Command, []string) error {
+			return fmt.Errorf("`kapi context %s` is retired: %s", verb, instead)
+		},
+	}
 }
 
 func newContextBackendCmd(a *App) *cobra.Command {

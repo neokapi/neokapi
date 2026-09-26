@@ -406,8 +406,8 @@ func syncError(err error, verb string, queued int) error {
 		return nil
 	case errors.Is(err, workspace.ErrRemoteUnreachable):
 		return WithExitCode(ExitUnreachable, fmt.Errorf(
-			"%w\nNothing changed here. %s wait to be pushed; run `kapi context %s` again when the backend is reachable",
-			err, pluralUnit(queued, "operation", "operations"), verb))
+			"%w\nNothing changed here. %s to be pushed; run `kapi context %s` again when the backend is reachable",
+			err, pluralUnit(queued, "operation waits", "operations wait"), verb))
 	case errors.Is(err, workspace.ErrObjectExists):
 		return fmt.Errorf("%w\nThe backend holds a file this machine was about to write with other bytes. "+
 			"That happens when two machines share one kapi data directory; give each machine its own", err)
