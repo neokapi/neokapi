@@ -206,6 +206,7 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 		status = model.TermPreferred
 	}
 
+	held := len(concepts)
 	concepts, target, changed := upsertTerm(concepts, termDecision{
 		Text:           e.Term,
 		Locale:         model.LocaleID(locale),
@@ -220,6 +221,11 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 		res.Status = "skipped"
 		res.Detail = "already present"
 		return res
+	}
+	// A new concept for a rule seen at a profile's point holds there. A term
+	// joining a concept the project already holds keeps that concept's scope.
+	if target >= held {
+		concepts[target].ScopeToProfile(e.Profile)
 	}
 	if err := tb.AddConcept(ctx, concepts[target]); err != nil {
 		return errResult(res, fmt.Sprintf("write concept %s: %v", concepts[target].ID, err))

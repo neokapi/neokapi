@@ -537,6 +537,10 @@ type StoreSelection struct {
 	// because the user asked for it and one that is skipped because it does not
 	// exist yet.
 	Explicit bool
+	// Profile is the profile governing the point the selection was made for,
+	// empty at the project's default point. A concept scoped to another
+	// profile does not hold there (terms.AtProfile).
+	Profile string
 }
 
 // InProject reports whether the project's own store governs this selection.
