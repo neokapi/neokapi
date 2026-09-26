@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T08:10:49Z",
+  "generatedAt": "2026-09-26T08:20:58Z",
   "kind": "tool",
   "entries": [
     {
@@ -3887,7 +3887,7 @@
             "type": "string",
             "title": "Kildesluse",
             "description": "Minimum kildeforfatterstatus en blokk må nå før oversettelsene produseres",
-            "default": "checked",
+            "default": "written",
             "options": [
               {
                 "value": "none",

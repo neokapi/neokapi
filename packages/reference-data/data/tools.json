@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T08:10:49Z",
+  "generatedAt": "2026-09-26T08:20:58Z",
   "kind": "tool",
   "entries": [
     {
@@ -3886,8 +3886,8 @@
           "gate": {
             "type": "string",
             "title": "Source Gate",
-            "description": "Minimum source-authoring status a block must reach before its translations are produced",
-            "default": "checked",
+            "description": "What a block's source must satisfy before its translations are produced: written (its checks pass) or established (a person reviewed it)",
+            "default": "written",
             "options": [
               {
                 "value": "none",

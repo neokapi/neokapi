@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T08:10:49Z",
+  "generatedAt": "2026-09-26T08:20:58Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -1794,7 +1794,7 @@
           "name": "gate",
           "type": "string",
           "required": false,
-          "description": "Minimum source-authoring status a block must reach before its translations are produced"
+          "description": "What a block's source must satisfy before its translations are produced: written (its checks pass) or established (a person reviewed it)"
         },
         {
           "name": "project",
