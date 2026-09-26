@@ -45,7 +45,7 @@ export interface ToolDropWidgetProps {
    */
   buildArgv?: (inPath: string, outPath: string) => string[];
   /**
-   * For config-bearing tools, return an inline `.kapi` recipe (one `lab` flow
+   * For config-bearing tools, return an inline `kapi.yaml` recipe (one `lab` flow
    * carrying the tool + its config). The widget writes it and runs
    * `run lab -p <recipe> -i <in> -o <out>`. Mutually exclusive with `buildArgv`.
    */
@@ -190,7 +190,11 @@ export default function ToolDropWidget({
 
     let argv: string[];
     if (recipe) {
-      const recipePath = runtime.writeFile(`${ns}-recipe.kapi`, recipe());
+      // The recipe goes in a directory of its own: the run leaves a `.kapi/`
+      // state dir beside it, and in /project that dir would have no
+      // `kapi.yaml` beside it, which fails every later command run there.
+      runtime.mkdir(ns);
+      const recipePath = runtime.writeFile(`${ns}/kapi.yaml`, recipe());
       argv = ["run", "lab", "-p", recipePath, "-i", inPath, "-o", outPath, ...extraArgs];
     } else if (buildArgv) {
       argv = [...buildArgv(inPath, outPath), ...extraArgs];
@@ -238,6 +242,7 @@ export default function ToolDropWidget({
     setBusy(false);
   }, [
     runtime.ready,
+    runtime.mkdir,
     runtime.writeFile,
     runtime.run,
     runtime.runCapture,

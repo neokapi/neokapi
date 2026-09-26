@@ -6,7 +6,7 @@
 //   1. Loose ad-hoc files — a handful of standalone inputs you run a one-off
 //      command against (pseudo-translate, word-count, extract …). These reuse
 //      the kit fixtures (fixtures.ts) so the bytes are not duplicated.
-//   2. Sample projects — a ready-made `.kapi` recipe + its content + a seeded
+//   2. Sample projects — a ready-made `kapi.yaml` recipe + its content + a seeded
 //      project content-memory bundle, so a reader can run the project funnel offline
 //      (init/add/extract/run/merge) and get a real localized file via content memory
 //      leverage (no LLM, no network).
@@ -81,7 +81,7 @@ export const LOOSE_SAMPLES: LooseSample[] = [
   },
 ];
 
-// ── Sample projects (.kapi) ──────────────────────────────────────────────────
+// ── Sample projects (kapi.yaml) ──────────────────────────────────────────────
 
 const enc = new TextEncoder();
 
@@ -119,8 +119,8 @@ function memoryBundle(pairs: [string, string][]): string {
 }
 
 /**
- * A ready-made `.kapi` sample project: a recipe + its content file(s) + a seeded
- * project content-memory bundle. Seeding all three into the cwd lets a reader run the offline
+ * A ready-made sample project: a `kapi.yaml` recipe + its content file(s) + a
+ * seeded project content-memory bundle. Seeding all three into the cwd lets a reader run the offline
  * project funnel (`kapi add` / `kapi extract` / `kapi run translate` /
  * `kapi merge`) and produce a genuine localized file via content-memory leverage.
  */
@@ -129,7 +129,7 @@ export interface ProjectSample {
   label: string;
   /** One-line description for the picker. */
   description: string;
-  /** The recipe file name (e.g. "demo.kapi"). */
+  /** The recipe file name: always "kapi.yaml", which is what kapi discovers. */
   recipeName: string;
   /** The primary content file's name (for suggested commands). */
   contentName: string;
@@ -213,15 +213,15 @@ export const PROJECT_SAMPLES: ProjectSample[] = [
   {
     id: "json",
     label: "JSON catalog project",
-    description: "A .kapi recipe over a JSON catalog with a seeded en→fr content memory.",
-    recipeName: "demo.kapi",
+    description: "A kapi.yaml recipe over a JSON catalog with a seeded en→fr content memory.",
+    recipeName: "kapi.yaml",
     contentName: "messages.json",
     binary: false,
     files: [
       { path: "messages.json", content: JSON_PROJECT_CONTENT },
       { path: "project.memory.json", content: JSON_PROJECT_MEMORY },
       {
-        path: "demo.kapi",
+        path: "kapi.yaml",
         content: recipeYaml({
           content: "messages.json",
           format: "json",
@@ -233,15 +233,15 @@ export const PROJECT_SAMPLES: ProjectSample[] = [
   {
     id: "docx",
     label: "Word document project",
-    description: "A .kapi recipe over a Word (.docx) file with a seeded en→fr content memory.",
-    recipeName: "demo.kapi",
+    description: "A kapi.yaml recipe over a Word (.docx) file with a seeded en→fr content memory.",
+    recipeName: "kapi.yaml",
     contentName: "welcome.docx",
     binary: true,
     contentBytes: () => bytesFromBase64(DOCX_B64),
     files: [
       { path: "project.memory.json", content: DOCX_PROJECT_MEMORY },
       {
-        path: "demo.kapi",
+        path: "kapi.yaml",
         content: recipeYaml({
           content: "welcome.docx",
           format: "openxml",

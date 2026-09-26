@@ -3084,7 +3084,7 @@ kbf-smoke: web-wasm-cli ## Verify KBF Go(wasm)↔TS parity for the docs Tests pa
 kpz-smoke: build ## Verify the resumable .kpz workspace lifecycle (open→step→finish == one-shot; pack stable)
 	bash scripts/kpz-smoke.sh $(BIN_DIR)/kapi
 
-kpz-wasm-smoke: web-wasm-cli ## Verify .kpz workspace + .kapi project run in the browser WASM engine (JSON + Office)
+kpz-wasm-smoke: web-wasm-cli ## Verify .kpz workspace + kapi project run in the browser WASM engine (JSON + Office)
 	GOROOT="$$($(GO) env GOROOT)" node --experimental-strip-types scripts/kpz-wasm-smoke.ts
 
 wasm-surface-smoke: web-wasm-cli ## Verify no browser verb answers "unknown command", gaps explain themselves, and the labs' own argv still runs

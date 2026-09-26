@@ -159,7 +159,7 @@ function configBlock(values: Record<string, unknown>, schema: ComponentSchema | 
 }
 
 /**
- * Generate a minimal `.kapi` project file that declares a single-step flow
+ * Generate a minimal `kapi.yaml` project file that declares a single-step flow
  * applying `entry` with the current form values. Returned as a string to be
  * seeded into the session.
  */

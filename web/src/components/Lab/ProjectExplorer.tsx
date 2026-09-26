@@ -3,7 +3,7 @@ import BrowserOnly from "@docusaurus/BrowserOnly";
 import { useKapiPlaygroundConfig } from "../KapiPlayground/config";
 
 // Docusaurus adapter for the @neokapi/kapi-lab ProjectExplorer — the live
-// .kapi project lab (recipe + run a declared flow, contrasted with the
+// kapi project lab (recipe + run a declared flow, contrasted with the
 // single-file .kpz workspace). Client-only and code-split.
 
 const Loading = (): React.ReactElement => (
@@ -14,7 +14,7 @@ const Loading = (): React.ReactElement => (
       fontStyle: "italic",
     }}
   >
-    Loading the interactive .kapi project lab…
+    Loading the interactive kapi project lab…
   </div>
 );
 

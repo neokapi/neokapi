@@ -252,7 +252,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
     id: "project",
     label: "Project & recipe",
     description:
-      "The canvas is a view over a .kapi recipe, the committed file kapi works from. Project scope (defaults.tools) pins presets every flow inherits; the flow's steps are the nodes; Source and Sink are bindings, not steps.",
+      "The canvas is a view over a kapi.yaml recipe, the committed file kapi works from. Project scope (defaults.tools) pins presets every flow inherits; the flow's steps are the nodes; Source and Sink are bindings, not steps.",
     steps: [{ tool: "segmentation" }, { tool: "redact" }, { tool: "translate" }],
     presets: {
       redact: {
@@ -264,7 +264,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
     walkthrough: [
       {
         prose:
-          "A flow never lives alone: everything on this canvas serializes to a .kapi recipe, the same committed YAML kapi uses on disk. The Project panel that just opened shows it live: the highlighted defaults block is PROJECT scope, the flow's steps are your nodes.",
+          "A flow never lives alone: everything on this canvas serializes to a kapi.yaml recipe, the same committed YAML kapi uses on disk. The Project panel that just opened shows it live: the highlighted defaults block is PROJECT scope, the flow's steps are your nodes.",
         recipe: true,
         select: null,
       },

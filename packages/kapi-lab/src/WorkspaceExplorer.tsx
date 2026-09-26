@@ -42,7 +42,7 @@ const STEP_LABEL: Record<StepName, string> = {
 // → pack a workspace, then *reopen the packed file on a fresh path* (a stand-in
 // for another machine, where the working cache starts empty) and watch kapi
 // rebuild the whole workspace from the file alone before merging the output. The
-// single-file, serverless twin of a .kapi project (AD-025 §5).
+// single-file, serverless twin of a kapi project (AD-025 §5).
 export default function WorkspaceExplorer({
   assets,
   defaultSampleId,

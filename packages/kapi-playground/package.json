@@ -27,7 +27,8 @@
     "typecheck": "vp check --no-fmt --no-lint",
     "check": "vp check",
     "lint": "vp lint",
-    "fmt": "vp fmt"
+    "fmt": "vp fmt",
+    "test": "vp test"
   },
   "dependencies": {
     "@embedpdf/pdfium": "^2.15.1",

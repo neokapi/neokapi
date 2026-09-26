@@ -18,7 +18,7 @@ exposes its capabilities to AI assistants over MCP.
 - [Kapi overview](https://neokapi.github.io/kapi/overview): what kapi is and how it relates to the engine
 - [Quickstart](https://neokapi.github.io/kapi/get-started/quickstart): install and run the first commands
 - [Installation](https://neokapi.github.io/kapi/get-started/installation): Homebrew, WinGet, binary, desktop app
-- [First project](https://neokapi.github.io/kapi/get-started/first-project): the `.kapi` recipe and project model
+- [First project](https://neokapi.github.io/kapi/get-started/first-project): the `kapi.yaml` recipe and project model
 - [Use with Claude](https://neokapi.github.io/kapi/get-started/use-with-claude): drive the engine from an AI assistant over MCP
 
 ## Framework (Go library)
@@ -35,7 +35,7 @@ exposes its capabilities to AI assistants over MCP.
 - [CLI commands](https://neokapi.github.io/commands): every kapi command
 - [Format reference](https://neokapi.github.io/formats): the full, generated list of supported formats
 - [Tool reference](https://neokapi.github.io/tools): the full, generated list of tools
-- [Project file](https://neokapi.github.io/reference/project-file): the `.kapi` recipe format
+- [Project file](https://neokapi.github.io/reference/project-file): the `kapi.yaml` recipe format
 - [MCP server](https://neokapi.github.io/reference/mcp): the engine's MCP tools
 
 ## Toolbox and React

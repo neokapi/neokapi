@@ -5,7 +5,7 @@
 //     presets every flow in the project inherits and a step's own config
 //     overrides per key. Editing here is editing the project, and the change
 //     feeds the next run.
-//   Recipe — the SOURCE: the live `.kapi` YAML the canvas serializes to, with
+//   Recipe — the SOURCE: the live `kapi.yaml` the canvas serializes to, with
 //     the project-scope block highlighted.
 //
 // The same panel opens from a step's config panel ("Edit project defaults"),
@@ -67,8 +67,8 @@ export default function ProjectPanel({
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-foreground">Project</div>
           <div className="text-[11px] leading-snug text-muted-foreground">
-            The canvas serializes to this <code>.kapi</code> recipe, the committed file kapi works
-            from.
+            The canvas serializes to this <code>kapi.yaml</code> recipe, the committed file kapi
+            works from.
           </div>
         </div>
         <Button
