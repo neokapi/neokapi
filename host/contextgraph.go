@@ -61,7 +61,7 @@ func (a *App) MaterializeContextGraph(ctx context.Context, root string, proj *pr
 	if err != nil {
 		return 0, err
 	}
-	return materializeContextGraph(ctx, g, ProjectScope(proj), proj, projector.TermsView(db), db.BlocksAutocommit(), db.Work())
+	return materializeContextGraph(ctx, g, ProjectScope(proj), proj, projector.TermsView(db), a.projectBlocksAutocommit(db), db.Work())
 }
 
 // MaterializeContextGraphInDB rebuilds the context graph for an already-open
@@ -106,7 +106,7 @@ func (a *App) ExtractToProjectStore(
 	if err != nil {
 		return project.ExtractStats{}, err
 	}
-	store := db.Blocks()
+	store := a.projectBlocks(db)
 	if store == nil {
 		return project.ExtractStats{}, fmt.Errorf("extract into the block cache: %w", projectdb.ErrNoStore)
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/kpz"
 )
 
@@ -104,6 +105,26 @@ func newInterchangeRecipe(sourceLang, targetLang string) *project.KapiProject {
 	}
 	recipeAddTargetLang(r, targetLang)
 	return r
+}
+
+// projectBlocks returns the project's block cache for writing: the injected
+// BlocksBackend when the build supplies one (the browser has no file-backed
+// store), otherwise db's transactional handle. Nil means neither exists.
+func (a *App) projectBlocks(db *projectdb.DB) blockstore.Store {
+	if a.BlocksBackend != nil {
+		return a.BlocksBackend
+	}
+	return db.Blocks()
+}
+
+// projectBlocksAutocommit is projectBlocks for a read, or a write that must not
+// hold the write permit for a whole session: db's autocommit handle stands in
+// for the transactional one.
+func (a *App) projectBlocksAutocommit(db *projectdb.DB) blockstore.Store {
+	if a.BlocksBackend != nil {
+		return a.BlocksBackend
+	}
+	return db.BlocksAutocommit()
 }
 
 // openProjectBlockStore opens (creating dirs as needed) the active

@@ -275,7 +275,7 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	if err != nil {
 		return 0, fmt.Errorf("merge: open project store: %w", err)
 	}
-	store := db.BlocksAutocommit()
+	store := a.projectBlocksAutocommit(db)
 	if store == nil {
 		return 0, fmt.Errorf("merge: read the block cache: %w", projectdb.ErrNoStore)
 	}

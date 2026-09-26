@@ -102,7 +102,7 @@ func (a *App) WriteBack(ctx context.Context, opts WriteBackOptions, out io.Write
 	if err != nil {
 		return fmt.Errorf("write back: open project store: %w", err)
 	}
-	store := db.BlocksAutocommit()
+	store := a.projectBlocksAutocommit(db)
 	if store == nil {
 		return fmt.Errorf("write back: read the block cache: %w", projectdb.ErrNoStore)
 	}

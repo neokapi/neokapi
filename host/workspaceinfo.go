@@ -257,7 +257,7 @@ func (a *App) countProjectStore(ctx context.Context, layout project.Layout) (blo
 	if err != nil {
 		return 0, 0, 0, 0
 	}
-	if store := db.BlocksAutocommit(); store != nil {
+	if store := a.projectBlocksAutocommit(db); store != nil {
 		if snap, eerr := exporter.Export(ctx, store); eerr == nil {
 			blocks, overlays = len(snap.Blocks), len(snap.Overlays)
 		}
