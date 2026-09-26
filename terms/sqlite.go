@@ -175,6 +175,14 @@ func (tb *SQLiteStore) AddConceptWithStream(ctx context.Context, concept Concept
 	}
 	concept = NormalizedConcept(concept)
 
+	// A concept arriving with no timestamp that the store already holds word
+	// for word is not a change, so it writes nothing and keeps its updated_at.
+	if concept.UpdatedAt.IsZero() {
+		if held, found, err := tb.GetConcept(ctx, concept.ID); err == nil && found && SameConcept(held, concept) {
+			return nil
+		}
+	}
+
 	now := time.Now()
 	if concept.CreatedAt.IsZero() {
 		concept.CreatedAt = now

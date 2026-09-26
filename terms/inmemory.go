@@ -69,6 +69,12 @@ func (tb *InMemoryStore) AddConcept(_ context.Context, concept Concept) error {
 	}
 	concept = NormalizedConcept(concept)
 
+	// As in the SQLite store: an unstamped concept the store already holds word
+	// for word is not a change.
+	if idx, exists := tb.byID[concept.ID]; exists && concept.UpdatedAt.IsZero() && SameConcept(tb.concepts[idx], concept) {
+		return nil
+	}
+
 	now := time.Now()
 	if concept.CreatedAt.IsZero() {
 		concept.CreatedAt = now
