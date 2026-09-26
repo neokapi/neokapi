@@ -70,8 +70,7 @@ func TestContextAnswerTextIsTaskShaped(t *testing.T) {
 		"\nVoice: Fernwell. Plain, for studio owners who are not accountants. Short sentences.\n"+
 		"\nSay this, not that:\n- person, not \"seat\"\n"+
 		"\nSuggested, not yet established:\n- Quickcast is the forecast feature, one word (claude-code, seen in README.md)\n"+
-		"\nNothing else is recorded for this file. If you notice a name or spelling the project keeps to, "+
-		"record it with context_observe (or `kapi context observe`).\n",
+		"\nNothing else is recorded for this file. "+recordingAdvice+"\n",
 		buf.String())
 
 	res.Explain()

@@ -50,7 +50,7 @@ when the task matches.
 
 ```
 cli/skills/data/kapi/
-├── SKILL.md            four habits, each in its CLI and MCP form, under 300 words
+├── SKILL.md            four habits, each in its CLI and MCP form, under 350 words
 └── references/         the topics `kapi help <topic>` serves
     ├── edit.md         read → edit → write → verify
     ├── create.md       author → parse → check → revise
@@ -66,11 +66,15 @@ cli/skills/data/kapi/
 ```
 
 `SKILL.md` is the **four habits** an assistant keeps inside other work: ask
-what applies at the file before writing it, record what it notices while reading
-the project, record the wording the person changes, and check what it changed
-before reporting the work done and saying what the session recorded. Each habit
-is its CLI command and its MCP tool, and one line says that `kapi help` lists
-the topics for everything else. The skill's description stays under the 1,024
+what applies at the file before writing it, record what the project does every
+time while reading it, record the wording the person changes, and check what it
+changed before reporting the work done and saying what the session recorded.
+Each habit is its CLI command and its MCP tool, and one line says that `kapi
+help` lists the topics for everything else. The recording habit also names what
+to record (names as written, the spelling variety, a word chosen over a common
+alternative) and what to leave alone (a word the project writes two ways, an
+interface label, the wording of the task), because an assistant that reaches
+kapi from the shell reads the skill and no tool description. The skill's description stays under the 1,024
 characters agent hosts load at startup, and `cli/skills/skills_test.go` holds
 both limits.
 
@@ -179,14 +183,16 @@ Five properties hold for everything written:
 `initialize` carries an `instructions` string to every client, ahead of the
 tool list and whether or not the host loads a skill. It is the only text a
 client with no skill support ever reads about kapi, so it states the task in
-about a hundred words: read `context://<path>` before changing a file, record
-names and spellings with `context_observe` and the person's changes with
-`context_correct`, take back a wrong record with `context_withdraw`, run
-`check_file` on each changed file, and end with `context_session_summary`.
+about a hundred words: call `context_read` before changing a file; record with
+`context_observe` what the files do every time (names as written, the spelling
+variety, a word chosen over a common alternative) and leave alone a word they
+write two ways; record the person's changes with `context_correct`; take back a
+wrong record with `context_withdraw`; run `check_file` on each changed file; and
+end with `context_session_summary`.
 
-It also names `kapi context <path>`. Some clients list only concrete resources
-and never a resource template, so a model there has no way to find the address
-except this text, and the shell command prints the same answer. The
+It points at `context_read` rather than the `context://<path>` resource. Some
+clients list only concrete resources and never a resource template, so a model
+there reaches the answer through the tool, which returns the same text. The
 instructions name the writing set's tools, so a server that does not serve that
 set sends none. `host/mcp_instructions_test.go` holds the text to the names the
 writing set serves and to a word budget.

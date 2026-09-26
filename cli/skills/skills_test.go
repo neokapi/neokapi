@@ -12,10 +12,14 @@ import (
 // The skill kapi init writes is short on purpose: four habits, each in its CLI
 // and MCP form, and a pointer to `kapi help` for the rest. Agent hosts load the
 // description at startup and cap it at 1,024 characters.
+//
+// The recording habit carries what to record and what to leave alone, because
+// an agent that reaches kapi from the shell reads this file and nothing else
+// about it. The bound is 350 words for that reason.
 func TestSkillIsShort(t *testing.T) {
 	body, err := fs.ReadFile(Tree(), "kapi/SKILL.md")
 	require.NoError(t, err)
-	assert.Less(t, len(strings.Fields(string(body))), 300, "SKILL.md stays under 300 words")
+	assert.Less(t, len(strings.Fields(string(body))), 350, "SKILL.md stays under 350 words")
 
 	front, _, ok := strings.Cut(strings.TrimPrefix(string(body), "---\n"), "\n---\n")
 	require.True(t, ok, "SKILL.md opens with front matter")

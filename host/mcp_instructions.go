@@ -23,12 +23,12 @@ package host
 // the tool, which returns the same text.
 func MCPInstructions() string {
 	return "This project's writing rules are kept by kapi. Before you change a file, call context_read " +
-		"with its project-relative path. It gives the voice and the words to use there, or says nothing " +
-		"is recorded yet.\n\n" +
-		"While you read, record the names and spellings the project keeps to with context_observe. When the " +
-		"person changes your wording, record it with context_correct. If you recorded something wrongly, " +
-		"take it back with context_withdraw. A person decides what becomes a rule.\n\n" +
-		"Before you finish, run check_file on each file you changed, fix what it reports, and end with what " +
+		"with its project-relative path; it says what applies, or that nothing is recorded yet.\n\n" +
+		"As you read, record with context_observe what the files do every time, even where your text " +
+		"does not need it: product, feature and plan names, the spelling variety, a word chosen over a " +
+		"common alternative. Leave alone a word the files write two ways. Record the person's edits with " +
+		"context_correct; take back a mistake with context_withdraw. A person decides what becomes a rule.\n\n" +
+		"Before finishing, run check_file on each changed file, fix what it reports, and end with what " +
 		"context_session_summary says."
 }
 

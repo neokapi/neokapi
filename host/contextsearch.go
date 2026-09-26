@@ -140,8 +140,8 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 	if len(r.Terms) == 0 && len(r.Precedent) == 0 && len(r.Suggestions) == 0 {
 		fmt.Fprintf(w, "Nothing in this project's context matches %q.\n", r.Query)
 		if r.Scope != ScopeProfile {
-			fmt.Fprintln(w, "If the project keeps to a name or spelling for it, record that with context_observe "+
-				"(or `kapi context observe`).")
+			fmt.Fprintln(w, "If the files always write it one way, record that with context_observe "+
+				"(or `kapi context observe`). Leave it alone if they write it more than one way.")
 		}
 	}
 
