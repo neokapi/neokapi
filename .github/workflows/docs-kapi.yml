@@ -42,7 +42,6 @@ on:
       # qps generation depends on the docs, recipe, terms and the pinned kapi
       # release in the action. Include those inputs in the deployment triggers.
       - "kapi.yaml"
-      - ".kapi/terms.json"
       - "scripts/pseudo-docs-i18n.sh"
       - ".github/workflows/docs-kapi.yml"
   pull_request:
@@ -59,7 +58,6 @@ on:
       # qps generation depends on the docs, recipe, terms and the pinned kapi
       # release in the action. Include those inputs in the deployment triggers.
       - "kapi.yaml"
-      - ".kapi/terms.json"
       - "scripts/pseudo-docs-i18n.sh"
       - ".github/workflows/docs-kapi.yml"
 

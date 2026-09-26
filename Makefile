@@ -1877,20 +1877,16 @@ check-extract-fixtures: ## Guard: no test/story file is extracted, and each surf
 check-vocab-packs: ## Guard: the vocabulary packs have exactly two homes (Go embed + one TS copy) and they agree
 	@node scripts/format-ops/check-vocab-packs.mjs
 
-# The stages below read the project's context from the workspace store, and
-# this is the one command that opens the files this repository commits under
-# `.kapi/`. Running it first is what lets a fresh clone converge, check and
-# export from what git carries.
-#
-# KAPI_ACTOR=person because reading those files puts them in force for everyone
-# working in the project, which a person decides and kapi refuses an agent.
-# This is the repository's own build step, and a `make` invoked from a coding
-# agent's shell inherits that host's marker.
-#
-# A second run finds the store already holding what the files say, so every
-# stage may declare it.
-l10n-context-import: bin/kapi ## Read the repository's own `.kapi/` layout into the workspace store the loop reads
-	$(KAPI_LOOP_ENV) KAPI_ACTOR=person ./bin/kapi context import
+# The stages below read the project's context from the workspace store. The
+# recipe keeps it on refs/kapi/context in this repository, and this pulls what
+# the ref holds that the store does not, which is what lets a fresh clone
+# converge, check and export. A second run pulls nothing, so every stage may
+# declare it.
+l10n-context-import: bin/kapi ## Pull the repository's context from refs/kapi/context into the workspace store the loop reads
+	$(KAPI_LOOP_ENV) ./bin/kapi context pull
+
+l10n-context-push: bin/kapi ## Push the context this machine recorded to refs/kapi/context
+	$(KAPI_LOOP_ENV) ./bin/kapi context push
 
 l10n-review-export: bin/kapi l10n-context-import ## Emit disposable TMX/CSV review views of the project store → l10n/review/
 	@mkdir -p l10n/review
@@ -2909,14 +2905,11 @@ stage-sourcecode-plugin: build-sourcecode-plugin
 # Distribution metadata is declared in kapi.yaml and checked under the project's
 # voice profile. scripts/check-vocabulary.sh covers surfaces kapi cannot read.
 #
-# The isolated store starts empty, so import the repository's .kapi/ context
-# before checking. Without it, checks have no voice profile or term rules.
-# Import reads these files without modifying them.
-#
-# KAPI_ACTOR=person identifies this repository-defined import into a throwaway
-# store. Otherwise a calling agent's inherited marker would reject the import.
-import-dogfood-context: build ## Read the repository's own `.kapi/` layout into the isolated store the gates use
-	$(KAPI_ISO_ENV) KAPI_ACTOR=person $(BIN_DIR)/kapi context import -p $(CURDIR)/kapi.yaml
+# The isolated store starts empty, so pull the repository's context from
+# refs/kapi/context before checking. Without it, checks have no voice profile or
+# term rules. A pull writes nothing to the ref.
+import-dogfood-context: build ## Pull the repository's context from refs/kapi/context into the isolated store the gates use
+	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi context pull -p $(CURDIR)/kapi.yaml
 
 check-governed-prose: build stage-sourcecode-plugin import-dogfood-context ## Gate: the collections holding distribution prose pass `kapi check`
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'packaging/nfpm.yaml' \

@@ -11,14 +11,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// repoVoicePacks are the voice profiles this repo governs its own prose with,
-// relative to the repo root. The bowrain profile restates the house rules
+// repoVoicePacks are copies of the voice profiles this repo governs its own
+// prose with, relative to the repo root. The profiles themselves live in the
+// project's context on refs/kapi/context; these copies, taken from the export
+// the repository carried until the context moved there, pin the house rules
+// the tests below assert. The bowrain profile restates the house rules
 // because a profile cannot yet inherit from another, so every judgement
-// asserted here is asserted of both — a rule narrowed in one pack and left
+// asserted here is asserted of both: a rule narrowed in one pack and left
 // alone in the other is the drift those two files are meant to avoid.
 var repoVoicePacks = []string{
-	filepath.Join(".kapi", "voice.yaml"),
-	filepath.Join(".kapi", "profiles", "bowrain", "voice.yaml"),
+	filepath.Join("core", "profile", "testdata", "repovoice", "documentation.voice.yaml"),
+	filepath.Join("core", "profile", "testdata", "repovoice", "bowrain.voice.yaml"),
 }
 
 // repoRoot locates the checkout this test file lives in, so the packs are read

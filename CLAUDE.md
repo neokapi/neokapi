@@ -242,7 +242,7 @@ Remotion into light + dark `.webm`. Two things are easy to get wrong:
   `kapi up` on the dogfood recipe (`make l10n`) — never edited by hand, and never
   hand-translated inline. A wording fix is a decision: correct it where it is
   reviewed and let the next convergence materialize it, rather than editing the
-  `.kapi/memory/` bundle the loop reads as an input. A sidecar identical to its
+  content memory the loop reads as an input. A sidecar identical to its
   source is dropped rather than committed, so a demo gets one exactly when its
   narration has been translated. See [the dogfood loop in
   CI](docs/internals/l10n-ci.md).

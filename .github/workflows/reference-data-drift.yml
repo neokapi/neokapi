@@ -59,7 +59,6 @@ on:
       # the rule lives in the voice profile, and the cask needs the plugin.
       # Without these a change to the cask's desc would not run the gate that
       # exists to read it.
-      - ".kapi/voice.yaml"
       - "packaging/**"
       - "deploy/homebrew/**"
       - "apps/kapi-desktop/build/**"
@@ -109,7 +108,6 @@ on:
       # the rule lives in the voice profile, and the cask needs the plugin.
       # Without these a change to the cask's desc would not run the gate that
       # exists to read it.
-      - ".kapi/voice.yaml"
       - "packaging/**"
       - "deploy/homebrew/**"
       - "apps/kapi-desktop/build/**"

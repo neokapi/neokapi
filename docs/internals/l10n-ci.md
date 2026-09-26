@@ -5,9 +5,7 @@ workflow combines kapi's convergence process with extraction, compilation and
 checks specific to the repository.
 
 Related: [CLAUDE.md](../../CLAUDE.md) for the isolation contract and the
-target-drift rule; the recipe itself (`kapi.yaml`) for what each collection is;
-[`.kapi/README.md`](../../.kapi/README.md) for the exported context this
-repository keeps in git.
+target-drift rule; the recipe itself (`kapi.yaml`) for what each collection is.
 [i18n-toil.md](i18n-toil.md) is a different document: the rubric kapi grades
 *other* frameworks with.
 
@@ -16,15 +14,15 @@ repository keeps in git.
 The loop uses the **system-installed** released kapi. Project context is stored
 in the user's workspace: terms, voice profiles, approved wording and decisions.
 
-A CI runner starts with an empty workspace. Before `kapi up`, the job imports
-this repository's `.kapi/` export with `kapi context import`. The import runs
-with `KAPI_ACTOR=person` because applying exported context requires a person's
-authority. This is a repository-defined step on its own checkout; repeated
-imports preserve the same state.
+The recipe declares `context: {backend: git}`, so the project's context is
+shared on `refs/kapi/context` in this repository. A CI runner starts with an
+empty workspace; before `kapi up` the job runs `kapi context pull`, and after
+it `kapi context push` shares the decisions the run recorded. The job's
+`contents: write` covers the ref.
 
-`kapi context snapshot` produces the exported layout kept in git.
-`make import-dogfood-context` imports it into the isolated store used by prose
-checks. `make l10n-context-import` imports it for the convergence loop.
+`make import-dogfood-context` pulls the ref into the isolated store used by
+prose checks, and `make l10n-context-import` pulls it for the convergence loop.
+`make l10n-context-push` shares what a local run recorded.
 The isolation contract in [CLAUDE.md](../../CLAUDE.md) prevents other in-repo
 invocations from accessing the developer's project context.
 
@@ -62,14 +60,14 @@ it. `make generate-reference-docs` compiles the dossiers into the reference
 dataset; `make generate-reference-pages` produces the Format and Tool Reference.
 Edit the dossiers rather than the generated pages.
 
-`make check-reference-prose` checks the source collection and fails on critical,
-major or minor findings. `reference-data-drift.yml` runs it alongside the
+`make check-reference-prose` checks the source collection and fails on any
+failing finding. `reference-data-drift.yml` runs it alongside the
 dataset and page checks.
 
 Four collections at `source/comments` declare the comments of the repository's
 Go, TypeScript, JavaScript, CSS, YAML, Markdown, MDX and HTML trees. Every item
 in them is `comments: {only: true}`: `kapi check` reads those comments against
-the comment voice in `.kapi/profiles/source/voice.yaml`, and the loop passes
+the comment voice the project's context holds, and the loop passes
 over the files. A push leaves their patterns out of the scope it declares, so
 the venue holds and removes exactly what it held before they were declared.
 `make check-comment-coverage` fails when a tracked file in one of those families
@@ -186,7 +184,7 @@ regeneration alone will reproduce the defect.
 - `scripts/check-sync-backed.sh`: the return-leg gate, below.
 
 `make l10n-orphans-report` is the mirror image of coverage: the memory entries
-that produced nothing, which [`.kapi/README.md`](../../.kapi/README.md) explains.
+that produced nothing.
 It reports and never gates either.
 
 `make l10n-stale-report` is the mirror image of *that*, and the two together
@@ -270,9 +268,7 @@ bowrain.cloud, nightly and on demand. It is deliberately unremarkable:
     plugins: bowrain@1.3.0-rc1
     auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
 - run: make l10n-extract
-- run: kapi context import
-  env:
-    KAPI_ACTOR: person
+- run: kapi context pull
 - uses: neokapi/kapi-action@v1
   with:
     command: up
@@ -332,20 +328,11 @@ server venue. Everything else must isolate itself per the contract in CLAUDE.md.
 
 Three steps sit between `kapi up` and delivery, in this order.
 
-`kapi context snapshot` is the loop's return leg for unit decisions. The pull
+`kapi context push` is the loop's return leg for unit decisions. The pull
 records the server's approved decisions in the project's decision ledger, and
-the snapshot writes what the store holds back out as files: recording a decision
-and writing the record out stay separate acts, so `up` leaves this to its own
-step.
-
-A snapshot renders the whole store, and only the decision record travels back
-into this repository. The export keeps a hand-authored terms bundle and one
-content-memory bundle per surface, which a snapshot would replace with its own
-serialization and one aggregate bundle beside them. So the step writes the
-snapshot to `RUNNER_TEMP` and copies `state/` in, whole, because the writer
-prunes the shards a deleted document left behind. A store holding no decisions
-writes no `state/` at all, and the step leaves the record as it is rather than
-erasing every approval this repository carries on a run that read nothing.
+the push shares those operations on `refs/kapi/context`, where the next run and
+every checkout's pull read them. A push that cannot reach the remote exits 5
+and changes nothing, so the next run pushes what this one could not.
 
 The terminology return leg needs no step: the concept pull merges approved term
 decisions into the terms bundle itself, upsert-only and byte-stable, so a night

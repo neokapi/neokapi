@@ -75,7 +75,7 @@
 # either renames it or writes down which wire it belongs to.
 #
 # What this guard is NOT for: prose kapi can read AND CI gates. Both halves of
-# the rule now live in .kapi/voice.yaml — the vocabulary as forbidden_terms, the
+# the rule now live in the project's voice profile — the vocabulary as forbidden_terms, the
 # retired framing as prohibited_patterns — and three make targets run them
 # through kapi on every PR: check-docs-prose (the docs and the READMEs),
 # check-governed-prose (packaging, the Windows build metadata, the Homebrew
@@ -190,7 +190,7 @@ readonly SWEPT_SURFACES=(
   # and bowrain/web/docs/docs are gated per-PR by `make check-docs-prose`, which
   # runs the rule through kapi under the project's voice profile. The framing
   # patterns this script used to own for them now live in
-  # .kapi/voice.yaml:style.prohibited_patterns. A surface kapi can read and CI
+  # voice profile's style.prohibited_patterns. A surface kapi can read and CI
   # gates leaves this list; what stays below is the complement.
   web/src
   bowrain/web/docs/src
@@ -371,7 +371,8 @@ readonly IDENT_ALLOWED_FILES=(
   # retired spelling here is drift the loop clears rather than a name to fix.
   '.*/i18n/catalogs/.*\.json'
   '.*/translations/[a-z-]+\.json'
-  '\.kapi/memory/.*\.json'
+  # A frozen copy of the dogfood project's content memory, termeval's corpus.
+  'scripts/termeval/testdata/dogfood/.*\.json'
   # Generated from the built command tree and the tool registry; the tool name
   # `qa` is what they are reporting.
   'packages/reference-data/data/.*\.json'
