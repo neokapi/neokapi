@@ -71,7 +71,7 @@ Callers name a capability rather than a file: `Blocks()` and
 ## The projector
 
 `core/projector` is the only writer of `tb_*`, `tm_*`, `voice_profiles`,
-`voice_profile_versions` and `workspace_rules`
+`voice_profile_versions`, `unit_decision` and `workspace_rules`
 ([C-03](../../architecture/context/c-03-context-store-and-graph.md#the-stores-are-projections-of-the-log)).
 A write is two transactions under one in-process mutex per context store: the
 operation into `workspace_ops` (and its steps into `workspace_blobs` when they
@@ -89,10 +89,20 @@ consecutive operations during a rebuild, goes through `ReplayWithStream`: the
 same rows as `AddWithStream`, one transaction, and the two FTS5 tables rebuilt
 once afterwards.
 
+A ledger entry is one `unit.record` operation, addressed
+`unit:<project>:<entry id>`; runs of them, which an import produces by the
+thousand, are applied in one transaction by `state.ApplyEntries`, live and in a
+rebuild.
+
 `Rebuild` deletes every row of the projection tables, skipping the FTS5 shadow
 tables (emptying the virtual table empties them), resets their `sqlite_sequence`
 entries so autoincrement ids repeat, narrows every rule whose origin is the
-project, and replays the project's operations in id order.
+project, and replays the project's operations in id order. When a checkpoint
+stands it loads the checkpoint's tables first and replays only the operations
+the log received after it. A checkpoint's tables are JSON Lines, one object per
+row with each cell tagged by its SQLite type (`{"i": 1}`, `{"s": "x"}`,
+`{"b": "<base64>"}`), and carry the `rowid` of every table whose rows are not
+numbered by an INTEGER PRIMARY KEY.
 
 Measured in process on an M-series laptop, 16 goroutine writers
 (`KAPI_MEASURE_OPLOG=1 go test -tags fts5 ./core/projector -run Measure -v`):
@@ -103,6 +113,10 @@ Measured in process on an M-series laptop, 16 goroutine writers
 | a concept or an entry written through the projector, 16 writers, over a store of 13 000 entries | p50 141 ms, p99 283 ms |
 | the same writes straight to the stores, no log | p50 138 ms, p99 342 ms |
 | an agent's observation (`Ledger.Append`, which writes no store), 16 writers, 13 000 other operations | p50 21 ms, p99 31 ms |
+| a decision (`WorkStore.Put` through the journal), 16 writers, 13 000 decisions in the log | p50 5 ms, p99 39 ms |
+| 13 000 decisions read in as one import | 0.7 s |
+| rebuild of those 13 000 decisions from the log | 0.3 s |
+| checkpoint of them (10.6 MB) / rebuild from the checkpoint | 0.3 s / 0.4 s |
 
 The projector adds about a millisecond to a single write. The tail under 16
 writers belongs to the content memory's row-by-row FTS5 maintenance described

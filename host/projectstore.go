@@ -294,14 +294,14 @@ type boundProject struct {
 }
 
 // Projector returns the one writer of the project store rooted at root: every
-// write to its terms, content memory, voice profiles and widened rules is
-// recorded in the workspace's log and applied from there (core/projector).
+// write to its terms, content memory, voice profiles, decision ledger and
+// widened rules is recorded in the workspace's log and applied from there
+// (core/projector).
 //
-// Reads go through ProjectDB as before; a caller that writes asks for the
-// store it writes from here instead. The projector is memoized beside the
-// store, and the first one opened applies whatever the log holds that the
-// store has not yet seen: writes another process made, or operations merged
-// in from another machine.
+// Reads go through ProjectDB; a caller that writes asks for the store it
+// writes from here instead. The projector is bound when the store opens, and
+// it applies then whatever the log holds that the store has not yet seen:
+// writes another process made, or operations merged in from another machine.
 //
 // A store with no workspace behind it (the browser build) gets a projector
 // with no log, which applies each write directly.

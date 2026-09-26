@@ -31,11 +31,11 @@ The workspace also holds what spans projects: the **project registry**, the
 **context graph**, whose node ids already carry the project they belong to, and
 the **operation log**.
 
-Every change to a project's terms, voice profiles and content memory, and to the
-rules widened to the whole workspace, is an operation in that log carrying the
-rows it wrote. Those stores are **projections** of the log: `core/projector` is
-their only writer, and `kapi context rebuild` empties them and replays the log
-into the same rows.
+Every change to a project's terms, voice profiles, content memory and decision
+ledger, and to the rules widened to the whole workspace, is an operation in that
+log carrying the rows it wrote. Those stores are **projections** of the log:
+`core/projector` is their only writer, and `kapi context rebuild` empties them
+and replays the log into the same rows, starting from the latest checkpoint.
 
 A question that reaches across the two files is one query. `projectdb.DB.Join`
 opens the context store beside the projection on one read-only connection, so
@@ -161,7 +161,8 @@ until the project is opened somewhere else.
 | content memory | `memory/` ([C-09](c-09-content-memory.md)) | context | the operation log, through `core/projector` |
 | voice profiles | `voice/` ([C-07](c-07-voice-profiles.md)) | context | the operation log, through `core/projector` |
 | `projector_cursor` | `core/projector` | context | the position of the last operation applied |
-| unit decision ledger, and one view per checkout | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | context | authored; every checkout records into one ledger |
+| unit decision ledger | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | context | the operation log, through `core/projector` |
+| one view of the ledger per checkout | `core/state` | context | the checkout's files |
 | `graph_nodes`, `graph_edges` | `host/storage/graph`, vocabulary in `core/contextgraph` | workspace | the rows above, plus the recipe |
 | `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace | what has been opened |
 | `workspace_ops` | `core/workspace` | workspace | its own log |
@@ -266,10 +267,9 @@ files, source and target, so deleting it costs a re-extraction and nothing else.
 The **context store** holds the project's terms ([C-08](c-08-terms.md)), its
 voice profiles ([C-07](c-07-voice-profiles.md)), its content memory
 ([C-09](c-09-content-memory.md)) and its decision ledger
-([C-04](c-04-unit-state-and-decisions.md)). The first three are projections of
-the workspace's operation log, described below; the ledger is authored in the
-store itself. No read path opens a file in the checkout to answer for any of
-them. A checkout may
+([C-04](c-04-unit-state-and-decisions.md)), each a projection of the
+workspace's operation log, described below. No read path opens a file in the
+checkout to answer for any of them. A checkout may
 carry a snapshot of the same content under `.kapi/`, written by
 `kapi context snapshot`; `kapi context import` is the one command that reads it
 back, and `kapi context export` is the backup ([C-11](c-11-context-operations.md)).
@@ -305,6 +305,23 @@ clock, so those two columns are the exception. A run of single content-memory
 writes is replayed in one transaction with the search indexes rebuilt once,
 which keeps a dogfood-sized log (16,000 entries, 1,000 concepts) to about three
 seconds.
+
+The decision ledger records through the same projector: `state.WorkStore`
+takes a journal (`projector.Units`), and each entry is a `unit.record`
+operation addressed by the entry's own content address, so a decision recorded
+twice is one operation ([C-04](c-04-unit-state-and-decisions.md#the-ledger-is-a-projection-of-the-operation-log)).
+Each checkout's view of the ledger stays a reading of its files.
+
+A **checkpoint** keeps a rebuild short. `Projector.Checkpoint`, behind
+`kapi context rebuild --checkpoint`, writes every projection table as it stands
+(rows, their rowids and the AUTOINCREMENT numbering), with the project's widened
+rules, into a `.kpz` of kind `kapi-checkpoint`, stores it as a blob and records
+a `checkpoint.write` operation naming it and the last operation it includes. A
+rebuild loads the newest checkpoint that still stands and replays only the
+operations after it. A checkpoint stops standing when the log receives, after
+it was taken, an operation whose id sorts before its last one, which is what a
+merge of an older operation from another machine does; the rebuild then falls
+back to an earlier checkpoint or to the whole log.
 
 Callers reach the stores through the projector: `App.Projector` in host hands
 out `projector.Terms`, `projector.Memory` and `projector.Voice`, which answer
