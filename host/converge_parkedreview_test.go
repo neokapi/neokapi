@@ -29,7 +29,7 @@ import (
 // draft instead of paying a provider for it again.
 
 // parkedReviewSource is four strings, so approving two of them is exactly the
-// 50% `reviewed` bar the fixture's ship gate asks for.
+// 50% `established` bar the fixture's ship gate asks for.
 const parkedReviewSource = `{
   "title": "Tide window",
   "subtitle": "When the forecast allows this movement",

@@ -9,10 +9,10 @@ import { ShipStateBadge, termsNotGoverned } from "../ShipStateBadge";
  * three-part rail: approved, translated but not yet approved, and untranslated.
  *
  * A lone percentage cannot separate the two states that decide whether a scope
- * ships — a fully translated locale awaiting review reads identically to a
- * governed one. The rail's three segments carry the colours the ship states
- * already use elsewhere (approved reads as governed, translated as
- * AI-shippable, the remainder as the empty track), so the badge beside it names
+ * ships: a fully translated locale awaiting review reads identically to an
+ * established one. The rail's three segments carry the colours the ship states
+ * already use elsewhere (approved reads as established, translated as
+ * translated, the remainder as the empty track), so the badge beside it names
  * what the rail shows rather than adding a second, unrelated scale.
  *
  * It is the same component at one locale and at twenty: one row, sized by its

@@ -7,9 +7,9 @@ name: voltway
 defaults:
   source_language: en
   target_languages: [fr]
-  # Voltway signs off its own source wording; a translation carries whatever
+  # Voltway approves its own source wording; a translation carries whatever
   # the source said, so the source ladder gates the loop as well.
-  source_gate: approved
+  source_gate: established
   flow: converge
   voice:
     profile: voltway

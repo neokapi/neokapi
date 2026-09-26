@@ -378,8 +378,8 @@ export function TranslationEditor({
           const plainText = result.codedText.replace(/[\uE001-\uE003]/g, "");
           // Write the {text, status} object shape a reload would fetch: a
           // bare-string entry here would drop the per-locale status until the
-          // next reload. statusAfterEdit mirrors the server's rule \u2014 a changed
-          // text invalidates a stale reviewed/signed-off status (demoted to
+          // next reload. statusAfterEdit mirrors the server's rule: a changed
+          // text invalidates a stale established status (demoted to
           // translated), identical content keeps it.
           setBlocks((prev) =>
             prev.map((b) =>

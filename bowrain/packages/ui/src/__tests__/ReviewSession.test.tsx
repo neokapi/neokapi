@@ -176,12 +176,8 @@ describe("ReviewSession", () => {
     expect(adapter.reviewBlockCalls[0]).toMatchObject({ reviewed: false, rung: "draft" });
   });
 
-  // Sign off is the rung above reviewed. The platform writes it through the
-  // same endpoint as an approval, with the rung named, and the unit leaves the
-  // pending queue the same way.
-
-  // Signing off is the same review permission as approving, so a translator
-  // gets a disabled button that says why rather than a 403 on click.
+  // Approving needs review permission, so a translator gets a disabled button
+  // that says why rather than a 403 on click.
   it("disables Approve for a caller without review permission", async () => {
     renderSession(stats, (adapter) => {
       vi.spyOn(adapter, "getCallerPermissions").mockResolvedValue({

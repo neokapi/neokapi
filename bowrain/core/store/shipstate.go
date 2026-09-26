@@ -8,12 +8,12 @@ type ShipState string
 const (
 	// ShipStateEstablished: fully translated, no failing checks, a terminology
 	// result wherever terms govern, and a person established every block's
-	// target. Governed content. Whether terms govern the locale at all is the
-	// compliance basis's to say (LocaleTranslationStats.ComplianceBasis).
+	// target. Whether terms govern the locale at all is the compliance basis's
+	// to say (LocaleTranslationStats.ComplianceBasis).
 	ShipStateEstablished ShipState = "established"
 	// ShipStateTranslated: fully translated with no failing checks and a
 	// terminology result wherever terms govern, but not every block
-	// established: AI-shippable.
+	// established. The scope ships as AI translation.
 	ShipStateTranslated ShipState = "translated"
 	// ShipStatePending: anything less: partial coverage, failing checks, a
 	// governed block with no terminology result, or nothing to ship yet.

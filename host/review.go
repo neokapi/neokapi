@@ -198,7 +198,7 @@ func (o ReviewQueueOptions) wants(lang string) bool {
 
 // ReviewQueue lists every unit awaiting a person, in one queue across the
 // project's languages: the translated units not yet approved, and the source
-// units the project's source gate or its `approved` rung is waiting on. Source
+// units the project's source gate or its `established` rung is waiting on. Source
 // units carry IsSource and sort first.
 //
 // The listing is unified; the storage is not. A source decision is recorded

@@ -39,13 +39,12 @@ ladder (`written → established`). The lower rungs are derivable from content:
 an absent target is below the ladder, a present non-empty target is at least
 *translated*, and present source is *written*. The top rung is not: whether a
 person reviewed *this exact translation* and let it stand is something someone
-did, and it has to be stored somewhere. There is one such rung. A hosted
-workspace that wants two reviewers expresses that as a policy on how many
-person signals establish a unit, never as a second rung.
+did, and it has to be stored somewhere. There is one such rung, and the
+ladder has no second human rung above it.
 
 The source ladder is not merely reported: it gates the loop symmetrically with
 the target ladder. Just as a target below its ship gate cannot ship, source below
-the project's source gate (`model.DefaultSourceGate`, *checked*) is not
+the project's source gate (`model.DefaultSourceGate`, *written*) is not
 translated. The `source-gate` leading stage settles and gates the source before
 the fan-out, and holds under-ready source rather than translating it
 ([Convergence, source first](/kapi/convergence#source-first)).

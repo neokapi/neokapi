@@ -39,7 +39,7 @@ type EditorChangeEvent struct {
 	AvatarURL string `json:"avatarUrl,omitempty"`
 }
 
-// ReviewBlock sets or clears the reviewed status on the block's target for ONE
+// ReviewBlock sets or clears the established status on the block's target for ONE
 // locale — the per-locale model.Target.Status ladder rung, distinct from the
 // governance status lifecycle. The server rejects reviewing a locale that has
 // no non-empty translation (422).

@@ -61,9 +61,9 @@ export interface LoopRunStatus {
  * the whole workspace.
  */
 export interface LoopShipStatus {
-  /** Project-locales a person established (governed). */
+  /** Project-locales a person established. */
   established: number;
-  /** Project-locales translated with their checks passing (AI-shippable). */
+  /** Project-locales translated with their checks passing, shipped as AI translation. */
   translated: number;
   pending: number;
   countedProjects: number;

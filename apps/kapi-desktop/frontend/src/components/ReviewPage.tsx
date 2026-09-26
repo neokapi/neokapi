@@ -188,7 +188,7 @@ function orderItems(items: ReviewItem[]): ReviewItem[] {
  * center, and the five layers of the review model below, each headed by its own
  * verdict. A target row shows its source read-only with its translation
  * editable; a source row shows the author's wording editable, in SourceUnitPane.
- * A target decision (a approve / r reject / s sign off) records through
+ * A target decision (a approve / r reject) records through
  * host.ApplyReviewDecision, hash-bound to the text it judged; editing the
  * translation re-runs the unit's checks and re-bases the next approval on the
  * new text. A source unit has one decision, approve, so `a` is the only
@@ -264,9 +264,9 @@ export function ReviewPage({
   const [preReviewResult, setPreReviewResult] = useState<PreReviewResult | null>(null);
   const [reviewerModel, setReviewerModel] = useState<string>("");
   // The read-only document view, opened at the selected unit. It reads the file
-  // and never commits: approve, reject, retranslate and sign off stay here on
-  // the queue, and closing it returns to the queue with this unit still
-  // selected and the list where it was.
+  // and never commits: approve, reject and retranslate stay here on the queue,
+  // and closing it returns to the queue with this unit still selected and the
+  // list where it was.
   const [documentOpen, setDocumentOpen] = useState(false);
   const editRef = useRef<HTMLTextAreaElement>(null);
 
@@ -639,9 +639,9 @@ export function ReviewPage({
     }
   }, [tabID, onPreReview, language, collectionFilter, refreshQueue, showError]);
 
-  // Keyboard-first: j/k navigate, a approve, r reject, s sign off, space skip,
-  // e focuses the target editor. Typing in the editor is left alone (Escape
-  // returns to the queue).
+  // Keyboard-first: j/k navigate, a approve, r reject, space skip, e focuses
+  // the target editor. Typing in the editor is left alone (Escape returns to
+  // the queue).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
@@ -1041,7 +1041,7 @@ export function ReviewPage({
               {(queue ?? []).length === 0
                 ? queueWarnings.length > 0
                   ? t("Nothing to review in the content this project could read.")
-                  : t("Review queue empty. Every translated unit is reviewed.")
+                  : t("Review queue empty. Every translated unit is established.")
                 : t("Nothing matches this filter.")}
             </p>
           </CardContent>
@@ -1484,8 +1484,8 @@ export function ReviewPage({
             </ScrollArea>
 
             {/* Action bar: the keyboard verbs, spelled out. A source unit has
-                one decision, so Sign off and Reject are absent on a source row
-                and their keys answer nothing there. */}
+                one decision, so Reject is absent on a source row and `r`
+                answers nothing there. */}
             <div
               className="mt-3 flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2"
               data-slot="review-actions"

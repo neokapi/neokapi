@@ -55,7 +55,7 @@ func parkedProject(t *testing.T, shipGate gate.Gate) (*App, *EnvCommand, string,
 // project block store, and `kapi status` reports the coverage — but nothing a
 // build globs can see it.
 func TestConverge_ParkedLocaleReachesNoDisk(t *testing.T) {
-	// A reviewed bar an unattended run cannot reach: nothing in this run
+	// An established bar an unattended run cannot reach: nothing in this run
 	// records a human decision, so nb stays parked however well it drafts.
 	a, cmd, recipe, dir := parkedProject(t, gate.Gate{
 		"translated":  {Pct: 100},
@@ -126,7 +126,7 @@ func TestConverge_ParkedLocaleUnderManualPolicyKeepsWriting(t *testing.T) {
 // describe a tree nobody can open. Both readings come off the record that
 // outlives the run instead: the project block store, which holds the drafts the
 // gate withheld (#2356). The locale reads fully translated and short of its
-// `reviewed` bar, from `up` and from `status` alike.
+// `established` bar, from `up` and from `status` alike.
 func TestConverge_ParkedLocaleReadsTheSameToUpAndStatus(t *testing.T) {
 	a, cmd, recipe, dir := parkedProject(t, gate.Gate{
 		"translated":  {Pct: 100},

@@ -74,8 +74,8 @@ func TestUpdateSourceText_RejectsAFileTheProjectDoesNotDeclare(t *testing.T) {
 		"a target file is not a source file, however editable it looks")
 }
 
-// The queue is empty under the default `checked` gate and lists everything
-// unsigned under `approved`; approving one takes it out.
+// The queue is empty under the default `written` gate and lists everything not
+// yet established under `established`; approving one takes it out.
 func TestReviewQueue_SourceRowsAndApprove(t *testing.T) {
 	app := newAIReviewApp(t, aiprovider.NewMockProvider())
 	tab, root := newReviewProject(t, app)
@@ -83,7 +83,7 @@ func TestReviewQueue_SourceRowsAndApprove(t *testing.T) {
 	queue, err := app.ReviewQueue(tab.ID, ProjectFilter{})
 	require.NoError(t, err)
 	assert.Empty(t, sourceRows(queue.Pending),
-		"the default gate asks for checks, not a signature")
+		"the default gate asks for checks, not an approval")
 
 	// Raise the gate, reopen so the recipe is re-read.
 	recipe := filepath.Join(root, "project.kapi")
@@ -99,7 +99,7 @@ func TestReviewQueue_SourceRowsAndApprove(t *testing.T) {
 	queue, err = app.ReviewQueue(tab2.ID, ProjectFilter{})
 	require.NoError(t, err)
 	rows := sourceRows(queue.Pending)
-	require.NotEmpty(t, rows, "an approved gate asks a person to sign every unit")
+	require.NotEmpty(t, rows, "an established gate asks a person to approve every unit")
 	for _, it := range rows {
 		assert.True(t, it.Held)
 		assert.NotEqual(t, string(model.SourceStatusEstablished), it.Status)

@@ -107,8 +107,8 @@ export function ConvergenceRunContext({
   // states carry a stall_reason; a running run without one just shows position.
   const banner = stallBanner(run, { onSettleSource, onBuyCredits, onOpenReview });
 
-  // The review hand-off: a converged run whose new translations await human
-  // sign-off. Parked runs carry the count inside the parked banner instead.
+  // The review hand-off: a converged run whose new translations await a
+  // person's approval. Parked runs carry the count inside the parked banner instead.
   const review =
     reviewEnabled !== false && run.state === "converged"
       ? awaitingReviewBanner(run, onOpenReviewSurface ?? onOpenReview)

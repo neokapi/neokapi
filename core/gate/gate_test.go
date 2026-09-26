@@ -288,7 +288,7 @@ func TestProgress(t *testing.T) {
 }
 
 // TestEvaluateBlockingIsTheLowestUnmetRung: a ship verdict names the gate to
-// clear next, so it must be the lowest unmet rung — pointing at "sign-off"
+// clear next, so it must be the lowest unmet rung — pointing at "established"
 // while translation is also short would send someone to the wrong work.
 func TestEvaluateBlockingIsTheLowestUnmetRung(t *testing.T) {
 	ladder := TargetLadder()

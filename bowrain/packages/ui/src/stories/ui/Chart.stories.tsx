@@ -26,16 +26,16 @@ export default meta;
 type Story = StoryObj<typeof ChartContainer>;
 
 const data = [
-  { month: "Jan", translated: 186, reviewed: 80 },
-  { month: "Feb", translated: 305, reviewed: 200 },
-  { month: "Mar", translated: 237, reviewed: 120 },
-  { month: "Apr", translated: 73, reviewed: 190 },
-  { month: "May", translated: 209, reviewed: 130 },
+  { month: "Jan", translated: 186, established: 80 },
+  { month: "Feb", translated: 305, established: 200 },
+  { month: "Mar", translated: 237, established: 120 },
+  { month: "Apr", translated: 73, established: 190 },
+  { month: "May", translated: 209, established: 130 },
 ];
 
 const config: ChartConfig = {
   translated: { label: "Translated", color: "var(--chart-1)" },
-  reviewed: { label: "Reviewed", color: "var(--chart-2)" },
+  established: { label: "Established", color: "var(--chart-2)" },
 };
 
 export const Default: Story = {
@@ -45,7 +45,7 @@ export const Default: Story = {
         <XAxis dataKey="month" />
         <YAxis />
         <Bar dataKey="translated" fill="var(--color-translated)" radius={4} />
-        <Bar dataKey="reviewed" fill="var(--color-reviewed)" radius={4} />
+        <Bar dataKey="established" fill="var(--color-established)" radius={4} />
       </BarChart>
     </ChartContainer>
   ),
@@ -60,7 +60,7 @@ export const WithTooltipAndLegend: Story = {
         <ChartTooltip content={<ChartTooltipContent />} />
         <ChartLegend content={<ChartLegendContent />} />
         <Bar dataKey="translated" fill="var(--color-translated)" radius={4} />
-        <Bar dataKey="reviewed" fill="var(--color-reviewed)" radius={4} />
+        <Bar dataKey="established" fill="var(--color-established)" radius={4} />
       </BarChart>
     </ChartContainer>
   ),

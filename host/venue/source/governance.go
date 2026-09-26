@@ -15,9 +15,9 @@ import (
 // an approval the venue declines to accept, because the pusher holds no review
 // permission for that language or the workspace refuses a verdict on work its
 // author wrote. The venue then stores the translation without the verdict. A
-// push can also take back a sign-off the venue holds, and the venue declines
-// that too for a pusher without review permission: the sign-off stands, and
-// the venue sends back the record it kept.
+// push can also lower a unit the venue holds as established, and the venue
+// declines that too for a pusher without review permission: the approval
+// stands, and the venue sends back the record it kept.
 //
 // The project's own record has to follow, or the two disagree forever: the
 // decisions component of the freshness ref would keep differing, so every push
@@ -36,7 +36,7 @@ import (
 // want of review permission is about the language: the pusher holds none, so
 // every verdict this push carried for that language was refused, whether or not
 // the venue's bounded per-unit list happens to name it. A refused withdrawal of
-// a sign-off is about the unit and carries the record the venue kept, which is
+// an approval is about the unit and carries the record the venue kept, which is
 // written back as it is. A refused rejection of a translation the venue has
 // since replaced is about the unit as well: the project takes the record the
 // venue sends back, or keeps the basis without the rejection when the venue
@@ -61,7 +61,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 		if u.Reason == venue.RefusedEstablishedWithdrawal {
 			// A withdrawal the venue refused without saying what it holds
 			// leaves nothing to write: the local record cannot invent the
-			// sign-off's decider, and a pull settles it.
+			// approval's decider, and a pull settles it.
 			if u.Held != nil {
 				held[key] = *u.Held
 			}
@@ -168,11 +168,11 @@ func withoutVerdict(u state.UnitState) state.UnitState {
 	return u
 }
 
-// withHeld is the record the venue kept when it refused to take back a
-// sign-off: the local record with the venue's verdict on it again, and the
+// withHeld is the record the venue kept when it refused to take back an
+// approval: the local record with the venue's verdict on it again, and the
 // venue's record time, since the record is now the venue's. The hashes stay
 // the local record's own; a withdrawal is refused only over the pairing the
-// sign-off blessed, so they already agree.
+// approval blessed, so they already agree.
 func withHeld(u state.UnitState, h venue.UnitDecision) state.UnitState {
 	u.Status = model.TargetStatus(h.Status)
 	u.Decision.ReviewState = h.ReviewState

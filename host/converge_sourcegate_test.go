@@ -104,15 +104,15 @@ func frTranslated(t *testing.T, recipe string) int {
 }
 
 // TestConvergeSourceGate_HoldsWhenSourceBelowGate: with source_gate: established,
-// no file-read source block can reach `approved` (settlement promotes clean
-// source only to `checked`), so every block is held — nothing is translated and
+// no file-read source block can reach `established` (settlement promotes clean
+// source only to `written`), so every block is held — nothing is translated and
 // the run surfaces source_not_ready with a blocked-on-source count. This is the
 // local parity with the server holding an un-settled source (epic 019).
 func TestConvergeSourceGate_HoldsWhenSourceBelowGate(t *testing.T) {
 	a, cmd, recipe := newSourceGateProject(t, string(model.SourceGateEstablished))
 	out, events := runConverge(t, a, cmd, recipe)
 
-	assert.Equal(t, 2, out.BlockedOnSource, "both source blocks held below the approved gate")
+	assert.Equal(t, 2, out.BlockedOnSource, "both source blocks held below the established gate")
 	assert.Equal(t, string(model.SourceGateEstablished), out.SourceGate)
 	assert.Equal(t, convergence.StallSourceNotReady, out.StallReason)
 	assert.False(t, out.Converged)
@@ -144,24 +144,24 @@ func TestConvergeSourceGate_NoneDraftsFreely(t *testing.T) {
 	}
 }
 
-// TestConvergeSourceGate_AtGateTranslates: with the DEFAULT gate (checked),
-// clean source reaches `checked` on settlement, clears the gate, and translates
+// TestConvergeSourceGate_AtGateTranslates: with the DEFAULT gate (written),
+// clean source reaches `written` on settlement, clears the gate, and translates
 // normally — nothing is held.
 func TestConvergeSourceGate_AtGateTranslates(t *testing.T) {
-	// Empty source_gate → resolves to the default (checked).
+	// Empty source_gate → resolves to the default (written).
 	a, cmd, recipe := newSourceGateProject(t, "")
 	out, _ := runConverge(t, a, cmd, recipe)
 
-	assert.Equal(t, 0, out.BlockedOnSource, "clean source reaches checked and clears the default gate")
+	assert.Equal(t, 0, out.BlockedOnSource, "clean source reaches written and clears the default gate")
 	assert.Equal(t, string(model.SourceGateWritten), out.SourceGate)
 	assert.Empty(t, out.StallReason)
-	assert.Equal(t, 2, frTranslated(t, recipe), "checked source translated")
+	assert.Equal(t, 2, frTranslated(t, recipe), "written source translated")
 }
 
 // TestConvergeSourceGate_PartialTranslatesReadyReportsHeld: with the default
-// (checked) gate over a mixed source — one clean block (settles to checked →
+// (written) gate over a mixed source — one clean block (settles to written →
 // translates) and one whitespace-only block (a major source-side check finding
-// keeps it at the authored baseline → held) — the run translates the ready
+// keeps it unsettled → held) — the run translates the ready
 // block, holds the un-ready one, reports the held count, and is NOT
 // source_not_ready (partial progress advanced), mirroring the server's
 // partial-item handling (epic 019).
@@ -170,7 +170,7 @@ func TestConvergeSourceGate_PartialTranslatesReadyReportsHeld(t *testing.T) {
 		`{"greeting":"Hello world","blank":"   "}`)
 	out, _ := runConverge(t, a, cmd, recipe)
 
-	assert.Equal(t, 1, out.BlockedOnSource, "the whitespace-only block is held below the checked gate")
+	assert.Equal(t, 1, out.BlockedOnSource, "the whitespace-only block is held below the written gate")
 	assert.Empty(t, out.StallReason, "a partial run is not source_not_ready — ready work advanced")
 	assert.Equal(t, 1, frTranslated(t, recipe), "the clean block translated; the held block did not")
 }

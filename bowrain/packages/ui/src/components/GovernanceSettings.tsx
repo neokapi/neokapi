@@ -186,7 +186,7 @@ export function GovernanceSettings() {
                 <span className="text-xs text-muted-foreground">{SOD_DESCRIPTIONS[sod]}</span>
               </div>
               <p className="mt-1 text-[10px] text-muted-foreground">
-                Whether a translator may approve or sign off their own work.
+                Whether a translator may approve their own work.
               </p>
             </div>
 

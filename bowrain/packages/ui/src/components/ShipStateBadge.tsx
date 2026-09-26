@@ -5,11 +5,10 @@ import { Clock, ShieldCheck, Sparkles } from "./icons";
 /**
  * ShipStateBadge renders the per-locale ship state with one consistent visual
  * language everywhere it appears (dashboard locale rows, collection rollups,
- * delivery panel): established (a person established every translation;
- * governed), translated (translated with the checks passing; AI-shippable),
- * pending (not ready). A tooltip
- * explains what the state means and, when counts are provided, why the scope
- * holds it.
+ * delivery panel): established (a person established every translation),
+ * translated (translated with the checks passing, so the scope ships as AI
+ * translation) or pending (not ready). A tooltip explains what the state means
+ * and, when counts are provided, why the scope holds it.
  */
 export interface ShipStateBadgeProps {
   state: ShipState;

@@ -36,7 +36,7 @@ func targetApproved(b *model.Block, loc model.LocaleID) bool {
 
 // targetPendingReview reports whether a block's target for a locale is awaiting
 // human review: it has committed, non-empty content that has not yet reached the
-// reviewed rung (i.e. draft or translated). A established target — or a
+// established rung (i.e. draft or translated). An established target — or a
 // block with no non-empty target for the locale — is not pending. This is the
 // per-block "still needs a reviewer" predicate the review-loop continuation and
 // the bulk approve-passing endpoint both key on.

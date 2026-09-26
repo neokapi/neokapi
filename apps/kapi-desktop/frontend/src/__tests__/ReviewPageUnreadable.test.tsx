@@ -27,7 +27,7 @@ describe("ReviewPage over content with no installed reader", () => {
     const notice = document.querySelector("[data-slot='review-unread']");
     expect(notice?.textContent).toContain("pkg/doc.idml");
     expect(notice?.textContent).toContain("kapi plugins install okapi-bridge");
-    expect(document.body.textContent).not.toContain("Every translated unit is reviewed.");
+    expect(document.body.textContent).not.toContain("Every translated unit is established.");
   });
 
   it("keeps the empty state when every declared file was read", async () => {
@@ -40,6 +40,6 @@ describe("ReviewPage over content with no installed reader", () => {
       expect(document.querySelector("[data-slot='review-empty']")).not.toBeNull(),
     );
     expect(document.querySelector("[data-slot='review-unread']")).toBeNull();
-    expect(document.body.textContent).toContain("Every translated unit is reviewed.");
+    expect(document.body.textContent).toContain("Every translated unit is established.");
   });
 });

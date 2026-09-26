@@ -62,7 +62,7 @@ const context: ReviewContext = {
         key: "b0",
         source: [{ text: "Enter the email you signed up with" }],
         target: [{ text: "Saisissez l'adresse e-mail utilisée à l'inscription" }],
-        status: "reviewed",
+        status: "established",
       },
     ],
     after: [

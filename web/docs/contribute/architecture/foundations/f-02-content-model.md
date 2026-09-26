@@ -183,9 +183,10 @@ segmentation is reversible by construction.
 Parts are authored content and which are surrounding structure. Blocks left
 unmarked stay in the skeleton, untouched by tools that edit, check, or translate.
 
-`SourceStatus` is the source-side counterpart of a target's status. New (`""`)
-reads as the authored baseline; a source edit resets it, a clean source check
-stamps `checked`, and an explicit approval stamps `approved`.
+`SourceStatus` is the source-side counterpart of a target's status, on the
+ladder `written` → `established`. New (`""`) means no committed status yet; a
+source edit resets it, a clean source check stamps `written`, and a person's
+approval stamps `established`.
 
 #### Targets and variants
 

@@ -188,7 +188,7 @@ steps:
     offline: true
     smoke: false
   - command: kapi check --ship
-    narration: Reviewed coverage is 0%, so check --ship fails with exit code 3. A release pipeline can use this exit status to enforce the gate.
+    narration: Established coverage is 0%, so check --ship fails with exit code 3. A release pipeline can use this exit status to enforce the gate.
     offline: false
   - comment: A person reads the three translations and records the decisions.
   - command: kapi apply review.jsonl

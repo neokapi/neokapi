@@ -54,8 +54,8 @@ type Block struct {
 	// SourceStatus is the authoring lifecycle state of the source content
 	// (written→established): the source-side counterpart of
 	// Target.Status. New ("") means "no committed status yet" and reads as the
-	// authored baseline. A source edit resets it; a clean source check stamps
-	// `checked`; an explicit human/agent approval stamps `approved`.
+	// written baseline. A source edit resets it; a clean source check stamps
+	// `written`; a person's approval stamps `established`.
 	SourceStatus       SourceStatus
 	Skeleton           *Skeleton
 	Source             []Run                  // source content

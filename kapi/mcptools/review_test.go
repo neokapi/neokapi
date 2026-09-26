@@ -127,9 +127,8 @@ func TestHandleReviewUnit_CarriesTheContext(t *testing.T) {
 	assert.Equal(t, "Banana", rc.Neighbourhood.After[0].Source[0].Text.Text)
 }
 
-// TestHandleReviewDecision_ApproveRejectSignOff drives the three decision
-// tools end to end: identities land in the state store as agent-class, the
-// queue shrinks, and a redundant call reports changed=false.
+// TestHandlePreReview_AnnotatesWithoutDeciding: an agent's pre-review records
+// a score on the unit and leaves it in the queue for a person.
 func TestHandlePreReview_AnnotatesWithoutDeciding(t *testing.T) {
 	root := writeMCPReviewProject(t)
 	a := testApp()

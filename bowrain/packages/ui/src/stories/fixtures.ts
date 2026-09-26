@@ -1679,15 +1679,14 @@ export const largeDashboardStats: TranslationDashboardStats = {
 
 /**
  * store.DeriveShipState, mirrored: pending when the scope is empty, coverage is
- * partial, or any check fails; ai_shippable while approval is incomplete; then
- * governed where terminology governs the locale and approved where it does not.
+ * partial, or any check fails; translated while establishing is incomplete;
+ * then established.
  */
 function deriveShipState(
   translatedBlocks: number,
   totalBlocks: number,
   approvedBlocks: number,
   failingChecks: number,
-  termsGoverned = true,
 ): ShipState {
   if (totalBlocks === 0 || translatedBlocks < totalBlocks || failingChecks > 0) return "pending";
   return approvedBlocks < totalBlocks ? "translated" : "established";
@@ -1696,8 +1695,8 @@ function deriveShipState(
 /**
  * sampleDashboardStats with server-derived ship states stamped onto every
  * locale slice via deriveShipState. fr-FR is promoted to full coverage and full
- * approval (governed), de-DE to full coverage without full approval
- * (ai_shippable), and ja-JP to full coverage with failing checks — pending on
+ * approval (established), de-DE to full coverage without full approval
+ * (translated), and ja-JP to full coverage with failing checks — pending on
  * the failing-checks arm rather than on coverage, so a story can express it.
  */
 export const shipStateDashboardStats: TranslationDashboardStats = (() => {

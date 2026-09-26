@@ -547,7 +547,7 @@ const estimate = (ws: string, pid: string, token: string) =>
  *
  * Every run settles the source first (server/convergence_orchestrator.go
  * `runSettleSource`): it stamps each block's SourceStatus and clears the
- * project's `checked` gate. Until something does that, `ready` is 0, every
+ * project's `written` gate. Until something does that, `ready` is 0, every
  * locale's pending count is 0 over the ready source, and the Run-now dialog
  * offers "Transport only" alone. Scoping the run to COLLAB_LOCALE, which the
  * pre-translate step already covered, leaves PENDING_LOCALE untouched, so the

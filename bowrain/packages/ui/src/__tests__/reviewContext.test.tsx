@@ -74,7 +74,6 @@ function reviewer(over: Partial<ReviewEntry> = {}, context: ReviewContext | null
       editing={false}
       context={context}
       onApprove={() => {}}
-      onSignOff={() => {}}
       onReject={() => {}}
       onEditToggle={() => {}}
       onSaveEdit={() => {}}
@@ -196,7 +195,7 @@ describe("the queue's neighbourhood", () => {
                 { ph: { id: "1", type: "code:variable", data: "{{.Email}}", equiv: "{{.Email}}" } },
                 { text: "." },
               ],
-              status: "reviewed",
+              status: "established",
             },
           ],
           window: 2,
@@ -382,7 +381,6 @@ function inspector(context: ReviewContext | null) {
       marked={false}
       onClose={() => {}}
       onApprove={() => {}}
-      onSignOff={() => {}}
       onReject={() => {}}
       onEditToggle={() => {}}
       onSaveEdit={() => {}}
@@ -426,7 +424,7 @@ describe("the document's inspector", () => {
             id: "n1",
             blockId: "b1",
             author: "sam@bowrain.test",
-            text: "Legal signed off on this wording.",
+            text: "Legal approved this wording.",
             createdAt: "2026-08-31T08:01:00Z",
           },
         ],
@@ -440,7 +438,7 @@ describe("the document's inspector", () => {
     expect(provenance).toContain("Recycled from content memory");
     expect(provenance).toContain("Approved");
     expect(provenance).toContain("sam@bowrain.test");
-    expect(provenance).toContain("Legal signed off on this wording.");
+    expect(provenance).toContain("Legal approved this wording.");
   });
 
   it("shows the voice findings the score was made of", () => {

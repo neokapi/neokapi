@@ -157,15 +157,15 @@ func TestPushedRejectionRedrafts(t *testing.T) {
 		require.Equal(t, 1, r.draft("job-draft-1"))
 		drafted := r.target()
 
-		r.verdictPush("job-sign-off", "u-reviewer", map[string]bool{redraftLocale: true}, drafted, drafted,
+		r.verdictPush("job-approve", "u-reviewer", map[string]bool{redraftLocale: true}, drafted, drafted,
 			model.TargetStatusEstablished, venue.ReviewStateApproved, time.Hour)
 		require.Equal(t, model.TargetStatusEstablished, storedTarget(t, r.deps, r.pid, r.item, redraftLocale))
-		require.Equal(t, sourceHash, r.mark(), "a sign-off leaves the mark as it was")
+		require.Equal(t, sourceHash, r.mark(), "an approval leaves the mark as it was")
 
 		r.verdictPush("job-reject-refused", "u-translator", map[string]bool{}, drafted, drafted,
 			model.TargetStatusDraft, venue.ReviewStateRejected, 2*time.Hour)
 		assert.Equal(t, model.TargetStatusEstablished, storedTarget(t, r.deps, r.pid, r.item, redraftLocale),
-			"without review permission the sign-off stands")
+			"without review permission the approval stands")
 		d, ok := heldDecision(t, r.deps, r.pid, redraftUnit, redraftLocale)
 		require.True(t, ok)
 		assert.Equal(t, venue.ReviewStateApproved, d.ReviewState)

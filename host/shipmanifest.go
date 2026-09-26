@@ -13,8 +13,8 @@ import (
 type ShipEntry struct {
 	Shippable bool `json:"shippable"`
 	// State is the locale's ship state, folded across its scopes as
-	// ConvergeLocaleResult.ShipState is: established (governed, no AI badge),
-	// translated (AI-shippable), withheld, or not_gated. Shippable is true for
+	// ConvergeLocaleResult.ShipState is: established (no AI badge), translated
+	// (badged as AI translation), withheld, or not_gated. Shippable is true for
 	// every state but withheld.
 	State ShipState `json:"state"`
 	// NotGoverned names the dimensions that govern nothing in the locale:
@@ -73,7 +73,7 @@ func BuildShipManifest(locales []LocaleCoverage) ShipManifest {
 // weakerShipState returns the weaker of two ship states, in the order withheld,
 // not_gated, translated, established. A locale takes the weakest state among
 // its scopes: one withheld scope withholds it, content no gate matches leaves
-// it not gated, and one AI-shippable scope keeps it from reading governed.
+// it not gated, and one translated scope keeps it from reading established.
 func weakerShipState(a, b ShipState) ShipState {
 	rank := func(s ShipState) int {
 		switch s {

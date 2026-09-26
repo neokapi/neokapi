@@ -134,8 +134,8 @@ type FileRunnerConfig struct {
 	// wording; that lives in the project's state store, which the framework
 	// knows nothing about. Without this the source-gate stage re-derives
 	// readiness from the checks alone on every run, so a committed approval was
-	// invisible in-flow: `kapi status` reported a unit `approved` while the run
-	// beside it held the same unit below an `approved` gate, and the two
+	// invisible in-flow: `kapi status` reported a unit `established` while the
+	// run beside it held the same unit below an `established` gate, and the two
 	// disagreed with nothing to say why.
 	//
 	// It is a host-supplied function value like DetectFormat and

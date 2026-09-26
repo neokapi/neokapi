@@ -1238,9 +1238,9 @@ async function reviewWalk(c: WalkCtx): Promise<void> {
   //
   // There is no source-lane beat, because the sample cannot produce one. A
   // source unit joins this queue only when it ranks below the project's source
-  // gate, or when that gate is `approved` and the unit is not
+  // gate, or when that gate is `established` and the unit is not
   // (host/sourcereview.go computeSourceQueue). KapiMart declares no
-  // defaults.source_gate, which resolves to `checked`, and its source settles
+  // defaults.source_gate, which resolves to `written`, and its source settles
   // clean, so every row here is a translation.
   await beatEls("decide", ['[data-slot="review-batch"]', '[data-slot="review-queue"]'], async () => {
     await cursorTo('[data-slot="review-approve"]');

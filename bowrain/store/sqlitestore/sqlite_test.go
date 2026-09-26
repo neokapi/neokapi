@@ -156,7 +156,7 @@ func TestStoreBlocksForItem_AdoptsLegacyItemlessRows(t *testing.T) {
 
 // TestGetBlockStats_ApprovedLocales exercises the SQLite status-extraction
 // path (json_extract on target_json): only targets whose status carries a
-// review decision (reviewed / signed-off) land in ApprovedLocales.
+// review decision (established) land in ApprovedLocales.
 func TestGetBlockStats_ApprovedLocales(t *testing.T) {
 	s := newTestStore(t)
 	ctx := t.Context()
@@ -166,7 +166,7 @@ func TestGetBlockStats_ApprovedLocales(t *testing.T) {
 		Name: "messages.json", Format: "json", ItemType: "file",
 	}))
 
-	// b1: fr reviewed (approved), de merely translated.
+	// b1: fr established (approved), de merely translated.
 	b1 := model.NewBlock("b1", "Hello")
 	b1.SetTargetText(model.LocaleFrench, "Bonjour")
 	b1.StampTargetProvenance(model.LocaleFrench, model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})

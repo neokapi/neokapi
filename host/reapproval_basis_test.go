@@ -219,7 +219,7 @@ func TestStalenessGate_ReApprovalClearsIt(t *testing.T) {
 		assert.Contains(t, g.Findings[0].Message, "superseded context")
 	})
 
-	t.Run("a sign-off answers for the unit as an approval does", func(t *testing.T) {
+	t.Run("an approval through ApproveReviewUnit answers for the unit the same way", func(t *testing.T) {
 		f := newStalenessFixture(t)
 		f.record(t, "a-context-that-no-longer-governs")
 
@@ -251,12 +251,6 @@ func TestGoverningBasis_OnlyAnApprovalVouches(t *testing.T) {
 			name: "an approval vouches for the context it was made under",
 			unit: state.UnitState{Status: model.TargetStatusEstablished, Origin: origin,
 				GoverningFingerprint: "fp-approved", Decision: state.Decision{ReviewState: "approved"}},
-			want: "fp-approved",
-		},
-		{
-			name: "a sign-off vouches the same way",
-			unit: state.UnitState{Status: model.TargetStatusEstablished, Origin: origin,
-				GoverningFingerprint: "fp-approved", Decision: state.Decision{ReviewState: "established"}},
 			want: "fp-approved",
 		},
 		{

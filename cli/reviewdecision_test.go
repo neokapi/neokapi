@@ -129,8 +129,8 @@ func TestApplyReviewDecision_RejectionStaleAfterEdit(t *testing.T) {
 	assert.Equal(t, 100, after.Locales[0].Pct["translated"], "back at the translated baseline")
 }
 
-// TestApplyReviewDecision_SignedOffTopRung mirrors the sign-off path through the
-// generalized entry point.
+// TestApplyReviewDecision_AgentIdentityRefused: an agent or AI identity cannot
+// approve a unit, so nothing it records establishes one.
 func TestApplyReviewDecision_AgentIdentityRefused(t *testing.T) {
 	root := writeReviewProject(t)
 	proj := filepath.Join(root, "kapi.yaml")

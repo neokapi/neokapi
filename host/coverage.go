@@ -53,7 +53,7 @@ func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProj
 // (defaults.source_gate) — the level-based gate that governs the CONVERGENCE
 // fan-out (`kapi up`), distinct from the coverage-bar SourceGate that `kapi
 // check --ship` evaluates. An unset/unknown value resolves to the default
-// (checked), so the local venue holds identically to the Bowrain server
+// (written), so the local venue holds identically to the Bowrain server
 // (bowrain/core/store.SourceGateFor). The second result reports whether the raw
 // value named a recognized level (false = a typo fell back to the default).
 func convergeSourceGate(proj *project.KapiProject) (model.SourceGateLevel, bool) {
@@ -78,7 +78,8 @@ func convergeSourceGate(proj *project.KapiProject) (model.SourceGateLevel, bool)
 func (a *App) settleSourceStates(ctx context.Context, root, sourceLang string, gateLevel model.SourceGateLevel, units []VerifyUnit) (states []string, held int, unreadable []string, err error) {
 	// Committed establishments, seeded onto each block before it settles, so
 	// the settle keeps a person's decision and an `established` gate can admit
-	// `source_gate: approved` held a project's fan-out forever.
+	// the unit. Without them a project asking for `source_gate: established`
+	// would hold its fan-out forever.
 	approvals, aerr := a.loadSourceApprovals(ctx, root, sourceLang)
 	if aerr != nil {
 		return nil, 0, nil, aerr
@@ -318,7 +319,7 @@ func (r reviewedIndex) statusFor(scope string, b *model.Block, locale string) (m
 }
 
 // decided reports whether a block carries an applicable review decision for the
-// locale — approved, signed-off, or rejected. The review queue drops decided
+// locale: approved or rejected. The review queue drops decided
 // units: an approved unit is done, a rejected one is back in the work queue,
 // and a unit whose pairing has moved is back in the queue too.
 func (r reviewedIndex) decided(scope string, b *model.Block, locale string) bool {
@@ -499,8 +500,8 @@ func scopeAliases(scope string) []string {
 // path uses (convergence.TallyBlockStore), so both surfaces report the same
 // numbers for the same data.
 //
-// `reviewed` (loaded from the project state store) upgrades a unit from the
-// `translated` presence baseline to its decided rung.
+// `reviewed` (the decisions loaded from the project state store) upgrades a
+// unit from the `translated` presence baseline to its decided rung.
 //
 // `excl` (optional, nil = off) is the check-findings set (#1078 G4): a unit in
 // it is produced but failing the project's bound checks. It is counted at its

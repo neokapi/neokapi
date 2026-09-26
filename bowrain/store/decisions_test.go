@@ -91,10 +91,10 @@ func TestUnitDecisions_UpsertProjectsAndIsIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, changed, "an identical record is a no-op")
 
-	// A newer decision (sign-off) replaces it.
+	// A newer decision (a later approval) replaces it.
 	newer := decision
 	newer.Status = string(model.TargetStatusEstablished)
-	newer.ReviewState = "established"
+	newer.ReviewState = "approved"
 	newer.DecidedAt = "2026-08-04T11:00:00Z"
 	newer.Updated = "2026-08-04T11:00:00Z"
 	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{newer})
@@ -102,7 +102,7 @@ func TestUnitDecisions_UpsertProjectsAndIsIdempotent(t *testing.T) {
 	assert.Equal(t, 1, changed)
 	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, p.ID, "en.json", "greeting"))
 
-	// Replaying the OLD record must not roll the sign-off back.
+	// Replaying the OLD record must not roll the later approval back.
 	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{decision})
 	require.NoError(t, err)
 	assert.Zero(t, changed, "an older record never rolls a newer decision back")

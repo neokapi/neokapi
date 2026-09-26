@@ -185,11 +185,12 @@ describe("StatusBadge", () => {
   });
 
   // The two ladders have to agree, or a reader who learnt one misreads the
-  // other: checked reads as reviewed, approved reads as signed-off.
+  // other: written reads as translated, and established is one tone on both.
   it("puts the matching rungs on the same tone", () => {
-    expect(statusMeta("source", "authored").tone).toBe(statusMeta("content", "draft").tone);
-    expect(statusMeta("source", "checked").tone).toBe(statusMeta("content", "reviewed").tone);
-    expect(statusMeta("source", "approved").tone).toBe(statusMeta("content", "signed-off").tone);
+    expect(statusMeta("source", "written").tone).toBe(statusMeta("content", "translated").tone);
+    expect(statusMeta("source", "established").tone).toBe(
+      statusMeta("content", "established").tone,
+    );
   });
 
   it("takes warning for a status that is waiting on a person", () => {
@@ -224,9 +225,9 @@ describe("StatusBadge", () => {
     expect(container!.querySelector("[data-slot='status-badge']")!.className).toContain("h-4");
   });
 
-  it("reads the wire spelling of signed-off", () => {
-    expect(CONTENT_STATUS_LADDER).toContain("signed-off");
-    expect(statusMeta("content", "signed_off").label).toBe("signed_off");
+  it("reads the wire spelling of not-started", () => {
+    expect(statusMeta("content", "not-started").label).toBe("Not started");
+    expect(statusMeta("content", "not_started").label).toBe("not_started");
   });
 });
 

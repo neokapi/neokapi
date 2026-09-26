@@ -9,9 +9,9 @@ export interface ReviewInboxProject {
   stream: string;
   /** Project-locales awaiting review (pending ship state). */
   pending: number;
-  /** Project-locales a person established (governed). */
+  /** Project-locales a person established. */
   established: number;
-  /** Project-locales translated with their checks passing (AI-shippable). */
+  /** Project-locales translated with their checks passing, shipped as AI translation. */
   translated: number;
 }
 

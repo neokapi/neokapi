@@ -105,9 +105,9 @@ func TestWorkStore_AnImportDoesNotOvertakeALaterDecision(t *testing.T) {
 func TestWorkStore_PolicyRefusesATransition(t *testing.T) {
 	w, _ := openWork(t)
 
-	refused := errors.New("agents may not sign off")
+	refused := errors.New("agents may not reject")
 	w.SetPolicy(func(tr state.Transition) error {
-		if tr.Proposed.Decision.ReviewState == "signed-off" && tr.Actor == "agent/lab" {
+		if tr.Proposed.Decision.ReviewState == "rejected" && tr.Actor == "agent/lab" {
 			return refused
 		}
 		return nil
@@ -117,7 +117,7 @@ func TestWorkStore_PolicyRefusesATransition(t *testing.T) {
 	require.NoError(t, w.RecordEntry(t.Context(), allowed, "agent/lab", state.OriginLocal))
 
 	blocked := allowed
-	blocked.Decision.ReviewState = "signed-off"
+	blocked.Decision.ReviewState = "rejected"
 	err := w.RecordEntry(t.Context(), blocked, "agent/lab", state.OriginLocal)
 	require.ErrorIs(t, err, refused)
 

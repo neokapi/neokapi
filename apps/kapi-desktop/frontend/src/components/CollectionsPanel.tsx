@@ -124,8 +124,8 @@ export function rungFor(lc?: LocaleCoverage): Rung {
     return { key: "none", label: "·", short: "·", color: "var(--muted-foreground)", pct: 0 };
   }
   // A ship state is a gate verdict, so only a scope that clears a gate reads as
-  // one: established (governed) or translated (AI-shippable). A scope no gate
-  // matches shows its place on the ladder instead.
+  // one: established, or translated (it ships as AI translation). A scope no
+  // gate matches shows its place on the ladder instead.
   if (clearsShipGate(lc)) {
     const established = lc.shipState === "established";
     return {
@@ -1624,14 +1624,14 @@ export function CollectionsPanel({
     ? columnLangs.map((lang) => {
         let total = 0;
         let tSum = 0;
-        let rSum = 0;
+        let eSum = 0;
         let shippableUnits = 0;
         const byCollection: TimelineItem["byCollection"] = [];
         for (const lc of convergence?.locales ?? []) {
           if (lc.locale !== lang) continue;
           total += lc.total;
           tSum += (lc.total * (lc.pct?.translated ?? 0)) / 100;
-          rSum += (lc.total * (lc.pct?.established ?? 0)) / 100;
+          eSum += (lc.total * (lc.pct?.established ?? 0)) / 100;
           if (clearsShipGate(lc)) shippableUnits += lc.total;
           byCollection.push({
             name: lc.collection || t("(unnamed)"),
@@ -1642,13 +1642,13 @@ export function CollectionsPanel({
         }
         byCollection.sort((a, b) => b.pct - a.pct);
         const pct = total > 0 ? Math.round((tSum / total) * 100) : 0;
-        const reviewed = total > 0 ? Math.round((rSum / total) * 100) : 0;
+        const established = total > 0 ? Math.round((eSum / total) * 100) : 0;
         const stage: TimelineItem["stage"] =
           total === 0
             ? "none"
             : shippableUnits / total >= 0.999
               ? "shippable"
-              : reviewed > 0
+              : established > 0
                 ? "review"
                 : pct > 0
                   ? "translated"

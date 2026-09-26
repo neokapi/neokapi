@@ -111,9 +111,9 @@ The gate can require human approval when the project needs it.
 - **Settle the source.** A server run's first pass runs the source stage over the
   source locale only (source checks, do-not-translate terms marked and
   **protected** so translation can never touch them, the rule-based checks) and stamps each
-  unit's source status up the authoring ladder (*authored → checked → approved*).
+  unit's source status up the authoring ladder (*written → established*).
 - **Hold at the source ship-gate.** The project's `source_gate`
-  (`defaults.source_gate`, default `checked`) is the source-side counterpart of
+  (`defaults.source_gate`, default `written`) is the source-side counterpart of
   the ship gate. Source that
   has not cleared its bar **holds**: the run parks with the reason
   `source_not_ready`, opens a **source-review task** in the team's queue (see

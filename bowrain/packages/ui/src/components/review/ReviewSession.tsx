@@ -187,8 +187,8 @@ function complianceForLocale(
  * the grouped/filterable queue; the right pane is the bidirectional focused
  * reviewer; the header carries live counts, filters, and the solo-founder
  * "Approve all passing" fast path. It is keyboard-first (j/k move, a approve,
- * s sign off, r reject, e edit) and, when the queue empties, reflects the
- * server's auto-continue to delivery rather than dead-ending.
+ * r reject, e edit) and, when the queue empties, reflects the server's
+ * auto-continue to delivery rather than dead-ending.
  */
 export function ReviewSession({
   project,
@@ -420,10 +420,8 @@ export function ReviewSession({
     [visible],
   );
 
-  // Approve / sign off / reject: optimistic removal (the next pending block
-  // slides into place → "advance"); on failure, refetch to resync with server
-  // truth. A signed-off unit leaves the queue exactly as an approved one does,
-  // since both sit at or above the reviewed rung isPendingReview tests.
+  // Approve / reject: optimistic removal (the next pending block slides into
+  // place → "advance"); on failure, refetch to resync with server truth.
   const decide = useCallback(
     async (entry: ReviewEntry, reviewed: boolean, rung?: ReviewRung) => {
       if (busy) return;
@@ -589,7 +587,7 @@ export function ReviewSession({
     setDelivering(true);
   }, [entries.length, isLoading, isFetching, pendingTotal, refetch]);
 
-  // Keyboard model: j/k (or ↓/↑) move, a approve, s sign off, r reject, e edit.
+  // Keyboard model: j/k (or ↓/↑) move, a approve, r reject, e edit.
   // Suppressed while editing or when focus is in a field, so typing is never
   // intercepted.
   useEffect(() => {

@@ -44,7 +44,7 @@ describe("BlockInspector", () => {
     expect(screen.getByText("greeting")).toBeTruthy();
     // target variant + lifecycle ("fr-FR" also appears as the check overlay side)
     expect(screen.getAllByText("fr-FR").length).toBeGreaterThan(0);
-    expect(screen.getByText("reviewed")).toBeTruthy();
+    expect(screen.getByText("established")).toBeTruthy();
     // overlay + annotation section labels
     expect(screen.getByText("overlays")).toBeTruthy();
     expect(screen.getByText("annotations")).toBeTruthy();

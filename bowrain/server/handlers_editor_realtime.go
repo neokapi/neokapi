@@ -55,7 +55,7 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 //   - POST /:ws/:id/presence — report the caller's editing focus; published to
 //     the event bus and fanned out to watchers over the /:ws/events SSE relay.
 
-// ReviewBlockRequest sets or clears the reviewed status on one block target.
+// ReviewBlockRequest sets or clears the established status on one block target.
 //
 // Status optionally selects the rung the call lands on, and which rungs are
 // available depends on the direction. A clearing request (reviewed=false)

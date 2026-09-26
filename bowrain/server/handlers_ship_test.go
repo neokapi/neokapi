@@ -23,12 +23,12 @@ func TestShipManifestFromStatsMapsTheTwoGates(t *testing.T) {
 
 	m := shipManifestFromStats(stats)
 
-	// governed: shippable AND verified (human-reviewed), and terminology governs it.
+	// established: shippable AND established by a person, and terminology governs it.
 	assert.Equal(t, shipManifestEntry{Shippable: true, State: convergence.ShipStateEstablished}, m["nb"])
-	// approved: shippable AND verified, and terminology governs nothing there.
+	// established where terminology governs nothing: the entry says so.
 	assert.Equal(t, shipManifestEntry{Shippable: true, State: convergence.ShipStateEstablished,
 		NotGoverned: []string{"terms"}}, m["sv"])
-	// ai_shippable: shippable but unverified, so the picker badges it "ai". Its
+	// translated: shippable but not established, so the picker badges it "ai". Its
 	// basis leaves terminology out, and the entry says so.
 	assert.Equal(t, shipManifestEntry{Shippable: true, State: convergence.ShipStateTranslated,
 		NotGoverned: []string{"terms"}}, m["de"])

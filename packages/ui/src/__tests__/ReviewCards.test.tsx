@@ -430,7 +430,7 @@ describe("ProvenanceCard", () => {
   it("reads the same words for the same kinds and states everywhere", () => {
     expect(originLabel("memory")).toBe("Recycled from content memory");
     expect(originLabel("nonsense")).toBeUndefined();
-    expect(decisionLabel("signed-off")).toBe("Signed off");
+    expect(decisionLabel("rejected")).toBe("Rejected");
     expect(decisionLabel("")).toBeUndefined();
   });
 });

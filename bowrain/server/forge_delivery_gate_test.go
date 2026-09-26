@@ -23,13 +23,13 @@ func seedDeliveryBlocks(t *testing.T, s *Server, blocks []*model.Block) {
 }
 
 // TestMaterializeDelivery_GovernedShipsApprovedOnly (RV-A): a governed project
-// delivers only reviewed/signed-off targets; a non-governed one (workflow off)
+// delivers only established targets; a non-governed one (workflow off)
 // keeps the kapi-drafts-ship semantics and delivers any committed target.
 func TestMaterializeDelivery_GovernedShipsApprovedOnly(t *testing.T) {
 	s, _ := newForgeTestServer(t, "conn1", "proj1", "s3cret")
 	ctx := context.Background()
 
-	// Block A: fr reviewed (approved), de translated (unreviewed draft).
+	// Block A: fr established, de translated (unreviewed draft).
 	bA := model.NewBlock("a", "Hello")
 	bA.SetTargetText("fr", "Bonjour")
 	bA.Target("fr").Status = model.TargetStatusEstablished

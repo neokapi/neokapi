@@ -71,8 +71,7 @@ type PushResult struct {
 	Ingest string
 
 	// Governance is what the venue's review gate did not accept: approvals
-	// and sign-offs this push carried that the pusher was not entitled to
-	// make. The content landed regardless, at translated. Nil when the push
+	// this push carried that the pusher was not entitled to make. The content landed regardless, at translated. Nil when the push
 	// carried no verdict, or when every verdict it carried was accepted.
 	Governance *venue.PushGovernance
 

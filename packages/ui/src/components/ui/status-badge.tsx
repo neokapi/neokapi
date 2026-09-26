@@ -46,7 +46,7 @@ export const STATUS_LADDERS: Record<StatusLadder, readonly string[]> = {
 /**
  * The four stops of the shared scale, plus the off-ladder one.
  *
- * `earned` is the soft green, which no rung of either ladder takes now.
+ * `earned` is the soft green, which no rung of either ladder takes.
  * `settled` is the filled green: a unit a person established.
  */
 export type StatusTone = "start" | "middle" | "earned" | "settled" | "attention";

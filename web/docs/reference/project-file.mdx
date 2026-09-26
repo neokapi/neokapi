@@ -698,8 +698,8 @@ optional: with none set, nothing is gated.
 | `established_gates` | ShipGateRule[] | Scoped established-gate rules; the most specific rule wins                                 |
 
 A scope that ships has one of two ship states. It ships **established**
-(governed) when it clears its established gate, and **translated**
-(AI-shippable) when it clears its ship gate but not an established gate. `kapi
+when it clears its established gate, and **translated**, as AI translation,
+when it clears its ship gate but not an established gate. `kapi
 status`, `kapi up`, `kapi status --ship` and the ship-aware language picker
 all read these words. With neither established key set, no scope ships
 established. A project that delivers only established content says so in its
@@ -791,8 +791,8 @@ A tiered per-market strategy built from these pieces is worked through in
 ### source_gate
 
 The source-side coverage gate: a threshold map over the authoring ladder
-(`authored` → `checked` → `approved`), gating the author's own content rather
-than the translations.
+(`written` → `established`), gating the author's own content rather than the
+translations.
 
 ```yaml
 source_gate: { written: 100 }
@@ -804,7 +804,7 @@ Every source unit clears its bound voice and terminology checks before
 ordinary build.
 
 This is distinct from [`defaults.source_gate`](#defaults-source-gate), the
-**source-first convergence** level (`checked` / `approved` / `none`) that decides
+**source-first convergence** level (`written` / `established` / `none`) that decides
 whether the loop translates a block at all. The coverage bar answers *is the
 source shippable?*; the convergence level answers *may this source be translated
 yet?*.

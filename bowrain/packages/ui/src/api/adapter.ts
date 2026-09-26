@@ -786,8 +786,8 @@ export interface ApiAdapter {
     reason?: string,
   ): Promise<void>;
   /**
-   * Mark a block's target for `targetLocale` as reviewed (or back down the
-   * ladder when `reviewed` is false) — the per-locale `Target.Status` review
+   * Approve a block's target for `targetLocale`, establishing it (or send it
+   * back down the ladder when `reviewed` is false) — the per-locale `Target.Status` review
    * ladder, distinct from the governance workflow lifecycle above. `rung`
    * picks where the call lands: with `reviewed` true, an approval always
    * lands on established; with `reviewed` false, omitted/"translated" for a plain

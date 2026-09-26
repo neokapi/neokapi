@@ -17,12 +17,12 @@ import (
 const PropSourceStatus = "__source_status"
 
 // SourceGateProperty is the project-settings key that carries the recipe's
-// `defaults.source_gate` level (checked | approved | authored | none) to the
+// `defaults.source_gate` level (written | established | none) to the
 // server, alongside the other recipe-derived settings in project Properties.
 const SourceGateProperty = "source_gate"
 
 // SourceGateFor resolves a project's source-first convergence gate level from
-// its settings, applying the default (`checked`) when unset. A value the recipe
+// its settings, applying the default (`written`) when unset. A value the recipe
 // schema does not recognize falls back to the default rather than silently
 // disabling the gate. It is the single reader both the server orchestrator and
 // the translation worker consult, so the gate is enforced identically at the

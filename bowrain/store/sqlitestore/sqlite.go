@@ -1333,7 +1333,7 @@ func (s *SQLiteStore) ListPendingReview(ctx context.Context, q platstore.Pending
 	if limit <= 0 {
 		limit = 200
 	}
-	// The SQLite twin of the Postgres predicate: below-reviewed status is
+	// The SQLite twin of the Postgres predicate: below-established status is
 	// pending, empty status included, and the LEFT JOIN on items carries each
 	// block's collection without dropping a block whose item has no row for the
 	// stream. Positional placeholders bind in string order — the two JOINs'

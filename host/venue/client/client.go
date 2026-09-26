@@ -219,8 +219,8 @@ type PushStatusResponse struct {
 	Failed     int    `json:"failed"`
 	InProgress int    `json:"in_progress"`
 
-	// Governance is what the venue's review gate refused: the approvals and
-	// sign-offs this push carried that the pusher was not entitled to make.
+	// Governance is what the venue's review gate refused: the approvals this
+	// push carried that the pusher was not entitled to make.
 	// The verdicts were not recorded and the rungs were not written; the
 	// content landed regardless, at translated.
 	Governance *venue.PushGovernance `json:"governance,omitempty"`
