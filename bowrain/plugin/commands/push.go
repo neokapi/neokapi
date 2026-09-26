@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/host/venue/project"
+	"github.com/neokapi/neokapi/host/venue/source"
 	"github.com/spf13/cobra"
 )
 
@@ -49,20 +50,61 @@ func runPush(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := runLocalAutomations(cmd, proj, "pre-push"); err != nil {
-		return fmt.Errorf("pre-push automation: %w", err)
+	conn, err := source.NewSourceConnector(app, proj, app.FormatReg)
+	if err != nil {
+		return err
 	}
-
-	pr, conn, err := transfer.Push(cmd.Context(), app, proj, transfer.PushOptions{
+	defer conn.Close()
+	_, err = PushProject(cmd, proj, conn, transfer.PushOptions{
 		Paths:  args,
 		Force:  pushForce,
 		DryRun: pushDryRun,
 		Stream: pushStream,
 	})
-	if err != nil {
-		return err
+	return err
+}
+
+// PushedTerminologyError reports a push whose content landed and whose
+// terminology fold failed. The push report has been printed by then.
+type PushedTerminologyError struct{ Err error }
+
+func (e *PushedTerminologyError) Error() string {
+	return "the content above was pushed; its terminology was not: " + e.Err.Error()
+}
+
+func (e *PushedTerminologyError) Unwrap() error { return e.Err }
+
+// PushAutomationError reports a recipe automation that failed around a push.
+// Trigger is pre-push (nothing was pushed) or post-push (the push report has
+// been printed).
+type PushAutomationError struct {
+	Trigger string
+	Err     error
+}
+
+func (e *PushAutomationError) Error() string { return e.Trigger + " automation: " + e.Err.Error() }
+
+func (e *PushAutomationError) Unwrap() error { return e.Err }
+
+// PushProject is the one push of a project, whichever route it arrives by:
+// `kapi-bowrain push`, and the daemon that serves `kapi push`. It runs the
+// recipe's pre-push automations, pushes the content with the recipe's declared
+// context, folds the workspace terminology in, prints the push report to cmd,
+// then runs the post-push automations. Automations and the flows they run
+// print to cmd as well.
+//
+// The returned report is nil only when nothing was pushed. A terminology
+// failure returns the report with a *PushedTerminologyError, and a failed
+// automation returns a *PushAutomationError. The caller owns conn.
+func PushProject(cmd *cobra.Command, proj *project.Project, conn *source.BowrainSourceConnector, opts transfer.PushOptions) (*PushReport, error) {
+	if err := runLocalAutomations(cmd, proj, project.HookPrePush); err != nil {
+		return nil, &PushAutomationError{Trigger: project.HookPrePush, Err: err}
 	}
-	defer conn.Close()
+
+	pr, err := transfer.PushProject(cmd.Context(), app, proj, conn, opts)
+	if err != nil {
+		return nil, err
+	}
 
 	out := output.PushOutput{
 		BlocksPushed:          pr.BlocksPushed,
@@ -94,12 +136,9 @@ func runPush(cmd *cobra.Command, args []string) error {
 	// directly, governed edits become a submitted change-set). Skipped silently
 	// only when the project is not claimed into a workspace.
 	//
-	// A terminology failure is carried past the report rather than returned
-	// through it. Returning here threw away the content result: the blocks HAD
-	// been uploaded and stored, and the user was shown only the terminology
-	// error — reading, reasonably, that the whole push failed, and losing the
-	// push id that identifies what did land.
-	cres, conceptErr := conceptPush(cmd.Context(), proj, pushDryRun)
+	// A terminology failure is returned after the report prints, so the
+	// content that landed and its push id stay in front of the user.
+	cres, conceptErr := conceptPush(cmd.Context(), proj, opts.DryRun)
 	if cres != nil {
 		out.ConceptsApplied = cres.ConceptsApplied
 		out.RelationsApplied = cres.RelationsApplied
@@ -110,18 +149,26 @@ func runPush(cmd *cobra.Command, args []string) error {
 	}
 	applyLoopStatus(&out, proj, conn.Stream())
 
+	report := &PushReport{PushOutput: out, PushID: pr.PushID, ChunkCount: pr.ChunkCount}
 	if err := output.Print(cmd, out); err != nil {
-		return err
+		return report, err
 	}
 	if conceptErr != nil {
-		return fmt.Errorf("the content above was pushed; its terminology was not: %w", conceptErr)
+		return report, &PushedTerminologyError{Err: conceptErr}
 	}
 
-	if err := runLocalAutomations(cmd, proj, "post-push"); err != nil {
-		return fmt.Errorf("post-push automation: %w", err)
+	if err := runLocalAutomations(cmd, proj, project.HookPostPush); err != nil {
+		return report, &PushAutomationError{Trigger: project.HookPostPush, Err: err}
 	}
+	return report, nil
+}
 
-	return nil
+// PushReport is what PushProject pushed: the report it printed, and the
+// transport details a daemon response carries beside it.
+type PushReport struct {
+	output.PushOutput
+	PushID     string
+	ChunkCount int
 }
 
 // applyLoopStatus fills the push output's loop footer from the recipe's server

@@ -46,6 +46,7 @@ type PushResult struct {
 	BlocksUploaded int
 	WordCount      int
 	FilesScanned   int
+	ChunkCount     int
 	PushID         string
 	DryRun         bool
 	UpToDate       bool
@@ -114,14 +115,25 @@ func Push(ctx context.Context, app *host.App, proj *project.Project, opts PushOp
 	if err != nil {
 		return nil, nil, err
 	}
+	pr, err := PushProject(ctx, app, proj, conn, opts)
+	if err != nil {
+		conn.Close()
+		return nil, nil, err
+	}
+	return pr, conn, nil
+}
+
+// PushProject is Push over a project and connector the caller already holds,
+// such as a daemon that keeps one connector per checkout. The caller keeps
+// ownership of conn.
+func PushProject(ctx context.Context, app *host.App, proj *project.Project, conn *source.BowrainSourceConnector, opts PushOptions) (*PushResult, error) {
 	if opts.Stream != "" {
 		conn.SetStream(opts.Stream)
 	}
 
 	pushCtx, brand, err := BuildPushContext(ctx, app, proj, opts.DryRun)
 	if err != nil {
-		conn.Close()
-		return nil, nil, err
+		return nil, err
 	}
 	conn.SetPushContext(pushCtx)
 
@@ -131,8 +143,7 @@ func Push(ctx context.Context, app *host.App, proj *project.Project, opts PushOp
 		DryRun: opts.DryRun,
 	})
 	if err != nil {
-		conn.Close()
-		return nil, nil, err
+		return nil, err
 	}
 
 	pr := &PushResult{
@@ -140,6 +151,7 @@ func Push(ctx context.Context, app *host.App, proj *project.Project, opts PushOp
 		BlocksUploaded:        result.BlocksUploaded,
 		WordCount:             result.WordCount,
 		FilesScanned:          result.FilesScanned,
+		ChunkCount:            result.ChunkCount,
 		PushID:                result.PushID,
 		Brand:                 brand,
 		UndeclaredCollections: result.UndeclaredCollections,
@@ -156,7 +168,7 @@ func Push(ctx context.Context, app *host.App, proj *project.Project, opts PushOp
 		pr.UpToDate = true
 	}
 
-	return pr, conn, nil
+	return pr, nil
 }
 
 // Pull downloads translations and governed terminology into the checkout

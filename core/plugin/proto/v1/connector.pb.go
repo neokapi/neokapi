@@ -504,8 +504,17 @@ type PushResponse struct {
 	// It rides on the response rather than replacing it with an RPC error so the
 	// content result is not lost; the dispatcher prints the push, then fails.
 	TerminologyError string `protobuf:"bytes,16,opt,name=terminology_error,json=terminologyError,proto3" json:"terminology_error,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// What the push printed on the plugin side, in order: the recipe's pre-push
+	// automations and the flows they ran, the push report, and the post-push
+	// automations. A dispatcher prints it in place of its own summary line when
+	// it is set.
+	Report string `protobuf:"bytes,17,opt,name=report,proto3" json:"report,omitempty"`
+	// An automation around the push that failed. A pre-push automation that
+	// fails stops the push, so nothing was pushed; a post-push one fails after
+	// the content landed. The dispatcher prints the report, then fails.
+	AutomationError string `protobuf:"bytes,18,opt,name=automation_error,json=automationError,proto3" json:"automation_error,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PushResponse) Reset() {
@@ -646,6 +655,20 @@ func (x *PushResponse) GetChangesetId() string {
 func (x *PushResponse) GetTerminologyError() string {
 	if x != nil {
 		return x.TerminologyError
+	}
+	return ""
+}
+
+func (x *PushResponse) GetReport() string {
+	if x != nil {
+		return x.Report
+	}
+	return ""
+}
+
+func (x *PushResponse) GetAutomationError() string {
+	if x != nil {
+		return x.AutomationError
 	}
 	return ""
 }
@@ -1073,7 +1096,7 @@ const file_core_plugin_proto_v1_connector_proto_rawDesc = "" +
 	"\aproject\x18\x01 \x01(\v2\x1d.neokapi.plugin.v1.ProjectRefR\aproject\x12\x14\n" +
 	"\x05paths\x18\x02 \x03(\tR\x05paths\x12\x14\n" +
 	"\x05force\x18\x03 \x01(\bR\x05force\x12\x17\n" +
-	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xe8\x04\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xab\x05\n" +
 	"\fPushResponse\x12#\n" +
 	"\rblocks_pushed\x18\x01 \x01(\x05R\fblocksPushed\x12#\n" +
 	"\rassets_pushed\x18\x02 \x01(\x05R\fassetsPushed\x12#\n" +
@@ -1093,7 +1116,9 @@ const file_core_plugin_proto_v1_connector_proto_rawDesc = "" +
 	"\fasset_errors\x18\r \x03(\tR\vassetErrors\x12\x16\n" +
 	"\x06ingest\x18\x0e \x01(\tR\x06ingest\x12!\n" +
 	"\fchangeset_id\x18\x0f \x01(\tR\vchangesetId\x12+\n" +
-	"\x11terminology_error\x18\x10 \x01(\tR\x10terminologyError\"\x8f\x01\n" +
+	"\x11terminology_error\x18\x10 \x01(\tR\x10terminologyError\x12\x16\n" +
+	"\x06report\x18\x11 \x01(\tR\x06report\x12)\n" +
+	"\x10automation_error\x18\x12 \x01(\tR\x0fautomationError\"\x8f\x01\n" +
 	"\vPullRequest\x127\n" +
 	"\aproject\x18\x01 \x01(\v2\x1d.neokapi.plugin.v1.ProjectRefR\aproject\x12\x18\n" +
 	"\alocales\x18\x02 \x03(\tR\alocales\x12\x14\n" +

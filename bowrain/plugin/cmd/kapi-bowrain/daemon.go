@@ -26,6 +26,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -176,6 +177,8 @@ type daemonService struct {
 	// shutdownCh is closed when a Shutdown RPC arrives.
 	shutdownCh chan struct{}
 	shutdownMu sync.Once
+
+	pushMu sync.Mutex
 
 	mu        sync.Mutex
 	projects  map[string]*projectEntry
@@ -363,80 +366,58 @@ func (d *daemonService) Push(ctx context.Context, req *pb.PushRequest) (*pb.Push
 	if err != nil {
 		return nil, err
 	}
-	if err := declareContext(ctx, entry, req.GetDryRun()); err != nil {
-		return nil, err
-	}
 
-	res, err := entry.connector.Push(ctx, bowrainconn.PushOptions{
+	// One push at a time: a push runs the recipe's automations, which set the
+	// shared App's language and format fields for the flows they run, and
+	// writes the connector's sync cache.
+	d.pushMu.Lock()
+	defer d.pushMu.Unlock()
+
+	// The push is `kapi-bowrain push`'s own (commands.PushProject). The daemon
+	// has no terminal, so what it prints, the automations and the flows they
+	// run included, travels back as the report for `kapi push` to print.
+	var printed bytes.Buffer
+	cmd := &cobra.Command{Use: "push"}
+	cmd.SetContext(ctx)
+	cmd.SetOut(&printed)
+	cmd.SetErr(&printed)
+	rep, err := commands.PushProject(cmd, entry.project, entry.connector, transfer.PushOptions{
 		Paths:  req.GetPaths(),
 		Force:  req.GetForce(),
 		DryRun: req.GetDryRun(),
 	})
-	if err != nil {
+
+	// A failure after content landed rides on the response, so the content
+	// result is not lost to an RPC error.
+	resp := &pb.PushResponse{Report: printed.String()}
+	var termErr *commands.PushedTerminologyError
+	var autoErr *commands.PushAutomationError
+	switch {
+	case errors.As(err, &termErr):
+		resp.TerminologyError = termErr.Err.Error()
+	case errors.As(err, &autoErr):
+		resp.AutomationError = autoErr.Error()
+	case err != nil:
 		return nil, err
 	}
-
-	resp := &pb.PushResponse{
-		BlocksPushed:   int32(res.BlocksPushed),
-		BlocksUploaded: int32(res.BlocksUploaded),
-		AssetsPushed:   int32(res.AssetsPushed),
-		AssetsFailed:   int32(res.AssetsFailed),
-		AssetErrors:    res.AssetErrors,
-		FilesScanned:   int32(res.FilesScanned),
-		ChunkCount:     int32(res.ChunkCount),
-		WordCount:      int32(res.WordCount),
-		PushId:         res.PushID,
-		Ingest:         res.Ingest,
-	}
-
-	// Terminology travels with the push, as it does on the cobra route. It runs
-	// AFTER the content transport for the same reason the cobra route does:
-	// governed edits become a change-set the reviewer reads beside the content
-	// that motivated them.
-	//
-	// A skip is silent by design (no workspace, no local store), but a genuine
-	// failure is not swallowed — terminology quietly not arriving is what this
-	// whole path is being fixed for.
-	//
-	// Its RESULT travels too. Running it and discarding what it returned was
-	// only half the fix: the fold reconciled the terms, submitted a change-set
-	// for the governed edits, and `kapi push` printed a line about blocks — so
-	// the user learned that a ban on a term was awaiting review only by opening
-	// the web hub, if they thought to.
-	//
-	// A failure rides on the response rather than replacing it. Returning an
-	// RPC error here threw the content result away, and a push whose blocks
-	// were stored reported as a total failure.
-	cres, cerr := commands.PushProjectConcepts(ctx, entry.project, req.GetDryRun())
-	if cerr != nil {
-		resp.TerminologyError = cerr.Error()
-		return resp, nil
-	}
-	if cres != nil {
-		resp.ConceptsApplied = int32(cres.ConceptsApplied)
-		resp.ConceptRelationsApplied = int32(cres.RelationsApplied)
-		resp.ConceptsProposed = int32(cres.ConceptsProposed)
-		resp.ChangesetId = cres.ChangesetID
-		resp.ChangesetUrl = cres.ChangesetURL
+	if rep != nil {
+		resp.BlocksPushed = int32(rep.BlocksPushed)
+		resp.BlocksUploaded = int32(rep.BlocksUploaded)
+		resp.AssetsPushed = int32(rep.AssetsPushed)
+		resp.AssetsFailed = int32(rep.AssetsFailed)
+		resp.AssetErrors = rep.AssetErrors
+		resp.FilesScanned = int32(rep.FilesScanned)
+		resp.ChunkCount = int32(rep.ChunkCount)
+		resp.WordCount = int32(rep.WordCount)
+		resp.PushId = rep.PushID
+		resp.Ingest = rep.Ingest
+		resp.ConceptsApplied = int32(rep.ConceptsApplied)
+		resp.ConceptRelationsApplied = int32(rep.RelationsApplied)
+		resp.ConceptsProposed = int32(rep.ConceptsProposed)
+		resp.ChangesetId = rep.ChangesetID
+		resp.ChangesetUrl = rep.ChangesetURL
 	}
 	return resp, nil
-}
-
-// declareContext resolves the recipe's declared context onto the connector
-// before a push, exactly as the cobra push command does.
-//
-// A push arrives by two routes: `kapi-bowrain push` (cobra) and `kapi push`
-// (dispatched here over the Mode-C daemon RPC). Only the first declared its
-// context, so the second sent no context hash — which the server reads,
-// correctly, as "this push makes no claim about the declared context". The
-// result was a push that carried every block and reconciled no collections.
-func declareContext(ctx context.Context, entry *projectEntry, dryRun bool) error {
-	pushCtx, _, err := transfer.BuildPushContext(ctx, app, entry.project, dryRun)
-	if err != nil {
-		return fmt.Errorf("resolve declared context: %w", err)
-	}
-	entry.connector.SetPushContext(pushCtx)
-	return nil
 }
 
 func (d *daemonService) Pull(ctx context.Context, req *pb.PullRequest) (*pb.PullResponse, error) {
