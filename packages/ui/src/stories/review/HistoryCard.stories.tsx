@@ -10,7 +10,7 @@ const meta: Meta<typeof HistoryCard> = {
     docs: {
       description: {
         component:
-          "What this unit said before, and the wording the content memory already holds for it. Both halves carry their text; a prior approval whose governing context has moved is marked in muted ink, because the mark describes the context and the severities belong to the Checks card. A surface with a write offers the match's wording.",
+          "What this unit said before, and the wording the content memory already holds for it. Both halves carry their text; a prior approval whose governing context has moved is marked in muted ink, because the mark describes the context and the findings belong to the Checks card. A surface with a write offers the match's wording.",
       },
     },
   },
@@ -25,8 +25,8 @@ const meta: Meta<typeof HistoryCard> = {
 export default meta;
 type Story = StoryObj<typeof HistoryCard>;
 
-export const StillGoverned: Story = {
-  name: "Approved before, still governed",
+export const ContextUnchanged: Story = {
+  name: "Approved before, under the current context",
   args: {
     history: {
       prior: { source: "Hello {name}", target: "Bonjour {name}", governed: true },
