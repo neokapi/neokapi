@@ -20,32 +20,28 @@ import (
 )
 
 const (
-	testAccessKey = "minioadmin"
-	testSecretKey = "minioadmin"
+	testAccessKey = "testaccesskey"
+	testSecretKey = "testsecretkey"
 	testBucket    = "bowrain-test"
 )
 
-// newMinioStore starts a throwaway MinIO (S3-compatible) container, creates the
-// test bucket, and returns a Store pointed at it. This exercises the real S3 API
-// surface — presigning, multipart-free PUT/GET, HeadObject 404 semantics — the
-// same code that runs against Amazon S3 in production, per the no-mocks rule.
-func newMinioStore(t *testing.T) *Store {
+// newS3Store starts a throwaway S3-compatible server (the Versity S3 gateway
+// over a directory), creates the test bucket, and returns a Store pointed at it.
+// This exercises the real S3 API surface (presigning, PUT/GET, HeadObject 404
+// semantics), the same code that runs against Amazon S3 in production, per the
+// no-mocks rule.
+func newS3Store(t *testing.T) *Store {
 	t.Helper()
 	if testing.Short() {
-		t.Skip("skipping MinIO container test in -short mode")
+		t.Skip("skipping S3 container test in -short mode")
 	}
 
 	ctx := context.Background()
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		Image:        testimage.MinIO,
-		Cmd:          []string{"server", "/data"},
-		ExposedPorts: []string{"9000/tcp"},
-		Env: map[string]string{
-			"MINIO_ROOT_USER":     testAccessKey,
-			"MINIO_ROOT_PASSWORD": testSecretKey,
-		},
-		WaitingFor: wait.ForHTTP("/minio/health/ready").
-			WithPort("9000/tcp").
+		Image:        testimage.S3,
+		Cmd:          []string{"--access", testAccessKey, "--secret", testSecretKey, "posix", "/tmp"},
+		ExposedPorts: []string{"7070/tcp"},
+		WaitingFor: wait.ForListeningPort("7070/tcp").
 			WithStartupTimeout(60 * time.Second),
 		Started: true,
 	})
@@ -54,7 +50,7 @@ func newMinioStore(t *testing.T) *Store {
 
 	host, err := container.Host(ctx)
 	require.NoError(t, err)
-	port, err := container.MappedPort(ctx, "9000/tcp")
+	port, err := container.MappedPort(ctx, "7070/tcp")
 	require.NoError(t, err)
 	endpoint := fmt.Sprintf("http://%s:%s", host, port.Port())
 
@@ -76,7 +72,7 @@ func newMinioStore(t *testing.T) *Store {
 }
 
 func TestUploadAndDownload(t *testing.T) {
-	s := newMinioStore(t)
+	s := newS3Store(t)
 	ctx := t.Context()
 	data := []byte("hello s3 blob storage")
 
@@ -95,7 +91,7 @@ func TestUploadAndDownload(t *testing.T) {
 }
 
 func TestDedup(t *testing.T) {
-	s := newMinioStore(t)
+	s := newS3Store(t)
 	ctx := t.Context()
 	data := []byte("dedup test data")
 
@@ -107,7 +103,7 @@ func TestDedup(t *testing.T) {
 }
 
 func TestExistsAndDelete(t *testing.T) {
-	s := newMinioStore(t)
+	s := newS3Store(t)
 	ctx := t.Context()
 
 	exists, err := s.Exists(ctx, "0000000000000000000000000000000000000000000000000000000000000000")
@@ -132,7 +128,7 @@ func TestExistsAndDelete(t *testing.T) {
 }
 
 func TestDownloadNotFound(t *testing.T) {
-	s := newMinioStore(t)
+	s := newS3Store(t)
 	_, err := s.Download(t.Context(), "1111111111111111111111111111111111111111111111111111111111111111")
 	assert.ErrorIs(t, err, storage.ErrBlobNotFound)
 }
@@ -141,7 +137,7 @@ func TestDownloadNotFound(t *testing.T) {
 // the client transfers bytes directly to/from S3 instead of proxying through the
 // server. This round-trips a PUT and a GET entirely over pre-signed URLs.
 func TestPresignedURLRoundTrip(t *testing.T) {
-	s := newMinioStore(t)
+	s := newS3Store(t)
 	ctx := t.Context()
 	key := "2222222222222222222222222222222222222222222222222222222222222222"
 	data := []byte("uploaded via a pre-signed PUT, never touching the server")

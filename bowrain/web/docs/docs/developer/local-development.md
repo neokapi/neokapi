@@ -9,7 +9,7 @@ A full bowrain instance is a few cooperating processes: the **server** (REST +
 gRPC API; also drives the kapi loop's runs), an **async worker** (processes the
 drafting jobs those runs enqueue, and push ingestion), and backing
 services: PostgreSQL, ElasticMQ (SQS-compatible job queue), Redis (event
-bus), MinIO (blob storage), Keycloak (OIDC), and Mailpit (SMTP). The server and
+bus), an S3-compatible gateway (blob storage), Keycloak (OIDC), and Mailpit (SMTP). The server and
 worker share the job queue and the blob store; push processing is asynchronous.
 
 There are three ways to run this locally, depending on what you are working on:

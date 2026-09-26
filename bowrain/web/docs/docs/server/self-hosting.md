@@ -19,7 +19,7 @@ services:
   server and worker. Push processing is asynchronous: the server enqueues, the
   worker ingests and drafts.
 - **Blob storage** for in-flight push payloads: a local directory shared by
-  the server and worker, or an S3 bucket (MinIO for a local stack).
+  the server and worker, or an S3 bucket (an S3-compatible gateway for a local stack).
 - **bowrain-web**: the static web UI, served as its own container.
 - An **OIDC identity provider** (for example Keycloak) and an **SMTP** sender.
 
@@ -55,7 +55,7 @@ Once up, the web UI is served through the proxy on port 80; new users self-regis
 through your OIDC provider.
 
 :::tip
-For a one-command local stack that also bundles Keycloak, MinIO and Mailpit,
+For a one-command local stack that also bundles Keycloak, an S3-compatible gateway and Mailpit,
 with no OIDC setup and an offline AI provider by default, see the
 [Installation guide](/server/installation).
 :::

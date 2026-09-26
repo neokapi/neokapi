@@ -23,7 +23,7 @@ import (
 
 func TestAll_NamesEveryConstantOnce(t *testing.T) {
 	all := All()
-	assert.Equal(t, []string{Redis, Postgres, MinIO, ElasticMQ}, all)
+	assert.Equal(t, []string{Redis, Postgres, S3, ElasticMQ}, all)
 
 	seen := map[string]bool{}
 	for _, img := range all {
