@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/projector"
+	"github.com/neokapi/neokapi/core/yamledit"
 )
 
 // Hand-authoring a voice profile that lives in a store.
@@ -95,7 +96,7 @@ func (a *App) EditVoiceProfile(ctx context.Context, cmd Command, req VoiceEditRe
 	}
 	res.ID, res.Name = prof.ID, prof.Name
 
-	opened, err := renderSnapshotProfile(nil, prof)
+	opened, err := yamledit.Marshal(nil, AuthoredVoiceProfile(prof))
 	if err != nil {
 		return res, fmt.Errorf("render voice profile %s: %w", prof.ID, err)
 	}

@@ -55,7 +55,7 @@ func printContextFilesNotice(a *App, cmd *cobra.Command) {
 // about kapi rather than about the project have no project to say it about.
 func skipsContextNotice(cmd *cobra.Command) bool {
 	path := cmd.CommandPath()
-	for _, verb := range []string{"context", "context search", "context import", "context snapshot", "context export", "context restore"} {
+	for _, verb := range []string{"context", "context search", "context import", "context export", "context pull", "context push"} {
 		if path == verb || strings.HasSuffix(path, " "+verb) {
 			return true
 		}

@@ -163,20 +163,13 @@ func TestRefresh_NorthseaDrift(t *testing.T) {
 	require.NoError(t, err, applyOut)
 	assert.NotContains(t, applyOut, "error", applyOut)
 
-	// Written back out, the decisions are in the files a reviewer reads, and
-	// the profile still carries the commentary its author wrote. The sample
-	// keeps its context files under context/, so that is where the snapshot
-	// goes.
-	runContext(t, a, "snapshot", "-p", recipe, "--out", filepath.Join(root, "context"))
-
-	terms := readFile(t, filepath.Join(root, "context", "terms.json"))
-	assert.Contains(t, terms, "Tideguard")
-	assert.Contains(t, terms, "deprecated")
-
+	// The decision is in the project's terms, where a search finds the retired
+	// name deprecated and the new one preferred, and the voice file is
+	// untouched: the rename is a term decision.
+	assert.Contains(t, runContext(t, a, "search", "Tidewatch", "-p", recipe), "deprecated")
+	assert.Contains(t, runContext(t, a, "search", "Tideguard", "-p", recipe), "preferred")
 	voice := readFile(t, filepath.Join(root, "context", "voice.yaml"))
 	assert.NotContains(t, voice, "Tideguard", "the rename is a term decision, held in terms")
-	assert.Contains(t, voice, "# Northsea house voice.",
-		"the voice profile is edited rather than re-emitted, so its comments survive a snapshot")
 
 	// --- Verify. A newly retired name starts flagging the surfaces that still
 	// carry it, which is what makes the applied decision observable.

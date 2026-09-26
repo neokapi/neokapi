@@ -15,11 +15,9 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/kbf"
-	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/schemaversion"
-	"github.com/neokapi/neokapi/core/yamledit"
 	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/neokapi/neokapi/terms/ktb"
 )
@@ -148,27 +146,16 @@ const (
 	// blocks, skeleton, target overlays, and the relevant content memory/term context.
 	// neokapi's lossless interchange format for a translator or reviewer.
 	KindInterchange = "kapi-interchange"
-	// KindContext marks a context .kpz: everything a project's store holds
-	// as authored context — terms, voice profiles, content memory and the
-	// decision record — and no content. It is what `kapi context export`
-	// writes and `kapi context restore` reads, so a store that has become the
-	// authority for context has a backup and a way between machines.
+	// KindContext marks a context transfer file: one project's shared context
+	// in the layout a context backend keeps (core/workspace), packed into one
+	// archive. Its members are the segments of the operation log under log/,
+	// the blobs they name under blobs/, and a checkpoint under checkpoints/.
+	// `kapi context export` writes one and `kapi context import` merges it
+	// like a pull, history included.
 	//
 	// It carries no blocks, no skeletons and no source, because none of those
-	// is context: a project's documents are in git, and a package that mixed
-	// the two would make a context backup as large as the corpus.
+	// is context: a project's documents are in git.
 	KindContext = "kapi-context"
-	// KindWorkspace marks a workspace .kpz: every project a workspace holds,
-	// one KindContext package each, plus the registry entries that say which
-	// project each one is. It is what `kapi context export --workspace` writes
-	// and `kapi context restore --workspace` reads.
-	//
-	// A workspace holds the authored context of many projects and lives outside
-	// every checkout, so losing it loses all of them at once. One archive of the
-	// whole of it is the recovery story, and a project inside it is a complete
-	// context package: unzip the workspace and each `projects/<n>.kpz` is a file
-	// `kapi context restore` reads on its own.
-	KindWorkspace = "kapi-workspace"
 	// KindCheckpoint marks a checkpoint .kpz: one project's projections as of
 	// an operation in the workspace's log (core/projector), so a rebuild
 	// starts from it and replays only what came after. See checkpoint.go.
@@ -203,25 +190,10 @@ const (
 	// deliberately EXCLUDED from the content RootHash, never read by resume
 	// or status, and safe to delete with no loss of work. Opt-in.
 	ContentTypeHistory = "history"
-	// ContentTypeVoice carries one voice profile, as the YAML a project
-	// authors it in. Members live under voice/<id>.yaml and are content.
-	ContentTypeVoice = "voice"
-	// ContentTypeDecisions carries one shard of the decision record — the
-	// JSON Lines a project commits under `.kapi/state/`. Members live under
-	// decisions/<shard>.jsonl and are content: who approved which wording at
-	// which content hash is the most expensive thing a project holds.
-	ContentTypeDecisions = "decisions"
-	// ContentTypeProject carries one project's whole context package inside a
-	// workspace package: a complete KindContext .kpz, carried verbatim. Members
-	// live under projects/ and are streamed rather than buffered, so a
-	// workspace of any size packs and unpacks a project at a time.
-	ContentTypeProject = "project"
-	// ContentTypeRegistry carries the workspace's project registry: which
-	// project each projects/ member is, and the display name it goes by.
-	// Content, so the identities a restore rebuilds are covered by the root
-	// hash. The checkout paths a workspace also records are machine-local and
-	// never travel.
-	ContentTypeRegistry = "registry"
+	// ContentTypeLayout carries one file of a context transfer file, at its
+	// path in the layout: a segment under log/, a blob under blobs/, a
+	// checkpoint under checkpoints/. Content.
+	ContentTypeLayout = "layout"
 	// ContentTypeProjection carries one projection table of a checkpoint, as
 	// JSON Lines of its rows. Members live under projection/ and are content.
 	ContentTypeProjection = "projection"
@@ -243,16 +215,6 @@ const (
 	// `pack --with-source`). Named here rather than spelled at each call site so
 	// the writer and the reader that strips it back off cannot disagree.
 	SourceDir = "source/"
-	// VoiceDir is the archive directory holding one member per voice profile.
-	VoiceDir = "voice/"
-	// DecisionsDir is the archive directory holding the decision record's
-	// shards, one member each.
-	DecisionsDir = "decisions/"
-	// ProjectsDir is the archive directory holding one context package per
-	// project inside a workspace package.
-	ProjectsDir = "projects/"
-	// RegistryPath is the workspace registry member's archive path.
-	RegistryPath = "workspace.json"
 )
 
 // zipEpoch is a fixed modification time so the archive bytes are deterministic
@@ -314,18 +276,9 @@ type Package struct {
 	// Manifest metadata, not part of the content RootHash.
 	InterchangeTask *InterchangeTask
 
-	// Voice carries the project's voice profiles, one member each. Content
-	// (part of the RootHash).
-	Voice []VoiceDoc
-	// Decisions carries the decision record, one member per shard, holding
-	// the shard's bytes verbatim. Content (part of the RootHash).
-	Decisions []DecisionDoc
-
-	// Projects carries a workspace's projects, one KindContext package each,
-	// plus the identity of the project it belongs to. Content: both the
-	// packages and the registry member that names them are in the RootHash.
-	// Empty for every profile but KindWorkspace.
-	Projects []ProjectDoc
+	// Layout carries a context transfer file's files, one member each at its
+	// path in the layout. Empty for every profile but KindContext.
+	Layout []LayoutDoc
 
 	// Tables carries a checkpoint's projection tables, one member each, and
 	// Checkpoint says which project and which operation they stand at. Empty
@@ -347,50 +300,17 @@ func (p *Package) HasContent() bool {
 		len(p.Skeletons) > 0 ||
 		len(p.Media) > 0 ||
 		len(p.Source) > 0 ||
-		len(p.Voice) > 0 ||
-		len(p.Decisions) > 0 ||
+		len(p.Layout) > 0 ||
 		len(p.Tables) > 0 ||
-		len(p.Projects) > 0 ||
 		(p.Memory != nil && len(p.Memory.Entries) > 0) ||
 		(p.Terms != nil && len(p.Terms.Concepts) > 0)
 }
 
-// VoiceDoc is one voice profile member: the profile itself plus where the
-// project authors it, so a restore can put it back at the path governance
-// resolves it from.
-type VoiceDoc struct {
-	// Path is the archive path under voice/, e.g. "voice/acme.yaml".
+// LayoutDoc is one file of a context transfer file.
+type LayoutDoc struct {
+	// Path is the file's path in the layout, such as "log/<writer>/<id>.jsonl".
 	Path string
-	// ID is the profile's identity in a voice store. A restore upserts by it,
-	// which is what keeps a restore idempotent.
-	ID string
-	// Binding is the project-relative slash path the profile is authored at
-	// (`.kapi/voice.yaml`, `.kapi/profiles/acme/voice.yaml`). Empty when the
-	// exporting project recorded none.
-	Binding string
-	// Profile is the profile itself, serialized as YAML in the member.
-	Profile *profile.VoiceProfile
-}
-
-// VoiceIdentity records one voice member's identity and binding in the
-// manifest, so both survive the archive round trip. Metadata, not in the
-// RootHash: the substance is the member.
-type VoiceIdentity struct {
-	// Path names the voice/<name>.yaml member this identity describes.
-	Path string `json:"path"`
-	// ID is the profile's identity in a voice store.
-	ID string `json:"id,omitempty"`
-	// Binding is the project-relative slash path the profile is authored at.
-	Binding string `json:"binding,omitempty"`
-}
-
-// DecisionDoc is one shard of the decision record, carried verbatim. The bytes
-// are the serialization core/state writes under `.kapi/state/`, so a package
-// holds the record in the one form every reader of it already parses.
-type DecisionDoc struct {
-	// Path is the archive path under decisions/, e.g. "decisions/d-docs.jsonl".
-	Path string
-	// Data is the shard's JSON Lines bytes.
+	// Data is its bytes.
 	Data []byte
 }
 
@@ -516,9 +436,6 @@ type Manifest struct {
 	// Task scopes a KindInterchange package to one locale pair. Metadata,
 	// not in the RootHash.
 	Task *InterchangeTask `json:"task,omitempty"`
-	// Voice records each voice member's profile id and authoring path.
-	// Metadata, not in the RootHash.
-	Voice []VoiceIdentity `json:"voice,omitempty"`
 	// Checkpoint says which project a checkpoint's tables belong to and the
 	// operation they stand at. Metadata, not in the RootHash.
 	Checkpoint *CheckpointMark `json:"checkpoint,omitempty"`
@@ -584,7 +501,6 @@ func (p *Package) WriteTo(w io.Writer) (int64, error) {
 		Recipe:        recipe,
 		Sources:       p.Sources,
 		Task:          p.InterchangeTask,
-		Voice:         voiceIdentities(p.Voice),
 		Checkpoint:    p.Checkpoint,
 	}
 	for _, m := range members {
@@ -743,42 +659,17 @@ func (p *Package) serializeMembers() ([]memberContent, error) {
 			return nil, err
 		}
 	}
-	for _, v := range p.Voice {
-		if v.Path == "" || v.Profile == nil {
-			return nil, errors.New("kpz: voice doc needs Path and Profile")
+	for _, l := range p.Layout {
+		if !layoutPath(l.Path) {
+			return nil, fmt.Errorf("kpz: %q is not a path of the context layout", l.Path)
 		}
-		// yamledit with no original is a plain deterministic marshal, and it is
-		// the writer every committed voice profile already goes through, so a
-		// member and the file it came from carry the same bytes.
-		data, err := yamledit.Marshal(nil, v.Profile)
-		if err != nil {
-			return nil, fmt.Errorf("kpz: marshal %q: %w", v.Path, err)
-		}
-		addData(v.Path, ContentTypeVoice, data)
-	}
-	for _, d := range p.Decisions {
-		if d.Path == "" {
-			return nil, errors.New("kpz: decision shard needs Path")
-		}
-		addData(d.Path, ContentTypeDecisions, d.Data)
+		addData(l.Path, ContentTypeLayout, l.Data)
 	}
 	for _, t := range p.Tables {
 		if t.Table == "" {
 			return nil, errors.New("kpz: projection table needs a name")
 		}
 		addData(ProjectionDir+t.Table+".jsonl", ContentTypeProjection, t.Data)
-	}
-	if len(p.Projects) > 0 {
-		registry, err := marshalProjectRegistry(p.Projects)
-		if err != nil {
-			return nil, err
-		}
-		for _, pr := range p.Projects {
-			if err := addContent(pr.Path, ContentTypeProject, pr.Content); err != nil {
-				return nil, err
-			}
-		}
-		addData(RegistryPath, ContentTypeRegistry, registry)
 	}
 	if len(p.Overlays) > 0 {
 		data, err := marshalOverlaySet(p.Overlays)
@@ -872,17 +763,16 @@ func read(zr *zip.Reader) (*Package, error) {
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
 		return nil, fmt.Errorf("kpz: decode manifest: %w", err)
 	}
-	// Accept the five profiles the container has: the project snapshot, the
-	// bilingual interchange slice, a project's authored context, a workspace
-	// of those, and a checkpoint of a project's projections. Reject any other
-	// kind.
+	// Accept the four profiles the container has: the project snapshot, the
+	// bilingual interchange slice, a project's shared context, and a
+	// checkpoint of a project's projections. Reject any other kind.
 	kind := manifest.Kind
 	switch kind {
-	case KindProject, KindInterchange, KindContext, KindWorkspace, KindCheckpoint:
+	case KindProject, KindInterchange, KindContext, KindCheckpoint:
 		// keep
 	default:
-		return nil, fmt.Errorf("kpz: unknown kind %q (want %q, %q, %q, %q or %q)",
-			manifest.Kind, KindProject, KindInterchange, KindContext, KindWorkspace, KindCheckpoint)
+		return nil, fmt.Errorf("kpz: unknown kind %q (want %q, %q, %q or %q)",
+			manifest.Kind, KindProject, KindInterchange, KindContext, KindCheckpoint)
 	}
 	major, vok := schemaversion.Major(manifest.SchemaVersion)
 	if !vok {
@@ -920,16 +810,7 @@ func read(zr *zip.Reader) (*Package, error) {
 			skelMeta[si.SkeletonPath] = si
 		}
 	}
-	// The same idiom for voice members: id and binding ride in the manifest.
-	voiceMeta := make(map[string]VoiceIdentity, len(manifest.Voice))
-	for _, vi := range manifest.Voice {
-		voiceMeta[vi.Path] = vi
-	}
 	verify := make([]memberContent, 0, len(manifest.Members))
-	// The registry member names the project each projects/ member is. It is
-	// read like any other member and applied once every project member is
-	// known, because the manifest orders members by path.
-	var registry []byte
 
 	for _, m := range manifest.Members {
 		zf, ok := files[m.Path]
@@ -1001,30 +882,16 @@ func read(zr *zip.Reader) (*Package, error) {
 				ContentHash: si.ContentHash,
 				Content:     zipContent{zf, PackageZipLimits},
 			})
-		case ContentTypeVoice:
-			prof, err := profile.LoadProfileYAML(bytes.NewReader(body))
-			if err != nil {
-				return nil, fmt.Errorf("kpz: parse %q: %w", m.Path, err)
+		case ContentTypeLayout:
+			if !layoutPath(m.Path) {
+				return nil, fmt.Errorf("kpz: %q is not a path of the context layout", m.Path)
 			}
-			vi := voiceMeta[m.Path]
-			pkg.Voice = append(pkg.Voice, VoiceDoc{
-				Path: m.Path, ID: vi.ID, Binding: vi.Binding, Profile: prof,
-			})
-		case ContentTypeDecisions:
-			pkg.Decisions = append(pkg.Decisions, DecisionDoc{Path: m.Path, Data: body})
+			pkg.Layout = append(pkg.Layout, LayoutDoc{Path: m.Path, Data: body})
 		case ContentTypeProjection:
 			pkg.Tables = append(pkg.Tables, TableDoc{
 				Table: strings.TrimSuffix(strings.TrimPrefix(m.Path, ProjectionDir), ".jsonl"),
 				Data:  body,
 			})
-		case ContentTypeProject:
-			// One project's whole context package, verified above by streaming
-			// and then referenced: a workspace is unpacked a project at a time.
-			pkg.Projects = append(pkg.Projects, ProjectDoc{
-				Path: m.Path, Content: zipContent{zf, PackageZipLimits},
-			})
-		case ContentTypeRegistry:
-			registry = body
 		case ContentTypeHistory:
 			pkg.History = body
 		case ContentTypeOverlays:
@@ -1045,10 +912,6 @@ func read(zr *zip.Reader) (*Package, error) {
 		}
 	}
 
-	if err := applyProjectRegistry(pkg, registry); err != nil {
-		return nil, err
-	}
-
 	if got := rootHash(verify); got != manifest.RootHash {
 		return nil, fmt.Errorf("kpz: root hash mismatch (want %s, got %s)", manifest.RootHash, got)
 	}
@@ -1061,7 +924,7 @@ func read(zr *zip.Reader) (*Package, error) {
 // history) are parsed, so they must be read.
 func opaqueContentType(ct string) bool {
 	switch ct {
-	case ContentTypeMedia, ContentTypeSource, ContentTypeSkeleton, ContentTypeProject:
+	case ContentTypeMedia, ContentTypeSource, ContentTypeSkeleton:
 		return true
 	default:
 		return false
@@ -1129,29 +992,19 @@ func validateManifestPaths(m *Manifest) error {
 			}
 		}
 	}
-	for _, vi := range m.Voice {
-		if err := check("voice member path", vi.Path); err != nil {
-			return err
-		}
-		if vi.Binding != "" {
-			if err := check("voice binding", vi.Binding); err != nil {
-				return err
-			}
-		}
-	}
 	return nil
 }
 
-// voiceIdentities projects the voice members onto the manifest index, in member
-// order so two marshals of the same package produce the same manifest bytes.
-func voiceIdentities(docs []VoiceDoc) []VoiceIdentity {
-	if len(docs) == 0 {
-		return nil
+// layoutPath reports whether a member path is one a context layout holds:
+// under log/, blobs/ or checkpoints/, and inside the archive.
+func layoutPath(p string) bool {
+	if !safeio.IsLocalPath(p) {
+		return false
 	}
-	out := make([]VoiceIdentity, 0, len(docs))
-	for _, d := range docs {
-		out = append(out, VoiceIdentity{Path: d.Path, ID: d.ID, Binding: d.Binding})
+	for _, dir := range []string{"log/", "blobs/", "checkpoints/"} {
+		if strings.HasPrefix(p, dir) && len(p) > len(dir) {
+			return true
+		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
-	return out
+	return false
 }

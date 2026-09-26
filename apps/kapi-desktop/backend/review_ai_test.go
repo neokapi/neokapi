@@ -13,7 +13,6 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/host"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -293,27 +292,17 @@ func TestRunAIPreReview_EmptyScope(t *testing.T) {
 	assert.Zero(t, res.Reviewed)
 }
 
-// commitAndReadUnits writes the project's committed shards from the decision
-// ledger and reads them back.
+// commitAndReadUnits reads the units the project's decision ledger holds.
+// Recording puts a decision in the ledger, where it is durable at once.
 //
-// Recording puts a decision in the ledger, where it is durable at once. Writing
-// the shards in the checkout is a separate act (`kapi context snapshot`), so a
-// test that asserts what the committed record holds does that first, which also
-// pins that the decision reached the ledger at all.
-//
-// It writes through the app's own engine. The working store is a schema of the
-// project's one store, so writing from an App of its own would be a second
+// It reads through the app's own engine. The working store is a schema of the
+// project's one store, so reading from an App of its own would be a second
 // connection pool on the file the app is holding open.
 func commitAndReadUnits(t *testing.T, app *App, root string) []state.UnitState {
 	t.Helper()
-	// The fixture's recipe is named for the project rather than `kapi.yaml`,
-	// so the snapshot is asked for by the recipe it holds.
-	recipe := filepath.Join(root, "project.kapi")
-	_, err := app.hostEngine().SnapshotProjectContext(t.Context(), recipe, host.ContextSnapshotRequest{Out: filepath.Join(root, project.StateDirName)})
+	st, err := app.hostEngine().OpenProjectState(t.Context(), root)
 	require.NoError(t, err)
-
-	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
-	units, err := state.ReadCommitted(layout.Export().UnitStateDir())
+	units, err := st.All(t.Context())
 	require.NoError(t, err)
 	return units
 }

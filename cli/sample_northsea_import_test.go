@@ -28,7 +28,7 @@ func TestNorthsea_ContextArrivesThroughAnImport(t *testing.T) {
 	before, err := runContextE(t, a, "docs/berths.md", "-p", recipe)
 	require.NoError(t, err, before)
 	assert.Contains(t, before, `binds voice profile "northsea"`)
-	assert.Contains(t, before, "has not been imported or restored here")
+	assert.Contains(t, before, "has not been imported or pulled here")
 	assert.Contains(t, before, ContextImportCommandText,
 		"the answer names the command that brings the voice in")
 

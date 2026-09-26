@@ -283,14 +283,7 @@ func (a *App) contextSync(ctx context.Context, layout project.Layout, info Conte
 	if err != nil || remote == nil {
 		return nil, err
 	}
-	abs, err := filepath.Abs(layout.Root)
-	if err != nil {
-		return nil, err
-	}
-	s := a.ensureProjectStores()
-	s.mu.Lock()
-	ws, err := s.workspaceAt(ctx, s.workspaceRootFor(abs))
-	s.mu.Unlock()
+	ws, err := a.projectWorkspace(ctx, layout.Root)
 	if err != nil {
 		return nil, err
 	}

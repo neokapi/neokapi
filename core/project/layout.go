@@ -35,10 +35,10 @@ type Layout struct {
 // the personal saved filters. Deleting the directory costs a re-extraction, except for
 // the vault (see VaultDirName).
 //
-// A person may still keep context files here: `kapi context snapshot --out
-// .kapi` writes them and `kapi context import` reads them, through
-// ExportLayout. A project that commits such files keeps its own
-// `.kapi/.gitignore`, which EnsureLayout never overwrites.
+// A person may still keep context files here, such as a terms bundle or a voice
+// profile they author: `kapi context import` reads them, through ExportLayout.
+// A project that commits such files keeps its own `.kapi/.gitignore`, which
+// EnsureLayout never overwrites.
 const StateDirName = ".kapi"
 
 // WorkDirName is the machine-state subdirectory of StateDir: the local store,

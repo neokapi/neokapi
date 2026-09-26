@@ -1,47 +1,35 @@
 package kpz
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/neokapi/neokapi/core/profile"
-	"github.com/neokapi/neokapi/terms/ktb"
 )
 
-// The context profile of the container: a package holding what a project's
-// store keeps as authored context, and nothing of its content.
+// The context profile of the container: a transfer file holding one
+// project's shared context in the layout a context backend keeps.
 
-// contextPackage is a small package of the context profile, carrying one
-// profile of each member kind the profile adds.
+// contextPackage is a small transfer file: a segment, the blob it names, and
+// a checkpoint.
 func contextPackage() *Package {
 	return &Package{
-		Kind:  KindContext,
-		Terms: ktb.FromConcepts(nil),
-		Voice: []VoiceDoc{
-			{
-				Path:    VoiceDir + "acme.yaml",
-				ID:      "acme",
-				Binding: ".kapi/voice.yaml",
-				Profile: &profile.VoiceProfile{
-					ID:   "acme",
-					Name: "Acme",
-					Tone: profile.ToneProfile{Formality: "neutral"},
-				},
-			},
-		},
-		Decisions: []DecisionDoc{
-			{Path: DecisionsDir + "d-docs.jsonl", Data: []byte(`{"unit":"greeting","variant":"nb"}` + "\n")},
+		Kind: KindContext,
+		Layout: []LayoutDoc{
+			{Path: "log/w1/0000000000000000000000ab.jsonl", Data: []byte(`{"id":"0000000000000000000000ab"}` + "\n")},
+			{Path: "blobs/" + "aa11", Data: []byte("payload")},
+			{Path: "checkpoints/0000000000000000000000ab.kpz", Data: []byte("checkpoint")},
 		},
 	}
 }
 
-// TestContextPackage_RoundTripsItsMembers: voice profiles and decision shards
-// come back as they went in, identities and bindings included.
-func TestContextPackage_RoundTripsItsMembers(t *testing.T) {
+// TestContextPackage_RoundTripsItsLayout: every file comes back at its path
+// with its bytes.
+func TestContextPackage_RoundTripsItsLayout(t *testing.T) {
 	pkg := contextPackage()
-	require.True(t, pkg.HasContent(), "voice and decisions are content")
+	require.True(t, pkg.HasContent(), "the layout is content")
 
 	data, err := pkg.Marshal()
 	require.NoError(t, err)
@@ -49,21 +37,19 @@ func TestContextPackage_RoundTripsItsMembers(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, KindContext, got.Kind)
-	require.Len(t, got.Voice, 1)
-	assert.Equal(t, VoiceDir+"acme.yaml", got.Voice[0].Path)
-	assert.Equal(t, "acme", got.Voice[0].ID)
-	assert.Equal(t, ".kapi/voice.yaml", got.Voice[0].Binding)
-	require.NotNil(t, got.Voice[0].Profile)
-	assert.Equal(t, "Acme", got.Voice[0].Profile.Name)
-	assert.Equal(t, "neutral", got.Voice[0].Profile.Tone.Formality)
-
-	require.Len(t, got.Decisions, 1)
-	assert.Equal(t, DecisionsDir+"d-docs.jsonl", got.Decisions[0].Path)
-	assert.Equal(t, pkg.Decisions[0].Data, got.Decisions[0].Data)
+	require.Len(t, got.Layout, 3)
+	held := map[string]string{}
+	for _, l := range got.Layout {
+		held[l.Path] = string(l.Data)
+	}
+	for _, l := range pkg.Layout {
+		assert.Equal(t, string(l.Data), held[l.Path], l.Path)
+	}
 }
 
 // TestContextPackage_IsDeterministic: two marshals of the same package are the
-// same bytes, which is what lets a bundle be compared rather than merely read.
+// same bytes, which is what lets a transfer file be compared rather than
+// merely read.
 func TestContextPackage_IsDeterministic(t *testing.T) {
 	first, err := contextPackage().Marshal()
 	require.NoError(t, err)
@@ -76,32 +62,19 @@ func TestContextPackage_IsDeterministic(t *testing.T) {
 	assert.NotEmpty(t, hash)
 }
 
-// TestContextPackage_RefusesABindingOutsideTheProject: a binding is a path a
-// restore writes to, so it is validated with every other path in the manifest.
-func TestContextPackage_RefusesABindingOutsideTheProject(t *testing.T) {
-	tests := []struct {
-		name    string
-		binding string
-	}{
-		{name: "climbing out", binding: "../../.kapi/voice.yaml"},
-		{name: "absolute", binding: "/etc/kapi/voice.yaml"},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			pkg := contextPackage()
-			pkg.Voice[0].Binding = tc.binding
-			data, err := pkg.Marshal()
-			require.NoError(t, err)
-
-			_, err = Unmarshal(data)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "voice binding")
-		})
+// TestContextPackage_RefusesAPathOutsideTheLayout: a member is written to a
+// remote at its path, so only the layout's directories are accepted.
+func TestContextPackage_RefusesAPathOutsideTheLayout(t *testing.T) {
+	for _, path := range []string{"../log/x.jsonl", "notes/readme.md", "log/", "/etc/passwd"} {
+		pkg := contextPackage()
+		pkg.Layout[0].Path = path
+		_, err := pkg.Marshal()
+		assert.Error(t, err, path)
 	}
 }
 
-// TestPackage_RefusesAnUnknownKind names the three profiles it does read, so a
-// package of a fourth is refused with the list rather than a bare no.
+// TestPackage_RefusesAnUnknownKind names the profiles it does read, so a
+// package of another is refused with the list rather than a bare no.
 func TestPackage_RefusesAnUnknownKind(t *testing.T) {
 	pkg := contextPackage()
 	pkg.Kind = "kapi-something-else"
@@ -110,7 +83,62 @@ func TestPackage_RefusesAnUnknownKind(t *testing.T) {
 
 	_, err = Unmarshal(data)
 	require.Error(t, err)
-	for _, kind := range []string{KindProject, KindInterchange, KindContext} {
+	for _, kind := range []string{KindProject, KindInterchange, KindContext, KindCheckpoint} {
 		assert.Contains(t, err.Error(), kind)
 	}
+}
+
+// mediaPackage carries a member that is a reference to a file, the way a
+// package too large to hold in memory is built.
+func mediaPackage(t *testing.T) *Package {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "logo.png")
+	require.NoError(t, os.WriteFile(path, []byte("not really a png"), 0o644))
+	return &Package{Media: []Media{{Path: "media/logo.png", Content: FileContent(path)}}}
+}
+
+func TestPackage_WriteToMatchesMarshal(t *testing.T) {
+	for name, pkg := range map[string]*Package{
+		"context": contextPackage(),
+		"media":   mediaPackage(t),
+	} {
+		t.Run(name, func(t *testing.T) {
+			want, err := pkg.Marshal()
+			require.NoError(t, err)
+
+			path := filepath.Join(t.TempDir(), "out.kpz")
+			f, err := os.Create(path)
+			require.NoError(t, err)
+			n, err := pkg.WriteTo(f)
+			require.NoError(t, err)
+			require.NoError(t, f.Close())
+
+			got, err := os.ReadFile(path)
+			require.NoError(t, err)
+			assert.Equal(t, want, got)
+			assert.Equal(t, int64(len(want)), n, "WriteTo reports the bytes it wrote")
+		})
+	}
+}
+
+// TestOpenFile_ReadsWithoutHoldingTheArchive: a package read from a file
+// validates exactly as one read from bytes, and its members stay readable
+// until the handle is closed.
+func TestOpenFile_ReadsWithoutHoldingTheArchive(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "media.kpz")
+	data, err := mediaPackage(t).Marshal()
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, data, 0o644))
+
+	got, closer, err := OpenFile(path)
+	require.NoError(t, err)
+	require.Len(t, got.Media, 1)
+	member, err := ReadAll(got.Media[0].Content)
+	require.NoError(t, err)
+	assert.Equal(t, "not really a png", string(member))
+	require.NoError(t, closer.Close())
+
+	_, _, err = OpenFile(filepath.Join(dir, "absent.kpz"))
+	require.Error(t, err)
 }

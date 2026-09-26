@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/host"
 )
@@ -199,21 +198,17 @@ collections:
 // commitAndReadUnits commits the project's staged decisions and reads the
 // resulting record.
 //
-// A decision is durable in the ledger from the moment it is made. Writing the
-// record out as files is `kapi context snapshot`, so a test that asserts what
-// the record holds snapshots first, which also pins that the decision reached
-// the working store at all.
+// A decision is durable in the ledger from the moment it is made, so a test
+// that asserts what the record holds reads the ledger.
 func commitAndReadUnits(t *testing.T, root string) []state.UnitState {
 	t.Helper()
 	// A fresh App: the store is owned per App, and this one exists only to
-	// write out what the App under test recorded into the same file.
-	writer := &host.App{}
-	defer writer.Shutdown()
-	_, err := writer.SnapshotProjectContext(t.Context(), root, host.ContextSnapshotRequest{Out: filepath.Join(root, project.StateDirName)})
+	// read what the App under test recorded into the same file.
+	reader := &host.App{}
+	defer reader.Shutdown()
+	st, err := reader.OpenProjectState(t.Context(), root)
 	require.NoError(t, err)
-
-	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
-	units, err := state.ReadCommitted(layout.Export().UnitStateDir())
+	units, err := st.All(t.Context())
 	require.NoError(t, err)
 	return units
 }

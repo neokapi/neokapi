@@ -22,6 +22,14 @@ func TestFileRemoteConformance(t *testing.T) {
 	})
 }
 
+func TestMemoryRemoteConformance(t *testing.T) {
+	workspacetest.RunRemoteConformance(t, func(t *testing.T) func(t *testing.T) workspace.Remote {
+		shared, err := workspace.NewMemoryRemote("context.kpz")
+		require.NoError(t, err)
+		return func(*testing.T) workspace.Remote { return shared }
+	})
+}
+
 func TestFileRemoteReportsAMissingShare(t *testing.T) {
 	r := workspace.NewFileRemote(filepath.Join(t.TempDir(), "not-mounted", "team", "project"))
 	_, err := r.List(t.Context(), workspace.RemoteLogDir)

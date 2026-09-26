@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -289,19 +287,15 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 	assert.Equal(t, "skipped", res2.Status)
 }
 
-// assertCommittedUnits writes the project's record out and asserts how many
-// units it then holds.
-//
-// A decision is durable in the ledger from the moment it is made. Writing the
-// record out as files is `kapi context snapshot`, which is what a team that
-// wants the shards in git runs, and what this asserts against.
+// assertCommittedUnits asserts how many units the project's decision ledger
+// holds. A decision is durable in the ledger from the moment it is made.
 func assertCommittedUnits(t *testing.T, root string, want int, msg string) {
 	t.Helper()
-	_, err := (&App{}).SnapshotProjectContext(t.Context(), root, ContextSnapshotRequest{Out: filepath.Join(root, project.StateDirName)})
+	reader := &App{}
+	defer reader.Shutdown()
+	st, err := reader.OpenProjectState(t.Context(), root)
 	require.NoError(t, err)
-
-	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
-	units, err := state.ReadCommitted(layout.Export().UnitStateDir())
+	units, err := st.All(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, units, want, msg)
 }

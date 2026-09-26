@@ -36,7 +36,7 @@ entry addressed by its file/id/locale (as 'kapi status --review' lists it), with
 status "reviewed" (default) or "signed-off"; the decision is recorded in the
 project's decision ledger and is bound to the translation's content hash, so a
 later edit drops the unit back below reviewed. Recording it is durable at once,
-and 'kapi context snapshot' writes the record out as files.
+and 'kapi context push' shares it when the project declares a context backend.
 
 A comment edit (kind:"comment") rewrites one code comment, addressed by its file
 and the id 'kapi check' reports for it, such as func/Parse, in Go and in the
