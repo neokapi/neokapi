@@ -60,14 +60,14 @@ it. `make generate-reference-docs` compiles the dossiers into the reference
 dataset; `make generate-reference-pages` produces the Format and Tool Reference.
 Edit the dossiers rather than the generated pages.
 
-`make check-reference-prose` checks the source collection and fails on critical,
-major or minor findings. `reference-data-drift.yml` runs it alongside the
+`make check-reference-prose` checks the source collection and fails on any
+failing finding. `reference-data-drift.yml` runs it alongside the
 dataset and page checks.
 
 Four collections at `source/comments` declare the comments of the repository's
 Go, TypeScript, JavaScript, CSS, YAML, Markdown, MDX and HTML trees. Every item
 in them is `comments: {only: true}`: `kapi check` reads those comments against
-the comment voice in `.kapi/profiles/source/voice.yaml`, and the loop passes
+the comment voice the project's context holds, and the loop passes
 over the files. A push leaves their patterns out of the scope it declares, so
 the venue holds and removes exactly what it held before they were declared.
 `make check-comment-coverage` fails when a tracked file in one of those families

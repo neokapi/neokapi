@@ -93,17 +93,17 @@ defaults:
           suffix: ""
   # The loop this project runs locally. memory-recycle is exact-match content-memory
   # leverage and nothing else, so a checkout with no credentials converges from
-  # the committed context alone and the pass is a deterministic function of
-  # source + .kapi/. AI convergence happens at the server venue (the bowrain:
+  # the pulled context alone and the pass is a deterministic function of the
+  # source and that context. AI convergence happens at the server venue (the bowrain:
   # block below), on the org's keys and against the org's shared memory; a
   # deliberate local AI pass is `kapi run translate-ai`. Without this the
   # built-in default flow ends in `translate`, and a fresh clone stops on a
   # missing provider credential having recycled nothing.
   flow: memory-recycle
-  # The voice is bound by name: the profile `kapi context import` reads from
-  # .kapi/voice.yaml into the project's store. The terms need no binding: the
-  # same import reads .kapi/terms.json, and any profiles/<name>/terms.json,
-  # into the project's one terms store, which governs every collection.
+  # The voice is bound by name: the profile the project's context holds, which
+  # `kapi context pull` reads from refs/kapi/context (the `context.backend`
+  # above). The terms need no binding: the project has one terms store, and it
+  # governs every collection.
   voice:
     profile: neokapi-documentation
   memory:
@@ -197,8 +197,7 @@ profiles:
   # The code comments of both products. The comment voice holds them to its
   # length limits and to the writing tells a comment avoids. The profile binds
   # no terms store of its own, so the project's terms govern comments as they
-  # govern everything else; .kapi/profiles/source/terms.json, which the import
-  # reads into that same store, holds no concepts.
+  # govern everything else.
   source:
     channels: [comments]
     voice:
@@ -480,8 +479,8 @@ collections:
       # sidecars (content memory-driven) that the harness overlays at load
       # time. A sidecar identical to its source carries nothing and is dropped
       # rather than committed, so a demo has one exactly when its narration has
-      # been translated. Never hand-edit a sidecar — fix the memory seed instead
-      # (.kapi/memory/demo-narration-<lang>.memory.json). Translatable keys are
+      # been translated. Never hand-edit a sidecar: correct the wording where it
+      # is reviewed, and the next convergence writes it. Translatable keys are
       # selected by defaults.formats.yaml.config.keyPathPatterns above.
       - path: "*/demo.yaml"
         format:
@@ -571,7 +570,7 @@ collections:
       - path: "bowrain/apps/bowrain/build/**/*.{yaml,yml}"
         comments:
           only: true
-      - path: "{.github,.kapi,.skills,apps/kapi-desktop/build,bowrain/deploy,bowrain/docker,bowrain/e2e,cli,core,docs,harness,scripts,specs,web/demos,web/scenes,web/walkthroughs}/**/*.{yaml,yml}"
+      - path: "{.github,.skills,apps/kapi-desktop/build,bowrain/deploy,bowrain/docker,bowrain/e2e,cli,core,docs,harness,scripts,specs,web/demos,web/scenes,web/walkthroughs}/**/*.{yaml,yml}"
         comments:
           only: true
       - path: "bowrain/*.yaml"
@@ -584,7 +583,7 @@ collections:
       - path: "*.md"
         comments:
           only: true
-      - path: "{.kapi,.skills,bowrain/docker,bowrain/e2e,bowrain/graph,bowrain/web/docs,cli,core,deploy,docs,examples,harness,host,packages/kapi-claude-plugin,plugins,scripts,specs,web/demos,web/static,web/walkthroughs}/**/*.{md,mdx,html}"
+      - path: "{.skills,bowrain/docker,bowrain/e2e,bowrain/graph,bowrain/web/docs,cli,core,deploy,docs,examples,harness,host,packages/kapi-claude-plugin,plugins,scripts,specs,web/demos,web/static,web/walkthroughs}/**/*.{md,mdx,html}"
         comments:
           only: true
       - path: "{apps/kapi-desktop/frontend,bowrain,bowrain/apps/bowrain/frontend,bowrain/web/landing,packages/*}/*.{md,html}"
@@ -644,8 +643,8 @@ flows:
 # Customer #1: bowrain.cloud dogfood — ACTIVATED 2026-07-17 (epic 017-F, D2)
 #
 # neokapi is the first real workspace on Bowrain. `kapi push` sends every surface
-# above to the project below; nb drafts land in the governed review queue and
-# approved segments round-trip back into .kapi/memory/*.memory.json.
+# above to the project below; nb drafts land in the governed review queue, and
+# the decisions made there come home on refs/kapi/context.
 #
 # converge: manual — a push moves content but does NOT auto-start a server AI
 # convergence run. The first on-push run (2026-07-17) tried to AI-draft the whole

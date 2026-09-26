@@ -41,10 +41,9 @@ on:
       - "packages/docs-shared/**"
       - "packages/i18n-react/**"
       - ".github/actions/pseudo-locale/**"
-      # qps generation depends on the docs, recipe, terms and the pinned kapi
+      # qps generation depends on the docs, the recipe and the pinned kapi
       # release in the action. Include those inputs in the deployment triggers.
       - "kapi.yaml"
-      - ".kapi/terms.json"
       - "scripts/pseudo-docs-i18n.sh"
       - ".github/workflows/deploy-landing.yml"
 

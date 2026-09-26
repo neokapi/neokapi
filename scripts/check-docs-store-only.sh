@@ -46,7 +46,6 @@ TREES=(
   docs/internals
   README.md
   CONTRIBUTING.md
-  .kapi/README.md
   bowrain/web/docs
 )
 
@@ -95,12 +94,6 @@ ALLOWLIST=(
   # SKILL.md tells an agent that reading a checkout's context files is the
   # person's to do.
   "cli/skills/data/kapi/SKILL.md"
-  # The dogfood loop's own documents. They describe the export this repository
-  # keeps in git, the import that reads it into the store one step before
-  # `kapi up`, and the snapshot that writes it back out.
-  "docs/internals/l10n-ci.md"
-  "docs/internals/brand-communication.md"
-  ".kapi/README.md"
   # The platform's CLI docs describe the same artifact layout for the same
   # reason the framework's reference does.
   "bowrain/web/docs/docs/cli/overview.md"
