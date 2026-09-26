@@ -406,7 +406,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 	if rerr != nil {
 		return res, rerr
 	}
-	prior := newPriorSourceIndex(ctx, db)
+	prior := newPriorSourceIndex(ctx, a.projectBlocksAutocommit(db))
 	// What the corpus already answers, so a rewritten unit's committed target can
 	// be recognized as the loop's own last output for the wording that is gone.
 	corpus := &memoryAnswers{ctx: ctx, tm: tm, source: sourceLocale, cache: map[string][]memory.Entry{}}
@@ -916,14 +916,14 @@ func supersededSource(
 // scan does.
 type priorSourceIndex struct {
 	ctx    context.Context
-	db     *projectdb.DB
+	store  blockstore.Store
 	loaded bool
 	byHash map[string][]model.Run
 	byUnit map[string][]model.Run
 }
 
-func newPriorSourceIndex(ctx context.Context, db *projectdb.DB) *priorSourceIndex {
-	return &priorSourceIndex{ctx: ctx, db: db}
+func newPriorSourceIndex(ctx context.Context, store blockstore.Store) *priorSourceIndex {
+	return &priorSourceIndex{ctx: ctx, store: store}
 }
 
 // runsFor returns the source runs whose basis hash is the given one, and
@@ -971,10 +971,7 @@ func (p *priorSourceIndex) load() {
 // rather than acting on half a scan.
 func (p *priorSourceIndex) scan() (byHash, byUnit map[string][]model.Run) {
 	byHash, byUnit = map[string][]model.Run{}, map[string][]model.Run{}
-	if p.db == nil {
-		return byHash, byUnit
-	}
-	store := p.db.BlocksAutocommit()
+	store := p.store
 	if store == nil {
 		return byHash, byUnit
 	}

@@ -252,7 +252,7 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 
 	// Block store.
 	if len(pkg.Overlays) > 0 || len(pkg.Blocks) > 0 {
-		store := db.Blocks()
+		store := a.projectBlocks(db)
 		if store == nil {
 			return fmt.Errorf("restore the block cache: %w", projectdb.ErrNoStore)
 		}
