@@ -10,6 +10,7 @@ import (
 	"sort"
 
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"
@@ -17,7 +18,6 @@ import (
 	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
-	"github.com/neokapi/neokapi/voice"
 )
 
 // A whole workspace in one file.
@@ -271,7 +271,7 @@ func (a *App) exportOneProject(ctx context.Context, ws *workspace.Workspace, reg
 	if err != nil {
 		return out, nil, err
 	}
-	stores, err := openWorkspaceContext(ctx, db)
+	stores, err := openWorkspaceContext(ctx, ws, reg.Key, db)
 	if err != nil {
 		return out, nil, fmt.Errorf("read the context of %s: %w", reg.Key, err)
 	}
@@ -365,26 +365,33 @@ type workspaceContext struct {
 }
 
 // openWorkspaceContext binds a project's context subsystems to its workspace
-// database.
-func openWorkspaceContext(ctx context.Context, db *storage.DB) (workspaceContext, error) {
+// database, written through a projector over the workspace's log like every
+// other writer of them.
+func openWorkspaceContext(ctx context.Context, ws *workspace.Workspace, key workspace.ProjectKey, db *storage.DB) (workspaceContext, error) {
 	var out workspaceContext
-	tb, err := terms.NewSQLiteStoreFromDB(db)
+	stores, err := projector.ContextStores(db)
 	if err != nil {
-		return out, fmt.Errorf("bind terms store: %w", err)
+		return out, err
 	}
-	tm, err := memory.NewSQLiteStoreFromDB(db)
-	if err != nil {
-		return out, fmt.Errorf("bind content memory: %w", err)
+	var log projector.Log
+	if !ws.Describe().ReadOnly {
+		log = ws
 	}
-	vc, err := voice.NewSQLiteStore(db)
+	writer, err := projector.New(log, key, stores)
 	if err != nil {
-		return out, fmt.Errorf("bind voice store: %w", err)
+		return out, err
 	}
 	work, err := state.OpenLedger(ctx, db)
 	if err != nil {
 		return out, fmt.Errorf("bind the decision ledger: %w", err)
 	}
-	out.terms, out.memory, out.voice, out.work = tb, tm, vc, work
+	if log != nil {
+		work.SetJournal(writer.Units())
+		if err := writer.CatchUp(ctx); err != nil {
+			return out, fmt.Errorf("apply the context log to %s: %w", key, err)
+		}
+	}
+	out.terms, out.memory, out.voice, out.work = termsWriter(writer), memoryWriter(writer), voiceWriter(writer), work
 	return out, nil
 }
 
@@ -501,7 +508,7 @@ func (a *App) replaceWorkspaceContext(ctx context.Context, ws *workspace.Workspa
 		if err != nil {
 			return nil, err
 		}
-		stores, err := openWorkspaceContext(ctx, db)
+		stores, err := openWorkspaceContext(ctx, ws, reg.Key, db)
 		if err != nil {
 			return nil, fmt.Errorf("clear the context of %s: %w", reg.Key, err)
 		}
@@ -529,7 +536,7 @@ func (a *App) restoreOneProject(ctx context.Context, ws *workspace.Workspace, do
 	if err != nil {
 		return out, err
 	}
-	stores, err := openWorkspaceContext(ctx, db)
+	stores, err := openWorkspaceContext(ctx, ws, key, db)
 	if err != nil {
 		return out, fmt.Errorf("open the context store of %s: %w", key, err)
 	}

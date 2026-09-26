@@ -72,18 +72,17 @@ var writes = map[string]map[string]bool{
 // allowed lists the functions that write a store which is not a projection,
 // keyed by the file and the function, with the reason.
 var allowed = map[string]string{
-	"host/memory.go:OpenMemorySQLite":                      "opens a standalone content memory named by --name, --file or --local",
-	"host/termbase.go:OpenTermsSQLite":                     "opens a standalone terms store named by --name, --file or --local",
-	"host/voicestore.go:OpenVoiceStore":                    "opens a standalone voice store named by --name, --file or --local",
-	"host/flow.go:OpenToolMemory":                          "reads a standalone content memory named by --memory",
-	"host/flow.go:openTerms":                               "reads a standalone terms store named by --termstore",
-	"host/contextsearch.go:ContextSearchSourcesFor":        "reads standalone stores named by --termstore and --memory",
-	"host/voicestore.go:VoiceLookupStore":                  "reads a standalone voice store named by --name, --file or --local",
-	"host/projectstore.go:Projector":                       "binds the projector to the log it records into",
-	"host/facetest/fixture/fixture.go:SeedTerms":           "seeds the terms of a throwaway fixture store for a screenshot",
-	"host/contextexport_workspace.go:openWorkspaceContext": "restores a whole workspace with no checkout to open a project store in; its write moves to the log with snapshot and restore",
-	"apps/kapi-desktop/backend/memory.go:OpenMemory":       "opens a content-memory file a person picked",
-	"apps/kapi-desktop/backend/termbase.go:OpenTerms":      "opens a terms file a person picked",
+	"host/memory.go:OpenMemorySQLite":                 "opens a standalone content memory named by --name, --file or --local",
+	"host/termbase.go:OpenTermsSQLite":                "opens a standalone terms store named by --name, --file or --local",
+	"host/voicestore.go:OpenVoiceStore":               "opens a standalone voice store named by --name, --file or --local",
+	"host/flow.go:OpenToolMemory":                     "reads a standalone content memory named by --memory",
+	"host/flow.go:openTerms":                          "reads a standalone terms store named by --termstore",
+	"host/contextsearch.go:ContextSearchSourcesFor":   "reads standalone stores named by --termstore and --memory",
+	"host/voicestore.go:VoiceLookupStore":             "reads a standalone voice store named by --name, --file or --local",
+	"host/projectstore.go:Projector":                  "binds the projector to the log it records into",
+	"host/facetest/fixture/fixture.go:SeedTerms":      "seeds the terms of a throwaway fixture store for a screenshot",
+	"apps/kapi-desktop/backend/memory.go:OpenMemory":  "opens a content-memory file a person picked",
+	"apps/kapi-desktop/backend/termbase.go:OpenTerms": "opens a terms file a person picked",
 }
 
 func set(names ...string) map[string]bool {
