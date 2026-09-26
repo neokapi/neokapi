@@ -39,9 +39,14 @@ func startGateway(t *testing.T) string {
 	if err := exec.Command("docker", "info").Run(); err != nil {
 		t.Skip("docker is not running")
 	}
-	out, err := exec.Command("docker", "run", "-d", "--rm", "-p", "127.0.0.1::7070", versityImage,
-		"--access", testAccess, "--secret", testSecret, "posix", "/tmp").CombinedOutput()
-	require.NoError(t, err, "docker run: %s", out)
+	// The container id is stdout alone: on a runner without the image cached,
+	// stderr carries the pull progress, which is not part of the id.
+	run := exec.Command("docker", "run", "-d", "--rm", "-p", "127.0.0.1::7070", versityImage,
+		"--access", testAccess, "--secret", testSecret, "posix", "/tmp")
+	var stderr strings.Builder
+	run.Stderr = &stderr
+	out, err := run.Output()
+	require.NoError(t, err, "docker run: %s", stderr.String())
 	id := strings.TrimSpace(string(out))
 	t.Cleanup(func() { _ = exec.Command("docker", "rm", "-f", id).Run() })
 
