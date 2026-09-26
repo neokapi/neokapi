@@ -21,7 +21,7 @@ setup:
 captureTimeoutSec: 300
 aspects:
   - coverage, not a verdict
-  - the source gate
+  - the check on the source
   - the build never waits for a language
 outro:
   line: Report coverage, and gate only the source.
@@ -33,10 +33,10 @@ script:
   - command: kapi status
   - comment: This is what the pull-request job posts. Coverage per language, in machine shape.
   - command: >-
-      kapi status --json --jq '.locales[]|"\(.locale)  translated \(.pct.translated)%  reviewed \(.pct.reviewed)%  \(if .shippable then "ready" else "pending" end)"'
-  - comment: While a language was behind, nothing failed. The source gate is what a pull request is held to, and it is about the source.
-  - command: kapi check --strict
-  - comment: One advisory finding, and it is the API reference keeping a name the vocabulary retired. Reported, never blocking.
+      kapi status --json --jq '.locales[]|"\(.locale)  translated \(.pct.translated)%  established \(.pct.established)%  \(if .shippable then "ready" else "pending" end)"'
+  - comment: While a language was behind, nothing failed. The check on the source is what a pull request is held to.
+  - command: kapi check
+  - comment: One finding reports, and it is the API reference keeping a name the terms retired. Reported, never blocking.
 
 artifacts:
   - id: coverage
@@ -90,21 +90,21 @@ narration:
   - id: gate
     kind: terminal
     through: 8
-    highlight: { text: [MINOR] }
-    caption: The source gate passes, with one advisory finding.
+    highlight: { text: [REPORTS] }
+    caption: The check on the source passes, with one finding that reports.
     text: >-
       Through all of it the English is what the pull request is held to, and the
-      source gate passes with one advisory finding: an API reference keeping a
-      field name the vocabulary retired.
+      check on the source passes with one finding that only reports: an API
+      reference keeping a field name the terms retired.
 
   - id: workflow
     kind: artifact
     artifact: workflow
-    caption: The converge job commits; the build job runs anyway.
+    caption: The converge job shares its record; the build job runs anyway.
     text: >-
       The workflow says it plainly. A pull request gets a dry run and a coverage
-      comment, the default branch converges and commits what moved, and the job
-      that builds the site depends on neither of them.
+      comment, the default branch converges and pushes the context it recorded,
+      and the job that builds the site depends on neither of them.
 
   - id: outro
     kind: outro

@@ -16,7 +16,7 @@ outro:
   line: In CI, the same two commands.
   pointer: kapi push && kapi up
 aspects:
-  - init connects the project
+  - init finds the content and connects the project
   - push is pure transport
   - up runs the loop on the server
   - results land in the same files
@@ -24,10 +24,11 @@ aspects:
 script:
   - comment: BowMart's help-center copy, in English, sitting in your repo.
   - command: cat src/locales/en.json
-  - comment: Connect this project to your Bowrain server.
+  # kapi init proposes a collection for the catalog it finds (src/locales/en.json,
+  # with a src/locales/{lang}.json target), so no `kapi add` follows it: a
+  # second glob over src/locales/*.json would read the pulled targets as source.
+  - comment: Connect this project to your Bowrain server. init finds the catalog and declares it.
   - command: kapi init --name help-center --source-locale en --target-locale fr --target-locale de --server $BOWRAIN_SERVER_URL -y
-  - comment: Track the files you want translated.
-  - command: kapi add "src/locales/*.json"
   - comment: Push the source up. Pure transport, like git push.
   - command: kapi push
   - comment: Check standing, the coverage and what's pending, like git status.
@@ -46,17 +47,18 @@ narration:
 
   - id: push
     kind: terminal
-    through: 8
+    through: 6
     caption: Push moves the source, and translates nothing.
     hold: 16
     text: >-
-      Track the files you want translated, then push. Push is pure transport: it
-      moves the source up the way git push does, and it translates nothing at
-      all. Nothing has left your repository except a copy of the English.
+      kapi init found the English catalog and declared it, with a place for each
+      language beside it. Then push. Push is pure transport: it moves the source
+      up the way git push does, and it translates nothing at all. Nothing has
+      left your repository except a copy of the English.
 
   - id: status
     kind: terminal
-    through: 10
+    through: 8
     highlight: { text: [content, governance] }
     caption: Two axes, content and governance.
     hold: 19
@@ -68,7 +70,7 @@ narration:
 
   - id: up
     kind: terminal
-    through: 12
+    through: 10
     highlight: venue
     caption: The venue first, then the work.
     hold: 20
@@ -80,7 +82,7 @@ narration:
 
   - id: pulled
     kind: terminal
-    through: 14
+    through: 12
     caption: Back in the same file and format.
     hold: 14
     text: >-

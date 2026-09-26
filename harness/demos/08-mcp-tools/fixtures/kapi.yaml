@@ -1,7 +1,7 @@
 # Taskly: one catalog of marketing strings, one target language.
 #
-# The French catalog beside it is drafted and unreviewed, so the project has a
-# review queue for an assistant to work through over MCP.
+# The French catalog beside it is translated and not yet established, so the
+# project has a review queue for an assistant to work through over MCP.
 version: v1
 name: taskly
 defaults:

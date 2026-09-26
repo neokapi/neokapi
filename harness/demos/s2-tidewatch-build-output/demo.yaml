@@ -32,9 +32,9 @@ script:
   - command: ls docs
   - comment: The i18n tree is not in git. It is written by the loop from the source and the committed context, so a clone regenerates it and no diff ever carries a generated translation.
   - command: cat .gitignore
-  - comment: One verb. Approved wording is recycled; only the remainder reaches a provider.
+  - comment: One verb. Established wording is recycled; only the remainder reaches a provider.
   - command: kapi up
-  - comment: Norwegian ships on drafted work. Dutch parks, because nothing in it has been read by a person.
+  - comment: Norwegian ships on translated work. Dutch parks, because nothing in it has been read by a person.
   - command: kapi status
   - comment: Front matter is content, so a title in a sidebar and a description in a search result converge with the prose.
   - command: head -6 i18n/nb/docusaurus-plugin-content-docs/current/index.md
@@ -78,7 +78,7 @@ narration:
     caption: Norwegian ships. Dutch parks, and nothing failed.
     text: >-
       One verb converges both languages. Norwegian clears the ship gate on
-      drafted work. Dutch parks, because the gate asks for half its units to
+      translated work. Dutch parks, because the gate asks for half its units to
       have been read by a person and none of them have.
 
   - id: translated

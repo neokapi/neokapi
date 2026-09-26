@@ -7,7 +7,7 @@ name: voltway
 defaults:
   source_language: en
   target_languages: [fr]
-  # Voltway approves its own source wording; a translation carries whatever
+  # Voltway establishes its own source wording; a translation carries whatever
   # the source said, so the source ladder gates the loop as well.
   translate_after: established
   flow: converge
@@ -55,9 +55,9 @@ collections:
 
 flows:
   # term_rules is the one key the terminology tools all read: one term, what the
-  # translation must say for it, and how hard it bites. A rule with severity
-  # minor reports; a rule with none fails. The same list is handed to the model
-  # that drafts and to the check that holds the draft to it.
+  # translation must say for it, and whether a miss fails. A rule marked
+  # advisory reports; any other rule fails. The same list is handed to the
+  # model that drafts and to the check that holds the draft to it.
   converge:
     steps:
       - tool: recycle

@@ -62,7 +62,7 @@ narration:
     caption: Text out, translated, and back into the same tags.
     text: >-
       kapi separates the readable text from the markup, reuses the wording this
-      project has already approved, sends the remainder to the configured
+      project has already established, sends the remainder to the configured
       provider, and runs its checks before writing the result back into the same
       structure.
 

@@ -24,7 +24,7 @@ aspects:
   - record a scoped term decision
 outro:
   line: Run the gate over the prose in your repository.
-  pointer: kapi check --strict
+  pointer: kapi check
 
 # The graph the sample ships is committed here, so the recording starts where a
 # reviewer starts: with the gates, not with the adoption s0-northsea-context
@@ -45,13 +45,14 @@ script:
   - comment: One verb reconciles the committed graph and the sources, so the gates read a project that is up to date.
   - command: kapi up
   - comment: Run the gates the way you run tests.
-  # The gate must fail here: one major finding is the substance of this beat.
-  - command: kapi check --strict
+  # The gate must fail here: one failing finding is the substance of this beat.
+  - command: kapi check
     expectExit: 3
   - comment: The same findings, in the shape CI reads.
   # Same gate, same exit code: the JSON a reader inspects is the failing run,
-  # not a second run with the gate turned off.
-  - command: kapi check --strict --json > findings.json
+  # not a second run with the gate turned off. The report goes to the file and
+  # the one-line error on stderr is dropped, so the terminal shows the exit.
+  - command: kapi check --json > findings.json 2>/dev/null
     expectExit: 3
   - comment: Three of those are wording the source got wrong, so correct the source.
   - command: ksed -i 's/our seamless integration/our unified integration/' landing/index.html
@@ -62,13 +63,13 @@ script:
   - command: kapi apply decisions.jsonl
   - comment: The reviewer recorded a term decision. The next check uses that rule.
   # And again here: a decision that changed nothing would be no decision at all.
-  - command: kapi check --strict
+  - command: kapi check
     expectExit: 3
   - command: ksed -i 's/could not dock when the pilot called/could not reach its berth when the pilot called/' landing/index.html
   - comment: Converge, and read where you stand.
   - command: kapi up
   - command: kapi status
-  - command: kapi check --strict
+  - command: kapi check
 
 artifacts:
   - id: findings
@@ -92,12 +93,13 @@ narration:
   - id: check
     kind: terminal
     through: 8
-    highlight: { text: [MAJOR, MINOR] }
-    caption: One major finding, and the rest advisory.
+    highlight: { text: [FAILS, REPORTS] }
+    caption: One finding fails, and the rest report.
     text: >-
-      A banned word on the marketing page is major. A retired term still in the
-      documentation is minor under this project's review policy. Every finding names the rule, the point it is scoped to,
-      and the fix.
+      A banned word on the marketing page fails the check. A retired term still
+      in the documentation only reports, because the project marks it as
+      retired rather than forbidden. Every finding names the rule, the point it
+      is scoped to, and the fix.
 
   - id: findings
     kind: artifact
@@ -116,7 +118,7 @@ narration:
       Three findings concern wording, so the source is corrected. The
       fourth is different: the reviewer notices a word the graph has never been
       told about. That is a decision, so it is written down as one entry in the
-      vocabulary the project reads.
+      terms the project reads.
 
   - id: learned
     kind: terminal

@@ -1,19 +1,20 @@
 id: 08-mcp-tools
 title: An assistant with no shell
-subtitle: kapi as Model Context Protocol tools, down to a recorded approval.
+subtitle: kapi as Model Context Protocol tools, down to a recorded pre-review.
 kind: integration
 aspects:
   - MCP integration
   - size before you act
   - the review queue
-  - a decision with a name on it
+  - a pre-review with a name on it
 needsAi: false
 mcp: true
 model: sonnet
 captureTimeoutSec: 300
 # The sandbox IS the project: a recipe at its root with a drafted French
 # catalog, so the project-scoped tools (review_queue, review_unit, pre_review_unit)
-# have a real queue to work. The sandbox lives in os.tmpdir(), outside the repo.
+# have a real queue to work. An assistant records a pre-review and never
+# establishes a unit, so the queue keeps its length and gains a score. The sandbox lives in os.tmpdir(), outside the repo.
 project: true
 # The fixture's voice profile is a file until a person reads it into this
 # machine's store, which is where the tools answer from.
@@ -26,8 +27,8 @@ outro:
 prompt: >
   Using kapi, take a look at content.json for me: what format is it, and how much
   translatable content does it hold? Then show me what is waiting for review in French,
-  open the first unit with everything that governs it, and approve it if the wording
-  holds up.
+  open the first unit with everything that governs it, and record your pre-review of
+  it with a score and your reasons.
 
 artifacts:
   - id: wordcount
@@ -38,7 +39,7 @@ artifacts:
     width: 1000
     height: 640
   - id: queue
-    caption: "the review queue as the assistant reads it, one unit shorter"
+    caption: "the review queue afterwards, with the assistant's score on one unit"
     source: command
     command: kapi status --review -p . --json
     report: json
@@ -53,7 +54,7 @@ narration:
     text: >-
       An assistant can reach kapi without a shell, as Model Context Protocol
       tools with typed results. Here it sizes a file, reads the French review
-      queue, and records an approval under its own name.
+      queue, and records a pre-review under its own name.
 
   - id: tools
     kind: terminal
@@ -78,27 +79,28 @@ narration:
       Then the review queue, filtered to French. A second call opens one unit
       and returns what the decision is made in: the point governing the file,
       the voice in force there, the neighbouring blocks, and the version
-      approved last time.
+      established last time, when there is one.
 
   - id: approve
     kind: terminal
-    caption: The decision is recorded with the agent's name on it.
+    caption: A pre-review, recorded with the agent's name on it.
     text: >-
-      Approving is its own call. It writes the decision into the project store
-      against the exact text it judged, and the record carries who made it, so
-      an approval by an assistant is marked as one.
+      The pre-review is its own call: a score and the reasons for it, bound to
+      the exact text the assistant judged and marked as an assistant's. It
+      informs the person who reviews next, and only a person establishes the
+      unit.
 
   - id: queue
     kind: artifact
     artifact: queue
-    caption: The same queue, one unit shorter.
+    caption: The same queue, with the score on the unit.
     text: >-
-      And the queue afterwards, one unit shorter. Every row addresses a unit by
-      file, key and locale, which is what a person opening Kapi Desktop sees
-      next.
+      And the queue afterwards. The unit is still there, now carrying the
+      assistant's score. Every row addresses a unit by file, key and locale,
+      which is what a person opening Kapi Desktop sees next.
 
   - id: outro
     kind: outro
     text: >-
       Point your assistant's configuration at the kapi server, and it reaches
-      the same review record a person does.
+      the same review queue a person works from.

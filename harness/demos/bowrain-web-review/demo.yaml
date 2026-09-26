@@ -69,7 +69,7 @@ narration:
     text: >-
       This one she wrote herself. The server declines the approval and prints
       its own reason: separation of duties is set to block, so the author of a
-      translation is never the person who signs it off.
+      translation is never the person who establishes it.
 
   - id: second-reviewer
     kind: desktop

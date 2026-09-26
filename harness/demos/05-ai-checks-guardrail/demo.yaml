@@ -54,7 +54,7 @@ narration:
   - id: check
     kind: terminal
     through: 4
-    highlight: { text: [CRITICAL, MAJOR] }
+    highlight: { text: [FAILS] }
     caption: The gate fails, and names both findings.
     text: >-
       kapi check reads the German against the English and runs the rules the way
@@ -78,7 +78,7 @@ narration:
     caption: Exit 0, from the command that just exited 3.
     text: >-
       The same check again, and it passes. The command did not change, the rules
-      did not change, and the target text changed. This pass establishes those
+      did not change, and the target text changed. This pass covers those
       configured checks, not factual accuracy or overall translation quality.
 
   - id: outro

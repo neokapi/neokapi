@@ -35,9 +35,9 @@ script:
   - comment: The deployed page builds its language picker from one file, and kapi writes it. Nothing is offered yet.
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
-  - comment: One verb. Approved wording is recycled; only what is left reaches a provider.
+  - comment: One verb. Established wording is recycled; only what is left reaches a provider.
   - command: kapi up
-  - comment: Norwegian and German clear the ship gate on drafted work. Dutch parks, because one of its units fails the project's bound checks.
+  - comment: Norwegian and German clear the ship gate on translated work. Dutch parks, because one of its units fails the project's bound checks.
   - command: kapi status
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
@@ -58,8 +58,8 @@ narration:
     kind: title
     text: >-
       A second language is one more axis on content that is already governed.
-      The loop recycles the wording a project has approved before, and asks a
-      provider only for the rest.
+      The loop recycles the wording a project has established before, and asks
+      a provider only for the rest.
 
   - id: standing
     kind: terminal
@@ -88,7 +88,7 @@ narration:
     highlight: { text: [blocked, checks] }
     caption: Two languages offered. Dutch parks on a failing check.
     text: >-
-      Norwegian and German clear the ship gate on drafted work. Dutch parks: one
+      Norwegian and German clear the ship gate on translated work. Dutch parks: one
       of its units fails the checks the project binds, and a locale holding a
       failing unit is held back until somebody looks. Its drafts are safe in the
       store; what the gate withholds is delivery.
@@ -99,11 +99,11 @@ narration:
     caption: Two answers per language, and nothing else between them.
     text: >-
       This file is the whole contract between the loop and the deployed site.
-      Per language, two independent answers: is it safe to offer at all, and has
-      a person signed off every string in it.
+      Per language, two answers: is it safe to offer at all, and is every
+      string in it established or only translated.
 
   - id: outro
     kind: outro
     text: >-
-      Run the loop on a project that has approved wording already, and watch how
-      little of it reaches a provider at all.
+      Run the loop on a project that has established wording already, and watch
+      how little of it reaches a provider at all.

@@ -96,7 +96,7 @@ Three manifest keys belong to this class:
   exception where the non-zero result *is* the beat:
 
   ```yaml
-  - command: kapi check --strict   # a gate that must fail on camera
+  - command: kapi check            # a gate that must fail on camera
     expectExit: 3
   - command: kgrep mooring *       # "found nothing" is a legitimate answer
     expectExit: [0, 1]
@@ -302,7 +302,7 @@ the load rather than rendering a video that quietly ignores it.
 | `hold` | any | Seconds the scene stays on screen at least. The desktop recorder keeps the beat on camera this long; the renderer holds the last frame when the picture is still shorter. | the narration's measured length (recorder), the narration (renderer) |
 | `crop` | desktop | Where the camera crops to: `{ selector: '[data-testid="x"]' }` (or a list; resolved against the live page once the beat's actions have settled, the union of their boxes) or a box `{ x, y, w, h }` in [0,1] window coordinates. See [Sizing a crop](#sizing-a-crop). | the walk's own region |
 | `zoom` | desktop | A multiplier from 1 to 3 on the crop's fitted scale, for a region so small that the fitted scale clamps at 2.5. On any other crop it frames less than the region asked for, so leave it out. | 1 |
-| `highlight` | terminal, artifact, desktop | What to draw attention to, hand-drawn by frame: `text: "CRITICAL"` (or a list; terminal lines containing it are marked as they appear; a bare string is this form), `selector: '[data-x]'` (desktop; resolved at record time into a box), or `box: { x, y, w, h }` (desktop and artifact). | none |
+| `highlight` | terminal, artifact, desktop | What to draw attention to, hand-drawn by frame: `text: "FAILS"` (or a list; terminal lines containing it are marked as they appear; a bare string is this form), `selector: '[data-x]'` (desktop; resolved at record time into a box), or `box: { x, y, w, h }` (desktop and artifact). | none |
 | `through` | terminal, shell demos | The 1-based index of the last `script` step (command or comment) revealed by the end of the scene. Scenes that leave it unset reveal an even share between the anchors around them. | uniform reveal |
 
 The demo's closing card takes two lines of its own:
@@ -335,8 +335,8 @@ And one terminal beat of a scripted shell demo:
   - id: check
     kind: terminal
     through: 4
-    highlight: { text: [CRITICAL, WARNING] }
-    caption: Two findings, one of them blocking.
+    highlight: { text: [FAILS, REPORTS] }
+    caption: Two findings, one of them failing.
     text: >-
       kapi check reads the German against the English ...
 ```

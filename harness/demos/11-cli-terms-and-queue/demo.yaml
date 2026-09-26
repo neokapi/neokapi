@@ -32,7 +32,7 @@ script:
   - comment: Terminology is a list under term_rules, on the step that uses it. Two lines in the recipe name what the French must say.
   - comment: The step that drafts is handed exactly that list, so the model and the check are told the same thing.
   - command: kapi run converge -i app/strings.en.json --target-lang fr --explain-prompts 2>&1 | grep -A2 "Terminology (use these renderings)" | head -3
-  - comment: Where the project stands. French is drafted; nothing in either language has been read by a person.
+  - comment: Where the project stands. French is translated; nothing in either language has been established by a person.
   - command: kapi status
   - comment: One queue holds every language, the source among them, and every source row carries its marker.
   - command: kapi status --review --lang en | head -8
@@ -45,12 +45,12 @@ script:
   - command: kapi apply reviewed.json 2>&1 | tail -3
   - comment: Each approval is in the record as it is made, attributable, and the queue says so.
   - command: kapi status --review --lang fr
-  - comment: French is reviewed. The source rows stay open, because Voltway signs off its own wording before a translation ships from it.
+  - comment: French is established. The source rows stay open, because Voltway establishes its own wording before a translation ships from it.
   - command: kapi status
 
 artifacts:
   - id: queue
-    caption: "kapi status --review --json: what is still open, after French was signed off"
+    caption: "kapi status --review --json: what is still open, after French was established"
     source: command
     command: kapi status --review -p . --json
     report: json
@@ -73,8 +73,8 @@ narration:
     highlight: { text: [Terminology, facturation] }
     caption: The recipe's two rules, inside the prompt that drafts.
     text: >-
-      Each rule names a term, what the French must say for it, and how hard it
-      bites. Ask the drafting step to show its prompt and the same two rules are
+      Each rule names a term, what the French must say for it, and whether a
+      miss fails. Ask the drafting step to show its prompt and the same two rules are
       in it, word for word, so a model is told what the gate will hold it to.
 
   - id: standing
@@ -82,9 +82,9 @@ narration:
     through: 9
     caption: One list, both languages, then narrowed to French.
     text: >-
-      French is drafted and nothing has been read by a person yet. One queue
-      holds every language, including the source, and a source row carries its
-      own marker.
+      French is translated and nothing has been established by a person yet.
+      One queue holds every language, including the source, and a source row
+      carries its own marker.
 
   - id: approve
     kind: terminal
@@ -101,8 +101,8 @@ narration:
     caption: French is gone. The source rows are still open.
     text: >-
       Afterwards the French rows are gone and the source rows are still here,
-      because Voltway signs off its own wording before a translation ships from
-      it.
+      because Voltway establishes its own wording before a translation ships
+      from it.
 
   - id: outro
     kind: outro
