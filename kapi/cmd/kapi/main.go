@@ -5,6 +5,8 @@ import (
 
 	"github.com/neokapi/neokapi/cli"
 
+	// The S3 context backend registers itself on import.
+	_ "github.com/neokapi/neokapi/host/s3remote"
 	// The kapi-level MCP porcelain registers itself on import.
 	_ "github.com/neokapi/neokapi/kapi/mcptools"
 )
