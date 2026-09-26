@@ -43,8 +43,9 @@ func registerContextMCPTools(server *mcp.Server, a *App) {
 		Description: "Ask what this project says about one word or phrase: what it is called here, whether " +
 			"it is discouraged and what to say instead, and wording the project has already approved. " +
 			"For everything that applies to a file, read context://<path> instead. " +
-			"An empty answer means nothing is recorded about the word; if the project keeps to a spelling " +
-			"for it, record that with context_observe. `attention` says what a person must act on, such as " +
+			"An empty answer means nothing is recorded about the word; if the files always write it one " +
+			"way, record that with context_observe, and leave it alone if they write it more than one way. " +
+			"`attention` says what a person must act on, such as " +
 			"context files nobody has imported.",
 	}, a.handleContextSearch)
 

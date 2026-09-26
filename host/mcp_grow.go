@@ -40,11 +40,15 @@ func init() { RegisterMCPToolFactory(registerContextGrowthMCPTools) }
 func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_observe",
-		Description: "Record one thing you notice about how this project writes, as soon as you notice it. " +
-			"For a name or spelling the project keeps to, pass `term` with the form it uses and `instead_of` " +
-			"with forms it avoids; kapi adds the spacing, hyphen and case variants. Otherwise say it in " +
-			"`text`. Give `path` and `quote` for where you saw it. It is a suggestion: checks report it, " +
-			"none fails on it, and a person keeps it.",
+		Description: "Record one thing this project's files do every time, as soon as you notice it, " +
+			"including what your own text does not use: a product, feature or plan name as written, the " +
+			"spelling variety, or a word chosen over a common alternative. For a name or word, pass `term` " +
+			"with the form the files use and `instead_of` with the form they avoid: the split form of a " +
+			"one-word name, the other spelling, or the other word. kapi adds the spacing, hyphen and case " +
+			"variants. Say anything else, such as the spelling variety, in `text`. Give `path` and `quote` " +
+			"from a file that was there before you started. Leave alone a word the files write more than " +
+			"one way, an interface label, and wording taken from your task. It is a suggestion: checks " +
+			"report it, none fails on it, and a person keeps it.",
 	}, a.handleContextObserve)
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -64,7 +68,9 @@ func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "context_session_summary",
 		Description: "Report what this session recorded. Call it before you say the work is done and end " +
-			"your report with what it says, including the command a person reviews the session with.",
+			"your report with what it says, including the command a person reviews the session with. " +
+			"First record, with context_observe, any name, spelling variety or word choice the files you " +
+			"read keep every time and this session has not recorded yet.",
 	}, a.handleContextSessionSummary)
 }
 

@@ -23,11 +23,27 @@ kapi context correct "sign in" "log in" --seen-in web/src/auth.tsx --suggest
 Over MCP the same two are `context_observe` (with `term` and `instead_of`) and
 `context_correct`.
 
-- **Observe** what you notice. A fact in prose, such as who the text addresses
-  or the register it keeps, states no rule. A name or spelling the project keeps
-  to is a rule: pass `--term` with the form the project uses and `--instead-of`
-  with a form it avoids, and kapi adds the spacing, hyphen and case variants
-  (`Quickcast` avoids `Quick cast`, `Quick-cast`, `QuickCast` and `quickcast`).
+- **Observe** what the project's files do every time, whether or not your own
+  text needs it. Look for three kinds in every project:
+  - each product, feature and plan name, as the files write it;
+  - the spelling variety (British or American), as a fact in prose with two or
+    three words that show it;
+  - a word the files always use where writers often use another.
+
+  A name or word is a rule: pass `--term` with the form the files use and
+  `--instead-of` with the form they avoid, which is the split form of a
+  one-word name, the other spelling, or the other word. kapi adds the spacing,
+  hyphen and case variants (`Quickcast` avoids `Quick cast`, `Quick-cast`,
+  `QuickCast` and `quickcast`). A fact in prose, such as who the text addresses
+  or the register it keeps, states no rule.
+
+  Before you record a word, search the files for its other forms (spaced,
+  hyphenated, closed, the other spelling). A word they write more than one way
+  is a choice the project has not made, so leave it for a person. Leave alone
+  interface labels, wording taken from your task, anything seen once, and a
+  name you introduced yourself; `--seen-in` names a file that was there before
+  you started.
+
   Everything recorded is a **suggestion**: every check reports it, and no check
   can fail on it until a person's signal backs it. Never tell the user a rule
   is in force because you observed one.

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // The instructions are the only text some clients ever read about kapi: a host
@@ -61,4 +62,38 @@ func TestMCPInstructionsFollowTheSets(t *testing.T) {
 	assert.Equal(t, MCPInstructions(), MCPInstructionsFor(nil))
 	assert.Equal(t, MCPInstructions(), MCPInstructionsFor(map[string]bool{MCPSetWriting: true, MCPSetReview: true}))
 	assert.Empty(t, MCPInstructionsFor(map[string]bool{MCPSetReview: true}))
+}
+
+// TestRecordingGuidanceSaysWhatToRecordAndWhatToLeave holds every surface that
+// asks an agent to record to both halves of the habit. An agent told only to
+// record what it notices records what its own page touched and misses the
+// names it read; an agent pushed to record more turns a word the project
+// writes two ways into a rule. So each text names what to record, including
+// what the agent's own text does not use, and names the word to leave alone.
+func TestRecordingGuidanceSaysWhatToRecordAndWhatToLeave(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	tools, err := growthSession(t, app).ListTools(t.Context(), nil)
+	require.NoError(t, err)
+	var observe string
+	for _, tool := range tools.Tools {
+		if tool.Name == "context_observe" {
+			observe = tool.Description
+		}
+	}
+	require.NotEmpty(t, observe)
+
+	for surface, text := range map[string]string{
+		"the server instructions":         MCPInstructions(),
+		"the answer with nothing in it":   recordingAdvice,
+		"the context_observe description": observe,
+	} {
+		for _, want := range []string{"name", "spelling variety"} {
+			assert.Containsf(t, text, want, "%s says what to record", surface)
+		}
+		assert.Regexpf(t, `your (own )?text does not`, text,
+			"%s asks for what the agent's own text does not use too", surface)
+		assert.Truef(t, strings.Contains(text, "two ways") || strings.Contains(text, "more than one way"),
+			"%s says to leave alone a word the project writes more than one way", surface)
+		assert.NotContainsf(t, text, "—", "%s has no em dash", surface)
+	}
 }

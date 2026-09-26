@@ -875,6 +875,15 @@ func termRank(h ContextTermHit) int {
 	}
 }
 
+// recordingAdvice closes an answer that has room to grow: what to record while
+// reading the project, and what to leave alone. It names the conventions a
+// writer relies on whether or not the page at hand uses them, because an agent
+// told only to record what it notices records what its own page touched.
+const recordingAdvice = "As you read the files around it, record with context_observe " +
+	"(or `kapi context observe`) what they do every time, including names your text does not use: " +
+	"each product, feature and plan name as written, the spelling variety, and a word chosen over " +
+	"a common alternative. Leave alone a word they write more than one way."
+
 // FormatText renders the answer as the brief a writer reads before changing a
 // file: the voice, what to say and what not, what has been suggested and not
 // yet established, and what to record while working. It lives on the shared
@@ -922,12 +931,10 @@ func (r *ContextAnswer) FormatText(w io.Writer) error {
 	case r.VoiceBrief == "" && len(r.Rules) == 0 && len(r.Suggestions) == 0:
 		fmt.Fprintf(w, "\nNothing is recorded for %s yet. Write as the surrounding files do.\n", subject)
 		if recordable {
-			fmt.Fprintln(w, "\nWhile you read, record the names and spellings this project keeps to, such as a product "+
-				"or feature name, with context_observe (or `kapi context observe`).")
+			fmt.Fprintln(w, "\n"+recordingAdvice)
 		}
 	case recordable:
-		fmt.Fprintf(w, "\nNothing else is recorded for %s. If you notice a name or spelling the project keeps to, "+
-			"record it with context_observe (or `kapi context observe`).\n", subject)
+		fmt.Fprintf(w, "\nNothing else is recorded for %s. %s\n", subject, recordingAdvice)
 	}
 	if r.Provenance != nil && r.Provenance.Sync != nil {
 		fmt.Fprintf(w, "\n%s\n", r.Provenance.Sync.Line)
