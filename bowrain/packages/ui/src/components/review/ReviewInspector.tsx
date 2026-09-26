@@ -21,7 +21,7 @@ import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { getBlockStatus, getTargetText, targetLadderStatus } from "../editor/blockStatus";
 import { findingViews, latestNote, termHitViews } from "./reviewContext";
-import { Check, CheckCheck, Pencil, X } from "../icons";
+import { Check, Pencil, X } from "../icons";
 
 export interface ReviewInspectorProps {
   /** The block under review; null closes the panel. */
@@ -61,7 +61,6 @@ export interface ReviewInspectorProps {
   onClose: () => void;
   onApprove: () => void;
   /** Sign the target off: the rung above reviewed on the target ladder. */
-  onSignOff: () => void;
   onReject: () => void;
   onEditToggle: () => void;
   onSaveEdit: (result: UnifiedSaveResult) => void | Promise<void>;
@@ -77,7 +76,7 @@ export interface ReviewInspectorProps {
  *
  * The content-model view is the shared kit's BlockInspector, so a block reads
  * here exactly as it reads in the desktop app's preview. Everything below it is
- * the review act: edit the target, approve, sign off, reject, or hold the
+ * the review act: edit the target, approve, reject, or hold the
  * block for the batch.
  */
 export function ReviewInspector({
@@ -96,7 +95,6 @@ export function ReviewInspector({
   marked,
   onClose,
   onApprove,
-  onSignOff,
   onReject,
   onEditToggle,
   onSaveEdit,
@@ -281,7 +279,7 @@ export function ReviewInspector({
             size="sm"
             variant="success"
             onClick={onApprove}
-            disabled={busy || bucket === "reviewed" || !hasTarget || !canApprove}
+            disabled={busy || bucket === "established" || !hasTarget || !canApprove}
             title={
               canApprove ? undefined : "Approving needs the review permission for this language"
             }
@@ -289,22 +287,6 @@ export function ReviewInspector({
           >
             <Check className="mr-1 h-4 w-4" /> Approve
             <kbd className="ml-1.5 rounded bg-white/20 px-1 text-[10px]">A</kbd>
-          </Button>
-          {/* Sign off sits beside Approve in the same accepting colour (see
-              packages/ui/docs/judgement-colours.md); a target already at
-              signed-off has nothing left to sign. */}
-          <Button
-            size="sm"
-            variant="success"
-            onClick={onSignOff}
-            disabled={busy || status === "signed-off" || !hasTarget || !canApprove}
-            title={
-              canApprove ? undefined : "Signing off needs the review permission for this language"
-            }
-            data-testid={block ? `sign-off-${block.id}` : undefined}
-          >
-            <CheckCheck className="mr-1 h-4 w-4" /> Sign off
-            <kbd className="ml-1.5 rounded bg-white/20 px-1 text-[10px]">S</kbd>
           </Button>
           <Button
             size="sm"

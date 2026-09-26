@@ -1322,17 +1322,9 @@ export async function injectMockBackend(page: Page) {
       }
       block.targets[targetLocale] = {
         text,
-        // The optional status picks the rung within each direction: a sign-off
-        // (reviewed=true + "signed-off") lands above reviewed, a rejection
-        // (reviewed=false + "draft") demotes to draft, and either default
-        // lands on reviewed or translated.
-        status: reviewed
-          ? status === "signed-off"
-            ? "signed-off"
-            : "reviewed"
-          : status === "draft"
-            ? "draft"
-            : "translated",
+        // An approval lands on established; a rejection (reviewed=false +
+        // "draft") demotes to draft, and a plain un-review to translated.
+        status: reviewed ? "established" : status === "draft" ? "draft" : "translated",
       };
     };
 

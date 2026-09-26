@@ -1231,7 +1231,7 @@ func decisionsSim(ctx context.Context, ps *parentStores, cfg config, rec *record
 			return nil
 		case <-puts.C:
 			u := makeUnitState(i % cfg.units)
-			u.Status = model.TargetStatusReviewed
+			u.Status = model.TargetStatusEstablished
 			i++
 			_ = rec.observe(nW4Put, func() error { return ps.work.Put(ctx, u) })
 		case <-commits.C:

@@ -144,14 +144,12 @@ describe("StatusBadge", () => {
   const contentLabels: Record<string, string> = {
     draft: "Draft",
     translated: "Translated",
-    reviewed: "Reviewed",
-    "signed-off": "Signed off",
+    established: "Established",
   };
   const contentTones: Record<string, string> = {
     draft: "start",
     translated: "middle",
-    reviewed: "earned",
-    "signed-off": "settled",
+    established: "settled",
   };
 
   it("draws every rung of the content ladder", () => {
@@ -167,14 +165,12 @@ describe("StatusBadge", () => {
   });
 
   const sourceLabels: Record<string, string> = {
-    authored: "Authored",
-    checked: "Checked",
-    approved: "Approved",
+    written: "Written",
+    established: "Established",
   };
   const sourceTones: Record<string, string> = {
-    authored: "start",
-    checked: "earned",
-    approved: "settled",
+    written: "middle",
+    established: "settled",
   };
 
   it("draws every rung of the source ladder", () => {

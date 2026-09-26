@@ -232,8 +232,8 @@ export interface Run {
 
 /**
  * One locale's committed target: plain text plus the per-locale review status
- * (the model.Target.Status ladder, "" | draft | translated | reviewed |
- * signed-off). Mirrors the Wails backend `BlockTargetInfo`.
+ * (the model.Target.Status ladder, "" | draft | translated | established).
+ * Mirrors the Wails backend `BlockTargetInfo`.
  */
 export interface BlockTargetInfo {
   text: string;

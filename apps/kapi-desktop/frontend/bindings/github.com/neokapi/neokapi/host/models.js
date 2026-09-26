@@ -1825,7 +1825,7 @@ export class ConvergeOutput {
         if (/** @type {any} */(false)) {
             /**
              * SourceGate is the resolved source-first gate level applied
-             * (none|authored|checked|approved), for observability. Empty when no gate
+             * (none|written|established), for observability. Empty when no gate
              * was evaluated (no content).
              * @member
              * @type {string | undefined}

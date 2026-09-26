@@ -252,16 +252,6 @@ describe("ReviewPage", () => {
     expect(onDecide).not.toHaveBeenCalled();
   });
 
-  it("signs off with s", async () => {
-    const { onDecide } = renderPage();
-    await waitFor(() =>
-      expect(document.querySelector("[data-slot='review-queue-item'][data-active]")).not.toBeNull(),
-    );
-    fireEvent.keyDown(window, { key: "s" });
-    await waitFor(() => expect(onDecide).toHaveBeenCalledTimes(1));
-    expect(onDecide.mock.calls[0][1]).toBe("signed-off");
-  });
-
   it("filters with the findings chips", async () => {
     renderPage();
     await screen.findByText("locales/de-DE.json");
@@ -484,8 +474,6 @@ describe("ReviewPage", () => {
     const result: PreReviewResult = {
       model: "claude-x",
       reviewed: 3,
-      auto_approved: 0,
-      remaining: 3,
     };
     const onPreReview = vi.fn(async () => result);
     renderPage({ onPreReview });
@@ -495,38 +483,24 @@ describe("ReviewPage", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: /Run pre-review/ }));
     await waitFor(() => expect(onPreReview).toHaveBeenCalledTimes(1));
-    // Annotate-only is the default policy.
-    expect(onPreReview.mock.calls[0][2]).toEqual({ autoApprove: false, minScore: 90 });
     await waitFor(() =>
       expect(document.querySelector("[data-slot='review-prereview-result']")).not.toBeNull(),
     );
     expect(document.querySelector("[data-slot='review-prereview-result']")?.textContent).toContain(
-      "0 auto-approved",
+      "3 units scored",
     );
     await userEvent.click(screen.getByRole("button", { name: /Close/ }));
     expect(document.querySelector("[data-slot='review-prereview-modal']")).toBeNull();
   });
 
-  it("pre-review passes the auto-approve policy and scope filters", async () => {
-    const onPreReview = vi.fn(async () => ({
-      model: "claude-x",
-      reviewed: 1,
-      auto_approved: 1,
-      remaining: 0,
-    }));
+  it("pre-review passes the scope filters", async () => {
+    const onPreReview = vi.fn(async () => ({ model: "claude-x", reviewed: 1 }));
     renderPage({ onPreReview, scope: { locale: "fr-FR", collection: "Docs" } });
     await userEvent.click(await screen.findByRole("button", { name: /AI pre-review/ }));
-    const auto = await waitFor(() => {
-      const el = document.querySelector("[data-slot='review-prereview-auto']") as HTMLInputElement;
-      expect(el).not.toBeNull();
-      return el;
-    });
-    await userEvent.click(auto);
-    await userEvent.click(screen.getByRole("button", { name: /Run pre-review/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /Run pre-review/ }));
     await waitFor(() => expect(onPreReview).toHaveBeenCalledTimes(1));
     expect(onPreReview.mock.calls[0][0]).toBe("fr-FR");
     expect(onPreReview.mock.calls[0][1]).toEqual({ collection: "Docs" });
-    expect(onPreReview.mock.calls[0][2]).toEqual({ autoApprove: true, minScore: 90 });
   });
 });
 
@@ -755,7 +729,7 @@ const SOURCE_ROW: ReviewItem = {
   collection: "App",
   sourceLocale: "en-US",
   source: "Hello {name}",
-  status: "checked",
+  status: "written",
   held: true,
 };
 
@@ -932,17 +906,15 @@ describe("ReviewPage source rows", () => {
     await waitFor(() => expect(onApproveSource).toHaveBeenCalledTimes(1));
   });
 
-  // There is no source reject and no rung above approval, so neither button is
-  // drawn and neither key answers.
-  it("offers no reject or sign-off on a source row", async () => {
+  // There is no source reject, so the button is not drawn and the key does not
+  // answer.
+  it("offers no reject on a source row", async () => {
     const { onApproveSource } = renderSource();
     await waitFor(() =>
       expect(document.querySelector("[data-slot='source-unit-pane']")).not.toBeNull(),
     );
     expect(document.querySelector("[data-slot='review-reject']")).toBeNull();
-    expect(document.querySelector("[data-slot='review-signoff']")).toBeNull();
     fireEvent.keyDown(window, { key: "r" });
-    fireEvent.keyDown(window, { key: "s" });
     await new Promise((r) => setTimeout(r, 20));
     expect(document.querySelector("[data-slot='review-ask-input']")).toBeNull();
     expect(onApproveSource).not.toHaveBeenCalled();

@@ -454,9 +454,6 @@ export function ReviewSession({
   const approve = useCallback(() => {
     if (current) void decide(current, true);
   }, [current, decide]);
-  const signOff = useCallback(() => {
-    if (current) void decide(current, true, "signed-off");
-  }, [current, decide]);
   const reject = useCallback(() => {
     if (current) void decide(current, false);
   }, [current, decide]);
@@ -617,10 +614,6 @@ export function ReviewSession({
           e.preventDefault();
           approve();
           break;
-        case "s":
-          e.preventDefault();
-          signOff();
-          break;
         case "r":
           e.preventDefault();
           reject();
@@ -635,7 +628,7 @@ export function ReviewSession({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [editing, busy, move, approve, signOff, reject, current]);
+  }, [editing, busy, move, approve, reject, current]);
 
   // The context the current unit is decided in. It is fetched for the unit
   // under the cursor rather than carried on every queue row: a page of the
@@ -885,7 +878,6 @@ export function ReviewSession({
               context={reviewContext}
               contextLoading={contextLoading}
               onApprove={approve}
-              onSignOff={signOff}
               onReject={reject}
               onEditToggle={() => setEditing((v) => !v)}
               onSaveEdit={(result) => saveEdit(current, result)}

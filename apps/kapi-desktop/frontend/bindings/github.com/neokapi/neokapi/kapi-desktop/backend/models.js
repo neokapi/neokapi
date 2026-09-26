@@ -6062,49 +6062,7 @@ export class PointDTO {
 }
 
 /**
- * PreReviewPolicy decides what the pre-review may do. Annotate-only (the
- * default: AutoApprove false) stores score + findings so the queue can show
- * them; with AutoApprove, units scoring at least MinScore AND free of
- * critical/major deterministic-check findings are approved with the identity
- * "ai/<model-id>".
- */
-export class PreReviewPolicy {
-    /**
-     * Creates a new PreReviewPolicy instance.
-     * @param {Partial<PreReviewPolicy>} [$$source = {}] - The source object to create the PreReviewPolicy.
-     */
-    constructor($$source = {}) {
-        if (!("autoApprove" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["autoApprove"] = false;
-        }
-        if (!("minScore" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["minScore"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new PreReviewPolicy instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PreReviewPolicy}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new PreReviewPolicy(/** @type {Partial<PreReviewPolicy>} */($$parsedSource));
-    }
-}
-
-/**
- * PreReviewResult summarizes a pre-review run: N auto-approved · M left.
+ * PreReviewResult summarizes a pre-review run.
  */
 export class PreReviewResult {
     /**
@@ -6114,7 +6072,7 @@ export class PreReviewResult {
     constructor($$source = {}) {
         if (!("model" in $$source)) {
             /**
-             * Model is the reviewer model id (what "ai/<model-id>" identities carry).
+             * Model is the reviewer model id the annotations carry.
              * @member
              * @type {string}
              */
@@ -6127,22 +6085,6 @@ export class PreReviewResult {
              * @type {number}
              */
             this["reviewed"] = 0;
-        }
-        if (!("auto_approved" in $$source)) {
-            /**
-             * AutoApproved counts units approved under the policy.
-             * @member
-             * @type {number}
-             */
-            this["auto_approved"] = 0;
-        }
-        if (!("remaining" in $$source)) {
-            /**
-             * Remaining counts reviewed units still awaiting a human decision.
-             * @member
-             * @type {number}
-             */
-            this["remaining"] = 0;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -7585,8 +7527,8 @@ export class ReviewUnitDetail {
         }
         if (!("status" in $$source)) {
             /**
-             * Status is the unit's effective ladder state (draft|translated|reviewed|
-             * signed-off), with a fresh state-store decision applied over the presence
+             * Status is the unit's effective ladder state (draft|translated|
+             * established), with a fresh state-store decision applied over the presence
              * baseline.
              * @member
              * @type {string}
@@ -7596,7 +7538,7 @@ export class ReviewUnitDetail {
         if (/** @type {any} */(false)) {
             /**
              * ReviewState/Note carry the last recorded decision when it still judges
-             * the current translation (approved | rejected | signed-off).
+             * the current translation (approved | rejected).
              * @member
              * @type {string | undefined}
              */

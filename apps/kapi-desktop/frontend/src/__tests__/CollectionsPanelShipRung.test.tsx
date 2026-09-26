@@ -6,7 +6,7 @@ const scope = (over: Partial<LocaleCoverage>): LocaleCoverage => ({
   locale: "nb",
   collection: "docs",
   total: 10,
-  pct: { translated: 100, reviewed: 0 },
+  pct: { translated: 100, established: 0 },
   gated: false,
   shippable: true,
   ...over,
@@ -22,7 +22,9 @@ describe("rungFor", () => {
   });
 
   it("shows a reviewed scope no gate matches as in review", () => {
-    const rung = rungFor(scope({ shipState: "not_gated", pct: { translated: 100, reviewed: 40 } }));
+    const rung = rungFor(
+      scope({ shipState: "not_gated", pct: { translated: 100, established: 40 } }),
+    );
     expect(rung.label).toBe("In review");
   });
 

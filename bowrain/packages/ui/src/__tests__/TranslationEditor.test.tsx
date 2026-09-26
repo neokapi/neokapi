@@ -176,7 +176,7 @@ describe("TranslationEditor — the search and the counts are server queries", (
           total: 40,
           translatable: 36,
           locale: "fr-FR",
-          status: { "not-started": 20, draft: 5, translated: 4, reviewed: 7 },
+          status: { "not-started": 20, draft: 5, translated: 4, established: 7 },
         });
       },
     });
@@ -187,7 +187,7 @@ describe("TranslationEditor — the search and the counts are server queries", (
     );
     const text = screen.getByTestId("progress-text").textContent ?? "";
     expect(text).toContain("44%");
-    expect(text).toContain("7 reviewed");
+    expect(text).toContain("7 established");
     expect(text).toContain("20 pending");
   });
 });
@@ -216,7 +216,7 @@ describe("TranslationEditor — review actions persist via api.reviewBlock", () 
       expect(screen.getByTestId("status-bar").textContent).toContain("Block 2 of 3"),
     );
     await user.click(screen.getByTestId("prev-block-btn"));
-    expect(screen.getByText("Reviewed")).toBeInTheDocument();
+    expect(screen.getByText("Established")).toBeInTheDocument();
   });
 
   it("Reject calls reviewBlock with reviewed=false + draft (re-enters the work queue)", async () => {
@@ -238,26 +238,6 @@ describe("TranslationEditor — review actions persist via api.reviewBlock", () 
     });
   });
 
-  it("Sign off calls reviewBlock with the signed-off rung and advances", async () => {
-    const user = userEvent.setup();
-    const { adapter } = renderEditor({ view: "visual" });
-    await waitForBlocks(3);
-
-    await user.click(screen.getByRole("tab", { name: "Review" }));
-    await user.click(screen.getByTestId("sign-off-btn"));
-
-    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
-    expect(adapter.reviewBlockCalls[0]).toMatchObject({
-      blockId: "b1",
-      targetLocale: "fr-FR",
-      reviewed: true,
-      rung: "signed-off",
-    });
-    await waitFor(() =>
-      expect(screen.getByTestId("status-bar").textContent).toContain("Block 2 of 3"),
-    );
-  });
-
   it("rolls back the optimistic status, stays on the block, and surfaces an error when the call fails", async () => {
     const user = userEvent.setup();
     const { adapter } = renderEditor({ view: "visual" });
@@ -269,7 +249,7 @@ describe("TranslationEditor — review actions persist via api.reviewBlock", () 
     await user.click(screen.getByTestId("approve-btn"));
 
     await waitFor(() =>
-      expect(screen.getByText("Couldn't mark the block as reviewed")).toBeInTheDocument(),
+      expect(screen.getByText("Couldn't mark the block as established")).toBeInTheDocument(),
     );
     expect(adapter.reviewBlockCalls).toHaveLength(1);
     // Approve only advances after a SUCCESSFUL persist — on failure the
@@ -277,7 +257,7 @@ describe("TranslationEditor — review actions persist via api.reviewBlock", () 
     // error refers to the block on screen.
     expect(screen.getByTestId("status-bar").textContent).toContain("Block 1 of 3");
     expect(screen.getByText("Translated")).toBeInTheDocument();
-    expect(screen.queryByText("Reviewed")).not.toBeInTheDocument();
+    expect(screen.queryByText("Established")).not.toBeInTheDocument();
   });
 
   it("disables Approve for an untranslated block (the server would 422 it)", async () => {
@@ -304,13 +284,13 @@ describe("TranslationEditor — saving an edit preserves the per-locale review s
     const user = userEvent.setup();
     const reviewed: BlockInfo = {
       ...makeBlock("b1", "Hello world", "Bonjour le monde"),
-      targets: { "fr-FR": { text: "Bonjour le monde", status: "reviewed" } },
+      targets: { "fr-FR": { text: "Bonjour le monde", status: "established" } },
     };
     const { adapter } = renderEditor({ view: "visual", blocks: [reviewed] });
     const updateCodedSpy = vi.spyOn(adapter, "updateBlockTargetCoded");
     await waitForBlocks(1);
 
-    expect(screen.getByText("Reviewed")).toBeInTheDocument();
+    expect(screen.getByText("Established")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("target-display"));
     await screen.findByTestId("unified-target-editor");
@@ -321,7 +301,7 @@ describe("TranslationEditor — saving an edit preserves the per-locale review s
     // applies (statusAfterEdit), so the optimistic {text, status} entry keeps
     // Reviewed — matching the server, which only demotes a reviewed target
     // when the content actually changes.
-    await waitFor(() => expect(screen.getByText("Reviewed")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Established")).toBeInTheDocument());
     expect(screen.queryByText("Translated")).not.toBeInTheDocument();
   });
 });

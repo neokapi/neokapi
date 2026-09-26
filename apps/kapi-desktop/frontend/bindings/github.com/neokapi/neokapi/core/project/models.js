@@ -1270,7 +1270,7 @@ export class KapiProject {
             /**
              * Verified gates decide when localized content is "human-verified": the
              * second gate, evaluated exactly like the ship gate but against a bar that
-             * implies a person reviewed or signed off the work (e.g. {reviewed: 100}).
+             * implies a person established the work (e.g. {reviewed: 100}).
              * A locale that clears its ship gate but not its verified gate ships flagged
              * AI in a language picker; a verified locale carries no badge. The two gates
              * are independent — being verified is not a prerequisite for shipping. Same
@@ -1296,7 +1296,7 @@ export class KapiProject {
         if (/** @type {any} */(false)) {
             /**
              * SourceGate is the source-readiness bar: a single coverage gate over the
-             * source authoring ladder (authored → checked → approved), e.g.
+             * source authoring ladder (written→established), e.g.
              * {checked: 100}. It is the source-side counterpart of ShipGate — it gates
              * the author's own content, not the translations. BuildSourceGate
              * resolves it; evaluated by `kapi check --ship` (never an ordinary

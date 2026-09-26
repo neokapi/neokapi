@@ -41,8 +41,6 @@ export function decisionLabel(state: string | undefined): string | undefined {
       return t("Approved");
     case "rejected":
       return t("Rejected");
-    case "signed-off":
-      return t("Signed off");
     default:
       return state || undefined;
   }

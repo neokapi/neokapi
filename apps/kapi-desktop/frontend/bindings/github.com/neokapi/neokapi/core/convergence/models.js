@@ -409,7 +409,7 @@ export class LocaleCoverage {
         if (!("verified" in $$source)) {
             /**
              * Verified reports whether the scope clears its verified gate — the second,
-             * independent bar meaning a person reviewed or signed off the content. It is
+             * independent bar meaning a person established the content. It is
              * evaluated exactly like Shippable but against the recipe's verified gate.
              * With no verified gate configured for the scope, Verified is false (nothing
              * is verified by default): a shippable-but-unverified locale is flagged AI in
@@ -421,10 +421,10 @@ export class LocaleCoverage {
         }
         if (/** @type {any} */(false)) {
             /**
-             * AIReviewed counts units whose reviewed/signed-off rung was reached by an
+             * AIReviewed counts units whose established rung was reached by an
              * autonomous AI decision ("ai/…" identity). They read as reviewed in Pct —
              * with an "(ai)" qualifier in displays — but do not satisfy a gate's
-             * reviewed/signed-off threshold unless it says `by: any` (core/gate).
+             * established threshold unless it says `by: any` (core/gate).
              * @member
              * @type {number | undefined}
              */
@@ -802,7 +802,7 @@ export class ReviewQueueItem {
         if (/** @type {any} */(false)) {
             /**
              * Status is the unit's rung on its own ladder: `translated` for a queued
-             * translation, and the settled source rung (authored|checked|approved) for
+             * translation, and the settled source rung (written|established) for
              * a source unit.
              * @member
              * @type {string | undefined}
@@ -811,9 +811,8 @@ export class ReviewQueueItem {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Held reports a source unit ranked below the project's source gate, so the
-             * loop holds its translations. False for a translation, and for a source
-             * unit that clears the gate and is queued for a sign-off the gate asks for.
+             * Held reports a source unit the project's source gate holds, so the loop
+             * holds its translations. False for a translation.
              * @member
              * @type {boolean | undefined}
              */
@@ -957,7 +956,7 @@ export const ShipState = {
 
 /**
  * SourceCoverage is the source-readiness view for the project: how far its source
- * content has progressed along the authoring ladder (authored → checked →
+ * content has progressed along the authoring ladder (written →
  * approved) and whether it clears the optional source gate. Source content is
  * shared across all target locales, so this rolls up project-wide over the
  * distinct source files (deduped), not per-locale.

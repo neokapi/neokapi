@@ -58,7 +58,7 @@ const SEARCH_DEBOUNCE_MS = 250;
 const EMPTY_COUNTS: BlockCounts = {
   total: 0,
   translatable: 0,
-  status: { "not-started": 0, draft: 0, translated: 0, reviewed: 0 },
+  status: { "not-started": 0, draft: 0, translated: 0, established: 0 },
 };
 
 interface TranslationEditorProps {
@@ -471,9 +471,8 @@ export function TranslationEditor({
   // state the write actually replaced, not a possibly stale component-scope
   // block — and restores only the status field, so a target save that lands
   // while the review call is in flight is preserved. `rung` picks where the
-  // call lands within its direction: "signed-off" on an approval, "draft" on a
-  // clearing call for a reviewer rejection, and either default at reviewed or
-  // translated.
+  // call lands on a clearing call: "draft" for a reviewer rejection,
+  // translated by default. An approval always lands on established.
   const applyReview = useCallback(
     async (block: BlockInfo, reviewed: boolean, rung?: ReviewRung): Promise<boolean> => {
       // Clearing the review state of a locale with no translation is a no-op:
@@ -483,13 +482,7 @@ export function TranslationEditor({
       // server's 422).
       if (!reviewed && !getTargetText(block, targetLocale).trim()) return true;
       capture(AnalyticsEvents.reviewDecisionClicked, {
-        decision: reviewed
-          ? rung === "signed-off"
-            ? "sign_off"
-            : "approve"
-          : rung === "draft"
-            ? "reject"
-            : "clear",
+        decision: reviewed ? "approve" : rung === "draft" ? "reject" : "clear",
         locale: targetLocale,
       });
       let snapshot: TargetStatusSnapshot = { existed: false, status: "" };
@@ -500,7 +493,7 @@ export function TranslationEditor({
           return withTargetStatus(
             b,
             targetLocale,
-            reviewed ? (rung === "signed-off" ? "signed-off" : "reviewed") : (rung ?? "translated"),
+            reviewed ? "established" : (rung ?? "translated"),
           );
         }),
       );
@@ -516,9 +509,7 @@ export function TranslationEditor({
         );
         setError({
           title: reviewed
-            ? rung === "signed-off"
-              ? "Couldn't sign the block off"
-              : "Couldn't mark the block as reviewed"
+            ? "Couldn't mark the block as established"
             : "Couldn't update the review status",
           cause: e,
         });
@@ -549,18 +540,6 @@ export function TranslationEditor({
     // bounce the reviewer to the next block and then surface the rollback +
     // error for a block no longer on screen.
     void applyReview(block, true).then((ok) => {
-      if (ok) setSelectedIndex((i) => (i === index && i < total - 1 ? i + 1 : i));
-    });
-  }, [blocks, selectedIndex, targetLocale, applyReview]);
-
-  // Signing off promotes the target to the rung above reviewed, and advances
-  // for the same reason an approval does: the unit is decided either way.
-  const handleVisualSignOff = useCallback(() => {
-    const block = blocks[selectedIndex];
-    if (!block || !getTargetText(block, targetLocale).trim()) return;
-    const index = selectedIndex;
-    const total = blocks.length;
-    void applyReview(block, true, "signed-off").then((ok) => {
       if (ok) setSelectedIndex((i) => (i === index && i < total - 1 ? i + 1 : i));
     });
   }, [blocks, selectedIndex, targetLocale, applyReview]);
@@ -719,12 +698,12 @@ export function TranslationEditor({
   // Build progress bar segments
   const progressSegments = (
     <div className="flex h-full w-full absolute top-0 left-0">
-      {statusCounts.reviewed > 0 && (
+      {statusCounts.established > 0 && (
         <div
-          data-testid="progress-reviewed"
+          data-testid="progress-established"
           className="bg-success opacity-40"
           style={{
-            width: `${(statusCounts.reviewed / Math.max(translatableCount, 1)) * 100}%`,
+            width: `${(statusCounts.established / Math.max(translatableCount, 1)) * 100}%`,
           }}
         />
       )}
@@ -750,7 +729,8 @@ export function TranslationEditor({
   );
 
   const progressBreakdown: string[] = [];
-  if (statusCounts.reviewed > 0) progressBreakdown.push(`${statusCounts.reviewed} reviewed`);
+  if (statusCounts.established > 0)
+    progressBreakdown.push(`${statusCounts.established} established`);
   if (statusCounts.translated > 0) progressBreakdown.push(`${statusCounts.translated} translated`);
   if (statusCounts.draft > 0) progressBreakdown.push(`${statusCounts.draft} draft`);
   if (statusCounts["not-started"] > 0)
@@ -851,7 +831,6 @@ export function TranslationEditor({
                 onSave={handleVisualSave}
                 onCancelEditing={() => setEditingIndex(null)}
                 onApprove={handleVisualApprove}
-                onSignOff={handleVisualSignOff}
                 onReject={handleVisualReject}
                 memoryMatches={memoryMatches}
                 termMatches={termMatches}

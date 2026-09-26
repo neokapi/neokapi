@@ -131,7 +131,7 @@ export function statusAfterEdit(
   newCoded?: string,
 ): TargetStatus {
   const prev = getTargetStatus(block, locale);
-  if (prev !== "reviewed" && prev !== "signed-off") return prev;
+  if (prev !== "established") return prev;
   const prevCoded = getTargetCoded(block, locale);
   const changed =
     newCoded !== undefined && prevCoded !== ""
@@ -143,10 +143,10 @@ export function statusAfterEdit(
 /** Derive a block's translation status for a given target locale. */
 export function getBlockStatus(block: BlockInfo, locale: string): BlockStatus {
   // Canonical: per-locale Target.Status on the block's target for this locale.
-  // Reviewed/signed-off are trusted as-is — the server refuses to approve an
-  // empty translation, so a reviewed entry always carries text.
+  // Established is trusted as-is: the server refuses to approve an empty
+  // translation, so an established entry always carries text.
   const status = getTargetStatus(block, locale);
-  if (status === "reviewed" || status === "signed-off") return "reviewed";
+  if (status === "established") return "established";
   // Every lower rung only means something when the locale actually has target
   // text: a status entry without text (a phantom optimistic write, or the
   // legacy block-global flag on a locale that was never translated) is still
@@ -156,7 +156,7 @@ export function getBlockStatus(block: BlockInfo, locale: string): BlockStatus {
   if (status === "translated") return "translated";
   if (status === "draft") return "draft";
   // Legacy block-global property — read fallback only (pre-per-locale blocks).
-  if (block.properties["translation-status"] === "reviewed") return "reviewed";
+  if (block.properties["translation-status"] === "reviewed") return "established";
   if (block.properties["translation-status"] === "draft") return "draft";
   if (
     block.properties["translation-origin"] === "machine" ||

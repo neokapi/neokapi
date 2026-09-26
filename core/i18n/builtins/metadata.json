@@ -872,17 +872,14 @@
           "title": "Source Gate",
           "description": "Minimum source-authoring status a block must reach before its translations are produced",
           "options": {
-            "approved": {
-              "label": "approved"
-            },
-            "authored": {
-              "label": "authored"
-            },
-            "checked": {
-              "label": "checked"
+            "established": {
+              "label": "established"
             },
             "none": {
               "label": "none"
+            },
+            "written": {
+              "label": "written"
             }
           }
         }

@@ -41,7 +41,6 @@ interface VisualEditorLayoutProps {
   onSave: (result: UnifiedSaveResult) => void | Promise<void>;
   onCancelEditing: () => void;
   onApprove: () => void;
-  onSignOff: () => void;
   onReject: () => void;
   memoryMatches: MemoryMatchInfo[];
   termMatches: BlockTermMatch[];
@@ -108,7 +107,6 @@ export function VisualEditorLayout({
   onSave,
   onCancelEditing,
   onApprove,
-  onSignOff,
   onReject,
   memoryMatches,
   termMatches,
@@ -227,7 +225,6 @@ export function VisualEditorLayout({
     onCancelEditing,
     onSaveAndNext: handleSaveAndNext,
     onApprove,
-    onSignOff,
     onReject,
     enabled: true,
   });
@@ -385,7 +382,6 @@ export function VisualEditorLayout({
             onSave={onSave}
             onCancel={onCancelEditing}
             onApprove={onApprove}
-            onSignOff={onSignOff}
             onReject={onReject}
             memoryMatches={memoryMatches}
             termMatches={termMatches}

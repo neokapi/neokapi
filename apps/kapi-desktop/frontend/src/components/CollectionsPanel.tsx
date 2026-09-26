@@ -131,7 +131,7 @@ export function rungFor(lc?: LocaleCoverage): Rung {
       pct: translated,
     };
   }
-  if ((lc.pct?.reviewed ?? 0) > 0) {
+  if ((lc.pct?.established ?? 0) > 0) {
     return {
       key: "review",
       label: "In review",
@@ -1607,7 +1607,7 @@ export function CollectionsPanel({
     const tr = lc.pct?.translated ?? 0;
     if (tr === 0) return "none";
     if (clearsShipGate(lc)) return "shippable";
-    return (lc.pct?.reviewed ?? 0) > 0 ? "review" : "translated";
+    return (lc.pct?.established ?? 0) > 0 ? "review" : "translated";
   };
   // Collection → its cake/Layers colour, keyed the way convergence reports it
   // (collection "" for bare entries), so the hover breakdown matches the donut.
@@ -1626,7 +1626,7 @@ export function CollectionsPanel({
           if (lc.locale !== lang) continue;
           total += lc.total;
           tSum += (lc.total * (lc.pct?.translated ?? 0)) / 100;
-          rSum += (lc.total * (lc.pct?.reviewed ?? 0)) / 100;
+          rSum += (lc.total * (lc.pct?.established ?? 0)) / 100;
           if (clearsShipGate(lc)) shippableUnits += lc.total;
           byCollection.push({
             name: lc.collection || t("(unnamed)"),

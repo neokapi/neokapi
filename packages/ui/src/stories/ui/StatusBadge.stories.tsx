@@ -6,15 +6,15 @@ import {
 } from "../../components/ui/status-badge";
 
 /**
- * Two ladders on one scale: a target climbs draft to signed-off, a source
- * climbs authored to approved, and the rungs that mean the same thing are the
+ * Two ladders on one scale: a target climbs draft to established, a source
+ * climbs written to established, and the rungs that mean the same thing are the
  * same colour.
  */
 const meta: Meta<typeof StatusBadge> = {
   title: "Foundations/StatusBadge",
   component: StatusBadge,
   parameters: { layout: "padded" },
-  args: { ladder: "content", status: "reviewed" },
+  args: { ladder: "content", status: "established" },
 };
 export default meta;
 

@@ -36,21 +36,21 @@ describe("getTargetText", () => {
   });
 
   it("reads the text of an object entry", () => {
-    expect(getTargetText(makeBlock({ fr: { text: "Bonjour", status: "reviewed" } }), "fr")).toBe(
+    expect(getTargetText(makeBlock({ fr: { text: "Bonjour", status: "established" } }), "fr")).toBe(
       "Bonjour",
     );
   });
 
   it("returns empty for a missing locale and an object without text", () => {
     expect(getTargetText(makeBlock({ fr: "Bonjour" }), "de")).toBe("");
-    expect(getTargetText(makeBlock({ fr: { status: "reviewed" } }), "fr")).toBe("");
+    expect(getTargetText(makeBlock({ fr: { status: "established" } }), "fr")).toBe("");
   });
 });
 
 describe("getTargetStatus", () => {
   it("reads the per-locale status of an object entry", () => {
-    const block = makeBlock({ fr: { text: "Bonjour", status: "reviewed" } });
-    expect(getTargetStatus(block, "fr")).toBe("reviewed");
+    const block = makeBlock({ fr: { text: "Bonjour", status: "established" } });
+    expect(getTargetStatus(block, "fr")).toBe("established");
   });
 
   it("is empty for bare-string entries and missing locales", () => {
@@ -63,10 +63,10 @@ describe("getTargetStatus", () => {
 describe("getBlockStatus — per-locale Target.Status", () => {
   it("scopes review status to the locale it was set for", () => {
     const block = makeBlock({
-      fr: { text: "Bonjour", status: "reviewed" },
+      fr: { text: "Bonjour", status: "established" },
       de: { text: "Hallo" },
     });
-    expect(getBlockStatus(block, "fr")).toBe("reviewed");
+    expect(getBlockStatus(block, "fr")).toBe("established");
     // Reviewing fr must not leak into de.
     expect(getBlockStatus(block, "de")).toBe("translated");
   });
@@ -76,11 +76,11 @@ describe("getBlockStatus — per-locale Target.Status", () => {
     expect(getBlockStatus(makeBlock({ fr: { text: "x", status: "translated" } }), "fr")).toBe(
       "translated",
     );
-    expect(getBlockStatus(makeBlock({ fr: { text: "x", status: "reviewed" } }), "fr")).toBe(
-      "reviewed",
+    expect(getBlockStatus(makeBlock({ fr: { text: "x", status: "established" } }), "fr")).toBe(
+      "established",
     );
-    expect(getBlockStatus(makeBlock({ fr: { text: "x", status: "signed-off" } }), "fr")).toBe(
-      "reviewed",
+    expect(getBlockStatus(makeBlock({ fr: { text: "x", status: "established" } }), "fr")).toBe(
+      "established",
     );
   });
 
@@ -95,7 +95,7 @@ describe("getBlockStatus — per-locale Target.Status", () => {
   it("falls back to the legacy property when no per-locale status exists", () => {
     // A block written before per-locale status: bare-string target + property.
     const reviewed = makeBlock({ fr: "Bonjour" }, { "translation-status": "reviewed" });
-    expect(getBlockStatus(reviewed, "fr")).toBe("reviewed");
+    expect(getBlockStatus(reviewed, "fr")).toBe("established");
     const draft = makeBlock({ fr: "Bonjour" }, { "translation-status": "draft" });
     expect(getBlockStatus(draft, "fr")).toBe("draft");
   });
@@ -127,22 +127,22 @@ describe("getBlockStatus — per-locale Target.Status", () => {
     // only. de has no translation at all and must not read as reviewed —
     // convergence counts nothing for de, and the UI must agree with coverage.
     const block = makeBlock({ fr: "Bonjour" }, { "translation-status": "reviewed" });
-    expect(getBlockStatus(block, "fr")).toBe("reviewed");
+    expect(getBlockStatus(block, "fr")).toBe("established");
     expect(getBlockStatus(block, "de")).toBe("not-started");
   });
 });
 
 describe("statusAfterEdit — an edit invalidates a stale review decision", () => {
-  it("demotes reviewed/signed-off to translated when the text changes", () => {
-    const reviewed = makeBlock({ fr: { text: "Bonjour", status: "reviewed" } });
+  it("demotes established to translated when the text changes", () => {
+    const reviewed = makeBlock({ fr: { text: "Bonjour", status: "established" } });
     expect(statusAfterEdit(reviewed, "fr", "Salut")).toBe("translated");
-    const signedOff = makeBlock({ fr: { text: "Bonjour", status: "signed-off" } });
+    const signedOff = makeBlock({ fr: { text: "Bonjour", status: "established" } });
     expect(statusAfterEdit(signedOff, "fr", "Salut")).toBe("translated");
   });
 
   it("keeps the status when re-saving identical content", () => {
-    const reviewed = makeBlock({ fr: { text: "Bonjour", status: "reviewed" } });
-    expect(statusAfterEdit(reviewed, "fr", "Bonjour")).toBe("reviewed");
+    const reviewed = makeBlock({ fr: { text: "Bonjour", status: "established" } });
+    expect(statusAfterEdit(reviewed, "fr", "Bonjour")).toBe("established");
   });
 
   it("leaves rungs at or below translated alone", () => {
@@ -158,21 +158,21 @@ describe("statusAfterEdit — an edit invalidates a stale review decision", () =
   it("compares coded text when the save carries runs", () => {
     // Identical once flattened, a different run sequence to the server: the
     // inline code moved. The server demotes on the runs, so the optimistic copy
-    // must too — comparing plain text alone would keep a stale "reviewed".
+    // must too — comparing plain text alone would keep a stale "established".
     const plain = "Bonjour monde";
     const before = "\uE001Bonjour\uE002 monde";
     const moved = "Bonjour \uE001monde\uE002";
     const reviewed: BlockInfo = {
-      ...makeBlock({ fr: { text: plain, status: "reviewed" } }),
+      ...makeBlock({ fr: { text: plain, status: "established" } }),
       targets_coded: { fr: before },
     };
     expect(statusAfterEdit(reviewed, "fr", plain, moved)).toBe("translated");
-    expect(statusAfterEdit(reviewed, "fr", plain, before)).toBe("reviewed");
+    expect(statusAfterEdit(reviewed, "fr", plain, before)).toBe("established");
   });
 
   it("falls back to plain text when no coded text is available", () => {
-    const reviewed = makeBlock({ fr: { text: "Bonjour", status: "reviewed" } });
-    expect(statusAfterEdit(reviewed, "fr", "Bonjour", "Bonjour")).toBe("reviewed");
+    const reviewed = makeBlock({ fr: { text: "Bonjour", status: "established" } });
+    expect(statusAfterEdit(reviewed, "fr", "Bonjour", "Bonjour")).toBe("established");
     expect(statusAfterEdit(reviewed, "fr", "Salut", "Salut")).toBe("translated");
   });
 });
@@ -180,8 +180,8 @@ describe("statusAfterEdit — an edit invalidates a stale review decision", () =
 describe("withTargetStatus / withTargetEntry — optimistic writes", () => {
   it("writes the per-locale object shape, preserving the target text", () => {
     const block = makeBlock({ fr: "Bonjour", de: "Hallo" });
-    const next = withTargetStatus(block, "fr", "reviewed");
-    expect(next.targets["fr"]).toEqual({ text: "Bonjour", status: "reviewed" });
+    const next = withTargetStatus(block, "fr", "established");
+    expect(next.targets["fr"]).toEqual({ text: "Bonjour", status: "established" });
     // Other locales and the original block are untouched.
     expect(next.targets["de"]).toBe("Hallo");
     expect(block.targets["fr"]).toBe("Bonjour");
@@ -192,7 +192,7 @@ describe("withTargetStatus / withTargetEntry — optimistic writes", () => {
   it("round-trips a rollback via withTargetEntry", () => {
     const block = makeBlock({ fr: "Bonjour" });
     const prevEntry = block.targets["fr"];
-    const optimistic = withTargetStatus(block, "fr", "reviewed");
+    const optimistic = withTargetStatus(block, "fr", "established");
     const rolledBack = withTargetEntry(optimistic, "fr", prevEntry);
     expect(rolledBack.targets["fr"]).toBe("Bonjour");
     expect(getBlockStatus(rolledBack, "fr")).toBe("translated");
@@ -200,8 +200,8 @@ describe("withTargetStatus / withTargetEntry — optimistic writes", () => {
 
   it("removes the entry when rolling back an entry that did not exist", () => {
     const block = makeBlock({});
-    const optimistic = withTargetStatus(block, "fr", "reviewed");
-    expect(optimistic.targets["fr"]).toEqual({ text: "", status: "reviewed" });
+    const optimistic = withTargetStatus(block, "fr", "established");
+    expect(optimistic.targets["fr"]).toEqual({ text: "", status: "established" });
     const rolledBack = withTargetEntry(optimistic, "fr", undefined);
     expect("fr" in rolledBack.targets).toBe(false);
     expect(getBlockStatus(rolledBack, "fr")).toBe("not-started");
@@ -212,7 +212,7 @@ describe("captureTargetStatus / rollbackTargetStatus — status-only rollback", 
   it("restores the previous status while preserving the current text", () => {
     const block = makeBlock({ fr: { text: "Bonjour", status: "translated" } });
     const snapshot = captureTargetStatus(block, "fr");
-    const optimistic = withTargetStatus(block, "fr", "reviewed");
+    const optimistic = withTargetStatus(block, "fr", "established");
     // A save lands while the review call is in flight.
     const saved = withTargetEntry(optimistic, "fr", "Salut");
     const rolledBack = rollbackTargetStatus(saved, "fr", snapshot);
@@ -225,7 +225,7 @@ describe("captureTargetStatus / rollbackTargetStatus — status-only rollback", 
     const block = makeBlock({ fr: "Bonjour" });
     const snapshot = captureTargetStatus(block, "fr");
     expect(snapshot).toEqual({ existed: true, status: "" });
-    const optimistic = withTargetStatus(block, "fr", "reviewed");
+    const optimistic = withTargetStatus(block, "fr", "established");
     const rolledBack = rollbackTargetStatus(optimistic, "fr", snapshot);
     expect(getTargetText(rolledBack, "fr")).toBe("Bonjour");
     expect(getBlockStatus(rolledBack, "fr")).toBe("translated");
@@ -235,7 +235,7 @@ describe("captureTargetStatus / rollbackTargetStatus — status-only rollback", 
     const block = makeBlock({});
     const snapshot = captureTargetStatus(block, "fr");
     expect(snapshot).toEqual({ existed: false, status: "" });
-    const optimistic = withTargetStatus(block, "fr", "reviewed");
+    const optimistic = withTargetStatus(block, "fr", "established");
     const rolledBack = rollbackTargetStatus(optimistic, "fr", snapshot);
     expect("fr" in rolledBack.targets).toBe(false);
     expect(getBlockStatus(rolledBack, "fr")).toBe("not-started");
@@ -244,7 +244,7 @@ describe("captureTargetStatus / rollbackTargetStatus — status-only rollback", 
   it("keeps text that appeared after an absent-entry capture", () => {
     const block = makeBlock({});
     const snapshot = captureTargetStatus(block, "fr");
-    const optimistic = withTargetStatus(block, "fr", "reviewed");
+    const optimistic = withTargetStatus(block, "fr", "established");
     const saved = withTargetEntry(optimistic, "fr", "Salut");
     const rolledBack = rollbackTargetStatus(saved, "fr", snapshot);
     expect(getTargetText(rolledBack, "fr")).toBe("Salut");

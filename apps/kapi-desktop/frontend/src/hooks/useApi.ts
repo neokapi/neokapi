@@ -39,7 +39,6 @@ import type {
   ReviewAIActionResult,
   ReviewAIActionKind,
   PreReviewScope,
-  PreReviewPolicy,
   AIActivityResult,
   PreReviewResult,
   AdoptFlowResult,
@@ -149,8 +148,6 @@ export const api = {
     call<ReviewUnitDetail>("GetReviewUnit", tabID, locale, file, key),
   rejectReviewItem: (tabID: string, locale: string, file: string, key: string, note: string) =>
     call<void>("RejectReviewItem", tabID, locale, file, key, note),
-  signOffReviewItem: (tabID: string, locale: string, file: string, key: string) =>
-    call<void>("SignOffReviewItem", tabID, locale, file, key),
   updateReviewTarget: (tabID: string, locale: string, file: string, key: string, text: string) =>
     call<void>("UpdateReviewTarget", tabID, locale, file, key, text),
   /** Per-unit AI action (fix-findings | retranslate | explain). Explicit
@@ -173,8 +170,8 @@ export const api = {
     call<string[]>("UpdateSourceText", tabID, file, key, text),
   getAIActivity: (limit: number) => call<AIActivityResult>("GetAIActivity", limit),
   clearAIActivity: () => call<void>("ClearAIActivity"),
-  runAIPreReview: (tabID: string, locale: string, scope: PreReviewScope, policy: PreReviewPolicy) =>
-    call<PreReviewResult>("RunAIPreReview", tabID, locale, scope, policy),
+  runAIPreReview: (tabID: string, locale: string, scope: PreReviewScope) =>
+    call<PreReviewResult>("RunAIPreReview", tabID, locale, scope),
 
   // App mode + session (project-first restore)
   getAppMode: () => call<string>("GetAppMode"),

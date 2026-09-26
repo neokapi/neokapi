@@ -47,7 +47,6 @@ import { SourceUnitPane } from "./review/SourceUnitPane";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import type {
   CheckWarning,
-  PreReviewPolicy,
   PreReviewResult,
   PreReviewScope,
   ReviewAIActionKind,
@@ -66,7 +65,7 @@ export interface ReviewScope {
   locale?: string;
 }
 
-export type ReviewDecision = "approved" | "rejected" | "signed-off";
+export type ReviewDecision = "approved" | "rejected";
 
 export interface ReviewPageProps {
   tabID: string;
@@ -101,11 +100,7 @@ export interface ReviewPageProps {
     instruction: string,
   ) => Promise<ReviewAIActionResult | null>;
   /** Override the pre-review runner (Storybook/tests); defaults to api.runAIPreReview. */
-  onPreReview?: (
-    locale: string,
-    scope: PreReviewScope,
-    policy: PreReviewPolicy,
-  ) => Promise<PreReviewResult | null>;
+  onPreReview?: (locale: string, scope: PreReviewScope) => Promise<PreReviewResult | null>;
 }
 
 type Chip = "all" | "findings" | "clean";
@@ -265,8 +260,6 @@ export function ReviewPage({
   const [aiExchanges, setAIExchanges] = useState<AIActivityEntry[]>([]);
   // AI pre-review modal state.
   const [preReviewOpen, setPreReviewOpen] = useState(false);
-  const [preReviewAuto, setPreReviewAuto] = useState(false);
-  const [preReviewMinScore, setPreReviewMinScore] = useState(90);
   const [preReviewRunning, setPreReviewRunning] = useState(false);
   const [preReviewResult, setPreReviewResult] = useState<PreReviewResult | null>(null);
   const [reviewerModel, setReviewerModel] = useState<string>("");
@@ -433,10 +426,8 @@ export function ReviewPage({
           await onDecide(item, decision, note);
         } else if (decision === "approved") {
           await api.approveReviewItem(tabID, item.locale, item.file, item.key);
-        } else if (decision === "rejected") {
-          await api.rejectReviewItem(tabID, item.locale, item.file, item.key, note ?? "");
         } else {
-          await api.signOffReviewItem(tabID, item.locale, item.file, item.key);
+          await api.rejectReviewItem(tabID, item.locale, item.file, item.key, note ?? "");
         }
         // The decided unit leaves the queue; the selection effect advances.
         setQueue((q) => (q ?? []).filter((it) => itemId(it) !== itemId(item)));
@@ -449,9 +440,9 @@ export function ReviewPage({
     [tabID, onDecide, showError],
   );
 
-  // A source unit has one decision: a human approval bound to this exact
-  // wording (host.ApproveSourceUnit). There is no source reject and no second
-  // rung above it, so `a` is the only decision key a source row answers.
+  // A source unit has one decision: a person's approval bound to this exact
+  // wording (host.ApproveSourceUnit). There is no source reject, so `a` is the
+  // only decision key a source row answers.
   const approveSource = useCallback(
     async (item: ReviewItem) => {
       setDeciding(true);
@@ -473,10 +464,6 @@ export function ReviewPage({
     if (selected.isSource) void approveSource(selected);
     else void decide(selected, "approved");
   }, [selected, deciding, decide, approveSource]);
-
-  const signOff = useCallback(() => {
-    if (selected && !selected.isSource && !deciding) void decide(selected, "signed-off");
-  }, [selected, deciding, decide]);
 
   const reject = useCallback(() => {
     if (!selected || selected.isSource || deciding) return;
@@ -641,13 +628,8 @@ export function ReviewPage({
     try {
       const run =
         onPreReview ??
-        ((locale: string, sc: PreReviewScope, policy: PreReviewPolicy) =>
-          api.runAIPreReview(tabID, locale, sc, policy));
-      const res = await run(
-        language,
-        { collection: collectionFilter || undefined },
-        { autoApprove: preReviewAuto, minScore: preReviewMinScore },
-      );
+        ((locale: string, sc: PreReviewScope) => api.runAIPreReview(tabID, locale, sc));
+      const res = await run(language, { collection: collectionFilter || undefined });
       setPreReviewResult(res ?? null);
       await refreshQueue();
     } catch (err) {
@@ -655,16 +637,7 @@ export function ReviewPage({
     } finally {
       setPreReviewRunning(false);
     }
-  }, [
-    tabID,
-    onPreReview,
-    language,
-    collectionFilter,
-    preReviewAuto,
-    preReviewMinScore,
-    refreshQueue,
-    showError,
-  ]);
+  }, [tabID, onPreReview, language, collectionFilter, refreshQueue, showError]);
 
   // Keyboard-first: j/k navigate, a approve, r reject, s sign off, space skip,
   // e focuses the target editor. Typing in the editor is left alone (Escape
@@ -701,10 +674,6 @@ export function ReviewPage({
           e.preventDefault();
           reject();
           break;
-        case "s":
-          e.preventDefault();
-          signOff();
-          break;
         case " ":
           if (tag === "BUTTON") return; // native activation
           e.preventDefault();
@@ -718,7 +687,7 @@ export function ReviewPage({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [move, approve, reject, signOff, documentOpen]);
+  }, [move, approve, reject, documentOpen]);
 
   // Phase 2 batch: approve every clean unit in the current filter.
   const cleanVisible = useMemo(() => visible.filter((it) => it.hasFindings === false), [visible]);
@@ -915,60 +884,15 @@ export function ReviewPage({
                 · {t("{count} pending units", { count: preReviewPending.length })}
               </div>
             </div>
-            <div className="space-y-1.5 text-xs" role="radiogroup" aria-label={t("Policy")}>
-              <label className="flex items-start gap-2">
-                <input
-                  type="radio"
-                  name="prereview-policy"
-                  checked={!preReviewAuto}
-                  onChange={() => setPreReviewAuto(false)}
-                  data-slot="review-prereview-annotate"
-                />
-                <span>
-                  <span className="font-medium">{t("Annotate only")}</span>{" "}
-                  <span className="text-muted-foreground">
-                    {"· "}
-                    {t("Store score and findings; every decision stays yours.")}
-                  </span>
-                </span>
-              </label>
-              <label className="flex items-start gap-2">
-                <input
-                  type="radio"
-                  name="prereview-policy"
-                  checked={preReviewAuto}
-                  onChange={() => setPreReviewAuto(true)}
-                  data-slot="review-prereview-auto"
-                />
-                <span>
-                  <span className="font-medium">
-                    {t("Auto-approve clean units scoring at least")}
-                  </span>{" "}
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={preReviewMinScore}
-                    onChange={(e) => setPreReviewMinScore(Number(e.target.value))}
-                    className="w-14 rounded border border-input bg-transparent px-1 text-xs"
-                    aria-label={t("Minimum score")}
-                  />{" "}
-                  <span className="text-muted-foreground">
-                    {"· "}
-                    {t("Approvals are recorded as ai/<model>; human-required gates ignore them.")}
-                  </span>
-                </span>
-              </label>
-            </div>
+            <p className="text-xs text-muted-foreground" data-slot="review-prereview-policy">
+              {t("The model stores a score and findings on each unit; every decision stays yours.")}
+            </p>
             {preReviewResult && (
               <div
                 className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs"
                 data-slot="review-prereview-result"
               >
-                {t("{approved} auto-approved · {left} left for you", {
-                  approved: preReviewResult.auto_approved,
-                  left: preReviewResult.remaining,
-                })}
+                {t("{count} units scored", { count: preReviewResult.reviewed })}
                 {preReviewResult.skipped ? (
                   <span className="text-muted-foreground">
                     {" "}
@@ -1577,19 +1501,6 @@ export function ReviewPage({
                 {selected?.isSource ? t("Approve source") : t("Approve")}
                 <kbd className="ml-1 rounded bg-black/10 px-1 text-[10px]">a</kbd>
               </Button>
-              {!selected?.isSource && (
-                <Button
-                  variant="success"
-                  size="sm"
-                  onClick={signOff}
-                  disabled={!selected || deciding}
-                  data-slot="review-signoff"
-                >
-                  <CheckCheck size={13} />
-                  {t("Sign off")}
-                  <kbd className="ml-1 rounded bg-black/10 px-1 text-[10px]">s</kbd>
-                </Button>
-              )}
               {/* Reject takes destructive, which is where the shared scale puts
                   it (packages/ui/docs/judgement-colours.md): it undoes the
                   translation in force rather than accepting it. */}

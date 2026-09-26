@@ -93,7 +93,7 @@ const DETAILS: Record<string, Partial<ReviewUnitDetail>> = {
     tm_score: 92,
   },
   "de-DE:hero.title": {
-    status: "reviewed",
+    status: "established",
     review_state: "approved",
     origin: { kind: "human" },
   },
@@ -272,7 +272,7 @@ const SOURCE_ROWS: ReviewItem[] = [
     collection: "Marketing",
     sourceLocale: "en-US",
     source: "Ship every language without the toil",
-    status: "checked",
+    status: "written",
     held: true,
   },
   {
@@ -285,7 +285,7 @@ const SOURCE_ROWS: ReviewItem[] = [
     collection: "Marketing",
     sourceLocale: "en-US",
     source: "Get started with {product}",
-    status: "checked",
+    status: "written",
     held: true,
   },
 ];

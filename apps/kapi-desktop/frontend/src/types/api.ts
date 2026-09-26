@@ -1076,7 +1076,7 @@ export interface LocaleCoverage {
   locale: string;
   collection?: string;
   total: number;
-  /** Ladder state → "at least" percent (draft|translated|reviewed|signed-off). */
+  /** Ladder state → "at least" percent (draft|translated|established). */
   pct: Record<string, number>;
   /** A ship gate matches this scope. */
   gated: boolean;
@@ -1089,7 +1089,7 @@ export interface LocaleCoverage {
   pending?: GateShortfall[];
 }
 
-/** Project-wide source authoring readiness (authored|checked|approved). */
+/** Project-wide source readiness (written|established). */
 export interface SourceCoverage {
   total: number;
   pct: Record<string, number>;
@@ -1114,7 +1114,7 @@ export interface ReviewItem {
   /** The author's own wording awaiting attention, rather than a translation. */
   isSource?: boolean;
   /** The row's rung on its own ladder: `translated` for a queued translation,
-   *  and the settled source rung (authored | checked | approved) for a source
+   *  and the settled source rung (written | established) for a source
    *  unit. */
   status?: string;
   /** A source unit ranked below the project's source gate, so the loop holds
@@ -1216,7 +1216,7 @@ export interface ReviewUnitDetail {
   target: string;
   /** The project's source language — drives `dir`/`lang` on the source pane. */
   source_locale?: string;
-  /** Effective ladder state (draft|translated|reviewed|signed-off). */
+  /** Effective ladder state (draft|translated|established). */
   status: string;
   /** Last recorded decision when it still judges the current translation. */
   review_state?: string;
@@ -1341,19 +1341,10 @@ export interface PreReviewScope {
   collection?: string;
 }
 
-/** What an AI pre-review may do: annotate-only (default) or auto-approve
- * units at/above minScore with no blocking check findings. */
-export interface PreReviewPolicy {
-  autoApprove: boolean;
-  minScore: number;
-}
-
 /** Summary of an AI pre-review run. */
 export interface PreReviewResult {
   model: string;
   reviewed: number;
-  auto_approved: number;
-  remaining: number;
   skipped?: number;
 }
 
@@ -1477,7 +1468,7 @@ export interface ConvergeOutput {
    *  were not produced because the source is unsettled. Source-scoped, so it is
    *  one count for every language rather than one per language. */
   blockedOnSource?: number;
-  /** The resolved source gate the run applied (authored|checked|approved). */
+  /** The resolved source gate the run applied (none|written|established). */
   sourceGate?: string;
   /** Why the run did not converge, when it did not. `source_not_ready` means
    *  every pending locale had nothing producible. */

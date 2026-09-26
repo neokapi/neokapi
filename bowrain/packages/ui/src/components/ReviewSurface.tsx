@@ -57,7 +57,7 @@ interface ReviewSurfaceProps {
 
 type StatusFilter = "all" | BlockStatus;
 
-const FILTERS: StatusFilter[] = ["all", "not-started", "draft", "translated", "reviewed"];
+const FILTERS: StatusFilter[] = ["all", "not-started", "draft", "translated", "established"];
 
 /** How many blocks one page of the reading pane carries. */
 const PAGE_SIZE = 50;
@@ -66,7 +66,7 @@ const PAGE_SIZE = 50;
 const EMPTY_COUNTS: BlockCounts = {
   total: 0,
   translatable: 0,
-  status: { "not-started": 0, draft: 0, translated: 0, reviewed: 0 },
+  status: { "not-started": 0, draft: 0, translated: 0, established: 0 },
 };
 
 /** Whether a keystroke belongs to a text field rather than the surface. */
@@ -285,9 +285,8 @@ export function ReviewSurface({
   // The rollback snapshot is captured inside the setBlocks updater — from the
   // state the write actually replaced — and restores only the status field, so
   // a target save that lands while the review call is in flight is preserved.
-  // `rung` picks where the call lands within its direction: "signed-off" on an
-  // approval, "draft" on a clearing call for a reviewer rejection, and either
-  // default at reviewed or translated.
+  // `rung` picks where a clearing call lands: "draft" for a reviewer
+  // rejection, translated by default. An approval always lands on established.
   const setStatus = useCallback(
     async (block: BlockInfo, reviewed: boolean, rung?: ReviewRung) => {
       // Clearing the review state of a locale with no translation is a no-op:
@@ -297,13 +296,7 @@ export function ReviewSurface({
       // server's 422).
       if (!reviewed && !getTargetText(block, targetLocale).trim()) return;
       capture(AnalyticsEvents.reviewDecisionClicked, {
-        decision: reviewed
-          ? rung === "signed-off"
-            ? "sign_off"
-            : "approve"
-          : rung === "draft"
-            ? "reject"
-            : "clear",
+        decision: reviewed ? "approve" : rung === "draft" ? "reject" : "clear",
         locale: targetLocale,
       });
       let snapshot: TargetStatusSnapshot = { existed: false, status: "" };
@@ -314,7 +307,7 @@ export function ReviewSurface({
           return withTargetStatus(
             b,
             targetLocale,
-            reviewed ? (rung === "signed-off" ? "signed-off" : "reviewed") : (rung ?? "translated"),
+            reviewed ? "established" : (rung ?? "translated"),
           );
         }),
       );
@@ -329,9 +322,7 @@ export function ReviewSurface({
         );
         setError({
           title: reviewed
-            ? rung === "signed-off"
-              ? "Couldn't sign the block off"
-              : "Couldn't mark the block as reviewed"
+            ? "Couldn't mark the block as established"
             : "Couldn't update the review status",
           cause: e,
         });
@@ -377,7 +368,9 @@ export function ReviewSurface({
       });
       const approved = new Set((result.results ?? []).filter((r) => r.ok).map((r) => r.block_id));
       setBlocks((prev) =>
-        prev.map((b) => (approved.has(b.id) ? withTargetStatus(b, targetLocale, "reviewed") : b)),
+        prev.map((b) =>
+          approved.has(b.id) ? withTargetStatus(b, targetLocale, "established") : b,
+        ),
       );
       if (result.succeeded > 0) setMessage(`Marked ${result.succeeded} block(s) as reviewed`);
       if (result.failed > 0) {
@@ -655,12 +648,6 @@ export function ReviewSurface({
             void setStatus(block, true);
           }
           break;
-        case "s":
-          if (block && !bulkBusy && getTargetText(block, targetLocale).trim()) {
-            e.preventDefault();
-            void setStatus(block, true, "signed-off");
-          }
-          break;
         case "r":
           if (block && !bulkBusy && getTargetText(block, targetLocale).trim()) {
             e.preventDefault();
@@ -907,7 +894,6 @@ export function ReviewSurface({
         onApprove={() => selectedBlock && void setStatus(selectedBlock, true)}
         // Signing off promotes the target to the rung above reviewed, the one
         // the ship gates keyed on "at least signed-off" coverage read.
-        onSignOff={() => selectedBlock && void setStatus(selectedBlock, true, "signed-off")}
         // A rejection demotes the target to draft so the unit re-enters the work
         // queue (host's rejected → draft mapping), not merely back to translated.
         onReject={() => selectedBlock && void setStatus(selectedBlock, false, "draft")}

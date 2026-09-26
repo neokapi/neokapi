@@ -652,7 +652,7 @@ export interface SpanInfo {
  * Per-locale lifecycle status of a committed translation — the framework's
  * `model.Target.Status` ladder ("" = no committed status yet).
  */
-export type TargetStatus = "" | "draft" | "translated" | "reviewed" | "signed-off";
+export type TargetStatus = "" | "draft" | "translated" | "established";
 
 /**
  * The rung a clearing review call (`reviewed: false`) demotes a target to:
@@ -664,10 +664,9 @@ export type ReviewDemotion = "translated" | "draft";
 
 /**
  * The rung an approving review call (`reviewed: true`) promotes a target to:
- * "reviewed" for an approval (the default), "signed-off" for a sign-off, the
- * rung above it on the target ladder.
+ * "established", the one rung a person's approval reaches.
  */
-export type ReviewPromotion = "reviewed" | "signed-off";
+export type ReviewPromotion = "established";
 
 /**
  * The rung a review call lands on, in either direction. The server reads the
@@ -696,7 +695,7 @@ export interface ApprovePassingRequest {
  * and delivery.
  */
 export interface ApprovePassingResult {
-  /** Blocks promoted to reviewed. */
+  /** Blocks promoted to established. */
   approved: number;
   /** Pending blocks left untouched (failing checks / non-compliant). */
   skipped: number;
@@ -960,7 +959,7 @@ export interface LocaleTranslationStats {
   translated_words: number;
   total_words: number;
   percentage: number;
-  /** Blocks whose translation carries a review decision (reviewed/signed-off). */
+  /** Blocks whose translation carries a review decision (established). */
   approved_blocks?: number;
   /** Translated blocks failing the checks with error severity (computed at full coverage). */
   failing_checks?: number;
@@ -1842,7 +1841,7 @@ export interface PendingReviewOptions {
 // ---------------------------------------------------------------------------
 
 /** A block's per-locale progress bucket, as the server names it. */
-export type BlockStatusBucket = "not-started" | "draft" | "translated" | "reviewed";
+export type BlockStatusBucket = "not-started" | "draft" | "translated" | "established";
 
 /**
  * Server-side filters for one page of a project's blocks (GET
@@ -1864,7 +1863,7 @@ export interface BlockStatusCounts {
   "not-started": number;
   draft: number;
   translated: number;
-  reviewed: number;
+  established: number;
 }
 
 /**

@@ -94,7 +94,6 @@ export {
     PluginInfo,
     PluginUpdate,
     PointDTO,
-    PreReviewPolicy,
     PreReviewResult,
     PreReviewScope,
     PresetInfo,
