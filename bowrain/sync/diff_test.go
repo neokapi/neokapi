@@ -74,7 +74,7 @@ func TestDiffEngine_CompareItems_Unchanged(t *testing.T) {
 	seedBlocks(t, cs, "proj-1", "en.json", []*model.Block{b1})
 
 	// Compute what the server has.
-	serverBlockHashes, err := engine.loadBlockHashes(ctx, "proj-1", "main", "en.json")
+	serverBlockHashes, err := engine.loadBlockHashes(ctx, nopView{}, "proj-1", "main", "en.json")
 	require.NoError(t, err)
 	serverItemHash := venue.ComputeItemHash(serverBlockHashes)
 
@@ -142,7 +142,7 @@ func TestDiffEngine_CompareBlocks(t *testing.T) {
 	seedBlocks(t, cs, "proj-1", "en.json", []*model.Block{b1, b2})
 
 	// Load server hashes.
-	serverHashes, err := engine.loadBlockHashes(ctx, "proj-1", "main", "en.json")
+	serverHashes, err := engine.loadBlockHashes(ctx, nopView{}, "proj-1", "main", "en.json")
 	require.NoError(t, err)
 	require.Len(t, serverHashes, 2)
 

@@ -26,23 +26,45 @@ type DiffEngine struct {
 
 // HashCache provides cached access to a project's transfer hashes.
 // Implementations: RedisHashCache (production), nil (fallback to DB).
+//
+// A reader takes a View before it reads the store and files what it computed
+// through that same view. InvalidateProject moves the project to a new
+// generation, and a view taken before it files into the old one, which no
+// later view reads. Without that, a reader that read the store just before a
+// push applied and wrote its hashes just after the push invalidated would
+// leave the pre-apply hashes answering for the project for the whole TTL.
 type HashCache interface {
-	// GetItemHashes returns all item_name → item_hash for a project.
-	// Returns nil, false on cache miss.
-	GetItemHashes(ctx context.Context, projectID string) (map[string]string, bool)
+	// View pins the project's current generation for one stream.
+	View(ctx context.Context, projectID, stream string) HashView
 
-	// GetBlockHashes returns all block_id → record_hash for an item.
-	// Returns nil, false on cache miss.
-	GetBlockHashes(ctx context.Context, projectID, itemName string) (map[string]string, bool)
+	// InvalidateProject retires every cached hash for a project, on every
+	// stream. The push worker calls it after its apply commits.
+	InvalidateProject(ctx context.Context, projectID string)
+}
 
-	// SetItemHashes caches item hashes for a project.
-	SetItemHashes(ctx context.Context, projectID string, hashes map[string]string)
+// HashView reads and writes one stream's cached hashes at one generation.
+type HashView interface {
+	// GetItemHashes returns all item_name → item_hash. Returns nil, false on
+	// a miss.
+	GetItemHashes(ctx context.Context) (map[string]string, bool)
+
+	// GetBlockHashes returns all block_id → record_hash for an item. Returns
+	// nil, false on a miss.
+	GetBlockHashes(ctx context.Context, itemName string) (map[string]string, bool)
+
+	// SetItemHashes caches item hashes.
+	SetItemHashes(ctx context.Context, hashes map[string]string)
 
 	// SetBlockHashes caches block hashes for an item.
-	SetBlockHashes(ctx context.Context, projectID, itemName string, hashes map[string]string)
+	SetBlockHashes(ctx context.Context, itemName string, hashes map[string]string)
+}
 
-	// InvalidateProject removes all cached hashes for a project.
-	InvalidateProject(ctx context.Context, projectID string)
+// view pins the cache for one read of the store; a nil cache caches nothing.
+func (d *DiffEngine) view(ctx context.Context, projectID, stream string) HashView {
+	if d.cache == nil {
+		return nopView{}
+	}
+	return d.cache.View(ctx, projectID, stream)
 }
 
 // NewDiffEngine creates a diff engine.
@@ -117,7 +139,7 @@ type BlockDiffResult struct {
 
 // CompareBlocks performs the second level: block-level comparison for one item.
 func (d *DiffEngine) CompareBlocks(ctx context.Context, projectID, stream, itemName string, clientBlockHashes map[string]string) (*BlockDiffResult, error) {
-	serverHashes, err := d.loadBlockHashes(ctx, projectID, stream, itemName)
+	serverHashes, err := d.loadBlockHashes(ctx, d.view(ctx, projectID, stream), projectID, stream, itemName)
 	if err != nil {
 		return nil, fmt.Errorf("load server block hashes for %s: %w", itemName, err)
 	}
@@ -166,14 +188,11 @@ func (d *DiffEngine) CheckRootHash(ctx context.Context, projectID, stream, clien
 // loadItemHashes loads item-level hashes (item_name → hash of block hashes).
 // Uses cache if available, falls back to computing from DB.
 func (d *DiffEngine) loadItemHashes(ctx context.Context, projectID, stream string) (map[string]string, error) {
-	// Try cache first.
-	if d.cache != nil {
-		if cached, ok := d.cache.GetItemHashes(ctx, projectID); ok {
-			return cached, nil
-		}
+	view := d.view(ctx, projectID, stream)
+	if cached, ok := view.GetItemHashes(ctx); ok {
+		return cached, nil
 	}
 
-	// Load items from DB.
 	items, err := d.contentStore.ListItems(ctx, projectID, stream)
 	if err != nil {
 		return nil, err
@@ -181,28 +200,29 @@ func (d *DiffEngine) loadItemHashes(ctx context.Context, projectID, stream strin
 
 	itemHashes := make(map[string]string, len(items))
 	for _, item := range items {
-		blockHashes, err := d.loadBlockHashes(ctx, projectID, stream, item.Name)
+		blockHashes, err := d.loadBlockHashes(ctx, view, projectID, stream, item.Name)
 		if err != nil {
 			return nil, err
+		}
+		// An item holding no blocks is not content, as in LoadTree: the row
+		// can stand to anchor decisions after its file was removed. Hashing it
+		// would give the venue a file no producer declares, and every push of
+		// the project would negotiate a diff.
+		if len(blockHashes) == 0 {
+			continue
 		}
 		itemHashes[item.Name] = venue.ComputeItemHash(blockHashes)
 	}
 
-	// Cache the result.
-	if d.cache != nil {
-		d.cache.SetItemHashes(ctx, projectID, itemHashes)
-	}
-
+	view.SetItemHashes(ctx, itemHashes)
 	return itemHashes, nil
 }
 
-// loadBlockHashes loads block-level hashes for a single item.
-func (d *DiffEngine) loadBlockHashes(ctx context.Context, projectID, stream, itemName string) (map[string]string, error) {
-	// Try cache first.
-	if d.cache != nil {
-		if cached, ok := d.cache.GetBlockHashes(ctx, projectID, itemName); ok {
-			return cached, nil
-		}
+// loadBlockHashes loads block-level hashes for a single item, through the
+// view the caller pinned before it started reading the store.
+func (d *DiffEngine) loadBlockHashes(ctx context.Context, view HashView, projectID, stream, itemName string) (map[string]string, error) {
+	if cached, ok := view.GetBlockHashes(ctx, itemName); ok {
+		return cached, nil
 	}
 
 	blocks, err := d.contentStore.GetBlocks(ctx, platstore.BlockQuery{
@@ -230,10 +250,6 @@ func (d *DiffEngine) loadBlockHashes(ctx context.Context, projectID, stream, ite
 		hashes[key] = model.ComputeRecordHash(sb.ContentHash, sb.ContextHash)
 	}
 
-	// Cache.
-	if d.cache != nil {
-		d.cache.SetBlockHashes(ctx, projectID, itemName, hashes)
-	}
-
+	view.SetBlockHashes(ctx, itemName, hashes)
 	return hashes, nil
 }
