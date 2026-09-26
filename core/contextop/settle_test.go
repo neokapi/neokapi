@@ -111,6 +111,14 @@ func TestSettle_EvidenceAgainstLeavesItContested(t *testing.T) {
 	st, by := status(t, l, s.ID)
 	assert.Equal(t, contextop.StatusContested, st)
 	assert.Equal(t, []string{away.ID}, by)
+	r, err := l.Get(t.Context(), s.ID)
+	require.NoError(t, err)
+	assert.True(t, r.ContestedByEvidence(), "a person keeping it is the decision")
+
+	_, err = l.Append(t.Context(), contextop.Record{Project: "prj", Actor: person("asgeir"), Kind: contextop.KindKeep, Target: s.ID})
+	require.NoError(t, err)
+	st, _ = status(t, l, s.ID)
+	assert.Equal(t, contextop.StatusEstablished, st, "a keep settles it whatever the evidence")
 }
 
 func TestSettle_ContentMovingToTheRejectedFormCountsAgainst(t *testing.T) {
@@ -151,6 +159,9 @@ func TestSettle_ARivalRuleIsOpen(t *testing.T) {
 	st, by := status(t, l, a.ID)
 	assert.Equal(t, contextop.StatusContested, st)
 	assert.Equal(t, []string{b.ID}, by)
+	r, err := l.Get(t.Context(), a.ID)
+	require.NoError(t, err)
+	assert.False(t, r.ContestedByEvidence(), "a rival rule waits for a person to drop one side")
 }
 
 func TestSettle_OnlyAToolRecordsEvidence(t *testing.T) {

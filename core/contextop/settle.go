@@ -79,8 +79,24 @@ type Standing struct {
 	Merges []string `json:"merges,omitempty"`
 	// Uses is the latest count of the rule's forms in the project's content.
 	Uses *Uses `json:"uses,omitempty"`
-	// Against counts the signals against the rule.
-	Against int `json:"against,omitempty"`
+	// Against counts the signals against the rule, and AgainstBy names them.
+	Against   int      `json:"against,omitempty"`
+	AgainstBy []string `json:"against_by,omitempty"`
+}
+
+// ContestedByEvidence reports that a record is contested by signals against it
+// alone, with no rival rule on the other side. A person keeping it is then the
+// decision, and nothing else needs dropping first.
+func (r Record) ContestedByEvidence() bool {
+	if r.Status != StatusContested || r.Standing == nil || len(r.ContestedBy) == 0 {
+		return false
+	}
+	for _, id := range r.ContestedBy {
+		if !slices.Contains(r.Standing.AgainstBy, id) {
+			return false
+		}
+	}
+	return true
 }
 
 // Uses is how often the content writes the preferred form, out of every use of
@@ -357,7 +373,7 @@ func settleGroup(records []Record, f *settleFacts, group, dropped []int, rivals 
 		open = append(open, rivals[i]...)
 	}
 	open = dedupe(append(slices.Clone(against), open...))
-	standing.Against = len(against)
+	standing.Against, standing.AgainstBy = len(against), against
 	merges := dedupe(standing.Merges)
 	standing.Merges = merges
 
