@@ -34,7 +34,7 @@ func SettleSourceStatus(ctx context.Context, b *model.Block) {
 	if b.SourceStatus != model.SourceStatusEstablished {
 		b.SourceStatus = model.SourceStatusWritten
 	}
-	b.SetSourceFailing(hasFailingSourceFinding(tool.NewBlockView(b)))
+	b.SetSourceFailing(hasFailingSourceFinding(tool.NewBlockViewWithContext(ctx, b)))
 }
 
 // FindingLister lets annotations outside the unified quality.findings shape

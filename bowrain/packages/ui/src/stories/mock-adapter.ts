@@ -786,7 +786,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         "not-started": 0,
         draft: 0,
         translated: 0,
-        reviewed: 0,
+        established: 0,
       };
       if (locale) for (const b of translatable) status[getBlockStatus(b, locale)]++;
       return { total: matching.length, translatable: translatable.length, locale, status };
@@ -811,7 +811,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       const results = req.block_ids.map((id) => {
         const blk = _blocks.find((b) => b.id === id);
         if (!blk) return { block_id: id, ok: false, error: "block not found" };
-        const status = req.approve ? "reviewed" : (req.status ?? "translated");
+        const status = req.approve ? "established" : (req.status ?? "translated");
         const entry = blk.targets[req.target_locale];
         blk.targets[req.target_locale] = {
           text: typeof entry === "string" ? entry : (entry?.text ?? ""),
@@ -825,7 +825,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         succeeded,
         failed: results.length - succeeded,
         review_completed: _blocks.every(
-          (b) => getBlockStatus(b, req.target_locale) === "reviewed" || b.translatable === false,
+          (b) => getBlockStatus(b, req.target_locale) === "established" || b.translatable === false,
         ),
       };
     },
@@ -1122,16 +1122,9 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         const text = typeof entry === "string" ? entry : (entry?.text ?? "");
         blk.targets[targetLocale] = {
           text,
-          // The rung picks where the call lands within its direction: a
-          // sign-off above reviewed, a rejection at draft, and either default
-          // at reviewed or translated (mirrors HandleReviewBlock).
-          status: reviewed
-            ? rung === "signed-off"
-              ? "signed-off"
-              : "reviewed"
-            : rung === "draft"
-              ? "draft"
-              : "translated",
+          // An approval lands on established, a rejection at draft, and a
+          // plain un-review at translated (mirrors HandleReviewBlock).
+          status: reviewed ? "established" : rung === "draft" ? "draft" : "translated",
         };
       }
     },
@@ -1143,7 +1136,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       // checks). A term violation, a governed target with no terminology verdict,
       // a score below its bar and a governed block nothing has scored are left
       // pending and counted as the server counts them. A bar that governs nothing
-      // blocks nothing, and the rest are marked reviewed so a re-read reflects
+      // blocks nothing, and the rest are marked established so a re-read reflects
       // the pass.
       const locales = req.locales;
       let approved = 0;
@@ -1155,14 +1148,14 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
           if (locales && !locales.includes(loc)) continue;
           const text = typeof entry === "string" ? entry : (entry?.text ?? "");
           const status = typeof entry === "string" ? "" : (entry?.status ?? "");
-          if (!text.trim() || status === "reviewed" || status === "signed-off") continue;
+          if (!text.trim() || status === "established") continue;
           const terms = evidence?.term_compliance ?? "not_governed";
           if (terms === "violation") skippedBy.terms++;
           else if (terms === "") skippedBy.termsNotChecked++;
           else if (belowVoiceBar(evidence)) skippedBy.voice++;
           else if (voiceNotChecked(evidence)) skippedBy.voiceNotChecked++;
           else {
-            blk.targets[loc] = { text, status: "reviewed" };
+            blk.targets[loc] = { text, status: "established" };
             approved++;
           }
         }

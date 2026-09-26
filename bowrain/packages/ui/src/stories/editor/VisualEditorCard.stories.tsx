@@ -42,7 +42,6 @@ function InteractiveCard(props: CardOverrides) {
       onSave={() => setIsEditing(false)}
       onCancel={() => setIsEditing(false)}
       onApprove={() => setIsEditing(false)}
-      onSignOff={() => setIsEditing(false)}
       onReject={() => {}}
       memoryMatches={props.memoryMatches ?? []}
       termMatches={props.termMatches ?? []}
@@ -88,7 +87,6 @@ const meta: Meta<typeof VisualEditorCard> = {
     onSave: fn(),
     onCancel: fn(),
     onApprove: fn(),
-    onSignOff: fn(),
     onReject: fn(),
     memoryMatches: [],
     termMatches: [],
@@ -223,39 +221,36 @@ export const ReviewedBlock: Story = {
 export const StatusLadder: Story = {
   render: () => (
     <div className="space-y-4">
-      {(["not-started", "draft", "translated", "reviewed", "signed-off"] as const).map(
-        (status, i) => (
-          <VisualEditorCard
-            key={status}
-            block={{
-              ...sampleBlocks[0],
-              id: `blk-${status}`,
-              properties: {},
-              targets:
-                status === "not-started"
-                  ? { "fr-FR": { text: "", status: "" } }
-                  : { "fr-FR": { text: "Bienvenue sur Neokapi", status } },
-            }}
-            blockIndex={i}
-            totalBlocks={5}
-            targetLocale="fr-FR"
-            editorMode="translate"
-            onEditorModeChange={fn()}
-            isEditing={false}
-            onStartEditing={fn()}
-            onSave={fn()}
-            onCancel={fn()}
-            onApprove={fn()}
-            onSignOff={fn()}
-            onReject={fn()}
-            memoryMatches={[]}
-            termMatches={[]}
-            onApplyMemory={fn()}
-            onInsertTerm={fn()}
-            project={sampleProject}
-          />
-        ),
-      )}
+      {(["not-started", "draft", "translated", "established"] as const).map((status, i) => (
+        <VisualEditorCard
+          key={status}
+          block={{
+            ...sampleBlocks[0],
+            id: `blk-${status}`,
+            properties: {},
+            targets:
+              status === "not-started"
+                ? { "fr-FR": { text: "", status: "" } }
+                : { "fr-FR": { text: "Bienvenue sur Neokapi", status } },
+          }}
+          blockIndex={i}
+          totalBlocks={5}
+          targetLocale="fr-FR"
+          editorMode="translate"
+          onEditorModeChange={fn()}
+          isEditing={false}
+          onStartEditing={fn()}
+          onSave={fn()}
+          onCancel={fn()}
+          onApprove={fn()}
+          onReject={fn()}
+          memoryMatches={[]}
+          termMatches={[]}
+          onApplyMemory={fn()}
+          onInsertTerm={fn()}
+          project={sampleProject}
+        />
+      ))}
     </div>
   ),
 };

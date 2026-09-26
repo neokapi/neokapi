@@ -88,7 +88,7 @@ const resolvedContext: ReviewContext = {
         key: "b0",
         source: [{ text: "Enter the email you signed up with" }],
         target: [{ text: "Saisissez l'adresse e-mail utilisée à l'inscription" }],
-        status: "reviewed",
+        status: "established",
       },
     ],
     after: [
@@ -170,7 +170,6 @@ const meta: Meta<typeof FocusedReviewer> = {
     localeName: (c: string) => (c === "fr-FR" ? "French (France)" : "English (United States)"),
     editing: false,
     onApprove: fn(),
-    onSignOff: fn(),
     onReject: fn(),
     onEditToggle: fn(),
     onSaveEdit: fn(),

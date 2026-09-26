@@ -920,11 +920,7 @@ func (a *App) reviewBlockLocal(projectID, blockID, targetLocale string, reviewed
 			// must not demote it (mirrors the server's HandleReviewBlock no-op).
 			return nil
 		}
-		if status == string(model.TargetStatusEstablished) {
-			target.Status = model.TargetStatusEstablished
-		} else {
-			target.Status = model.TargetStatusEstablished
-		}
+		target.Status = model.TargetStatusEstablished
 	} else {
 		if target == nil {
 			// Nothing to demote. Clear the legacy block-global flag if present so
