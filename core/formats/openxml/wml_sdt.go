@@ -113,12 +113,11 @@ func sdtEndPrIsEmpty(raw string) bool {
 	if !ok {
 		return false
 	}
-	body := after
-	closeIdx := strings.LastIndex(body, "</")
-	if closeIdx < 0 {
+	inner, _, ok := strings.CutLast(after, "</")
+	if !ok {
 		return false
 	}
-	return strings.TrimSpace(body[:closeIdx]) == ""
+	return strings.TrimSpace(inner) == ""
 }
 
 // parseInlineSDT drains an inline `<w:sdt>` wrapper, processing its

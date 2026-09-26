@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -36,7 +37,7 @@ func genPrefix(projectID string, gen int64) string {
 // costs a store read and never a wrong answer.
 func (c *RedisHashCache) View(ctx context.Context, projectID, stream string) HashView {
 	gen, err := c.client.Get(ctx, genKey(projectID)).Int64()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		gen, err = 0, nil
 	}
 	if err != nil {

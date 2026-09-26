@@ -380,8 +380,8 @@ func splitGitHeader(s string) (string, string) {
 			return s[2:half], s[half+3:]
 		}
 	}
-	if i := strings.LastIndex(s, " b/"); i >= 0 {
-		return strings.TrimPrefix(s[:i], "a/"), s[i+3:]
+	if before, after, ok := strings.CutLast(s, " b/"); ok {
+		return strings.TrimPrefix(before, "a/"), after
 	}
 	return s, s
 }

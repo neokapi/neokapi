@@ -119,9 +119,9 @@ func (s *SMTPSender) buildClientOptions() []mail.Option {
 // splitHostPort is a thin wrapper around net.SplitHostPort-like behaviour
 // that doesn't require importing net.
 func splitHostPort(hostport string) (host, port string, err error) {
-	idx := strings.LastIndex(hostport, ":")
-	if idx < 0 {
+	host, port, ok := strings.CutLast(hostport, ":")
+	if !ok {
 		return "", "", fmt.Errorf("missing port in %q", hostport)
 	}
-	return hostport[:idx], hostport[idx+1:], nil
+	return host, port, nil
 }

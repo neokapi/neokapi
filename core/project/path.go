@@ -132,8 +132,8 @@ func isDirectoryTarget(target string) bool {
 		return true
 	}
 	last := target
-	if i := strings.LastIndex(target, "/"); i >= 0 {
-		last = target[i+1:]
+	if _, after, ok := strings.CutLast(target, "/"); ok {
+		last = after
 	}
 	if strings.ContainsAny(last, "*?[{") {
 		return false // glob or token segment → filename template

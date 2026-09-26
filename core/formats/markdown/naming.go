@@ -303,8 +303,8 @@ func appendSegment(parent []string, seg string) []string {
 // carries forward. NameBuilder appends its ordinal to the end of the path, so
 // `install/list#2` yields `list#2`.
 func lastSegment(path string) string {
-	if i := strings.LastIndex(path, model.PathSeparator); i >= 0 {
-		return path[i+1:]
+	if _, last, ok := strings.CutLast(path, model.PathSeparator); ok {
+		return last
 	}
 	return path
 }

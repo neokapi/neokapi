@@ -119,7 +119,9 @@ func currentRecipeValue(proj *project.KapiProject, path string) (string, bool) {
 	// places a collection somewhere has said where its content sits, and a pull
 	// that quietly moved it would relabel content the recipe governs.
 	if rest, ok := strings.CutPrefix(path, "collections."); ok {
-		name, field, split := cutLast(rest, ".")
+		// Split at the last dot: the field name holds none, and a collection
+		// name might.
+		name, field, split := strings.CutLast(rest, ".")
 		if !split || field != "channel" {
 			return "", false
 		}
@@ -130,14 +132,4 @@ func currentRecipeValue(proj *project.KapiProject, path string) (string, bool) {
 		}
 	}
 	return "", false
-}
-
-// cutLast splits around the LAST occurrence of sep — the field name carries
-// none and a collection name might.
-func cutLast(s, sep string) (before, after string, found bool) {
-	i := strings.LastIndex(s, sep)
-	if i < 0 {
-		return s, "", false
-	}
-	return s[:i], s[i+len(sep):], true
 }
