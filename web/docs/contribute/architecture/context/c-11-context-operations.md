@@ -20,16 +20,20 @@ is a new operation naming the earlier one.
 
 A suggested rule takes effect at once as **advice**. Checks report it with no
 weight in the score, so a suggestion shows up wherever a rule would and can
-never fail a check. A person **keeping** it establishes the rule, which then
-fails a check unless it is marked advisory, and writes it
-into the subsystem that already reads it: the terms store or the content
-memory. The log is the history and the source of suggestions; established
-rules live in the stores.
+never fail a check. A suggestion is **established** when at least one signal
+from a person backs it and nothing open contradicts it: a person keeping it, a
+correction toward it, or the change reaching the default branch. Settling is a
+function of the log alone, so every machine holding the same operations
+reaches the same answer. An established rule fails a check unless it is marked
+advisory, and is written into the subsystem that already reads it: the terms
+store or the content memory. The log is the history and the source of
+suggestions; established rules live in the stores.
 
 `contextop.PersonDecides` defines the permission policy. An agent or a tool
 may observe, record a correction, and withdraw its own suggestion in the
-session that recorded it. Only a person keeps, edits, drops, imports, reverts an
-established rule, or widens one.
+session that recorded it. Only a tool records evidence (`signal`) and the
+establishments settling derives from it (`establish`). Only a person keeps,
+edits, drops, imports, reverts an established rule, or widens one.
 
 ## Context
 
@@ -148,6 +152,57 @@ gates or the analyzer's canary validation.
 Keeping a rule writes it into the project's stores. Subsequent checks use the
 rule's advisory setting: violations of an established rule fail unless it is
 marked advisory.
+
+### Suggestions settle by evidence
+
+`contextop.settle` runs inside the fold, after every person's decision has been
+applied and before disagreements are marked. It groups the suggestions that
+state one rule (the same form to use, a form to avoid in common, at points that
+meet) and reads the evidence for the group from the log:
+
+| Signal | Recorded as | Effect |
+| --- | --- | --- |
+| A person keeps it | `keep` | Establishes it at once |
+| A correction toward it, by a person or by an agent recording what the person changed | `correct` | Person signal |
+| The change reached the default branch | `signal` with source `merge` | Person signal |
+| Another session records the same rule | `observe` | Standing only |
+| The content writes the preferred form | `signal` with source `usage` | Standing only |
+| A correction away from it | `correct` | Against |
+| Its author withdraws it | `withdraw` | Against |
+| The content moves to a rejected form after it was recorded | `signal` with source `usage` | Against |
+
+A group with a person signal and nothing against it is established. A group
+with a person signal and a signal against it, or a rival rule that disagrees
+with it, is contested and waits for a person. A group without a person signal
+stays a suggestion whatever its standing, and time alone settles nothing. The
+correction a suggestion was drawn from is not evidence for that suggestion
+alone. A person dropping the rule sets aside what was recorded before the
+drop, together with the evidence gathered before it.
+
+When the log supports establishing a suggestion that no `establish` names yet,
+`Ledger.Settle` records one: actor `tool settle`, the suggestion as its target,
+and the person signals it rested on in `Because`. Its content address is
+derived from the target and that evidence, so two machines settling the same
+log record one operation. The host lands the rule the way a keep does, and a
+later signal against it takes it back out of the store through the same
+reconciliation a contesting correction uses. Because the fold reads the
+evidence again on every read, an `establish` whose evidence no longer holds
+stops binding, and the outcome is the same whatever order two logs were merged
+in.
+
+`Record.Standing` carries the counts behind each suggestion, and every surface
+shows them as counts, never as a score: `seen in 3 sessions · 14 of 15 uses in
+docs/ · merged in #412`.
+
+`kapi context settle --merged <range>` records the merge signal. It reads the
+diff the range made inside the project, and for each suggestion whose scope
+covers a changed file it counts the added lines that write the preferred form
+and the removed lines that held a rejected one. A suggestion with either count
+above zero gets a `signal` naming the commit, the pull request (read from a
+squash or merge commit's subject when not given) and the merger. The signal's
+address covers the suggestion, the commit and the counts, so settling one range
+twice records nothing new. CI runs it after a merge or a push to the default
+branch ([Convergence in CI](/kapi/convergence-in-ci)).
 
 ### Disagreements are contested until a person chooses
 
@@ -268,7 +323,9 @@ type Policy func(Transition) error
 ```
 
 `PersonDecides` is what ships. An agent or a tool may observe and record a
-correction, and each takes effect as a suggestion. The author of a suggestion
+correction, and each takes effect as a suggestion. A tool records evidence and
+the establishments settling derives from it; an agent may record neither,
+because an agent's statement is a suggestion and never evidence for one. The author of a suggestion
 may withdraw it in the session that recorded it, which is how a session cleans
 up after itself, and an agent may revert its own suggestion. Everything that
 turns advice into a rule, or sets another actor's advice aside, belongs to a
@@ -346,12 +403,13 @@ so the history stays in the workspace that recorded it.
 
 ## Surfaces
 
-`kapi context observe`, `correct`, `log`, `keep`, `drop`, `withdraw`, `revert`
-and `widen` are the command-line half. `kapi context keep` takes several ids, or
+`kapi context observe`, `correct`, `log`, `keep`, `drop`, `withdraw`, `revert`,
+`widen` and `settle` are the command-line half. `kapi context keep` takes several ids, or
 `--session <id>` for everything one session suggested that nothing contests;
 `--use` changes the rule as it is kept, for one id only. `kapi context log
 --status` filters by any of the six statuses, and a log line prints the kind
-once and marks a contested entry `[contested by #0n79tw5k9s]`. The host API
+once, marks a contested entry `[contested by #0n79tw5k9s]` and ends a
+suggestion's line with its standing. The host API
 (`host/contextops.go`) is typed requests and results with no flag sets, so the
 agent tools and the desktop drive the same loop.
 
