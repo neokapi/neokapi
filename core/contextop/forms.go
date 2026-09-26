@@ -47,8 +47,11 @@ func ObservedRule(term string, insteadOf []string) profile.TermRule {
 //     `QuickCast`. A lower-case phrase such as `sign in` yields nothing: its
 //     hyphenated and closed spellings are often words of their own (the
 //     `sign-in` page), so only the forms given in insteadOf are avoided.
-//   - A capitalised term yields its lower-case spelling: `Quickcast` gives
-//     `quickcast`.
+//   - A capitalised compound yields its lower-case spelling: `KapiDesktop`
+//     gives `kapidesktop`. A single word does not: `Team` or `Rota` is an
+//     ordinary word the project also writes in lower case, and a rule that
+//     avoided `team` would fail the project's own text. A single word that is
+//     a coined name names its lower-case misuse in insteadOf.
 //
 // The term itself is never among the forms, and each form is listed once.
 func AvoidedForms(term string, insteadOf []string) []string {
@@ -95,7 +98,7 @@ func AvoidedForms(term string, insteadOf []string) []string {
 			add(strings.Join(titled, ""))
 		}
 	}
-	if capitalised {
+	if capitalised && len(parts) >= 2 {
 		add(strings.ToLower(term))
 	}
 	return out

@@ -21,9 +21,18 @@ func TestAvoidedForms(t *testing.T) {
 			want:      []string{"Quick cast", "Quick-cast", "QuickCast", "quickcast"},
 		},
 		{
-			name: "a closed word with no break to go on varies only its case",
+			name: "a closed word with no break to go on derives nothing",
 			term: "Quickcast",
-			want: []string{"quickcast"},
+		},
+		{
+			name: "a capitalised ordinary word keeps its lower case",
+			term: "Team",
+		},
+		{
+			name:      "a single word names its lower-case misuse itself",
+			term:      "Quickcast",
+			insteadOf: []string{"quickcast"},
+			want:      []string{"quickcast"},
 		},
 		{
 			name: "a camel-case compound splits at its case change",
