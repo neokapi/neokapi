@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/workspace"
@@ -17,6 +18,9 @@ type RebuildReport struct {
 	// store refused. A step a live write had refused is refused again, so the
 	// store ends where the live writes left it.
 	Failed []string `json:"failed,omitempty"`
+	// Checkpoint is the last operation of the checkpoint the rebuild started
+	// from, empty when it replayed the whole log.
+	Checkpoint string `json:"checkpoint,omitempty"`
 }
 
 // Total is the number of operations the rebuild applied.
@@ -45,9 +49,11 @@ func projectionTable(name string) bool {
 }
 
 // Rebuild empties the project's projections and replays the log into them: the
-// terms store, the content memory, the voice profiles and the rules this
-// project widened to the whole workspace. The operations are replayed in id
-// order, which is the order every machine whose log has been merged agrees on.
+// terms store, the content memory, the voice profiles, the unit decision ledger
+// and the rules this project widened to the whole workspace. It starts from the
+// latest checkpoint that still stands and replays the operations after it, or
+// from nothing when there is none. The operations are replayed in id order,
+// which is the order every machine whose log has been merged agrees on.
 //
 // On a log one machine wrote, the rebuilt stores equal the ones the writes
 // left behind, because each operation carries the rows its write put and every
@@ -68,11 +74,25 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 	for _, op := range ops {
 		head = max(head, op.Seq)
 	}
-	workspace.SortOps(ops)
+	cp, pkg, fromCheckpoint := p.latestCheckpoint(ctx, ops)
 
 	if err := p.reset(ctx); err != nil {
 		return report, err
 	}
+	if fromCheckpoint {
+		if err := p.loadTables(ctx, pkg); err != nil {
+			return report, err
+		}
+		report.Checkpoint = cp.Through
+		later := ops[:0:0]
+		for _, op := range ops {
+			if op.Seq > cp.Seq {
+				later = append(later, op)
+			}
+		}
+		ops = later
+	}
+	workspace.SortOps(ops)
 	// Consecutive operations that each put content-memory entries one at a
 	// time are replayed together, which is what keeps a log of thousands of
 	// single writes to seconds. Anything else in between ends the run.
@@ -140,44 +160,18 @@ func (p *Projector) reset(ctx context.Context) error {
 	if raw == nil {
 		return errNoSubsystem
 	}
-	rows, err := raw.QueryContext(ctx, `SELECT name, type, COALESCE(sql, '') FROM sqlite_master WHERE type = 'table'`)
+	names, virtual, err := p.projectionTables(ctx)
 	if err != nil {
-		return fmt.Errorf("projector: list the context store's tables: %w", err)
+		return err
 	}
-	var (
-		names   []string
-		virtual []string
-	)
-	for rows.Next() {
-		var name, kind, sql string
-		if err := rows.Scan(&name, &kind, &sql); err != nil {
-			_ = rows.Close()
-			return fmt.Errorf("projector: list the context store's tables: %w", err)
-		}
-		if !projectionTable(name) {
-			continue
-		}
-		names = append(names, name)
-		if strings.HasPrefix(strings.ToUpper(sql), "CREATE VIRTUAL TABLE") {
-			virtual = append(virtual, name)
-		}
-	}
-	_ = rows.Close()
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("projector: list the context store's tables: %w", err)
-	}
-
 	tx, err := raw.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("projector: empty the projections: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	for _, name := range names {
-		if shadowOf(name, virtual) {
-			// A full-text index keeps its own shadow tables, which emptying
-			// the index itself empties.
-			continue
-		}
+	// A full-text index is emptied through the virtual table, which empties
+	// the shadow tables it keeps for itself.
+	for _, name := range append(names, virtual...) {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM "`+name+`"`); err != nil {
 			return fmt.Errorf("projector: empty %s: %w", name, err)
 		}
@@ -226,6 +220,41 @@ func allReplayable(steps []step) bool {
 		}
 	}
 	return true
+}
+
+// projectionTables lists the projection tables of the context store: names
+// are the ordinary tables, and virtual the full-text indexes, whose own shadow
+// tables are left out of both.
+func (p *Projector) projectionTables(ctx context.Context) (names, virtual []string, err error) {
+	rows, err := p.st.Raw.QueryContext(ctx, `SELECT name, COALESCE(sql, '') FROM sqlite_master WHERE type = 'table' ORDER BY name`)
+	if err != nil {
+		return nil, nil, fmt.Errorf("projector: list the context store's tables: %w", err)
+	}
+	var all []string
+	for rows.Next() {
+		var name, ddl string
+		if err := rows.Scan(&name, &ddl); err != nil {
+			_ = rows.Close()
+			return nil, nil, fmt.Errorf("projector: list the context store's tables: %w", err)
+		}
+		if !projectionTable(name) {
+			continue
+		}
+		all = append(all, name)
+		if strings.HasPrefix(strings.ToUpper(ddl), "CREATE VIRTUAL TABLE") {
+			virtual = append(virtual, name)
+		}
+	}
+	_ = rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("projector: list the context store's tables: %w", err)
+	}
+	for _, name := range all {
+		if !slices.Contains(virtual, name) && !shadowOf(name, virtual) {
+			names = append(names, name)
+		}
+	}
+	return names, virtual, nil
 }
 
 // shadowOf reports whether a table is one a full-text index keeps for itself.

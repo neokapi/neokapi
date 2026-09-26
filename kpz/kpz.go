@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/kbf"
@@ -168,6 +169,10 @@ const (
 	// context package: unzip the workspace and each `projects/<n>.kpz` is a file
 	// `kapi context restore` reads on its own.
 	KindWorkspace = "kapi-workspace"
+	// KindCheckpoint marks a checkpoint .kpz: one project's projections as of
+	// an operation in the workspace's log (core/projector), so a rebuild
+	// starts from it and replays only what came after. See checkpoint.go.
+	KindCheckpoint = "kapi-checkpoint"
 
 	// ManifestPath is the manifest member's path within the archive.
 	ManifestPath = "manifest.json"
@@ -217,6 +222,9 @@ const (
 	// hash. The checkout paths a workspace also records are machine-local and
 	// never travel.
 	ContentTypeRegistry = "registry"
+	// ContentTypeProjection carries one projection table of a checkpoint, as
+	// JSON Lines of its rows. Members live under projection/ and are content.
+	ContentTypeProjection = "projection"
 
 	// memoryPath and termsPath are the conventional bare bundle names, so
 	// unzipping a package by hand yields the same spelling the rest of the
@@ -318,6 +326,12 @@ type Package struct {
 	// packages and the registry member that names them are in the RootHash.
 	// Empty for every profile but KindWorkspace.
 	Projects []ProjectDoc
+
+	// Tables carries a checkpoint's projection tables, one member each, and
+	// Checkpoint says which project and which operation they stand at. Empty
+	// for every profile but KindCheckpoint.
+	Tables     []TableDoc
+	Checkpoint *CheckpointMark
 }
 
 // HasContent reports whether the package carries any packable content — blocks,
@@ -335,6 +349,7 @@ func (p *Package) HasContent() bool {
 		len(p.Source) > 0 ||
 		len(p.Voice) > 0 ||
 		len(p.Decisions) > 0 ||
+		len(p.Tables) > 0 ||
 		len(p.Projects) > 0 ||
 		(p.Memory != nil && len(p.Memory.Entries) > 0) ||
 		(p.Terms != nil && len(p.Terms.Concepts) > 0)
@@ -504,6 +519,9 @@ type Manifest struct {
 	// Voice records each voice member's profile id and authoring path.
 	// Metadata, not in the RootHash.
 	Voice []VoiceIdentity `json:"voice,omitempty"`
+	// Checkpoint says which project a checkpoint's tables belong to and the
+	// operation they stand at. Metadata, not in the RootHash.
+	Checkpoint *CheckpointMark `json:"checkpoint,omitempty"`
 }
 
 // Member is one entry in the manifest inventory.
@@ -567,6 +585,7 @@ func (p *Package) WriteTo(w io.Writer) (int64, error) {
 		Sources:       p.Sources,
 		Task:          p.InterchangeTask,
 		Voice:         voiceIdentities(p.Voice),
+		Checkpoint:    p.Checkpoint,
 	}
 	for _, m := range members {
 		manifest.Members = append(manifest.Members, m.Member)
@@ -743,6 +762,12 @@ func (p *Package) serializeMembers() ([]memberContent, error) {
 		}
 		addData(d.Path, ContentTypeDecisions, d.Data)
 	}
+	for _, t := range p.Tables {
+		if t.Table == "" {
+			return nil, errors.New("kpz: projection table needs a name")
+		}
+		addData(ProjectionDir+t.Table+".jsonl", ContentTypeProjection, t.Data)
+	}
 	if len(p.Projects) > 0 {
 		registry, err := marshalProjectRegistry(p.Projects)
 		if err != nil {
@@ -847,16 +872,17 @@ func read(zr *zip.Reader) (*Package, error) {
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
 		return nil, fmt.Errorf("kpz: decode manifest: %w", err)
 	}
-	// Accept the four profiles the container has: the project snapshot, the
-	// bilingual interchange slice, a project's authored context, and a
-	// workspace of those. Reject any other kind.
+	// Accept the five profiles the container has: the project snapshot, the
+	// bilingual interchange slice, a project's authored context, a workspace
+	// of those, and a checkpoint of a project's projections. Reject any other
+	// kind.
 	kind := manifest.Kind
 	switch kind {
-	case KindProject, KindInterchange, KindContext, KindWorkspace:
+	case KindProject, KindInterchange, KindContext, KindWorkspace, KindCheckpoint:
 		// keep
 	default:
-		return nil, fmt.Errorf("kpz: unknown kind %q (want %q, %q, %q or %q)",
-			manifest.Kind, KindProject, KindInterchange, KindContext, KindWorkspace)
+		return nil, fmt.Errorf("kpz: unknown kind %q (want %q, %q, %q, %q or %q)",
+			manifest.Kind, KindProject, KindInterchange, KindContext, KindWorkspace, KindCheckpoint)
 	}
 	major, vok := schemaversion.Major(manifest.SchemaVersion)
 	if !vok {
@@ -884,6 +910,7 @@ func read(zr *zip.Reader) (*Package, error) {
 		Recipe:          recipe,
 		Sources:         manifest.Sources,
 		InterchangeTask: manifest.Task,
+		Checkpoint:      manifest.Checkpoint,
 	}
 	// Index source identities by skeleton member path so skeleton members can
 	// recover their (sourcePath, formatId, contentHash) metadata on load.
@@ -985,6 +1012,11 @@ func read(zr *zip.Reader) (*Package, error) {
 			})
 		case ContentTypeDecisions:
 			pkg.Decisions = append(pkg.Decisions, DecisionDoc{Path: m.Path, Data: body})
+		case ContentTypeProjection:
+			pkg.Tables = append(pkg.Tables, TableDoc{
+				Table: strings.TrimSuffix(strings.TrimPrefix(m.Path, ProjectionDir), ".jsonl"),
+				Data:  body,
+			})
 		case ContentTypeProject:
 			// One project's whole context package, verified above by streaming
 			// and then referenced: a workspace is unpacked a project at a time.

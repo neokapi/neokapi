@@ -172,11 +172,25 @@ func TestRebuildFromAMixedLogEqualsTheIncrementalState(t *testing.T) {
 	require.Len(t, before["workspace_rules"], 1)
 	verdict := checkWith(t, app, root).Verdict
 
-	res, err := app.RebuildProjectContext(ctx, recipeOf(root))
+	res, err := app.RebuildProjectContext(ctx, recipeOf(root), true)
 	require.NoError(t, err)
 	assert.Empty(t, res.Failed)
 	assert.Positive(t, res.Operations["terms.write"])
+	assert.Positive(t, res.Operations["unit.record"])
+	assert.NotEmpty(t, res.Checkpoint, "a checkpoint is written after the rebuild")
 
 	assert.Equal(t, before, projectionRows(t, app, db), "the rebuilt stores are the ones the writes left")
 	assert.Equal(t, verdict, checkWith(t, app, root).Verdict, "and the check reads them the same way")
+
+	// More decisions and an edit after the checkpoint; the next rebuild starts
+	// from the checkpoint and lands on the same rows.
+	require.NoError(t, st.Put(ctx, decide("farewell", "Ha det bra", "asgeir")))
+	require.NoError(t, st.Delete(ctx, state.Key{Scope: "doc", Unit: "greeting", Variant: model.Variant("nb")}))
+	res2 := app.applyRecordedAssetEntry(ctx, cmd, changeEntry{Kind: kindMemory, Op: "add", Source: "Open", Target: "Åpne", SourceLocale: "en", TargetLocale: "nb"})
+	require.Equal(t, "applied", res2.Status, res2.Detail)
+	before = projectionRows(t, app, db)
+	again, err := app.RebuildProjectContext(ctx, recipeOf(root), false)
+	require.NoError(t, err)
+	assert.Equal(t, res.Checkpoint, again.From, "the rebuild starts from the checkpoint")
+	assert.Equal(t, before, projectionRows(t, app, db), "and lands on the rows the writes left")
 }

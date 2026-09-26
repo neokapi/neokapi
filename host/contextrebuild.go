@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/workspace"
 )
 
 // ContextRebuild reports what a rebuild of a project's stores replayed.
@@ -20,6 +21,12 @@ type ContextRebuild struct {
 	Failed []string `json:"failed,omitempty"`
 	// Seconds is how long the rebuild took.
 	Seconds float64 `json:"seconds"`
+	// From is the last operation of the checkpoint the rebuild started from,
+	// empty when it replayed the whole log.
+	From string `json:"from,omitempty"`
+	// Checkpoint is the last operation of the checkpoint written afterwards,
+	// when one was asked for.
+	Checkpoint string `json:"checkpoint,omitempty"`
 }
 
 // FormatText renders the rebuild for a reader.
@@ -31,8 +38,12 @@ func (r ContextRebuild) FormatText(w io.Writer) error {
 		kinds = append(kinds, kind)
 	}
 	sort.Strings(kinds)
-	if _, err := fmt.Fprintf(w, "Rebuilt the project's stores from %s in %.1fs.\n",
-		pluralUnit(total, "operation", "operations"), r.Seconds); err != nil {
+	from := ""
+	if r.From != "" {
+		from = " after checkpoint " + workspace.ShortOpID(r.From)
+	}
+	if _, err := fmt.Fprintf(w, "Rebuilt the project's stores from %s%s in %.1fs.\n",
+		pluralUnit(total, "operation", "operations"), from, r.Seconds); err != nil {
 		return err
 	}
 	for _, kind := range kinds {
@@ -45,6 +56,11 @@ func (r ContextRebuild) FormatText(w io.Writer) error {
 			return err
 		}
 	}
+	if r.Checkpoint != "" {
+		if _, err := fmt.Fprintf(w, "Wrote a checkpoint through %s.\n", workspace.ShortOpID(r.Checkpoint)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -54,7 +70,11 @@ func (r ContextRebuild) FormatText(w io.Writer) error {
 // ones the log's writes produced, which is what makes them disposable: a store
 // that was damaged, or that a merged log moved past, is rebuilt rather than
 // repaired.
-func (a *App) RebuildProjectContext(ctx context.Context, projectPath string) (ContextRebuild, error) {
+//
+// With checkpoint set it writes a checkpoint afterwards (core/projector), so the
+// next rebuild starts from the stores as they stand now and replays only what
+// comes after.
+func (a *App) RebuildProjectContext(ctx context.Context, projectPath string, checkpoint bool) (ContextRebuild, error) {
 	var res ContextRebuild
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
@@ -69,7 +89,12 @@ func (a *App) RebuildProjectContext(ctx context.Context, projectPath string) (Co
 	}
 	start := time.Now()
 	report, err := w.Rebuild(ctx)
-	res.Operations, res.Failed = report.Operations, report.Failed
+	res.Operations, res.Failed, res.From = report.Operations, report.Failed, report.Checkpoint
 	res.Seconds = time.Since(start).Seconds()
+	if err != nil || !checkpoint {
+		return res, err
+	}
+	cp, err := w.Checkpoint(ctx)
+	res.Checkpoint = cp.Through
 	return res, err
 }
