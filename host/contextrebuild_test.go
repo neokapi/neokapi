@@ -20,9 +20,7 @@ import (
 )
 
 // projectionRows renders every row of a project's projection tables and the
-// rules it widened, so two states of one store can be compared. The voice
-// store stamps an edit's time and the version it archives from the clock, so
-// those two columns are left out.
+// rules it widened, so two states of one store can be compared.
 func projectionRows(t *testing.T, app *App, db *projectdb.DB) map[string][]string {
 	t.Helper()
 	ctx := t.Context()
@@ -54,9 +52,6 @@ func projectionRows(t *testing.T, app *App, db *projectdb.DB) map[string][]strin
 			require.NoError(t, rows.Scan(ptrs...))
 			var cells []string
 			for i, c := range cols {
-				if (table == "voice_profiles" && c == "updated_at") || (table == "voice_profile_versions" && c == "created_at") {
-					continue
-				}
 				cells = append(cells, fmt.Sprintf("%s=%v", c, vals[i]))
 			}
 			out[table] = append(out[table], strings.Join(cells, "|"))

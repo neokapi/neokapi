@@ -71,7 +71,7 @@ var writes = map[string]map[string]bool{
 		"CreateImportSession", "UpdateImportSessionCount", "DeleteImportSession"),
 	"github.com/neokapi/neokapi/terms.SQLiteStore": set("AddConcept", "AddConceptWithStream", "DeleteConcept",
 		"AddRelation", "AddRelationWithStream", "DeleteRelation"),
-	"github.com/neokapi/neokapi/voice.SQLiteStore": set("CreateProfile", "UpdateProfile", "DeleteProfile",
+	"github.com/neokapi/neokapi/voice.SQLiteStore": set("CreateProfile", "UpdateProfile", "UpdateProfileAt", "DeleteProfile",
 		"CreateProfileTag", "DeleteProfileTag", "StoreScore", "StoreCorrection", "RecordRuleDecision"),
 	"github.com/neokapi/neokapi/core/workspace.Workspace": set("WidenRule", "NarrowRule"),
 }
