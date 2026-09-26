@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projector"
 )
 
 // The write half of the store-only model. Every change to a project's context
@@ -302,9 +303,9 @@ func seedVoiceProfile(t *testing.T, a *App, cmd Command) {
 	t.Helper()
 	recipe, root, err := a.resolveProjectRoot(cmd)
 	require.NoError(t, err)
-	db, err := a.ProjectDB(cmd.Context(), root)
+	w, err := a.Projector(cmd.Context(), root)
 	require.NoError(t, err)
-	_, err = a.boundVoiceProfileForWrite(cmd.Context(), db, recipe, root)
+	_, err = a.boundVoiceProfileForWrite(cmd.Context(), voiceWriter(w.With(projector.Origin{By: "test"})), recipe, root)
 	require.NoError(t, err)
 }
 

@@ -120,11 +120,12 @@ func TestRebuildFromAMixedLogEqualsTheIncrementalState(t *testing.T) {
 		{Kind: kindTerm, Op: "upsert", Term: "e-mail", Replacement: "email", Locale: "en", Status: "forbidden"},
 		{Kind: kindMemory, Op: "add", Source: "Save", Target: "Lagre", SourceLocale: "en", TargetLocale: "nb"},
 		{Kind: kindMemory, Op: "add", Source: "Cancel", Target: "Avbryt", SourceLocale: "en", TargetLocale: "nb"},
-		{Kind: kindVoice, Op: "add-rule", List: "forbidden", Term: "leverage", Replacement: "use"},
+		{Kind: kindTerm, Term: "leverage", Replacement: "use", Locale: "en", Status: "forbidden", Advisory: true},
 	} {
 		res := app.applyRecordedAssetEntry(ctx, cmd, e)
 		require.Equal(t, "applied", res.Status, "%s: %s", e.Kind, res.Detail)
 	}
+	seedVoiceProfile(t, app, cmd)
 
 	bundle := ktb.FromConcepts([]terms.Concept{
 		{ID: "c-widget", Terms: []terms.Term{{Text: "widget", Locale: "en", Status: model.TermPreferred}}},
