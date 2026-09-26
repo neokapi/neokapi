@@ -1,5 +1,5 @@
 // RecipeView — the project lens of the flow workspace. The canvas is not a
-// drawing: it is a view over a `.kapi` recipe, the same committed file kapi
+// drawing: it is a view over a `kapi.yaml` recipe, the same committed file kapi
 // uses on disk. This panel shows that recipe live (edit the flow and the YAML
 // follows), with the project-scope block (defaults.tools) highlighted — the
 // presets every flow in the project inherits and a step's own config
@@ -40,7 +40,7 @@ export default function RecipeView({ recipe }: RecipeViewProps): React.ReactElem
         </span>
       </div>
       <p className="text-[11px] leading-relaxed text-muted-foreground">
-        Everything you design here serializes to a <code>.kapi</code> recipe, the committed file
+        Everything you design here serializes to a <code>kapi.yaml</code> recipe, the committed file
         kapi works from. <code>defaults.tools</code> is project scope (every flow inherits it; a
         step&apos;s own config wins per key); the flow&apos;s steps are the nodes on the canvas.
         Edit the flow and watch the YAML follow.

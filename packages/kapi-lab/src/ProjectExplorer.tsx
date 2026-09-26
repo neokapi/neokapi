@@ -84,10 +84,10 @@ ${FLOWS.map((f) => f.yaml).join("\n")}
 `;
 }
 
-// ProjectExplorer teaches the .kapi *project* model — config-as-code in a
-// committed recipe (content + multiple flows + a real fr target) plus a .kapi/
-// state dir (the persistent project store + content memory) — and runs the project
-// lifecycle in WASM: import the project content memory → extract → run a declared
+// ProjectExplorer teaches the kapi *project* model — config-as-code in a
+// committed `kapi.yaml` recipe (content + multiple flows + a real fr target)
+// plus a .kapi/ state dir (the persistent project store + content memory) —
+// and runs the project lifecycle in WASM: import the project content memory → extract → run a declared
 // translate flow (recycle, process-only, commits real fr targets to the
 // store) → merge (materialize the localized file). The translation is genuine
 // content-memory leverage — no LLM, no network — so the merged output is a real fr file,
@@ -118,7 +118,7 @@ export default function ProjectExplorer({
   // Per-sample project dir (distinct so explorers/samples don't collide).
   const dir = `proj-${sampleId}`;
   const absDir = `/project/${dir}`;
-  const recipePath = `${absDir}/demo.kapi`;
+  const recipePath = `${absDir}/kapi.yaml`;
   const srcPath = `${absDir}/${sample.filename}`;
   const memoryPath = `${absDir}/project.memory.json`;
   const outPath = useCallback(
@@ -179,7 +179,7 @@ export default function ProjectExplorer({
         // (.memory.json) resolves it.
         if (step === "extract") {
           runtime.mkdir(dir);
-          runtime.writeFile(`${dir}/demo.kapi`, recipe);
+          runtime.writeFile(`${dir}/kapi.yaml`, recipe);
           runtime.writeFile(`${dir}/${sample.filename}`, sample.bytes());
           runtime.writeFile(`${dir}/project.memory.json`, sample.memory);
           const memoryCode = await runtime.run(["memory", "import", memoryPath]);
@@ -283,7 +283,7 @@ export default function ProjectExplorer({
 
       <div className={s.panel}>
         <div className={s.card}>
-          <div className={s.cardTitle}>demo.kapi (the recipe, committed config)</div>
+          <div className={s.cardTitle}>kapi.yaml (the recipe, committed config)</div>
           <CodeView text={recipe} lang="yaml" lineNumbers={false} maxHeight="18rem" />
         </div>
 
@@ -384,7 +384,7 @@ export default function ProjectExplorer({
       <GateOverlay
         gate={gate}
         title="Project"
-        description="Open a .kapi project and inspect it with the real engine."
+        description="Open a kapi project and inspect it with the real engine."
       />
     </div>
   );

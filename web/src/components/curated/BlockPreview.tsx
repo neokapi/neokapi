@@ -126,7 +126,7 @@ const LazyBlockPreview = React.lazy(async () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [runtime]);
 
-    // When the engine can't parse the file (no reader for e.g. a .kapi YAML
+    // When the engine can't parse the file (no reader for e.g. a kapi.yaml
     // recipe), don't dead-end — read the raw bytes and show highlighted text.
     const unparseable = data != null && !data.ok;
     const raw = unparseable && runtime ? readRaw(runtime, resolvedPath) : null;

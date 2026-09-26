@@ -5,7 +5,7 @@
 
 /**
  * An inline file to seed into the session cwd: dynamic content that isn't a
- * bundled fixture (e.g. a generated project.kapi, or a scene's glossary/TMX).
+ * bundled fixture (e.g. a generated kapi.yaml, or a scene's glossary/TMX).
  * `path` may be relative (resolved against the session cwd) or absolute.
  */
 export interface KapiFile {

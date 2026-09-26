@@ -210,6 +210,67 @@ const pseudo = await run(
 );
 ok("TryNeokapi: `pseudo-translate` exits 0", pseudo.code === 0, pseudo.out.trim());
 
+// Every lab on a page shares one engine and one /project, and a recipe run
+// leaves a `.kapi/` state dir beside its recipe. The recipe-writing labs each
+// keep their `kapi.yaml` in a directory of their own, so no state dir lands in
+// /project without a recipe beside it, and a later command there that walks up
+// for a project (the pseudo-translate widget, the playground terminal) still
+// runs. FlowBuilderRunner writes /project/flow/kapi.yaml; ToolDropWidget writes
+// /project/<instance id>/kapi.yaml.
+const LAB_RECIPE =
+  "version: v1\nname: Lab\ndefaults:\n  source_language: en\nflows:\n  lab:\n    steps:\n      - tool: pseudo-translate\n";
+for (const [lab, dir] of [
+  ["FlowBuilderRunner", "/project/flow"],
+  ["ToolDropWidget", "/project/_r_0_"],
+] as const) {
+  mem.vol.mkdirp(dir);
+  mem.vol.writeFile(`${dir}/kapi.yaml`, enc.encode(LAB_RECIPE));
+  const r = await run(
+    "run",
+    "lab",
+    "-p",
+    `${dir}/kapi.yaml`,
+    "-i",
+    "/project/article.md",
+    "-o",
+    `${dir}-out-article.md`,
+    "--target-lang",
+    "fr",
+  );
+  ok(`${lab}: \`run lab -p ${dir}/kapi.yaml\` exits 0`, r.code === 0, r.out.trim());
+}
+const afterLabs = await run(
+  "pseudo-translate",
+  "/project/article.md",
+  "-o",
+  "/project/out-after-labs.md",
+  "--target-lang",
+  "qps",
+);
+ok(
+  "a command in /project still runs after the recipe labs ran",
+  afterLabs.code === 0,
+  afterLabs.out.trim(),
+);
+
+// The playground's sample projects (packages/kapi-playground/src/samples.ts)
+// seed their recipe into the terminal's working directory as kapi.yaml, and the
+// staged funnel runs with no -p, so each step finds the project by discovery.
+mem.vol.mkdirp("/sample");
+mem.vol.writeFile(
+  "/sample/kapi.yaml",
+  enc.encode(
+    'version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\ncollections:\n  - path: messages.json\n    format: json\n    target: "out/{lang}/messages.json"\nflows:\n  translate:\n    steps:\n      - tool: recycle\n',
+  ),
+);
+mem.vol.writeFile("/sample/messages.json", enc.encode('{"greeting": "Welcome to Acme"}\n'));
+mem.process.chdir("/sample");
+for (const argv of [["status"], ["extract"]]) {
+  const r = await run(...argv);
+  ok(`playground sample project: \`kapi ${argv.join(" ")}\` finds the project`, r.code === 0, r.out.trim());
+}
+mem.process.chdir("/project");
+
 // ── 4. Verbs newly reachable in the browser actually work ──────────────────
 console.log("command-surface-smoke: newly wired verbs run for real");
 const inspect = await run("inspect", "/project/article.md");

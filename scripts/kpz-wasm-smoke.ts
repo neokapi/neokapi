@@ -1,4 +1,4 @@
-// kpz-wasm-smoke: prove the .kpz workspace + .kapi project workflows run in
+// kpz-wasm-smoke: prove the .kpz workspace + kapi project workflows run in
 // the *browser* WASM engine (no SQLite, no real filesystem) — including
 // binary Office formats, not just text (AD-025 §5 / #787). Boots the real
 // kapi-cli.wasm in Node against the in-memory filesystem and drives the
@@ -78,18 +78,18 @@ const docxOut = mem.vol.readFile("/p/dout/sample.docx");
 if (!(docxOut[0] === 0x50 && docxOut[1] === 0x4b)) { console.error("FAIL: merged .docx is not a valid zip"); process.exit(1); }
 console.log(`  ok: merged .docx is a valid OOXML zip (${docxOut.length} bytes)`);
 
-// 3) .kapi project run against memfs + the in-memory cache.
-console.log("kpz-wasm-smoke: .kapi project run");
+// 3) kapi project run against memfs + the in-memory cache.
+console.log("kpz-wasm-smoke: kapi project run");
 mem.vol.mkdirp("/proj");
 mem.vol.mkdirp("/proj/.kapi");
 mem.vol.writeFile("/proj/app.json", enc.encode('{"g":"Hello"}'));
 mem.vol.writeFile(
-  "/proj/demo.kapi",
+  "/proj/kapi.yaml",
   enc.encode("version: \"v1\"\nname: d\ndefaults:\n  source_language: en\n  target_languages: [qps]\nflows:\n  pseudo:\n    steps:\n      - tool: pseudo-translate\n"),
 );
-ok("project run", await run("run", "pseudo", "-p", "/proj/demo.kapi", "-i", "/proj/app.json", "-o", "/proj/out.json", "--target-lang", "qps"));
+ok("project run", await run("run", "pseudo", "-p", "/proj/kapi.yaml", "-i", "/proj/app.json", "-o", "/proj/out.json", "--target-lang", "qps"));
 const projOut = dec.decode(mem.vol.readFile("/proj/out.json"));
 if (!/[-￿]/.test(projOut)) { console.error("FAIL: project run output not translated: " + projOut); process.exit(1); }
 
-console.log("kpz-wasm-smoke: OK (.kpz + .kapi run in wasm; JSON + Office; dirty/pack)");
+console.log("kpz-wasm-smoke: OK (.kpz + kapi project run in wasm; JSON + Office; dirty/pack)");
 process.exit(0);

@@ -67,7 +67,7 @@
   margin: 0;
 }
 
-/* ── Raw-text fallback (unparseable / .kapi files) ───────────────────────
+/* ── Raw-text fallback (unparseable / kapi.yaml files) ──────────────────────
    Rendered by the shared CodeView (@neokapi/ui-primitives/preview), which
    brings its own token palette; this class only sizes the container. */
 

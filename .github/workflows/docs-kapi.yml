@@ -256,6 +256,13 @@ jobs:
           vp check --no-fmt
           vp test -- --run
 
+      # The playground kit (the CLI playground's terminal and sample projects).
+      - name: Playground package checks and tests
+        working-directory: packages/kapi-playground
+        run: |
+          vp check --no-fmt
+          vp test -- --run
+
       # The docs site's own unit tests: the helpers the reference-page generator
       # shares with the runtime grids, whose output is committed MDX. A page is
       # generated, so a defect in one of them is a defect on every page of a

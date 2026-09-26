@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import ProjectExplorer, { FLOWS, TARGETS, recipeFor } from "../ProjectExplorer";
 import { WORKSPACE_SAMPLES, workspaceSampleById } from "../workspaceSamples";
 
-// ProjectExplorer drives the live .kapi project lifecycle (extract → run a
+// ProjectExplorer drives the live kapi project lifecycle (extract → run a
 // declared flow → merge) against the real kapi WASM engine, which is supplied
 // by the docs host as `assets` (the wasm-exec + wasm URLs). Storybook does not
 // serve those assets, so the live story renders the booting/idle shell; the

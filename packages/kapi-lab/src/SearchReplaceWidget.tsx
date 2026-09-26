@@ -19,9 +19,9 @@ export interface SearchReplaceWidgetProps {
   className?: string;
 }
 
-// Build a one-step `.kapi` recipe for the search-replace tool. The find/replace
-// pair is carried in the tool config's `pairs` array; `regEx` toggles regular-
-// expression mode. The pairs decode into SearchReplaceConfig.Pairs via the
+// Build a one-step `kapi.yaml` recipe for the search-replace tool. The
+// find/replace pair is carried in the tool config's `pairs` array; `regEx`
+// toggles regular-expression mode. The pairs decode into SearchReplaceConfig.Pairs via the
 // config's JSON round-trip (the field's `schema:"-"` only hides it from the
 // generated schema form, not from JSON), so an inline recipe is the canonical
 // way to drive search-replace with a pair from the browser. Exported for tests.

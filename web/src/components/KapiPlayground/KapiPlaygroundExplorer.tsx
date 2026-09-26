@@ -9,8 +9,8 @@ import "./explorer.css";
 // a sample picker. The picker lists two visually distinct groups —
 //   • "Loose files (ad-hoc)" — a single standalone input you run a one-off
 //     command against, and
-//   • "Sample projects (.kapi)" — a ready-made recipe + content + seeded TM so
-//     you can run the offline project funnel.
+//   • "Sample projects" — a ready-made kapi.yaml recipe + content + a seeded
+//     content memory, so you can run the offline project funnel.
 // Selecting a sample seeds the in-memory FS and stages a suggested command at
 // the prompt. The heavy kit (xterm + wasm) is one async chunk, loaded once.
 
@@ -86,7 +86,7 @@ const LazyExplorer = React.lazy(async () => {
           <section className="kapi-pgx__group kapi-pgx__group--project">
             <h2 className="kapi-pgx__group-title">
               <FolderGit2 size={15} aria-hidden="true" />
-              Sample projects (.kapi)
+              Sample projects
             </h2>
             <p className="kapi-pgx__group-sub">
               A recipe + content + a seeded content memory. Run the offline funnel.

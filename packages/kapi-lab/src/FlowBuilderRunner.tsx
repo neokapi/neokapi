@@ -103,8 +103,15 @@ export function buildToolInfos(): ToolInfo[] {
   return BROWSER_SAFE_TOOLS.map((id) => byId.get(id)).filter((t): t is ToolInfo => !!t);
 }
 
+// The directory under /project that holds the canvas's recipe. Every lab on a
+// page shares one engine and one /project, and a run leaves a `.kapi/` state
+// dir beside its recipe, so the recipe gets a directory of its own: kapi finds
+// the project by walking up to a `kapi.yaml`, and a state dir in /project with
+// no recipe beside it would fail every later command run there.
+export const FLOW_PROJECT_DIR = "flow";
+
 // Serialize a FlowSpec (plus optional project-level tool presets) into a
-// minimal `.kapi` recipe with a single `lab` flow. The presets land under
+// minimal `kapi.yaml` recipe with a single `lab` flow. The presets land under
 // `defaults.tools` — the engine merges them under each step's own config (the
 // step wins per key), exactly as in a real project. `config:` is emitted only
 // when a step actually carries one. Exported for unit tests.
@@ -225,12 +232,12 @@ export interface FlowBuilderRunnerProps {
 
 // FlowBuilderRunner is the lab's flow workspace: a learner picks a teaching
 // scenario (or builds their own flow), and the SAME designed flow runs live —
-// on Run it serializes the graph (and the project's tool presets) to a `.kapi`
-// recipe, writes it into the WASM filesystem, runs `kapi run lab` with tracing
-// on, and loads the trace back INTO the editor: the transport replays the
-// events on the designed nodes, and clicking a node opens the run inspector
-// showing what that step attached to each block. There is no separate run
-// view.
+// on Run it serializes the graph (and the project's tool presets) to a
+// `kapi.yaml` recipe, writes it into the WASM filesystem, runs `kapi run lab`
+// with tracing on, and loads the trace back INTO the editor: the transport
+// replays the events on the designed nodes, and clicking a node opens the run
+// inspector showing what that step attached to each block. There is no
+// separate run view.
 export default function FlowBuilderRunner({
   assets,
   defaultSampleId,
@@ -520,7 +527,8 @@ export default function FlowBuilderRunner({
       setNerProgress(null);
 
       const recipe = buildRecipe({ steps }, presets);
-      runtime.writeFile("flow.kapi", recipe);
+      runtime.mkdir(FLOW_PROJECT_DIR);
+      const recipePath = runtime.writeFile(`${FLOW_PROJECT_DIR}/kapi.yaml`, recipe);
 
       // Every selected file runs through the same designed flow (sequentially —
       // the wasm engine serializes runs anyway); the active file's run feeds
@@ -533,7 +541,7 @@ export default function FlowBuilderRunner({
           "run",
           "lab",
           "-p",
-          "/project/flow.kapi",
+          recipePath,
           "-i",
           inPath,
           "-o",
@@ -554,7 +562,7 @@ export default function FlowBuilderRunner({
       setOutVersion((v) => v + 1);
       setBusy(false);
     },
-    [runtime.ready, runtime.writeFile, runtime.trace, selected, presets],
+    [runtime.ready, runtime.mkdir, runtime.writeFile, runtime.trace, selected, presets],
   );
 
   // A walkthrough step whose action is Run auto-advances when the run lands,
@@ -680,7 +688,7 @@ export default function FlowBuilderRunner({
             size="sm"
             className="ml-auto gap-1.5 text-xs"
             onClick={() => (projectOpen ? setProjectOpen(false) : openProject("defaults"))}
-            title="The project this canvas serializes to: tool defaults (form) and the live .kapi recipe (source)"
+            title="The project this canvas serializes to: tool defaults (form) and the live kapi.yaml recipe (source)"
           >
             <FileCode2 className="size-3.5 text-muted-foreground" />
             Project
