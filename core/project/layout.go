@@ -79,17 +79,19 @@ func RelStatePath(parts ...string) string {
 	return filepath.Join(append([]string{StateDirName}, parts...)...)
 }
 
-// ProfilesDirName holds the per-profile governance overrides: one
-// subdirectory per profile, each holding the files that differ from the
-// project default.
+// ProfilesDirName holds the context files a person authors for one profile:
+// one subdirectory per profile, named for its key under `profiles:`, holding
+// that profile's own voice profile and terms bundle.
 //
 // The filesystem mirrors the recipe. A recipe states its default governance
 // under `defaults:` and its exceptions under `profiles:`; the default's files
 // therefore sit flat in `.kapi/` and each profile's sit in a directory of its
 // own.
 //
-// An export writes a profile's overrides here and an explicit import reads
-// them, so the path sits on ExportLayout.
+// `kapi context import` reads them into the store: a terms bundle's concepts
+// scoped to the profile, and a voice profile stored by its id, bound under
+// `profiles.<name>.voice` when that id is not the profile's name. Governance is
+// resolved from the store from then on, so the path sits on ExportLayout.
 const ProfilesDirName = "profiles"
 
 // MemoryDirName holds a project's exported content-memory bundles.

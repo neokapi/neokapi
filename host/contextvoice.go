@@ -19,15 +19,16 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// Voice profiles, on the way into the store and back out of it.
+// Voice profiles, on the way into the store.
 //
 // A recipe binds a profile by the id the store holds it under. A layout keeps
 // each profile at a path: `.kapi/voice.yaml` for the project's, and
 // `.kapi/profiles/<name>/voice.yaml` for a profile's own. Reading a profile in
-// records the tie between the path and the id (MetaVoiceBindings), in the
-// context store: a snapshot writes each profile back to the path it came from,
-// and a profile that binds no voice in the recipe is answered by the one its
-// directory held.
+// records the tie between the path and the id (MetaVoiceBindings) in this
+// machine's store, so a second read of the same file keeps the id the first one
+// chose. The tie is import bookkeeping and never selects a voice: the store
+// travels without it, so an import that reads a profile's own voice binds it in
+// the recipe when the name alone would not find it (bindImportedProfileVoices).
 
 // compileVoiceSource writes one voice profile into the project store's voice
 // store and records where it is authored.
@@ -241,39 +242,6 @@ func voiceProfileScopeName(rel string) string {
 		}
 	}
 	return "default"
-}
-
-// voiceProfileIDForBinding answers which profile in the project's voice store
-// was read from a layout path, or "" when none was.
-//
-// The tie is the binding a read of that file recorded (MetaVoiceBindings). A
-// store filled by a restore rather than by a read has no binding recorded, and
-// the conventional path answers instead: `.kapi/profiles/<id>/voice.yaml` is
-// where a profile of that id is written, which is the same rule
-// storedVoiceProfiles writes by.
-func (a *App) voiceProfileIDForBinding(ctx context.Context, root, profileFile string) string {
-	path := profileFile
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(root, path)
-	}
-	rel := relSlash(root, path)
-	if db, err := a.ProjectDB(ctx, root); err == nil {
-		if id := loadVoiceBindings(ctx, db)[rel]; id != "" {
-			return id
-		}
-	}
-	return profileIDFromConventionalPath(rel)
-}
-
-// profileIDFromConventionalPath reads a profile id out of
-// `.kapi/profiles/<id>/voice.yaml`, or returns "" for any other path.
-func profileIDFromConventionalPath(rel string) string {
-	parts := strings.Split(filepath.ToSlash(rel), "/")
-	if len(parts) != 4 || parts[0] != project.StateDirName ||
-		parts[1] != project.ProfilesDirName || parts[3] != VoiceConventionalName {
-		return ""
-	}
-	return parts[2]
 }
 
 // loadVoiceBindings reads where each voice profile in the store is authored.

@@ -67,7 +67,8 @@ dataset and page checks.
 Four collections at `source/comments` declare the comments of the repository's
 Go, TypeScript, JavaScript, CSS, YAML, Markdown, MDX and HTML trees. Every item
 in them is `comments: {only: true}`: `kapi check` reads those comments against
-the comment voice the project's context holds, and the loop passes
+the comment voice `source-comments`, which `profiles.source.voice` binds by
+name from the project's context, and the loop passes
 over the files. A push leaves their patterns out of the scope it declares, so
 the venue holds and removes exactly what it held before they were declared.
 `make check-comment-coverage` fails when a tracked file in one of those families

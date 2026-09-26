@@ -889,8 +889,9 @@ brand_voice:
 // TestResolveGovernance_ProfileSelectsNotLayers pins what a matched profile
 // does: it selects, it does not layer. One binding no voice keeps the project
 // default, and one binding no terms leaves the project's own store governing —
-// while still naming the profile, because its directory under `.kapi/profiles/`
-// is a binding the recipe does not restate.
+// while still naming the profile, because a caller looks the name up in the
+// project's store: the voice profile of that name, and the concepts scoped to
+// it.
 func TestResolveGovernance_ProfileSelectsNotLayers(t *testing.T) {
 	proj := &KapiProject{
 		Version:  "v1",

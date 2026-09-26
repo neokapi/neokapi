@@ -111,10 +111,10 @@ func hasCollectionContext(proj *project.KapiProject) bool {
 // The key is what the point resolves to — the profile, the voice, the terms and
 // the channel — not the reference that selected them. Channel counts because it
 // selects an override inside the profile, so one voice on two channels is two
-// voices in practice. The profile counts because a profile is answered by its
-// own directory: two profiles binding nothing in the recipe still resolve
-// different `.kapi/profiles/<name>/terms.json`. Two collections on one profile's
-// channel share a profile name, so nothing splits for nothing.
+// voices in practice. The profile counts because the store answers a profile by
+// its name: two profiles binding nothing in the recipe still resolve different
+// stored voices and different profile-scoped concepts. Two collections on one
+// profile's channel share a profile name, so nothing splits for nothing.
 func bindingKey(rc *project.ResolvedGovernance) string {
 	var b strings.Builder
 	b.WriteString(rc.Profile)

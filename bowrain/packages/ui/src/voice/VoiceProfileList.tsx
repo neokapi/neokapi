@@ -91,8 +91,8 @@ export function VoiceProfileList({
           <div className="text-center space-y-4 max-w-md">
             <p className="text-sm text-muted-foreground">
               {onScanVoice
-                ? "No voice profiles yet. A profile binds one under profiles[].voice: in a recipe. Scan your existing material to draft one, or define it by hand."
-                : "No voice profiles yet. A profile binds one under profiles[].voice: in a recipe. Define one by hand, or draft one locally with the kapi Agent Skill."}
+                ? "No voice profiles yet. A profile binds one under profiles.<name>.voice in a recipe. Scan your existing material to draft one, or define it by hand."
+                : "No voice profiles yet. A profile binds one under profiles.<name>.voice in a recipe. Define one by hand, or draft one locally with the kapi Agent Skill."}
             </p>
             <div className="flex items-center justify-center gap-3">
               {onScanVoice && (

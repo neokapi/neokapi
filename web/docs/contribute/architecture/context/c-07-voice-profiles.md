@@ -425,7 +425,10 @@ the project's profile there (or the only profile the layout carries) and says
 so. It writes the two lines of the binding into `kapi.yaml` as a text insertion
 (`project.BindVoice`), so every other byte of the recipe stays as authored. With
 several profiles and none at the top, it binds none and lists them with the line
-to add. An agent's import is refused, since reading context in is a person's
+to add. A profile's own voice binds the same way under `profiles.<name>.voice`
+when the recipe declares the profile, binds no voice there, and the id the file
+is stored under is not the profile's name, which would otherwise select it
+([C-02](c-02-coordinates-and-governance.md)). An agent's import is refused, since reading context in is a person's
 decision.
 
 A binding to a missing profile produces an error. This can happen when a clone
@@ -439,7 +442,10 @@ because for any other name it would install something else.
 `kapi context import` reads a profile's YAML from the layout path a directory
 keys it by ([C-11](c-11-context-operations.md)). The store metadata key
 `context.voiceBindings` ties a stored profile's id to the path a layout keys it
-by, which is the one place the two are joined.
+by, so a second import of the same file keeps the id the first chose. The key is
+import bookkeeping kept on the machine that ran the import. A pull and a
+transfer file carry the store without it, so resolution reads only the recipe
+and the stored profiles.
 
 ### Built-in starter packs
 

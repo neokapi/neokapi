@@ -72,15 +72,13 @@ func (a *App) VoiceProfileTargetAt(ctx context.Context, root string, point proje
 	store := projector.VoiceView(db)
 	bound, own := voiceBindingAt(proj, point.Profile)
 
-	// A profile that binds no voice of its own is answered by the profile the
-	// store holds under its name, ahead of the project's, which is the ladder a
-	// resolution takes. A save at that point lands on the profile it reads.
-	if !own {
-		conv := project.RelStatePath(project.ProfilesDirName, point.Profile, VoiceConventionalName)
-		if id := a.voiceProfileIDForBinding(ctx, root, conv); id != "" && store != nil {
-			if _, gerr := lookupProfileIn(ctx, store, id); gerr == nil {
-				return VoiceProfileTarget{ID: id, Writable: true, Exists: true}, nil
-			}
+	// A profile that binds no voice of its own is answered by the stored
+	// profile named after it, ahead of the project's, which is the ladder a
+	// resolution takes (profileVoiceByName). A save at that point lands on the
+	// profile it reads.
+	if !own && store != nil {
+		if p, gerr := lookupProfileIn(ctx, store, point.Profile); gerr == nil {
+			return VoiceProfileTarget{ID: p.ID, Writable: true, Exists: true}, nil
 		}
 	}
 

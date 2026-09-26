@@ -1658,10 +1658,15 @@ export class PluginStatus {
  * product ships on.
  * 
  * The map key under `profiles:` is the profile's name: the product-axis value
- * its collections carry, and the directory under `.kapi/profiles/` holding the
- * files it overrides. A profile that binds neither a voice nor a vocabulary is
- * still a profile — that directory is the binding, and a project keeping its
- * overrides there should not have to restate every one of them in the recipe.
+ * its collections carry, and the name its governance is found by in the
+ * project's store. A profile that binds no voice is governed by the stored
+ * voice profile of the same name, when the store holds one, ahead of
+ * defaults.voice; the concepts scoped to the profile hold where it governs. A
+ * profile that binds neither a voice nor a terms store is therefore still a
+ * profile.
+ * 
+ * `kapi context import` reads the files under `.kapi/profiles/<name>/` into the
+ * store under that name. Nothing reads them at run time.
  */
 export class Profile {
     /**

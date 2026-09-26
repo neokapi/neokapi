@@ -40,8 +40,8 @@ func TestProfilePointSlug(t *testing.T) {
 	}
 }
 
-// The point's name follows core/project.ProfileBinding.ConventionalName, so a
-// project's `.kapi/profiles/<name>/` directory and this label read the same.
+// The point's name joins its coordinate values in axis order, so a point on the
+// product axis alone reads as the profile key a recipe declares it under.
 func TestProfilePointName(t *testing.T) {
 	assert.Empty(t, profilePointName(nil))
 	assert.Equal(t, "bowrain", profilePointName(map[string]string{"product": "bowrain"}))
