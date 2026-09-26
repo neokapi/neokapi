@@ -2326,18 +2326,15 @@ export function ReviewQueue(tabID, filter) {
  * RunAIPreReview runs the ai review tool over the pending review queue for a
  * locale (batch, explicitly invoked — never during queue listing). Every unit
  * gets an advisory annotation (score + findings) in the project state store,
- * bound to the translation it judged; with policy.AutoApprove, clean
- * high-scoring units are approved through host.ApplyReviewDecisionAs with the
- * honest identity "ai/<model-id>". Human-required gates are unaffected by
- * those approvals (core/gate approver classes).
+ * bound to the translation it judged. Every unit stays in the queue for a
+ * person to decide.
  * @param {string} tabID
  * @param {string} locale
  * @param {$models.PreReviewScope} scope
- * @param {$models.PreReviewPolicy} policy
  * @returns {$CancellablePromise<$models.PreReviewResult | null>}
  */
-export function RunAIPreReview(tabID, locale, scope, policy) {
-    return $Call.ByID(860937492, tabID, locale, scope, policy).then(/** @type {($result: any) => any} */(($result) => {
+export function RunAIPreReview(tabID, locale, scope) {
+    return $Call.ByID(860937492, tabID, locale, scope).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType151($result);
     }));
 }
@@ -2789,19 +2786,6 @@ export function SetTheme(theme) {
  */
 export function SetUILanguage(lang) {
     return $Call.ByID(950373336, lang);
-}
-
-/**
- * SignOffReviewItem promotes one review-queue unit to `signed-off` — the top
- * rung of the target ladder — through host.ApplyReviewDecision.
- * @param {string} tabID
- * @param {string} locale
- * @param {string} file
- * @param {string} key
- * @returns {$CancellablePromise<void>}
- */
-export function SignOffReviewItem(tabID, locale, file, key) {
-    return $Call.ByID(1632397717, tabID, locale, file, key);
 }
 
 /**
