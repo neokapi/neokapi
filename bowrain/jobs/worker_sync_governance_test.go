@@ -454,7 +454,7 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 		assert.Equal(t, string(model.TargetStatusTranslated), decided[0].After["status"])
 	})
 
-	t.Run("a rejection of a signed-off target is held to the same permission", func(t *testing.T) {
+	t.Run("a rejection of an established target is held to the same permission", func(t *testing.T) {
 		rejected := withdrawn
 		rejected.Status = string(model.TargetStatusDraft)
 		rejected.ReviewState = venue.ReviewStateRejected
@@ -486,21 +486,6 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 				assert.Len(t, jobGovernance(t, deps, "push-job-reject").Refusals, 1)
 			})
 		}
-	})
-
-	t.Run("a reviewed target is lowered either way", func(t *testing.T) {
-		approved := signedOff
-		approved.Status = string(model.TargetStatusEstablished)
-		approved.ReviewState = venue.ReviewStateApproved
-		deps, pid := venueHolding(t, model.TargetStatusEstablished, approved, pushAuthority{review: map[string]bool{}})
-		require.NoError(t, withdrawal(pid, "u-translator").run(t, deps, "job-unreview"))
-
-		assert.Equal(t, model.TargetStatusTranslated, storedTarget(t, deps, pid, item, locale),
-			"taking back an approval is ordinary translation work, as it is on the web")
-		d, ok := heldDecision(t, deps, pid, "b1", locale)
-		require.True(t, ok)
-		assert.Empty(t, d.ReviewState)
-		assert.True(t, jobGovernance(t, deps, "push-job-unreview").Empty())
 	})
 
 	t.Run("an edited translation is not a withdrawal and lands at translated", func(t *testing.T) {
@@ -625,7 +610,6 @@ func TestPushReviewGovernance_AuditsAcceptedRungs(t *testing.T) {
 		decision string
 	}{
 		{"approval", model.TargetStatusEstablished, venue.ReviewStateApproved, "approved"},
-		{"sign-off", model.TargetStatusEstablished, venue.ReviewStateApproved, "signed-off"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

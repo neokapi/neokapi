@@ -62,9 +62,8 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 // demotes to "translated" (the default, a plain un-review) or to "draft" (a
 // reviewer REJECTION, so the unit re-enters the work queue, the same mapping
 // the host review service uses for ReviewDecisionRejected). An approving
-// request (reviewed=true) lands on "reviewed" by default, or on "signed-off",
-// the rung above it, when the reviewer signs the target off. Any other pairing
-// is a 400.
+// request (reviewed=true) lands on "established"; its status is omitted or
+// "established". Any other pairing is a 400.
 //
 // BaseRevision is the target revision the reviewer read. A decision that names
 // one is refused with the current block when the target has moved since.
@@ -85,8 +84,7 @@ type ReviewBlockRequest struct {
 const legacyTranslationStatusProperty = "translation-status"
 
 // HandleReviewBlock sets the review status of a block's target for ONE locale:
-// reviewed=true moves the target to model.TargetStatusEstablished, or with
-// status:"signed-off" to model.TargetStatusEstablished, the rung above it;
+// reviewed=true moves the target to model.TargetStatusEstablished;
 // reviewed=false moves it back to model.TargetStatusTranslated — or, with
 // status:"draft", down to model.TargetStatusDraft (a reviewer REJECTION: the
 // unit re-enters the work queue, matching host/convergereport.go's
@@ -100,27 +98,22 @@ const legacyTranslationStatusProperty = "translation-status"
 // governance workflow lifecycle (draft → in_review → published, PG-only,
 // four-eyes on publish).
 //
-// Approving and signing off are the review permission for the language being
-// decided: PermReview, language-scoped. Withdrawing an approval
-// (reviewed=false) and rejecting (status:"draft") stay with PermTranslate, the
-// same gate that edits the target, so a translator can still take back their
-// own work. A target at TargetStatusEstablished (the top of the ladder) is
-// protected either way: approving or re-signing it is an idempotent no-op that
-// keeps signed-off, and demoting it requires PermReview, so a translator's
-// ordinary un-review click cannot silently undo a sign-off (and the ship gates
-// keyed on "at least signed-off" coverage) two rungs down to translated.
+// Approving is the review permission for the language being decided:
+// PermReview, language-scoped. A target at TargetStatusEstablished is
+// protected: approving it again is an idempotent no-op, and demoting it
+// (un-review or rejection) requires PermReview, so a translator's ordinary
+// un-review click cannot silently undo a person's decision (and the ship gates
+// keyed on established coverage).
 //
 // Every promotion also passes the workspace separation-of-duties policy:
 // whoever last wrote the translation by hand may not be the one who approves or
 // signs it off, unless the workspace has the policy off or set to warn. A
 // target a run produced has no human author and stays approvable by one person.
-// Signing off a target already at reviewed is a fresh decision and is vetted
-// again; the policy draws no second line between the approver and the signer.
 //
 // No-target decision (documented per epic 006 task 3): approving a block that
 // has no non-empty translation for the locale is a 422. The visual editor lets
 // a reviewer step onto untranslated blocks (they render with source fallback),
-// but "reviewed" is a rung on the target ladder — convergence.TargetState
+// but "established" is a rung on the target ladder — convergence.TargetState
 // counts a unit at its Target.Status only when a non-empty target exists, and
 // the host review service (host.ApplyReviewDecision) refuses to approve empty
 // translations for the same reason. Persisting an approval that coverage could
@@ -148,20 +141,17 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 	if req.TargetLocale == "" {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "target_locale is required"})
 	}
-	// The optional status picks the rung, and each direction has its own two.
-	// Clearing lands on translated (a plain un-review) or draft (a reviewer
-	// rejection, which re-enters the work queue, mirroring host's
-	// ReviewDecisionRejected mapping). Approving lands on reviewed or, when the
-	// reviewer signs the target off, on signed-off.
+	// The optional status picks the rung. Clearing lands on translated (a
+	// plain un-review) or draft (a reviewer rejection, which re-enters the work
+	// queue, mirroring host's ReviewDecisionRejected mapping). Approving lands
+	// on established.
 	demoteTo := model.TargetStatusTranslated
 	promoteTo := model.TargetStatusEstablished
 	if req.Reviewed {
 		switch req.Status {
-		case "":
-		case string(model.TargetStatusEstablished):
-			promoteTo = model.TargetStatusEstablished
+		case "", string(model.TargetStatusEstablished):
 		default:
-			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: `status must be "signed-off" or omitted when reviewed is true`})
+			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: `status must be "established" or omitted when reviewed is true`})
 		}
 	} else {
 		switch req.Status {

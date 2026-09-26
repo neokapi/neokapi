@@ -112,7 +112,7 @@ func (h *refHarness) decide(t *testing.T, unit, reviewState string) {
 	_, err := h.store.UpsertUnitDecisions(t.Context(), h.project.ID, refTestStream,
 		[]venue.UnitDecision{{
 			ItemName: "docs/intro.md", Unit: unit, Variant: "fr",
-			Status: "reviewed", ReviewState: reviewState, DecidedBy: "ana",
+			Status: "established", ReviewState: reviewState, DecidedBy: "ana",
 			Updated: "2026-08-01T00:00:00Z",
 		}})
 	require.NoError(t, err)

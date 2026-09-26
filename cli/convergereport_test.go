@@ -73,4 +73,3 @@ func TestApproveReviewUnit_NotFound(t *testing.T) {
 	_, err := a.ApproveReviewUnit(context.Background(), filepath.Join(root, "kapi.yaml"), "en", "nb", "nope.json", "missing")
 	require.Error(t, err)
 }
-

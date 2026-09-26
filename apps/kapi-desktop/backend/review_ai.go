@@ -476,7 +476,6 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope) (*PreRe
 		if gerr := func() error {
 			defer release()
 
-
 			annotations := map[string]state.AIReview{}
 
 			for _, it := range items {

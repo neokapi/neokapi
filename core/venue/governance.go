@@ -152,4 +152,3 @@ func CarriesDecision(decisions []UnitDecision) bool {
 	}
 	return false
 }
-

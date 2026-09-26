@@ -158,7 +158,7 @@ func (s *Server) priorApprovers(ctx context.Context, projectID, stream, blockID 
 		if d.Unit != sb.SourceID {
 			continue
 		}
-		if d.ReviewState != "approved" && d.ReviewState != "signed-off" {
+		if d.ReviewState != "approved" {
 			continue
 		}
 		userID := s.userIDForDecider(ctx, d.DecidedBy)

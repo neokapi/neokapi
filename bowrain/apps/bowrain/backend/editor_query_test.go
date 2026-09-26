@@ -71,7 +71,7 @@ func TestGetBlockCountsPartitionsByStatus(t *testing.T) {
 	assert.Equal(t, "fr", counts.Locale)
 	assert.Equal(t, 1, counts.Status.Translated)
 	assert.Equal(t, counts.Translatable,
-		counts.Status.NotStarted+counts.Status.Draft+counts.Status.Translated+counts.Status.Reviewed,
+		counts.Status.NotStarted+counts.Status.Draft+counts.Status.Translated+counts.Status.Established,
 		"the buckets partition the translatable blocks")
 }
 
@@ -151,7 +151,7 @@ func TestBulkReviewBlocksReportsEachBlock(t *testing.T) {
 
 	counts, err := app.GetBlockCounts(info.ID, itemName, EditorBlockFilter{Locale: "fr"})
 	require.NoError(t, err)
-	assert.Equal(t, 2, counts.Status.Reviewed)
+	assert.Equal(t, 2, counts.Status.Established)
 }
 
 func TestBulkApplyMemorySkipsEveryBlockOffline(t *testing.T) {

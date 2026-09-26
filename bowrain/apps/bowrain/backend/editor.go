@@ -281,10 +281,10 @@ func (a *App) GetBlock(projectID, blockID string) (*BlockInfo, error) {
 
 // BlockStatusCountsView is the per-locale status histogram.
 type BlockStatusCountsView struct {
-	NotStarted int `json:"not-started"`
-	Draft      int `json:"draft"`
-	Translated int `json:"translated"`
-	Reviewed   int `json:"reviewed"`
+	NotStarted  int `json:"not-started"`
+	Draft       int `json:"draft"`
+	Translated  int `json:"translated"`
+	Established int `json:"established"`
 }
 
 // BlockCountsView is a block query's totals and histogram.
@@ -308,10 +308,10 @@ func (a *App) GetBlockCounts(projectID, itemName string, filter EditorBlockFilte
 				Translatable: counts.Translatable,
 				Locale:       counts.Locale,
 				Status: BlockStatusCountsView{
-					NotStarted: counts.Status.NotStarted,
-					Draft:      counts.Status.Draft,
-					Translated: counts.Status.Translated,
-					Reviewed:   counts.Status.Reviewed,
+					NotStarted:  counts.Status.NotStarted,
+					Draft:       counts.Status.Draft,
+					Translated:  counts.Status.Translated,
+					Established: counts.Status.Established,
 				},
 			}, nil
 		}
@@ -328,10 +328,10 @@ func (a *App) GetBlockCounts(projectID, itemName string, filter EditorBlockFilte
 		Translatable: counts.Translatable,
 		Locale:       filter.Locale,
 		Status: BlockStatusCountsView{
-			NotStarted: counts.NotStarted,
-			Draft:      counts.Draft,
-			Translated: counts.Translated,
-			Reviewed:   counts.Reviewed,
+			NotStarted:  counts.NotStarted,
+			Draft:       counts.Draft,
+			Translated:  counts.Translated,
+			Established: counts.Established,
 		},
 	}, nil
 }

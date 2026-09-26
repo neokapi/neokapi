@@ -169,7 +169,7 @@ func TestHandleReviewBlockUnreview(t *testing.T) {
 
 // TestHandleReviewBlockNoTarget documents the no-target decision (epic 006
 // task 3): approving a locale that has no non-empty translation is a 422 —
-// "reviewed" is a rung on the target ladder and convergence.TargetState only
+// "established" is a rung on the target ladder and convergence.TargetState only
 // counts a status when a non-empty target exists (an untranslated block falls
 // back to source in the editor, which is not a reviewable translation).
 // Un-reviewing a locale with no target is an idempotent no-op.
@@ -217,13 +217,13 @@ func TestHandleReviewBlockLegacyPropertyLifecycle(t *testing.T) {
 
 	// Legacy block: property set, target present but with no per-locale status.
 	b := &model.Block{ID: "b1", Translatable: true, Properties: map[string]string{
-		legacyTranslationStatusProperty: "reviewed",
+		legacyTranslationStatusProperty: "established",
 	}}
 	b.SetSourceText("Hello")
 	b.SetTargetText("fr", "Bonjour")
 	// Legacy block with NO target at all (was reviewable under the old scheme).
 	b2 := &model.Block{ID: "b2", Translatable: true, Properties: map[string]string{
-		legacyTranslationStatusProperty: "reviewed",
+		legacyTranslationStatusProperty: "established",
 	}}
 	b2.SetSourceText("Goodbye")
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b, b2})
@@ -240,7 +240,7 @@ func TestHandleReviewBlockLegacyPropertyLifecycle(t *testing.T) {
 	legacy := byID[ids["Hello"]]
 	assert.Equal(t, "Bonjour", legacy.Targets["fr"].Text)
 	assert.Empty(t, legacy.Targets["fr"].Status, "legacy block carries no per-locale status")
-	assert.Equal(t, "reviewed", legacy.Properties[legacyTranslationStatusProperty],
+	assert.Equal(t, "established", legacy.Properties[legacyTranslationStatusProperty],
 		"legacy property must survive as the read fallback")
 
 	// Reviewing fr under the new scheme writes the per-locale status; the
@@ -461,7 +461,7 @@ func TestHandleGetFileBlocksCarriesPerLocaleStatus(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &payload))
 	require.Len(t, payload, 1)
 	assert.Equal(t, "Bonjour", payload[0].Targets["fr"].Text)
-	assert.Equal(t, "reviewed", payload[0].Targets["fr"].Status)
+	assert.Equal(t, "established", payload[0].Targets["fr"].Status)
 	assert.Equal(t, "Hallo", payload[0].Targets["de"].Text)
 	assert.Empty(t, payload[0].Targets["de"].Status)
 	_, hasLegacy := payload[0].Properties[legacyTranslationStatusProperty]

@@ -97,11 +97,11 @@ func TestReviewApproveNeedsReviewPermission(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, bid, "fr"))
 
-	// Withdrawing that approval needs only the translate permission.
+	// Withdrawing an established unit is the review permission too.
 	rec = callReviewBlockGoverned(t, s, wsID, projID, bid,
 		`{"target_locale":"fr","reviewed":false,"item_name":"greetings.txt"}`, testTranslator, "u-translator")
-	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusTranslated, targetStatus(t, s, projID, bid, "fr"))
+	require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, bid, "fr"))
 }
 
 // TestReviewApproveSoDBlocksOwnWork: with the workspace policy set to block, a

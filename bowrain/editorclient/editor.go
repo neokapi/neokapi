@@ -352,10 +352,10 @@ func (c *EditorClient) GetEditorBlock(ctx context.Context, ws, projectID, blockI
 
 // EditorBlockStatusCounts is the per-locale status histogram.
 type EditorBlockStatusCounts struct {
-	NotStarted int `json:"not-started"`
-	Draft      int `json:"draft"`
-	Translated int `json:"translated"`
-	Reviewed   int `json:"reviewed"`
+	NotStarted  int `json:"not-started"`
+	Draft       int `json:"draft"`
+	Translated  int `json:"translated"`
+	Established int `json:"established"`
 }
 
 // EditorBlockCounts mirrors BlockCountsResponse: the totals and histogram for

@@ -142,7 +142,7 @@ func TestReviewBlockOffline(t *testing.T) {
 	// the legacy block-global property is no longer written.
 	blocks, err = app.GetItemBlocks(proj.ID, "hello.txt")
 	require.NoError(t, err)
-	assert.Equal(t, "reviewed", blocks[0].Targets["fr"].Status)
+	assert.Equal(t, "established", blocks[0].Targets["fr"].Status)
 	assert.Empty(t, blocks[0].Targets["de"].Status)
 	assert.NotContains(t, blocks[0].Properties, "translation-status")
 

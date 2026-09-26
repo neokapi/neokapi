@@ -28,12 +28,12 @@ func (b balanceBillingStore) CheckCredits(context.Context, string) (int64, error
 // the estimate is provably provider-free.
 func TestConvergenceEstimate_SourceHeldVsReady(t *testing.T) {
 	s, cs, _ := sourceFirstHarness(t)
-	mkProject(t, cs, "p", nil) // default gate = checked
-	// Two ready (checked) blocks and one held (authored) block, all untranslated.
+	mkProject(t, cs, "p", nil) // default gate = written
+	// Two ready (written) blocks and one held (never settled) block, all untranslated.
 	storeSourceItem(t, cs, "p", "a.json",
 		srcBlk{"ready1", "A well-formed sentence.", model.SourceStatusWritten},
 		srcBlk{"ready2", "Another ready sentence.", model.SourceStatusWritten},
-		srcBlk{"held1", "Not yet settled.", model.SourceStatusWritten})
+		srcBlk{"held1", "Not yet settled.", model.SourceStatusNew})
 
 	proj, err := cs.GetProject(t.Context(), "p")
 	require.NoError(t, err)
@@ -41,7 +41,7 @@ func TestConvergenceEstimate_SourceHeldVsReady(t *testing.T) {
 	view, err := s.convergence.buildConvergenceEstimate(t.Context(), proj)
 	require.NoError(t, err)
 
-	// Source readiness: 3 total, 2 ready, 1 held on the default `checked` gate.
+	// Source readiness: 3 total, 2 ready, 1 held on the default `written` gate.
 	assert.Equal(t, model.SourceGateWritten, view.Source.Gate)
 	assert.Equal(t, 3, view.Source.Total)
 	assert.Equal(t, 2, view.Source.Ready)
@@ -92,10 +92,10 @@ func TestConvergenceEstimate_GateNone_NoHold(t *testing.T) {
 // "settle your source first" case.
 func TestConvergenceEstimate_AllHeld_NoTranslationWork(t *testing.T) {
 	s, cs, _ := sourceFirstHarness(t)
-	mkProject(t, cs, "p", nil) // default checked
+	mkProject(t, cs, "p", nil) // default written
 	storeSourceItem(t, cs, "p", "a.json",
-		srcBlk{"h1", "Held.", model.SourceStatusWritten},
-		srcBlk{"h2", "Also held.", model.SourceStatusWritten})
+		srcBlk{"h1", "Held.", model.SourceStatusNew},
+		srcBlk{"h2", "Also held.", model.SourceStatusNew})
 
 	proj, err := cs.GetProject(t.Context(), "p")
 	require.NoError(t, err)

@@ -132,10 +132,10 @@ func TestSettleSource_GateNone_NoOp(t *testing.T) {
 // TestGateItemsBySource covers the fan-out decision at each gate level.
 func TestGateItemsBySource(t *testing.T) {
 	s, cs, _ := sourceFirstHarness(t)
-	mkProject(t, cs, "p", nil) // default checked
-	// item "ready" has a checked block; item "held" has only authored blocks.
+	mkProject(t, cs, "p", nil) // default written
+	// item "ready" has a written block; item "held" has only unsettled blocks.
 	storeSourceBlock(t, cs, "p", "ready.json", "r1", "ok", model.SourceStatusWritten)
-	storeSourceBlock(t, cs, "p", "held.json", "h1", "nope", model.SourceStatusWritten)
+	storeSourceBlock(t, cs, "p", "held.json", "h1", "nope", model.SourceStatusNew)
 
 	prod, blocked, err := s.convergence.gateItemsBySource(t.Context(), "p", []string{"ready.json", "held.json"})
 	require.NoError(t, err)
@@ -249,7 +249,7 @@ func TestDrive_HoldsOnSource(t *testing.T) {
 	// the reused create_source_review automation fires. A clean, non-empty source
 	// settles to `checked` — which is below `approved`, so the whole locale is
 	// held on source.
-	mkProject(t, cs, "p", map[string]string{"source_gate": "approved"})
+	mkProject(t, cs, "p", map[string]string{"source_gate": "established"})
 	storeSourceBlock(t, cs, "p", "a.json", "b1", "A well-formed sentence.", model.SourceStatusNew)
 
 	run := &bstore.ConvergenceRun{ProjectID: "p", Trigger: "push", State: bstore.ConvergenceRunRunning}

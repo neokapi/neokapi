@@ -49,7 +49,7 @@ func PromoteDecisionsToMemory(
 			continue
 		}
 		switch d.ReviewState {
-		case "approved", "signed-off", "rejected":
+		case "approved", "rejected":
 		default:
 			continue // parking, assignment, un-review: not a corpus verdict
 		}

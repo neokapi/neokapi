@@ -94,7 +94,7 @@ func TestUnitDecisions_UpsertProjectsAndIsIdempotent(t *testing.T) {
 	// A newer decision (sign-off) replaces it.
 	newer := decision
 	newer.Status = string(model.TargetStatusEstablished)
-	newer.ReviewState = "signed-off"
+	newer.ReviewState = "established"
 	newer.DecidedAt = "2026-08-04T11:00:00Z"
 	newer.Updated = "2026-08-04T11:00:00Z"
 	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{newer})

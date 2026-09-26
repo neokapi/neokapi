@@ -322,7 +322,7 @@ func TestOfflineQueueIntegrationWithReviewBlock(t *testing.T) {
 	// block-global property (write-never since the per-locale migration).
 	blocks, err = app.GetItemBlocks(proj.ID, "hello.txt")
 	require.NoError(t, err)
-	assert.Equal(t, "reviewed", blocks[0].Targets["fr"].Status)
+	assert.Equal(t, "established", blocks[0].Targets["fr"].Status)
 	assert.NotContains(t, blocks[0].Properties, "translation-status")
 
 	// Verify queued.

@@ -113,7 +113,7 @@ func TestEditorBlocksRoundTrip(t *testing.T) {
 	// Per-locale target text + review status decode (reviewing fr ≠ de).
 	require.Contains(t, blocks[0].Targets, "fr")
 	assert.Equal(t, "Bonjour NAME", blocks[0].Targets["fr"].Text)
-	assert.Equal(t, "reviewed", blocks[0].Targets["fr"].Status)
+	assert.Equal(t, "established", blocks[0].Targets["fr"].Status)
 	assert.Empty(t, blocks[0].Targets["de"].Status)
 
 	// Update round-trips the canonical runs verbatim in the request body.

@@ -212,8 +212,8 @@ func TestPushOutput_FormatText_RefusedVerdicts(t *testing.T) {
 			},
 			contains: []string{
 				"2 approvals not accepted for fr-FR: no review permission",
-				"1 sign-off not accepted for de-DE: separation of duties",
-				"2 demotions not accepted for nb-NO: withdrawing a sign-off needs review permission",
+				"1 approval not accepted for de-DE: separation of duties",
+				"2 demotions not accepted for nb-NO: withdrawing an established unit needs review permission",
 				"5 local record(s) now match the platform; they will not be sent again",
 			},
 		},

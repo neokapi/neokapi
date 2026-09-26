@@ -236,7 +236,7 @@ func TestHandleGetBlockCounts(t *testing.T) {
 	assert.Equal(t, 5, counts.Total)
 	assert.Equal(t, 4, counts.Translatable)
 	assert.Equal(t, "fr", counts.Locale)
-	assert.Equal(t, BlockStatusCountsResponse{NotStarted: 1, Draft: 1, Translated: 1, Reviewed: 1}, counts.Status)
+	assert.Equal(t, BlockStatusCountsResponse{NotStarted: 1, Draft: 1, Translated: 1, Established: 1}, counts.Status)
 }
 
 // Three UI routes wanted one item's name; this route answers without the
@@ -296,7 +296,7 @@ func TestHandleBulkReviewBlocks(t *testing.T) {
 	assert.Equal(t, 2, resp.Failed)
 	require.Len(t, resp.Results, 4)
 	assert.True(t, resp.Results[0].OK)
-	assert.Equal(t, "reviewed", resp.Results[0].Status)
+	assert.Equal(t, "established", resp.Results[0].Status)
 	assert.True(t, resp.Results[1].OK)
 	// An untranslated block is the single-block route's 422, per block.
 	assert.False(t, resp.Results[2].OK)

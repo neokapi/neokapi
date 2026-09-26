@@ -98,7 +98,7 @@ type BlockQuery struct {
 	TargetLocale string
 	// Status keeps only blocks whose TargetLocale target sits in one bucket —
 	// BlockStatusNotStarted, BlockStatusDraft, BlockStatusTranslated or
-	// BlockStatusReviewed. Empty keeps every bucket.
+	// BlockStatusEstablished. Empty keeps every bucket.
 	Status string
 	// Text keeps only blocks whose source text, or whose TargetLocale target
 	// text, contains it case-insensitively. Source matching is per run, so a
@@ -173,13 +173,13 @@ const (
 	BlockStatusDraft = "draft"
 	// BlockStatusTranslated is committed content awaiting review.
 	BlockStatusTranslated = "translated"
-	// BlockStatusReviewed covers both reviewed and signed-off.
-	BlockStatusReviewed = "reviewed"
+	// BlockStatusEstablished is content a person reviewed and let stand.
+	BlockStatusEstablished = "established"
 )
 
 // BlockStatusBuckets lists the buckets in ladder order.
 func BlockStatusBuckets() []string {
-	return []string{BlockStatusNotStarted, BlockStatusDraft, BlockStatusTranslated, BlockStatusReviewed}
+	return []string{BlockStatusNotStarted, BlockStatusDraft, BlockStatusTranslated, BlockStatusEstablished}
 }
 
 // BlockCounts summarizes a BlockQuery for one locale without hydrating a
@@ -192,7 +192,7 @@ type BlockCounts struct {
 	NotStarted   int
 	Draft        int
 	Translated   int
-	Reviewed     int
+	Established  int
 }
 
 // PendingReviewRef names one (block, locale) pair awaiting review, with the
