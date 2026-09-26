@@ -446,7 +446,9 @@ surface snapshot fails when a tool belongs to no set. A name that is not a set
 fails startup with the list. `kapi init` writes `--tools writing,translation`
 into the MCP entry of a project that declares target languages. The listing
 helpers and `pseudo_translate` sit behind `--all-tools`, the flow-running verbs
-behind `--all-flows`, and `--all` serves every set and both. `translate`,
+behind `--all-flows`, and `--all` serves every set and both. `list_flows`
+lists what `kapi flows` lists for the call's project and `run_flow` resolves
+a name the way `kapi run` does ([E-04](../engine/e-04-flows-and-io-binding.md)). `translate`,
 `term-check` and `redact` are the registry tools on a set: they produce
 something a caller cannot produce itself or check something with no porcelain
 equivalent. The full generated list is in the [MCP reference](/reference/mcp).

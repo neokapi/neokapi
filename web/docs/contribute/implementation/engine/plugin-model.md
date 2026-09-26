@@ -114,6 +114,11 @@ The registries above run inside one binary. A plugin ships as its own binary, so
 - **kapi wins a name collision.** The SDK's `AddTool` replaces a tool of the same name without saying so, so the proxy reads the server's tool names first and skips a plugin tool that would take one over. The skip is reported on stderr.
 - **A plugin that does not answer is left off.** A binary that fails to start, or has not listed its tools inside the startup bound, contributes nothing and the session continues. Other plugins are unaffected.
 - **The sessions belong to the run.** Each spawned server is held for the life of the MCP session and closed by `App.Shutdown`.
+- **The plugin acts on kapi's project.** The server starts with the host's environment less the provider keys, and with the project `kapi mcp` resolved at start named in `KAPI_PROJECT` (`KAPI_NO_PROJECT` is dropped then, since kapi has already applied it). A plugin tool takes the same optional `project` argument kapi's own tools take and resolves it through `App.RequireMCPCallProject`, so a call that names no project acts on the one kapi's tools default to.
+
+### A plugin never finds its own project
+
+Which project a command acts on is decided once, by `host.ResolveProjectPath`: `-p`, then `KAPI_NO_PROJECT`, then `KAPI_PROJECT`, then the upward walk from the working directory. A plugin route reads the path that rule returns and loads exactly that recipe (`host/venue/project.Load`, which never walks). The daemon receives the project as `ProjectRef.Root` from the host's dispatcher; `kapi status` and `kapi ls` hand the plugin's `server-status` and `server-ls` plumbing `--project=<recipe>`; `kapi up` hands `server-up` the same; and every command the plugin serves itself takes `-p` and resolves through `cli.RequireProjectPath`. With `KAPI_NO_PROJECT` set and no `-p`, each of them refuses before contacting a server. A second walk from the working directory is how a run that named one project once pushed another.
 
 kapi links no plugin's code here either. The proxy speaks MCP to a subprocess over stdio, so a plugin's dependencies and its licence stay inside its own binary.
 
