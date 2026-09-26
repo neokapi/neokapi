@@ -88,6 +88,7 @@ var unprojected = map[string]map[string]string{
 		"Forget":             "the registry of projects and checkouts",
 		"NoteAgentSession":   "which agent sessions are working in a project",
 		"NoteContextImports": "which context files a checkout read",
+		"WriterID":           "the id this machine writes its sync segments under",
 	},
 }
 
