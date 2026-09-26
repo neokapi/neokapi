@@ -1,7 +1,9 @@
 package terms
 
 import (
+	"encoding/json"
 	"slices"
+	"time"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -36,4 +38,28 @@ func NormalizedConcept(c Concept) Concept {
 // sameLocale reports whether two locale spellings name one locale.
 func sameLocale(a, b model.LocaleID) bool {
 	return model.NormalizeLocale(a) == model.NormalizeLocale(b)
+}
+
+// SameConcept reports whether two concepts say the same thing, whenever each
+// was written. The write path asks it before an upsert that carries no
+// timestamp of its own: writing a concept the store already holds word for
+// word would stamp it with a new updated_at, so reading the same terms file
+// twice would leave the store saying something new. The comparison is over
+// the normalized concept's JSON, so a nil list and an empty one are the same,
+// and a field added to Concept later is compared without anyone listing it.
+func SameConcept(a, b Concept) bool {
+	canonical := func(c Concept) []byte {
+		c = NormalizedConcept(c)
+		c.CreatedAt, c.UpdatedAt = time.Time{}, time.Time{}
+		if c.Source == "" {
+			c.Source = TermSourceTerminology // what the write path stores for an empty source
+		}
+		data, err := json.Marshal(c)
+		if err != nil {
+			return nil
+		}
+		return data
+	}
+	ca, cb := canonical(a), canonical(b)
+	return ca != nil && string(ca) == string(cb)
 }
