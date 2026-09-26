@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -115,8 +116,7 @@ func (p *Projector) Checkpoint(ctx context.Context) (CheckpointReport, error) {
 // latestCheckpoint finds the newest checkpoint that still stands: one no
 // operation merged in after it precedes. ok is false when there is none.
 func (p *Projector) latestCheckpoint(ctx context.Context, ops []workspace.Op) (checkpointPayload, *kpz.Package, bool) {
-	for i := len(ops) - 1; i >= 0; i-- {
-		op := ops[i]
+	for _, op := range slices.Backward(ops) {
 		if op.Kind != KindCheckpoint {
 			continue
 		}
@@ -200,7 +200,7 @@ func (p *Projector) loadTables(ctx context.Context, pkg *kpz.Package) error {
 	for _, t := range pkg.Tables {
 		switch t.Table {
 		case rulesTable:
-			for _, line := range bytes.Split(bytes.TrimSpace(t.Data), []byte("\n")) {
+			for line := range bytes.SplitSeq(bytes.TrimSpace(t.Data), []byte("\n")) {
 				if len(line) == 0 {
 					continue
 				}
@@ -225,7 +225,7 @@ func (p *Projector) loadTables(ctx context.Context, pkg *kpz.Package) error {
 		}
 	}
 	if len(sequences) > 0 {
-		for _, line := range bytes.Split(bytes.TrimSpace(sequences), []byte("\n")) {
+		for line := range bytes.SplitSeq(bytes.TrimSpace(sequences), []byte("\n")) {
 			if len(line) == 0 {
 				continue
 			}
@@ -367,7 +367,7 @@ func loadRows(ctx context.Context, raw *storage.DB, table string, data []byte) e
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	for _, line := range bytes.Split(bytes.TrimSpace(data), []byte("\n")) {
+	for line := range bytes.SplitSeq(bytes.TrimSpace(data), []byte("\n")) {
 		if len(line) == 0 {
 			continue
 		}

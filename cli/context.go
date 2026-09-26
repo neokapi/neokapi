@@ -192,7 +192,7 @@ With --checkpoint it keeps a copy of the stores as they stand afterwards, so the
 next rebuild starts there and replays only the changes after it.`,
 		Example: "  kapi context rebuild\n" +
 			"  kapi context rebuild --checkpoint",
-		Args:    cobra.NoArgs,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			projectPath, err := RequireProjectPath(cmd)
 			if err != nil {

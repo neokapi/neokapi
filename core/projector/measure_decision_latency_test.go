@@ -3,6 +3,7 @@ package projector_test
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -26,7 +27,7 @@ func TestMeasureDecisionLatency(t *testing.T) {
 	for i := range 13000 {
 		u := state.UnitState{
 			Unit: fmt.Sprintf("seed-%05d", i), Variant: model.Variant("nb"), Scope: "doc",
-			TargetHash: state.TargetHash(fmt.Sprint(i)), ContentHash: state.SourceHash(fmt.Sprint(i)),
+			TargetHash: state.TargetHash(strconv.Itoa(i)), ContentHash: state.SourceHash(strconv.Itoa(i)),
 		}
 		id, err := state.Address(u, "", false)
 		require.NoError(t, err)
