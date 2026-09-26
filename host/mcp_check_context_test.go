@@ -60,10 +60,8 @@ constraints:
     kind: guidance
 channels:
   child:
-    vocabulary:
-      forbidden_terms:
-        - term: utilize
-          replacement: use
+    tone:
+      formality: casual
   adult:
     tone:
       formality: neutral
@@ -100,7 +98,7 @@ func TestCheckTextMCPDestinationMatchesFileContext(t *testing.T) {
 			assert.Equal(t, "text", draft.Target.Kind)
 			assert.Equal(t, relative, draft.Target.ContextPath)
 			assert.Empty(t, draft.Target.File)
-			assert.Positive(t, ruleCounts(draft)["voice.vocabulary"], "project terms must apply")
+			assert.Positive(t, ruleCounts(draft)["terms.vocabulary"], "project terms must apply")
 			if channel == "child" {
 				assert.Positive(t, draft.Summary.Failing, "shared constraints survive the child presentation override")
 			} else {
@@ -144,8 +142,8 @@ func TestCheckTextMCPUnscopedAndExplicitProfileRemainAvailable(t *testing.T) {
 	assert.Empty(t, report.Target.ContextPath)
 	assert.Empty(t, report.Findings, "unscoped snippets do not implicitly select project guidance")
 	override := filepath.Join(root, "override.yaml")
-	profileBody := "name: Explicit\nvocabulary:\n  forbidden_terms:\n" +
-		"    - term: override-only\n      severity: critical\n"
+	profileBody := "name: Explicit\nterms:\n" +
+		"  - term: override-only\n    severity: critical\n"
 	require.NoError(t, os.WriteFile(override, []byte(profileBody), 0o600))
 	_, report, err = app.checkTextMCP(t.Context(), checkTextInput{Text: "An override-only phrase.", ProfileFile: override})
 	require.NoError(t, err)

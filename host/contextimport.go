@@ -49,6 +49,9 @@ type ContextImport struct {
 	Concepts      int `json:"concepts,omitempty"`
 	Entries       int `json:"entries,omitempty"`
 	VoiceProfiles int `json:"voiceProfiles,omitempty"`
+	// VoiceTerms counts the word rules the voice files carried, which the
+	// import moved into the terms store: word rules are terms.
+	VoiceTerms int `json:"voiceTerms,omitempty"`
 	// Decisions counts the rows read from a layout's decision record.
 	Decisions int `json:"decisions,omitempty"`
 	// Unchanged counts the sources already in the store at their current
@@ -121,6 +124,7 @@ func (r ContextImport) FormatText(w io.Writer) error {
 		{r.Concepts, "concept", "concepts"},
 		{r.Entries, "content-memory entry", "content-memory entries"},
 		{r.VoiceProfiles, "voice profile", "voice profiles"},
+		{r.VoiceTerms, "word rule from the voice files, moved into terms", "word rules from the voice files, moved into terms"},
 		{r.Decisions, "recorded decision", "recorded decisions"},
 	} {
 		if line.n == 0 {
@@ -210,6 +214,10 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 		return res, err
 	}
 	res.Dir = reportedPath(layout.Root, from.StateDir)
+	// Word rules a voice file carries land in terms in the project's source
+	// language, which the recipe declares.
+	defer a.scopeSourceLang()()
+	a.ResolveSourceLang(recipeSourceLanguage(layout.RecipePath))
 
 	db, err := a.ProjectDB(ctx, layout.Root)
 	if err != nil {
@@ -267,6 +275,7 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 			res.Entries += n
 		case sourceKindVoice:
 			res.VoiceProfiles++
+			res.VoiceTerms += n
 		}
 		stamps[key], stamped = digest, true
 		if err := scribe.read(ctx, src, n, digest); err != nil {

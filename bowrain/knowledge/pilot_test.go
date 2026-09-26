@@ -9,59 +9,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
-
-	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/core/venue"
 )
-
-// pilotContentStore is a minimal BlockSource that also implements
-// StreamBindingStore, so the pilot lifecycle can bind a candidate voice profile
-// to a content stream. Blocks are never walked by the pilot path, so the
-// BlockSource methods are trivial.
-type pilotContentStore struct {
-	streams map[string]*store.Stream // key: projectID|name
-}
-
-func newPilotContentStore() *pilotContentStore {
-	return &pilotContentStore{streams: map[string]*store.Stream{}}
-}
-
-func (c *pilotContentStore) seedStream(projectID, name string) {
-	c.streams[projectID+"|"+name] = &store.Stream{ProjectID: projectID, Name: name}
-}
-
-func (c *pilotContentStore) ListProjects(context.Context) ([]*store.Project, error) { return nil, nil }
-
-func (c *pilotContentStore) ListStreams(context.Context, string, bool) ([]*store.Stream, error) {
-	return nil, nil
-}
-
-func (c *pilotContentStore) GetBlocks(context.Context, store.BlockQuery) ([]*venue.StoredBlock, error) {
-	return nil, nil
-}
-
-func (c *pilotContentStore) GetStream(_ context.Context, projectID, name string) (*store.Stream, error) {
-	return c.streams[projectID+"|"+name], nil
-}
-
-func (c *pilotContentStore) UpdateStream(_ context.Context, s *store.Stream) error {
-	c.streams[s.ProjectID+"|"+s.Name] = s
-	return nil
-}
-
-// CreateProfile and DeleteProfile extend fakeProfileStore into a
-// PilotProfileStore so pilots can materialize and retire candidate profiles.
-func (f *fakeProfileStore) CreateProfile(_ context.Context, p *coreprofile.VoiceProfile) error {
-	f.profiles[p.ID] = p
-	return nil
-}
-
-func (f *fakeProfileStore) DeleteProfile(_ context.Context, id string) error {
-	delete(f.profiles, id)
-	return nil
-}
 
 func TestStartStopPilot_ConceptsAndRelations(t *testing.T) {
 	ctx := context.Background()
@@ -82,7 +31,7 @@ func TestStartStopPilot_ConceptsAndRelations(t *testing.T) {
 	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
 	require.NoError(t, err)
 
-	e := NewEngine(nil, tb, newFakeProfileStore(), store)
+	e := NewEngine(nil, tb, store)
 	_, err = e.StartPilot(ctx, ws, store, *loaded, "proj1", pilotStream)
 	require.NoError(t, err)
 
@@ -143,73 +92,6 @@ func TestStartStopPilot_ConceptsAndRelations(t *testing.T) {
 	require.NoError(t, e.StopPilot(ctx, ws, store, *loaded, "proj1", pilotStream))
 }
 
-func TestStartStopPilot_VoiceBinding(t *testing.T) {
-	ctx := context.Background()
-	ws := "ws"
-	pilotStream := "pilot/voice"
-
-	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", Scope: ws, Version: 2}
-	profiles := newFakeProfileStore(profile)
-
-	content := newPilotContentStore()
-	content.seedStream("proj1", pilotStream)
-
-	store := newMemStore()
-	cs := &ChangeSet{ID: "cs1", WorkspaceID: ws, Name: "Try forbidding synergy", CreatedBy: "alice"}
-	require.NoError(t, store.CreateChangeSet(ctx, cs))
-	appendOp(t, store, ws, cs.ID, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{
-		ProfileID: "p1", List: VoiceListForbidden,
-		Rule: coreprofile.TermRule{Term: "synergy", Replacement: "teamwork"},
-	})
-
-	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
-	require.NoError(t, err)
-
-	e := NewEngine(content, terms.NewInMemoryStore(), profiles, store)
-	_, err = e.StartPilot(ctx, ws, store, *loaded, "proj1", pilotStream)
-	require.NoError(t, err)
-
-	// A candidate profile was materialized with the rule applied.
-	candID := pilotProfileID(cs.ID, pilotStream, "p1")
-	cand, err := profiles.GetProfile(ctx, candID)
-	require.NoError(t, err)
-	require.NotNil(t, cand)
-	require.Len(t, cand.Vocabulary.ForbiddenTerms, 1)
-	assert.Equal(t, "synergy", cand.Vocabulary.ForbiddenTerms[0].Term)
-
-	// The content stream is bound to the candidate profile.
-	s, err := content.GetStream(ctx, "proj1", pilotStream)
-	require.NoError(t, err)
-	require.NotNil(t, s)
-	assert.Equal(t, candID, s.Properties[coreprofile.PropertyProfileID])
-
-	// The baseline profile is untouched.
-	base, err := profiles.GetProfile(ctx, "p1")
-	require.NoError(t, err)
-	assert.Empty(t, base.Vocabulary.ForbiddenTerms)
-	assert.Equal(t, 2, base.Version)
-
-	pilots, err := store.ListPilots(ctx, ws, cs.ID)
-	require.NoError(t, err)
-	require.Len(t, pilots, 1)
-
-	// Stop the pilot — the binding is cleared and the candidate profile deleted.
-	require.NoError(t, e.StopPilot(ctx, ws, store, *loaded, "proj1", pilotStream))
-	s, err = content.GetStream(ctx, "proj1", pilotStream)
-	require.NoError(t, err)
-	_, bound := s.Properties[coreprofile.PropertyProfileID]
-	assert.False(t, bound, "the candidate voice binding is cleared")
-	gone, err := profiles.GetProfile(ctx, candID)
-	require.NoError(t, err)
-	assert.Nil(t, gone, "the candidate profile is deleted")
-	pilots, err = store.ListPilots(ctx, ws, cs.ID)
-	require.NoError(t, err)
-	assert.Empty(t, pilots)
-
-	// StopPilot is idempotent.
-	require.NoError(t, e.StopPilot(ctx, ws, store, *loaded, "proj1", pilotStream))
-}
-
 func TestStopAllPilots_StopsEveryBoundStream(t *testing.T) {
 	ctx := context.Background()
 	ws := "ws"
@@ -227,7 +109,7 @@ func TestStopAllPilots_StopsEveryBoundStream(t *testing.T) {
 	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
 	require.NoError(t, err)
 
-	e := NewEngine(nil, tb, newFakeProfileStore(), store)
+	e := NewEngine(nil, tb, store)
 	_, err = e.StartPilot(ctx, ws, store, *loaded, "projA", "pilot/a")
 	require.NoError(t, err)
 	_, err = e.StartPilot(ctx, ws, store, *loaded, "projB", "pilot/b")
@@ -278,7 +160,7 @@ func TestStartPilot_ShadowsAreInvisibleToStreamBlindReads(t *testing.T) {
 	beforeMatches, err := tb.LookupAll(ctx, "the kaputt thing", terms.LookupOptions{SourceLocale: "en-US"})
 	require.NoError(t, err)
 
-	e := NewEngine(nil, tb, newFakeProfileStore(), store)
+	e := NewEngine(nil, tb, store)
 	_, err = e.StartPilot(ctx, ws, store, *loaded, "proj1", pilotStream)
 	require.NoError(t, err)
 

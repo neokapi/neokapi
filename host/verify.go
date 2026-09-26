@@ -936,7 +936,12 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 			if group.at.profile == nil {
 				continue
 			}
-			vocab := coretools.NewVoiceVocabCheckTool(group.at.profile, group.at.terms).InSourceLocale(model.LocaleID(a.SourceLocale()))
+			// The voice's rules, a starter pack's terms, and the word rules the
+			// terms bound at the point impose on the source. The terms gate
+			// judges a translated file's target, so the source's own wording is
+			// held to its word rules here.
+			voice := group.at.profile
+			vocab := coretools.NewVoiceVocabCheckTool(voice, group.at.terms).InSourceLocale(model.LocaleID(a.SourceLocale()))
 			gate.Coverage.Blocks += len(group.blocks)
 			start, before := time.Now(), len(gate.Findings)
 			for _, b := range group.blocks {
@@ -955,14 +960,14 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 			// once over the file and reported against it with no block, the way the
 			// file checkset reports them. They score beside the per-block findings:
 			// a rule the profile counts is a rule the ship gate applies.
-			docFindings := coreprofile.DocumentFindings(group.at.profile, documentText(group.doc))
+			docFindings := coreprofile.DocumentFindings(voice, documentText(group.doc))
 			for _, fd := range docFindings {
 				finding := voiceFindingToVerify(display, "", fd)
 				finding.Point = clonePoint(group.at.point)
 				gate.Findings = append(gate.Findings, finding)
 			}
 			allFindings = append(allFindings, docFindings...)
-			canary, cerr := probeVoiceRules(ctx, vocab, group.at.profile)
+			canary, cerr := probeVoiceRules(ctx, vocab, voice)
 			if cerr != nil {
 				return nil, fmt.Errorf("voice: %s: %w", f, cerr)
 			}

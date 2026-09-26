@@ -24,10 +24,10 @@ func TestMemoryEntryID_CanonicalAcrossSpellings(t *testing.T) {
 }
 
 func TestConceptID_CanonicalAcrossSpellings(t *testing.T) {
-	want := conceptID("berth", "en-GB")
+	want := terms.DecisionConceptID("berth", "en-GB")
 	assert.Equal(t, "term:en-GB:berth", want)
-	assert.Equal(t, want, conceptID("berth", "en_GB"))
-	assert.Equal(t, want, conceptID("berth", "EN-gb"))
+	assert.Equal(t, want, terms.DecisionConceptID("berth", "en_GB"))
+	assert.Equal(t, want, terms.DecisionConceptID("berth", "EN-gb"))
 }
 
 func TestUpsertMemoryPair_WritesCanonicalLocales(t *testing.T) {

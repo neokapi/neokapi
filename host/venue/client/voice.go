@@ -37,7 +37,6 @@ type VoiceProfileUpsert struct {
 	Description string                                        `json:"description,omitempty"`
 	Tone        coreprofile.ToneProfile                       `json:"tone"`
 	Style       coreprofile.StyleRules                        `json:"style"`
-	Vocabulary  coreprofile.VocabularyRules                   `json:"vocabulary"`
 	Examples    []coreprofile.VoiceExample                    `json:"examples"`
 	Locales     map[model.LocaleID]coreprofile.LocaleOverride `json:"locales,omitempty"`
 	Channels    map[string]coreprofile.ChannelOverride        `json:"channels,omitempty"`
@@ -56,7 +55,6 @@ func VoiceProfileUpsertFromProfile(p *coreprofile.VoiceProfile) VoiceProfileUpse
 		Description: p.Description,
 		Tone:        p.Tone,
 		Style:       p.Style,
-		Vocabulary:  p.Vocabulary,
 		Examples:    p.Examples,
 		Locales:     p.Locales,
 		Channels:    p.Channels,

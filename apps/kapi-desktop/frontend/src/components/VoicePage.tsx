@@ -55,7 +55,7 @@ import type {
 } from "../types/voice";
 import { VoiceProfileEditor } from "./voice/VoiceProfileEditor";
 import { FactGrid } from "./voice/facts";
-import { PatternGroups, RulesBlock, TermGroup } from "./voice/rules";
+import { PatternGroups, RulesBlock } from "./voice/rules";
 import { ResolutionHeader, shortDate } from "./voice/resolution-header";
 
 export interface VoicePageProps {
@@ -335,12 +335,6 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
                           {override.cultural_notes}
                         </p>
                       )}
-                      <div className="mt-2 space-y-3">
-                        <TermGroup
-                          title={t("Wording here")}
-                          rules={override.vocabulary_overrides}
-                        />
-                      </div>
                       {!!override.example_overrides?.length && (
                         <ul className="mt-2 divide-y text-sm">
                           {override.example_overrides.map((e) => (
@@ -366,18 +360,6 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
                       <ToneBlock tone={override.tone} />
                       <StyleFacts style={override.style} />
                       <PatternGroups style={override.style} />
-                      <TermGroup
-                        title={t("Say this")}
-                        rules={override.vocabulary?.preferred_terms}
-                      />
-                      <TermGroup
-                        title={t("Never say")}
-                        rules={override.vocabulary?.forbidden_terms}
-                      />
-                      <TermGroup
-                        title={t("Competitor names")}
-                        rules={override.vocabulary?.competitor_terms}
-                      />
                     </div>
                   ))}
                 </div>
@@ -396,8 +378,6 @@ function PointDetail({ point, onEdit }: { point: VoicePoint; onEdit?: () => void
                       <ToneBlock tone={override.tone} />
                       <StyleFacts style={override.style} />
                       <PatternGroups style={override.style} />
-                      <TermGroup title={t("Say this")} rules={override.preferred_terms} />
-                      <TermGroup title={t("Never say")} rules={override.avoided_terms} />
                     </div>
                   ))}
                 </div>

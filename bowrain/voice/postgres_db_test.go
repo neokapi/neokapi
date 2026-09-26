@@ -38,7 +38,6 @@ func newTestProfile(ws, name string) *coreprofile.VoiceProfile {
 		Description: "desc",
 		Tone:        coreprofile.ToneProfile{Personality: []string{"friendly"}, Formality: "neutral"},
 		Style:       coreprofile.StyleRules{ActiveVoice: true, SentenceLength: "medium"},
-		Vocabulary:  coreprofile.VocabularyRules{},
 		Examples:    []coreprofile.VoiceExample{},
 		CreatedBy:   "tester",
 	}
@@ -245,11 +244,11 @@ func TestPostgresVoiceStore_RuleDecisions(t *testing.T) {
 	assert.Equal(t, "Utilize", list[1].Term)
 }
 
-// TestPostgresVoiceStore_PromotionClosedLoop drives the full correction→promotion
-// round-trip through the real store: corrections aggregate into a suggested rule,
-// PromoteAndSave applies it (bumping the profile version and archiving the prior),
-// the decision is recorded at that version, and GetSuggestedRules back-fills the
-// concept a promoted/decided term already denotes.
+// TestPostgresVoiceStore_PromotionClosedLoop drives the correction→decision
+// round-trip through the real store: corrections aggregate into a suggested
+// rule, the promotion decision is recorded, and GetSuggestedRules back-fills
+// the concept the decided term denotes. The promoted rule itself lands in the
+// workspace's terms store, which this store does not hold.
 func TestPostgresVoiceStore_PromotionClosedLoop(t *testing.T) {
 	store := newVoiceStore(t)
 	ctx := t.Context()
@@ -276,25 +275,7 @@ func TestPostgresVoiceStore_PromotionClosedLoop(t *testing.T) {
 	assert.Equal(t, "use", suggestions[0].Replacement)
 	assert.Equal(t, 3, suggestions[0].CorrectionCount)
 
-	// Promote the reviewed suggestion (concept-backed). PromoteAndSave adds the
-	// forbidden term and bumps + archives the profile via the store.
-	rule := coreprofile.SuggestedRule{
-		Term: "utilize", Replacement: "use", CorrectionCount: 3,
-		Dimension: coreprofile.DimensionVocabulary, ConceptID: "concept-42",
-	}
-	updated, changed, err := coreprofile.PromoteAndSave(ctx, store, p.ID, rule)
-	require.NoError(t, err)
-	require.True(t, changed)
-	assert.Equal(t, 2, updated.Version, "promotion bumps the live profile to version 2")
-
-	reloaded, err := store.GetProfile(ctx, p.ID)
-	require.NoError(t, err)
-	require.Len(t, reloaded.Vocabulary.ForbiddenTerms, 1)
-	assert.Equal(t, "utilize", reloaded.Vocabulary.ForbiddenTerms[0].Term)
-	assert.Equal(t, "use", reloaded.Vocabulary.ForbiddenTerms[0].Replacement)
-	assert.Equal(t, "concept-42", reloaded.Vocabulary.ForbiddenTerms[0].ConceptID)
-
-	// Record the governance decision at the version it landed in.
+	// Record the governance decision.
 	require.NoError(t, store.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
 		ProfileID:       p.ID,
 		Term:            "utilize",
@@ -302,7 +283,6 @@ func TestPostgresVoiceStore_PromotionClosedLoop(t *testing.T) {
 		Dimension:       coreprofile.DimensionVocabulary,
 		Status:          coreprofile.RuleDecisionPromoted,
 		CorrectionCount: 3,
-		PromotedVersion: updated.Version,
 		ConceptID:       "concept-42",
 		DecidedBy:       "reviewer",
 	}))
@@ -310,10 +290,10 @@ func TestPostgresVoiceStore_PromotionClosedLoop(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, decision)
 	assert.Equal(t, coreprofile.RuleDecisionPromoted, decision.Status)
-	assert.Equal(t, updated.Version, decision.PromotedVersion)
+	assert.Equal(t, "concept-42", decision.ConceptID)
 
 	// The candidate still surfaces (corrections remain), now with its concept
-	// back-filled from the live profile vocabulary / durable decision (AD-021).
+	// back-filled from the durable decision (AD-021).
 	suggestions, err = store.GetSuggestedRules(ctx, "ws-loop", 2)
 	require.NoError(t, err)
 	require.Len(t, suggestions, 1)

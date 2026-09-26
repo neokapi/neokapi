@@ -17,6 +17,7 @@ import (
 	voicepg "github.com/neokapi/neokapi/bowrain/voice"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,12 +31,27 @@ func setupVoiceLoopServer(t *testing.T) *Server {
 	bs, err := voicepg.NewPostgresVoiceStore(db)
 	require.NoError(t, err)
 	srv.VoiceStore = bs
+	// In-memory workspace terms, shared per slug, where promotions land when no
+	// PgDB is wired on wsStores.
+	srv.wsStores.termsFactory = func() terms.Store {
+		return &testTermStore{terms.NewInMemoryStore()}
+	}
 	return srv
+}
+
+// workspaceWordRulesFor reads the word rules a workspace's terms store holds,
+// in every language.
+func workspaceWordRulesFor(t *testing.T, srv *Server, wsSlug string) []coreprofile.TermRule {
+	t.Helper()
+	rules, err := srv.workspaceWordRules(t.Context(), wsSlug, "")
+	require.NoError(t, err)
+	return rules
 }
 
 // TestVoiceLoop_EndToEnd exercises the correction-learning loop over the real
 // HTTP handlers and Postgres store: corrections aggregate into candidates, a
-// candidate is promoted (and leaves the list, recorded + versioned), another is
+// candidate is promoted (and leaves the list, recorded, and lands in the
+// workspace terms store), another is
 // rejected (and is suppressed), and progressive autonomy auto-promotes once a
 // term crosses the threshold.
 func TestVoiceLoop_EndToEnd(t *testing.T) {
@@ -44,6 +60,7 @@ func TestVoiceLoop_EndToEnd(t *testing.T) {
 	ctx := context.Background()
 
 	const wsID = "ws-loop-e2e"
+	const wsSlug = "loop-e2e"
 	const userID = "u-loop-e2e"
 	profile := &coreprofile.VoiceProfile{ID: "p-loop-e2e", Scope: wsID, Name: "Loop E2E"}
 	require.NoError(t, srv.VoiceStore.CreateProfile(ctx, profile))
@@ -57,6 +74,8 @@ func TestVoiceLoop_EndToEnd(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.Set("project_permissions", platauth.PermAll)
+		c.SetParamNames("ws")
+		c.SetParamValues(wsSlug)
 		c.Set("user_id", userID)
 		c.Set("workspace_id", wsID)
 		require.NoError(t, srv.HandleCreateVoiceCorrection(c))
@@ -92,8 +111,8 @@ func TestVoiceLoop_EndToEnd(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 		c.Set("project_permissions", platauth.PermAll)
-		c.SetParamNames("id")
-		c.SetParamValues(profile.ID)
+		c.SetParamNames("ws", "id")
+		c.SetParamValues(wsSlug, profile.ID)
 		c.Set("user_id", userID)
 		c.Set("workspace_id", wsID)
 		require.NoError(t, handler(c))
@@ -118,19 +137,19 @@ func TestVoiceLoop_EndToEnd(t *testing.T) {
 	assert.Equal(t, coreprofile.RuleDecisionPending, c.Status)
 	assert.Equal(t, 3, c.CorrectionCount)
 
-	// ── promote → leaves the list, recorded + enforced + versioned ─────
+	// ── promote → leaves the list, recorded, lands in the terms store ──
 	rec := decide(srv.HandlePromoteSuggestedRule, "utilize", "use")
-	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Nil(t, find(candidates(false), "utilize"), "promoted candidate should leave the review list")
-	got, err := srv.VoiceStore.GetProfile(ctx, profile.ID)
-	require.NoError(t, err)
-	require.Len(t, got.Vocabulary.ForbiddenTerms, 1)
-	assert.Equal(t, "utilize", got.Vocabulary.ForbiddenTerms[0].Term)
+	rules := workspaceWordRulesFor(t, srv, wsSlug)
+	require.Len(t, rules, 1)
+	assert.Equal(t, "utilize", rules[0].Term)
+	assert.Equal(t, "use", rules[0].Replacement)
 	d, err := srv.VoiceStore.GetRuleDecision(ctx, profile.ID, "utilize")
 	require.NoError(t, err)
 	require.NotNil(t, d)
 	assert.Equal(t, coreprofile.RuleDecisionPromoted, d.Status)
-	assert.Equal(t, got.Version, d.PromotedVersion)
+	assert.Equal(t, rules[0].ConceptID, d.ConceptID, "the decision names the concept the term joined")
 
 	// ── reject → suppressed from the list, visible in history ──────────
 	for range 3 {
@@ -145,6 +164,8 @@ func TestVoiceLoop_EndToEnd(t *testing.T) {
 	assert.Equal(t, coreprofile.RuleDecisionRejected, hist.Status)
 
 	// ── progressive autonomy → auto-promote at threshold ───────────────
+	got, err := srv.VoiceStore.GetProfile(ctx, profile.ID)
+	require.NoError(t, err)
 	got.Autonomy = coreprofile.AutonomyConfig{AutoPromoteAtCount: 2}
 	require.NoError(t, srv.VoiceStore.UpdateProfile(ctx, got))
 	first := correct("synergy", "teamwork")
@@ -156,10 +177,11 @@ func TestVoiceLoop_EndToEnd(t *testing.T) {
 	require.NotNil(t, d)
 	assert.Equal(t, coreprofile.RuleDecisionPromoted, d.Status)
 	assert.True(t, d.Auto, "autonomy-promoted decision should be marked auto")
+	assert.Len(t, workspaceWordRulesFor(t, srv, wsSlug), 2, "the auto-promoted term lands in the terms store too")
 }
 
-// TestPhase4_VoiceRuleDemote proves a promoted brand rule can be demoted
-// (removed) — promoted rules are no longer append-only.
+// TestPhase4_VoiceRuleDemote proves a promoted term can be demoted: removed
+// from the workspace terms store again.
 func TestPhase4_VoiceRuleDemote(t *testing.T) {
 	srv := setupVoiceLoopServer(t)
 	e := srv.GetEcho()
@@ -167,25 +189,24 @@ func TestPhase4_VoiceRuleDemote(t *testing.T) {
 	profile := &coreprofile.VoiceProfile{ID: "p-demote", Scope: "ws-d", Name: "D"}
 	require.NoError(t, srv.VoiceStore.CreateProfile(ctx, profile))
 
-	_, changed, err := coreprofile.PromoteAndSave(ctx, srv.VoiceStore, profile.ID,
+	changed, _, _, err := srv.promoteRuleToTerms(ctx, "d", "ws-d",
 		coreprofile.SuggestedRule{Term: "utilize", Replacement: "use", CorrectionCount: 3})
 	require.NoError(t, err)
 	require.True(t, changed)
-	got, _ := srv.VoiceStore.GetProfile(ctx, profile.ID)
-	require.Len(t, got.Vocabulary.ForbiddenTerms, 1)
+	require.Len(t, workspaceWordRulesFor(t, srv, "d"), 1)
 
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"term":"utilize"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("project_permissions", platauth.PermAll)
-	c.SetParamNames("id")
-	c.SetParamValues(profile.ID)
+	c.SetParamNames("ws", "id")
+	c.SetParamValues("d", profile.ID)
+	c.Set("workspace_id", "ws-d")
 	require.NoError(t, srv.HandleDemoteSuggestedRule(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
-	got, _ = srv.VoiceStore.GetProfile(ctx, profile.ID)
-	assert.Empty(t, got.Vocabulary.ForbiddenTerms, "demote should remove the promoted rule")
+	assert.Empty(t, workspaceWordRulesFor(t, srv, "d"), "demote should remove the promoted term")
 }
 
 // TestVoiceLoop_EvaluateBlastRadius proves the blast-radius preview endpoint runs
@@ -202,7 +223,7 @@ func TestVoiceLoop_EvaluateBlastRadius(t *testing.T) {
 
 	const projectID = "proj-blast"
 	require.NoError(t, srv.ContentStore.CreateProject(ctx, &platstore.Project{
-		ID: projectID, Name: "Blast Content", DefaultSourceLanguage: "en",
+		ID: projectID, Name: "Blast Content", DefaultSourceLanguage: "en", WorkspaceID: wsID,
 	}))
 	block := func(idStr, text string) *model.Block {
 		return &model.Block{ID: idStr, Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: text}}}}

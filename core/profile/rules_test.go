@@ -24,11 +24,11 @@ func TestHasDeterministicRules(t *testing.T) {
 		{"tone alone", tone, false},
 		{"comment limits alone", &VoiceProfile{Style: StyleRules{Comments: &CommentRules{}}}, false},
 		{"guidance alone", &VoiceProfile{Constraints: []Constraint{guidance}}, false},
-		{"a term with no text", &VoiceProfile{Vocabulary: VocabularyRules{ForbiddenTerms: []TermRule{{Term: "  "}}}}, false},
-		{"a preferred term, which the check does not enforce", &VoiceProfile{Vocabulary: VocabularyRules{PreferredTerms: []TermRule{{Term: "sign in"}}}}, false},
+		{"a term with no text", carrying(TermRule{Term: "  "}), false},
+		{"a preferred form, which rejects nothing", carrying(TermRule{Replacement: "sign in"}), false},
 		{"a prohibited-pattern constraint scoped elsewhere", &VoiceProfile{Constraints: []Constraint{elsewhere}}, false},
-		{"a forbidden term", &VoiceProfile{Vocabulary: VocabularyRules{ForbiddenTerms: []TermRule{{Term: "risk-free"}}}}, true},
-		{"a competitor term", &VoiceProfile{Vocabulary: VocabularyRules{CompetitorTerms: []TermRule{{Term: "Acme"}}}}, true},
+		{"a forbidden term", carrying(TermRule{Term: "risk-free"}), true},
+		{"a competitor term", carrying(TermRule{Term: "Acme", Competitor: true}), true},
 		{"a prohibited pattern", &VoiceProfile{Style: StyleRules{ProhibitedPatterns: []Pattern{{Regex: "TODO"}}}}, true},
 		{"a required pattern", &VoiceProfile{Style: StyleRules{RequiredPatterns: []Pattern{{Regex: "Hello"}}}}, true},
 		{"a prohibited-pattern constraint", &VoiceProfile{Constraints: []Constraint{prohibited}}, true},
@@ -39,4 +39,9 @@ func TestHasDeterministicRules(t *testing.T) {
 			assert.Equal(t, tt.want, HasDeterministicRules(tt.profile))
 		})
 	}
+}
+
+// carrying is an empty voice profile carrying the given word rules.
+func carrying(rules ...TermRule) *VoiceProfile {
+	return (&VoiceProfile{}).Carry("test", rules)
 }

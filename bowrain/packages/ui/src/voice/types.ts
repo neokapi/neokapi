@@ -15,7 +15,8 @@ export interface ToneProfile {
 export interface Pattern {
   regex: string;
   description: string;
-  severity: "minor" | "major" | "critical";
+  /** A match reports without failing a check. A pattern rule fails unless marked advisory. */
+  advisory?: boolean;
 }
 
 export interface StyleRules {
@@ -27,18 +28,20 @@ export interface StyleRules {
   required_patterns?: Pattern[];
 }
 
+/**
+ * A word rule: a term, what to write instead, and whether a use of it fails.
+ * Word rules are terms, held in the workspace terms store. Mirror of Go
+ * core/profile.TermRule.
+ */
 export interface TermRule {
-  term: string;
+  term?: string;
   replacement?: string;
   note?: string;
-  severity?: "minor" | "major" | "critical";
-}
-
-export interface VocabularyRules {
-  preferred_terms?: TermRule[];
-  forbidden_terms?: TermRule[];
-  competitor_terms?: TermRule[];
-  abbreviations?: Record<string, string>;
+  /** A use of the term reports without failing a check. */
+  advisory?: boolean;
+  /** The term is a competitor's name. */
+  competitor?: boolean;
+  concept_id?: string;
 }
 
 export interface VoiceExample {
@@ -53,35 +56,26 @@ export interface LocaleOverride {
   humor?: string;
   person_pov?: string;
   cultural_notes?: string;
-  vocabulary_overrides?: TermRule[];
   example_overrides?: VoiceExample[];
 }
 
 /**
- * ChannelOverride adjusts the voice on one channel. Tone/style replace the
- * resolved tone/style; the vocabulary only tightens, the way a persona's does:
- * forbidden and competitor terms extend the profile's, and a preferred term an
- * earlier rule already governs is dropped. Mirror of Go
- * core/profile.ChannelOverride.
+ * ChannelOverride adjusts the voice on one channel: its tone and style replace
+ * the resolved ones. Mirror of Go core/profile.ChannelOverride.
  */
 export interface ChannelOverride {
   tone?: ToneProfile;
   style?: StyleRules;
-  vocabulary?: VocabularyRules;
 }
 
 /**
- * PersonaOverride layers an individual author's voice on top of the brand
- * profile. Tone/style replace the resolved tone/style; the vocabulary deltas
- * are additive and bounded by the brand's guardrails — avoided_terms extend the
- * forbidden set, and a preferred_term the brand already forbids is dropped
- * rather than re-allowed. Mirror of Go core/profile.PersonaOverride.
+ * PersonaOverride layers an individual author's voice on top of the profile:
+ * a tone and style that replace the resolved ones, applied after any
+ * channel's. Mirror of Go core/profile.PersonaOverride.
  */
 export interface PersonaOverride {
   tone?: ToneProfile;
   style?: StyleRules;
-  preferred_terms?: TermRule[];
-  avoided_terms?: TermRule[];
 }
 
 export interface VoiceProfile {
@@ -90,7 +84,6 @@ export interface VoiceProfile {
   description?: string;
   tone: ToneProfile;
   style: StyleRules;
-  vocabulary: VocabularyRules;
   examples: VoiceExample[];
   locales?: Record<string, LocaleOverride>;
   channels?: Record<string, ChannelOverride>;
@@ -225,7 +218,6 @@ export interface CreateVoiceProfileRequest {
   description?: string;
   tone: ToneProfile;
   style: StyleRules;
-  vocabulary: VocabularyRules;
   examples: VoiceExample[];
   personas?: Record<string, PersonaOverride>;
   /**
@@ -243,7 +235,7 @@ export interface UpdateVoiceProfileRequest extends CreateVoiceProfileRequest {
 
 // ── Correction-learning loop (AD-019) ──────────────────────────────────────
 
-/** A vocabulary rule derived from repeated corrections. */
+/** A word rule derived from repeated corrections. */
 export interface SuggestedRule {
   term: string;
   replacement: string;

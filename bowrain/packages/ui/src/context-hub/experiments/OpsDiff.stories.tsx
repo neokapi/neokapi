@@ -37,7 +37,13 @@ const ops: ChangeSetOp[] = [
     concept_id: "c-1",
     term: { text: "Nutzung", locale: "de-DE", status: "proposed" },
   }),
-  mk(4, "voice.rule.add", { profile_id: "p-1", list: "forbidden", rule: { term: "utilize" } }),
+  mk(4, "term.status", {
+    concept_id: "c-1",
+    locale: "en-US",
+    text: "utilize",
+    from: "approved",
+    to: "forbidden",
+  }),
   mk(5, "relation.add", {
     relation: {
       id: "r-1",

@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/memory/kmb"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 )
 
@@ -97,10 +98,15 @@ func (a *App) readContextSourceInto(ctx context.Context, db *projectdb.DB, batch
 		if v := batch.Voice(); v != nil {
 			store = v
 		}
-		if err := a.compileVoiceSource(ctx, db, store, src); err != nil {
+		var tb terms.Terminology
+		if t := batch.Terms(); t != nil {
+			tb = t
+		}
+		words, err := a.compileVoiceSource(ctx, db, store, tb, src)
+		if err != nil {
 			return 0, fmt.Errorf("read voice profile %s: %w", src.rel, err)
 		}
-		return 1, nil
+		return words, nil
 	}
 	return 0, fmt.Errorf("read context source %s: unknown kind", src.rel)
 }

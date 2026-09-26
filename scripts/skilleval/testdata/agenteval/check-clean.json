@@ -9,18 +9,9 @@
   },
   "summary": {
     "findings": 0,
-    "critical": 0,
-    "major": 0,
-    "minor": 0,
-    "neutral": 0,
+    "failing": 0,
+    "reporting": 0,
     "score": 100
-  },
-  "gate": {
-    "max_critical": 0,
-    "max_major": -1,
-    "max_minor": -1,
-    "min_score": 0,
-    "failed": []
   },
   "findings": [],
   "execution": {
@@ -52,6 +43,18 @@
         "required": false,
         "findings": 0,
         "reason": "No explicit patterns were configured."
+      },
+      {
+        "id": "terms",
+        "status": "passed",
+        "file": "README.md",
+        "required": false,
+        "findings": 0,
+        "duration_ms": 0.07075,
+        "canary": {
+          "status": "caught",
+          "probes": 1
+        }
       },
       {
         "id": "voice.rules",

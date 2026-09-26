@@ -1,138 +1,83 @@
 package profile
 
 import (
-	"context"
 	"fmt"
+	"slices"
 	"strings"
-	"time"
 )
 
-// PromoteAndSave loads a profile, applies a correction-derived rule, and — only
-// if the profile changed — bumps its version and persists it (the store archives
-// the prior version, so the change is auditable and reversible). It returns the
-// updated profile and whether it changed. This is the server-side step that
-// turns a reviewed suggestion into an enforced, versioned check.
-func PromoteAndSave(ctx context.Context, store Store, profileID string, r SuggestedRule) (*VoiceProfile, bool, error) {
-	p, err := store.GetProfile(ctx, profileID)
-	if err != nil {
-		return nil, false, err
-	}
-	if p == nil {
-		return nil, false, fmt.Errorf("voice: profile %q not found", profileID)
-	}
-	if !ApplySuggestedRule(p, r) {
-		return p, false, nil
-	}
-	p.Version++
-	p.UpdatedAt = time.Now().UTC()
-	p.VersionNote = fmt.Sprintf("promoted rule: %q", r.Term)
-	if err := store.UpdateProfile(ctx, p); err != nil {
-		return nil, false, err
-	}
-	return p, true, nil
-}
-
-// ApplySuggestedRule promotes a correction-derived rule into the profile's
-// vocabulary: the term a team kept correcting away becomes a forbidden term
-// whose replacement is what they corrected it to. This closes the loop — a
-// correction made once becomes a deterministic check enforced on every future
-// generation, the way fixing a bug once and adding a regression test stops it
-// from coming back.
+// ApplySuggestedRule promotes a correction-derived rule into a list of word
+// rules: the term a team kept correcting away becomes a rule whose replacement
+// is what they corrected it to. A correction made once becomes a
+// deterministic check on every future piece of content.
 //
 // It is idempotent: promoting the same term again updates the existing rule's
-// replacement and provenance note instead of adding a duplicate. It reports
-// whether the profile changed, so a caller knows whether to bump the version.
-func ApplySuggestedRule(p *VoiceProfile, r SuggestedRule) bool {
-	if p == nil || strings.TrimSpace(r.Term) == "" {
-		return false
+// replacement, concept and provenance note instead of adding a duplicate. It
+// returns the list, fresh when it changed, and whether it changed.
+func ApplySuggestedRule(rules []TermRule, r SuggestedRule) ([]TermRule, bool) {
+	if strings.TrimSpace(r.Term) == "" {
+		return rules, false
 	}
 	note := provenanceNote(r.CorrectionCount)
-	for i := range p.Vocabulary.ForbiddenTerms {
-		if strings.EqualFold(p.Vocabulary.ForbiddenTerms[i].Term, r.Term) {
-			changed := false
-			if r.Replacement != "" && p.Vocabulary.ForbiddenTerms[i].Replacement != r.Replacement {
-				p.Vocabulary.ForbiddenTerms[i].Replacement = r.Replacement
-				changed = true
-			}
-			// Carry the concept forward when the suggestion is concept-backed:
-			// a re-promotion can attach (or re-point) the concept on an existing
-			// rule that was first promoted standalone.
-			if r.ConceptID != "" && p.Vocabulary.ForbiddenTerms[i].ConceptID != r.ConceptID {
-				p.Vocabulary.ForbiddenTerms[i].ConceptID = r.ConceptID
-				changed = true
-			}
-			if p.Vocabulary.ForbiddenTerms[i].Note != note {
-				p.Vocabulary.ForbiddenTerms[i].Note = note
-				changed = true
-			}
-			return changed
+	for i := range rules {
+		if !strings.EqualFold(rules[i].Term, r.Term) {
+			continue
 		}
+		rule := rules[i]
+		changed := false
+		if r.Replacement != "" && rule.Replacement != r.Replacement {
+			rule.Replacement = r.Replacement
+			changed = true
+		}
+		// Carry the concept forward when the suggestion is concept-backed: a
+		// re-promotion can attach (or re-point) the concept on an existing rule
+		// that was first promoted standalone.
+		if r.ConceptID != "" && rule.ConceptID != r.ConceptID {
+			rule.ConceptID = r.ConceptID
+			changed = true
+		}
+		if rule.Note != note {
+			rule.Note = note
+			changed = true
+		}
+		if !changed {
+			return rules, false
+		}
+		out := slices.Clone(rules)
+		out[i] = rule
+		return out, true
 	}
-	p.Vocabulary.ForbiddenTerms = append(p.Vocabulary.ForbiddenTerms, TermRule{
+	out := append(slices.Clone(rules), TermRule{
 		Term:        r.Term,
 		Replacement: r.Replacement,
 		Note:        note,
 		ConceptID:   r.ConceptID,
 	})
-	return true
+	return out, true
 }
 
-// RemoveRule removes a forbidden-term rule (matched by term) from the profile's
-// vocabulary. Reports whether the profile changed. The inverse of
-// ApplySuggestedRule.
-func RemoveRule(p *VoiceProfile, term string) bool {
-	if p == nil || strings.TrimSpace(term) == "" {
-		return false
+// RemoveRule removes the rule for term from a list of word rules, and reports
+// whether the list changed. The inverse of ApplySuggestedRule.
+func RemoveRule(rules []TermRule, term string) ([]TermRule, bool) {
+	if strings.TrimSpace(term) == "" {
+		return rules, false
 	}
-	kept := make([]TermRule, 0, len(p.Vocabulary.ForbiddenTerms))
-	removed := false
-	for _, t := range p.Vocabulary.ForbiddenTerms {
+	kept := make([]TermRule, 0, len(rules))
+	for _, t := range rules {
 		if strings.EqualFold(t.Term, term) {
-			removed = true
 			continue
 		}
 		kept = append(kept, t)
 	}
-	if removed {
-		p.Vocabulary.ForbiddenTerms = kept
+	if len(kept) == len(rules) {
+		return rules, false
 	}
-	return removed
+	return kept, true
 }
 
-// DemoteAndSave removes a previously promoted rule from a profile and bumps its
-// version. The inverse of PromoteAndSave — a promoted voice rule is no longer
-// append-only.
-func DemoteAndSave(ctx context.Context, store Store, profileID, term string) (*VoiceProfile, bool, error) {
-	p, err := store.GetProfile(ctx, profileID)
-	if err != nil {
-		return nil, false, err
-	}
-	if p == nil {
-		return nil, false, fmt.Errorf("voice: profile %q not found", profileID)
-	}
-	if !RemoveRule(p, term) {
-		return p, false, nil
-	}
-	p.Version++
-	p.UpdatedAt = time.Now().UTC()
-	p.VersionNote = fmt.Sprintf("demoted rule: %q", term)
-	if err := store.UpdateProfile(ctx, p); err != nil {
-		return nil, false, err
-	}
-	return p, true, nil
-}
-
-// PromoteRules applies several suggested rules to a profile and returns how
-// many of them changed it.
-func PromoteRules(p *VoiceProfile, rules []SuggestedRule) int {
-	n := 0
-	for _, r := range rules {
-		if ApplySuggestedRule(p, r) {
-			n++
-		}
-	}
-	return n
-}
+// PromotionNote is the note a promoted rule carries: how many corrections it
+// was promoted from.
+func PromotionNote(count int) string { return provenanceNote(count) }
 
 func provenanceNote(count int) string {
 	if count == 1 {

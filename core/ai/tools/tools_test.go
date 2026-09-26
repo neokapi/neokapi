@@ -154,13 +154,10 @@ func TestAITranslateToolInjectsVoiceProfile(t *testing.T) {
 		return &aiprovider.TranslateResponse{Translation: "Bonjour", Confidence: 0.9, Model: "test"}, nil
 	}
 
-	profile := &coreprofile.VoiceProfile{
+	profile := (&coreprofile.VoiceProfile{
 		Name: "Friendly",
 		Tone: coreprofile.ToneProfile{Personality: []string{"warm"}, Formality: "casual"},
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}},
-		},
-	}
+	}).Carry("test", []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}})
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,

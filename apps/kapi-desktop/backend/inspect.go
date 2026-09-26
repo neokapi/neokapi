@@ -44,9 +44,10 @@ func (a *App) InspectFile(tabID, filePath string) (string, error) {
 //   - term overlays (type "term") from the project's auto-opened terms
 //     (LookupAll over each block's source text), carrying the matched surface
 //     form, its preferred target translation and domain;
-//   - voice-vocabulary overlays (type "qa", props.category="voice-vocabulary")
-//     from the voice profile governing the point this file sits at
-//     (voiceResolver via coreprofile.MatchVocabulary);
+//   - word-rule overlays (type "qa", props.category="voice-vocabulary") from
+//     the terms: the forbidden, competitor and retired terms of the project's
+//     terms store and the terms the voice governing this file's point carries
+//     (coreprofile.MatchTermRules), beside that voice's prohibited patterns;
 //   - rule-based check overlays (type "qa") from the shared source-only shape rules
 //     (double spaces, doubled words — check.HygieneOverlay).
 //
@@ -287,7 +288,7 @@ func blocksFromParts(parts []*model.Part) []*model.Block {
 
 // annotateParts walks the part stream and writes source-anchored stand-off
 // overlays onto every translatable Block, in place, using the project's real
-// resources: its terms store (term overlays), its voice profile
+// resources: its terms store (term overlays), its word rules and voice profile
 // (voice-vocabulary check overlays) and the shared source-only shape rules
 // (check.HygieneOverlay). It mirrors
 // the wasm "Anatomy" annotator (kapi/cmd/kapi-wasm-cli/lab_annotate.go) so the
@@ -313,6 +314,7 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 	// The overlays describe this file, so the voice is the one governing the
 	// point it sits at.
 	profile := a.newPointResolver(op, false).at(ctx, "", relPath)
+	words := wordRuleSets(ctx, tb, profile, sourceLoc)
 
 	for _, b := range blocksFromParts(parts) {
 		if !b.Translatable {
@@ -329,10 +331,8 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 				b.Overlays = append(b.Overlays, *ov)
 			}
 		}
-		if profile != nil {
-			if ov := voiceOverlay(profile, runs, source); ov != nil {
-				b.Overlays = append(b.Overlays, *ov)
-			}
+		if ov := voiceOverlay(words, profile, runs, source); ov != nil {
+			b.Overlays = append(b.Overlays, *ov)
 		}
 		// Shape checks (double spaces, doubled words) come from the shared
 		// check.HygieneOverlay, which judges the run-aware flattening and maps
@@ -383,16 +383,31 @@ func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, so
 	return &model.Overlay{Type: model.OverlayTerm, Spans: spans}
 }
 
-// voiceOverlay builds an OverlayCheck over the source runs from the project's
-// voice profile — both halves of its deterministic gate, vocabulary
-// (coreprofile.MatchVocabulary) and prohibited style patterns
-// (coreprofile.MatchPatterns). Findings ride on the "qa" overlay type (the model's
-// overlay enum has no dedicated voice type) tagged with
-// category="voice-vocabulary" or category="voice-pattern" plus the matched term
-// or rule, whether it fails, kind and any preferred replacement. Returns nil when
-// nothing matches.
-func voiceOverlay(profile *coreprofile.VoiceProfile, runs []model.Run, source string) *model.Overlay {
-	hits := coreprofile.MatchVocabulary(profile, source)
+// wordRuleSets are the word rules governing a file's source text: the
+// forbidden, competitor and retired terms the project's terms store holds in
+// the source language, and the terms the bound voice's file carries (a starter
+// pack's terms). Either may be absent.
+func wordRuleSets(ctx context.Context, tb terms.Terminology, profile *coreprofile.VoiceProfile, sourceLoc model.LocaleID) []coreprofile.TermRuleSet {
+	var sets []coreprofile.TermRuleSet
+	if tb != nil {
+		if concepts, err := tb.Concepts(ctx); err == nil {
+			if rules := terms.SourceWordRules(concepts, sourceLoc); len(rules) > 0 {
+				sets = append(sets, coreprofile.TermRuleSet{Rules: rules, Kind: coreprofile.VocabForbidden})
+			}
+		}
+	}
+	return append(sets, coreprofile.CarriedRuleSets(profile)...)
+}
+
+// voiceOverlay builds an OverlayCheck over the source runs from the word rules
+// governing the file (coreprofile.MatchTermRules) and its voice profile's
+// prohibited style patterns (coreprofile.MatchPatterns). Findings ride on the
+// "qa" overlay type (the model's overlay enum has no dedicated type for them)
+// tagged with category="voice-vocabulary" or category="voice-pattern" plus the
+// matched term or rule, whether it fails, kind and any preferred replacement.
+// Returns nil when nothing matches.
+func voiceOverlay(words []coreprofile.TermRuleSet, profile *coreprofile.VoiceProfile, runs []model.Run, source string) *model.Overlay {
+	hits := coreprofile.MatchTermRules(words, source)
 	patterns := coreprofile.MatchPatterns(profile, source)
 	if len(hits) == 0 && len(patterns) == 0 {
 		return nil

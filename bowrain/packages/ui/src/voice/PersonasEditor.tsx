@@ -11,7 +11,7 @@ import {
   Switch,
 } from "@neokapi/ui-primitives";
 import { useCallback, useState } from "react";
-import type { PersonaOverride, ToneProfile, StyleRules, TermRule } from "./types";
+import type { PersonaOverride, ToneProfile, StyleRules } from "./types";
 import { Plus, Trash2 } from "../components/icons";
 
 interface PersonasEditorProps {
@@ -23,25 +23,9 @@ interface PersonasEditorProps {
   seedStyle: StyleRules;
 }
 
-type TermField = "preferred_terms" | "avoided_terms";
-
-const termLabels: Record<TermField, string> = {
-  preferred_terms: "Preferred terms",
-  avoided_terms: "Avoided terms",
-};
-
-const termDescriptions: Record<TermField, string> = {
-  preferred_terms:
-    "Words this author leans on (added on top of the brand's; a brand-forbidden term is never re-allowed)",
-  avoided_terms:
-    "Words this author personally steers clear of (added to the brand's forbidden set)",
-};
-
 /**
  * PersonasEditor edits the map of author personas layered on a voice profile.
- * Each persona optionally overrides tone and style (replacing the brand's) and
- * carries additive preferred/avoided vocabulary. The brand's guardrails always
- * win: a persona can tighten vocabulary but never loosen it.
+ * Each persona optionally overrides tone and style, replacing the brand's.
  */
 export function PersonasEditor({ personas, onChange, seedTone, seedStyle }: PersonasEditorProps) {
   const [newName, setNewName] = useState("");
@@ -218,17 +202,6 @@ function PersonaCard({ name, persona, seedTone, seedStyle, onRemove, onUpdate }:
           </div>
         )}
       </div>
-
-      <PersonaTermList
-        field="preferred_terms"
-        terms={persona.preferred_terms ?? []}
-        onChange={(preferred_terms) => onUpdate({ preferred_terms })}
-      />
-      <PersonaTermList
-        field="avoided_terms"
-        terms={persona.avoided_terms ?? []}
-        onChange={(avoided_terms) => onUpdate({ avoided_terms })}
-      />
     </Card>
   );
 }
@@ -256,75 +229,6 @@ function ToneSelect({ label, value, options, onChange }: ToneSelectProps) {
           ))}
         </SelectContent>
       </Select>
-    </div>
-  );
-}
-
-interface PersonaTermListProps {
-  field: TermField;
-  terms: TermRule[];
-  onChange: (terms: TermRule[]) => void;
-}
-
-function PersonaTermList({ field, terms, onChange }: PersonaTermListProps) {
-  const add = useCallback(() => {
-    onChange([...terms, { term: "", replacement: "", note: "" }]);
-  }, [terms, onChange]);
-
-  const update = useCallback(
-    (index: number, key: keyof TermRule, value: string) => {
-      const list = [...terms];
-      list[index] = { ...list[index], [key]: value };
-      onChange(list);
-    },
-    [terms, onChange],
-  );
-
-  const remove = useCallback(
-    (index: number) => {
-      const list = [...terms];
-      list.splice(index, 1);
-      onChange(list);
-    },
-    [terms, onChange],
-  );
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <div>
-          <Label className="text-xs">{termLabels[field]}</Label>
-          <p className="text-[11px] text-muted-foreground">{termDescriptions[field]}</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={add}>
-          <Plus className="w-3.5 h-3.5 mr-1" /> Add
-        </Button>
-      </div>
-      {terms.length === 0 && <p className="text-xs text-muted-foreground">No terms defined.</p>}
-      {terms.map((rule, i) => (
-        <div key={i} className="flex gap-2 items-start">
-          <Input
-            placeholder="Term"
-            value={rule.term}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(i, "term", e.target.value)}
-          />
-          <Input
-            placeholder="Replacement"
-            value={rule.replacement ?? ""}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              update(i, "replacement", e.target.value)
-            }
-          />
-          <Input
-            placeholder="Note"
-            value={rule.note ?? ""}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => update(i, "note", e.target.value)}
-          />
-          <Button variant="ghost" size="icon" onClick={() => remove(i)} aria-label="Remove term">
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
-        </div>
-      ))}
     </div>
   );
 }

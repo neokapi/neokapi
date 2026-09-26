@@ -872,6 +872,7 @@ tasks.title text NOT NULL
 tasks.type text NOT NULL DEFAULT 'custom'::text
 tasks.updated_at timestamp with time zone NOT NULL DEFAULT now()
 tasks.workspace_id text NOT NULL
+tb_concepts.advisory boolean NOT NULL DEFAULT false
 tb_concepts.created_at timestamp with time zone NOT NULL DEFAULT now()
 tb_concepts.definition text NOT NULL DEFAULT ''::text
 tb_concepts.do_not_translate boolean NOT NULL DEFAULT false
@@ -1159,7 +1160,6 @@ voice_profiles.style jsonb NOT NULL DEFAULT '{}'::jsonb
 voice_profiles.tone jsonb NOT NULL DEFAULT '{}'::jsonb
 voice_profiles.updated_at timestamp with time zone NOT NULL DEFAULT now()
 voice_profiles.version integer NOT NULL DEFAULT 1
-voice_profiles.vocabulary jsonb NOT NULL DEFAULT '{}'::jsonb
 voice_profiles.workspace_id text NOT NULL
 voice_rule_decisions.auto boolean NOT NULL DEFAULT false
 voice_rule_decisions.concept_id text NOT NULL DEFAULT ''::text

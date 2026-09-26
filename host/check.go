@@ -819,9 +819,9 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		opts.execution.skipped("pattern", file, "No explicit patterns were configured.")
 	}
 
-	// Voice rules and project terminology share the vocabulary checker. Each
-	// group of blocks is held to the voice and terms of the point it sits at: a
-	// file's comments at their own point when the project places them apart.
+	// Each group of blocks is held to the terms and the voice of the point it
+	// sits at: a file's comments at their own point when the project places
+	// them apart.
 	docBlocks := blocks
 	if opts.documentBlocks != nil {
 		docBlocks = opts.documentBlocks
@@ -839,31 +839,67 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 				diags = append(diags, advisoryDiagnostics(sets, b.SourceText(), b.SourceRuns(), loc)...)
 			}
 		}
-		binding := contextop.Resolution{Binding: g.at.context.Binding}.RuleSets()
+		// Word rules are terms wherever they are held: the terms store, the
+		// rules established across the workspace, and a bound starter pack's
+		// terms. One analyzer checks them all.
+		words := append(contextop.Resolution{Binding: g.at.context.Binding}.RuleSets(), profile.CarriedRuleSets(g.at.profile)...)
+		asked := g.at.voiceContext.Selection == "override"
+		if g.at.terms == nil && len(words) == 0 {
+			opts.execution.skipped("terms", file, "No terms were bound.")
+		} else {
+			start = time.Now()
+			before := len(diags)
+			wordCheck := coretools.NewVoiceVocabCheckTool(nil, g.at.terms).
+				InSourceLocale(model.LocaleID(opts.source(a))).
+				Holding(words...)
+			for _, b := range g.blocks {
+				found, err := runVoiceVocabOnBlock(ctx, wordCheck, b)
+				if err != nil {
+					return nil, fmt.Errorf("terms check %s: %w", DisplayName(file), err)
+				}
+				b.DelAnno(model.AnnoVoice)
+				loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
+				for _, f := range found {
+					diags = append(diags, check.DiagnosticFrom(f, "terms", loc))
+				}
+			}
+			canary, err := probeVoiceRules(ctx, wordCheck, nil)
+			if err != nil {
+				return nil, fmt.Errorf("terms check %s: %w", DisplayName(file), err)
+			}
+			opts.execution.completed("terms", file, len(diags)-before, start, canary, asked && len(words) > 0)
+		}
+
+		// The voice's own rules: its prohibited and required patterns and its
+		// constraints.
+		voice := g.at.profile.VoiceOnly()
 		switch {
-		case g.at.profile == nil && g.at.terms == nil && len(binding) == 0:
-			opts.execution.skipped("voice.rules", file, "No voice profile or project terms were bound.")
-		case g.at.terms == nil && len(binding) == 0 && commentLimitsOnly(g.at.profile, g.blocks):
+		case voice == nil:
+			opts.execution.skipped("voice.rules", file, "No voice profile was bound.")
+		case commentLimitsOnly(voice, g.blocks):
 			// The comment analyzers below hold these comments to the profile's
 			// limits and decide the verdict for them.
 			opts.execution.notApplicable("voice.rules", file,
-				"The voice profile declares no term or pattern, and the comment analyzers check its comment limits.")
-			recordGuidance(opts.execution, g.at.profile, file)
+				"The voice profile declares no pattern rule, and the comment analyzers check its comment limits.")
+			recordGuidance(opts.execution, voice, file)
+		case !profile.HasDeterministicRules(voice) && (g.at.terms != nil || len(words) > 0):
+			// A voice holding only tone and guidance beside terms has no rule of
+			// its own to check; the terms analyzer above checks the word rules.
+			opts.execution.notApplicable("voice.rules", file,
+				"The voice profile declares no pattern rule, and the terms analyzer checks the word rules.")
+			recordGuidance(opts.execution, voice, file)
 		default:
 			start = time.Now()
 			before := len(diags)
-			vocab := coretools.NewVoiceVocabCheckTool(g.at.profile, g.at.terms).
-				InSourceLocale(model.LocaleID(opts.source(a))).
-				Holding(binding...)
+			patternCheck := coretools.NewVoiceVocabCheckTool(voice, nil)
 			for _, b := range g.blocks {
-				if err := RunCheckTool(ctx, vocab, b); err != nil {
-					return nil, fmt.Errorf("voice vocabulary check %s: %w", DisplayName(file), err)
+				found, err := runVoiceVocabOnBlock(ctx, patternCheck, b)
+				if err != nil {
+					return nil, fmt.Errorf("voice check %s: %w", DisplayName(file), err)
 				}
-				if ann, ok := model.AnnoAs[*profile.VoiceAnnotation](b, "voice"); ok {
-					loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
-					for _, f := range ann.Findings {
-						diags = append(diags, check.DiagnosticFrom(f, "voice", loc))
-					}
+				loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
+				for _, f := range found {
+					diags = append(diags, check.DiagnosticFrom(f, "voice", loc))
 				}
 			}
 			// The profile's required patterns hold over the document, not over any
@@ -871,19 +907,19 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			// notice, not every paragraph of it. They are reported against the file,
 			// with no block, because an absence sits nowhere in particular.
 			docLoc := check.Location{File: DisplayName(file)}
-			for _, f := range profile.DocumentFindings(g.at.profile, documentText(g.doc)) {
+			for _, f := range profile.DocumentFindings(voice, documentText(g.doc)) {
 				d := check.DiagnosticFrom(f, "voice", docLoc)
 				d.Point = clonePoint(g.at.point)
 				diags = append(diags, d)
 			}
-			canary, err := probeVoiceRules(ctx, vocab, g.at.profile)
+			canary, err := probeVoiceRules(ctx, patternCheck, voice)
 			if err != nil {
-				return nil, fmt.Errorf("voice vocabulary check %s: %w", DisplayName(file), err)
+				return nil, fmt.Errorf("voice check %s: %w", DisplayName(file), err)
 			}
 			// A profile named on the command line is an analysis the invocation asked
 			// for. One the project binds is configuration, and may govern tone alone.
-			opts.execution.completed("voice.rules", file, len(diags)-before, start, canary, g.at.voiceContext.Selection == "override")
-			recordGuidance(opts.execution, g.at.profile, file)
+			opts.execution.completed("voice.rules", file, len(diags)-before, start, canary, asked)
+			recordGuidance(opts.execution, voice, file)
 		}
 		// The comments among the group's blocks are held to the comment limits
 		// of the group's voice.
@@ -1031,9 +1067,9 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 		if err != nil {
 			return nil, fmt.Errorf("terminology check %s (%s): %w", DisplayName(file), loc, err)
 		}
-		execution.completed("terms", file, len(diags)-before, start, canary, true)
+		execution.completed("terms.target", file, len(diags)-before, start, canary, true)
 	} else {
-		execution.skipped("terms", file, "No terms govern this file in its target language.")
+		execution.skipped("terms.target", file, "No terms govern this file in its target language.")
 	}
 
 	if len(dntTerms) > 0 {

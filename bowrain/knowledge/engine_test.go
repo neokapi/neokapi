@@ -9,7 +9,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -25,70 +24,6 @@ func concept(id string, ts ...terms.Term) terms.Concept {
 // ---------------------------------------------------------------------------
 // ApplyVoiceOpsToProfile
 // ---------------------------------------------------------------------------
-
-func TestApplyVoiceOpsToProfile(t *testing.T) {
-	baseline := &coreprofile.VoiceProfile{
-		ID:   "p1",
-		Name: "Acme",
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{{Term: "synergy"}},
-		},
-	}
-
-	t.Run("add to each list", func(t *testing.T) {
-		ops := []ChangeSetOp{
-			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "leverage", Replacement: "use"}}),
-			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListPreferred, Rule: coreprofile.TermRule{Term: "sign in"}}),
-			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListCompetitor, Rule: coreprofile.TermRule{Term: "Globex"}}),
-		}
-		cand := ApplyVoiceOpsToProfile(baseline, ops)
-		require.NotNil(t, cand)
-
-		assert.Len(t, cand.Vocabulary.ForbiddenTerms, 2)
-		assert.Equal(t, "leverage", cand.Vocabulary.ForbiddenTerms[1].Term)
-		assert.Equal(t, "use", cand.Vocabulary.ForbiddenTerms[1].Replacement)
-		require.Len(t, cand.Vocabulary.PreferredTerms, 1)
-		assert.Equal(t, "sign in", cand.Vocabulary.PreferredTerms[0].Term)
-		require.Len(t, cand.Vocabulary.CompetitorTerms, 1)
-		assert.Equal(t, "Globex", cand.Vocabulary.CompetitorTerms[0].Term)
-
-		// Baseline is never mutated.
-		assert.Len(t, baseline.Vocabulary.ForbiddenTerms, 1)
-		assert.Empty(t, baseline.Vocabulary.PreferredTerms)
-	})
-
-	t.Run("remove from list", func(t *testing.T) {
-		ops := []ChangeSetOp{
-			mustOp(t, 0, OpVoiceRuleRemove, VoiceRuleRemovePayload{ProfileID: "p1", List: VoiceListForbidden, Term: "SYNERGY"}),
-		}
-		cand := ApplyVoiceOpsToProfile(baseline, ops)
-		require.NotNil(t, cand)
-		assert.Empty(t, cand.Vocabulary.ForbiddenTerms)
-		// Baseline retains its rule.
-		assert.Len(t, baseline.Vocabulary.ForbiddenTerms, 1)
-	})
-
-	t.Run("add is idempotent by term", func(t *testing.T) {
-		ops := []ChangeSetOp{
-			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy", Replacement: "teamwork"}}),
-		}
-		cand := ApplyVoiceOpsToProfile(baseline, ops)
-		require.Len(t, cand.Vocabulary.ForbiddenTerms, 1)
-		assert.Equal(t, "teamwork", cand.Vocabulary.ForbiddenTerms[0].Replacement)
-	})
-
-	t.Run("ops for other profiles are ignored", func(t *testing.T) {
-		ops := []ChangeSetOp{
-			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "other", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "leverage"}}),
-		}
-		cand := ApplyVoiceOpsToProfile(baseline, ops)
-		assert.Len(t, cand.Vocabulary.ForbiddenTerms, 1)
-	})
-
-	t.Run("nil baseline yields nil", func(t *testing.T) {
-		assert.Nil(t, ApplyVoiceOpsToProfile(nil, nil))
-	})
-}
 
 // ---------------------------------------------------------------------------
 // ApplyOpsToTerms
@@ -172,16 +107,6 @@ func TestApplyOpsToTerms(t *testing.T) {
 		require.NoError(t, err)
 		rels, _ = removed.RelationsOf(ctx, "c1", nil)
 		assert.Empty(t, rels)
-	})
-
-	t.Run("voice ops are ignored by the terms store builder", func(t *testing.T) {
-		base := newBase(t)
-		after, err := ApplyOpsToTerms(ctx, base, []ChangeSetOp{
-			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "x"}}),
-		})
-		require.NoError(t, err)
-		n, _ := after.Count(ctx)
-		assert.Equal(t, 1, n)
 	})
 
 	t.Run("editing a missing concept errors", func(t *testing.T) {

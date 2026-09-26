@@ -137,9 +137,9 @@ func TestConfirm_ChangesNoFileAndReachesBothCheckouts(t *testing.T) {
 	assert.Equal(t, beforeB, treeOf(t, c.bRoot), "and none in the other")
 }
 
-// TestApply_LandsInTheStoreAndIsRecorded: `kapi apply` writes a term, a
-// content-memory pair and a voice rule into the project's stores, writes no
-// file but the recipe, and leaves each one on the project's record.
+// TestApply_LandsInTheStoreAndIsRecorded: `kapi apply` writes terms and a
+// content-memory pair into the project's stores, writes no file, and leaves
+// each one on the project's record.
 func TestApply_LandsInTheStoreAndIsRecorded(t *testing.T) {
 	a, cmd, root, recipe := newApplyAssetProject(t)
 	ownWorkspace(t, a)
@@ -151,20 +151,16 @@ func TestApply_LandsInTheStoreAndIsRecorded(t *testing.T) {
 	for _, e := range []changeEntry{
 		{Kind: kindTerm, Op: "upsert", Term: "sign in", Locale: "en", Status: "preferred", Replacement: "log in"},
 		{Kind: kindMemory, Op: "add", Source: "Save", Target: "Enregistrer", SourceLocale: "en", TargetLocale: "fr"},
-		{Kind: kindVoice, Op: "add-rule", List: "forbidden", Term: "utilise", Replacement: "use"},
+		{Kind: kindTerm, Term: "utilise", Replacement: "use", Locale: "en", Status: "forbidden"},
 	} {
 		res := a.applyRecordedAssetEntry(ctx, cmd, e)
 		require.Equal(t, "applied", res.Status, "kind %s detail: %s", e.Kind, res.Detail)
 		assert.NotContains(t, res.Detail, "not recorded", "the change is on the record")
 	}
 
-	// The recipe is configuration, and a voice rule binds a profile in it. Every
-	// other file in the checkout stands where it was.
+	// Every file in the checkout stands where it was.
 	after := treeOf(t, root)
 	for path, content := range after {
-		if path == project.RecipeFileName {
-			continue
-		}
 		assert.Equal(t, before[path], content, "apply changed %s", path)
 	}
 	for path := range before {
@@ -172,7 +168,7 @@ func TestApply_LandsInTheStoreAndIsRecorded(t *testing.T) {
 	}
 
 	ops := recordedOps(t, a, recipe)
-	require.Len(t, ops, 2, "each applied term and memory pair is one edit")
+	require.Len(t, ops, 3, "each applied term and memory pair is one edit")
 	edited := map[contextop.SubjectKind]int{}
 	for _, op := range ops {
 		if op.Kind == contextop.KindEdit {
@@ -180,8 +176,8 @@ func TestApply_LandsInTheStoreAndIsRecorded(t *testing.T) {
 		}
 	}
 	assert.Equal(t, map[contextop.SubjectKind]int{
-		contextop.SubjectTerm: 1, contextop.SubjectMemory: 1,
-	}, edited, "a voice-profile vocabulary rule is recorded by the profile's own history")
+		contextop.SubjectTerm: 2, contextop.SubjectMemory: 1,
+	}, edited)
 }
 
 // TestVoiceEdit_ReadsTheEditedProfileBackAsOneOperation drives the editor with
@@ -300,14 +296,16 @@ func ownWorkspace(t *testing.T, a *App) {
 	a.SetWorkspaceRoot(t.TempDir())
 }
 
-// seedVoiceProfile gives the project a voice profile to edit, put there the
-// way `kapi apply` puts one there.
+// seedVoiceProfile gives the project a voice profile to edit, bound by name
+// in the recipe the way an edit opens one.
 func seedVoiceProfile(t *testing.T, a *App, cmd Command) {
 	t.Helper()
-	res := a.applyRecordedAssetEntry(cmd.Context(), cmd, changeEntry{
-		Kind: kindVoice, Op: "add-rule", List: "forbidden", Term: "utilise", Replacement: "use",
-	})
-	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
+	recipe, root, err := a.resolveProjectRoot(cmd)
+	require.NoError(t, err)
+	db, err := a.ProjectDB(cmd.Context(), root)
+	require.NoError(t, err)
+	_, err = a.boundVoiceProfileForWrite(cmd.Context(), db, recipe, root)
+	require.NoError(t, err)
 }
 
 // writingEditor is an editor that saves document over whatever it was given,

@@ -79,7 +79,7 @@ func TestMandatesReachTheSteeredPass(t *testing.T) {
 func TestForbiddenTermsCarryReplacements(t *testing.T) {
 	for _, target := range Targets() {
 		p := contextFor(target).Profile
-		for _, rule := range p.Vocabulary.ForbiddenTerms {
+		for _, rule := range p.CarriedTerms().Rules {
 			assert.NotEmpty(t, rule.Replacement, "%s: forbidden term %q has no replacement and is invisible to the model", target, rule.Term)
 		}
 	}
@@ -145,7 +145,7 @@ func TestConflictsDeclareTheirWinner(t *testing.T) {
 			require.True(t, hasVocabCheck, "%s/%s excuses vocabulary but scores none", target, f.Key)
 			for _, allow := range f.AllowVocab {
 				found := false
-				for _, rule := range profile.Vocabulary.ForbiddenTerms {
+				for _, rule := range profile.CarriedTerms().Rules {
 					if strings.EqualFold(rule.Term, allow) {
 						found = true
 					}
@@ -171,7 +171,7 @@ func TestHouseStyleNamesEveryMandate(t *testing.T) {
 			}
 			assert.Contains(t, joined, r.Term+" → "+r.Replacement, "%s: mandate %q missing from house style", target, r.Term)
 		}
-		for _, r := range c.Profile.Vocabulary.ForbiddenTerms {
+		for _, r := range c.Profile.CarriedTerms().Rules {
 			assert.Contains(t, joined, r.Term, "%s: forbidden term %q missing from house style", target, r.Term)
 		}
 		for _, dnt := range c.DNT {

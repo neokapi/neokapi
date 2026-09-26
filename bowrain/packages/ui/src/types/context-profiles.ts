@@ -8,7 +8,11 @@
  * wire, so one broad profile governing two points reads here as two points.
  */
 
-/** The voice governing a profile, with the size of what it enforces. */
+/**
+ * The voice governing a profile, with the size of what it enforces. The term
+ * counts are the workspace terms store's word rules, which every voice in the
+ * workspace applies.
+ */
 export interface ContextProfileVoice {
   id: string;
   name: string;
@@ -97,8 +101,6 @@ export interface ContextProfile {
   channel?: string;
   voice?: ContextProfileVoice;
   collections: ContextProfileCollection[];
-  /** Change-sets in review carrying a voice rule for this profile's voice. */
-  pending_changes: number;
   /** The stored checks that resolved through this profile's voice. Absent when
    *  nothing here has been checked. */
   checks?: ContextProfileChecks;

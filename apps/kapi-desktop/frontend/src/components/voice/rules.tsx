@@ -194,42 +194,19 @@ export function PatternGroups({ style }: { style?: StyleRules }) {
 }
 
 /**
- * Every wording rule in one place: the say-this and never-say term rules and
- * the always-write and never-write patterns, each drawn to the same row shape,
- * with abbreviations beneath them.
+ * The voice's pattern rules: the always-write and never-write patterns. Word
+ * rules are terms and are shown with the project's terms.
  */
 export function RulesBlock({ profile }: { profile: VoiceProfile }) {
-  const vocab = profile.vocabulary;
   const style = profile.style;
-  const abbreviations = vocab?.abbreviations ?? {};
-  const hasAbbreviations = Object.keys(abbreviations).length > 0;
-  const hasRules =
-    !!vocab?.preferred_terms?.length ||
-    !!vocab?.forbidden_terms?.length ||
-    !!vocab?.competitor_terms?.length ||
-    !!style?.prohibited_patterns?.length ||
-    !!style?.required_patterns?.length;
+  const hasRules = !!style?.prohibited_patterns?.length || !!style?.required_patterns?.length;
   return (
     <div className="space-y-3">
-      <TermGroup title={t("Say this")} rules={vocab?.preferred_terms} />
-      <TermGroup title={t("Never say")} rules={vocab?.forbidden_terms} />
-      <TermGroup title={t("Competitor names")} rules={vocab?.competitor_terms} />
       <PatternGroups style={style} />
-      {hasAbbreviations && (
-        <div>
-          <p className="mb-1 text-xs font-medium text-foreground">{t("Abbreviations")}</p>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
-            {Object.entries(abbreviations).map(([short, long]) => (
-              <div key={short} className="flex items-baseline gap-2">
-                <dt className="font-medium">{short}</dt>
-                <dd className="truncate text-muted-foreground">{long}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      )}
-      {!hasRules && !hasAbbreviations && (
-        <p className="text-sm text-muted-foreground">{t("This profile constrains no wording.")}</p>
+      {!hasRules && (
+        <p className="text-sm text-muted-foreground">
+          {t("This profile declares no pattern rule.")}
+        </p>
       )}
     </div>
   );

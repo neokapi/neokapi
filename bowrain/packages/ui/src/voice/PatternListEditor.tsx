@@ -20,11 +20,11 @@ interface PatternListEditorProps {
 
 export function PatternListEditor({ label, patterns, onChange }: PatternListEditorProps) {
   const addPattern = useCallback(() => {
-    onChange([...patterns, { regex: "", description: "", severity: "minor" }]);
+    onChange([...patterns, { regex: "", description: "" }]);
   }, [patterns, onChange]);
 
   const updatePattern = useCallback(
-    (index: number, field: keyof Pattern, value: string) => {
+    (index: number, field: keyof Pattern, value: string | boolean) => {
       const updated = [...patterns];
       updated[index] = { ...updated[index], [field]: value };
       onChange(updated);
@@ -68,16 +68,15 @@ export function PatternListEditor({ label, patterns, onChange }: PatternListEdit
             }
           />
           <Select
-            value={pat.severity}
-            onValueChange={(v: string) => updatePattern(i, "severity", v)}
+            value={pat.advisory ? "reports" : "fails"}
+            onValueChange={(v: string) => updatePattern(i, "advisory", v === "reports")}
           >
-            <SelectTrigger className="w-28">
+            <SelectTrigger className="w-28" aria-label="When it matches">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="minor">Minor</SelectItem>
-              <SelectItem value="major">Major</SelectItem>
-              <SelectItem value="critical">Critical</SelectItem>
+              <SelectItem value="fails">Fails</SelectItem>
+              <SelectItem value="reports">Reports</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="ghost" size="icon" onClick={() => removePattern(i)}>

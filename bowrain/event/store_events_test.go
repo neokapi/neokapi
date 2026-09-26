@@ -115,12 +115,8 @@ func TestEventEmittingStoreCarriesOptionalCapabilities(t *testing.T) {
 	// The knowledge engine reaches the content store through narrow interfaces
 	// and asserts for each one. The server hands it the wrapper, so a method the
 	// wrapper does not carry takes the whole capability with it: without
-	// StreamBindingStore a pilot silently binds no candidate voice profile and
-	// the trial reports none is bound; without CollectionResolver every affected
-	// block groups under its item name and the reach split's collection counts
-	// collapse to one bucket per file.
-	_, ok = any(es).(knowledge.StreamBindingStore)
-	assert.True(t, ok, "stream binding must survive the wrapper")
+	// CollectionResolver every affected block groups under its item name and the
+	// reach split's collection counts collapse to one bucket per file.
 	_, ok = any(es).(knowledge.CollectionResolver)
 	assert.True(t, ok, "collection resolution must survive the wrapper")
 	_, ok = any(es).(knowledge.BlockSource)

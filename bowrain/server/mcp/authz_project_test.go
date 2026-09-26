@@ -175,7 +175,7 @@ func projectScopedTools() []struct {
 			return err
 		}},
 		{"loop", "evaluate_rule", func(ctx context.Context, ms *MCPServer, req *mcp.CallToolRequest, id string) error {
-			_, _, err := ms.handleEvaluateRule(ctx, req, evaluateRuleInput{ProfileID: "vp1", Term: "utilize", ProjectID: id})
+			_, _, err := ms.handleEvaluateRule(ctx, req, evaluateRuleInput{Term: "utilize", ProjectID: id})
 			return err
 		}},
 		{"scoring", "score_voice_compliance", func(ctx context.Context, ms *MCPServer, req *mcp.CallToolRequest, id string) error {

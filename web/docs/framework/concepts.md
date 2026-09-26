@@ -102,8 +102,8 @@ make up the [content model](/framework/content-model).
 - **Terms store**: a store of approved terminology, used to keep term
   renderings consistent. See [Terminology](/framework/terminology).
 
-- **Voice profile**: the tone, wording and vocabulary rules content is checked
-  and produced against (`core/profile`). See [Voice](/framework/checks/voice).
+- **Voice profile**: the tone, style measures and pattern rules content is
+  checked and produced against (`core/profile`). Word rules are terms. See [Voice](/framework/checks/voice).
 
 ## Context
 

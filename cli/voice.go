@@ -16,7 +16,6 @@ import (
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 // NewVoiceCmd creates the `kapi voice` command group: a text-first, JSON-first
@@ -46,7 +45,6 @@ omitted or set to "-".`,
 		newVoiceCheckCmd(a),
 		newVoiceRewriteCmd(a),
 		newVoiceValidateCmd(a),
-		newVoiceExpandCmd(a),
 		newVoiceProfilesCmd(a),
 		newVoiceShowCmd(a),
 		newVoiceImportCmd(a),
@@ -325,9 +323,8 @@ Pass a file path, or "-" to read the profile from stdin. Validation reports:
   - invalid enum values (tone formality/emotion/humor, style sentence_length/
     person_pov/contractions, example category, rule severity)
   - regex in style prohibited_patterns/required_patterns that does not compile
-  - vocabulary term rules with an empty term
-  - style comments limits that are not a positive number of words, or a minor
-    sentence limit that is not below the major one
+  - word rules under terms: that name neither a term nor a replacement
+  - style comments limits that are not a positive number of words
 
 Exit codes: 0 when the profile is valid, 1 when it has any problem. With --json
 the result is {"valid": bool, "errors": [{"field", "message"}]}.`,
@@ -424,7 +421,7 @@ then ` + "`kapi voice import`" + ` it.`,
 					return err
 				}
 				p.ID = "" // let import derive the id from the (edited) name
-				b, err := yaml.Marshal(p)
+				b, err := coreprofile.EncodeVoiceFile(p)
 				if err != nil {
 					return fmt.Errorf("marshal pack %q: %w", pack, err)
 				}

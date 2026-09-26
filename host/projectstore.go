@@ -12,6 +12,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/projector"
@@ -328,6 +329,25 @@ func recipeIdentity(recipePath string) (identity, name string) {
 		return head.ID, head.Name
 	}
 	return head.Name, head.Name
+}
+
+// recipeSourceLanguage reads the recipe's `defaults.source_language` and
+// nothing else, for a reader that does not load the recipe; "" when the recipe
+// is unreadable or names none.
+func recipeSourceLanguage(recipePath string) model.LocaleID {
+	data, err := os.ReadFile(recipePath)
+	if err != nil {
+		return ""
+	}
+	var head struct {
+		Defaults struct {
+			SourceLanguage model.LocaleID `yaml:"source_language"`
+		} `yaml:"defaults"`
+	}
+	if err := yaml.Unmarshal(data, &head); err != nil {
+		return ""
+	}
+	return head.Defaults.SourceLanguage
 }
 
 // ErrNoProjectGraph reports that this build cannot hold a property graph,

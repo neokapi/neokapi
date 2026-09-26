@@ -9,7 +9,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -93,39 +92,15 @@ func (f *fakeBlockSource) GetCollection(_ context.Context, projectID, collection
 	return f.cols[projectID+"|"+collectionID], nil
 }
 
-// fakeProfileStore is an in-memory ProfileStore.
-type fakeProfileStore struct {
-	profiles map[string]*coreprofile.VoiceProfile
-}
-
-func newFakeProfileStore(ps ...*coreprofile.VoiceProfile) *fakeProfileStore {
-	m := map[string]*coreprofile.VoiceProfile{}
-	for _, p := range ps {
-		m[p.ID] = p
-	}
-	return &fakeProfileStore{profiles: m}
-}
-
-func (f *fakeProfileStore) GetProfile(_ context.Context, id string) (*coreprofile.VoiceProfile, error) {
-	return f.profiles[id], nil
-}
-
-func (f *fakeProfileStore) ListProfiles(_ context.Context, workspaceID string) ([]*coreprofile.VoiceProfile, error) {
-	var out []*coreprofile.VoiceProfile
-	for _, p := range f.profiles {
-		if workspaceID == "" || p.Scope == workspaceID {
-			out = append(out, p)
-		}
-	}
-	return out, nil
-}
-
-func (f *fakeProfileStore) UpdateProfile(_ context.Context, p *coreprofile.VoiceProfile) error {
-	f.profiles[p.ID] = p
-	return nil
-}
-
 // srcBlock builds a translatable StoredBlock with a single source TextRun.
+// synergyBan is a change-set op that forbids "synergy" in English and German.
+func synergyBan(t *testing.T) ChangeSetOp {
+	return mustOp(t, 0, OpConceptCreate, ConceptCreatePayload{Concept: concept("synergy",
+		term("synergy", "en-US", model.TermForbidden),
+		term("synergy", "de-DE", model.TermForbidden),
+	)})
+}
+
 func srcBlock(id, itemName string, locale model.LocaleID, text string) *venue.StoredBlock {
 	b := &model.Block{ID: id, Translatable: true, SourceLocale: locale}
 	b.SetSourceText(text)
@@ -135,72 +110,6 @@ func srcBlock(id, itemName string, locale model.LocaleID, text string) *venue.St
 // ---------------------------------------------------------------------------
 // EvaluateChangeSet
 // ---------------------------------------------------------------------------
-
-func TestEvaluateChangeSet_VoiceRuleAddFlagsMatchingBlocks(t *testing.T) {
-	ctx := context.Background()
-
-	bs := newFakeBlockSource()
-	bs.addProject(&store.Project{ID: "proj1", Name: "Site", WorkspaceID: "ws"})
-	bs.addBlocks("proj1", "main",
-		srcBlock("b1", "home.json", "en-US", "Embrace synergy across teams"), // contains forbidden term
-		srcBlock("b2", "home.json", "en-US", "Welcome to our site"),          // clean
-	)
-
-	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", Scope: "ws"}
-	ps := newFakeProfileStore(profile)
-	e := NewEngine(bs, terms.NewInMemoryStore(), ps, nil)
-
-	ops := []ChangeSetOp{
-		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy", Replacement: "teamwork"}}),
-	}
-
-	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, ops, EvalOptions{})
-	require.NoError(t, err)
-
-	assert.Equal(t, 2, imp.TotalBlocks)
-	assert.Equal(t, 1, imp.AffectedBlocks)
-	assert.Equal(t, 1, imp.NewViolations)
-	assert.Equal(t, 0, imp.Resolved)
-	assert.Equal(t, 4, imp.Words, "word count of the affected block's source text")
-
-	require.Len(t, imp.Projects, 1)
-	pi := imp.Projects[0]
-	assert.Equal(t, "proj1", pi.ProjectID)
-	assert.Equal(t, 1, pi.AffectedBlocks)
-	require.Len(t, pi.Collections, 1)
-	require.Len(t, pi.Collections[0].Locales, 1)
-	assert.Equal(t, model.LocaleID("en-US"), pi.Collections[0].Locales[0].Locale)
-
-	require.Len(t, imp.Samples, 1)
-	assert.Equal(t, "b1", imp.Samples[0].BlockID)
-	assert.Equal(t, 1, imp.Samples[0].NewViolations)
-}
-
-func TestEvaluateChangeSet_VoiceRuleRemoveResolves(t *testing.T) {
-	ctx := context.Background()
-
-	bs := newFakeBlockSource()
-	bs.addProject(&store.Project{ID: "proj1", Name: "Site", WorkspaceID: "ws"})
-	bs.addBlocks("proj1", "main",
-		srcBlock("b1", "home.json", "en-US", "Embrace synergy across teams"),
-	)
-
-	profile := &coreprofile.VoiceProfile{
-		ID: "p1", Name: "Acme", Scope: "ws",
-		Vocabulary: coreprofile.VocabularyRules{ForbiddenTerms: []coreprofile.TermRule{{Term: "synergy"}}},
-	}
-	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
-
-	ops := []ChangeSetOp{
-		mustOp(t, 0, OpVoiceRuleRemove, VoiceRuleRemovePayload{ProfileID: "p1", List: VoiceListForbidden, Term: "synergy"}),
-	}
-	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, ops, EvalOptions{})
-	require.NoError(t, err)
-
-	assert.Equal(t, 1, imp.AffectedBlocks)
-	assert.Equal(t, 0, imp.NewViolations)
-	assert.Equal(t, 1, imp.Resolved)
-}
 
 func TestEvaluateChangeSet_TermStatusForbiddenFlagsBlocks(t *testing.T) {
 	ctx := context.Background()
@@ -215,7 +124,7 @@ func TestEvaluateChangeSet_TermStatusForbiddenFlagsBlocks(t *testing.T) {
 		srcBlock("b2", "guide.md", "en-US", "Nothing to see"),
 	)
 
-	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	e := NewEngine(bs, tb, nil)
 	ops := []ChangeSetOp{
 		mustOp(t, 0, OpTermStatus, TermStatusPayload{ConceptID: "c1", Locale: "en-US", Text: "foobar", From: model.TermAdmitted, To: model.TermForbidden}),
 	}
@@ -242,7 +151,7 @@ func TestEvaluateChangeSet_RelationGuidanceChangeAffectsWithoutViolation(t *test
 	bs.addProject(&store.Project{ID: "proj1", Name: "Docs", WorkspaceID: "ws"})
 	bs.addBlocks("proj1", "main", srcBlock("b1", "g.md", "en-US", "the kaputt thing"))
 
-	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	e := NewEngine(bs, tb, nil)
 	ops := []ChangeSetOp{
 		mustOp(t, 0, OpRelationAdd, RelationAddPayload{Relation: terms.ConceptRelation{
 			ID: "r1", SourceID: "old", TargetID: "new", RelationType: graph.LabelUseInstead,
@@ -283,10 +192,9 @@ func TestEvaluateChangeSet_GroupingAndWordSums(t *testing.T) {
 	bs.addProject(&store.Project{ID: "other", Name: "Other", WorkspaceID: "ws2"})
 	bs.addBlocks("other", "main", srcBlock("o1", "o.json", "en-US", "synergy synergy"))
 
-	profile := &coreprofile.VoiceProfile{ID: "p1prof", Name: "Acme", Scope: "ws"}
-	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
+	e := NewEngine(bs, terms.NewInMemoryStore(), nil)
 	ops := []ChangeSetOp{
-		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1prof", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy"}}),
+		synergyBan(t),
 	}
 
 	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, ops, EvalOptions{})
@@ -327,7 +235,7 @@ func TestEvaluateChangeSet_EmptyChangeSetZeroImpact(t *testing.T) {
 	bs.addProject(&store.Project{ID: "proj1", Name: "Site", WorkspaceID: "ws"})
 	bs.addBlocks("proj1", "main", srcBlock("b1", "home.json", "en-US", "Embrace synergy"))
 
-	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(), nil)
+	e := NewEngine(bs, terms.NewInMemoryStore(), nil)
 
 	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, nil, EvalOptions{})
 	require.NoError(t, err)
@@ -354,10 +262,9 @@ func TestEvaluateChangeSet_SampleCap(t *testing.T) {
 	}
 	bs.addBlocks("proj1", "main", blocks...)
 
-	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", Scope: "ws"}
-	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
+	e := NewEngine(bs, terms.NewInMemoryStore(), nil)
 	ops := []ChangeSetOp{
-		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy"}}),
+		synergyBan(t),
 	}
 
 	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, ops, EvalOptions{MaxSamples: 3})
@@ -376,10 +283,9 @@ func TestEvaluateChangeSet_PilotStream(t *testing.T) {
 	bs.addBlocks("proj1", "main", srcBlock("m1", "home.json", "en-US", "main synergy copy"))
 	bs.addBlocks("proj1", "pilot/rebrand", srcBlock("p1b", "home.json", "en-US", "pilot synergy copy"))
 
-	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", Scope: "ws"}
-	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
+	e := NewEngine(bs, terms.NewInMemoryStore(), nil)
 	ops := []ChangeSetOp{
-		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy"}}),
+		synergyBan(t),
 	}
 
 	// Without pilot streams, only "main" is walked.
@@ -427,7 +333,7 @@ func TestConceptUsage(t *testing.T) {
 	bs.addProject(&store.Project{ID: "p2", Name: "Docs DE", WorkspaceID: "ws"})
 	bs.addBlocks("p2", "main", srcBlock("b1", "b.md", "de-DE", "ein Widget hier")) // 1 occurrence
 
-	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	e := NewEngine(bs, tb, nil)
 	usage, err := e.ConceptUsage(ctx, "ws", "c1", EvalOptions{})
 	require.NoError(t, err)
 
@@ -453,7 +359,7 @@ func TestConceptUsage_MissingConcept(t *testing.T) {
 	bs.addProject(&store.Project{ID: "p1", Name: "Docs", WorkspaceID: "ws"})
 	bs.addBlocks("p1", "main", srcBlock("a1", "a.md", "en-US", "the widget here"))
 
-	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(), nil)
+	e := NewEngine(bs, terms.NewInMemoryStore(), nil)
 	usage, err := e.ConceptUsage(ctx, "ws", "ghost", EvalOptions{})
 	require.NoError(t, err)
 
@@ -515,7 +421,7 @@ func TestEvaluateChangeSet_StoredBlockWithNoSourceLocale(t *testing.T) {
 	})
 	bs.addBlocks("proj1", "main", stored)
 
-	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	e := NewEngine(bs, tb, nil)
 	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, []ChangeSetOp{
 		mustOp(t, 0, OpTermStatus, TermStatusPayload{
 			ConceptID: "c1", Locale: "en", Text: "utilise",

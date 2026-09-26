@@ -21,33 +21,24 @@ style:
       description: Hype words we never use
       severity: major
 
-vocabulary:
-  preferred_terms:
-    - term: sign in
-      note: not "log in"
-    - term: notes
-      note: our core noun — not "content" or "assets"
-  forbidden_terms:
-    - term: utilize
-      replacement: use
-      severity: minor
-    - term: leverage
-      replacement: use
-      severity: major
-    - term: best-in-class
-      replacement: genuinely good
-      severity: major
-    - term: cutting-edge
-      replacement: modern
-      severity: minor
-    - term: seamless
-      replacement: simple
-      severity: minor
-  competitor_terms:
-    - term: Evernote
-      replacement: other note apps
-      severity: major
-
+terms:
+  - term: utilize
+    replacement: use
+  - term: leverage
+    replacement: use
+  - term: best-in-class
+    replacement: genuinely good
+  - term: cutting-edge
+    replacement: modern
+  - term: seamless
+    replacement: simple
+  - term: Evernote
+    replacement: other note apps
+    competitor: true
+  - replacement: sign in
+    note: "not \"log in\""
+  - replacement: notes
+    note: "our core noun — not \"content\" or \"assets\""
 examples:
   - before: We utilize cutting-edge AI to leverage best-in-class synergies.
     after: Lumen Notes helps you think clearly. That's it.

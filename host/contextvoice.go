@@ -12,11 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/yamledit"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // Voice profiles, on the way into the store and back out of it.
@@ -36,28 +38,105 @@ import (
 // was. An id is what the profile declares, falling back to a slug of its name,
 // and finally to the directory it sits in, so two unnamed profiles in different
 // profile directories stay two profiles.
-func (a *App) compileVoiceSource(ctx context.Context, db *projectdb.DB, store coreprofile.Store, src contextSource) error {
+//
+// Word rules are terms, so the rules the file carries (its `terms:` list, or a
+// `vocabulary:` list written before word rules moved to terms, converted) land
+// in the project's terms through tb, the same batch's terms writer. It returns
+// how many it read that way.
+func (a *App) compileVoiceSource(ctx context.Context, db *projectdb.DB, store coreprofile.Store, tb terms.Terminology, src contextSource) (int, error) {
 	if store == nil {
-		return projectdb.ErrNoStore
+		return 0, projectdb.ErrNoStore
 	}
-	f, err := os.Open(src.path)
+	data, err := os.ReadFile(src.path)
 	if err != nil {
-		return fmt.Errorf("open voice profile: %w", err)
+		return 0, fmt.Errorf("open voice profile: %w", err)
 	}
-	defer f.Close()
-	prof, err := coreprofile.LoadProfileYAML(f)
+	file, err := coreprofile.ParseVoiceFile(data)
 	if err != nil {
-		return fmt.Errorf("load voice profile: %w", err)
+		return 0, fmt.Errorf("load voice profile: %w", err)
 	}
+	prof := file.Profile
 
 	bindings := loadVoiceBindings(ctx, db)
 	prof.ID = voiceProfileID(prof, src.rel, bindings)
 	prof.Scope = LocalScope
 	if err := upsertVoiceProfile(ctx, store, prof); err != nil {
-		return err
+		return 0, err
 	}
 	bindings[src.rel] = prof.ID
-	return saveVoiceBindings(ctx, db, bindings)
+	if err := saveVoiceBindings(ctx, db, bindings); err != nil {
+		return 0, err
+	}
+	if err := a.landWordRules(ctx, tb, file.Terms); err != nil {
+		return 0, fmt.Errorf("move the word rules of %s into terms: %w", src.rel, err)
+	}
+	return len(file.Terms), nil
+}
+
+// landWordRules writes word rules into a terms store, in the
+// project's source language: a rule that rejects a term records it as
+// forbidden, with the form to use as the concept's preferred term, and a rule
+// that names only a form to use records that form as preferred. Writing the
+// same rules again changes nothing.
+func (a *App) landWordRules(ctx context.Context, tb terms.Terminology, rules []coreprofile.TermRule) error {
+	if len(rules) == 0 {
+		return nil
+	}
+	if tb == nil {
+		return projectdb.ErrNoStore
+	}
+	concepts, err := tb.Concepts(ctx)
+	if err != nil {
+		return fmt.Errorf("read the project's terms: %w", err)
+	}
+	locale := model.LocaleID(a.SourceLocale())
+	if locale == "" {
+		locale = "en"
+	}
+	touched := map[int]bool{}
+	for _, rule := range rules {
+		d := termDecision{
+			Text:        rule.Term,
+			Locale:      locale,
+			Status:      model.TermForbidden,
+			Replacement: rule.Replacement,
+			Advisory:    rule.Advisory,
+			Competitor:  rule.Competitor,
+			Forms:       rule.Forms,
+		}
+		if strings.TrimSpace(rule.Term) == "" {
+			d = termDecision{Text: rule.Replacement, Locale: locale, Status: model.TermPreferred, Forms: rule.ReplacementForms}
+		}
+		if strings.TrimSpace(d.Text) == "" {
+			continue
+		}
+		// A term the store already holds keeps the standing the store gives
+		// it: the store is the decided record, and a voice file only adds.
+		norm := model.NormalizeLocale(locale)
+		if ci := terms.IndexOfTerm(concepts, d.Text, norm); ci >= 0 {
+			if ti := terms.TermIndex(&concepts[ci], d.Text, norm); concepts[ci].Terms[ti].Status != d.Status {
+				continue
+			}
+		}
+		var target int
+		var changed bool
+		concepts, target, changed = upsertTerm(concepts, d)
+		if changed {
+			if rule.Note != "" && concepts[target].Definition == "" {
+				concepts[target].Definition = rule.Note
+			}
+			touched[target] = true
+		}
+	}
+	for i := range concepts {
+		if !touched[i] {
+			continue
+		}
+		if err := tb.AddConcept(ctx, concepts[i]); err != nil {
+			return fmt.Errorf("write concept %s: %w", concepts[i].ID, err)
+		}
+	}
+	return nil
 }
 
 // upsertVoiceProfile creates the profile or updates the one already carrying

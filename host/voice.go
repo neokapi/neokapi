@@ -16,6 +16,8 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host/credentials"
@@ -147,17 +149,17 @@ style:
       description: Corporate jargon
       advisory: true         # reports without failing a check; omit to fail
 
-vocabulary:
-  preferred_terms:
-    - term: sign in
-      note: not "log in"
-  forbidden_terms:
-    - term: utilize
-      replacement: use
-      advisory: true
-  competitor_terms:
-    - term: Globex
-      replacement: our platform
+# Word rules are terms. Importing this file moves them into the project's
+# terms, where they apply beside the terms the project already holds.
+terms:
+  - term: log in
+    replacement: sign in
+  - term: utilize
+    replacement: use
+    advisory: true          # reports without failing a check; omit to fail
+  - term: Globex
+    replacement: our platform
+    competitor: true
 
 examples:
   - before: We utilize cutting-edge technology to facilitate outcomes.
@@ -186,7 +188,8 @@ func openVoiceStoreAt(dbPath string) (*voicestore.SQLiteStore, error) {
 }
 
 // SaveProfileToStore creates or updates a profile in the local store, returning
-// a typed import result.
+// a typed import result. The word rules the profile's file carries are terms,
+// and land in the project's terms store.
 func (a *App) SaveProfileToStore(cmd Command, profile *coreprofile.VoiceProfile, srcPath string) error {
 	store, _, release, err := a.OpenVoiceStore(cmd)
 	if err != nil {
@@ -209,9 +212,33 @@ func (a *App) SaveProfileToStore(cmd Command, profile *coreprofile.VoiceProfile,
 		return cerr
 	}
 
-	return output.Print(cmd, output.VoiceImportOutput{
-		ID: profile.ID, Name: profile.Name, Action: action, Path: srcPath,
-	})
+	out := output.VoiceImportOutput{ID: profile.ID, Name: profile.Name, Action: action, Path: srcPath}
+	if words := profile.CarriedTerms().Rules; len(words) > 0 {
+		out.Terms, out.TermsNotStored = a.storeCarriedTerms(cmd, words)
+	}
+	return output.Print(cmd, out)
+}
+
+// storeCarriedTerms lands word rules in the terms store of the project the
+// command acts in. Outside a project there is no terms store to hold them,
+// and the reason says so.
+func (a *App) storeCarriedTerms(cmd Command, words []coreprofile.TermRule) (int, string) {
+	_, root, err := a.resolveProjectRoot(cmd)
+	if err != nil {
+		return 0, "no kapi project holds a terms store here; import the file inside the project it governs"
+	}
+	w, err := a.Projector(CmdContext(cmd), root)
+	if err != nil {
+		return 0, err.Error()
+	}
+	tb := w.With(projector.Origin{By: "voice import"}).Terms()
+	if tb == nil {
+		return 0, projectdb.ErrNoStore.Error()
+	}
+	if err := a.landWordRules(CmdContext(cmd), tb, words); err != nil {
+		return 0, err.Error()
+	}
+	return len(words), ""
 }
 
 // ErrNoVoiceBound is ResolveVoiceProfileCmd's answer inside a project that
@@ -678,14 +705,14 @@ func RunBlockTool(ctx context.Context, t tool.Tool, text string) ([]coreprofile.
 	return nil, nil
 }
 
-// RuleRewrite substitutes the profile's forbidden and competitor terms with
-// the replacement each rule names, through the same matcher the vocabulary
-// check uses (coreprofile.RewriteVocabulary). It returns the rewritten text,
+// RuleRewrite substitutes the terms the word rules a voice file carries (a
+// starter pack's terms) reject with the replacement each rule names, through
+// the same matcher the word-rule check uses (coreprofile.RewriteTermRules). It returns the rewritten text,
 // the substitutions made, and the rules that matched and were left in place
 // with the reason, so a caller can finish the edit by hand. A nil profile
 // rewrites nothing.
 func RuleRewrite(profile *coreprofile.VoiceProfile, text string) (string, []output.VoiceChange, []coreprofile.RewriteSkip) {
-	res := coreprofile.RewriteVocabulary(profile, text)
+	res := coreprofile.RewriteTermRules(coreprofile.CarriedRuleSets(profile), text)
 	var changes []output.VoiceChange
 	for _, c := range res.Changes {
 		changes = append(changes, output.VoiceChange{From: c.Term, To: c.Replacement, Count: c.Count})

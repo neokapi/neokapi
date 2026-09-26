@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T21:52:33Z",
+  "generatedAt": "2026-09-26T05:33:43Z",
   "version": "v4",
   "prompts": [
     {
@@ -143,7 +143,7 @@
     },
     {
       "id": "term.forms",
-      "tool": "voice-expand",
+      "tool": "terms-expand",
       "summary": "List the other surface forms a term takes in one language, so the check can match them without guessing at morphology.",
       "turns": [
         {

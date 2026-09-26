@@ -33,14 +33,6 @@ style:
     - regex: '\bsynergy\b'
       description: Corporate filler.
       advisory: true
-vocabulary:
-  preferred_terms:
-    - term: log in
-      replacement: sign in
-      note: One spelling across the product.
-  forbidden_terms:
-    - term: bulletproof
-      replacement: reliable
 examples:
   - before: Utilize the portal.
     after: Use the portal.
@@ -67,11 +59,6 @@ description: How the support surfaces sound.
 tone:
   personality: [patient]
   formality: informal
-vocabulary:
-  preferred_terms:
-    - term: ticket
-      replacement: request
-      advisory: true
 `
 
 // campaignVoiceYAML belongs to a profile whose window has closed, so nothing

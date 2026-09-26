@@ -2,7 +2,7 @@
 id: brand-guide-in-10-minutes
 title: "Set up your brand guide in 10 minutes"
 sidebar_label: "Brand guide in 10 minutes"
-description: "From nothing to a bound, enforced voice profile: start from a starter pack, fill in your vocabulary, bind it in the project, and run the first check."
+description: "From nothing to a bound, enforced voice profile: start from a starter pack, fill in your tone and terms, bind it in the project, and run the first check."
 hide_table_of_contents: true
 ---
 
@@ -11,7 +11,7 @@ import TabItem from "@theme/TabItem";
 
 # Set up your brand guide in 10 minutes
 
-**Goal:** a working voice profile (tone, do/don't, forbidden and preferred vocabulary) held by your project and enforced by every check, starting from a template rather than a blank page. You author it as YAML and kapi keeps it in the project's voice store; the [profile format](/framework/checks/voice) documents every field. Start with the rules you can define precisely and refine the profile as you review findings.
+**Goal:** a working voice profile (tone, style, do/don't patterns) and the words it uses and avoids, held by your project and enforced by every check, starting from a template rather than a blank page. You author it as YAML and kapi keeps it in the project's voice store; the [profile format](/framework/checks/voice) documents every field. Start with the rules you can define precisely and refine the profile as you review findings.
 
 Choose a built-in starter pack and adapt it to your requirements: `professional-b2b`, `friendly-dtc`, `technical-docs`, `marketing-blog`, `customer-support`.
 
@@ -29,7 +29,7 @@ The fastest ten minutes: the assistant drafts from signal you already have:
 
 > Draft a voice profile for us. Base the tone on our README and landing page, forbid the usual filler ("leverage", "seamless", "cutting-edge"), and use "sign in" not "log in". Bind it in the recipe.
 
-The assistant scaffolds from `kapi voice new`, fills tone and vocabulary from your existing copy, writes `brand/voice.yaml`, binds it under `defaults.voice`, and runs `kapi voice pointer` so `CLAUDE.md` (or an `AGENTS.md` already at your root) names the voice for the next session. You review the YAML (it's short) and correct the judgment calls. Then ask for the proof:
+The assistant scaffolds from `kapi voice new`, fills tone and terms from your existing copy, writes `brand/voice.yaml`, binds it under `defaults.voice`, and runs `kapi voice pointer` so `CLAUDE.md` (or an `AGENTS.md` already at your root) names the voice for the next session. You review the YAML (it's short) and correct the judgment calls. Then ask for the proof:
 
 > Now check the README against it.
 
@@ -42,7 +42,7 @@ Create, validate and import the profile, then run a check:
 kapi voice new --pack technical-docs -o brand/voice.yaml   # 1. scaffold from a pack
 $EDITOR brand/voice.yaml                                   # 2. your terms, your tone
 kapi voice validate brand/voice.yaml                       # 3. structure, enums, regex
-kapi voice import brand/voice.yaml                         # 4. into the project's voice store
+kapi voice import brand/voice.yaml                         # 4. voice into the store, terms: into the project's terms
 kapi check README.md                                       # 5. first enforced check
 ```
 
@@ -68,11 +68,11 @@ Treat the profile like a test suite: every real off-voice finding that reaches r
 Two additions earn their place once the rules are real:
 
 - **Forms.** The check matches a term exactly, so a rule about `utilize` misses
-  `utilizes` until the profile lists the other shapes the word takes. `kapi voice
-  expand --profile-file brand/voice.yaml --language nb` asks a model once for the
-  inflections in that language and writes them into each rule's `forms:`, as a
-  diff you review; `--dry-run` shows the additions first, and rules that already
-  carry forms are left alone unless you pass `--overwrite`.
+  `utilizes` until the term lists the other shapes the word takes.
+  `kapi terms expand --locale nb` asks a model once for the inflections in that
+  language and writes them onto each term as forms, for you to review;
+  `--dry-run` shows the additions first, and terms that already carry forms are
+  left alone unless you pass `--overwrite`.
 - **Rates and scopes.** A prohibited pattern under `style.prohibited_patterns`
   can carry a `rate` (`max` matches per `per_words`, default 1,000) so a house
   rule such as "one em dash per thousand words" is a ceiling rather than a ban,

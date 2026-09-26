@@ -5,7 +5,7 @@
  * a blank starting state.
  */
 
-import type { ToneProfile, StyleRules, VocabularyRules } from "./types";
+import type { ToneProfile, StyleRules } from "./types";
 
 export function defaultTone(): ToneProfile {
   return {
@@ -25,8 +25,4 @@ export function defaultStyle(): StyleRules {
     prohibited_patterns: [],
     required_patterns: [],
   };
-}
-
-export function defaultVocabulary(): VocabularyRules {
-  return { preferred_terms: [], forbidden_terms: [], competitor_terms: [] };
 }

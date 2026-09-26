@@ -2,91 +2,146 @@ package server
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"strings"
-	"time"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
-	"github.com/neokapi/neokapi/core/graph"
-	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 )
 
-// defaultVoiceConceptLocale is the source locale a brand-vocabulary concept's
-// terms get when the workspace has no project to infer one from. English is the
-// platform's authoring default; the locale only scopes the concept's term text,
-// so a fallback never blocks the forbidden→preferred link from being recorded.
+// defaultVoiceConceptLocale is the language a promoted term is written in when
+// the workspace has no project to infer one from. English is the platform's
+// authoring default; the locale only scopes the term's text, so a fallback never
+// blocks a promotion.
 const defaultVoiceConceptLocale = model.LocaleID("en")
 
-// linkRuleToConcept threads a promoted brand-vocabulary rule into the workspace
-// knowledge graph (AD-021, "one node type: the concept"). The forbidden term a
-// team keeps correcting away becomes a concept-backed forbidden term; its
-// replacement becomes a preferred-term concept; and a USE_INSTEAD edge connects
-// them — so a flat, correction-derived rule gains the concept story the rest of
-// the platform reasons over (concept blast radius, the navigator, the brand-vocab
-// finding's concept_id pivot).
+// promoteRuleToTerms lands a correction-derived rule in the workspace terms
+// store (terms.PromoteRule): the term a team kept correcting away becomes a
+// forbidden term in the workspace's source language, joined to the concept whose
+// preferred term is its replacement. Writing a forbidden term directly bypasses
+// the change-set governance the HTTP concept handlers enforce, which is correct
+// here: the promotion is itself the reviewed (or autonomy-thresholded)
+// decision, so the loop is the governance.
 //
-// It is idempotent: re-promoting the same rule reuses the existing brand-vocab
-// concepts (matched case-insensitively on term text and status) and never
-// duplicates the USE_INSTEAD edge. It returns the forbidden concept's ID — which
-// the caller stamps onto the promoted rule via SuggestedRule.ConceptID so the
-// flat TermRule denotes its concept — and the knowledge events the caller should
-// publish (an EventConceptCreated per newly minted concept and an
-// EventConceptRelationAdded when a new edge is added). The returned slice is
-// empty when the graph already held everything, so publishing it is a no-op.
+// It is idempotent: promoting the same rule again changes nothing. It returns
+// whether the store changed, the concept the term joined, and the knowledge
+// event the caller publishes (concept created or updated; none when nothing
+// changed).
 //
 // wsSlug keys the workspace terms (getTerms); wsID scopes the project lookup that
-// resolves the source locale and stamps the emitted events.
-func (s *Server) linkRuleToConcept(ctx context.Context, wsSlug, wsID string, rule coreprofile.SuggestedRule) (string, []knowledge.MergeEvent, error) {
+// resolves the source locale and stamps the emitted event.
+func (s *Server) promoteRuleToTerms(ctx context.Context, wsSlug, wsID string, rule coreprofile.SuggestedRule) (bool, string, []knowledge.MergeEvent, error) {
 	term := strings.TrimSpace(rule.Term)
 	if term == "" {
-		return "", nil, nil
+		return false, "", nil, nil
+	}
+	if s.wsStores == nil {
+		return false, "", nil, errors.New("terms store not configured")
 	}
 	tb, err := s.wsStores.getTerms(wsSlug)
 	if err != nil {
-		return "", nil, err
+		return false, "", nil, err
 	}
-
 	locale := s.voiceConceptLocale(ctx, wsID)
-
-	var events []knowledge.MergeEvent
-
-	// The forbidden term becomes (or reuses) a brand-vocabulary concept. Writing a
-	// forbidden term directly bypasses the change-set governance the HTTP concept
-	// handlers enforce, which is correct here: the promotion this links from is
-	// itself the reviewed (or autonomy-thresholded) decision, so the loop is the
-	// governance.
-	forbiddenID, created, err := upsertVoiceVocabConcept(ctx, tb, term, locale, model.TermForbidden)
+	before, err := tb.Concepts(ctx)
 	if err != nil {
-		return "", nil, err
+		return false, "", nil, err
 	}
-	if created {
-		events = append(events, conceptEvent(knowledge.EventConceptCreated, wsID, forbiddenID, ""))
+	existed := map[string]bool{}
+	for _, c := range before {
+		existed[c.ID] = true
 	}
+	rule.Term = term
+	changed, err := terms.PromoteRule(ctx, tb, locale, rule)
+	if err != nil || !changed {
+		return false, "", nil, err
+	}
+	after, err := tb.Concepts(ctx)
+	if err != nil {
+		return true, "", nil, err
+	}
+	ci := terms.IndexOfTerm(after, term, locale)
+	if ci < 0 {
+		return true, "", nil, nil
+	}
+	conceptID := after[ci].ID
+	evType := knowledge.EventConceptUpdated
+	if !existed[conceptID] {
+		evType = knowledge.EventConceptCreated
+	}
+	return true, conceptID, []knowledge.MergeEvent{conceptEvent(evType, wsID, conceptID, "")}, nil
+}
 
-	// Its replacement becomes (or reuses) a preferred-term concept, joined to the
-	// forbidden one by USE_INSTEAD. A rule with no replacement is a pure ban — no
-	// preferred concept, no relation.
-	if replacement := strings.TrimSpace(rule.Replacement); replacement != "" {
-		replacementID, rCreated, err := upsertVoiceVocabConcept(ctx, tb, replacement, locale, model.TermPreferred)
-		if err != nil {
-			return forbiddenID, events, err
-		}
-		if rCreated {
-			events = append(events, conceptEvent(knowledge.EventConceptCreated, wsID, replacementID, ""))
-		}
-		added, err := ensureUseInstead(ctx, tb, forbiddenID, replacementID)
-		if err != nil {
-			return forbiddenID, events, err
-		}
-		if added {
-			events = append(events, conceptEvent(knowledge.EventConceptRelationAdded, wsID, forbiddenID, ""))
-		}
+// demoteRuleFromTerms removes a promoted term from the workspace terms store
+// (terms.DemoteRule), reporting whether the store changed.
+func (s *Server) demoteRuleFromTerms(ctx context.Context, wsSlug, wsID, term string) (bool, error) {
+	if s.wsStores == nil {
+		return false, errors.New("terms store not configured")
 	}
+	tb, err := s.wsStores.getTerms(wsSlug)
+	if err != nil {
+		return false, err
+	}
+	return terms.DemoteRule(ctx, tb, s.voiceConceptLocale(ctx, wsID), term)
+}
 
-	return forbiddenID, events, nil
+// landWordRules writes word rules a voice file carries (a starter pack's terms)
+// into the workspace terms store, in the workspace's source language: a rule
+// naming a term becomes a forbidden term (a competitor's name when the rule says
+// so, advisory when it says so) joined to the concept of its replacement, and a
+// rule naming only a replacement becomes a preferred term. Rules the store
+// already records are left as they are. It returns how many concepts changed.
+// A server with no terms store has nowhere to hold them, and lands none.
+func (s *Server) landWordRules(ctx context.Context, wsSlug, wsID string, rules []coreprofile.TermRule) (int, error) {
+	if len(rules) == 0 || s.wsStores == nil {
+		return 0, nil
+	}
+	tb, err := s.wsStores.getTerms(wsSlug)
+	if errors.Is(err, errNoPgDB) {
+		slog.WarnContext(ctx, "no terms store: a voice file's word rules were not landed", "workspace", wsSlug, "rules", len(rules))
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	concepts, err := tb.Concepts(ctx)
+	if err != nil {
+		return 0, err
+	}
+	locale := s.voiceConceptLocale(ctx, wsID)
+	written := 0
+	for _, r := range rules {
+		d := terms.Decision{
+			Text:        strings.TrimSpace(r.Term),
+			Locale:      locale,
+			Status:      model.TermForbidden,
+			Replacement: strings.TrimSpace(r.Replacement),
+			Advisory:    r.Advisory,
+			Competitor:  r.Competitor,
+			Forms:       r.Forms,
+		}
+		if d.Text == "" {
+			d.Text, d.Replacement, d.Status = d.Replacement, "", model.TermPreferred
+		}
+		if d.Text == "" {
+			continue
+		}
+		var target int
+		var changed bool
+		concepts, target, changed = terms.UpsertDecision(concepts, d)
+		if !changed {
+			continue
+		}
+		if err := tb.AddConcept(ctx, concepts[target]); err != nil {
+			return written, err
+		}
+		written++
+	}
+	return written, nil
 }
 
 // voiceConceptLocale resolves the source locale to tag a brand concept's terms
@@ -121,76 +176,4 @@ func firstWorkspaceSourceLocale(ctx context.Context, ps store.ProjectStore, wsID
 		}
 	}
 	return ""
-}
-
-// upsertVoiceVocabConcept finds an existing brand-vocabulary concept carrying a
-// term with the given text (case-insensitive) and status, or creates a single-
-// term concept when none exists. It reports the concept ID and whether it was
-// freshly created.
-func upsertVoiceVocabConcept(ctx context.Context, tb terms.Store, text string, locale model.LocaleID, status model.TermStatus) (string, bool, error) {
-	concepts, err := tb.Concepts(ctx)
-	if err != nil {
-		return "", false, err
-	}
-	if existing := findVoiceVocabConcept(concepts, text, status); existing != "" {
-		return existing, false, nil
-	}
-	now := time.Now().UTC()
-	c := terms.Concept{
-		ID:     id.New(),
-		Source: terms.TermSourceBrandVocabulary,
-		Terms: []terms.Term{{
-			Text:   text,
-			Locale: locale,
-			Status: status,
-		}},
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-	if err := tb.AddConcept(ctx, c); err != nil {
-		return "", false, err
-	}
-	return c.ID, true, nil
-}
-
-// findVoiceVocabConcept returns the ID of a brand-vocabulary concept that holds a
-// term matching text (case-insensitive) at the given status, or "" if none does.
-func findVoiceVocabConcept(concepts []terms.Concept, text string, status model.TermStatus) string {
-	for _, c := range concepts {
-		if conceptSource(c) != terms.TermSourceBrandVocabulary {
-			continue
-		}
-		for _, t := range c.Terms {
-			if t.Status == status && strings.EqualFold(strings.TrimSpace(t.Text), strings.TrimSpace(text)) {
-				return c.ID
-			}
-		}
-	}
-	return ""
-}
-
-// ensureUseInstead adds a USE_INSTEAD relation from the forbidden concept to its
-// replacement, unless an equivalent edge already exists. It reports whether a new
-// relation was added.
-func ensureUseInstead(ctx context.Context, tb terms.Store, sourceID, targetID string) (bool, error) {
-	rels, err := tb.RelationsOf(ctx, sourceID, nil)
-	if err != nil {
-		return false, err
-	}
-	for _, r := range rels {
-		if r.RelationType == graph.LabelUseInstead && r.SourceID == sourceID && r.TargetID == targetID {
-			return false, nil
-		}
-	}
-	rel := terms.ConceptRelation{
-		ID:           id.New(),
-		SourceID:     sourceID,
-		TargetID:     targetID,
-		RelationType: graph.LabelUseInstead,
-		CreatedAt:    time.Now().UTC(),
-	}
-	if err := tb.AddRelation(ctx, rel); err != nil {
-		return false, err
-	}
-	return true, nil
 }

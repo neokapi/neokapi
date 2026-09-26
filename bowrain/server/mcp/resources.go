@@ -6,13 +6,16 @@ import (
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/neokapi/neokapi/bowrain/core/voicescope"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // registerResources registers voice resource templates on the MCP server.
 //
 // Resource URIs:
 //   - brand://profiles/{id}             — full voice profile
-//   - brand://profiles/{id}/vocabulary  — preferred/forbidden/competitor terms
+//   - brand://profiles/{id}/vocabulary  — word rules of the profile's workspace terms store
 //   - brand://profiles/{id}/examples    — before/after pairs
 //   - brand://terminology/{workspace}   — workspace terms
 func (s *MCPServer) registerResources() {
@@ -20,7 +23,7 @@ func (s *MCPServer) registerResources() {
 	s.server.AddResourceTemplate(
 		&mcp.ResourceTemplate{
 			Name:        "voice_profile",
-			Description: "Full voice profile including tone, style, vocabulary, and examples",
+			Description: "Full voice profile including tone, style, patterns, and examples",
 			URITemplate: "brand://profiles/{id}",
 			MIMEType:    "application/json",
 		},
@@ -31,7 +34,7 @@ func (s *MCPServer) registerResources() {
 	s.server.AddResourceTemplate(
 		&mcp.ResourceTemplate{
 			Name:        "brand_vocabulary",
-			Description: "Vocabulary rules (preferred, forbidden, competitor terms) for a voice profile",
+			Description: "Word rules (forbidden and competitor terms with their replacements) of the terms store in the voice profile's workspace",
 			URITemplate: "brand://profiles/{id}/vocabulary",
 			MIMEType:    "application/json",
 		},
@@ -53,7 +56,7 @@ func (s *MCPServer) registerResources() {
 	s.server.AddResourceTemplate(
 		&mcp.ResourceTemplate{
 			Name:        "brand_terminology",
-			Description: "Terminology index listing all voice profiles and their term counts in a workspace",
+			Description: "Terminology index: the word-rule counts of a workspace's terms store and the voice profiles that apply them",
 			URITemplate: "brand://terminology/{workspace}",
 			MIMEType:    "application/json",
 		},
@@ -90,7 +93,16 @@ func (s *MCPServer) handleReadVocabulary(ctx context.Context, req *mcp.ReadResou
 	if err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
-	data, err := json.Marshal(profile.Vocabulary)
+	if profile == nil {
+		return nil, mcp.ResourceNotFoundError(uri)
+	}
+	rules, err := s.workspaceWordRules(ctx, profile.Scope, "")
+	if err != nil {
+		return nil, err
+	}
+	data, err := json.Marshal(struct {
+		TermRules []coreprofile.TermRule `json:"term_rules"`
+	}{rules})
 	if err != nil {
 		return nil, fmt.Errorf("marshal vocabulary: %w", err)
 	}
@@ -128,24 +140,26 @@ func (s *MCPServer) handleReadTerminology(ctx context.Context, req *mcp.ReadReso
 	if err != nil {
 		return nil, fmt.Errorf("list profiles: %w", err)
 	}
-	type termEntry struct {
+	rules, err := s.workspaceWordRules(ctx, workspaceID, "")
+	if err != nil {
+		return nil, err
+	}
+	type profileEntry struct {
 		ProfileID   string `json:"profile_id"`
 		ProfileName string `json:"profile_name"`
-		Preferred   int    `json:"preferred_terms"`
-		Forbidden   int    `json:"forbidden_terms"`
-		Competitor  int    `json:"competitor_terms"`
 	}
-	var entries []termEntry
+	index := struct {
+		WorkspaceID string         `json:"workspace_id"`
+		Preferred   int            `json:"preferred_terms"`
+		Forbidden   int            `json:"forbidden_terms"`
+		Competitor  int            `json:"competitor_terms"`
+		Profiles    []profileEntry `json:"profiles"`
+	}{WorkspaceID: workspaceID, Profiles: []profileEntry{}}
+	index.Preferred, index.Forbidden, index.Competitor = voicescope.WordRuleCounts(rules)
 	for _, p := range profiles {
-		entries = append(entries, termEntry{
-			ProfileID:   p.ID,
-			ProfileName: p.Name,
-			Preferred:   len(p.Vocabulary.PreferredTerms),
-			Forbidden:   len(p.Vocabulary.ForbiddenTerms),
-			Competitor:  len(p.Vocabulary.CompetitorTerms),
-		})
+		index.Profiles = append(index.Profiles, profileEntry{ProfileID: p.ID, ProfileName: p.Name})
 	}
-	data, err := json.Marshal(entries)
+	data, err := json.Marshal(index)
 	if err != nil {
 		return nil, fmt.Errorf("marshal terminology: %w", err)
 	}

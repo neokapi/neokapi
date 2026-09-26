@@ -75,8 +75,9 @@ export function VoiceProfileCard({ profile, onClick, onReview, onDelete }: Voice
         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
           <span>v{profile.version}</span>
           <span>
-            {profile.vocabulary.preferred_terms?.length ?? 0} preferred,{" "}
-            {profile.vocabulary.forbidden_terms?.length ?? 0} forbidden
+            {(profile.style.prohibited_patterns?.length ?? 0) +
+              (profile.style.required_patterns?.length ?? 0)}{" "}
+            pattern rules
           </span>
         </div>
       </div>

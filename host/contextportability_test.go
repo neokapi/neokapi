@@ -35,15 +35,17 @@ import (
 // a clean clone of a snapshot governs its content by the same fingerprint, and
 // a bundle survives a round trip byte for byte.
 
+// portableVoiceYAML carries one word rule beside the voice. The import moves
+// it into the terms store, so the project holds two concepts: the bundle's
+// widget and the rule's utilize.
 const portableVoiceYAML = `name: Portable Voice
 version: 1
 tone:
   formality: neutral
-vocabulary:
-  forbidden_terms:
-    - term: utilize
-      replacement: use
-      advisory: true
+terms:
+  - term: utilize
+    replacement: use
+    advisory: true
 `
 
 const portableProfileVoiceYAML = `name: Portable Landing Voice
@@ -228,7 +230,7 @@ func TestSnapshotProjectContext_WritesTheLayoutTheSeedingPassReads(t *testing.T)
 
 	out, res := snapshotInto(t, a, recipe)
 
-	assert.Equal(t, 1, res.Concepts)
+	assert.Equal(t, 2, res.Concepts, "the bundle's concept and the voice file's word rule")
 	assert.Positive(t, res.Entries, "the absorbed translations reach the content memory")
 	assert.Equal(t, 2, res.VoiceProfiles, "the project default and the profile override")
 	assert.Positive(t, res.Decisions)
@@ -238,6 +240,16 @@ func TestSnapshotProjectContext_WritesTheLayoutTheSeedingPassReads(t *testing.T)
 	assert.Contains(t, paths, "memory/memory.json")
 	assert.Contains(t, paths, "voice.yaml")
 	assert.Contains(t, paths, "profiles/landing/voice.yaml")
+
+	// The word rule is written out where it lives, in terms, and the voice
+	// file the snapshot writes carries none.
+	termsFile, err := os.ReadFile(filepath.Join(out, "terms.json"))
+	require.NoError(t, err)
+	assert.Contains(t, string(termsFile), `"utilize"`)
+	voiceFile, err := os.ReadFile(filepath.Join(out, "voice.yaml"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(voiceFile), "terms:")
+	assert.NotContains(t, string(voiceFile), "utilize")
 	var shards int
 	for _, p := range paths {
 		if strings.HasPrefix(p, project.UnitStateDirName+"/") {
@@ -463,7 +475,7 @@ func TestContextBundle_RoundTripsByteForByte(t *testing.T) {
 	first := filepath.Join(t.TempDir(), "context.kpz")
 	res, err := a.ExportProjectContext(ctx, recipe, first)
 	require.NoError(t, err)
-	assert.Equal(t, 1, res.Concepts)
+	assert.Equal(t, 2, res.Concepts)
 	assert.Equal(t, 2, res.VoiceProfiles)
 	assert.Positive(t, res.Decisions)
 	assert.NotEmpty(t, res.RootHash)
@@ -685,13 +697,13 @@ func TestRestoreProjectContext_ReplaceDropsWhatTheBundleDoesNotCarry(t *testing.
 	require.NoError(t, db.Terms().AddConcept(ctx, portableExtraConcept()))
 	count, err := db.Terms().Count(ctx)
 	require.NoError(t, err)
-	require.Equal(t, 2, count)
+	require.Equal(t, 3, count)
 
 	_, err = a.RestoreProjectContext(ctx, recipe, bundle, RestoreReplace)
 	require.NoError(t, err)
 	count, err = db.Terms().Count(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, 1, count, "the concept the bundle does not carry is gone")
+	assert.Equal(t, 2, count, "the concept the bundle does not carry is gone")
 }
 
 // TestRestoreProjectContext_RefusesAPackageOfAnotherKind: the container carries
@@ -781,7 +793,7 @@ func TestImportProjectContext_ReadsAnotherCheckoutsLayout(t *testing.T) {
 
 	res, err := b.ImportProjectContext(context.Background(), cloneRecipe, ContextImportRequest{Dir: donor})
 	require.NoError(t, err)
-	assert.Equal(t, 1, res.Concepts)
+	assert.Equal(t, 2, res.Concepts)
 	assert.Equal(t, 2, res.VoiceProfiles)
 	assert.Positive(t, res.Entries)
 	assert.Positive(t, res.Decisions, "the donor's decision record comes across")

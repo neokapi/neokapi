@@ -25,10 +25,6 @@ function makeProfile(overrides: Partial<VoiceProfile> = {}): VoiceProfile {
       person_pov: "second",
       contractions: "always",
     },
-    vocabulary: {
-      preferred_terms: [{ term: "help" }],
-      forbidden_terms: [{ term: "synergy" }],
-    },
     examples: [{ before: "Old text", after: "New text" }],
     workspace_id: "ws-1",
     version: 2,
@@ -123,7 +119,7 @@ describe("VoiceProfileWizard", () => {
     expect(saved.description).toBe("A test description");
     expect(saved.tone).toBeDefined();
     expect(saved.style).toBeDefined();
-    expect(saved.vocabulary).toBeDefined();
+    expect(saved).not.toHaveProperty("vocabulary");
     expect(saved.examples).toBeDefined();
   });
 

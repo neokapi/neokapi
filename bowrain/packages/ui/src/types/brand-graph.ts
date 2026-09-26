@@ -8,8 +8,6 @@
 // `TermSearchResult` from ./api; the types here add the graph, governance, and
 // collaboration shapes that hang off a concept.
 
-import type { TermRule } from "../voice/types";
-
 // ---------------------------------------------------------------------------
 // Shared atoms (terms + core/graph)
 // ---------------------------------------------------------------------------
@@ -241,15 +239,7 @@ export type OpType =
   | "term.remove"
   | "term.status"
   | "relation.add"
-  | "relation.remove"
-  | "voice.rule.add"
-  | "voice.rule.remove";
-
-/** Which vocabulary list a voice rule joins (knowledge.VoiceRuleList). */
-export type VoiceRuleList = "preferred" | "forbidden" | "competitor";
-
-/** A brand vocabulary rule that references its backing concept (core/profile.TermRule). */
-export type VoiceRule = TermRule & { concept_id?: string };
+  | "relation.remove";
 
 export interface ConceptCreatePayload {
   concept: GraphConcept;
@@ -303,18 +293,6 @@ export interface RelationRemovePayload {
   relation_id: string;
 }
 
-export interface VoiceRuleAddPayload {
-  profile_id: string;
-  list: VoiceRuleList;
-  rule: VoiceRule;
-}
-
-export interface VoiceRuleRemovePayload {
-  profile_id: string;
-  list: VoiceRuleList;
-  term: string;
-}
-
 /** The decoded payload of a stored op, narrowable by the op's `op` discriminant. */
 export type ChangeSetOpPayload =
   | ConceptCreatePayload
@@ -325,9 +303,7 @@ export type ChangeSetOpPayload =
   | TermRemovePayload
   | TermStatusPayload
   | RelationAddPayload
-  | RelationRemovePayload
-  | VoiceRuleAddPayload
-  | VoiceRuleRemovePayload;
+  | RelationRemovePayload;
 
 /** One ordered op within a change-set (knowledge.ChangeSetOp). */
 export interface ChangeSetOp {
@@ -354,9 +330,7 @@ export type AddChangeSetOpRequest =
   | { op: "term.remove"; payload: TermRemovePayload; base_rev?: number }
   | { op: "term.status"; payload: TermStatusPayload; base_rev?: number }
   | { op: "relation.add"; payload: RelationAddPayload; base_rev?: number }
-  | { op: "relation.remove"; payload: RelationRemovePayload; base_rev?: number }
-  | { op: "voice.rule.add"; payload: VoiceRuleAddPayload; base_rev?: number }
-  | { op: "voice.rule.remove"; payload: VoiceRuleRemovePayload; base_rev?: number };
+  | { op: "relation.remove"; payload: RelationRemovePayload; base_rev?: number };
 
 // ---------------------------------------------------------------------------
 // Change-sets, reviews, pilots
@@ -605,14 +579,12 @@ export interface ChangeSetImpact {
  * the rule that fired and the text it fired on.
  */
 export interface TrialFinding {
-  /** Which half of the gate raised it. */
-  kind: "term" | "voice";
-  /** The designation for a term finding, the matched term for a voice finding. */
+  /** The gate that raised it. */
+  kind: "term";
+  /** The designation that fired. */
   rule: string;
   /** What the rule says to write instead, when it says. */
   replacement?: string;
-  /** Whether the voice half's finding fails a check; absent on a term finding. */
-  fails?: boolean;
   concept_id?: string;
   block_id: string;
   item_name: string;
@@ -623,9 +595,8 @@ export interface TrialFinding {
 
 /**
  * Findings for a stream under the live and proposed graphs, matching
- * knowledge.TrialReport. voice_bound identifies an active candidate-profile
- * binding used by stream checks. Term changes are simulated for this report;
- * regular checks do not resolve terms per stream. terms_computed marks that
+ * knowledge.TrialReport. Term changes are simulated for this report; regular
+ * checks do not resolve terms per stream. terms_computed marks that
  * limitation.
  */
 export interface TrialReport {
@@ -640,8 +611,6 @@ export interface TrialReport {
   cleared: TrialFinding[];
   raised_total: number;
   cleared_total: number;
-  /** The candidate profile a pilot bound to this stream, when one is bound. */
-  voice_bound?: string;
   terms_computed: boolean;
   partial?: boolean;
   partial_reason?: string;
@@ -752,7 +721,6 @@ export interface MergeResult {
   applied_ops?: number[];
   revisions_created: number;
   concepts_touched?: string[];
-  profiles_touched?: string[];
   pilots_stopped: number;
   events?: MergeEvent[];
 }

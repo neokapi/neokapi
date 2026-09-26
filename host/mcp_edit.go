@@ -99,10 +99,12 @@ func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallT
 			byFile[e.File] = append(byFile[e.File], e)
 		case kindComment:
 			comments = append(comments, e)
-		case kindTerm, kindMemory, kindVoice, kindRecipe:
+		case kindTerm, kindMemory, kindRecipe:
 			out.Assets = append(out.Assets, a.applyRecordedAssetEntry(ctx, cmd, e))
 		case "":
 			return nil, applyEditsMCPOutput{}, errors.New("change-set entry has no \"kind\"")
+		case retiredVoiceKind:
+			return nil, applyEditsMCPOutput{}, errRetiredVoiceKind
 		default:
 			return nil, applyEditsMCPOutput{}, fmt.Errorf("unknown change kind %q", e.Kind)
 		}

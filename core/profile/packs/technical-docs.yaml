@@ -20,29 +20,22 @@ style:
     - regex: '\b\w+(ed|en)\s+by\b'
       description: Passive voice constructions
       advisory: true
-vocabulary:
-  forbidden_terms:
-    - term: please
-      replacement: ""
-      advisory: true
-    - term: simple
-      replacement: ""
-      advisory: true
-    - term: easy
-      replacement: ""
-      advisory: true
-    - term: obviously
-      replacement: ""
-    - term: basically
-      replacement: ""
-      advisory: true
-  preferred_terms:
-    - term: run
-      note: Preferred over 'execute' for commands
-    - term: set
-      note: Preferred over 'configure' for simple values
-    - term: return
-      note: Preferred over 'give back' or 'send back'
+terms:
+  - term: please
+    advisory: true
+  - term: simple
+    advisory: true
+  - term: easy
+    advisory: true
+  - term: obviously
+  - term: basically
+    advisory: true
+  - replacement: run
+    note: Preferred over 'execute' for commands
+  - replacement: set
+    note: Preferred over 'configure' for simple values
+  - replacement: return
+    note: Preferred over 'give back' or 'send back'
 examples:
   - before: "You can simply click the button to easily configure your settings."
     after: "Click Settings to open the configuration panel."

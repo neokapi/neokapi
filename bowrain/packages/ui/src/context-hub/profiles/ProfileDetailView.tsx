@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { One, Other, Plural, t } from "@neokapi/i18n-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { Badge, Button, Card, Skeleton, cn } from "@neokapi/ui-primitives";
 import { ContextHub } from "../shell/ContextHub";
 import { EmptyState, formatRelative } from "../shell/atoms";
@@ -202,25 +202,11 @@ export function ProfileDetailView({
             </Button>
           }
         >
-          {profile.pending_changes > 0 ? (
-            <p className="text-sm text-foreground">
-              <Plural count={profile.pending_changes}>
-                <One>
-                  {profile.pending_changes} change-set is in review carrying a voice rule for this
-                  profile.
-                </One>
-                <Other>
-                  {profile.pending_changes} change-sets are in review carrying a voice rule for this
-                  profile.
-                </Other>
-              </Plural>
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Nothing in review for this profile. A governed edit to its voice, such as banning a
-              term or changing a preferred one, arrives here as a change-set.
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground">
+            A governed edit to the terms, such as banning a term or changing a preferred one,
+            arrives as a change-set. The terms apply across the workspace, so change-sets are
+            reviewed there rather than per profile.
+          </p>
         </Section>
 
         <Section icon={<Folder />} title="Content" className="lg:col-span-2">

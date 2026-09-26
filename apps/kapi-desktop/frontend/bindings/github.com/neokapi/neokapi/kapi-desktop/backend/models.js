@@ -7696,7 +7696,7 @@ export class ReviewUnitDetail {
         if (!("findings" in $$source)) {
             /**
              * Findings are the unit's current check findings (placeholder integrity,
-             * do-not-translate, voice vocabulary — the same checkers the Checks panel
+             * do-not-translate, terms and voice patterns — the same checkers the Checks panel
              * runs, scoped to this one block).
              * @member
              * @type {DesktopFinding[]}

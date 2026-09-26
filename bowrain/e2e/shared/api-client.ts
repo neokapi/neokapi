@@ -105,7 +105,6 @@ export interface TrialReportInfo {
   cleared: Array<{ kind: string; rule: string; block_id: string }>;
   raised_total: number;
   cleared_total: number;
-  voice_bound?: string;
   terms_computed: boolean;
 }
 
@@ -151,7 +150,6 @@ export interface ContextProfilesResponse {
     channel?: string;
     voice?: { id: string; name: string };
     collections: Array<{ name: string; project_name: string }>;
-    pending_changes: number;
     checks?: {
       score: number;
       scored_blocks: number;

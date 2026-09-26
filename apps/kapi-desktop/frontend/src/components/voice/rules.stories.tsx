@@ -10,10 +10,10 @@ const meta: Meta = {
 export default meta;
 type Story = StoryObj;
 
-const termWithSeverity: TermRule = {
+const advisoryTerm: TermRule = {
   term: "log in",
   replacement: "sign in",
-  severity: "major",
+  advisory: true,
   note: "One spelling across the product.",
   concept_id: "c-signin",
 };
@@ -31,7 +31,7 @@ const storeResolvedTerm: TermRule = {
 const pattern: Pattern = {
   regex: "\\b(?:synergy|leverage)\\b",
   description: "Corporate filler.",
-  severity: "minor",
+  advisory: true,
   rate: { max: 2, per_words: 1000 },
 };
 
@@ -40,16 +40,16 @@ function Rows({ children }: { children: React.ReactNode }) {
 }
 
 export const TermRuleWithSeverity: Story = {
-  name: "Rule row / Term with severity",
+  name: "Rule row / Advisory term",
   render: () => (
     <Rows>
-      <TermRuleRow rule={termWithSeverity} />
+      <TermRuleRow rule={advisoryTerm} />
     </Rows>
   ),
 };
 
 export const PlainTermRule: Story = {
-  name: "Rule row / Plain term (store-resolved, no severity)",
+  name: "Rule row / Plain term (fails a check)",
   render: () => (
     <Rows>
       <TermRuleRow rule={plainTerm} />
@@ -69,15 +69,10 @@ export const PatternRule: Story = {
 
 const populated: VoiceProfile = {
   name: "Northsea",
-  vocabulary: {
-    preferred_terms: [termWithSeverity],
-    forbidden_terms: [plainTerm],
-    abbreviations: { API: "application programming interface" },
-  },
   style: {
     prohibited_patterns: [pattern],
     required_patterns: [
-      { regex: "\\bplease\\b", description: "Ask, do not instruct.", severity: "neutral" },
+      { regex: "\\bplease\\b", description: "Ask, do not instruct.", advisory: true },
     ],
   },
 };

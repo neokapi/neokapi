@@ -139,7 +139,7 @@ func TestCheckCanary_EveryCompletedAnalyzerCarriesOne(t *testing.T) {
 	isolateCheckExecution(t)
 	dir := t.TempDir()
 	src := writeCheckInput(t, dir, "app.json", `{"title":"Hello world"}`)
-	profilePath := writeCheckInput(t, dir, "voice.yaml", "id: v\nname: V\nvocabulary:\n  forbidden_terms:\n    - term: risk-free\nstyle:\n  required_patterns:\n    - regex: Hello\n")
+	profilePath := writeCheckInput(t, dir, "voice.yaml", "id: v\nname: V\nterms:\n  - term: risk-free\nstyle:\n  required_patterns:\n    - regex: Hello\n")
 	cmd := executionCommand(t)
 	cmd.Flags().Int("max-chars", 40, "")
 	cmd.Flags().StringSlice("forbid", []string{`(?i)\btodo\b`}, "")
@@ -159,7 +159,7 @@ func TestCheckCanary_EveryCompletedAnalyzerCarriesOne(t *testing.T) {
 		assert.Equal(t, check.CanaryCaught, run.Canary.Status, run.ID)
 		assert.Positive(t, run.Canary.Probes, run.ID)
 	}
-	assert.Equal(t, 5, completed, "hygiene, length, pattern, voice.rules and reader.validation")
+	assert.Equal(t, 6, completed, "hygiene, length, pattern, terms, voice.rules and reader.validation")
 }
 
 func TestCheckCanary_NothingToCatch(t *testing.T) {

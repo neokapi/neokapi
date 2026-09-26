@@ -9,14 +9,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// profileWith is a voice file carrying forbidden and competitor word rules.
 func profileWith(forbidden, competitor []TermRule) *VoiceProfile {
-	return &VoiceProfile{Vocabulary: VocabularyRules{ForbiddenTerms: forbidden, CompetitorTerms: competitor}}
+	rules := append([]TermRule(nil), forbidden...)
+	for _, r := range competitor {
+		r.Competitor = true
+		rules = append(rules, r)
+	}
+	return (&VoiceProfile{}).Carry("test", rules)
 }
 
 // A placeholder's name is not a use of a term, and a hit beside one still
 // indexes the caller's text.
 func TestMatchTermRules_PlaceholderNamesAreNotHits(t *testing.T) {
-	sets := VocabularyRuleSets(profileWith([]TermRule{{Term: "vessel", Replacement: "ship"}}, nil))
+	sets := CarriedRuleSets(profileWith([]TermRule{{Term: "vessel", Replacement: "ship"}}, nil))
 
 	assert.Empty(t, MatchTermRules(sets, "{vessel} is alongside until {until}."))
 
@@ -27,7 +33,7 @@ func TestMatchTermRules_PlaceholderNamesAreNotHits(t *testing.T) {
 	assert.Equal(t, "vessel", text[hits[0].Start:hits[0].End])
 }
 
-func TestMatchVocabulary(t *testing.T) {
+func TestMatchCarriedTerms(t *testing.T) {
 	tests := []struct {
 		name      string
 		profile   *VoiceProfile
@@ -92,7 +98,7 @@ func TestMatchVocabulary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hits := MatchVocabulary(tt.profile, tt.text)
+			hits := MatchCarriedTerms(tt.profile, tt.text)
 			if len(hits) != len(tt.wantTerms) {
 				t.Fatalf("got %d hits, want %d: %+v", len(hits), len(tt.wantTerms), hits)
 			}
@@ -146,7 +152,7 @@ func TestMatchVocabulary_ContainmentSuppression(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hits := MatchVocabulary(tt.profile, tt.text)
+			hits := MatchCarriedTerms(tt.profile, tt.text)
 			if len(hits) != len(tt.wantTerms) {
 				t.Fatalf("got %d hits, want %d: %+v", len(hits), len(tt.wantTerms), hits)
 			}
@@ -164,7 +170,7 @@ func TestMatchVocabulary_PropagatesConceptID(t *testing.T) {
 		[]TermRule{{Term: "utilize", Replacement: "use", ConceptID: "concept-use"}},
 		[]TermRule{{Term: "Globex", ConceptID: "concept-globex"}},
 	)
-	hits := MatchVocabulary(profile, "Please utilize unlike Globex")
+	hits := MatchCarriedTerms(profile, "Please utilize unlike Globex")
 	if len(hits) != 2 {
 		t.Fatalf("got %d hits, want 2: %+v", len(hits), hits)
 	}
@@ -180,7 +186,7 @@ func TestMatchVocabulary_PropagatesConceptID(t *testing.T) {
 	}
 
 	// A concept-less rule (standalone profile) yields an empty ConceptID.
-	standalone := MatchVocabulary(profileWith([]TermRule{{Term: "utilize"}}, nil), "utilize it")
+	standalone := MatchCarriedTerms(profileWith([]TermRule{{Term: "utilize"}}, nil), "utilize it")
 	if len(standalone) != 1 {
 		t.Fatalf("got %d hits, want 1", len(standalone))
 	}
@@ -197,7 +203,7 @@ func TestHitsToFindings(t *testing.T) {
 		[]TermRule{{Term: "Globex"}},
 	)
 
-	findings := HitsToFindings(MatchVocabulary(profile, text), text, runs)
+	findings := HitsToFindings(MatchCarriedTerms(profile, text), text, runs)
 	if len(findings) != 2 {
 		t.Fatalf("got %d findings, want 2: %+v", len(findings), findings)
 	}
@@ -247,7 +253,7 @@ func TestHitsToFindings(t *testing.T) {
 
 	// Nil runs (the run-less /check + MCP path): the position is left zero but the
 	// message and concept metadata still flow through.
-	noRuns := HitsToFindings(MatchVocabulary(profile, text), text, nil)
+	noRuns := HitsToFindings(MatchCarriedTerms(profile, text), text, nil)
 	if len(noRuns) != 2 {
 		t.Fatalf("got %d findings without runs, want 2", len(noRuns))
 	}

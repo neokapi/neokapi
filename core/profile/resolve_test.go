@@ -90,16 +90,12 @@ func TestResolveProfile_LocaleOverride(t *testing.T) {
 		Name:  "Test Profile",
 		Tone:  ToneProfile{Formality: "casual", Humor: "light"},
 		Style: StyleRules{PersonPOV: "second"},
-		Vocabulary: VocabularyRules{
-			PreferredTerms: []TermRule{{Term: "app", Replacement: "application"}},
-		},
 		Locales: map[model.LocaleID]LocaleOverride{
 			"ja-JP": {
-				Formality:           "formal",
-				Humor:               "none",
-				PersonPOV:           "third",
-				VocabularyOverrides: []TermRule{{Term: "san", Note: "use honorifics"}},
-				ExampleOverrides:    []VoiceExample{{Before: "Hey!", After: "Dear customer,"}},
+				Formality:        "formal",
+				Humor:            "none",
+				PersonPOV:        "third",
+				ExampleOverrides: []VoiceExample{{Before: "Hey!", After: "Dear customer,"}},
 			},
 		},
 	}
@@ -110,7 +106,6 @@ func TestResolveProfile_LocaleOverride(t *testing.T) {
 	assert.Equal(t, "formal", resolved.Tone.Formality)
 	assert.Equal(t, "none", resolved.Tone.Humor)
 	assert.Equal(t, "third", resolved.Style.PersonPOV)
-	assert.Len(t, resolved.Vocabulary.PreferredTerms, 2) // original + override
 	assert.Len(t, resolved.Examples, 1)
 }
 
@@ -220,36 +215,24 @@ func TestResolveProfile_LocaleNormalization(t *testing.T) {
 	}
 }
 
-// personaTestProfile is a voice profile with a forbidden term, a channel
-// override, and two personas: one that layers tone/style/vocab cleanly, and one
-// that tries to re-allow the brand-forbidden term via a Preferred rule.
+// personaTestProfile is a voice profile carrying a forbidden term, with a
+// channel override and a persona that layers tone and style.
 func personaTestProfile() *VoiceProfile {
-	return &VoiceProfile{
+	return (&VoiceProfile{
 		ID:    "test",
 		Name:  "Test Profile",
 		Tone:  ToneProfile{Formality: "casual", Humor: "light", Personality: []string{"friendly"}},
 		Style: StyleRules{PersonPOV: "second", ActiveVoice: true},
-		Vocabulary: VocabularyRules{
-			ForbiddenTerms: []TermRule{{Term: "utilize", Replacement: "use"}},
-			PreferredTerms: []TermRule{{Term: "sign in"}},
-		},
 		Channels: map[string]ChannelOverride{
 			"email": {Tone: &ToneProfile{Formality: "formal", Humor: "none"}},
 		},
 		Personas: map[string]PersonaOverride{
 			"jordan": {
-				Tone:      &ToneProfile{Formality: "neutral", Humor: "frequent"},
-				Style:     &StyleRules{PersonPOV: "first_plural"},
-				Preferred: []TermRule{{Term: "let's"}},
-				Avoided:   []TermRule{{Term: "very", Replacement: ""}},
-			},
-			// A persona that tries to prefer a brand-forbidden term — the
-			// guardrail must refuse to re-allow it.
-			"rogue": {
-				Preferred: []TermRule{{Term: "utilize", Note: "I like this word"}},
+				Tone:  &ToneProfile{Formality: "neutral", Humor: "frequent"},
+				Style: &StyleRules{PersonPOV: "first_plural"},
 			},
 		},
-	}
+	}).Carry("test", []TermRule{{Term: "utilize", Replacement: "use"}})
 }
 
 func TestResolveProfile_PersonaToneOverridesChannel(t *testing.T) {
@@ -262,49 +245,13 @@ func TestResolveProfile_PersonaToneOverridesChannel(t *testing.T) {
 	assert.Equal(t, "first_plural", resolved.Style.PersonPOV, "persona style must apply")
 }
 
-func TestResolveProfile_PersonaVocabAddsButNeverRemoves(t *testing.T) {
+func TestResolveProfile_PersonaKeepsCarriedTerms(t *testing.T) {
 	resolved := ResolveProfile(personaTestProfile(), "", "", "jordan")
 	require.NotNil(t, resolved)
 
-	// Avoided term is added to the forbidden set on top of the brand's own.
-	forbidden := make(map[string]bool)
-	for _, r := range resolved.Vocabulary.ForbiddenTerms {
-		forbidden[r.Term] = true
-	}
-	assert.True(t, forbidden["utilize"], "brand forbidden term must survive persona resolution")
-	assert.True(t, forbidden["very"], "persona avoided term must be added to the forbidden set")
-
-	// The persona's clean Preferred term is added; the brand's stays.
-	preferred := make(map[string]bool)
-	for _, r := range resolved.Vocabulary.PreferredTerms {
-		preferred[r.Term] = true
-	}
-	assert.True(t, preferred["sign in"], "brand preferred term must survive")
-	assert.True(t, preferred["let's"], "persona preferred term must be added")
-
-	// The brand's forbidden term is still flagged by the matcher under the persona.
-	hits := MatchVocabulary(resolved, "Please utilize the very fast path")
-	terms := make(map[string]bool)
-	for _, h := range hits {
-		terms[h.Term] = true
-	}
-	assert.True(t, terms["utilize"], "brand forbidden term must still be caught under a persona")
-	assert.True(t, terms["very"], "persona avoided term must be caught")
-}
-
-func TestResolveProfile_PersonaCannotReAllowForbiddenTerm(t *testing.T) {
-	// The "rogue" persona lists the brand-forbidden term "utilize" as preferred.
-	resolved := ResolveProfile(personaTestProfile(), "", "", "rogue")
-	require.NotNil(t, resolved)
-
-	for _, r := range resolved.Vocabulary.PreferredTerms {
-		assert.NotEqual(t, "utilize", r.Term,
-			"a persona must not be able to re-allow a brand-forbidden term as preferred")
-	}
-	// The guardrail is about the preferred list; the term stays forbidden.
-	hits := MatchVocabulary(resolved, "utilize this")
+	hits := MatchCarriedTerms(resolved, "Please utilize the fast path")
 	require.Len(t, hits, 1)
-	assert.Equal(t, "utilize", hits[0].Term)
+	assert.Equal(t, "utilize", hits[0].Term, "a carried word rule must still be caught under a persona")
 }
 
 func TestResolveProfile_UnknownPersonaIsBaseProfile(t *testing.T) {
@@ -314,22 +261,18 @@ func TestResolveProfile_UnknownPersonaIsBaseProfile(t *testing.T) {
 	require.NotNil(t, unknown)
 	assert.Equal(t, base.Tone, unknown.Tone, "unknown persona must not change tone")
 	assert.Equal(t, base.Style, unknown.Style, "unknown persona must not change style")
-	assert.Len(t, unknown.Vocabulary.ForbiddenTerms, len(base.Vocabulary.ForbiddenTerms),
-		"unknown persona must not change vocabulary")
-	assert.Len(t, unknown.Vocabulary.PreferredTerms, len(base.Vocabulary.PreferredTerms))
+	assert.Equal(t, base.CarriedTerms(), unknown.CarriedTerms(), "unknown persona must not change the carried terms")
 }
 
 func TestResolveProfile_PersonaDoesNotMutateSource(t *testing.T) {
 	profile := personaTestProfile()
-	forbiddenBefore := len(profile.Vocabulary.ForbiddenTerms)
-	preferredBefore := len(profile.Vocabulary.PreferredTerms)
+	before := profile.Clone()
 
-	_ = ResolveProfile(profile, "", "", "jordan")
+	_ = ResolveProfile(profile, "", "email", "jordan")
 
-	assert.Len(t, profile.Vocabulary.ForbiddenTerms, forbiddenBefore,
-		"resolving a persona must not mutate the source profile's forbidden terms")
-	assert.Len(t, profile.Vocabulary.PreferredTerms, preferredBefore,
-		"resolving a persona must not mutate the source profile's preferred terms")
+	assert.Equal(t, before.Tone, profile.Tone, "resolving a persona must not mutate the source profile's tone")
+	assert.Equal(t, before.Style, profile.Style, "resolving a persona must not mutate the source profile's style")
+	assert.Equal(t, before.CarriedTerms(), profile.CarriedTerms())
 }
 
 func TestResolveProfileFromContext(t *testing.T) {

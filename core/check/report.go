@@ -134,7 +134,7 @@ type Summary struct {
 // (so the AI knows exactly which block to revise).
 type Diagnostic struct {
 	// Rule is the stable id "<check>.<category>" (e.g. "length.max-chars-exceeded",
-	// "structure.xml-well-formedness", "voice.vocabulary"). The dedupe/track key.
+	// "structure.xml-well-formedness", "terms.vocabulary"). The dedupe/track key.
 	Rule string `json:"rule"`
 	// Check is the producing check family (length|pattern|chars|structure|
 	// hygiene|terms|voice and the target-gated families).

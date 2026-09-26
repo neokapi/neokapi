@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// channelledStore holds one project profile whose two channels and two personas
-// each forbid a different term, and a constraint that applies only in
-// Norwegian.
+// channelledStore holds one project profile whose two channels each set a
+// different sentence length and whose two personas each set a different
+// formality, and a constraint that applies only in Norwegian.
 func channelledStore() *fakeVoiceStore {
 	return &fakeVoiceStore{profiles: map[string]*profile.VoiceProfile{
 		"project": {
@@ -23,23 +23,21 @@ func channelledStore() *fakeVoiceStore {
 				Scope: profile.ConstraintScope{Locale: "nb"},
 			}},
 			Channels: map[string]profile.ChannelOverride{
-				"email": {Vocabulary: &profile.VocabularyRules{ForbiddenTerms: []profile.TermRule{{Term: "blast"}}}},
-				"docs":  {Vocabulary: &profile.VocabularyRules{ForbiddenTerms: []profile.TermRule{{Term: "simply"}}}},
+				"email": {Style: &profile.StyleRules{SentenceLength: "short"}},
+				"docs":  {Style: &profile.StyleRules{SentenceLength: "varied"}},
 			},
 			Personas: map[string]profile.PersonaOverride{
-				"sam": {Avoided: []profile.TermRule{{Term: "awesome"}}},
-				"kim": {Avoided: []profile.TermRule{{Term: "synergy"}}},
+				"sam": {Tone: &profile.ToneProfile{Formality: "casual"}},
+				"kim": {Tone: &profile.ToneProfile{Formality: "formal"}},
 			},
 		},
 	}}
 }
 
-func forbiddenTerms(p *profile.VoiceProfile) []string {
-	out := []string{}
-	for _, r := range p.Vocabulary.ForbiddenTerms {
-		out = append(out, r.Term)
-	}
-	return out
+// overrideMarks names the channel and persona a resolved profile carries: the
+// channel's sentence length, then the persona's formality.
+func overrideMarks(p *profile.VoiceProfile) []string {
+	return []string{p.Style.SentenceLength, p.Tone.Formality}
 }
 
 func TestResolve_ExplicitChannelReplacesTheBoundChannel(t *testing.T) {
@@ -52,14 +50,14 @@ func TestResolve_ExplicitChannelReplacesTheBoundChannel(t *testing.T) {
 	bound, err := Resolve(t.Context(), cs, nil, channelledStore(), Scope{ProjectID: "p1"})
 	require.NoError(t, err)
 	require.NotNil(t, bound)
-	assert.Equal(t, []string{"blast", "awesome"}, forbiddenTerms(bound))
+	assert.Equal(t, []string{"short", "casual"}, overrideMarks(bound))
 
 	explicit, err := Resolve(t.Context(), cs, nil, channelledStore(), Scope{
 		ProjectID: "p1", Channel: "docs", Persona: "kim",
 	})
 	require.NoError(t, err)
 	require.NotNil(t, explicit)
-	assert.Equal(t, []string{"simply", "synergy"}, forbiddenTerms(explicit),
+	assert.Equal(t, []string{"varied", "formal"}, overrideMarks(explicit),
 		"an explicit channel and persona take the bound ones' place rather than layering on them")
 }
 

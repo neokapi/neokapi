@@ -168,20 +168,23 @@ type EvalCheck struct {
 
 // EvalCheckFinding is one finding, in the fields the evaluation scores.
 type EvalCheckFinding struct {
-	Rule     string `json:"rule"`
-	Severity string `json:"severity"`
-	Message  string `json:"message"`
-	File     string `json:"file"`
+	Rule string `json:"rule"`
+	// Fails says whether the finding fails the check, as the report says.
+	Fails bool `json:"fails"`
+	// Suggested marks a finding raised by a rule nobody has confirmed.
+	Suggested bool   `json:"suggested,omitempty"`
+	Message   string `json:"message"`
+	File      string `json:"file"`
 	// Term is the rule term a vocabulary finding names, which is how a finding
 	// is traced back to a convention.
 	Term string `json:"term,omitempty"`
 }
 
-// failing lists the findings whose severity fails.
+// failing lists the findings that fail.
 func (c EvalCheck) failing() []EvalCheckFinding {
 	out := []EvalCheckFinding{}
 	for _, finding := range c.Findings {
-		if evalFindingFails(finding.Severity) {
+		if evalFindingFails(finding) {
 			out = append(out, finding)
 		}
 	}
@@ -208,10 +211,11 @@ func evalParseCheck(data []byte) EvalCheck {
 			Score int `json:"score"`
 		} `json:"summary"`
 		Findings []struct {
-			Rule     string `json:"rule"`
-			Severity string `json:"severity"`
-			Message  string `json:"message"`
-			Location struct {
+			Rule      string `json:"rule"`
+			Fails     bool   `json:"fails"`
+			Suggested bool   `json:"suggested"`
+			Message   string `json:"message"`
+			Location  struct {
 				File string `json:"file"`
 			} `json:"location"`
 			Metadata map[string]any `json:"metadata"`
@@ -225,7 +229,7 @@ func evalParseCheck(data []byte) EvalCheck {
 	for _, finding := range payload.Findings {
 		term, _ := finding.Metadata["term"].(string)
 		result.Findings = append(result.Findings, EvalCheckFinding{
-			Rule: finding.Rule, Severity: finding.Severity, Message: finding.Message,
+			Rule: finding.Rule, Fails: finding.Fails, Suggested: finding.Suggested, Message: finding.Message,
 			File: finding.Location.File, Term: term,
 		})
 	}

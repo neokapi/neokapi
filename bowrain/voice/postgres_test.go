@@ -32,18 +32,13 @@ func TestScanProfile_Roundtrip(t *testing.T) {
 			PersonPOV:      "second",
 			Contractions:   "sometimes",
 		},
-		Vocabulary: coreprofile.VocabularyRules{
-			PreferredTerms: []coreprofile.TermRule{
-				{Term: "use", Replacement: "utilize", Note: "prefer simpler word"},
-			},
-		},
 		Examples: []coreprofile.VoiceExample{
 			{Before: "We utilize this.", After: "We use this.", Explanation: "simpler"},
 		},
 		Locales:  map[model.LocaleID]coreprofile.LocaleOverride{"de": {Formality: "formal"}},
 		Channels: map[string]coreprofile.ChannelOverride{},
 		Personas: map[string]coreprofile.PersonaOverride{
-			"jordan": {Avoided: []coreprofile.TermRule{{Term: "synergy"}}},
+			"jordan": {Tone: &coreprofile.ToneProfile{Formality: "casual"}},
 		},
 		Version: 1,
 	}
@@ -51,7 +46,6 @@ func TestScanProfile_Roundtrip(t *testing.T) {
 	assert.NotEmpty(t, profile.ID)
 	assert.Equal(t, "Test Brand", profile.Name)
 	assert.Equal(t, "neutral", profile.Tone.Formality)
-	assert.Len(t, profile.Vocabulary.PreferredTerms, 1)
 	assert.Len(t, profile.Locales, 1)
 	assert.Len(t, profile.Personas, 1)
 }
@@ -64,8 +58,11 @@ func TestVoiceMigrations_SingleBaseline(t *testing.T) {
 	// applied at most once. The baseline is now idempotent and numbered above
 	// every version ever issued, so a live database DOES re-run it, and
 	// declaring personas in the CREATE is how the column arrives.
-	require.Len(t, Migrations, 1, "the voice schema is a single consolidated baseline")
+	require.Len(t, Migrations, 2, "the voice schema is a consolidated baseline and one later migration")
 	assert.Equal(t, 5, Migrations[0].Version, "baseline sits above versions 1-4, which it folds")
+	assert.Equal(t, 6, Migrations[1].Version)
+	assert.NotContains(t, Migrations[0].SQL, "vocabulary", "word rules are terms, not a profile column")
+	assert.Contains(t, Migrations[1].SQL, "DROP COLUMN IF EXISTS vocabulary")
 	assert.NotEmpty(t, Migrations[0].SQL)
 
 	sql := Migrations[0].SQL

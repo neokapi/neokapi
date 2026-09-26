@@ -17,7 +17,7 @@ func (s *MCPServer) registerPhase1Tools() {
 	// check_vocabulary — validate text against brand terms.
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "check_vocabulary",
-		Description: "Check text against the vocabulary rules the governing profile holds. Returns forbidden and competitor term violations with suggested replacements. Prefer retrieving the guidance first (get_voice_guide) and writing to it. This reports what a rule caught after the fact.",
+		Description: "Check text against the word rules of the workspace terms store and the patterns of a voice profile. Returns forbidden and competitor term violations with suggested replacements. Prefer retrieving the guidance first (get_voice_guide) and writing to it. This reports what a rule caught after the fact.",
 	}, s.handleCheckVocabulary)
 
 	// list_profiles — list available voice profiles in a workspace.
@@ -56,8 +56,10 @@ func (s *MCPServer) handleCheckVocabulary(ctx context.Context, req *mcp.CallTool
 		profile = coreprofile.ResolveProfile(profile, model.LocaleID(input.Locale), "", "")
 	}
 
-	runs := []model.Run{{Text: &model.TextRun{Text: input.Text}}}
-	findings := coreprofile.Findings(profile, input.Text, runs)
+	findings, err := s.voiceFindings(ctx, profile, model.LocaleID(input.Locale), input.Text)
+	if err != nil {
+		return nil, checkVocabularyOutput{}, err
+	}
 	score := coreprofile.CalculateScore(findings)
 	score.ProfileID = profile.ID
 

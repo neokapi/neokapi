@@ -423,15 +423,14 @@ func TestContextScanUploads_RequiresPermission(t *testing.T) {
 }
 
 // TestContextScanCheckDraft: the stateless tester scores sample text against an
-// inline draft profile — forbidden vocabulary must be caught and scored.
+// inline draft profile, and a word rule the draft proposes must be caught and
+// scored.
 func TestContextScanCheckDraft(t *testing.T) {
 	s := &Server{wsStores: newWorkspaceStores()}
 
 	body := `{
-		"profile": {
-			"name": "Draft",
-			"vocabulary": {"forbidden_terms": [{"term": "cheap", "replacement": "affordable"}]}
-		},
+		"profile": {"name": "Draft"},
+		"term_rules": [{"term": "cheap", "replacement": "affordable"}],
 		"text": "Our cheap plan is great."
 	}`
 	e := echo.New()

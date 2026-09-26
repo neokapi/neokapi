@@ -94,11 +94,11 @@ func TestTermsSurfacesAgreeOnDoNotTranslate(t *testing.T) {
 		require.NotNil(t, report.Execution)
 		ran := false
 		for _, run := range report.Execution.Analyzers {
-			if run.ID == "terms" {
+			if run.ID == "terms.target" {
 				ran = run.Canary != nil && run.Canary.Status == check.CanaryCaught
 			}
 		}
-		assert.True(t, ran, "%s: kapi check ran the terms analyzer with a caught canary", name)
+		assert.True(t, ran, "%s: kapi check ran the target terms analyzer with a caught canary", name)
 		for _, d := range report.Findings {
 			if d.Check == "terms" {
 				checked = append(checked, name)

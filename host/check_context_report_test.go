@@ -156,12 +156,15 @@ collections:
 		assert.Equal(t, "project", scope.Voice.Selection)
 		assert.False(t, scope.Voice.Applied)
 		assert.True(t, scope.TermsApplied)
-		assert.Positive(t, ruleCounts(report)["voice.vocabulary"], "the bound deprecated term must produce a finding without a voice profile")
+		assert.Positive(t, ruleCounts(report)["terms.vocabulary"], "the bound deprecated term must produce a finding without a voice profile")
 		found := false
 		for _, run := range report.Execution.Analyzers {
-			if run.ID == "voice.rules" {
+			switch run.ID {
+			case "terms":
 				found = true
 				assert.Equal(t, check.AnalyzerFindings, run.Status)
+			case "voice.rules":
+				assert.Equal(t, check.AnalyzerNotRequested, run.Status, "no voice profile is bound")
 			}
 		}
 		assert.True(t, found)

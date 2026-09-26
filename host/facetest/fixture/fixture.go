@@ -56,8 +56,8 @@ func (p Project) Abs(rel string) string {
 //
 // Everything is real and on disk: a recipe with two collections at two points,
 // a voice profile, a terms file with a preferred and a deprecated spelling, a
-// source catalog with a partial target beside it, and a document that violates
-// the vocabulary. No face is given a fake source. The content is written and
+// source catalog with a partial target beside it, and a document that uses the
+// retired spelling. No face is given a fake source. The content is written and
 // not extracted: host/facetest.Write extracts it into the project store through
 // the host path a run takes, and Extract runs the framework's extraction for a
 // suite that holds a store of its own.
@@ -101,19 +101,13 @@ collections:
         target: app/{lang}.json
 `)
 
-	// forbidden_terms, not preferred_terms: the vocabulary gate is built from
-	// the forbidden and competitor sets (profile.VocabularyRuleSets), and a rule
-	// under preferred_terms reaches the guide and the prompt without ever
-	// reaching a check.
+	// The voice holds tone alone. The word rule the document violates is the
+	// terms file's retired spelling, so every face reads it from one list.
 	write(".kapi/voice.yaml", `name: Fjordline
 description: Plain, exact writing for people in a hurry.
 tone:
   personality: [clear, restrained]
   formality: neutral
-vocabulary:
-  forbidden_terms:
-    - term: translation memory
-      replacement: content memory
 `)
 
 	write(".kapi/terms.json", `{

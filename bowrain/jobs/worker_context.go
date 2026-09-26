@@ -335,7 +335,6 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 	updated.Description = pushed.Description
 	updated.Tone = pushed.Tone
 	updated.Style = pushed.Style
-	updated.Vocabulary = pushed.Vocabulary
 	updated.Examples = pushed.Examples
 	updated.Locales = pushed.Locales
 	updated.Channels = pushed.Channels

@@ -10,12 +10,12 @@ import (
 
 // The word rules a writer keeps to at one point, as one list.
 //
-// Three places hold a rule about a word: the terms store (a concept with a
-// preferred term and discouraged ones), the voice profile's vocabulary, and
-// the rules established across the workspace. A writer asks one question of all
-// of them, "what do I say, and what not", so the answer merges them into one
-// list at render time and states each word once. Storage keeps the three
-// apart.
+// A rule about a word is a term, held in one of three places: the terms store
+// (a concept with a preferred term and discouraged ones), the rules established
+// across the workspace, and a starter pack bound as the voice, whose terms
+// apply beside the project's own. A writer asks one question of all of them,
+// "what do I say, and what not", so the answer merges them into one list at
+// render time and states each word once.
 
 // ContextRule is one line of that list: the wording to use, the wording to
 // avoid, and what the rule is about.
@@ -27,11 +27,13 @@ type ContextRule struct {
 	// Not are the wordings to avoid.
 	Not []string `json:"not,omitempty"`
 	// Note says what the rule is about: the concept's definition or the
-	// voice rule's note.
+	// rule's note.
 	Note string `json:"note,omitempty"`
-	// Locale is the language the rule is stated in, empty for a voice rule.
+	// Locale is the language the rule is stated in, empty for a rule held
+	// outside the terms store.
 	Locale string `json:"locale,omitempty"`
-	// From names where the rule is held: `terms`, `voice` or `workspace`.
+	// From names where the rule is held: `terms`, `workspace`, or the pack
+	// (`pack technical-docs`) or voice file whose terms apply.
 	From []string `json:"from"`
 }
 
@@ -95,8 +97,8 @@ func (l *ruleList) add(r ContextRule, from string) {
 }
 
 // sayThisNotThat builds the one list for a point from the terms in force there,
-// the rules established across the workspace, and the voice's vocabulary, in
-// that order, and caps it at limit. It returns the total as well, so a capped
+// the rules established across the workspace, and the terms the bound voice's
+// file carries, in that order, and caps it at limit. It returns the total as well, so a capped
 // list says what it is a part of.
 func sayThisNotThat(hits []ContextTermHit, binding []coreprofile.TermRule, voice *coreprofile.VoiceProfile, limit int) ([]ContextRule, int) {
 	l := newRuleList()
@@ -141,29 +143,15 @@ func sayThisNotThat(hits []ContextTermHit, binding []coreprofile.TermRule, voice
 		l.add(ContextRule{Say: rule.Replacement, Not: wordOrNone(rule.Term), Note: rule.Note}, "workspace")
 	}
 
-	if voice != nil {
-		for _, t := range voice.Vocabulary.PreferredTerms {
-			say := t.Term
-			if t.Replacement != "" {
-				say = t.Replacement
-			}
-			var not []string
-			if t.Replacement != "" && t.Replacement != t.Term {
-				not = wordOrNone(t.Term)
-			}
-			l.add(ContextRule{Say: say, Not: not, Note: t.Note}, "voice")
+	carried := voice.CarriedTerms()
+	for _, t := range carried.Rules {
+		if t.Replacement == t.Term {
+			// A replacement identical to its term is a convention about how
+			// to write the word, not a ban on it.
+			l.add(ContextRule{Say: t.Term, Note: t.Note}, carried.From)
+			continue
 		}
-		for _, list := range [][]coreprofile.TermRule{voice.Vocabulary.ForbiddenTerms, voice.Vocabulary.CompetitorTerms} {
-			for _, t := range list {
-				if t.Replacement == t.Term {
-					// A replacement identical to its term is a convention about
-					// how to write the word, not a ban on it.
-					l.add(ContextRule{Say: t.Term, Note: t.Note}, "voice")
-					continue
-				}
-				l.add(ContextRule{Say: t.Replacement, Not: wordOrNone(t.Term), Note: t.Note}, "voice")
-			}
-		}
+		l.add(ContextRule{Say: t.Replacement, Not: wordOrNone(t.Term), Note: t.Note}, carried.From)
 	}
 
 	total := len(l.rules)

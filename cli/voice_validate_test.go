@@ -107,7 +107,7 @@ func TestVoiceValidate_MissingName(t *testing.T) {
 
 func TestVoiceValidate_ManyProblems(t *testing.T) {
 	// One fixture covering: unknown field, missing name, invalid enum, bad regex,
-	// invalid severity, and an empty vocabulary term.
+	// invalid severity, and a word rule that names no term.
 	path := writeTempProfile(t, `tonee:
   formality: neutral
 tone:
@@ -118,10 +118,8 @@ style:
       advisory: true
     - regex: '\bok\b'
       severity: showstopper
-vocabulary:
-  forbidden_terms:
-    - term: ""
-      replacement: use
+terms:
+  - note: a rule that names nothing
 `)
 	out, runErr := runVoiceValidate(t, path)
 
@@ -143,8 +141,8 @@ vocabulary:
 	assert.Contains(t, fields["style.prohibited_patterns[0].regex"], "invalid regex")
 	// A retired severity key is an unknown field.
 	assert.Contains(t, fields["severity"], "unknown field")
-	// Empty term.
-	assert.Equal(t, "term is empty", fields["vocabulary.forbidden_terms[0].term"])
+	// A word rule with neither a term nor a replacement.
+	assert.Equal(t, "the rule names neither a term to avoid nor a replacement to use", fields["terms[0].term"])
 }
 
 func TestVoiceValidate_SyntaxError(t *testing.T) {

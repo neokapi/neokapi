@@ -72,8 +72,7 @@ style:
       description: Extraction — not segmentation — produces blocks; segmentation is an opt-in overlay within a block
     # ── The fixed vocabulary (brand-communication.md §"The vocabulary is fixed")
     #
-    # Patterns rather than vocabulary.forbidden_terms because MatchVocabulary is
-    # whole-word: `localize` there would not match "localization", and the
+    # Patterns rather than terms because a term matches whole words: `localize` there would not match "localization", and the
     # inflections are the point — a noun-only rule misses the form that actually
     # survives a sweep.
     #
@@ -112,31 +111,27 @@ style:
     # `brand-voice.yaml` filename, which are not.
     - regex: '(?i)\bbrand[ -]voice\b'
       description: Voice is the mechanism — say voice profile. "Brand voice" belongs in prose about the common use case, never as the name of the thing
-vocabulary:
-  preferred_terms:
-    - term: extract
-      note: The shared mechanism is extraction — "the text is extracted into blocks"
-    - term: text
-      note: Neutral wording for the shared engine; reserve "translatable" for contexts genuinely about translation
-    - term: neokapi
-      note: The project and Go framework — always lowercase
-    - term: kapi
-      note: The standalone CLI — always lowercase
-    - term: kapi-desktop
-      note: The desktop GUI companion — always lowercase, hyphenated
-    - term: Bowrain
-      note: The full-stack platform — capitalized as a product name; the standalone binary is retired
-  forbidden_terms:
-    - term: translatable text
-      replacement: text
-      note: Frames the shared engine as translation-only; use neutral wording unless the context really is about translation
-      advisory: true
-    - term: simply
-      replacement: ""
-      advisory: true
-    - term: easily
-      replacement: ""
-      advisory: true
+terms:
+  - term: translatable text
+    replacement: text
+    advisory: true
+    note: "Frames the shared engine as translation-only; use neutral wording unless the context really is about translation"
+  - term: simply
+    advisory: true
+  - term: easily
+    advisory: true
+  - replacement: extract
+    note: 'The shared mechanism is extraction — "the text is extracted into blocks"'
+  - replacement: text
+    note: 'Neutral wording for the shared engine; reserve "translatable" for contexts genuinely about translation'
+  - replacement: neokapi
+    note: "The project and Go framework — always lowercase"
+  - replacement: kapi
+    note: "The standalone CLI — always lowercase"
+  - replacement: kapi-desktop
+    note: "The desktop GUI companion — always lowercase, hyphenated"
+  - replacement: Bowrain
+    note: "The full-stack platform — capitalized as a product name; the standalone binary is retired"
 examples:
   - before: "kapi delivers powerful, seamless format support for everything you need."
     after: "kapi reads and writes document, data and translation interchange formats."
@@ -164,14 +159,3 @@ locales:
       Headings in sentence case. Compound nouns close up in Norwegian
       (innholdsbase, not "innholds base") — never leave an English noun pair
       half-translated.
-    vocabulary_overrides:
-      - term: innholdsbase
-        note: content memory — not "oversettelsesminne", which named the store kapi retired
-      - term: ordbank
-        note: terms store — not "termbase", the loan English itself retired
-      - term: målgruppeprofil
-        note: voice profile — not "merkevarestemme", which named the use case rather than the mechanism
-      - term: ordliste
-        note: term list — the source-to-target mapping fed to the translate prompt
-      - term: arbeidsflyt
-        note: Reserved for generic workflow prose; a kapi "flow" is "flyt" (see the project's terms)

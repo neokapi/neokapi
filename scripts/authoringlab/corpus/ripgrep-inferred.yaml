@@ -40,80 +40,56 @@ style:
         - regex: '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}]'
           description: Emoji and decorative symbols. Absent from the entire corpus, including headings and warnings.
           advisory: true
-vocabulary:
-    preferred_terms:
-        - term: ripgrep
-          replacement: ripgrep
-          note: 'Always lowercase, including at the start of a sentence: "ripgrep is a project whose contributors are volunteers."'
-        - term: rg
-          replacement: rg
-          note: The binary name in commands and transcripts; prose says "ripgrep", shell lines say `rg`.
-        - term: flag
-          replacement: flag
-          note: 'Dominant word for CLI arguments: "the -U/--multiline flag", "two flags related to colors". "options" appears only when referring to `rg --help` output.'
-          forms:
-            - flags
-            - flagged
-            - flagging
-        - term: -P/--pcre2
-          replacement: -P/--pcre2
-          note: 'Cite short and long forms together as a slash pair on first mention: -f/--file, -z/--search-zip, -U/--multiline.'
-        - term: Note that
-          replacement: Note that
-          note: 'Standard caveat opener, also used parenthetically as "(Note: ...)".'
-        - term: regex engine
-          replacement: regex engine
-          note: Used consistently for both the default and PCRE2; "default regex engine" contrasts with "PCRE2".
-          forms:
-            - regex engines
-        - term: true color
-          replacement: true color
-          note: 'Two words, lowercase, for RGB support: "true color support already works out of the box".'
-          forms:
-            - true-color
-        - term: work around
-          replacement: work around
-          note: Verb is two words ("you can work around by simply increasing the limit"); noun is hyphenated ("The work-around above").
-          forms:
-            - works around
-            - worked around
-            - working around
-    forbidden_terms:
-        - term: Ripgrep
-          replacement: ripgrep
-          case_sensitive: true
-          note: Capitalized forms (Ripgrep, RipGrep, RIPGREP) never appear; the name is lowercase in every one of ~60 occurrences.
-        - term: blazing fast
-          scope: prose
-          replacement: a timed comparison, e.g. "real 0m1.783s" vs "real 0m2.458s"
-          note: Performance is always demonstrated with `time` output or `--trace` lines, never asserted.
-        - term: we guarantee / we promise
-          replacement: '"generally", "on a best effort basis", "no promises are made"'
-          note: 'The release-policy entry hedges deliberately: "However, no promises are made."'
-          forms:
-            - we guaranteed
-            - we promised
-        - term: utilize
-          scope: prose
-          replacement: use
-          note: '"use" throughout: "ripgrep uses parallelism", "Use the --colors flag".'
-          forms:
-            - utilizes
-            - utilized
-            - utilizing
-    competitor_terms:
-        - term: ag
-          replacement: The Silver Searcher
-          note: 'Referred to by full name with the article, and accommodated rather than attacked: an entire entry explains how to emulate its output style.'
-        - term: grep
-          replacement: grep
-          note: Named plainly and given its own entry ("Can ripgrep replace grep?"); no put-downs.
-        - term: PCRE2
-          replacement: PCRE2
-          note: 'A supported alternative engine. Tradeoffs are stated factually ("Both regex engines are quite fast") and unknowns are conceded: "Why doesn''t PCRE2 do the same? This author isn''t familiar with its internals."'
-        - term: cygwin
-          replacement: cygwin
-          note: Lowercase, described as a source of path-mangling behavior with three concrete fixes offered rather than a verdict.
+terms:
+  - term: Ripgrep
+    replacement: ripgrep
+    note: "Capitalized forms (Ripgrep, RipGrep, RIPGREP) never appear; the name is lowercase in every one of ~60 occurrences."
+    case_sensitive: true
+  - term: blazing fast
+    replacement: "a timed comparison, e.g. \"real 0m1.783s\" vs \"real 0m2.458s\""
+    note: "Performance is always demonstrated with `time` output or `--trace` lines, never asserted."
+    scope: prose
+  - term: we guarantee / we promise
+    replacement: "\"generally\", \"on a best effort basis\", \"no promises are made\""
+    note: "The release-policy entry hedges deliberately: \"However, no promises are made.\""
+    forms: [we guaranteed, we promised]
+  - term: utilize
+    replacement: use
+    note: "\"use\" throughout: \"ripgrep uses parallelism\", \"Use the --colors flag\"."
+    forms: [utilizes, utilized, utilizing]
+    scope: prose
+  - term: ag
+    replacement: The Silver Searcher
+    competitor: true
+    note: "Referred to by full name with the article, and accommodated rather than attacked: an entire entry explains how to emulate its output style."
+  - term: grep
+    replacement: grep
+    competitor: true
+    note: "Named plainly and given its own entry (\"Can ripgrep replace grep?\"); no put-downs."
+  - term: PCRE2
+    replacement: PCRE2
+    competitor: true
+    note: "A supported alternative engine. Tradeoffs are stated factually (\"Both regex engines are quite fast\") and unknowns are conceded: \"Why doesn't PCRE2 do the same? This author isn't familiar with its internals.\""
+  - term: cygwin
+    replacement: cygwin
+    competitor: true
+    note: Lowercase, described as a source of path-mangling behavior with three concrete fixes offered rather than a verdict.
+  - replacement: ripgrep
+    note: "Always lowercase, including at the start of a sentence: \"ripgrep is a project whose contributors are volunteers.\""
+  - replacement: rg
+    note: "The binary name in commands and transcripts; prose says \"ripgrep\", shell lines say `rg`."
+  - replacement: flag
+    note: "Dominant word for CLI arguments: \"the -U/--multiline flag\", \"two flags related to colors\". \"options\" appears only when referring to `rg --help` output."
+  - replacement: "-P/--pcre2"
+    note: "Cite short and long forms together as a slash pair on first mention: -f/--file, -z/--search-zip, -U/--multiline."
+  - replacement: Note that
+    note: "Standard caveat opener, also used parenthetically as \"(Note: ...)\"."
+  - replacement: regex engine
+    note: "Used consistently for both the default and PCRE2; \"default regex engine\" contrasts with \"PCRE2\"."
+  - replacement: true color
+    note: "Two words, lowercase, for RGB support: \"true color support already works out of the box\"."
+  - replacement: work around
+    note: "Verb is two words (\"you can work around by simply increasing the limit\"); noun is hyphenated (\"The work-around above\")."
 examples:
     - before: RipGrep is a blazingly fast, next-generation search tool that leaves The Silver Searcher in the dust.
       after: By default, ripgrep uses parallelism to execute its search because this makes the search much faster on most modern systems.

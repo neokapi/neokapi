@@ -134,6 +134,13 @@ var migrations = []storage.Migration{
 		Description: "shared voice constraints",
 		SQL:         `ALTER TABLE voice_profiles ADD COLUMN constraints TEXT NOT NULL DEFAULT '[]';`,
 	},
+	{
+		Version:     5,
+		Description: "word rules are terms: a voice profile holds none",
+		// A profile's word rules live in the terms store. Importing the voice
+		// file again moves the rules a profile held into it.
+		SQL: `ALTER TABLE voice_profiles DROP COLUMN vocabulary;`,
+	},
 }
 
 // profileColumns is the one column list every profile statement is spelled
@@ -142,7 +149,7 @@ var migrations = []storage.Migration{
 // invisible: the row still scans and the field just comes back zero. That is
 // exactly how min_score reached the model, the validator and the wire while
 // this store dropped it on every write.
-const profileColumns = `id, workspace_id, name, description, tone, style, vocabulary, examples, ` +
+const profileColumns = `id, workspace_id, name, description, tone, style, examples, ` +
 	`locales, channels, personas, autonomy, constraints, min_score, version, created_at, updated_at, created_by`
 
 // profileFixedColumns are the facts an edit never rewrites — identity and
@@ -214,7 +221,6 @@ func (s *SQLiteStore) CreateProfile(ctx context.Context, profile *coreprofile.Vo
 	}
 	tone, _ := json.Marshal(profile.Tone)
 	style, _ := json.Marshal(profile.Style)
-	vocab, _ := json.Marshal(profile.Vocabulary)
 	examples, _ := json.Marshal(profile.Examples)
 	locales, _ := json.Marshal(profile.Locales)
 	channels, _ := json.Marshal(profile.Channels)
@@ -226,7 +232,7 @@ func (s *SQLiteStore) CreateProfile(ctx context.Context, profile *coreprofile.Vo
 		`INSERT INTO voice_profiles (`+profileColumns+`)
 		 VALUES (`+profileValues+`)`,
 		profile.ID, profile.Scope, profile.Name, profile.Description,
-		string(tone), string(style), string(vocab), string(examples),
+		string(tone), string(style), string(examples),
 		string(locales), string(channels), string(personas), string(autonomy), string(constraints),
 		profile.MinScore, profile.Version,
 		profile.CreatedAt.Format(time.RFC3339), profile.UpdatedAt.Format(time.RFC3339),
@@ -240,14 +246,14 @@ func (s *SQLiteStore) CreateProfile(ctx context.Context, profile *coreprofile.Vo
 func (s *SQLiteStore) GetProfile(ctx context.Context, id string) (*coreprofile.VoiceProfile, error) {
 	var p coreprofile.VoiceProfile
 	var desc *string
-	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, personasJSON, autonomyJSON, constraintsJSON string
+	var toneJSON, styleJSON, examplesJSON, localesJSON, channelsJSON, personasJSON, autonomyJSON, constraintsJSON string
 	var createdStr, updatedStr string
 
 	err := s.db.QueryRowContext(ctx,
 		`SELECT `+profileColumns+`
 		 FROM voice_profiles WHERE id = ?`, id).
 		Scan(&p.ID, &p.Scope, &p.Name, &desc,
-			&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
+			&toneJSON, &styleJSON, &examplesJSON,
 			&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON, &constraintsJSON,
 			&p.MinScore, &p.Version,
 			&createdStr, &updatedStr, &p.CreatedBy)
@@ -268,9 +274,6 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, id string) (*coreprofile.V
 	}
 	if err := json.Unmarshal([]byte(styleJSON), &p.Style); err != nil {
 		return nil, fmt.Errorf("unmarshal style: %w", err)
-	}
-	if err := json.Unmarshal([]byte(vocabJSON), &p.Vocabulary); err != nil {
-		return nil, fmt.Errorf("unmarshal vocabulary: %w", err)
 	}
 	if err := json.Unmarshal([]byte(examplesJSON), &p.Examples); err != nil {
 		return nil, fmt.Errorf("unmarshal examples: %w", err)
@@ -323,7 +326,6 @@ func (s *SQLiteStore) UpdateProfile(ctx context.Context, profile *coreprofile.Vo
 	profile.Version = existing.Version + 1
 	tone, _ := json.Marshal(profile.Tone)
 	style, _ := json.Marshal(profile.Style)
-	vocab, _ := json.Marshal(profile.Vocabulary)
 	examples, _ := json.Marshal(profile.Examples)
 	locales, _ := json.Marshal(profile.Locales)
 	channels, _ := json.Marshal(profile.Channels)
@@ -335,7 +337,7 @@ func (s *SQLiteStore) UpdateProfile(ctx context.Context, profile *coreprofile.Vo
 		`UPDATE voice_profiles SET `+profileAssignments+`
 		 WHERE id = ?`,
 		profile.Name, profile.Description,
-		string(tone), string(style), string(vocab), string(examples),
+		string(tone), string(style), string(examples),
 		string(locales), string(channels), string(personas), string(autonomy), string(constraints),
 		profile.MinScore, profile.Version,
 		profile.UpdatedAt.Format(time.RFC3339), profile.ID)

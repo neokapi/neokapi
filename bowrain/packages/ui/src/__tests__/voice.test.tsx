@@ -33,10 +33,6 @@ function makeProfile(overrides: Partial<VoiceProfile> = {}): VoiceProfile {
       person_pov: "second",
       contractions: "always",
     },
-    vocabulary: {
-      preferred_terms: [{ term: "help" }],
-      forbidden_terms: [{ term: "synergy" }],
-    },
     examples: [],
     workspace_id: "ws-1",
     version: 2,

@@ -122,11 +122,15 @@ func TestScoreEvalApplyAgainstTheRecordedChecks(t *testing.T) {
 }
 
 func TestEvalFindingFails(t *testing.T) {
-	for severity, fails := range map[string]bool{"critical": true, "major": true, "": true, "minor": false, "neutral": false, "Neutral": false} {
-		assert.Equal(t, fails, evalFindingFails(severity), severity)
-	}
-	// An unconfirmed suggestion reports at neutral, so it never counts.
-	check := EvalCheck{Findings: []EvalCheckFinding{{Severity: "neutral", Term: "utilise"}, {Severity: "major", Term: "log in"}}}
+	assert.True(t, evalFindingFails(EvalCheckFinding{Fails: true}))
+	assert.False(t, evalFindingFails(EvalCheckFinding{}), "an advisory rule reports")
+	// An unconfirmed suggestion never fails, so it never counts.
+	assert.False(t, evalFindingFails(EvalCheckFinding{Fails: true, Suggested: true}))
+	check := EvalCheck{Findings: []EvalCheckFinding{
+		{Term: "utilise"},
+		{Fails: true, Suggested: true, Term: "e-mail"},
+		{Fails: true, Term: "log in"},
+	}}
 	assert.Len(t, check.failing(), 1)
 	assert.Equal(t, []string{"sign-in"}, evalBrokenConventions(evalKey(), check))
 }

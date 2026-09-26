@@ -17,25 +17,20 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// voiceProfile is the small, deterministic voice profile seeded for the
-// browser build. labInspectAnnotated runs profile.MatchVocabulary against it so
-// the docs "Anatomy" explorer can show voice-vocabulary overlays without any
-// network or store. Forbidden terms suggest a preferred replacement; the
-// competitor term has no replacement. Kept tiny and stable so the rendered
-// overlays are reproducible.
-var voiceProfile = &profile.VoiceProfile{
+// voiceProfile is the small, deterministic voice seeded for the browser
+// build, carrying its word rules the way a starter pack does.
+// labInspectAnnotated matches them with profile.MatchCarriedTerms so the docs
+// "Anatomy" explorer can show word-rule overlays without any network or store.
+// Forbidden terms suggest a preferred replacement; the competitor term has no
+// replacement. Kept tiny and stable so the rendered overlays are reproducible.
+var voiceProfile = (&profile.VoiceProfile{
 	ID:   "kapi-wasm-demo",
 	Name: "Kapi Demo Brand",
-	Vocabulary: profile.VocabularyRules{
-		ForbiddenTerms: []profile.TermRule{
-			{Term: "login", Replacement: "log in", Note: "use the verb form"},
-			{Term: "utilize", Replacement: "use", Advisory: true},
-		},
-		CompetitorTerms: []profile.TermRule{
-			{Term: "Acme"},
-		},
-	},
-}
+}).Carry("pack kapi-wasm-demo", []profile.TermRule{
+	{Term: "login", Replacement: "log in", Note: "use the verb form"},
+	{Term: "utilize", Replacement: "use", Advisory: true},
+	{Term: "Acme", Competitor: true},
+})
 
 // The seeds are native bundles, not TMX/CSV. The interchange tier is for
 // crossing a boundary into or out of kapi; seeding kapi's own demo backends is

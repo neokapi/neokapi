@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/bowrain/knowledge"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -116,26 +115,6 @@ func TestUnboundVoiceProfiles(t *testing.T) {
 	assert.Equal(t, "Support voice", out[0].Label)
 	assert.False(t, out[0].Declared)
 	assert.Empty(t, out[0].Coordinates)
-}
-
-func TestVoiceProfileIDsInOps(t *testing.T) {
-	payload := func(v any) json.RawMessage {
-		raw, err := json.Marshal(v)
-		require.NoError(t, err)
-		return raw
-	}
-	ops := []*knowledge.ChangeSetOp{
-		{Op: knowledge.OpVoiceRuleAdd, Payload: payload(map[string]string{"profile_id": "v1"})},
-		{Op: knowledge.OpVoiceRuleRemove, Payload: payload(map[string]string{"profile_id": "v1"})},
-		{Op: knowledge.OpVoiceRuleAdd, Payload: payload(map[string]string{"profile_id": "v2"})},
-		// A concept edit is workspace-wide: it belongs to no point.
-		{Op: knowledge.OpTermStatus, Payload: payload(map[string]string{"concept_id": "term:1"})},
-		{Op: knowledge.OpVoiceRuleAdd, Payload: json.RawMessage(`not json`)},
-		nil,
-	}
-
-	got := voiceProfileIDsInOps(ops)
-	assert.Equal(t, map[string]bool{"v1": true, "v2": true}, got)
 }
 
 // Check standing is scoped by the voice the score resolved through, so a

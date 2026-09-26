@@ -7,7 +7,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -19,25 +18,6 @@ import (
 // be re-validated and re-applied at merge without external lookups beyond the
 // current concept revision.
 // ---------------------------------------------------------------------------
-
-// VoiceRuleList names the vocabulary list a voice rule belongs to.
-type VoiceRuleList = string
-
-const (
-	VoiceListPreferred  VoiceRuleList = "preferred"
-	VoiceListForbidden  VoiceRuleList = "forbidden"
-	VoiceListCompetitor VoiceRuleList = "competitor"
-)
-
-// isVoiceRuleList reports whether list is one of the three vocabulary lists.
-func isVoiceRuleList(list string) bool {
-	switch list {
-	case VoiceListPreferred, VoiceListForbidden, VoiceListCompetitor:
-		return true
-	default:
-		return false
-	}
-}
 
 // ConceptCreatePayload is the payload for OpConceptCreate: a full concept to
 // insert into the workspace graph.
@@ -107,22 +87,6 @@ type RelationAddPayload struct {
 // RelationRemovePayload is the payload for OpRelationRemove.
 type RelationRemovePayload struct {
 	RelationID string `json:"relation_id"`
-}
-
-// VoiceRuleAddPayload is the payload for OpVoiceRuleAdd (always governed). Rule
-// is a brand vocabulary rule that references the backing concept by ID; List
-// selects which of the profile's vocabulary lists it joins.
-type VoiceRuleAddPayload struct {
-	ProfileID string               `json:"profile_id"`
-	List      VoiceRuleList        `json:"list"`
-	Rule      coreprofile.TermRule `json:"rule"`
-}
-
-// VoiceRuleRemovePayload is the payload for OpVoiceRuleRemove (always governed).
-type VoiceRuleRemovePayload struct {
-	ProfileID string        `json:"profile_id"`
-	List      VoiceRuleList `json:"list"`
-	Term      string        `json:"term"`
 }
 
 // decodePayload unmarshals an op's payload into v, wrapping the op type into
@@ -280,41 +244,26 @@ func ValidateOp(op ChangeSetOp) error {
 		}
 		return nil
 
-	case OpVoiceRuleAdd:
-		var p VoiceRuleAddPayload
-		if err := decodePayload(op, &p); err != nil {
-			return err
-		}
-		if p.ProfileID == "" {
-			return requireField(op.Op, "profile_id")
-		}
-		if !isVoiceRuleList(p.List) {
-			return fmt.Errorf("%s: unknown list %q (want preferred|forbidden|competitor)", op.Op, p.List)
-		}
-		if p.Rule.Term == "" {
-			return requireField(op.Op, "rule.term")
-		}
-		return nil
-
-	case OpVoiceRuleRemove:
-		var p VoiceRuleRemovePayload
-		if err := decodePayload(op, &p); err != nil {
-			return err
-		}
-		if p.ProfileID == "" {
-			return requireField(op.Op, "profile_id")
-		}
-		if !isVoiceRuleList(p.List) {
-			return fmt.Errorf("%s: unknown list %q (want preferred|forbidden|competitor)", op.Op, p.List)
-		}
-		if p.Term == "" {
-			return requireField(op.Op, "term")
-		}
-		return nil
-
 	default:
-		return fmt.Errorf("unknown op type: %q", op.Op)
+		return unknownOpError(op.Op)
 	}
+}
+
+// retiredOps names the op types a change-set no longer takes, each with the
+// fix. Word rules are terms, so a word a voice.rule op put on a profile list is
+// a term on a concept.
+var retiredOps = map[OpType]string{
+	"voice.rule.add":    "word rules are terms: add the term with term.add (or concept.create) and a forbidden status",
+	"voice.rule.remove": "word rules are terms: remove the term with term.remove",
+}
+
+// unknownOpError reports an op type a change-set does not take, naming the fix
+// for a retired one.
+func unknownOpError(o OpType) error {
+	if fix, ok := retiredOps[o]; ok {
+		return fmt.Errorf("op type %q is retired: %s", o, fix)
+	}
+	return fmt.Errorf("unknown op type: %q", o)
 }
 
 // ---------------------------------------------------------------------------
@@ -324,8 +273,8 @@ func ValidateOp(op ChangeSetOp) error {
 // IsGovernedOp reports whether an op is governed — that is, whether it may only
 // reach the live graph through a reviewed change-set (AD-021). Governed ops:
 // a term status transition that terms.IsGovernedTransition flags, a
-// REPLACED_BY relation, a concept deletion, and any voice-rule change. Every
-// other op is ordinary. An unknown OpType is an error.
+// REPLACED_BY relation, a concept deletion, and a do-not-translate change.
+// Every other op is ordinary. An unknown OpType is an error.
 func IsGovernedOp(op ChangeSetOp) (bool, error) {
 	switch op.Op {
 	case OpTermStatus:
@@ -359,14 +308,14 @@ func IsGovernedOp(op ChangeSetOp) (bool, error) {
 		}
 		return p.Concept.DoNotTranslate, nil
 
-	case OpConceptDelete, OpVoiceRuleAdd, OpVoiceRuleRemove:
+	case OpConceptDelete:
 		return true, nil
 
 	case OpTermAdd, OpTermUpdate, OpTermRemove, OpRelationRemove:
 		return false, nil
 
 	default:
-		return false, fmt.Errorf("unknown op type: %q", op.Op)
+		return false, unknownOpError(op.Op)
 	}
 }
 
@@ -518,7 +467,7 @@ func CheckBaseRev(op ChangeSetOp, currentRev int64) *OpConflict {
 
 // conceptIDOf extracts the concept ID an op targets, best-effort: it decodes
 // the payload and returns the concept ID, or "" for ops that do not name a
-// concept (relation ops, voice-rule ops) or whose payload fails to decode.
+// concept (relation ops) or whose payload fails to decode.
 func conceptIDOf(op ChangeSetOp) string {
 	switch op.Op {
 	case OpConceptCreate:

@@ -51,7 +51,6 @@ export const populatedProfiles: ContextProfilesResponse = {
         },
       ],
       voice: voice("v-core", "Core voice", 7),
-      pending_changes: 0,
     },
     {
       slug: "channel~docs.product~bowrain",
@@ -82,7 +81,6 @@ export const populatedProfiles: ContextProfilesResponse = {
         },
       ],
       voice: voice("v-docs", "Bowrain docs voice", 3),
-      pending_changes: 2,
       checks: {
         score: 87,
         scored_blocks: 412,
@@ -121,7 +119,6 @@ export const populatedProfiles: ContextProfilesResponse = {
           owner: "recipe",
         },
       ],
-      pending_changes: 0,
       // A point nobody holds: reported, never blocked.
       custody: {
         covered: false,
@@ -137,7 +134,6 @@ export const populatedProfiles: ContextProfilesResponse = {
       declared: false,
       collections: [],
       voice: voice("v-support", "Support voice", 1),
-      pending_changes: 0,
     },
   ],
 };
@@ -155,7 +151,6 @@ export const emptyProfiles: ContextProfilesResponse = {
       is_default: true,
       declared: false,
       collections: [],
-      pending_changes: 0,
     },
   ],
 };
@@ -174,7 +169,6 @@ export const governedButUndeclared: ContextProfilesResponse = {
       declared: false,
       collections: [],
       voice: voice("v-core", "Core voice", 1),
-      pending_changes: 0,
     },
   ],
 };

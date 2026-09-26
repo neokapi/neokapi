@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A channel's vocabulary is part of the profile schema, so the strict decode
-// that catches typo'd keys accepts it.
-func TestVoiceValidate_ChannelVocabularyIsAKnownField(t *testing.T) {
+// A channel carries tone and style alone: word rules are terms, so a
+// `vocabulary:` under a channel is a field the profile schema does not hold.
+func TestVoiceValidate_ChannelVocabularyIsReported(t *testing.T) {
 	path := writeTempProfile(t, `name: Service
 channels:
   child:
@@ -20,7 +20,8 @@ channels:
 `)
 	out, runErr := runVoiceValidate(t, path)
 
-	require.NoError(t, runErr)
-	assert.True(t, out.Valid)
-	assert.Empty(t, out.Errors, "a channel's vocabulary must not be reported as an unknown field")
+	require.ErrorIs(t, runErr, ErrSilentExit)
+	assert.False(t, out.Valid)
+	assert.Contains(t, errorFields(out)["vocabulary"], `unknown field "vocabulary" (line 4)`,
+		"the channel's word list is named where it sits")
 }

@@ -186,9 +186,8 @@ func TestCheckExecutionMCPUsesExplicitServerProject(t *testing.T) {
 	source := filepath.Join(dir, "content.json")
 	require.NoError(t, os.WriteFile(source, []byte(`{"body":"A risk-free appointment."}`), 0o644))
 	require.NoError(t, os.WriteFile(layoutVoicePath(t, dir), []byte(`name: Scoped
-vocabulary:
-  forbidden_terms:
-    - term: risk-free
+terms:
+  - term: risk-free
 `), 0o644))
 	recipe := filepath.Join(dir, "custom.kapi")
 	require.NoError(t, os.WriteFile(recipe, []byte(`version: v1
@@ -210,13 +209,13 @@ collections:
 	require.NoError(t, err)
 	assert.False(t, report.Pass)
 	assert.Equal(t, 1, report.Summary.Failing)
-	voiceRan := false
+	termsRan := false
 	for _, run := range report.Execution.Analyzers {
-		if run.ID == "voice.rules" {
-			voiceRan = run.Status == check.AnalyzerFindings
+		if run.ID == "terms" {
+			termsRan = run.Status == check.AnalyzerFindings
 		}
 	}
-	assert.True(t, voiceRan, "the explicit server recipe must survive disabled discovery")
+	assert.True(t, termsRan, "the explicit server recipe must survive disabled discovery")
 	require.NoError(t, os.Remove(recipe))
 	_, report, err = app.checkFileMCP(t.Context(), checkFileInput{File: source})
 	require.Error(t, err, "an unavailable bound recipe must not become ungoverned")

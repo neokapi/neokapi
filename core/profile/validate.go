@@ -1,15 +1,11 @@
 package profile
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"regexp"
 	"slices"
 	"sort"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 )
 
 // ProfileProblem is one structural problem found while validating a voice profile
@@ -65,9 +61,6 @@ const (
 	// CodeUnfamiliarValue is a tone value outside the usual set, kept and
 	// rendered into the voice guide as written.
 	CodeUnfamiliarValue = "voice.unfamiliar_value"
-	// CodePreferredTermDropped is a preferred term a channel or persona states
-	// that resolution drops, because an earlier rule already governs the term.
-	CodePreferredTermDropped = "voice.preferred_term_dropped"
 	// CodeOverrideDropsPattern is a base style pattern that stops applying where
 	// a channel or persona supplies its own style.
 	CodeOverrideDropsPattern = "voice.override_drops_pattern"
@@ -75,26 +68,6 @@ const (
 	// where a channel or persona supplies its own style without them.
 	CodeOverrideDropsCommentRules = "voice.override_drops_comment_rules"
 )
-
-// DecodeProfileStrict decodes a VoiceProfile from a YAML stream and rejects
-// unknown fields, so callers (e.g. `kapi voice validate`) can flag typo'd or
-// unsupported keys that the lenient LoadProfileYAML silently ignores. It returns
-// the decoded profile (best-effort, populated with whatever did decode)
-// alongside any decode or unknown-field error. An empty document decodes to a
-// zero-value profile with no error (ValidateProfile then reports the missing
-// name).
-func DecodeProfileStrict(r io.Reader) (*VoiceProfile, error) {
-	var p VoiceProfile
-	dec := yaml.NewDecoder(r)
-	dec.KnownFields(true)
-	if err := dec.Decode(&p); err != nil {
-		if errors.Is(err, io.EOF) {
-			return &p, nil
-		}
-		return &p, err
-	}
-	return &p, nil
-}
 
 // Valid enum value sets for the constrained string fields. These mirror the
 // documented values on the VoiceProfile sub-structs; validation only flags a
@@ -176,31 +149,9 @@ func ValidateProfile(p *VoiceProfile) []ProfileProblem {
 	validatePatterns(add, "style.prohibited_patterns", p.Style.ProhibitedPatterns)
 	validatePatterns(add, "style.required_patterns", p.Style.RequiredPatterns)
 
-	// Vocabulary: every term must carry a non-empty term, severity in range.
-	validateTerms(add, "vocabulary.preferred_terms", p.Vocabulary.PreferredTerms)
-	validateTerms(add, "vocabulary.forbidden_terms", p.Vocabulary.ForbiddenTerms)
-	validateTerms(add, "vocabulary.competitor_terms", p.Vocabulary.CompetitorTerms)
-
-	// Override vocabulary: the same term checks, and a note wherever resolution
-	// would drop a preferred term the override states.
-	for _, name := range sortedKeys(p.Channels) {
-		v := p.Channels[name].Vocabulary
-		if v == nil {
-			continue
-		}
-		base := "channels." + name + ".vocabulary"
-		validateTerms(add, base+".preferred_terms", v.PreferredTerms)
-		validateTerms(add, base+".forbidden_terms", v.ForbiddenTerms)
-		validateTerms(add, base+".competitor_terms", v.CompetitorTerms)
-		noteDroppedPreferred(warn, p.Vocabulary, *v, base+".preferred_terms", "channel", name)
-	}
-	for _, name := range sortedKeys(p.Personas) {
-		o := p.Personas[name]
-		base := "personas." + name
-		validateTerms(add, base+".preferred_terms", o.Preferred)
-		validateTerms(add, base+".avoided_terms", o.Avoided)
-		noteDroppedPreferred(warn, p.Vocabulary, o.vocabulary(), base+".preferred_terms", "persona", name)
-	}
+	// The word rules a voice file carries: each names a term, a preferred
+	// form, or both.
+	validateTerms(add, "terms", p.CarriedTerms().Rules)
 
 	// Examples: before/after carry the transformation; category is optional.
 	for i, ex := range p.Examples {
@@ -284,32 +235,15 @@ func validatePatterns(add func(field, msg string), base string, patterns []Patte
 	}
 }
 
-// validateTerms checks a list of vocabulary term rules: the term text must be
-// non-empty. A forbidden term may carry
-// an empty replacement (meaning "remove the term"), so the replacement is not
-// required.
+// validateTerms checks a list of word rules: each names the term it rejects,
+// the form to use, or both. A rule may reject a term and name no replacement
+// ("avoid this word").
 func validateTerms(add func(field, msg string), base string, terms []TermRule) {
 	for i, t := range terms {
 		f := fmt.Sprintf("%s[%d]", base, i)
-		if strings.TrimSpace(t.Term) == "" {
-			add(f+".term", "term is empty")
+		if strings.TrimSpace(t.Term) == "" && strings.TrimSpace(t.Replacement) == "" {
+			add(f+".term", "the rule names neither a term to avoid nor a replacement to use")
 		}
-	}
-}
-
-// noteDroppedPreferred warns about each preferred term an override states that
-// resolution drops, because the profile's vocabulary or the override's own
-// forbidden terms already govern that term. It asks tightenVocabulary, so the
-// note and the resolved profile cannot disagree about which terms are dropped.
-func noteDroppedPreferred(warn func(code, field, msg string), profile, override VocabularyRules, field, kind, name string) {
-	_, dropped := tightenVocabulary(profile, override)
-	for _, i := range dropped {
-		warn(CodePreferredTermDropped, fmt.Sprintf("%s[%d]", field, i), fmt.Sprintf(
-			"%s %q prefers %q, but a forbidden, competitor or preferred rule for that term "+
-				"already applies, so resolution drops this preferred term. To change the wording "+
-				"everywhere, edit the profile's own rule.",
-			kind, name, override.PreferredTerms[i].Term,
-		))
 	}
 }
 

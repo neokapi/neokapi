@@ -64,13 +64,8 @@ func TestChecksAtPoint_GovernanceSelectsTheCheckers(t *testing.T) {
 	seedCheckStream(t, cs, proj.ID, "main")
 
 	srv.VoiceStore = &editorFakeVoiceStore{profiles: map[string]*coreprofile.VoiceProfile{
-		"bp-strict": {
-			ID:   "bp-strict",
-			Name: "Strict",
-			Vocabulary: coreprofile.VocabularyRules{
-				ForbiddenTerms: []coreprofile.TermRule{{Term: "cheap", Replacement: "affordable"}},
-			},
-		},
+		"bp-strict": (&coreprofile.VoiceProfile{ID: "bp-strict", Name: "Strict"}).Carry("voice file",
+			[]coreprofile.TermRule{{Term: "cheap", Replacement: "affordable"}}),
 		"bp-open": {ID: "bp-open", Name: "Open"},
 	}}
 

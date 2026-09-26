@@ -195,7 +195,7 @@ func TestRunChecksReportsCommentFindingsLikeKapiCheck(t *testing.T) {
 	for _, f := range want {
 		rules = append(rules, f.rule)
 	}
-	assert.Subset(t, rules, []string{"voice.vocabulary", "voice.style", "hygiene.doubled-word"},
+	assert.Subset(t, rules, []string{"terms.vocabulary", "voice.style", "hygiene.doubled-word"},
 		"the fixture exercises both points and the checkset")
 
 	app := NewApp()

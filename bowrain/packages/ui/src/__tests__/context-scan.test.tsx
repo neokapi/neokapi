@@ -230,8 +230,8 @@ describe("ContextScanReview", () => {
     );
 
     const badges = screen.getAllByTestId(TEST_IDS.contextScan.fieldConfidence);
-    // tone, style, vocabulary, examples
-    expect(badges).toHaveLength(4);
+    // tone, style, examples
+    expect(badges).toHaveLength(3);
     expect(screen.getByText("82% confidence")).toBeInTheDocument();
     expect(screen.getByText("Consistent register across brand-guide.docx")).toBeInTheDocument();
     // Provenance lists every corpus source.
@@ -264,7 +264,7 @@ describe("ContextScanReview", () => {
     const [ws, request] = createVoiceProfile.mock.calls[0];
     expect(ws).toBe("demo");
     expect(request.name).toBe("Edited Voice");
-    expect(request.vocabulary).toEqual(sampleScanProfile.vocabulary);
+    expect(request).not.toHaveProperty("vocabulary");
 
     // Only the still-selected terms become concepts.
     expect(createConcept).toHaveBeenCalledTimes(2);

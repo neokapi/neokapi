@@ -86,7 +86,7 @@ func TestWorkspaceExport_CarriesEveryRegisteredProject(t *testing.T) {
 	assert.NotEmpty(t, res.RootHash)
 	assert.Positive(t, res.Bytes)
 	for _, p := range res.Projects {
-		assert.Equal(t, 1, p.Concepts, "%s carries its terms", p.Key)
+		assert.Equal(t, 2, p.Concepts, "%s carries its terms", p.Key)
 		assert.Equal(t, 2, p.VoiceProfiles, "%s carries its voice profiles", p.Key)
 		assert.Positive(t, p.Entries, "%s carries its approved wording", p.Key)
 		assert.Positive(t, p.Decisions, "%s carries its decisions", p.Key)
@@ -247,7 +247,7 @@ func TestWorkspaceRestore_ReplaceNamesWhatItEmptiesFirst(t *testing.T) {
 	assert.Less(t, strings.Index(said, "Replacing"), strings.Index(said, "alpha"))
 
 	require.Len(t, res.Projects, 2)
-	assert.Equal(t, 1, res.Projects[0].Concepts, "the bundle went in after the clearing")
+	assert.Equal(t, 2, res.Projects[0].Concepts, "the bundle went in after the clearing")
 }
 
 // TestWorkspaceRestore_RestoresAProjectWithNoCheckout: a project restored into
@@ -282,7 +282,7 @@ func TestWorkspaceRestore_RestoresAProjectWithNoCheckout(t *testing.T) {
 	require.NoError(t, err)
 	concepts, err := db.Terms().Concepts(ctx)
 	require.NoError(t, err)
-	assert.Len(t, concepts, 1, "a fresh checkout reads the restored terms")
+	assert.Len(t, concepts, 2, "a fresh checkout reads the restored terms")
 	profiles, err := db.Voice().ListProfiles(ctx, LocalScope)
 	require.NoError(t, err)
 	assert.Len(t, profiles, 2, "a fresh checkout reads the restored voice profiles")

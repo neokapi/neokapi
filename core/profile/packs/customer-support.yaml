@@ -21,30 +21,24 @@ style:
     - regex: '\b(unfortunately|regrettably)\b'
       description: Negative framing (reframe positively)
       advisory: true
-vocabulary:
-  forbidden_terms:
-    - term: unfortunately
-      replacement: ""
-      advisory: true
-    - term: impossible
-      replacement: not currently available
-    - term: you failed to
-      replacement: it looks like
-    - term: as per our policy
-      replacement: ""
-      advisory: true
-    - term: obviously
-      replacement: ""
-      advisory: true
-    - term: calm down
-      replacement: ""
-  preferred_terms:
-    - term: I understand
-      note: Use to acknowledge the customer's concern
-    - term: happy to help
-      note: Reinforces willingness to assist
-    - term: here's what we can do
-      note: Pivots to solution-focused language
+terms:
+  - term: unfortunately
+    advisory: true
+  - term: impossible
+    replacement: not currently available
+  - term: you failed to
+    replacement: it looks like
+  - term: as per our policy
+    advisory: true
+  - term: obviously
+    advisory: true
+  - term: calm down
+  - replacement: I understand
+    note: Use to acknowledge the customer's concern
+  - replacement: happy to help
+    note: Reinforces willingness to assist
+  - replacement: here's what we can do
+    note: Pivots to solution-focused language
 examples:
   - before: "Unfortunately, that feature is not available. You should have read the documentation."
     after: "I understand you're looking for that feature. While it's not available yet, here's what we can do in the meantime."

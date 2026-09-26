@@ -1,9 +1,9 @@
 // The op builder (AD-021): the small forms that compose a change-set's
-// operations — ban a term, change a preferred term, add a relation, add or
-// remove a voice rule, edit a concept — against the live concept graph. Each
+// operations (ban a term, change a preferred term, add a relation, edit a
+// concept) against the live concept graph. Each
 // "Add operation" appends to the draft via the real append-op endpoint; the
 // caller (WhatIfWizard, or the detail view's add-op dialog) shows the resulting
-// ops and the refreshed blast radius. Concept/term/profile pickers read the
+// ops and the refreshed blast radius. Concept and term pickers read the
 // real hooks; only a draft change-set id is required.
 import { useState } from "react";
 import { ErrorNotice } from "../../errors";
@@ -27,21 +27,15 @@ import {
   cn,
   useDebounced,
 } from "@neokapi/ui-primitives";
-import { Lock, Sparkles, Network, ScrollText, Trash2, Pencil, Plus } from "../../components/icons";
+import { Lock, Sparkles, Network, Pencil, Plus } from "../../components/icons";
 import type { ConceptInfo } from "../../types/api";
-import type {
-  AddChangeSetOpRequest,
-  RelationType,
-  TermStatus,
-  VoiceRuleList,
-} from "../../types/brand-graph";
+import type { AddChangeSetOpRequest, RelationType, TermStatus } from "../../types/brand-graph";
 import { RELATION_TYPES } from "../../types/brand-graph";
 import { relationLabel } from "../shell/atoms";
 import { useConcepts } from "../../hooks/useConceptsApi";
-import { useVoiceProfiles } from "../../hooks/useVoiceApi";
 import { useAppendChangesetOp } from "../../hooks/useChangesetsApi";
 
-type ActionId = "ban" | "prefer" | "relation" | "voice-add" | "voice-remove" | "edit-concept";
+type ActionId = "ban" | "prefer" | "relation" | "edit-concept";
 
 interface ActionDef {
   id: ActionId;
@@ -54,13 +48,6 @@ const ACTIONS: ActionDef[] = [
   { id: "ban", label: "Ban a term", hint: "Forbid it everywhere", icon: <Lock /> },
   { id: "prefer", label: "Prefer a term", hint: "Promote to preferred", icon: <Sparkles /> },
   { id: "relation", label: "Add a relation", hint: "Connect two concepts", icon: <Network /> },
-  {
-    id: "voice-add",
-    label: "Add a voice rule",
-    hint: "Preferred / forbidden",
-    icon: <ScrollText />,
-  },
-  { id: "voice-remove", label: "Remove a voice rule", hint: "Drop a rule", icon: <Trash2 /> },
   { id: "edit-concept", label: "Edit a concept", hint: "Definition or domain", icon: <Pencil /> },
 ];
 
@@ -139,22 +126,6 @@ export function OpBuilder({ changesetId, onAppended, className }: OpBuilderProps
           )}
           {action === "relation" && (
             <RelationForm busy={append.isPending} error={append.error} onSubmit={submit} />
-          )}
-          {action === "voice-add" && (
-            <VoiceRuleForm
-              mode="add"
-              busy={append.isPending}
-              error={append.error}
-              onSubmit={submit}
-            />
-          )}
-          {action === "voice-remove" && (
-            <VoiceRuleForm
-              mode="remove"
-              busy={append.isPending}
-              error={append.error}
-              onSubmit={submit}
-            />
           )}
           {action === "edit-concept" && (
             <EditConceptForm busy={append.isPending} error={append.error} onSubmit={submit} />
@@ -345,121 +316,6 @@ function RelationForm({ busy, error, onSubmit }: FormProps) {
         exclude={source?.id}
         testid="op-relation-target"
       />
-      <FormError error={error} />
-      <AddButton busy={busy} disabled={!valid} />
-    </form>
-  );
-}
-
-// ── Voice rule (voice.rule.add / voice.rule.remove) ──────────────────────────
-
-const VOICE_LISTS: VoiceRuleList[] = ["preferred", "forbidden", "competitor"];
-
-function VoiceRuleForm({ mode, busy, error, onSubmit }: FormProps & { mode: "add" | "remove" }) {
-  const { data: profiles, isLoading } = useVoiceProfiles();
-  const [profileId, setProfileId] = useState("");
-  const [list, setList] = useState<VoiceRuleList>(mode === "add" ? "forbidden" : "forbidden");
-  const [term, setTerm] = useState("");
-  const [replacement, setReplacement] = useState("");
-
-  const valid = profileId && term.trim().length > 0;
-
-  const reset = () => {
-    setTerm("");
-    setReplacement("");
-  };
-
-  const handle = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!valid) return;
-    if (mode === "add") {
-      onSubmit(
-        {
-          op: "voice.rule.add",
-          payload: {
-            profile_id: profileId,
-            list,
-            rule: { term: term.trim(), replacement: replacement.trim() || undefined },
-          },
-        },
-        reset,
-      );
-    } else {
-      onSubmit(
-        { op: "voice.rule.remove", payload: { profile_id: profileId, list, term: term.trim() } },
-        reset,
-      );
-    }
-  };
-
-  if (!isLoading && (profiles?.length ?? 0) === 0) {
-    return (
-      <div className="space-y-1">
-        <p className="text-sm font-medium">{mode === "add" ? "Add" : "Remove"} a voice rule</p>
-        <p className="text-sm text-muted-foreground">
-          No voice profiles in this workspace yet. Create one under Brand → Voice first.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={handle} className="space-y-3">
-      <p className="text-sm font-medium">{mode === "add" ? "Add" : "Remove"} a voice rule</p>
-      <div className="space-y-1.5">
-        <Label className="text-xs">Profile</Label>
-        <Select value={profileId} onValueChange={setProfileId}>
-          <SelectTrigger size="sm">
-            <SelectValue placeholder={isLoading ? "Loading…" : "Choose a profile…"} />
-          </SelectTrigger>
-          <SelectContent>
-            {(profiles ?? []).map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-xs">List</Label>
-        <Select value={list} onValueChange={(v) => setList(v as VoiceRuleList)}>
-          <SelectTrigger size="sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {VOICE_LISTS.map((l) => (
-              <SelectItem key={l} value={l} className="capitalize">
-                {l}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-xs" htmlFor="voice-term">
-          Term
-        </Label>
-        <Input
-          id="voice-term"
-          value={term}
-          onChange={(e) => setTerm(e.target.value)}
-          placeholder="e.g. utilize"
-        />
-      </div>
-      {mode === "add" && list === "preferred" && (
-        <div className="space-y-1.5">
-          <Label className="text-xs" htmlFor="voice-repl">
-            Replacement (optional)
-          </Label>
-          <Input
-            id="voice-repl"
-            value={replacement}
-            onChange={(e) => setReplacement(e.target.value)}
-            placeholder="e.g. use"
-          />
-        </div>
-      )}
       <FormError error={error} />
       <AddButton busy={busy} disabled={!valid} />
     </form>

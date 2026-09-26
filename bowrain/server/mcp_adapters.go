@@ -60,11 +60,18 @@ func (a *memoryResolverAdapter) GetMemory(workspaceID string) (memory.Store, err
 	return a.ws.getMemory(workspaceID)
 }
 
-// tbResolverAdapter bridges workspaceStores → MCPServer.TermsResolver.
+// tbResolverAdapter bridges workspaceStores → MCPServer.TermsResolver. The MCP
+// tools name a workspace by id and the terms stores are keyed by slug, so the
+// id is resolved to its slug first; a name that resolves to none is taken as
+// the slug itself.
 type tbResolverAdapter struct {
-	ws *workspaceStores
+	s *Server
 }
 
 func (a *tbResolverAdapter) GetTB(workspaceID string) (terms.Store, error) {
-	return a.ws.getTerms(workspaceID)
+	slug := a.s.workspaceSlug(context.Background(), "", workspaceID)
+	if slug == "" {
+		slug = workspaceID
+	}
+	return a.s.wsStores.getTerms(slug)
 }

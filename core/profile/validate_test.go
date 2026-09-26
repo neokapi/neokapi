@@ -40,17 +40,17 @@ func TestValidateProfile_Valid(t *testing.T) {
 				{Regex: `\b(synergy|leverage)\b`, Description: "jargon", Advisory: true},
 			},
 		},
-		Vocabulary: VocabularyRules{
-			ForbiddenTerms: []TermRule{
-				{Term: "utilize", Replacement: "use", Advisory: true},
-				// A forbidden term with an empty replacement ("remove it") is valid.
-				{Term: "in order to", Replacement: ""},
-			},
-		},
 		Examples: []VoiceExample{
 			{Before: "We utilize X.", After: "We use X.", Category: "vocabulary"},
 		},
 	}
+	p.Carry("test", []TermRule{
+		{Term: "utilize", Replacement: "use", Advisory: true},
+		// A term with an empty replacement ("remove it") is valid.
+		{Term: "in order to", Replacement: ""},
+		// A preferred form names a replacement and no term.
+		{Replacement: "sign in"},
+	})
 	assert.Empty(t, ValidateProfile(p), "fully populated in-range profile must validate")
 }
 
@@ -108,18 +108,16 @@ func TestValidateProfile_BadRegex(t *testing.T) {
 }
 
 func TestValidateProfile_EmptyTerms(t *testing.T) {
-	p := &VoiceProfile{
-		Name: "Empty terms",
-		Vocabulary: VocabularyRules{
-			PreferredTerms:  []TermRule{{Term: "  "}},               // whitespace-only term
-			ForbiddenTerms:  []TermRule{{Term: "", Advisory: true}}, // empty term
-			CompetitorTerms: []TermRule{{Term: "Globex"}},
-		},
-	}
+	p := (&VoiceProfile{Name: "Empty terms"}).Carry("test", []TermRule{
+		{Term: "  "}, // whitespace-only term, no replacement
+		{Term: "", Replacement: " ", Advisory: true}, // empty term, blank replacement
+		{Term: "Globex", Competitor: true},
+	})
 	fields := problemFields(ValidateProfile(p))
-	assert.Equal(t, "term is empty", fields["vocabulary.preferred_terms[0].term"])
-	assert.Equal(t, "term is empty", fields["vocabulary.forbidden_terms[0].term"])
-	assert.NotContains(t, fields, "vocabulary.competitor_terms[0].term")
+	const empty = "the rule names neither a term to avoid nor a replacement to use"
+	assert.Equal(t, empty, fields["terms[0].term"])
+	assert.Equal(t, empty, fields["terms[1].term"])
+	assert.NotContains(t, fields, "terms[2].term")
 }
 
 func TestDecodeProfileStrict_UnknownField(t *testing.T) {

@@ -31,23 +31,8 @@ export const sampleProfile: VoiceProfile = {
     sentence_length: "medium",
     person_pov: "second",
     contractions: "never",
-    prohibited_patterns: [
-      { regex: "\\bplease\\b", description: "Avoid politeness hedges", severity: "minor" },
-    ],
+    prohibited_patterns: [{ regex: "\\bplease\\b", description: "Avoid politeness hedges" }],
     required_patterns: [],
-  },
-  vocabulary: {
-    preferred_terms: [
-      { term: "endpoint", replacement: "", note: "Use instead of 'URL'" },
-      { term: "request", replacement: "", note: "Use instead of 'call'" },
-    ],
-    forbidden_terms: [
-      { term: "easy", replacement: "straightforward", note: "Subjective" },
-      { term: "simple", replacement: "minimal", note: "Subjective" },
-    ],
-    competitor_terms: [
-      { term: "Acme API", replacement: "their API", note: "Don't name competitors" },
-    ],
   },
   examples: [
     {
@@ -84,10 +69,6 @@ export const casualProfile: VoiceProfile = {
     person_pov: "first_plural",
     contractions: "always",
   },
-  vocabulary: {
-    preferred_terms: [{ term: "awesome", replacement: "", note: "On-brand enthusiasm" }],
-    forbidden_terms: [{ term: "utilize", replacement: "use", note: "Too formal" }],
-  },
   examples: [
     {
       before: "Utilize our platform to achieve your goals.",
@@ -116,13 +97,6 @@ export const technicalProfile: VoiceProfile = {
     sentence_length: "short",
     person_pov: "third",
     contractions: "sometimes",
-  },
-  vocabulary: {
-    preferred_terms: [
-      { term: "returns", replacement: "", note: "Standard API doc verb" },
-      { term: "throws", replacement: "", note: "Standard error verb" },
-    ],
-    forbidden_terms: [],
   },
   examples: [],
   workspace_id: "ws-1",

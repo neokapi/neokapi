@@ -327,16 +327,15 @@ entry discriminated by `kind`, and every one lands through `kapi apply`:
 | --- | --- | --- |
 | `content` | a block's text in a named `file` | byte-faithful round-trip, drift- and inline-code guarded |
 | `comment` | one comment's prose in a named `file`, pinned by `comment_sha256` | the same round-trip, through the collection that governs comments |
-| `term` | a term | the terms tables of the project store, with a context operation recorded |
+| `term` | a term, including every word rule (`advisory`, `competitor`) | the terms tables of the project store, with a context operation recorded |
 | `memory` | a content-memory pair | the memory tables of the project store, with a context operation recorded |
-| `voice` | a voice vocabulary rule | the project's voice store ([C-07](../context/c-07-voice-profiles.md)) |
 | `review` | a unit's review outcome | appended to the decision ledger ([C-04](../context/c-04-unit-state-and-decisions.md)) |
 | `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load and save |
 
 Two properties make this one verb rather than six.
 
 **An asset edit writes the project's store and records what it did.** The edit
-lands in the terms store, the content memory or the voice store, and the same
+lands in the terms store or the content memory, and the same
 call appends a context operation carrying the actor and the evidence
 ([C-11](../context/c-11-context-operations.md)). Each store therefore has
 exactly one writer, `kapi context log` is the uniform review surface for every
@@ -349,7 +348,7 @@ and skipped. An edit that drops, invents, or unbalances an inline code is
 *rejected* by the fidelity guard rather than written as broken markup. Either
 outcome exits non-zero so the fix loop re-inspects and retries.
 
-A mixed change-set (a content fix plus the `term` or `voice` rule that justifies
+A mixed change-set (a content fix plus the `term` entry that justifies
 it) lands atomically, so the draft and the rule that governs future drafts move
 together.
 

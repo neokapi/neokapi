@@ -128,42 +128,47 @@ func TestApplyMemoryEntry_reviewStatus(t *testing.T) {
 	assert.Contains(t, res2.Detail, "status")
 }
 
-func TestApplyVoiceEntry_LandsInTheVoiceStore(t *testing.T) {
-	a, cmd, root, recipe := newApplyAssetProject(t)
+// A word rule is a term: a forbidden term marked advisory and a competitor's
+// name land in the terms store with those markings.
+func TestApplyTermEntry_AdvisoryAndCompetitor(t *testing.T) {
+	a, cmd, root, _ := newApplyAssetProject(t)
 	ctx := context.Background()
 
 	e := changeEntry{
-		Kind:        kindVoice,
-		Op:          "add-rule",
-		List:        "forbidden",
+		Kind:        kindTerm,
 		Term:        "utilize",
 		Replacement: "use",
+		Locale:      "en",
+		Status:      "forbidden",
 		Advisory:    true,
 	}
-
 	res := a.applyAssetEntry(ctx, cmd, e)
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
+	rival := changeEntry{Kind: kindTerm, Term: "Globex", Locale: "en", Status: "forbidden", Competitor: true}
+	require.Equal(t, "applied", a.applyAssetEntry(ctx, cmd, rival).Status)
 
-	// The rule is in the store, and the recipe binds the profile by NAME: a
-	// project with no voice gets one of its own, which is configuration.
-	assert.NoFileExists(t, filepath.Join(root, project.RelStatePath("voice.yaml")))
-	proj, err := project.Load(recipe)
+	db, err := a.ProjectDB(ctx, root)
 	require.NoError(t, err)
-	require.NotNil(t, proj.Defaults.Voice)
-	require.NotEmpty(t, proj.Defaults.Voice.Profile)
-
-	store, release, err := a.ProjectVoiceStore(ctx, root)
+	concepts, err := db.Terms().Concepts(ctx)
 	require.NoError(t, err)
-	defer release()
-	prof, err := store.GetProfile(ctx, proj.Defaults.Voice.Profile)
-	require.NoError(t, err)
-	require.Len(t, prof.Vocabulary.ForbiddenTerms, 1)
-	assert.Equal(t, "utilize", prof.Vocabulary.ForbiddenTerms[0].Term)
-	assert.Equal(t, "use", prof.Vocabulary.ForbiddenTerms[0].Replacement)
+	byTerm := map[string]bool{}
+	for _, c := range concepts {
+		for _, term := range c.Terms {
+			switch term.Text {
+			case "utilize":
+				assert.True(t, c.Advisory, "the concept is advisory")
+				byTerm["utilize"] = true
+			case "Globex":
+				assert.True(t, term.CompetitorTerm)
+				assert.False(t, c.Advisory)
+				byTerm["Globex"] = true
+			}
+		}
+	}
+	assert.True(t, byTerm["utilize"] && byTerm["Globex"], "both terms landed: %+v", concepts)
 
 	// Idempotent re-run.
-	res2 := a.applyAssetEntry(ctx, cmd, e)
-	assert.Equal(t, "skipped", res2.Status)
+	assert.Equal(t, "skipped", a.applyAssetEntry(ctx, cmd, e).Status)
 }
 
 func TestApplyRecipeEntry_setTargetLanguages(t *testing.T) {

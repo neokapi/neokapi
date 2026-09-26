@@ -6,10 +6,8 @@
 // fired on — so a reviewer can see whether the draft says what they meant it to
 // say before it reaches the live graph.
 //
-// The panel states which half of the answer is live and which is computed. The
-// voice half really does resolve through the draft on a bound stream; the terms
-// half is applied for this report, because no check resolves terms per stream. A
-// trial that claimed both would invite trust in a mechanism that is not there.
+// The panel states that the answer is computed: the terms are applied for this
+// report, because no check resolves terms per stream.
 import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import { Badge, Button, Card, CardContent, Skeleton, cn } from "@neokapi/ui-primitives";
 import { AlertTriangle, CircleCheck, FlaskConical } from "../../components/icons";
@@ -128,14 +126,6 @@ function Header({ report, projectName }: { report: TrialReport; projectName: str
 function Provenance({ report }: { report: TrialReport }) {
   return (
     <p className="text-[11px] leading-relaxed text-muted-foreground">
-      {report.voice_bound ? (
-        <>
-          Voice resolves through this draft on this stream. The pilot bound a candidate profile, so
-          a check running here reads it.{" "}
-        </>
-      ) : (
-        <>Voice is computed here: no candidate profile is bound to this stream. </>
-      )}
       {report.terms_computed && (
         <>
           Terms are computed for this report. Checks read terms without naming a stream, so a
@@ -204,9 +194,8 @@ function FindingRow({ finding, tone }: { finding: TrialFinding; tone: "raised" |
           <span className="text-muted-foreground">&rarr; {finding.replacement}</span>
         )}
         <Badge variant="outline" className="text-[10px]">
-          {finding.kind === "term" ? "term" : "voice"}
+          {finding.kind}
         </Badge>
-        {finding.fails && <span className="text-[10px] text-muted-foreground">fails</span>}
       </div>
       <p className="mt-1 line-clamp-2 text-xs text-foreground">{finding.text}</p>
       <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">

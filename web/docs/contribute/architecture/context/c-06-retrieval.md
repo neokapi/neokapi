@@ -118,8 +118,9 @@ The Markdown response provides a writing brief:
   then its patterns, comment limits, examples and shared constraints
   (`profile.RenderVoiceBrief`);
 - one list, **Say this, not that**, merging the terms in force at the point, the
-  rules established and widened to the workspace, and the voice's vocabulary at render
-  time, keyed by the wording to use, so a rule held in two places is one line
+  rules established and widened to the workspace, and the terms of a starter
+  pack bound as the voice at render time, keyed by the wording to use, so a rule
+  held in two places is one line naming where it is held (`from`)
   (`host/contextrules.go`); storage keeps the three apart;
 - the suggestions under **Suggested, not yet established**, less any the list
   already states;

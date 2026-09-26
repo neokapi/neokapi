@@ -43,7 +43,7 @@ type MergeEvent struct {
 // MergeResult reports the outcome of merging a change-set: the conflicts that
 // blocked it (when non-empty, nothing was applied and the error wraps
 // ErrMergeConflict), the ops that were applied, the concept revisions recorded,
-// the concepts and voice profiles touched, the pilots retired, and the domain
+// the concepts touched, the pilots retired, and the domain
 // events the caller should publish.
 type MergeResult struct {
 	ChangeSetID      string       `json:"changeset_id"`
@@ -51,7 +51,6 @@ type MergeResult struct {
 	AppliedOps       []int64      `json:"applied_ops,omitempty"`
 	RevisionsCreated int          `json:"revisions_created"`
 	ConceptsTouched  []string     `json:"concepts_touched,omitempty"`
-	ProfilesTouched  []string     `json:"profiles_touched,omitempty"`
 	PilotsStopped    int          `json:"pilots_stopped"`
 	Events           []MergeEvent `json:"events,omitempty"`
 }
@@ -68,7 +67,7 @@ type conceptSnapshot struct {
 }
 
 // MergeChangeSet merges an approved (or ordinary draft) change-set into the
-// workspace graph and brand profiles, recording a concept revision per touched
+// workspace graph, recording a concept revision per touched
 // concept and retiring the change-set's pilots.
 //
 // The flow is check-all-then-apply:
@@ -83,17 +82,15 @@ type conceptSnapshot struct {
 //     what makes a stale draft conflict loudly instead of clobbering an
 //     intervening edit (AD-021).
 //  3. Apply pass. Concept/term/relation ops are applied to the workspace
-//     terms in seq order via the shared applyTermsOp; voice ops are
-//     applied to the voice store, version-bumping each touched profile exactly
-//     like AD-019 promotion. One immutable ConceptRevision is recorded per
+//     terms in seq order via the shared applyTermsOp. One immutable ConceptRevision is recorded per
 //     touched concept (snapshot, summary, actor, changeset_id).
 //  4. Finalize. The change-set is marked merged (store.SetMergeResult) and its
 //     pilot shadows are retired (StopPilot per pilot). The domain events that
 //     should fire are returned for the caller to publish; the engine never
 //     touches the event bus.
 //
-// Cross-store atomicity. The workspace terms, the voice store, and the
-// knowledge store are three separate stores that share one PostgreSQL database
+// Cross-store atomicity. The workspace terms and the knowledge store are two
+// separate stores that share one PostgreSQL database
 // but are written here without a single enclosing transaction. The conflict
 // pre-check (step 2) makes stale-draft clobbering impossible, so the common
 // failure mode — a draft racing a concurrent edit — is caught before any write.
@@ -142,32 +139,18 @@ func (e *Engine) MergeChangeSet(ctx context.Context, workspaceID string, store S
 	// 3. Apply pass.
 	actor := mergeActor(cs)
 	live, liveOK := e.concepts.(terms.Terminology)
-	if !liveOK && hasTermsOps(ops) {
+	if !liveOK && len(ops) > 0 {
 		return res, errors.New("knowledge: workspace concept store is not writable (need terms.Terminology)")
 	}
 
 	var events []MergeEvent
 	for _, op := range ops {
-		if isVoiceOp(op.Op) {
-			continue // applied as a per-profile batch below
-		}
 		if err := applyTermsOp(ctx, live, op); err != nil {
 			return res, fmt.Errorf("apply op seq %d (%s): %w", op.Seq, op.Op, err)
 		}
 		res.AppliedOps = append(res.AppliedOps, op.Seq)
 		if ev := opConceptEvent(workspaceID, cs.ID, actor, op); ev != nil {
 			events = append(events, *ev)
-		}
-	}
-
-	profilesTouched, err := e.applyVoiceOps(ctx, ops, cs)
-	if err != nil {
-		return res, fmt.Errorf("apply voice ops: %w", err)
-	}
-	res.ProfilesTouched = profilesTouched
-	for _, op := range ops {
-		if isVoiceOp(op.Op) {
-			res.AppliedOps = append(res.AppliedOps, op.Seq)
 		}
 	}
 
@@ -225,7 +208,7 @@ func (e *Engine) MergeChangeSet(ctx context.Context, workspaceID string, store S
 // detectConflicts compares each base-pinned op against the concept's current
 // revision, returning every stale op without applying anything. Ops with a zero
 // BaseRev (not pinned) never conflict and are skipped without a store read.
-// Relation and voice ops carry no concept ID (conceptIDOf returns "") and are
+// Relation ops carry no concept ID (conceptIDOf returns "") and are
 // not pinned to a concept revision, so they are skipped too — checking them
 // against LatestRev(ws, "") would always read revision 0 and spuriously flag any
 // such op authored with a non-zero BaseRev.
@@ -237,7 +220,7 @@ func detectConflicts(ctx context.Context, store Store, workspaceID string, ops [
 		}
 		cid := conceptIDOf(op)
 		if cid == "" {
-			continue // relation and voice ops carry no concept-revision pin
+			continue // relation ops carry no concept-revision pin
 		}
 		current, err := store.LatestRev(ctx, workspaceID, cid)
 		if err != nil {
@@ -248,39 +231,6 @@ func detectConflicts(ctx context.Context, store Store, workspaceID string, ops [
 		}
 	}
 	return conflicts, nil
-}
-
-// applyVoiceOps applies the change-set's voice-rule ops to the brand profiles
-// they target, version-bumping each touched profile once (AD-019). A voice op
-// against a missing profile is a hard error — a merge commits, so it cannot
-// silently drop a rule. It returns the distinct profile IDs that were updated.
-func (e *Engine) applyVoiceOps(ctx context.Context, ops []ChangeSetOp, cs ChangeSet) ([]string, error) {
-	ids := voiceProfileIDs(ops)
-	if len(ids) == 0 {
-		return nil, nil
-	}
-	if e.profiles == nil {
-		return nil, errors.New("knowledge: voice ops require a profile store")
-	}
-	touched := make([]string, 0, len(ids))
-	for _, id := range ids {
-		baseline, err := e.profiles.GetProfile(ctx, id)
-		if err != nil {
-			return nil, fmt.Errorf("load profile %q: %w", id, err)
-		}
-		if baseline == nil {
-			return nil, fmt.Errorf("voice op references missing profile %q", id)
-		}
-		cand := ApplyVoiceOpsToProfile(baseline, ops)
-		cand.Version = baseline.Version + 1
-		cand.VersionNote = fmt.Sprintf("merged change-set %q", changeSetLabel(cs))
-		cand.UpdatedAt = time.Now().UTC()
-		if err := e.profiles.UpdateProfile(ctx, cand); err != nil {
-			return nil, fmt.Errorf("update profile %q: %w", id, err)
-		}
-		touched = append(touched, id)
-	}
-	return touched, nil
 }
 
 // snapshotConcept builds the revision snapshot for a concept after a merge: the
@@ -368,23 +318,6 @@ func loadReviews(ctx context.Context, store Store, workspaceID, changesetID stri
 		}
 	}
 	return reviews, nil
-}
-
-// isVoiceOp reports whether an op targets a voice profile rather than the
-// terms.
-func isVoiceOp(o OpType) bool {
-	return o == OpVoiceRuleAdd || o == OpVoiceRuleRemove
-}
-
-// hasTermsOps reports whether ops contains any concept/term/relation op (the
-// ops that need a writable workspace terms at merge).
-func hasTermsOps(ops []ChangeSetOp) bool {
-	for _, op := range ops {
-		if !isVoiceOp(op.Op) {
-			return true
-		}
-	}
-	return false
 }
 
 // mergeActor resolves the identity recorded as the merger: the caller-supplied

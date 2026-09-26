@@ -71,11 +71,11 @@ func LoadCorrectionsCorpus(path string) (CorrectionsCorpus, error) {
 	return c, nil
 }
 
-// voiceVocabFlags reports whether the voice-vocabulary check raises any finding
-// on text under the profile — the real checker the loop's promoted rules feed.
-func voiceVocabFlags(profile *coreprofile.VoiceProfile, text string) bool {
+// voiceVocabFlags reports whether the word-rule check raises any finding on
+// text under the rules: the real checker the loop's promoted rules feed.
+func voiceVocabFlags(rules coreprofile.TermRuleSet, text string) bool {
 	b := &model.Block{ID: "c", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: text}}}}
-	if err := coretools.NewVoiceVocabCheckTool(profile, nil).Annotate(tool.NewBlockView(b)); err != nil {
+	if err := coretools.NewVoiceVocabCheckTool(nil, nil).Holding(rules).Annotate(tool.NewBlockView(b)); err != nil {
 		return false
 	}
 	if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
@@ -85,30 +85,31 @@ func voiceVocabFlags(profile *coreprofile.VoiceProfile, text string) bool {
 }
 
 // EvaluateCorrections runs the loop end-to-end over the simulated stream: it
-// aggregates the corrections, promotes those at or above MinCount into a profile
-// through the real promotion path (coreprofile.ApplySuggestedRule), then checks that
+// aggregates the corrections, promotes those at or above MinCount into word
+// rules through the real promotion path (coreprofile.ApplySuggestedRule), then checks that
 // each promoted rule FLAGS its original (the mistake the team kept correcting)
 // and does NOT flag the corrected fix — and that a below-threshold correction is
 // left un-enforced. This is the corrections-as-ground-truth measure of the loop.
 func EvaluateCorrections(corpus CorrectionsCorpus) CorrectionsReport {
 	rep := CorrectionsReport{MinCount: corpus.MinCount, Total: len(corpus.Corrections)}
 
-	// Promote the above-threshold corrections into a profile — exactly what the
-	// server's PromoteAndSave does, minus persistence.
-	profile := &coreprofile.VoiceProfile{Name: "corrections-eval"}
+	// Promote the above-threshold corrections into word rules, which is what
+	// the server's promotion does, minus persistence.
+	var rules []coreprofile.TermRule
 	for _, c := range corpus.Corrections {
 		if c.Count >= corpus.MinCount {
-			coreprofile.ApplySuggestedRule(profile, coreprofile.SuggestedRule{
+			rules, _ = coreprofile.ApplySuggestedRule(rules, coreprofile.SuggestedRule{
 				Term: c.Term, Replacement: c.Replacement,
 				CorrectionCount: c.Count, Dimension: coreprofile.Dimension(c.Dimension),
 			})
 		}
 	}
+	promotedRules := coreprofile.TermRuleSet{Rules: rules, Kind: coreprofile.VocabForbidden}
 
 	for _, c := range corpus.Corrections {
 		promoted := c.Count >= corpus.MinCount
-		origFlagged := voiceVocabFlags(profile, c.Original)
-		corrFlagged := voiceVocabFlags(profile, c.Corrected)
+		origFlagged := voiceVocabFlags(promotedRules, c.Original)
+		corrFlagged := voiceVocabFlags(promotedRules, c.Corrected)
 
 		var ok bool
 		if promoted {

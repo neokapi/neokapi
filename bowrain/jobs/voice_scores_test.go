@@ -7,14 +7,15 @@ import (
 	voicepg "github.com/neokapi/neokapi/bowrain/voice"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // TestPersistDraftVoiceScores covers the worker's zero-AI draft scoring: only
-// translatable blocks with a target are scored, a forbidden-vocabulary hit
-// drops the score below the default compliance bar, and nil profile / nil brand
-// store are safe no-ops.
+// translatable blocks with a target are scored, a hit on a forbidden term of
+// the workspace terms store drops the score below the default compliance bar,
+// and nil profile / nil voice store are safe no-ops.
 func TestPersistDraftVoiceScores(t *testing.T) {
 	db := pgtest.NewTestDB(t)
 	bs, err := voicepg.NewPostgresVoiceStore(db)
@@ -24,13 +25,18 @@ func TestPersistDraftVoiceScores(t *testing.T) {
 	profile := &coreprofile.VoiceProfile{
 		Scope: "ws-1",
 		Name:  "Voice",
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{{Term: "synergy", Replacement: "teamwork"}},
-		},
 	}
 	require.NoError(t, bs.CreateProfile(ctx, profile))
 
-	deps := &WorkerDeps{VoiceStore: bs}
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "teamwork", Terms: []terms.Term{
+		{Text: "travail d'équipe", Locale: "fr", Status: model.TermPreferred},
+		{Text: "synergy", Locale: "fr", Status: model.TermForbidden},
+	}}))
+	deps := &WorkerDeps{
+		VoiceStore:    bs,
+		TermsResolver: TermsResolverFunc(func(string) (terms.Terminology, error) { return tb, nil }),
+	}
 	job := &TranslationJob{ID: "job-vs", ProjectID: "proj-vs", TargetLocale: "fr"}
 
 	clean := model.NewBlock("b-clean", "Hello")
@@ -54,13 +60,13 @@ func TestPersistDraftVoiceScores(t *testing.T) {
 	require.Len(t, byBlock, 2, "only translatable blocks with a target are scored")
 
 	require.NotNil(t, byBlock["b-clean"])
-	assert.Equal(t, 100, byBlock["b-clean"].Score, "no vocabulary hits → full score")
+	assert.Equal(t, 100, byBlock["b-clean"].Score, "no word-rule hits → full score")
 	assert.Equal(t, profile.ID, byBlock["b-clean"].ProfileID)
 
 	off := byBlock["b-off"]
 	require.NotNil(t, off)
 	assert.Less(t, off.Score, coreprofile.DefaultMinScore,
-		"a critical vocabulary hit drops the draft below the default compliance bar")
+		"a forbidden term drops the draft below the default compliance bar")
 	assert.NotEmpty(t, off.Findings, "the persisted score carries the findings behind it")
 
 	// Empty locale reads project-wide (all locales) — the shape the score

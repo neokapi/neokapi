@@ -51,6 +51,13 @@ attached to a single language-neutral concept.
 | `proposed`   | Under review, not yet approved | Show as suggestion with caveat |
 | `forbidden`  | Must not be used              | Flag as an error in checks      |
 
+Every "write this, not that" rule is a term. A use of a forbidden or competitor
+term in source content fails a check, and a use of a deprecated (retired) term
+reports. A concept marked `advisory` makes every such use report without
+failing. `kapi context keep --advisory` and `kapi terms import --advisory` set
+the marking, as do an `x-advisory` descrip in TBX, an `advisory` column in CSV,
+and `"advisory": true` on a `kind: term` change-set entry.
+
 ## Concept relations
 
 Concepts are not islands. A terms store persists typed, directed **relations**
@@ -200,14 +207,14 @@ Three pipeline tools bring terminology into the flow:
   expected-versus-actual detail, and the tool exits non-zero on them so it
   doubles as a gate. It takes its rules from the project's terms store
   (`--termstore` outside a project) or from `term_rules:` in a flow step's
-  config: the same shape a voice profile's vocabulary uses (one `term`, its
+  config: the same shape as every word rule, including the `terms:` a voice file carries (one `term`, its
   `replacement`, an optional `advisory`, and optionally a `concept_id` that ties the rule
   to a concept here). A concept marked do-not-translate yields a rule with no
   replacement, and the check fails a target that does not keep its term verbatim.
   A term written in the source's inline code, a quoted `kapi` command, an
   example command line or a flag name owes no rendering, because code keeps its
-  words in a translation; the prose around it is checked as usual. A voice
-  profile's term rules leave code out with `scope: prose` instead.
+  words in a translation; the prose around it is checked as usual. A source
+  word rule leaves code out with `scope: prose` instead.
   A rule marked `advisory: true` reports without failing; any other rule
   fails, because a rule resolved from a store carries no marking and must not
   be silently downgraded. The source term matches in its own casing only when

@@ -6,37 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
-
-	"github.com/neokapi/neokapi/bowrain/core/store"
-)
-
-// StreamBindingStore is the slice of the content StreamStore the pilot lifecycle
-// uses to bind (and later unbind) a candidate voice profile to a content
-// stream via Stream.Properties. The real bowrain ContentStore satisfies it; the
-// engine reaches it through its BlockSource, which the ContentStore also is.
-type StreamBindingStore interface {
-	GetStream(ctx context.Context, projectID, name string) (*store.Stream, error)
-	UpdateStream(ctx context.Context, s *store.Stream) error
-}
-
-// PilotProfileStore is the slice of the voice store the pilot lifecycle needs to
-// materialize and retire a stream-scoped candidate profile: the read+update
-// ProfileStore plus create and delete. coreprofile.Store satisfies it.
-type PilotProfileStore interface {
-	ProfileStore
-	CreateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error
-	DeleteProfile(ctx context.Context, id string) error
-}
-
-// Compile-time proof that the production stores satisfy the pilot interfaces:
-// the bowrain ContentStore is a StreamBindingStore, the framework terms
-// Store carries the stream-shadow methods the pilot writes to, and the brand
-// store is a PilotProfileStore.
-var (
-	_ StreamBindingStore = (store.ContentStore)(nil)
-	_ PilotProfileStore  = (coreprofile.Store)(nil)
 )
 
 // pilotShadowPrefix namespaces every row the pilot lifecycle writes to the
@@ -62,19 +32,11 @@ func pilotRelationID(changesetID, stream, relationID string) string {
 	return pilotShadowPrefix + ":r:" + changesetID + ":" + stream + ":" + relationID
 }
 
-// pilotProfileID is the ID of the throwaway candidate profile a pilot binds to a
-// content stream for the change-set's voice ops.
-func pilotProfileID(changesetID, stream, profileID string) string {
-	return pilotShadowPrefix + ":v:" + changesetID + ":" + stream + ":" + profileID
-}
-
 // StartPilot binds a change-set to one content stream as a pilot so real content
 // and real checks resolve through the draft before it merges (AD-021). It writes
 // the change-set's resulting concepts and added relations into the terms store's
 // stream-scoped shadow (AddConceptWithStream / AddRelationWithStream on the pilot
-// stream, under namespaced IDs), materializes a candidate voice profile for the
-// change-set's voice ops and binds it to the content stream's voice
-// property, then records the pilot. It returns the recorded pilot so callers
+// stream, under namespaced IDs), then records the pilot. It returns the recorded pilot so callers
 // surface the persisted creator and creation time rather than reconstructing
 // them. It is safe to re-run: shadow writes are upserts and the pilot record
 // upserts by its key.
@@ -92,17 +54,11 @@ func (e *Engine) StartPilot(ctx context.Context, workspaceID string, store Store
 	}
 
 	// Write the change-set's resulting concepts and relations into the terms store
-	// stream shadow. Skipped entirely for a voice-only change-set, which needs no
-	// terms store at all.
-	if hasTermsOps(ops) {
+	// stream shadow. An empty change-set writes none.
+	if len(ops) > 0 {
 		if err := e.writePilotShadow(ctx, cs, ops, stream); err != nil {
 			return nil, err
 		}
-	}
-
-	// Bind a candidate voice profile to the content stream for voice ops.
-	if err := e.bindPilotVoice(ctx, cs, ops, projectID, stream); err != nil {
-		return nil, err
 	}
 
 	pilot := &Pilot{
@@ -120,8 +76,7 @@ func (e *Engine) StartPilot(ctx context.Context, workspaceID string, store Store
 }
 
 // StopPilot retires a pilot: it removes the change-set's stream-shadow concepts
-// and relations, clears (and deletes) the candidate voice binding on the
-// content stream, and removes the pilot record. It is idempotent — every removal
+// and relations and removes the pilot record. It is idempotent — every removal
 // tolerates an already-absent row — so merge and abandon can call it
 // unconditionally.
 func (e *Engine) StopPilot(ctx context.Context, workspaceID string, store Store, cs ChangeSet, projectID, stream string) error {
@@ -135,16 +90,11 @@ func (e *Engine) StopPilot(ctx context.Context, workspaceID string, store Store,
 	}
 
 	// Remove the terms store stream shadow (relations first, then their concepts).
-	// Skipped for a voice-only change-set, which wrote no shadow.
-	if hasTermsOps(ops) {
+	// An empty change-set wrote none.
+	if len(ops) > 0 {
 		if err := e.removePilotShadow(ctx, cs, ops, stream); err != nil {
 			return err
 		}
-	}
-
-	// Clear the candidate voice binding and delete the candidate profiles.
-	if err := e.unbindPilotVoice(ctx, cs, ops, projectID, stream); err != nil {
-		return err
 	}
 
 	if err := store.RemovePilot(ctx, workspaceID, cs.ID, projectID, stream); err != nil && !isNotFound(err) {
@@ -269,121 +219,12 @@ func (e *Engine) removePilotShadow(ctx context.Context, cs ChangeSet, ops []Chan
 	return nil
 }
 
-// bindPilotVoice materializes a candidate profile for each voice-targeted
-// profile (ApplyVoiceOpsToProfile — the CandidateWithRule semantics generalized
-// to the change-set's voice ops) and binds the first one to the content stream's
-// voice property, so checks in the pilot stream resolve through the draft.
-// A change-set with no voice ops is a no-op.
-func (e *Engine) bindPilotVoice(ctx context.Context, cs ChangeSet, ops []ChangeSetOp, projectID, stream string) error {
-	ids := voiceProfileIDs(ops)
-	if len(ids) == 0 {
-		return nil
-	}
-	profiles, ok := e.profiles.(PilotProfileStore)
-	if !ok {
-		return errors.New("knowledge: profile store cannot materialize pilot candidates (need CreateProfile/DeleteProfile)")
-	}
-
-	var bound string
-	for _, id := range ids {
-		baseline, err := e.profiles.GetProfile(ctx, id)
-		if err != nil {
-			return fmt.Errorf("load profile %q: %w", id, err)
-		}
-		if baseline == nil {
-			continue
-		}
-		cand := ApplyVoiceOpsToProfile(baseline, ops)
-		cand.ID = pilotProfileID(cs.ID, stream, id)
-		cand.VersionNote = fmt.Sprintf("pilot candidate for change-set %q", changeSetLabel(cs))
-		cand.UpdatedAt = time.Now().UTC()
-		if err := profiles.CreateProfile(ctx, cand); err != nil {
-			return fmt.Errorf("create pilot candidate profile for %q: %w", id, err)
-		}
-		if bound == "" {
-			bound = cand.ID
-		}
-	}
-	if bound == "" {
-		return nil
-	}
-
-	streams, err := e.streamStore()
-	if err != nil {
-		return err
-	}
-	s, err := streams.GetStream(ctx, projectID, stream)
-	if err != nil {
-		return fmt.Errorf("load stream %s/%s: %w", projectID, stream, err)
-	}
-	if s == nil {
-		return fmt.Errorf("stream %s/%s not found", projectID, stream)
-	}
-	if s.Properties == nil {
-		s.Properties = map[string]string{}
-	}
-	s.Properties[coreprofile.PropertyProfileID] = bound
-	if err := streams.UpdateStream(ctx, s); err != nil {
-		return fmt.Errorf("bind candidate voice profile to stream %s/%s: %w", projectID, stream, err)
-	}
-	return nil
-}
-
-// unbindPilotVoice clears the candidate voice binding the pilot set (only
-// when the stream still points at one of this pilot's candidates) and deletes the
-// candidate profiles. Both steps tolerate an already-cleaned state.
-func (e *Engine) unbindPilotVoice(ctx context.Context, cs ChangeSet, ops []ChangeSetOp, projectID, stream string) error {
-	ids := voiceProfileIDs(ops)
-	if len(ids) == 0 {
-		return nil
-	}
-
-	if streams, ok := e.blocks.(StreamBindingStore); ok {
-		s, err := streams.GetStream(ctx, projectID, stream)
-		if err != nil {
-			return fmt.Errorf("load stream %s/%s: %w", projectID, stream, err)
-		}
-		if s != nil && s.Properties != nil {
-			current := s.Properties[coreprofile.PropertyProfileID]
-			for _, id := range ids {
-				if current == pilotProfileID(cs.ID, stream, id) {
-					delete(s.Properties, coreprofile.PropertyProfileID)
-					if err := streams.UpdateStream(ctx, s); err != nil {
-						return fmt.Errorf("clear candidate voice binding on stream %s/%s: %w", projectID, stream, err)
-					}
-					break
-				}
-			}
-		}
-	}
-
-	if profiles, ok := e.profiles.(PilotProfileStore); ok {
-		for _, id := range ids {
-			if err := profiles.DeleteProfile(ctx, pilotProfileID(cs.ID, stream, id)); err != nil && !isNotFound(err) {
-				return fmt.Errorf("delete pilot candidate profile for %q: %w", id, err)
-			}
-		}
-	}
-	return nil
-}
-
 // shadowStore returns the engine's concept store as the stream-shadow write
 // surface the pilot lifecycle needs (the framework terms Store).
 func (e *Engine) shadowStore() (terms.Store, error) {
 	s, ok := e.concepts.(terms.Store)
 	if !ok {
 		return nil, errors.New("knowledge: concept store does not support stream shadows (need terms.Store)")
-	}
-	return s, nil
-}
-
-// streamStore returns the content StreamStore slice the pilot lifecycle binds
-// voice profiles through, reached via the engine's BlockSource (the real
-// ContentStore is both).
-func (e *Engine) streamStore() (StreamBindingStore, error) {
-	s, ok := e.blocks.(StreamBindingStore)
-	if !ok {
-		return nil, errors.New("knowledge: block source does not provide stream binding (need a content StreamStore)")
 	}
 	return s, nil
 }

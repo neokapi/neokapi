@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"maps"
 	"math"
 	"net/http"
@@ -13,7 +12,7 @@ import (
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/bowrain/core/voicescope"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
 )
@@ -40,10 +39,6 @@ const defaultProfileSlug = "default"
 // unboundProfilePrefix marks a slug built from a voice profile id rather than a
 // coordinate point.
 const unboundProfilePrefix = "voice~"
-
-// maxPendingChangeSetsScanned bounds the op reads behind the pending-changes
-// badge.
-const maxPendingChangeSetsScanned = 100
 
 // maxProjectsScanned bounds the score reads behind the check-standing summary.
 const maxProjectsScanned = 100
@@ -102,10 +97,6 @@ type ContextProfile struct {
 	Channel     string                     `json:"channel,omitempty"`
 	Voice       *ContextProfileVoice       `json:"voice,omitempty"`
 	Collections []ContextProfileCollection `json:"collections"`
-	// PendingChanges counts change-sets in review that carry a voice rule for
-	// this profile's voice. Concept edits are workspace-wide and carry no
-	// point, so they are not counted here.
-	PendingChanges int `json:"pending_changes"`
 	// Checks is the standing of the stored voice checks that resolved through
 	// this profile's voice. Nil when nothing here has been checked.
 	Checks *ContextProfileChecks `json:"checks,omitempty"`
@@ -183,7 +174,7 @@ func (s *Server) HandleListContextProfiles(c echo.Context) error {
 		return serverErr(c, err)
 	}
 
-	voices := s.contextProfileVoices(ctx, wsID)
+	voices := s.contextProfileVoices(ctx, wsID, wsSlug)
 	points := newProfilePoints()
 	for _, p := range projects {
 		if p == nil || p.WorkspaceID != wsID || p.Archived {
@@ -200,7 +191,6 @@ func (s *Server) HandleListContextProfiles(c echo.Context) error {
 		ScanScope: "workspace",
 	}
 	resp.Profiles = append(resp.Profiles, unboundVoiceProfiles(voices, points.boundVoiceIDs)...)
-	s.countPendingVoiceChanges(ctx, wsID, resp.Profiles)
 	s.attachCheckStanding(ctx, projects, wsID, resp.Profiles)
 	s.attachCustody(ctx, wsID, projects, resp.Profiles)
 	return c.JSON(http.StatusOK, resp)
@@ -387,8 +377,9 @@ func cloneCoordinates(coords map[string]string) map[string]string {
 }
 
 // contextProfileVoices reads the workspace's voice profiles into the summary the
-// cards show, keyed by id.
-func (s *Server) contextProfileVoices(ctx context.Context, wsID string) map[string]*ContextProfileVoice {
+// cards show, keyed by id. The term counts are the workspace terms store's word
+// rules, which every voice in the workspace applies.
+func (s *Server) contextProfileVoices(ctx context.Context, wsID, wsSlug string) map[string]*ContextProfileVoice {
 	out := map[string]*ContextProfileVoice{}
 	if s.VoiceStore == nil || wsID == "" {
 		return out
@@ -397,6 +388,8 @@ func (s *Server) contextProfileVoices(ctx context.Context, wsID string) map[stri
 	if err != nil {
 		return out
 	}
+	rules, _ := s.workspaceWordRules(ctx, wsSlug, "")
+	preferred, forbidden, competitor := voicescope.WordRuleCounts(rules)
 	for _, p := range profiles {
 		if p == nil {
 			continue
@@ -407,9 +400,9 @@ func (s *Server) contextProfileVoices(ctx context.Context, wsID string) map[stri
 			Description:      p.Description,
 			Version:          p.Version,
 			UpdatedAt:        p.UpdatedAt,
-			PreferredTerms:   len(p.Vocabulary.PreferredTerms),
-			ForbiddenTerms:   len(p.Vocabulary.ForbiddenTerms),
-			CompetitorTerms:  len(p.Vocabulary.CompetitorTerms),
+			PreferredTerms:   preferred,
+			ForbiddenTerms:   forbidden,
+			CompetitorTerms:  competitor,
 			PatternRules:     coreprofile.PatternRuleCount(p),
 			LocaleOverrides:  len(p.Locales),
 			ChannelOverrides: len(p.Channels),
@@ -439,42 +432,6 @@ func unboundVoiceProfiles(voices map[string]*ContextProfileVoice, bound map[stri
 		return out[i].Slug < out[j].Slug
 	})
 	return out
-}
-
-// countPendingVoiceChanges fills PendingChanges from the change-sets in review,
-// matching a voice-rule op's profile_id to each profile's bound voice.
-func (s *Server) countPendingVoiceChanges(ctx context.Context, wsID string, profiles []ContextProfile) {
-	if s.KnowledgeStore == nil || wsID == "" {
-		return
-	}
-	sets, err := s.KnowledgeStore.ListChangeSets(ctx, wsID, knowledge.ChangeSetInReview)
-	if err != nil {
-		return
-	}
-	perVoice := map[string]int{}
-	for i, cs := range sets {
-		if cs == nil {
-			continue
-		}
-		// The ops are a second read per change-set, so the count is bounded.
-		// Past the cap the badge under-reports rather than turning a page into
-		// a fan-out; a review queue that deep has its own page.
-		if i >= maxPendingChangeSetsScanned {
-			break
-		}
-		ops, err := s.KnowledgeStore.ListOps(ctx, wsID, cs.ID)
-		if err != nil {
-			continue
-		}
-		for voiceID := range voiceProfileIDsInOps(ops) {
-			perVoice[voiceID]++
-		}
-	}
-	for i := range profiles {
-		if profiles[i].Voice != nil {
-			profiles[i].PendingChanges = perVoice[profiles[i].Voice.ID]
-		}
-	}
 }
 
 // attachCheckStanding fills Checks from the stored voice checks, grouped by the
@@ -544,30 +501,6 @@ func (s *Server) attachCheckStanding(
 		}
 		profiles[i].Checks = standing
 	}
-}
-
-// voiceProfileIDsInOps returns the voice profiles a change-set's ops touch. Only
-// the voice-rule ops carry one; concept and relation edits are workspace-wide.
-func voiceProfileIDsInOps(ops []*knowledge.ChangeSetOp) map[string]bool {
-	out := map[string]bool{}
-	for _, op := range ops {
-		if op == nil {
-			continue
-		}
-		switch op.Op {
-		case knowledge.OpVoiceRuleAdd, knowledge.OpVoiceRuleRemove:
-		default:
-			continue
-		}
-		var payload struct {
-			ProfileID string `json:"profile_id"`
-		}
-		if err := json.Unmarshal(op.Payload, &payload); err != nil || payload.ProfileID == "" {
-			continue
-		}
-		out[payload.ProfileID] = true
-	}
-	return out
 }
 
 // workspaceConceptCount reports how many concepts the workspace vocabulary

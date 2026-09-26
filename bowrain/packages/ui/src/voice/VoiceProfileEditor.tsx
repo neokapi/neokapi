@@ -16,15 +16,7 @@ import {
   TabsTrigger,
 } from "@neokapi/ui-primitives";
 import { useState, useCallback } from "react";
-import type {
-  VoiceProfile,
-  ToneProfile,
-  StyleRules,
-  VocabularyRules,
-  TermRule,
-  Pattern,
-  VoiceExample,
-} from "./types";
+import type { VoiceProfile, ToneProfile, StyleRules, Pattern, VoiceExample } from "./types";
 import { Plus, Trash2, ArrowLeft, X } from "../components/icons";
 import { DEFAULT_MIN_SCORE } from "./complianceBar";
 import { MIN_SCORE_HELP, minScoreFieldValue, parseMinScore } from "./minScore";
@@ -55,18 +47,11 @@ function defaultStyle(): StyleRules {
   };
 }
 
-function defaultVocabulary(): VocabularyRules {
-  return { preferred_terms: [], forbidden_terms: [], competitor_terms: [] };
-}
-
 export function VoiceProfileEditor({ profile, onSave, onCancel }: VoiceProfileEditorProps) {
   const [name, setName] = useState(profile?.name ?? "");
   const [description, setDescription] = useState(profile?.description ?? "");
   const [tone, setTone] = useState<ToneProfile>(profile?.tone ?? defaultTone());
   const [style, setStyle] = useState<StyleRules>(profile?.style ?? defaultStyle());
-  const [vocabulary, setVocabulary] = useState<VocabularyRules>(
-    profile?.vocabulary ?? defaultVocabulary(),
-  );
   const [examples, setExamples] = useState<VoiceExample[]>(profile?.examples ?? []);
   const [personalityInput, setPersonalityInput] = useState("");
   const [minScoreText, setMinScoreText] = useState(minScoreFieldValue(profile?.min_score));
@@ -76,8 +61,8 @@ export function VoiceProfileEditor({ profile, onSave, onCancel }: VoiceProfileEd
   const handleSubmit = useCallback(() => {
     const bar = parseMinScore(minScoreText);
     if (!bar.valid) return;
-    onSave({ name, description, tone, style, vocabulary, examples, min_score: bar.value });
-  }, [name, description, tone, style, vocabulary, examples, minScoreText, onSave]);
+    onSave({ name, description, tone, style, examples, min_score: bar.value });
+  }, [name, description, tone, style, examples, minScoreText, onSave]);
 
   const addPersonalityTag = useCallback(() => {
     const tag = personalityInput.trim().toLowerCase();
@@ -91,50 +76,10 @@ export function VoiceProfileEditor({ profile, onSave, onCancel }: VoiceProfileEd
     setTone((prev) => ({ ...prev, personality: prev.personality.filter((t) => t !== tag) }));
   }, []);
 
-  const addTermRule = useCallback(
-    (category: "preferred_terms" | "forbidden_terms" | "competitor_terms") => {
-      setVocabulary((prev) => ({
-        ...prev,
-        [category]: [...(prev[category] ?? []), { term: "", replacement: "", note: "" }],
-      }));
-    },
-    [],
-  );
-
-  const updateTermRule = useCallback(
-    (
-      category: "preferred_terms" | "forbidden_terms" | "competitor_terms",
-      index: number,
-      field: keyof TermRule,
-      value: string,
-    ) => {
-      setVocabulary((prev) => {
-        const list = [...(prev[category] ?? [])];
-        list[index] = { ...list[index], [field]: value };
-        return { ...prev, [category]: list };
-      });
-    },
-    [],
-  );
-
-  const removeTermRule = useCallback(
-    (category: "preferred_terms" | "forbidden_terms" | "competitor_terms", index: number) => {
-      setVocabulary((prev) => {
-        const list = [...(prev[category] ?? [])];
-        list.splice(index, 1);
-        return { ...prev, [category]: list };
-      });
-    },
-    [],
-  );
-
   const addPattern = useCallback((category: "prohibited_patterns" | "required_patterns") => {
     setStyle((prev) => ({
       ...prev,
-      [category]: [
-        ...(prev[category] ?? []),
-        { regex: "", description: "", severity: "minor" as const },
-      ],
+      [category]: [...(prev[category] ?? []), { regex: "", description: "" }],
     }));
   }, []);
 
@@ -143,7 +88,7 @@ export function VoiceProfileEditor({ profile, onSave, onCancel }: VoiceProfileEd
       category: "prohibited_patterns" | "required_patterns",
       index: number,
       field: keyof Pattern,
-      value: string,
+      value: string | boolean,
     ) => {
       setStyle((prev) => {
         const list = [...(prev[category] ?? [])];
@@ -233,7 +178,6 @@ export function VoiceProfileEditor({ profile, onSave, onCancel }: VoiceProfileEd
         <TabsList className="w-full grid grid-cols-4">
           <TabsTrigger value="tone">Tone</TabsTrigger>
           <TabsTrigger value="style">Style</TabsTrigger>
-          <TabsTrigger value="vocabulary">Vocabulary</TabsTrigger>
           <TabsTrigger value="examples">Examples</TabsTrigger>
         </TabsList>
 
@@ -439,18 +383,17 @@ export function VoiceProfileEditor({ profile, onSave, onCancel }: VoiceProfileEd
                     }
                   />
                   <Select
-                    value={pat.severity}
+                    value={pat.advisory ? "reports" : "fails"}
                     onValueChange={(v: string) =>
-                      updatePattern("prohibited_patterns", i, "severity", v)
+                      updatePattern("prohibited_patterns", i, "advisory", v === "reports")
                     }
                   >
                     <SelectTrigger className="w-28">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="minor">Minor</SelectItem>
-                      <SelectItem value="major">Major</SelectItem>
-                      <SelectItem value="critical">Critical</SelectItem>
+                      <SelectItem value="fails">Fails</SelectItem>
+                      <SelectItem value="reports">Reports</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button
@@ -490,18 +433,17 @@ export function VoiceProfileEditor({ profile, onSave, onCancel }: VoiceProfileEd
                     }
                   />
                   <Select
-                    value={pat.severity}
+                    value={pat.advisory ? "reports" : "fails"}
                     onValueChange={(v: string) =>
-                      updatePattern("required_patterns", i, "severity", v)
+                      updatePattern("required_patterns", i, "advisory", v === "reports")
                     }
                   >
                     <SelectTrigger className="w-28">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="minor">Minor</SelectItem>
-                      <SelectItem value="major">Major</SelectItem>
-                      <SelectItem value="critical">Critical</SelectItem>
+                      <SelectItem value="fails">Fails</SelectItem>
+                      <SelectItem value="reports">Reports</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button
@@ -514,61 +456,6 @@ export function VoiceProfileEditor({ profile, onSave, onCancel }: VoiceProfileEd
                 </div>
               ))}
             </div>
-          </Card>
-        </TabsContent>
-
-        {/* Vocabulary Tab */}
-        <TabsContent value="vocabulary">
-          <Card className="p-5 space-y-6">
-            {(["preferred_terms", "forbidden_terms", "competitor_terms"] as const).map(
-              (category) => (
-                <div key={category} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="capitalize">
-                      {category.replace("_terms", "").replace("_", " ")} Terms
-                    </Label>
-                    <Button variant="outline" size="sm" onClick={() => addTermRule(category)}>
-                      <Plus className="w-3.5 h-3.5 mr-1" /> Add
-                    </Button>
-                  </div>
-                  {(vocabulary[category] ?? []).length === 0 && (
-                    <p className="text-xs text-muted-foreground">No terms defined.</p>
-                  )}
-                  {(vocabulary[category] ?? []).map((rule, i) => (
-                    <div key={i} className="flex gap-2 items-start">
-                      <Input
-                        placeholder="Term"
-                        value={rule.term}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          updateTermRule(category, i, "term", e.target.value)
-                        }
-                      />
-                      <Input
-                        placeholder="Replacement"
-                        value={rule.replacement ?? ""}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          updateTermRule(category, i, "replacement", e.target.value)
-                        }
-                      />
-                      <Input
-                        placeholder="Note"
-                        value={rule.note ?? ""}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          updateTermRule(category, i, "note", e.target.value)
-                        }
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeTermRule(category, i)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ),
-            )}
           </Card>
         </TabsContent>
 

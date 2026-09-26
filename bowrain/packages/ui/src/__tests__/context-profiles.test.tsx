@@ -177,7 +177,7 @@ describe("ProfileDetailView", () => {
     onOpenChanges: vi.fn(),
   };
 
-  it("shows a point's coordinates, voice, content and pending changes", async () => {
+  it("shows a point's coordinates, voice and content", async () => {
     renderWithProviders(
       <ProfileDetailView slug="channel~docs.product~bowrain" {...handlers} />,
       adapterFor(populatedProfiles),
@@ -186,7 +186,6 @@ describe("ProfileDetailView", () => {
     await waitFor(() => expect(screen.getByText("Coordinates")).toBeInTheDocument());
     expect(screen.getByText("Bowrain docs voice")).toBeInTheDocument();
     expect(screen.getByText("bowrain-docs")).toBeInTheDocument();
-    expect(screen.getByText(/2 change-sets are in review/)).toBeInTheDocument();
     expect(screen.getByText(/\.kapi\/profiles\/docs-bowrain\//)).toBeInTheDocument();
   });
 

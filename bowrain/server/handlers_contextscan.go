@@ -477,10 +477,12 @@ func findConceptByTerm(ctx context.Context, tb terms.Store, term terms.Term) (st
 const conceptTermProbeLimit = 50
 
 // VoiceDraftCheckRequest is the request body for the stateless draft tester:
-// an (unsaved, possibly user-edited) draft profile plus sample text.
+// an (unsaved, possibly user-edited) draft profile plus sample text, and the
+// word rules the draft proposes beside the workspace's own.
 type VoiceDraftCheckRequest struct {
-	Profile *coreprofile.VoiceProfile `json:"profile"`
-	Text    string                    `json:"text"`
+	Profile   *coreprofile.VoiceProfile `json:"profile"`
+	Text      string                    `json:"text"`
+	TermRules []coreprofile.TermRule    `json:"term_rules,omitempty"`
 }
 
 // HandleCheckVoiceDraft scores sample text against an inline draft voice
@@ -504,10 +506,15 @@ func (s *Server) HandleCheckVoiceDraft(c echo.Context) error {
 	}
 
 	// Same deterministic gate as the stored-profile check: whole-word,
-	// Unicode-aware vocabulary matching plus prohibited style patterns, anchored
-	// to a single text run.
+	// Unicode-aware matching of the workspace's word rules and the draft's
+	// proposed ones, plus prohibited style patterns, anchored to a single text
+	// run.
 	runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
-	findings := coreprofile.Findings(req.Profile, req.Text, runs)
+	draft := req.Profile.Carry("draft", req.TermRules)
+	findings, err := s.voiceGateFindings(c.Request().Context(), c.Param("ws"), draft, "", req.Text, runs)
+	if err != nil {
+		return serverErr(c, err)
+	}
 	if findings == nil {
 		findings = []coreprofile.VoiceFinding{}
 	}

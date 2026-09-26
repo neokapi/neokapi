@@ -9,7 +9,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -21,9 +20,9 @@ import (
 //
 // Following "accept interfaces, return structs", the blast-radius engine depends
 // only on the narrow slices of the platform stores it actually calls. The real
-// PostgreSQL ContentStore, the framework terms, and the voice store satisfy
-// these directly (or via thin adapters); tests inject in-memory fakes and the
-// framework in-memory terms so the whole read side runs without a database.
+// PostgreSQL ContentStore and the framework terms store satisfy these directly
+// (or via thin adapters); tests inject in-memory fakes and the framework
+// in-memory terms so the whole read side runs without a database.
 // ---------------------------------------------------------------------------
 
 // BlockSource is the slice of the content store the engine walks to gather the
@@ -60,28 +59,14 @@ type ConceptStore interface {
 	RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]terms.ConceptRelation, error)
 }
 
-// ProfileStore is the slice of the voice store the engine reads (and the merge
-// path writes) for voice impact. coreprofile.Store satisfies it.
-type ProfileStore interface {
-	// GetProfile returns a voice profile by ID, or a nil profile with a nil
-	// error when it is absent (following the voice store's convention).
-	GetProfile(ctx context.Context, id string) (*coreprofile.VoiceProfile, error)
-	// ListProfiles returns the workspace's voice profiles.
-	ListProfiles(ctx context.Context, workspaceID string) ([]*coreprofile.VoiceProfile, error)
-	// UpdateProfile persists a profile (used by the merge path; the read side
-	// never calls it).
-	UpdateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error
-}
-
 // Compile-time proof that the production stores satisfy the engine's interfaces,
 // so the read side runs against the real platform without adapters: the bowrain
 // ContentStore is a BlockSource and a CollectionResolver, the framework terms
-// store is a ConceptStore, and the voice store is a ProfileStore.
+// store is a ConceptStore.
 var (
 	_ BlockSource        = (store.ContentStore)(nil)
 	_ CollectionResolver = (store.ContentStore)(nil)
 	_ ConceptStore       = (terms.Store)(nil)
-	_ ProfileStore       = (coreprofile.Store)(nil)
 )
 
 // Engine computes the read-side analytics of the brand knowledge graph: the
@@ -94,21 +79,19 @@ var (
 type Engine struct {
 	blocks   BlockSource
 	concepts ConceptStore
-	profiles ProfileStore
 	store    Store
 }
 
 // NewEngine constructs an Engine over the given store slices. store (the
 // governance Store) may be nil for read-only use.
-func NewEngine(blocks BlockSource, concepts ConceptStore, profiles ProfileStore, store Store) *Engine {
-	return &Engine{blocks: blocks, concepts: concepts, profiles: profiles, store: store}
+func NewEngine(blocks BlockSource, concepts ConceptStore, store Store) *Engine {
+	return &Engine{blocks: blocks, concepts: concepts, store: store}
 }
 
 // ---------------------------------------------------------------------------
 // Candidate builders
 //
-// A blast radius compares the live ("before") graph and voice profile against
-// the draft ("after") that the change-set's ops would produce. The builders
+// A blast radius compares the live ("before") graph against the draft ("after") that the change-set's ops would produce. The builders
 // below produce those "after" states purely in memory, without persisting
 // anything — exactly the property the preview needs (AD-021: "nothing is
 // persisted by the preview").
@@ -118,8 +101,7 @@ func NewEngine(blocks BlockSource, concepts ConceptStore, profiles ProfileStore,
 // concept, term, and relation ops in ops applied — the "after" snapshot a
 // change-set would produce. base is treated as read-only: it is deep-copied
 // first, so the returned terms is fully independent and base is never
-// mutated. Voice ops are ignored (they apply to a profile, not the terms store);
-// callers route them through ApplyVoiceOpsToProfile. Nothing is persisted.
+// mutated. Nothing is persisted.
 //
 // term.* ops set/replace/remove a term on its concept; term.status sets the
 // term's status (and optional validity); relation.add/remove adjust relations;
@@ -139,8 +121,7 @@ func ApplyOpsToTerms(ctx context.Context, base *terms.InMemoryStore, ops []Chang
 	return after, nil
 }
 
-// applyTermsOp applies a single concept/term/relation op to tb. Voice ops and
-// op types that do not touch the terms store are no-ops. tb is the minimal
+// applyTermsOp applies a single concept/term/relation op to tb. tb is the minimal
 // Terminology write surface (GetConcept/AddConcept/DeleteConcept/AddRelation/
 // DeleteRelation), so the same op-application logic drives both the in-memory
 // candidate snapshot (ApplyOpsToTerms) and the live workspace terms at
@@ -280,12 +261,8 @@ func applyTermsOp(ctx context.Context, tb terms.Terminology, op ChangeSetOp) err
 		}
 		return nil
 
-	case OpVoiceRuleAdd, OpVoiceRuleRemove:
-		// Voice ops apply to a profile, not the terms store.
-		return nil
-
 	default:
-		return fmt.Errorf("unknown op type: %q", op.Op)
+		return unknownOpError(op.Op)
 	}
 }
 
@@ -324,89 +301,6 @@ func copyTerms(list []terms.Term) []terms.Term {
 // candidate snapshot).
 func isNotFound(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "not found")
-}
-
-// ApplyVoiceOpsToProfile returns a candidate copy of baseline with the
-// voice.rule.add / voice.rule.remove ops that target it applied — the "after"
-// profile a change-set's voice ops would produce. baseline is deep-copied
-// (coreprofile.VoiceProfile.Clone), so it is never mutated. Ops whose ProfileID
-// does not match baseline.ID are ignored, so a caller may pass the full op list
-// and get back only the changes relevant to this profile. A nil baseline yields
-// nil.
-//
-// An add joins the rule to the named vocabulary list (preferred|forbidden|
-// competitor), idempotently by term (case-insensitive) like
-// coreprofile.ApplySuggestedRule; a remove drops the rule from that list by term.
-func ApplyVoiceOpsToProfile(baseline *coreprofile.VoiceProfile, ops []ChangeSetOp) *coreprofile.VoiceProfile {
-	if baseline == nil {
-		return nil
-	}
-	cand := baseline.Clone()
-	for _, op := range ops {
-		switch op.Op {
-		case OpVoiceRuleAdd:
-			var p VoiceRuleAddPayload
-			if decodePayload(op, &p) != nil || p.ProfileID != baseline.ID {
-				continue
-			}
-			addRuleToList(cand, p.List, p.Rule)
-		case OpVoiceRuleRemove:
-			var p VoiceRuleRemovePayload
-			if decodePayload(op, &p) != nil || p.ProfileID != baseline.ID {
-				continue
-			}
-			removeRuleFromList(cand, p.List, p.Term)
-		}
-	}
-	return cand
-}
-
-// listFor returns a pointer to the vocabulary list a voice rule belongs to.
-func listFor(p *coreprofile.VoiceProfile, list VoiceRuleList) *[]coreprofile.TermRule {
-	switch list {
-	case VoiceListPreferred:
-		return &p.Vocabulary.PreferredTerms
-	case VoiceListForbidden:
-		return &p.Vocabulary.ForbiddenTerms
-	case VoiceListCompetitor:
-		return &p.Vocabulary.CompetitorTerms
-	default:
-		return nil
-	}
-}
-
-// addRuleToList appends rule to the named list, idempotently by term: an
-// existing rule with the same term (case-insensitive) is updated in place rather
-// than duplicated.
-func addRuleToList(p *coreprofile.VoiceProfile, list VoiceRuleList, rule coreprofile.TermRule) {
-	lp := listFor(p, list)
-	if lp == nil || strings.TrimSpace(rule.Term) == "" {
-		return
-	}
-	for i := range *lp {
-		if strings.EqualFold((*lp)[i].Term, rule.Term) {
-			(*lp)[i] = rule
-			return
-		}
-	}
-	*lp = append(*lp, rule)
-}
-
-// removeRuleFromList drops the rule identified by term (case-insensitive) from
-// the named list.
-func removeRuleFromList(p *coreprofile.VoiceProfile, list VoiceRuleList, term string) {
-	lp := listFor(p, list)
-	if lp == nil || strings.TrimSpace(term) == "" {
-		return
-	}
-	kept := (*lp)[:0]
-	for _, r := range *lp {
-		if strings.EqualFold(r.Term, term) {
-			continue
-		}
-		kept = append(kept, r)
-	}
-	*lp = kept
 }
 
 // ---------------------------------------------------------------------------

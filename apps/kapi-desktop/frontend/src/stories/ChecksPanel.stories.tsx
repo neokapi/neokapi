@@ -20,14 +20,7 @@ const PASSING_WITH_WARNINGS: CheckRunResult = {
       message:
         'unknown key "vocab" (line 9) is ignored when the profile loads; check its spelling and the section it sits under',
       source: ".kapi/voice.yaml",
-      key: "channels.docs.vocab",
-    },
-    {
-      code: "voice.preferred_term_dropped",
-      message:
-        'channel "docs" prefers "utilize", but a forbidden, competitor or preferred rule for that term already applies, so resolution drops this preferred term. To change the wording everywhere, edit the profile\'s own rule.',
-      source: ".kapi/voice.yaml",
-      key: "channels.docs.vocabulary.preferred_terms[0]",
+      key: "channels.docs.vocabulary",
     },
   ],
 };

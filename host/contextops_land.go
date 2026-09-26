@@ -194,6 +194,8 @@ func (s *contextOpsSession) assetEntries(r contextop.Record) []changeEntry {
 				Replacement: rule.Replacement,
 				Locale:      s.sourceLocale(),
 				Status:      string(model.TermForbidden),
+				Advisory:    rule.Advisory,
+				Competitor:  rule.Competitor,
 			})
 		}
 		return out

@@ -273,6 +273,9 @@ type inferEvidenceResult struct {
 	Source     string  `json:"source"`
 }
 
+// InferredTermsFrom is where the word rules a draft voice carries come from.
+const InferredTermsFrom = "voice-infer"
+
 // mapInferResult maps the structured LLM result into the canonical
 // profile.VoiceProfile shape plus the DraftEvidence sidecar. Confidences are
 // clamped to [0,1]; empty terms, patterns, and examples are dropped.
@@ -293,11 +296,16 @@ func mapInferResult(res inferLLMResult, opts InferOptions) (*profile.VoiceProfil
 			PersonPOV:      res.Style.PersonPOV,
 			Contractions:   res.Style.Contractions,
 		},
-		Vocabulary: profile.VocabularyRules{
-			PreferredTerms:  mapInferTermRules(res.Vocabulary.Preferred),
-			ForbiddenTerms:  mapInferTermRules(res.Vocabulary.Forbidden),
-			CompetitorTerms: mapInferTermRules(res.Vocabulary.Competitor),
-		},
+	}
+	// The word rules the corpus shows are terms. The draft carries them beside
+	// the voice, and a voice file writes them under `terms:`; importing the
+	// file moves them into the project's terms.
+	if words, _ := profile.ConvertVocabularyLists(
+		mapInferTermRules(res.Vocabulary.Preferred),
+		mapInferTermRules(res.Vocabulary.Forbidden),
+		mapInferTermRules(res.Vocabulary.Competitor),
+	); len(words) > 0 {
+		draft.Carry(InferredTermsFrom, words)
 	}
 	for _, p := range res.Style.ProhibitedPatterns {
 		if strings.TrimSpace(p.Regex) == "" {

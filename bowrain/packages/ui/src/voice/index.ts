@@ -14,7 +14,6 @@ export { ToneSpectrumSelector } from "./ToneSpectrumSelector";
 export { PersonalityTagPicker } from "./PersonalityTagPicker";
 export { VoicePreview } from "./VoicePreview";
 export { PatternListEditor } from "./PatternListEditor";
-export { VocabularyEditor } from "./VocabularyEditor";
 export { ExamplesEditor } from "./ExamplesEditor";
 export { PersonasEditor } from "./PersonasEditor";
 export { CandidateRulesList } from "./CandidateRulesList";
@@ -37,7 +36,6 @@ export type {
   ToneProfile,
   StyleRules,
   Pattern,
-  VocabularyRules,
   TermRule,
   VoiceExample,
   LocaleOverride,

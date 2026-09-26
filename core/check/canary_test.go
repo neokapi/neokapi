@@ -188,7 +188,7 @@ func caughtRun(id string, status AnalyzerStatus) AnalyzerExecution {
 
 // TestDecide pairs each rule with the neighbour that must not trigger it.
 func TestDecide(t *testing.T) {
-	failing := []Diagnostic{{Rule: "voice.vocabulary", Fails: true}}
+	failing := []Diagnostic{{Rule: "terms.vocabulary", Fails: true}}
 	tests := []struct {
 		name      string
 		report    Report

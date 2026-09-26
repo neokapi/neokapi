@@ -39,7 +39,7 @@ func TestEvaluateChangeSet_BudgetExhaustedReportsPartial(t *testing.T) {
 	}
 	bs.addBlocks("proj1", "main", blocks...)
 
-	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	e := NewEngine(bs, tb, nil)
 	ops := []ChangeSetOp{
 		mustOp(t, 0, OpTermStatus, TermStatusPayload{ConceptID: "c1", Locale: "en-US", Text: "foobar", From: model.TermAdmitted, To: model.TermForbidden}),
 	}
@@ -79,7 +79,7 @@ func TestConceptUsage_BudgetExhaustedReportsPartial(t *testing.T) {
 	}
 	bs.addBlocks("proj1", "main", blocks...)
 
-	e := NewEngine(bs, tb, newFakeProfileStore(), nil)
+	e := NewEngine(bs, tb, nil)
 
 	usage, err := e.ConceptUsage(ctx, "ws", "c1", EvalOptions{Budget: time.Nanosecond})
 	require.NoError(t, err, "an exhausted budget is a partial answer, not a failure")
@@ -103,7 +103,7 @@ func TestConceptUsage_CancelledContextIsAnError(t *testing.T) {
 	bs.addProject(&store.Project{ID: "proj1", Name: "Docs", WorkspaceID: "ws"})
 	bs.addBlocks("proj1", "main", srcBlock("b1", "guide.md", "en-US", "Anything at all"))
 
-	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(), nil)
+	e := NewEngine(bs, terms.NewInMemoryStore(), nil)
 	cancel()
 
 	usage, err := e.ConceptUsage(ctx, "ws", "c1", EvalOptions{})
@@ -120,7 +120,7 @@ func TestEvaluateChangeSet_CancelledContextIsAnError(t *testing.T) {
 	bs.addProject(&store.Project{ID: "proj1", Name: "Docs", WorkspaceID: "ws"})
 	bs.addBlocks("proj1", "main", srcBlock("b1", "guide.md", "en-US", "Anything at all"))
 
-	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(), nil)
+	e := NewEngine(bs, terms.NewInMemoryStore(), nil)
 	cancel()
 
 	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, nil, EvalOptions{})
@@ -147,7 +147,7 @@ func TestEvaluateChangeSet_ResolvesEachCollectionOnce(t *testing.T) {
 	}
 	bs.addBlocks("proj1", "main", blocks...)
 
-	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(), nil)
+	e := NewEngine(bs, terms.NewInMemoryStore(), nil)
 	before := bs.itemLookups
 
 	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, nil, EvalOptions{})

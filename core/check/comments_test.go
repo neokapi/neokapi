@@ -109,26 +109,34 @@ func TestCommentSentenceFindings(t *testing.T) {
 	limits.Fails = true
 
 	t.Run("a wrapped sentence is graded by its words, with its exact place", func(t *testing.T) {
-		minor := words(51) + "."
-		major := canarySentence(71, 3)
-		text := "Short one. " + minor + "\n" + major + "\n\nFine."
+		over := words(51) + "."
+		wrapped := canarySentence(71, 3)
+		text := "Short one. " + over + "\n" + wrapped + "\n\nFine."
 		b := commentBlock("func/Parse", true, model.TextR(text))
 
 		got, err := CommentSentenceFindings(ctx, seg, b, limits, "en")
 		require.NoError(t, err)
 		require.Len(t, got, 2)
 
-		assert.False(t, got[0].Fails)
+		assert.True(t, got[0].Fails, "one word over the limit fails when the limits fail")
 		assert.Equal(t, "51", got[0].Metadata["words"])
 		assert.Equal(t, "50", got[0].Metadata["limit"])
-		assert.Equal(t, minor, runeSlice(text, got[0].Position.Start.Offset, got[0].Position.End.Offset))
+		assert.Equal(t, over, runeSlice(text, got[0].Position.Start.Offset, got[0].Position.End.Offset))
 
 		assert.True(t, got[1].Fails)
 		assert.Equal(t, "71", got[1].Metadata["words"])
-		assert.Equal(t, major, runeSlice(text, got[1].Position.Start.Offset, got[1].Position.End.Offset),
+		assert.Equal(t, wrapped, runeSlice(text, got[1].Position.Start.Offset, got[1].Position.End.Offset),
 			"the sentence runs across its line breaks")
-		assert.Equal(t, strings.ReplaceAll(major, "\n", " "), got[1].OriginalText)
+		assert.Equal(t, strings.ReplaceAll(wrapped, "\n", " "), got[1].OriginalText)
 		assert.Equal(t, CategorySentenceLength, got[1].Category)
+
+		limits := limits
+		limits.Fails = false
+		reported, err := CommentSentenceFindings(ctx, seg, b, limits, "en")
+		require.NoError(t, err)
+		require.Len(t, reported, 2)
+		assert.False(t, reported[0].Fails, "without fails: true a long sentence only reports")
+		assert.False(t, reported[1].Fails)
 	})
 
 	t.Run("must fail: a sentence break that ends a sentence at each line break misses the wrapped sentence", func(t *testing.T) {
@@ -280,7 +288,7 @@ func TestCommentCanaries(t *testing.T) {
 	missed, err := Probe(CommentSentenceCanaries(limits), "", lineByLine)
 	require.NoError(t, err)
 	assert.Equal(t, CanaryMissed, missed.Status, "a sentence break that ends a sentence at each line break misses the wrapped canary")
-	assert.Equal(t, "a sentence of 71 words wrapped over three lines", missed.Missed)
+	assert.Equal(t, "a sentence of 51 words wrapped over three lines", missed.Missed)
 
 	reportOnly := func(b *model.Block) ([]Finding, error) {
 		found, err := sentences(b)

@@ -29,7 +29,6 @@ const (
 	kindContent changeKind = "content"
 	kindTerm    changeKind = "term"
 	kindMemory  changeKind = "memory"
-	kindVoice   changeKind = "voice"
 	kindRecipe  changeKind = "recipe"
 	kindReview  changeKind = "review"
 	kindComment changeKind = "comment"
@@ -74,10 +73,14 @@ type changeEntry struct {
 	SourceLocale string `json:"source_locale,omitempty"`
 	TargetLocale string `json:"target_locale,omitempty"`
 
-	// brand
-	List        string `json:"list,omitempty"`
-	Replacement string `json:"replacement,omitempty" jsonschema:"replacement term for kind=voice; content entries use text"`
-	Advisory    bool   `json:"advisory,omitempty"`
+	// Replacement, for kind=term, is the wording to use instead of a
+	// discouraged term; content entries use text.
+	Replacement string `json:"replacement,omitempty" jsonschema:"for kind=term: the wording to use instead of a discouraged term; content entries use text"`
+	// Advisory, for a discouraged term, makes a use of it report without
+	// failing a check.
+	Advisory bool `json:"advisory,omitempty" jsonschema:"for kind=term with a discouraged status: a use reports without failing a check"`
+	// Competitor, for kind=term, records the term as a competitor's name.
+	Competitor bool `json:"competitor,omitempty" jsonschema:"for kind=term: the term is a competitor's name"`
 
 	// recipe
 	Path  string          `json:"path,omitempty"`
@@ -168,7 +171,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 			byFile[e.File] = append(byFile[e.File], e)
 		case kindComment:
 			comments = append(comments, e)
-		case kindTerm, kindMemory, kindVoice, kindRecipe:
+		case kindTerm, kindMemory, kindRecipe:
 			res := a.applyRecordedAssetEntry(ctx, cmd, e)
 			out.Assets = append(out.Assets, res)
 		case kindReview:
@@ -176,6 +179,8 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 			out.Assets = append(out.Assets, res)
 		case "":
 			return errors.New("apply: change-set entry has no \"kind\"")
+		case retiredVoiceKind:
+			return errRetiredVoiceKind
 		default:
 			return fmt.Errorf("apply: unknown change kind %q", e.Kind)
 		}
@@ -413,3 +418,10 @@ func printApplyReport(w io.Writer, out *applyOutput) {
 	}
 	printCommentResults(w, out.Comments)
 }
+
+// retiredVoiceKind is the change kind that added a word rule to a voice
+// profile. Word rules are terms, so such an entry is written as a term.
+const retiredVoiceKind changeKind = "voice"
+
+var errRetiredVoiceKind = errors.New(`apply: a "voice" entry added a word rule to a voice profile, and word rules are terms: ` +
+	`write it as {"kind": "term", "term": ..., "replacement": ..., "status": "forbidden"}, with "advisory": true or "competitor": true as needed`)

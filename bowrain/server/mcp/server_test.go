@@ -118,18 +118,6 @@ func testProfile() *coreprofile.VoiceProfile {
 			PersonPOV:      "second",
 			Contractions:   "sometimes",
 		},
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "synergy", Replacement: "collaboration", Advisory: true},
-				{Term: "leverage", Replacement: "use", Advisory: true},
-			},
-			CompetitorTerms: []coreprofile.TermRule{
-				{Term: "Acrolinx"},
-			},
-			PreferredTerms: []coreprofile.TermRule{
-				{Term: "platform", Note: "Use instead of 'tool'"},
-			},
-		},
 		Examples: []coreprofile.VoiceExample{
 			{
 				Before:      "We leverage synergies to drive outcomes.",

@@ -47,6 +47,9 @@ var (
 			// do_not_translate is added by a later migration (v5 SQLite / v7 PG):
 			// the concept's source term travels into every target unchanged.
 			{Name: "do_not_translate", SQLite: "INTEGER NOT NULL DEFAULT 0", PG: "BOOLEAN NOT NULL DEFAULT FALSE"},
+			// advisory is added by a later migration (v6 SQLite / v8 PG): the
+			// concept's rules report without failing a check.
+			{Name: "advisory", SQLite: "INTEGER NOT NULL DEFAULT 0", PG: "BOOLEAN NOT NULL DEFAULT FALSE"},
 		},
 		PGPK: []string{"id"},
 		Indexes: []sq.Index{
@@ -205,7 +208,7 @@ var pgTermsFuzzyBaselineBlock = strings.NewReplacer(
 // (concepts) and competitor/validity columns (terms) are added by later
 // migrations.
 func RenderTermsSQLiteV1() string {
-	conceptsOpt := sq.Opt{IfNotExists: true, Exclude: []string{"source", "do_not_translate"}}
+	conceptsOpt := sq.Opt{IfNotExists: true, Exclude: []string{"source", "do_not_translate", "advisory"}}
 	termsOpt := sq.Opt{IfNotExists: true, Exclude: []string{"competitor_term", "valid_from", "valid_to", "tags", "forms"}}
 	sections := []string{
 		tbConcepts.Create(sq.SQLite, conceptsOpt) + tbConcepts.CreateIndexes(sq.SQLite, conceptsOpt),
@@ -248,6 +251,12 @@ func RenderTermsSQLiteV5() string {
 	return "\n" + tbConcepts.AddColumn(sq.SQLite, sq.Opt{}, "do_not_translate") + "\t\t"
 }
 
+// RenderTermsSQLiteV6 renders the v6 SQLite migration: the advisory flag on
+// concepts.
+func RenderTermsSQLiteV6() string {
+	return "\n" + tbConcepts.AddColumn(sq.SQLite, sq.Opt{}, "advisory") + "\t\t"
+}
+
 // ── Postgres render (semantically identical to the historical migrations) ────
 
 // RenderTermsPostgresV1 renders the fresh v1 Postgres schema: concepts (no stream
@@ -255,7 +264,7 @@ func RenderTermsSQLiteV5() string {
 // indexes. Column order is canonicalized by the seam (partition key first);
 // order is cosmetic and the semantic-equivalence test is order-insensitive.
 func RenderTermsPostgresV1(tenantColumn string) string {
-	conceptsOpt := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true, Exclude: []string{"stream", "source", "do_not_translate"}}
+	conceptsOpt := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true, Exclude: []string{"stream", "source", "do_not_translate", "advisory"}}
 	termsOpt := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true, Exclude: []string{"competitor_term", "valid_from", "valid_to", "tags", "forms"}}
 	return tbConcepts.Create(sq.Postgres, conceptsOpt) +
 		tbTerms.Create(sq.Postgres, termsOpt) +
@@ -329,4 +338,11 @@ func RenderTermsPostgresV6() string {
 // database created from the baseline after the column was declared has it.
 func RenderTermsPostgresV7() string {
 	return tbConcepts.AddColumn(sq.Postgres, sq.Opt{IfNotExists: true}, "do_not_translate")
+}
+
+// RenderTermsPostgresV8 renders the v8 Postgres migration: the advisory flag
+// on concepts. Like version 7 it adds the column IF NOT EXISTS, because a
+// database created from the baseline after the column was declared has it.
+func RenderTermsPostgresV8() string {
+	return tbConcepts.AddColumn(sq.Postgres, sq.Opt{IfNotExists: true}, "advisory")
 }

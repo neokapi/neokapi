@@ -1,14 +1,13 @@
 ---
 sidebar_position: 8
 title: Voice profile
-description: "The voice profile: a YAML document describing tone, style, vocabulary and worked examples, how the recipe binds one, the pattern and term-rule fields, and the locale, channel and persona overrides."
+description: "The voice profile: a YAML document describing tone, style measures, pattern rules and worked examples, how the recipe binds one, the word rules a voice file may carry as terms, and the locale, channel and persona overrides."
 keywords:
   [
     voice profile,
     voice.yaml,
     tone,
     style,
-    vocabulary,
     term rules,
     prohibited patterns,
     personas,
@@ -19,9 +18,11 @@ keywords:
 # Voice profile
 
 A voice profile describes how a project's content should sound: its tone, its
-style rules, the vocabulary it prefers and forbids, and worked examples of the
-voice being got right and wrong. Voice checks score content against it, and
-generation steps are steered by it.
+style measures and pattern rules, and worked examples of the voice being got
+right and wrong. Voice checks score content against it, and generation steps
+are steered by it. Word rules ("write this, not that") are
+[terms](/reference/serialization/terms); a voice file may carry them beside the
+voice under `terms:` (see [Word rules](#term-rules)).
 
 It is the one serialization in this family that is **YAML rather than JSON**.
 
@@ -71,7 +72,6 @@ more than one is an error rather than a silent precedence.
 | `description` | string | Optional. |
 | `tone` | object | The tone profile (see [Tone](#tone)). |
 | `style` | object | Style rules, including the prohibited and required patterns (see [Style and patterns](#style-and-patterns)). |
-| `vocabulary` | object | Preferred, forbidden, and competitor terms, each a list of term rules (see [Vocabulary and term rules](#vocabulary-and-term-rules)). |
 | `examples` | array | Worked examples of the voice (see [Examples](#examples)). |
 | `locales` | map | Per-locale overrides, keyed by locale id (see [Overrides](#overrides)). |
 | `channels` | map | Per-channel overrides. |
@@ -81,6 +81,10 @@ more than one is an error rather than a silent precedence.
 | `version`, `version_note` | int, string | Profile revision and a note describing it. |
 | `created_at`, `updated_at`, `created_by` | timestamp, timestamp, string | Provenance. |
 | `workspace_id` | string | Set when the profile came from a workspace. |
+
+A voice file may also hold a top-level `terms:` list of word rules beside these
+fields (see [Word rules](#term-rules)). The list belongs to the file rather than
+to the profile, and importing the file moves it into the project's terms.
 
 ### Tone
 
@@ -154,14 +158,13 @@ comment is not a word.
 
 | Field | Type | Default | Notes |
 | --- | --- | --- | --- |
-| `sentence_words.minor` | int | 50 | A sentence over this many words is a finding that reports. |
-| `sentence_words.major` | int | 70 | A sentence over this many words is a finding, which fails when `fails` is set. Must be above `minor`. |
+| `sentence_words` | int | 50 | The most words a sentence may hold. A sentence over it is a finding. |
 | `comment_words` | int | 100 | The most words a comment that documents no declaration may hold. |
 | `doc_words` | int | 150 | The most words a declaration's doc comment may hold. |
 | `package_doc_words` | int | 300 | The most words the doc comment of a package or module may hold. |
 | `density.ratio` | number | 1 | The most comment lines a change may add for each code line it adds. |
 | `density.min_comment_lines` | int | 8 | How many comment lines a change adds before `density.ratio` applies. |
-| `fails` | bool | false | Makes a sentence over `sentence_words.major`, a comment over a length limit and a change over the density limit fail a check. Unset, the limits are style measures and every finding they raise reports. |
+| `fails` | bool | false | Makes a sentence over `sentence_words`, a comment over a length limit and a change over the density limit fail a check. Unset, the limits are style measures and every finding they raise reports. |
 
 A comment over a length limit is a finding, and so is a change over the
 density limit. Density is measured in a check scoped to a diff: it counts the
@@ -170,14 +173,14 @@ comment and nothing else and a code line one that holds anything outside a
 comment. The package or module doc comment, a directive and a blank line count
 as neither, so a new package's doc comment is never dense. A check over whole
 files reports density as unsupported. Each limit is a positive
-number: a profile with a zero or negative limit, or a minor sentence limit that
-is not below the major one, fails to load with an error naming the key.
+number: a profile with a zero or negative limit fails to load with an error
+naming the key, and so does a `sentence_words` written as a map.
 
 ```yaml
 style:
   sentence_length: short
   comments:
-    sentence_words: { minor: 50, major: 70 }
+    sentence_words: 50
     doc_words: 150
 ```
 
@@ -186,48 +189,56 @@ what a check enforces. A channel or persona that supplies its own `style` drops
 the profile's comment limits unless it restates them, and validation warns
 about it.
 
-### Vocabulary and term rules
+### Word rules {#term-rules}
+
+A voice profile holds no word list. Every word rule is a term, and a voice file
+may carry its rules beside the voice under a top-level `terms:` list, as the
+starter packs do. [`kapi context import`](/reference/commands/context-import)
+and `kapi voice import` move the list into the project's terms and report how
+many rules they moved. Where a starter pack is bound as the voice, its terms
+apply beside the project's own, and a finding they raise names the pack
+(`pack technical-docs`).
+
+A file that lists its words under `vocabulary:` (`preferred_terms`,
+`forbidden_terms`, `competitor_terms`) is converted as it is read: a forbidden
+term becomes a rule, a competitor term a rule with `competitor: true`, and a
+preferred term a preferred form, or an advisory rule when it names a different
+replacement. Abbreviations are dropped.
+
+Each entry under `terms:` is a **TermRule**. The same shape is what a flow step
+or `defaults.tools` accepts under `term_rules:` for `term-check`, `translate`,
+`recycle`, `dnt-check` and `pseudo-translate`, so a rule carried by a voice file
+and a rule handed to a tool read identically.
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `preferred_terms` | TermRule[] | The spelling to use; a rule's `replacement` is the preferred form and its `term` the one to avoid. |
-| `forbidden_terms` | TermRule[] | Words the voice never uses, with what to say instead. |
-| `competitor_terms` | TermRule[] | Names of other products, flagged wherever they appear. |
-| `abbreviations` | map | Abbreviation to expansion, for the guide. |
-
-#### Term rules
-
-Each entry in those three lists is a **TermRule**. The same shape is what a
-flow step or `defaults.tools` accepts under `term_rules:` for `term-check`,
-`translate`, `recycle`, `dnt-check` and `pseudo-translate`, so a rule authored
-in a profile and a rule handed to a tool read identically.
-
-| Field | Type | Notes |
-| --- | --- | --- |
-| `term` | string | The word or phrase the rule is about. Required. |
-| `replacement` | string | What to say instead. A rule with no replacement is skipped by the tools unless `do_not_translate` is set, because "say this instead" needs a this. |
+| `term` | string | The word or phrase to reject. A rule with a `replacement` and no `term` names a preferred form and rejects nothing. |
+| `replacement` | string | What to say instead. The translation tools skip a rule with no replacement unless `do_not_translate` is set, because "say this instead" needs a this; a check reads a bare term as "avoid this". |
 | `note` | string | Why, shown with the finding. Optional. |
-| `advisory` | bool | `true` makes a use of the term report without failing a check. Unset, a use fails, because rules resolved from a terms store carry no marking and must not be silently downgraded. |
-| `concept_id` | string | The concept in the terms store and the graph this rule denotes. Set when a rule is promoted from a concept-backed correction; empty for a standalone profile. |
+| `advisory` | bool | `true` makes a use of the term report without failing a check. Unset, a use fails. |
+| `competitor` | bool | `true` marks the term as a competitor's name. |
+| `concept_id` | string | The concept in the terms store and the graph this rule denotes. Empty for a rule written by hand. |
 | `do_not_translate` | bool | The term must survive verbatim into every target. Gives a bare term with no replacement its meaning. |
-| `forms` | string[] | The other surface shapes the term takes (inflections, declensions, conjugations), matched alongside `term`. Matching is exact, so the forms are declared rather than derived; `kapi voice expand` asks a model for them in the profile's language and writes them here as a diff. |
+| `forms` | string[] | The other surface shapes the term takes (inflections, declensions, conjugations), matched alongside `term`. Matching is exact, so the forms are declared rather than derived; `kapi terms expand` asks a model for them in the term's language and writes them onto the term for review. |
 | `case_sensitive` | bool | Whether the term and its forms match in their own casing. Unset, a rule whose `replacement` is capitalised matches case-sensitively, as a product name does (`term: QuickCast`, `replacement: Quickcast` flags `QuickCast` and leaves a lower-case URL slug `quickcast` alone), and so does a rule whose `term` differs from its `replacement` only in case (`term: Ripgrep`, `replacement: ripgrep`); any other rule matches regardless of case. `true` or `false` overrides the default. `term-check` compares a source term with a replacement in another language, so it matches in the term's own casing only when this is `true`. |
 | `replacement_forms` | string[] | Other forms of `replacement` in the language it is written in, such as the plural. `term-check` accepts a translation that contains any of them. |
 | `accepted` | object[] | Further wordings that satisfy the rule, each with `text` and optional `forms`: the admitted and approved terms a concept carries beside its preferred one. `replacement` stays the wording a translation is asked to use. |
 | `scope` | string | The same values a pattern's `scope` takes. Empty means everywhere. |
 
 ```yaml
-vocabulary:
-  forbidden_terms:
-    - term: utilize
-      replacement: use
-      advisory: true
-      forms: [utilizes, utilized, utilizing]
-      scope: prose
-  preferred_terms:
-    - term: log in
-      replacement: sign in
-      concept_id: c-sign-in
+terms:
+  - term: utilize
+    replacement: use
+    advisory: true
+    forms: [utilizes, utilized, utilizing]
+    scope: prose
+  - term: log in
+    replacement: sign in
+  - term: Acme Chat
+    replacement: messaging
+    competitor: true
+  - replacement: workspace
+    note: The name for a team's shared space
 ```
 
 ### Examples
@@ -256,7 +267,6 @@ A **locale override** (`locales.<locale>`) carries:
 | --- | --- | --- |
 | `formality`, `humor`, `person_pov` | string | Replace the base tone or style value for this language. |
 | `cultural_notes` | string | Guidance that holds for this language only. |
-| `vocabulary_overrides` | TermRule[] | Rules that hold for this language only. |
 | `example_overrides` | VoiceExample[] | Examples in this language. |
 
 A **channel override** (`channels.<channel>`) adjusts the voice on one channel.
@@ -266,15 +276,13 @@ entry.
 | Field | Type | Notes |
 | --- | --- | --- |
 | `tone`, `style` | object | Replace the resolved tone or style wholesale. |
-| `vocabulary` | object | Written like the profile's own `vocabulary`. Its forbidden and competitor terms are added to the resolved ones, and an abbreviation applies only where none is defined. A preferred term is dropped where an earlier rule already governs the term. |
 
 ```yaml
 channels:
   child:
-    vocabulary:
-      forbidden_terms:
-        - term: authenticate
-          replacement: sign in
+    tone:
+      formality: casual
+      humor: light
 ```
 
 A **persona override** (`personas.<name>`) layers an individual author's voice
@@ -283,23 +291,16 @@ inside the profile's guardrails:
 | Field | Type | Notes |
 | --- | --- | --- |
 | `tone`, `style` | object | Replace the resolved tone or style, as a channel override does. |
-| `preferred_terms` | TermRule[] | Terms the author leans on. A preferred term is dropped where an earlier rule already governs the term. |
-| `avoided_terms` | TermRule[] | Terms the author steers clear of; added to the forbidden set. |
 
 Resolution applies the locale override first, then the channel, then the
-persona. A channel and a persona can only tighten vocabulary. Every rule an
-earlier layer set keeps applying as written, so a later layer that restates a
-forbidden term as `advisory` leaves the earlier rule failing, and a later preferred
-term that names a term an earlier layer forbids, lists as a competitor, or
-already words its own way is dropped. The merge order enforces this, whoever
-wrote the override, and `kapi voice validate` warns about each preferred term
-it drops.
+persona. No override carries word rules: the terms bound at a point apply on
+every channel and to every persona.
 
 ### Autonomy
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `auto_promote_at_count` | int | Promote a candidate rule into the profile automatically once this many corrections stand behind it, with no human review. `0` (the default) keeps every promotion manual. |
+| `auto_promote_at_count` | int | Promote a candidate rule into the project's terms automatically once this many corrections stand behind it, with no human review. `0` (the default) keeps every promotion manual. |
 
 ### The compliance bar
 

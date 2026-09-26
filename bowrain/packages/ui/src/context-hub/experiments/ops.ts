@@ -1,5 +1,5 @@
 // Pure, presentation-free helpers for change-set operations (AD-021). Turning
-// the eleven op types into human-readable diff rows, classifying which ops are
+// the nine op types into human-readable diff rows, classifying which ops are
 // governed (so the UI can badge them), and grouping a draft's ops by the part
 // of the graph they touch. Kept free of React so it is unit-tested directly.
 import type {
@@ -15,8 +15,6 @@ import type {
   TermStatusPayload,
   RelationAddPayload,
   RelationRemovePayload,
-  VoiceRuleAddPayload,
-  VoiceRuleRemovePayload,
 } from "../../types/brand-graph";
 
 // ── Governed classification ──────────────────────────────────────────────────
@@ -53,8 +51,6 @@ export function isGovernedOp(op: ChangeSetOp): boolean {
       return p.concept?.do_not_translate === true;
     }
     case "concept.delete":
-    case "voice.rule.add":
-    case "voice.rule.remove":
       return true;
     default:
       return false;
@@ -64,7 +60,7 @@ export function isGovernedOp(op: ChangeSetOp): boolean {
 // ── Human-readable diff rows ─────────────────────────────────────────────────
 
 /** Which part of the graph an op touches — used to group a diff. */
-export type OpCategory = "term" | "voice" | "relation" | "concept";
+export type OpCategory = "term" | "relation" | "concept";
 
 /** Visual weight for a diff row: a removal/ban reads destructive, a promotion success. */
 export type OpTone = "default" | "destructive" | "success";
@@ -107,9 +103,6 @@ export function opCategory(op: OpType): OpCategory {
     case "relation.add":
     case "relation.remove":
       return "relation";
-    case "voice.rule.add":
-    case "voice.rule.remove":
-      return "voice";
     default:
       return "concept";
   }
@@ -231,26 +224,6 @@ export function opDiffRow(op: ChangeSetOp): OpDiffRow {
         tone: "destructive",
       };
     }
-    case "voice.rule.add": {
-      const p = op.payload as VoiceRuleAddPayload;
-      const tone: OpTone = p.list === "preferred" ? "success" : "destructive";
-      const arrow = p.rule.replacement ? ` → prefer ${q(p.rule.replacement)}` : "";
-      return {
-        ...base,
-        verb: `Add ${p.list} rule`,
-        summary: `Add ${p.list} rule ${q(p.rule.term)}${arrow}`,
-        tone,
-      };
-    }
-    case "voice.rule.remove": {
-      const p = op.payload as VoiceRuleRemovePayload;
-      return {
-        ...base,
-        verb: `Remove ${p.list} rule`,
-        summary: `Remove ${p.list} rule ${q(p.term)}`,
-        tone: "destructive",
-      };
-    }
     default:
       return { ...base, verb: op.op, summary: op.op, tone: "default" };
   }
@@ -263,11 +236,10 @@ export function opSummary(op: ChangeSetOp): string {
 
 // ── Grouping ─────────────────────────────────────────────────────────────────
 
-const CATEGORY_ORDER: OpCategory[] = ["term", "voice", "relation", "concept"];
+const CATEGORY_ORDER: OpCategory[] = ["term", "relation", "concept"];
 
 export const CATEGORY_LABEL: Record<OpCategory, string> = {
   term: "Terms",
-  voice: "Voice rules",
   relation: "Relations",
   concept: "Concepts",
 };

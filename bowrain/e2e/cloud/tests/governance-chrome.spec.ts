@@ -136,7 +136,6 @@ test.describe("Governance chrome", () => {
     expect(trial.raised[0].kind).toBe("term");
     expect(trial.raised[0].replacement).toBe(SUCCESSOR);
     expect(trial.terms_computed, "the terms half is applied for the report").toBe(true);
-    expect(trial.voice_bound, "a terms-only draft binds no candidate profile").toBeFalsy();
 
     // Binding a pilot must not change what the workspace's own checks see: the
     // shadow belongs to its stream. The trial on main reads the same after.

@@ -23,20 +23,18 @@ style:
   sentence_length: short
   person_pov: second
   contractions: never
-vocabulary:
-  preferred_terms:
-    - term: reading
-      note: One measurement taken from a meter, carrying the time it was taken.
-    - term: billing period
-      note: The window a reading is charged in. The console and the documentation both use it.
-    - term: Voltway
-      note: The company and the metering product. Capitalised, never translated.
-    - term: Helios
-      note: The partner the portal ships under. Capitalised, never translated.
-  forbidden_terms:
-    - term: seamless
-      replacement: unified
-      note: Says nothing a reader can check against a reading
+terms:
+  - term: seamless
+    replacement: unified
+    note: Says nothing a reader can check against a reading
+  - replacement: reading
+    note: One measurement taken from a meter, carrying the time it was taken.
+  - replacement: billing period
+    note: The window a reading is charged in. The console and the documentation both use it.
+  - replacement: Voltway
+    note: The company and the metering product. Capitalised, never translated.
+  - replacement: Helios
+    note: The partner the portal ships under. Capitalised, never translated.
 examples:
   - before: "Our seamless platform delivers billing you can trust."
     after: "Voltway stores every reading with the time it was taken, so a bill can be checked line by line."

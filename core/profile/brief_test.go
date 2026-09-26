@@ -9,24 +9,23 @@ import (
 // A field a profile leaves unset renders nothing, and a section with nothing
 // set renders no heading.
 func TestRenderVoiceGuideOmitsUnsetFields(t *testing.T) {
-	p := &VoiceProfile{
+	p := (&VoiceProfile{
 		Name:        "Fernwell",
 		Description: "Plain, for studio owners.",
 		Tone:        ToneProfile{Formality: "neutral"},
-		Vocabulary:  VocabularyRules{ForbiddenTerms: []TermRule{{Term: "seat", Replacement: "person"}}},
-	}
+	}).Carry("pack fernwell", []TermRule{{Term: "seat", Replacement: "person"}})
 	guide := RenderVoiceGuide(p)
 	assert.Contains(t, guide, "- Formality: neutral\n")
-	for _, empty := range []string{"Emotion:", "Humor:", "## Style Rules", "Sentence length:", "Point of view:", "Contractions:", "### Preferred Terms"} {
+	for _, empty := range []string{"Emotion:", "Humor:", "## Style Rules", "Sentence length:", "Point of view:", "Contractions:", "## Vocabulary"} {
 		assert.NotContains(t, guide, empty)
 	}
-	assert.Contains(t, guide, "### Forbidden Terms\n- ~~seat~~ → use **person**\n")
+	assert.Contains(t, guide, "## Terms (pack fernwell)\n- ~~seat~~ → use **person**\n")
 
 	assert.Equal(t, "# Voice Guide: Bare\n\n", RenderVoiceGuide(&VoiceProfile{Name: "Bare"}))
 }
 
 func TestRenderVoiceBrief(t *testing.T) {
-	p := &VoiceProfile{
+	p := (&VoiceProfile{
 		Name:        "Fernwell",
 		Description: "Plain, for studio owners who are not accountants",
 		Tone:        ToneProfile{Formality: "neutral"},
@@ -35,9 +34,8 @@ func TestRenderVoiceBrief(t *testing.T) {
 			PersonPOV:          "second",
 			ProhibitedPatterns: []Pattern{{Regex: `(?i)\b(?:endpoint|payload)\b`, Description: "implementation vocabulary"}},
 		},
-		Vocabulary: VocabularyRules{ForbiddenTerms: []TermRule{{Term: "seat", Replacement: "person"}}},
-		Examples:   []VoiceExample{{Before: "Utilize the seat", After: "Use the person"}},
-	}
+		Examples: []VoiceExample{{Before: "Utilize the seat", After: "Use the person"}},
+	}).Carry("test", []TermRule{{Term: "seat", Replacement: "person"}})
 	brief := RenderVoiceBrief(p)
 	assert.Equal(t,
 		"Voice: Fernwell. Plain, for studio owners who are not accountants. Neutral register, short sentences, second person (you).\n"+

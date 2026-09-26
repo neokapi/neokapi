@@ -43,25 +43,20 @@ export interface StyleRules {
 
 /** One term, what to use instead, and whether a use of it fails a check. */
 export interface TermRule {
-  term: string;
+  /** The wording to avoid. Empty for a preferred form, which rejects nothing. */
+  term?: string;
   replacement?: string;
   note?: string;
   /** A use reports without failing a check. */
   advisory?: boolean;
+  /** The term is a competitor's name. */
+  competitor?: boolean;
   /** Ties the rule to a concept in the terms store. */
   concept_id?: string;
   do_not_translate?: boolean;
   forms?: string[];
   case_sensitive?: boolean;
   scope?: string;
-}
-
-/** The wording constraints, grouped by what the group means. */
-export interface VocabularyRules {
-  preferred_terms?: TermRule[];
-  forbidden_terms?: TermRule[];
-  competitor_terms?: TermRule[];
-  abbreviations?: Record<string, string>;
 }
 
 /** A rewrite that shows the voice rather than describing it. */
@@ -78,23 +73,19 @@ export interface LocaleOverride {
   humor?: string;
   person_pov?: string;
   cultural_notes?: string;
-  vocabulary_overrides?: TermRule[];
   example_overrides?: VoiceExample[];
 }
 
-/** What changes on one channel. Its vocabulary only adds to the profile's. */
+/** What changes on one channel: a tone and style that replace the profile's. */
 export interface ChannelOverride {
   tone?: ToneProfile;
   style?: StyleRules;
-  vocabulary?: VocabularyRules;
 }
 
-/** What changes for one author voice, inside the profile's guardrails. */
+/** What changes for one author voice: a tone and style applied after a channel's. */
 export interface PersonaOverride {
   tone?: ToneProfile;
   style?: StyleRules;
-  preferred_terms?: TermRule[];
-  avoided_terms?: TermRule[];
 }
 
 /** How far a profile may promote its own suggested rules without review. */
@@ -134,7 +125,6 @@ export interface VoiceProfile {
   description?: string;
   tone?: ToneProfile;
   style?: StyleRules;
-  vocabulary?: VocabularyRules;
   examples?: VoiceExample[];
   locales?: Record<string, LocaleOverride>;
   channels?: Record<string, ChannelOverride>;

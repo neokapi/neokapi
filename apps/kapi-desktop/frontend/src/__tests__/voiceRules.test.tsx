@@ -64,13 +64,9 @@ describe("voice rule rows", () => {
     );
   });
 
-  it("groups every kind of rule under one list, say-this first", () => {
+  it("lists the voice's pattern rules", () => {
     const profile: VoiceProfile = {
       name: "Northsea",
-      vocabulary: {
-        preferred_terms: [{ term: "log in", replacement: "sign in" }],
-        forbidden_terms: [{ term: "bulletproof" }],
-      },
       style: {
         prohibited_patterns: [
           { regex: "\\bsynergy\\b", description: "Corporate filler.", advisory: true },
@@ -78,15 +74,12 @@ describe("voice rule rows", () => {
       },
     };
     render(<RulesBlock profile={profile} />);
-    expect(screen.getByText("Say this")).toBeInTheDocument();
-    expect(screen.getByText("Never say")).toBeInTheDocument();
     expect(screen.getByText("Never write")).toBeInTheDocument();
-    expect(screen.getAllByTestId("voice-term-rule")).toHaveLength(2);
     expect(screen.getAllByTestId("voice-pattern")).toHaveLength(1);
   });
 
-  it("says a profile constrains no wording when it holds no rules", () => {
+  it("says a profile declares no pattern rule when it holds none", () => {
     render(<RulesBlock profile={{ name: "Plain" }} />);
-    expect(screen.getByText("This profile constrains no wording.")).toBeInTheDocument();
+    expect(screen.getByText("This profile declares no pattern rule.")).toBeInTheDocument();
   });
 });

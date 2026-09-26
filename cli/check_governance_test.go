@@ -11,16 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// `kapi check` gates content against the vocabulary in force where that content
+// `kapi check` gates content against the voice in force where that content
 // sits. These tests drive the verb itself over a fixture project, so what they
 // assert is what a user sees: a file under a content item's own `channel:` is
-// checked against a different profile's terms than its neighbour, and a profile
-// whose validity window has closed stops supplying terms at all.
+// checked against a different profile's rules than its neighbour, and a profile
+// whose validity window has closed stops supplying rules at all.
 
 // governedCheckProject writes a project whose docs collection is governed by
 // `promo`, with its legal sub-tree routed to `legal` by a per-item channel. Each
-// profile forbids a different word, so which findings appear says which
-// vocabulary fired. window is inserted into the promo profile (e.g. a
+// profile prohibits a different word, so which findings appear says which
+// voice fired. window is inserted into the promo profile (e.g. a
 // `valid_to:` line) and may be empty.
 func governedCheckProject(t *testing.T, window string) (root, guide, legal string) {
 	t.Helper()
@@ -67,13 +67,13 @@ collections:
 		filepath.Join(root, "docs", "legal", "eula.json")
 }
 
-// forbidding renders a voice profile that forbids one term.
+// forbidding renders a voice profile whose pattern prohibits one word.
 func forbidding(name, id, term, replacement string) string {
 	return "id: " + id + "\nname: " + name + `
-vocabulary:
-  forbidden_terms:
-    - term: ` + term + `
-      replacement: ` + replacement + `
+style:
+  prohibited_patterns:
+    - regex: '(?i)\b` + term + `\b'
+      description: write ` + replacement + `, not ` + term + `
 `
 }
 
@@ -100,17 +100,17 @@ func TestCheck_ItemChannelOverrideSelectsTheGoverningVocabulary(t *testing.T) {
 	require.NoError(t, err)
 	guideMsgs := findingMessages(guideReport, "voice")
 	assert.Contains(t, joined(guideMsgs), "cheap", "the collection's channel governs the ordinary file: %v", guideMsgs)
-	assert.NotContains(t, joined(guideMsgs), "guarantee", "the other profile's terms must not fire here")
+	assert.NotContains(t, joined(guideMsgs), "guarantee", "the other profile's rules must not fire here")
 
 	legalReport, err := a.ComputeCheck(NewCheckCmd(a), []string{legal})
 	require.NoError(t, err)
 	legalMsgs := findingMessages(legalReport, "voice")
 	assert.Contains(t, joined(legalMsgs), "guarantee", "the item's own channel governs the file it matches: %v", legalMsgs)
-	assert.NotContains(t, joined(legalMsgs), "cheap", "the collection's terms must not reach the overridden file")
+	assert.NotContains(t, joined(legalMsgs), "cheap", "the collection's rules must not reach the overridden file")
 }
 
 // TestCheck_ExpiredProfileFallsThroughWithAVisibleNote covers both boundaries
-// and the control. A profile outside its window supplies no terms; the project
+// and the control. A profile outside its window supplies no rules; the project
 // default's fire instead, and the swap is reported on stderr.
 func TestCheck_ExpiredProfileFallsThroughWithAVisibleNote(t *testing.T) {
 	tests := []struct {
@@ -121,7 +121,7 @@ func TestCheck_ExpiredProfileFallsThroughWithAVisibleNote(t *testing.T) {
 		wantNote string
 	}{
 		{
-			name:     "after valid_to the profile supplies no terms",
+			name:     "after valid_to the profile supplies no rules",
 			window:   "    valid_to: 2020-01-01\n",
 			wantTerm: "utilize",
 			wantGone: "cheap",

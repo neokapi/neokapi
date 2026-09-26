@@ -10,29 +10,30 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // TestHandleCheckVoice_WholeWordAndConceptID proves the /check endpoint runs
 // through the shared whole-word matcher (so "use" never flags inside "user") and
-// propagates a concept-backed rule's concept_id and structured replacement —
-// closing the divergent substring path the endpoint used to take.
+// propagates the concept_id and structured replacement of the workspace
+// terms store's rule.
 func TestHandleCheckVoice_WholeWordAndConceptID(t *testing.T) {
 	srv := setupVoiceLoopServer(t)
 	e := srv.GetEcho()
 	ctx := context.Background()
 
-	profile := &coreprofile.VoiceProfile{
-		ID: "p-check", Scope: "ws-check", Name: "Check",
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "use", Replacement: "adopt", ConceptID: "c-use"},
-			},
-		},
-	}
+	profile := &coreprofile.VoiceProfile{ID: "p-check", Scope: "ws-check", Name: "Check"}
 	require.NoError(t, srv.VoiceStore.CreateProfile(ctx, profile))
+	tb, err := srv.wsStores.getTerms("check")
+	require.NoError(t, err)
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{ID: "c-use", Terms: []terms.Term{
+		{Text: "adopt", Locale: "en", Status: model.TermPreferred},
+		{Text: "use", Locale: "en", Status: model.TermForbidden},
+	}}))
 
 	check := func(text string) VoiceCheckResponse {
 		body := fmt.Sprintf(`{"text":%q}`, text)
@@ -40,8 +41,8 @@ func TestHandleCheckVoice_WholeWordAndConceptID(t *testing.T) {
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
-		c.SetParamNames("id")
-		c.SetParamValues(profile.ID)
+		c.SetParamNames("ws", "id")
+		c.SetParamValues("check", profile.ID)
 		// WorkspaceAccessMiddleware sets workspace_id in production; set it here so
 		// the handler's cross-tenant guard (profile.WorkspaceID must match the
 		// request workspace) resolves to the profile's own workspace.
@@ -66,23 +67,21 @@ func TestHandleCheckVoice_WholeWordAndConceptID(t *testing.T) {
 }
 
 // TestGetSuggestedRules_BackfillsConceptID proves correction-derived candidates
-// surface the knowledge-graph concept their term already denotes — from the live
-// profile's enforced vocabulary, and (durably, after a demote) from the recorded
-// rule decision — while a concept-less suggestion stays empty.
+// surface the knowledge-graph concept their term already denotes, from the
+// recorded rule decision (durably, after a demote too), while a concept-less
+// suggestion stays empty.
 func TestGetSuggestedRules_BackfillsConceptID(t *testing.T) {
 	srv := setupVoiceLoopServer(t)
 	ctx := context.Background()
 	const wsID = "ws-concept-backfill"
 
-	profile := &coreprofile.VoiceProfile{
-		ID: "p-backfill", Scope: wsID, Name: "Backfill",
-		Vocabulary: coreprofile.VocabularyRules{
-			ForbiddenTerms: []coreprofile.TermRule{
-				{Term: "utilize", Replacement: "use", ConceptID: "c-utilize"},
-			},
-		},
-	}
+	profile := &coreprofile.VoiceProfile{ID: "p-backfill", Scope: wsID, Name: "Backfill"}
 	require.NoError(t, srv.VoiceStore.CreateProfile(ctx, profile))
+	require.NoError(t, srv.VoiceStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
+		ProfileID: profile.ID, Term: "utilize", Replacement: "use",
+		Status: coreprofile.RuleDecisionPromoted, ConceptID: "c-utilize",
+		DecidedAt: time.Now().UTC(),
+	}))
 
 	// A concept-backed promotion that was later demoted keeps its concept on the
 	// durable decision even though the live profile no longer carries the term.
@@ -99,7 +98,7 @@ func TestGetSuggestedRules_BackfillsConceptID(t *testing.T) {
 		}))
 	}
 	for range 3 {
-		store("utilize", "use")    // concept on the live profile
+		store("utilize", "use")    // concept on the promotion's decision
 		store("legacy", "current") // concept only on the durable decision
 		store("plain", "simple")   // concept-less
 	}
@@ -113,7 +112,7 @@ func TestGetSuggestedRules_BackfillsConceptID(t *testing.T) {
 
 	require.NotNil(t, byTerm["utilize"])
 	assert.Equal(t, "c-utilize", byTerm["utilize"].ConceptID,
-		"a live forbidden term back-fills its concept")
+		"a promoted term back-fills its concept")
 	require.NotNil(t, byTerm["legacy"])
 	assert.Equal(t, "c-legacy", byTerm["legacy"].ConceptID,
 		"a demoted term's concept survives on the rule decision")

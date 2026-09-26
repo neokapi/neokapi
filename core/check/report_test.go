@@ -37,7 +37,7 @@ func TestDiagnosticFrom_ZeroPositionNoAnchor(t *testing.T) {
 func TestBuildReport_ReportingFindingsPass(t *testing.T) {
 	diags := []Diagnostic{
 		{Rule: "hygiene.double-spaces", Check: "hygiene", Location: Location{Block: "b1"}},
-		{Rule: "voice.vocabulary", Check: "voice", Suggested: true, Location: Location{Block: "b2"}},
+		{Rule: "terms.vocabulary", Check: "terms", Suggested: true, Location: Location{Block: "b2"}},
 	}
 	r := BuildReport(Target{Kind: "file", Blocks: 2}, diags)
 	assert.True(t, r.Pass, "findings that only report never fail a check")

@@ -23,7 +23,6 @@ type VoiceProfileRequest struct {
 	Description string                                        `json:"description,omitempty"`
 	Tone        coreprofile.ToneProfile                       `json:"tone"`
 	Style       coreprofile.StyleRules                        `json:"style"`
-	Vocabulary  coreprofile.VocabularyRules                   `json:"vocabulary"`
 	Examples    []coreprofile.VoiceExample                    `json:"examples"`
 	Locales     map[model.LocaleID]coreprofile.LocaleOverride `json:"locales,omitempty"`
 	Channels    map[string]coreprofile.ChannelOverride        `json:"channels,omitempty"`
@@ -122,7 +121,6 @@ func (s *Server) HandleCreateVoiceProfile(c echo.Context) error {
 		Description: req.Description,
 		Tone:        req.Tone,
 		Style:       req.Style,
-		Vocabulary:  req.Vocabulary,
 		Examples:    req.Examples,
 		Locales:     req.Locales,
 		Channels:    req.Channels,
@@ -152,12 +150,6 @@ func (s *Server) HandleCreateVoiceProfile(c echo.Context) error {
 //     UpdateProfile, which archives the current state as an immutable
 //     ProfileVersion before bumping the version — server-side edits are never
 //     lost, only superseded by a new, revertible version.
-//
-// Vocabulary rules the correction-learning loop promoted server-side (a
-// promoted RuleDecision still present in the live profile) are folded back
-// into the pushed vocabulary when the push does not carry the term, so a push
-// from a stale local profile never reverts a promotion; demoting a rule stays
-// a server-side, governed act.
 func (s *Server) HandleUpsertVoiceProfile(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageVoice); err != nil {
 		return err
@@ -220,9 +212,7 @@ type voiceProfileUpsert struct {
 // upsertVoiceProfile creates or updates the workspace profile matching req by
 // name, case-insensitively, and reports which it did. An update archives the
 // current state as an immutable version under versionNote before bumping;
-// identical content is a no-op. Server-promoted vocabulary rules the request
-// does not carry are folded back in, so an upsert from stale content never
-// reverts a promotion.
+// identical content is a no-op.
 //
 // The caller emits any audit event: the same upsert is reached from a push and
 // from a brand-scan approval, and those are not the same act.
@@ -247,7 +237,6 @@ func (s *Server) upsertVoiceProfile(ctx context.Context, wsID, userID string, re
 			Description: req.Description,
 			Tone:        req.Tone,
 			Style:       req.Style,
-			Vocabulary:  req.Vocabulary,
 			Examples:    req.Examples,
 			Locales:     req.Locales,
 			Channels:    req.Channels,
@@ -265,18 +254,10 @@ func (s *Server) upsertVoiceProfile(ctx context.Context, wsID, userID string, re
 		return voiceProfileUpsert{Profile: profile, Action: voiceUpsertCreated}, nil
 	}
 
-	// The effective incoming vocabulary keeps the server's promoted rules.
-	vocab := req.Vocabulary
-	s.preservePromotedRules(ctx, existing, &vocab)
-
-	incoming := voiceContentOf(voiceProfileContent{
-		Name: req.Name, Description: req.Description, Tone: req.Tone, Style: req.Style,
-		Vocabulary: vocab, Examples: req.Examples, Locales: req.Locales,
-		Channels: req.Channels, Personas: req.Personas, MinScore: req.MinScore,
-	})
+	incoming := voiceContentOf(voiceProfileContent(req))
 	current := voiceContentOf(voiceProfileContent{
 		Name: existing.Name, Description: existing.Description, Tone: existing.Tone, Style: existing.Style,
-		Vocabulary: existing.Vocabulary, Examples: existing.Examples, Locales: existing.Locales,
+		Examples: existing.Examples, Locales: existing.Locales,
 		Channels: existing.Channels, Personas: existing.Personas, MinScore: existing.MinScore,
 	})
 	if reflect.DeepEqual(incoming, current) {
@@ -288,7 +269,6 @@ func (s *Server) upsertVoiceProfile(ctx context.Context, wsID, userID string, re
 	existing.Description = req.Description
 	existing.Tone = req.Tone
 	existing.Style = req.Style
-	existing.Vocabulary = vocab
 	existing.Examples = req.Examples
 	existing.Locales = req.Locales
 	existing.Channels = req.Channels
@@ -314,7 +294,6 @@ type voiceProfileContent struct {
 	Description string
 	Tone        coreprofile.ToneProfile
 	Style       coreprofile.StyleRules
-	Vocabulary  coreprofile.VocabularyRules
 	Examples    []coreprofile.VoiceExample
 	Locales     map[model.LocaleID]coreprofile.LocaleOverride
 	Channels    map[string]coreprofile.ChannelOverride
@@ -326,7 +305,7 @@ type voiceProfileContent struct {
 // maps to nil so a YAML-decoded pushed profile (nil slices/maps) compares equal
 // to a stored one that round-tripped through the database.
 func voiceContentOf(c voiceProfileContent) voiceProfileContent {
-	tone, style, vocab := c.Tone, c.Style, c.Vocabulary
+	tone, style := c.Tone, c.Style
 	examples, locales, channels, personas := c.Examples, c.Locales, c.Channels, c.Personas
 	if len(tone.Personality) == 0 {
 		tone.Personality = nil
@@ -336,18 +315,6 @@ func voiceContentOf(c voiceProfileContent) voiceProfileContent {
 	}
 	if len(style.RequiredPatterns) == 0 {
 		style.RequiredPatterns = nil
-	}
-	if len(vocab.PreferredTerms) == 0 {
-		vocab.PreferredTerms = nil
-	}
-	if len(vocab.ForbiddenTerms) == 0 {
-		vocab.ForbiddenTerms = nil
-	}
-	if len(vocab.CompetitorTerms) == 0 {
-		vocab.CompetitorTerms = nil
-	}
-	if len(vocab.Abbreviations) == 0 {
-		vocab.Abbreviations = nil
 	}
 	if len(examples) == 0 {
 		examples = nil
@@ -363,46 +330,9 @@ func voiceContentOf(c voiceProfileContent) voiceProfileContent {
 	}
 	return voiceProfileContent{
 		Name: c.Name, Description: c.Description, Tone: tone, Style: style,
-		Vocabulary: vocab, Examples: examples, Locales: locales, Channels: channels, Personas: personas,
+		Examples: examples, Locales: locales, Channels: channels, Personas: personas,
 		MinScore: c.MinScore,
 	}
-}
-
-// preservePromotedRules folds the profile's promoted-rule decisions into the
-// pushed vocabulary so a push from a stale local profile never reverts what
-// the correction-learning loop promoted server-side. A rule is preserved when
-// its decision is promoted AND the live profile still carries it (a demoted
-// rule is gone from the live profile and stays gone) AND the pushed vocabulary
-// does not itself carry the term. Promotions land in ForbiddenTerms
-// (profile.ApplySuggestedRule), so only that list needs folding. Returns the
-// number of preserved rules.
-func (s *Server) preservePromotedRules(ctx context.Context, existing *coreprofile.VoiceProfile, vocab *coreprofile.VocabularyRules) int {
-	decisions, err := s.VoiceStore.ListRuleDecisions(ctx, existing.ID)
-	if err != nil || len(decisions) == 0 {
-		return 0
-	}
-	promoted := map[string]bool{}
-	for _, d := range decisions {
-		if d.Status == coreprofile.RuleDecisionPromoted {
-			promoted[strings.ToLower(d.Term)] = true
-		}
-	}
-	if len(promoted) == 0 {
-		return 0
-	}
-	pushed := map[string]bool{}
-	for _, r := range vocab.ForbiddenTerms {
-		pushed[strings.ToLower(r.Term)] = true
-	}
-	n := 0
-	for _, rule := range existing.Vocabulary.ForbiddenTerms {
-		key := strings.ToLower(rule.Term)
-		if promoted[key] && !pushed[key] {
-			vocab.ForbiddenTerms = append(vocab.ForbiddenTerms, rule)
-			n++
-		}
-	}
-	return n
 }
 
 // profileInRequestWorkspace reports whether the voice profile belongs to the
@@ -466,7 +396,6 @@ func (s *Server) HandleUpdateVoiceProfile(c echo.Context) error {
 	profile.Description = req.Description
 	profile.Tone = req.Tone
 	profile.Style = req.Style
-	profile.Vocabulary = req.Vocabulary
 	profile.Examples = req.Examples
 	profile.Locales = req.Locales
 	profile.Channels = req.Channels
@@ -537,17 +466,20 @@ func (s *Server) HandleCheckVoice(c echo.Context) error {
 		return apiErr(c, http.StatusNotFound, "voice profile not found")
 	}
 
-	// Run the profile's whole deterministic gate: whole-word, Unicode-aware
-	// vocabulary matching (so "use" never matches inside "user") with concept_id
-	// propagation, plus the prohibited style patterns (profile.Findings) —
-	// identical to the streaming pipeline tool and the MCP tool. A single text run
-	// anchors each finding's position to the checked text.
+	// Run the whole deterministic gate: whole-word, Unicode-aware matching of the
+	// workspace's word rules (so "use" never matches inside "user") with
+	// concept_id propagation, plus the profile's prohibited style patterns,
+	// identical to the MCP tool. A single text run anchors each finding's
+	// position to the checked text.
 	//
 	// The request carries a whole text rather than one block of one, so the
 	// document-scope rules apply too (profile.DocumentFindings): the required
 	// patterns this endpoint's own profile card counts as rules.
 	runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
-	findings := coreprofile.Findings(profile, req.Text, runs)
+	findings, err := s.voiceGateFindings(ctx, c.Param("ws"), profile, model.LocaleID(req.Locale), req.Text, runs)
+	if err != nil {
+		return serverErr(c, err)
+	}
 	findings = append(findings, coreprofile.DocumentFindings(profile, req.Text)...)
 	score := coreprofile.CalculateScore(findings)
 	score.ProfileID = profile.ID
@@ -605,7 +537,13 @@ func (s *Server) HandleCreateFromStarter(c echo.Context) error {
 	userID, _ := c.Get("user_id").(string)
 	now := time.Now().UTC()
 
-	profile := template
+	// The pack's word rules are terms: they land in the workspace terms store,
+	// and the stored profile holds the voice alone.
+	if _, err := s.landWordRules(c.Request().Context(), c.Param("ws"), wsID, template.CarriedTerms().Rules); err != nil {
+		return serverErr(c, err)
+	}
+
+	profile := template.VoiceOnly()
 	profile.ID = id.New()
 	profile.Scope = wsID
 	profile.Version = 1

@@ -152,7 +152,7 @@ func TestCheckHoldsCommentsToTheirLimits(t *testing.T) {
 		}
 		for block, w := range map[string]want{
 			"func/Parse":        {"comment.sentence-length", false, "Sentence has 55 words, over the limit of 50", g.sentences["func/Parse"]},
-			"func/Retry":        {"comment.sentence-length", false, "Sentence has 75 words, over the limit of 70", g.sentences["func/Retry"]},
+			"func/Retry":        {"comment.sentence-length", false, "Sentence has 75 words, over the limit of 50", g.sentences["func/Retry"]},
 			"func/Body/comment": {"comment.length", false, "Comment has 105 words, over the limit of 100", ""},
 		} {
 			require.Len(t, found[block], 1, block)
@@ -182,14 +182,14 @@ func TestCheckHoldsCommentsToTheirLimits(t *testing.T) {
 		assert.Equal(t, check.VerdictPassed, report.Verdict, "comment limits are style measures, so what they find reports")
 	})
 
-	t.Run("limits marked fails make a finding over the failing grade fail", func(t *testing.T) {
+	t.Run("limits marked fails make every finding over them fail", func(t *testing.T) {
 		root := commentLimitsProjectWith(t, true, g.src, "comments: {fails: true}")
 		cmd := executionCommand(t)
 		cmd.Flags().String(projectFlagName, filepath.Join(root, "kapi.yaml"), "")
 		report, err := (&App{SourceLang: "en"}).ComputeCheck(cmd, nil)
 		require.NoError(t, err)
 		assert.Equal(t, check.VerdictFailed, report.Verdict)
-		assert.Equal(t, 2, report.Summary.Failing)
+		assert.Equal(t, 3, report.Summary.Failing)
 	})
 
 	t.Run("must fail: comments held to a voice that sets no limits report nothing", func(t *testing.T) {
@@ -271,7 +271,7 @@ func TestShipGateHoldsCommentsToTheirLimits(t *testing.T) {
 			severities[f.Block] = f.Fails
 		}
 	}
-	assert.Equal(t, map[string]bool{"func/Parse": false, "func/Retry": true, "func/Body/comment": true}, severities,
-		"with limits marked fails, the ship gate fails over the upper grade and reports under it")
+	assert.Equal(t, map[string]bool{"func/Parse": true, "func/Retry": true, "func/Body/comment": true}, severities,
+		"with limits marked fails, the ship gate fails every comment over them")
 	assert.False(t, qa.Pass)
 }

@@ -43,7 +43,7 @@ func RenderVoiceBrief(p *VoiceProfile) string {
 		fmt.Fprintf(&b, "\nCode comments: sentences up to %d words; a comment up to %d words, a doc comment up to %d, "+
 			"a package doc comment up to %d; a change adding %d or more comment lines keeps to %s comment lines for each code line. "+
 			"Code spans, references and links are not counted.\n",
-			l.SentenceMinor, l.CommentWords, l.DocWords, l.PackageDocWords,
+			l.SentenceWords, l.CommentWords, l.DocWords, l.PackageDocWords,
 			l.DensityMinLines, strconv.FormatFloat(l.DensityRatio, 'f', -1, 64))
 	}
 	var pairs []string

@@ -141,8 +141,10 @@ Three artifacts, all plain files the user can review before anything binds:
 - **Terminology seed**: draft the term list as a table you can show the user:
   term, status (`preferred`, `admitted`, `deprecated`, `forbidden`, or
   `proposed`), replacement for retired terms, and known translations. It
-  materializes in step 4; competitor names and banned phrasing belong in
-  `voice.yaml`'s vocabulary lists instead (see [voice.md](voice.md)).
+  materializes in step 4. Competitor names and banned words are terms too:
+  list them under `terms:` in `voice.yaml` (`competitor: true` for a rival's
+  name), and importing the file moves them into the project's terms (see
+  [voice.md](voice.md)).
 
   In a project that already exists, record each rule you read out of the
   material as a suggestion instead, one call per rule, with the file it came
@@ -166,8 +168,7 @@ Three artifacts, all plain files the user can review before anything binds:
   Surfaces with genuinely different registers belong at different **points**: a
   named collection per surface, each bound to a `channel:` of the profile that
   governs it. One voice profile carries them all; a channel override bends tone
-  and style, and its `vocabulary:` can add rules for that channel on top of the
-  profile's.
+  and style. Terms apply on every channel.
 
 ## 3. Review with the user
 
@@ -179,8 +180,8 @@ kapi voice check README.md --profile-file voice.yaml --json   # score one of the
 ```
 
 Show the guide, the score and findings on their own text, and the term list.
-Get explicit sign-off on the forbidden/competitor lists and every
-`deprecated`/`forbidden` term, these will gate their builds. Fold feedback
+Get explicit sign-off on every forbidden and competitor term and every
+`deprecated` one, these will gate their builds. Fold feedback
 into `voice.yaml` and re-render until the user agrees. Never invent competitors
 or bans the user didn't confirm.
 
@@ -408,8 +409,8 @@ what the recipe declares. It reports and never adopts: a file appearing there
 is a candidate, not a decision. Expect true positives the user will decline (a
 README, a fixture, a vendored page); that is the report working.
 
-The bound voice profile is the register baseline, read the file itself for the
-exact vocabulary lists.
+The bound voice profile is the register baseline, and the project's terms are
+the word list: `kapi voice guide <file>` prints both for a file.
 
 ## 2. Draft the change-set
 
@@ -429,16 +430,17 @@ Two routes for the same two kinds, and the difference is who decides.
 the file it came from; a `kapi apply` change-set lands what the user has already
 approved, atomically. Reach for the first when you are reading material and
 suggesting what it implies, and for the second when the decisions are already
-made. Terms and voice rules go in one change-set file:
+made. Every word rule is a term, so they go in one change-set file:
 
 ```jsonl
 {"kind":"term","op":"upsert","term":"workspace","locale":"en","status":"preferred"}
 {"kind":"term","op":"upsert","term":"team space","locale":"en","status":"deprecated","replacement":"workspace"}
-{"kind":"voice","op":"add-rule","list":"competitor","term":"Globex","replacement":"our platform"}
+{"kind":"term","op":"upsert","term":"Globex","locale":"en","status":"forbidden","replacement":"our platform","competitor":true}
 ```
 
-These are the same `term` and `voice` entry kinds `kapi apply` always takes;
-shapes in [edit.md → mixed change-sets](edit.md) and [voice.md](voice.md). A
+These are the `term` entries `kapi apply` takes (`"advisory":true` makes a
+use report without failing); shapes in [edit.md → mixed change-sets](edit.md)
+and [voice.md](voice.md). A
 declared axis moves through the `recipe` kind, one axis per entry
 (`{"kind":"recipe","path":"defaults.coordinates.brand","value":"acme"}`); an
 empty `value` withdraws the axis, and `product` or `channel` are refused there

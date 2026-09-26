@@ -262,7 +262,7 @@ ranking and costs a check an accusation against text that broke no rule.
 
 So the axis is *when* the language knowledge is applied. A model has the
 morphology for every language, and asking it once, at authoring time, puts the
-answer in the profile where a person reads it in a diff. `kapi voice expand`
+answer on the term where a person reads it in a diff. `kapi terms expand`
 does that, and the check that consumes the result stays exact, free,
 deterministic and language-neutral. Norwegian goes from 0 of 5 to 5 of 5 and the
 English corpus holds at 13 of 13.

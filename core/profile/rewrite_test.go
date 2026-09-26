@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRewriteVocabulary(t *testing.T) {
+func TestRewriteTermRules(t *testing.T) {
 	tests := []struct {
 		name        string
 		profile     *VoiceProfile
@@ -128,7 +128,7 @@ func TestRewriteVocabulary(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := RewriteVocabulary(tt.profile, tt.text)
+			got := RewriteTermRules(CarriedRuleSets(tt.profile), tt.text)
 			assert.Equal(t, tt.wantText, got.Text)
 			assert.Equal(t, tt.wantChanges, got.Changes)
 			assert.Equal(t, tt.wantSkipped, got.Skipped)
@@ -148,10 +148,10 @@ func TestRewriteVocabulary_AgreesWithCheck(t *testing.T) {
 		[]TermRule{{Term: "Globex"}},
 	)
 	text := "Leverage Globex; utilize and keep utilizing. Leverage again."
-	hits := MatchVocabulary(p, text)
+	hits := MatchCarriedTerms(p, text)
 	require.NotEmpty(t, hits)
 
-	got := RewriteVocabulary(p, text)
+	got := RewriteTermRules(CarriedRuleSets(p), text)
 	total := 0
 	for _, c := range got.Changes {
 		total += c.Count
@@ -165,6 +165,6 @@ func TestRewriteVocabulary_AgreesWithCheck(t *testing.T) {
 	for _, s := range got.Skipped {
 		skippedTotal += s.Count
 	}
-	assert.Len(t, MatchVocabulary(p, got.Text), skippedTotal,
+	assert.Len(t, MatchCarriedTerms(p, got.Text), skippedTotal,
 		"what the check still finds in the rewritten text is exactly what was reported skipped")
 }

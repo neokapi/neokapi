@@ -35,15 +35,11 @@ const (
 	evalActorPerson = "person"
 )
 
-// evalFindingFails reports whether a check finding at this severity fails.
-// A rule's severity decides it: minor and neutral report, everything else
-// fails, and an unconfirmed suggestion reports at neutral.
-func evalFindingFails(severity string) bool {
-	switch strings.ToLower(strings.TrimSpace(severity)) {
-	case "minor", "neutral", "info":
-		return false
-	}
-	return true
+// evalFindingFails reports whether a check finding fails. The check report
+// says so on each finding: a rule fails unless it is advisory, and an
+// unconfirmed suggestion never fails.
+func evalFindingFails(finding EvalCheckFinding) bool {
+	return finding.Fails && !finding.Suggested
 }
 
 // evalLoadHeldRules puts every planted convention's rules in force in a cell,

@@ -11,15 +11,14 @@ import type { BowrainAPI, ChannelAliasProposal, SyncContextEntry } from "../help
 
 const PRODUCT = "acme";
 
-/** A voice carrying enough vocabulary that a card can count rules at the point. */
+/** A voice carrying enough pattern rules that a card can count rules at the point. */
 function voiceProfile(name: string): string {
   return Buffer.from(
     JSON.stringify({
       name,
       description: "How this point sounds.",
-      vocabulary: {
-        preferred_terms: [{ term: "sign in", replacement: "log in" }],
-        forbidden_terms: [{ term: "utilize", replacement: "use", severity: "major" }],
+      style: {
+        prohibited_patterns: [{ regex: "\\bplease\\b", description: "No politeness hedges" }],
       },
     }),
   ).toString("base64");

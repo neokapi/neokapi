@@ -188,7 +188,7 @@ collections:
 // TestVerify_ExplicitVoiceBoundPasses asserts that the voice gate passes (exit
 // 0) when a voice profile with a rule is bound over content that keeps it.
 func TestVerify_ExplicitVoiceBoundPasses(t *testing.T) {
-	t.Chdir(writeCleanVoiceProject(t, "name: Clean Voice\nvocabulary:\n  forbidden_terms:\n    - term: risk-free\n"))
+	t.Chdir(writeCleanVoiceProject(t, "name: Clean Voice\nstyle:\n  prohibited_patterns:\n    - regex: '(?i)\\brisk-free\\b'\n"))
 
 	out, runErr := runVerifyGates(t, map[string]string{"gate": gateVoice})
 
