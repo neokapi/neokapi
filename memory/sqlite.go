@@ -156,6 +156,11 @@ var memoryMigrations = []storage.Migration{
 		Description: "the durable block identity an entry's answer was approved for",
 		SQL:         schema.RenderMemorySQLiteV5(),
 	},
+	{
+		Version:     6,
+		Description: "a stable variant key shared as the rowid of its FTS5 index rows",
+		SQL:         schema.RenderMemorySQLiteV6(storage.FTSWordTokenizer),
+	},
 }
 
 // DB returns the underlying database for direct access.
@@ -286,8 +291,8 @@ func (tm *SQLiteStore) RebuildFuzzyIndex(ctx context.Context) error {
 		return fmt.Errorf("clear fuzzy index: %w", err)
 	}
 	if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_variant_trigram
-		(plain, struct_key, general_key, locale, entry_id)
-		SELECT plain, struct_key, general_key, locale, entry_id FROM tm_variants`); err != nil {
+		(rowid, plain, struct_key, general_key, locale, entry_id)
+		SELECT vid, plain, struct_key, general_key, locale, entry_id FROM tm_variants`); err != nil {
 		return fmt.Errorf("rebuild fuzzy index: %w", err)
 	}
 	tm.setFuzzyIndexState(fuzzyIndexReady)
@@ -306,8 +311,8 @@ func (tm *SQLiteStore) RebuildSearchIndex(ctx context.Context) error {
 		return fmt.Errorf("clear search index: %w", err)
 	}
 	if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_variant_search
-		(text, locale, entry_id)
-		SELECT plain, locale, entry_id FROM tm_variants`); err != nil {
+		(rowid, text, locale, entry_id)
+		SELECT vid, plain, locale, entry_id FROM tm_variants`); err != nil {
 		return fmt.Errorf("rebuild search index: %w", err)
 	}
 	return nil
@@ -590,10 +595,17 @@ func (s *bulkStmts) addEntry(ctx context.Context, entry *Entry, stream string) e
 // runs per locale, and every locale keys the same entry off the source content
 // hash — so clearing the whole variant set would leave an entry holding only
 // the locale written last.
-var variantLocaleDeletes = []struct{ what, sql string }{
-	{"variants", "DELETE FROM tm_variants WHERE entry_id = ? AND locale = ?"},
-	{"variant_search", "DELETE FROM tm_variant_search WHERE entry_id = ? AND locale = ?"},
-	{"variant_trigram", "DELETE FROM tm_variant_trigram WHERE entry_id = ? AND locale = ?"},
+//
+// The index rows go first, found by the variant's key: they share its vid as
+// their rowid, so each delete is a rowid lookup rather than a scan of an
+// UNINDEXED column.
+var variantLocaleDeletes = []struct {
+	what, sql string
+	index     bool
+}{
+	{"variant_search", "DELETE FROM tm_variant_search WHERE rowid = (SELECT vid FROM tm_variants WHERE entry_id = ? AND locale = ?)", true},
+	{"variant_trigram", "DELETE FROM tm_variant_trigram WHERE rowid = (SELECT vid FROM tm_variants WHERE entry_id = ? AND locale = ?)", true},
+	{"variants", "DELETE FROM tm_variants WHERE entry_id = ? AND locale = ?", false},
 }
 
 // addInTx performs the full upsert of an entry (header + variants +
@@ -663,9 +675,9 @@ func (tm *SQLiteStore) addInTx(ctx context.Context, tx *sql.Tx, entry Entry, str
 	// maintain the two FTS5 side-tables manually (they are not content=
 	// external FTS, so triggers aren't wired).
 	for locale := range entry.Variants {
-		for i, del := range variantLocaleDeletes {
-			if i > 0 && !indexed {
-				break
+		for _, del := range variantLocaleDeletes {
+			if del.index && !indexed {
+				continue
 			}
 			if _, err := tx.ExecContext(ctx, del.sql, entry.ID, string(locale)); err != nil {
 				return fmt.Errorf("delete %s %s: %w", del.what, locale, err)
@@ -685,21 +697,22 @@ func (tm *SQLiteStore) addInTx(ctx context.Context, tx *sql.Tx, entry Entry, str
 		structKey := NormalizeText(model.RunsStructuralText(runs))
 		generalKey := NormalizeText(model.RunsGeneralizedText(runs))
 
-		if _, err := tx.ExecContext(ctx, `INSERT INTO tm_variants
+		var vid int64
+		if err := tx.QueryRowContext(ctx, `INSERT INTO tm_variants
 			(entry_id, locale, coded, plain, struct_key, general_key)
-			VALUES (?, ?, ?, ?, ?, ?)`,
-			entry.ID, string(locale), string(coded), plain, structKey, generalKey); err != nil {
+			VALUES (?, ?, ?, ?, ?, ?) RETURNING vid`,
+			entry.ID, string(locale), string(coded), plain, structKey, generalKey).Scan(&vid); err != nil {
 			return fmt.Errorf("insert variant %s: %w", locale, err)
 		}
 		if !indexed {
 			continue
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO tm_variant_search (text, locale, entry_id)
-			VALUES (?, ?, ?)`, plain, string(locale), entry.ID); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO tm_variant_search (rowid, text, locale, entry_id)
+			VALUES (?, ?, ?, ?)`, vid, plain, string(locale), entry.ID); err != nil {
 			return fmt.Errorf("insert variant_search: %w", err)
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO tm_variant_trigram (plain, struct_key, general_key, locale, entry_id)
-			VALUES (?, ?, ?, ?, ?)`, plain, structKey, generalKey, string(locale), entry.ID); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO tm_variant_trigram (rowid, plain, struct_key, general_key, locale, entry_id)
+			VALUES (?, ?, ?, ?, ?, ?)`, vid, plain, structKey, generalKey, string(locale), entry.ID); err != nil {
 			return fmt.Errorf("insert variant_trigram: %w", err)
 		}
 	}
@@ -770,8 +783,8 @@ func (tm *SQLiteStore) Delete(ctx context.Context, id string) error {
 	// tm_entry_entity_values is removed before tm_entry_entities so the delete
 	// is correct even when its composite-FK cascade is disabled.
 	childTables := []struct{ name, sql string }{
-		{"variant_search", "DELETE FROM tm_variant_search WHERE entry_id = ?"},
-		{"variant_trigram", "DELETE FROM tm_variant_trigram WHERE entry_id = ?"},
+		{"variant_search", "DELETE FROM tm_variant_search WHERE rowid IN (SELECT vid FROM tm_variants WHERE entry_id = ?)"},
+		{"variant_trigram", "DELETE FROM tm_variant_trigram WHERE rowid IN (SELECT vid FROM tm_variants WHERE entry_id = ?)"},
 		{"variants", "DELETE FROM tm_variants WHERE entry_id = ?"},
 		{"entity values", "DELETE FROM tm_entry_entity_values WHERE entry_id = ?"},
 		{"entities", "DELETE FROM tm_entry_entities WHERE entry_id = ?"},

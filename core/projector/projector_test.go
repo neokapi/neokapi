@@ -157,6 +157,11 @@ func snapshot(t *testing.T, ws *workspace.Workspace, db *projectdb.DB) map[strin
 			require.NoError(t, rows.Scan(ptrs...))
 			var cells []string
 			for i, c := range cols {
+				// A variant's vid is a surrogate key for its index rows,
+				// numbered in the order a write visits its locales.
+				if table == "tm_variants" && c == "vid" {
+					continue
+				}
 				if (table == "voice_profiles" && c == "updated_at") || (table == "voice_profile_versions" && c == "created_at") {
 					continue
 				}
