@@ -405,16 +405,13 @@
             "short": "Establish suggestions as rules"
           },
           "locales": {
-            "example": "  kapi context locales\n  kapi context locales --json\n  kapi context locales --fix",
+            "example": "  kapi context locales\n  kapi context locales --json",
             "flags": {
-              "fix": {
-                "usage": "file the project's context rows under the spelling lookups ask in"
-              },
               "project": {
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               }
             },
-            "long": "Report the locale spelling every stored row carries, and whether it\nis the one lookups ask in.\n\nA row filed under a spelling nothing asks for is never matched. The term, the\napproved wording or the overlay it holds reads as absent, which looks exactly\nlike content nobody has worked on yet.\n\n--fix files the project's context rows under the spelling lookups ask in,\nwithout moving them out of the store. Terms, approved wording and voice\nprofiles exist there and nowhere else, so nothing is thrown away: a row whose\ncanonical spelling is free takes it, a row saying exactly what the canonical\nrow says folds into it, and a row whose canonical spelling already answers\ndifferently is left alone and reported, for you to say which answer is right.\n\nThe rows kapi read out of your own files are rebuilt rather than moved. The\nreport names the file to delete, and the next \"kapi up\" reads your files\nagain.",
+            "long": "Report the locale spelling every stored row carries, and whether it\nis the one lookups ask in.\n\nA row filed under a spelling nothing asks for is never matched. The term, the\napproved wording or the overlay it holds reads as absent, which looks exactly\nlike content nobody has worked on yet.\n\nkapi files every row under the spelling lookups ask in as it writes it. A\ncontext row under another spelling is written again canonically by \"kapi\ncontext rebuild\", which rewrites the project's stores from the operation log.\nThe rows kapi read out of your own files are rebuilt from the files: the report\nnames the file to delete, and the next \"kapi up\" reads your files again.",
             "short": "Report the locale each stored row is filed under"
           },
           "log": {
@@ -563,7 +560,7 @@
           },
           "short": "Ask what applies before you write a file",
           "widen": {
-            "example": "  kapi context widen 0n794e2gk7 --to workspace\n  kapi context widen 0n794e2gk7 --to mode",
+            "example": "  kapi context widen 0n794e2gk7 --to project\n  kapi context widen 0n794e2gk7 --to workspace\n  kapi context widen 0n794e2gk7 --to mode",
             "flags": {
               "note": {
                 "usage": "why"
@@ -572,10 +569,10 @@
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               },
               "to": {
-                "usage": "\"workspace\", or the name of an axis the rule should stop being specific about"
+                "usage": "\"project\", \"workspace\", or the name of an axis the rule should stop being specific about"
               }
             },
-            "long": "Widen an established rule past the point its evidence was seen at.\n\nA rule learned in one place holds in that place. Widening says it holds more\nwidely: \"--to workspace\" puts it in force in every project you work on here, and\nnaming an axis drops that axis from the rule's point so it stops being specific\nabout it.\n\nA project that has its own decision about the word keeps it. The more specific\nanswer always wins.",
+            "long": "Widen an established rule past the point its evidence was seen at.\n\nA rule learned in one place holds in that place. Widening says it holds more\nwidely: \"--to project\" puts a rule settled under one profile in force under\nevery profile of the project, \"--to workspace\" puts it in force in every\nproject you work on here, and naming an axis drops that axis from the rule's\npoint so it stops being specific about it.\n\nA project that has its own decision about the word keeps it. The more specific\nanswer always wins.",
             "short": "Put an established rule in force somewhere broader"
           },
           "withdraw": {
