@@ -1,10 +1,10 @@
 # Customer #1 dogfood — neokapi's own content, converged on bowrain.cloud.
 #
 # This is the workflow the product tells everyone else to write, run against the
-# repository that builds the product: install the CLI with setup-kapi, read the
-# committed context into the run's store, run the convergence verb with
-# kapi-action, carry the run's decisions home, and open a pull request with what
-# came back once the committed context explains it.
+# repository that builds the product: install the CLI with setup-kapi, pull the
+# project's context from its git ref, run the convergence verb with kapi-action,
+# push the decisions the run recorded back to the ref, and open a pull request
+# with the content that came back.
 # Nothing in it is bespoke: a step here that a customer could not copy is a step
 # the product is missing.
 #
@@ -104,21 +104,13 @@ jobs:
         run: make l10n-extract
 
       # The context this repository governs its content by lives in the
-      # workspace store, and a runner's store starts empty. This reads the
-      # committed export under `.kapi/` into it: the terms, the voice profiles,
-      # the wording already approved and the record of who approved it. Every
-      # gate and every retrieval below answers from the store, so a run without
-      # this step converges against a project that knows nothing.
-      #
-      # Reading those files puts them in force, which a person decides, so kapi
-      # refuses an agent's import. The marker says who is running here: the
-      # repository's own nightly, on its own checkout.
-      #
-      # A second run finds the store already holding what the files say.
-      - name: Read the committed context into this run's store
-        env:
-          KAPI_ACTOR: person
-        run: kapi context import
+      # workspace store, and a runner's store starts empty. The recipe keeps it
+      # on refs/kapi/context in this repository (`context: {backend: git}`), so
+      # the run pulls it from there: the terms, the voice profiles, the wording
+      # already approved and the record of who approved it. Every gate and
+      # every retrieval below answers from the store.
+      - name: Pull the project's context
+        run: kapi context pull
 
       # `kapi up` is the whole loop: the recipe declares the languages, the flow
       # and the ship gates, and the run pushes, converges on the server against
@@ -132,48 +124,20 @@ jobs:
           plan: ${{ inputs.plan || 'false' }}
 
       # The loop's return leg. `kapi up` pulls the server's ledger into the
-      # project's decision ledger, and `kapi context snapshot` writes what the
-      # store holds back out as files. Without it the run's target artifacts are
-      # wording no committed context explains, which is what the gate below
-      # refuses: the approvals reached the tree and nothing carried them home.
-      #
-      # Recording a decision and writing the record out stay separate acts, so
-      # `up` leaves this step to say what travels.
-      #
-      # A snapshot renders the whole store, and only the decision record travels
-      # back into this repository. The committed export keeps a hand-authored
-      # terms bundle and one content-memory bundle per surface, which a snapshot
-      # would replace with its own serialization and one aggregate bundle beside
-      # them. So the snapshot is written to RUNNER_TEMP and `state/` is the one
-      # directory copied in. It is also the one part of `.kapi/` that nobody
-      # edits by hand (see .kapi/README.md).
-      #
-      # The whole directory is replaced rather than merged, because the writer
-      # prunes the shards a deleted document left behind. A store holding no
-      # decisions at all writes no `state/`, and the committed record is left as
-      # it is: an erasure of every approval this repository carries would
-      # otherwise ride a run that read nothing.
-      - name: Write the decisions the run brought home
+      # project's decision ledger, and `kapi context push` writes the operations
+      # the run recorded to refs/kapi/context, where the next run and every
+      # checkout's `kapi context pull` read them. The job's `contents: write`
+      # covers the ref. A push that cannot reach the remote exits 5 and changes
+      # nothing, so the next run pushes what this one could not.
+      - name: Push the decisions the run brought home
         id: record
         if: ${{ !inputs.plan }}
         run: |
           set -euo pipefail
-          # RUNNER_TEMP, not the workspace: the gate below classifies everything
-          # the run left in the tree and refuses a file the loop does not own.
-          snapshot="$RUNNER_TEMP/kapi-context"
-          log="$RUNNER_TEMP/kapi-snapshot.log"
-          kapi context snapshot --out "$snapshot" | tee "$log"
-          if [ -d "$snapshot/state" ]; then
-            rm -rf .kapi/state
-            cp -R "$snapshot/state" .kapi/state
-          fi
-          decisions="$(sed -n 's/.*, \([0-9][0-9]*\) recorded decision.*/\1/p' "$log")"
-          if [ -n "$(git status --porcelain -- .kapi/state)" ]; then
-            note="\`kapi context snapshot\` wrote the ${decisions:-0} decision(s) this run holds into \`.kapi/state/\`."
-          else
-            note="\`kapi context snapshot\` read ${decisions:-0} decision(s); \`.kapi/state/\` already held them."
-          fi
-          echo "note=$note" >> "$GITHUB_OUTPUT"
+          log="$RUNNER_TEMP/kapi-push.log"
+          kapi context push | tee "$log"
+          pushed="$(sed -n 's/^Pushed \([0-9][0-9]*\) operation.*/\1/p' "$log")"
+          echo "note=\`kapi context push\` shared ${pushed:-0} context operation(s) on refs/kapi/context." >> "$GITHUB_OUTPUT"
 
       # The pipeline's third stage, the other thing kapi cannot do for itself. A
       # catalog is not what a product loads: the SPAs and the landing page load
@@ -283,4 +247,4 @@ jobs:
           # shellcheck disable=SC2086  # the derived set is a list of pathspecs
           ./scripts/auto-pr.sh bot/dogfood-sync \
             "chore(l10n): converged content from bowrain" -- \
-            .kapi ':(exclude).kapi/work' $derived
+            $derived

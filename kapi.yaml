@@ -62,12 +62,16 @@
 # extraction and catalog-compilation stages a recipe may not name itself
 # (AD-038). Adding a collection here needs no Makefile change — see
 # docs/internals/l10n-ci.md. The context graph this project is governed by —
-# voice profile, terms, reviewed content memory — is committed under .kapi/.
+# voice profile, terms, reviewed content memory — is shared on the
+# refs/kapi/context ref of this repository: `kapi context pull` reads it and
+# `kapi context push` shares what you recorded.
 version: v1
 # This project's stable identity. It survives a rename, a move and a clone,
 # and everything kapi records about the project is keyed on it. Keep it.
 id: prj_6x7ttpbbrhisq4m63uqjrm7uki
 name: neokapi
+context:
+  backend: git
 defaults:
   source_language: en
   target_languages: [nb]
