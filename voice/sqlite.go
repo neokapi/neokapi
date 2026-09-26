@@ -302,7 +302,16 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, id string) (*coreprofile.V
 	return &p, nil
 }
 
+// UpdateProfile replaces a profile, archiving the version it replaces, at the
+// current time.
 func (s *SQLiteStore) UpdateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
+	return s.UpdateProfileAt(ctx, profile, time.Now())
+}
+
+// UpdateProfileAt is UpdateProfile at a given instant: the profile's new
+// updated_at and the archived version's created_at are both at, so replaying
+// an edit writes the rows the edit wrote.
+func (s *SQLiteStore) UpdateProfileAt(ctx context.Context, profile *coreprofile.VoiceProfile, at time.Time) error {
 	// Archive the current state as an immutable ProfileVersion before applying the edit.
 	existing, err := s.GetProfile(ctx, profile.ID)
 	if err != nil {
@@ -315,7 +324,7 @@ func (s *SQLiteStore) UpdateProfile(ctx context.Context, profile *coreprofile.Vo
 		profile.Constraints = existing.Constraints
 	}
 	snapshotJSON, _ := json.Marshal(existing)
-	now := time.Now()
+	now := at
 	_, _ = s.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO voice_profile_versions (profile_id, version, snapshot, note, created_by, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?)`,

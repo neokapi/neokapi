@@ -41,6 +41,18 @@ func RegisterContextRemote(kind string, open RemoteOpener) {
 	remoteOpeners[kind] = open
 }
 
+// HasContextRemote reports whether this build can open a backend of the kind:
+// local, file and git always, any other kind once a package registered it.
+func HasContextRemote(kind string) bool {
+	switch kind {
+	case project.ContextBackendLocal, project.ContextBackendFile, project.ContextBackendGit:
+		return true
+	}
+	remoteOpenersMu.RLock()
+	defer remoteOpenersMu.RUnlock()
+	return remoteOpeners[kind] != nil
+}
+
 // ContextBackendInfo says which backend a project's context is shared
 // through, and where that choice was made.
 type ContextBackendInfo struct {

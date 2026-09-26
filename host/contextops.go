@@ -240,6 +240,10 @@ type ContextSessionRequest struct {
 // the workspace.
 const WidenToWorkspace = "workspace"
 
+// WidenToProject is the scope that puts a rule settled under one profile in
+// force under every profile of its project.
+const WidenToProject = "project"
+
 // ContextLogSessionSelf is the value ContextLogRequest.Session takes for the
 // session this run records under. An agent that reached kapi from a shell
 // learns its session from the environment rather than from a flag, so this is
@@ -574,7 +578,7 @@ func (s *contextOpsSession) keep(ctx context.Context, actor contextop.Actor, not
 		target.Subject = edited
 	}
 	if req.WidenTo != "" {
-		widened, werr := widenScope(target.Scope, req.WidenTo)
+		widened, werr := widenScope(target, req.WidenTo)
 		if werr != nil {
 			return ContextOperation{}, werr
 		}
@@ -627,9 +631,20 @@ func editSubject(subject contextop.Subject, replacement string, advisory *bool) 
 // widenScope moves a scope outward. "workspace" puts the rule in force in every
 // project; any other value names a coordinate axis the rule stops being
 // specific about.
-func widenScope(scope contextop.Scope, to string) (contextop.Scope, error) {
-	if to == WidenToWorkspace {
+func widenScope(target contextop.Record, to string) (contextop.Scope, error) {
+	scope := target.Scope
+	switch to {
+	case WidenToWorkspace:
 		scope.Level = contextop.LevelWorkspace
+		return scope, nil
+	case WidenToProject:
+		if scope.Level == contextop.LevelWorkspace {
+			return contextop.Scope{}, errors.New("this rule holds across the workspace, which includes the project")
+		}
+		if target.Basis.Profile == "" || scope.AllProfiles {
+			return contextop.Scope{}, errors.New("this rule already holds across the project: it was settled under no profile")
+		}
+		scope.AllProfiles = true
 		return scope, nil
 	}
 	if _, ok := scope.Coordinates[to]; !ok {
@@ -781,7 +796,7 @@ func (a *App) WidenContextOperation(ctx context.Context, req ContextWidenRequest
 	if target.Status != contextop.StatusEstablished {
 		return ContextOperation{}, fmt.Errorf("operation %s is %s; keep it before widening it", target.ID, target.Status)
 	}
-	widened, err := widenScope(target.Scope, req.To)
+	widened, err := widenScope(target, req.To)
 	if err != nil {
 		return ContextOperation{}, err
 	}

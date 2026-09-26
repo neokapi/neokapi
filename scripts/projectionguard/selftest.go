@@ -50,6 +50,12 @@ import (
 	"github.com/neokapi/neokapi/core/projector"
 )
 func sneak(db *projectdb.DB) *projector.Memory { return projector.StandaloneMemory(db.Memory()) }`},
+	{"a store's write reached through the projector's store, which leaves it to the store", 1, `package f
+import (
+	"context"
+	"github.com/neokapi/neokapi/core/projector"
+)
+func tag(ctx context.Context, p *projector.Projector) error { return p.Voice().DeleteProfileTag(ctx, "p", "t") }`},
 	{"reads and the projector's own stores", 0, `package f
 import (
 	"context"

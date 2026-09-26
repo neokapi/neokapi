@@ -110,3 +110,46 @@ func TestRuleScope_AProfileFileScopesWhatItCarries(t *testing.T) {
 	assert.Empty(t, terms.AtProfile(held, "acme"))
 	assert.Len(t, terms.AtProfile(held, "relaunch"), 1)
 }
+
+// TestRuleScope_WideningToTheProjectClearsTheProfile: a person widens a rule
+// settled under one profile to the whole project, and a check then fails on it
+// under every profile. Widening it again to the project is refused.
+func TestRuleScope_WideningToTheProjectClearsTheProfile(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := scopedProject(t, "ctxops-scope-widen")
+
+	observed, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
+		Actor: person, Project: recipeOf(root), Term: "use", InsteadOf: []string{"utilise"},
+		Evidence: []contextop.Evidence{{Path: "docs/a.md"}},
+	})
+	require.NoError(t, err)
+	_, err = app.KeepContextOperation(t.Context(), ContextKeepRequest{Actor: person, Project: recipeOf(root), ID: observed.ID})
+	require.NoError(t, err)
+
+	_, err = app.WidenContextOperation(t.Context(), ContextWidenRequest{
+		Actor: agentIn("s1"), Project: recipeOf(root), ID: observed.ID, To: WidenToProject,
+	})
+	require.ErrorIs(t, err, contextop.ErrRefused, "only a person widens a rule")
+
+	widened, err := app.WidenContextOperation(t.Context(), ContextWidenRequest{
+		Actor: person, Project: recipeOf(root), ID: observed.ID, To: WidenToProject,
+	})
+	require.NoError(t, err)
+	assert.True(t, widened.Scope.AllProfiles)
+	assert.NotEqual(t, contextop.LevelWorkspace, widened.Scope.Level)
+
+	report := checkWith(t, app, root)
+	failing := map[string]bool{}
+	for _, d := range vocabularyFindings(report) {
+		if d.Fails {
+			failing[filepath.Base(d.Location.File)] = true
+		}
+	}
+	assert.True(t, failing["a.md"])
+	assert.True(t, failing["b.md"], "the rule now holds under the other profile too")
+
+	_, err = app.WidenContextOperation(t.Context(), ContextWidenRequest{
+		Actor: person, Project: recipeOf(root), ID: observed.ID, To: WidenToProject,
+	})
+	require.Error(t, err, "a rule that holds across the project is not widened to it again")
+}

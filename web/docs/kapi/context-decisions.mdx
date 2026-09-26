@@ -229,6 +229,12 @@ seen, the established rule holds only where that profile governs. So do the word
 rules `kapi context import` reads in for one profile: they land in the terms
 store scoped to that profile.
 
+To apply a rule settled under one profile across the whole project:
+
+```bash
+kapi context widen 0n79tw5k9s --to project
+```
+
 To apply an established rule across the workspace:
 
 ```bash

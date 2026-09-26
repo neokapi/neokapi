@@ -303,6 +303,49 @@ func RenderMemorySQLiteV5() string {
 		memoryEntryOrigins.AddColumn(sq.SQLite, o, "context_fp") + "\t\t"
 }
 
+// RenderMemorySQLiteV6 renders the v6 SQLite migration: a stable integer key
+// on every variant, shared as the rowid of its two FTS5 index rows.
+//
+// The FTS5 tables keep entry_id and locale UNINDEXED, so clearing a variant's
+// index rows by those columns reads the whole index, and every write paid a
+// scan that grew with the corpus. Keyed by rowid, the same delete is one
+// b-tree lookup. The key is an INTEGER PRIMARY KEY, so it survives VACUUM,
+// and AUTOINCREMENT, so a key is never reused: an index row a bulk load left
+// behind can never collide with a later variant's.
+//
+// SQLite only, and written out rather than rendered from the descriptors: the
+// FTS blocks already are, and Postgres indexes tm_variants in place.
+func RenderMemorySQLiteV6(tokenizer string) string {
+	return `
+		CREATE TABLE tm_variants_v6 (
+			vid         INTEGER PRIMARY KEY AUTOINCREMENT,
+			entry_id    TEXT NOT NULL REFERENCES tm_entries(id) ON DELETE CASCADE,
+			locale      TEXT NOT NULL,
+			coded       TEXT NOT NULL,
+			plain       TEXT NOT NULL,
+			struct_key  TEXT NOT NULL,
+			general_key TEXT NOT NULL,
+			UNIQUE (entry_id, locale)
+		);
+		INSERT INTO tm_variants_v6 (entry_id, locale, coded, plain, struct_key, general_key)
+			SELECT entry_id, locale, coded, plain, struct_key, general_key FROM tm_variants;
+		DROP TABLE tm_variants;
+		ALTER TABLE tm_variants_v6 RENAME TO tm_variants;
+		CREATE INDEX idx_tm_var_locale      ON tm_variants(locale);
+		CREATE INDEX idx_tm_var_plain_loc   ON tm_variants(plain, locale);
+		CREATE INDEX idx_tm_var_struct_loc  ON tm_variants(struct_key, locale);
+		CREATE INDEX idx_tm_var_general_loc ON tm_variants(general_key, locale);
+
+		DROP TABLE tm_variant_search;
+		DROP TABLE tm_variant_trigram;
+` + ftsSearchBlock(tokenizer) + ftsTrigramBlock + `
+		INSERT INTO tm_variant_search (rowid, text, locale, entry_id)
+			SELECT vid, plain, locale, entry_id FROM tm_variants;
+		INSERT INTO tm_variant_trigram (rowid, plain, struct_key, general_key, locale, entry_id)
+			SELECT vid, plain, struct_key, general_key, locale, entry_id FROM tm_variants;
+		`
+}
+
 // RenderMemoryPostgresCreate renders the fresh-install Postgres content memory schema (the body
 // of historical migration v4, without the leading DROP statements): all tables
 // partitioned by the given tenant column plus the pg_trgm/tsvector fuzzy

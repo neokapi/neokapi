@@ -217,6 +217,12 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 		Advisory:       e.Advisory,
 		Competitor:     e.Competitor,
 	})
+	// A rule widened to the project holds under every profile, so the concept
+	// it joins stops being scoped to one.
+	if e.AllProfiles && target < held && concepts[target].Profile() != "" {
+		concepts[target].Unscope()
+		changed = true
+	}
 	if !changed {
 		res.Status = "skipped"
 		res.Detail = "already present"

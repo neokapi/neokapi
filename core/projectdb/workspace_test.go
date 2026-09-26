@@ -14,7 +14,6 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -193,79 +192,6 @@ func TestJoinRefusesAWrite(t *testing.T) {
 		return execErr
 	})
 	require.Error(t, err, "a join reads; a write through it is refused")
-}
-
-func TestAdoptionCarriesStagedDecisions(t *testing.T) {
-	base := t.TempDir()
-	ctx := t.Context()
-	root := checkout(t, base, "adopted")
-
-	// A project living in the embedded layout, with a decision staged and not
-	// yet committed to `.kapi/state/`.
-	embedded, err := projectdb.Open(ctx, project.LayoutAt(root))
-	require.NoError(t, err)
-	staged := state.UnitState{
-		Unit:        "u1",
-		Variant:     model.Variant("nb"),
-		Status:      model.TargetStatusReviewed,
-		Scope:       "docs/index.md",
-		TargetHash:  "t1_abc",
-		ContentHash: "k1_abc",
-	}
-	require.NoError(t, embedded.Work().Put(ctx, staged))
-	writeBlock(t, embedded, "docs", "k1_abc", "A decision was recorded against this wording.")
-	require.NoError(t, embedded.Terms().AddConcept(ctx, terms.Concept{
-		ID: "c1", Terms: []terms.Term{{Text: "content memory", Locale: "en", Status: model.TermPreferred}},
-	}))
-	require.NoError(t, embedded.Close())
-
-	// The same checkout, opened against a workspace for the first time.
-	ws, err := workspace.OpenLocal(ctx, filepath.Join(base, "workspaces", "default"))
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = ws.Close() })
-	adopted := openWorkspaceProject(t, ws, root, "prj_adopted")
-
-	carried, err := adopted.Work().Staged(ctx)
-	require.NoError(t, err)
-	require.Len(t, carried, 1, "the staged decision crossed into the context store")
-	assert.Equal(t, "u1", carried[0].Unit)
-	assert.Equal(t, "t1_abc", carried[0].TargetHash)
-
-	// The projection kept what it derived and lost what moved out.
-	hasBlocks, err := adopted.HasBlocks(ctx)
-	require.NoError(t, err)
-	assert.True(t, hasBlocks, "the block cache stays in the checkout")
-
-	var residue int
-	require.NoError(t, adopted.Projection().QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('unit_state', 'tb_concepts', 'tm_entries', 'voice_profiles')`,
-	).Scan(&residue))
-	assert.Zero(t, residue, "the context tables left the projection")
-
-	// Re-opening finds nothing to adopt and changes nothing.
-	require.NoError(t, adopted.Close())
-	again := openWorkspaceProject(t, ws, root, "prj_adopted")
-	stillStaged, err := again.Work().Staged(ctx)
-	require.NoError(t, err)
-	assert.Len(t, stillStaged, 1, "adoption runs once and is not repeated")
-}
-
-func TestAdoptionLeavesAProjectionWithNoContextTablesAlone(t *testing.T) {
-	base := t.TempDir()
-	ctx := t.Context()
-	ws, err := workspace.OpenLocal(ctx, filepath.Join(base, "workspaces", "default"))
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = ws.Close() })
-
-	db := openWorkspaceProject(t, ws, checkout(t, base, "fresh"), "prj_fresh")
-	writeBlock(t, db, "docs", "k1_fresh", "A project that never lived in the embedded layout.")
-
-	has, err := db.HasBlocks(ctx)
-	require.NoError(t, err)
-	assert.True(t, has)
-	staged, err := db.Work().Staged(ctx)
-	require.NoError(t, err)
-	assert.Empty(t, staged)
 }
 
 // writeBlock puts one block into a store's block cache, in its own session.

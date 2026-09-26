@@ -122,8 +122,7 @@ func writeMixedLog(t *testing.T, p *projector.Projector, n int) {
 }
 
 // snapshot renders every row of the projection tables, so two stores can be
-// compared. The voice store stamps an edit's time and the version it archives
-// from the clock, so those two columns are left out.
+// compared.
 func snapshot(t *testing.T, ws *workspace.Workspace, db *projectdb.DB) map[string][]string {
 	t.Helper()
 	ctx := t.Context()
@@ -157,9 +156,6 @@ func snapshot(t *testing.T, ws *workspace.Workspace, db *projectdb.DB) map[strin
 			require.NoError(t, rows.Scan(ptrs...))
 			var cells []string
 			for i, c := range cols {
-				if (table == "voice_profiles" && c == "updated_at") || (table == "voice_profile_versions" && c == "created_at") {
-					continue
-				}
 				cells = append(cells, fmt.Sprintf("%s=%v", c, vals[i]))
 			}
 			out[table] = append(out[table], strings.Join(cells, "|"))
@@ -183,6 +179,9 @@ func TestRebuildEqualsTheIncrementalState(t *testing.T) {
 	require.NotEmpty(t, before["tm_entries"])
 	require.Len(t, before["workspace_rules"], 1)
 
+	// The stores keep seconds: a rebuild in a later second shows any timestamp
+	// taken from the clock rather than from the operation.
+	time.Sleep(time.Until(time.Now().Truncate(time.Second).Add(time.Second)))
 	report, err := p.Rebuild(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, report.Failed)

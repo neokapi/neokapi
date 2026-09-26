@@ -1,0 +1,5 @@
+# The cloud suite is a workspace of its own, outside the repository's root pnpm
+# workspace: run.sh installs it here from this directory's pnpm-lock.yaml, and
+# CI runs run.sh. Without this file pnpm would find the root workspace above
+# and install that instead, leaving this lockfile unused.
+packages: []

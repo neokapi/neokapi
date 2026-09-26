@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"github.com/neokapi/neokapi/core/format"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,6 +11,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/mattn/go-isatty"
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/projectdb"
@@ -45,7 +46,7 @@ func (a *App) OpenMemorySQLite(cmd Command) (memory.Store, string, func(), error
 		if tm == nil {
 			return nil, projectLayoutAt(sel.Root).StorePath(), noop, fmt.Errorf("open content memory: %w", projectdb.ErrNoStore)
 		}
-		return tm, projectLayoutAt(sel.Root).StorePath(), noop, nil
+		return tm, a.contextStorePath(CmdContext(cmd), sel.Root), noop, nil
 	}
 	tm, err := memory.NewSQLiteStore(sel.Path)
 	if err != nil {
@@ -279,13 +280,17 @@ func (a *App) RebuildMemorySearchIndexes(ctx context.Context, tm memory.Store) {
 		return
 	}
 	ctx = ctxOrBackground(ctx)
-	if !a.Quiet {
+	// Progress for a person watching a terminal, and nothing else: a command
+	// whose output is read by a program (a pull, a --json import, a log) keeps
+	// its own lines. Failures are warned about whoever is reading.
+	progress := !a.Quiet && isatty.IsTerminal(os.Stderr.Fd())
+	if progress {
 		fmt.Fprintln(os.Stderr, "Rebuilding search index...")
 	}
 	if err := sq.RebuildSearchIndex(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: rebuild search index: %v\n", err)
 	}
-	if !a.Quiet {
+	if progress {
 		fmt.Fprintln(os.Stderr, "Rebuilding fuzzy index...")
 	}
 	if err := sq.RebuildFuzzyIndex(ctx); err != nil {

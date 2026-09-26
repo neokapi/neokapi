@@ -36,7 +36,7 @@ func (a *App) OpenTermsSQLite(cmd Command) (terms.Terminology, string, func(), e
 		if tb == nil {
 			return nil, projectLayoutAt(sel.Root).StorePath(), noop, fmt.Errorf("open terms: %w", projectdb.ErrNoStore)
 		}
-		return tb, projectLayoutAt(sel.Root).StorePath(), noop, nil
+		return tb, a.contextStorePath(CmdContext(cmd), sel.Root), noop, nil
 	}
 	tb, err := terms.NewSQLiteStore(sel.Path)
 	if err != nil {

@@ -88,6 +88,10 @@ func (s *step) stamp(at time.Time) {
 			s.PutSessions[i].ImportedAt = stamp
 		}
 	}
+	for _, p := range s.UpdateProfiles {
+		// An edit happens now, whatever time the profile it replaces carries.
+		p.UpdatedAt = at
+	}
 	for _, p := range s.CreateProfiles {
 		if p.CreatedAt.IsZero() {
 			p.CreatedAt = at
@@ -306,7 +310,7 @@ func (p *Projector) applyVoice(ctx context.Context, s step) error {
 	}
 	for _, prof := range s.UpdateProfiles {
 		copied := *prof
-		if err := store.UpdateProfile(ctx, &copied); err != nil {
+		if err := store.UpdateProfileAt(ctx, &copied, prof.UpdatedAt); err != nil {
 			return err
 		}
 	}

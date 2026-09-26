@@ -761,6 +761,22 @@ func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
+// pushStatus names where a push's jobs stand. A push with no jobs is its own
+// answer: the deployment runs no worker, or the job is not recorded yet, and
+// neither is a push whose work completed.
+func pushStatus(total, completed, failed, inProgress int) string {
+	switch {
+	case total == 0:
+		return "no_jobs"
+	case inProgress > 0:
+		return "in_progress"
+	case failed > 0 && completed == 0:
+		return "failed"
+	default:
+		return "completed"
+	}
+}
+
 // HandleSyncPushStatus returns the aggregated status of jobs triggered by a push.
 // GET /api/v1/projects/:id/sync/status?push_id=xxx
 func (s *Server) HandleSyncPushStatus(c echo.Context) error {
@@ -797,16 +813,9 @@ func (s *Server) HandleSyncPushStatus(c echo.Context) error {
 		}
 	}
 
-	status := "completed"
-	if inProgress > 0 {
-		status = "in_progress"
-	} else if failed > 0 && completed == 0 {
-		status = "failed"
-	}
-
 	resp := map[string]any{
 		"push_id":     pushID,
-		"status":      status,
+		"status":      pushStatus(total, completed, failed, inProgress),
 		"total":       total,
 		"completed":   completed,
 		"failed":      failed,

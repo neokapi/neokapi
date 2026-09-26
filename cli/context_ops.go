@@ -463,13 +463,15 @@ func newContextWidenCmd(a *App) *cobra.Command {
 		Long: `Widen an established rule past the point its evidence was seen at.
 
 A rule learned in one place holds in that place. Widening says it holds more
-widely: "--to workspace" puts it in force in every project you work on here, and
-naming an axis drops that axis from the rule's point so it stops being specific
-about it.
+widely: "--to project" puts a rule settled under one profile in force under
+every profile of the project, "--to workspace" puts it in force in every
+project you work on here, and naming an axis drops that axis from the rule's
+point so it stops being specific about it.
 
 A project that has its own decision about the word keeps it. The more specific
 answer always wins.`,
-		Example: "  kapi context widen 0n794e2gk7 --to workspace\n" +
+		Example: "  kapi context widen 0n794e2gk7 --to project\n" +
+			"  kapi context widen 0n794e2gk7 --to workspace\n" +
 			"  kapi context widen 0n794e2gk7 --to mode",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -479,7 +481,7 @@ answer always wins.`,
 			}
 			to, _ := cmd.Flags().GetString("to")
 			if to == "" {
-				return fmt.Errorf("widen needs --to: %q, or the name of an axis to widen past", host.WidenToWorkspace)
+				return fmt.Errorf("widen needs --to: %q, %q, or the name of an axis to widen past", host.WidenToProject, host.WidenToWorkspace)
 			}
 			note, _ := cmd.Flags().GetString("note")
 			res, err := a.WidenContextOperation(cmd.Context(), host.ContextWidenRequest{
@@ -494,7 +496,7 @@ answer always wins.`,
 			return output.Print(cmd, res)
 		},
 	}
-	cmd.Flags().String("to", "", "\"workspace\", or the name of an axis the rule should stop being specific about")
+	cmd.Flags().String("to", "", "\"project\", \"workspace\", or the name of an axis the rule should stop being specific about")
 	cmd.Flags().String("note", "", "why")
 	AddProjectFlag(cmd)
 	return cmd

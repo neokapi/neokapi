@@ -139,10 +139,10 @@ func TestContextPortability_TextFormIsTheResultsOwnRender(t *testing.T) {
 	assert.Equal(t, 1, concepts)
 }
 
-// TestContextLocales_ReportsAndFiles: the verb the drift warning names reports
-// the spellings the store's rows carry, and --fix files the authored ones the
-// way lookups ask.
-func TestContextLocales_ReportsAndFiles(t *testing.T) {
+// TestContextLocales_ReportsAndRebuilds: the verb the drift warning names
+// reports the spellings the store's rows carry, and a rebuild from the log
+// writes the context rows again canonically.
+func TestContextLocales_ReportsAndRebuilds(t *testing.T) {
 	root := writePortableCLIProject(t)
 	recipe := filepath.Join(root, "kapi.yaml")
 	a := &App{}
@@ -170,16 +170,14 @@ VALUES ('c-widget', 'dings', 'dings', 'NB-no', 'approved', '', '', '', 0, NULL, 
 			Canonical string `json:"canonical"`
 			Rows      int    `json:"rows"`
 		} `json:"drift"`
-		Rekeyed []struct{} `json:"rekeyed"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(out), &found))
 	require.Len(t, found.Drift, 1)
 	assert.Equal(t, "terms", found.Drift[0].Subsystem)
 	assert.Equal(t, "context", found.Drift[0].Pool)
 	assert.Equal(t, "nb-NO", found.Drift[0].Canonical)
-	assert.Empty(t, found.Rekeyed, "a report writes nothing on its own")
 
-	fixed := runContext(t, a, "locales", "-p", recipe, "--fix")
-	assert.Contains(t, fixed, `terms: 1 row(s) moved from "NB-no" to "nb-NO"`)
-	assert.Contains(t, fixed, "Every row is keyed by the locale its lookups ask for.")
+	runContext(t, a, "rebuild", "-p", recipe)
+	assert.Contains(t, runContext(t, a, "locales", "-p", recipe),
+		"Every row is keyed by the locale its lookups ask for.")
 }

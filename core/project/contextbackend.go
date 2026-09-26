@@ -21,6 +21,9 @@ const (
 	ContextBackendS3 = "s3"
 )
 
+// ContextBackendKinds lists every backend a recipe can declare.
+var ContextBackendKinds = []string{ContextBackendLocal, ContextBackendFile, ContextBackendGit, ContextBackendS3}
+
 // ContextBackend is where a project's context is shared: the `context:`
 // block of a recipe.
 //

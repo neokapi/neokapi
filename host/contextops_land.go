@@ -201,7 +201,7 @@ func (s *contextOpsSession) assetEntries(r contextop.Record) []changeEntry {
 	// A rule holds at the point its evidence was seen: a profile's point when
 	// a profile governed there. Widening past it is a person's act.
 	profile := r.Basis.Profile
-	if r.Scope.Level == contextop.LevelWorkspace {
+	if r.Scope.Level == contextop.LevelWorkspace || r.Scope.AllProfiles {
 		profile = ""
 	}
 	switch {
@@ -209,12 +209,13 @@ func (s *contextOpsSession) assetEntries(r contextop.Record) []changeEntry {
 		rule := *r.Subject.Term
 		if rule.Replacement == "" {
 			return []changeEntry{{
-				Kind:    kindTerm,
-				Op:      "upsert",
-				Term:    rule.Term,
-				Locale:  s.sourceLocale(),
-				Status:  string(model.TermPreferred),
-				Profile: profile,
+				Kind:        kindTerm,
+				Op:          "upsert",
+				Term:        rule.Term,
+				Locale:      s.sourceLocale(),
+				Status:      string(model.TermPreferred),
+				Profile:     profile,
+				AllProfiles: r.Scope.AllProfiles,
 			}}
 		}
 		forms := storedForms(rule)
@@ -230,6 +231,7 @@ func (s *contextOpsSession) assetEntries(r contextop.Record) []changeEntry {
 				Advisory:    rule.Advisory,
 				Competitor:  rule.Competitor,
 				Profile:     profile,
+				AllProfiles: r.Scope.AllProfiles,
 			})
 		}
 		return out
