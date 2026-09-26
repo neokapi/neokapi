@@ -420,8 +420,7 @@ func buildDigest(records []contextop.Record, key workspace.ProjectKey, since, no
 // on it, oldest first.
 func digestActs(records []contextop.Record, byID map[string]contextop.Record) map[string][]contextop.Record {
 	out := map[string][]contextop.Record{}
-	for i := len(records) - 1; i >= 0; i-- {
-		act := records[i]
+	for _, act := range slices.Backward(records) {
 		if act.Kind.Bears() || act.Target == "" {
 			continue
 		}
