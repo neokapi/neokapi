@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
-	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/yamledit"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -303,63 +301,4 @@ func saveVoiceBindings(ctx context.Context, db *projectdb.DB, bindings map[strin
 		return err
 	}
 	return nil
-}
-
-// boundVoiceProfile pairs a profile in the store with the project-relative path
-// it is authored at.
-type boundVoiceProfile struct {
-	// binding is the project-relative slash path the profile is written to.
-	binding string
-	profile *coreprofile.VoiceProfile
-}
-
-// storedVoiceProfiles lists every voice profile the project store holds,
-// each paired with the path it is authored at, in binding order.
-//
-// A profile with no recorded binding takes the conventional place for a profile
-// of its id, `.kapi/profiles/<id>/voice.yaml`, which is exactly where
-// governance looks for a profile that binds no file of its own. That is what
-// lets a store populated by a restore, rather than by a compile, still be
-// written back out somewhere a clean clone resolves it from.
-func storedVoiceProfiles(ctx context.Context, db *projectdb.DB) ([]boundVoiceProfile, error) {
-	store := projector.VoiceView(db)
-	if store == nil {
-		return nil, nil
-	}
-	return boundVoiceProfiles(ctx, store, loadVoiceBindings(ctx, db))
-}
-
-// boundVoiceProfiles is storedVoiceProfiles over a voice store and the bindings
-// recorded for it, for a caller that reaches the store without a project
-// handle: a whole-workspace export reads a project's context store out of the
-// workspace, where there is no checkout to record bindings in.
-func boundVoiceProfiles(ctx context.Context, store coreprofile.Store, bindings map[string]string) ([]boundVoiceProfile, error) {
-	if store == nil {
-		return nil, nil
-	}
-	profiles, err := store.ListProfiles(ctx, LocalScope)
-	if err != nil {
-		return nil, fmt.Errorf("list voice profiles: %w", err)
-	}
-	byID := make(map[string]string, len(bindings))
-	for rel, id := range bindings {
-		// A binding that lost its file still names where the profile belongs.
-		// Where two bindings claim one id the earlier path wins, so the answer
-		// does not depend on map order.
-		if prev, ok := byID[id]; !ok || rel < prev {
-			byID[id] = rel
-		}
-	}
-
-	out := make([]boundVoiceProfile, 0, len(profiles))
-	for _, p := range profiles {
-		binding, ok := byID[p.ID]
-		if !ok {
-			binding = filepath.ToSlash(project.RelStatePath(
-				project.ProfilesDirName, p.ID, VoiceConventionalName))
-		}
-		out = append(out, boundVoiceProfile{binding: binding, profile: p})
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].binding < out[j].binding })
-	return out, nil
 }

@@ -83,8 +83,9 @@ Deletion has different consequences for each location:
   in-flight batches before deleting it. Workspace context is unaffected.
 - **Deleting the workspace costs the context of every project on the machine**:
   the terms, the voice profiles, the content memory and the recorded decisions.
-  git holds none of it, so take a copy with
-  [`kapi context export --workspace`](/kapi/context-portability#backing-up-every-project-at-once)
+  A project with a [context backend](/kapi/context-portability#sharing-context-through-a-backend)
+  keeps a copy there once you push; for any other, take a copy with
+  [`kapi context export`](/kapi/context-portability#carrying-context-in-one-file)
   before you do anything that reaches your data directory.
 
 ## Repairing non-canonical locale identifiers {#rows-filed-under-an-old-language-spelling}
@@ -172,11 +173,10 @@ kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":
 kapi context log            # the decision, with the evidence behind it
 ```
 
-A team that wants the record in git as well writes it there with
-[`kapi context snapshot --out <dir>`](/kapi/context-portability#writing-context-out),
-which puts one JSON Lines shard per document under `<dir>/state/`
-([serialization](/reference/serialization/project-state)). That is a choice
-about what a pull request should show.
+A team shares the record through the project's
+[context backend](/kapi/context-portability#sharing-context-through-a-backend):
+`kapi context push` writes it, and every other machine's `kapi context pull`
+reads it.
 
 The same model maps to a server-backed project: with the server plugin
 installed, it **pushes** its decisions to a remote (`kapi push`) and **pulls**

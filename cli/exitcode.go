@@ -118,8 +118,8 @@ func PrintCommandError(cmd *cobra.Command, err error, code int) {
 
 // ErrorCodeString maps a process exit code to the stable machine-readable
 // symbol carried in the JSON error envelope: "error" (1), "usage" (2),
-// "gate" (3), "did_not_run" (4), "signal" (130); any other code renders as its
-// decimal string.
+// "gate" (3), "did_not_run" (4), "unreachable" (5), "signal" (130); any other
+// code renders as its decimal string.
 func ErrorCodeString(code int) string {
 	switch code {
 	case ExitError:
@@ -130,6 +130,8 @@ func ErrorCodeString(code int) string {
 		return "gate"
 	case ExitNotRun:
 		return "did_not_run"
+	case ExitUnreachable:
+		return "unreachable"
 	case ExitSignal:
 		return "signal"
 	default:

@@ -4,6 +4,7 @@
 
 export {
     ContextProvenance,
+    ContextSync,
     Finding,
     Warning
 } from "./models.js";

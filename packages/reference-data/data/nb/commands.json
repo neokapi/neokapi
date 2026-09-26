@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T07:30:17Z",
+  "generatedAt": "2026-09-26T08:24:05Z",
   "commands": [
     {
       "id": "add",
@@ -603,6 +603,33 @@
       "demoMode": false
     },
     {
+      "id": "context.backend",
+      "path": [
+        "context",
+        "backend"
+      ],
+      "use": "backend [local | file \u003cdir\u003e | recipe]",
+      "short": "Show or choose where this machine shares the project's context",
+      "long": "Show which backend this project's context is shared through, where that\nwas decided, and how far this machine and the backend were apart at the last\npull or push.\n\nName a backend to use another one on this machine only. The choice is kept in\nthis machine's configuration under the project's id, and the recipe is left\nalone:\n\n  local         keep this project's context on this machine\n  file \u003cdir\u003e    share it through a directory, such as a mounted team share\n  recipe        use the backend kapi.yaml declares again\n\nA git or S3 backend is declared in kapi.yaml, where every checkout reads it.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context backend",
+        "kapi context backend local",
+        "kapi context backend file /Volumes/team/kapi/docs",
+        "kapi context backend recipe"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "context.correct",
       "path": [
         "context",
@@ -696,12 +723,6 @@
       "long": "Skriv alt dette prosjektets lager inneholder som kontekst til én enkelt fil: termene, voice-profilene, allerede godkjent ordlyd og beslutningsloggen.\n\nDette er sikkerhetskopien, og måten å flytte et prosjekts kontekst til en annen maskin på. Ingenting går tapt og ingenting flates ut: hver del følger med i den formen kapi leser den tilbake fra, og \"kapi context restore\" legger den inn i et lager med de samme identitetene den hadde.\n\nSladdede originaler er aldri i den. De blir på maskinen som sladdet dem, og ingen flagg legger dem i en fil som er ment å kopieres.\n\nBeslutningsloggen i filen er prosjektets egen, skrevet fra det loggen inneholder på tidspunktet for eksporten.\n\nMed --workspace skrives alle prosjekter du har jobbet med her i stedet for dette ene, som er sikkerhetskopien for konteksten til en hel maskin. Legg til --dry-run for å se hva den filen ville inneholde før du skriver den.",
       "flags": [
         {
-          "name": "dry-run",
-          "usage": "med --workspace, vis hva filen ville inneholde og skriv ingenting",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "output",
           "shorthand": "o",
           "usage": "fil å skrive til",
@@ -712,19 +733,11 @@
           "shorthand": "p",
           "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens mappe (oppdages automatisk fra gjeldende mappe hvis utelatt)",
           "type": "string"
-        },
-        {
-          "name": "workspace",
-          "usage": "skriv alle prosjekter du har arbeidet med her, ikke bare dette",
-          "default": "false",
-          "type": "bool"
         }
       ],
       "examples": [
         "kapi context export -o context.kpz",
-        "kapi context export -o backups/acme-context.kpz --json",
-        "kapi context export --workspace --dry-run",
-        "kapi context export --workspace -o backups/everything.kpz"
+        "kapi context export -o backups/acme-context.kpz --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -736,7 +749,7 @@
         "context",
         "import"
       ],
-      "use": "import [path]",
+      "use": "import [path | file.kpz]",
       "short": "Les kommitterte kontekstfiler inn i dette prosjektets lager",
       "long": "Les kontekstfilene fra en checkout inn i dette prosjektets lager: termene, voice-profilene, allerede godkjent ordlyd og loggen over hvem som godkjente det.\n\nDette er den ene kommandoen som åpner disse filene. Alt annet svarer fra lageret, så det du leser her gjelder for alle checkouts av dette prosjektet på denne maskinen – og for alle andre når de kjører det også. En person kjører det: det er en beslutning om prosjektet, og det vises i \"kapi context log\" med hver fil og de bytene som ble lest.\n\nUten sti leser det prosjektets egen \".kapi\"-katalog. Oppgi en sti for å lese en annen checkouts katalog i stedet, når du henter konteksten fra et eksisterende prosjekt.\n\nÅ kjøre det to ganger endrer ingenting. Alt matches på identiteten filen bærer, så et andre lesing finner lageret allerede inneholder det filen sier. En fil hvis bytes ikke har endret seg siden denne checkout leste den, hoppes over; --force leser den likevel.",
       "flags": [
@@ -756,7 +769,8 @@
       "examples": [
         "kapi context import",
         "kapi context import ../other-project/.kapi",
-        "kapi context import --force"
+        "kapi context import --force",
+        "kapi context import context.kpz"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -960,6 +974,56 @@
       "demoMode": false
     },
     {
+      "id": "context.pull",
+      "path": [
+        "context",
+        "pull"
+      ],
+      "use": "pull",
+      "short": "Merge the context other machines pushed",
+      "long": "Read what other machines pushed to the project's context backend and\nmerge it into this machine's context: every suggestion, decision, term and\napproved wording, with its history.\n\nA pull reads only what this machine has not seen, merges it by operation id and\nbrings the stores up to date. Running it twice changes nothing.\n\nThe backend is declared in kapi.yaml:\n\n  context:\n    backend: git      # local, file, git or s3\n\nIt exits with status 5 when the backend cannot be reached, and nothing changes.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context pull",
+        "kapi context pull --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.push",
+      "path": [
+        "context",
+        "push"
+      ],
+      "use": "push",
+      "short": "Share the context recorded on this machine",
+      "long": "Write what this machine recorded in the project's context to the context\nbackend, where every other machine's next pull reads it.\n\nA push adds files and never changes one another machine wrote, so two machines\npushing at once both succeed. When the backend has gained many operations since\nits last checkpoint, the push adds one, so a new machine's first pull starts\nfrom it rather than replaying everything.\n\nWithheld originals and the rules you widened to every project stay on this\nmachine.\n\nIt exits with status 5 when the backend cannot be reached; the operations stay\nqueued for the next push.",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context push",
+        "kapi context pull \u0026\u0026 kapi context push"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "context.rebuild",
       "path": [
         "context",
@@ -985,51 +1049,6 @@
       "examples": [
         "kapi context rebuild",
         "kapi context rebuild --checkpoint"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.restore",
-      "path": [
-        "context",
-        "restore"
-      ],
-      "use": "restore \u003cbundle\u003e",
-      "short": "Les en kontekstfil tilbake inn i dette prosjektets lagring",
-      "long": "Les en fil skrevet av «kapi context export» inn i dette prosjektets\nlager, med hver identitet den ble eksportert med.\n\nEt lager som allerede inneholder kontekst, berøres ikke før du angir hva som skal\nskje med det. --merge leser filen over det som finnes, og er idempotent:\nå gjenopprette den samme filen to ganger gir det samme lageret. --replace erstatter innholdet i lageret med filen,\nslik at det som er igjen er filen og ingenting annet.\n\nMed --workspace leses en hel maskinbackup: hvert prosjekt i filen\nkommer tilbake med det navnet og den identiteten det hadde, uavhengig av om du har et\nutsjekk av det her. De samme to flaggene gjelder, og --replace lister opp hvert\nprosjekt hvis kontekst det er i ferd med å tømme, før det tømmer noen av dem.",
-      "flags": [
-        {
-          "name": "merge",
-          "usage": "les filen oppå konteksten som allerede finnes i lageret",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra cwd hvis utelatt)",
-          "type": "string"
-        },
-        {
-          "name": "replace",
-          "usage": "erstatt konteksten i lageret med filen",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "workspace",
-          "usage": "les en hel maskinbackup, hvert prosjekt i den",
-          "default": "false",
-          "type": "bool"
-        }
-      ],
-      "examples": [
-        "kapi context restore context.kpz",
-        "kapi context restore context.kpz --merge",
-        "kapi context restore context.kpz --replace",
-        "kapi context restore --workspace backups/everything.kpz"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -1161,36 +1180,6 @@
         "kapi context settle",
         "kapi context settle --merged HEAD~1..HEAD",
         "kapi context settle --merged \"$BEFORE..$AFTER\" --pr 412 --merger asgeir"
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
-      "id": "context.snapshot",
-      "path": [
-        "context",
-        "snapshot"
-      ],
-      "use": "snapshot",
-      "short": "Skriv ut dette prosjektets kontekst som filer",
-      "long": "Skriv konteksten som gjelder for dette prosjektet til en \".kapi\"-katalog: termene, voice-profilene på stiene de er bundet fra, godkjent ordlyd og beslutningsloggen.\n\nFilene som skrives er genererte. Rediger prosjektets kontekst og ta et nytt snapshot i stedet for å redigere dem manuelt, slik du ville gjort med ethvert annet generert artefakt.\n\nUten --out skrives det til prosjektets egen \".kapi\"-katalog. En ren klone som bare inneholder det et snapshot skrev, styrer innholdet sitt på nøyaktig samme måte som prosjektet som skrev det.\n\nTo ting følger aldri med. Sladdede originaler blir på maskinen som sladdet dem, og ingenting kapi holder for eget bruk skrives.\n\nBeslutningsloggen i snapshotet er prosjektets egen, skrevet fra det loggen inneholder på tidspunktet for snapshotet.",
-      "flags": [
-        {
-          "name": "out",
-          "usage": "katalog å skrive oppsettet inn i (standard: prosjektets egen)",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra gjeldende katalog hvis utelatt)",
-          "type": "string"
-        }
-      ],
-      "examples": [
-        "kapi context snapshot --out build/context",
-        "kapi context snapshot --out build/context --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

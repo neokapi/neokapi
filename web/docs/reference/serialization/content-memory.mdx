@@ -26,8 +26,8 @@ project, the memory tables of the [project store](/kapi/project-store), which
 sits outside the checkout and outside git, and `memory.db` for a standalone
 store. A
 bundle is what you get when you export that store into a single reviewable,
-hashable file. `kapi context snapshot` writes one and `kapi context import`
-reads one, which is how a project's content memory travels between machines.
+hashable file. `kapi memory export` writes one and `kapi context import`
+reads one.
 See the [overview](/reference/serialization/overview) for why kapi keeps that
 distinction.
 

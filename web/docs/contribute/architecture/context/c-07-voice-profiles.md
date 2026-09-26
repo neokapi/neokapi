@@ -430,14 +430,14 @@ decision.
 
 A binding to a missing profile produces an error. This can happen when a clone
 has not imported its context or when using a new data directory. The error names the
-binding and the two commands that bring the context, `kapi context import` in a
-checkout carrying the profile and `kapi context restore` from an export.
+binding and the two commands that bring the context, `kapi context pull` when
+the project shares its context and `kapi context import` in a checkout carrying
+the profile.
 `kapi voice pack <name>` is suggested only when a starter pack carries that name,
 because for any other name it would install something else.
 
-`kapi context snapshot` writes every stored profile back out as YAML at the
-layout path it was read from, and `kapi context import` reads those files back
-([C-11](c-11-context-operations.md)). The store metadata key
+`kapi context import` reads a profile's YAML from the layout path a directory
+keys it by ([C-11](c-11-context-operations.md)). The store metadata key
 `context.voiceBindings` ties a stored profile's id to the path a layout keys it
 by, which is the one place the two are joined.
 

@@ -55,9 +55,10 @@ are what you hand over, ship, or put in a pull request.
 ### The rule this produces
 
 Bundles serialize authored context for exchange and review.
-[`kapi context snapshot --out <dir>`](/kapi/context-portability#writing-context-out)
-writes them to a selected directory, and `kapi context import <dir>` reads them
-back. Commit a snapshot if your team reviews terms and approvals in git.
+`kapi terms export` and `kapi memory export` write them, and
+[`kapi context import <dir>`](/kapi/context-portability#reading-context-in) reads
+a directory of them. The context itself moves between machines as operations,
+through a context backend or a transfer file.
 `.kapi/` is ignored by default; adjust its ignore rules if you choose it as the
 snapshot directory.
 

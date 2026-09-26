@@ -28,9 +28,8 @@ import (
 // fails the other way: at the repo root it is foreign, so a run that rewrote it
 // is refused by name even with backing present.
 //
-// An asset apply writes the project's stores, so the profile is reached through
-// `kapi context import` and written back out by `kapi context snapshot`, which
-// is where the commentary has to survive.
+// An asset apply writes the project's stores, and the profile is reached through
+// `kapi context import`.
 
 const commentedVoiceYAML = `# The voice the harbour docs are written in.
 # Authored by hand: every line here is a decision someone made.
@@ -124,45 +123,6 @@ func TestApplyTerm_NoOpIsByteStable(t *testing.T) {
 
 	assert.Equal(t, voiceBefore, digestOf(t, voice), "an applied no-op rewrote the voice profile")
 	assert.Equal(t, recipeBefore, digestOf(t, recipe), "an applied no-op rewrote the recipe")
-}
-
-// TestSnapshotVoiceProfile_KeepsTheCommentary: a word rule lands in terms, and
-// a snapshot writes the voice profile back out with every comment and the
-// authored key order. A decision about one word that also deletes the voice
-// file's explanation of itself is not a reviewable diff.
-func TestSnapshotVoiceProfile_KeepsTheCommentary(t *testing.T) {
-	a, cmd, _, recipe, voice := newGovernanceProject(t)
-	readGovernanceContext(t, a, recipe)
-
-	res := a.applyAssetEntry(context.Background(), cmd, changeEntry{
-		Kind:        kindTerm,
-		Term:        "mooring",
-		Replacement: "berth",
-		Locale:      "en-GB",
-		Status:      "forbidden",
-	})
-	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
-
-	_, err := a.SnapshotProjectContext(context.Background(), recipe, ContextSnapshotRequest{Out: filepath.Join(filepath.Dir(recipe), project.StateDirName)})
-	require.NoError(t, err)
-
-	after, err := os.ReadFile(voice)
-	require.NoError(t, err)
-	got := string(after)
-
-	for _, comment := range []string{
-		"# The voice the harbour docs are written in.",
-		"# Authored by hand: every line here is a decision someone made.",
-		"# Restrained, because a berthing instruction is read under time pressure.",
-		"# Marketing register: never in operational prose.",
-	} {
-		assert.Contains(t, got, comment)
-	}
-	assert.Contains(t, got, "description: |", "the block scalar stayed a block scalar")
-	termsFile, err := os.ReadFile(filepath.Join(filepath.Dir(voice), "terms.json"))
-	require.NoError(t, err)
-	assert.Contains(t, string(termsFile), "mooring", "the rule landed in terms")
-	assert.Contains(t, string(termsFile), "seamless", "and the rule the voice file brought is there too")
 }
 
 // TestApplyRecipeField_NoOpIsByteStable: setting a recipe field to the value it

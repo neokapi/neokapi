@@ -144,9 +144,9 @@ project's voice store holds under its own key from `profiles:`, before
 profile, and a project that names its voice profiles after its products states
 each binding once.
 
-`kapi context snapshot` writes the same shape out as files: each profile's
-overrides under `.kapi/profiles/<name>/`, the project default flat in `.kapi/`,
-and `kapi context import` reads them back
+A directory of context files takes the same shape: each profile's overrides
+under `.kapi/profiles/<name>/`, the project default flat in `.kapi/`, and
+`kapi context import` reads it
 ([C-11](c-11-context-operations.md)). Governance is
 the only thing that splits this way. The content memory and the unit-state
 record stay top-level ([C-01](c-01-project-model.md)), because a recycled

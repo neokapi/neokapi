@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"errors"
-
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/output"
@@ -40,8 +38,9 @@ all of it as data.
 
 The subcommands record and decide. observe and correct record what you notice,
 as suggestions; log lists them; keep, drop, revert and widen are a person's
-decisions, and withdraw takes back a suggestion of your own. import, snapshot, export and restore move the context between the
-store and files, and locales reports how stored rows are filed.`,
+decisions, and withdraw takes back a suggestion of your own. pull and push
+share the context through the backend kapi.yaml declares; export and import
+carry it in one file; locales reports how stored rows are filed.`,
 		Example: "  kapi context docs/guide.md\n" +
 			"  kapi context docs/guide.md --explain\n" +
 			"  kapi context docs/guide.md --json\n" +
@@ -100,9 +99,13 @@ store and files, and locales reports how stored rows are filed.`,
 		newContextSearchCmd(a),
 		newContextImportCmd(a),
 		newContextRebuildCmd(a),
-		newContextSnapshotCmd(a),
+		newContextPullCmd(a),
+		newContextPushCmd(a),
+		newContextBackendCmd(a),
 		newContextExportCmd(a),
-		newContextRestoreCmd(a),
+		newRetiredContextCmd("snapshot", "the project's context is shared with `kapi context push` and read with `kapi context pull`, "+
+			"or carried in one file with `kapi context export -o <file>.kpz`"),
+		newRetiredContextCmd("restore", "read a file written by `kapi context export` with `kapi context import <file>.kpz`"),
 		newContextLocalesCmd(a),
 		newContextObserveCmd(a),
 		newContextCorrectCmd(a),
@@ -117,22 +120,21 @@ store and files, and locales reports how stored rows are filed.`,
 	return cmd
 }
 
-// The portability half of the context surface (AD C-03). The store holds the
-// context a project goes by; these four verbs move it.
-//
-// Import and snapshot are the two directions between the store and the `.kapi/`
-// files a project commits: import reads them, snapshot writes them. Export and
-// restore are the same two directions against one archive, for a backup or a
-// move between machines. All four go through the importers and exporters the
-// rest of kapi already uses, so a file written here is a file `kapi up` reads.
+// The portability half of the context surface (AD C-03). Import reads context
+// files a person wrote (a terms bundle, a voice profile) into operations; import
+// of a .kpz and export move the whole log in one transfer file.
 
 func newContextImportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "import [path]",
-		Short: "Read committed context files into this project's store",
+		Use:   "import [path | file.kpz]",
+		Short: "Read context files, or a context file, into this project",
 		Long: `Read a checkout's context files into this project's store: the terms,
 the voice profiles, the wording already approved, and the record of who approved
 it.
+
+Name a .kpz written by "kapi context export" to merge it instead, the way
+"kapi context pull" merges a backend: every operation it carries that this
+project does not hold, with its history.
 
 This is the one command that opens those files. Everything else answers from the
 store, so what you read here is in force for every checkout of this project on
@@ -150,7 +152,8 @@ A file whose bytes have not moved since this checkout read it is skipped;
 --force reads it anyway.`,
 		Example: "  kapi context import\n" +
 			"  kapi context import ../other-project/.kapi\n" +
-			"  kapi context import --force",
+			"  kapi context import --force\n" +
+			"  kapi context import context.kpz",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, err := RequireProjectPath(cmd)
@@ -160,6 +163,13 @@ A file whose bytes have not moved since this checkout read it is skipped;
 			dir := ""
 			if len(args) == 1 {
 				dir = args[0]
+			}
+			if host.IsKpzPath(dir) {
+				res, err := a.ImportContextFile(cmd.Context(), projectPath, dir)
+				if err != nil {
+					return err
+				}
+				return output.Print(cmd, res)
 			}
 			force, _ := cmd.Flags().GetBool("force")
 			res, err := a.ImportProjectContext(cmd.Context(), projectPath, host.ContextImportRequest{
@@ -212,95 +222,30 @@ next rebuild starts there and replays only the changes after it.`,
 	return cmd
 }
 
-func newContextSnapshotCmd(a *App) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "snapshot",
-		Short: "Write this project's context out as files",
-		Long: `Write the context in force for this project into the directory --out
-names: the terms, the voice profiles, the approved wording, and the decision
-record, in the layout "kapi context import" reads.
-
-The files it writes are generated. Edit the project's context and snapshot
-again rather than editing them by hand, the way you would with any other
-generated artifact. A clean checkout that imports what a snapshot wrote governs
-its content exactly as the project that wrote it does.
-
-Two things never travel. Withheld originals stay on the machine that redacted
-them, and nothing kapi keeps for its own use is written.
-
-The decision record in the snapshot is the project's own, written from what
-the ledger holds at the moment of the snapshot.`,
-		Example: "  kapi context snapshot --out build/context\n" +
-			"  kapi context snapshot --out build/context --json",
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			projectPath, err := RequireProjectPath(cmd)
-			if err != nil {
-				return err
-			}
-			out, _ := cmd.Flags().GetString("out")
-			res, err := a.SnapshotProjectContext(cmd.Context(), projectPath, host.ContextSnapshotRequest{Out: out})
-			if err != nil {
-				return err
-			}
-			return output.Print(cmd, res)
-		},
-	}
-	cmd.Flags().String("out", "", "directory to write the layout into (required)")
-	_ = cmd.MarkFlagRequired("out")
-	AddProjectFlag(cmd)
-	return cmd
-}
-
 func newContextExportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
-		Short: "Write this project's whole context to one file",
-		Long: `Write everything this project's store holds as context into a
-single file: the terms, the voice profiles, the wording already approved, and
-the decision record.
+		Short: "Write this project's context and its history to one file",
+		Long: `Write this project's context to one file: every suggestion, decision,
+term, voice profile and approved wording, with the history that produced them,
+and a checkpoint so reading it back is fast.
 
-It is the backup, and the way to move a project's context to another machine.
-Nothing is lost and nothing is flattened: every part travels in the form kapi
-reads it back from, and "kapi context restore" puts it into a store with the
-same identities it left with.
+It is the backup, and the way to carry a project's context to a machine that
+cannot reach its context backend. "kapi context import <file>.kpz" merges it
+the way "kapi context pull" merges a backend, so reading one file twice, or
+into a machine that already holds part of it, changes nothing more.
 
-Withheld originals are never in it. They stay on the machine that redacted them,
-and no flag puts them in a file meant to be copied.
-
-The decision record in the file is the project's own, written from what the
-ledger holds at the moment of the export.
-
-With --workspace it writes every project you have worked on here instead of
-this one, which is the backup for the context of a whole machine. Add --dry-run
-to see what that file would hold before you write it.`,
+Withheld originals are never in it, and neither are the rules you widened to
+every project: both stay on this machine.`,
 		Example: "  kapi context export -o context.kpz\n" +
-			"  kapi context export -o backups/acme-context.kpz --json\n" +
-			"  kapi context export --workspace --dry-run\n" +
-			"  kapi context export --workspace -o backups/everything.kpz",
+			"  kapi context export -o backups/acme-context.kpz --json",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out, _ := cmd.Flags().GetString("output")
-			all, _ := cmd.Flags().GetBool("workspace")
-			dryRun, _ := cmd.Flags().GetBool("dry-run")
-
-			if all {
-				res, err := a.ExportWorkspaceContext(cmd.Context(), host.ContextWorkspaceExportRequest{
-					Out:    out,
-					DryRun: dryRun,
-				})
-				if err != nil {
-					return err
-				}
-				return output.Print(cmd, res)
-			}
-			if dryRun {
-				return errors.New("--dry-run reports what a whole-workspace export would carry; pass it with --workspace")
-			}
 			projectPath, err := RequireProjectPath(cmd)
 			if err != nil {
 				return err
 			}
+			out, _ := cmd.Flags().GetString("output")
 			res, err := a.ExportProjectContext(cmd.Context(), projectPath, out)
 			if err != nil {
 				return err
@@ -308,76 +253,8 @@ to see what that file would hold before you write it.`,
 			return output.Print(cmd, res)
 		},
 	}
-	cmd.Flags().StringP("output", "o", "", "file to write")
-	cmd.Flags().Bool("workspace", false, "write every project you have worked on here, not just this one")
-	cmd.Flags().Bool("dry-run", false, "with --workspace, report what the file would hold and write nothing")
-	AddProjectFlag(cmd)
-	return cmd
-}
-
-func newContextRestoreCmd(a *App) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "restore <bundle>",
-		Short: "Read a context file back into this project's store",
-		Long: `Read a file written by "kapi context export" into this project's
-store, with every identity it left with.
-
-A store that already holds context is left alone until you say what should
-happen to it. --merge reads the file over what is there, which is idempotent:
-restoring the same file twice leaves the same store. --replace puts the file in
-place of what is there, so what is left is the file and nothing else.
-
-With --workspace it reads a whole-machine backup: every project in the file
-comes back under the name and identity it had, whether or not you have a
-checkout of it here. The same two flags apply, and --replace names every
-project whose context it is about to empty before it empties any of them.`,
-		Example: "  kapi context restore context.kpz\n" +
-			"  kapi context restore context.kpz --merge\n" +
-			"  kapi context restore context.kpz --replace\n" +
-			"  kapi context restore --workspace backups/everything.kpz",
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			merge, _ := cmd.Flags().GetBool("merge")
-			replace, _ := cmd.Flags().GetBool("replace")
-			if merge && replace {
-				return errors.New("--merge and --replace ask for different things; pass one")
-			}
-			mode := host.RestoreRefuse
-			switch {
-			case replace:
-				mode = host.RestoreReplace
-			case merge:
-				mode = host.RestoreMerge
-			}
-
-			if all, _ := cmd.Flags().GetBool("workspace"); all {
-				res, err := a.RestoreWorkspaceContext(cmd.Context(), host.ContextWorkspaceRestoreRequest{
-					Bundle: args[0],
-					Mode:   mode,
-					// The notice a replace prints goes to the error stream, so
-					// it reaches a person watching without joining the record
-					// --json is read for.
-					Notice: cmd.ErrOrStderr(),
-				})
-				if err != nil {
-					return err
-				}
-				return output.Print(cmd, res)
-			}
-			projectPath, err := RequireProjectPath(cmd)
-			if err != nil {
-				return err
-			}
-			res, err := a.RestoreProjectContext(cmd.Context(), projectPath, args[0], mode)
-			if err != nil {
-				return err
-			}
-			return output.Print(cmd, res)
-		},
-	}
-	cmd.Flags().Bool("merge", false, "read the file over the context the store already holds")
-	cmd.Flags().Bool("replace", false, "put the file in place of the context the store already holds")
-	cmd.Flags().Bool("workspace", false, "read a whole-machine backup, every project in it")
+	cmd.Flags().StringP("output", "o", "", "file to write (required)")
+	_ = cmd.MarkFlagRequired("output")
 	AddProjectFlag(cmd)
 	return cmd
 }

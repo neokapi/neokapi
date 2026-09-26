@@ -125,6 +125,13 @@ func seedStore(targetDir string) error {
 	}); err != nil {
 		return fmt.Errorf("read the sample's context: %w", err)
 	}
+	// The decisions the sample models travel in a context file, which merges
+	// the way a pull does.
+	if file := filepath.Join(targetDir, ContextDirName, "context.kpz"); func() bool { _, err := os.Stat(file); return err == nil }() {
+		if _, err := app.ImportContextFile(ctx, recipe, file); err != nil {
+			return fmt.Errorf("read the sample's context file: %w", err)
+		}
+	}
 	if err := indexMemory(ctx, db.Memory()); err != nil {
 		return fmt.Errorf("seed content memory: %w", err)
 	}

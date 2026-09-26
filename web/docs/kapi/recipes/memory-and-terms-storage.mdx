@@ -93,9 +93,9 @@ directory, git-style.
 Those tables are the project's own record, and git holds no copy of them. Four
 verbs carry them in and out
 ([Moving context](/kapi/context-portability)): `kapi context import` reads a
-checkout's context files into the store, `kapi context snapshot` writes the
-store back out as files, and `kapi context export` and `restore` carry the whole
-of it as one file, which is the backup this store needs. See
+checkout's context files into the store, `kapi context pull` and `push` share
+it through the project's context backend, and `kapi context export` carries the
+whole of it as one file, which is the backup this store needs. See
 [the project store](/kapi/project-store).
 
 Putting a snapshot in git is a team's choice about what a pull request should

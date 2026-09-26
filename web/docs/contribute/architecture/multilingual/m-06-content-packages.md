@@ -2,7 +2,7 @@
 id: m-06-content-packages
 sidebar_position: 6
 title: "M-06: Content packages"
-description: "A family of deterministic, lossless JSON formats, one per content atom, and a .kpz container that bundles them with the project recipe into a portable parcel, in four profiles: a whole-project snapshot, a task-scoped bilingual interchange file, a project's authored context on its own, and a whole workspace of those."
+description: "A family of deterministic, lossless JSON formats, one per content atom, and a .kpz container that bundles them with the project recipe into a portable parcel, in three profiles: a whole-project snapshot, a task-scoped bilingual interchange file, and a project's shared context with its history."
 keywords: [neokapi, architecture decision, kpz, package, content bundle, memory bundle, terms bundle, pack, unpack, interchange, workspace, determinism]
 ---
 
@@ -138,9 +138,9 @@ a `.kpz` path.
 | To a translator or reviewer | **bilingual `.kpz`** | lossless native | `extract` / `merge` |
 | To a third-party translation tool | XLIFF 2.x / PO | interoperable, lossy | `extract` / `merge` |
 | To a hosted platform layer | the sync wire, the package's over-the-wire twin | lossless, streamed | `push` / `pull` |
-| One machine account's whole authored context | **workspace `.kpz`** | lossless native | `context export --workspace` / `context restore --workspace` |
+| One project's shared context, with its history | **context `.kpz`** | lossless native | `context export` / `context import` |
 
-One container therefore carries **four profiles**, distinguished by the
+One container therefore carries **three exchange profiles**, distinguished by the
 manifest kind:
 
 - **Project profile** (`kapi-project`): the whole project, every locale, the
@@ -152,44 +152,25 @@ manifest kind:
   and term context. It excludes other locales, the full recipe, and raw source.
   This is neokapi's native interchange carrier, the parcel `extract` sends and
   `merge` ingests.
-- **Context profile** (`kapi-context`): terms, voice profiles and their layout
-  paths, content memory, and unit decision records. `kapi context export` and
-  `kapi context restore` use this profile for backup and transfer. Content
-  files, blocks and skeletons are excluded
+- **Context profile** (`kapi-context`): one project's shared context in the
+  layout a context backend keeps: the segments of its operation log under
+  `log/`, the blobs they name under `blobs/`, and a checkpoint under
+  `checkpoints/`. `kapi context export` writes one and
+  `kapi context import <file>.kpz` merges it the way a pull merges a backend,
+  history included. Content files, blocks and skeletons are excluded
   ([C-03](../context/c-03-context-store-and-graph.md)).
-- **Workspace profile** (`kapi-workspace`): a context package for each registered
-  project, plus its registry entry. `kapi context export --workspace` and
-  `kapi context restore --workspace` use this profile. It includes projects
-  whose checkouts have been deleted and excludes machine-specific checkout paths.
 
-These profiles are exchange archives. Open or restore their contents before
+A fifth profile, the checkpoint (`kapi-checkpoint`), is internal: a project's
+projection tables as of one operation, which a rebuild and a first pull start
+from rather than replaying every operation before it.
+
+These profiles are exchange archives. Open or merge their contents before
 working on them.
 
-The context profile adds `voice` and `decisions` members. Voice profiles use
-the comment-preserving YAML serializer and record their store identity and
-layout path in the manifest. Decisions use the JSON Lines representation from
-`core/state`. Both member kinds contribute to the archive's root hash.
-
-Decision members contain the current ledger entry for every source/target
-pairing (`core/state.WorkStore.Ledger`), including pairings from other branches.
-A unit can therefore contribute several lines. In contrast, snapshot shards
-contain only the current checkout's view. Both use the same content type and
-serialization, so older archives remain readable with the entries they contain.
-
-The workspace profile adds two more. A `project` member is one project's whole
-context package, carried verbatim under `projects/`, and a `registry` member
-(`workspace.json`) says which project each one is: its key, its display name,
-and the member it lives in. Both are content, so the identities a restore
-rebuilds are covered by the root hash, and a registry that names a member the
-package does not carry is refused rather than restored short.
-
-Nesting a package inside a package is what keeps the whole of a workspace
-streamable. A `project` member is a reference like `media` and `source`: packing
-reads one project's archive at a time from disk, unpacking hands back a reader
-over one entry, and the size of a workspace never decides whether a backup fits
-in memory. It also means the members are useful on their own, since unzipping a
-workspace archive yields one `.kpz` per project that `kapi context restore`
-reads without the outer file.
+The context profile has one member kind, `layout`, whose path is the file's
+path in the layout. A layout member outside `log/`, `blobs/` or `checkpoints/`
+is refused on write and on read. Members are content and contribute to the
+archive's root hash.
 
 ## Working state, hand-off, and resume
 

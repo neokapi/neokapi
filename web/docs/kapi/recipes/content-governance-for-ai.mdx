@@ -19,7 +19,7 @@ import TabItem from "@theme/TabItem";
 | **Terms store** | approved terms per language, and every word to avoid (forbidden, competitor, retired) | the project's terms store | the `terms` analyzer in every check, `term-check` and the terminology gate |
 | **Checkset** | length budgets, required/forbidden patterns, hygiene | the recipe, in git | `kapi check`, in the loop and in CI |
 
-The first two live in your [workspace](/kapi/project-store), one set per project, shared by every checkout. `kapi context export` backs them up and [`kapi context snapshot`](/kapi/context-portability#writing-context-out) writes them out as files for a team that wants them in git.
+The first two live in your [workspace](/kapi/project-store), one set per project, shared by every checkout. [`kapi context push`](/kapi/context-portability#sharing-context-through-a-backend) shares them with the rest of the team, and `kapi context export` backs them up.
 
 The rules run in **two directions** around the agent: injected *before* it writes (the voice guide and approved terms go into its context, so drafts start compliant) and gated *after* (`kapi check` scores the result, block by block, exit code and all). Style linters for prose stop at regex over plain text; kapi's checks are format-aware and block-anchored: they read the content inside `.docx`, JSON catalogs, and HTML, locate each finding to an addressable block an agent can fix, and extend across every target language.
 

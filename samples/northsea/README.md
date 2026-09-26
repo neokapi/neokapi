@@ -227,9 +227,8 @@ kapi check --strict
 ```
 
 The term decisions land in the project's terms store, and `kapi.yaml` is edited
-rather than re-emitted, so its comments and key order survive. Write the store
-back out with `kapi context snapshot --out ./context` to review the decisions as
-a diff. The check that follows reports the retired
+rather than re-emitted, so its comments and key order survive.
+`kapi context search Tidewatch` shows the decision. The check that follows reports the retired
 name wherever the documentation still carries it, each finding naming Tideguard
 as the fix, advisory as a retirement always is, and exactly the sweep the
 decision created.

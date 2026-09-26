@@ -94,9 +94,8 @@ which files landed, since they commit them.
   commands.
 
 The ignore rule `kapi init` writes is `.kapi/.gitignore` with one line, `*`. A
-project that commits a snapshot in `.kapi/` for `kapi context import` to read
-(written with `kapi context snapshot --out .kapi`) keeps an ignore rule of its
-own, and kapi leaves it as it is.
+project that commits a terms bundle or a voice profile in `.kapi/` for `kapi context import` to read
+keeps an ignore rule of its own, and kapi leaves it as it is.
 
 Deleting:
 
@@ -107,8 +106,9 @@ Deleting:
   design and rebuild from nothing: merge any batch that is out with a translator
   before clearing it. Decisions are in the workspace and survive it.
 - Deleting the workspace costs every project's terms, voice profiles, content
-  memory and decisions. Tell the user to take a copy first with
-  `kapi context export --workspace -o backup.kpz`.
+  memory and decisions. Tell the user to push each project to its context
+  backend (`kapi context push`) or take a copy first with
+  `kapi context export -o backup.kpz` in each project.
 
 ## What the recipe binds
 

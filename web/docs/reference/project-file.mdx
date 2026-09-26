@@ -92,6 +92,7 @@ defaults:
 | `flows`    | map            | Named flow definitions (see [Flow Steps](#flow-steps))                                                       |
 | `flows_dir` | string        | A directory, relative to the recipe, holding one YAML file per flow (see [Flow files](#flow-files)). No default |
 | `defaults` | Defaults       | Processing defaults (see [Defaults](#defaults); source/target languages live here)                          |
+| `context`  | ContextBackend | Where the project's context is shared: `local` (the default), `file`, `git` or `s3` (see [Context backend](#context-backend)) |
 | `ship_gate` | Gate          | A single catch-all ship gate (see [Ship gates](#ship-gates))                                                |
 | `ship_gates` | ShipGateRule[] | Scoped ship-gate rules; the most specific matching rule wins (see [Ship gates](#ship-gates))               |
 | `gates`    | map            | Named gate registry a `ship_gates` rule can reference by name (see [Ship gates](#ship-gates))               |
@@ -594,9 +595,9 @@ that reads the file and the binding to write instead. The retired keys are
 `voice:` that is a path, and a `termstore:` that is a path or a file name.
 
 A recipe that binds a voice the store does not hold, on a machine where the
-project's context has not been imported or restored, says which binding it is and
-the command that brings it: `kapi context import` in a checkout carrying the
-profile, or `kapi context restore` from an export. See
+project's context has not been imported or pulled, says which binding it is and
+the command that brings it: `kapi context pull` when the project shares its
+context, or `kapi context import` in a checkout carrying the profile. See
 [Moving context](/kapi/context-portability).
 
 ### Flow Steps
@@ -649,6 +650,34 @@ A flow file holds the same steps as an entry under `flows:`, plus an optional `d
 A flow name runs the most specific definition: the entry under `flows:`, then the file of that name, then the built-in flow of that name. So a recipe that declares `translate` runs its own with `kapi run translate` and as `defaults.flow`, and `kapi flows` lists it in place of the built-in. The `kapi translate` and `kapi pseudo-translate` commands always run the built-in flow.
 
 kapi reads no flow files from `.kapi/flows/`. When it finds some there, it prints one warning naming them; move them to a committed directory and set `flows_dir:`.
+
+### Context backend
+
+`context:` says where the project's context is shared, so every checkout of the
+project, on every machine, pulls from and pushes to the same place with
+[`kapi context pull` and `push`](/kapi/context-portability#sharing-context-through-a-backend):
+
+```yaml
+context:
+  backend: git                  # local (default), file, git or s3
+  ref: refs/kapi/context        # git: a ref in this repository, outside every branch
+```
+
+| Field | Backend | Description |
+| --- | --- | --- |
+| `backend` | all | `local` keeps the context on each machine; `file`, `git` and `s3` share it |
+| `ref` | `git` | The ref the context is kept on. Default `refs/kapi/context`; a branch or a tag is refused |
+| `remote` | `git` | The git remote fetched from and pushed to. Default `origin` |
+| `path` | `file` | The directory the context is kept in, such as a mounted team share. A relative path is read against the recipe's directory |
+| `bucket` | `s3` | The bucket. Required |
+| `prefix` | `s3` | A key prefix, so one bucket holds several projects |
+| `region` | `s3` | The bucket's region, when the AWS configuration names another |
+| `endpoint` | `s3` | The base URL of an S3-compatible service other than AWS |
+
+A field that belongs to another backend is refused. Credentials never go here:
+a git backend uses the repository's own access, and an S3 backend the standard
+AWS environment, shared configuration and profile. A person can use another
+backend on one machine with `kapi context backend`.
 
 ## Ship gates
 

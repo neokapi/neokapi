@@ -112,10 +112,11 @@ Ownership, zone by zone:
   A second clone and a git worktree each keep a `.kapi/` of their own and share
   one context store.
 
-- **Context files** are an artifact of the store, never a source a gate reads.
-  `kapi context snapshot --out <dir>` writes the project's terms, voice
-  profiles, content memory and decision record as files, and
-  `kapi context import <dir>` reads them back ([C-11](c-11-context-operations.md)).
+- **Context files** are an input to the store, never a source a gate reads.
+  `kapi context import <dir>` reads a directory of them, a terms bundle, a voice
+  profile, content-memory bundles and decision-record shards, into operations
+  ([C-11](c-11-context-operations.md)). The context itself moves between machines
+  through a context backend or a transfer file ([C-03](c-03-context-store-and-graph.md)).
   With no path, import reads `.kapi/`, so a project that commits a snapshot
   there keeps its own `.kapi/.gitignore`, which kapi never overwrites. The
   recipe names none of these files: it binds the voice and terms they carry by
@@ -134,8 +135,8 @@ the whole directory, the rule included, stays out of version control. The rule
 is the constant `core/project.StateGitignore`.
 
 It is written only into a `.kapi/` that is new or holds nothing but what kapi
-keeps there. A directory that already carries other files, such as a committed
-context snapshot, has an ignore arrangement of its own, and a rule that ignored
+keeps there. A directory that already carries other files, such as committed
+context files, has an ignore arrangement of its own, and a rule that ignored
 everything would silently keep the next of those files out of the commit. A
 rule already present is never rewritten.
 

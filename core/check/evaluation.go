@@ -59,6 +59,22 @@ type ContextProvenance struct {
 	Stale bool `json:"stale"`
 	// StaleReason says what moved, in the wording an answer's note carries.
 	StaleReason string `json:"stale_reason,omitempty"`
+	// Sync says how far this machine and the backend the project's context is
+	// shared through were apart at the last pull or push. nil when the
+	// project's context stays on this machine.
+	Sync *ContextSync `json:"sync,omitempty"`
+}
+
+// ContextSync is how far one machine and a shared context backend are apart.
+type ContextSync struct {
+	// Backend names the backend: its kind and where it is.
+	Backend string `json:"backend"`
+	// ToPush counts the operations recorded here the backend does not hold.
+	ToPush int `json:"to_push"`
+	// ToPull counts the operations read from the backend and not yet merged.
+	ToPull int `json:"to_pull"`
+	// Line is the sentence an answer carries.
+	Line string `json:"line"`
 }
 
 // EvaluationTool is the build that ran a check.

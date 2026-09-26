@@ -21,10 +21,9 @@ import (
 // the voice profiles and the decision record.
 //
 // A project's context lives in the user's workspace and is read from there.
-// These files are artifacts on either side of that store: `kapi context
-// export` and `kapi context snapshot` write them, `kapi context import` reads
-// them, and nothing else opens one. The addresses are here so both commands
-// answer with the same list, and so a read path has no way to reach them.
+// These files are what a person authors beside it: `kapi context import` reads
+// them into operations, and nothing else opens one. The addresses are here so
+// a read path has no way to reach them.
 
 // MetaVoiceBindings is the store-metadata key holding where each voice profile
 // in the store is authored — a JSON object of project-relative slash path to

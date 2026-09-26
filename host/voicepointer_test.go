@@ -106,7 +106,7 @@ func TestWriteVoicePointer(t *testing.T) {
 			wantAction:  VoicePointerCreated,
 			wantIn:      []string{"This project's voice is held by kapi"},
 			wantNotIn:   []string{"voice, ,"},
-			wantWarning: "has not been imported or restored here",
+			wantWarning: "has not been imported or pulled here",
 		},
 		{
 			// A voice profile sitting in the checkout governs nothing until a

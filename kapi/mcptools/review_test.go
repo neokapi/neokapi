@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/cli"
-	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
@@ -170,16 +169,15 @@ func TestHandleReviewDecision_ApproveRejectSignOff(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, queue.Total)
 
-	// Identities and the note reach the record when it is written out:
-	// decisions are durable in the ledger from the moment they are made, and
-	// `kapi context snapshot` is the door to the shards under .kapi/state/.
-	// A fresh App: the project store is owned per App, and this one exists only
-	// to write out what the App under test recorded into the same file.
-	writer := &host.App{}
-	defer writer.Shutdown()
-	_, err = writer.SnapshotProjectContext(t.Context(), root, host.ContextSnapshotRequest{Out: filepath.Join(root, project.StateDirName)})
+	// Identities and the note are in the ledger: decisions are durable there
+	// from the moment they are made. A fresh App: the project store is owned
+	// per App, and this one exists only to read what the App under test
+	// recorded into the same file.
+	reader := &host.App{}
+	defer reader.Shutdown()
+	st, err := reader.OpenProjectState(t.Context(), root)
 	require.NoError(t, err)
-	units, err := state.ReadCommitted(project.LayoutAt(root).Export().UnitStateDir())
+	units, err := st.All(t.Context())
 	require.NoError(t, err)
 	require.Len(t, units, 2)
 	byUnit := map[string]state.UnitState{}

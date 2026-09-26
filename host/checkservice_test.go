@@ -305,7 +305,7 @@ func TestResolveVoiceProfile_ResolvesAgainstTheStore(t *testing.T) {
 		require.ErrorIs(t, err, ErrVoiceProfileNotFound)
 		assert.False(t, found, "a file nobody has read in governs nothing")
 		assert.Contains(t, err.Error(), `defaults.voice binds voice profile "house"`)
-		assert.Contains(t, err.Error(), "has not been imported or restored here")
+		assert.Contains(t, err.Error(), "has not been imported or pulled here")
 		assert.NotContains(t, err.Error(), "kapi voice pack",
 			"a starter pack of another name would install something else entirely")
 	})
@@ -377,7 +377,7 @@ func TestResolveVoiceProfile_ResolvesAgainstTheStore(t *testing.T) {
 		}
 		_, _, _, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "has not been imported or restored here")
+		assert.Contains(t, err.Error(), "has not been imported or pulled here")
 		_, statErr := os.Stat(filepath.Join(root, "voice.db"))
 		assert.True(t, os.IsNotExist(statErr), "a missing store must not be created by a lookup")
 	})

@@ -137,21 +137,12 @@ available if their source and target pairing appears again.
 `Put`, `Record` and `RecordEntry` append to the ledger and are durable at once.
 No separate publish or commit step is required.
 
-The log is the source of the decisions, and the shards are one rendering of
-it. Both directions below go through the log: an import records each line it
-takes as a `unit.record` operation, and a snapshot writes what the ledger, the
-log's projection, holds.
+The log is the source of the decisions, and the shards under `.kapi/state/`
+are one input to it: an import records each line it takes as a `unit.record`
+operation. Decisions move between machines as operations, through a context
+backend or a transfer file ([C-03](c-03-context-store-and-graph.md)).
 
-Two directions connect the ledger to the shards under `.kapi/state/`, for a team
-that keeps them in version control, and they agree:
-
-1. **Snapshot.** `kapi context snapshot` writes, for each unit this checkout
-   holds, the entry that applies to its current pairing. Lines are sorted within
-   a shard, a shard whose bytes are unchanged is left untouched, and the payload
-   is the record as it was decided, so running it twice over an unchanged
-   project writes the same bytes and leaves the same files. It prunes only
-   shards this checkout's view no longer names.
-2. **Import.** `kapi context import` reads the shards into the ledger, and a
+**Import.** `kapi context import` reads the shards into the ledger, and a
    person runs it ([C-11](c-11-context-operations.md)). A line the
    ledger already holds costs nothing, and a line older than the entry in force at
    its pairing (by the `Updated` stamp both ends write) is left out, which is the

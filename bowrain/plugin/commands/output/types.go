@@ -172,7 +172,7 @@ type PullOutput struct {
 	// DecisionsStaged is how many server-ledger decisions the pull recorded
 	// into the project's decision ledger. The field name is a rename
 	// boundary: the wire keeps it. A recorded decision is durable the moment
-	// it arrives, and `kapi context snapshot` writes the record out as files.
+	// it arrives.
 	DecisionsStaged int    `json:"decisions_staged,omitempty"`
 	Stream          string `json:"stream,omitempty"`
 	DryRun          bool   `json:"dry_run,omitempty"`

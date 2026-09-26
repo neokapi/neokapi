@@ -13,9 +13,12 @@ const (
 	ExitOK     = 0
 	ExitError  = 1
 	ExitUsage  = 2
-	ExitGate   = 3   // a quality/voice gate failed (distinct from operational error)
-	ExitNotRun = 4   // a check did not run: it checked no content, or could not show its analyzers can fail
-	ExitSignal = 130 // 128 + SIGINT(2)
+	ExitGate   = 3 // a quality/voice gate failed (distinct from operational error)
+	ExitNotRun = 4 // a check did not run: it checked no content, or could not show its analyzers can fail
+	// ExitUnreachable: a context pull or push could not reach the backend.
+	// Nothing changed on either side, and what waits to be pushed stays queued.
+	ExitUnreachable = 5
+	ExitSignal      = 130 // 128 + SIGINT(2)
 )
 
 // ErrQualityGate signals that a quality/voice gate (e.g. `kapi voice check

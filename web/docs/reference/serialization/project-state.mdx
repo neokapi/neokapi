@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: Project state
-description: "The decision record kapi context snapshot writes under .kapi/state/ (JSON Lines, one shard per document, one line per unit), the ledger it is written from, and the unit state fields."
+description: "The decision record kapi context import reads from .kapi/state/ (JSON Lines, one shard per document, one line per unit), the ledger it is written from, and the unit state fields."
 keywords:
   [
     project state,
@@ -31,10 +31,10 @@ A decision is appended to the project's **decision ledger**, which lives in the
 recorded. Every local checkout reads the ledger and applies decisions whose
 source and target hashes match its current content.
 
-`kapi context snapshot` writes the ledger out in the form git tracks: for each
-unit this checkout holds, what was decided about the source and the translation
-it holds now. `kapi context import` reads that shape back in, and
-`kapi context export` carries the same record inside a `.kpz`.
+The shards are the ledger in a form git can track: for each unit, what was
+decided about the source and the translation. `kapi context import` reads that
+shape in, and the ledger moves between machines as operations, through a
+context backend or a transfer file.
 
 The consequences follow from that:
 
@@ -84,8 +84,8 @@ from escaping the directory.
 The decisions themselves live in the project's store, where every checkout
 reads them and a `git checkout` of another branch changes nothing about them.
 The shards are what those decisions look like as reviewable text: a team that
-wants its approvals in a pull request writes them there with
-`kapi context snapshot` and reads them back with `kapi context import`, and the
+keeps its approvals in a pull request reads them with `kapi context import`,
+and the
 shards sit beside the terms and the content memory they make claims about,
 because all three are nodes of one context graph.
 

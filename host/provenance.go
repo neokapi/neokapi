@@ -93,6 +93,11 @@ func (a *App) contextProvenanceAt(ctx context.Context, cmd Command, proj *projec
 	if db, derr := a.ProjectDB(ctx, root); derr == nil && db != nil {
 		out.Stale, out.StaleReason = projectionDrift(ctx, db, root)
 	}
+	if st := a.ContextSyncStatus(ctx, root); st != nil {
+		out.Sync = &check.ContextSync{
+			Backend: describeRemote(st.Remote), ToPush: st.ToPush, ToPull: st.ToPull, Line: SyncLine(st),
+		}
+	}
 	return out
 }
 

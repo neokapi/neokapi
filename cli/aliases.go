@@ -92,6 +92,7 @@ const (
 	ExitNotRun               = host.ExitNotRun
 	ExitOK                   = host.ExitOK
 	ExitSignal               = host.ExitSignal
+	ExitUnreachable          = host.ExitUnreachable
 	ExitUsage                = host.ExitUsage
 	ExtractFormatKPZ         = host.ExtractFormatKPZ
 	ExtractFormatXLIFF2      = host.ExtractFormatXLIFF2
