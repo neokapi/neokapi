@@ -22,6 +22,9 @@ type atPoint struct {
 	// widened to the whole workspace, which bind, and candidates nobody has
 	// decided on, which advise (core/contextop).
 	context contextop.Resolution
+	// coordinates are the point's coordinates, which an established rule's
+	// scope is matched against when a check counts its uses.
+	coordinates map[string]string
 }
 
 // fileGovernance is what one file's blocks are held to: the governance at the
@@ -71,6 +74,9 @@ func (a *App) governFile(ctx context.Context, voice *checkVoice, vocab *checkTer
 			}
 			at.point = &check.Point{Profile: rc.Profile, Channel: rc.Channel}
 			if at.context, err = vocab.contextAt(point); err != nil {
+				return fileGovernance{}, err
+			}
+			if at.coordinates, err = vocab.coordinatesAt(point); err != nil {
 				return fileGovernance{}, err
 			}
 		}

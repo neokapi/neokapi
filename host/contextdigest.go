@@ -347,6 +347,9 @@ func buildDigest(records []contextop.Record, key workspace.ProjectKey, since, no
 			if now.Sub(it.EstablishedAt) < digestWeek {
 				out.Numbers.NewThisWeek++
 			}
+			if it.Usage == nil {
+				it.Usage = latestUsage(r, acts[r.ID])
+			}
 			established = append(established, it)
 			if drift, ok := digestDrift(r, acts[r.ID], it); ok {
 				out.Drift = append(out.Drift, drift)
@@ -747,38 +750,55 @@ func actorPhrase(a contextop.Actor, possessive bool) string {
 	return name
 }
 
+// latestUsage is the latest usage count recorded against a rule, nil when no
+// check has counted it.
+func latestUsage(r contextop.Record, acts []contextop.Record) *DigestUsage {
+	rule, ok := r.Rule()
+	if !ok || rule.Replacement == "" {
+		return nil
+	}
+	var latest *contextop.Signal
+	for _, act := range acts {
+		if act.Kind == contextop.KindSignal && act.Signal != nil && act.Signal.Source == contextop.SignalUsage && act.Status.Answers() {
+			latest = act.Signal
+		}
+	}
+	if latest == nil || latest.Preferred+latest.Rejected == 0 {
+		return nil
+	}
+	return digestUsage(rule.Replacement, append([]string{rule.Term}, rule.Forms...), latest.Preferred, latest.Rejected, latest.Within)
+}
+
 // digestDrift reports an established rule whose content moved to a form it
 // avoids: the latest usage count writes a rejected form more often than the
-// count taken when the rule came into force.
+// baseline. The baseline is the last count taken when the rule came into force,
+// or, for a rule nobody had counted by then, the first count after it, so
+// rejected uses the content already held when the rule was kept are not drift.
 func digestDrift(r contextop.Record, acts []contextop.Record, it DigestItem) (DigestDrift, bool) {
 	rule, ok := r.Rule()
 	if !ok || rule.Replacement == "" {
 		return DigestDrift{}, false
 	}
-	var before, latest *contextop.Signal
+	var base, latest *contextop.Signal
 	for _, act := range acts {
 		if act.Kind != contextop.KindSignal || act.Signal == nil || act.Signal.Source != contextop.SignalUsage || !act.Status.Answers() {
 			continue
 		}
-		if !act.At.After(it.EstablishedAt) {
-			before = act.Signal
-			continue
+		switch {
+		case !act.At.After(it.EstablishedAt):
+			base = act.Signal
+		case base == nil:
+			base = act.Signal
+		default:
+			latest = act.Signal
 		}
-		latest = act.Signal
 	}
-	if latest == nil || latest.Rejected == 0 {
-		return DigestDrift{}, false
-	}
-	base := 0
-	if before != nil && before.Within == latest.Within {
-		base = before.Rejected
-	}
-	if latest.Rejected <= base {
+	if base == nil || latest == nil || latest.Within != base.Within || latest.Rejected <= base.Rejected {
 		return DigestDrift{}, false
 	}
 	usage := digestUsage(rule.Replacement, append([]string{rule.Term}, rule.Forms...), latest.Preferred, latest.Rejected, latest.Within)
 	it.Usage = usage
-	return DigestDrift{Rule: it, Line: usage.Line, Rejected: latest.Rejected, Before: base}, true
+	return DigestDrift{Rule: it, Line: usage.Line, Rejected: latest.Rejected, Before: base.Rejected}, true
 }
 
 // FormatText renders the digest the way `kapi context digest` prints it.

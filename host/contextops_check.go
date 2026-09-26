@@ -100,18 +100,10 @@ func (r *contextRules) at(point project.GovernancePoint) (contextop.Resolution, 
 	if r == nil {
 		return contextop.Resolution{}, nil
 	}
-	rc, err := r.proj.ResolveGovernanceFor(point)
+	key, coordinates, err := r.pointAt(point)
 	if err != nil {
 		return contextop.Resolution{}, err
 	}
-	collection := point.Collection
-	if point.Path != "" {
-		collection = r.proj.CollectionForPath(point.Path)
-	}
-	coordinates := project.MergeCoordinates(
-		r.proj.Defaults.Coordinates, rc.Ref().Coordinates(), collectionCoordinates(r.proj, collection))
-
-	key := rc.Profile + "\x00" + rc.Channel + "\x00" + collection
 	if held, ok := r.cache[key]; ok {
 		return held, nil
 	}
@@ -122,6 +114,32 @@ func (r *contextRules) at(point project.GovernancePoint) (contextop.Resolution, 
 	})
 	r.cache[key] = resolved
 	return resolved, nil
+}
+
+// coordinatesAt is the coordinates of one point, which is what a rule's scope
+// is matched against.
+func (r *contextRules) coordinatesAt(point project.GovernancePoint) (map[string]string, error) {
+	if r == nil {
+		return nil, nil
+	}
+	_, coordinates, err := r.pointAt(point)
+	return coordinates, err
+}
+
+// pointAt resolves a point to the key its resolution is cached under and its
+// coordinates.
+func (r *contextRules) pointAt(point project.GovernancePoint) (string, map[string]string, error) {
+	rc, err := r.proj.ResolveGovernanceFor(point)
+	if err != nil {
+		return "", nil, err
+	}
+	collection := point.Collection
+	if point.Path != "" {
+		collection = r.proj.CollectionForPath(point.Path)
+	}
+	coordinates := project.MergeCoordinates(
+		r.proj.Defaults.Coordinates, rc.Ref().Coordinates(), collectionCoordinates(r.proj, collection))
+	return rc.Profile + "\x00" + rc.Channel + "\x00" + collection, coordinates, nil
 }
 
 // projectDeclaredTerms is every term the project's own terms store declares. A

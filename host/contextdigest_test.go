@@ -2,6 +2,8 @@ package host
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -102,6 +104,42 @@ func TestContextDigest_SectionsFromTheLog(t *testing.T) {
 	require.NotEmpty(t, after.Established)
 	assert.Equal(t, chosen.ID, after.Established[0].ID, "the newest rule in force comes first")
 	assert.True(t, after.Established[0].New)
+}
+
+// TestContextDigest_ContentMovingAwayFromARuleIsDrift: a check counts an
+// established rule's forms, the content then moves to the rejected form, and the
+// next check's count shows the rule under Drift. Uses the content already held
+// when the rule was kept are the baseline, not drift.
+func TestContextDigest_ContentMovingAwayFromARuleIsDrift(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	app, _ := contextOpsApp(t)
+	root := contextOpsProject(t, "ctxops-drift")
+	ctx := t.Context()
+
+	rule := proposeUtilise(t, app, root, agentIn("s1"))
+	_, err := app.KeepContextOperations(ctx, ContextKeepRequest{Actor: contextop.Actor{Kind: contextop.ActorPerson}, Project: recipeOf(root), IDs: []string{rule.ID}})
+	require.NoError(t, err)
+
+	checkWith(t, app, root)
+	digest, err := app.ContextDigest(ctx, ContextDigestRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	assert.Empty(t, digest.Drift, "what the content held when the rule was kept is the baseline")
+	require.Len(t, digest.Established, 1)
+	require.NotNil(t, digest.Established[0].Usage, "a check counts an established rule's forms")
+	assert.Equal(t, 1, digest.Established[0].Usage.RejectedCount)
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "config", "app.yaml"),
+		[]byte("greeting: We utilise the widget every day.\nfarewell: Utilise it, and utilise it again.\n"), 0o600))
+	checkWith(t, app, root)
+
+	digest, err = app.ContextDigest(ctx, ContextDigestRequest{Project: recipeOf(root)})
+	require.NoError(t, err)
+	require.Len(t, digest.Drift, 1)
+	assert.Equal(t, rule.ID, digest.Drift[0].Rule.ID)
+	assert.Equal(t, 1, digest.Drift[0].Before)
+	assert.Equal(t, 3, digest.Drift[0].Rejected)
+	assert.Contains(t, digest.Drift[0].Line, `"utilise" 3 times`)
+	assert.True(t, digest.Drift[0].Rule.Revertible)
 }
 
 // TestContextDigest_AgentReadLeavesTheMarker: an agent reading the digest does

@@ -15,18 +15,23 @@ import (
 	"github.com/neokapi/neokapi/core/workspace"
 )
 
-// contextUsage counts, for each suggestion a check of the whole project meets,
-// how often the content writes the preferred form and how often it writes a
-// form the suggestion avoids. The counts are recorded as usage signals when the
-// check ends: they add to a suggestion's standing, and content moving to an
-// avoided form counts against it (core/contextop settling).
+// contextUsage counts, for each suggestion and each established rule a check of
+// the whole project meets, how often the content writes the preferred form and
+// how often it writes a form the rule avoids. The counts are recorded as usage
+// signals when the check ends. For a suggestion they add to its standing, and
+// content moving to an avoided form counts against it (core/contextop
+// settling). For an established rule they are what the digest reads as drift:
+// content moving away from the rule after it came into force.
 type contextUsage struct {
 	mu sync.Mutex
 	// byTerm maps the form a rule avoids first to the newest suggestion
 	// stating it, the one the resolution answers with.
 	byTerm map[string]contextop.Record
-	counts map[string]*usageCount
-	match  map[string][2]*regexp.Regexp
+	// established are the project's rules in force, counted wherever their
+	// scope covers the point a text sits at.
+	established []contextop.Record
+	counts      map[string]*usageCount
+	match       map[string][2]*regexp.Regexp
 }
 
 // usageCount is one suggestion's uses in the content a check read.
@@ -35,12 +40,20 @@ type usageCount struct {
 	preferred, rejected int
 }
 
-// newContextUsage indexes the suggestions a check of one project can meet.
+// newContextUsage indexes the suggestions and the established rules a check of
+// one project can meet.
 func newContextUsage(records []contextop.Record, project workspace.ProjectKey) *contextUsage {
 	u := &contextUsage{byTerm: map[string]contextop.Record{}, counts: map[string]*usageCount{}, match: map[string][2]*regexp.Regexp{}}
 	for _, r := range records {
 		rule, ok := r.Rule()
-		if !ok || rule.Replacement == "" || r.Project != project || !r.Kind.Bears() || !r.Status.Advises() || r.Established {
+		if !ok || rule.Replacement == "" || r.Project != project || !r.Kind.Bears() {
+			continue
+		}
+		if r.Established && r.Status == contextop.StatusEstablished {
+			u.established = append(u.established, r)
+			continue
+		}
+		if !r.Status.Advises() || r.Established {
 			continue
 		}
 		if key := suggestionKey(rule.Term); key != "" {
@@ -50,6 +63,11 @@ func newContextUsage(records []contextop.Record, project workspace.ProjectKey) *
 		}
 	}
 	return u
+}
+
+// empty reports a project with nothing to count.
+func (u *contextUsage) empty() bool {
+	return u == nil || (len(u.byTerm) == 0 && len(u.established) == 0)
 }
 
 // count adds one text's uses of the advisory rules in force where it sits.
@@ -65,26 +83,48 @@ func (u *contextUsage) count(advisory []profile.TermRule, text string) {
 		if !ok {
 			continue
 		}
-		m, ok := u.match[r.ID]
-		if !ok {
-			m = [2]*regexp.Regexp{
-				formMatcher([]string{rule.Replacement}, rule.MatchesCase()),
-				formMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase()),
-			}
-			u.match[r.ID] = m
-		}
-		preferred, rejected := countUses(text, m[0]), countUses(text, m[1])
-		if preferred == 0 && rejected == 0 {
+		u.add(r, rule, text)
+	}
+}
+
+// countEstablished adds one text's uses of the established rules whose scope
+// covers the point at the coordinates given.
+func (u *contextUsage) countEstablished(coordinates map[string]string, text string) {
+	if u == nil || len(u.established) == 0 {
+		return
+	}
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	for _, r := range u.established {
+		if !r.Scope.Covers(coordinates) {
 			continue
 		}
-		c := u.counts[r.ID]
-		if c == nil {
-			c = &usageCount{record: r}
-			u.counts[r.ID] = c
-		}
-		c.preferred += preferred
-		c.rejected += rejected
+		rule, _ := r.Rule()
+		u.add(r, rule, text)
 	}
+}
+
+// add counts one rule's forms in one text. The caller holds the lock.
+func (u *contextUsage) add(r contextop.Record, rule profile.TermRule, text string) {
+	m, ok := u.match[r.ID]
+	if !ok {
+		m = [2]*regexp.Regexp{
+			formMatcher([]string{rule.Replacement}, rule.MatchesCase()),
+			formMatcher(append([]string{rule.Term}, rule.Forms...), rule.MatchesCase()),
+		}
+		u.match[r.ID] = m
+	}
+	preferred, rejected := countUses(text, m[0]), countUses(text, m[1])
+	if preferred == 0 && rejected == 0 {
+		return
+	}
+	c := u.counts[r.ID]
+	if c == nil {
+		c = &usageCount{record: r}
+		u.counts[r.ID] = c
+	}
+	c.preferred += preferred
+	c.rejected += rejected
 }
 
 // countUses counts the uses of a form in a text.
@@ -138,8 +178,8 @@ func (a *App) recordContextUsage(ctx context.Context, recipe string, u *contextU
 }
 
 // countProjectUsage reads the source content a `kapi up` run converged and
-// records how it writes each suggestion's forms, as a whole-project check does.
-// A project with no suggestion reads nothing. Every failure is swallowed, for
+// records how it writes each suggestion's and each established rule's forms, as
+// a whole-project check does. A project with neither reads nothing. Every failure is swallowed, for
 // the reason recordContextUsage gives.
 func (a *App) countProjectUsage(ctx context.Context, cmd Command, recipe string, files []project.ResolvedFile) {
 	rules, err := a.newContextRules(cmd, recipe)
@@ -147,7 +187,7 @@ func (a *App) countProjectUsage(ctx context.Context, cmd Command, recipe string,
 		return
 	}
 	usage := newContextUsage(rules.records, rules.key)
-	if len(usage.byTerm) == 0 {
+	if usage.empty() {
 		return
 	}
 	formats, err := a.newCheckFormats(cmd)
@@ -155,8 +195,13 @@ func (a *App) countProjectUsage(ctx context.Context, cmd Command, recipe string,
 		return
 	}
 	for _, rf := range files {
-		at, rerr := rules.at(project.GovernancePoint{Path: filepath.ToSlash(rf.Relative)})
-		if rerr != nil || len(at.Advisory) == 0 {
+		point := project.GovernancePoint{Path: filepath.ToSlash(rf.Relative)}
+		at, rerr := rules.at(point)
+		if rerr != nil {
+			continue
+		}
+		coordinates, cerr := rules.coordinatesAt(point)
+		if cerr != nil || (len(at.Advisory) == 0 && len(usage.established) == 0) {
 			continue
 		}
 		name, cfg := formats.forFile(a, rf.Path)
@@ -166,6 +211,7 @@ func (a *App) countProjectUsage(ctx context.Context, cmd Command, recipe string,
 		}
 		for _, b := range blocks {
 			usage.count(at.Advisory, b.SourceText())
+			usage.countEstablished(coordinates, b.SourceText())
 		}
 	}
 	a.recordContextUsage(ctx, recipe, usage)
