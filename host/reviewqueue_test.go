@@ -97,7 +97,7 @@ func TestReviewQueue_ListsEveryLanguageWithASourceLane(t *testing.T) {
 					assert.True(t, it.IsSource, "the source language's rows are marked")
 					assert.Equal(t, "en.json", it.File, "a source row addresses the source file")
 					assert.Empty(t, it.Target, "a source row has no translation half")
-					assert.Equal(t, string(model.SourceStatusChecked), it.Status)
+					assert.Equal(t, string(model.SourceStatusWritten), it.Status)
 					assert.True(t, it.Held, "an approved gate holds a merely-checked unit")
 				} else {
 					assert.False(t, it.IsSource)
@@ -214,7 +214,7 @@ func TestReviewUnit_AnswersASourceLanguageUnit(t *testing.T) {
 	assert.Equal(t, "en", info.Language)
 	assert.Equal(t, "Apple", info.Source)
 	assert.Empty(t, info.Target, "a source unit has no translation half")
-	assert.Equal(t, string(model.SourceStatusChecked), info.Status)
+	assert.Equal(t, string(model.SourceStatusWritten), info.Status)
 	require.NotNil(t, info.Context)
 	assert.Equal(t, "en.json", info.Context.Point.Path)
 	assert.Equal(t, "en", info.Context.Point.Language)
@@ -228,7 +228,7 @@ func TestReviewUnit_AnswersASourceLanguageUnit(t *testing.T) {
 		File: "en.json", Key: "a", Locale: "en",
 	})
 	require.NoError(t, err)
-	assert.Equal(t, string(model.SourceStatusApproved), after.Status)
+	assert.Equal(t, string(model.SourceStatusEstablished), after.Status)
 	assert.Equal(t, "approved", after.ReviewState)
 }
 

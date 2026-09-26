@@ -118,13 +118,13 @@ func TestGoverningFingerprintOf_TheTargetsOwnStampWins(t *testing.T) {
 
 	recorded := reviewedIndex{byUnit: map[string]reviewedEntry{
 		reviewUnitKey(scope, "greeting", "nb"): {
-			status: model.TargetStatusReviewed, decided: true,
+			status: model.TargetStatusEstablished, decided: true,
 			targetHash: state.TargetHash("Hei"), governing: "fp-record",
 		},
 	}}
 	other := reviewedIndex{byUnit: map[string]reviewedEntry{
 		reviewUnitKey(scope, "greeting", "nb"): {
-			status: model.TargetStatusReviewed, decided: true,
+			status: model.TargetStatusEstablished, decided: true,
 			targetHash: state.TargetHash("Hallo"), governing: "fp-record",
 		},
 	}}
@@ -187,7 +187,7 @@ func TestAbsorbCommittedRecord_ReadsTheGoverningContextFromTheRecord(t *testing.
 			}
 			// A decision, carrying the context it was made under.
 			decided := row("greeting", "Hello world", "Hei verden")
-			decided.Status = model.TargetStatusReviewed
+			decided.Status = model.TargetStatusEstablished
 			decided.Decision = state.Decision{ReviewState: "approved"}
 			decided.GoverningFingerprint = "fp-decision"
 			require.NoError(t, st.Put(ctx, decided))
@@ -199,7 +199,7 @@ func TestAbsorbCommittedRecord_ReadsTheGoverningContextFromTheRecord(t *testing.
 			require.NoError(t, st.Record(ctx, produced))
 			// A decision about a translation somebody has since rewritten.
 			rewritten := row("ok", "All set", "Alt i orden")
-			rewritten.Status = model.TargetStatusReviewed
+			rewritten.Status = model.TargetStatusEstablished
 			rewritten.Decision = state.Decision{ReviewState: "approved"}
 			rewritten.GoverningFingerprint = "fp-stale"
 			require.NoError(t, st.Put(ctx, rewritten))
@@ -268,7 +268,7 @@ func TestSeedContext_CarriesTheBundlesGoverningContextOntoTheRecord(t *testing.T
 	record := func(unit, target, fingerprint string) {
 		require.NoError(t, st.Record(ctx, state.UnitState{
 			Unit: unit, Variant: model.Variant("nb"), Scope: scope,
-			Status: model.TargetStatusReviewed, Decision: state.Decision{ReviewState: "approved"},
+			Status: model.TargetStatusEstablished, Decision: state.Decision{ReviewState: "approved"},
 			TargetHash: state.TargetHash(target), ContentHash: state.SourceHash("source of " + unit),
 			GoverningFingerprint: fingerprint,
 		}))

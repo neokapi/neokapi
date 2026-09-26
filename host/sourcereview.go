@@ -16,16 +16,10 @@ import (
 
 // Source review: the author's half of the loop.
 //
-// The target ladder (draft→translated→reviewed→signed-off) has had a queue and a
-// decision path since review shipped. The source ladder (authored→checked→
-// approved) had neither, so `approved` was a rung nothing could reach: the
-// settle derivation stamps `authored` or `checked` from the checks alone, and
-// the branch in check.NewSourceReadinessTool that preserves a human sign-off was
-// waiting on a sign-off no code path could record. A project asking for
-// `source_gate: approved` therefore held its fan-out forever.
-//
-// This file is the missing half, in the shape the target side already has: a
-// derived queue, and a decision recorded in the project state store bound to the
+// A source unit is written, then established when a person reviews it. The
+// settle step (check.SettleSourceStatus) only ever stamps `written`, so this
+// file holds the other half, in the shape the target side has: a derived
+// queue, and a decision recorded in the project state store bound to the
 // wording it blessed.
 
 // SourceUnitRef addresses one source unit: the source file as the queue lists it
@@ -79,7 +73,7 @@ func (a *App) loadSourceApprovals(ctx context.Context, root, sourceLang string) 
 	}
 	want := sourceVariant(sourceLang)
 	for _, u := range all {
-		if u.SourceStatus != model.SourceStatusApproved || u.Variant != want {
+		if u.SourceStatus != model.SourceStatusEstablished || u.Variant != want {
 			continue
 		}
 		out[sourceUnitKey(u.Scope, u.Unit)] = u.ContentHash
@@ -87,9 +81,9 @@ func (a *App) loadSourceApprovals(ctx context.Context, root, sourceLang string) 
 	return out, nil
 }
 
-// SourceQueueItem is one source unit a person is being asked to look at: it sits
-// below the project's source gate, or below `approved` when the gate asks for a
-// human.
+// SourceQueueItem is one source unit a person is being asked to look at: the
+// project's source gate holds it, because its checks fail or because the gate
+// waits for a person to establish it.
 type SourceQueueItem struct {
 	// File is the source file as the project names it, and Relative its
 	// project-relative path. For source content the two are the same file, unlike
@@ -102,30 +96,27 @@ type SourceQueueItem struct {
 	SourceLocale string `json:"sourceLocale,omitempty"`
 	Source       string `json:"source"`
 
-	// Status is the settled source rung (authored|checked|approved).
+	// Status is the settled source rung (written|established).
 	Status string `json:"status"`
-	// Held reports that this unit ranks below the project's source gate, so the
-	// loop is holding its translations. An unheld item is in the queue because
-	// the gate asks for approval and it has not been approved, which is work
-	// rather than a blockage.
+	// Held reports that the project's source gate holds this unit, so the loop
+	// is holding its translations.
 	Held bool `json:"held"`
-	// Approved reports a committed human approval that still blesses this exact
+	// Failing reports that the unit's source fails its checks.
+	Failing bool `json:"failing,omitempty"`
+	// Established reports a person's decision that still blesses this exact
 	// wording.
-	Approved bool `json:"approved"`
+	Established bool `json:"established"`
 	// Position is the unit's index in its file, counted from 1, so a queue
 	// lists a file the way a reader reads it.
 	Position int `json:"position,omitempty"`
 }
 
 // computeSourceQueue lists the source units awaiting authoring attention: every
-// translatable source block that has not reached the project's source gate, plus
-// (when the gate asks for `approved`) those that clear the checks but nobody has
-// signed off.
+// translatable source block the project's source gate holds.
 //
 // It settles exactly the way the coverage path and the in-flow gate settle,
-// through the shared check.SettleSourceStatus, with one addition the others do
-// not yet make: a committed approval is seeded onto the block first, so the
-// "a clean re-check never undoes a human sign-off" branch can actually fire.
+// through the shared check.SettleSourceStatus, with a committed establishment
+// seeded onto the block first so the settle keeps it.
 func (a *App) computeSourceQueue(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) ([]SourceQueueItem, error) {
 	return a.sourceQueue(ctx, proj, root, units, nil)
 }
@@ -169,14 +160,11 @@ func (a *App) sourceQueue(ctx context.Context, proj *project.KapiProject, root s
 			text := b.SourceText()
 			approved := approvals.approves(scope, blockKey(b), text)
 			if approved {
-				b.SourceStatus = model.SourceStatusApproved
+				b.SourceStatus = model.SourceStatusEstablished
 			}
 			check.SettleSourceStatus(ctx, b)
 
-			held := gateLevel != model.SourceGateNone && !gateLevel.Admits(b.SourceStatus)
-			needsSignOff := gateLevel == model.SourceGateApproved &&
-				b.SourceStatus != model.SourceStatusApproved
-			if !held && !needsSignOff {
+			if gateLevel == model.SourceGateNone || gateLevel.AdmitsBlock(b) {
 				continue
 			}
 			items = append(items, SourceQueueItem{
@@ -187,8 +175,9 @@ func (a *App) sourceQueue(ctx context.Context, proj *project.KapiProject, root s
 				SourceLocale: sourceLang,
 				Source:       preview(text),
 				Status:       string(b.SourceStatus),
-				Held:         held,
-				Approved:     b.SourceStatus == model.SourceStatusApproved,
+				Held:         true,
+				Failing:      b.SourceFailing(),
+				Established:  b.SourceStatus == model.SourceStatusEstablished,
 				Position:     i + 1,
 			})
 		}
@@ -210,10 +199,10 @@ func (a *App) sourceQueue(ctx context.Context, proj *project.KapiProject, root s
 // none (so an unapproved project pays nothing).
 //
 // It is what makes a run agree with the report. The in-flow source gate settles
-// readiness from the checks on every pass, which can only produce authored or
-// checked; without the committed approval on the block first, `kapi status`
-// would call a unit approved while the run beside it held that same unit below
-// an `approved` gate.
+// from the checks on every pass, which only ever stamps `written`; without the
+// committed decision on the block first, `kapi status` would call a unit
+// established while the run beside it held that same unit at an `established`
+// gate.
 //
 // The approvals are read once, when the run starts. A run is a snapshot of the
 // project anyway, and re-reading the store per block would put a query on the
@@ -232,7 +221,7 @@ func (a *App) SourceStateSeeder(ctx context.Context, root, sourceLang string) (f
 			return
 		}
 		if approvals.approves(docs.Scope(root, sourcePath), blockKey(b), b.SourceText()) {
-			b.SourceStatus = model.SourceStatusApproved
+			b.SourceStatus = model.SourceStatusEstablished
 		}
 	}, nil
 }
@@ -297,7 +286,7 @@ func (a *App) reviewSourceUnit(ctx context.Context, proj *project.KapiProject, r
 			}
 			text := b.SourceText()
 			if approvals.approves(scope, ref.Key, text) {
-				b.SourceStatus = model.SourceStatusApproved
+				b.SourceStatus = model.SourceStatusEstablished
 			}
 			check.SettleSourceStatus(ctx, b)
 
@@ -416,14 +405,14 @@ func (a *App) recordSourceApproval(ctx context.Context, root, scope, unit, sourc
 	basis := state.SourceHash(sourceText)
 
 	prev, hadPrev := st.Get(ctx, k)
-	if hadPrev && prev.SourceStatus == model.SourceStatusApproved && prev.ContentHash == basis {
+	if hadPrev && prev.SourceStatus == model.SourceStatusEstablished && prev.ContentHash == basis {
 		return false, nil // already approved, for this exact wording
 	}
 	now := nowRFC3339()
 	next := state.UnitState{
 		Unit:         unit,
 		Variant:      sourceVariant(sourceLang),
-		SourceStatus: model.SourceStatusApproved,
+		SourceStatus: model.SourceStatusEstablished,
 		ContentHash:  basis,
 		Decision:     state.Decision{ReviewState: "approved", At: now},
 		Updated:      now,

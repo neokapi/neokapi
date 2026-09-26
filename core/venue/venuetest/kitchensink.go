@@ -67,7 +67,7 @@ func KitchenSinkBlock() *model.Block {
 		MimeType:           "text/plain",
 		Translatable:       true,
 		SourceLocale:       model.LocaleEnglish,
-		SourceStatus:       model.SourceStatusChecked,
+		SourceStatus:       model.SourceStatusWritten,
 		PreserveWhitespace: true,
 		IsReferent:         true,
 		Properties:         map[string]string{"context": "homepage", "max": "80"},
@@ -110,7 +110,7 @@ func KitchenSinkBlock() *model.Block {
 	// Targets: two variants; fully-populated provenance on the first.
 	b.SetTargetVariant(frVariant, &model.Target{
 		Runs:   []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}},
-		Status: model.TargetStatusReviewed,
+		Status: model.TargetStatusEstablished,
 		Score:  0.97,
 		Origin: model.Origin{
 			Kind:               model.OriginAI,

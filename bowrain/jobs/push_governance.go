@@ -351,7 +351,7 @@ func (g *pushGovernor) withdrawsSignOff(blockID string, b *model.Block, locale s
 		return false
 	}
 	ref := platstore.TargetRef{BlockID: blockID, Locale: locale}
-	if g.priorStatus[ref] != model.TargetStatusSignedOff || target.Status.Rank() >= model.TargetStatusSignedOff.Rank() {
+	if g.priorStatus[ref] != model.TargetStatusEstablished || target.Status.Rank() >= model.TargetStatusEstablished.Rank() {
 		return false
 	}
 	return g.priorHash[ref] == state.TargetHash(model.RunsText(target.Runs)) &&
@@ -362,10 +362,10 @@ func (g *pushGovernor) withdrawsSignOff(blockID string, b *model.Block, locale s
 // venue's ledger holds for its unit: the same test as withdrawsSignOff, read
 // off the record's own pairing against the ledger's.
 func withdrawsInRecord(held, d venue.UnitDecision) bool {
-	if held.ReviewState != venue.ReviewStateSignedOff && held.Status != string(model.TargetStatusSignedOff) {
+	if held.ReviewState != venue.ReviewStateSignedOff && held.Status != string(model.TargetStatusEstablished) {
 		return false
 	}
-	if model.TargetStatus(d.Status).Rank() >= model.TargetStatusSignedOff.Rank() {
+	if model.TargetStatus(d.Status).Rank() >= model.TargetStatusEstablished.Rank() {
 		return false
 	}
 	return d.TargetHash != "" && d.TargetHash == held.TargetHash &&
@@ -399,8 +399,8 @@ func (g *pushGovernor) withdrawsAny(staged []stagedGroup, decisions []venue.Unit
 			continue
 		}
 		ref := platstore.TargetRef{BlockID: blockID, Locale: locale}
-		if g.priorStatus[ref] == model.TargetStatusSignedOff &&
-			model.TargetStatus(d.Status).Rank() < model.TargetStatusSignedOff.Rank() &&
+		if g.priorStatus[ref] == model.TargetStatusEstablished &&
+			model.TargetStatus(d.Status).Rank() < model.TargetStatusEstablished.Rank() &&
 			d.TargetHash == g.priorHash[ref] && d.ContentHash == g.priorSource[blockID] {
 			return true
 		}
@@ -563,7 +563,7 @@ func (g *pushGovernor) vetTargets(staged []stagedGroup) {
 					continue
 				}
 				kind := venue.VerdictApproval
-				if target.Status == model.TargetStatusSignedOff {
+				if target.Status == model.TargetStatusEstablished {
 					kind = venue.VerdictSignOff
 				}
 				allowed, reason := g.allow(blockID, locale, kind, true)
@@ -647,7 +647,7 @@ func (g *pushGovernor) vetDecisions(held []venue.UnitDecision, decisions []venue
 				}
 				blockID := g.unitID[unitRef{item: d.ItemName, unit: d.Unit}]
 				g.noteAccepted(blockID, d.ItemName, d.Unit, locale,
-					model.TargetStatusSignedOff, model.TargetStatus(d.Status))
+					model.TargetStatusEstablished, model.TargetStatus(d.Status))
 			}
 			out = append(out, d) // a basis, not a verdict
 			continue

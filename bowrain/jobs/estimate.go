@@ -103,7 +103,7 @@ func EstimateConvergence(ctx context.Context, cs store.ContentStore, tm memory.S
 			continue
 		}
 		est.Source.Total++
-		if gate.Admits(sb.Block.SourceStatus) {
+		if gate.AdmitsBlock(sb.Block) {
 			est.Source.Ready++
 			ready = append(ready, sb)
 		} else {

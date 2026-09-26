@@ -60,7 +60,7 @@ func seedShipStateProject(t *testing.T, cs *bstore.PostgresStore) string {
 	b1 := &model.Block{ID: "b1", Translatable: true}
 	b1.SetSourceText("Hello world")
 	b1.SetTargetText("fr", "Bonjour le monde")
-	b1.StampTargetProvenance("fr", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	b1.StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	b1.SetTargetText("de", "Hallo Welt")
 	b1.SetTargetText("es", "Hola mundo")
 	b1.SetTargetText("it", "Ciao mondo")
@@ -71,7 +71,7 @@ func seedShipStateProject(t *testing.T, cs *bstore.PostgresStore) string {
 		Source:       []model.Run{textRun("Hello "), phRun()},
 	}
 	b2.SetTargetRuns("fr", []model.Run{textRun("Bonjour "), phRun()})
-	b2.StampTargetProvenance("fr", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	b2.StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	b2.SetTargetRuns("de", []model.Run{textRun("Hallo "), phRun()})
 	b2.SetTargetText("it", "Ciao") // drops the placeholder → error-severity finding
 
@@ -333,7 +333,7 @@ func TestApplyShipStates_StaleBasisWithholdsLocale(t *testing.T) {
 	storeSource("Hello", true)
 	_, err = cs.UpsertUnitDecisions(ctx, proj.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status:      string(model.TargetStatusReviewed),
+		Status:      string(model.TargetStatusEstablished),
 		TargetHash:  state.TargetHash("Hei"),
 		ContentHash: state.SourceHash("Hello"),
 		ReviewState: "approved",
@@ -409,13 +409,13 @@ func TestApplyShipStates_MissingBasisShipsAndIsCounted(t *testing.T) {
 	b := &model.Block{ID: "greeting", Translatable: true}
 	b.SetSourceText("Hello")
 	b.SetTargetText("nb", "Hei")
-	b.StampTargetProvenance("nb", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	b.StampTargetProvenance("nb", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	require.NoError(t, cs.StoreBlocksForItem(ctx, proj.ID, "main", "en.json", []*model.Block{b}))
 
 	// The record predates the basis: no ContentHash at all.
 	_, err = cs.UpsertUnitDecisions(ctx, proj.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status:      string(model.TargetStatusReviewed),
+		Status:      string(model.TargetStatusEstablished),
 		TargetHash:  state.TargetHash("Hei"),
 		ReviewState: "approved",
 		Updated:     "2026-08-04T10:00:00Z",
@@ -469,7 +469,7 @@ func TestPublicShipManifestWithholdsStaleLocale(t *testing.T) {
 	require.True(t, ok)
 	_, err := ds.UpsertUnitDecisions(ctx, proj.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status:      string(model.TargetStatusReviewed),
+		Status:      string(model.TargetStatusEstablished),
 		TargetHash:  state.TargetHash("Hei"),
 		ContentHash: state.SourceHash("Hello"),
 		ReviewState: "approved",
@@ -518,7 +518,7 @@ func TestTranslationDashboardShipStateWire(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, blocks, 1)
-	blocks[0].StampTargetProvenance("fr", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	blocks[0].StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	require.NoError(t, srv.ContentStore.StoreBlocks(ctx, pid, "main", []*model.Block{blocks[0].Block}))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/test/"+pid+"/dashboard/main", nil)

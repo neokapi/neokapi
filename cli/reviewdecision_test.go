@@ -131,7 +131,7 @@ func TestApplyReviewDecision_RejectionStaleAfterEdit(t *testing.T) {
 
 // TestApplyReviewDecision_SignedOffTopRung mirrors the sign-off path through the
 // generalized entry point.
-func TestApplyReviewDecision_SignedOffTopRung(t *testing.T) {
+func TestApplyReviewDecision_AgentIdentityRefused(t *testing.T) {
 	root := writeReviewProject(t)
 	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
@@ -139,16 +139,15 @@ func TestApplyReviewDecision_SignedOffTopRung(t *testing.T) {
 	before, err := a.ProjectConvergence(context.Background(), proj, "en")
 	require.NoError(t, err)
 	item := before.Review[0]
+	ref := ReviewUnitRef{File: item.File, Key: item.Key, Locale: item.Locale}
 
-	changed, err := a.ApplyReviewDecision(context.Background(), proj, "en",
-		ReviewUnitRef{File: item.File, Key: item.Key, Locale: item.Locale}, ReviewDecisionSignedOff, "")
-	require.NoError(t, err)
-	assert.True(t, changed)
-
+	for _, by := range []string{"agent", "agent/claude-code", "ai/some-model"} {
+		_, err := a.ApplyReviewDecisionAs(context.Background(), proj, "en", ref, ReviewDecisionApproved, "", by)
+		require.Error(t, err, "%s must not establish a unit", by)
+	}
 	after, err := a.ProjectConvergence(context.Background(), proj, "en")
 	require.NoError(t, err)
-	assert.Equal(t, 50, after.Locales[0].Pct["signed-off"])
-	assert.Equal(t, 50, after.Locales[0].Pct["reviewed"], "signed-off implies reviewed")
+	assert.Equal(t, 0, after.Locales[0].Pct["established"])
 }
 
 func TestApplyReviewDecision_UnknownDecision(t *testing.T) {

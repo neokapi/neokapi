@@ -1,16 +1,11 @@
 package mcptools
 
-// MCP review tools — agent parity for the review workflow (issue #1077,
-// phase 4). Agents get the same verbs the desktop Review page and `kapi
-// status --review` / `kapi apply` offer, routed through the exact same CLI
-// layer (cli.ProjectConvergence, cli.ReviewUnitWithContext,
-// cli.ApplyReviewDecisionAs),
-// so a decision made over MCP is indistinguishable in the state store from
-// one made in the desktop — except for its identity: MCP decisions record
-// Decision.By as "agent/<client>" (the MCP client's declared name) or
-// "agent" when the client did not introduce itself. Autonomous AI approvals
-// (the desktop pre-review) use "ai/<model>" instead; gates treat only the
-// "ai/" prefix specially (core/gate approver classes).
+// MCP review tools: the review queue, one unit's full picture, and the
+// pre-review an agent records. An agent reads what awaits a person and leaves
+// a score with its reasons on a unit; it never records a decision. Only a
+// person establishes a unit, through the desktop Review page, `kapi apply`, or
+// a hosted review session, so an agent's judgement never counts as a
+// person's.
 
 import (
 	"context"
@@ -19,6 +14,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/state"
 )
 
 func init() {
@@ -36,38 +32,23 @@ func registerReviewTools(server *mcp.Server, a *cli.App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:         "review_unit",
-		Description:  "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. A unit in the project's source language is read the same way, from its source file, and returns its authoring rung with no target half. The read leg before approve_unit / reject_unit / sign_off_unit.",
+		Description:  "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. A unit in the project's source language is read the same way, from its source file, and returns its authoring rung with no target half. The read leg before pre_review_unit.",
 		OutputSchema: reviewUnitOutputSchema,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ReviewUnitInput) (*mcp.CallToolResult, ReviewUnitOutput, error) {
 		return handleReviewUnit(ctx, a, input)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "approve_unit",
-		Description: "Approve one review-queue unit (→ reviewed). The unit state is recorded in the project store, bound to the current translation's content hash, with identity \"agent/<client>\".",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input ReviewDecisionInput) (*mcp.CallToolResult, ReviewDecisionOutput, error) {
-		return handleReviewDecision(ctx, a, input, cli.ReviewDecisionApproved, agentIdentity(req))
-	})
-
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "reject_unit",
-		Description: "Reject one review-queue unit (→ draft, back to the work queue) with a note explaining why. Recorded with identity \"agent/<client>\"; retranslating the unit re-enters it in review.",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input ReviewDecisionInput) (*mcp.CallToolResult, ReviewDecisionOutput, error) {
-		return handleReviewDecision(ctx, a, input, cli.ReviewDecisionRejected, agentIdentity(req))
-	})
-
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "sign_off_unit",
-		Description: "Sign off one review-queue unit (→ signed-off, the top ladder rung). Recorded with identity \"agent/<client>\".",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input ReviewDecisionInput) (*mcp.CallToolResult, ReviewDecisionOutput, error) {
-		return handleReviewDecision(ctx, a, input, cli.ReviewDecisionSignedOff, agentIdentity(req))
+		Name:        "pre_review_unit",
+		Description: "Record your pre-review of one review-queue unit: a score from 0 to 100 and the reasons behind it. It is advisory and bound to the current translation, so an edit drops it. The person reviewing sees it in the queue; it never establishes the unit or sends it back.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input PreReviewInput) (*mcp.CallToolResult, PreReviewOutput, error) {
+		return handlePreReview(ctx, a, input, agentIdentity(req))
 	})
 }
 
-// agentIdentity derives the decision identity for an MCP call: "agent/<name>"
-// from the client's declared implementation name, or the bare "agent" when the
-// session carries none. Never "ai/…" — an MCP agent acts on a person's behalf,
-// so its approvals count as human-class for gates.
+// agentIdentity derives the identity a pre-review records: "agent/<name>" from
+// the client's declared implementation name, or the bare "agent" when the
+// session carries none.
 func agentIdentity(req *mcp.CallToolRequest) string {
 	if req != nil && req.Session != nil {
 		if ip := req.Session.InitializeParams(); ip != nil && ip.ClientInfo != nil && ip.ClientInfo.Name != "" {
@@ -125,20 +106,26 @@ type ReviewUnitOutput struct {
 var reviewUnitOutputSchema = json.RawMessage(
 	`{"type":"object","properties":{"unit":{"type":"object"}}}`)
 
-type ReviewDecisionInput struct {
-	Project string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
-	Locale  string `json:"locale" jsonschema:"Target locale, as listed by review_queue"`
-	File    string `json:"file" jsonschema:"Target file path, as listed by review_queue"`
-	Key     string `json:"key" jsonschema:"Unit key, as listed by review_queue"`
-	Note    string `json:"note,omitempty" jsonschema:"Reviewer note (the reason, for reject_unit)"`
+type PreReviewInput struct {
+	Project string            `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+	Locale  string            `json:"locale" jsonschema:"Target locale, as listed by review_queue"`
+	File    string            `json:"file" jsonschema:"Target file path, as listed by review_queue"`
+	Key     string            `json:"key" jsonschema:"Unit key, as listed by review_queue"`
+	Score   int               `json:"score" jsonschema:"How well the translation stands, from 0 (unusable) to 100 (nothing to change)"`
+	Reasons []PreReviewReason `json:"reasons,omitempty" jsonschema:"What you found, one entry per issue; empty when nothing needs saying"`
 }
 
-type ReviewDecisionOutput struct {
-	Decision string `json:"decision"`
-	// Changed is false when the unit already carried this exact decision for
-	// this exact translation (a redundant call is a no-op, not an error).
-	Changed bool `json:"changed"`
-	// By is the identity the decision was recorded with ("agent/<client>").
+// PreReviewReason is one issue a pre-review found.
+type PreReviewReason struct {
+	Severity   string `json:"severity,omitempty" jsonschema:"critical, major, minor or info"`
+	Message    string `json:"message" jsonschema:"What is wrong, in a sentence"`
+	Suggestion string `json:"suggestion,omitempty" jsonschema:"Wording that would fix it"`
+}
+
+type PreReviewOutput struct {
+	// Recorded is false when the unit is not in the queue as addressed.
+	Recorded bool `json:"recorded"`
+	// By is the identity the pre-review was recorded with ("agent/<client>").
 	By string `json:"by"`
 }
 
@@ -184,16 +171,23 @@ func handleReviewUnit(ctx context.Context, a *cli.App, input ReviewUnitInput) (*
 	return nil, ReviewUnitOutput{Unit: info}, nil
 }
 
-func handleReviewDecision(ctx context.Context, a *cli.App, input ReviewDecisionInput, decision, by string) (*mcp.CallToolResult, ReviewDecisionOutput, error) {
+func handlePreReview(ctx context.Context, a *cli.App, input PreReviewInput, by string) (*mcp.CallToolResult, PreReviewOutput, error) {
+	if input.Score < 0 || input.Score > 100 {
+		return nil, PreReviewOutput{}, fmt.Errorf("score must be between 0 and 100, got %d", input.Score)
+	}
 	projectPath, err := resolveReviewProject(a, input.Project)
 	if err != nil {
-		return nil, ReviewDecisionOutput{}, err
+		return nil, PreReviewOutput{}, err
 	}
-	changed, err := a.ApplyReviewDecisionAs(ctx, projectPath, "", cli.ReviewUnitRef{
-		File: input.File, Key: input.Key, Locale: input.Locale,
-	}, decision, input.Note, by)
+	rev := state.AIReview{Score: input.Score, Model: by}
+	for _, r := range input.Reasons {
+		rev.Findings = append(rev.Findings, state.AIReviewFinding{
+			Severity: r.Severity, Message: r.Message, Suggestion: r.Suggestion,
+		})
+	}
+	n, err := a.RecordAIReviews(ctx, projectPath, "", input.Locale, input.File, map[string]state.AIReview{input.Key: rev})
 	if err != nil {
-		return nil, ReviewDecisionOutput{}, err
+		return nil, PreReviewOutput{}, err
 	}
-	return nil, ReviewDecisionOutput{Decision: decision, Changed: changed, By: by}, nil
+	return nil, PreReviewOutput{Recorded: n > 0, By: by}, nil
 }

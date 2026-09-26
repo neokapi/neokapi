@@ -88,14 +88,14 @@ func (a *App) ProjectConvergence(ctx context.Context, projectPath, sourceLang st
 	return report, nil
 }
 
-// Review decisions a human (or agent) can record for a review-queue unit. They
-// map onto the target ladder: approved → reviewed, signed-off → signed-off, and
-// rejected → draft (the unit re-enters the work queue, with an optional note
-// explaining why).
+// Review decisions a person can record for a review-queue unit. They map onto
+// the target ladder: approved → established, and rejected → draft (the unit
+// re-enters the work queue, with an optional note explaining why). An agent
+// pre-reviews with a score and reasons (RecordAIReviews) and never records a
+// decision.
 const (
-	ReviewDecisionApproved  = "approved"
-	ReviewDecisionRejected  = "rejected"
-	ReviewDecisionSignedOff = "signed-off"
+	ReviewDecisionApproved = "approved"
+	ReviewDecisionRejected = "rejected"
 )
 
 // ReviewUnitRef addresses one review-queue unit by (file, key, locale) exactly
@@ -111,28 +111,19 @@ type ReviewUnitRef struct {
 func decisionStatus(decision string) (model.TargetStatus, error) {
 	switch decision {
 	case ReviewDecisionApproved:
-		return model.TargetStatusReviewed, nil
-	case ReviewDecisionSignedOff:
-		return model.TargetStatusSignedOff, nil
+		return model.TargetStatusEstablished, nil
 	case ReviewDecisionRejected:
 		return model.TargetStatusDraft, nil
 	default:
-		return "", fmt.Errorf("unknown review outcome %q: want %s, %s, or %s",
-			decision, ReviewDecisionApproved, ReviewDecisionRejected, ReviewDecisionSignedOff)
+		return "", fmt.Errorf("unknown review outcome %q: want %s or %s",
+			decision, ReviewDecisionApproved, ReviewDecisionRejected)
 	}
 }
 
-// ApproveReviewUnit promotes one review-queue unit by recording its review
-// decision in the project STATE store (core/state). It is the approval-only
-// veneer over ApplyReviewDecision, kept for callers that speak the ladder
-// vocabulary: reviewState is "reviewed" (the default approval) or "signed-off"
-// (the final sign-off, the top rung). An empty string means reviewed.
-func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, locale, file, key, reviewState string) (bool, error) {
-	decision := ReviewDecisionApproved
-	if reviewState == string(model.TargetStatusSignedOff) {
-		decision = ReviewDecisionSignedOff
-	}
-	return a.ApplyReviewDecision(ctx, projectPath, sourceLang, ReviewUnitRef{File: file, Key: key, Locale: locale}, decision, "")
+// ApproveReviewUnit establishes one review-queue unit: ApplyReviewDecision
+// with ReviewDecisionApproved, for callers that address a unit by its parts.
+func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, locale, file, key string) (bool, error) {
+	return a.ApplyReviewDecision(ctx, projectPath, sourceLang, ReviewUnitRef{File: file, Key: key, Locale: locale}, ReviewDecisionApproved, "")
 }
 
 // ApplyReviewDecision records a review decision for one review-queue unit in the
@@ -144,10 +135,9 @@ func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, lo
 // into the committed record under `.kapi/state/` — distinct from the
 // `.memory.json`, which stays the recycle corpus.
 //
-// decision is one of ReviewDecisionApproved (→ reviewed), ReviewDecisionSignedOff
-// (→ signed-off), or ReviewDecisionRejected (→ draft: the unit drops out of the
-// review queue and re-enters the work queue, carrying note as the reviewer's
-// reason). An edit to the translation after any decision makes it stale, so the
+// decision is ReviewDecisionApproved (→ established) or ReviewDecisionRejected
+// (→ draft: the unit drops out of the review queue and re-enters the work
+// queue, carrying note as the reviewer's reason). An edit to the translation after any decision makes it stale, so the
 // unit re-derives from its content (a rejected unit re-enters review once it is
 // retranslated).
 //
@@ -159,13 +149,14 @@ func (a *App) ApplyReviewDecision(ctx context.Context, projectPath, sourceLang s
 }
 
 // ApplyReviewDecisionAs is ApplyReviewDecision with an explicit decider
-// identity. by is recorded as the decision's Decision.By: empty for a plain
-// human decision (the single-player default — unchanged behavior),
-// "ai/<model>" for an autonomous AI approval (pre-review auto-approve), or
-// "agent/<client>" for an MCP agent acting on a person's behalf. Gate
-// evaluation treats only "ai/…" decisions specially (core/gate approver
-// classes).
+// identity, recorded as the decision's Decision.By: empty for the person at
+// the keyboard, or the name a hosted surface knows them by. An agent or AI
+// identity is refused (state.IsAgentIdentity): an agent pre-reviews, and its
+// judgement never counts as a person's.
 func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang string, ref ReviewUnitRef, decision, note, by string) (bool, error) {
+	if state.IsAgentIdentity(by) {
+		return false, fmt.Errorf("%s cannot record a review decision: an agent records a pre-review (score and reasons), and a person decides", by)
+	}
 	a.InitRegistries()
 	ctx = ctxOrBackground(ctx)
 	status, err := decisionStatus(decision)
@@ -301,7 +292,7 @@ func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject
 	th := targetHash(content.target)
 	prev, hadPrev := st.Get(ctx, k)
 	ch, gov := prev.ContentHash, prev.GoverningFingerprint
-	if status == model.TargetStatusReviewed || status == model.TargetStatusSignedOff {
+	if status == model.TargetStatusEstablished {
 		ch, gov = state.SourceHash(content.source), governing
 	}
 	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.ContentHash == ch &&

@@ -17,7 +17,7 @@ func TestApplyTargetOverlay_CarriesStatus(t *testing.T) {
 	tgt := b.Target(model.LocaleFrench)
 	require.NotNil(t, tgt)
 	assert.Equal(t, "Bonjour", b.TargetText(model.LocaleFrench))
-	assert.Equal(t, model.TargetStatusReviewed, tgt.Status)
+	assert.Equal(t, model.TargetStatusEstablished, tgt.Status)
 
 	// Backward-compatible: an overlay without a status leaves it unset.
 	b2 := model.NewBlock("tu2", "World")

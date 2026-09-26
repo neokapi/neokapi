@@ -31,9 +31,9 @@ func TestConvergenceEstimate_SourceHeldVsReady(t *testing.T) {
 	mkProject(t, cs, "p", nil) // default gate = checked
 	// Two ready (checked) blocks and one held (authored) block, all untranslated.
 	storeSourceItem(t, cs, "p", "a.json",
-		srcBlk{"ready1", "A well-formed sentence.", model.SourceStatusChecked},
-		srcBlk{"ready2", "Another ready sentence.", model.SourceStatusChecked},
-		srcBlk{"held1", "Not yet settled.", model.SourceStatusAuthored})
+		srcBlk{"ready1", "A well-formed sentence.", model.SourceStatusWritten},
+		srcBlk{"ready2", "Another ready sentence.", model.SourceStatusWritten},
+		srcBlk{"held1", "Not yet settled.", model.SourceStatusWritten})
 
 	proj, err := cs.GetProject(t.Context(), "p")
 	require.NoError(t, err)
@@ -42,7 +42,7 @@ func TestConvergenceEstimate_SourceHeldVsReady(t *testing.T) {
 	require.NoError(t, err)
 
 	// Source readiness: 3 total, 2 ready, 1 held on the default `checked` gate.
-	assert.Equal(t, model.SourceGateChecked, view.Source.Gate)
+	assert.Equal(t, model.SourceGateWritten, view.Source.Gate)
 	assert.Equal(t, 3, view.Source.Total)
 	assert.Equal(t, 2, view.Source.Ready)
 	assert.Equal(t, 1, view.Source.Held)
@@ -94,8 +94,8 @@ func TestConvergenceEstimate_AllHeld_NoTranslationWork(t *testing.T) {
 	s, cs, _ := sourceFirstHarness(t)
 	mkProject(t, cs, "p", nil) // default checked
 	storeSourceItem(t, cs, "p", "a.json",
-		srcBlk{"h1", "Held.", model.SourceStatusAuthored},
-		srcBlk{"h2", "Also held.", model.SourceStatusAuthored})
+		srcBlk{"h1", "Held.", model.SourceStatusWritten},
+		srcBlk{"h2", "Also held.", model.SourceStatusWritten})
 
 	proj, err := cs.GetProject(t.Context(), "p")
 	require.NoError(t, err)
@@ -117,10 +117,10 @@ func TestConvergenceEstimate_ExcludesTranslatedReady(t *testing.T) {
 	mkProject(t, cs, "p", nil)
 
 	// One ready block already translated to fr, one ready block pending.
-	done := &model.Block{ID: "done", Translatable: true, SourceStatus: model.SourceStatusChecked}
+	done := &model.Block{ID: "done", Translatable: true, SourceStatus: model.SourceStatusWritten}
 	done.SetSourceText("Already translated.")
 	done.SetTargetText(model.LocaleFrench, "Déjà traduit.")
-	pending := &model.Block{ID: "pending", Translatable: true, SourceStatus: model.SourceStatusChecked}
+	pending := &model.Block{ID: "pending", Translatable: true, SourceStatus: model.SourceStatusWritten}
 	pending.SetSourceText("Still pending.")
 	require.NoError(t, cs.StoreItem(t.Context(), "p", "main", &platstore.Item{ProjectID: "p", Name: "a.json", Format: "json"}))
 	require.NoError(t, cs.StoreBlocksForItem(t.Context(), "p", "main", "a.json", []*model.Block{done, pending}))
@@ -148,8 +148,8 @@ func TestConvergenceEstimate_Credits(t *testing.T) {
 		WorkspaceID:     "ws-1",
 	}))
 	storeSourceItem(t, cs, "p", "a.json",
-		srcBlk{"r1", "A ready sentence to translate.", model.SourceStatusChecked},
-		srcBlk{"r2", "Another ready sentence to translate.", model.SourceStatusChecked})
+		srcBlk{"r1", "A ready sentence to translate.", model.SourceStatusWritten},
+		srcBlk{"r2", "Another ready sentence to translate.", model.SourceStatusWritten})
 
 	proj, err := cs.GetProject(t.Context(), "p")
 	require.NoError(t, err)

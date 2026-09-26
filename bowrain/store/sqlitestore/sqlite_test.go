@@ -169,7 +169,7 @@ func TestGetBlockStats_ApprovedLocales(t *testing.T) {
 	// b1: fr reviewed (approved), de merely translated.
 	b1 := model.NewBlock("b1", "Hello")
 	b1.SetTargetText(model.LocaleFrench, "Bonjour")
-	b1.StampTargetProvenance(model.LocaleFrench, model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	b1.StampTargetProvenance(model.LocaleFrench, model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	b1.SetTargetText(model.LocaleGerman, "Hallo")
 
 	// b2: fr draft — below the review rungs, never approved.

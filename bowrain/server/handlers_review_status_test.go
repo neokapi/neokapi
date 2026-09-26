@@ -136,7 +136,7 @@ func TestHandleReviewBlockPerLocale(t *testing.T) {
 
 	got := getStoredBlock(t, cs, pid, bid)
 	require.NotNil(t, got.Target("fr"))
-	assert.Equal(t, model.TargetStatusReviewed, got.Target("fr").Status, "fr must be reviewed")
+	assert.Equal(t, model.TargetStatusEstablished, got.Target("fr").Status, "fr must be reviewed")
 	require.NotNil(t, got.Target("de"))
 	assert.Equal(t, model.TargetStatusNew, got.Target("de").Status, "de must be untouched")
 	assert.Equal(t, "Bonjour", got.TargetText("fr"), "review must not touch the translation text")
@@ -153,7 +153,7 @@ func TestHandleReviewBlockUnreview(t *testing.T) {
 	b.SetSourceText("Hello")
 	b.SetTargetText("fr", "Bonjour")
 	b.SetTargetText("de", "Hallo")
-	b.StampTargetProvenance("de", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	b.StampTargetProvenance("de", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
 	bid := ids["Hello"]
 
@@ -164,7 +164,7 @@ func TestHandleReviewBlockUnreview(t *testing.T) {
 
 	got := getStoredBlock(t, cs, pid, bid)
 	assert.Equal(t, model.TargetStatusTranslated, got.Target("fr").Status, "fr must be back at translated")
-	assert.Equal(t, model.TargetStatusReviewed, got.Target("de").Status, "de's own reviewed status must survive fr's un-review")
+	assert.Equal(t, model.TargetStatusEstablished, got.Target("de").Status, "de's own reviewed status must survive fr's un-review")
 }
 
 // TestHandleReviewBlockNoTarget documents the no-target decision (epic 006
@@ -249,7 +249,7 @@ func TestHandleReviewBlockLegacyPropertyLifecycle(t *testing.T) {
 	rec := callReviewBlock(t, srv, pid, ids["Hello"], "fr", true)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	got := getStoredBlock(t, cs, pid, ids["Hello"])
-	assert.Equal(t, model.TargetStatusReviewed, got.Target("fr").Status)
+	assert.Equal(t, model.TargetStatusEstablished, got.Target("fr").Status)
 
 	// Un-reviewing a NO-target locale on a legacy block clears the block-global
 	// flag — the only faithful reading of "un-review" under the old scheme —
@@ -272,7 +272,7 @@ func TestHandleReviewBlockSignedOff(t *testing.T) {
 	b := &model.Block{ID: "b1", Translatable: true}
 	b.SetSourceText("Hello")
 	b.SetTargetText("fr", "Bonjour")
-	b.StampTargetProvenance("fr", model.TargetStatusSignedOff, model.Origin{Kind: model.OriginHuman})
+	b.StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
 	bid := ids["Hello"]
 
@@ -288,14 +288,14 @@ func TestHandleReviewBlockSignedOff(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.Contains(t, rec.Body.String(), `"status":"signed-off"`)
-	assert.Equal(t, model.TargetStatusSignedOff, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
+	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
 		"re-approve must not demote signed-off to reviewed")
 
 	// Un-review without PermReview: denied, status untouched.
 	rec, err = callReviewBlockAs(t, srv, pid, bid, "fr", false, translator)
 	require.Error(t, err, "deny() returns errAccessDenied after committing the 403")
 	assert.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusSignedOff, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
+	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
 		"a PermTranslate caller must not undo a sign-off")
 
 	// With the elevated review permission the demotion is allowed.
@@ -380,7 +380,7 @@ func TestEditorEditDemotesStaleReview(t *testing.T) {
 	b.SetSourceText("Hello")
 	b.SetTargetText("fr", "Bonjour")
 	b.SetTargetText("de", "Hallo")
-	b.StampTargetProvenance("de", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	b.StampTargetProvenance("de", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	pid, ids := seedReviewProject(t, cs, []*model.Block{b})
 	bid := ids["Hello"]
 
@@ -390,7 +390,7 @@ func TestEditorEditDemotesStaleReview(t *testing.T) {
 	// Saving the SAME text is not an edit: the review decision still applies.
 	require.NoError(t, editorUpdateBlockTarget(ctx, cs, pid, "main", bid,
 		UpdateBlockTargetRequest{TargetLocale: "fr", Text: "Bonjour"}))
-	assert.Equal(t, model.TargetStatusReviewed, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
+	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
 		"re-saving identical text must keep the reviewed status")
 
 	// Rewriting the fr text demotes fr to translated; de's review is untouched.
@@ -400,7 +400,7 @@ func TestEditorEditDemotesStaleReview(t *testing.T) {
 	assert.Equal(t, model.TargetStatusTranslated, got.Target("fr").Status,
 		"an edited translation must not keep counting as reviewed")
 	assert.Equal(t, "Salut", got.TargetText("fr"))
-	assert.Equal(t, model.TargetStatusReviewed, got.Target("de").Status,
+	assert.Equal(t, model.TargetStatusEstablished, got.Target("de").Status,
 		"editing fr must not touch de's review status")
 
 	// Same rule on the Run-native update endpoint.
@@ -476,7 +476,7 @@ func TestHandleGetFileBlocksCarriesPerLocaleStatus(t *testing.T) {
 // storage:
 //
 //  1. HandleReviewBlock sets Block.Targets[Variant(locale)].Status =
-//     model.TargetStatusReviewed (this package).
+//     model.TargetStatusEstablished (this package).
 //  2. The Postgres ContentStore persists the FULL model.Target JSON (runs +
 //     status + origin) per variant (bowrain/store/overlay_sync.go,
 //     SyncBlockOverlays) and GetBlocks round-trips it — asserted here against
@@ -487,7 +487,7 @@ func TestHandleGetFileBlocksCarriesPerLocaleStatus(t *testing.T) {
 //     (core/convergence/convergence.go), and host.ComputeShipCoverage feeds it
 //     into convergence.CoverageTally (host/coverage.go). decisionStatus in
 //     host/convergereport.go maps "approved" to the SAME
-//     model.TargetStatusReviewed rung.
+//     model.TargetStatusEstablished rung.
 //
 // This test drives steps 1–2 through the real handler + Postgres, then runs
 // step 3's exact functions (convergence.TargetState + CoverageTally +
@@ -526,7 +526,7 @@ func TestEditorReviewFeedsConvergenceCoverage(t *testing.T) {
 			tally.Add(convergence.Scope{Locale: locale}, state)
 			// The reviewed block reads at the reviewed rung for fr only.
 			if sb.Block.ID == ids["Hello"] && locale == "fr" {
-				assert.Equal(t, string(model.TargetStatusReviewed), state)
+				assert.Equal(t, string(model.TargetStatusEstablished), state)
 			} else {
 				assert.Equal(t, string(model.TargetStatusTranslated), state)
 			}
@@ -539,9 +539,9 @@ func TestEditorReviewFeedsConvergenceCoverage(t *testing.T) {
 	de, ok := tally.Coverage(convergence.Scope{Locale: "de"})
 	require.True(t, ok)
 
-	assert.InDelta(t, 50, fr.AtLeastPct(ladder, string(model.TargetStatusReviewed)), 1e-9,
+	assert.InDelta(t, 50, fr.AtLeastPct(ladder, string(model.TargetStatusEstablished)), 1e-9,
 		"fr: 1 of 2 blocks reviewed via the editor endpoint")
-	assert.InDelta(t, 0, de.AtLeastPct(ladder, string(model.TargetStatusReviewed)), 1e-9,
+	assert.InDelta(t, 0, de.AtLeastPct(ladder, string(model.TargetStatusEstablished)), 1e-9,
 		"de: reviewing fr must not move de's reviewed coverage")
 	assert.InDelta(t, 100, fr.AtLeastPct(ladder, string(model.TargetStatusTranslated)), 1e-9)
 	assert.InDelta(t, 100, de.AtLeastPct(ladder, string(model.TargetStatusTranslated)), 1e-9)

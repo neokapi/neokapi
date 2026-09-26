@@ -70,7 +70,7 @@ func TestLastTargetAuthors(t *testing.T) {
 			ItemName:    "greetings.txt",
 			Unit:        unit,
 			Variant:     "fr",
-			Status:      string(model.TargetStatusReviewed),
+			Status:      string(model.TargetStatusEstablished),
 			ReviewState: "approved",
 			DecidedBy:   "reviewer@example.test",
 			DecidedAt:   "2026-01-01T00:00:00Z",

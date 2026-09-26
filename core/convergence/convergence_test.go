@@ -20,16 +20,16 @@ func TestTargetState_PresenceBaselineAndCommitted(t *testing.T) {
 	b.SetTargetText("nb", "Eple")
 	assert.Equal(t, string(model.TargetStatusTranslated), convergence.TargetState(b, "nb"),
 		"a present target counts as translated (presence baseline)")
-	b.StampTargetProvenance("nb", model.TargetStatusReviewed, model.Origin{})
-	assert.Equal(t, string(model.TargetStatusReviewed), convergence.TargetState(b, "nb"),
+	b.StampTargetProvenance("nb", model.TargetStatusEstablished, model.Origin{})
+	assert.Equal(t, string(model.TargetStatusEstablished), convergence.TargetState(b, "nb"),
 		"a committed status is authoritative")
 }
 
 func TestSourceState_PresenceBaselineAndCommitted(t *testing.T) {
 	b := model.NewBlock("a", "Apple")
-	assert.Equal(t, string(model.SourceStatusAuthored), convergence.SourceState(b))
-	b.SourceStatus = model.SourceStatusApproved
-	assert.Equal(t, string(model.SourceStatusApproved), convergence.SourceState(b))
+	assert.Equal(t, string(model.SourceStatusWritten), convergence.SourceState(b))
+	b.SourceStatus = model.SourceStatusEstablished
+	assert.Equal(t, string(model.SourceStatusEstablished), convergence.SourceState(b))
 	assert.Empty(t, convergence.SourceState(model.NewBlock("e", "  ")), "empty source is below every rung")
 }
 

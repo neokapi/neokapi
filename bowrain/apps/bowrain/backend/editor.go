@@ -457,7 +457,7 @@ func (a *App) BulkReviewBlocks(projectID string, req BulkReviewArgs) (*BulkRevie
 			out.Results = append(out.Results, BlockResultView{BlockID: id, Error: err.Error()})
 			continue
 		}
-		status := string(model.TargetStatusReviewed)
+		status := string(model.TargetStatusEstablished)
 		if !req.Approve {
 			status = string(model.TargetStatusTranslated)
 			if req.Status == string(model.TargetStatusDraft) {
@@ -827,7 +827,7 @@ func demoteStaleReviewOnEdit(b *model.Block, locale model.LocaleID, oldRuns []mo
 	if t == nil {
 		return
 	}
-	if t.Status != model.TargetStatusReviewed && t.Status != model.TargetStatusSignedOff {
+	if t.Status != model.TargetStatusEstablished {
 		return
 	}
 	if reflect.DeepEqual(oldRuns, t.Runs) {
@@ -915,15 +915,15 @@ func (a *App) reviewBlockLocal(projectID, blockID, targetLocale string, reviewed
 		if target == nil || strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
 			return fmt.Errorf("block %q has no %s translation to review: translate it first", blockID, targetLocale)
 		}
-		if target.Status == model.TargetStatusSignedOff {
+		if target.Status == model.TargetStatusEstablished {
 			// Signed-off is the top of the ladder; approving or re-signing it
 			// must not demote it (mirrors the server's HandleReviewBlock no-op).
 			return nil
 		}
-		if status == string(model.TargetStatusSignedOff) {
-			target.Status = model.TargetStatusSignedOff
+		if status == string(model.TargetStatusEstablished) {
+			target.Status = model.TargetStatusEstablished
 		} else {
-			target.Status = model.TargetStatusReviewed
+			target.Status = model.TargetStatusEstablished
 		}
 	} else {
 		if target == nil {

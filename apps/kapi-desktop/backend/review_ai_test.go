@@ -186,11 +186,9 @@ func TestRunAIPreReview_AnnotateOnly(t *testing.T) {
 	app := newAIReviewApp(t, mock)
 	tab, root := newReviewProject(t, app)
 
-	res, err := app.RunAIPreReview(tab.ID, "fr-FR", PreReviewScope{}, PreReviewPolicy{})
+	res, err := app.RunAIPreReview(tab.ID, "fr-FR", PreReviewScope{})
 	require.NoError(t, err)
 	assert.Equal(t, 2, res.Reviewed)
-	assert.Equal(t, 0, res.AutoApproved, "annotate-only never decides")
-	assert.Equal(t, 2, res.Remaining)
 
 	// The queue surfaces the stored scores; nothing left the queue.
 	queue, err := app.ReviewQueue(tab.ID, ProjectFilter{})
@@ -223,51 +221,6 @@ func TestRunAIPreReview_AnnotateOnly(t *testing.T) {
 	assert.Equal(t, "mock", d.AIReviewModel)
 }
 
-func TestRunAIPreReview_AutoApprove(t *testing.T) {
-	mock := aiprovider.NewMockProvider()
-	// Every unit scores 95 — but de-DE greeting has a major placeholder
-	// finding, which vetoes its approval regardless of score.
-	mock.ChatFunc = func(context.Context, []aiprovider.Message) (*aiprovider.ChatResponse, error) {
-		return &aiprovider.ChatResponse{Content: `{"score": 95, "findings": []}`, Model: "mock-model"}, nil
-	}
-	app := newAIReviewApp(t, mock)
-	tab, root := newReviewProject(t, app)
-
-	res, err := app.RunAIPreReview(tab.ID, "de-DE", PreReviewScope{},
-		PreReviewPolicy{AutoApprove: true, MinScore: 90})
-	require.NoError(t, err)
-	assert.Equal(t, "mock", res.Model)
-	assert.Equal(t, 2, res.Reviewed)
-	assert.Equal(t, 1, res.AutoApproved, "farewell is clean and above the bar; greeting is vetoed by its check finding")
-	assert.Equal(t, 1, res.Remaining)
-
-	// The approval carries the honest ai/<model> identity, and the annotation
-	// rides along on the same record.
-	f := struct{ Units []state.UnitState }{Units: commitAndReadUnits(t, app, root)}
-	approved := 0
-	for _, u := range f.Units {
-		if u.Decision.ReviewState == "approved" {
-			approved++
-			assert.Equal(t, "ai/mock", u.Decision.By)
-			assert.True(t, state.IsAIDecision(u.Decision.By))
-			require.NotNil(t, u.AIReview)
-			assert.Equal(t, 95, u.AIReview.Score)
-		}
-	}
-	assert.Equal(t, 1, approved)
-
-	// The approved unit left the queue; the vetoed one is still pending.
-	queue, err := app.ReviewQueue(tab.ID, ProjectFilter{})
-	require.NoError(t, err)
-	var deKeys []string
-	for _, it := range queue.Pending {
-		if it.Locale == "de-DE" {
-			deKeys = append(deKeys, it.Key)
-		}
-	}
-	assert.Equal(t, []string{"greeting"}, deKeys)
-}
-
 func TestRunAIPreReview_ProseFallbackSkipped(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	mock.ChatFunc = func(context.Context, []aiprovider.Message) (*aiprovider.ChatResponse, error) {
@@ -276,18 +229,16 @@ func TestRunAIPreReview_ProseFallbackSkipped(t *testing.T) {
 	app := newAIReviewApp(t, mock)
 	tab, _ := newReviewProject(t, app)
 
-	res, err := app.RunAIPreReview(tab.ID, "fr-FR", PreReviewScope{},
-		PreReviewPolicy{AutoApprove: true, MinScore: 0})
+	res, err := app.RunAIPreReview(tab.ID, "fr-FR", PreReviewScope{})
 	require.NoError(t, err)
 	assert.Equal(t, 0, res.Reviewed, "prose responses carry no usable score")
 	assert.Equal(t, 2, res.Skipped)
-	assert.Equal(t, 0, res.AutoApproved, "no score, no approval — fail closed")
 }
 
 func TestRunAIPreReview_EmptyScope(t *testing.T) {
 	app := newAIReviewApp(t, aiprovider.NewMockProvider())
 	tab, _ := newReviewProject(t, app)
-	res, err := app.RunAIPreReview(tab.ID, "fr-FR", PreReviewScope{Collection: "nope"}, PreReviewPolicy{})
+	res, err := app.RunAIPreReview(tab.ID, "fr-FR", PreReviewScope{Collection: "nope"})
 	require.NoError(t, err)
 	assert.Zero(t, res.Reviewed)
 }

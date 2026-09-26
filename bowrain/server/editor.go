@@ -824,7 +824,7 @@ func demoteStaleReviewOnEdit(b *model.Block, locale model.LocaleID, oldRuns []mo
 	if t == nil {
 		return
 	}
-	if t.Status != model.TargetStatusReviewed && t.Status != model.TargetStatusSignedOff {
+	if t.Status != model.TargetStatusEstablished {
 		return
 	}
 	if reflect.DeepEqual(oldRuns, t.Runs) {

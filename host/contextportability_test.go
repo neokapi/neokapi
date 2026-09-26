@@ -128,7 +128,7 @@ func seedPortable(t *testing.T, a *App, root, recipe string) {
 	scope := a.DocumentScope(ctx, root, filepath.Join(root, "locales", "en", "app.json"))
 	require.NoError(t, st.Put(ctx, state.UnitState{
 		Unit: "greeting", Variant: model.Variant("nb"), Scope: scope,
-		Status:               model.TargetStatusReviewed,
+		Status:               model.TargetStatusEstablished,
 		Decision:             state.Decision{ReviewState: "approved", By: "reviewer"},
 		TargetHash:           state.TargetHash("Hei der"),
 		ContentHash:          state.SourceHash("Hello there"),

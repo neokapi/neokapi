@@ -95,11 +95,10 @@ func (t *SourceGateTool) gateOne(ctx context.Context, part *model.Part) {
 	}
 	t.total.Add(1)
 
-	// Settle via the shared helper — the same authored→checked derivation the
-	// server settle and `kapi check` use.
+	// Settle via the shared helper, the same derivation the server settle uses.
 	check.SettleSourceStatus(ctx, b)
 
-	if t.gate.Admits(b.SourceStatus) {
+	if t.gate.AdmitsBlock(b) {
 		b.SetSourceHeld(false) // ready: clear any stale hold from a prior pass
 		return
 	}

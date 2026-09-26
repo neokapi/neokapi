@@ -97,7 +97,7 @@ func TestNeighbourOfCarriesRunsAndTheRung(t *testing.T) {
 	require.NotNil(t, n.Target[1].Ph)
 	assert.Empty(t, n.Status, "a target on no rung reports no status")
 
-	block.Target("nb").Status = model.TargetStatusReviewed
+	block.Target("nb").Status = model.TargetStatusEstablished
 	n, ok = NeighbourOf(block, "nb")
 	require.True(t, ok)
 	assert.Equal(t, "reviewed", n.Status, "the neighbour's rung travels with it")
@@ -144,7 +144,7 @@ func TestProvenanceOfGroupsTheDecision(t *testing.T) {
 			name: "the decision in force travels with its identity and its rung",
 			unit: &state.UnitState{
 				Origin: model.Origin{Kind: "memory"},
-				Status: model.TargetStatusReviewed,
+				Status: model.TargetStatusEstablished,
 				Decision: state.Decision{
 					ReviewState: "approved",
 					By:          "agent/claude-code",
@@ -163,8 +163,8 @@ func TestProvenanceOfGroupsTheDecision(t *testing.T) {
 		},
 		{
 			name: "source wording reports its authoring rung",
-			unit: &state.UnitState{SourceStatus: model.SourceStatusApproved, Decision: state.Decision{ReviewState: "approved"}},
-			want: Provenance{ReviewState: "approved", Status: string(model.SourceStatusApproved)},
+			unit: &state.UnitState{SourceStatus: model.SourceStatusEstablished, Decision: state.Decision{ReviewState: "approved"}},
+			want: Provenance{ReviewState: "approved", Status: string(model.SourceStatusEstablished)},
 		},
 	}
 

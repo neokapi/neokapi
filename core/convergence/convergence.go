@@ -421,7 +421,7 @@ func SourceState(b *model.Block) string {
 	if b.SourceStatus != "" {
 		return string(b.SourceStatus)
 	}
-	return string(model.SourceStatusAuthored)
+	return string(model.SourceStatusWritten)
 }
 
 // Preview trims a string to a short single-line preview for queue listings.

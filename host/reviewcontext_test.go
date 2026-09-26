@@ -53,7 +53,7 @@ func TestAssembleReviewContextComposesTheSharedLayers(t *testing.T) {
 	at := time.Date(2026, 2, 1, 9, 0, 0, 0, time.UTC)
 	require.NoError(t, tm.Add(ctx, chainAnswer("v2", "doc.three", "Third paragraph.", "Tredje avsnitt.", "fp-now", at)))
 	unit := &state.UnitState{
-		Status:   model.TargetStatusReviewed,
+		Status:   model.TargetStatusEstablished,
 		Decision: state.Decision{ReviewState: "approved", By: "owner", At: "2026-02-02T09:00:00Z"},
 	}
 

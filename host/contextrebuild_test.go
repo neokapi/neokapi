@@ -141,7 +141,7 @@ func TestRebuildFromAMixedLogEqualsTheIncrementalState(t *testing.T) {
 	decide := func(unit, target string, by string) state.UnitState {
 		return state.UnitState{
 			Unit: unit, Variant: model.Variant("nb"), Scope: "doc",
-			Status:      model.TargetStatusReviewed,
+			Status:      model.TargetStatusEstablished,
 			Decision:    state.Decision{ReviewState: "approved", By: by},
 			TargetHash:  state.TargetHash(target),
 			ContentHash: state.SourceHash("Hello " + unit),

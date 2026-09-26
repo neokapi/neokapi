@@ -558,7 +558,7 @@ func TestGetBlockStats(t *testing.T) {
 	// target), 1 non-translatable.
 	b1 := model.NewBlock("b1", "Hello world")
 	b1.SetTargetText(model.LocaleFrench, "Bonjour le monde")
-	b1.StampTargetProvenance(model.LocaleFrench, model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	b1.StampTargetProvenance(model.LocaleFrench, model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	b2 := model.NewBlock("b2", "Click here to continue")
 	b3 := model.NewBlock("b3", "")
 	b3.Translatable = false
@@ -569,7 +569,7 @@ func TestGetBlockStats(t *testing.T) {
 	b4 := model.NewBlock("b4", "Settings")
 	b4.SetTargetText(model.LocaleFrench, "Paramètres")
 	b4.SetTargetText(model.LocaleGerman, "Einstellungen")
-	b4.StampTargetProvenance(model.LocaleGerman, model.TargetStatusSignedOff, model.Origin{Kind: model.OriginHuman})
+	b4.StampTargetProvenance(model.LocaleGerman, model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", "strings.xml", []*model.Block{b4}))
 
 	t.Run("returns all blocks", func(t *testing.T) {

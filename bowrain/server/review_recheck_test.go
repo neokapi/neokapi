@@ -87,7 +87,7 @@ func reviewedBlock(id, source, frTarget string) *model.Block {
 	b := &model.Block{ID: id, Translatable: true}
 	b.SetSourceText(source)
 	b.SetTargetText("fr", frTarget)
-	b.Target("fr").Status = model.TargetStatusReviewed
+	b.Target("fr").Status = model.TargetStatusEstablished
 	return b
 }
 
@@ -177,8 +177,8 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 
 	// Sanity: both approved → zero pending review, both persisted at reviewed.
 	require.Equal(t, 0, frPendingCount(t, s, projID), "both targets start approved")
-	require.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Use the app"]))
-	require.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Hello"]))
+	require.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, ids["Use the app"]))
+	require.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, ids["Hello"]))
 
 	// Mark a concept with a forbidden fr term "utiliser" (the governed outcome; RV-E
 	// reacts to the resulting event, downstream of the change-set gate). The
@@ -215,7 +215,7 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 		return frStatus(t, s, projID, ids["Use the app"]) == model.TargetStatusDraft
 	}, 20*time.Second, 50*time.Millisecond, "the violating approved target must be demoted to draft")
 
-	assert.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Hello"]),
+	assert.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, ids["Hello"]),
 		"the conforming target is left untouched (no needless churn)")
 	assert.Equal(t, 1, frPendingCount(t, s, projID), "the pending-review count goes 0 → 1")
 	awaitFrReviewTasks(t, s, wsID, projID, 1) // fr re-enters the review queue with exactly one task
@@ -231,7 +231,7 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 	publishConceptEvent()
 	time.Sleep(500 * time.Millisecond)
 	assert.Equal(t, model.TargetStatusDraft, frStatus(t, s, projID, ids["Use the app"]))
-	assert.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Hello"]))
+	assert.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, ids["Hello"]))
 	assert.Equal(t, 1, frPendingCount(t, s, projID), "replay changes nothing")
 	assert.Equal(t, 1, openFrReviewTasks(t, s, wsID, projID), "no duplicate review task on replay")
 	runs, err = s.ConvergenceRunStore.ListRuns(ctx, projID, 20)
@@ -250,7 +250,7 @@ func TestReviewRecheck_ConceptLeavesUngovernedLanguageAlone(t *testing.T) {
 
 	b1 := reviewedBlock("b1", "Use the app", "Utiliser l'application")
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{b1})
-	require.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Use the app"]))
+	require.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, ids["Use the app"]))
 
 	tb, err := s.wsStores.getTerms("rc")
 	require.NoError(t, err)
@@ -331,7 +331,7 @@ func TestReviewRecheck_ConceptMandatedTermAbsenceDemotesAndRequeues(t *testing.T
 		return frStatus(t, s, projID, ids["Open the app"]) == model.TargetStatusDraft
 	}, 20*time.Second, 50*time.Millisecond, "the approved target missing the mandated term must be demoted to draft")
 
-	assert.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Close the app"]),
+	assert.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, ids["Close the app"]),
 		"the target that already uses the mandated rendering is left untouched")
 	assert.Equal(t, 1, frPendingCount(t, s, projID), "the pending-review count goes 0 → 1")
 	awaitFrReviewTasks(t, s, wsID, projID, 1) // fr re-enters the review queue with exactly one task
@@ -345,7 +345,7 @@ func TestReviewRecheck_ConceptMandatedTermAbsenceDemotesAndRequeues(t *testing.T
 	publishConceptEvent()
 	time.Sleep(500 * time.Millisecond)
 	assert.Equal(t, model.TargetStatusDraft, frStatus(t, s, projID, ids["Open the app"]))
-	assert.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Close the app"]))
+	assert.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, ids["Close the app"]))
 	assert.Equal(t, 1, frPendingCount(t, s, projID), "replay changes nothing")
 	assert.Equal(t, 1, openFrReviewTasks(t, s, wsID, projID), "no duplicate review task on replay")
 }
@@ -395,7 +395,7 @@ func TestReviewRecheck_RulePromotionScopedToPromotedTerm(t *testing.T) {
 		return frStatus(t, s, projID, ids["Use it"]) == model.TargetStatusDraft
 	}, 20*time.Second, 50*time.Millisecond, "the target with the promoted term must be demoted")
 
-	assert.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Old flow"]),
+	assert.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, ids["Old flow"]),
 		"a target tripping only an OLDER rule is not swept up (scoped to the promoted term)")
 	assert.Equal(t, 1, frPendingCount(t, s, projID), "only the promoted-term violation re-enters review")
 	awaitFrReviewTasks(t, s, wsID, projID, 1)

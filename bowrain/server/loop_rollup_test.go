@@ -114,7 +114,7 @@ func TestLoopRollupShipStates(t *testing.T) {
 	b := &model.Block{ID: "a-b1", Translatable: true}
 	b.SetSourceText("Hello world")
 	b.SetTargetText("fr", "Bonjour le monde")
-	b.StampTargetProvenance("fr", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	b.StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	b.SetTargetText("de", "Hallo Welt")
 	require.NoError(t, cs.StoreItem(ctx, pidA, "main", &platstore.Item{ProjectID: pidA, Name: "a.json", Format: "json"}))
 	require.NoError(t, cs.StoreBlocksForItem(ctx, pidA, "main", "a.json", []*model.Block{b}))

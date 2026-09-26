@@ -1,5 +1,5 @@
 // Package state holds a project's authored workflow decisions: the review
-// ladder (draft, translated, reviewed, signed-off), who approved a unit and
+// ladder (draft, translated, established), who established a unit and
 // when, parking, notes, and the pairing of source and translation each decision
 // blessed. None of it is derivable from the content, so all of it is kept.
 //
@@ -55,9 +55,9 @@ type UnitState struct {
 	Unit string `json:"unit"`
 	// Variant is the locale (and optional tone/channel) this state applies to.
 	Variant model.VariantKey `json:"variant"`
-	// Status is the target ladder position (draft→translated→reviewed→signed-off).
+	// Status is the target ladder position (draft→translated→established).
 	Status model.TargetStatus `json:"status,omitempty"`
-	// SourceStatus is the source ladder position (authored→checked→approved).
+	// SourceStatus is the source ladder position (written→established).
 	SourceStatus model.SourceStatus `json:"sourceStatus,omitempty"`
 	// Origin is the provenance of the current target (engine/tool/reference).
 	Origin model.Origin `json:"origin,omitzero"`
@@ -65,12 +65,11 @@ type UnitState struct {
 	// edit to the translation invalidates a stale decision (e.g. an approval). It
 	// does NOT duplicate the translation text — that lives in the deliverable.
 	TargetHash string `json:"targetHash,omitempty"`
-	// Decision is the human/agent workflow decision recorded for the unit.
+	// Decision is the person's workflow decision recorded for the unit.
 	Decision Decision `json:"decision,omitzero"`
-	// AIReview is the last AI pre-review annotation for the unit — advisory
-	// only, never a decision. It informs the review queue (score + findings);
-	// an auto-approval it justified is recorded separately in Decision, with
-	// By carrying the "ai/<model>" identity.
+	// AIReview is the last pre-review an agent or model recorded for the unit:
+	// advisory only, never a decision. It informs the review queue (score and
+	// reasons).
 	AIReview *AIReview `json:"aiReview,omitempty"`
 	// Updated is when this record last changed (RFC 3339).
 	Updated string `json:"updated,omitempty"`
@@ -141,7 +140,7 @@ func (s UnitState) GoverningContext() string {
 // run that drafted it. A rejection and a plain basis record vouch for nothing,
 // and read through to the stamp the producer left.
 func (s UnitState) GoverningBasis() string {
-	if s.Status == model.TargetStatusReviewed || s.Status == model.TargetStatusSignedOff {
+	if s.Status == model.TargetStatusEstablished {
 		if s.Decision.ReviewState != "" && s.GoverningFingerprint != "" {
 			return s.GoverningFingerprint
 		}
@@ -152,10 +151,9 @@ func (s UnitState) GoverningBasis() string {
 // Decision is the authored workflow decision recorded for a unit.
 type Decision struct {
 	ReviewState string `json:"reviewState,omitempty"` // approved | rejected | …
-	// By is the decider's identity. Empty for a plain human decision (the
-	// single-player default), "ai/<model>" for an autonomous AI approval
-	// (e.g. pre-review auto-approve), "agent/<client>" for an MCP agent
-	// acting on a person's behalf.
+	// By is the person's identity where a hosted surface knows it; empty for
+	// the person at the keyboard. Never an agent or AI identity
+	// (IsAgentIdentity).
 	By       string `json:"by,omitempty"`
 	At       string `json:"at,omitempty"` // RFC 3339
 	Note     string `json:"note,omitempty"`
@@ -163,16 +161,23 @@ type Decision struct {
 	Assignee string `json:"assignee,omitempty"`
 }
 
-// AIIdentityPrefix marks a decision made autonomously by an AI reviewer.
-// Decisions with this prefix count toward reviewed/signed-off gate thresholds
-// only when the gate's approver class is "any" (core/gate).
+// AIIdentityPrefix marks an identity that is an AI model ("ai/<model>").
 const AIIdentityPrefix = "ai/"
 
-// IsAIDecision reports whether an identity string names an autonomous AI
-// decider (prefixed "ai/"). Agent identities ("agent/…") are NOT AI decisions:
-// they act on a person's behalf.
+// AgentIdentityPrefix marks an identity that is an agent acting over MCP
+// ("agent/<client>", or the bare "agent").
+const AgentIdentityPrefix = "agent/"
+
+// IsAIDecision reports whether an identity string names an AI model.
 func IsAIDecision(by string) bool {
-	return len(by) >= len(AIIdentityPrefix) && by[:len(AIIdentityPrefix)] == AIIdentityPrefix
+	return strings.HasPrefix(by, AIIdentityPrefix)
+}
+
+// IsAgentIdentity reports whether an identity names an agent or an AI model
+// rather than a person. Such an identity records pre-reviews, never decisions:
+// only a person establishes a unit.
+func IsAgentIdentity(by string) bool {
+	return by == "agent" || strings.HasPrefix(by, AgentIdentityPrefix) || IsAIDecision(by)
 }
 
 // AIReview is an advisory AI pre-review annotation: the structured output of
@@ -252,11 +257,11 @@ func (s UnitState) Fresh(targetHash, contentHash string) bool {
 	return !s.Stale(targetHash) && !s.SourceStale(contentHash)
 }
 
-// Reviewed reports whether the unit is at or above the reviewed rung for a fresh
+// Established reports whether the unit is established for a fresh
 // translation (its decision blesses the given target content, not a stale one).
-func (s UnitState) Reviewed(targetHash string) bool {
+func (s UnitState) Established(targetHash string) bool {
 	if s.Stale(targetHash) {
 		return false
 	}
-	return s.Status == model.TargetStatusReviewed || s.Status == model.TargetStatusSignedOff
+	return s.Status == model.TargetStatusEstablished
 }

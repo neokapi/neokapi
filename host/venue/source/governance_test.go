@@ -55,7 +55,7 @@ func approvedUnit(unit, locale string) state.UnitState {
 		Scope:       "locales/en.json",
 		Unit:        unit,
 		Variant:     model.Variant(model.LocaleID(locale)),
-		Status:      model.TargetStatusReviewed,
+		Status:      model.TargetStatusEstablished,
 		TargetHash:  "target-" + unit,
 		ContentHash: "source-" + unit,
 		Decision: state.Decision{
@@ -188,7 +188,7 @@ func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
 	withdrawn.Updated = "2026-09-04T10:00:00Z"
 	held := venue.UnitDecision{
 		ItemName: "locales/en.json", Unit: "greeting", Variant: "fr",
-		Status: string(model.TargetStatusSignedOff), ReviewState: venue.ReviewStateSignedOff,
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateSignedOff,
 		TargetHash: withdrawn.TargetHash, ContentHash: withdrawn.ContentHash,
 		DecidedBy: "reviewer@example.com", DecidedAt: "2026-09-03T10:00:00Z",
 		Updated: "2026-09-03T10:00:00Z",
@@ -219,7 +219,7 @@ func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
 		require.Len(t, after, 1)
 		assert.Equal(t, venue.ReviewStateSignedOff, after[0].ReviewState)
 		assert.Equal(t, "reviewer@example.com", after[0].DecidedBy, "the sign-off still names the person who made it")
-		assert.Equal(t, string(model.TargetStatusSignedOff), after[0].Status)
+		assert.Equal(t, string(model.TargetStatusEstablished), after[0].Status)
 
 		diff, err := st.RecordDiff(t.Context())
 		require.NoError(t, err)

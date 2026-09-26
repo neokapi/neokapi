@@ -28,7 +28,7 @@ func TestUnitDecisions_SQLiteContract(t *testing.T) {
 
 	decision := venue.UnitDecision{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status:     string(model.TargetStatusReviewed),
+		Status:     string(model.TargetStatusEstablished),
 		TargetHash: state.TargetHash("Hei"),
 		DecidedBy:  "reviewer@example.com",
 		Updated:    "2026-08-04T10:00:00Z",
@@ -51,7 +51,7 @@ func TestUnitDecisions_SQLiteContract(t *testing.T) {
 		}
 		return ""
 	}
-	assert.Equal(t, model.TargetStatusReviewed, status(), "approval projects onto the stored target")
+	assert.Equal(t, model.TargetStatusEstablished, status(), "approval projects onto the stored target")
 
 	// Idempotent replay.
 	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{decision})
@@ -91,7 +91,7 @@ func TestUnitDecisions_RestoredSourceFindsItsApproval_SQLite(t *testing.T) {
 
 	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status:      string(model.TargetStatusReviewed),
+		Status:      string(model.TargetStatusEstablished),
 		TargetHash:  state.TargetHash("Hei"),
 		ContentHash: state.SourceHash("Hello"),
 		Updated:     "2026-08-04T10:00:00Z",
@@ -106,7 +106,7 @@ func TestUnitDecisions_RestoredSourceFindsItsApproval_SQLite(t *testing.T) {
 		require.Len(t, rows, 1)
 		return rows[0].Block.Target("nb").Status
 	}
-	require.Equal(t, model.TargetStatusReviewed, status())
+	require.Equal(t, model.TargetStatusEstablished, status())
 
 	rewrite := func(text string) {
 		edited := &model.Block{ID: "greeting", Translatable: true}
@@ -117,7 +117,7 @@ func TestUnitDecisions_RestoredSourceFindsItsApproval_SQLite(t *testing.T) {
 	assert.Equal(t, model.TargetStatusTranslated, status(), "the approval stops applying")
 
 	rewrite("Hello")
-	assert.Equal(t, model.TargetStatusReviewed, status(),
+	assert.Equal(t, model.TargetStatusEstablished, status(),
 		"a restored source converges on the decision already recorded — no re-review")
 
 	tallies, err := s.TallyDecisionBasis(ctx, p.ID, "main")
@@ -191,7 +191,7 @@ func TestTallyDecisionBasis_SQLite(t *testing.T) {
 			}
 			_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 				ItemName: "en.json", Unit: tt.unit, Variant: "nb",
-				Status:      string(model.TargetStatusReviewed),
+				Status:      string(model.TargetStatusEstablished),
 				TargetHash:  state.TargetHash("Hei"),
 				ContentHash: basis,
 				Updated:     "2026-08-04T10:00:00Z",
@@ -248,7 +248,7 @@ func TestRecordDraftBases_SQLite(t *testing.T) {
 	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{
 		{
 			ItemName: "en.json", Unit: "greeting", Variant: "nb",
-			Status: string(model.TargetStatusReviewed), ReviewState: "approved", DecidedBy: "reviewer-1",
+			Status: string(model.TargetStatusEstablished), ReviewState: "approved", DecidedBy: "reviewer-1",
 			TargetHash: state.TargetHash("Hei"), ContentHash: state.SourceHash("Hello"),
 			Updated: "2026-08-04T10:00:00Z",
 		},
@@ -259,7 +259,7 @@ func TestRecordDraftBases_SQLite(t *testing.T) {
 		},
 		{
 			ItemName: "en.json", Unit: "untranslated", Variant: "nb",
-			Status: string(model.TargetStatusReviewed), ReviewState: "approved", DecidedBy: "reviewer-1",
+			Status: string(model.TargetStatusEstablished), ReviewState: "approved", DecidedBy: "reviewer-1",
 			ContentHash: state.SourceHash("See you"),
 			Updated:     "2026-08-04T10:00:00Z",
 		},
@@ -331,7 +331,7 @@ func TestUpsertUnitDecisions_StaleBasisDoesNotProject_SQLite(t *testing.T) {
 
 	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status:      string(model.TargetStatusReviewed),
+		Status:      string(model.TargetStatusEstablished),
 		TargetHash:  state.TargetHash("Hei"),
 		ContentHash: state.SourceHash("Hello"), // the wording the reviewer saw
 		Updated:     "2026-08-04T10:00:00Z",
@@ -359,7 +359,7 @@ func TestUnitDecisions_GoverningFingerprintRoundTrips_SQLite(t *testing.T) {
 
 	legacy := venue.UnitDecision{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status: string(model.TargetStatusReviewed), TargetHash: state.TargetHash("Hei"),
+		Status: string(model.TargetStatusEstablished), TargetHash: state.TargetHash("Hei"),
 		ReviewState: "approved", DecidedBy: "reviewer@example.com", Updated: "2026-08-04T10:00:00Z",
 	}
 	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{legacy})
@@ -428,7 +428,7 @@ func TestTallyDecisionBasis_RejectionOwesADraft_SQLite(t *testing.T) {
 		},
 		{
 			ItemName: "en.json", Unit: "drifted", Variant: "nb",
-			Status: string(model.TargetStatusReviewed), ReviewState: venue.ReviewStateApproved,
+			Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
 			DecidedBy: "reviewer-1", TargetHash: state.TargetHash("Vi ses"),
 			ContentHash: state.SourceHash("See you"), Updated: "2026-09-01T10:00:00Z",
 		},

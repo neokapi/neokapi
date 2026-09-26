@@ -23,7 +23,7 @@ func rollupBy(rows []LocaleCoverage) map[string]LocaleCoverage {
 func TestRollupGates_VerifiedIndependentOfShippable(t *testing.T) {
 	tally := NewCoverageTally()
 	// fr: fully reviewed → clears both gates.
-	tally.Add(Scope{Locale: "fr"}, string(model.TargetStatusReviewed))
+	tally.Add(Scope{Locale: "fr"}, string(model.TargetStatusEstablished))
 	// de: translated but not reviewed → ships, NOT verified (flagged AI).
 	tally.Add(Scope{Locale: "de"}, string(model.TargetStatusTranslated))
 	// ja: untranslated → neither ships nor verifies.
@@ -48,7 +48,7 @@ func TestRollupGates_VerifiedIndependentOfShippable(t *testing.T) {
 // verified ruleset, every locale reads unverified even when fully reviewed.
 func TestRollupGates_NoVerifiedGate_NothingVerified(t *testing.T) {
 	tally := NewCoverageTally()
-	tally.Add(Scope{Locale: "fr"}, string(model.TargetStatusReviewed))
+	tally.Add(Scope{Locale: "fr"}, string(model.TargetStatusEstablished))
 
 	ship := gate.RuleSet{Rules: []gate.Rule{{Gate: gate.Gate{"translated": {Pct: 100}}}}}
 	rows := tally.RollupGates(ship, gate.RuleSet{})
@@ -61,7 +61,7 @@ func TestRollupGates_NoVerifiedGate_NothingVerified(t *testing.T) {
 // callers) leaves Verified false: it is RollupGates with no verified gate.
 func TestRollup_BackCompat_VerifiedFalse(t *testing.T) {
 	tally := NewCoverageTally()
-	tally.Add(Scope{Locale: "fr"}, string(model.TargetStatusReviewed))
+	tally.Add(Scope{Locale: "fr"}, string(model.TargetStatusEstablished))
 	rows := tally.Rollup(gate.RuleSet{Rules: []gate.Rule{{Gate: gate.Gate{"reviewed": {Pct: 100}}}}})
 	require.Len(t, rows, 1)
 	assert.True(t, rows[0].Shippable)

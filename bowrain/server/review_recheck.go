@@ -309,7 +309,7 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 					// already pending review, so re-checking it would change nothing —
 					// leaving it alone is what makes replays idempotent and avoids
 					// demoting a target that was already re-queued.
-					if t.Status.Rank() < model.TargetStatusReviewed.Rank() {
+					if t.Status.Rank() < model.TargetStatusEstablished.Rank() {
 						continue
 					}
 					if strings.TrimSpace(sb.Block.TargetText(loc)) == "" {

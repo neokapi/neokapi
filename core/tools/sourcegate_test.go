@@ -30,10 +30,10 @@ func gate(t *testing.T, gt *SourceGateTool, b *model.Block) {
 // below approved) — stamping the hold marker and counting it.
 func TestSourceGateTool_SettlesAndHoldsBelowGate(t *testing.T) {
 	b := srcBlock("Hello world")
-	gt := NewSourceGateTool(model.SourceGateApproved)
+	gt := NewSourceGateTool(model.SourceGateEstablished)
 	gate(t, gt, b)
 
-	assert.Equal(t, model.SourceStatusChecked, b.SourceStatus, "settled to checked")
+	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus, "settled to checked")
 	assert.True(t, b.SourceHeld(), "checked is below approved → held")
 	held, total := gt.Snapshot()
 	assert.Equal(t, 1, held)
@@ -45,10 +45,10 @@ func TestSourceGateTool_SettlesAndHoldsBelowGate(t *testing.T) {
 func TestSourceGateTool_AdmitsAtGate(t *testing.T) {
 	b := srcBlock("Hello world")
 	b.SetSourceHeld(true) // a stale hold from a prior pass
-	gt := NewSourceGateTool(model.SourceGateChecked)
+	gt := NewSourceGateTool(model.SourceGateWritten)
 	gate(t, gt, b)
 
-	assert.Equal(t, model.SourceStatusChecked, b.SourceStatus)
+	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
 	assert.False(t, b.SourceHeld(), "clean source clears the checked gate; the stale hold is cleared")
 	held, _ := gt.Snapshot()
 	assert.Equal(t, 0, held)
@@ -73,7 +73,7 @@ func TestSourceGateTool_NoneIsPassthrough(t *testing.T) {
 // below the checked gate — the partial-hold case.
 func TestSourceGateTool_WhitespaceHeldAtChecked(t *testing.T) {
 	b := srcBlock("   ")
-	gt := NewSourceGateTool(model.SourceGateChecked)
+	gt := NewSourceGateTool(model.SourceGateWritten)
 	gate(t, gt, b)
 
 	assert.Equal(t, model.SourceStatusNew, b.SourceStatus, "a major source finding keeps it at authored")

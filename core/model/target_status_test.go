@@ -10,8 +10,8 @@ func TestTargetStatus_RankAndLadder(t *testing.T) {
 	assert.Equal(t, -1, TargetStatusNew.Rank(), "New sits below the ladder")
 	assert.Equal(t, 0, TargetStatusDraft.Rank())
 	assert.Less(t, TargetStatusDraft.Rank(), TargetStatusTranslated.Rank())
-	assert.Less(t, TargetStatusTranslated.Rank(), TargetStatusReviewed.Rank())
-	assert.Less(t, TargetStatusReviewed.Rank(), TargetStatusSignedOff.Rank())
+	assert.Less(t, TargetStatusTranslated.Rank(), TargetStatusEstablished.Rank())
+	assert.Less(t, TargetStatusEstablished.Rank(), TargetStatusEstablished.Rank())
 	assert.Equal(t, -1, TargetStatus("nonsense").Rank())
 	assert.Len(t, TargetStatusLadder(), 4)
 }

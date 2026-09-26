@@ -531,7 +531,7 @@ func LoadBlockTargetStates(
 func SplitTargetStates(states []TargetLocaleState) (locales, approved []string) {
 	for _, st := range states {
 		locales = append(locales, st.Locale)
-		if st.Status.Rank() >= model.TargetStatusReviewed.Rank() {
+		if st.Status.Rank() >= model.TargetStatusEstablished.Rank() {
 			approved = append(approved, st.Locale)
 		}
 	}

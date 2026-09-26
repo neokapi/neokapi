@@ -8,7 +8,7 @@ import (
 )
 
 func TestPropsForStore_RoundTrip(t *testing.T) {
-	b := &model.Block{SourceStatus: model.SourceStatusChecked, Properties: map[string]string{"k": "v"}}
+	b := &model.Block{SourceStatus: model.SourceStatusWritten, Properties: map[string]string{"k": "v"}}
 	props := PropsForStore(b)
 	assert.Equal(t, "v", props["k"], "existing properties are preserved")
 	assert.Equal(t, "checked", props[PropSourceStatus], "the status is folded in")
@@ -19,7 +19,7 @@ func TestPropsForStore_RoundTrip(t *testing.T) {
 	// Read side: lift it back onto the block and strip the reserved key.
 	scanned := &model.Block{Properties: map[string]string{"k": "v", PropSourceStatus: "approved"}}
 	ApplySourceStatusFromProps(scanned)
-	assert.Equal(t, model.SourceStatusApproved, scanned.SourceStatus)
+	assert.Equal(t, model.SourceStatusEstablished, scanned.SourceStatus)
 	_, stillThere := scanned.Properties[PropSourceStatus]
 	assert.False(t, stillThere, "the reserved key is stripped on read")
 	assert.Equal(t, "v", scanned.Properties["k"])
@@ -32,10 +32,10 @@ func TestPropsForStore_NoStatus(t *testing.T) {
 }
 
 func TestSourceGateFor(t *testing.T) {
-	assert.Equal(t, model.SourceGateChecked, SourceGateFor(nil), "nil project → default")
-	assert.Equal(t, model.SourceGateChecked, SourceGateFor(&Project{}), "unset → default")
+	assert.Equal(t, model.SourceGateWritten, SourceGateFor(nil), "nil project → default")
+	assert.Equal(t, model.SourceGateWritten, SourceGateFor(&Project{}), "unset → default")
 	assert.Equal(t, model.SourceGateNone,
 		SourceGateFor(&Project{Properties: map[string]string{SourceGateProperty: "none"}}))
-	assert.Equal(t, model.SourceGateApproved,
+	assert.Equal(t, model.SourceGateEstablished,
 		SourceGateFor(&Project{Properties: map[string]string{SourceGateProperty: "approved"}}))
 }

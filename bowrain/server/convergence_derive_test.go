@@ -231,7 +231,7 @@ func seedStaleUnit(t *testing.T, cs *sqlitestore.SQLiteStore, projectID string, 
 		Updated: "2026-01-01T00:00:00Z",
 	}
 	if decided {
-		record.Status = string(model.TargetStatusReviewed)
+		record.Status = string(model.TargetStatusEstablished)
 		record.ReviewState = "approved"
 		record.DecidedBy = "reviewer-1"
 	}

@@ -327,12 +327,12 @@ func TestSyncPushCommit_VerdictPrecheck(t *testing.T) {
 
 	approval := venue.UnitDecision{
 		ItemName: "en.json", Unit: "b1", Variant: "fr",
-		Status: string(model.TargetStatusReviewed), ReviewState: venue.ReviewStateApproved,
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
 		DecidedBy: "someone@example.com", Updated: "2026-09-03T10:00:00Z",
 	}
 	signOff := venue.UnitDecision{
 		ItemName: "en.json", Unit: "b2", Variant: "de",
-		Status: string(model.TargetStatusSignedOff), ReviewState: venue.ReviewStateSignedOff,
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateSignedOff,
 		Updated: "2026-09-03T10:00:00Z",
 	}
 	basis := venue.UnitDecision{

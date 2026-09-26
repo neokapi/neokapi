@@ -227,7 +227,7 @@ func TestReviewBasis_StaleUnitIsRedrafted(t *testing.T) {
 	c := &App{}
 	defer c.Shutdown()
 	changed, aerr := c.ApproveReviewUnit(context.Background(), proj, "en", "nb",
-		rep.Review[0].File, rep.Review[0].Key, "reviewed")
+		rep.Review[0].File, rep.Review[0].Key)
 	require.NoError(t, aerr)
 	require.True(t, changed)
 
@@ -436,7 +436,7 @@ func seedBasislessApproval(t *testing.T, root, unit, target string) {
 	require.NoError(t, state.WriteCommitted(layout.Export().UnitStateDir(), []state.UnitState{{
 		Unit:       unit,
 		Variant:    model.Variant("nb"),
-		Status:     model.TargetStatusReviewed,
+		Status:     model.TargetStatusEstablished,
 		TargetHash: state.TargetHash(target),
 		Decision:   state.Decision{ReviewState: "approved", At: "2026-01-01T00:00:00Z"},
 		Updated:    "2026-01-01T00:00:00Z",

@@ -36,7 +36,7 @@ func TestApproveSourceUnit_ReachesApprovedAndSurvivesARecheck(t *testing.T) {
 	before := sourceStatuses(t, a, recipe, root)
 	require.Len(t, before, 2)
 	for _, s := range before {
-		assert.Equal(t, string(model.SourceStatusChecked), s,
+		assert.Equal(t, string(model.SourceStatusWritten), s,
 			"a clean source settles to checked, and nothing can lift it further")
 	}
 
@@ -47,7 +47,7 @@ func TestApproveSourceUnit_ReachesApprovedAndSurvivesARecheck(t *testing.T) {
 	assert.True(t, changed)
 
 	after := sourceStatuses(t, a, recipe, root)
-	assert.Contains(t, after, string(model.SourceStatusApproved),
+	assert.Contains(t, after, string(model.SourceStatusEstablished),
 		"the approval survives a re-settle rather than being recomputed away")
 
 	// Recording the same approval twice is not a change.
@@ -68,13 +68,13 @@ func TestApproveSourceUnit_DroppedWhenTheSourceIsEdited(t *testing.T) {
 		File: "src/en.json", Key: "greeting",
 	})
 	require.NoError(t, err)
-	require.Contains(t, sourceStatuses(t, a, recipe, root), string(model.SourceStatusApproved))
+	require.Contains(t, sourceStatuses(t, a, recipe, root), string(model.SourceStatusEstablished))
 
 	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "en.json"),
 		[]byte(`{"greeting":"Hello, world!","farewell":"Goodbye now"}`), 0o644))
 
 	after := sourceStatuses(t, a, recipe, root)
-	assert.NotContains(t, after, string(model.SourceStatusApproved),
+	assert.NotContains(t, after, string(model.SourceStatusEstablished),
 		"an edited sentence carries no approval")
 }
 
@@ -94,8 +94,8 @@ func TestComputeSourceQueue_ListsWhatNeedsSignOff(t *testing.T) {
 	for _, it := range queue {
 		assert.Equal(t, "src/en.json", it.File)
 		assert.True(t, it.Held, "an approved gate holds a merely-checked unit")
-		assert.False(t, it.Approved)
-		assert.Equal(t, string(model.SourceStatusChecked), it.Status)
+		assert.False(t, it.Established)
+		assert.Equal(t, string(model.SourceStatusWritten), it.Status)
 	}
 
 	_, err = a.ApproveSourceUnit(t.Context(), recipe, "en", SourceUnitRef{
@@ -161,7 +161,7 @@ func TestSourceStateSeeder_MakesTheInFlowGateAgreeWithTheReport(t *testing.T) {
 		seed(units[0].SourcePath, b)
 		// The gate settles after the seed, exactly as the in-flow stage does.
 		check.SettleSourceStatus(t.Context(), b)
-		if b.SourceStatus == model.SourceStatusApproved {
+		if b.SourceStatus == model.SourceStatusEstablished {
 			approved++
 		} else {
 			other++

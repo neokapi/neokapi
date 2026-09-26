@@ -275,7 +275,7 @@ func blockTargetLocales(b *venue.StoredBlock) (locales, approved []string) {
 	slices.Sort(order)
 	for _, l := range order {
 		locales = append(locales, string(l))
-		if best[l].Rank() >= model.TargetStatusReviewed.Rank() {
+		if best[l].Rank() >= model.TargetStatusEstablished.Rank() {
 			approved = append(approved, string(l))
 		}
 	}

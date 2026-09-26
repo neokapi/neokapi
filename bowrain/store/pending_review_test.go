@@ -38,7 +38,7 @@ func TestListPendingReview_SQLite(t *testing.T) {
 	blocks := []*model.Block{
 		mk("b1", "", "hei", model.TargetStatusDraft, true),         // pending
 		mk("b2", "", "hallo", model.TargetStatusTranslated, true),  // pending
-		mk("b3", "", "godkjent", model.TargetStatusReviewed, true), // decided
+		mk("b3", "", "godkjent", model.TargetStatusEstablished, true), // decided
 		mk("b4", "", "", model.TargetStatusDraft, true),            // no target text
 		mk("b5", "", "skjult", model.TargetStatusDraft, false),     // not translatable
 		// An EMPTY status is below reviewed and therefore pending — the

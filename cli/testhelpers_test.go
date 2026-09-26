@@ -169,7 +169,7 @@ func writeReviewedCorrection(t *testing.T, root, srcText, _ string) {
 	require.NoError(t, err)
 	for _, it := range rep.Review {
 		if it.Source == srcText {
-			ok, err := a.ApproveReviewUnit(context.Background(), proj, "en", it.Locale, it.File, it.Key, "reviewed")
+			ok, err := a.ApproveReviewUnit(context.Background(), proj, "en", it.Locale, it.File, it.Key)
 			require.NoError(t, err)
 			require.True(t, ok)
 			return

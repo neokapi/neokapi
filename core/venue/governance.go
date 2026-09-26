@@ -157,7 +157,7 @@ func CarriesDecision(decisions []UnitDecision) bool {
 
 // VerdictKind names what a decision record claims, for the refusal it may earn.
 func (d UnitDecision) VerdictKind() string {
-	if d.ReviewState == ReviewStateSignedOff || model.TargetStatus(d.Status) == model.TargetStatusSignedOff {
+	if d.ReviewState == ReviewStateSignedOff || model.TargetStatus(d.Status) == model.TargetStatusEstablished {
 		return VerdictSignOff
 	}
 	return VerdictApproval

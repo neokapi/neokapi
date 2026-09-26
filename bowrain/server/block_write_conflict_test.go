@@ -170,11 +170,11 @@ func TestReviewBlock_AnApprovalOfWordingThatChangedIsRefused(t *testing.T) {
 	approve := ReviewBlockRequest{TargetLocale: "fr", ItemName: "greetings.txt", Reviewed: true}
 	answer := decodeBlockChanged(t, writeBlockAs(t, srv.HandleReviewBlock, pid, bid, "/review", withBaseRevision(t, approve, read)))
 	assert.Equal(t, "Salut", answer.Current.Targets["fr"].Text, "the reviewer is shown the wording that stands")
-	assert.NotEqual(t, model.TargetStatusReviewed, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
+	assert.NotEqual(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status,
 		"wording the reviewer did not read is not approved")
 
 	rec := writeBlockAs(t, srv.HandleReviewBlock, pid, bid, "/review",
 		withBaseRevision(t, approve, answer.Current.TargetRevisions["fr"]))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusReviewed, getStoredBlock(t, cs, pid, bid).Target("fr").Status)
+	assert.Equal(t, model.TargetStatusEstablished, getStoredBlock(t, cs, pid, bid).Target("fr").Status)
 }

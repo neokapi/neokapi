@@ -56,7 +56,7 @@ func seedOrphanFixture(t *testing.T, s *PostgresStore, projectID, stream, itemNa
 	}))
 	_, err = s.UpsertUnitDecisions(ctx, projectID, stream, []venue.UnitDecision{{
 		ItemName: itemName, Unit: "greeting", Variant: "nb",
-		Status:      string(model.TargetStatusReviewed),
+		Status:      string(model.TargetStatusEstablished),
 		TargetHash:  state.TargetHash("Hei"),
 		ContentHash: state.SourceHash("Hello"),
 		Updated:     "2026-08-04T10:00:00Z",

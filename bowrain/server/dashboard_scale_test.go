@@ -64,7 +64,7 @@ func scaleBlock(name string, item, index int, locales []model.LocaleID, revision
 	b.SetSourceText(fmt.Sprintf("%s (paragraph %d of item %d%s)", scaleParagraph, index, item, revision))
 	for _, loc := range locales {
 		b.SetTargetText(loc, fmt.Sprintf("%s (avsnitt %d av %d%s) [%s]", scaleParagraph, index, item, revision, loc))
-		b.StampTargetProvenance(loc, model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+		b.StampTargetProvenance(loc, model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	}
 	return b
 }
@@ -195,7 +195,7 @@ func TestDashboardVerdictsFollowTheContentTheyJudged(t *testing.T) {
 
 	clean := &model.Block{ID: "b1", Translatable: true, Source: []model.Run{textRun("Hello "), phRun()}}
 	clean.SetTargetRuns("fr", []model.Run{textRun("Bonjour "), phRun()})
-	clean.StampTargetProvenance("fr", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	clean.StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	require.NoError(t, cs.StoreBlocksForItem(ctx, proj.ID, "main", "a.json", []*model.Block{clean}))
 
 	load := func() platstore.LocaleTranslationStats {
@@ -212,7 +212,7 @@ func TestDashboardVerdictsFollowTheContentTheyJudged(t *testing.T) {
 	// error-severity finding the ship gate exists to catch.
 	broken := &model.Block{ID: "b1", Translatable: true, Source: []model.Run{textRun("Hello "), phRun()}}
 	broken.SetTargetText("fr", "Bonjour")
-	broken.StampTargetProvenance("fr", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	broken.StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	require.NoError(t, cs.StoreBlocksForItem(ctx, proj.ID, "main", "a.json", []*model.Block{broken}))
 
 	assert.Equal(t, 1, load().FailingChecks, "a rewritten target is judged again, not remembered")

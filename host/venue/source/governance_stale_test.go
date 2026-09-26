@@ -33,7 +33,7 @@ func TestRetireRefusedVerdicts_StaleRejection(t *testing.T) {
 	}
 	held := venue.UnitDecision{
 		ItemName: "locales/en.json", Unit: "greeting", Variant: "fr",
-		Status: string(model.TargetStatusReviewed), ReviewState: venue.ReviewStateApproved,
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
 		TargetHash: "target-current", ContentHash: "source-greeting",
 		DecidedBy: "reviewer@example.com", DecidedAt: "2026-09-10T10:00:00Z",
 		Updated: "2026-09-10T10:00:00Z",

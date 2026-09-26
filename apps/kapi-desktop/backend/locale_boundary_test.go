@@ -98,8 +98,8 @@ func TestReviewDecisionsCanonicalizeTheirLocale(t *testing.T) {
 	// The unit does not exist, so both spellings fail the same way: what is
 	// asserted is that the locale was accepted and normalized before the
 	// lookup, not that the lookup succeeded.
-	posix := app.SignOffReviewItem(tab.ID, "nb_NO", "docs/help/billing.json", "nope")
-	canonical := app.SignOffReviewItem(tab.ID, "nb-NO", "docs/help/billing.json", "nope")
+	posix := app.ApproveReviewItem(tab.ID, "nb_NO", "docs/help/billing.json", "nope")
+	canonical := app.ApproveReviewItem(tab.ID, "nb-NO", "docs/help/billing.json", "nope")
 	assert.Equal(t, canonical != nil, posix != nil)
 	if canonical != nil {
 		assert.Equal(t, canonical.Error(), posix.Error(),
@@ -127,7 +127,7 @@ func TestReviewAICanonicalizesItsLocale(t *testing.T) {
 	// Pre-review over every locale is a real request, so its locale is
 	// canonicalized rather than required; a string that is not a locale is
 	// still refused.
-	_, err = app.RunAIPreReview(tab.ID, "!!!", PreReviewScope{}, PreReviewPolicy{})
+	_, err = app.RunAIPreReview(tab.ID, "!!!", PreReviewScope{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid locale")
 }

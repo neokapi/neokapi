@@ -89,7 +89,7 @@ func TestReviewQueue_SourceRowsAndApprove(t *testing.T) {
 	recipe := filepath.Join(root, "project.kapi")
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	proj.Defaults.SourceGate = string(model.SourceGateApproved)
+	proj.Defaults.SourceGate = string(model.SourceGateEstablished)
 	require.NoError(t, project.Save(recipe, proj))
 
 	tab2, err := app.OpenProject(recipe)
@@ -102,7 +102,7 @@ func TestReviewQueue_SourceRowsAndApprove(t *testing.T) {
 	require.NotEmpty(t, rows, "an approved gate asks a person to sign every unit")
 	for _, it := range rows {
 		assert.True(t, it.Held)
-		assert.NotEqual(t, string(model.SourceStatusApproved), it.Status)
+		assert.NotEqual(t, string(model.SourceStatusEstablished), it.Status)
 		assert.Equal(t, "en-US", it.Language, "a source row belongs to the source language")
 		assert.Nil(t, it.HasFindings, "a source row has no translation to check")
 	}

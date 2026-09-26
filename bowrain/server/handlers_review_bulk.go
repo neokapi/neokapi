@@ -203,7 +203,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 						// blocks self-approval: left pending for someone else.
 						sodRefused++
 					default:
-						sb.Block.Target(loc).Status = model.TargetStatusReviewed
+						sb.Block.Target(loc).Status = model.TargetStatusEstablished
 						approved++
 						perLocale[loc]++
 						touchedSet[loc] = true
@@ -212,7 +212,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 							// Approvals only, so the row's basis is always
 							// re-stamped and no previous row is read.
 							decisions = append(decisions, unitDecisionFor(sb, string(loc),
-								model.TargetStatusReviewed, true, ledger.decider,
+								model.TargetStatusEstablished, true, ledger.decider,
 								ledger.governingFingerprint(ctx, sb.ItemName, string(loc)), nil))
 						}
 					}
@@ -288,7 +288,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 				"skipped":               strconv.Itoa(skipped + sodRefused),
 				"skipped_self_authored": strconv.Itoa(sodRefused),
 			},
-			After: map[string]string{"status": string(model.TargetStatusReviewed)},
+			After: map[string]string{"status": string(model.TargetStatusEstablished)},
 		})
 	}
 

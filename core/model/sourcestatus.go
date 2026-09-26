@@ -1,39 +1,35 @@
 package model
 
-// SourceStatus is the authoring lifecycle state of a Block's source content —
-// the source-side counterpart of TargetStatus. Where a Target progresses
-// draft → translated → reviewed → signed-off, a source progresses
-// authored → checked → approved: written, then cleared of voice/terminology
-// findings, then signed off by a human. It is what keeps the author "in check"
-// — the source equivalent of translation review.
+// SourceStatus is the lifecycle state of a Block's source content, the
+// source-side counterpart of TargetStatus. A translation is draft, then
+// translated, then established; a source is written, then established when a
+// person has reviewed it. Whether a written source passes its checks is a
+// separate fact the settle step reports beside the status (check.SettleSourceStatus),
+// never a rung of its own.
 type SourceStatus string
 
 const (
 	// SourceStatusNew ("") means no committed source status yet. It reads as the
-	// authored baseline: any present, translatable source is at least authored.
+	// written baseline: any present, translatable source is at least written.
 	SourceStatusNew SourceStatus = ""
-	// SourceStatusAuthored — source content exists (the presence baseline).
-	SourceStatusAuthored SourceStatus = "authored"
-	// SourceStatusChecked — source cleared its voice/terminology checks.
-	SourceStatusChecked SourceStatus = "checked"
-	// SourceStatusApproved — source signed off by a human/agent.
-	SourceStatusApproved SourceStatus = "approved"
+	// SourceStatusWritten: the source content exists.
+	SourceStatusWritten SourceStatus = "written"
+	// SourceStatusEstablished: a person reviewed the source and let it stand.
+	SourceStatusEstablished SourceStatus = "established"
 )
 
-// SourceStatusLadder is the authoring lifecycle order, lowest to highest.
+// SourceStatusLadder is the source lifecycle order, lowest to highest.
 // Membership and order define "at least this status" coverage (used by a source
-// gate). New ("") is not listed — it means "no committed status yet" and reads
-// as the authored baseline, the lowest rung.
+// gate). New ("") is not listed: it reads as the written baseline.
 func SourceStatusLadder() []SourceStatus {
 	return []SourceStatus{
-		SourceStatusAuthored,
-		SourceStatusChecked,
-		SourceStatusApproved,
+		SourceStatusWritten,
+		SourceStatusEstablished,
 	}
 }
 
 // Rank returns the 0-based position of s on the ladder, or -1 for New ("") or an
-// unknown status. A higher rank is a more advanced authoring state.
+// unknown status.
 func (s SourceStatus) Rank() int {
 	for i, t := range SourceStatusLadder() {
 		if t == s {
@@ -43,89 +39,64 @@ func (s SourceStatus) Rank() int {
 	return -1
 }
 
-// EffectiveRank is Rank with New ("") folded to the authored baseline: any
-// present source is at least authored, so an uncommitted status ranks as
-// authored rather than "below the ladder". This is the reading a source gate
-// uses — an unstamped-but-present block is authored, not un-authored.
+// EffectiveRank is Rank with New ("") folded to the written baseline: any
+// present source is at least written.
 func (s SourceStatus) EffectiveRank() int {
 	if s == SourceStatusNew {
-		return SourceStatusAuthored.Rank()
+		return SourceStatusWritten.Rank()
 	}
 	return s.Rank()
 }
 
-// SourceGateLevel is the SourceStatus a block's source must reach before its
-// translations may be produced — the level-based source-first convergence gate
-// (strategy 2026-07-dogfood doc 07 / roadmap epic 019). It is the runtime
-// counterpart of the recipe's `defaults.source_gate` string: the fan-out is
-// held for any block whose source ranks below the gate.
+// SourceGateLevel is what a block's source must satisfy before its
+// translations may be produced: the runtime counterpart of the recipe's
+// `defaults.source_gate` string. The fan-out is held for any block that does
+// not satisfy it.
 type SourceGateLevel string
 
 const (
-	// SourceGateNone disables the gate — the deliberate "raw MT, no gate"
-	// opt-out. Every present source translates regardless of its status,
-	// exactly as convergence behaved before source-first.
+	// SourceGateNone disables the gate: every present source translates.
 	SourceGateNone SourceGateLevel = "none"
-	// SourceGateAuthored gates on the presence baseline: any non-empty source
-	// passes. (Effectively a no-op gate, provided for completeness/symmetry.)
-	SourceGateAuthored SourceGateLevel = "authored"
-	// SourceGateChecked is the DEFAULT: the source must clear its automated
-	// terminology + voice + source hygiene checks (no human bottleneck).
-	SourceGateChecked SourceGateLevel = "checked"
-	// SourceGateApproved requires a human/agent source sign-off — for
-	// brand-critical or regulated projects.
-	SourceGateApproved SourceGateLevel = "approved"
+	// SourceGateWritten is the default: a written source translates once it
+	// passes its checks. A source with a failing finding is held.
+	SourceGateWritten SourceGateLevel = "written"
+	// SourceGateEstablished holds a source until a person has established it,
+	// for regulated or voice-critical projects. A failing finding still holds it.
+	SourceGateEstablished SourceGateLevel = "established"
 )
 
 // DefaultSourceGate is the gate applied when a project does not set
-// `defaults.source_gate`: settle-then-translate is on by default (owner
-// decision, 2026-07-17).
-const DefaultSourceGate = SourceGateChecked
+// `defaults.source_gate`.
+const DefaultSourceGate = SourceGateWritten
 
 // ResolveSourceGate maps a recipe's `defaults.source_gate` string onto a gate
-// level, applying the default (`checked`) for an empty/unset value and treating
-// an unrecognized value as the default too (a typo must not silently disable the
-// gate). The second result reports whether the input named a recognized level.
+// level, applying the default for an empty value and treating an unrecognized
+// value as the default too, so a typo never disables the gate. The second
+// result reports whether the input named a recognized level.
 func ResolveSourceGate(raw string) (SourceGateLevel, bool) {
 	switch SourceGateLevel(raw) {
 	case "":
-		return DefaultSourceGate, true // unset → default
-	case SourceGateNone:
-		return SourceGateNone, true
-	case SourceGateAuthored:
-		return SourceGateAuthored, true
-	case SourceGateChecked:
-		return SourceGateChecked, true
-	case SourceGateApproved:
-		return SourceGateApproved, true
+		return DefaultSourceGate, true
+	case SourceGateNone, SourceGateWritten, SourceGateEstablished:
+		return SourceGateLevel(raw), true
 	default:
-		return DefaultSourceGate, false // unknown → default, and flag it
+		return DefaultSourceGate, false
 	}
 }
 
-// RequiredRank is the ladder rank a source must reach to clear this gate, or -1
-// when the gate is disabled (SourceGateNone) — nothing is held.
-func (g SourceGateLevel) RequiredRank() int {
+// Admits reports whether a source at status s, whose checks fail when failing
+// is true, clears this gate, so its source may be translated. A disabled gate
+// (SourceGateNone) admits everything; any other gate holds a source the settle
+// step has not stamped yet (New), because nothing has checked it.
+func (g SourceGateLevel) Admits(s SourceStatus, failing bool) bool {
 	switch g {
 	case SourceGateNone:
-		return -1
-	case SourceGateAuthored:
-		return SourceStatusAuthored.Rank()
-	case SourceGateApproved:
-		return SourceStatusApproved.Rank()
-	default: // SourceGateChecked and any unresolved value gate at checked
-		return SourceStatusChecked.Rank()
+		return true
+	case SourceGateEstablished:
+		return !failing && s == SourceStatusEstablished
+	default:
+		return !failing && s.Rank() >= SourceStatusWritten.Rank()
 	}
-}
-
-// Admits reports whether a source at status s clears this gate — i.e. its
-// source may be translated. A disabled gate (SourceGateNone) admits everything.
-func (g SourceGateLevel) Admits(s SourceStatus) bool {
-	req := g.RequiredRank()
-	if req < 0 {
-		return true // gate disabled
-	}
-	return s.EffectiveRank() >= req
 }
 
 // PropSourceHeld is the block property the source-gate leading stage sets on a
@@ -157,4 +128,35 @@ func (b *Block) SetSourceHeld(held bool) {
 // source ranks below the active gate, so a producer must not translate it.
 func (b *Block) SourceHeld() bool {
 	return b.Properties[PropSourceHeld] == "1"
+}
+
+// PropSourceFailing is the block property the source settle step
+// (check.SettleSourceStatus) sets on a block whose source fails its checks.
+// A source gate other than `none` holds such a block. Value "1" means failing;
+// absent means the source passes.
+const PropSourceFailing = "__source_failing"
+
+// SetSourceFailing marks (failing=true) or clears (failing=false) the failing
+// marker. It never allocates a map to clear a marker that was never set.
+func (b *Block) SetSourceFailing(failing bool) {
+	if !failing {
+		if b.Properties != nil {
+			delete(b.Properties, PropSourceFailing)
+		}
+		return
+	}
+	if b.Properties == nil {
+		b.Properties = map[string]string{}
+	}
+	b.Properties[PropSourceFailing] = "1"
+}
+
+// SourceFailing reports whether the block carries the failing marker.
+func (b *Block) SourceFailing() bool {
+	return b.Properties[PropSourceFailing] == "1"
+}
+
+// AdmitsBlock reports whether a settled block clears this gate.
+func (g SourceGateLevel) AdmitsBlock(b *Block) bool {
+	return g.Admits(b.SourceStatus, b.SourceFailing())
 }

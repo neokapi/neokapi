@@ -162,7 +162,7 @@ func TestRunTokenAccumulation(t *testing.T) {
 func TestEstimateComputedProps(t *testing.T) {
 	proj := &platstore.Project{ID: "p1", WorkspaceID: "ws1"}
 	view := convergenceEstimateView{
-		Source: jobs.SourceReadiness{Gate: model.SourceGateChecked, Total: 14, Ready: 10, Held: 4},
+		Source: jobs.SourceReadiness{Gate: model.SourceGateWritten, Total: 14, Ready: 10, Held: 4},
 		Totals: jobs.EstimateTotals{Pending: 50, ViaMemory: 10, ViaAI: 40, TokenEstimate: 250_000},
 		Credits: &convergenceCreditsView{
 			EstimatedCredits: 250_000, Balance: 200_000, CoversAllAI: false,

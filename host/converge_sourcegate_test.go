@@ -109,11 +109,11 @@ func frTranslated(t *testing.T, recipe string) int {
 // the run surfaces source_not_ready with a blocked-on-source count. This is the
 // local parity with the server holding an un-settled source (epic 019).
 func TestConvergeSourceGate_HoldsWhenSourceBelowGate(t *testing.T) {
-	a, cmd, recipe := newSourceGateProject(t, string(model.SourceGateApproved))
+	a, cmd, recipe := newSourceGateProject(t, string(model.SourceGateEstablished))
 	out, events := runConverge(t, a, cmd, recipe)
 
 	assert.Equal(t, 2, out.BlockedOnSource, "both source blocks held below the approved gate")
-	assert.Equal(t, string(model.SourceGateApproved), out.SourceGate)
+	assert.Equal(t, string(model.SourceGateEstablished), out.SourceGate)
 	assert.Equal(t, convergence.StallSourceNotReady, out.StallReason)
 	assert.False(t, out.Converged)
 	assert.Equal(t, 0, frTranslated(t, recipe), "no translation was produced")
@@ -153,7 +153,7 @@ func TestConvergeSourceGate_AtGateTranslates(t *testing.T) {
 	out, _ := runConverge(t, a, cmd, recipe)
 
 	assert.Equal(t, 0, out.BlockedOnSource, "clean source reaches checked and clears the default gate")
-	assert.Equal(t, string(model.SourceGateChecked), out.SourceGate)
+	assert.Equal(t, string(model.SourceGateWritten), out.SourceGate)
 	assert.Empty(t, out.StallReason)
 	assert.Equal(t, 2, frTranslated(t, recipe), "checked source translated")
 }
@@ -166,7 +166,7 @@ func TestConvergeSourceGate_AtGateTranslates(t *testing.T) {
 // source_not_ready (partial progress advanced), mirroring the server's
 // partial-item handling (epic 019).
 func TestConvergeSourceGate_PartialTranslatesReadyReportsHeld(t *testing.T) {
-	a, cmd, recipe := newSourceGateProjectWith(t, string(model.SourceGateChecked),
+	a, cmd, recipe := newSourceGateProjectWith(t, string(model.SourceGateWritten),
 		`{"greeting":"Hello world","blank":"   "}`)
 	out, _ := runConverge(t, a, cmd, recipe)
 
@@ -181,7 +181,7 @@ func TestConvergeSourceGate_PartialTranslatesReadyReportsHeld(t *testing.T) {
 // exactly the silent skip → junk output the source gate prevents (matches the
 // server, which skips its post-run work on source_not_ready).
 func TestConvergeSourceGate_HeldRunDoesNotMaterialize(t *testing.T) {
-	a, cmd, recipe := newSourceGateProject(t, string(model.SourceGateApproved))
+	a, cmd, recipe := newSourceGateProject(t, string(model.SourceGateEstablished))
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 

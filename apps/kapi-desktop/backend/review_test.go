@@ -254,23 +254,23 @@ func TestRejectReviewItem_SendsUnitBackToDraft(t *testing.T) {
 	assert.Equal(t, "too literal", d.Note)
 }
 
-func TestSignOffReviewItem_TopRung(t *testing.T) {
+func TestApproveReviewItem_Establishes(t *testing.T) {
 	app := NewApp()
 	tab, _ := newReviewProject(t, app)
 	file := filepath.Join("locales", "fr-FR.json")
 
-	require.NoError(t, app.SignOffReviewItem(tab.ID, "fr-FR", file, "greeting"))
+	require.NoError(t, app.ApproveReviewItem(tab.ID, "fr-FR", file, "greeting"))
 
 	rep, err := app.GetConvergence(tab.ID)
 	require.NoError(t, err)
 	for _, lc := range rep.Locales {
 		if lc.Locale == "fr-FR" {
-			assert.Equal(t, 50, lc.Pct["signed-off"], "1 of 2 fr-FR units signed off")
+			assert.Equal(t, 50, lc.Pct["established"], "1 of 2 fr-FR units established")
 		}
 	}
 	d, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
 	require.NoError(t, err)
-	assert.Equal(t, "signed-off", d.Status)
+	assert.Equal(t, "established", d.Status)
 }
 
 func TestUpdateReviewTarget_EditsFileAndInvalidatesDecision(t *testing.T) {

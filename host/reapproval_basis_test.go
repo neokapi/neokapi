@@ -224,8 +224,7 @@ func TestStalenessGate_ReApprovalClearsIt(t *testing.T) {
 		f.record(t, "a-context-that-no-longer-governs")
 
 		_, err := f.app.ApproveReviewUnit(context.Background(),
-			filepath.Join(f.root, "kapi.yaml"), "en", "fr", "locales/fr/app.json", "greeting",
-			string(model.TargetStatusSignedOff))
+			filepath.Join(f.root, "kapi.yaml"), "en", "fr", "locales/fr/app.json", "greeting")
 		require.NoError(t, err)
 
 		g, _ := f.run(t)
@@ -250,13 +249,13 @@ func TestGoverningBasis_OnlyAnApprovalVouches(t *testing.T) {
 		},
 		{
 			name: "an approval vouches for the context it was made under",
-			unit: state.UnitState{Status: model.TargetStatusReviewed, Origin: origin,
+			unit: state.UnitState{Status: model.TargetStatusEstablished, Origin: origin,
 				GoverningFingerprint: "fp-approved", Decision: state.Decision{ReviewState: "approved"}},
 			want: "fp-approved",
 		},
 		{
 			name: "a sign-off vouches the same way",
-			unit: state.UnitState{Status: model.TargetStatusSignedOff, Origin: origin,
+			unit: state.UnitState{Status: model.TargetStatusEstablished, Origin: origin,
 				GoverningFingerprint: "fp-approved", Decision: state.Decision{ReviewState: "signed-off"}},
 			want: "fp-approved",
 		},
@@ -268,7 +267,7 @@ func TestGoverningBasis_OnlyAnApprovalVouches(t *testing.T) {
 		},
 		{
 			name: "an ungoverned approval says nothing",
-			unit: state.UnitState{Status: model.TargetStatusReviewed,
+			unit: state.UnitState{Status: model.TargetStatusEstablished,
 				Decision: state.Decision{ReviewState: "approved"}},
 			want: "",
 		},

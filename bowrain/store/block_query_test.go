@@ -51,8 +51,8 @@ func seedBlockQueryProject(t *testing.T, s blockQueryStore) string {
 
 	draft := target("Hello world", "Hei verden", model.TargetStatusDraft)
 	translated := target("Goodbye", "Ha det", model.TargetStatusTranslated)
-	reviewed := target("Approved text", "Godkjent", model.TargetStatusReviewed)
-	signedOff := target("Signed text", "Signert", model.TargetStatusSignedOff)
+	reviewed := target("Approved text", "Godkjent", model.TargetStatusEstablished)
+	signedOff := target("Signed text", "Signert", model.TargetStatusEstablished)
 	untranslated := target("Nothing yet", "", model.TargetStatusNew)
 	// Text with no committed rung is translated — the editor's fallback when
 	// no legacy property and no machine provenance says otherwise.

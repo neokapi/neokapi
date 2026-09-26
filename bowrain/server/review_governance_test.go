@@ -95,7 +95,7 @@ func TestReviewApproveNeedsReviewPermission(t *testing.T) {
 
 	rec = callReviewBlockGoverned(t, s, wsID, projID, bid, approveBody("fr"), testReviewer, "u-reviewer")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, bid, "fr"))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, bid, "fr"))
 
 	// Withdrawing that approval needs only the translate permission.
 	rec = callReviewBlockGoverned(t, s, wsID, projID, bid,
@@ -141,7 +141,7 @@ func TestReviewApproveSoDBlocksOwnWork(t *testing.T) {
 	// Someone else may approve the same target.
 	rec = callReviewBlockGoverned(t, s, wsID, projID, bid, approveBody("fr"), testReviewer, "u-other")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, bid, "fr"))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, bid, "fr"))
 }
 
 // TestReviewApproveSoDWarnAllowsOwnWork: under warn the same approval goes
@@ -161,7 +161,7 @@ func TestReviewApproveSoDWarnAllowsOwnWork(t *testing.T) {
 
 	rec := callReviewBlockGoverned(t, s, wsID, projID, bid, approveBody("fr"), testReviewer, "u-reviewer")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, bid, "fr"))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, bid, "fr"))
 
 	require.Eventually(t, func() bool {
 		ev, ok := findEvent(snapshot(), platev.EventType("sod.violation"))
@@ -184,7 +184,7 @@ func TestReviewApproveMachineAuthoredPassesSoD(t *testing.T) {
 
 	rec := callReviewBlockGoverned(t, s, wsID, projID, bid, approveBody("fr"), testReviewer, "u-reviewer")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, bid, "fr"))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, bid, "fr"))
 }
 
 // TestReviewDecisionIsAudited: an approval and a rejection each leave a
@@ -216,7 +216,7 @@ func TestReviewDecisionIsAudited(t *testing.T) {
 	assert.Equal(t, "fr", ev.Data["locale"])
 	assert.Equal(t, "main", ev.Data["stream"])
 	assert.Equal(t, string(model.TargetStatusDraft), ev.Before["status"])
-	assert.Equal(t, string(model.TargetStatusReviewed), ev.After["status"])
+	assert.Equal(t, string(model.TargetStatusEstablished), ev.After["status"])
 
 	// A rejection is the same record with the other verdict.
 	rec = callReviewBlockGoverned(t, s, wsID, projID, bid,
@@ -287,7 +287,7 @@ func TestBulkReviewApproveGates(t *testing.T) {
 		}
 	}
 	assert.Equal(t, model.TargetStatusDraft, targetStatus(t, s, projID, mine, "fr"))
-	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, theirs, "fr"))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, theirs, "fr"))
 }
 
 // TestApprovePassingRecordsDecisionsAndAudits: a bulk pass files every approval
@@ -352,7 +352,7 @@ func TestApprovePassingSkipsSelfAuthored(t *testing.T) {
 			res.SkippedBelowVoiceBar+res.SkippedVoiceNotChecked+res.SkippedSelfAuthored,
 		"every skip is attributed to exactly one bar")
 	assert.Equal(t, model.TargetStatusDraft, targetStatus(t, s, projID, mine, "fr"))
-	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, theirs, "fr"))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, theirs, "fr"))
 }
 
 // TestApprovePassingRecordsOneSoDViolationForThePass: a pass over a corpus the

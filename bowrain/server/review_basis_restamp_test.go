@@ -121,7 +121,7 @@ func TestPlatformApprovalRestampsTheBasis(t *testing.T) {
 	require.Equal(t, 1, f.counts(t).Stale)
 
 	f.ledger.write(t.Context(), []venue.UnitDecision{unitDecisionFor(
-		f.block, f.variant, model.TargetStatusReviewed, true, f.ledger.decider, "fp-now", nil)})
+		f.block, f.variant, model.TargetStatusEstablished, true, f.ledger.decider, "fp-now", nil)})
 
 	after := f.row(t)
 	assert.Equal(t, "approved", after.ReviewState)

@@ -30,7 +30,7 @@ func TestRollupGates_ShipStateFollowsTheGate(t *testing.T) {
 
 	ungated := NewCoverageTally()
 	ungated.Add(Scope{Locale: "nb"}, "")
-	ungated.Add(Scope{Locale: "sv"}, string(model.TargetStatusReviewed))
+	ungated.Add(Scope{Locale: "sv"}, string(model.TargetStatusEstablished))
 	by = rollupBy(ungated.RollupGates(gate.RuleSet{}, gate.RuleSet{}))
 
 	for _, loc := range []string{"nb", "sv"} {

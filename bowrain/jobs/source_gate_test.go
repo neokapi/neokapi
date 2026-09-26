@@ -19,9 +19,9 @@ func blk(id string, translatable bool, status model.SourceStatus) *venue.StoredB
 // the gate; a partially-settled item keeps its ready blocks and drops the rest.
 func TestGateBlocksBySource(t *testing.T) {
 	blocks := []*venue.StoredBlock{
-		blk("checked", true, model.SourceStatusChecked),
-		blk("approved", true, model.SourceStatusApproved),
-		blk("authored", true, model.SourceStatusAuthored),
+		blk("checked", true, model.SourceStatusWritten),
+		blk("approved", true, model.SourceStatusEstablished),
+		blk("authored", true, model.SourceStatusWritten),
 		blk("new", true, model.SourceStatusNew),
 		blk("nontrans", false, model.SourceStatusNew), // no source to gate → passes
 	}
@@ -29,7 +29,7 @@ func TestGateBlocksBySource(t *testing.T) {
 	// checked gate: a committed authored status is held; checked/approved,
 	// non-translatable, AND never-settled (New) blocks pass through — the worker
 	// is not the settle phase and must not strand unstamped blocks.
-	kept := gateBlocksBySource(blocks, model.SourceGateChecked)
+	kept := gateBlocksBySource(blocks, model.SourceGateWritten)
 	got := map[string]bool{}
 	for _, sb := range kept {
 		got[sb.Block.ID] = true

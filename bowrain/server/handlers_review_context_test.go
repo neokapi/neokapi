@@ -383,7 +383,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 		b.Unit = "auth." + b.ID
 		b.Target("fr").Origin = model.Origin{Kind: "ai", Engine: "claude", ContextFingerprint: "fp-1"}
 	}
-	authored[0].Target("fr").Status = model.TargetStatusReviewed
+	authored[0].Target("fr").Status = model.TargetStatusEstablished
 	keys := make([]string, 0, len(authored))
 	for _, b := range authored {
 		keys = append(keys, b.Unit)
@@ -442,7 +442,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 	}})
 	require.NoError(t, derr)
 	record := &state.UnitState{
-		Status: model.TargetStatusReviewed,
+		Status: model.TargetStatusEstablished,
 		Decision: state.Decision{
 			ReviewState: "approved", By: "owner@rc.test", At: "2026-09-01T11:00:00Z",
 			Note: "Matches the approved wording",

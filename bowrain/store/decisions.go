@@ -482,7 +482,7 @@ func SettleDecisionProjection(p DecisionProjection, contentHash string) (status,
 		}
 		return p.DecisionStatus, DecisionRestoredEvent, true
 	}
-	if p.Status == string(model.TargetStatusReviewed) || p.Status == string(model.TargetStatusSignedOff) {
+	if p.Status == string(model.TargetStatusEstablished) {
 		return string(model.TargetStatusTranslated), DecisionStaleEvent, true
 	}
 	return p.Status, "", false

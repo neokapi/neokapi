@@ -324,7 +324,7 @@ func (l *reviewLedger) resolveCorpus(ctx context.Context) bool {
 func unitDecisionFor(sb *venue.StoredBlock, locale string, status model.TargetStatus, approved bool, decider, governing string, prev *venue.UnitDecision) venue.UnitDecision {
 	reviewState := ""
 	switch {
-	case approved && status == model.TargetStatusSignedOff:
+	case approved && status == model.TargetStatusEstablished:
 		reviewState = "signed-off"
 	case approved:
 		reviewState = "approved"

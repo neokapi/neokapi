@@ -573,8 +573,8 @@ func shipCell(lc LocaleCoverage, s *output.Styles) string {
 }
 
 // shipBlockingLabel names the blocking gate in the CLI's own vocabulary: the
-// ladder rungs are lifecycle states ("signed-off"), but a verdict reads as the
-// action that clears them ("sign-off").
+// ladder rungs are lifecycle states ("established"), but a verdict reads as the
+// action that clears them ("review").
 func shipBlockingLabel(lc LocaleCoverage) string {
 	blocking := lc.Blocking
 	if blocking == "" && len(lc.Pending) > 0 {
@@ -583,9 +583,7 @@ func shipBlockingLabel(lc LocaleCoverage) string {
 	switch blocking {
 	case "":
 		return "gate"
-	case string(model.TargetStatusSignedOff):
-		return "sign-off"
-	case string(model.TargetStatusReviewed):
+	case string(model.TargetStatusEstablished):
 		return "review"
 	case string(model.TargetStatusTranslated):
 		return "translate"

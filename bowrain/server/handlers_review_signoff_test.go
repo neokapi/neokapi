@@ -42,29 +42,29 @@ func TestHandleReviewBlockSignOffRungs(t *testing.T) {
 		{
 			name: "sign off from translated",
 			from: model.TargetStatusTranslated, target: "Bonjour",
-			body: signOffBody("fr"), code: http.StatusOK, want: model.TargetStatusSignedOff,
+			body: signOffBody("fr"), code: http.StatusOK, want: model.TargetStatusEstablished,
 		},
 		{
 			name: "sign off from reviewed",
-			from: model.TargetStatusReviewed, target: "Bonjour",
-			body: signOffBody("fr"), code: http.StatusOK, want: model.TargetStatusSignedOff,
+			from: model.TargetStatusEstablished, target: "Bonjour",
+			body: signOffBody("fr"), code: http.StatusOK, want: model.TargetStatusEstablished,
 		},
 		{
 			name: "re-signing a signed-off target keeps the rung",
-			from: model.TargetStatusSignedOff, target: "Bonjour",
-			body: signOffBody("fr"), code: http.StatusOK, want: model.TargetStatusSignedOff,
+			from: model.TargetStatusEstablished, target: "Bonjour",
+			body: signOffBody("fr"), code: http.StatusOK, want: model.TargetStatusEstablished,
 		},
 		{
 			name: "approving a signed-off target keeps the rung",
-			from: model.TargetStatusSignedOff, target: "Bonjour",
+			from: model.TargetStatusEstablished, target: "Bonjour",
 			body: `{"target_locale":"fr","reviewed":true,"item_name":"greetings.txt"}`,
-			code: http.StatusOK, want: model.TargetStatusSignedOff,
+			code: http.StatusOK, want: model.TargetStatusEstablished,
 		},
 		{
 			name: "an approval with no status still lands on reviewed",
 			from: model.TargetStatusTranslated, target: "Bonjour",
 			body: `{"target_locale":"fr","reviewed":true,"item_name":"greetings.txt"}`,
-			code: http.StatusOK, want: model.TargetStatusReviewed,
+			code: http.StatusOK, want: model.TargetStatusEstablished,
 		},
 		{
 			name: "a demotion rung on an approval is refused",
@@ -147,7 +147,7 @@ func TestReviewSignOffNeedsReviewPermission(t *testing.T) {
 
 	rec = callReviewBlockGoverned(t, s, wsID, projID, bid, signOffBody("fr"), testReviewer, "u-reviewer")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusSignedOff, targetStatus(t, s, projID, bid, "fr"))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, bid, "fr"))
 }
 
 // TestReviewSignOffSoDBlocksOwnWork: separation of duties is one rule for every
@@ -173,17 +173,17 @@ func TestReviewSignOffSoDBlocksOwnWork(t *testing.T) {
 	// Somebody else approves it, taking it to reviewed.
 	rec = callReviewBlockGoverned(t, s, wsID, projID, bid, approveBody("fr"), testReviewer, "u-other")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	require.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, bid, "fr"))
+	require.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, bid, "fr"))
 
 	// The author still may not sign it off: the rung above reviewed is another
 	// promotion, and the policy judges the author of the wording either way.
 	rec = callReviewBlockGoverned(t, s, wsID, projID, bid, signOffBody("fr"), testReviewer, "u-reviewer")
 	require.Equal(t, http.StatusForbidden, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, bid, "fr"))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, bid, "fr"))
 
 	rec = callReviewBlockGoverned(t, s, wsID, projID, bid, signOffBody("fr"), testReviewer, "u-other")
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	assert.Equal(t, model.TargetStatusSignedOff, targetStatus(t, s, projID, bid, "fr"))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, bid, "fr"))
 }
 
 // TestReviewSignOffIsAudited: the audit record names the decision sign-off
@@ -215,7 +215,7 @@ func TestReviewSignOffIsAudited(t *testing.T) {
 	assert.Equal(t, "fr", ev.Data["locale"])
 	assert.Equal(t, "main", ev.Data["stream"])
 	assert.Equal(t, string(model.TargetStatusDraft), ev.Before["status"])
-	assert.Equal(t, string(model.TargetStatusSignedOff), ev.After["status"])
+	assert.Equal(t, string(model.TargetStatusEstablished), ev.After["status"])
 }
 
 // TestReviewSignOffLedgerRow: the ledger row a sign-off writes carries the
@@ -239,6 +239,6 @@ func TestReviewSignOffLedgerRow(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, decisions, 1)
 	assert.Equal(t, "signed-off", decisions[0].ReviewState)
-	assert.Equal(t, string(model.TargetStatusSignedOff), decisions[0].Status)
+	assert.Equal(t, string(model.TargetStatusEstablished), decisions[0].Status)
 	assert.Equal(t, "fr", decisions[0].Variant)
 }

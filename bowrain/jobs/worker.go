@@ -1131,7 +1131,7 @@ func gateBlocksBySource(blocks []*venue.StoredBlock, gate model.SourceGateLevel)
 			continue
 		}
 		status := sb.Block.SourceStatus
-		if !sb.Block.Translatable || status == model.SourceStatusNew || gate.Admits(status) {
+		if !sb.Block.Translatable || status == model.SourceStatusNew || gate.AdmitsBlock(sb.Block) {
 			kept = append(kept, sb)
 		}
 	}

@@ -223,7 +223,7 @@ func TestReviewAI_PreReviewJudgeIsGoverned(t *testing.T) {
 	app, captured := newGovernedReviewApp(t, mock)
 	tab, _ := newGovernedReviewProject(t, app)
 
-	res, err := app.RunAIPreReview(tab.ID, "fr-FR", PreReviewScope{}, PreReviewPolicy{})
+	res, err := app.RunAIPreReview(tab.ID, "fr-FR", PreReviewScope{})
 	require.NoError(t, err)
 	require.Positive(t, res.Reviewed, "the queue had units to judge")
 

@@ -52,7 +52,7 @@ func TestReviewedIndex_GradeBasis(t *testing.T) {
 		{
 			name: "a decision whose source moved is stale",
 			rec: state.UnitState{
-				Status: model.TargetStatusReviewed, Decision: decision,
+				Status: model.TargetStatusEstablished, Decision: decision,
 				TargetHash: state.TargetHash(target), ContentHash: state.SourceHash(source),
 			},
 			source:    rewritten,
@@ -62,7 +62,7 @@ func TestReviewedIndex_GradeBasis(t *testing.T) {
 		{
 			name: "a decision on the source the project holds still applies",
 			rec: state.UnitState{
-				Status: model.TargetStatusReviewed, Decision: decision,
+				Status: model.TargetStatusEstablished, Decision: decision,
 				TargetHash: state.TargetHash(target), ContentHash: state.SourceHash(source),
 			},
 			source:      source,
@@ -73,7 +73,7 @@ func TestReviewedIndex_GradeBasis(t *testing.T) {
 		{
 			name: "a decision written before the basis was tracked is unknown, never stale",
 			rec: state.UnitState{
-				Status: model.TargetStatusReviewed, Decision: decision,
+				Status: model.TargetStatusEstablished, Decision: decision,
 				TargetHash: state.TargetHash(target),
 			},
 			source:      rewritten,
@@ -122,7 +122,7 @@ func TestReviewedIndex_GradeBasis(t *testing.T) {
 			// moved so the scope does not ship.
 			name: "a decision whose translation was rewritten still grades its source",
 			rec: state.UnitState{
-				Status: model.TargetStatusReviewed, Decision: decision,
+				Status: model.TargetStatusEstablished, Decision: decision,
 				TargetHash: state.TargetHash(target), ContentHash: state.SourceHash(source),
 			},
 			source:    rewritten,
@@ -156,7 +156,7 @@ func TestReviewedIndex_GradeBasis(t *testing.T) {
 func loadStateInto(idx reviewedIndex, u state.UnitState) {
 	key := reviewUnitKey(u.Scope, u.Unit, string(u.Variant.Locale))
 	switch u.Status {
-	case model.TargetStatusReviewed, model.TargetStatusSignedOff, model.TargetStatusDraft:
+	case model.TargetStatusEstablished, model.TargetStatusDraft:
 		idx.byUnit[key] = reviewedEntry{
 			status: u.Status, targetHash: u.TargetHash,
 			contentHash: u.ContentHash, by: u.Decision.By, decided: true,

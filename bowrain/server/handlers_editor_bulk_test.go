@@ -61,7 +61,7 @@ func seedEditorBulkProject(t *testing.T, cs *sqlitestore.SQLiteStore) (string, m
 	require.NoError(t, cs.StoreBlocksForItem(ctx, proj.ID, "main", "greetings.txt", []*model.Block{
 		mk("tu1", "Hello", "Bonjour", model.TargetStatusTranslated, true),
 		mk("tu2", "Goodbye", "Au revoir", model.TargetStatusDraft, true),
-		mk("tu3", "Thanks", "Merci", model.TargetStatusReviewed, true),
+		mk("tu3", "Thanks", "Merci", model.TargetStatusEstablished, true),
 		mk("tu4", "Untranslated", "", model.TargetStatusNew, true),
 		mk("tu5", "Frozen", "", model.TargetStatusNew, false),
 	}))
@@ -190,7 +190,7 @@ func TestHandleGetBlock(t *testing.T) {
 		one := decodeJSON[BlockInfoResponse](t, rec)
 		assert.Equal(t, "Thanks", one.Source)
 		assert.Equal(t, "Merci", one.Targets["fr"].Text)
-		assert.Equal(t, string(model.TargetStatusReviewed), one.Targets["fr"].Status)
+		assert.Equal(t, string(model.TargetStatusEstablished), one.Targets["fr"].Status)
 
 		// Same block, same shape, whichever route produced it — the point of
 		// the endpoint is that a reader need not reconstruct one from the other.
@@ -308,7 +308,7 @@ func TestHandleBulkReviewBlocks(t *testing.T) {
 	for _, source := range []string{"Hello", "Goodbye"} {
 		sb, err := cs.GetBlock(ctx, pid, "main", ids[source])
 		require.NoError(t, err)
-		assert.Equal(t, model.TargetStatusReviewed, sb.Block.Target("fr").Status, source)
+		assert.Equal(t, model.TargetStatusEstablished, sb.Block.Target("fr").Status, source)
 	}
 	// The untranslated block gained nothing — no empty target was written.
 	sb, err := cs.GetBlock(ctx, pid, "main", ids["Untranslated"])

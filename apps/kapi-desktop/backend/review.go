@@ -40,12 +40,12 @@ type ReviewUnitDetail struct {
 	// have to reach the UI — a right-to-left source (or target) otherwise
 	// inherits the app's direction and reads scrambled.
 	SourceLocale string `json:"source_locale,omitempty"`
-	// Status is the unit's effective ladder state (draft|translated|reviewed|
-	// signed-off), with a fresh state-store decision applied over the presence
+	// Status is the unit's effective ladder state (draft|translated|
+	// established), with a fresh state-store decision applied over the presence
 	// baseline.
 	Status string `json:"status"`
 	// ReviewState/Note carry the last recorded decision when it still judges
-	// the current translation (approved | rejected | signed-off).
+	// the current translation (approved | rejected).
 	ReviewState string `json:"review_state,omitempty"`
 	Note        string `json:"note,omitempty"`
 	// Origin is the target's provenance when known (from the state store).
@@ -153,12 +153,9 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 //
 // A checker that cannot RUN becomes a `major` "checks did not complete" finding
 // rather than being dropped. Dropping it made every caller fail unsafe: the
-// review pane showed a clean unit, HasFindings read false, and — worst —
-// review_ai's AutoApprove consults hasBlockingCheckFinding on this very slice, so
-// a checker that errored would have auto-approved a translation whose placeholder
-// integrity was never verified. A synthetic blocking finding is honest at the
-// panel and fail-safe at the gate, and keeps the signature usable from the paths
-// that legitimately continue past one bad unit.
+// review pane showed a clean unit and HasFindings read false. A synthetic
+// blocking finding is honest at the panel, and keeps the signature usable from
+// the paths that legitimately continue past one bad unit.
 func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, sourceLang string, locale model.LocaleID, profile *coreprofile.VoiceProfile, tb terms.Terminology, dntTerms []string) []DesktopFinding {
 	findings := []DesktopFinding{}
 	// The review surface addresses a unit, and carries its own scope in the
@@ -500,12 +497,6 @@ func filterReviewItems(items []host.ReviewQueueItem, filter ProjectFilter) []hos
 // stale and it re-enters review.
 func (a *App) RejectReviewItem(tabID, locale, file, key, note string) error {
 	return a.applyReviewDecision(tabID, locale, file, key, host.ReviewDecisionRejected, note)
-}
-
-// SignOffReviewItem promotes one review-queue unit to `signed-off` — the top
-// rung of the target ladder — through host.ApplyReviewDecision.
-func (a *App) SignOffReviewItem(tabID, locale, file, key string) error {
-	return a.applyReviewDecision(tabID, locale, file, key, host.ReviewDecisionSignedOff, "")
 }
 
 // applyReviewDecision routes every desktop review decision through the shared

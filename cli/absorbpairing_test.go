@@ -83,7 +83,7 @@ func approveUnit(t *testing.T, root, locale, srcText string) {
 		if it.Locale != locale || it.Source != srcText {
 			continue
 		}
-		ok, aerr := a.ApproveReviewUnit(context.Background(), proj, "en", locale, it.File, it.Key, "reviewed")
+		ok, aerr := a.ApproveReviewUnit(context.Background(), proj, "en", locale, it.File, it.Key)
 		require.NoError(t, aerr)
 		require.True(t, ok)
 		return

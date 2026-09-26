@@ -123,7 +123,7 @@ func approveIdentical(t *testing.T, root, key string) {
 	a := identicalApp()
 	defer a.Shutdown()
 	ok, err := a.ApproveReviewUnit(context.Background(), filepath.Join(root, "kapi.yaml"), "en", "nb",
-		filepath.Join("locales", "nb", "app.json"), key, "reviewed")
+		filepath.Join("locales", "nb", "app.json"), key)
 	require.NoError(t, err)
 	require.True(t, ok, "the fixture unit must be approvable")
 }

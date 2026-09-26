@@ -116,6 +116,7 @@ func (o *convergenceOrchestrator) settleBatch(
 		res.Total++
 
 		before := b.SourceStatus
+		beforeFailing := b.SourceFailing()
 		beforeHash := settledHash(b)
 		// Re-gate on source change: if the block's source no longer matches the
 		// content it was settled against, its committed status (and any human
@@ -132,14 +133,14 @@ func (o *convergenceOrchestrator) settleBatch(
 		if b.SourceStatus != before {
 			res.Settled++
 		}
-		if !res.Gate.Admits(b.SourceStatus) {
+		if !res.Gate.AdmitsBlock(b) {
 			res.BlockedOnSource++
 		}
 		// Persist only blocks that actually moved: a status change OR a newly
 		// recorded/updated settled-hash. An already-settled, unchanged block is
 		// skipped, so a steady-state run rewrites nothing (re-gate ONLY the
 		// changed block — epic 019 acceptance #6).
-		if b.SourceStatus != before || settledHash(b) != beforeHash {
+		if b.SourceStatus != before || b.SourceFailing() != beforeFailing || settledHash(b) != beforeHash {
 			changed = append(changed, sb)
 		}
 	}
@@ -190,7 +191,7 @@ func (o *convergenceOrchestrator) gateItemsBySource(ctx context.Context, project
 					continue
 				}
 				seenItem[sb.ItemName] = true
-				if gate.Admits(sb.Block.SourceStatus) {
+				if gate.AdmitsBlock(sb.Block) {
 					readyItem[sb.ItemName] = true
 				}
 			}
@@ -212,12 +213,9 @@ func (o *convergenceOrchestrator) gateItemsBySource(ctx context.Context, project
 	return producible, blockedItems, nil
 }
 
-// settleBlockStatus runs the provider-free source checks over one block and
-// stamps its SourceStatus with the framework's SourceReadinessTool — the same
-// terminal readiness stamp `kapi check` and the local converge's source-gate
-// stage use, so the server and CLI derive the same authored→checked promotion
-// from the same findings. It is a thin alias for the shared core helper so the
-// two venues cannot drift.
+// settleBlockStatus runs the provider-free source checks over one block through
+// the shared core helper the local converge's source-gate stage uses, so the
+// server and CLI gate a block on the same findings.
 func settleBlockStatus(ctx context.Context, b *model.Block) {
 	check.SettleSourceStatus(ctx, b)
 }

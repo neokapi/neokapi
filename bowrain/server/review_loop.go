@@ -31,7 +31,7 @@ import (
 // delivery ships only these.
 func targetApproved(b *model.Block, loc model.LocaleID) bool {
 	t := b.Target(loc)
-	return t != nil && t.Status.Rank() >= model.TargetStatusReviewed.Rank()
+	return t != nil && t.Status.Rank() >= model.TargetStatusEstablished.Rank()
 }
 
 // targetPendingReview reports whether a block's target for a locale is awaiting
@@ -52,7 +52,7 @@ func targetPendingReview(b *model.Block, loc model.LocaleID) bool {
 	if t == nil || !model.RunsHaveContent(b.TargetRuns(loc)) {
 		return false
 	}
-	return t.Status.Rank() < model.TargetStatusReviewed.Rank()
+	return t.Status.Rank() < model.TargetStatusEstablished.Rank()
 }
 
 // pendingReviewLocales answers, for every locale asked about, whether the

@@ -26,7 +26,7 @@ const (
 	MCPSetContent = "content"
 	// MCPSetTranslation runs the loop that fills target languages.
 	MCPSetTranslation = "translation"
-	// MCPSetReview is the review queue and its decisions.
+	// MCPSetReview is the review queue and an agent's pre-review of a unit.
 	MCPSetReview = "review"
 	// MCPSetAll is every set.
 	MCPSetAll = "all"
@@ -45,7 +45,7 @@ var mcpToolSets = map[string][]string{
 		"extract_content", "detect_format", "apply_edits", "redact",
 	},
 	MCPSetTranslation: {"translate", "up", "up_plan", "stats"},
-	MCPSetReview:      {"review_queue", "review_unit", "approve_unit", "reject_unit", "sign_off_unit"},
+	MCPSetReview:      {"review_queue", "review_unit", "pre_review_unit"},
 }
 
 // mcpResourceSet is the set the context:// resources belong to.

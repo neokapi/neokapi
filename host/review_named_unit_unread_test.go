@@ -45,7 +45,7 @@ func TestApproveReviewUnitWithNoReaderFailsAndRecordsNothing(t *testing.T) {
 	recipe := filepath.Join(root, "kapi.yaml")
 	ctx := context.Background()
 
-	ok, err := (&App{}).ApproveReviewUnit(ctx, recipe, "en", "fr", "pkg/doc.fr.idml", "hello", "reviewed")
+	ok, err := (&App{}).ApproveReviewUnit(ctx, recipe, "en", "fr", "pkg/doc.fr.idml", "hello")
 	requireInstallHint(t, err, "okapi-bridge")
 	assert.False(t, ok)
 	st, serr := (&App{}).OpenProjectState(ctx, root)
@@ -55,7 +55,7 @@ func TestApproveReviewUnitWithNoReaderFailsAndRecordsNothing(t *testing.T) {
 	assert.Empty(t, recorded, "nothing was approved")
 
 	// The readable unit beside it approves as usual.
-	ok, err = (&App{}).ApproveReviewUnit(ctx, recipe, "en", "fr", "fr.json", readableReviewKey(t, recipe), "reviewed")
+	ok, err = (&App{}).ApproveReviewUnit(ctx, recipe, "en", "fr", "fr.json", readableReviewKey(t, recipe))
 	require.NoError(t, err)
 	assert.True(t, ok)
 }
