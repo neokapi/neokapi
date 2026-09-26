@@ -144,7 +144,7 @@ func executeEvalWith(ctx context.Context, opts EvalOptions, deps evalDependencie
 		return err
 	}
 	if opts.Phase == evalPhaseReport {
-		return reportEval(opts)
+		return reportEval(ctx, opts)
 	}
 	opts.KapiBin = findKapi(opts.RepoRoot)
 	record, err := makeEvalStudyRecord(ctx, opts)
@@ -461,7 +461,7 @@ func runEvalSchedule(ctx context.Context, opts EvalOptions, record evalStudyReco
 	if used >= opts.MaxAttempts {
 		fmt.Printf("eval: batch ceiling reached (%d); review before increasing EVAL_MAX_ATTEMPTS\n", used)
 	}
-	return reportEval(opts)
+	return reportEval(ctx, opts)
 }
 
 // executeEvalAttempt runs one session and reads its effect back through the

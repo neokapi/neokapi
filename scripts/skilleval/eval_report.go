@@ -109,7 +109,7 @@ func (r EvalReport) growMeasured() []EvalGrowRow {
 	return out
 }
 
-func reportEval(opts EvalOptions) error {
+func reportEval(ctx context.Context, opts EvalOptions) error {
 	var record evalStudyRecord
 	if err := readPairedJSON(filepath.Join(opts.Dir, "study.json"), &record); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -125,7 +125,7 @@ func reportEval(opts EvalOptions) error {
 	if err != nil {
 		return err
 	}
-	report, err := buildEvalReport(opts.Dir, record, opts.Fixture, answers)
+	report, err := buildEvalReport(ctx, opts.Dir, record, opts.Fixture, answers)
 	if err != nil {
 		return err
 	}
@@ -150,7 +150,7 @@ func reportEval(opts EvalOptions) error {
 }
 
 // buildEvalReport scores every saved attempt in an evidence directory.
-func buildEvalReport(dir string, record evalStudyRecord, fixture EvalFixture, answers *EvalReviewAnswers) (EvalReport, error) {
+func buildEvalReport(ctx context.Context, dir string, record evalStudyRecord, fixture EvalFixture, answers *EvalReviewAnswers) (EvalReport, error) {
 	report := EvalReport{
 		Schema: evalSchema, CreatedAt: time.Now().UTC(), Study: record.Manifest.Study,
 		Fingerprint: record.Fingerprint, KapiVersion: record.KapiVersion, KapiCommit: record.KapiCommit,
@@ -161,7 +161,7 @@ func buildEvalReport(dir string, record evalStudyRecord, fixture EvalFixture, an
 	for _, host := range record.Manifest.Hosts {
 		report.Hosts = append(report.Hosts, host.Host)
 	}
-	settle, err := measureEvalSettle(context.Background())
+	settle, err := measureEvalSettle(ctx)
 	if err != nil {
 		return report, fmt.Errorf("measure settling: %w", err)
 	}

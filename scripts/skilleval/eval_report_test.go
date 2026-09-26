@@ -66,7 +66,7 @@ func TestBuildEvalReportScoresSavedAttempts(t *testing.T) {
 	writeEvalAttempt(t, dir, evalSessionOf(t, record.Manifest, evalPhaseSmoke, "smoke-troubleshooting-section-codex"),
 		record.Fingerprint, &evalAttemptResult{Status: "completed", Recorded: []EvalOperation{}})
 
-	report, err := buildEvalReport(dir, record, fixture, nil)
+	report, err := buildEvalReport(t.Context(), dir, record, fixture, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 7, report.Attempts)
 	require.Len(t, report.Apply, 3)
@@ -129,7 +129,7 @@ func TestEvalApplyVerdictNeedsACleanFinish(t *testing.T) {
 func TestBuildEvalReportKeepsAReservedAttempt(t *testing.T) {
 	dir, record := evalEvidence(t)
 	writeEvalAttempt(t, dir, evalSessionOf(t, record.Manifest, evalPhaseGrow, "grow-release-note-codex"), record.Fingerprint, nil)
-	report, err := buildEvalReport(dir, record, evalTestFixture(t), nil)
+	report, err := buildEvalReport(t.Context(), dir, record, evalTestFixture(t), nil)
 	require.NoError(t, err)
 	require.Len(t, report.Grow, 1)
 	assert.Equal(t, "reserved", report.Grow[0].Status)
@@ -139,12 +139,12 @@ func TestBuildEvalReportKeepsAReservedAttempt(t *testing.T) {
 func TestBuildEvalReportRefusesAnAttemptFromAnotherStudy(t *testing.T) {
 	dir, record := evalEvidence(t)
 	writeEvalAttempt(t, dir, evalSessionOf(t, record.Manifest, evalPhaseApply, "apply-release-note-codex"), "other", nil)
-	_, err := buildEvalReport(dir, record, evalTestFixture(t), nil)
+	_, err := buildEvalReport(t.Context(), dir, record, evalTestFixture(t), nil)
 	require.ErrorContains(t, err, "fingerprint differs")
 }
 
 func TestReportEvalWithoutAStudy(t *testing.T) {
-	err := reportEval(EvalOptions{Dir: t.TempDir(), Fixture: evalTestFixture(t)})
+	err := reportEval(t.Context(), EvalOptions{Dir: t.TempDir(), Fixture: evalTestFixture(t)})
 	require.ErrorContains(t, err, "no evaluation has been recorded here")
 }
 
@@ -154,7 +154,7 @@ func TestReportEvalWritesTheSheetAndFoldsTheAnswers(t *testing.T) {
 	writeEvalAttempt(t, dir, evalSessionOf(t, record.Manifest, evalPhaseGrow, "grow-feature-page-claude"), record.Fingerprint,
 		&evalAttemptResult{Status: "completed", Recorded: store.Operations})
 	opts := EvalOptions{Dir: dir, Fixture: evalTestFixture(t)}
-	require.NoError(t, reportEval(opts))
+	require.NoError(t, reportEval(t.Context(), opts))
 	sheet := evalLatest(t, dir, "report-*-review.md")
 	assert.Contains(t, sheet, "## The decoy")
 	assert.Contains(t, sheet, "| grow-feature-page-claude | 17 | observe |")
@@ -166,7 +166,7 @@ func TestReportEvalWritesTheSheetAndFoldsTheAnswers(t *testing.T) {
 	answers := "minutes: 6\nkeep:\n  grow-feature-page-claude: [\"14\", \"21\"]\nlearned: |\n  The plans page never names a price in dollars.\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "review-answers.yaml"), []byte(answers), 0o600))
 	time.Sleep(2 * time.Millisecond)
-	require.NoError(t, reportEval(opts))
+	require.NoError(t, reportEval(t.Context(), opts))
 	rendered := evalLatest(t, dir, "report-*[0-9]Z.md")
 	assert.Contains(t, rendered, "Minutes spent: 6")
 	assert.Contains(t, rendered, "Records worth keeping: 2 of 12")

@@ -167,9 +167,9 @@ Nothing is erased. Reverted operations stay in the log, marked reverted.
 A rule initially applies at the context coordinates of its evidence. For
 example, a term recorded in one product's reference pages does not apply to
 another product's tutorials. When a profile governs where the evidence was
-seen, the established rule holds only where that profile governs, and so do
-the word rules in a profile's own voice or terms file under
-`.kapi/profiles/<name>/` once `kapi context import` reads them.
+seen, the established rule holds only where that profile governs. So do the word
+rules `kapi context import` reads in for one profile: they land in the terms
+store scoped to that profile.
 
 To apply an established rule across the workspace:
 
