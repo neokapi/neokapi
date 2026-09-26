@@ -1796,7 +1796,7 @@ export class ContextAwaiting {
 }
 
 /**
- * ContextBlessingDTO is a decision that blessed a unit, and the source it cited.
+ * ContextBlessingDTO contains a unit approval and its source basis.
  */
 export class ContextBlessingDTO {
     /**
