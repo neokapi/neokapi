@@ -37,19 +37,16 @@ files:
       style:
         active_voice: true
 
-      vocabulary:
-        preferred_terms:
-          - term: sign in
-            note: not "log in"
-        forbidden_terms:
-          - term: utilize
-            replacement: use
-            advisory: true
-          - term: game-changing
-            replacement: ""
-        competitor_terms:
-          - term: NoteCorp
-            replacement: other note apps
+      terms:
+        - replacement: sign in
+          note: not "log in"
+        - term: utilize
+          replacement: use
+          advisory: true
+        - term: game-changing
+        - term: NoteCorp
+          replacement: other note apps
+          competitor: true
   - path: product-page.md
     content: |
       # Lumen Notes
@@ -73,21 +70,22 @@ steps:
   - comment: Check the source against the voice profile
   - command: kapi check product-page.md --profile-file voice.yaml
     narration: >-
-      The profile carries the vocabulary, forbidden terms, and tone rules.
-      The check returns a score and one located finding per off-brand block.
+      The voice file carries the tone rules, and beside them the terms:
+      forbidden, preferred and competitor names. The check returns a score and
+      one located finding per off-brand term.
     offline: false
   - comment: Read the report — each finding names the rule it violated and where
   - command: kapi check product-page.md --profile-file voice.yaml --json
     narration: >-
       The same report as machine-readable JSON. The stable rule id is the key
-      an AI fix-loop tracks across iterations; --max-major 0 turns the score
-      into a gate.
+      an AI fix-loop tracks across iterations, and each finding says whether it
+      fails. A failing finding makes the command exit 3.
     offline: false
   - comment: Fix the terms deterministically — no model involved
   - command: kapi voice rewrite --profile-file voice.yaml --input-text "Unlike NoteCorp, you can utilize Lumen Notes offline."
     narration: >-
       voice rewrite substitutes forbidden and competitor terms for their
-      approved replacements, offline, and reports each change. Tone and style
+      replacements, offline, and reports each change. Tone and style
       fixes go through kapi apply, with the voice guide as context.
     offline: false
   - comment: Re-check until the gate is green — the same loop `kapi check --ship` enforces in a project

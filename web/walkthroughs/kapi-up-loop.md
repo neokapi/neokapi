@@ -15,7 +15,7 @@ scenes:
 ## Story
 
 This walkthrough follows a project from translation through review to a passing
-ship gate. The gate requires 100% translated and 100% reviewed content.
+ship gate. The gate requires 100% translated and 100% established content.
 
 `kapi up --plan` previews pending units, exact content-memory matches, remaining
 AI work and estimated tokens. `kapi up` fills the translations from content
@@ -35,6 +35,6 @@ the ship check. The closing `kapi status` shows `fr` as shippable.
 
 ## Closing
 
-Use the project's context export or snapshot workflow to preserve review
-decisions. For a server-connected project, `up` pushes changes, streams progress
+Share review decisions with the rest of the team with `kapi context push`.
+For a server-connected project, `up` pushes changes, streams progress
 and pulls results; reviewers use the shared review queue.

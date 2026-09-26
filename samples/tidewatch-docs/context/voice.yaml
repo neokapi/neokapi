@@ -23,11 +23,21 @@ style:
   sentence_length: short
   person_pov: second
   contractions: never
-  prohibited_patterns:
-    - regex: '\b(world-class|best-in-class|industry-leading|game-changing|next-generation)\b'
-      description: Brochure framing — say what the software does instead
-    - regex: '\b(guarantees?|ensures?)\s+(safety|safe\s)'
-      description: Northsea never claims safety; state the constraint that was checked
+# Held on every surface: a channel below restates the style, and a constraint
+# applies whatever style a channel supplies.
+constraints:
+  - id: northsea/no-brochure-framing
+    version: 1
+    source: voice.yaml
+    statement: Brochure framing. Say what the software does instead.
+    kind: prohibited_pattern
+    regex: '\b(world-class|best-in-class|industry-leading|game-changing|next-generation)\b'
+  - id: northsea/no-safety-claim
+    version: 1
+    source: voice.yaml
+    statement: Northsea never claims safety. State the constraint that was checked.
+    kind: prohibited_pattern
+    regex: '\b(guarantees?|ensures?)\s+(safety|safe\s)'
 terms:
   - term: seamless
     replacement: unified

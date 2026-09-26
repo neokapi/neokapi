@@ -23,7 +23,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi init --name demo --source-locale en --target-locale fr",
       narration:
-        "init creates the project recipe and working directory. It can be run again on an existing project.",
+        "init writes the recipe with a collection for each kind of content it recognises, an MCP entry and one short skill for coding agents. Run again on an existing project, it leaves the collections as they are.",
     },
     {
       command: "kapi ls",

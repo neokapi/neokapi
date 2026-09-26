@@ -1,6 +1,6 @@
 id: audience-constraints
 title: Change the explanation, keep the shared rule
-subtitle: Four reading situations, one critical wording rule, and explicit limits on what was checked.
+subtitle: Four reading situations, one shared wording rule, and explicit limits on what was checked.
 kind: use-case
 publishAs: audience-constraints
 terminal: shell
@@ -52,7 +52,7 @@ narration:
     kind: title
     text: >-
       The explanation changes with the reader. The shared rule remains.
-      This example uses four reading situations and one critical wording rule.
+      This example uses four reading situations and one shared wording rule.
       Its factual guidance remains a separate review responsibility.
   - id: context
     kind: terminal

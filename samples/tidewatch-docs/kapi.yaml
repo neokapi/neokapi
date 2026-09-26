@@ -5,6 +5,11 @@
 # translations up with no copy step and no plugin.
 version: v1
 name: tidewatch-docs
+# CI shares what a run records on a ref of this repository: each job pulls
+# before the loop, and the converge job pushes after it
+# (.github/workflows/kapi.yml).
+context:
+  backend: git
 defaults:
   source_language: en-GB
   target_languages: [nb, nl]

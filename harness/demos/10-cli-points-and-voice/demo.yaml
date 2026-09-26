@@ -7,10 +7,11 @@ publishAs: cli-points-and-voice
 # runs for real and its output is recorded exactly.
 #
 # `fixtures/.kapi/voice.yaml` is what the recipe binds, and `setup:` reads it
-# into the sandbox's store, which is where the gate answers from. The forbidden
-# term in it is the one the partner page trips.
+# into the sandbox's store, which is where the gate answers from. The import
+# keeps the voice and moves the file's word rules into the project's terms; the
+# forbidden term among them is the one the partner page trips.
 #
-# One `kapi check --strict` run exits 3 on purpose (the failing gate is the
+# One `kapi check` run exits 3 on purpose (the failing gate is the
 # point of that beat) and declares it with `expectExit: 3`, so a take where the
 # gate silently passed would fail the capture instead of shipping.
 terminal: shell
@@ -45,11 +46,11 @@ script:
   - command: kapi voice guide --profile-file .kapi/voice.yaml --channel portal
   - comment: And this is the gate, over every surface, with no flags.
   # The gate must fail here: the forbidden word on the partner page is the beat.
-  - command: kapi check --strict
+  - command: kapi check
     expectExit: 3
   - comment: One word, corrected at the source.
   - command: ksed -i 's/Our seamless platform/Our unified platform/' partner/index.md
-  - command: kapi check --strict
+  - command: kapi check
 
 artifacts:
   - id: recipe
@@ -96,18 +97,19 @@ narration:
     text: >-
       A voice profile is a file in the repository, and printing the guide for
       that point is how you see what an assistant is handed before it writes.
-      The register is the portal's; the vocabulary is the whole company's.
+      The register is the portal's; the terms are the whole company's.
 
   - id: gate
     kind: terminal
     through: 16
-    highlight: { text: [MAJOR, seamless] }
+    highlight: { text: [FAILS, seamless] }
     caption: One word fails the gate, then the same command passes.
     text: >-
-      The configured checks read the same profile. One forbidden word on the partner page fails
-      it, the command exits three, and correcting the source is enough to make
-      the identical command pass. The result covers the configured wording rules;
-      it is not a general judgment of voice or factual accuracy.
+      The configured checks read the same voice and terms. One forbidden word on
+      the partner page fails the check, the command exits three, and correcting
+      the source is enough to make the identical command pass. The result covers
+      the configured wording rules; it is not a general judgment of voice or
+      factual accuracy.
 
   - id: outro
     kind: outro

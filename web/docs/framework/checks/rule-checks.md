@@ -32,6 +32,8 @@ caught in CI, or in an assistant's fix-loop, the same way a failing test is.
     dark: "/video/kapi/kapi-checks-guardrail-dark.webm",
   }}
   maxWidth="820px"
+  outdated="interface"
+  outdatedNote="The recording grades findings as critical or major. kapi check now marks each finding FAILS or REPORTS."
 />
 
 ## Deterministic rules

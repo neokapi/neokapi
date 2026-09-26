@@ -30,7 +30,7 @@ outro:
 script:
   - comment: Compass ships three languages from one source. Bring them up to date first.
   - command: kapi up
-  - comment: Norwegian and German clear the ship gate on drafted work. Dutch parks, because one of its units fails the project's bound checks.
+  - comment: Norwegian and German clear the ship gate on translated work. Dutch parks, because one of its units fails the project's bound checks.
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
   - comment: The review queue is already the shape of a change-set. This selects the Dutch a person wrote and leaves what the stub drafted.
@@ -41,10 +41,10 @@ script:
   - comment: Each approval is in the record as it is made, attributable, and reviewable in the context log.
   - comment: A decision unparks the language, so run the loop again. The drafts it already made are recycled, so the provider is asked for nothing a second time.
   - command: kapi up
-  - comment: Dutch is offered now, carrying the marker, because it is not signed off end to end.
+  - comment: Dutch is offered now, in the translated state, because not every string in it is established.
   - command: kapi status --ship --emit site/ship.json
   - command: cat site/ship.json
-  - comment: Finish Norwegian, and the same file says so.
+  - comment: Establish the rest of Norwegian, and the same file says so.
   - command: >-
       kapi status --review --json --jq '.pending[]|select(.locale=="nb")|{kind:"review",op:"add",file,id:.key,locale,status:"established"}' > norwegian.json
   - command: kapi apply norwegian.json 2>&1 | tail -2
@@ -96,11 +96,12 @@ narration:
     kind: terminal
     through: 19
     highlight: { text: [nl, nb] }
-    caption: Dutch offered and marked. Norwegian drops its marker.
+    caption: Dutch offered as translated. Norwegian is established.
     text: >-
-      Dutch is offered now, carrying a marker because it is not signed off end
-      to end. Finish Norwegian and the same file drops its marker instead. Three
-      languages, three standings, none of them configured.
+      Dutch is offered now, in the translated state, because not every string
+      in it is established. Establish the rest of Norwegian and the same file
+      moves it to established. Three languages, two states, and none of them
+      configured by hand.
 
   - id: picker
     kind: artifact
@@ -108,8 +109,8 @@ narration:
     caption: What the gate cleared is what a reader can choose.
     text: >-
       And this is where it lands. The picker offers what the gate cleared, marks
-      what nobody has signed off, and leaves out what is not ready. One file
-      passes between the loop and the site.
+      what is translated but not yet established, and leaves out what is not
+      ready. One file passes between the loop and the site.
 
   - id: outro
     kind: outro
