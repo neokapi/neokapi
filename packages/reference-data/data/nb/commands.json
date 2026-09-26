@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T09:09:07Z",
+  "generatedAt": "2026-09-26T09:30:04Z",
   "commands": [
     {
       "id": "add",
@@ -887,12 +887,6 @@
       "long": "Rapporter hvilken språkkode-stavemåte hver lagret rad har, og om det er den oppslagene spør etter.\n\nEn rad arkivert under en stavemåte ingen spør etter blir aldri matchet. Termen, den godkjente formuleringen eller overlegget den inneholder leses som fraværende, noe som ser nøyaktig ut som innhold ingen har arbeidet med ennå.\n\n--fix arkiverer prosjektets kontekstrader under den stavemåten oppslagene spør etter, uten å flytte dem ut av lageret. Termer, godkjent formulering og stemmeprofiler finnes der og ingen annen plass, så ingenting kastes: en rad hvis kanoniske stavemåte er ledig tar den, en rad som sier nøyaktig det samme som den kanoniske raden slår seg sammen med den, og en rad hvis kanoniske stavemåte allerede svarer noe annet, lar seg være og rapporteres, slik at du kan si hvilket svar som er riktig.\n\nRadene kapi leste fra dine egne filer bygges om i stedet for å flyttes. Rapporten navngir filen som skal slettes, og neste \"kapi up\" leser filene dine på nytt.",
       "flags": [
         {
-          "name": "fix",
-          "usage": "arkiver prosjektets kontekstrader under den stavemåten oppslag bruker",
-          "default": "false",
-          "type": "bool"
-        },
-        {
           "name": "project",
           "shorthand": "p",
           "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra cwd hvis utelatt)",
@@ -901,8 +895,7 @@
       ],
       "examples": [
         "kapi context locales",
-        "kapi context locales --json",
-        "kapi context locales --fix"
+        "kapi context locales --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -1258,6 +1251,7 @@
         }
       ],
       "examples": [
+        "kapi context widen 0n794e2gk7 --to project",
         "kapi context widen 0n794e2gk7 --to workspace",
         "kapi context widen 0n794e2gk7 --to mode"
       ],
