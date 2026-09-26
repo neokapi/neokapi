@@ -142,6 +142,49 @@ func TestContextDigest_ContentMovingAwayFromARuleIsDrift(t *testing.T) {
 	assert.True(t, digest.Drift[0].Rule.Revertible)
 }
 
+// TestUsage_UnchangedCountsRecordNothing: two checks over the same content
+// record one usage signal per rule, and a changed count records a second, for
+// a suggestion and for an established rule alike.
+func TestUsage_UnchangedCountsRecordNothing(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := contextOpsProject(t, "ctxops-usage-once")
+	ctx := t.Context()
+
+	suggestion := proposeUtilise(t, app, root, agentIn("s1"))
+	established, err := app.RecordContextObservation(ctx, ContextObserveRequest{
+		Actor: agentIn("s2"), Project: recipeOf(root),
+		Term: "farewell", InsteadOf: []string{"Goodbye"},
+		Evidence: []contextop.Evidence{{Path: "config/app.yaml", Unit: "farewell", Quote: "Goodbye"}},
+	})
+	require.NoError(t, err)
+	_, err = app.KeepContextOperations(ctx, ContextKeepRequest{Actor: contextop.Actor{Kind: contextop.ActorPerson}, Project: recipeOf(root), IDs: []string{established.ID}})
+	require.NoError(t, err)
+
+	usageSignals := func(target string) int {
+		t.Helper()
+		log, lerr := app.ContextOperations(ctx, ContextLogRequest{Project: recipeOf(root)})
+		require.NoError(t, lerr)
+		n := 0
+		for _, op := range log.Operations {
+			if op.Kind == contextop.KindSignal && op.Target == target && op.Signal != nil && op.Signal.Source == contextop.SignalUsage {
+				n++
+			}
+		}
+		return n
+	}
+
+	checkWith(t, app, root)
+	checkWith(t, app, root)
+	assert.Equal(t, 1, usageSignals(suggestion.ID), "an unchanged count of a suggestion is recorded once")
+	assert.Equal(t, 1, usageSignals(established.ID), "an unchanged count of an established rule is recorded once")
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "config", "app.yaml"),
+		[]byte("greeting: We utilise the widget every day, and utilise it again.\nfarewell: Goodbye\n"), 0o600))
+	checkWith(t, app, root)
+	assert.Equal(t, 2, usageSignals(suggestion.ID), "a changed count is recorded")
+	assert.Equal(t, 1, usageSignals(established.ID), "a rule whose count held still records nothing")
+}
+
 // TestContextDigest_AgentReadLeavesTheMarker: an agent reading the digest does
 // not move the person's marker.
 func TestContextDigest_AgentReadLeavesTheMarker(t *testing.T) {

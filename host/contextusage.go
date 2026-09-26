@@ -143,6 +143,10 @@ var usageActor = contextop.Actor{Kind: contextop.ActorTool, Name: "check"}
 // only adds to standing or counts against a rule, so it establishes nothing;
 // against a rule settled on evidence it takes the rule back out of force.
 //
+// A rule's counts are recorded only when they differ from the latest ones
+// recorded for it. Standing and drift read the latest recorded counts, so a run
+// over unchanged content adds nothing to the log, however often it runs.
+//
 // Every failure is swallowed: a count is advice, and not worth failing a check
 // to record.
 func (a *App) recordContextUsage(ctx context.Context, recipe string, u *contextUsage) {
@@ -157,6 +161,21 @@ func (a *App) recordContextUsage(ctx context.Context, recipe string, u *contextU
 	if err != nil {
 		return
 	}
+	signals, err := s.ledger.Records(ctx, contextop.Filter{Project: s.key, Kinds: []contextop.Kind{contextop.KindSignal}})
+	if err != nil {
+		return
+	}
+	// latest is the newest usage count recorded for each rule. Records come
+	// newest first, so the first one seen per rule is it.
+	latest := map[string]*contextop.Signal{}
+	for _, r := range signals {
+		if r.Signal == nil || r.Signal.Source != contextop.SignalUsage || !r.Status.Answers() {
+			continue
+		}
+		if _, seen := latest[r.Target]; !seen {
+			latest[r.Target] = r.Signal
+		}
+	}
 	ids := make([]string, 0, len(u.counts))
 	for id := range u.counts {
 		ids = append(ids, id)
@@ -164,6 +183,9 @@ func (a *App) recordContextUsage(ctx context.Context, recipe string, u *contextU
 	sort.Strings(ids)
 	for _, id := range ids {
 		c := u.counts[id]
+		if prev := latest[id]; prev != nil && prev.Within == "" && prev.Preferred == c.preferred && prev.Rejected == c.rejected {
+			continue
+		}
 		if _, err := s.ledger.Append(ctx, contextop.Record{
 			Actor:   usageActor,
 			Kind:    contextop.KindSignal,

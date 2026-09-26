@@ -216,7 +216,9 @@ The other signals are recorded where the content is read. A whole-project
 established rule whose scope covers the content, the uses of its preferred form
 and of the forms it avoids in the source they read, and record a `usage` signal
 as tool `check`; a check of named files or of a diff records none, because part
-of the content says nothing about how the project writes. For a suggestion the
+of the content says nothing about how the project writes. A rule's counts are
+recorded only when they differ from the latest recorded for it, so a run over
+unchanged content adds nothing to the log. For a suggestion the
 count is standing. For an established rule, a later count that writes a
 rejected form more often than the count taken when the rule came into force is
 drift, which the digest reports ([S-07](../surfaces/s-07-context-centric-review.md)).
