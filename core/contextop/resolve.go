@@ -20,9 +20,16 @@ const WidenedKind = "contextop.rule"
 // RuleStore is where rules widened to the whole workspace live.
 // *workspace.Workspace satisfies it.
 type RuleStore interface {
+	RuleReader
 	WidenRule(ctx context.Context, rule workspace.Rule) error
-	WidenedRules(ctx context.Context, kind string) ([]workspace.Rule, error)
 	NarrowRule(ctx context.Context, id string) error
+}
+
+// RuleReader reads the rules in force across the workspace. A reader that only
+// resolves rules takes this, so the store it is handed cannot be written
+// through it.
+type RuleReader interface {
+	WidenedRules(ctx context.Context, kind string) ([]workspace.Rule, error)
 }
 
 // WidenedRule is one rule in force across the workspace, as the workspace holds
@@ -79,7 +86,7 @@ func Narrow(ctx context.Context, store RuleStore, project workspace.ProjectKey, 
 }
 
 // WidenedRules reads back every rule in force across the workspace.
-func WidenedRules(ctx context.Context, store RuleStore) ([]WidenedRule, error) {
+func WidenedRules(ctx context.Context, store RuleReader) ([]WidenedRule, error) {
 	held, err := store.WidenedRules(ctx, WidenedKind)
 	if err != nil {
 		return nil, err

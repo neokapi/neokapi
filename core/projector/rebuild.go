@@ -97,7 +97,7 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 // reset empties every projection table in the context store, and takes back
 // out of the workspace every rule this project widened.
 func (p *Projector) reset(ctx context.Context) error {
-	raw := p.db.Raw()
+	raw := p.st.Raw
 	if raw == nil {
 		return errNoSubsystem
 	}

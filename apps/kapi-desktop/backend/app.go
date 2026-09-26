@@ -33,6 +33,7 @@ import (
 	pluginmanifest "github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
@@ -44,9 +45,7 @@ import (
 	"github.com/neokapi/neokapi/host/credentials"
 	cliI18n "github.com/neokapi/neokapi/host/i18n"
 	"github.com/neokapi/neokapi/host/pluginhost"
-	"github.com/neokapi/neokapi/memory"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
-	"github.com/neokapi/neokapi/terms"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"gopkg.in/yaml.v3"
 )
@@ -125,8 +124,8 @@ type App struct {
 	// terms, which are two schemas inside its `.kapi/work/store.db` and are therefore
 	// borrowed (see handleStore.Adopt). Closing a borrowed handle drops the ID
 	// only; the store belongs to the engine.
-	memoryHandles *handleStore[*memory.SQLiteStore]
-	tbHandles     *handleStore[*terms.SQLiteStore]
+	memoryHandles *handleStore[*projector.Memory]
+	tbHandles     *handleStore[*projector.Terms]
 
 	// Persistence
 	credentials *credentials.Store
@@ -186,8 +185,8 @@ func NewApp() *App {
 		schemaReg:     schemaReg,
 		pluginDir:     pluginDir,
 		projects:      make(map[string]*openProject),
-		memoryHandles: newHandleStore[*memory.SQLiteStore](),
-		tbHandles:     newHandleStore[*terms.SQLiteStore](),
+		memoryHandles: newHandleStore[*projector.Memory](),
+		tbHandles:     newHandleStore[*projector.Terms](),
 		credentials:   credStore,
 		settings:      newSettingsStore(),
 		aiConfig:      aiCfg,
@@ -657,13 +656,21 @@ func (a *App) autoOpenProjectResources(op *openProject) {
 		return
 	}
 	ctx := context.Background()
+	// Edits made in these views are context writes like any other, so the
+	// handles are the projector's stores: each write is recorded in the
+	// workspace's log before it is applied.
+	writer, err := a.hostEngine().Projector(ctx, root)
+	if err != nil {
+		a.logger.Printf("open the context writer for %s: %v", root, err)
+		return
+	}
 	if has, err := db.HasMemory(ctx); err == nil && has {
-		if tm := db.Memory(); tm != nil {
+		if tm := writer.Memory(); tm != nil {
 			op.memoryHandle = a.memoryHandles.Adopt(tm)
 		}
 	}
 	if has, err := db.HasTerms(ctx); err == nil && has {
-		if tb := db.Terms(); tb != nil {
+		if tb := writer.Terms(); tb != nil {
 			op.tbHandle = a.tbHandles.Adopt(tb)
 		}
 	}

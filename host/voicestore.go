@@ -57,15 +57,15 @@ func (a *App) OpenVoiceStore(cmd Command) (coreprofile.Store, string, func(), er
 		return nil, "", noop, err
 	}
 	if sel.InProject() {
-		db, derr := a.ProjectDB(CmdContext(cmd), sel.Root)
+		w, derr := a.Projector(CmdContext(cmd), sel.Root)
 		if derr != nil {
 			return nil, "", noop, derr
 		}
-		store := db.Voice()
+		store := voiceWriter(w)
 		if store == nil {
-			return nil, db.Path(), noop, fmt.Errorf("open voice store: %w", projectdb.ErrNoStore)
+			return nil, projectLayoutAt(sel.Root).StorePath(), noop, fmt.Errorf("open voice store: %w", projectdb.ErrNoStore)
 		}
-		return store, db.Path(), noop, nil
+		return store, projectLayoutAt(sel.Root).StorePath(), noop, nil
 	}
 	store, err := openVoiceStoreAt(sel.Path)
 	if err != nil {
@@ -109,11 +109,11 @@ func (a *App) ProjectVoiceStore(ctx context.Context, root string) (coreprofile.S
 	if root == "" {
 		return nil, noop, nil
 	}
-	db, err := a.ProjectDB(ctx, root)
+	w, err := a.Projector(ctx, root)
 	if err != nil {
 		return nil, noop, err
 	}
-	store := db.Voice()
+	store := voiceWriter(w)
 	if store == nil {
 		return nil, noop, nil
 	}

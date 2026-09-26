@@ -37,11 +37,15 @@ type Batch struct {
 	mu    sync.Mutex
 	order []string
 	steps map[string][]step
+	// concepts records the concepts the batch has put (true) or deleted
+	// (false), so a relation between two concepts the same batch puts is
+	// accepted before either is applied.
+	concepts map[string]bool
 }
 
 // Batch starts a batch of writes.
 func (p *Projector) Batch() *Batch {
-	return &Batch{p: p, steps: map[string][]step{}}
+	return &Batch{p: p, steps: map[string][]step{}, concepts: map[string]bool{}}
 }
 
 func (b *Batch) put(_ context.Context, kind string, s step) error {
@@ -51,7 +55,23 @@ func (b *Batch) put(_ context.Context, kind string, s step) error {
 		b.order = append(b.order, kind)
 	}
 	b.steps[kind] = append(b.steps[kind], s)
+	for _, c := range s.PutConcepts {
+		b.concepts[c.ID] = true
+	}
+	for _, id := range s.DeleteConcepts {
+		b.concepts[id] = false
+	}
 	return nil
+}
+
+// pendingConcept reports what the batch has done to a concept: put it
+// (held true) or deleted it (held false). known is false for a concept the
+// batch has not touched.
+func (b *Batch) pendingConcept(id string) (held, known bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	held, known = b.concepts[id]
+	return held, known
 }
 
 // Commit records and applies what the batch collected. A batch that collected
@@ -82,10 +102,10 @@ func (b *Batch) Voice() *Voice { return b.p.voice(b) }
 func (p *Projector) Terms() *Terms { return p.terms(p) }
 
 func (p *Projector) terms(to sink) *Terms {
-	if p.db.Terms() == nil {
+	if p.st.Terms == nil {
 		return nil
 	}
-	return &Terms{SQLiteStore: p.db.Terms(), to: to}
+	return &Terms{SQLiteStore: p.st.Terms, to: to}
 }
 
 // Memory is the project's content memory as a writer sees it. It is nil on a
@@ -93,10 +113,10 @@ func (p *Projector) terms(to sink) *Terms {
 func (p *Projector) Memory() *Memory { return p.memory(p) }
 
 func (p *Projector) memory(to sink) *Memory {
-	if p.db.Memory() == nil {
+	if p.st.Memory == nil {
 		return nil
 	}
-	return &Memory{SQLiteStore: p.db.Memory(), to: to}
+	return &Memory{SQLiteStore: p.st.Memory, to: to}
 }
 
 // Voice is the project's voice profiles as a writer sees them. It is nil on a
@@ -104,10 +124,10 @@ func (p *Projector) memory(to sink) *Memory {
 func (p *Projector) Voice() *Voice { return p.voice(p) }
 
 func (p *Projector) voice(to sink) *Voice {
-	if p.db.Voice() == nil {
+	if p.st.Voice == nil {
 		return nil
 	}
-	return &Voice{SQLiteStore: p.db.Voice(), to: to}
+	return &Voice{SQLiteStore: p.st.Voice, to: to}
 }
 
 // Terms is a terms store whose writes go through the projector.
@@ -162,7 +182,16 @@ func (t *Terms) AddRelationWithStream(ctx context.Context, rel terms.ConceptRela
 	if err := terms.ValidateRelation(rel); err != nil {
 		return err
 	}
-	for role, id := range map[string]string{"source": rel.SourceID, "target": rel.TargetID} {
+	for _, end := range [][2]string{{"source", rel.SourceID}, {"target", rel.TargetID}} {
+		role, id := end[0], end[1]
+		if b, inBatch := t.to.(*Batch); inBatch {
+			if held, known := b.pendingConcept(id); known {
+				if !held {
+					return fmt.Errorf("%s concept not found: %s", role, id)
+				}
+				continue
+			}
+		}
 		if _, ok, err := t.GetConcept(ctx, id); err != nil {
 			return err
 		} else if !ok {
@@ -393,4 +422,22 @@ func sameJSON(a, b any) bool {
 	x, errA := json.Marshal(a)
 	y, errB := json.Marshal(b)
 	return errA == nil && errB == nil && reflect.DeepEqual(x, y)
+}
+
+// StandaloneMemory is a content-memory file a person named, which is not a
+// projection of any log: its writes apply to the file directly. A project's
+// own content memory is written through Projector.Memory instead.
+func StandaloneMemory(tm *memory.SQLiteStore) *Memory {
+	if tm == nil {
+		return nil
+	}
+	return (&Projector{st: Stores{Memory: tm}, lock: &sync.Mutex{}}).Memory()
+}
+
+// StandaloneTerms is a terms file a person named, written directly.
+func StandaloneTerms(tb *terms.SQLiteStore) *Terms {
+	if tb == nil {
+		return nil
+	}
+	return (&Projector{st: Stores{Terms: tb}, lock: &sync.Mutex{}}).Terms()
 }

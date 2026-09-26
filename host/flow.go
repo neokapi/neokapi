@@ -26,6 +26,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/schema"
@@ -1801,7 +1802,7 @@ func (a *App) defaultParallelBlocks(flowName string) int {
 // store holds NO concepts: the vocabulary tables exist from the store's first
 // open, so their presence stopped meaning anything and emptiness is what "there
 // is nothing to enforce" looks like now.
-func (a *App) openTerms(cmd ...Command) (*sqlterms.SQLiteStore, func(), error) {
+func (a *App) openTerms(cmd ...Command) (sqlterms.Store, func(), error) {
 	noop := func() {}
 	if len(cmd) == 0 || cmd[0] == nil {
 		return nil, noop, nil
@@ -1820,7 +1821,7 @@ func (a *App) openTerms(cmd ...Command) (*sqlterms.SQLiteStore, func(), error) {
 		if err != nil || !has {
 			return nil, noop, err
 		}
-		return db.Terms(), noop, nil
+		return projector.TermsView(db), noop, nil
 	}
 	if sel.Path == "" {
 		return nil, noop, nil
@@ -1880,7 +1881,7 @@ func (a *App) OpenToolMemory(cmd Command) (corememory.Provider, func(), error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		tm := db.Memory()
+		tm := projector.MemoryView(db)
 		if tm == nil {
 			return nil, noop, nil
 		}

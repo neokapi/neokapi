@@ -13,6 +13,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -185,11 +186,11 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 	if err != nil {
 		return errResult(res, err.Error())
 	}
-	db, err := a.ProjectDB(ctx, root)
+	w, err := a.Projector(ctx, root)
 	if err != nil {
 		return errResult(res, err.Error())
 	}
-	tb := db.Terms()
+	tb := w.With(projector.Origin{By: "apply"}).Terms()
 	if tb == nil {
 		return errResult(res, fmt.Sprintf("term: %v", projectdb.ErrNoStore))
 	}
@@ -448,11 +449,11 @@ func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) 
 	if err != nil {
 		return errResult(res, err.Error())
 	}
-	db, err := a.ProjectDB(ctx, root)
+	w, err := a.Projector(ctx, root)
 	if err != nil {
 		return errResult(res, err.Error())
 	}
-	tm := db.Memory()
+	tm := w.With(projector.Origin{By: "apply"}).Memory()
 	if tm == nil {
 		return errResult(res, fmt.Sprintf("memory: %v", projectdb.ErrNoStore))
 	}
@@ -585,16 +586,16 @@ func (a *App) applyVoiceEntry(ctx context.Context, cmd Command, e changeEntry) a
 	if err != nil {
 		return errResult(res, err.Error())
 	}
-	db, err := a.ProjectDB(ctx, root)
+	w, err := a.Projector(ctx, root)
 	if err != nil {
 		return errResult(res, err.Error())
 	}
-	store := db.Voice()
+	store := voiceWriter(w.With(projector.Origin{By: "apply"}))
 	if store == nil {
 		return errResult(res, fmt.Sprintf("voice: %v", projectdb.ErrNoStore))
 	}
 
-	profile, err := a.boundVoiceProfileForWrite(ctx, db, recipePath, root)
+	profile, err := a.boundVoiceProfileForWrite(ctx, store, recipePath, root)
 	if err != nil {
 		return errResult(res, err.Error())
 	}
@@ -619,8 +620,7 @@ func (a *App) applyVoiceEntry(ctx context.Context, cmd Command, e changeEntry) a
 // A project that binds none gets a profile of its own, created in the store and
 // bound in the recipe under `defaults.voice.profile`. A starter pack is
 // read-only.
-func (a *App) boundVoiceProfileForWrite(ctx context.Context, db *projectdb.DB, recipePath, root string) (*coreprofile.VoiceProfile, error) {
-	store := db.Voice()
+func (a *App) boundVoiceProfileForWrite(ctx context.Context, store coreprofile.Store, recipePath, root string) (*coreprofile.VoiceProfile, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)

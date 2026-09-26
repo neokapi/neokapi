@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/occurrence"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/state"
 	graphstore "github.com/neokapi/neokapi/host/storage/graph"
@@ -60,7 +61,7 @@ func (a *App) MaterializeContextGraph(ctx context.Context, root string, proj *pr
 	if err != nil {
 		return 0, err
 	}
-	return materializeContextGraph(ctx, g, ProjectScope(proj), proj, db.Terms(), db.BlocksAutocommit(), db.Work())
+	return materializeContextGraph(ctx, g, ProjectScope(proj), proj, projector.TermsView(db), db.BlocksAutocommit(), db.Work())
 }
 
 // MaterializeContextGraphInDB rebuilds the context graph for an already-open
@@ -80,7 +81,7 @@ func MaterializeContextGraphInDB(ctx context.Context, db *projectdb.DB, proj *pr
 	if err != nil {
 		return 0, fmt.Errorf("materialize context graph: open graph: %w", err)
 	}
-	return materializeContextGraph(ctx, g, ProjectScope(proj), proj, db.Terms(), db.BlocksAutocommit(), db.Work())
+	return materializeContextGraph(ctx, g, ProjectScope(proj), proj, projector.TermsView(db), db.BlocksAutocommit(), db.Work())
 }
 
 // ExtractToProjectStore is the one extract-into-the-cache path. It rebuilds the

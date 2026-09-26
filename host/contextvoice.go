@@ -15,6 +15,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/yamledit"
 )
 
@@ -35,8 +36,7 @@ import (
 // was. An id is what the profile declares, falling back to a slug of its name,
 // and finally to the directory it sits in, so two unnamed profiles in different
 // profile directories stay two profiles.
-func (a *App) compileVoiceSource(ctx context.Context, db *projectdb.DB, src contextSource) error {
-	store := db.Voice()
+func (a *App) compileVoiceSource(ctx context.Context, db *projectdb.DB, store coreprofile.Store, src contextSource) error {
 	if store == nil {
 		return projectdb.ErrNoStore
 	}
@@ -243,7 +243,7 @@ type boundVoiceProfile struct {
 // lets a store populated by a restore, rather than by a compile, still be
 // written back out somewhere a clean clone resolves it from.
 func storedVoiceProfiles(ctx context.Context, db *projectdb.DB) ([]boundVoiceProfile, error) {
-	store := db.Voice()
+	store := projector.VoiceView(db)
 	if store == nil {
 		return nil, nil
 	}

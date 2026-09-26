@@ -37,15 +37,15 @@ func (a *App) OpenMemorySQLite(cmd Command) (memory.Store, string, func(), error
 		return nil, "", noop, err
 	}
 	if sel.InProject() {
-		db, err := a.ProjectDB(CmdContext(cmd), sel.Root)
+		w, err := a.Projector(CmdContext(cmd), sel.Root)
 		if err != nil {
 			return nil, "", noop, err
 		}
-		tm := db.Memory()
+		tm := memoryWriter(w)
 		if tm == nil {
-			return nil, db.Path(), noop, fmt.Errorf("open content memory: %w", projectdb.ErrNoStore)
+			return nil, projectLayoutAt(sel.Root).StorePath(), noop, fmt.Errorf("open content memory: %w", projectdb.ErrNoStore)
 		}
-		return tm, db.Path(), noop, nil
+		return tm, projectLayoutAt(sel.Root).StorePath(), noop, nil
 	}
 	tm, err := memory.NewSQLiteStore(sel.Path)
 	if err != nil {
@@ -274,7 +274,7 @@ func ImportTMXFile(ctx context.Context, tm memory.Store, path, srcLocale, tgtLoc
 // RebuildSearchIndex / RebuildFuzzyIndex are SQLite-specific; in-memory
 // backends keep their indexes live and skip this step.
 func (a *App) RebuildMemorySearchIndexes(ctx context.Context, tm memory.Store) {
-	sq, ok := tm.(*memory.SQLiteStore)
+	sq, ok := tm.(memory.SearchIndexRebuilder)
 	if !ok {
 		return
 	}

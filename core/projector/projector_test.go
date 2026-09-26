@@ -42,7 +42,7 @@ func open(t *testing.T) (*projector.Projector, *workspace.Workspace, *projectdb.
 	}))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
-	p, err := projector.New(ws, key, db)
+	p, err := projector.ForProject(ws, key, db)
 	require.NoError(t, err)
 	return p, ws, db
 }
@@ -213,17 +213,16 @@ func TestCatchUpAppliesWhatAnotherWriterRecorded(t *testing.T) {
 	p, ws, db := open(t)
 	ctx := t.Context()
 
-	// A second projector over a store of its own stands in for another
-	// process: it records into the shared log, and this store has not seen it.
-	other, _, _ := open(t)
-	_ = other
-	elsewhere, err := projector.New(ws, key, db)
+	// A second projector stands in for another process: it records into the
+	// shared log, and the store is then rewound to before that write.
+	elsewhere, err := projector.ForProject(ws, key, db)
 	require.NoError(t, err)
 	require.NoError(t, elsewhere.Terms().AddConcept(ctx, concept("c1", "Quickcast", model.TermPreferred)))
 
 	// Rewind this store's view to before that write, as a process that was
 	// not running would find it.
-	require.NoError(t, db.PutContextMeta(ctx, "projector.applied", "0"))
+	_, err = db.Raw().ExecContext(ctx, `UPDATE projector_cursor SET seq = 0`)
+	require.NoError(t, err)
 	_, err = db.Raw().ExecContext(ctx, `DELETE FROM tb_concepts`)
 	require.NoError(t, err)
 
@@ -253,7 +252,7 @@ func TestEmbeddedLayoutAppliesWithoutALog(t *testing.T) {
 	db, err := projectdb.Open(t.Context(), project.LayoutAt(root))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
-	p, err := projector.New(nil, "", db)
+	p, err := projector.ForProject(nil, "", db)
 	require.NoError(t, err)
 	require.NoError(t, p.Terms().AddConcept(context.Background(), concept("c1", "Quickcast", model.TermPreferred)))
 	_, ok, err := db.Terms().GetConcept(t.Context(), "c1")

@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 )
 
 // Every store keys its rows by the canonical locale beside the text, and every
@@ -163,7 +164,7 @@ func (a *App) ProjectStoreLocales(ctx context.Context, projectPath string, fix b
 		// spelling no row has any more.
 		for _, done := range res.Rekeyed {
 			if done.Subsystem == "content memory" && done.Rekeyed() {
-				a.RebuildMemorySearchIndexes(ctx, db.Memory())
+				a.RebuildMemorySearchIndexes(ctx, projector.MemoryView(db))
 				break
 			}
 		}

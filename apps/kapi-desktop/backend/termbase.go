@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -142,7 +143,7 @@ func (a *App) OpenTerms(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("open terms %q: %w", path, err)
 	}
-	return a.tbHandles.Open(tb), nil
+	return a.tbHandles.Open(projector.StandaloneTerms(tb)), nil
 }
 
 // OpenTermsDialog shows a native file dialog to open a terms store.

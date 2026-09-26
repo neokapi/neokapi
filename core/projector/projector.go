@@ -47,15 +47,19 @@ package projector
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/workspace"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/voice"
 )
 
 // Operation kinds the projector records and applies.
@@ -85,10 +89,6 @@ func projects(kind string) bool {
 // BlobThreshold is the payload size above which an operation's steps go into
 // a blob rather than into the operation itself.
 const BlobThreshold = 32 << 10
-
-// cursorKey is the context-store metadata key holding the local position of
-// the last operation the projection has applied.
-const cursorKey = "projector.applied"
 
 // Log is the workspace the projector records into and replays from.
 // *workspace.Workspace satisfies it.
@@ -124,30 +124,93 @@ type Origin struct {
 type Projector struct {
 	log    Log
 	key    workspace.ProjectKey
-	db     *projectdb.DB
+	st     Stores
 	origin Origin
 	lock   *sync.Mutex
+}
+
+// Stores are the projections one projector writes, bound to one context
+// database. A subsystem this build has no store for is nil, and writes to it
+// report projectdb.ErrNoStore.
+type Stores struct {
+	// Raw is the context database the stores live in. The projector keeps its
+	// position in the log there, and a rebuild empties the projection tables
+	// in it.
+	Raw    *storage.DB
+	Terms  *terms.SQLiteStore
+	Memory *memory.SQLiteStore
+	Voice  *voice.SQLiteStore
+}
+
+// ProjectStores are the projections a project store holds.
+func ProjectStores(db *projectdb.DB) Stores {
+	return Stores{Raw: db.Raw(), Terms: db.Terms(), Memory: db.Memory(), Voice: db.Voice()}
+}
+
+// ContextStores binds the projections to a project's context database straight
+// out of the workspace, for a caller with no checkout of the project to open a
+// project store in: a whole-workspace restore, a desktop view of a project
+// that is not open.
+func ContextStores(raw *storage.DB) (Stores, error) {
+	tb, err := terms.NewSQLiteStoreFromDB(raw)
+	if err != nil {
+		return Stores{}, fmt.Errorf("projector: bind the terms store: %w", err)
+	}
+	tm, err := memory.NewSQLiteStoreFromDB(raw)
+	if err != nil {
+		return Stores{}, fmt.Errorf("projector: bind the content memory: %w", err)
+	}
+	vc, err := voice.NewSQLiteStore(raw)
+	if err != nil {
+		return Stores{}, fmt.Errorf("projector: bind the voice store: %w", err)
+	}
+	return Stores{Raw: raw, Terms: tb, Memory: tm, Voice: vc}, nil
 }
 
 // locks holds one mutex per context store, keyed by the store's pool, so every
 // projector over one store in this process takes turns.
 var locks sync.Map
 
+// cursorMigrations is the projector's own table in the context database: the
+// local position of the last operation applied there.
+var cursorMigrations = []storage.Migration{{
+	Version:     1,
+	Description: "the position of the last operation applied",
+	SQL: `
+CREATE TABLE IF NOT EXISTS projector_cursor (
+    id  INTEGER PRIMARY KEY CHECK (id = 1),
+    seq INTEGER NOT NULL
+);`,
+}}
+
 // New binds a projector to a project's stores and the log they project. A nil
 // log is the embedded layout: writes apply directly and nothing is recorded.
-func New(log Log, key workspace.ProjectKey, db *projectdb.DB) (*Projector, error) {
-	if db == nil {
-		return nil, errors.New("projector: no project store")
-	}
+func New(log Log, key workspace.ProjectKey, st Stores) (*Projector, error) {
 	if log != nil && key == "" {
 		return nil, workspace.ErrNoProjectKey
 	}
-	var lockKey any = db
-	if raw := db.Raw(); raw != nil {
-		lockKey = raw
+	if log != nil && st.Raw == nil {
+		return nil, errors.New("projector: a logged projector needs the context database")
 	}
-	mu, _ := locks.LoadOrStore(lockKey, &sync.Mutex{})
-	return &Projector{log: log, key: key, db: db, lock: mu.(*sync.Mutex)}, nil
+	if log != nil {
+		if err := storage.Migrate(st.Raw, "projector_migrations", cursorMigrations); err != nil {
+			return nil, fmt.Errorf("projector: migrate: %w", err)
+		}
+	}
+	mu := &sync.Mutex{}
+	if st.Raw != nil {
+		held, _ := locks.LoadOrStore(st.Raw, mu)
+		mu = held.(*sync.Mutex)
+	}
+	return &Projector{log: log, key: key, st: st, lock: mu}, nil
+}
+
+// ForProject binds a projector to a project store.
+func ForProject(log Log, key workspace.ProjectKey, db *projectdb.DB) (*Projector, error) {
+	if db == nil {
+		return nil, errors.New("projector: no project store")
+	}
+	return New(log, key, ProjectStores(db))
 }
 
 // With returns a projector that stamps the writes it makes with an origin.
@@ -160,8 +223,6 @@ func (p *Projector) With(origin Origin) *Projector {
 // Key is the project whose stores this projector writes.
 func (p *Projector) Key() workspace.ProjectKey { return p.key }
 
-// Store is the project store this projector writes.
-func (p *Projector) Store() *projectdb.DB { return p.db }
 
 // Logged reports whether writes are recorded in a log, which is what makes the
 // stores rebuildable.
@@ -385,25 +446,23 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 
 // cursor reads the local position of the last operation the store applied.
 func (p *Projector) cursor(ctx context.Context) (int64, error) {
-	value, ok, err := p.db.ContextMeta(ctx, cursorKey)
-	if err != nil || !ok {
-		if errors.Is(err, projectdb.ErrNoStore) {
-			err = nil
-		}
-		return 0, err
-	}
-	n, perr := strconv.ParseInt(value, 10, 64)
-	if perr != nil {
+	var seq int64
+	err := p.st.Raw.QueryRowContext(ctx, `SELECT seq FROM projector_cursor WHERE id = 1`).Scan(&seq)
+	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
 	}
-	return n, nil
+	if err != nil {
+		return 0, fmt.Errorf("projector: read the applied position: %w", err)
+	}
+	return seq, nil
 }
 
 // setCursor records the local position of the last operation the store applied.
 func (p *Projector) setCursor(ctx context.Context, seq int64) error {
-	err := p.db.PutContextMeta(ctx, cursorKey, strconv.FormatInt(seq, 10))
-	if errors.Is(err, projectdb.ErrNoStore) {
-		return nil
+	if _, err := p.st.Raw.ExecContext(ctx, `
+INSERT INTO projector_cursor (id, seq) VALUES (1, ?)
+ON CONFLICT(id) DO UPDATE SET seq = excluded.seq`, seq); err != nil {
+		return fmt.Errorf("projector: record the applied position: %w", err)
 	}
-	return err
+	return nil
 }

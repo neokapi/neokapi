@@ -158,7 +158,7 @@ func (p *Projector) applyStep(ctx context.Context, kind string, s step) error {
 }
 
 func (p *Projector) applyTerms(ctx context.Context, s step) error {
-	tb := p.db.Terms()
+	tb := p.st.Terms
 	if tb == nil {
 		return errNoSubsystem
 	}
@@ -190,7 +190,7 @@ func (p *Projector) applyTerms(ctx context.Context, s step) error {
 // bulk write, as before, and by a catch-up or a rebuild after it has applied
 // every operation.
 func (p *Projector) applyMemory(ctx context.Context, s step) error {
-	tm := p.db.Memory()
+	tm := p.st.Memory
 	if tm == nil {
 		return errNoSubsystem
 	}
@@ -236,7 +236,7 @@ func (p *Projector) applyMemory(ctx context.Context, s step) error {
 }
 
 func (p *Projector) applyVoice(ctx context.Context, s step) error {
-	store := p.db.Voice()
+	store := p.st.Voice
 	if store == nil {
 		return errNoSubsystem
 	}
@@ -294,7 +294,7 @@ func bulkMemory(kind string, steps []step) bool {
 // rebuildIndexes brings the content memory's search indexes up to date after
 // bulk writes.
 func (p *Projector) rebuildIndexes(ctx context.Context) error {
-	tm := p.db.Memory()
+	tm := p.st.Memory
 	if tm == nil {
 		return nil
 	}

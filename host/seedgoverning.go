@@ -27,8 +27,7 @@ import (
 // project store and carries each entry's governing context back onto the
 // decision record for the unit it answers. It returns the number of entries the
 // bundle carried.
-func (a *App) compileMemoryBundle(ctx context.Context, db *projectdb.DB, root, path string) (int, error) {
-	tm := db.Memory()
+func (a *App) compileMemoryBundle(ctx context.Context, db *projectdb.DB, tm memory.Store, root, path string) (int, error) {
 	if tm == nil {
 		return 0, fmt.Errorf("compile content memory: %w", projectdb.ErrNoStore)
 	}

@@ -11,10 +11,9 @@ import (
 
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host"
-	"github.com/neokapi/neokapi/memory"
-	"github.com/neokapi/neokapi/terms"
 )
 
 // The app's first screen reads the workspace.
@@ -309,16 +308,21 @@ func (a *App) OpenWorkspaceContext(key string) (*TabInfo, error) {
 		contextName:  workspaceDisplayName(reg),
 	}
 	// The workspace owns the pool, so both handles are borrowed: closing the
-	// tab drops the ids and leaves the store to the workspace.
-	if tb, terr := terms.NewSQLiteStoreFromDB(db); terr == nil {
-		op.tbHandle = a.tbHandles.Adopt(tb)
-	} else {
-		a.logger.Printf("bind the terms of %s: %v", key, terr)
+	// tab drops the ids and leaves the store to the workspace. Writes go
+	// through the projector, which records each in the workspace's log.
+	stores, serr := projector.ContextStores(db)
+	if serr != nil {
+		return nil, serr
 	}
-	if tm, merr := memory.NewSQLiteStoreFromDB(db); merr == nil {
+	writer, werr := projector.New(ws, pk, stores)
+	if werr != nil {
+		return nil, werr
+	}
+	if tb := writer.Terms(); tb != nil {
+		op.tbHandle = a.tbHandles.Adopt(tb)
+	}
+	if tm := writer.Memory(); tm != nil {
 		op.memoryHandle = a.memoryHandles.Adopt(tm)
-	} else {
-		a.logger.Printf("bind the content memory of %s: %v", key, merr)
 	}
 
 	a.mu.Lock()
