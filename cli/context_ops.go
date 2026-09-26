@@ -218,6 +218,64 @@ waiting for a decision, or with --session to see what one agent run did.
 	return cmd
 }
 
+func newContextDigestCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "digest",
+		Short: "Show what kapi learned about how this project writes since you last looked",
+		Long: `Show what kapi learned about how this project writes, in the order a person
+reads it: conflicts that need you, rules that became established and on what
+evidence, suggestions grouped by theme, content drifting away from an
+established rule, and the project in numbers.
+
+Nothing here is a queue. A suggestion nobody answers keeps advising, and an
+item you have already seen stays in the digest under "Earlier". Each line
+carries the id the other verbs take: keep a suggestion with
+"kapi context keep <id>", change it as you keep it with --use, drop it with
+"kapi context drop <id>", and take an established rule back out with
+"kapi context revert <id>".
+
+Reading the digest moves your "since you last looked" marker, which is kept in
+this machine's kapi config and never in the project. --peek leaves it where it
+is. An agent reading the digest never moves it.`,
+		Example: "  kapi context digest\n" +
+			"  kapi context digest --peek\n" +
+			"  kapi context digest --since 2026-09-01\n" +
+			"  kapi context digest --json",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			projectPath, err := RequireProjectPath(cmd)
+			if err != nil {
+				return err
+			}
+			peek, _ := cmd.Flags().GetBool("peek")
+			since, _ := cmd.Flags().GetString("since")
+			req := host.ContextDigestRequest{Project: projectPath}
+			if since != "" {
+				at, perr := parseSince(since)
+				if perr != nil {
+					return perr
+				}
+				req.Since = at
+			}
+			digest, err := a.ContextDigest(cmd.Context(), req)
+			if err != nil {
+				return err
+			}
+			if err := output.Print(cmd, digest); err != nil {
+				return err
+			}
+			if peek || since != "" {
+				return nil
+			}
+			return a.NoteContextDigestRead(digest)
+		},
+	}
+	cmd.Flags().Bool("peek", false, "leave the \"since you last looked\" marker where it is")
+	cmd.Flags().String("since", "", "show what is new after a date (2006-01-02) or instant, in place of the marker")
+	AddProjectFlag(cmd)
+	return cmd
+}
+
 func newContextKeepCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "keep [id...]",
@@ -229,8 +287,8 @@ fails a check unless it is marked advisory.
 Name one or more operations by id, or keep everything one agent session
 suggested with --session. A contested suggestion disagrees with another rule,
 and waits until you choose: a session keep leaves it and says so, and naming it
-is refused with the other side named. Drop the side you do not want, then keep
-the other.
+is refused with the other side named. Choose it with --choose, which drops the
+rival suggestions (or reverts a rival established rule) and keeps this one.
 
 Change the rule as you keep it with --use and --advisory, and widen it past the
 point its evidence was seen at with --widen-to.`,
@@ -239,7 +297,8 @@ point its evidence was seen at with --widen-to.`,
 			"  kapi context keep --session s0ab4e399\n" +
 			"  kapi context keep 0n794e2gk7 --use \"content memory\"\n" +
 			"  kapi context keep 0n794e2gk7 --advisory=false\n" +
-			"  kapi context keep 0n794e2gk7 --widen-to workspace",
+			"  kapi context keep 0n794e2gk7 --widen-to workspace\n" +
+			"  kapi context keep 0n794e2gk7 --choose",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, err := RequireProjectPath(cmd)
 			if err != nil {
@@ -249,6 +308,18 @@ point its evidence was seen at with --widen-to.`,
 			use, _ := cmd.Flags().GetString("use")
 			widenTo, _ := cmd.Flags().GetString("widen-to")
 			note, _ := cmd.Flags().GetString("note")
+			if choose, _ := cmd.Flags().GetBool("choose"); choose {
+				if len(args) != 1 || session != "" || widenTo != "" {
+					return errors.New("--choose settles a conflict for one rule: name one id, with no --session or --widen-to")
+				}
+				chosen, cerr := a.ChooseContextSide(cmd.Context(), host.ContextChooseRequest{
+					Project: projectPath, ID: args[0], Replacement: use, Note: note,
+				})
+				if cerr != nil {
+					return cerr
+				}
+				return output.Print(cmd, chosen)
+			}
 			res, err := a.KeepContextOperations(cmd.Context(), host.ContextKeepRequest{
 				Project:     projectPath,
 				IDs:         args,
@@ -266,6 +337,7 @@ point its evidence was seen at with --widen-to.`,
 	}
 	cmd.Flags().String("session", "", "keep everything one agent session suggested that nothing disagrees with")
 	cmd.Flags().String("use", "", "change what the rule says to write instead (one id)")
+	cmd.Flags().Bool("choose", false, "settle a conflict for this rule: set the rules it disagrees with aside, then keep it (one id)")
 	cmd.Flags().Bool("advisory", false, "make the rule report without failing a check (--advisory=false makes it fail)")
 	cmd.Flags().String("widen-to", "", "widen as you keep: \"workspace\", or the name of an axis the rule should stop being specific about")
 	cmd.Flags().String("note", "", "why")
