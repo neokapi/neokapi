@@ -251,7 +251,9 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 			fmt.Fprintf(w, "%s (%s)\n", line, p.State)
 		}
 	}
-
+	if r.Provenance != nil && r.Provenance.Sync != nil {
+		fmt.Fprintf(w, "\n%s\n", r.Provenance.Sync.Line)
+	}
 	return nil
 }
 

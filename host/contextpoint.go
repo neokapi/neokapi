@@ -929,6 +929,9 @@ func (r *ContextAnswer) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "\nNothing else is recorded for %s. If you notice a name or spelling the project keeps to, "+
 			"record it with context_observe (or `kapi context observe`).\n", subject)
 	}
+	if r.Provenance != nil && r.Provenance.Sync != nil {
+		fmt.Fprintf(w, "\n%s\n", r.Provenance.Sync.Line)
+	}
 
 	if r.explain {
 		r.formatExplain(w)

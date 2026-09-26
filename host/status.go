@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -36,6 +37,10 @@ type StatusOutput struct {
 	// only when the recipe binds one — the venue of a plain local project is
 	// not ambiguous, so it stays silent.
 	Venue *StatusVenue `json:"venue,omitempty"`
+	// Context says how far this machine and the backend the project's context
+	// is shared through were apart at the last pull or push. Absent when the
+	// context stays on this machine.
+	Context *check.ContextSync `json:"context,omitempty"`
 }
 
 // StatusVenue names the effective convergence venue for a server-connected
@@ -150,6 +155,9 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 	}
 	if o.Venue != nil {
 		writeVenueLine(w, *o.Venue)
+	}
+	if o.Context != nil {
+		fmt.Fprintln(w, o.Context.Line)
 	}
 	return nil
 }
@@ -693,6 +701,11 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		a.warnUnreadableFormats(cmd, src.Unreadable)
 		a.appendServerStatus(cmd, projectPath, proj, &out)
 		out.Venue = a.statusVenue(proj)
+		if st := a.ContextSyncStatus(CmdContext(cmd), root); st != nil {
+			out.Context = &check.ContextSync{
+				Backend: describeRemote(st.Remote), ToPush: st.ToPush, ToPull: st.ToPull, Line: SyncLine(st),
+			}
+		}
 		a.WarnInertRecipeFields(cmd, proj)
 		a.WarnStoreLocaleDrift(cmd, projectPath)
 		return output.Print(cmd, out)

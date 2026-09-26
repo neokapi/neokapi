@@ -140,6 +140,11 @@ type KapiProject struct {
 	// form (`requires: [bowrain]`) is rejected with an actionable error.
 	Requires RequiresMap `yaml:"requires,omitempty" json:"requires,omitempty"`
 
+	// Context says where the project's context is shared: on this machine
+	// only (the default), or through a directory, a git ref or an S3 bucket
+	// that every checkout pulls from and pushes to. See contextbackend.go.
+	Context *ContextBackend `yaml:"context,omitempty" json:"context,omitempty"`
+
 	// Extras captures any top-level YAML keys the framework does not know
 	// about. Platform layers decode their own typed schema
 	// from here at load time and re-encode on save. Round-tripping a recipe
@@ -1016,6 +1021,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 		return err
 	}
 	if err := p.validateFlowsDir(); err != nil {
+		return err
+	}
+	if err := p.Context.Validate(); err != nil {
 		return err
 	}
 	for _, key := range sortedKeys(p.Extras) {
