@@ -10,22 +10,18 @@
 // languages is not shown a surface it has nothing to put in.
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { BookOpen, Bot, Compass, Database, History, MessageSquareQuote } from "lucide-react";
+import { BookOpen, Bot, Compass, Database, MessageSquareQuote, Sparkles } from "lucide-react";
 import { ScrollArea, cn } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { AgentContextPane } from "./AgentContextPane";
-import { AwaitingBadge } from "./ContextFeed";
-import { CONTEXT_FEED_LIMIT, ContextFeedPanel } from "./ContextFeedPanel";
+import { ContextDigestPanel } from "./ContextDigestPanel";
 import { ContextExplorerView } from "./ContextExplorerView";
 import { VoicePage } from "./VoicePage";
 import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
-import { api } from "../hooks/useApi";
-import { qk } from "../lib/queryKeys";
 
 /** The surfaces filed under Context. */
-export type ContextSection = "explorer" | "agent" | "voice" | "terms" | "memory" | "recorded";
+export type ContextSection = "learned" | "explorer" | "agent" | "voice" | "terms" | "memory";
 
 /** A point to open the explorer standing at, and what sent it there. */
 export interface ContextPin {
@@ -65,9 +61,9 @@ const SECTIONS: Array<{
    */
   needsCheckout?: boolean;
 }> = [
+  { id: "learned", label: "Learned", icon: <Sparkles size={14} /> },
   { id: "explorer", label: "Explorer", icon: <Compass size={14} />, needsCheckout: true },
   { id: "agent", label: "Agent View", icon: <Bot size={14} />, needsCheckout: true },
-  { id: "recorded", label: "Recorded", icon: <History size={14} /> },
   {
     id: "voice",
     label: "Voice",
@@ -86,7 +82,7 @@ export function ContextHub({
   hasTargetLanguages,
   contextOnly,
 }: ContextHubProps) {
-  const [active, setActive] = useState<ContextSection>(section ?? "explorer");
+  const [active, setActive] = useState<ContextSection>(section ?? (pin ? "explorer" : "learned"));
   // A pin set from inside the hub (the memory browser opening a unit) rather
   // than handed in by the router.
   const [unitPin, setUnitPin] = useState<ContextPin | null>(null);
@@ -100,15 +96,6 @@ export function ContextHub({
   // A section the project's languages or its missing checkout gated away must
   // not stay selected.
   const current = sections.some((s) => s.id === active) ? active : sections[0].id;
-
-  // The same query key the Recorded panel reads, so the count on the rail and
-  // the feed behind it come from one fetch.
-  const feedQuery = useQuery({
-    queryKey: qk.projectContextFeed(tabID),
-    queryFn: () => api.projectContextFeed(tabID, CONTEXT_FEED_LIMIT),
-    placeholderData: (previous) => previous,
-  });
-  const awaiting = feedQuery.data?.awaiting_here ?? 0;
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -131,7 +118,6 @@ export function ContextHub({
           >
             {s.icon}
             {s.label}
-            {s.id === "recorded" && <AwaitingBadge count={awaiting} label={String(awaiting)} />}
           </button>
         ))}
       </nav>
@@ -140,14 +126,24 @@ export function ContextHub({
           <ContextExplorerView tabID={tabID} projectName={projectName} pin={unitPin ?? pin} />
         )}
         {current === "agent" && <AgentContextPane tabID={tabID} path={pin?.path} />}
-        {current === "recorded" && (
+        {current === "learned" && (
           <ScrollArea className="h-full">
-            <div className="px-6 py-4">
-              <p className="mb-3 text-sm text-muted-foreground">
-                What you and the agents working in this project have recorded about its terms, voice
-                and wording. A candidate advises until you confirm it, and never fails a check.
-              </p>
-              <ContextFeedPanel tabID={tabID} />
+            <div className="mx-auto max-w-3xl px-6 py-5">
+              <h2 className="text-lg font-semibold">What kapi learned about {projectName}</h2>
+              <div className="mt-3">
+                <ContextDigestPanel
+                  tabID={tabID}
+                  canDecide={!contextOnly}
+                  onOpenFile={
+                    contextOnly
+                      ? undefined
+                      : (path) => {
+                          setUnitPin({ path });
+                          setActive("explorer");
+                        }
+                  }
+                />
+              </div>
             </div>
           </ScrollArea>
         )}

@@ -84,11 +84,8 @@ export const qk = {
   agentContext: (tabID: string, path: string) => ["agent-context", tabID, path] as const,
   /** Recorded context operations: the workspace's, or one project's. */
   contextFeed: (projectKey: string) => ["context-feed", projectKey] as const,
-  /** The feed of the project a tab holds. */
-  projectContextFeed: (tabID: string) => ["context-feed", "tab", tabID] as const,
   /** The digest of the project a tab holds, read from one instant. */
-  projectContextDigest: (tabID: string, since: string) =>
-    ["context-digest", tabID, since] as const,
+  projectContextDigest: (tabID: string, since: string) => ["context-digest", tabID, since] as const,
   /** Per-project counts of candidates awaiting a decision. */
   contextAwaiting: () => ["context-awaiting"] as const,
   /** Where one rule would answer once widened. */

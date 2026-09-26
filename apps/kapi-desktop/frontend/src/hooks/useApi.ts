@@ -452,9 +452,6 @@ export const api = {
   /** The whole workspace's feed, or one project's when a key is given. */
   contextFeed: (projectKey: string, limit: number) =>
     call<ContextFeed>("ContextFeed", projectKey, limit),
-  /** The feed of the project a tab holds. */
-  projectContextFeed: (tabID: string, limit: number) =>
-    call<ContextFeed>("ProjectContextFeed", tabID, limit),
   /** How many candidates each project has awaiting a decision. */
   contextAwaitingCounts: () => call<ContextAwaiting[]>("ContextAwaitingCounts"),
   /** Make a candidate binding, with whatever edit and widening was asked for. */

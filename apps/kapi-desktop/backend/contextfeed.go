@@ -311,20 +311,6 @@ func (a *App) ContextFeed(projectKey string, limit int) (*ContextFeed, error) {
 	return a.contextFeed(ctx, workspace.ProjectKey(projectKey), limit)
 }
 
-// ProjectContextFeed reads the context operations of the project a tab holds.
-func (a *App) ProjectContextFeed(tabID string, limit int) (*ContextFeed, error) {
-	op := a.getOpenProject(tabID)
-	if op == nil {
-		return nil, fmt.Errorf("project tab %q not found", tabID)
-	}
-	if op.workspaceKey == "" {
-		return nil, errors.New("this tab holds no project the workspace knows")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
-	defer cancel()
-	return a.contextFeed(ctx, op.workspaceKey, limit)
-}
-
 // contextFeed folds the log once and builds both the feed and the per-project
 // counts from that one read.
 func (a *App) contextFeed(ctx context.Context, key workspace.ProjectKey, limit int) (*ContextFeed, error) {

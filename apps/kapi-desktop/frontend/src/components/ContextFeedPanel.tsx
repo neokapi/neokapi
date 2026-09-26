@@ -1,5 +1,5 @@
 // The feed wired to the backend: the workspace's operations on the home
-// screen, one project's inside its Context hub.
+// screen. A project's own review is its digest (ContextDigestPanel).
 //
 // The panel follows the other processes without asking them anything. The
 // backend's workspace watcher reads the operation log's head once a second and
@@ -27,8 +27,6 @@ import type {
 export interface ContextFeedPanelProps {
   /** Narrow to one project by its workspace key. */
   projectKey?: string;
-  /** Narrow to the project a tab holds. */
-  tabID?: string;
   /** The heading above the feed. Omitted renders the feed alone. */
   title?: string;
   /** Pre-loaded feed for Storybook and tests, which reach no backend. */
@@ -42,7 +40,6 @@ export const CONTEXT_FEED_LIMIT = 200;
 
 export function ContextFeedPanel({
   projectKey,
-  tabID,
   title,
   feed: given,
   keyboard = true,
@@ -51,13 +48,10 @@ export function ContextFeedPanel({
   const [widening, setWidening] = useState<{ entry: ContextFeedEntry; to: string } | null>(null);
   const [reverting, setReverting] = useState<ContextRevertRequest | null>(null);
 
-  const key = tabID ? qk.projectContextFeed(tabID) : qk.contextFeed(projectKey ?? "");
+  const key = qk.contextFeed(projectKey ?? "");
   const feedQuery = useQuery({
     queryKey: key,
-    queryFn: () =>
-      tabID
-        ? api.projectContextFeed(tabID, CONTEXT_FEED_LIMIT)
-        : api.contextFeed(projectKey ?? "", CONTEXT_FEED_LIMIT),
+    queryFn: () => api.contextFeed(projectKey ?? "", CONTEXT_FEED_LIMIT),
     enabled: !given,
     // The previous answer stays mounted through a refetch, so a refresh
     // triggered by another process keeps the scroll and any open edit.
@@ -111,7 +105,7 @@ export function ContextFeedPanel({
         loading={feedQuery.isLoading}
         error={feedQuery.error}
         keyboard={keyboard}
-        showProject={!projectKey && !tabID}
+        showProject={!projectKey}
         onKeep={async (entry, edit) => {
           await confirm.mutateAsync({ entry, edit });
         }}
