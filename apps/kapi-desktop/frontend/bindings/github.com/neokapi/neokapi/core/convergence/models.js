@@ -374,12 +374,12 @@ export class LocaleCoverage {
         }
         if (!("shipState" in $$source)) {
             /**
-             * ShipState is the scope's standing in one value: shippable, withheld or
-             * not_gated. Gated and Shippable are its two-field reading, kept for readers
-             * written against them. Shippable is true for a not_gated scope as well as a
-             * shippable one, because nothing holds either back, so such a reader offers
-             * and delivers the scope as it did. Only ShipState tells a met gate from no
-             * gate, and every surface that states a verdict reads it.
+             * ShipState is the scope's standing in one value: established, translated,
+             * withheld or not_gated. Shippable is true for every state but withheld,
+             * because nothing holds the others back, so a reader that only asks "does
+             * it ship" offers and delivers them all. Only ShipState tells governed
+             * content from AI-shippable content and a met gate from no gate, and every
+             * surface that states a verdict reads it.
              * @member
              * @type {ShipState}
              */
@@ -406,36 +406,12 @@ export class LocaleCoverage {
              */
             this["blocking"] = undefined;
         }
-        if (!("verified" in $$source)) {
-            /**
-             * Verified reports whether the scope clears its verified gate — the second,
-             * independent bar meaning a person established the content. It is
-             * evaluated exactly like Shippable but against the recipe's verified gate.
-             * With no verified gate configured for the scope, Verified is false (nothing
-             * is verified by default): a shippable-but-unverified locale is flagged AI in
-             * a language picker, a verified one carries no badge.
-             * @member
-             * @type {boolean}
-             */
-            this["verified"] = false;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * AIReviewed counts units whose established rung was reached by an
-             * autonomous AI decision ("ai/…" identity). They read as reviewed in Pct —
-             * with an "(ai)" qualifier in displays — but do not satisfy a gate's
-             * established threshold unless it says `by: any` (core/gate).
-             * @member
-             * @type {number | undefined}
-             */
-            this["aiReviewed"] = undefined;
-        }
         if (/** @type {any} */(false)) {
             /**
              * Stale counts units whose decision was recorded against source wording that
              * has since changed (state.UnitState.SourceStale). They tally at `draft` —
              * a target exists, but it is not a translation of the source the project has
-             * now — and they hold the scope out of Shippable and Verified however the
+             * now — and they hold the scope out of Shippable however the
              * percentages read: a gate is a bar on quantity, and shipping a translation
              * of a sentence that is gone is not a shortfall of quantity.
              * @member
@@ -470,8 +446,7 @@ export class LocaleCoverage {
              * has not drafted again since. Their basis may well name the source the
              * project still holds, so Stale does not count them and the two never
              * overlap, but a person has said the wording will not do and the work is a
-             * convergence pass either way. They hold the scope out of Shippable and
-             * Verified for the same reason a stale unit does: a translation somebody
+             * convergence pass either way. They hold the scope out of Shippable for the same reason a stale unit does: a translation somebody
              * refused is not shippable at any coverage.
              * @member
              * @type {number | undefined}
@@ -484,7 +459,7 @@ export class LocaleCoverage {
              * target-side checks (placeholder and tag integrity, terminology). They
              * count at their true rung in Pct — the unit is translated, and a percentage
              * that denied it would be false — and they hold the scope out of Shippable
-             * and Verified however the percentages read, whether or not a gate applies.
+             * however the percentages read, whether or not a gate applies.
              * 
              * It is populated only when the caller supplies the check findings; a
              * surface that does not run the checks reports 0 and would therefore call a
@@ -498,7 +473,7 @@ export class LocaleCoverage {
             /**
              * TermsNotChecked counts produced units in a locale the project's terms
              * govern that have no terminology result, such as a target in a format kapi
-             * cannot read back. They hold the scope out of Shippable and Verified as a
+             * cannot read back. They hold the scope out of Shippable as a
              * failing check does: a check that did not run is not one that passed.
              * @member
              * @type {number | undefined}
@@ -540,7 +515,7 @@ export class LocaleCoverage {
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType1;
         const $$createField6_0 = $$createType3;
-        const $$createField18_0 = $$createType0;
+        const $$createField16_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
@@ -549,7 +524,7 @@ export class LocaleCoverage {
             $$parsedSource["pending"] = $$createField6_0($$parsedSource["pending"]);
         }
         if ("notGoverned" in $$parsedSource) {
-            $$parsedSource["notGoverned"] = $$createField18_0($$parsedSource["notGoverned"]);
+            $$parsedSource["notGoverned"] = $$createField16_0($$parsedSource["notGoverned"]);
         }
         return new LocaleCoverage(/** @type {Partial<LocaleCoverage>} */($$parsedSource));
     }
@@ -921,7 +896,10 @@ export class ReviewQueueItem {
 }
 
 /**
- * ShipState is a scope's standing against its ship gates.
+ * ShipState is a scope's standing against its ship and established gates, in
+ * the words of the unit ladder: a scope ships `established` (governed: a person
+ * established the content) or `translated` (AI-shippable: translated, with its
+ * checks green), or it is withheld, or no gate speaks for it.
  * @readonly
  * @enum {string}
  */
@@ -932,10 +910,17 @@ export const ShipState = {
     $zero: "",
 
     /**
-     * ShipStateShippable: a ship gate matches the scope, the scope clears it,
-     * and nothing withholds it.
+     * ShipStateEstablished: an established gate matches the scope, the scope
+     * clears it, and nothing withholds it. Governed content.
      */
-    ShipStateShippable: "shippable",
+    ShipStateEstablished: "established",
+
+    /**
+     * ShipStateTranslated: a ship gate matches the scope and the scope clears
+     * it, nothing withholds it, and no established gate is met. AI-shippable
+     * content.
+     */
+    ShipStateTranslated: "translated",
 
     /**
      * ShipStateWithheld: the scope does not ship. Either a ship gate matches and

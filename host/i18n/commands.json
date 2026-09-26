@@ -3559,7 +3559,7 @@
               "usage": "list the units awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated unit with `kapi apply` (kind:\"review\")"
             },
             "ship": {
-              "usage": "emit the minimal ship.json picker manifest (locale → {shippable, verified, not_governed}) instead of the coverage grid; a language picker reads it to offer only shippable locales and to badge the unverified ones as AI-translated"
+              "usage": "emit the minimal ship.json picker manifest (locale → {shippable, state, not_governed}) instead of the coverage grid; state is established (governed) or translated (AI-shippable), and a language picker offers only shippable locales and badges the ones not established as AI-translated"
             },
             "source-lang": {
               "usage": "source language (overrides the project's source_language)"
