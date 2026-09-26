@@ -590,6 +590,9 @@ model_sweep_results.tokens_used integer NOT NULL DEFAULT 0
 model_sweep_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
 model_sweep_schema_migrations.description text NOT NULL
 model_sweep_schema_migrations.version integer NOT NULL
+notification_group_members.created_at timestamp with time zone NOT NULL
+notification_group_members.group_key text NOT NULL
+notification_group_members.member_id text NOT NULL
 notification_preferences.category text NOT NULL
 notification_preferences.channel_desktop boolean NOT NULL DEFAULT false
 notification_preferences.channel_email boolean NOT NULL DEFAULT false
@@ -1339,6 +1342,7 @@ knowledge_schema_migrations knowledge_schema_migrations_pkey PRIMARY KEY (versio
 leader_leases leader_leases_pkey PRIMARY KEY (name)
 model_sweep_results model_sweep_results_pkey PRIMARY KEY (project_id, locale, model, fixture_digest)
 model_sweep_schema_migrations model_sweep_schema_migrations_pkey PRIMARY KEY (version)
+notification_group_members notification_group_members_pkey PRIMARY KEY (group_key, member_id)
 notification_preferences notification_preferences_user_id_workspace_id_category_key UNIQUE (user_id, workspace_id, category)
 notifications notifications_pkey PRIMARY KEY (id)
 overlays_ext overlays_ext_pkey PRIMARY KEY (project_id, stream, block_id, kind)
@@ -1568,6 +1572,7 @@ CREATE INDEX idx_kg_observations_concept ON public.kg_observations USING btree (
 CREATE INDEX idx_kg_pilots_stream ON public.kg_pilots USING btree (workspace_id, project_id, stream)
 CREATE INDEX idx_model_sweep_project_locale ON public.model_sweep_results USING btree (project_id, locale, measured_at DESC)
 CREATE INDEX idx_notif_pref_user ON public.notification_preferences USING btree (user_id, workspace_id)
+CREATE INDEX idx_notification_group_members_created ON public.notification_group_members USING btree (created_at)
 CREATE INDEX idx_notifications_user ON public.notifications USING btree (user_id, read, created_at DESC)
 CREATE INDEX idx_overlays_ext_project_block ON ONLY public.overlays_ext USING btree (project_id, stream, block_id)
 CREATE INDEX idx_overlays_ext_project_kind ON ONLY public.overlays_ext USING btree (project_id, stream, kind)
@@ -1753,6 +1758,7 @@ CREATE UNIQUE INDEX knowledge_schema_migrations_pkey ON public.knowledge_schema_
 CREATE UNIQUE INDEX leader_leases_pkey ON public.leader_leases USING btree (name)
 CREATE UNIQUE INDEX model_sweep_results_pkey ON public.model_sweep_results USING btree (project_id, locale, model, fixture_digest)
 CREATE UNIQUE INDEX model_sweep_schema_migrations_pkey ON public.model_sweep_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX notification_group_members_pkey ON public.notification_group_members USING btree (group_key, member_id)
 CREATE UNIQUE INDEX notification_preferences_user_id_workspace_id_category_key ON public.notification_preferences USING btree (user_id, workspace_id, category)
 CREATE UNIQUE INDEX notifications_pkey ON public.notifications USING btree (id)
 CREATE UNIQUE INDEX notifications_user_source_event ON public.notifications USING btree (user_id, source_event_id) WHERE (source_event_id <> ''::text)

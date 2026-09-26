@@ -436,8 +436,10 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 // On a zero-credit workspace it refuses to spawn jobs and returns a typed
 // errStallNeedsCredits sentinel (NOT an empty list silently) so the convergence
 // orchestrator can label the run's stall_reason instead of parking with no
-// reason (strategy 2026-07-dogfood doc 06, theme C). The automation caller
-// discards the error — a refusal there is a legitimate no-op.
+// reason (strategy 2026-07-dogfood doc 06, theme C). A workspace over its
+// monthly AI usage limit is refused the same way, with errStallQuotaExceeded.
+// The automation caller discards the error — a refusal there is a legitimate
+// no-op.
 func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project, stream string, itemNames, locales []string, pushID, wsSlug, stepID string) ([]string, error) {
 	if s.JobStore == nil || s.JobQueue == nil {
 		return nil, nil
@@ -457,6 +459,22 @@ func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project,
 	}
 	if wsSlug == "" {
 		wsSlug = "_anon"
+	}
+	// Usage-limit pre-check: the worker refuses every AI job of a workspace
+	// over its monthly limit (jobs.QuotaStore), so jobs spawned now would each
+	// fail on arrival and each be announced as a failure. Refuse once here
+	// instead. A check that errors lets the jobs through; the worker checks
+	// again.
+	if s.QuotaStore != nil {
+		remaining, err := s.QuotaStore.CheckQuota(ctx, wsSlug)
+		if err != nil {
+			slog.Warn("translation jobs: usage-limit check failed; spawning anyway",
+				"workspace", wsSlug, "error", err)
+		} else if remaining <= 0 {
+			slog.Warn("translation jobs: skipped, workspace over its AI usage limit",
+				"workspace", wsSlug, "project", proj.ID)
+			return nil, errStallQuotaExceeded
+		}
 	}
 	var jobIDs []string
 	for _, itemName := range itemNames {

@@ -1,8 +1,11 @@
 package server
 
 import (
+	"fmt"
 	"path/filepath"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,7 +68,28 @@ func newJobFailureHarness(t *testing.T) *jobFailureHarness {
 		srv.EventBus, srv.NotificationStore, srv.PreferenceStore, srv, nil)
 	t.Cleanup(srv.NotificationDispatcher.Close)
 
+	// Mail waits for a group to settle. The tests settle it by hand, so no
+	// timer fires in the middle of one.
+	srv.failureMail().delay = time.Hour
+
 	return &jobFailureHarness{srv: srv, sends: sends, auth: as}
+}
+
+// settle sends the mail the summons is holding, as the settle timer would.
+func (h *jobFailureHarness) settle(t *testing.T) {
+	t.Helper()
+	h.srv.flushJobFailureMail(t.Context())
+}
+
+// mailTo counts the messages sent to one address.
+func (h *jobFailureHarness) mailTo(addr string) []sentMessage {
+	var out []sentMessage
+	for _, m := range h.sends.messages() {
+		if m.to == addr {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // failureEvent builds the event a worker publishes for a failed translation.
@@ -103,6 +127,7 @@ func notificationsFor(t *testing.T, h *jobFailureHarness, userID string) []bstor
 func TestJobFailureSummonsTheInitiator(t *testing.T) {
 	h := newJobFailureHarness(t)
 	h.srv.summonOnJobFailure(t.Context(), failureEvent("translator"))
+	h.settle(t)
 
 	told := notificationsFor(t, h, "translator")
 	require.Len(t, told, 1)
@@ -131,6 +156,7 @@ func TestJobFailureSummonsTheInitiator(t *testing.T) {
 func TestJobFailureFallsBackToWorkspaceOwners(t *testing.T) {
 	h := newJobFailureHarness(t)
 	h.srv.summonOnJobFailure(t.Context(), failureEvent(""))
+	h.settle(t)
 
 	assert.Len(t, notificationsFor(t, h, "owner"), 1)
 	assert.Len(t, notificationsFor(t, h, "admin"), 1)
@@ -142,34 +168,6 @@ func TestJobFailureFallsBackToWorkspaceOwners(t *testing.T) {
 		to = append(to, m.to)
 	}
 	assert.ElementsMatch(t, []string{"owner@acme.test", "admin@acme.test"}, to)
-}
-
-// Once per job, not once per delivery. The bus is at-least-once and the server
-// may run on more than one instance, so the guard has to survive both.
-func TestJobFailureSummonsOncePerJob(t *testing.T) {
-	h := newJobFailureHarness(t)
-	ev := failureEvent("translator")
-
-	h.srv.summonOnJobFailure(t.Context(), ev)
-	h.srv.summonOnJobFailure(t.Context(), ev)
-	h.srv.summonOnJobFailure(t.Context(), ev)
-
-	assert.Len(t, notificationsFor(t, h, "translator"), 1)
-	assert.Len(t, h.sends.messages(), 1)
-}
-
-// A second, different job is a second summons — the guard is per job, not a
-// blanket mute on the category.
-func TestJobFailureSummonsAgainForADifferentJob(t *testing.T) {
-	h := newJobFailureHarness(t)
-	h.srv.summonOnJobFailure(t.Context(), failureEvent("translator"))
-
-	second := failureEvent("translator")
-	second.Data["job_id"] = "job-2"
-	h.srv.summonOnJobFailure(t.Context(), second)
-
-	assert.Len(t, notificationsFor(t, h, "translator"), 2)
-	assert.Len(t, h.sends.messages(), 2)
 }
 
 // Notify-only: turning the automation category's email channel off leaves the
@@ -184,6 +182,7 @@ func TestJobFailureEmailHonoursThePreference(t *testing.T) {
 	}}))
 
 	h.srv.summonOnJobFailure(t.Context(), failureEvent("translator"))
+	h.settle(t)
 
 	assert.Len(t, notificationsFor(t, h, "translator"), 1, "the badge still lights")
 	assert.Empty(t, h.sends.messages(), "and no mail goes out")
@@ -197,6 +196,7 @@ func TestJobFailureWithoutAnAppOriginStillNotifies(t *testing.T) {
 	h.srv.Config.AppPublicURL = ""
 
 	h.srv.summonOnJobFailure(t.Context(), failureEvent("translator"))
+	h.settle(t)
 
 	assert.Len(t, notificationsFor(t, h, "translator"), 1)
 	assert.Empty(t, h.sends.messages())
@@ -236,4 +236,203 @@ func TestJobKindProseAndSubject(t *testing.T) {
 	delete(noItem.Data, "item")
 	delete(noItem.Data, "target_locale")
 	assert.Equal(t, "project proj-1", jobFailureSubject(noItem))
+}
+
+// jobFailed builds the event for one failed job with its own id, item and
+// reason, as a fan-out of many jobs produces.
+func jobFailed(jobID, initiator, item, reason string) platev.Event {
+	ev := failureEvent(initiator)
+	ev.Data["job_id"] = jobID
+	ev.Data["item"] = item
+	ev.Data["error"] = reason
+	return ev
+}
+
+// burst is n failures of distinct jobs for one reason, the shape of a run
+// fanning out into a workspace that has reached its usage limit.
+func burst(n int, prefix, initiator, reason string) []platev.Event {
+	out := make([]platev.Event, 0, n)
+	for i := range n {
+		out = append(out, jobFailed(fmt.Sprintf("%s-%d", prefix, i), initiator,
+			fmt.Sprintf("docs/page-%d.md", i), reason))
+	}
+	return out
+}
+
+// A systemic failure reaches each recipient once, not once per job. The cases
+// here are the incident's shape and its neighbours: one burst, two causes, one
+// failure on its own, the email ceiling, and redelivery.
+func TestJobFailureSummonsCoalescesByCause(t *testing.T) {
+	const quota = "workspace AI quota exceeded"
+	const badKey = "openai: API error 401: invalid api key"
+
+	var fiveCauses []platev.Event
+	for i := range 5 {
+		fiveCauses = append(fiveCauses, jobFailed(fmt.Sprintf("cause-%d", i), "", "en.json",
+			fmt.Sprintf("provider error %d: failure kind %c", 500+i, 'a'+i)))
+	}
+
+	redelivered := jobFailed("job-a", "", "en.json", quota)
+
+	tests := []struct {
+		name   string
+		events []platev.Event
+		// deliver runs after the first settle, for the redelivery case.
+		after []platev.Event
+		// notifications each owner/admin holds, and the title of the newest.
+		wantNotes int
+		wantTitle string
+		// emails each owner/admin receives, and what the first one says.
+		wantMail     int
+		wantMailBody string
+	}{
+		{
+			name:         "a burst of one cause is one summons",
+			events:       burst(40, "q", "", quota),
+			wantNotes:    1,
+			wantTitle:    "40 translation jobs did not finish",
+			wantMail:     1,
+			wantMailBody: "40",
+		},
+		{
+			name:      "two causes are two summonses",
+			events:    append(burst(12, "q", "", quota), burst(7, "k", "", badKey)...),
+			wantNotes: 2,
+			wantMail:  2,
+		},
+		{
+			name: "reasons that differ only in what is particular to the job coalesce",
+			events: []platev.Event{
+				jobFailed("r-1", "", "a.json", `openai: request req_01HX7ABCDEF12 for "a.json" failed: 500`),
+				jobFailed("r-2", "", "b.json", `openai: request req_01HX7QWERTY98 for "b.json" failed: 500`),
+				jobFailed("r-3", "", "c.json", `openai: request req_01HX7ZXCVBN55 for "c.json" failed: 500`),
+			},
+			wantNotes: 1,
+			wantTitle: "3 translation jobs did not finish",
+			wantMail:  1,
+		},
+		{
+			name:      "the email ceiling holds whatever the causes",
+			events:    fiveCauses,
+			wantNotes: 5,
+			wantMail:  jobFailureMailCeiling,
+		},
+		{
+			name: "a redelivered event neither recounts nor mails again",
+			events: []platev.Event{
+				redelivered, redelivered,
+				jobFailed("job-b", "", "b.json", quota),
+				redelivered,
+			},
+			after:     []platev.Event{redelivered, jobFailed("job-b", "", "b.json", quota)},
+			wantNotes: 1,
+			wantTitle: "2 translation jobs did not finish",
+			wantMail:  1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newJobFailureHarness(t)
+			for _, ev := range tt.events {
+				h.srv.summonOnJobFailure(t.Context(), ev)
+			}
+			h.settle(t)
+			for _, ev := range tt.after {
+				h.srv.summonOnJobFailure(t.Context(), ev)
+			}
+			h.settle(t)
+
+			for _, user := range []string{"owner", "admin"} {
+				notes := notificationsFor(t, h, user)
+				require.Len(t, notes, tt.wantNotes, user)
+				if tt.wantTitle != "" {
+					assert.Equal(t, tt.wantTitle, notes[0].Title, user)
+				}
+			}
+			assert.Empty(t, notificationsFor(t, h, "translator"))
+
+			for _, addr := range []string{"owner@acme.test", "admin@acme.test"} {
+				mail := h.mailTo(addr)
+				require.Len(t, mail, tt.wantMail, addr)
+				if tt.wantMailBody != "" {
+					assert.Contains(t, mail[0].subject, tt.wantMailBody+" translation jobs did not finish")
+					assert.Contains(t, mail[0].body, "<strong>"+tt.wantMailBody+"</strong>")
+					assert.Contains(t, mail[0].body, quota)
+				}
+			}
+		})
+	}
+}
+
+// A single job that fails on its own still reaches the person who asked for
+// it, with the per-job wording, while a burst the platform started goes to the
+// workspace's owners as one grouped summons.
+func TestJobFailureIsolatedFailureReachesTheRequester(t *testing.T) {
+	h := newJobFailureHarness(t)
+	for _, ev := range burst(30, "q", "", "workspace AI quota exceeded") {
+		h.srv.summonOnJobFailure(t.Context(), ev)
+	}
+	h.srv.summonOnJobFailure(t.Context(), jobFailed("mine", "translator", "en.json", "workspace AI quota exceeded"))
+	h.settle(t)
+
+	told := notificationsFor(t, h, "translator")
+	require.Len(t, told, 1)
+	assert.Equal(t, "A translation job did not finish", told[0].Title)
+	assert.Equal(t, "en.json → nb: workspace AI quota exceeded", told[0].Body)
+
+	mine := h.mailTo("t@acme.test")
+	require.Len(t, mine, 1)
+	assert.Contains(t, mine[0].subject, "A translation job did not finish")
+
+	owners := notificationsFor(t, h, "owner")
+	require.Len(t, owners, 1)
+	assert.Equal(t, "30 translation jobs did not finish", owners[0].Title,
+		"the requester's job is counted in their own group, not the owners'")
+}
+
+// A grouped notification that was read comes back unread when the group grows,
+// so the badge reflects failures that arrived after the reader looked.
+func TestJobFailureGroupGrowingMarksItUnread(t *testing.T) {
+	h := newJobFailureHarness(t)
+	h.srv.summonOnJobFailure(t.Context(), jobFailed("j-1", "translator", "a.json", "workspace AI quota exceeded"))
+	require.NoError(t, h.srv.NotificationStore.MarkAllRead(t.Context(), "translator"))
+
+	h.srv.summonOnJobFailure(t.Context(), jobFailed("j-2", "translator", "b.json", "workspace AI quota exceeded"))
+
+	unread, err := h.srv.NotificationStore.UnreadCount(t.Context(), "translator")
+	require.NoError(t, err)
+	assert.Equal(t, 1, unread)
+}
+
+func TestJobFailureCause(t *testing.T) {
+	same := func(a, b platev.Event) bool { return jobFailureCause(a) == jobFailureCause(b) }
+
+	assert.True(t, same(
+		jobFailed("1", "", "a.json", "workspace AI quota exceeded"),
+		jobFailed("2", "", "b.json", "workspace AI quota exceeded"),
+	))
+	assert.True(t, same(
+		jobFailed("1", "", "a.json", "cannot read a.json: 1843 bytes short"),
+		jobFailed("2", "", "b.json", "cannot read b.json: 90211 bytes short"),
+	), "the item and a long number are particular to the job")
+	assert.False(t, same(
+		jobFailed("1", "", "a.json", "openai: API error 401"),
+		jobFailed("2", "", "a.json", "openai: API error 429"),
+	), "a status code is part of the reason")
+
+	push := jobFailed("1", "", "a.json", "workspace AI quota exceeded")
+	push.Data["job_kind"] = "sync"
+	assert.False(t, same(push, jobFailed("2", "", "a.json", "workspace AI quota exceeded")),
+		"a different kind of work is a different group")
+}
+
+// The group key is the same on every instance for a cause in a window, which is
+// what lets the store's unique index settle two instances opening it at once.
+func TestJobFailureGroupKeyIsSharedWithinAWindow(t *testing.T) {
+	at := time.Date(2026, 9, 26, 19, 44, 0, 0, time.UTC)
+	p := jobFailureCausePrefix(summonsWSID, "owners", "abc")
+	assert.Equal(t, jobFailureGroupKey(p, at), jobFailureGroupKey(p, at.Add(10*time.Minute)))
+	assert.NotEqual(t, jobFailureGroupKey(p, at), jobFailureGroupKey(p, at.Add(time.Hour)))
+	assert.Equal(t, p+strconv.FormatInt(at.Truncate(time.Hour).Unix(), 10), jobFailureGroupKey(p, at))
 }

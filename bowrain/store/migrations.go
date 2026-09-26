@@ -43,6 +43,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // 30  the ledger records the source the platform last drafted a unit against
 // 31  the ledger records the governing context a decision was made under
 // 34  the ship gate's verdict records the terminology verdict
+// 36  the jobs a grouped notification counts
 var Migrations = []storage.Migration{
 	{
 		Version:     24,
@@ -1461,6 +1462,28 @@ var Migrations = []storage.Migration{
 				opened_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, stream, locale, gate)
 			);
+		`,
+	},
+	{
+		Version:     36,
+		Description: "the jobs a grouped notification counts",
+		SQL: `
+			-- One row per thing a grouped notification stands for, keyed by the
+			-- notification's group_key. A burst of failed jobs that share a
+			-- cause is told as one notification per recipient; these rows are
+			-- how its count stays exact when the same failure event is
+			-- delivered twice or handled on two instances. Rows older than a
+			-- day are pruned when a new group opens. A new table, so applying
+			-- this version to an existing database creates it there as it does
+			-- in an empty one.
+			CREATE TABLE IF NOT EXISTS notification_group_members (
+				group_key  TEXT NOT NULL,
+				member_id  TEXT NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL,
+				PRIMARY KEY (group_key, member_id)
+			);
+			CREATE INDEX IF NOT EXISTS idx_notification_group_members_created
+				ON notification_group_members(created_at);
 		`,
 	},
 }

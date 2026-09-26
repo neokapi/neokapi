@@ -25,6 +25,7 @@ import DigestEmail from "../src/digest.js";
 import EmailChangeVerifyEmail from "../src/email-change-verify.js";
 import ReviewRequestEmail from "../src/review-request.js";
 import JobFailedEmail from "../src/job-failed.js";
+import JobFailuresEmail from "../src/job-failures.js";
 import TaskAssignedEmail from "../src/task-assigned.js";
 import WelcomeEmail from "../src/welcome.js";
 
@@ -131,6 +132,17 @@ export async function renderTemplates(): Promise<Record<string, string>> {
       workspaceName: "{{.WorkspaceName}}",
       jobKind: "{{.JobKind}}",
       subject: "{{.Subject}}",
+      reason: "{{.Reason}}",
+      jobURL: "{{.JobURL}}",
+    }),
+    { pretty: false },
+  );
+
+  out["job-failures"] = await render(
+    JobFailuresEmail({
+      workspaceName: "{{.WorkspaceName}}",
+      jobKind: "{{.JobKind}}",
+      count: "{{.Count}}",
       reason: "{{.Reason}}",
       jobURL: "{{.JobURL}}",
     }),

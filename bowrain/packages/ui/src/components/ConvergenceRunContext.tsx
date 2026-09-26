@@ -11,6 +11,7 @@ import type { ConvergenceRun } from "../types/api";
  *
  *  - source_not_ready → "Source not ready — settle N blocks" + Review source
  *  - needs_credits    → "Out of credits — N AI units remaining" + Buy credits
+ *  - quota_exceeded   → "AI usage limit reached" (resume when the limit resets)
  *  - no_target_locales → "No target languages configured" (add one in settings)
  *  - parked (checks)  → "Parked — open review"
  *  - running w/ frozen last_activity → "waiting…"
@@ -207,6 +208,16 @@ function stallBanner(
             : "This workspace is out of credits. Add credits to finish translating; work so far is saved."
         }
         action={actions.onBuyCredits && { label: "Buy credits", onClick: actions.onBuyCredits }}
+      />
+    );
+  }
+
+  if (reason === "quota_exceeded") {
+    return (
+      <BannerAlert
+        variant="destructive"
+        title="AI usage limit reached"
+        body="This workspace has reached its monthly AI usage limit, so no more translation jobs were started. Work so far is saved; run again when the limit resets or is raised."
       />
     );
   }

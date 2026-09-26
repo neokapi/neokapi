@@ -612,6 +612,13 @@ func TestRenderAllTemplatesAllLocales(t *testing.T) {
 				JobURL: "https://example.com/acme/p/p1/s/main/runs",
 			})
 		},
+		"job-failures": func(l string) error {
+			return m.SendJobFailures(t.Context(), "to@example.com", l, mailer.JobFailuresData{
+				WorkspaceName: "Acme", JobKind: "translation", Count: "37",
+				Reason: "workspace AI quota exceeded",
+				JobURL: "https://example.com/acme/p/p1/s/main/runs",
+			})
+		},
 		"task-assigned": func(l string) error {
 			return m.SendTaskAssigned(t.Context(), "to@example.com", l, mailer.TaskAssignedData{
 				WorkspaceName: "Acme", TaskTitle: "Fix terminology", TaskDescription: "Three terms",

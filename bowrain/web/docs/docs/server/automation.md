@@ -228,6 +228,32 @@ does not meet a bar, gate where it is produced: `kapi check --ship` exits
 non-zero when a ship gate is unmet, and a local `run_flow` action with
 `fail_on_error: true` aborts the command on the flow's findings.
 
+## When a job fails
+
+A background job that stops for good, after any retries, sends a notice. The
+person who started the work receives it: whoever ran the push or the
+translation. Work that Bowrain started itself, such as a run after a push or an
+automation's translation jobs, reports to the workspace's owners and admins.
+The notice appears in the app at once and links to the project's run history.
+An email follows a couple of minutes later.
+
+Failures are grouped by cause. Jobs in one workspace that fail for the same
+reason within an hour, for example because the workspace has reached its
+monthly AI usage limit, produce one notification per person. The notification
+keeps a running count ("40 translation jobs did not finish") and states the
+shared reason. The email for a group is sent once and gives the count at the
+time it was written. A job that fails on its own is a group of one, and its
+notice names the file and language it was working on.
+
+Each person receives at most three job-failure emails per workspace in any
+hour, whatever the causes. Failures beyond that still appear in the app. To
+keep the notifications and stop the email, turn off email for the
+**Automation** category in notification preferences.
+
+A run stops starting translation jobs once the workspace reaches its monthly AI
+usage limit. It parks with the reason *usage limit reached*, and the work done
+so far is kept.
+
 ## Loop prevention
 
 Automation chains are tracked through a causation chain. If a chain of rules

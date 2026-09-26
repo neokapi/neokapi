@@ -4,6 +4,7 @@
   "email-change-verify": "▒ Çöñƒîŕḿ ýöüŕ ñéŵ Ƃöŵŕàîñ éḿàîļ ▒",
   "invite": "▒ Ýöü'ṽé ƃééñ îñṽîţéđ ţö ĵöîñ {{.WorkspaceName}} öñ Ƃöŵŕàîñ ▒",
   "job-failed": "▒ À {{.JobKind}} ĵöƃ đîđ ñöţ ƒîñîšĥ ({{.WorkspaceName}}) ▒",
+  "job-failures": "▒ {{.Count}} {{.JobKind}} ĵöƃš đîđ ñöţ ƒîñîšĥ ({{.WorkspaceName}}) ▒",
   "notification": "▒ {{.Title}} (Ƃöŵŕàîñ) ▒",
   "payment-failed": "▒ Þàýḿéñţ ƒàîļéđ ƒöŕ ýöüŕ šüƃšçŕîþţîöñ ({{.WorkspaceName}}) ▒",
   "review-request": "▒ Ŵàîţîñĝ ƒöŕ ýöüŕ ŕéṽîéŵ: {{.ChangeSetName}} ({{.WorkspaceName}}) ▒",

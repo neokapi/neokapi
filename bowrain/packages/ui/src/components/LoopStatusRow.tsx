@@ -129,6 +129,7 @@ const RUN_STATE_LABELS: Record<string, string> = {
 const STALL_REASON_LABELS: Record<string, string> = {
   needs_credits: "needs credits",
   needs_ai_key: "needs an AI key",
+  quota_exceeded: "usage limit reached",
   rate_limited: "rate limited",
   no_progress: "no progress",
   checks_failing: "checks failing",
