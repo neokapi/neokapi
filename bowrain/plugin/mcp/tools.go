@@ -8,7 +8,6 @@ package bowrainmcp
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -30,8 +29,8 @@ func registerBowrainTools(server *mcp.Server, a *cli.App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "project_status",
 		Description: "Show project sync status including pending push/pull counts and server connection",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, MCPStatusOutput, error) {
-		return handleProjectStatus(ctx, a)
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input MCPProjectInput) (*mcp.CallToolResult, MCPStatusOutput, error) {
+		return handleProjectStatus(ctx, a, input)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -58,40 +57,59 @@ func registerBowrainTools(server *mcp.Server, a *cli.App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "project_config",
 		Description: "Read project configuration from the .kapi recipe",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, MCPConfigOutput, error) {
-		return handleProjectConfig()
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input MCPProjectInput) (*mcp.CallToolResult, MCPConfigOutput, error) {
+		return handleProjectConfig(a, input)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_flows",
 		Description: "List available processing flows (built-in and project-defined)",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, MCPListFlowsOutput, error) {
-		return handleBowrainListFlows()
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input MCPProjectInput) (*mcp.CallToolResult, MCPListFlowsOutput, error) {
+		return handleBowrainListFlows(a, input)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "concept_search",
 		Description: "Search the workspace brand knowledge graph for governed concepts (terms, status, domain) matching a query",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input MCPConceptSearchInput) (*mcp.CallToolResult, MCPConceptSearchOutput, error) {
-		return handleConceptSearch(ctx, input)
+		return handleConceptSearch(ctx, a, input)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "concept_story",
 		Description: "Show the chronological timeline of a governed concept (revisions, observations, comments, change-sets)",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input MCPConceptStoryInput) (*mcp.CallToolResult, MCPConceptStoryOutput, error) {
-		return handleConceptStory(ctx, input)
+		return handleConceptStory(ctx, a, input)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "experiment_status",
 		Description: "Report brand knowledge-graph change-sets; with a changeset_id, include its detail and a blast-radius summary",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input MCPExperimentStatusInput) (*mcp.CallToolResult, MCPExperimentStatusOutput, error) {
-		return handleExperimentStatus(ctx, input)
+		return handleExperimentStatus(ctx, a, input)
 	})
 }
 
 // --- Input/Output types ---
+
+// MCPProjectInput is the input of a tool that takes nothing but the project it
+// acts on.
+type MCPProjectInput struct {
+	Project string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+}
+
+// loadProject loads the project a call acts on, resolved the way every kapi MCP
+// tool resolves it (App.RequireMCPCallProject): the call's `project`, else the
+// project the server started in, else discovery from the working directory
+// with KAPI_NO_PROJECT honoured. It refuses when none is in scope, before any
+// server is contacted.
+func loadProject(a *cli.App, named string) (*project.Project, error) {
+	path, err := a.RequireMCPCallProject(named)
+	if err != nil {
+		return nil, err
+	}
+	return project.Load(path)
+}
 
 type MCPStatusOutput struct {
 	Project     MCPProjectInfo `json:"project"`
@@ -112,9 +130,10 @@ type MCPProjectInfo struct {
 }
 
 type MCPPushInput struct {
-	Paths  []string `json:"paths,omitempty" jsonschema:"Specific file paths to push (default: all)"`
-	Force  bool     `json:"force,omitempty" jsonschema:"Re-upload everything even if unchanged"`
-	DryRun bool     `json:"dry_run,omitempty" jsonschema:"Show what would be uploaded without sending"`
+	Project string   `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+	Paths   []string `json:"paths,omitempty" jsonschema:"Specific file paths to push (default: all)"`
+	Force   bool     `json:"force,omitempty" jsonschema:"Re-upload everything even if unchanged"`
+	DryRun  bool     `json:"dry_run,omitempty" jsonschema:"Show what would be uploaded without sending"`
 }
 
 type MCPPushOutput struct {
@@ -126,6 +145,7 @@ type MCPPushOutput struct {
 }
 
 type MCPPullInput struct {
+	Project string   `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 	Locales []string `json:"locales,omitempty" jsonschema:"Languages to download (e.g. fr or de)"`
 	Force   bool     `json:"force,omitempty" jsonschema:"Re-download everything even if unchanged"`
 	DryRun  bool     `json:"dry_run,omitempty" jsonschema:"Show what would change without writing files"`
@@ -140,9 +160,10 @@ type MCPPullOutput struct {
 }
 
 type MCPLsInput struct {
-	Paths []string `json:"paths,omitempty" jsonschema:"Filter by path prefixes"`
-	Stats bool     `json:"stats,omitempty" jsonschema:"Include block and word counts"`
-	Dirty bool     `json:"dirty,omitempty" jsonschema:"Show only files with local changes"`
+	Project string   `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+	Paths   []string `json:"paths,omitempty" jsonschema:"Filter by path prefixes"`
+	Stats   bool     `json:"stats,omitempty" jsonschema:"Include block and word counts"`
+	Dirty   bool     `json:"dirty,omitempty" jsonschema:"Show only files with local changes"`
 }
 
 type MCPLsEntry struct {
@@ -193,8 +214,8 @@ type MCPListFlowsOutput struct {
 
 // --- Handlers ---
 
-func handleProjectStatus(ctx context.Context, a *cli.App) (*mcp.CallToolResult, MCPStatusOutput, error) {
-	proj, err := project.FindProject("")
+func handleProjectStatus(ctx context.Context, a *cli.App, input MCPProjectInput) (*mcp.CallToolResult, MCPStatusOutput, error) {
+	proj, err := loadProject(a, input.Project)
 	if err != nil {
 		return nil, MCPStatusOutput{}, err
 	}
@@ -232,7 +253,7 @@ func handleProjectStatus(ctx context.Context, a *cli.App) (*mcp.CallToolResult, 
 }
 
 func handleProjectPush(ctx context.Context, a *cli.App, input MCPPushInput) (*mcp.CallToolResult, MCPPushOutput, error) {
-	proj, err := project.FindProject("")
+	proj, err := loadProject(a, input.Project)
 	if err != nil {
 		return nil, MCPPushOutput{}, err
 	}
@@ -267,7 +288,7 @@ func handleProjectPush(ctx context.Context, a *cli.App, input MCPPushInput) (*mc
 }
 
 func handleProjectPull(ctx context.Context, a *cli.App, input MCPPullInput) (*mcp.CallToolResult, MCPPullOutput, error) {
-	proj, err := project.FindProject("")
+	proj, err := loadProject(a, input.Project)
 	if err != nil {
 		return nil, MCPPullOutput{}, err
 	}
@@ -307,9 +328,9 @@ func handleProjectPull(ctx context.Context, a *cli.App, input MCPPullInput) (*mc
 }
 
 func handleProjectLs(ctx context.Context, a *cli.App, input MCPLsInput) (*mcp.CallToolResult, MCPLsOutput, error) {
-	proj, err := project.FindProject("")
+	proj, err := loadProject(a, input.Project)
 	if err != nil {
-		return nil, MCPLsOutput{}, fmt.Errorf("no kapi project found (run 'kapi init' first): %w", err)
+		return nil, MCPLsOutput{}, err
 	}
 
 	if input.Stats || input.Dirty {
@@ -397,8 +418,8 @@ func handleProjectLsWithStats(ctx context.Context, a *cli.App, proj *project.Pro
 	return nil, out, nil
 }
 
-func handleProjectConfig() (*mcp.CallToolResult, MCPConfigOutput, error) {
-	proj, err := project.FindProject("")
+func handleProjectConfig(a *cli.App, input MCPProjectInput) (*mcp.CallToolResult, MCPConfigOutput, error) {
+	proj, err := loadProject(a, input.Project)
 	if err != nil {
 		return nil, MCPConfigOutput{}, err
 	}
@@ -439,12 +460,13 @@ func handleProjectConfig() (*mcp.CallToolResult, MCPConfigOutput, error) {
 // handleBowrainListFlows lists what `kapi flows` lists for the project in
 // scope (cli.FlowListing): the composed built-in flows, then the recipe's own,
 // inline and in its `flows_dir:`, each name once for the flow `kapi run`
-// resolves it to. A recipe that does not load still lists the built-in flows,
-// and the warning says why the project's are missing.
-func handleBowrainListFlows() (*mcp.CallToolResult, MCPListFlowsOutput, error) {
-	var recipePath string
-	if proj, err := project.FindProject(""); err == nil {
-		recipePath = proj.RecipePath()
+// resolves it to. With no project in scope it lists the built-in flows. A
+// recipe that does not load still lists them, and the warning says why the
+// project's are missing.
+func handleBowrainListFlows(a *cli.App, input MCPProjectInput) (*mcp.CallToolResult, MCPListFlowsOutput, error) {
+	recipePath, err := a.ResolveMCPCallProject(input.Project)
+	if err != nil {
+		return nil, MCPListFlowsOutput{}, err
 	}
 	flows, err := cli.FlowListing(recipePath)
 

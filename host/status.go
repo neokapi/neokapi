@@ -691,7 +691,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			out.Source = &src
 		}
 		a.warnUnreadableFormats(cmd, src.Unreadable)
-		a.appendServerStatus(cmd, proj, &out)
+		a.appendServerStatus(cmd, projectPath, proj, &out)
 		out.Venue = a.statusVenue(proj)
 		a.WarnInertRecipeFields(cmd, proj)
 		a.WarnStoreLocaleDrift(cmd, projectPath)
@@ -701,11 +701,13 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 
 // appendServerStatus merges the connected-server delta into the status output
 // when the recipe binds a convergence venue and the bowrain plugin is
-// installed. It shells the plugin's `server-status --json` (subprocess
-// dispatch — the cli module never imports bowrain) and folds the result under
-// out.Server. Any failure degrades to a one-line stderr warning and leaves the
-// local report intact: a status command must never fail on a server hiccup.
-func (a *App) appendServerStatus(cmd Command, proj *project.KapiProject, out *StatusOutput) {
+// installed. It shells the plugin's `server-status --json --project=<recipe>`
+// (subprocess dispatch — the cli module never imports bowrain) and folds the
+// result under out.Server. The plugin is handed the recipe status resolved,
+// so it reports on that project and never looks for one of its own. Any
+// failure degrades to a one-line stderr warning and leaves the local report
+// intact: a status command must never fail on a server hiccup.
+func (a *App) appendServerStatus(cmd Command, recipePath string, proj *project.KapiProject, out *StatusOutput) {
 	if _, ok := proj.Venue(); !ok {
 		return
 	}
@@ -716,7 +718,7 @@ func (a *App) appendServerStatus(cmd Command, proj *project.KapiProject, out *St
 	if route == nil {
 		return
 	}
-	raw, err := route.CaptureStdout(cmd.Context(), "--json")
+	raw, err := route.CaptureStdout(cmd.Context(), "--json", "--project="+recipePath)
 	if err != nil {
 		if !a.Quiet {
 			fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not read server status: %v\n", err)

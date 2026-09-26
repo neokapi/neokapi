@@ -6,10 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/pluginhost"
 )
 
@@ -148,7 +150,7 @@ func (a *App) dialPluginMCP(ctx context.Context, p *pluginhost.Plugin) (*pluginM
 
 	cmd := exec.CommandContext(procCtx, p.BinaryPath, pluginMCPSubcommand)
 	cmd.Stderr = os.Stderr
-	cmd.Env = os.Environ()
+	cmd.Env = pluginMCPEnviron(pluginhost.WithoutProviderKeys(os.Environ()), a.mcpRecipePath)
 
 	client := mcp.NewClient(&mcp.Implementation{Name: "kapi", Version: "1"}, nil)
 	session, err := client.Connect(ctx, &mcp.CommandTransport{Command: cmd}, nil)
@@ -164,6 +166,30 @@ func (a *App) dialPluginMCP(ctx context.Context, p *pluginhost.Plugin) (*pluginM
 		return nil, nil, fmt.Errorf("list tools: %w", err)
 	}
 	return &pluginMCPSession{session: session, stop: cancel}, live, nil
+}
+
+// pluginMCPEnviron is the environment a plugin's MCP server starts in: env,
+// the host's less the provider keys, with the project `kapi mcp` resolved at
+// start named in KAPI_PROJECT. The plugin resolves each call's project by the
+// same rule kapi does, so a call that names none acts on the project kapi's own
+// tools default to, whatever directory the plugin was started from. A
+// KAPI_NO_PROJECT in env is dropped then, because it would also discard the
+// KAPI_PROJECT kapi hands over; kapi has already honoured it by resolving the
+// project from -p alone. With no start project, env passes unchanged and the
+// plugin finds none where kapi found none.
+func pluginMCPEnviron(env []string, recipePath string) []string {
+	if recipePath == "" {
+		return env
+	}
+	out := make([]string, 0, len(env)+1)
+	for _, kv := range env {
+		name, _, _ := strings.Cut(kv, "=")
+		if name == project.NoProjectEnvVar || name == project.ProjectEnvVar {
+			continue
+		}
+		out = append(out, kv)
+	}
+	return append(out, project.ProjectEnvVar+"="+recipePath)
 }
 
 // pluginMCPSession is one spawned plugin server: the MCP session kapi speaks

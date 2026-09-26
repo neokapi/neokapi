@@ -52,7 +52,7 @@ func runInitConnect(cmd *cobra.Command, _ []string) error {
 		startDir, _ = os.Getwd()
 	}
 
-	proj, err := project.FindProject(startDir)
+	proj, err := project.Load(startDir)
 	if err != nil {
 		return fmt.Errorf("no kapi project found (run `kapi init` first): %w", err)
 	}

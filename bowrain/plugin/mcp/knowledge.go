@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/neokapi/neokapi/cli"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/project"
 	"github.com/neokapi/neokapi/host/venue/source"
@@ -18,15 +19,15 @@ import (
 // the project + workspace-scoped client exactly like the sync MCP tools, via
 // source.NewKnowledgeClient.
 
-// knowledgeClient discovers the kapi project and builds a workspace-scoped
-// Bowrain client for the knowledge-graph MCP tools.
+// knowledgeClient loads the project the call names (loadProject) and builds a
+// workspace-scoped Bowrain client for the knowledge-graph MCP tools.
 //
 // The project travels back alongside the client because a tool's result is read
 // by an assistant reporting to a person, and a change-set id on its own gives
 // that person nothing to open. The recipe's server and workspace are what turn
 // the id into a review link, and they live on the project, not the client.
-func knowledgeClient() (*project.Project, *apiclient.BowrainClient, error) {
-	proj, err := project.FindProject("")
+func knowledgeClient(a *cli.App, named string) (*project.Project, *apiclient.BowrainClient, error) {
+	proj, err := loadProject(a, named)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -60,11 +61,12 @@ func changesetReviewURL(proj *project.Project, changesetID string) string {
 // --- concept_search ---
 
 type MCPConceptSearchInput struct {
-	Query  string `json:"query,omitempty" jsonschema:"Free-text query against the term text"`
-	Status string `json:"status,omitempty" jsonschema:"Filter by term lifecycle status (preferred, admitted, deprecated, forbidden)"`
-	Market string `json:"market,omitempty" jsonschema:"Filter by market validity tag"`
-	Domain string `json:"domain,omitempty" jsonschema:"Filter by subject-field domain"`
-	Limit  int    `json:"limit,omitempty" jsonschema:"Maximum number of concepts to return (default 50)"`
+	Project string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
+	Query   string `json:"query,omitempty" jsonschema:"Free-text query against the term text"`
+	Status  string `json:"status,omitempty" jsonschema:"Filter by term lifecycle status (preferred, admitted, deprecated, forbidden)"`
+	Market  string `json:"market,omitempty" jsonschema:"Filter by market validity tag"`
+	Domain  string `json:"domain,omitempty" jsonschema:"Filter by subject-field domain"`
+	Limit   int    `json:"limit,omitempty" jsonschema:"Maximum number of concepts to return (default 50)"`
 }
 
 type MCPConceptTerm struct {
@@ -85,8 +87,8 @@ type MCPConceptSearchOutput struct {
 	TotalCount int               `json:"total_count"`
 }
 
-func handleConceptSearch(ctx context.Context, input MCPConceptSearchInput) (*mcp.CallToolResult, MCPConceptSearchOutput, error) {
-	_, client, err := knowledgeClient()
+func handleConceptSearch(ctx context.Context, a *cli.App, input MCPConceptSearchInput) (*mcp.CallToolResult, MCPConceptSearchOutput, error) {
+	_, client, err := knowledgeClient(a, input.Project)
 	if err != nil {
 		return nil, MCPConceptSearchOutput{}, err
 	}
@@ -120,6 +122,7 @@ func handleConceptSearch(ctx context.Context, input MCPConceptSearchInput) (*mcp
 // --- concept_story ---
 
 type MCPConceptStoryInput struct {
+	Project   string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 	ConceptID string `json:"concept_id" jsonschema:"The concept ID whose timeline to fetch"`
 }
 
@@ -136,12 +139,12 @@ type MCPConceptStoryOutput struct {
 	Entries   []MCPConceptStoryEntry `json:"entries"`
 }
 
-func handleConceptStory(ctx context.Context, input MCPConceptStoryInput) (*mcp.CallToolResult, MCPConceptStoryOutput, error) {
+func handleConceptStory(ctx context.Context, a *cli.App, input MCPConceptStoryInput) (*mcp.CallToolResult, MCPConceptStoryOutput, error) {
 	if strings.TrimSpace(input.ConceptID) == "" {
 		return nil, MCPConceptStoryOutput{}, errors.New("concept_id is required")
 	}
 
-	_, client, err := knowledgeClient()
+	_, client, err := knowledgeClient(a, input.Project)
 	if err != nil {
 		return nil, MCPConceptStoryOutput{}, err
 	}
@@ -167,6 +170,7 @@ func handleConceptStory(ctx context.Context, input MCPConceptStoryInput) (*mcp.C
 // --- experiment_status ---
 
 type MCPExperimentStatusInput struct {
+	Project     string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"`
 	ChangesetID string `json:"changeset_id,omitempty" jsonschema:"A change-set ID to detail; omit to list all change-sets"`
 	Status      string `json:"status,omitempty" jsonschema:"When listing, filter by status (draft, in_review, approved, merged, abandoned)"`
 }
@@ -223,8 +227,8 @@ type MCPExperimentStatusOutput struct {
 	BlastRadiusError string `json:"blast_radius_error,omitempty"`
 }
 
-func handleExperimentStatus(ctx context.Context, input MCPExperimentStatusInput) (*mcp.CallToolResult, MCPExperimentStatusOutput, error) {
-	proj, client, err := knowledgeClient()
+func handleExperimentStatus(ctx context.Context, a *cli.App, input MCPExperimentStatusInput) (*mcp.CallToolResult, MCPExperimentStatusOutput, error) {
+	proj, client, err := knowledgeClient(a, input.Project)
 	if err != nil {
 		return nil, MCPExperimentStatusOutput{}, err
 	}

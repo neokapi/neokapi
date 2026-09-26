@@ -99,7 +99,7 @@ func runServerStatus(cmd *cobra.Command, _ []string) error {
 	ctx := cmd.Context()
 	out := serverStatusJSON{ActiveRuns: []activeRunJSON{}}
 
-	proj, err := project.FindProject("")
+	proj, err := requireProject(cmd)
 	if err != nil {
 		return err
 	}
@@ -203,5 +203,6 @@ func addPendingChangesets(ctx context.Context, proj *project.Project, out *serve
 }
 
 func init() {
+	addProjectFlag(serverStatusCmd)
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(serverStatusCmd) })
 }

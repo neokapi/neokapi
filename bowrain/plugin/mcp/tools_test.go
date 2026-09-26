@@ -47,7 +47,7 @@ func TestHandleProjectConfig(t *testing.T) {
 	origDir := chdir(t, tmpDir)
 	defer chdir(t, origDir)
 
-	_, out, err := handleProjectConfig()
+	_, out, err := handleProjectConfig(bowrainTestApp(), MCPProjectInput{})
 	require.NoError(t, err)
 	assert.Equal(t, MCPLocaleInfo{Code: "en", DisplayName: "English"}, out.SourceLanguage)
 	assert.Equal(t, []MCPLocaleInfo{
@@ -76,7 +76,7 @@ func TestHandleProjectConfigWithServer(t *testing.T) {
 	origDir := chdir(t, tmpDir)
 	defer chdir(t, origDir)
 
-	_, out, err := handleProjectConfig()
+	_, out, err := handleProjectConfig(bowrainTestApp(), MCPProjectInput{})
 	require.NoError(t, err)
 	assert.Equal(t, "https://bowrain.example.com", out.ServerURL)
 	assert.Equal(t, "proj-123", out.ProjectID)
@@ -166,7 +166,7 @@ func TestHandleProjectLsPathFilter(t *testing.T) {
 func TestHandleBowrainListFlows(t *testing.T) {
 	t.Chdir(t.TempDir())
 
-	_, out, err := handleBowrainListFlows()
+	_, out, err := handleBowrainListFlows(bowrainTestApp(), MCPProjectInput{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, out.Flows)
 	assert.Equal(t, len(out.Flows), out.Total)
@@ -211,7 +211,7 @@ func TestHandleBowrainListFlows_ListsInlineAndFileFlows(t *testing.T) {
 		[]byte("steps: []\n"), 0o644))
 	t.Chdir(root)
 
-	_, out, err := handleBowrainListFlows()
+	_, out, err := handleBowrainListFlows(bowrainTestApp(), MCPProjectInput{})
 	require.NoError(t, err)
 	assert.Empty(t, out.Warning)
 

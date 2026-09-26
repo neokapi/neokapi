@@ -2,6 +2,8 @@ package host
 
 import (
 	"errors"
+	"fmt"
+	"os"
 
 	"github.com/neokapi/neokapi/core/project"
 )
@@ -58,6 +60,9 @@ func RequireProjectPath(cmd Command) (string, error) {
 		return "", err
 	}
 	if path == "" {
+		if os.Getenv(noProjectEnvVar) != "" {
+			return "", fmt.Errorf("no kapi project: %s is set and no -p was given. Pass -p <path to kapi.yaml>", noProjectEnvVar)
+		}
 		return "", errors.New("no kapi project found. Pass -p <path to kapi.yaml> or run from inside a kapi project directory")
 	}
 	return path, nil

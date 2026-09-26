@@ -140,9 +140,9 @@ Requires authentication (run 'kapi auth login' first).`,
 			claimToken = args[0]
 		} else {
 			// Try to read the claim token from the project's sync cache.
-			proj, err := project.FindProject("")
+			proj, err := requireProject(cmd)
 			if err != nil {
-				return errors.New("no claim token provided and no kapi project found")
+				return fmt.Errorf("no claim token provided: %w", err)
 			}
 			cache := project.LoadSyncCache(proj.Layout)
 			if cache.ClaimToken == "" {
@@ -180,7 +180,7 @@ Requires authentication (run 'kapi auth login' first).`,
 		}
 
 		// Update the recipe's `bowrain.url` to point at the workspace project.
-		proj, err := project.FindProject("")
+		proj, err := requireProject(cmd)
 		if err == nil && proj.Recipe.HasServer() {
 			proj.Recipe.Server.URL = project.FormatProjectURL(
 				proj.Recipe.Server.ServerURL(),
@@ -208,6 +208,7 @@ func init() {
 	authCmd.AddCommand(authLoginCmd)
 	authCmd.AddCommand(authLogoutCmd)
 	authCmd.AddCommand(authStatusCmd)
+	addProjectFlag(authClaimCmd)
 	authCmd.AddCommand(authClaimCmd)
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(authCmd) })
 }

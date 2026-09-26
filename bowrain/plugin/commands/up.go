@@ -69,18 +69,15 @@ reports the pending work, content-memory leverage, and a token estimate per loca
 }
 
 func runUp(cmd *cobra.Command, _ []string) error {
-	projectPath, err := cli.ResolveProjectPath(cmd)
+	projectPath, err := cli.RequireProjectPath(cmd)
 	if err != nil {
 		return err
 	}
-	if projectPath == "" {
-		return errors.New("kapi up needs a project. Run inside a kapi project directory or pass -p <recipe>")
-	}
-	recipe, err := project.LoadRecipe(projectPath)
+	proj, err := project.Load(projectPath)
 	if err != nil {
 		return fmt.Errorf("load project: %w", err)
 	}
-	server := recipe.Server
+	server := proj.Recipe.Server
 	connected := server != nil && server.URL != ""
 
 	// --plan is a local dry run in every venue: the server runs the same loop,
@@ -93,23 +90,23 @@ func runUp(cmd *cobra.Command, _ []string) error {
 		// With a server AND --local, push the freshly-produced targets so the
 		// server is never left stale behind a local converge.
 		if connected && upLocal && !flagBool(cmd, "plan") {
-			if err := pushAfterLocalConverge(cmd, server); err != nil {
+			if err := pushAfterLocalConverge(cmd, proj); err != nil {
 				return err
 			}
 		}
 		return nil
 	}
 
-	return runServerUp(cmd, server)
+	return runServerUp(cmd, proj)
 }
 
 // pushAfterLocalConverge uploads the results of a local converge to the server
 // so the remote copy never lags behind a `kapi up --local`.
-func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) error {
+func pushAfterLocalConverge(cmd *cobra.Command, proj *project.Project) error {
 	if !app.Quiet {
 		fmt.Fprintln(cmd.ErrOrStderr(), "Pushing produced results to the server...")
 	}
-	pr, conn, err := transfer.Push(cmd.Context(), app, transfer.PushOptions{})
+	pr, conn, err := transfer.Push(cmd.Context(), app, proj, transfer.PushOptions{})
 	if err != nil {
 		return fmt.Errorf("push after local run: %w", err)
 	}
@@ -117,16 +114,14 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 	// The declared context — collections, coordinates, voice — travelled
 	// with the push itself; the push reports what its governance amounted to.
 	bres := pr.Brand
-	if proj, perr := project.FindProject(""); perr == nil {
-		cres, cerr := conceptPush(cmd.Context(), proj, false)
-		if cerr != nil {
-			return cerr
-		}
-		if err := reportConceptPush(cmd, nil, cres, flagBool(cmd, "json")); err != nil {
-			return err
-		}
+	cres, err := conceptPush(cmd.Context(), proj, false)
+	if err != nil {
+		return err
 	}
-	syncConvergePolicy(cmd.Context(), conn.Client(), server)
+	if err := reportConceptPush(cmd, nil, cres, flagBool(cmd, "json")); err != nil {
+		return err
+	}
+	syncConvergePolicy(cmd.Context(), conn.Client(), proj.Recipe.Server)
 	if !app.Quiet {
 		if pr.UpToDate {
 			fmt.Fprintln(cmd.ErrOrStderr(), "Server already up to date.")
@@ -196,7 +191,8 @@ func reportConceptPush(cmd *cobra.Command, stream *output.NDJSONStream, res *Pus
 // local venue uses, then pull the produced targets. The event protocol is
 // identical to a local run, so a remote run is indistinguishable in the
 // terminal (and as NDJSON under --json).
-func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
+func runServerUp(cmd *cobra.Command, proj *project.Project) error {
+	server := proj.Recipe.Server
 	ctx := cmd.Context()
 	jsonOut := flagBool(cmd, "json")
 	stderr := cmd.ErrOrStderr()
@@ -213,17 +209,15 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	// Recipe pre-push automations run before the push, exactly as they did for
 	// the retired `kapi sync` (up subsumed sync — the hooks must not silently
 	// stop firing for projects that migrated CI from sync to up).
-	if proj := findProjectForAutomations(); proj != nil {
-		if err := runLocalAutomations(cmd, proj, "pre-push"); err != nil {
-			return fmt.Errorf("pre-push automation: %w", err)
-		}
+	if err := runLocalAutomations(cmd, proj, "pre-push"); err != nil {
+		return fmt.Errorf("pre-push automation: %w", err)
 	}
 
 	// Phase 1: transport — push local changes (pure, no implicit translate).
 	if !app.Quiet && !jsonOut {
 		fmt.Fprintln(stderr, "Pushing local changes...")
 	}
-	pr, conn, err := transfer.Push(ctx, app, transfer.PushOptions{})
+	pr, conn, err := transfer.Push(ctx, app, proj, transfer.PushOptions{})
 	if err != nil {
 		return fmt.Errorf("push: %w", err)
 	}
@@ -231,14 +225,12 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	// The declared context — collections, coordinates, voice — travelled
 	// with the push itself; the push reports what its governance amounted to.
 	bres := pr.Brand
-	if proj, perr := project.FindProject(""); perr == nil {
-		cres, cerr := conceptPush(ctx, proj, false)
-		if cerr != nil {
-			return cerr
-		}
-		if err := reportConceptPush(cmd, jsonStream, cres, jsonOut); err != nil {
-			return err
-		}
+	cres, err := conceptPush(ctx, proj, false)
+	if err != nil {
+		return err
+	}
+	if err := reportConceptPush(cmd, jsonStream, cres, jsonOut); err != nil {
+		return err
 	}
 	client := conn.Client()
 	if client == nil {
@@ -332,28 +324,24 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	if !app.Quiet && !jsonOut {
 		fmt.Fprintln(stderr, "Pulling results...")
 	}
-	if _, err := transfer.Pull(ctx, app, conn, nil, false, false); err != nil {
+	if _, err := transfer.Pull(ctx, conn, nil, false, false); err != nil {
 		return fmt.Errorf("pull: %w", err)
 	}
-	if proj, perr := project.FindProject(""); perr == nil {
-		cres, baseline, cerr := conceptPull(ctx, proj, false)
-		if cerr != nil {
-			return cerr
-		}
-		if baseline != nil {
-			conn.SetConceptBaseline(baseline)
-		}
-		if cres != nil {
-			conn.ObserveTermsRef(cres.TermsRef)
-		}
+	pulled, baseline, err := conceptPull(ctx, proj, false)
+	if err != nil {
+		return err
+	}
+	if baseline != nil {
+		conn.SetConceptBaseline(baseline)
+	}
+	if pulled != nil {
+		conn.ObserveTermsRef(pulled.TermsRef)
 	}
 
 	// Recipe post-pull automations run after the pull (sync parity: e.g.
 	// reformat/regenerate the pulled locale files).
-	if proj := findProjectForAutomations(); proj != nil {
-		if err := runLocalAutomations(cmd, proj, "post-pull"); err != nil {
-			return fmt.Errorf("post-pull automation: %w", err)
-		}
+	if err := runLocalAutomations(cmd, proj, "post-pull"); err != nil {
+		return fmt.Errorf("post-pull automation: %w", err)
 	}
 
 	// Phase 5: final result — the run's own state, read again here so the record

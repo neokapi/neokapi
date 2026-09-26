@@ -66,7 +66,7 @@ func dirFlowFixture(t *testing.T, rules ...project.AutomationSpec) *project.Proj
 	require.NoError(t, os.MkdirAll(flowsDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(flowsDir, "guard.yaml"), []byte(guardDirFlow), 0o644))
 
-	found, err := project.FindProject(real)
+	found, err := project.Load(real)
 	require.NoError(t, err)
 	return found
 }

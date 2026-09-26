@@ -102,7 +102,7 @@ func automationFixture(t *testing.T, dntTerms []string, rules ...project.Automat
 	require.NoError(t, os.MkdirAll(filepath.Dir(src), 0o755))
 	require.NoError(t, os.WriteFile(src, []byte(automationXLIFF), 0o644))
 
-	proj, err := project.FindProject(real)
+	proj, err := project.Load(real)
 	require.NoError(t, err)
 	return proj
 }

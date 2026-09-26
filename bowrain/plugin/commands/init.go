@@ -470,7 +470,7 @@ func runInitAnonymous(ctx context.Context, cwd string, recipe *project.Recipe, s
 	}
 
 	// Store claim token in the sync cache (gitignored), not in the recipe.
-	proj, err := project.FindProject(cwd)
+	proj, err := project.Load(cwd)
 	if err == nil {
 		cache := project.LoadSyncCache(proj.Layout)
 		cache.ClaimToken = claimToken

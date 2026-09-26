@@ -7,7 +7,6 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/host/venue/client"
-	"github.com/neokapi/neokapi/host/venue/project"
 	"github.com/spf13/cobra"
 )
 
@@ -28,16 +27,16 @@ var authTokenCreateCmd = &cobra.Command{
 	Long: `Create a new API token for the current workspace.
 
 The token is displayed once, so save it immediately.
-Requires a .bowrain/ project with a configured workspace.`,
+Requires a project connected to a server workspace.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := config.LoadAuth()
 		if err != nil {
 			return errors.New("not authenticated. Run: kapi auth login")
 		}
 
-		proj, err := project.FindProject("")
+		proj, err := requireProject(cmd)
 		if err != nil {
-			return errors.New("no kapi project found. Run: kapi init")
+			return err
 		}
 		if !proj.Recipe.HasServer() || proj.Recipe.Server.Workspace() == "" {
 			return errors.New("no workspace configured in the project recipe")
@@ -67,9 +66,9 @@ var authTokenListCmd = &cobra.Command{
 			return errors.New("not authenticated. Run: kapi auth login")
 		}
 
-		proj, err := project.FindProject("")
+		proj, err := requireProject(cmd)
 		if err != nil {
-			return errors.New("no kapi project found. Run: kapi init")
+			return err
 		}
 		if !proj.Recipe.HasServer() || proj.Recipe.Server.Workspace() == "" {
 			return errors.New("no workspace configured in the project recipe")
@@ -106,9 +105,9 @@ var authTokenDeleteCmd = &cobra.Command{
 			return errors.New("not authenticated. Run: kapi auth login")
 		}
 
-		proj, err := project.FindProject("")
+		proj, err := requireProject(cmd)
 		if err != nil {
-			return errors.New("no kapi project found. Run: kapi init")
+			return err
 		}
 		if !proj.Recipe.HasServer() || proj.Recipe.Server.Workspace() == "" {
 			return errors.New("no workspace configured in the project recipe")
@@ -128,6 +127,7 @@ func init() {
 	authTokenCreateCmd.Flags().IntVar(&tokenExpireDays, "expire-days", 0, "days until expiration (0 = never)")
 	_ = authTokenCreateCmd.MarkFlagRequired("name")
 
+	addProjectFlag(authTokenCmd)
 	authTokenCmd.AddCommand(authTokenCreateCmd, authTokenListCmd, authTokenDeleteCmd)
 	authCmd.AddCommand(authTokenCmd)
 }

@@ -45,14 +45,15 @@ the structure without the governance.`,
 }
 
 func runPush(cmd *cobra.Command, args []string) error {
-	// Run pre-push automations.
-	if proj := findProjectForAutomations(); proj != nil {
-		if err := runLocalAutomations(cmd, proj, "pre-push"); err != nil {
-			return fmt.Errorf("pre-push automation: %w", err)
-		}
+	proj, err := requireProject(cmd)
+	if err != nil {
+		return err
+	}
+	if err := runLocalAutomations(cmd, proj, "pre-push"); err != nil {
+		return fmt.Errorf("pre-push automation: %w", err)
 	}
 
-	pr, conn, err := transfer.Push(cmd.Context(), app, transfer.PushOptions{
+	pr, conn, err := transfer.Push(cmd.Context(), app, proj, transfer.PushOptions{
 		Paths:  args,
 		Force:  pushForce,
 		DryRun: pushDryRun,
@@ -98,20 +99,16 @@ func runPush(cmd *cobra.Command, args []string) error {
 	// been uploaded and stored, and the user was shown only the terminology
 	// error — reading, reasonably, that the whole push failed, and losing the
 	// push id that identifies what did land.
-	var conceptErr error
-	if proj, perr := project.FindProject(""); perr == nil {
-		cres, cerr := conceptPush(cmd.Context(), proj, pushDryRun)
-		conceptErr = cerr
-		if cres != nil {
-			out.ConceptsApplied = cres.ConceptsApplied
-			out.RelationsApplied = cres.RelationsApplied
-			out.ConceptsProposed = cres.ConceptsProposed
-			out.ChangesetID = cres.ChangesetID
-			out.ChangesetURL = cres.ChangesetURL
-			out.ChangesetUnchanged = cres.ChangesetUnchanged
-		}
-		applyLoopStatus(&out, proj, conn.Stream())
+	cres, conceptErr := conceptPush(cmd.Context(), proj, pushDryRun)
+	if cres != nil {
+		out.ConceptsApplied = cres.ConceptsApplied
+		out.RelationsApplied = cres.RelationsApplied
+		out.ConceptsProposed = cres.ConceptsProposed
+		out.ChangesetID = cres.ChangesetID
+		out.ChangesetURL = cres.ChangesetURL
+		out.ChangesetUnchanged = cres.ChangesetUnchanged
 	}
+	applyLoopStatus(&out, proj, conn.Stream())
 
 	if err := output.Print(cmd, out); err != nil {
 		return err
@@ -120,11 +117,8 @@ func runPush(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("the content above was pushed; its terminology was not: %w", conceptErr)
 	}
 
-	// Run post-push automations.
-	if proj := findProjectForAutomations(); proj != nil {
-		if err := runLocalAutomations(cmd, proj, "post-push"); err != nil {
-			return fmt.Errorf("post-push automation: %w", err)
-		}
+	if err := runLocalAutomations(cmd, proj, "post-push"); err != nil {
+		return fmt.Errorf("post-push automation: %w", err)
 	}
 
 	return nil
@@ -156,6 +150,7 @@ func applyLoopStatus(out *output.PushOutput, proj *project.Project, stream strin
 }
 
 func init() {
+	addProjectFlag(pushCmd)
 	pushCmd.Flags().BoolVar(&pushForce, "force", false, "Re-upload everything, even unchanged blocks")
 	pushCmd.Flags().BoolVar(&pushDryRun, "dry-run", false, "Show what would be uploaded without sending")
 	pushCmd.Flags().StringVar(&pushStream, "stream", "", "Target stream (default: auto-detect from git/CI)")
