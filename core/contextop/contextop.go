@@ -139,10 +139,20 @@ const (
 	// KindWiden moves an established rule to a broader point, or to the whole
 	// workspace.
 	KindWiden Kind = "widen"
+	// KindSignal records evidence about a suggestion that no person recorded
+	// by hand: the change that reached the default branch, or how often the
+	// project's content writes the preferred and the rejected forms. It names
+	// the suggestion it bears on and carries a [Signal].
+	KindSignal Kind = "signal"
+	// KindEstablish records that settling established a suggestion, naming
+	// the operations the establishment rested on (Record.Because). Its id is
+	// derived from that evidence, so two machines settling the same thing
+	// record one operation. It is applied like a keep.
+	KindEstablish Kind = "establish"
 )
 
 // Kinds is every operation kind, in the order a reader meets them.
-var Kinds = []Kind{KindObserve, KindCorrect, KindImport, KindEdit, KindKeep, KindDrop, KindWithdraw, KindRevert, KindWiden}
+var Kinds = []Kind{KindObserve, KindCorrect, KindImport, KindEdit, KindKeep, KindDrop, KindWithdraw, KindRevert, KindWiden, KindSignal, KindEstablish}
 
 // Valid reports whether k is one of the declared kinds.
 func (k Kind) Valid() bool { return slices.Contains(Kinds, k) }
@@ -417,10 +427,24 @@ type Record struct {
 	// ContestedBy names the operations on the other side of a disagreement,
 	// for a record at StatusContested.
 	ContestedBy []string `json:"contested_by,omitempty"`
-	// Established reports that a person established the subject: kept it,
-	// imported it or wrote it. It stays true while a correction contests the
-	// rule, which is what tells a contested rule from a contested suggestion.
+	// Established reports that the subject is established: a person kept it,
+	// imported it or wrote it, or settling established it on evidence that
+	// includes a person's signal. It stays true while a correction contests
+	// the rule, which is what tells a contested rule from a contested
+	// suggestion.
 	Established bool `json:"established,omitempty"`
+	// Signal is the evidence a signal operation carries.
+	Signal *Signal `json:"signal,omitempty"`
+	// Because names the operations an establish operation rested on.
+	Because []string `json:"because,omitempty"`
+	// Standing counts the evidence for and against a suggestion, folded from
+	// the log. It is set on a term rule that settling considers.
+	Standing *Standing `json:"standing,omitempty"`
+
+	// pending names the person signals a suggestion would be established on,
+	// when the log supports establishing it and no establish operation has
+	// recorded that yet. Ledger.Settle records it.
+	pending []string
 }
 
 // Rule is the term rule this operation states, with the scope it answers at,
@@ -440,6 +464,8 @@ type payload struct {
 	Target        string      `json:"target,omitempty"`
 	TargetSession string      `json:"target_session,omitempty"`
 	Note          string      `json:"note,omitempty"`
+	Signal        *Signal     `json:"signal,omitempty"`
+	Because       []string    `json:"because,omitempty"`
 }
 
 // encode renders a record as the workspace operation that carries it.
@@ -454,11 +480,14 @@ func encode(r Record) (workspace.Op, error) {
 		Target:        r.Target,
 		TargetSession: r.TargetSession,
 		Note:          r.Note,
+		Signal:        r.Signal,
+		Because:       r.Because,
 	})
 	if err != nil {
 		return workspace.Op{}, fmt.Errorf("contextop: encode %s operation: %w", r.Kind, err)
 	}
 	return workspace.Op{
+		Address: address(r),
 		Project: r.Project,
 		Kind:    OpKindPrefix + string(r.Kind),
 		Payload: body,
@@ -493,6 +522,8 @@ func decode(op workspace.Op) (Record, bool, error) {
 		Target:        body.Target,
 		TargetSession: body.TargetSession,
 		Note:          body.Note,
+		Signal:        body.Signal,
+		Because:       body.Because,
 		At:            op.At.UTC(),
 	}, true, nil
 }
