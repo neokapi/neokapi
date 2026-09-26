@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -512,7 +513,10 @@ func (s *bulkStmts) addEntry(ctx context.Context, entry *Entry, stream string) e
 		}
 	}
 
-	for locale, runs := range entry.Variants {
+	// Locales in order, so a variant's vid is a function of the writes and
+	// a rebuild from the log numbers the variants as the writes did.
+	for _, locale := range slices.Sorted(maps.Keys(entry.Variants)) {
+		runs := entry.Variants[locale]
 		if len(runs) == 0 {
 			continue
 		}
@@ -685,7 +689,10 @@ func (tm *SQLiteStore) addInTx(ctx context.Context, tx *sql.Tx, entry Entry, str
 		}
 	}
 
-	for locale, runs := range entry.Variants {
+	// Locales in order, so a variant's vid is a function of the writes and
+	// a rebuild from the log numbers the variants as the writes did.
+	for _, locale := range slices.Sorted(maps.Keys(entry.Variants)) {
+		runs := entry.Variants[locale]
 		if len(runs) == 0 {
 			continue
 		}
