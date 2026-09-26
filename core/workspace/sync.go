@@ -137,6 +137,9 @@ type PullReport struct {
 	// Checkpoint is the operation a first pull started from, when the remote
 	// held a checkpoint it could use.
 	Checkpoint string `json:"checkpoint,omitempty"`
+	// Empty reports that the remote lists no segments at all: nothing has
+	// been pushed to it yet.
+	Empty bool `json:"empty,omitempty"`
 }
 
 // PushReport says what a push wrote.
@@ -552,6 +555,7 @@ func (s *Sync) Pull(ctx context.Context) (PullReport, error) {
 		report.SyncStatus, _ = s.Status(ctx)
 		return report, ferr
 	}
+	report.Empty = len(names) == 0
 	segs, err := s.unapplied(ctx, db)
 	if err != nil {
 		return report, err

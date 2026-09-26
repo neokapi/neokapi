@@ -239,6 +239,11 @@ func pushedLogPulls(t *testing.T, open func(t *testing.T) workspace.Remote) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, st.ToPush, "only the project's operations are counted")
 
+	before, err := syncB.Pull(ctx)
+	require.NoError(t, err)
+	assert.True(t, before.Empty, "a remote nothing was pushed to says so")
+	assert.Zero(t, before.Merged)
+
 	pushed, err := syncA.Push(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 2, pushed.Pushed)
@@ -257,6 +262,7 @@ func pushedLogPulls(t *testing.T, open func(t *testing.T) workspace.Remote) {
 
 	pulled, err := syncB.Pull(ctx)
 	require.NoError(t, err)
+	assert.False(t, pulled.Empty)
 	assert.Equal(t, 2, pulled.Merged)
 	assert.Zero(t, pulled.ToPull)
 	assert.Zero(t, pulled.ToPush, "what was pulled is not pushed back")
@@ -284,6 +290,7 @@ func pushedLogPulls(t *testing.T, open func(t *testing.T) workspace.Remote) {
 	nothing, err := syncA.Pull(ctx)
 	require.NoError(t, err)
 	assert.Zero(t, nothing.Merged)
+	assert.False(t, nothing.Empty, "a caught-up pull from a remote that holds a log is not empty")
 }
 
 func localKindsStay(t *testing.T, open func(t *testing.T) workspace.Remote) {
