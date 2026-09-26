@@ -537,6 +537,12 @@ function FeedEntryCard({
         </p>
       )}
 
+      {entry.standing && (
+        <p className="mt-1 text-xs text-muted-foreground tabular-nums" translate="no">
+          {entry.standing}
+        </p>
+      )}
+
       {editing && (
         <EditForm
           entry={entry}

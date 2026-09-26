@@ -252,9 +252,11 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 	// subject, so a correction can be told apart from one the person already
 	// answered by keeping the rule again.
 	establishedAt := make([]int64, len(records))
+	facts := newSettleFacts(len(records))
 	for i, r := range records {
 		if r.Kind.Bears() && r.Status == StatusEstablished {
 			establishedAt[i] = r.Seq
+			facts.kept[i] = true
 		}
 	}
 
@@ -284,6 +286,7 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 			records[i].Status = StatusEstablished
 			establishedAt[i] = act.Seq
 			records[i].Established = true
+			facts.kept[i] = true
 			if act.Subject.Kind != SubjectNone {
 				records[i].Subject = act.Subject
 			}
@@ -293,9 +296,19 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 		case KindDrop:
 			records[i].Status = StatusDropped
 			records[i].Established = false
+			facts.droppedAt[i] = act.Seq
 		case KindWithdraw:
 			records[i].Status = StatusWithdrawn
 			records[i].Established = false
+			facts.withdrawnBy[i] = act.ID
+		case KindEstablish:
+			// Settling decides below whether the evidence still holds.
+			facts.establishedBy[i] = append(facts.establishedBy[i], act.ID)
+			if establishedAt[i] == 0 {
+				establishedAt[i] = act.Seq
+			}
+		case KindSignal:
+			facts.signals[i] = append(facts.signals[i], at[act.ID])
 		case KindRevert:
 			records[i].Status = StatusReverted
 			records[i].Established = false
@@ -303,6 +316,7 @@ func (l *Ledger) fold(ctx context.Context) ([]Record, error) {
 			records[i].Scope = act.Scope
 		}
 	}
+	settle(records, facts)
 	contest(records, establishedAt)
 	return records, nil
 }

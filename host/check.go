@@ -527,6 +527,13 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 		prog := a.NewProgress(cmd, "checking", len(args))
 		defer prog.Done()
 		opts.named = unread == nil && !declared
+		// A check of the whole project counts how its content writes each
+		// suggestion's forms, which is evidence for and against the
+		// suggestion. A check of named files sees part of the content, and a
+		// part says nothing about how the project writes.
+		if unread != nil && vocab.rules != nil {
+			opts.usage = newContextUsage(vocab.rules.records, vocab.rules.key)
+		}
 		var checked []string
 		for _, file := range args {
 			prog.Step(DisplayName(file))
@@ -566,6 +573,7 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 	}
 	target.Blocks = totalBlocks
 
+	a.recordContextUsage(ctx, vocab.recipe, opts.usage)
 	report := execution.report(ctx, a, cmd, target, diags)
 	unread.Report(&report)
 	unread.warn(a, cmd)
@@ -706,6 +714,9 @@ type checkRunOptions struct {
 	// widened to the whole workspace, which bind, and candidates nobody has
 	// decided on, which are reported and fail nothing (core/contextop).
 	context contextop.Resolution
+	// usage counts the uses of each suggestion's forms, for a check of the
+	// whole project, and is nil otherwise.
+	usage *contextUsage
 	// terms is the project's terms store, when it binds one: the vocabulary the
 	// project decided, enforced beside the profile's own lists. nil for a run
 	// with no project or no terminology.
@@ -837,6 +848,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			for _, b := range g.blocks {
 				loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
 				diags = append(diags, advisoryDiagnostics(sets, b.SourceText(), b.SourceRuns(), loc)...)
+				opts.usage.count(advisory, b.SourceText())
 			}
 		}
 		// Word rules are terms wherever they are held: the terms store, the
@@ -1391,6 +1403,8 @@ type checkTerms struct {
 	// a person widened to the whole workspace, and the candidates nobody has
 	// decided on. nil when the project has recorded none.
 	rules *contextRules
+	// recipe is the project's recipe path, empty outside a project.
+	recipe string
 }
 
 // newCheckTerms builds the resolver for one run. Outside a project there is no
@@ -1405,7 +1419,7 @@ func (a *App) newCheckTerms(cmd Command) (*checkTerms, error) {
 	if lerr != nil {
 		return nil, fmt.Errorf("load project for terms: %w", lerr)
 	}
-	t.proj, t.root = proj, filepath.Dir(projectPath)
+	t.proj, t.root, t.recipe = proj, filepath.Dir(projectPath), projectPath
 	// A candidate is advice, and advice is not worth failing a check to
 	// produce: a workspace a sandbox cannot open, or a log this build cannot
 	// read, leaves the run with the vocabulary the project's own stores carry.

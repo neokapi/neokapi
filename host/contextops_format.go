@@ -59,6 +59,15 @@ func (o ContextOperation) line() string {
 			status += " by " + strings.Join(others, ", ")
 		}
 		parts = append(parts, "["+status+"]")
+		if standing := o.Standing.Describe(); standing != "" {
+			parts = append(parts, standing)
+		}
+	}
+	if len(o.Because) > 0 {
+		parts = append(parts, "on #"+strings.Join(contextop.ShortIDs(o.Because), ", #"))
+	}
+	if o.Signal != nil {
+		parts = append(parts, describeSignal(*o.Signal))
 	}
 	return strings.Join(parts, "  ")
 }
@@ -146,4 +155,37 @@ func (r ContextKeepResult) FormatText(w io.Writer) error {
 		}
 	}
 	return nil
+}
+
+// describeSignal renders the evidence a signal operation carries.
+func describeSignal(s contextop.Signal) string {
+	switch s.Source {
+	case contextop.SignalMerge:
+		out := "merged"
+		if s.PR > 0 {
+			out += fmt.Sprintf(" in #%d", s.PR)
+		}
+		if s.Commit != "" {
+			out += " at " + shortCommit(s.Commit)
+		}
+		if s.Merger != "" {
+			out += " by " + s.Merger
+		}
+		return fmt.Sprintf("%s: %d added, %d removed", out, s.Preferred, s.Rejected)
+	case contextop.SignalUsage:
+		out := fmt.Sprintf("%d of %d uses", s.Preferred, s.Preferred+s.Rejected)
+		if s.Within != "" {
+			out += " in " + s.Within
+		}
+		return out
+	}
+	return string(s.Source)
+}
+
+// shortCommit abbreviates a commit to seven characters.
+func shortCommit(commit string) string {
+	if len(commit) > 7 {
+		return commit[:7]
+	}
+	return commit
 }

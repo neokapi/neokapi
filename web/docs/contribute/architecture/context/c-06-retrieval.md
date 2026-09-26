@@ -206,12 +206,16 @@ suggestions raise `empty` to `thin` but cannot produce `covered`.
 Suggestions appear separately from established context in a `suggestions`
 list. Each entry includes its status, rule or note, actor, session, evidence and
 operation id. Contested entries also identify the conflicting operations in
-`contested_by`. Markdown renders these under **Suggested, not yet established**.
+`contested_by`. A term suggestion carries its `standing`, the evidence for and
+against it as plain counts (sessions that recorded it, corrections toward it,
+uses in content, merges that carried it), and the Markdown line ends with the
+same counts: `seen in 3 sessions · merged in #412`. Standing is never reduced
+to a score. Markdown renders these under **Suggested, not yet established**.
 
 By-location queries resolve suggestions through `App.ContextRulesAt`, the same
 function used by checks. By-content queries match the query against term forms,
 replacements and note text. Agents can use earlier observations as context,
-but only a person can establish them as rules
+and only a person's signal establishes them as rules
 ([C-11](c-11-context-operations.md)).
 
 Thin and empty by-location responses explain the available coverage and invite

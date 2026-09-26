@@ -111,7 +111,33 @@ func (s *contextOpsSession) reconcile(ctx context.Context, before []contextop.Re
 			moved = append(moved, fmt.Sprintf("#%s is established again in %s", contextop.ShortID(r.ID), where))
 		}
 	}
-	return moved, nil
+	settled, err := s.settle(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return append(moved, settled...), nil
+}
+
+// settle records an establishment for every suggestion the log now supports
+// establishing, and lands each rule where a keep would. It names what it
+// established, for the line a surface prints.
+func (s *contextOpsSession) settle(ctx context.Context) ([]string, error) {
+	established, err := s.ledger.Settle(ctx, contextop.Filter{Project: s.key})
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, r := range established {
+		if r.Status != contextop.StatusEstablished {
+			continue
+		}
+		where, lerr := s.land(ctx, r)
+		if lerr != nil {
+			return nil, lerr
+		}
+		out = append(out, fmt.Sprintf("#%s is established on its evidence in %s", contextop.ShortID(r.ID), where))
+	}
+	return out, nil
 }
 
 // writer is the project's projector, stamping what it writes with the

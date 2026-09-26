@@ -181,6 +181,57 @@ The [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) recipe walks the
 gate end to end, including the import step that lets a `reviewed` threshold
 pass on a runner.
 
+## Settle suggestions after a merge
+
+A suggestion becomes an established rule once a person's signal backs it, and a
+change reaching the default branch is one such signal: a person reviewed and
+merged it ([how rules become established](/kapi/context-decisions#how-a-suggestion-becomes-a-rule)).
+`kapi context settle --merged <range>` reads the diff a range of commits made,
+records it as evidence for every suggestion whose preferred wording it added or
+whose rejected wording it removed, and establishes each suggestion the evidence
+now backs. It names the pull request and the merger, read from the merge
+commit when you do not pass `--pr` and `--merger`, and the same range records
+the same evidence, so a rerun changes nothing.
+
+The evidence lands in the workspace the command runs against, so run it where
+that workspace persists. On a developer machine, run it after pulling the
+default branch:
+
+```bash
+git pull
+kapi context settle --merged ORIG_HEAD..HEAD
+```
+
+On a runner, run it after a push to the default branch, with the kapi data
+directory kept between runs:
+
+```yaml title=".github/workflows/settle.yml"
+name: Settle context
+on:
+  push:
+    branches: [main]
+
+jobs:
+  settle:
+    runs-on: ubuntu-latest
+    env:
+      KAPI_DATA_DIR: ${{ github.workspace }}/.kapi-data
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/cache@v4
+        with:
+          path: .kapi-data
+          key: kapi-data-${{ github.run_id }}
+          restore-keys: kapi-data-
+      - uses: neokapi/setup-kapi@v1
+      - run: >-
+          kapi context settle
+          --merged "${{ github.event.before }}..${{ github.sha }}"
+          --merger "${{ github.actor }}"
+```
+
 ## Report the cost of a change on its pull request
 
 `kapi up --plan` dry-runs the loop: pending units, content-memory leverage, and a

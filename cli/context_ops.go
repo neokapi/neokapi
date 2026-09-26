@@ -25,8 +25,10 @@ import (
 // assistants do not have.
 //
 // A suggestion advises from the moment it is recorded. A check reports it and
-// no check fails on it. Keeping is what establishes it, and keeping writes the
-// rule into the project's terms store, where every check reads it.
+// no check fails on it. A person's signal establishes it: keeping it, a
+// correction toward it, or the change reaching the default branch (settle).
+// Establishing writes the rule into the project's terms store, where every
+// check reads it.
 
 func newContextObserveCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
@@ -468,4 +470,56 @@ func confirmAdvisory(cmd *cobra.Command) *bool {
 	}
 	v, _ := cmd.Flags().GetBool("advisory")
 	return &v
+}
+
+func newContextSettleCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "settle",
+		Short: "Establish the suggestions a person's signal backs",
+		Long: `Establish every suggestion that a person's signal backs and nothing
+open contradicts.
+
+A person's signal is keeping the suggestion, a correction toward it, or the
+change reaching the default branch. Another session recording the same rule and
+the project's content writing the preferred form add to a suggestion's standing
+without establishing it. A correction away from it, its withdrawal, or content
+moving to a rejected form leave it contested for a person to decide.
+
+With --merged, settle first reads the change a range of commits made and
+records it as evidence for every suggestion whose preferred wording the change
+added or whose rejected wording it removed. Run it in CI after a merge or a push
+to the default branch. The same range records the same evidence, so running it
+twice changes nothing.`,
+		Example: "  kapi context settle\n" +
+			"  kapi context settle --merged HEAD~1..HEAD\n" +
+			"  kapi context settle --merged \"$BEFORE..$AFTER\" --pr 412 --merger asgeir",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			projectPath, err := RequireProjectPath(cmd)
+			if err != nil {
+				return err
+			}
+			merged, _ := cmd.Flags().GetString("merged")
+			pr, _ := cmd.Flags().GetInt("pr")
+			merger, _ := cmd.Flags().GetString("merger")
+			if (pr != 0 || merger != "") && merged == "" {
+				return errors.New("--pr and --merger describe a merge: name it with --merged")
+			}
+			res, err := a.SettleContext(cmd.Context(), host.ContextSettleRequest{
+				Project: projectPath,
+				Merged:  merged,
+				PR:      pr,
+				Merger:  merger,
+			})
+			if err != nil {
+				return err
+			}
+			return output.Print(cmd, res)
+		},
+	}
+	cmd.Flags().String("merged", "", "a range of commits that reached the default branch, recorded as evidence")
+	cmd.Flags().Int("pr", 0, "the pull request that merged the range (read from the commit subject when unset)")
+	cmd.Flags().String("merger", "", "who merged it (the last commit's committer when unset)")
+	AddProjectFlag(cmd)
+	return cmd
 }

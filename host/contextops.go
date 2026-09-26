@@ -541,7 +541,7 @@ func btoi(b bool) int {
 // nothing answers for any more.
 func keepable(r contextop.Record) error {
 	switch {
-	case r.Status == contextop.StatusContested && !r.Established:
+	case r.Status == contextop.StatusContested && !r.Established && !r.ContestedByEvidence():
 		return fmt.Errorf("operation %s cannot be kept yet: %s. Choose first: drop the side you do not want with `kapi context drop`, or revert the established rule",
 			contextop.ShortID(r.ID), contestedReason(r))
 	case !r.Status.Answers():

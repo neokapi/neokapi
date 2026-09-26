@@ -25,6 +25,7 @@ rules that checks enforce.
 | `kapi context withdraw` | take back a suggestion you recorded |
 | `kapi context revert` | undo an operation, or everything one agent run did |
 | `kapi context widen` | put an established rule in force somewhere broader |
+| `kapi context settle` | establish the suggestions your own work backs, such as a merged change |
 
 ## An agent records as it works
 
@@ -43,7 +44,9 @@ kapi context revert --session s4980103f5148   # undo all of it
 ```
 
 It ends its report with the same session id. Nothing it recorded is in force
-until you keep it.
+until something you did backs it: you keep it, correct wording its way, or
+merge a change that writes it
+([how a suggestion becomes a rule](#how-a-suggestion-becomes-a-rule)).
 
 ## A suggestion never stops your work
 
@@ -98,6 +101,35 @@ kapi context keep 0n79tw5k9s --use "module" --advisory
 
 Set it aside instead with `kapi context drop 0n79tw5k9s`. Either way the record stays in
 the log, so the same suggestion is recognisable the next time somebody makes it.
+
+## How a suggestion becomes a rule {#how-a-suggestion-becomes-a-rule}
+
+Keeping is the direct way. A suggestion is also established when your own work
+backs it and nothing contradicts it:
+
+- you, or an agent recording what you changed, correct wording toward it
+  (`kapi context correct widget component`);
+- a change that writes its preferred form, or removes a form it avoids, reaches
+  the default branch (`kapi context settle --merged`, run after a merge; see
+  [the kapi loop in CI](/kapi/convergence-in-ci#settle-suggestions-after-a-merge)).
+
+Other evidence adds to a suggestion's **standing** without establishing it:
+another session recording the same rule, and your content writing the
+preferred form. `kapi context log` ends each suggestion's line with its
+standing as plain counts, and the context answer shows the same counts:
+
+```
+#0n79tw5k9s  ...  observe  term "Quickcast", not "Quick cast"  [suggested]  seen in 3 sessions · merged in #412
+```
+
+Evidence against a suggestion is a correction away from it, its withdrawal,
+or your content moving to a form it avoids after it was recorded. Any of these
+next to evidence from you makes the suggestion contested, and it waits for you
+to decide. Time alone establishes nothing.
+
+When kapi establishes a suggestion this way it records an `establish` entry
+that names the evidence, and `kapi context revert` takes it back out like any
+kept rule.
 
 ## When two rules disagree
 
@@ -155,7 +187,9 @@ kapi context widen 0n79tw5k9s --to mode
 
 People and agents can record observations and corrections. Only a person can
 keep or drop suggestions, edit another actor's suggestion, revert an established
-rule, or widen its scope. kapi rejects these operations from agents.
+rule, or widen its scope. kapi rejects these operations from agents, and it
+records the evidence of a merge and the rules settled on it as a tool acting
+for the merge, never as an agent.
 
 The author of a suggestion can withdraw it. An agent can withdraw only
 suggestions recorded in its current session.

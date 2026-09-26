@@ -76,6 +76,14 @@ func PersonDecides(t Transition) error {
 		return refuse(t, "only a person drops a suggestion; withdraw your own instead")
 	case KindWiden:
 		return refuse(t, "only a person widens a rule beyond the point its evidence was seen at")
+	case KindSignal, KindEstablish:
+		// Settling and the evidence it reads are recorded by a tool acting on
+		// what a person did: a merge, the project's own content. An agent's
+		// say-so is a suggestion, never evidence for one.
+		if t.Actor.Kind == ActorTool {
+			return nil
+		}
+		return refuse(t, "only a tool records evidence and settles on it")
 	case KindRevert:
 		if !t.Targeted {
 			return refuse(t, "only a person reverts a whole session")

@@ -55,3 +55,139 @@ export class Evidence {
         return new Evidence(/** @type {Partial<Evidence>} */($$parsedSource));
     }
 }
+
+/**
+ * Standing is the evidence for and against a suggestion, as plain counts. It
+ * is never collapsed into a score: a reader sees what the rule rests on.
+ */
+export class Standing {
+    /**
+     * Creates a new Standing instance.
+     * @param {Partial<Standing>} [$$source = {}] - The source object to create the Standing.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Sessions counts the distinct sessions, or people, that recorded the rule.
+             * @member
+             * @type {number | undefined}
+             */
+            this["sessions"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Corrections counts the corrections toward the rule.
+             * @member
+             * @type {number | undefined}
+             */
+            this["corrections"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Merges names the changes that reached the default branch with the rule:
+             * "#412" for a pull request, a short commit otherwise.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["merges"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Uses is the latest count of the rule's forms in the project's content.
+             * @member
+             * @type {Uses | null | undefined}
+             */
+            this["uses"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Against counts the signals against the rule, and AgainstBy names them.
+             * @member
+             * @type {number | undefined}
+             */
+            this["against"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["against_by"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Standing instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Standing}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType0;
+        const $$createField3_0 = $$createType2;
+        const $$createField5_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("merges" in $$parsedSource) {
+            $$parsedSource["merges"] = $$createField2_0($$parsedSource["merges"]);
+        }
+        if ("uses" in $$parsedSource) {
+            $$parsedSource["uses"] = $$createField3_0($$parsedSource["uses"]);
+        }
+        if ("against_by" in $$parsedSource) {
+            $$parsedSource["against_by"] = $$createField5_0($$parsedSource["against_by"]);
+        }
+        return new Standing(/** @type {Partial<Standing>} */($$parsedSource));
+    }
+}
+
+/**
+ * Uses is how often the content writes the preferred form, out of every use of
+ * the rule's forms.
+ */
+export class Uses {
+    /**
+     * Creates a new Uses instance.
+     * @param {Partial<Uses>} [$$source = {}] - The source object to create the Uses.
+     */
+    constructor($$source = {}) {
+        if (!("preferred" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["preferred"] = 0;
+        }
+        if (!("total" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["total"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["within"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Uses instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Uses}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Uses(/** @type {Partial<Uses>} */($$parsedSource));
+    }
+}
+
+// Private type creation functions
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = Uses.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);

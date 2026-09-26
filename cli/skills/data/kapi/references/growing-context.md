@@ -2,8 +2,10 @@
 
 Project context records writing guidance, terms and approved wording. Build it
 from observations during ordinary work or through a dedicated discovery session.
-Both approaches record operations in the context log. Suggestions become
-established rules only when a person keeps them, using the same appliers as
+Both approaches record operations in the context log. A suggestion becomes an
+established rule when a person's signal backs it and nothing contradicts it: a
+person keeps it, a correction toward it is recorded, or a change writing it
+reaches the default branch. kapi then writes it through the same appliers as
 other context edits.
 
 During ordinary work, record useful facts, consistent terminology and user
@@ -27,11 +29,13 @@ Over MCP the same two are `context_observe` (with `term` and `instead_of`) and
   with a form it avoids, and kapi adds the spacing, hyphen and case variants
   (`Quickcast` avoids `Quick cast`, `Quick-cast`, `QuickCast` and `quickcast`).
   Everything recorded is a **suggestion**: every check reports it, and no check
-  can fail on it until a person keeps it. Never tell the user a rule is in force
-  because you observed one.
-- **Correct** when the user changes your wording. `--suggest` also records the
-  implied rule for review. A person's correction that reverses an
-  established rule contests that rule, which then reports instead of failing.
+  can fail on it until a person's signal backs it. Never tell the user a rule
+  is in force because you observed one.
+- **Correct** when the user changes your wording, and only then: a correction
+  is the person's signal, so a correction toward an existing suggestion
+  establishes it. `--suggest` also records the implied rule for review. A
+  correction that reverses an established rule contests that rule, which then
+  reports instead of failing.
 
 Attach evidence with `--seen-in` for the file and `--quote` for the wording.
 Term rules and corrections require evidence so reviewers can compare the
@@ -43,8 +47,11 @@ advise, each names the other, and a person chooses by dropping one.
 One call records one thing. Do not batch a session's worth of observations into
 a single sentence, and do not wait until the end of the task to record them.
 
-A `kapi context <path>` answer lists the suggestions at that point, so a later
-session builds on what an earlier one recorded instead of working it out again.
+A `kapi context <path>` answer lists the suggestions at that point, each with
+its standing as plain counts (`seen in 3 sessions · 14 of 15 uses in docs/ ·
+merged in #412`), so a later session builds on what an earlier one recorded
+instead of working it out again. Recording the same rule again adds to its
+standing and establishes nothing.
 
 ## What the entry says about you
 
