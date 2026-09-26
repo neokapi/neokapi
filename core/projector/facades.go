@@ -156,7 +156,7 @@ func (t *Terms) AddConceptWithStream(ctx context.Context, c terms.Concept, strea
 		}
 	}
 	c = terms.NormalizedConcept(c)
-	if held, ok, err := t.GetConcept(ctx, c.ID); err == nil && ok && sameConcept(held, c) {
+	if held, ok, err := t.GetConcept(ctx, c.ID); err == nil && ok && terms.SameConcept(held, c) {
 		return nil
 	}
 	return t.to.put(ctx, KindTerms, step{Stream: stream, PutConcepts: []terms.Concept{c}})
@@ -204,20 +204,6 @@ func (t *Terms) AddRelationWithStream(ctx context.Context, rel terms.ConceptRela
 // DeleteRelation removes a relation.
 func (t *Terms) DeleteRelation(ctx context.Context, id string) error {
 	return t.to.put(ctx, KindTerms, step{DeleteRelations: []string{id}})
-}
-
-// sameConcept reports whether writing c would leave held as it is: the same
-// content, whatever the timestamps say. An incoming concept that carries no
-// source is written as the store's default one.
-func sameConcept(held, c terms.Concept) bool {
-	if c.Source == "" {
-		c.Source = terms.TermSourceTerminology
-	}
-	if held.Source == "" {
-		held.Source = terms.TermSourceTerminology
-	}
-	held.CreatedAt, held.UpdatedAt = c.CreatedAt, c.UpdatedAt
-	return sameJSON(held, c)
 }
 
 // Memory is a content memory whose writes go through the projector.
