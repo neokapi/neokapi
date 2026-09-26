@@ -9,7 +9,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
-	"github.com/neokapi/neokapi/core/projector"
 )
 
 // Every store keys its rows by the canonical locale beside the text, and every
@@ -68,7 +67,7 @@ func StoreLocaleDriftWarning(drift []projectdb.LocaleDrift, layout project.Layou
 	var b strings.Builder
 	b.WriteString("warning: this project holds rows keyed by a locale spelling no lookup asks for. They are never matched.")
 	if len(authored) > 0 {
-		fmt.Fprintf(&b, " In the context store (%s): run `kapi context locales --fix` to key them canonically where they stand.",
+		fmt.Fprintf(&b, " In the context store (%s): run `kapi context rebuild`, which writes the stores again from the operation log under the canonical spelling.",
 			strings.Join(authored, "; "))
 	}
 	if len(derived) > 0 {
@@ -95,9 +94,6 @@ type StoreLocales struct {
 	// store every lookup can read, and for a pass that was asked to fix them,
 	// only what it could not move.
 	Drift []projectdb.LocaleDrift `json:"drift,omitempty"`
-	// Rekeyed is what the context store's rows were keyed to. Empty unless the
-	// caller asked for the fix.
-	Rekeyed []projectdb.LocaleRekey `json:"rekeyed,omitempty"`
 	// Projection is the file to delete for the rows a rebuild clears, relative
 	// to the project. Empty when no row in it drifted.
 	Projection string `json:"projection,omitempty"`
@@ -108,11 +104,6 @@ func (r StoreLocales) Clean() bool { return len(r.Drift) == 0 }
 
 // FormatText renders the report for a reader.
 func (r StoreLocales) FormatText(w io.Writer) error {
-	for _, done := range r.Rekeyed {
-		if _, err := fmt.Fprintf(w, "%s\n", done.String()); err != nil {
-			return err
-		}
-	}
 	if r.Clean() {
 		_, err := fmt.Fprintln(w, "Every row is keyed by the locale its lookups ask for.")
 		return err
@@ -135,16 +126,14 @@ func (r StoreLocales) FormatText(w io.Writer) error {
 }
 
 // ProjectStoreLocales reports the locale spellings the project's stored rows
-// are keyed by, and with fix set keys the context store's rows to the
-// canonical one.
+// are keyed by.
 //
-// The fix moves authored rows and deletes none: a row whose canonical spelling
-// is free is keyed by it, a row saying exactly what the canonical row says is
-// folded into it, and a row the canonical spelling already answers differently
-// is left where it is and reported. Rows in the projection are a reading of the
-// working tree and are rebuilt rather than moved, so the report names the file
-// to delete instead.
-func (a *App) ProjectStoreLocales(ctx context.Context, projectPath string, fix bool) (StoreLocales, error) {
+// Every store files a row under the canonical spelling as it writes it, so a
+// row under another spelling predates that. A row in the context store is
+// written again canonically by a rebuild from the operation log (`kapi context
+// rebuild`); a row in the projection is a reading of the working tree, and the
+// report names the file to delete so the next run reads it again.
+func (a *App) ProjectStoreLocales(ctx context.Context, projectPath string) (StoreLocales, error) {
 	var res StoreLocales
 
 	layout, err := project.LayoutFor(projectPath)
@@ -154,20 +143,6 @@ func (a *App) ProjectStoreLocales(ctx context.Context, projectPath string, fix b
 	db, err := a.ProjectDB(ctx, layout.Root)
 	if err != nil {
 		return res, err
-	}
-	if fix {
-		if res.Rekeyed, err = db.RekeyContextLocales(ctx); err != nil {
-			return res, err
-		}
-		// The content memory's search indexes carry the locale beside each
-		// variant they were built from, so a move leaves them answering for a
-		// spelling no row has any more.
-		for _, done := range res.Rekeyed {
-			if done.Subsystem == "content memory" && done.Rekeyed() {
-				a.RebuildMemorySearchIndexes(ctx, projector.MemoryView(db))
-				break
-			}
-		}
 	}
 	if res.Drift, err = db.NonCanonicalLocales(ctx); err != nil {
 		return res, err

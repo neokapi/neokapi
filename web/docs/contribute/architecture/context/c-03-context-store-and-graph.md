@@ -239,16 +239,6 @@ That is what keeps `core/` hermetic: a framework test opens a project in a
 temporary directory and cannot reach a real workspace, because there is no path
 inside the framework that names one.
 
-### Adoption
-
-When a project first opens with a workspace, kapi migrates any context tables
-from the projection into the new context store. It copies every context row
-before removing the old tables; a failed copy leaves the originals intact.
-
-To identify the tables to retain, kapi creates an empty projection in memory
-and compares its schema with the existing database. This avoids maintaining a
-separate list of tables owned by each context subsystem.
-
 ### Joining across the two files
 
 `projectdb.DB.Join` runs a function on one connection with both files visible:
@@ -412,17 +402,10 @@ report once with the remedy for that pool named.
 
 The two pools take different remedies, because a row in one is derived and a
 row in the other is authored. The projection is a reading of the working tree,
-so deleting the database and running `kapi up` derives every row in it again. The context store holds terms,
-approved wording and voice profiles that exist there and nowhere else, so
-`projectdb.RekeyContextLocales` keys its rows canonically where they stand, in
-one transaction over the context store, and `kapi context locales --fix` is the
-verb that calls it. It deletes nothing: a row whose canonical spelling is free
-takes it, a row saying exactly what the canonical row says folds into it and is
-reported as merged, and a row whose canonical spelling already answers
-differently stays where it is and is reported, because choosing between two
-approvals is not a repair. The content memory's search indexes are rebuilt
-afterwards, since they carry the locale beside each variant they were built
-from.
+so deleting the database and running `kapi up` derives every row in it again.
+The context store is a projection of the operation log, and the stores
+normalize as they write, so `kapi context rebuild` writes its rows again under
+the canonical spelling.
 
 ### Presence is table-level
 

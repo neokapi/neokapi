@@ -16,10 +16,8 @@
 // Without a workspace, Open uses .kapi/work/store.db for both context and
 // projection tables through one handle. The host supplies the workspace location
 // through host.DataDir(); the framework has no default pointing to user data.
-//
-// Opening an embedded project with a workspace moves staged decisions into the
-// context store, re-seeds the other context data from committed .kapi files, and
-// drops the projection's context tables. See adopt.go.
+// A project opened with a workspace keeps its context in the workspace; the
+// context tables of an earlier embedded store are not read.
 //
 // # Cross-store queries
 //
@@ -188,24 +186,9 @@ func Open(ctx context.Context, layout project.Layout, opts ...Option) (*DB, erro
 		db.graph = projection
 	}
 
-	// Whether the context store has ever held a table decides whether this open
-	// adopts a project out of the embedded layout, and binding creates those
-	// tables, so the question is asked first.
-	adopting := false
-	if !db.ownsContext {
-		adopting, err = isEmptyDatabase(ctx, db.context)
-		if err != nil {
-			_ = projection.Close()
-			return nil, err
-		}
-	}
-
 	if err := db.bind(ctx); err != nil {
 		_ = projection.Close()
 		return nil, err
-	}
-	if adopting {
-		adoptEmbeddedContext(ctx, db)
 	}
 	sweepPredecessors(ctx, layout, db)
 	return db, nil

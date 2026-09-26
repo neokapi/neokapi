@@ -21,9 +21,10 @@ import (
 //
 // The two pools take different remedies, because they hold different kinds of
 // row. The projection is derived from the working tree, so deleting it and
-// running the loop again is the whole repair. The context store holds authored
-// work that exists nowhere else, so its rows are keyed back in place
-// (RekeyContextLocales) and nothing is thrown away.
+// running the loop again is the whole repair. The context store is a
+// projection of the operation log, and the stores file every row canonically
+// as they write it, so a rebuild from the log writes its rows again under the
+// canonical spelling.
 
 // Pool names the database a subsystem's rows live in.
 type Pool string

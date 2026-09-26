@@ -58,8 +58,8 @@ func TestStatus_WarnsWhenTheStoreHoldsNonCanonicalLocales(t *testing.T) {
 	assert.Equal(t, 1, countOf(stderr, "locale spelling"), "said once")
 }
 
-// A row in the context store is authored work, so the warning names the verb
-// that keys it canonically rather than telling anyone to delete it.
+// A row in the context store is a projection of the log, so the warning names
+// the rebuild that writes it again canonically rather than the file to delete.
 func TestStatus_NamesTheRekeyForContextRows(t *testing.T) {
 	p := facetest.WritePosix(t)
 	facetest.ExtractToStore(t, p)
@@ -81,14 +81,14 @@ VALUES ('c1', 'kai', 'kai', 'NB-no', 'preferred', '', '', '', 0, NULL, NULL, '[]
 
 	stderr := runStatusStderr(t, p)
 	assert.Contains(t, stderr, `terms: 1 row(s) under "NB-no" (lookups ask for "nb-NO")`)
-	assert.Contains(t, stderr, "kapi context locales --fix")
+	assert.Contains(t, stderr, "kapi context rebuild")
 	assert.NotContains(t, stderr, "delete .kapi/work/store.db",
-		"authored rows are moved, never deleted")
+		"the context store is rebuilt from the log, never deleted")
 }
 
-// ProjectStoreLocales reports the drift, and with the fix asked for it moves
-// the authored rows and leaves the projection's to a rebuild.
-func TestProjectStoreLocales_MovesTheAuthoredRowsOnly(t *testing.T) {
+// ProjectStoreLocales reports the drift in both pools, naming the projection's
+// file for the rows a rebuild of the working tree clears.
+func TestProjectStoreLocales_ReportsBothPools(t *testing.T) {
 	p := facetest.WritePosix(t)
 	facetest.ExtractToStore(t, p)
 
@@ -111,26 +111,11 @@ VALUES ('c1', 'kai', 'kai', 'NB-no', 'preferred', '', '', '', 0, NULL, NULL, '[]
 		`INSERT INTO overlays (kind, block_hash, payload, updated_at) VALUES ('targets/nb_NO', 'b1', '{}', 1)`)
 	require.NoError(t, err)
 
-	found, err := a.ProjectStoreLocales(ctx, p.Recipe, false)
+	found, err := a.ProjectStoreLocales(ctx, p.Recipe)
 	require.NoError(t, err)
 	assert.False(t, found.Clean())
-	assert.Len(t, found.Drift, 2)
-	assert.Empty(t, found.Rekeyed, "a report that was not asked to fix anything writes nothing")
-
-	fixed, err := a.ProjectStoreLocales(ctx, p.Recipe, true)
-	require.NoError(t, err)
-	require.Len(t, fixed.Rekeyed, 1)
-	assert.Equal(t, "terms", fixed.Rekeyed[0].Subsystem)
-	assert.Equal(t, 1, fixed.Rekeyed[0].Moved)
-
-	require.Len(t, fixed.Drift, 1, "only the projection's row is left")
-	assert.Equal(t, projectdb.PoolProjection, fixed.Drift[0].Pool)
-	assert.Equal(t, ".kapi/work/store.db", fixed.Projection)
-
-	var locale string
-	require.NoError(t, db.Raw().QueryRowContext(ctx,
-		`SELECT locale FROM tb_terms WHERE concept_id = 'c1'`).Scan(&locale))
-	assert.Equal(t, "nb-NO", locale)
+	require.Len(t, found.Drift, 2)
+	assert.Equal(t, ".kapi/work/store.db", found.Projection)
 }
 
 // A project with no store yet is not audited, and the audit opens none: a dry

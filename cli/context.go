@@ -271,34 +271,26 @@ A row filed under a spelling nothing asks for is never matched. The term, the
 approved wording or the overlay it holds reads as absent, which looks exactly
 like content nobody has worked on yet.
 
---fix files the project's context rows under the spelling lookups ask in,
-without moving them out of the store. Terms, approved wording and voice
-profiles exist there and nowhere else, so nothing is thrown away: a row whose
-canonical spelling is free takes it, a row saying exactly what the canonical
-row says folds into it, and a row whose canonical spelling already answers
-differently is left alone and reported, for you to say which answer is right.
-
-The rows kapi read out of your own files are rebuilt rather than moved. The
-report names the file to delete, and the next "kapi up" reads your files
-again.`,
+kapi files every row under the spelling lookups ask in as it writes it. A
+context row under another spelling is written again canonically by "kapi
+context rebuild", which rewrites the project's stores from the operation log.
+The rows kapi read out of your own files are rebuilt from the files: the report
+names the file to delete, and the next "kapi up" reads your files again.`,
 		Example: "  kapi context locales\n" +
-			"  kapi context locales --json\n" +
-			"  kapi context locales --fix",
+			"  kapi context locales --json",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, err := RequireProjectPath(cmd)
 			if err != nil {
 				return err
 			}
-			fix, _ := cmd.Flags().GetBool("fix")
-			res, err := a.ProjectStoreLocales(cmd.Context(), projectPath, fix)
+			res, err := a.ProjectStoreLocales(cmd.Context(), projectPath)
 			if err != nil {
 				return err
 			}
 			return output.Print(cmd, res)
 		},
 	}
-	cmd.Flags().Bool("fix", false, "file the project's context rows under the spelling lookups ask in")
 	AddProjectFlag(cmd)
 	return cmd
 }

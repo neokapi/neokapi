@@ -96,13 +96,13 @@ leaving terms or approved wording absent from results. `kapi status` and
 `kapi up` report these rows when detected.
 
 ```bash
-kapi context locales         # inspect stored locale identifiers
-kapi context locales --fix   # normalize context rows and report conflicts
+kapi context locales    # inspect stored locale identifiers
+kapi context rebuild    # write the context rows again from the operation log
 ```
 
-`--fix` updates context rows in place. It changes an identifier when the
-canonical key is unused and merges identical rows. Conflicting rows are
-preserved and reported for manual review.
+kapi files every row under the canonical identifier as it writes it, so
+`kapi context rebuild` writes the project's context rows again in canonical
+form.
 
 Rows in the projection are what kapi read out of your own files, so they are
 rebuilt rather than moved: delete `.kapi/work/store.db` and the next `kapi up`
