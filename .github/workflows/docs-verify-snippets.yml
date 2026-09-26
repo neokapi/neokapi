@@ -99,6 +99,11 @@ jobs:
       - name: Verify the review → approve loop in wasm (status, apply, state store)
         run: node --experimental-strip-types scripts/verify-snippets/review-smoke.ts
 
+      # The lab surface: inspect, traced flow runs, a script step, and an HTML
+      # round-trip through the in-memory skeleton store.
+      - name: Verify the lab surface in wasm (inspect, trace, script, round-trip)
+        run: node --experimental-strip-types scripts/verify-snippets/lab-smoke.ts
+
       # The browser command surface: no verb may answer "unknown command", the
       # verbs the browser cannot run must explain why, and every lab component's
       # own argv must still resolve. Guards the regression where #1180's

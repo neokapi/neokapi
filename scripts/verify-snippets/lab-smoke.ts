@@ -87,9 +87,9 @@ flows:
     steps:
       - tool: pseudo-translate
 `;
-mem.vol.writeFile("/project/lab.kapi", enc.encode(RECIPE));
+mem.vol.writeFile("/project/kapi.yaml", enc.encode(RECIPE));
 const rcode: number = await (globalThis as any).kapiRun([
-  "run", "lab", "-p", "/project/lab.kapi", "-i", "/project/sample.json",
+  "run", "lab", "-p", "/project/kapi.yaml", "-i", "/project/sample.json",
   "-o", "/project/out-recipe.json", "--target-lang", "qps", "--trace", "/project/rtrace.json",
 ]);
 ok("recipe flow run exits 0", rcode === 0, `code=${rcode}`);
@@ -110,9 +110,9 @@ flows:
     steps:
       - tool: translate
 `;
-mem.vol.writeFile("/project/ai.kapi", enc.encode(AI_RECIPE));
+mem.vol.writeFile("/project/kapi.yaml", enc.encode(AI_RECIPE));
 const aicode: number = await (globalThis as any).kapiRun([
-  "run", "lab", "-p", "/project/ai.kapi", "-i", "/project/sample.json",
+  "run", "lab", "-p", "/project/kapi.yaml", "-i", "/project/sample.json",
   "-o", "/project/out-ai.json", "--target-lang", "fr", "--trace", "/project/aitrace.json",
 ]);
 ok("translate flow runs offline (demo provider) exits 0", aicode === 0, `code=${aicode}`);
@@ -130,11 +130,12 @@ flows:
     steps:
       - tool: script
         config:
+          allowSourceMutation: true
           code: "if (part.type === 'block') { part.block.source[0].content.text = part.block.source[0].content.text.toUpperCase(); } emit(part);"
 `;
-mem.vol.writeFile("/project/script.kapi", enc.encode(SCRIPT_RECIPE));
+mem.vol.writeFile("/project/kapi.yaml", enc.encode(SCRIPT_RECIPE));
 const scode: number = await (globalThis as any).kapiRun([
-  "run", "lab", "-p", "/project/script.kapi", "-i", "/project/sample.json",
+  "run", "lab", "-p", "/project/kapi.yaml", "-i", "/project/sample.json",
   "-o", "/project/out-script.json", "--target-lang", "qps", "--trace", "/project/scripttrace.json",
 ]);
 ok("script tool (goja) runs user JS in WASM, exits 0", scode === 0, `code=${scode}`);
@@ -170,11 +171,12 @@ flows:
     steps:
       - tool: script
         config:
+          allowSourceMutation: true
           code: "function process(part) { if (part.type === 'block') { part.block.source[0].content.text = part.block.source[0].content.text.toUpperCase(); } return part; }"
 `;
-mem.vol.writeFile("/project/fn.kapi", enc.encode(FN_RECIPE));
+mem.vol.writeFile("/project/kapi.yaml", enc.encode(FN_RECIPE));
 const fncode: number = await (globalThis as any).kapiRun([
-  "run", "lab", "-p", "/project/fn.kapi", "-i", "/project/sample.json",
+  "run", "lab", "-p", "/project/kapi.yaml", "-i", "/project/sample.json",
   "-o", "/project/out-fn.json", "--target-lang", "qps",
 ]);
 ok("script function form process(part) exits 0", fncode === 0, `code=${fncode}`);
