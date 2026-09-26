@@ -213,7 +213,7 @@ type SyncPullResponse struct {
 // PushStatusResponse is the response from the push status endpoint.
 type PushStatusResponse struct {
 	PushID     string `json:"push_id"`
-	Status     string `json:"status"` // "in_progress", "completed", "failed"
+	Status     string `json:"status"` // "no_jobs", "in_progress", "completed", "failed"
 	Total      int    `json:"total"`
 	Completed  int    `json:"completed"`
 	Failed     int    `json:"failed"`
