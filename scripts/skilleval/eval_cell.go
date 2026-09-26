@@ -200,7 +200,11 @@ func prepareEvalCell(ctx context.Context, opts EvalOptions, session EvalSession)
 	wiring := EvalWiring{Harness: []string{}, Held: []string{}}
 	readyPath := filepath.Join(paths.Root, "wiring.json")
 	if err := readPairedJSON(readyPath, &wiring); err == nil {
-		return paths, wiring, nil
+		// A prepared cell is wired to the build that prepared it. Relinking to
+		// this checkout's build lets a phase continue from a new checkout of
+		// the same commit; the study fingerprint still decides whether that
+		// build is the one under test.
+		return paths, wiring, evalToolPath(paths, opts.KapiBin)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return paths, wiring, err
 	}
@@ -313,7 +317,14 @@ func evalToolPath(paths EvalPaths, kapiBin string) error {
 	}
 	for _, name := range evalKapiNames {
 		destination := filepath.Join(paths.Bin, name)
-		if _, err := os.Lstat(destination); err == nil {
+		if target, err := os.Readlink(destination); err == nil {
+			if target == kapiBin {
+				continue
+			}
+			if err := os.Remove(destination); err != nil {
+				return err
+			}
+		} else if _, err := os.Lstat(destination); err == nil {
 			continue
 		}
 		if err := os.Symlink(kapiBin, destination); err != nil {

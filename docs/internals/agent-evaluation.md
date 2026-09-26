@@ -22,6 +22,11 @@ consume plan allowance. Nothing here runs in CI.
    export EVAL_CELLS_DIR=~/Library/Caches/kapi-eval
    ```
 
+   Keep the checkout that runs the study and `EVAL_DIR` out of the system
+   temporary directory as well. A study can span days (a host's usage limit
+   pauses it), and a sweep that removes part of the checkout stops every
+   later phase.
+
 ## The phases
 
 ```bash
@@ -43,7 +48,10 @@ attempts, failed ones included, across every phase in the evidence directory,
 without automatic resets or retries. A rate limit pauses the batch.
 Running a phase again resumes it: attempts already started are kept, and only
 sessions that never started are run. `EVAL_ARGS=-eval-sessions <id>,<id>` runs
-chosen sessions within that limit.
+chosen sessions within that limit, so a phase can be finished host by host: the
+phase records its whole schedule whichever sessions a run picks. A later run
+from a new checkout of the same commit, with the same binary copied to its
+`bin/kapi`, continues the study; prepared cells are relinked to that build.
 
 Evidence goes to `harness/out/eval` (`EVAL_DIR`), which is ignored. Changing
 the manifest, the fixture, the runner's code, the shipped skill or the binary

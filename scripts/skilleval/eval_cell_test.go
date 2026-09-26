@@ -104,3 +104,17 @@ func TestEvalGrowCellReadsWhatAnAgentRecorded(t *testing.T) {
 	score := scoreEvalGrow(opts.Fixture, result.Recorded)
 	assert.Equal(t, []string{"paid-plan-name"}, score.Recalled)
 }
+
+func TestEvalToolPathRelinksAnotherBuild(t *testing.T) {
+	paths := evalPaths(t.TempDir())
+	require.NoError(t, os.MkdirAll(paths.Bin, 0o700))
+	old := filepath.Join(t.TempDir(), "kapi")
+	current := filepath.Join(t.TempDir(), "kapi")
+	require.NoError(t, evalToolPath(paths, old))
+	require.NoError(t, evalToolPath(paths, current))
+	for _, name := range evalKapiNames {
+		target, err := os.Readlink(filepath.Join(paths.Bin, name))
+		require.NoError(t, err)
+		assert.Equal(t, current, target, "a cell follows the build that runs it")
+	}
+}

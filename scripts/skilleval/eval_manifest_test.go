@@ -129,3 +129,20 @@ func TestSelectEvalSessions(t *testing.T) {
 	_, err = selectEvalSessions(schedule, schedule[0].ID+","+schedule[0].ID)
 	require.ErrorContains(t, err, "duplicate")
 }
+
+func TestEvalPhaseScheduleRecordsTheWholePhase(t *testing.T) {
+	m, err := readEvalManifest(filepath.Join("testdata", "eval-study.json"))
+	require.NoError(t, err)
+	whole := evalSchedule(m, evalPhaseApply)
+	require.Greater(t, len(whole), 1)
+
+	full, run, err := evalPhaseSchedule(m, evalPhaseApply, whole[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, whole, full, "a selection records the whole phase")
+	assert.Equal(t, []EvalSession{whole[0]}, run)
+
+	full2, run2, err := evalPhaseSchedule(m, evalPhaseApply, whole[1].ID)
+	require.NoError(t, err)
+	assert.Equal(t, full, full2, "another selection reads the same record")
+	assert.Equal(t, []EvalSession{whole[1]}, run2)
+}
