@@ -316,9 +316,9 @@ voice profiles ([C-07](c-07-voice-profiles.md)), its content memory
 ([C-09](c-09-content-memory.md)) and its decision ledger
 ([C-04](c-04-unit-state-and-decisions.md)), each a projection of the
 workspace's operation log, described below. No read path opens a file in the
-checkout to answer for any of them. A checkout may carry context files a
-person authored under `.kapi/`; `kapi context import` is the one command that
-reads them ([C-11](c-11-context-operations.md)). The store moves between
+checkout to answer for any of them. A checkout may carry a terms bundle or a
+voice profile a person authored under `.kapi/`; `kapi context import` is the one
+command that reads them ([C-11](c-11-context-operations.md)). The store moves between
 machines through a context backend or a transfer file, below.
 
 Branches use the current context store even when they contain older snapshot

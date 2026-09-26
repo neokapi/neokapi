@@ -536,7 +536,8 @@ func (s *Sync) unapplied(ctx context.Context, db *storage.DB) ([]fetched, error)
 // Pull fetches the segments this workspace has not seen, merges their
 // operations into the log and applies them.
 func (s *Sync) Pull(ctx context.Context) (PullReport, error) {
-	report := PullReport{SyncStatus: SyncStatus{Remote: s.remote.Describe()}}
+	var report PullReport
+	report.Remote = s.remote.Describe()
 	db, err := s.w.sync()
 	if err != nil {
 		return report, err
@@ -758,7 +759,8 @@ func (s *Sync) fetchBlobs(ctx context.Context, ops []Op) error {
 // checkpoint when the remote has gained CheckpointEvery operations since its
 // newest one.
 func (s *Sync) Push(ctx context.Context) (PushReport, error) {
-	report := PushReport{SyncStatus: SyncStatus{Remote: s.remote.Describe()}}
+	var report PushReport
+	report.Remote = s.remote.Describe()
 	db, err := s.w.sync()
 	if err != nil {
 		return report, err

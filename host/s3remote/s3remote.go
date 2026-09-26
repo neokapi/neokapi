@@ -193,8 +193,7 @@ func (r *Remote) Close() error { return nil }
 // statusOf reads the HTTP status a failed request answered with, zero when
 // it reached no server.
 func statusOf(err error) int {
-	var resp *smithyhttp.ResponseError
-	if errors.As(err, &resp) {
+	if resp, ok := errors.AsType[*smithyhttp.ResponseError](err); ok {
 		return resp.HTTPStatusCode()
 	}
 	return 0
@@ -203,8 +202,7 @@ func statusOf(err error) int {
 // unreachable reports a failed request as the backend being out of reach,
 // naming the API error code when the server gave one.
 func unreachable(verb, name string, err error) error {
-	var api smithy.APIError
-	if errors.As(err, &api) {
+	if api, ok := errors.AsType[smithy.APIError](err); ok {
 		return fmt.Errorf("%w: s3 %s %s: %s: %s", workspace.ErrRemoteUnreachable, verb, name, api.ErrorCode(), api.ErrorMessage())
 	}
 	return fmt.Errorf("%w: s3 %s %s: %w", workspace.ErrRemoteUnreachable, verb, name, err)

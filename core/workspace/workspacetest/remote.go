@@ -121,9 +121,9 @@ func nameOutsideLayoutIsRefused(t *testing.T, open func(t *testing.T) workspace.
 	r := openRemote(t, open)
 	ctx := t.Context()
 	for _, name := range []string{"../escape", "log/w1/../../x.jsonl", "notes.txt", "log/w1/short.jsonl", "blobs/XYZ"} {
-		assert.Error(t, r.Put(ctx, workspace.Object{Name: name, Data: []byte("x")}), name)
+		require.Error(t, r.Put(ctx, workspace.Object{Name: name, Data: []byte("x")}), name)
 		_, err := r.Get(ctx, name)
-		assert.Error(t, err, name)
+		require.Error(t, err, name)
 	}
 	_, err := r.List(ctx, "other/")
 	assert.Error(t, err)
@@ -149,16 +149,14 @@ func twoHandlesWriteAtOnce(t *testing.T, open func(t *testing.T) workspace.Remot
 	var wg sync.WaitGroup
 	errs := make([]error, 2)
 	for i, r := range []workspace.Remote{a, b} {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for n := range 3 {
 				if err := r.Put(ctx, workspace.Object{Name: segmentNamed(fmt.Sprintf("w%d", i), n), Data: []byte("x\n")}); err != nil {
 					errs[i] = err
 					return
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	require.NoError(t, errs[0])

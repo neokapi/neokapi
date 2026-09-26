@@ -1,6 +1,7 @@
 package project
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -100,7 +101,7 @@ func (c *ContextBackend) Validate() error {
 	case ContextBackendLocal:
 	case ContextBackendFile:
 		if c.Path == "" {
-			return fmt.Errorf("context.path: a file backend names the directory it keeps the context in")
+			return errors.New("context.path: a file backend names the directory it keeps the context in")
 		}
 	case ContextBackendGit:
 		if c.Ref != "" && !strings.HasPrefix(c.Ref, "refs/") {
@@ -111,7 +112,7 @@ func (c *ContextBackend) Validate() error {
 		}
 	case ContextBackendS3:
 		if c.Bucket == "" {
-			return fmt.Errorf("context.bucket: an s3 backend names its bucket")
+			return errors.New("context.bucket: an s3 backend names its bucket")
 		}
 	default:
 		return fmt.Errorf("context.backend: %q is not a backend; use local, file, git or s3", c.Backend)

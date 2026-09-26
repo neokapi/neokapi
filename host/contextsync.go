@@ -259,7 +259,7 @@ func openRemote(ctx context.Context, layout project.Layout, info ContextBackendI
 	case project.ContextBackendFile:
 		return workspace.NewFileRemote(spec.Path), nil
 	case project.ContextBackendGit:
-		repo, ok := workspace.GitRepoRoot(layout.Root)
+		repo, ok := workspace.GitRepoRoot(ctx, layout.Root)
 		if !ok {
 			return nil, fmt.Errorf("the recipe keeps the context on a git ref, and %s is not in a git repository", layout.Root)
 		}
@@ -310,7 +310,7 @@ func (a *App) projectSync(ctx context.Context, projectPath string) (*workspace.S
 		if info.From == "machine" {
 			why = "this machine keeps the project's context local (kapi context backend recipe undoes that)"
 		}
-		return nil, fmt.Errorf("there is nowhere to sync with: %s. Declare one in kapi.yaml, for example\n\n  context:\n    backend: git\n", why)
+		return nil, fmt.Errorf("there is nowhere to sync with: %s. Declare one in kapi.yaml, for example `context: {backend: git}`", why)
 	}
 	s, err := a.contextSync(ctx, layout, info, w)
 	if err != nil {

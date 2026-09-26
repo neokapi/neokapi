@@ -94,7 +94,7 @@ which files landed, since they commit them.
   commands.
 
 The ignore rule `kapi init` writes is `.kapi/.gitignore` with one line, `*`. A
-project that commits context files in `.kapi/` for `kapi context import` to read
+project that commits a terms bundle or a voice profile in `.kapi/` for `kapi context import` to read
 keeps an ignore rule of its own, and kapi leaves it as it is.
 
 Deleting:

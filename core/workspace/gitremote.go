@@ -249,8 +249,7 @@ func (r *GitRemote) fetch(ctx context.Context) error {
 func (r *GitRemote) tip(ctx context.Context) (string, error) {
 	out, err := r.git(ctx, nil, "rev-parse", "--verify", "--quiet", r.ref+"^{commit}")
 	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
+		if _, ok := errors.AsType[*exec.ExitError](err); ok {
 			return "", nil
 		}
 		return "", err
@@ -297,8 +296,7 @@ func (r *GitRemote) gitIn(ctx context.Context, env []string, stdin []byte, args 
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) {
+		if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 			exit.Stderr = stderr.Bytes()
 			return out, fmt.Errorf("git %s: %w: %s", args[0], err, strings.TrimSpace(stderr.String()))
 		}
@@ -316,8 +314,8 @@ func (r *GitRemote) gitCombined(ctx context.Context, args ...string) ([]byte, er
 
 // GitRepoRoot returns the top of the git work tree dir sits in, and false when
 // it is in none.
-func GitRepoRoot(dir string) (string, bool) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+func GitRepoRoot(ctx context.Context, dir string) (string, bool) {
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel")
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
