@@ -170,6 +170,16 @@ func run() error {
 	if envDBURL := os.Getenv("BOWRAIN_DATABASE_URL"); envDBURL != "" {
 		cfg.DatabaseURL = envDBURL
 	}
+
+	// --migrate-only runs before the secrets key and any of the OIDC, SMTP or
+	// Stripe configuration below, because building a schema needs none of it
+	// and stores no tenant secret. The data-reset runbook drops the schema and
+	// then has to rebuild it, and a rebuild that first demanded a working
+	// identity provider would couple the reset to services it has no business
+	// depending on.
+	if *migrateOnly {
+		return runMigrateOnly(cfg.DatabaseURL)
+	}
 	if envSecretsKey := os.Getenv("BOWRAIN_SECRETS_KEY"); envSecretsKey != "" {
 		cfg.SecretsKey = envSecretsKey
 	}
@@ -178,15 +188,6 @@ func run() error {
 	}
 	if err := guardSecretsKey(cfg.SecretsKey, cfg.DatabaseURL); err != nil {
 		return err
-	}
-
-	// --migrate-only runs before any of the OIDC, SMTP or Stripe configuration
-	// below, because building a schema needs none of it. That is the point: the
-	// data-reset runbook drops the schema and then has to rebuild it, and a
-	// rebuild that first demanded a working identity provider would couple the
-	// reset to services it has no business depending on.
-	if *migrateOnly {
-		return runMigrateOnly(cfg.DatabaseURL)
 	}
 	if envJWT := os.Getenv("BOWRAIN_JWT_SECRET"); envJWT != "" {
 		cfg.JWTSecret = envJWT
