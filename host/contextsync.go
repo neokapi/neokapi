@@ -343,6 +343,8 @@ type ContextPull struct {
 // FormatText renders a pull.
 func (r ContextPull) FormatText(w io.Writer) error {
 	switch {
+	case r.Empty:
+		fmt.Fprintf(w, "Nothing has been pushed to %s yet; `kapi context push` shares this project's context.\n", describeRemote(r.Remote))
 	case r.Merged == 0:
 		fmt.Fprintf(w, "Up to date with %s.\n", describeRemote(r.Remote))
 	default:
