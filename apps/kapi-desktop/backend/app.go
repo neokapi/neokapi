@@ -761,7 +761,13 @@ func (a *App) getOpenProject(tabID string) *openProject {
 type FlowInfo struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	StepCount   int    `json:"step_count"`
+	// Source is where the project declares the flow: "inline" under the
+	// recipe's flows:, or "file" in its flows_dir:.
+	Source string `json:"source"`
+	// Path is the flow's file, for a flow from flows_dir:. Such a flow is
+	// edited in its file; saving it here would add an inline flow of its name.
+	Path      string `json:"path,omitempty"`
+	StepCount int    `json:"step_count"`
 	// Steps names each step for the card's chip strip, in order.
 	Steps []string `json:"steps,omitempty"`
 	// Default is true when this flow is the project's defaults.flow.
@@ -777,7 +783,11 @@ type FlowIssueInfo struct {
 	Message string `json:"message"`
 }
 
-// ListFlows returns all flows in a project tab with validation status.
+// ListFlows returns the project's own flows in a project tab with validation
+// status: the recipe's inline flows, then the files in its flows_dir: that no
+// inline flow shadows, each set ordered by name. They are the flows `kapi
+// flows` lists for the project, and RunFlow resolves each name to the flow
+// listed here.
 func (a *App) ListFlows(tabID string) []FlowInfo {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -799,28 +809,72 @@ func (a *App) ListFlows(tabID string) []FlowInfo {
 	}
 
 	defaultFlow := op.Project.Defaults.Flow
-	var infos []FlowInfo
-	for name, spec := range op.Project.Flows {
+	info := func(name, source, description, path string, spec *flow.StepsSpec) FlowInfo {
 		issues := issuesByFlow[name]
-		infos = append(infos, FlowInfo{
-			Name:      name,
-			StepCount: len(spec.Steps),
-			Steps:     flowStepLabels(spec.Steps),
-			Default:   name == defaultFlow,
-			Valid:     len(issues) == 0,
-			Issues:    issues,
-		})
+		return FlowInfo{
+			Name:        name,
+			Description: description,
+			Source:      source,
+			Path:        path,
+			StepCount:   len(spec.Steps),
+			Steps:       flowStepLabels(spec.Steps),
+			Default:     name == defaultFlow,
+			Valid:       len(issues) == 0,
+			Issues:      issues,
+		}
+	}
+	infos := []FlowInfo{}
+	inline := op.Project.FlowNames()
+	slices.Sort(inline)
+	for _, name := range inline {
+		infos = append(infos, info(name, host.FlowSourceInline, "", "", op.Project.Flow(name)))
+	}
+	for _, def := range project.ListDirFlows(op.Project.FlowsDirIn(filepath.Dir(op.Path))) {
+		if op.Project.Flow(def.Name) != nil {
+			continue
+		}
+		if def.Err != nil {
+			infos = append(infos, FlowInfo{
+				Name:    def.Name,
+				Source:  host.FlowSourceFile,
+				Path:    def.Path,
+				Default: def.Name == defaultFlow,
+				Issues:  []FlowIssueInfo{{Type: "invalid", Message: def.Err.Error()}},
+			})
+			continue
+		}
+		infos = append(infos, info(def.Name, host.FlowSourceFile, def.Description, def.Path, def.Spec))
 	}
 	return infos
 }
 
-// GetFlow returns a flow's StepsSpec by name.
+// projectFlow resolves a flow name against a tab's project the way `kapi run`
+// does (host.ResolveProjectFlow): the recipe's inline flow, then the file of
+// that name in its flows_dir:, then kapi's built-in flow of that name. An
+// error when nothing declares the name or its file does not load.
+func projectFlow(op *openProject, name string) (*flow.StepsSpec, error) {
+	pf, err := host.ResolveProjectFlow(op.Project, filepath.Dir(op.Path), name, nil)
+	if err != nil {
+		return nil, err
+	}
+	if pf == nil {
+		return nil, fmt.Errorf("flow %q not found", name)
+	}
+	return pf.Spec, nil
+}
+
+// GetFlow returns the StepsSpec of the flow a name resolves to in the tab's
+// project (projectFlow), or nil when none does.
 func (a *App) GetFlow(tabID, name string) *flow.StepsSpec {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil
 	}
-	return op.Project.Flow(name)
+	spec, err := projectFlow(op, name)
+	if err != nil {
+		return nil
+	}
+	return spec
 }
 
 // SaveFlow saves or updates a flow in a project tab.

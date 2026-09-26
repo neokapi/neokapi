@@ -1,6 +1,8 @@
 package backend
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/flow"
@@ -166,4 +168,53 @@ func TestAdoptUserFlowUnknownTab(t *testing.T) {
 	}))
 	_, err := app.AdoptUserFlowIntoProject("nope", "f1")
 	assert.Error(t, err)
+}
+
+// A project tab lists and runs the flows `kapi flows` lists for the project:
+// its inline flows and the files in its flows_dir:, each name resolved the way
+// `kapi run` resolves it (an inline flow wins over the file of its name).
+func TestListFlows_IncludesFlowsDirFiles(t *testing.T) {
+	app := NewApp()
+	tab := newTestProject(t, app, "FlowsDir")
+	require.NoError(t, app.SaveFlow(tab.ID, "guard", &flow.StepsSpec{
+		Steps: []flow.FlowStep{{Tool: "qa"}},
+	}))
+	op := app.getOpenProject(tab.ID)
+	require.NotNil(t, op)
+	op.Project.FlowsDir = "flows"
+	dir := filepath.Join(filepath.Dir(op.Path), "flows")
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	write := func(name, body string) {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644))
+	}
+	write("file-check.yaml", "description: Check from a file\nsteps:\n  - tool: qa\n  - tool: pseudo-translate\n")
+	write("guard.yaml", "steps:\n  - tool: pseudo-translate\n")
+	write("magic.yaml", "steps:\n  - tool: nonexistent-magic-tool\n")
+	write("broken.yaml", "steps: []\n")
+
+	byName := map[string]FlowInfo{}
+	for _, f := range app.ListFlows(tab.ID) {
+		_, dup := byName[f.Name]
+		assert.False(t, dup, "%s is listed once", f.Name)
+		byName[f.Name] = f
+	}
+
+	require.Contains(t, byName, "file-check")
+	fc := byName["file-check"]
+	assert.Equal(t, "file", fc.Source)
+	assert.Equal(t, filepath.Join(dir, "file-check.yaml"), fc.Path)
+	assert.Equal(t, "Check from a file", fc.Description)
+	assert.Equal(t, 2, fc.StepCount)
+	assert.True(t, fc.Valid)
+
+	assert.Equal(t, "inline", byName["guard"].Source, "the inline flow wins over the file of its name")
+	assert.False(t, byName["magic"].Valid, "a file flow's tools are validated")
+	assert.False(t, byName["broken"].Valid, "a file that will not run is listed with its problem")
+	require.NotEmpty(t, byName["broken"].Issues)
+
+	spec := app.GetFlow(tab.ID, "file-check")
+	require.NotNil(t, spec)
+	assert.Len(t, spec.Steps, 2)
+	assert.Len(t, app.GetFlow(tab.ID, "guard").Steps, 1)
+	assert.Nil(t, app.GetFlow(tab.ID, "no-such-flow"))
 }

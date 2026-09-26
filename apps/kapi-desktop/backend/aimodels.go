@@ -210,12 +210,13 @@ func (a *App) AINeedsModelChoice(tabID, flowName string) bool {
 	if flowName == "" {
 		flowName = op.Project.Defaults.Flow
 	}
-	spec := op.Project.Flow(flowName)
-	if spec == nil {
-		if flowName != "" {
-			return false
-		}
+	var spec *flow.StepsSpec
+	if flowName == "" {
 		spec = host.DefaultConvergeFlowSpec()
+	} else if resolved, err := projectFlow(op, flowName); err == nil {
+		spec = resolved
+	} else {
+		return false
 	}
 	info := flow.BuildToolInfoMap(a.toolReg)
 	usesAI := false

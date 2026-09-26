@@ -504,10 +504,21 @@ type FlowValidationIssue struct {
 	Message  string `json:"message"`
 }
 
-// ValidateFlows checks all flows in the project for tool references that
-// require undeclared plugins. Returns nil if all tools are available.
+// ValidateFlows checks the project's flows, inline under `flows:` and the files
+// in its `flows_dir:` that no inline flow shadows, for tool references that
+// require undeclared plugins. Returns nil if all tools are available. A flow
+// file that does not load is not checked here: ListDirFlows reports it.
 func (ctx *ProjectContext) ValidateFlows(allTools []registry.ToolInfo) []FlowValidationIssue {
-	if ctx.Project.Flows == nil {
+	flows := make(map[string]*flow.StepsSpec, len(ctx.Project.Flows))
+	for name, spec := range ctx.Project.Flows {
+		flows[name] = spec
+	}
+	for _, def := range ListDirFlows(ctx.Project.FlowsDirIn(ctx.ProjectDir)) {
+		if _, inline := flows[def.Name]; !inline && def.Err == nil {
+			flows[def.Name] = def.Spec
+		}
+	}
+	if len(flows) == 0 {
 		return nil
 	}
 
@@ -527,7 +538,7 @@ func (ctx *ProjectContext) ValidateFlows(allTools []registry.ToolInfo) []FlowVal
 	}
 
 	var issues []FlowValidationIssue
-	for flowName, spec := range ctx.Project.Flows {
+	for flowName, spec := range flows {
 		for _, step := range spec.Steps {
 			validateStep(step, flowName, toolSource, allowed, &issues)
 		}
