@@ -14,8 +14,8 @@ scenes:
 
 ## Story
 
-kapi checks source-language content before translation. A voice profile defines
-vocabulary, forbidden and competitor terms, and tone rules. `kapi check` reports
+kapi checks source-language content before translation. A voice file carries
+tone rules and, beside them, forbidden, preferred and competitor terms. `kapi check` reports
 violations with their locations and stable rule identifiers. `kapi voice rewrite`
 applies deterministic term replacements offline. An assistant can use the voice
 guide to draft tone and style edits, then write them with `kapi apply`.
@@ -24,8 +24,8 @@ guide to draft tone and style edits, then write them with `kapi apply`.
 
 Survey `product-page.md` with `kapi stats`, check it against `voice.yaml` with
 `kapi check --profile-file` (human table, then `--json`), and substitute the
-forbidden and competitor terms with `kapi voice rewrite`. The closing beat
-notes that `--max-major 0` turns the score into a gate — the same loop
+forbidden and competitor terms with `kapi voice rewrite`. A failing finding
+makes `kapi check` exit 3, and the closing beat notes that this is the same loop
 `kapi check --ship` enforces in a project.
 
 ## Closing

@@ -118,9 +118,9 @@ files:
             - tool: recycle
 
 steps:
-  - comment: A .kapi project keeps config-as-code — languages, content, flows — in a committed recipe beside a .kapi/ state dir.
+  - comment: A kapi project keeps config-as-code (languages, content, flows) in a committed recipe; .kapi/ beside it is a cache that version control ignores.
   - command: kapi init --name demo --source-locale en --target-locale fr
-    narration: init creates the project recipe and working directory. It can be run again on an existing project.
+    narration: init writes the recipe with a collection for each kind of content it recognises, an MCP entry and one short skill for coding agents. Run again on an existing project, it leaves the collections as they are.
     smoke: true
   - command: kapi ls
     narration: ls lists the files the recipe's content tracks. Here one JSON catalog, mapped to a messages.{lang}.json target per locale.
