@@ -27,23 +27,42 @@ vi.mock("../components/MemoriesPage", () => ({
   ),
 }));
 
+vi.mock("../components/ContextDigestPanel", () => ({
+  ContextDigestPanel: ({
+    tabID,
+    onOpenFile,
+  }: {
+    tabID: string;
+    onOpenFile?: (p: string) => void;
+  }) => (
+    <div>
+      digest for {tabID}
+      <button onClick={() => onOpenFile?.("docs/billing.md")}>open file</button>
+    </div>
+  ),
+}));
+
 import { ContextHub } from "../components/ContextHub";
 
 describe("ContextHub", () => {
-  it("opens on the explorer", () => {
+  it("opens on what kapi learned", () => {
     render(<ContextHub tabID="t1" projectName="Northsea" />);
+    expect(screen.getByText("digest for t1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Learned" })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("opens the explorer at a file the digest names", async () => {
+    render(<ContextHub tabID="t1" projectName="Northsea" />);
+    await userEvent.click(screen.getByRole("button", { name: "open file" }));
     expect(screen.getByText("explorer for t1")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Explorer" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(screen.getByTestId("explorer-pinned-path")).toHaveTextContent("docs/billing.md");
   });
 
   it("moves to Voice and marks it current", async () => {
     render(<ContextHub tabID="t1" projectName="Northsea" />);
     await userEvent.click(screen.getByRole("button", { name: "Voice" }));
     expect(screen.getByText("voice for t1")).toBeInTheDocument();
-    expect(screen.queryByText("explorer for t1")).not.toBeInTheDocument();
+    expect(screen.queryByText("digest for t1")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Voice" })).toHaveAttribute("aria-current", "page");
   });
 
@@ -75,11 +94,11 @@ describe("ContextHub", () => {
     expect(screen.getByTestId("explorer-pinned-path")).toHaveTextContent("web/en/index.md");
   });
 
-  it("falls back to the explorer when the opened section is gated away", () => {
+  it("falls back to the digest when the opened section is gated away", () => {
     render(
       <ContextHub tabID="t1" projectName="Northsea" section="memory" hasTargetLanguages={false} />,
     );
-    expect(screen.getByText("explorer for t1")).toBeInTheDocument();
+    expect(screen.getByText("digest for t1")).toBeInTheDocument();
     expect(screen.queryByText("memory for t1")).not.toBeInTheDocument();
   });
 });

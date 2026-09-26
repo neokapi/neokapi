@@ -6,6 +6,90 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as profile$0 from "../profile/models.js";
+
+/**
+ * Actor is who performed an operation.
+ */
+export class Actor {
+    /**
+     * Creates a new Actor instance.
+     * @param {Partial<Actor>} [$$source = {}] - The source object to create the Actor.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * Kind is the class of actor, which decides what it may do.
+             * @member
+             * @type {ActorKind}
+             */
+            this["kind"] = ActorKind.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Name identifies the actor within its kind: a person's name or handle, an
+             * agent's client name, a tool's name. It may be empty for a person working
+             * alone.
+             * @member
+             * @type {string | undefined}
+             */
+            this["name"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Session groups the operations one agent run recorded, so a whole session
+             * can be reviewed or reverted together. Empty for a person and for a tool.
+             * @member
+             * @type {string | undefined}
+             */
+            this["session"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Actor instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Actor}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Actor(/** @type {Partial<Actor>} */($$parsedSource));
+    }
+}
+
+/**
+ * ActorKind says what sort of actor performed an operation. It is what the
+ * policy reads, so the rights an actor class has are decided in one place.
+ * @readonly
+ * @enum {string}
+ */
+export const ActorKind = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * ActorPerson is a human working in the project.
+     */
+    ActorPerson: "person",
+
+    /**
+     * ActorAgent is a coding agent acting under a session of its own.
+     */
+    ActorAgent: "agent",
+
+    /**
+     * ActorTool is an automated pass with no session: a convergence run, an
+     * importer.
+     */
+    ActorTool: "tool",
+};
+
 /**
  * Evidence is where the subject was seen: a file in the project, a unit inside
  * it, and the wording as it stood. A rule with no evidence behind it is a
@@ -53,6 +137,58 @@ export class Evidence {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new Evidence(/** @type {Partial<Evidence>} */($$parsedSource));
+    }
+}
+
+/**
+ * MemoryPair is a source and its translation, for the content memory.
+ */
+export class MemoryPair {
+    /**
+     * Creates a new MemoryPair instance.
+     * @param {Partial<MemoryPair>} [$$source = {}] - The source object to create the MemoryPair.
+     */
+    constructor($$source = {}) {
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (!("target" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["source_locale"] = undefined;
+        }
+        if (!("target_locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target_locale"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MemoryPair instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {MemoryPair}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MemoryPair(/** @type {Partial<MemoryPair>} */($$parsedSource));
     }
 }
 
@@ -150,6 +286,154 @@ export class Standing {
 }
 
 /**
+ * Status is what became of a subject-bearing operation. It is folded from the
+ * log rather than stored, because the log is never edited.
+ * @readonly
+ * @enum {string}
+ */
+export const Status = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * StatusSuggested is an operation nothing has acted on. Its rule advises
+     * and never fails a check.
+     */
+    StatusSuggested: "suggested",
+
+    /**
+     * StatusEstablished is a rule a person kept, imported or wrote. It is in
+     * force at the severity it carries.
+     */
+    StatusEstablished: "established",
+
+    /**
+     * StatusContested is a rule that disagrees with another: two suggestions
+     * naming different forms for one word, a suggestion that contradicts an
+     * established rule, or an established rule a person's own correction
+     * reversed. It advises and fails no check until a person chooses.
+     * Record.ContestedBy names the other side.
+     */
+    StatusContested: "contested",
+
+    /**
+     * StatusWithdrawn is a suggestion its author took back in the session that
+     * recorded it. It stops answering.
+     */
+    StatusWithdrawn: "withdrawn",
+
+    /**
+     * StatusDropped is a suggestion a person set aside. It stops answering.
+     */
+    StatusDropped: "dropped",
+
+    /**
+     * StatusReverted is an operation somebody undid, alone or with the rest of
+     * its session. It stops answering.
+     */
+    StatusReverted: "reverted",
+};
+
+/**
+ * Subject is what an operation is about. Exactly one field is set, and Kind
+ * says which.
+ */
+export class Subject {
+    /**
+     * Creates a new Subject instance.
+     * @param {Partial<Subject>} [$$source = {}] - The source object to create the Subject.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {SubjectKind | undefined}
+             */
+            this["kind"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {profile$0.TermRule | null | undefined}
+             */
+            this["term"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {MemoryPair | null | undefined}
+             */
+            this["memory"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Text is the prose of a note, or what the observer said about a term rule
+             * in their own words.
+             * @member
+             * @type {string | undefined}
+             */
+            this["text"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Subject instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Subject}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType4;
+        const $$createField2_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("term" in $$parsedSource) {
+            $$parsedSource["term"] = $$createField1_0($$parsedSource["term"]);
+        }
+        if ("memory" in $$parsedSource) {
+            $$parsedSource["memory"] = $$createField2_0($$parsedSource["memory"]);
+        }
+        return new Subject(/** @type {Partial<Subject>} */($$parsedSource));
+    }
+}
+
+/**
+ * SubjectKind names what an operation is about.
+ * @readonly
+ * @enum {string}
+ */
+export const SubjectKind = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * SubjectNone is an operation that acts on another rather than carrying a
+     * subject of its own.
+     */
+    SubjectNone: "",
+
+    /**
+     * SubjectTerm is a term rule: the form to avoid (and its other forms), what
+     * to write instead, how hard it bites.
+     */
+    SubjectTerm: "term",
+
+    /**
+     * SubjectMemory is a source and target pair for the content memory.
+     */
+    SubjectMemory: "memory",
+
+    /**
+     * SubjectNote is prose: a fact worth recording that states no rule.
+     */
+    SubjectNote: "note",
+};
+
+/**
  * Uses is how often the content writes the preferred form, out of every use of
  * the rule's forms.
  */
@@ -199,3 +483,7 @@ export class Uses {
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = Uses.createFrom;
 const $$createType2 = $Create.Nullable($$createType1);
+const $$createType3 = profile$0.TermRule.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = MemoryPair.createFrom;
+const $$createType6 = $Create.Nullable($$createType5);

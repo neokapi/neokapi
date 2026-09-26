@@ -1,6 +1,8 @@
 // The Context pillar, and the surfaces that read the project's context graph.
 //
-// One rail, one model: the explorer answers a question at a point, Voice reads
+// One rail, one model: Learned is the digest of what kapi learned about how
+// the project writes, and where a person reviews it; the explorer answers a
+// question at a point, Voice reads
 // the profile governing each point whole, and the two stores hold what that
 // governance is made of. Filing the stores here says what they are — the terms
 // a project has agreed and the wording it has already approved are OF its
@@ -52,7 +54,6 @@ export interface ContextHubProps {
 
 const SECTIONS: Array<{
   id: ContextSection;
-  label: string;
   icon: React.ReactNode;
   localeGated?: boolean;
   /**
@@ -61,17 +62,16 @@ const SECTIONS: Array<{
    */
   needsCheckout?: boolean;
 }> = [
-  { id: "learned", label: "Learned", icon: <Sparkles size={14} /> },
-  { id: "explorer", label: "Explorer", icon: <Compass size={14} />, needsCheckout: true },
-  { id: "agent", label: "Agent View", icon: <Bot size={14} />, needsCheckout: true },
+  { id: "learned", icon: <Sparkles size={14} /> },
+  { id: "explorer", icon: <Compass size={14} />, needsCheckout: true },
+  { id: "agent", icon: <Bot size={14} />, needsCheckout: true },
   {
     id: "voice",
-    label: "Voice",
     icon: <MessageSquareQuote size={14} />,
     needsCheckout: true,
   },
-  { id: "terms", label: "Terms", icon: <BookOpen size={14} /> },
-  { id: "memory", label: "Content Memory", icon: <Database size={14} />, localeGated: true },
+  { id: "terms", icon: <BookOpen size={14} /> },
+  { id: "memory", icon: <Database size={14} />, localeGated: true },
 ];
 
 export function ContextHub({
@@ -117,7 +117,7 @@ export function ContextHub({
             )}
           >
             {s.icon}
-            {s.label}
+            <SectionLabel id={s.id} />
           </button>
         ))}
       </nav>
@@ -163,4 +163,22 @@ export function ContextHub({
       </div>
     </div>
   );
+}
+
+/** A section's name on the rail, written here so it is translated. */
+function SectionLabel({ id }: { id: ContextSection }) {
+  switch (id) {
+    case "learned":
+      return <>Learned</>;
+    case "explorer":
+      return <>Explorer</>;
+    case "agent":
+      return <>Agent View</>;
+    case "voice":
+      return <>Voice</>;
+    case "terms":
+      return <>Terms</>;
+    case "memory":
+      return <>Content Memory</>;
+  }
 }
