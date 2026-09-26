@@ -2303,9 +2303,13 @@ func (a *App) stepToolConfig(step flow.FlowStep, cmd Command, rCtx *flow.Resourc
 // `kapi translate` over one brand's content is governed like that brand rather
 // than like the project as a whole. Empty resolves the project-wide bindings.
 //
-// Nothing here is fatal: a recipe or terms that cannot be read leaves the run
-// unbound rather than failing a translation over context that is, at worst,
-// advisory. The checks still report what the model got wrong.
+// Nothing here is fatal: a voice or terms binding that cannot be resolved
+// leaves the run without it rather than failing a translation over context
+// that is, at worst, advisory, and the checks still report what the model got
+// wrong. The recipe's tool settings (defaults.tools, defaults.locales) come
+// from the recipe alone, so the run keeps them either way. What was left out
+// is said on stderr whether or not the run is quiet: a run that silently
+// dropped part of the recipe produces output that looks right and is not.
 func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindings {
 	if a.ProjectBindings != nil {
 		return a.ProjectBindings
@@ -2316,7 +2320,10 @@ func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindi
 	c := cmd[0]
 
 	if projectPath, err := ResolveProjectPath(c); err == nil && projectPath != "" {
-		if proj, err := project.Load(projectPath); err == nil {
+		proj, err := project.Load(projectPath)
+		if err != nil {
+			fmt.Fprintf(c.ErrOrStderr(), "Warning: the recipe %s does not load, so this run applies none of it: %v\n", projectPath, err)
+		} else {
 			point := a.GovernancePointFor("", "")
 			if inputPath != "" {
 				root, aerr := filepath.Abs(filepath.Dir(projectPath))
@@ -2331,9 +2338,8 @@ func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindi
 			if err == nil {
 				return b
 			}
-			if !a.Quiet {
-				fmt.Fprintf(os.Stderr, "Warning: project bindings: %v\n", err)
-			}
+			fmt.Fprintf(c.ErrOrStderr(), "Warning: this run applies the recipe's tool settings without its voice and terms: %v\n", err)
+			return recipePresets(proj)
 		}
 	}
 
@@ -2352,6 +2358,15 @@ func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindi
 		return nil
 	}
 	return &ProjectBindings{termRules: termRules}
+}
+
+// recipePresets is the part of a project's bindings the recipe holds on its
+// own: the tool presets, project-wide and per locale. nil when it declares none.
+func recipePresets(proj *project.KapiProject) *ProjectBindings {
+	if len(proj.Defaults.Tools) == 0 && len(proj.Defaults.Locales) == 0 {
+		return nil
+	}
+	return &ProjectBindings{ToolPresets: proj.Defaults.Tools, localePresets: proj.Defaults.Locales}
 }
 
 // ApplyProjectBindings injects the project's standing context into a step's
