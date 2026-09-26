@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T19:21:47Z",
+  "generatedAt": "2026-09-26T08:20:58Z",
   "kind": "tool",
   "entries": [
     {
@@ -3886,24 +3886,20 @@
           "gate": {
             "type": "string",
             "title": "▒ Šöüŕçé Ĝàţé ▒",
-            "description": "▒ Ḿîñîḿüḿ šöüŕçé-àüţĥöŕîñĝ šţàţüš à ƃļöçķ ḿüšţ ŕéàçĥ ƃéƒöŕé îţš ţŕàñšļàţîöñš àŕé þŕöđüçéđ ▒",
-            "default": "checked",
+            "description": "▒ Ŵĥàţ à ƃļöçķ'š šöüŕçé ḿüšţ šàţîšƒý ƃéƒöŕé îţš ţŕàñšļàţîöñš àŕé þŕöđüçéđ: ŵŕîţţéñ (îţš çĥéçķš þàšš) öŕ éšţàƃļîšĥéđ (à þéŕšöñ ŕéṽîéŵéđ îţ) ▒",
+            "default": "written",
             "options": [
               {
                 "value": "none",
                 "label": "▒ ñöñé ▒"
               },
               {
-                "value": "authored",
-                "label": "▒ àüţĥöŕéđ ▒"
+                "value": "written",
+                "label": "▒ ŵŕîţţéñ ▒"
               },
               {
-                "value": "checked",
-                "label": "▒ çĥéçķéđ ▒"
-              },
-              {
-                "value": "approved",
-                "label": "▒ àþþŕöṽéđ ▒"
+                "value": "established",
+                "label": "▒ éšţàƃļîšĥéđ ▒"
               }
             ]
           }
