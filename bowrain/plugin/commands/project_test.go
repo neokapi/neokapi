@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"sync/atomic"
 	"testing"
 
@@ -118,7 +119,7 @@ func TestPluginRoutes_HelpRunsNothing(t *testing.T) {
 
 	for _, args := range pluginRoutes {
 		t.Run(args[0], func(t *testing.T) {
-			out, err := runPluginCommand(t, append(args[:len(args):len(args)], "--help")...)
+			out, err := runPluginCommand(t, append(slices.Clip(args), "--help")...)
 			require.NoError(t, err)
 			assert.Contains(t, out, "--project")
 		})
@@ -144,7 +145,7 @@ func TestPluginRoutes_ExplicitProjectWinsOverTheWorkingDirectory(t *testing.T) {
 
 	for _, args := range pluginRoutes {
 		t.Run(args[0]+" "+args[len(args)-1], func(t *testing.T) {
-			_, _ = runPluginCommand(t, append(args[:len(args):len(args)], "-p", named)...)
+			_, _ = runPluginCommand(t, append(slices.Clip(args), "-p", named)...)
 		})
 	}
 	assert.Zero(t, hereHits.Load(), "a route given -p reached the server of the project in the working directory")

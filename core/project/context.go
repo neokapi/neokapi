@@ -3,6 +3,7 @@ package project
 import (
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -509,9 +510,9 @@ type FlowValidationIssue struct {
 // require undeclared plugins. Returns nil if all tools are available. A flow
 // file that does not load is not checked here: ListDirFlows reports it.
 func (ctx *ProjectContext) ValidateFlows(allTools []registry.ToolInfo) []FlowValidationIssue {
-	flows := make(map[string]*flow.StepsSpec, len(ctx.Project.Flows))
-	for name, spec := range ctx.Project.Flows {
-		flows[name] = spec
+	flows := maps.Clone(ctx.Project.Flows)
+	if flows == nil {
+		flows = map[string]*flow.StepsSpec{}
 	}
 	for _, def := range ListDirFlows(ctx.Project.FlowsDirIn(ctx.ProjectDir)) {
 		if _, inline := flows[def.Name]; !inline && def.Err == nil {
