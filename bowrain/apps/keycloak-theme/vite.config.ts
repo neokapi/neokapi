@@ -21,6 +21,10 @@ export default defineConfig({
     },
     dedupe: ["react", "react-dom"],
   },
+  // e2e/ holds Playwright specs, which run against the dev server.
+  test: {
+    include: ["src/**/*.test.ts"],
+  },
   lint: {
     ignorePatterns: ["dist/**", "dist_keycloak/**"],
     options: {

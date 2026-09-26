@@ -8,6 +8,7 @@
     "build": "vp build",
     "build-keycloak-theme": "vp run build && vpx keycloakify build",
     "check": "vp check",
+    "test": "vp test",
     "lint": "vp lint",
     "fmt": "vp fmt",
     "update-kc-gen": "vpx keycloakify update-kc-gen",

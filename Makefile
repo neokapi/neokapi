@@ -655,6 +655,9 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	cd bowrain/apps/pulse && vp check
 	cd bowrain/apps/pulse && vp test
 	cd bowrain/apps/keycloak-theme && vp check
+	# The sign-up passkey page runs Keycloak's script against markup of our own;
+	# this test holds the two to the same element ids (#2858 broke sign-up).
+	cd bowrain/apps/keycloak-theme && vp test
 	cd bowrain/emails && vp check
 	# Non-blocking Storybook coverage report (informational; does not fail the job).
 	node scripts/story-coverage.mjs || true
