@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T23:21:16Z",
+  "generatedAt": "2026-09-24T00:11:52Z",
   "commands": [
     {
       "id": "add",
@@ -8,7 +8,7 @@
       ],
       "use": "add \u003cpattern\u003e [pattern...]",
       "short": "Legg til filmønstre i prosjektets innhold",
-      "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\nBy default each pattern becomes a bare entry, which the project's default point\ngoverns. --name puts them in a named collection instead, and --channel binds\nthat collection to a point in the context space (profile/channel), so a surface\nis governed by the voice that suits it rather than by the project default.\nAdding to a name that already exists extends that collection.\n\n--target declares where a translated file goes: a template over {lang} and the\npath tokens ({path}, {name}, {ext}), or a directory to mirror into. Without one\na flow that writes has nowhere of its own to write, so give it here rather than\nby hand-editing the recipe. A target that lands back inside the pattern it\ncomes from is refused: the collection would re-track its own output as source.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"\n  kapi add \"docs/**/*.md\" --target \"translated/{lang}/{path}.md\"\n  kapi add \"support/**/*.md\" --name northsea-support --channel northsea/docs",
+      "long": "Legg til filmønstre i dette prosjektets innhold slik at kapi vet hvilke filer som skal\nbehandles. Mønstre støtter ** for rekursiv matching. Format oppdages automatisk\nfra filendelsen med mindre --format er angitt.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"",
       "groupID": "work",
       "flags": [
         {
@@ -140,8 +140,8 @@
         "check"
       ],
       "use": "check [files...]",
-      "short": "Verifiser innhold mot et kontrollsett og sett en grense for alvorlighetsgrad, som tester over kode",
-      "long": "Kjør innholdskontroller over én eller flere filer og returner strukturerte funn\npluss en dom (bestått, ikke bestått, eller ble ikke kjørt), med kontroll på alvorlighetsgrad: det\ninnholdsbaserte motstykket til en testløper.\n\nStandard kontrollsett er på kildesiden og trenger ingen oversettelse: teksthygiene\n(tomme felt, doble mellomrom/ord, overflødige blanktegn), lengdegrenser (--max-chars/\n--max-words), forbudte/påkrevde mønstre (--forbid/--require), og ordforråd fra\nprofil når en profil er bundet (--profile/--pack/--profile-file).\n\nTosspråklige kontroller (ikke-oversett, plassholder-integritet) er\nopt-in: send --target \u003cfile\u003e --target-lang \u003clang\u003e for å kontrollere et oversatt mål\nmot kilden.\n\nHvert funn har en stabil regel-id (\u003ccheck\u003e.\u003ccategory\u003e) og en blokk-lokasjon,\nslik at en assistent kan rette den eksakte blokken og spore regler på tvers av iterasjoner. Utdata\ner en lesbar tabell som standard; --output-format json|yaml sender ut kapi.check/v1\nReport. Konfigurasjonsadvarsler, som en ukjent nøkkel i en stemprofil, vises\netter dommen og fyller rapportens warnings-array. De peker på konfigurasjon som må rettes\nog endrer aldri poengsummen, grensekontrollen eller avslutningstilstanden.\n\nPosisjonsbaserte stier godtar glob-mønstre og kataloger, utvidet av kapi selv.\nSett mønsteret i anførselstegn og `**` rekurserer likt i alle skall. Inne i et .kapi\nprosjekt sjekker check uten filargumenter prosjektets deklarerte innhold;\nnavngitte filer begrenser det til disse.\n\nProsjektgrensemodus (--ship): kjører prosjektets bundne kvalitetsporter (stemme,\nterminologi, regelbaserte kontroller) pluss prosjektets leverings-/kildedekningsporter over\nprosjektets innhold, og avslutter med ikke-null når en port ikke er oppfylt: terskelen\nfør utsendelse. Måldrift blokkerer aldri et ordinært bygg (se 'kapi status'); --ship er\ndet eksplisitte, opt-in håndhevingspunktet. Uten filargumenter kontrollerer det\nprosjektets kildebaserte innhold og deklarerte kilde-/målpar. Navngitte kildefiler\nfår innholdskontroller; navngitte mål beholder sin kildeparring.\n\nDiff-omfang (--diff-file, --diff-against, --staged, --diff-range): kontroller bare\nde innholdsblokker en unified diff berører, hver blokk hel, og rapporter\nlinjene hver spenner over. Alle filer diff-en navngir er listet med hva som skjedde med dem:\nkontrollert, urørt, utenfor omfang (inne i et prosjekt, innhold oppskriften ikke\ndeklarerer), slettet, eller ble ikke kjørt (en endret fil hvis blokker ikke kan\nlokaliseres). --diff-file leser en diff fra en fil, eller fra standard inn med -.\n--diff-against kjører git diff mot en revisjon, skrivebeskyttet, og behandler\nsporede filer som lagt til. --staged kontrollerer hva et commit gjort nå ville registrere:\nde stagede endringene, hver fil lest fra indeksen, uten ustaged endringer\nog usporede filer. --diff-range A..B kontrollerer endringen mellom to commits,\nog A...B endringen B gjorde siden den forlot A, hver fil lest fra B, slik at det leser\ningenting fra arbeidskopitreet og kjører likt fra enhver checkout. Oppskriften,\nstemprofiler og termer på disk styrer alle disse kontrollene. Navngitte filer\nbegrenser omfanget. Sløyfen for en agent: rediger, kjør 'kapi check --diff-against\nHEAD', reparer, kjør den igjen. En pre-commit-hook kjører 'kapi check --staged', og\nen pull request-kontroll kjører 'kapi check --diff-range origin/main...HEAD'.\n\nAvslutningstilstander: 0 bestått, 3 når porten ikke er oppfylt, 4 når kontrollen ikke ble kjørt, 1\noperasjonell. En kontroll ble ikke kjørt når den ikke undersøkte noe innhold, eller når én av dens\nkontroller ikke rapporterte noe på det kjente feilaktige eksempelet den får ved siden av innholdet.\n--no-fail avslutter med 0 når porten ikke er oppfylt (rapportmodus for en rettesløyfe); verken det\neller --lenient gjør en kontroll som ikke ble kjørt til et bestått resultat.",
+      "short": "Verifiser innhold mot reglene og feil ved et negativt funn, slik tester gjør mot kode",
+      "long": "Kjør innholdskontroller over én eller flere filer og returner strukturerte\nfunn pluss en dom (bestått, ikke bestått, eller ble ikke kjørt): innholdssidens\nmotpart til en testløper.\n\nHvert funn enten feiler eller rapporterer, slik regelen som utløste det sier.\nEn etablert term og en stemmemønsterregel feiler med mindre regelen er merket\nsom veiledende; en foreslått regel og et stilmål rapporterer. Kontrollen\nfeiler når minst ett funn feiler. Poengsummen rapporteres ved siden av funnene\nog avgjør aldri dommen.\n\nStandardkontrollsettet er kildesidebasert og trenger ingen oversettelse:\nteksthygiene (tomme, doble mellomrom/ord, lureblankegn), tegngrenser\n(--max-chars/--max-words), forbudte/påkrevde mønstre (--forbid/--require),\nog terms og stemmeregler når en profil er bundet (--profile/--pack/--profile-file).\n\nTospråklige kontroller (skal-ikke-oversettes, plassholder-integritet) er\nvalgfrie: send --target \u003cfile\u003e --target-lang \u003clang\u003e for å kontrollere en\noversatt måltekst mot kildeteksten.\n\nHvert funn bærer en stabil regel-id (\u003ccheck\u003e.\u003ccategory\u003e) og en blokkplassering,\nslik at en assistent kan rette nøyaktig den blokken og spore regler på tvers av\niterasjoner. Utdata er en menneskelig tabell som standard; --output-format\njson|yaml sender kapi.check/v2-rapporten. Konfigurasjonsadvarsler, som en\nukjent nøkkel i en stemmeprofil, vises etter dommen og fyller rapportens\nwarnings-array. De navngir konfigurasjon som må rettes og endrer aldri\npoengsummen, dommen eller avslutningskoden.\n\nPosisjonsbaserte stier aksepterer glob-mønstre og kataloger, utvidet av kapi\nselv. Sett anførselstegn rundt mønsteret og `**` rekurserer identisk i alle\nshells. Inne i et .kapi-prosjekt kjører check uten filargumenter kontroller på\nprosjektets deklarerte innhold; å navngi filer begrenser det til disse.\n\nProsjektportmodus (--ship): den kjører prosjektets bundne kvalitetsporter\n(stemme, terminologi, regelbaserte kontroller) pluss dets forsendelses-/\nkildedekningsporter over prosjektets innhold, og avslutter med ikke-null når\nen port ikke er oppfylt: listen for forhåndsutgivelse. Måldrift blokkerer aldri\nen vanlig bygging (se 'kapi status'); --ship er det eksplisitte, valgfrie\nhåndhevingspunktet. Uten filargumenter kontrollerer det prosjektets kildebaserte\ninnhold og deklarerte kilde-/målpar. Navngitte kildefiler får innholdskontroller;\nnavngitte mål beholder sin kildeparring.\n\nDiff-omfang (--diff-file, --diff-against, --staged, --diff-range): kontroller\nbare innholdsblokker en unified diff berører, hver blokk hel, og rapporter\nlinjene hver spenner over. Alle filer diffen navngir er listet med hva som\nskjedde med dem: kontrollert, urørt, utenfor omfang (inne i et prosjekt,\ninnhold oppskriften ikke deklarerer), slettet, eller ble ikke kjørt (en endret\nfil hvis blokker ikke kan lokaliseres). --diff-file leser en diff fra en fil,\neller fra standard inn med -. --diff-against kjører git diff mot en revisjon,\nles-bare, og behandler usporede filer som lagt til. --staged kontrollerer hva\nen commit nå ville registrere: de staged endringene, hver fil lest fra indeksen,\nutelater unstaged redigeringer og usporede filer. --diff-range A..B kontrollerer\nendringen mellom to commits, og A...B endringen B gjorde siden den forlot A,\nhver fil lest fra B, så den leser ingenting fra arbeidstre og kjører det\nsamme fra alle utsjekkinger. Oppskriften, stemmeprofilene og termene på disk\nstyrer alle disse kontrollene. Navngitte filer begrenser omfanget. Løkken for\nen agent: rediger, kjør 'kapi check --diff-against HEAD', reparer, kjør den\nigjen. En pre-commit-hook kjører 'kapi check --staged', og en pull request-kontroll\nkjører 'kapi check --diff-range origin/main...HEAD'.\n\nAvslutningskoder: 0 bestått, 3 når et funn feiler, 4 når kontrollen ikke ble\nkjørt, 1 operasjonell. En kontroll ble ikke kjørt når den undersøkte ingen\ninnhold, eller når en av kontrollene rapporterte ingenting på det kjente-dårlige\nutvalget den får ved siden av innholdet. --no-fail avslutter med 0 når et funn\nfeiler (rapportmodus for en rettelsesløkke); det gjør aldri en kontroll som\nikke ble kjørt til en bestått.",
       "groupID": "work",
       "flags": [
         {
@@ -196,7 +196,7 @@
         },
         {
           "name": "no-fail",
-          "usage": "avslutt med 0 selv om gaten feiler (fix-loop-modus)",
+          "usage": "avslutt med 0 selv når et funn feiler (rettelsesløkke-modus)",
           "default": "false",
           "type": "bool"
         },
@@ -261,7 +261,7 @@
         },
         {
           "name": "validate",
-          "usage": "validering av leserstruktur/koding: off|report|strict (report samler struktur.*-/koding.*-funn i rapporten; strict feiler også porten ved et Major+-struktur/koding-problem)",
+          "usage": "leserstruktur/kodingsvalidering: off|report|strict (report slår structure.*/encoding.*-funn sammen i rapporten; strict gjør i tillegg en alvorlig struktur/kodingsfeil til en feil)",
           "default": "off",
           "type": "string"
         },
@@ -442,7 +442,7 @@
         },
         {
           "name": "text",
-          "usage": "Output in text format (default)",
+          "usage": "Utdata i tekstformat (standard)",
           "default": "false",
           "type": "bool"
         }
@@ -468,7 +468,7 @@
         },
         {
           "name": "jq",
-          "usage": "filter JSON output through a jq expression (implies --json)",
+          "usage": "filtrer JSON-utdata gjennom et jq-uttrykk (impliserer --json)",
           "type": "string"
         },
         {
@@ -541,13 +541,13 @@
         "context"
       ],
       "use": "context [path]",
-      "short": "Spør hva dette prosjektets innholdskontekst sier",
-      "long": "Hent innholdskonteksten dette prosjektet bruker: termene, stemmen\nog reglene som gjelder, uten å måtte vite hvilken lagring som holder\nsvaret.\n\nTo spørsmål, og ethvert oppslag av ressursform er ett av dem:\n\n  kapi context \u003csti\u003e           hva som gjelder HER: stemmen som er aktiv på det\n                               stedet, veiledningen, termene som er bundet der\n  kapi context --profile \u003cn\u003e   samme svar for en navngitt profil, når du\n                               ikke har en fil for hånden\n  kapi context search \u003csøk\u003e    hva vi vet om DETTE: termer, tidligere formulering\n\nKommunikasjon er kontekstuell: en juridisk merknad er ikke en hjelpetekst. Spør hva\nprosjektet sier før du skriver, i stedet for å lære det fra en mislykket kontroll\netterpå.\n\nFire andre verb flytter selve konteksten: import og snapshot bærer den mellom\nprosjektets filer og lagringen, export og restore bærer hele den som\nén fil, og med --workspace bærer de to alle prosjekter du arbeider med her.\n\nSeks andre utvider den. Kontekst akkumuleres ut av ordinært arbeid: propose registrerer en\nregel med beviset bak den, log viser hva som er foreslått og avgjort,\nog confirm, discard, revert og widen er avgjørelsene. Et forslag råder\nfra det øyeblikket det er registrert og ingen kontroll feiler på ett; bekreftelse er det\nsom gjør det bindende.\n\nEtt rapporterer om selve lagringen: locales sier hvilken språkkode hver lagret rad er\narkivert under, og arkiverer dem slik oppslag spør når én har driftet.",
+      "short": "Spør hva som gjelder før du skriver en fil",
+      "long": "Spør hva dette prosjektet holder seg til før du skriver en fil: stemmen,\nordene som skal brukes og unngås, og det som er foreslått men ennå ikke\nestablert.\n\n  kapi context \u003cpath\u003e          hva som gjelder for den filen\n  kapi context --profile \u003cn\u003e   samme svar for en navngitt profil\n  kapi context search \u003cword\u003e   hva prosjektet sier om ett ord\n\nSvaret er den samme teksten en assistent leser fra context://-ressursen.\n--explain legger til hvordan det ble nådd: punktet filen befinner seg på,\noppskriftlinjen som bandt stemmen, og prosjektet og revisjonen som svarte.\n--json gir alt som data.\n\nDelkommandoene registrerer og beslutter. observe og correct registrerer det du\nlegger merke til, som forslag; log lister dem; keep, drop, revert og widen er\nen persons beslutninger, og withdraw trekker tilbake et eget forslag. import,\nsnapshot, export og restore flytter konteksten mellom lageret og filer, og\nlocales rapporterer hvordan lagrede rader er arkivert.",
       "groupID": "work",
       "flags": [
         {
           "name": "explain",
-          "usage": "add how the answer was reached: point, binding, project, revision and notes",
+          "usage": "legg til hvordan svaret ble nådd: punkt, binding, prosjekt, revisjon og notater",
           "default": "false",
           "type": "bool"
         },
@@ -558,7 +558,7 @@
         },
         {
           "name": "limit",
-          "usage": "maks antall termer som skal vises",
+          "usage": "maks antall ordregler som vises",
           "default": "25",
           "type": "int"
         },
@@ -610,11 +610,11 @@
       ],
       "use": "correct \u003cfrom\u003e \u003cto\u003e",
       "short": "Registrer at tekst ble endret på et sted",
-      "long": "Registrer at noen endret ordlyd: hva som sto der, hva som erstattet\ndet, og hvor.\n\nEn korreksjon er dokumentasjon om hvordan dette prosjektet skriver, og den\nbilligste som finnes, fordi vurderingen allerede er gjort. Alene registrerer den\nendringen og ingenting annet.\n\nMed --propose registrerer den også regelen endringen innebærer, slik at neste\nbruk av den gamle ordlyden blir rapportert. Den regelen er en kandidat: kontroller\nrapporterer den, og ingen av dem feiler på den før noen bekrefter den.",
+      "long": "Registrer at noen endret ordlyd: hva som sto der, hva som erstattet\ndet, og hvor.\n\nEn korreksjon er dokumentasjon på hvordan dette prosjektet skriver, og den billigste\nformen for det, fordi vurderingen allerede er gjort. Alene registrerer den\nendringen og ingenting annet.\n\nMed --suggest registrerer den også regelen endringen innebærer, slik at neste bruk av\nden gamle ordlyden rapporteres. Den regelen er et forslag: kontroller rapporterer det, og\ningne av dem feiler på det før en person beholder det.\n\nEn persons korreksjon som reverserer en etablert regel, bestrider regelen: den\nrapporterer i stedet for å feile inntil en person beholder den igjen eller fjerner\nkorreksjonen, slik at din egen redigering aldri feiler bygget ditt.",
       "flags": [
         {
           "name": "advisory",
-          "usage": "make that rule report without failing a check once kept",
+          "usage": "la den regelen rapportere uten å feile en kontroll når den er beholdt",
           "default": "false",
           "type": "bool"
         },
@@ -642,7 +642,7 @@
         },
         {
           "name": "suggest",
-          "usage": "also record the rule the change implies, as a suggestion",
+          "usage": "registrer også regelen endringen innebærer, som et forslag",
           "default": "false",
           "type": "bool"
         }
@@ -662,18 +662,18 @@
         "drop"
       ],
       "use": "drop \u003cid\u003e",
-      "short": "Set a suggestion aside",
-      "long": "Drop a suggestion. It stops being reported at once, and the record\nof it stays in the log so the same suggestion can be recognised next time.\n\nDropping one side of a disagreement settles it: the other side is no longer\ncontested. An established rule is reverted rather than dropped.",
+      "short": "Sett et forslag til side",
+      "long": "Forkast et forslag. Det slutter å bli rapportert umiddelbart, og posten\nom det ligger igjen i loggen slik at det samme forslaget kan gjenkjennes neste gang.\n\nÅ forkaste én side av en uenighet avgjør den: den andre siden er ikke lenger\nomstridt. En etablert regel tilbakestilles heller enn forkastes.",
       "flags": [
         {
           "name": "note",
-          "usage": "why",
+          "usage": "hvorfor",
           "type": "string"
         },
         {
           "name": "project",
           "shorthand": "p",
-          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra cwd hvis utelatt)",
           "type": "string"
         }
       ],
@@ -769,39 +769,39 @@
         "keep"
       ],
       "use": "keep [id...]",
-      "short": "Establish suggestions as rules",
-      "long": "Keep suggestions, which establishes each rule and writes it where the rest\nof kapi reads it: the project's terms or its content memory. An established rule\nfails a check unless it is marked advisory.\n\nName one or more operations by id, or keep everything one agent session\nsuggested with --session. A contested suggestion disagrees with another rule,\nand waits until you choose: a session keep leaves it and says so, and naming it\nis refused with the other side named. Drop the side you do not want, then keep\nthe other.\n\nChange the rule as you keep it with --use and --advisory, and widen it past the\npoint its evidence was seen at with --widen-to.",
+      "short": "Gjør forslag om til regler",
+      "long": "Behold forslag, noe som etablerer hver regel og skriver den der resten av\nkapi leser den: prosjektets terms eller dets innholds-memory. En etablert regel\nfeiler en kontroll med mindre den er merket veiledende.\n\nNavngi én eller flere operasjoner etter id, eller behold alt én agentøkt\nforeslo med --session. Et bestridt forslag er uenig med en annen regel og\nventer til du velger: en økt-behold lar det ligge og sier fra om det, og å\nnavngi det avvises med den andre siden navngitt. Forkast siden du ikke vil ha,\nbehold deretter den andre.\n\nEndre regelen mens du beholder den med --use og --advisory, og utvid den utover\npunktet evidensen ble sett med --widen-to.",
       "flags": [
         {
           "name": "advisory",
-          "usage": "make the rule report without failing a check (--advisory=false makes it fail)",
+          "usage": "la regelen rapportere uten å feile en kontroll (--advisory=false gjør at den feiler)",
           "default": "false",
           "type": "bool"
         },
         {
           "name": "note",
-          "usage": "why",
+          "usage": "hvorfor",
           "type": "string"
         },
         {
           "name": "project",
           "shorthand": "p",
-          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra gjeldende katalog hvis utelatt)",
           "type": "string"
         },
         {
           "name": "session",
-          "usage": "keep everything one agent session suggested that nothing disagrees with",
+          "usage": "behold alt én agentøkt foreslo som ingenting er uenig i",
           "type": "string"
         },
         {
           "name": "use",
-          "usage": "change what the rule says to write instead (one id)",
+          "usage": "endre hva regelen sier skal skrives i stedet (én id)",
           "type": "string"
         },
         {
           "name": "widen-to",
-          "usage": "widen as you keep: \"workspace\", or the name of an axis the rule should stop being specific about",
+          "usage": "utvid når du beholder: \"workspace\", eller navnet på en akse regelen skal slutte å være spesifikk om",
           "type": "string"
         }
       ],
@@ -857,7 +857,7 @@
       ],
       "use": "log",
       "short": "Vis hvordan dette prosjektets kontekst ble til",
-      "long": "List opp hva som er foreslått, korrigert og besluttet om dette prosjektets kontekst, nyeste først.\n\nHver linje har en operasjons-id, når den skjedde, hvem som gjorde den, hva den gjaldt og hvilken status den har: en kandidat ingen har tatt beslutning om, en bekreftet regel i kraft, eller en som ble forkastet eller reversert.\n\nId-en er det de andre kommandoene tar. Innskrenk listen med --status for å se hva som venter på en beslutning, eller med --session for å se hva én agentkjøring gjorde. \"--session this\" er den kjøringen som leser tilbake sitt eget arbeid.",
+      "long": "List hva som har blitt observert, korrigert, importert og besluttet om\ndette prosjektets kontekst, nyeste først.\n\nHver linje bærer en operasjons-id, når den skjedde, hvem som utførte den,\nhva den gjaldt og hvor den står: foreslått og venter på en person, etablert\nog i kraft, bestridt av en annen regel den navngir, eller trukket tilbake,\nforkastet eller tilbakestilt.\n\nId-en er det de andre verbene tar. Begrens listen med --status for å se hva\nsom venter på en beslutning, eller med --session for å se hva én agentøkt\ngjorede. «--session this» er den øktens lesing av sitt eget arbeid.",
       "flags": [
         {
           "name": "actor",
@@ -888,12 +888,12 @@
         },
         {
           "name": "status",
-          "usage": "kun operasjoner med én status: candidate, confirmed, discarded eller reverted",
+          "usage": "bare operasjoner med én status: foreslått, etablert, bestridt, trukket tilbake, forkastet eller tilbakestilt",
           "type": "string"
         },
         {
           "name": "subjects",
-          "usage": "kun det som ble foreslått, uten beslutningene om det",
+          "usage": "bare det som ble registrert, uten beslutningene om det",
           "default": "false",
           "type": "bool"
         }
@@ -917,12 +917,12 @@
         "observe"
       ],
       "use": "observe [what you noticed]",
-      "short": "Registrer et faktum om hvordan dette prosjektet skriver",
-      "long": "Registrer noe du la merke til om hvordan dette prosjektet skriver: et\nproduktnavn slik det staves, en stavemåte det er konsekvent på, hvem teksten\nhenvender seg til, registeret det holder.\n\nEn observasjon angir ingen regel. Ingenting ved en kontroll endres, og ingen trenger å\nbeslutte noe om den. Det er materialet en regel foreslås fra senere, og\nå registrere det koster mindre enn å arbeide frem det samme faktumet to ganger.\n\nAngi hvor du så det med --seen-in og --quote.",
+      "short": "Registrer noe du la merke til om hvordan dette prosjektet skriver",
+      "long": "Registrer noe du la merke til om hvordan dette prosjektet skriver: et\nproduktnavn slik det staves, en stavemåte det er konsekvent med, hvem teksten\nhenvender seg til, registeret det holder.\n\nFor et navn eller en stavemåte sender du --term med formen prosjektet bruker og\n--instead-of med en form det unngår. kapi utleder de andre formene som skal unngås: de\nmed mellomrom, bindestrek og sammenskriving av et sammensatt ord, hver del med stor\nbokstav, og stavemåten med liten bokstav for en term med stor bokstav. \"--term Quickcast\n--instead-of 'Quick cast'\" unngår Quick cast, Quick-cast, QuickCast og\nquickcast. Delene av et sammenskrevet ord kommer fra en --instead-of-form som\ndeler det opp, så et ord uten en slik form varierer bare store og små bokstaver.\n\nAlt som registreres er et forslag. Kontroller rapporterer det overalt der ordet\nforekommer, ingen kontroll feiler på det, og det etableres når en person beholder det\nmed \"kapi context keep\". Uten --term er en observasjon et faktum i prosa.\n\nAngi hvor du så det med --seen-in og --quote.",
       "flags": [
         {
           "name": "instead-of",
-          "usage": "a form the project avoids for --term (repeatable)",
+          "usage": "en form prosjektet unngår for --term (kan gjentas)",
           "default": "[]",
           "type": "stringArray"
         },
@@ -945,7 +945,7 @@
         },
         {
           "name": "term",
-          "usage": "the form the project uses for a name or word",
+          "usage": "formen prosjektet bruker for et navn eller ord",
           "type": "string"
         }
       ],
@@ -1101,11 +1101,11 @@
       ],
       "use": "snapshot",
       "short": "Skriv ut dette prosjektets kontekst som filer",
-      "long": "Skriv konteksten som gjelder for dette prosjektet til en \".kapi\"-katalog: termene, voice-profilene på stiene de er bundet fra, godkjent ordlyd og beslutningsloggen.\n\nFilene som skrives er genererte. Rediger prosjektets kontekst og ta et nytt snapshot i stedet for å redigere dem manuelt, slik du ville gjort med ethvert annet generert artefakt.\n\nUten --out skrives det til prosjektets egen \".kapi\"-katalog. En ren klone som bare inneholder det et snapshot skrev, styrer innholdet sitt på nøyaktig samme måte som prosjektet som skrev det.\n\nTo ting følger aldri med. Sladdede originaler blir på maskinen som sladdet dem, og ingenting kapi holder for eget bruk skrives.\n\nBeslutningsloggen i snapshotet er prosjektets egen, skrevet fra det loggen inneholder på tidspunktet for snapshotet.",
+      "long": "Skriv den gjeldende konteksten for dette prosjektet til katalogen --out\nnavn: termene, stemmeprofiler, godkjent ordlyd og beslutningsloggen, i\noppsettet «kapi context import» leser.\n\nFilene som skrives er genererte. Rediger prosjektets kontekst og ta et nytt\nsnapshot i stedet for å redigere dem manuelt, slik du ville gjort med alle\nandre genererte artefakter. En ren utsjekking som importerer det et snapshot\nskrev, styrer innholdet sitt på nøyaktig samme måte som prosjektet som\nskrev det.\n\nTo ting følger ikke med. Tilbakeholdte originaler forblir på maskinen som\nsladdet dem, og ingenting kapi holder for eget bruk skrives ut.\n\nBeslutningsloggen i snapshotet er prosjektets eget, skrevet fra det\nhovedboken inneholder på snapshot-tidspunktet.",
       "flags": [
         {
           "name": "out",
-          "usage": "katalog å skrive oppsettet inn i (standard: prosjektets egen)",
+          "usage": "katalog å skrive oppsettet til (påkrevd)",
           "type": "string"
         },
         {
@@ -1130,8 +1130,8 @@
         "widen"
       ],
       "use": "widen \u003cid\u003e",
-      "short": "Sett en bekreftet regel i kraft et bredere sted",
-      "long": "Utvid en bekreftet regel forbi det punktet evidensen ble sett på.\n\nEn regel lært ett sted gjelder på det stedet. Utvidelse sier at den gjelder bredere: \"--to workspace\" setter den i kraft i hvert prosjekt du arbeider med her, og å navngi en akse fjerner den aksen fra regelens punkt slik at den slutter å være spesifikk om den.\n\nEt prosjekt som har sin egen beslutning om ordet beholder den. Det mer spesifikke svaret vinner alltid.",
+      "short": "Sett en etablert regel i kraft et bredere sted",
+      "long": "Utvid en etablert regel utover det punktet evidensen ble sett.\n\nEn regel lært ett sted gjelder på det stedet. Utvidelse sier at den gjelder\nbredere: «--to workspace» setter den i kraft i alle prosjekter du jobber på\nher, og å navngi en akse fjerner den aksen fra regelens punkt slik at den\nslutter å være spesifikk om den.\n\nEt prosjekt som har sin egen beslutning om et ord beholder den. Det mer\nspesifikke svaret vinner alltid.",
       "flags": [
         {
           "name": "note",
@@ -1165,18 +1165,18 @@
         "withdraw"
       ],
       "use": "withdraw \u003cid\u003e",
-      "short": "Take back a suggestion you recorded",
-      "long": "Withdraw a suggestion you recorded, such as a correction entered\nbackwards. Only its author can withdraw a suggestion, and an agent only in the\nsession that recorded it. It stops being reported at once, and the log keeps\nthe record of it.",
+      "short": "Trekk tilbake et forslag du registrerte",
+      "long": "Trekk tilbake et forslag du registrerte, for eksempel en korreksjon som ble lagt inn\nbaklengs. Bare forfatteren kan trekke tilbake et forslag, og en agent bare i\nøkten det ble registrert i. Det slutter å rapporteres umiddelbart, og loggen beholder\nregistreringen av det.",
       "flags": [
         {
           "name": "note",
-          "usage": "what was wrong with it",
+          "usage": "hva som var galt med den",
           "type": "string"
         },
         {
           "name": "project",
           "shorthand": "p",
-          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens mappe (oppdages automatisk fra gjeldende mappe hvis utelatt)",
           "type": "string"
         }
       ],
@@ -5549,7 +5549,7 @@
       ],
       "use": "init",
       "short": "Sett opp et nytt kapi-prosjekt i gjeldende katalog",
-      "long": "Opprett et nytt kapi-prosjekt med en kapi.yaml-oppskrift og en tilstøtende .kapi/-tilstandskatalog.\n\nSom standard stilaserer kapi init et innholdsprosjekt som holder kilden din i stemme: en stemmeprofil, prosjektets termlager og en kontrollflyt, uten målspråk. Send --target-locale (eller --framework) for å opprette et oversettelsesprosjekt i stedet.\n\nProsjektnavnet settes som standard til gjeldende katalogs basenavn og kildespråkkoden til en. Overstyr med --name, --source-locale, --target-locale (kan gjentas).\n\nHvert prosjekt kapi stilaserer får en stabil id under 'id:' i oppskriften. Den overlever en navneendring, en flytting og en klone, og alt kapi registrerer om prosjektet er nøklet på den. En oppskrift skrevet tidligere uten id fortsetter å fungere, identifisert ved navn; --mint-id skriver en inn i den og lar resten av filen være nøyaktig som den er.\n\n--preset \u003cname\u003e (alias: --framework) forhåndsutfyller innholdsoppsettet for en kjent stacks i18n-kataloger: react-i18next, react-intl, nextjs, vue-i18n, flutter, angular, og stilaserer oversettelsesprosjektet. List alle forhåndsinnstillinger (framework-stilaser pluss per-format parsingsforhåndsinnstillinger) med --list-presets.\n\nNår prosjektet binder en stemmeprofil, skriver kapi init også en kort seksjon inn i prosjektets assistentfil, slik at en assistent som arbeider i treet vet at stemmen holdes av kapi og henter den med 'kapi voice guide' før skriving. En eksisterende CLAUDE.md eller AGENTS.md på roten tar seksjonen (CLAUDE.md når begge finnes); hvis ingen finnes, oppretter kapi init CLAUDE.md. Å kjøre på nytt erstatter seksjonen på stedet og lar resten av filen være. --no-pointer hopper over det; 'kapi voice pointer' skriver det senere.\n\nkapi init kobler også prosjektet til kodingsagentene som arbeider i det, slik at en agent åpnet her finner kapi uten ytterligere oppsett: en MCP-serveroppføring som starter 'kapi mcp' for dette prosjektet, og en kopi av kapi-ferdighetssett i katalogen agenten leser ferdigheter fra. Claude Code kobles alltid; Cursor, VS Code og Codex kobles der prosjektet allerede har katalogen sin. --agents tar en kommaseparert liste (claude-code, cursor, vscode, codex, agents), 'all' eller 'none'. Hver sti som skrives er inne i prosjektet, en oppføring noen andre la der, lar seg være, og å kjøre på nytt skriver ingenting nytt. Codex leser oppføringen i .codex/config.toml når du klarerer dette repositoriet der. Å kjøre kapi init på et prosjekt som allerede har en oppskrift er slik et eksisterende prosjekt får samme oppsett.",
+      "long": "Opprett et kapi-prosjekt her: en kapi.yaml-oppskrift med samlinger for\ninnholdet kapi fant i treet, og koblingene kodingsagenter leser.\n\nkapi init leser filene under katalogen, respekterer .gitignore og hopper\nover avhengighets-, leverandør- og byggkataloger, og skriver en samling for\nhver type innhold den gjenkjenner: dokumenter gruppert etter katalog\n(docs/**/*.md), en fil i roten alene (README.md), og i18n-kataloger der en\nrammeverkforhåndsinnstillings-layout eller en fil navngitt etter kildespråket\nmarkerer dem. Hver samling bærer en kommentar om hva den matchet. Resultatet\ner det samme hver gang for det samme treet, og ingenting spørres.\n\nKjør det igjen på et prosjekt som allerede har en oppskrift, og det lar\nsamlingene dine være som de er. Det skriver ut innholdet ingen samling leser\nennå, som oppskriftlinjer å lime inn og som «kapi add»-kommandoen som skriver\nhver av dem.\n\nProsjektnavnet er som standard katalogbasens navn og kildespråket en.\n--target-locale (kan gjentas) deklarerer målspråk, og kataloger får da et mål\nved siden av kilden. --preset \u003cname\u003e (alias --framework) skriver en kjent\nstacks kataloglayout selv før filene finnes; --list-presets lister\nforhåndsinnstillingene.\n\nOppskriften får en stabil id under 'id:', som overlever en omdøping, flytting\nog kloning. --mint-id skriver en inn i en eksisterende oppskrift som ikke har en.\n\nProsjektets kontekst (dets terms, stemme og registrerte beslutninger) lever i\narbeidsområdet ditt, ikke i utsjekkingen. kapi holder en hurtigbuffer for denne\nutsjekkingen i .kapi/, som ignoreres av versjonskontroll og er trygt å slette.\n\nFor kodingsagenter skriver kapi init en MCP-serveroppføring som starter\n'kapi mcp' for dette prosjektet (med --tools writing,translation når\noppskriften deklarerer målspråk) og én kort ferdighet, SKILL.md, som navngir de\nfire vanene kapi støtter; 'kapi help \u003ctopic\u003e' serverer resten. Claude Code er\naltid koblet inn; Cursor, VS Code, Codex og .agents/ kobles inn der prosjektet\nallerede har katalogen deres. --agents tar en kommaseparert liste\n(claude-code, cursor, vscode, codex, agents), 'all' eller 'none'. En\nMCP-oppføring noen andre skrev, beholdes som den er. I en ferdighetskatalog\nsom en tidligere kapi fylte, fjernes filene den kopierte dit, og alle andre\nfiler beholdes. Codex leser oppføringen sin når du klarerer dette depotet der.\n\nNår prosjektet binder en stemme, skriver kapi init også en kort seksjon inn i\nCLAUDE.md eller AGENTS.md om det; --no-pointer hopper over det.",
       "groupID": "work",
       "flags": [
         {
@@ -5564,7 +5564,7 @@
         },
         {
           "name": "framework",
-          "usage": "Forhåndsutfyll innholdsmapping for en kjent stack (se 'kapi init --list-presets'); stillaset et oversettelsesprosjekt",
+          "usage": "Skriv en kjent stacks katalogoppsett som samlinger (se 'kapi init --list-presets')",
           "type": "string"
         },
         {
@@ -5592,7 +5592,7 @@
         },
         {
           "name": "preset",
-          "usage": "Lag stillasstruktur fra en navngitt rammeverk-forhåndsinnstilling (se 'kapi init --list-presets'); alias for --framework",
+          "usage": "Skriv en navngitt forhåndsinnstillings katalogoppsett som samlinger; alias for --framework",
           "type": "string"
         },
         {
@@ -5730,13 +5730,13 @@
         "mcp"
       ],
       "use": "mcp",
-      "short": "Start MCP-server (stdio) som eksponerer prosjektets kontekst og løkken rundt den",
-      "long": "Start en MCP-server over stdio.\n\nStandardoverflaten er bevisst liten: hente prosjektets kontekst,\nsjekke innhold mot den, skrive redigeringer tilbake og kjøre løkken. Det er\nhva en assistent trenger for å jobbe innenfor dette prosjektets kontekst.\n\nAlt annet verktøyregisteret kan gjøre er fortsatt tilgjengelig (pipeline-steg,\nformat-internals, enkeltstående transformasjoner) som et eksplisitt valg, fordi en\noverflate ingen valgte er slik den vokste til femtien verktøy.\n\n  --all-tools   hvert CLI-synlig registerverktøy\n  --all-flows   flyt-kjøre-verbene\n  --all         begge",
+      "short": "Start en MCP-server (stdio) for assistenter som skriver i dette prosjektet",
+      "long": "Start en MCP-server over stdio.\n\n--tools velger verktøysettet serveren tilbyr, som en kommaseparert liste:\n\n  writing       (standard) context_read og context://-ressursene,\n                context_search, opptaksverktøyene (context_observe,\n                context_correct, context_withdraw), context_session_summary\n                og check_file\n  content       check_text, voice_check, voice_rewrite, term-check,\n                extract_content, detect_format, apply_edits, redact\n  translation   translate, up, up_plan, stats\n  review        review_queue, review_unit, approve_unit, reject_unit,\n                sign_off_unit\n  all           alle sett\n\nTo flagg legger til det intet sett inneholder, for feilsøking:\n\n  --all-tools   alle CLI-synlige registerverktøy (pipeline-steg, format-\n                interne, engangs-transformasjoner)\n  --all-flows   flyt-kjøringsverbene\n  --all         alle sett og begge disse",
       "groupID": "advanced",
       "flags": [
         {
           "name": "all",
-          "usage": "forkortelse for --all-tools --all-flows",
+          "usage": "hvert verktøysett, pluss --all-tools og --all-flows",
           "default": "false",
           "type": "bool"
         },
@@ -5760,7 +5760,7 @@
         },
         {
           "name": "tools",
-          "usage": "tool sets to serve: writing (default), content, translation, review, all",
+          "usage": "verktøysett som skal tilbys: writing (standard), content, translation, review, all",
           "default": "[]",
           "type": "stringSlice"
         }
@@ -6139,7 +6139,7 @@
         },
         {
           "name": "name",
-          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "usage": "navngitt ressurs i KAPI_HOME (f.eks. --name project-terms)",
           "type": "string"
         },
         {
@@ -7148,7 +7148,7 @@
       ],
       "use": "run [flow-name] [flags]",
       "short": "Kjør en sammensatt flyt (en navngitt flerverktøys-pipeline)",
-      "long": "Kjør en sammensatt flyt som kobler flere verktøy sammen.\n\nFlyter er pipeline med flere verktøy. For enkeltverktøy-operasjoner, bruk verktøyet direkte (f.eks. «kapi translate» i stedet for «kapi run translate»). For å holde hele prosjektet oppdatert, bruk 'kapi up': kapi-løkken lever der; run er nødutgangen for én navngitt pipeline, ett pass.\n\nInnebygde flyter:\n  translate-qa    Oversett + kvalitetskontroll med AI/LLM\n\nEgendefinerte flyter kan defineres i kapi.yaml-oppskriften eller .kapi/flows/ som YAML-filer.\n\nBruk -p for å kjøre en flyt fra en kapi.yaml-oppskrift:\n  kapi run translate -p kapi.yaml",
+      "long": "Kjør en sammensatt flyt som kobler flere verktøy sammen.\n\nFlyter er pipelines med flere verktøy. For operasjoner med ett verktøy bruker du\nverktøyet direkte (f.eks. \"kapi translate\" i stedet for \"kapi run translate\").\nFor å oppdatere hele prosjektet bruker du 'kapi up': kapi-løkken\nfinnes der; run er nødutgangen for én navngitt pipeline, ett pass.\n\nInnebygde flyter:\n  translate-qa    Oversett + kvalitetskontroll med AI/LLM\n\nEgendefinerte flyter defineres inline i kapi.yaml-oppskriften under flows:, eller én\nYAML-fil per flyt i katalogen oppskriften navngir med flows_dir:. En\nprosjektflyt kjøres i stedet for en innebygd flyt med samme navn.\n\nBruk -p for å kjøre en flyt fra en kapi.yaml-oppskrift:\n  kapi run translate -p kapi.yaml",
       "groupID": "advanced",
       "flags": [
         {
@@ -7553,7 +7553,7 @@
         {
           "name": "project",
           "shorthand": "p",
-          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "usage": "Sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra gjeldende katalog hvis utelatt)",
           "type": "string"
         },
         {
@@ -7569,7 +7569,7 @@
         },
         {
           "name": "text",
-          "usage": "Skriv ut i tekstformat (standard)",
+          "usage": "Output in text format (default)",
           "default": "false",
           "type": "bool"
         }
@@ -7610,7 +7610,7 @@
         },
         {
           "name": "local",
-          "usage": "use resource in current directory",
+          "usage": "bruk ressurs i gjeldende katalog",
           "default": "false",
           "type": "bool"
         },
@@ -7825,7 +7825,7 @@
         },
         {
           "name": "file",
-          "usage": "eksplisitt sti til ressursfil",
+          "usage": "explicit path to resource file",
           "type": "string"
         },
         {
@@ -7989,18 +7989,18 @@
         },
         {
           "name": "jq",
-          "usage": "filtrer JSON-utdata gjennom et jq-uttrykk (innebærer --json)",
+          "usage": "filter JSON output through a jq expression (implies --json)",
           "type": "string"
         },
         {
           "name": "json",
-          "usage": "Skriv ut i JSON-format",
+          "usage": "Vis utdata i JSON-format",
           "default": "false",
           "type": "bool"
         },
         {
           "name": "local",
-          "usage": "bruk ressurs i gjeldende mappe",
+          "usage": "use resource in current directory",
           "default": "false",
           "type": "bool"
         },
@@ -8616,7 +8616,7 @@
         },
         {
           "name": "file",
-          "usage": "explicit path to resource file",
+          "usage": "eksplisitt sti til ressursfil",
           "type": "string"
         },
         {
@@ -8890,7 +8890,7 @@
         },
         {
           "name": "local",
-          "usage": "bruk ressurs i gjeldende katalog",
+          "usage": "bruk ressurs i gjeldende mappe",
           "default": "false",
           "type": "bool"
         },
@@ -8973,7 +8973,7 @@
         },
         {
           "name": "json",
-          "usage": "Output in JSON format",
+          "usage": "Skriv ut i JSON-format",
           "default": "false",
           "type": "bool"
         },
@@ -9159,7 +9159,7 @@
         },
         {
           "name": "jq",
-          "usage": "filtrer JSON-utdata gjennom et jq-uttrykk (impliserer --json)",
+          "usage": "filtrer JSON-utdata gjennom et jq-uttrykk (innebærer --json)",
           "type": "string"
         },
         {
@@ -9358,7 +9358,7 @@
         },
         {
           "name": "text",
-          "usage": "Utdata i tekstformat (standard)",
+          "usage": "Skriv ut i tekstformat (standard)",
           "default": "false",
           "type": "bool"
         }
