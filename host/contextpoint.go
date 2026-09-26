@@ -210,6 +210,10 @@ type ContextSuggestion struct {
 	// Evidence is where it was seen. A suggestion with evidence can be argued
 	// with; one without is a preference somebody typed.
 	Evidence []contextop.Evidence `json:"evidence,omitempty"`
+	// Standing counts the evidence for and against the rule: the sessions
+	// that recorded it, corrections toward it, its uses in content and the
+	// merges that carried it.
+	Standing *contextop.Standing `json:"standing,omitempty"`
 }
 
 // ContextVoice is the voice in force at a point, with the guidance it renders.
@@ -757,6 +761,7 @@ func contextSuggestions(advisory []coreprofile.TermRule, records []contextop.Rec
 			}
 			entry.Session = r.Actor.Session
 			entry.Evidence = r.Evidence
+			entry.Standing = r.Standing
 			if !r.At.IsZero() {
 				entry.At = r.At.UTC().Format(time.RFC3339)
 			}
@@ -1111,6 +1116,9 @@ func suggestionLine(c ContextSuggestion) string {
 	}
 	if len(by) > 0 {
 		fmt.Fprintf(&b, " (%s)", strings.Join(by, ", "))
+	}
+	if standing := c.Standing.Describe(); standing != "" {
+		fmt.Fprintf(&b, " · %s", standing)
 	}
 	if c.Status == string(contextop.StatusContested) && len(c.ContestedBy) > 0 {
 		others := make([]string, len(c.ContestedBy))

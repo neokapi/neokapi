@@ -117,7 +117,7 @@ type ContextFeedEntry struct {
 	ProjectKey  string `json:"project_key"`
 	ProjectName string `json:"project_name,omitempty"`
 	// Kind is "observe", "correct", "import", "edit", "keep", "drop",
-	// "withdraw", "revert" or "widen".
+	// "withdraw", "revert", "widen", "signal" or "establish".
 	Kind string `json:"kind"`
 	// Status is "suggested", "established", "contested", "withdrawn",
 	// "dropped" or "reverted".
@@ -137,6 +137,9 @@ type ContextFeedEntry struct {
 	Note          string `json:"note,omitempty"`
 	// At is when the log accepted it, RFC3339 in UTC.
 	At string `json:"at"`
+	// Standing is the evidence for and against a suggestion as plain counts:
+	// "seen in 3 sessions · 14 of 15 uses in docs/ · merged in #412".
+	Standing string `json:"standing,omitempty"`
 	// Decidable reports a suggestion carrying a rule a person can keep or
 	// drop. A note and a correction that suggested nothing are recorded facts
 	// with nothing to decide. A contested suggestion is decidable too, and
@@ -892,6 +895,7 @@ func contextFeedEntry(r contextop.Record, projectName, recipe string) ContextFee
 		TargetSession: r.TargetSession,
 		Note:          r.Note,
 		At:            r.At.UTC().Format(time.RFC3339),
+		Standing:      r.Standing.Describe(),
 		Decidable:     decidable(r),
 		WidenTo:       []string{},
 		Recipe:        recipe,
