@@ -1147,6 +1147,21 @@ var errStallNeedsCredits = &stallError{
 	message: "out of platform credits. Buy a credit pack, wait for the weekly reset, or configure your own AI provider key",
 }
 
+// StallQuotaExceeded is the platform-only stall reason for a workspace that has
+// reached its monthly AI usage limit, the cap the worker enforces on every AI
+// job (jobs.QuotaStore). Work so far is saved; the run can resume when the
+// limit resets or is raised. The wire value is fixed: it is carried on run
+// events and persisted on run rows.
+const StallQuotaExceeded convergence.StallReason = "quota_exceeded"
+
+// errStallQuotaExceeded is the refusal a production returns when the workspace
+// is over its usage limit, so the run parks once instead of spawning jobs that
+// would each fail on arrival.
+var errStallQuotaExceeded = &stallError{
+	reason:  StallQuotaExceeded,
+	message: "this workspace has reached its monthly AI usage limit. Work so far is saved; run again when the limit resets or is raised",
+}
+
 // errStallNoTargetLocales is the typed hold a derive returns when the project
 // has no configured target languages: there is no locale to converge toward, so
 // the run PARKS on configuration ("no target languages configured") instead of

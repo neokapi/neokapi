@@ -1582,7 +1582,7 @@ export interface ConvergenceRun {
   error?: string;
   /**
    * Machine-readable cause a run did not converge — needs_credits |
-   * source_not_ready | needs_ai_key | rate_limited | no_progress |
+   * quota_exceeded | source_not_ready | needs_ai_key | rate_limited | no_progress |
    * checks_failing (epic 019). Empty on a converged run; drives the labeled
    * stall/hold banner and next action.
    */

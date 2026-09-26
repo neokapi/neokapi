@@ -247,6 +247,12 @@ type Server struct {
 	// NotificationDispatcher routes events to user notifications. Nil when not configured.
 	NotificationDispatcher *event.NotificationDispatcher
 
+	// failureMailQ holds the job-failure emails this instance owes, each
+	// waiting for its group of failures to settle (job_failure_summons.go).
+	// Created on first use; Shutdown flushes it.
+	failureMailOnce sync.Once
+	failureMailQ    *failureMailQueue
+
 	// deadlineChecker periodically scans for tasks approaching their deadline. Nil when not configured.
 	deadlineChecker *event.DeadlineChecker
 
@@ -2183,6 +2189,10 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 	// Phase 4: close data connections and external clients.
 	slog.Info("shutdown phase 4: closing data connections")
+	// Job-failure emails still waiting for their group to settle go out now,
+	// with the count so far, while the stores they read are still open. The
+	// bus is closed, so no new failure can queue another.
+	s.flushJobFailureMail(ctx)
 	if s.JobQueue != nil {
 		collectErr("job-queue", s.JobQueue.Close())
 	}

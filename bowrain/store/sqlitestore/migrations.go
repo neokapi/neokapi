@@ -1000,4 +1000,21 @@ var storeMigrations = []storage.Migration{
 				ON blocks(project_id, stream, item_name, position);
 		`,
 	},
+	{
+		Version:     25,
+		Description: "the jobs a grouped notification counts",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go version 36: one row per thing
+			-- a grouped notification stands for, so its count survives a
+			-- redelivered event.
+			CREATE TABLE notification_group_members (
+				group_key  TEXT NOT NULL,
+				member_id  TEXT NOT NULL,
+				created_at TEXT NOT NULL,
+				PRIMARY KEY (group_key, member_id)
+			);
+			CREATE INDEX idx_notification_group_members_created
+				ON notification_group_members(created_at);
+		`,
+	},
 }

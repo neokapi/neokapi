@@ -3,8 +3,12 @@ package server
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"log/slog"
+	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -29,12 +33,123 @@ import (
 // is exactly wrong. A failure goes to the person who asked for the work, and
 // only falls back to the people responsible for the workspace when the platform
 // started the work itself.
+//
+// Failures are told by cause, not by job. A run that fans out thousands of jobs
+// into a workspace that has reached its AI usage limit fails every one of them
+// for the same reason, and a summons per job is thousands of notifications and
+// emails about one condition. So failures in one workspace, for the same
+// audience, of the same kind and with the same normalised reason, form a group
+// for jobFailureWindow. Each recipient holds one notification for the group,
+// rewritten with the running count as more jobs join it, and gets at most one
+// email about it. A single job that fails on its own is a group of one, and
+// reads and mails exactly as a per-job summons.
+//
+// The notification store is the shared state, which is what makes this hold on
+// more than one server instance:
+//
+//   - The group's notification carries the group key as its source_event_id,
+//     and the store's unique (user_id, source_event_id) index makes creating it
+//     an atomic claim. The instance whose insert lands opens the group for that
+//     recipient and owns its email; every other instance folds into it.
+//   - notification_group_members records each job once per group, so the count
+//     is exact and a redelivered event neither grows it nor mails again.
+//   - The email ceiling counts the recipient's job-failure groups in the
+//     workspace over the last hour, read from the same table.
 
-// jobFailureGroupKey ties every notification about one job together. It is what
-// makes the summons idempotent: the store is asked whether the recipient already
-// holds a notification under this key, so a redelivered event, a second server
-// instance, or a restart cannot produce a second summons for the same job.
-func jobFailureGroupKey(jobID string) string { return "job-failed:" + jobID }
+const (
+	// jobFailureWindow is how long a group stays open. A failure whose cause
+	// matches a group the recipient received within the window joins it; the
+	// first failure after the window opens a new group and a new email.
+	jobFailureWindow = time.Hour
+
+	// jobFailureMailDelay is how long the email for a new group waits before it
+	// is written, so that it can say how many jobs a burst took down rather
+	// than announcing the first of them. The in-app notification is immediate.
+	jobFailureMailDelay = 2 * time.Minute
+
+	// jobFailureMailCeiling is the most job-failure emails one recipient gets
+	// about one workspace in any hour, whatever the causes. Failures past it
+	// still reach the in-app notification list.
+	jobFailureMailCeiling = 3
+
+	// jobFailureMemberRetention is how long a group's member rows are kept.
+	// They matter only while the group is open.
+	jobFailureMemberRetention = 24 * time.Hour
+)
+
+// jobFailureWorkspacePrefix is the group-key prefix shared by every job-failure
+// group in one workspace. The email ceiling counts groups under it.
+func jobFailureWorkspacePrefix(wsKey string) string {
+	return "job-failures:" + wsKey + ":"
+}
+
+// jobFailureCausePrefix is the group-key prefix of one audience's failures of
+// one cause in a workspace. The audience is part of it because the count is
+// per group: an initiator's notification counts the jobs they asked for, and
+// never a colleague's.
+func jobFailureCausePrefix(wsKey, audience, cause string) string {
+	return jobFailureWorkspacePrefix(wsKey) + audience + ":" + cause + ":"
+}
+
+// jobFailureGroupKey names the group a cause opens at a moment: the cause
+// prefix and the start of the window the moment falls in. Two instances that
+// open a group for the same cause in the same window compute the same key,
+// which is what lets the store's unique index settle the race.
+func jobFailureGroupKey(causePrefix string, at time.Time) string {
+	return causePrefix + strconv.FormatInt(at.UTC().Truncate(jobFailureWindow).Unix(), 10)
+}
+
+// jobFailureAudience names who a failure is told to, for the group key.
+func jobFailureAudience(ev platev.Event) string {
+	if initiator := ev.Data["initiator"]; initiator != "" {
+		return "user-" + initiator
+	}
+	return "owners"
+}
+
+var (
+	failureDoubleQuoted = regexp.MustCompile("\"[^\"]*\"|`[^`]*`")
+	failureSingleQuoted = regexp.MustCompile(`(^|[\s:(=])'[^']*'`)
+	failureIDLike       = regexp.MustCompile(`[\p{L}\p{N}_.:/-]{8,}`)
+	failureLongNumber   = regexp.MustCompile(`\d{4,}`)
+)
+
+// jobFailureCause reduces a failure to the key that says whether two failures
+// happened for the same reason: the job kind, and the error with everything
+// particular to one job taken out. That is the job's own identifiers, item and
+// locale; quoted values; and long tokens with digits in them, which are
+// request ids, timestamps and byte counts. "workspace AI quota exceeded" is
+// the same cause on every job it stops; "openai: API error 401" and
+// "openai: API error 429" stay two causes.
+func jobFailureCause(ev platev.Event) string {
+	reason := strings.ToLower(ev.Data["error"])
+	for _, v := range []string{
+		ev.Data["job_id"], ev.Data["item"], ev.Data["target_locale"],
+		ev.Data["push_id"], ev.Data["step_id"], ev.ProjectID,
+	} {
+		if len(v) < 2 {
+			continue
+		}
+		re := regexp.MustCompile(`(^|[^\p{L}\p{N}_])` + regexp.QuoteMeta(strings.ToLower(v)) + `($|[^\p{L}\p{N}_])`)
+		reason = re.ReplaceAllString(reason, "${1}…${2}")
+	}
+	reason = failureDoubleQuoted.ReplaceAllString(reason, `"…"`)
+	reason = failureSingleQuoted.ReplaceAllString(reason, `$1'…'`)
+	reason = failureIDLike.ReplaceAllStringFunc(reason, func(tok string) string {
+		if strings.ContainsAny(tok, "0123456789") {
+			return "#"
+		}
+		return tok
+	})
+	reason = failureLongNumber.ReplaceAllString(reason, "#")
+	reason = strings.Join(strings.Fields(reason), " ")
+
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(ev.Data["job_kind"]))
+	_, _ = h.Write([]byte{0})
+	_, _ = h.Write([]byte(reason))
+	return strconv.FormatUint(h.Sum64(), 16)
+}
 
 // subscribeJobFailures wires the summons to the bus.
 //
@@ -60,9 +175,8 @@ func (s *Server) subscribeJobFailures() {
 	})
 }
 
-// summonOnJobFailure tells the people who can act on one failed job, over every
-// channel the workspace has: the notification store (and the live socket behind
-// it), and email.
+// summonOnJobFailure tells the people who can act on one failed job, by adding
+// the job to the group its cause belongs to for each recipient.
 //
 // Best-effort throughout. The job has already failed and been recorded by the
 // time this runs; a store that refuses an insert or a mailer that is not
@@ -71,6 +185,12 @@ func (s *Server) subscribeJobFailures() {
 func (s *Server) summonOnJobFailure(ctx context.Context, ev platev.Event) {
 	jobID := ev.Data["job_id"]
 	if jobID == "" || s.NotificationDispatcher == nil {
+		return
+	}
+	if s.NotificationStore == nil {
+		// Without the store there is nothing to group against and nothing to
+		// bound the email by, so nothing is sent.
+		slog.WarnContext(ctx, "job failed with no notification store; nobody will be told", "job_id", jobID)
 		return
 	}
 	wsSlug := ev.Data["workspace_slug"]
@@ -83,41 +203,275 @@ func (s *Server) summonOnJobFailure(ctx context.Context, ev platev.Event) {
 		return
 	}
 
-	title := jobFailureTitle(ev)
-	body := jobFailureBody(ev)
+	wsKey := wsID
+	if wsKey == "" {
+		wsKey = wsSlug
+	}
+	now := time.Now().UTC()
+	causePrefix := jobFailureCausePrefix(wsKey, jobFailureAudience(ev), jobFailureCause(ev))
 	link := jobFailureLink(wsSlug, ev)
-	groupKey := jobFailureGroupKey(jobID)
 
-	// Dedupe per recipient rather than per job: a job whose summons half
-	// succeeded should complete on the redelivery, not be skipped wholesale.
-	fresh := make([]string, 0, len(recipients))
+	type membership struct {
+		added bool
+		size  int
+	}
+	groups := map[string]membership{}
+
 	for _, userID := range recipients {
-		if s.alreadyToldAboutJob(ctx, userID, groupKey) {
+		groupKey := s.jobFailureGroupFor(ctx, userID, causePrefix, now)
+		m, seen := groups[groupKey]
+		if !seen {
+			added, size, err := s.NotificationStore.AddGroupMember(ctx, groupKey, jobID, now)
+			if err != nil {
+				slog.WarnContext(ctx, "job failure summons: cannot record the job in its group; counting it once",
+					"job_id", jobID, "group_key", groupKey, "error", err)
+				added, size = true, 1
+			}
+			if added && size == 1 {
+				// A group just opened, which is rare enough to tidy on.
+				if err := s.NotificationStore.PruneGroupMembers(ctx, now.Add(-jobFailureMemberRetention)); err != nil {
+					slog.DebugContext(ctx, "job failure summons: prune failed", "error", err)
+				}
+			}
+			m = membership{added: added, size: size}
+			groups[groupKey] = m
+		}
+
+		title, body := jobFailureText(ev, m.size)
+		created, err := s.NotificationDispatcher.DispatchOnce(ctx, bstore.Notification{
+			UserID:        userID,
+			Type:          bstore.NotificationFlowFailed,
+			Title:         title,
+			Body:          body,
+			ProjectID:     ev.ProjectID,
+			LinkURL:       link,
+			Category:      string(bstore.CategoryAutomation),
+			GroupKey:      groupKey,
+			SourceEventID: groupKey,
+			ActorID:       "system",
+			// High, and meant literally: work stopped and will not resume on
+			// its own. Quiet hours suppress everything below this, and a
+			// failure that waited until morning to be shown is a failure
+			// discovered by its consequences.
+			Priority: "high",
+		})
+		if err != nil {
+			slog.WarnContext(ctx, "job failure summons: cannot store the notification",
+				"job_id", jobID, "user_id", userID, "group_key", groupKey, "error", err)
 			continue
 		}
-		fresh = append(fresh, userID)
+		if created {
+			s.queueJobFailureMail(ctx, userID, groupKey, wsKey, wsID, wsSlug, link, ev, now)
+			continue
+		}
+		// The recipient already holds this group's notification. A job that
+		// joined the group rewrites it with the new count; a redelivery of a
+		// job already counted changes nothing.
+		if m.added {
+			if err := s.NotificationStore.RewriteGroup(ctx, userID, groupKey, title, body, link); err != nil {
+				slog.WarnContext(ctx, "job failure summons: cannot update the grouped notification",
+					"job_id", jobID, "user_id", userID, "group_key", groupKey, "error", err)
+			}
+		}
 	}
-	if len(fresh) == 0 {
+}
+
+// jobFailureGroupFor returns the group a failure joins for one recipient: the
+// newest group of the same cause the recipient received within the window, or
+// the key a new group opens under.
+func (s *Server) jobFailureGroupFor(ctx context.Context, userID, causePrefix string, now time.Time) string {
+	key, err := s.NotificationStore.LatestGroupSince(ctx, userID, causePrefix, now.Add(-jobFailureWindow))
+	if err != nil {
+		slog.WarnContext(ctx, "job failure summons: cannot look up an open group; using the window's own",
+			"user_id", userID, "error", err)
+	}
+	if key != "" {
+		return key
+	}
+	return jobFailureGroupKey(causePrefix, now)
+}
+
+// queueJobFailureMail schedules the email for a group this instance just
+// opened for a recipient, unless the recipient has reached the hourly ceiling
+// for the workspace.
+func (s *Server) queueJobFailureMail(ctx context.Context, userID, groupKey, wsKey, wsID, wsSlug, link string, ev platev.Event, now time.Time) {
+	opened, err := s.NotificationStore.CountGroupsSince(ctx, userID, jobFailureWorkspacePrefix(wsKey), now.Add(-time.Hour))
+	if err != nil {
+		slog.WarnContext(ctx, "job failure summons: cannot count recent groups; mailing anyway",
+			"user_id", userID, "error", err)
+		opened = 1
+	}
+	if opened > jobFailureMailCeiling {
+		if opened == jobFailureMailCeiling+1 {
+			slog.WarnContext(ctx, "job failure summons: email ceiling reached; further failures in this workspace reach the recipient in the app only",
+				"user_id", userID, "workspace_slug", wsSlug, "workspace_id", wsID,
+				"ceiling", jobFailureMailCeiling, "per", "hour")
+		}
 		return
 	}
-
-	s.NotificationDispatcher.DispatchToUsers(ctx, fresh, bstore.Notification{
-		Type:      bstore.NotificationFlowFailed,
-		Title:     title,
-		Body:      body,
-		ProjectID: ev.ProjectID,
-		LinkURL:   link,
-		Category:  string(bstore.CategoryAutomation),
-		GroupKey:  groupKey,
-		ActorID:   "system",
-		// High, and meant literally: work stopped and will not resume on its
-		// own. Quiet hours suppress everything below this, and a failure that
-		// waited until morning to be shown is a failure discovered by its
-		// consequences.
-		Priority: "high",
+	s.failureMail().add(ctx, pendingFailureMail{
+		groupKey: groupKey,
+		userID:   userID,
+		wsID:     wsID,
+		wsSlug:   wsSlug,
+		link:     link,
+		ev:       ev,
 	})
+}
 
-	s.mailJobFailure(ctx, fresh, ev, wsID, wsSlug, link)
+// pendingFailureMail is one recipient's email about one group, waiting for the
+// group to settle.
+type pendingFailureMail struct {
+	groupKey string
+	userID   string
+	wsID     string
+	wsSlug   string
+	link     string
+	ev       platev.Event
+}
+
+// failureMailQueue holds the emails this instance owes for the groups it
+// opened. Each group's mail goes out jobFailureMailDelay after the group
+// opened, with the count at that moment. Shutdown flushes whatever is still
+// waiting, so a deploy sends the mail early rather than dropping it.
+type failureMailQueue struct {
+	send  func(ctx context.Context, group []pendingFailureMail)
+	delay time.Duration
+
+	mu      sync.Mutex
+	pending map[string][]pendingFailureMail
+	timers  map[string]*time.Timer
+}
+
+func (s *Server) failureMail() *failureMailQueue {
+	s.failureMailOnce.Do(func() {
+		s.failureMailQ = &failureMailQueue{
+			send:    s.sendJobFailureMail,
+			delay:   jobFailureMailDelay,
+			pending: map[string][]pendingFailureMail{},
+			timers:  map[string]*time.Timer{},
+		}
+	})
+	return s.failureMailQ
+}
+
+// add queues one recipient's mail. The mail goes out after the event handler
+// that queued it has returned, so it keeps the handler's context values and
+// drops its cancellation.
+func (q *failureMailQueue) add(ctx context.Context, p pendingFailureMail) {
+	detached := context.WithoutCancel(ctx)
+	if q.delay <= 0 {
+		q.send(detached, []pendingFailureMail{p})
+		return
+	}
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.pending[p.groupKey] = append(q.pending[p.groupKey], p)
+	if _, ok := q.timers[p.groupKey]; !ok {
+		key := p.groupKey
+		q.timers[key] = time.AfterFunc(q.delay, func() { q.fire(detached, key) })
+	}
+}
+
+// fire sends one group's waiting mail.
+func (q *failureMailQueue) fire(ctx context.Context, groupKey string) {
+	q.mu.Lock()
+	group := q.pending[groupKey]
+	delete(q.pending, groupKey)
+	delete(q.timers, groupKey)
+	q.mu.Unlock()
+	if len(group) == 0 {
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	q.send(ctx, group)
+}
+
+// flush sends every waiting mail now.
+func (q *failureMailQueue) flush(ctx context.Context) {
+	q.mu.Lock()
+	pending := q.pending
+	q.pending = map[string][]pendingFailureMail{}
+	for _, t := range q.timers {
+		t.Stop()
+	}
+	q.timers = map[string]*time.Timer{}
+	q.mu.Unlock()
+	for _, group := range pending {
+		q.send(ctx, group)
+	}
+}
+
+// flushJobFailureMail sends every job-failure email this instance is holding.
+func (s *Server) flushJobFailureMail(ctx context.Context) {
+	if s.failureMailQ == nil {
+		return
+	}
+	s.failureMailQ.flush(ctx)
+}
+
+// sendJobFailureMail writes one group's email to each recipient waiting on it.
+// A group of one is a single failure and gets the per-job email; a larger group
+// gets the grouped one with the count as it stands.
+func (s *Server) sendJobFailureMail(ctx context.Context, group []pendingFailureMail) {
+	if len(group) == 0 || s.Mailer == nil || s.AuthStore == nil {
+		return
+	}
+	first := group[0]
+	size := 1
+	if s.NotificationStore != nil {
+		if n, err := s.NotificationStore.GroupSize(ctx, first.groupKey); err == nil && n > 0 {
+			size = n
+		}
+	}
+	jobURL := s.absoluteAppURL(first.link)
+	if jobURL == "" {
+		slog.WarnContext(ctx, "job failure summons: no app origin configured, so no mail was sent; set BOWRAIN_APP_PUBLIC_URL",
+			"job_id", first.ev.Data["job_id"])
+		return
+	}
+	wsName := first.wsSlug
+	if first.wsID != "" {
+		if ws, err := s.AuthStore.GetWorkspace(ctx, first.wsID); err == nil && ws != nil && ws.Name != "" {
+			wsName = ws.Name
+		}
+	}
+	reason := first.ev.Data["error"]
+	if reason == "" {
+		reason = "No reason was recorded."
+	}
+
+	for _, p := range group {
+		if !s.wantsAutomationEmail(ctx, p.userID, p.wsSlug) {
+			continue
+		}
+		u, err := s.AuthStore.GetUser(ctx, p.userID)
+		if err != nil || u == nil || u.Email == "" {
+			continue
+		}
+		if size == 1 {
+			err = s.Mailer.SendJobFailed(ctx, u.Email, u.Locale, mailer.JobFailedData{
+				WorkspaceName: wsName,
+				JobKind:       jobKindProse(p.ev.Data["job_kind"]),
+				Subject:       jobFailureSubject(p.ev),
+				Reason:        reason,
+				JobURL:        jobURL,
+			})
+		} else {
+			err = s.Mailer.SendJobFailures(ctx, u.Email, u.Locale, mailer.JobFailuresData{
+				WorkspaceName: wsName,
+				JobKind:       jobKindProse(p.ev.Data["job_kind"]),
+				Count:         strconv.Itoa(size),
+				Reason:        reason,
+				JobURL:        jobURL,
+			})
+		}
+		if err != nil {
+			slog.WarnContext(ctx, "job failure summons: email failed",
+				"job_id", p.ev.Data["job_id"], "group_key", p.groupKey, "user_id", p.userID, "error", err)
+		}
+	}
 }
 
 // jobFailureWorkspaceID resolves the workspace id for a failure event. The
@@ -177,72 +531,6 @@ func (s *Server) jobFailureRecipients(ctx context.Context, ev platev.Event, wsID
 		}
 	}
 	return out
-}
-
-// alreadyToldAboutJob reports whether this user has already been summoned for
-// this job. With no store to ask, it answers false — a duplicate summons is a
-// smaller harm than a summons that never happens.
-func (s *Server) alreadyToldAboutJob(ctx context.Context, userID, groupKey string) bool {
-	if s.NotificationStore == nil {
-		return false
-	}
-	exists, err := s.NotificationStore.ExistsByGroupKey(ctx, userID, groupKey)
-	if err != nil {
-		slog.WarnContext(ctx, "job failure summons: cannot check for an earlier notification; sending anyway",
-			"user_id", userID, "group_key", groupKey, "error", err)
-		return false
-	}
-	return exists
-}
-
-// mailJobFailure sends the job-failure email to each recipient who has not
-// turned automation email off for this workspace.
-//
-// Mail-on-failure is the default, which is why this does not consult the
-// notification dispatcher's high-priority email path: that one
-// sends the generic notification template and ignores the preference entirely.
-// Here the dedicated template goes out, and a recipient who wants the badge
-// without the mail turns the automation category's email channel off.
-func (s *Server) mailJobFailure(ctx context.Context, recipients []string, ev platev.Event, wsID, wsSlug, path string) {
-	if s.Mailer == nil || s.AuthStore == nil {
-		return
-	}
-	jobURL := s.absoluteAppURL(path)
-	if jobURL == "" {
-		slog.WarnContext(ctx, "job failure summons: no app origin configured, so no mail was sent; set BOWRAIN_APP_PUBLIC_URL",
-			"job_id", ev.Data["job_id"])
-		return
-	}
-	wsName := wsSlug
-	if s.AuthStore != nil && wsID != "" {
-		if ws, err := s.AuthStore.GetWorkspace(ctx, wsID); err == nil && ws != nil && ws.Name != "" {
-			wsName = ws.Name
-		}
-	}
-	data := mailer.JobFailedData{
-		WorkspaceName: wsName,
-		JobKind:       jobKindProse(ev.Data["job_kind"]),
-		Subject:       jobFailureSubject(ev),
-		Reason:        ev.Data["error"],
-		JobURL:        jobURL,
-	}
-	if data.Reason == "" {
-		data.Reason = "No reason was recorded."
-	}
-
-	for _, userID := range recipients {
-		if !s.wantsAutomationEmail(ctx, userID, wsSlug) {
-			continue
-		}
-		u, err := s.AuthStore.GetUser(ctx, userID)
-		if err != nil || u == nil || u.Email == "" {
-			continue
-		}
-		if err := s.Mailer.SendJobFailed(ctx, u.Email, u.Locale, data); err != nil {
-			slog.WarnContext(ctx, "job failure summons: email failed",
-				"job_id", ev.Data["job_id"], "user_id", userID, "error", err)
-		}
-	}
 }
 
 // wantsAutomationEmail reports whether a user still has email on for automation
@@ -326,6 +614,21 @@ func jobFailureSubject(ev platev.Event) string {
 	default:
 		return "your workspace"
 	}
+}
+
+// jobFailureText is the title and body of a group's notification: the per-job
+// wording for a group of one, and the count and shared reason for more.
+func jobFailureText(ev platev.Event, count int) (title, body string) {
+	if count <= 1 {
+		return jobFailureTitle(ev), jobFailureBody(ev)
+	}
+	title = fmt.Sprintf("%d %s jobs did not finish", count, jobKindProse(ev.Data["job_kind"]))
+	reason := strings.TrimRight(ev.Data["error"], ". ")
+	if reason == "" {
+		reason = "no reason was recorded"
+	}
+	body = "They stopped for the same reason: " + reason + ". The latest was " + jobFailureSubject(ev) + "."
+	return title, body
 }
 
 // jobFailureTitle is the one line that has to carry the failure — in the

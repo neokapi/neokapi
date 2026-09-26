@@ -475,6 +475,24 @@ func (d *NotificationDispatcher) DispatchToUsers(ctx context.Context, userIDs []
 	}
 }
 
+// DispatchOnce stores one notification and pushes it live, and reports whether
+// the store took it as new. With SourceEventID set, the store refuses a second
+// copy for the same user, so a caller that pushes, mails or counts only on
+// created=true does each of those once across redeliveries and instances.
+func (d *NotificationDispatcher) DispatchOnce(ctx context.Context, n bstore.Notification) (created bool, err error) {
+	if d.store == nil || n.UserID == "" {
+		return false, nil
+	}
+	created, err = d.store.Create(ctx, &n)
+	if err != nil || !created {
+		return false, err
+	}
+	if d.sender != nil {
+		d.sender.NotifyUser(n.UserID, &n)
+	}
+	return true, nil
+}
+
 // qualityGateFailText is the title and body of a quality gate failure
 // notification: which gate a language no longer meets, and by how much. An
 // event that names no gate reads as a failure of an unnamed gate.

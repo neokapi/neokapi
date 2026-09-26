@@ -55,7 +55,8 @@ webhook delivery live in `bowrain/event`.
 | `push.automations.completed` | Every automation for a push has completed      |
 | `convergence.run.completed`  | A run finishes                                 |
 | `flow.started`               | A flow begins execution                        |
-| `flow.completed` / `flow.failed` | Declared; no execution path emits them, so no automation trigger fires on a flow finishing |
+| `flow.failed`                | A background job fails for good, after any retries; it drives the [job-failure notice](/server/automation#when-a-job-fails) |
+| `flow.completed`             | Declared; no execution path emits it, so no automation trigger fires on a flow finishing |
 | `extraction.completed`       | Term extraction completes                      |
 | `quality.gate.pass` / `quality.gate.fail` | A language's ship-gate result changes |
 | `source.review.completed`    | A source review task is completed              |

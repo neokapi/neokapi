@@ -505,6 +505,52 @@ func (m *Mailer) renderJobFailed(locale string, data JobFailedData) (string, err
 	return m.execute(locale, "job-failed.html", td)
 }
 
+// JobFailuresData holds the dynamic values for the grouped job-failure email:
+// one message for many jobs in a workspace that stopped for the same reason.
+type JobFailuresData struct {
+	// WorkspaceName is the human-readable workspace name.
+	WorkspaceName string
+	// JobKind names the work in prose: "translation", "push", "extraction".
+	JobKind string
+	// Count is how many jobs had failed for this reason when the mail was
+	// written, as a decimal string.
+	Count string
+	// Reason is the one-line failure the jobs share, already summarised.
+	Reason string
+	// JobURL is the full URL of the surface where the failures can be inspected.
+	JobURL string
+}
+
+// SendJobFailures renders and sends the grouped job-failure email.
+func (m *Mailer) SendJobFailures(ctx context.Context, to, locale string, data JobFailuresData) error {
+	body, err := m.renderJobFailures(locale, data)
+	if err != nil {
+		return err
+	}
+	subject, err := m.subject(locale, "job-failures", data)
+	if err != nil {
+		return err
+	}
+	return m.Sender.Send(ctx, to, subject, body)
+}
+
+// RenderJobFailures renders the grouped job-failure email template to an HTML
+// string (exposed for tests).
+func (m *Mailer) RenderJobFailures(locale string, data JobFailuresData) (string, error) {
+	return m.renderJobFailures(locale, data)
+}
+
+func (m *Mailer) renderJobFailures(locale string, data JobFailuresData) (string, error) {
+	td := map[string]string{
+		"WorkspaceName": html.EscapeString(data.WorkspaceName),
+		"JobKind":       html.EscapeString(data.JobKind),
+		"Count":         html.EscapeString(data.Count),
+		"Reason":        html.EscapeString(data.Reason),
+		"JobURL":        escapeURL(data.JobURL),
+	}
+	return m.execute(locale, "job-failures.html", td)
+}
+
 // TaskAssignedData holds the dynamic values for the task-assignment email, sent
 // only for tasks marked high or urgent.
 type TaskAssignedData struct {

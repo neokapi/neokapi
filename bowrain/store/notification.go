@@ -3,7 +3,9 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/id"
@@ -203,31 +205,6 @@ func (s *NotificationStore) MarkReadByGroupKey(ctx context.Context, groupKey str
 	return err
 }
 
-// ExistsByGroupKey reports whether the user already holds a notification under
-// the given group key, read or not.
-//
-// This is what makes "tell them once" survive a restart and a second instance.
-// A summons that deduplicated in memory would mail again after every deploy,
-// and twice over on a two-instance deployment; the group key is already the
-// column that ties a notification to the thing it is about, so asking the table
-// is both durable and cluster-wide. It is a check-then-insert rather than a
-// unique constraint, so two events racing inside the same millisecond can still
-// produce two rows — a far cheaper failure than a schema that refuses the
-// second notification anyone ever groups.
-func (s *NotificationStore) ExistsByGroupKey(ctx context.Context, userID, groupKey string) (bool, error) {
-	if userID == "" || groupKey == "" {
-		return false, nil
-	}
-	var exists bool
-	err := s.db.QueryRowContext(ctx,
-		`SELECT EXISTS (SELECT 1 FROM notifications WHERE user_id = $1 AND group_key = $2)`,
-		userID, groupKey).Scan(&exists)
-	if err != nil {
-		return false, err
-	}
-	return exists, nil
-}
-
 // ListUnreadSince returns unread notifications for a user created after the given time.
 func (s *NotificationStore) ListUnreadSince(ctx context.Context, userID string, since time.Time) ([]Notification, error) {
 	query := `SELECT id, user_id, type, title, body, project_id, link_url, read, created_at, category, group_key, actor_id, actor_name, task_id, priority
@@ -262,5 +239,112 @@ func (s *NotificationStore) Delete(ctx context.Context, notificationID, userID s
 	_, err := s.db.ExecContext(ctx,
 		`DELETE FROM notifications WHERE id = $1 AND user_id = $2`,
 		notificationID, userID)
+	return err
+}
+
+// Grouped notifications.
+//
+// A group is one notification per recipient that stands for many occurrences
+// of the same thing: a burst of jobs that failed for the same reason is told
+// once, and that one notification carries the count. The notification's
+// source_event_id holds the group key, so the unique (user_id, source_event_id)
+// index turns opening a group into an atomic claim. Whichever instance's
+// Create reports created=true opened the group, and every other instance
+// folds its occurrence into it.
+
+// likePrefix turns a literal prefix into a LIKE pattern that matches strings
+// starting with it. Each query spells out ESCAPE '\', which PostgreSQL and
+// SQLite both accept.
+func likePrefix(prefix string) string {
+	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return r.Replace(prefix) + "%"
+}
+
+// LatestGroupSince returns the group key of the user's newest notification
+// whose group key starts with prefix and which was created after since, or ""
+// when there is none.
+func (s *NotificationStore) LatestGroupSince(ctx context.Context, userID, prefix string, since time.Time) (string, error) {
+	if userID == "" || prefix == "" {
+		return "", nil
+	}
+	var key string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT group_key FROM notifications
+		 WHERE user_id = $1 AND group_key LIKE $2 ESCAPE '\' AND created_at > $3
+		 ORDER BY created_at DESC LIMIT 1`,
+		userID, likePrefix(prefix), since.UTC().Format(time.RFC3339Nano)).Scan(&key)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return key, err
+}
+
+// CountGroupsSince counts the user's notifications whose group key starts with
+// prefix and which were created after since.
+func (s *NotificationStore) CountGroupsSince(ctx context.Context, userID, prefix string, since time.Time) (int, error) {
+	if userID == "" || prefix == "" {
+		return 0, nil
+	}
+	var n int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM notifications
+		 WHERE user_id = $1 AND group_key LIKE $2 ESCAPE '\' AND created_at > $3`,
+		userID, likePrefix(prefix), since.UTC().Format(time.RFC3339Nano)).Scan(&n)
+	return n, err
+}
+
+// RewriteGroup replaces the text and link of the user's notification in a
+// group and marks it unread, so a group that grew after it was read shows in
+// the badge again. The creation time stays: it records when the group opened,
+// and the window a group stays open for is measured from it.
+func (s *NotificationStore) RewriteGroup(ctx context.Context, userID, groupKey, title, body, linkURL string) error {
+	if userID == "" || groupKey == "" {
+		return nil
+	}
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE notifications SET title = $3, body = $4, link_url = $5, read = false
+		 WHERE user_id = $1 AND group_key = $2`,
+		userID, groupKey, title, body, linkURL)
+	return err
+}
+
+// AddGroupMember records that memberID belongs to the group and returns the
+// group's size afterwards. added is false when the member was already
+// recorded, which is how a redelivered event is told apart from a new
+// occurrence.
+func (s *NotificationStore) AddGroupMember(ctx context.Context, groupKey, memberID string, at time.Time) (added bool, size int, err error) {
+	if groupKey == "" || memberID == "" {
+		return false, 0, nil
+	}
+	res, err := s.db.ExecContext(ctx,
+		`INSERT INTO notification_group_members (group_key, member_id, created_at)
+		 VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+		groupKey, memberID, at.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return false, 0, err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return false, 0, err
+	}
+	size, err = s.GroupSize(ctx, groupKey)
+	return rows > 0, size, err
+}
+
+// GroupSize returns how many members a group has recorded.
+func (s *NotificationStore) GroupSize(ctx context.Context, groupKey string) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM notification_group_members WHERE group_key = $1`, groupKey).Scan(&n)
+	return n, err
+}
+
+// PruneGroupMembers deletes member rows recorded before the cutoff. A group's
+// members matter only while the group is open, and no group stays open for
+// more than a few hours.
+func (s *NotificationStore) PruneGroupMembers(ctx context.Context, before time.Time) error {
+	_, err := s.db.ExecContext(ctx,
+		`DELETE FROM notification_group_members WHERE created_at < $1`,
+		before.UTC().Format(time.RFC3339Nano))
 	return err
 }
