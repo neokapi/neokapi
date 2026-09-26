@@ -77,3 +77,25 @@ func TestVerifyGateLabel_UnnamedGatesKeepTheirOwnWord(t *testing.T) {
 	assert.Equal(t, "checks", gateDisplayName(gateChecks))
 	assert.Equal(t, "ship", gateDisplayName(gateShip))
 }
+
+// TestVerifyFindings_TextHeadsTheOutcomeColumn: a finding fails the gate or
+// reports, and the column that says which is headed by that word.
+func TestVerifyFindings_TextHeadsTheOutcomeColumn(t *testing.T) {
+	out := verifyOutput{
+		Gates: []verifyGateResult{{
+			Gate: gateChecks,
+			Findings: []verifyFinding{
+				{Gate: gateChecks, File: "a.md", Fails: true, Message: "fails"},
+				{Gate: gateChecks, File: "b.md", Message: "reports"},
+			},
+		}},
+		Summary: verifySummary{Gates: 1, Failed: 1, Findings: 2, Failing: 1, Reporting: 1},
+	}
+	var buf bytes.Buffer
+	require.NoError(t, out.FormatText(&buf))
+	text := ansi.ReplaceAllString(buf.String(), "")
+	assert.Contains(t, text, "outcome")
+	assert.Contains(t, text, "FAILS")
+	assert.Contains(t, text, "REPORTS")
+	assert.NotContains(t, text, "severity")
+}
