@@ -690,6 +690,8 @@ export class Defaults {
              *   "none"        — the deliberate opt-out: no gate, every present source
              *                   fans out on push. You have to choose it.
              * 
+             * Any other value fails the recipe's validation.
+             * 
              * It is the level-based, per-project counterpart of the coverage-bar
              * SourceGate on KapiProject (which `kapi check --ship` evaluates); this one
              * governs the convergence fan-out.

@@ -153,6 +153,11 @@ func TestKapiProject_RetiredKeys(t *testing.T) {
 			"coordinates: is no longer a recipe key. Use profiles",
 		},
 		{
+			"a source gate outside the ladder is rejected",
+			"version: v1\ndefaults:\n  source_gate: approved\n",
+			`defaults.source_gate: "approved" is not a source gate`,
+		},
+		{
 			"a verified_gate: names the established gate",
 			"version: v1\nverified_gate:\n  established: 100\n",
 			"verified_gate: is no longer a recipe key. Use established_gate",
