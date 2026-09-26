@@ -189,7 +189,7 @@ func readSurfaces(t *testing.T, a *App, recipe, root string) map[string]surfaces
 	shipBytes, rerr := os.ReadFile(shipPath)
 	require.NoError(t, rerr)
 	var ship map[string]struct {
-		Shippable bool `json:"shippable"`
+		Shippable bool   `json:"shippable"`
 		State     string `json:"state"`
 	}
 	require.NoError(t, json.Unmarshal(shipBytes, &ship), "ship manifest must be JSON: %s", shipBytes)
