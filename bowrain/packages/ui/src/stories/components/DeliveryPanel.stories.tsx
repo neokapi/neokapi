@@ -13,7 +13,7 @@ const localeStats: LocaleTranslationStats[] = [
     percentage: 100,
     approved_blocks: 50,
     failing_checks: 0,
-    ship_state: "governed",
+    ship_state: "established",
   },
   {
     locale: "de-DE",
@@ -25,7 +25,7 @@ const localeStats: LocaleTranslationStats[] = [
     percentage: 100,
     approved_blocks: 12,
     failing_checks: 0,
-    ship_state: "ai_shippable",
+    ship_state: "translated",
   },
   {
     locale: "ja-JP",

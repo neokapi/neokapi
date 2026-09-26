@@ -111,22 +111,27 @@ export interface Rung {
   color: string;
   pct: number;
 }
-/** Whether a scope clears a ship gate, as distinct from a scope no gate matches. */
+/** Whether a scope clears a gate (it ships established or translated), as
+ * distinct from a scope no gate matches. */
 const clearsShipGate = (lc: LocaleCoverage) =>
-  lc.shipState ? lc.shipState === "shippable" : lc.gated && lc.shippable;
+  lc.shipState
+    ? lc.shipState === "established" || lc.shipState === "translated"
+    : lc.gated && lc.shippable;
 
 export function rungFor(lc?: LocaleCoverage): Rung {
   const translated = lc?.pct?.translated ?? 0;
   if (!lc || translated === 0) {
     return { key: "none", label: "·", short: "·", color: "var(--muted-foreground)", pct: 0 };
   }
-  // "Shippable" is a gate verdict, so only a scope that clears a ship gate reads
-  // as one. A scope no gate matches shows its place on the ladder instead.
+  // A ship state is a gate verdict, so only a scope that clears a gate reads as
+  // one: established (governed) or translated (AI-shippable). A scope no gate
+  // matches shows its place on the ladder instead.
   if (clearsShipGate(lc)) {
+    const established = lc.shipState === "established";
     return {
       key: "shippable",
-      label: "Shippable",
-      short: "Ship",
+      label: established ? "Established" : "Ships translated",
+      short: established ? "Est." : "Ship",
       color: "oklch(0.62 0.17 150)",
       pct: translated,
     };
@@ -531,7 +536,7 @@ function LanguageTimeline({
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
         {(
           [
-            ["shippable", t("Shippable")],
+            ["shippable", t("Ships")],
             ["review", t("In review")],
             ["translated", t("Translated")],
           ] as const

@@ -37,7 +37,7 @@ func covRow(locale string, g gate.Gate, states ...string) LocaleCoverage {
 	lc.Shippable = res.Pass
 	lc.ShipState = ShipStateWithheld
 	if res.Pass {
-		lc.ShipState = ShipStateShippable
+		lc.ShipState = ShipStateTranslated
 	}
 	lc.Pending = res.Shortfalls
 	lc.ShipProgress = res.Progress
@@ -53,7 +53,7 @@ func renderStatus(t *testing.T, out StatusOutput) string {
 }
 
 // TestStatusShipColumnIsAVerdict is the shape of the reworked view: every gated
-// scope reads `ready` or `blocked: <gate>`, and never a percentage.
+// scope reads its ship state or `blocked: <gate>`, and never a percentage.
 func TestStatusShipColumnIsAVerdict(t *testing.T) {
 	twoBar := gate.Gate{"translated": {Pct: 100}, "established": {Pct: 100}}
 
@@ -76,11 +76,11 @@ func TestStatusShipColumnIsAVerdict(t *testing.T) {
 	require.Len(t, lines, 4, "one row per scope:\n%s", text)
 
 	assert.Contains(t, lines["de"], "blocked: review", "translated but unreviewed")
-	assert.Contains(t, lines["fr"], "ready", "clears every bar")
+	assert.Contains(t, lines["fr"], "translated", "clears every bar")
 	assert.Contains(t, lines["ja"], "blocked: translate", "the lowest unmet gate, not review")
 	assert.Contains(t, lines["nb"], "blocked: review", "only the top bar is left")
 
-	assert.NotContains(t, text, "shippable", "the verdict is `ready`, not a percentage-adjacent word")
+	assert.NotContains(t, text, "shippable", "the verdict is a ship state, not a percentage-adjacent word")
 	assert.Contains(t, text, "1 of 4 scopes ready to ship")
 }
 

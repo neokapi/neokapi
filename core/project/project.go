@@ -52,8 +52,10 @@ const CurrentVersion = "v1"
 // what a recipe should say instead. Left unnamed, such a key would be captured
 // as an unknown extension and silently carry nothing.
 var retiredProjectKeys = map[string]string{
-	"content":     "collections",
-	"coordinates": "profiles (each profile declares its channels)",
+	"content":        "collections",
+	"coordinates":    "profiles (each profile declares its channels)",
+	"verified_gate":  "established_gate",
+	"verified_gates": "established_gates",
 }
 
 // KapiProject is the root type for a .kapi project file.
@@ -97,7 +99,7 @@ type KapiProject struct {
 	// Ship gates decide when localized content is shippable, as coverage
 	// thresholds over the lifecycle ladder (see core/gate). Three optional,
 	// additive forms:
-	//   ShipGate  — a single catch-all gate ({translated: 100, reviewed: 100}).
+	//   ShipGate  — a single catch-all gate ({translated: 100, established: 100}).
 	//   ShipGates — a when/gate rule list; most-specific rule wins.
 	//   Gates     — a named registry referenced by a rule's `gate: <name>`.
 	// BuildShipGates resolves these into an evaluatable gate.RuleSet.
@@ -105,25 +107,23 @@ type KapiProject struct {
 	ShipGates []ShipGateRule       `yaml:"ship_gates,omitempty" json:"ship_gates,omitempty"`
 	Gates     map[string]gate.Gate `yaml:"gates,omitempty" json:"gates,omitempty"`
 
-	// Verified gates decide when localized content is "human-verified": the
-	// second gate, evaluated exactly like the ship gate but against a bar that
-	// implies a person established the work (e.g. {reviewed: 100}).
-	// A locale that clears its ship gate but not its verified gate ships flagged
-	// AI in a language picker; a verified locale carries no badge. The two gates
-	// are independent — being verified is not a prerequisite for shipping. Same
+	// Established gates decide when a scope ships `established`, meaning
+	// governed: a person established the work (e.g. {established: 100}). A
+	// scope that clears its ship gate but not its established gate ships
+	// `translated`, AI-shippable, and a language picker marks it AI. Same
 	// additive forms and precedence as the ship gate, resolving a rule's
 	// `gate: <name>` reference against the same Gates registry:
-	//   VerifiedGate  — a single catch-all gate.
-	//   VerifiedGates — a when/gate rule list; most-specific rule wins.
-	// With NO verified gate configured, nothing is verified: BuildVerifiedGates
-	// returns an empty RuleSet, so every locale reads unverified (the honest
-	// default — a project opts in to "verified" by declaring the bar).
-	VerifiedGate  gate.Gate      `yaml:"verified_gate,omitempty" json:"verified_gate,omitempty"`
-	VerifiedGates []ShipGateRule `yaml:"verified_gates,omitempty" json:"verified_gates,omitempty"`
+	//   EstablishedGate  — a single catch-all gate.
+	//   EstablishedGates — a when/gate rule list; most-specific rule wins.
+	// With no established gate configured, no scope ships `established`. A
+	// project that delivers only governed content says so in its ship gate
+	// (e.g. {established: 100}).
+	EstablishedGate  gate.Gate      `yaml:"established_gate,omitempty" json:"established_gate,omitempty"`
+	EstablishedGates []ShipGateRule `yaml:"established_gates,omitempty" json:"established_gates,omitempty"`
 
 	// SourceGate is the source-readiness bar: a single coverage gate over the
 	// source authoring ladder (written→established), e.g.
-	// {checked: 100}. It is the source-side counterpart of ShipGate — it gates
+	// {established: 100}. It is the source-side counterpart of ShipGate — it gates
 	// the author's own content, not the translations. BuildSourceGate
 	// resolves it; evaluated by `kapi check --ship` (never an ordinary
 	// build).

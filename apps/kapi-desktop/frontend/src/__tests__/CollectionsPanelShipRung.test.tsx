@@ -28,7 +28,10 @@ describe("rungFor", () => {
     expect(rung.label).toBe("In review");
   });
 
-  it("calls a scope that clears its gate shippable", () => {
-    expect(rungFor(scope({ gated: true, shipState: "shippable" })).key).toBe("shippable");
+  it("names the ship state of a scope that clears its gate", () => {
+    const translated = rungFor(scope({ gated: true, shipState: "translated" }));
+    expect(translated.key).toBe("shippable");
+    expect(translated.label).toBe("Ships translated");
+    expect(rungFor(scope({ gated: true, shipState: "established" })).label).toBe("Established");
   });
 });

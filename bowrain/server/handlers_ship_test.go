@@ -13,9 +13,9 @@ import (
 func TestShipManifestFromStatsMapsTheTwoGates(t *testing.T) {
 	stats := &store.TranslationDashboardStats{
 		LocaleStats: []store.LocaleTranslationStats{
-			{Locale: "nb", ShipState: store.ShipStateGoverned, ComplianceBasis: store.ComplianceBasisChecksTerms},
-			{Locale: "sv", ShipState: store.ShipStateApproved, ComplianceBasis: store.ComplianceBasisChecks},
-			{Locale: "de", ShipState: store.ShipStateAIShippable, ComplianceBasis: store.ComplianceBasisVoice},
+			{Locale: "nb", ShipState: store.ShipStateEstablished, ComplianceBasis: store.ComplianceBasisChecksTerms},
+			{Locale: "sv", ShipState: store.ShipStateEstablished, ComplianceBasis: store.ComplianceBasisChecks},
+			{Locale: "de", ShipState: store.ShipStateTranslated, ComplianceBasis: store.ComplianceBasisVoice},
 			{Locale: "ja", ShipState: store.ShipStatePending},
 			{Locale: "fr", ShipState: ""}, // no state derived yet
 		},
@@ -24,13 +24,13 @@ func TestShipManifestFromStatsMapsTheTwoGates(t *testing.T) {
 	m := shipManifestFromStats(stats)
 
 	// governed: shippable AND verified (human-reviewed), and terminology governs it.
-	assert.Equal(t, shipManifestEntry{Shippable: true, Verified: true, State: convergence.ShipStateShippable}, m["nb"])
+	assert.Equal(t, shipManifestEntry{Shippable: true, State: convergence.ShipStateEstablished}, m["nb"])
 	// approved: shippable AND verified, and terminology governs nothing there.
-	assert.Equal(t, shipManifestEntry{Shippable: true, Verified: true, State: convergence.ShipStateShippable,
+	assert.Equal(t, shipManifestEntry{Shippable: true, State: convergence.ShipStateEstablished,
 		NotGoverned: []string{"terms"}}, m["sv"])
 	// ai_shippable: shippable but unverified, so the picker badges it "ai". Its
 	// basis leaves terminology out, and the entry says so.
-	assert.Equal(t, shipManifestEntry{Shippable: true, State: convergence.ShipStateShippable,
+	assert.Equal(t, shipManifestEntry{Shippable: true, State: convergence.ShipStateTranslated,
 		NotGoverned: []string{"terms"}}, m["de"])
 	// pending: not shippable, so the picker hides it. No basis was derived, so
 	// nothing is claimed about governance.
@@ -43,12 +43,12 @@ func TestShipManifestIsShapeIdenticalToShipJSON(t *testing.T) {
 	// The public feed's body must be shape-identical to the CLI's ship.json
 	// (host.ShipManifest / host.ShipEntry) so the i18n-react picker consumes it
 	// with no second code path: an object keyed by locale, each value
-	// {"shippable":bool,"verified":bool,"state":string}, plus "not_governed"
+	// {"shippable":bool,"state":string}, plus "not_governed"
 	// where a dimension governs nothing in the locale.
 	stats := &store.TranslationDashboardStats{
 		LocaleStats: []store.LocaleTranslationStats{
-			{Locale: "nb", ShipState: store.ShipStateGoverned, ComplianceBasis: store.ComplianceBasisChecksTerms},
-			{Locale: "sv", ShipState: store.ShipStateApproved, ComplianceBasis: store.ComplianceBasisChecks},
+			{Locale: "nb", ShipState: store.ShipStateEstablished, ComplianceBasis: store.ComplianceBasisChecksTerms},
+			{Locale: "sv", ShipState: store.ShipStateEstablished, ComplianceBasis: store.ComplianceBasisChecks},
 			{Locale: "ja", ShipState: store.ShipStatePending},
 		},
 	}
@@ -57,9 +57,9 @@ func TestShipManifestIsShapeIdenticalToShipJSON(t *testing.T) {
 
 	// host's TestShipManifestWireShape holds ship.json to this same literal.
 	assert.JSONEq(t, `{
-		"nb": {"shippable": true, "verified": true, "state": "shippable"},
-		"sv": {"shippable": true, "verified": true, "state": "shippable", "not_governed": ["terms"]},
-		"ja": {"shippable": false, "verified": false, "state": "withheld"}
+		"nb": {"shippable": true, "state": "established"},
+		"sv": {"shippable": true, "state": "established", "not_governed": ["terms"]},
+		"ja": {"shippable": false, "state": "withheld"}
 	}`, string(body), "the feed and ship.json carry the same keys and values")
 }
 

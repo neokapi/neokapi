@@ -1,23 +1,20 @@
 package store
 
 // ShipState classifies what a locale (or a collection's locale slice) can ship
-// as, and on whose review. It is derived from block counts, never stored.
+// as, in the words of the unit ladder. It is derived from block counts, never
+// stored.
 type ShipState string
 
 const (
-	// ShipStateGoverned: fully translated, no failing checks, terms or voice
-	// profile rules govern the locale's terminology and every block has a
-	// terminology result, and every block's target carries a review decision
-	// (human-approved).
-	ShipStateGoverned ShipState = "governed"
-	// ShipStateApproved: what governed requires, in a locale that neither terms
-	// nor voice profile rules govern. A person approved every translation, and
-	// only the checks stood behind the approval.
-	ShipStateApproved ShipState = "approved"
-	// ShipStateAIShippable: fully translated with no failing checks and a
-	// terminology result wherever terms govern, but not fully reviewed:
-	// shippable on machine review only.
-	ShipStateAIShippable ShipState = "ai_shippable"
+	// ShipStateEstablished: fully translated, no failing checks, a terminology
+	// result wherever terms govern, and a person established every block's
+	// target. Governed content. Whether terms govern the locale at all is the
+	// compliance basis's to say (LocaleTranslationStats.ComplianceBasis).
+	ShipStateEstablished ShipState = "established"
+	// ShipStateTranslated: fully translated with no failing checks and a
+	// terminology result wherever terms govern, but not every block
+	// established: AI-shippable.
+	ShipStateTranslated ShipState = "translated"
 	// ShipStatePending: anything less: partial coverage, failing checks, a
 	// governed block with no terminology result, or nothing to ship yet.
 	ShipStatePending ShipState = "pending"
@@ -45,16 +42,12 @@ type ShipStateInputs struct {
 //   - pending when the scope is empty (TotalBlocks == 0), coverage is under
 //     100%, or any block fails the checks, is stale, holds wording a reviewer
 //     turned down, or has no terminology result in a locale terms govern;
-//   - otherwise ai_shippable while approval is incomplete;
-//   - otherwise governed when terminology governs the locale, and approved when
-//     it does not.
+//   - otherwise translated while establishing is incomplete;
+//   - otherwise established.
 //
-// Terminology that governs nothing withholds nothing. A locale with nothing
-// bound beyond the checks cannot be called governed, so that is the reason a
-// fully approved locale is approved rather than governed, and consumers name
-// it. Terminology that governs the locale but has no result for a block
-// withholds the scope exactly as a failing check does: a check that did not run
-// is not a check that passed.
+// Terminology that governs nothing withholds nothing. Terminology that governs
+// the locale but has no result for a block withholds the scope exactly as a
+// failing check does: a check that did not run is not a check that passed.
 //
 // The voice bar is not a dimension of any state. The worker rewrites voice
 // scores on every convergence pass, so a state that read them would move with
@@ -83,8 +76,8 @@ func DeriveShipState(in ShipStateInputs) ShipState {
 // quality gate events announced for it cannot disagree. The scope is pending
 // exactly when one of the gates is unmet.
 //
-// Review is not among the gates: a scope that is not fully reviewed ships as
-// ai_shippable. The checks and terms gates are evaluated only at full coverage,
+// Review is not among the gates: a scope that is not fully established ships
+// as translated. The checks and terms gates are evaluated only at full coverage,
 // which is where applyShipStates counts them, and terms only where terminology
 // governs the locale or a block has no terminology result. A scope below full
 // coverage has no result for either, so both are left out.
@@ -117,12 +110,8 @@ func EvaluateShipState(in ShipStateInputs) (ShipState, []ShipGateResult) {
 			return ShipStatePending, gates
 		}
 	}
-	switch {
-	case in.ApprovedBlocks < in.TotalBlocks:
-		return ShipStateAIShippable, gates
-	case !in.TermsGoverned:
-		return ShipStateApproved, gates
-	default:
-		return ShipStateGoverned, gates
+	if in.ApprovedBlocks < in.TotalBlocks {
+		return ShipStateTranslated, gates
 	}
+	return ShipStateEstablished, gates
 }

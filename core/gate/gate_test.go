@@ -172,99 +172,33 @@ func TestWorkedExample(t *testing.T) {
 
 	// The same scope under the default gate (reviewed:100) would not ship.
 	def, _ := rs.Resolve("ui", "nb")
-	assert.False(t, Evaluate(def, c, l).Pass, "default gate needs 100% reviewed")
-}
-
-// --- Approver class (by: human|any) -----------------------------------------
-
-// aiCoverage builds a scope of 4 units: 2 human-reviewed, 1 AI-approved
-// (reads reviewed, baseline translated), 1 translated.
-func aiCoverage() Coverage {
-	var c Coverage
-	c.Add("established")
-	c.Add("established")
-	c.AddAIDecided("established", "translated")
-	c.Add("translated")
-	return c
-}
-
-func TestEvaluate_ShortFormExcludesAIDecisions(t *testing.T) {
-	l := TargetLadder()
-	c := aiCoverage()
-
-	// Display view: all four read as translated-or-better, three as reviewed.
-	assert.InDelta(t, 75.0, c.AtLeastPct(l, "established"), 1e-9)
-	assert.InDelta(t, 100.0, c.AtLeastPct(l, "translated"), 1e-9)
-
-	// The legacy short form (reviewed: 75) defaults to human class: the
-	// AI-approved unit does NOT count, so only 50% is human-reviewed.
-	res := Evaluate(Gate{"established": {Pct: 75}}, c, l)
-	require.False(t, res.Pass, "short form requires human review — ai/ decisions must not satisfy it")
-	require.Len(t, res.Shortfalls, 1)
-	assert.InDelta(t, 50.0, res.Shortfalls[0].Actual, 1e-9)
-
-	// The AI-approved unit still counts as translated for a translated
-	// threshold (its human-class baseline).
-	assert.True(t, Evaluate(Gate{"translated": {Pct: 100}}, c, l).Pass)
-}
-
-func TestEvaluate_ExplicitHumanMatchesShortForm(t *testing.T) {
-	l := TargetLadder()
-	c := aiCoverage()
-	res := Evaluate(Gate{"established": {Pct: 75, By: ByHuman}}, c, l)
-	require.False(t, res.Pass)
-	assert.Equal(t, ByHuman, res.Shortfalls[0].By)
-}
-
-func TestEvaluate_ByAnyAdmitsAIDecisions(t *testing.T) {
-	l := TargetLadder()
-	c := aiCoverage()
-	assert.True(t, Evaluate(Gate{"established": {Pct: 75, By: ByAny}}, c, l).Pass,
-		"by: any admits ai/ approvals")
-	assert.False(t, Evaluate(Gate{"established": {Pct: 100, By: ByAny}}, c, l).Pass,
-		"the plain translated unit is still short of reviewed")
-}
-
-func TestEvaluate_NoAIDecisionsHumanEqualsAny(t *testing.T) {
-	l := TargetLadder()
-	c := NewCoverage([]string{"established", "established"})
-	assert.True(t, Evaluate(Gate{"established": {Pct: 100}}, c, l).Pass)
-	assert.True(t, Evaluate(Gate{"established": {Pct: 100, By: ByAny}}, c, l).Pass)
-	assert.Nil(t, c.HumanCounts, "no AI decisions → no separate human view materialized")
-}
-
-func TestValidate_ApproverClass(t *testing.T) {
-	l := TargetLadder()
-	require.NoError(t, Gate{"established": {Pct: 100, By: ByHuman}}.Validate(l))
-	require.NoError(t, Gate{"established": {Pct: 100, By: ByAny}}.Validate(l))
-	require.Error(t, Gate{"established": {Pct: 100, By: "robot"}}.Validate(l), "unknown class")
+	assert.False(t, Evaluate(def, c, l).Pass, "default gate needs 100% established")
 }
 
 func TestThreshold_YAMLRoundTrip(t *testing.T) {
-	// Short form decodes to a bare percent and re-encodes as one.
 	var g Gate
 	require.NoError(t, yaml.Unmarshal([]byte("established: 100\ntranslated: 80\n"), &g))
 	assert.Equal(t, Gate{"established": {Pct: 100}, "translated": {Pct: 80}}, g)
 	out, err := yaml.Marshal(g)
 	require.NoError(t, err)
-	assert.NotContains(t, string(out), "pct", "short form round-trips as a scalar")
+	assert.NotContains(t, string(out), "pct", "a threshold round-trips as a scalar")
 
-	// Extended form carries the approver class.
+	// The retired {pct, by} form fails with the fix.
 	var g2 Gate
-	require.NoError(t, yaml.Unmarshal([]byte("established: {pct: 100, by: human}\ntranslated: 100\n"), &g2))
-	assert.Equal(t, Gate{"established": {Pct: 100, By: ByHuman}, "translated": {Pct: 100}}, g2)
-	out2, err := yaml.Marshal(g2)
-	require.NoError(t, err)
-	assert.Contains(t, string(out2), "by: human")
+	err = yaml.Unmarshal([]byte("established: {pct: 100, by: human}\n"), &g2)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "`established: 100`")
 }
 
 func TestThreshold_JSONRoundTrip(t *testing.T) {
 	var g Gate
-	require.NoError(t, json.Unmarshal([]byte(`{"translated": 100, "established": {"pct": 50, "by": "any"}}`), &g))
-	assert.Equal(t, Gate{"translated": {Pct: 100}, "established": {Pct: 50, By: ByAny}}, g)
+	require.NoError(t, json.Unmarshal([]byte(`{"translated": 100, "established": 50}`), &g))
+	assert.Equal(t, Gate{"translated": {Pct: 100}, "established": {Pct: 50}}, g)
 	data, err := json.Marshal(g)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"translated": 100, "established": {"pct": 50, "by": "any"}}`, string(data))
+	assert.JSONEq(t, `{"translated": 100, "established": 50}`, string(data))
+
+	require.Error(t, json.Unmarshal([]byte(`{"established": {"pct": 50, "by": "any"}}`), &g))
 }
 
 // TestProgress pins the distance-to-gate derivation: the mean fractional
@@ -371,22 +305,4 @@ func TestEvaluateBlockingIsTheLowestUnmetRung(t *testing.T) {
 	res = Evaluate(g, NewCoverage([]string{"established"}), ladder)
 	assert.True(t, res.Pass)
 	assert.Empty(t, res.Blocking, "a passing gate blocks on nothing")
-}
-
-// TestProgressWithApproverClass: an AI-promoted unit does not advance a
-// human-class bar, so progress must read it at its baseline too — the number and
-// the verdict cannot disagree.
-func TestProgressWithApproverClass(t *testing.T) {
-	ladder := TargetLadder()
-	var cov Coverage
-	cov.AddAIDecided("established", "translated")
-	cov.AddAIDecided("established", "translated")
-
-	human := Gate{"translated": {Pct: 100}, "established": {Pct: 100, By: ByHuman}}
-	assert.Equal(t, 50, Progress(human, cov, ladder),
-		"AI review does not advance a human-class bar")
-
-	any := Gate{"translated": {Pct: 100}, "established": {Pct: 100, By: ByAny}}
-	assert.Equal(t, 100, Progress(any, cov, ladder),
-		"`by: any` admits the AI decision")
 }

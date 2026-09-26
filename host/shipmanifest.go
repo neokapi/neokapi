@@ -8,16 +8,14 @@ import (
 	"sort"
 )
 
-// ShipEntry is one locale's standing in the picker manifest: whether it clears
-// its ship gate (safe to offer) and whether it clears its verified gate (a
-// person reviewed or signed off — no AI badge). The two are independent.
+// ShipEntry is one locale's standing in the picker manifest: whether nothing
+// withholds it (safe to offer) and its ship state.
 type ShipEntry struct {
 	Shippable bool `json:"shippable"`
-	Verified  bool `json:"verified"`
-	// State is the locale's ship state: shippable, withheld or not_gated, folded
-	// across its scopes as ConvergeLocaleResult.ShipState is. Shippable is true
-	// for not_gated as well as shippable, so a picker that reads only Shippable
-	// offers a locale no gate matches; State says that no gate stands behind it.
+	// State is the locale's ship state, folded across its scopes as
+	// ConvergeLocaleResult.ShipState is: established (governed, no AI badge),
+	// translated (AI-shippable), withheld, or not_gated. Shippable is true for
+	// every state but withheld.
 	State ShipState `json:"state"`
 	// NotGoverned names the dimensions that govern nothing in the locale:
 	// "terms" when no terms bound where the locale's content sits answer for
@@ -27,8 +25,8 @@ type ShipEntry struct {
 }
 
 // ShipManifest is the minimal, stable picker manifest `kapi status --ship`
-// emits: locale → {shippable, verified, state, not_governed}. A language picker consumes it to offer
-// only shippable locales and to badge the shippable-but-unverified ones "AI".
+// emits: locale → {shippable, state, not_governed}. A language picker consumes
+// it to offer only shippable locales and to badge the ones not established "AI".
 // It is a deliberately tiny projection of the richer StatusOutput --json, so a
 // build can emit it (kapi status --ship --emit ship.json) and ship it next to
 // the app. Keys are the target locales; a build redirects or writes the file.
@@ -36,9 +34,8 @@ type ShipManifest map[string]ShipEntry
 
 // BuildShipManifest projects the per-(collection, locale) coverage rows to the
 // per-locale picker manifest. When a locale spans several collection scopes it
-// is shippable only if every scope is shippable, verified only if every scope is
-// verified, and its State is the weakest of its scopes' states (a locale is no
-// stronger than its weakest collection). It names a dimension as not governed
+// is shippable only if every scope is shippable, and its State is the weakest of
+// its scopes' states (a locale is no stronger than its weakest collection). It names a dimension as not governed
 // only when that dimension governs none of the locale's scopes.
 func BuildShipManifest(locales []LocaleCoverage) ShipManifest {
 	m := ShipManifest{}
@@ -47,11 +44,10 @@ func BuildShipManifest(locales []LocaleCoverage) ShipManifest {
 	for _, lc := range locales {
 		e, seen := m[lc.Locale]
 		if !seen {
-			e = ShipEntry{Shippable: true, Verified: true, State: ShipStateShippable}
+			e = ShipEntry{Shippable: true, State: ShipStateEstablished}
 			ungoverned[lc.Locale] = map[string]int{}
 		}
 		e.Shippable = e.Shippable && lc.Shippable
-		e.Verified = e.Verified && lc.Verified
 		e.State = weakerShipState(e.State, lc.ShipState)
 		scopes[lc.Locale]++
 		for _, d := range lc.NotGoverned {
@@ -75,8 +71,9 @@ func BuildShipManifest(locales []LocaleCoverage) ShipManifest {
 }
 
 // weakerShipState returns the weaker of two ship states, in the order withheld,
-// not_gated, shippable. A locale takes the weakest state among its scopes: one
-// withheld scope withholds it, and content no gate matches leaves it not gated.
+// not_gated, translated, established. A locale takes the weakest state among
+// its scopes: one withheld scope withholds it, content no gate matches leaves
+// it not gated, and one AI-shippable scope keeps it from reading governed.
 func weakerShipState(a, b ShipState) ShipState {
 	rank := func(s ShipState) int {
 		switch s {
@@ -84,8 +81,10 @@ func weakerShipState(a, b ShipState) ShipState {
 			return 0
 		case ShipStateNotGated:
 			return 1
-		default:
+		case ShipStateTranslated:
 			return 2
+		default:
+			return 3
 		}
 	}
 	if rank(b) < rank(a) {

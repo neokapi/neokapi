@@ -158,8 +158,8 @@ describe("TranslationDashboard", () => {
     render(<TranslationDashboard stats={shipStateDashboardStats} />);
     const card = screen.getByTestId("ship-readiness");
     expect(within(card).getByText("Ship readiness")).toBeInTheDocument();
-    expect(within(card).getByTestId("ship-state-governed")).toBeInTheDocument();
-    expect(within(card).getByTestId("ship-state-ai_shippable")).toBeInTheDocument();
+    expect(within(card).getByTestId("ship-state-established")).toBeInTheDocument();
+    expect(within(card).getByTestId("ship-state-translated")).toBeInTheDocument();
     expect(within(card).getByTestId("ship-state-pending")).toBeInTheDocument();
   });
 

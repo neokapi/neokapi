@@ -278,7 +278,7 @@ func TestStatus_Coverage(t *testing.T) {
 }
 
 // writeVerifiedGateProject builds a project where everything ships (a trivial
-// ship gate) but only fully-translated locales are verified (verified_gate:
+// ship gate) but only fully-translated locales are verified (established_gate:
 // {translated: 100}). nb is fully translated (verified); de is 2 of 3
 // (shippable but unverified — the AI case). Using `translated` as the verified
 // bar keeps the test to file-scan coverage — the evaluation mechanism is what
@@ -296,7 +296,7 @@ collections:
   - path: en.json
     target: "{lang}.json"
 ship_gate: { translated: 0 }
-verified_gate: { translated: 100 }
+established_gate: { translated: 100 }
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
@@ -315,12 +315,12 @@ func TestStatus_VerifiedGate(t *testing.T) {
 	nb, ok := localeCoverage(out, "nb")
 	require.True(t, ok)
 	assert.True(t, nb.Shippable, "trivial ship gate → shippable")
-	assert.True(t, nb.Verified, "fully translated clears verified_gate: {translated: 100}")
+	assert.Equal(t, ShipStateEstablished, nb.ShipState, "fully translated clears established_gate: {translated: 100}")
 
 	de, ok := localeCoverage(out, "de")
 	require.True(t, ok)
 	assert.True(t, de.Shippable, "ships under the translated:0 gate")
-	assert.False(t, de.Verified, "2 of 3 translated → not verified (the AI case)")
+	assert.NotEqual(t, ShipStateEstablished, de.ShipState, "2 of 3 translated → not verified (the AI case)")
 }
 
 func TestStatus_NoVerifiedGate_NothingVerified(t *testing.T) {
@@ -330,7 +330,7 @@ func TestStatus_NoVerifiedGate_NothingVerified(t *testing.T) {
 	out := runStatusJSON(t)
 	require.NotEmpty(t, out.Locales)
 	for _, lc := range out.Locales {
-		assert.False(t, lc.Verified, "%s: no verified gate configured → unverified", lc.Locale)
+		assert.NotEqual(t, ShipStateEstablished, lc.ShipState, "%s: no verified gate configured → unverified", lc.Locale)
 	}
 }
 
@@ -353,9 +353,9 @@ func TestStatus_ShipManifestEmit(t *testing.T) {
 	var manifest map[string]ShipEntry
 	require.NoError(t, json.Unmarshal(raw, &manifest), "ship.json must be valid JSON: %s", raw)
 
-	assert.Equal(t, ShipEntry{Shippable: true, Verified: true, State: ShipStateShippable, NotGoverned: []string{"terms"}}, manifest["nb"],
+	assert.Equal(t, ShipEntry{Shippable: true, State: ShipStateEstablished, NotGoverned: []string{"terms"}}, manifest["nb"],
 		"no terms govern nb, and the manifest says so")
-	assert.Equal(t, ShipEntry{Shippable: true, Verified: false, State: ShipStateShippable, NotGoverned: []string{"terms"}}, manifest["de"],
+	assert.Equal(t, ShipEntry{Shippable: true, State: ShipStateTranslated, NotGoverned: []string{"terms"}}, manifest["de"],
 		"shippable but unverified — the AI case")
 }
 
@@ -364,15 +364,15 @@ func TestStatus_ShipManifestEmit(t *testing.T) {
 // so the picker reads both through one code path.
 func TestShipManifestWireShape(t *testing.T) {
 	body, err := json.Marshal(ShipManifest{
-		"nb": {Shippable: true, Verified: true, State: ShipStateShippable},
-		"sv": {Shippable: true, Verified: true, State: ShipStateShippable, NotGoverned: []string{"terms"}},
+		"nb": {Shippable: true, State: ShipStateEstablished},
+		"sv": {Shippable: true, State: ShipStateEstablished, NotGoverned: []string{"terms"}},
 		"ja": {State: ShipStateWithheld},
 	})
 	require.NoError(t, err)
 	assert.JSONEq(t, `{
-		"nb": {"shippable": true, "verified": true, "state": "shippable"},
-		"sv": {"shippable": true, "verified": true, "state": "shippable", "not_governed": ["terms"]},
-		"ja": {"shippable": false, "verified": false, "state": "withheld"}
+		"nb": {"shippable": true, "state": "established"},
+		"sv": {"shippable": true, "state": "established", "not_governed": ["terms"]},
+		"ja": {"shippable": false, "state": "withheld"}
 	}`, string(body))
 }
 
@@ -496,8 +496,8 @@ func TestStatus_ShipManifestStdout(t *testing.T) {
 	require.NoError(t, err)
 	var manifest map[string]ShipEntry
 	require.NoError(t, json.Unmarshal([]byte(out), &manifest), "stdout must be the ship manifest: %s", out)
-	assert.True(t, manifest["nb"].Verified)
-	assert.False(t, manifest["de"].Verified)
+	assert.Equal(t, ShipStateEstablished, manifest["nb"].State)
+	assert.NotEqual(t, ShipStateEstablished, manifest["de"].State)
 }
 
 func shipGate(out verifyOutput) (verifyGateResult, bool) {

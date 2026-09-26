@@ -23,11 +23,12 @@ type (
 	ReviewLanguage = convergence.ReviewLanguage
 )
 
-// The three ship states a scope reports (convergence.ShipState).
+// The ship states a scope reports (convergence.ShipState).
 const (
-	ShipStateShippable = convergence.ShipStateShippable
-	ShipStateWithheld  = convergence.ShipStateWithheld
-	ShipStateNotGated  = convergence.ShipStateNotGated
+	ShipStateEstablished = convergence.ShipStateEstablished
+	ShipStateTranslated  = convergence.ShipStateTranslated
+	ShipStateWithheld    = convergence.ShipStateWithheld
+	ShipStateNotGated    = convergence.ShipStateNotGated
 )
 
 // Per-block ladder helpers, framework-owned. Kept as package-level aliases so the

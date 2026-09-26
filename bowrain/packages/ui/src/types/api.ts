@@ -933,14 +933,13 @@ export interface WordCountResult {
 
 /**
  * Ship state for one locale scope (project-wide or one collection), derived
- * server-side (store.DeriveShipState): `governed` = fully translated, checks
- * pass, terminology governs the locale with a result for every block, and every
- * translation carries a human review decision; `approved` = the same in a locale
- * terminology does not govern; `ai_shippable` = fully translated, checks pass and
- * governed terminology has a result, machine-reviewed only; `pending` = anything
- * less.
+ * server-side (store.DeriveShipState): `established` = fully translated, checks
+ * pass, terminology has a result wherever it governs, and a person established
+ * every translation (governed); `translated` = the same short of every
+ * translation established (AI-shippable); `pending` = anything less. Whether
+ * terminology governs the locale at all is `compliance_basis`.
  */
-export type ShipState = "governed" | "approved" | "ai_shippable" | "pending";
+export type ShipState = "established" | "translated" | "pending";
 
 /**
  * The dimensions governing a compliance rate (store.ComplianceBasis). Rule-based
@@ -1625,10 +1624,8 @@ export interface LoopRollupShipProject {
   project_id: string;
   project_name?: string;
   stream?: string;
-  governed: number;
-  /** Fully approved project-locales that terminology does not govern. */
-  approved?: number;
-  ai_shippable: number;
+  established: number;
+  translated: number;
   pending: number;
 }
 
@@ -1640,10 +1637,8 @@ export interface LoopRollupShipProject {
  */
 export interface LoopRollupShip {
   basis: string;
-  governed: number;
-  /** Fully approved project-locales that terminology does not govern. */
-  approved?: number;
-  ai_shippable: number;
+  established: number;
+  translated: number;
   pending: number;
   counted_projects: number;
   total_projects: number;

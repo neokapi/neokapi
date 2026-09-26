@@ -138,7 +138,7 @@ func readSurfaces(t *testing.T, a *App, recipe, root string) map[string]surfaces
 		Locales []struct {
 			Locale        string         `json:"locale"`
 			Shippable     bool           `json:"shippable"`
-			Verified      bool           `json:"verified"`
+			ShipState     string         `json:"shipState"`
 			Pct           map[string]int `json:"pct"`
 			FailingChecks int            `json:"failingChecks"`
 		} `json:"locales"`
@@ -155,7 +155,7 @@ func readSurfaces(t *testing.T, a *App, recipe, root string) map[string]surfaces
 	for _, lc := range up.Locales {
 		out[lc.Locale] = surfaces{
 			upTranslated: lc.Pct["translated"], upShippable: lc.Shippable,
-			upVerified: lc.Verified, upFailingChecks: lc.FailingChecks,
+			upVerified: lc.ShipState == "established", upFailingChecks: lc.FailingChecks,
 			// A locale is no stronger than its weakest collection scope, which is
 			// the fold BuildShipManifest applies; the grid's rows are per scope.
 			statusTranslated: 100, statusShippable: true, statusVerified: true,
@@ -175,7 +175,7 @@ func readSurfaces(t *testing.T, a *App, recipe, root string) map[string]surfaces
 			s.statusTranslated = lc.Pct["translated"]
 		}
 		s.statusShippable = s.statusShippable && lc.Shippable
-		s.statusVerified = s.statusVerified && lc.Verified
+		s.statusVerified = s.statusVerified && string(lc.ShipState) == "established"
 		s.statusFailingChecks += lc.FailingChecks
 		out[lc.Locale] = s
 	}
@@ -190,7 +190,7 @@ func readSurfaces(t *testing.T, a *App, recipe, root string) map[string]surfaces
 	require.NoError(t, rerr)
 	var ship map[string]struct {
 		Shippable bool `json:"shippable"`
-		Verified  bool `json:"verified"`
+		State     string `json:"state"`
 	}
 	require.NoError(t, json.Unmarshal(shipBytes, &ship), "ship manifest must be JSON: %s", shipBytes)
 
@@ -200,7 +200,7 @@ func readSurfaces(t *testing.T, a *App, recipe, root string) map[string]surfaces
 	for locale, s := range out {
 		entry, ok := ship[locale]
 		require.True(t, ok, "ship manifest must carry %s: %s", locale, shipBytes)
-		s.shipShippable, s.shipVerified = entry.Shippable, entry.Verified
+		s.shipShippable, s.shipVerified = entry.Shippable, entry.State == "established"
 		s.statusText = statusText
 		out[locale] = s
 	}
@@ -218,8 +218,8 @@ func assertAgree(t *testing.T, s surfaces, locale string) {
 	assert.Equal(t, s.shipShippable, s.statusShippable,
 		"%s: status's ship column and the ship manifest must be the same predicate\nstatus:\n%s",
 		locale, s.statusText)
-	assert.Equal(t, s.shipVerified, s.upVerified, "%s: one answer about verified", locale)
-	assert.Equal(t, s.shipVerified, s.statusVerified, "%s: one answer about verified", locale)
+	assert.Equal(t, s.shipVerified, s.upVerified, "%s: one answer about established", locale)
+	assert.Equal(t, s.shipVerified, s.statusVerified, "%s: one answer about established", locale)
 	assert.Equal(t, s.statusFailingChecks, s.upFailingChecks,
 		"%s: one count of the units failing the project's checks\nstatus:\n%s", locale, s.statusText)
 }

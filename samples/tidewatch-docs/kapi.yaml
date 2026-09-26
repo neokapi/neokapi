@@ -56,7 +56,7 @@ collections:
 ship_gate:
   translated: 100
   established: 50
-verified_gate:
+established_gate:
   established: 100
 
 flows:

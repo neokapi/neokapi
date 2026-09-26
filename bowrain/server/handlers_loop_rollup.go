@@ -70,9 +70,8 @@ type loopRollupShipProject struct {
 	ProjectID   string `json:"project_id"`
 	ProjectName string `json:"project_name,omitempty"`
 	Stream      string `json:"stream,omitempty"`
-	Governed    int    `json:"governed"`
-	Approved    int    `json:"approved"`
-	AIShippable int    `json:"ai_shippable"`
+	Established int    `json:"established"`
+	Translated  int    `json:"translated"`
 	Pending     int    `json:"pending"`
 }
 
@@ -83,9 +82,8 @@ type loopRollupShipProject struct {
 // as such.
 type loopRollupShipView struct {
 	Basis           string                  `json:"basis"`
-	Governed        int                     `json:"governed"`
-	Approved        int                     `json:"approved"`
-	AIShippable     int                     `json:"ai_shippable"`
+	Established     int                     `json:"established"`
+	Translated      int                     `json:"translated"`
 	Pending         int                     `json:"pending"`
 	CountedProjects int                     `json:"counted_projects"`
 	TotalProjects   int                     `json:"total_projects"`
@@ -197,20 +195,17 @@ func (s *Server) buildLoopShipRollup(workspaceID string, projects []*store.Proje
 		row := loopRollupShipProject{ProjectID: p.ID, ProjectName: p.Name, Stream: stream}
 		for _, ls := range entry.stats.LocaleStats {
 			switch ls.ShipState {
-			case store.ShipStateGoverned:
-				row.Governed++
-			case store.ShipStateApproved:
-				row.Approved++
-			case store.ShipStateAIShippable:
-				row.AIShippable++
+			case store.ShipStateEstablished:
+				row.Established++
+			case store.ShipStateTranslated:
+				row.Translated++
 			default:
 				// Pending, plus any future/unknown state: not shippable.
 				row.Pending++
 			}
 		}
-		ship.Governed += row.Governed
-		ship.Approved += row.Approved
-		ship.AIShippable += row.AIShippable
+		ship.Established += row.Established
+		ship.Translated += row.Translated
 		ship.Pending += row.Pending
 		ship.CountedProjects++
 		ship.Projects = append(ship.Projects, row)

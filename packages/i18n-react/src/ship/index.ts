@@ -2,16 +2,16 @@
  * @neokapi/i18n-react/ship — ship-aware language picker helpers.
  *
  * `kapi status --ship --emit ship.json` writes a minimal manifest keyed by
- * locale, each entry `{ shippable, verified }` — the two-gate model. `shippable`
- * means nothing withholds the locale (safe to offer), and `state` says whether it
- * cleared a ship gate or no gate matches it (`not_gated`); `verified` means it
- * also cleared its verified gate (a person reviewed or signed off). A locale
- * that ships but is not verified is AI-only work.
+ * locale, each entry `{ shippable, state }`. `shippable` means nothing withholds
+ * the locale (safe to offer). `state` says how it ships: `established` (a person
+ * established the content, governed), `translated` (translated with its checks
+ * green, AI-shippable), `not_gated` (no gate speaks for it), or `withheld`.
  *
  * These helpers are framework-light and dependency-free: a loader that tolerates
  * a missing manifest, and a pure transform that turns the manifest plus the
  * app's locale list into a render model. The ONLY badge this layer emits is
- * `'ai'` (shippable but unverified); a verified locale carries no badge.
+ * `'ai'` (shippable but not established); an established locale carries no
+ * badge.
  *
  * Callers pass locale CODES; display labels are derived automatically from each
  * code as its endonym — the language named in its own language (fr → "Français",
@@ -22,19 +22,20 @@
  */
 
 /**
- * A locale's ship state: `shippable` (it clears its ship gate), `withheld` (it
- * does not ship), or `not_gated` (no ship gate matches it and nothing withholds
+ * A locale's ship state: `established` (governed: it clears its established
+ * gate), `translated` (AI-shippable: it clears its ship gate), `withheld` (it
+ * does not ship), or `not_gated` (no gate speaks for it and nothing withholds
  * it).
  */
-export type ShipState = "shippable" | "withheld" | "not_gated";
+export type ShipState = "established" | "translated" | "withheld" | "not_gated";
+
+const SHIP_STATES: readonly string[] = ["established", "translated", "withheld", "not_gated"];
 
 /** One locale's standing in the manifest. */
 export interface ShipEntry {
-  /** Nothing withholds the locale: it clears its ship gate, or no gate matches it. Safe to offer in the picker. */
+  /** Nothing withholds the locale. Safe to offer in the picker. */
   shippable: boolean;
-  /** Cleared its verified gate — human-reviewed, so no AI badge. */
-  verified: boolean;
-  /** The locale's ship state. Absent from a manifest written before it existed. */
+  /** The locale's ship state; `established` carries no AI badge. */
   state?: ShipState;
 }
 
@@ -82,7 +83,7 @@ export interface PickerLocale {
   label: string;
   /** Always true — non-shippable locales are filtered out of the model. */
   shippable: boolean;
-  /** `'ai'` when shippable but unverified; `null` when verified (no badge). */
+  /** `'ai'` when shippable but not established; `null` when established. */
   badge: LocaleBadge;
   /** The locale's ship state, when the manifest carries one. */
   state?: ShipState;
@@ -113,9 +114,9 @@ function normalizeShipStatus(data: unknown): ShipStatus {
   for (const [locale, raw] of Object.entries(data as Record<string, unknown>)) {
     if (raw === null || typeof raw !== "object") continue;
     const e = raw as Record<string, unknown>;
-    const entry: ShipEntry = { shippable: e.shippable === true, verified: e.verified === true };
-    if (e.state === "shippable" || e.state === "withheld" || e.state === "not_gated") {
-      entry.state = e.state;
+    const entry: ShipEntry = { shippable: e.shippable === true };
+    if (typeof e.state === "string" && SHIP_STATES.includes(e.state)) {
+      entry.state = e.state as ShipState;
     }
     out[locale] = entry;
   }
@@ -183,7 +184,7 @@ function resolveLabel(
  *   - Empty manifest (missing/malformed ship.json) → every locale is shown
  *     unbadged; the picker cannot judge what it cannot see.
  *   - A locale with an entry that is not shippable is dropped from the model.
- *   - A shippable locale is badged `'ai'` when unverified, `null` when verified.
+ *   - A shippable locale is badged `'ai'` unless it is `established`.
  *   - A locale whose entry is `not_gated` is offered, unless
  *     `options.includeNotGated` is `false`.
  *   - A locale with NO entry in a non-empty manifest (e.g. the source language,
@@ -209,7 +210,7 @@ export function languagePickerModel(
         locale,
         label,
         shippable: true,
-        badge: entry.verified ? null : "ai",
+        badge: entry.state === "established" ? null : "ai",
       };
       if (entry.state) picked.state = entry.state;
       out.push(picked);

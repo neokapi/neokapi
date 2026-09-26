@@ -207,10 +207,10 @@ func TestGated_ClearedGateIsShippable(t *testing.T) {
 	require.True(t, out.Converged)
 	require.Len(t, out.Locales, 1)
 	assert.True(t, out.Locales[0].Gated)
-	assert.Equal(t, ShipStateShippable, out.Locales[0].ShipState)
+	assert.Equal(t, ShipStateTranslated, out.Locales[0].ShipState)
 	assert.Contains(t, convergeText(t, out), "Up to date: every gated scope is shippable.")
 
 	ship := shipJSONFor(t, recipe, dir)
-	assert.Equal(t, "shippable", ship["nb"]["state"])
+	assert.Equal(t, "translated", ship["nb"]["state"])
 	assert.Equal(t, true, ship["nb"]["shippable"])
 }

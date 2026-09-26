@@ -91,7 +91,7 @@ func TestReviewBasis_SourceEditWithdrawsTheUnit(t *testing.T) {
 	require.Len(t, after.Locales, 1)
 	assert.Equal(t, 1, after.Locales[0].Stale, "the edited unit's decision blessed source that is gone")
 	assert.False(t, after.Locales[0].Shippable, "stale content does not ship")
-	assert.False(t, after.Locales[0].Verified)
+	assert.NotEqual(t, "established", string(after.Locales[0].ShipState))
 	assert.Equal(t, 50, after.Locales[0].Pct["translated"],
 		"the stale unit reads at draft, below translated — a target exists, but not of this source")
 	assert.Equal(t, 50, after.Locales[0].Pct["established"])

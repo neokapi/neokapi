@@ -103,9 +103,8 @@ describe("LoopStatusRow", () => {
       <LoopStatusRow
         status={{
           ship: {
-            governed: 3,
-            approved: 0,
-            aiShippable: 2,
+            established: 3,
+            translated: 2,
             pending: 5,
             countedProjects: 4,
             totalProjects: 4,
@@ -116,19 +115,18 @@ describe("LoopStatusRow", () => {
     const ship = screen.getByTestId("loop-card-ship");
     expect(within(ship).getByText("5")).toBeInTheDocument();
     expect(within(ship).getByText(/of 10 locales shippable/)).toBeInTheDocument();
-    expect(within(ship).getByText(/3 governed · 2 AI-shippable · 5 pending/)).toBeInTheDocument();
+    expect(within(ship).getByText(/3 established · 2 translated · 5 pending/)).toBeInTheDocument();
     // Full coverage: no partial-coverage qualifier.
     expect(within(ship).queryByText(/across/)).not.toBeInTheDocument();
   });
 
-  it("counts approved locales as shippable and names them", () => {
+  it("counts established and translated locales as shippable and names them", () => {
     render(
       <LoopStatusRow
         status={{
           ship: {
-            governed: 1,
-            approved: 2,
-            aiShippable: 1,
+            established: 3,
+            translated: 1,
             pending: 1,
             countedProjects: 1,
             totalProjects: 1,
@@ -139,7 +137,7 @@ describe("LoopStatusRow", () => {
     const ship = screen.getByTestId("loop-card-ship");
     expect(within(ship).getByText("4")).toBeInTheDocument();
     expect(within(ship).getByText(/of 5 locales shippable/)).toBeInTheDocument();
-    expect(ship.textContent).toContain("1 governed · 2 approved · 1 AI-shippable · 1 pending");
+    expect(ship.textContent).toContain("3 established · 1 translated · 1 pending");
   });
 
   it("labels a partial ship rollup with its project coverage", () => {
@@ -147,9 +145,8 @@ describe("LoopStatusRow", () => {
       <LoopStatusRow
         status={{
           ship: {
-            governed: 1,
-            approved: 0,
-            aiShippable: 0,
+            established: 1,
+            translated: 0,
             pending: 1,
             countedProjects: 2,
             totalProjects: 6,
@@ -175,9 +172,8 @@ describe("LoopStatusRow", () => {
         status={{
           latestRun: { state: "running", projectName: "Website" },
           ship: {
-            governed: 1,
-            approved: 0,
-            aiShippable: 1,
+            established: 1,
+            translated: 1,
             pending: 0,
             countedProjects: 1,
             totalProjects: 1,

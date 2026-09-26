@@ -168,7 +168,8 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 //
 // Ship is a verdict, not a percentage. A percentage there would invite the
 // question "is 80% shippable?", whose answer is always no — a gate either holds
-// or it does not. So the column reads `ready` or `blocked: <rung>`, naming the
+// or it does not. So the column reads the ship state (`established` or
+// `translated`) or `blocked: <rung>`, naming the
 // first unmet gate so it points at the work; the numbers live in the stage
 // columns, and the pipeline bar carries distance-to-the-bar at a glance.
 func (o StatusOutput) writeCoverageGrid(w io.Writer) {
@@ -187,14 +188,7 @@ func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 			cells = append(cells, fmt.Sprintf("%d%%", lc.Pct[rung]))
 		}
 		cells = append(cells, pipelineCell(lc, bars))
-		ship := shipCell(lc, s)
-		// AI-approved units read as reviewed above, but honest provenance
-		// matters: qualify how many of them an autonomous AI approved. Gates
-		// only count these under `by: any` (core/gate approver classes).
-		if lc.AIReviewed > 0 {
-			ship += s.Muted.Render(fmt.Sprintf("  (%d reviewed by ai)", lc.AIReviewed))
-		}
-		t.Row(append(cells, ship)...)
+		t.Row(append(cells, shipCell(lc, s))...)
 	}
 	t.Render()
 	o.writeBasisLines(w)
@@ -503,9 +497,8 @@ var sourceLadder = gate.SourceLadder()
 
 // writeSourceLine renders the one-line source-readiness summary: per-rung
 // coverage of the author's content (labeled, since its ladder differs from the
-// translation grid) plus its source-gate standing. It uses the same verdict
-// vocabulary as the ship column — a gate reads `ready` or `blocked: <rung>`
-// wherever it appears.
+// translation grid) plus its source-gate standing: `ready` when the source
+// gate is met, `blocked: <rung>` when it is not.
 func writeSourceLine(w io.Writer, sc SourceCoverage) {
 	cells := make([]string, 0, len(sourceLadder))
 	for _, s := range sourceLadder {
@@ -533,9 +526,10 @@ func scopeLabel(lc LocaleCoverage) string {
 	return lc.Locale
 }
 
-// shipCell renders the ship verdict: `ready`, `blocked: <rung>` naming the
-// first unmet gate, or `not gated` when no gate matches the scope and nothing
-// withholds it.
+// shipCell renders the ship verdict: the state the scope ships at
+// (`established`, governed; `translated`, AI-shippable), `blocked: <rung>`
+// naming the first unmet gate, or `not gated` when no gate matches the scope
+// and nothing withholds it.
 //
 // The blocking rung is the *lowest* unmet one (gate.Result.Blocking), so the
 // verdict points at the work that unblocks the rest — saying "blocked: review"
@@ -563,11 +557,13 @@ func shipCell(lc LocaleCoverage, s *output.Styles) string {
 	if lc.TermsNotChecked > 0 {
 		return s.Warn.Render("blocked: terms not checked")
 	}
-	if !lc.Gated {
+	switch lc.ShipState {
+	case ShipStateEstablished:
+		return s.Success.Render(string(ShipStateEstablished))
+	case ShipStateTranslated:
+		return s.Success.Render(string(ShipStateTranslated))
+	case ShipStateNotGated:
 		return s.Dim("not gated")
-	}
-	if lc.Shippable {
-		return s.Success.Render("ready")
 	}
 	return s.Warn.Render("blocked: " + shipBlockingLabel(lc))
 }
@@ -667,7 +663,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		}
 
 		// --ship emits the minimal picker manifest (locale → {shippable,
-		// verified}) and stops — a build redirects it to ship.json, or writes it
+		// state}) and stops — a build redirects it to ship.json, or writes it
 		// with --emit. The richer coverage report is skipped: this shape is for a
 		// language picker, not a dashboard.
 		if ship, _ := cmd.Flags().GetBool("ship"); ship {
@@ -774,6 +770,6 @@ func AddStatusFlags(cmd Command) {
 	cmd.Flags().Bool("review", false, "list the units awaiting review in every language, the source language among them, instead of the coverage grid; approve a translated unit with `kapi apply` (kind:\"review\")")
 	cmd.Flags().StringSlice("lang", nil, "with --review, list only these languages (repeatable, or comma-separated); the source language is one of them")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
-	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, verified, not_governed}) instead of the coverage grid; a language picker reads it to offer only shippable locales and to badge the unverified ones as AI-translated")
+	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, state, not_governed}) instead of the coverage grid; state is established (governed) or translated (AI-shippable), and a language picker offers only shippable locales and badges the ones not established as AI-translated")
 	cmd.Flags().String("emit", "", "with --ship, write the manifest to this path (e.g. ship.json) instead of stdout")
 }

@@ -1064,12 +1064,12 @@ export interface GateShortfall {
   state: string;
   actual: number;
   required: number;
-  /** Approver class of the unmet threshold when explicitly set (human|any). */
-  by?: string;
 }
 
-/** A scope's standing against its ship gates (Go convergence.ShipState). */
-export type ShipState = "shippable" | "withheld" | "not_gated";
+/** A scope's standing against its ship and established gates (Go
+ * convergence.ShipState): established (governed), translated (AI-shippable),
+ * withheld, or not_gated. */
+export type ShipState = "established" | "translated" | "withheld" | "not_gated";
 
 /** Per-(collection, locale) target coverage + ship-gate standing. */
 export interface LocaleCoverage {
@@ -1082,9 +1082,9 @@ export interface LocaleCoverage {
   gated: boolean;
   /** Nothing withholds the scope: its gate is met, or no gate matches it. */
   shippable: boolean;
-  /** shippable (a gate matches and is met), withheld, or not_gated (no gate
-   *  matches and nothing withholds). Only this field tells a met gate from no
-   *  gate. */
+  /** established (its established gate is met), translated (its ship gate
+   *  is met), withheld, or not_gated (no gate speaks for it and nothing
+   *  withholds). Only this field tells a met gate from no gate. */
   shipState?: ShipState;
   pending?: GateShortfall[];
 }
@@ -1096,9 +1096,6 @@ export interface SourceCoverage {
   gated: boolean;
   shippable: boolean;
   pending?: GateShortfall[];
-  /** Units whose reviewed rung came from an autonomous AI decision ("ai/…").
-   * Shown with an "(ai)" qualifier; human-required gates do not count them. */
-  aiReviewed?: number;
 }
 
 /** One unit awaiting a person: a translation not yet approved, or a source unit
@@ -1445,8 +1442,8 @@ export interface ParkedScope {
 export interface ConvergeLocaleResult {
   locale: string;
   shippable: boolean;
-  /** The weakest state among the locale's scopes: withheld, not_gated or
-   *  shippable. */
+  /** The weakest state among the locale's scopes: withheld, not_gated,
+   *  translated or established. */
   shipState?: ShipState;
   /** A ship gate matches at least one of the locale's scopes. */
   gated?: boolean;

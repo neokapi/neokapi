@@ -32,7 +32,7 @@ func TestRunAccumulator_ServerStandingIsGated(t *testing.T) {
 
 	require.Len(t, out.Locales, 3)
 	want := map[string]convergence.ShipState{
-		"fr-FR": convergence.ShipStateShippable,
+		"fr-FR": convergence.ShipStateTranslated,
 		"de-DE": convergence.ShipStateWithheld,
 		"ja-JP": convergence.ShipStateWithheld,
 	}

@@ -52,9 +52,8 @@ export function ReviewInboxRoute() {
     projectName: p.project_name ?? p.project_id,
     stream: p.stream ?? "main",
     pending: p.pending,
-    governed: p.governed,
-    approved: p.approved ?? 0,
-    aiShippable: p.ai_shippable,
+    established: p.established,
+    translated: p.translated,
   }));
 
   const ship = rollup?.ship;

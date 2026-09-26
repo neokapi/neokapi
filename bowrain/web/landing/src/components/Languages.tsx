@@ -8,7 +8,7 @@ import { markEngaged } from "../sectionSignals";
 
 // Illustrate locale readiness from coverage, checks and review decisions.
 
-type ShipState = "governed" | "ai_shippable" | "pending";
+type ShipState = "established" | "translated" | "pending";
 
 interface LocaleRow {
   locale: string;
@@ -22,7 +22,7 @@ interface LocaleRow {
 /** Mirrors bowrain/core/store.DeriveShipState. */
 function deriveShipState(row: LocaleRow): ShipState {
   if (row.total === 0 || row.translated < row.total || row.failingChecks > 0) return "pending";
-  return row.approved >= row.total ? "governed" : "ai_shippable";
+  return row.approved >= row.total ? "established" : "translated";
 }
 
 const LOCALES: LocaleRow[] = [
@@ -49,18 +49,23 @@ const LOCALES: LocaleRow[] = [
 ];
 
 const STATE_STYLES: Record<ShipState, string> = {
-  governed: "bg-success/10 text-success",
-  ai_shippable: "bg-info/10 text-info",
+  established: "bg-success/10 text-success",
+  translated: "bg-info/10 text-info",
   pending: "bg-muted text-muted-foreground",
 };
 
-// Each delivery policy accepts a set of precomputed ship states.
+// Each delivery policy accepts a set of precomputed ship states. The ids are
+// analytics event values and keep their spelling.
 const BARS = [
-  { id: "governed", label: t("Ship what a person approved"), accepts: ["governed"] as ShipState[] },
+  {
+    id: "governed",
+    label: t("Ship what a person established"),
+    accepts: ["established"] as ShipState[],
+  },
   {
     id: "checks",
     label: t("Ship what passes checks"),
-    accepts: ["governed", "ai_shippable"] as ShipState[],
+    accepts: ["established", "translated"] as ShipState[],
   },
 ];
 
@@ -77,8 +82,8 @@ export function Languages() {
   }
 
   const stateLabels: Record<ShipState, string> = {
-    governed: t("governed"),
-    ai_shippable: t("AI-shippable"),
+    established: t("established"),
+    translated: t("translated"),
     pending: t("pending"),
   };
 
@@ -116,21 +121,21 @@ export function Languages() {
                   translate="no"
                   className="font-mono text-xs uppercase tracking-wider text-success"
                 >
-                  governed
+                  established
                 </dt>
                 <dd className="mt-1 text-muted-foreground">
                   {t(
-                    "Every block translated, no failing check, every target carrying a review decision.",
+                    "Every block translated, no failing check, and a person established every target.",
                   )}
                 </dd>
               </div>
               <div>
                 <dt translate="no" className="font-mono text-xs uppercase tracking-wider text-info">
-                  ai_shippable
+                  translated
                 </dt>
                 <dd className="mt-1 text-muted-foreground">
                   {t(
-                    "Every block translated and no failing check, but review is incomplete: shippable on machine review only.",
+                    "Every block translated and no failing check, but not every target established: AI-shippable.",
                   )}
                 </dd>
               </div>

@@ -139,40 +139,17 @@ ship_gates:
 	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "established": {Pct: 0}}, g)
 }
 
-func TestShipGate_ApproverClassExtendedForm(t *testing.T) {
-	p := loadProject(t, `
+// A recipe still written in the retired {pct, by} form fails to load and says
+// how to write it now.
+func TestShipGate_ApproverClassFormFailsWithTheFix(t *testing.T) {
+	var p KapiProject
+	err := yaml.Unmarshal([]byte(`
 version: v1
 name: app
-gates:
-  ship: { translated: 100, established: { pct: 100, by: human } }
-ship_gates:
-  - gate: ship
-  - when: { locales: [ja] }
-    gate: { established: { pct: 80, by: any } }
-`)
-	rs, err := p.BuildShipGates()
-	require.NoError(t, err)
-
-	g, ok := rs.Resolve("", "nb")
-	require.True(t, ok)
-	assert.Equal(t, gate.Gate{
-		"translated":  {Pct: 100},
-		"established": {Pct: 100, By: gate.ByHuman},
-	}, g, "registry gate carries the extended-form approver class")
-
-	g, _ = rs.Resolve("", "ja")
-	assert.Equal(t, gate.Gate{"established": {Pct: 80, By: gate.ByAny}}, g)
-}
-
-func TestShipGate_UnknownApproverClassRejected(t *testing.T) {
-	p := loadProject(t, `
-version: v1
-name: app
-ship_gate: { established: { pct: 100, by: robot } }
-`)
-	_, err := p.BuildShipGates()
+ship_gate: { translated: 100, established: { pct: 100, by: human } }
+`), &p)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "approver class")
+	assert.Contains(t, err.Error(), "`established: 100`")
 }
 
 // ── Verified gate: the second bar, resolved exactly like the ship gate ──
@@ -181,10 +158,10 @@ func TestVerifiedGate_SingleMap(t *testing.T) {
 	p := loadProject(t, `
 version: v1
 name: app
-verified_gate: { established: 100 }
+established_gate: { established: 100 }
 `)
-	require.True(t, p.HasVerifiedGates())
-	rs, err := p.BuildVerifiedGates()
+	require.True(t, p.HasEstablishedGates())
+	rs, err := p.BuildEstablishedGates()
 	require.NoError(t, err)
 
 	g, ok := rs.Resolve("docs", "nb")
@@ -196,12 +173,12 @@ func TestVerifiedGates_RuleList_MostSpecificWins(t *testing.T) {
 	p := loadProject(t, `
 version: v1
 name: app
-verified_gates:
+established_gates:
   - when: { locales: [ja] }
     gate: { established: 100 }
   - gate: { established: 100 }
 `)
-	rs, err := p.BuildVerifiedGates()
+	rs, err := p.BuildEstablishedGates()
 	require.NoError(t, err)
 
 	g, _ := rs.Resolve("docs", "ja")
@@ -216,15 +193,15 @@ func TestVerifiedGates_NamedRegistryReference(t *testing.T) {
 version: v1
 name: app
 gates:
-  human: { established: { pct: 100, by: human } }
-verified_gates:
+  human: { established: 100 }
+established_gates:
   - gate: human
 `)
-	rs, err := p.BuildVerifiedGates()
+	rs, err := p.BuildEstablishedGates()
 	require.NoError(t, err)
 	g, ok := rs.Resolve("docs", "ja")
 	require.True(t, ok)
-	assert.Equal(t, gate.Gate{"established": {Pct: 100, By: gate.ByHuman}}, g,
+	assert.Equal(t, gate.Gate{"established": {Pct: 100}}, g,
 		"a verified gate resolves registry names against the shared gates: map")
 }
 
@@ -232,22 +209,22 @@ func TestVerifiedGates_UnknownRegistryName(t *testing.T) {
 	p := loadProject(t, `
 version: v1
 name: app
-verified_gates:
+established_gates:
   - gate: missing
 `)
-	_, err := p.BuildVerifiedGates()
+	_, err := p.BuildEstablishedGates()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown registry gate")
-	assert.Contains(t, err.Error(), "verified_gates", "error names the verified field")
+	assert.Contains(t, err.Error(), "established_gates", "error names the established field")
 }
 
 func TestVerifiedGates_InvalidStateRejected(t *testing.T) {
 	p := loadProject(t, `
 version: v1
 name: app
-verified_gate: { bogus: 100 }
+established_gate: { bogus: 100 }
 `)
-	_, err := p.BuildVerifiedGates()
+	_, err := p.BuildEstablishedGates()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown state")
 }
@@ -260,10 +237,10 @@ version: v1
 name: app
 ship_gate: { translated: 100 }
 `)
-	assert.False(t, p.HasVerifiedGates())
+	assert.False(t, p.HasEstablishedGates())
 	require.True(t, p.HasShipGates(), "ship gate is independent of the verified gate")
 
-	vs, err := p.BuildVerifiedGates()
+	vs, err := p.BuildEstablishedGates()
 	require.NoError(t, err)
 	_, ok := vs.Resolve("docs", "nb")
 	assert.False(t, ok, "no verified gate configured — nothing is verified")
@@ -277,7 +254,7 @@ ship_gate: { translated: 100 }
 func TestVerifiedGates_RoundTrip(t *testing.T) {
 	src := `version: v1
 name: app
-verified_gates:
+established_gates:
     - when: {locales: [ja]}
       gate: {established: 100}
     - gate: {established: 100}
@@ -287,7 +264,7 @@ verified_gates:
 	require.NoError(t, err)
 	var p2 KapiProject
 	require.NoError(t, yaml.Unmarshal(out, &p2))
-	rs, err := p2.BuildVerifiedGates()
+	rs, err := p2.BuildEstablishedGates()
 	require.NoError(t, err)
 	g, ok := rs.Resolve("docs", "ja")
 	require.True(t, ok)

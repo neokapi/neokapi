@@ -345,9 +345,6 @@ func approvesTarget(e reviewedEntry, applies bool) bool {
 type unitReading struct {
 	// state is the ladder rung the unit is tallied at.
 	state string
-	// aiDecided reports that the rung was reached by an autonomous AI decision
-	// ("ai/…" identity), which gate evaluation treats separately.
-	aiDecided bool
 	// basis is how the recorded basis grades against the current source.
 	basis basisVerdict
 	// redrafted answers what a stale unit is waiting on: false while the record
@@ -363,8 +360,8 @@ type unitReading struct {
 	rejectedOwed bool
 }
 
-// apply moves a `translated` unit to its recorded decision rung — up to reviewed
-// or signed-off for an approval, down to draft for a rejection — when the block
+// apply moves a `translated` unit to its recorded decision rung — up to
+// established for an approval, down to draft for a rejection — when the block
 // has an applicable decision for the locale; otherwise the base state stands.
 //
 // A unit with no target at all grades basisNone whatever the store holds: there
@@ -389,7 +386,7 @@ func (r reviewedIndex) apply(base, scope string, b *model.Block, locale string) 
 	// that is still there.
 	out.rejectedOwed = e.status == model.TargetStatusDraft
 	if base == string(model.TargetStatusTranslated) {
-		out.state, out.aiDecided = string(e.status), state.IsAIDecision(e.by)
+		out.state = string(e.status)
 	}
 	return out
 }
@@ -503,15 +500,12 @@ func scopeAliases(scope string) []string {
 // numbers for the same data.
 //
 // `reviewed` (loaded from the project state store) upgrades a unit from the
-// `translated` presence baseline to its decided rung. Units promoted by an
-// autonomous AI decision ("ai/…" identity) are tallied separately: they read as
-// reviewed in the display percentages, but a gate's established
-// threshold only admits them under `by: any` (core/gate approver classes).
+// `translated` presence baseline to its decided rung.
 //
 // `excl` (optional, nil = off) is the check-findings set (#1078 G4): a unit in
 // it is produced but failing the project's bound checks. It is counted at its
-// true rung — the unit is translated, and may be reviewed — and recorded as a
-// failing check, which withholds the scope's ship and verified verdicts. Both
+// true rung — the unit is translated, and may be established — and recorded as
+// a failing check, which withholds the scope's ship verdict. Both
 // halves matter: the percentage is a fact about the content and must read the
 // same on every surface, while the verdict is what a failing guardrail is
 // entitled to withhold.
@@ -531,7 +525,7 @@ func (a *App) shipCoverage(ctx context.Context, proj *project.KapiProject, root 
 	if err != nil {
 		return nil, err
 	}
-	vs, err := proj.BuildVerifiedGates()
+	vs, err := proj.BuildEstablishedGates()
 	if err != nil {
 		return nil, err
 	}
@@ -664,12 +658,6 @@ func (a *App) coverageTally(ctx context.Context, proj *project.KapiProject, root
 			// as settled, so it is counted where a reader can act on it.
 			if read.rejectedOwed {
 				tally.NoteRejectedAwaitingDraft(s)
-			}
-			if read.aiDecided {
-				// The AI decision promoted the unit from the `translated`
-				// baseline; a human-class threshold sees it there.
-				tally.AddAIDecided(s, read.state, string(model.TargetStatusTranslated))
-				continue
 			}
 			tally.Add(s, read.state)
 		}

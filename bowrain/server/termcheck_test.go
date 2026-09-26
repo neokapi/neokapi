@@ -253,7 +253,7 @@ func TestResolveTermGateNoTerms_NotGoverned(t *testing.T) {
 	require.NoError(t, applyShipStates(ctx, s.ContentStore, s.VoiceStore, projID, "main", nil, withoutGate))
 
 	fr := localeByCode(t, withGate.LocaleStats, "fr")
-	assert.Equal(t, platstore.ShipStateApproved, fr.ShipState, "a clean approved locale nothing governs is approved, not governed")
+	assert.Equal(t, platstore.ShipStateEstablished, fr.ShipState, "a clean approved locale nothing governs is approved, not governed")
 	assert.Equal(t, 0, fr.FailingChecks)
 	assertNotGoverned(t, fr, 1, platstore.ComplianceBasisChecks)
 	assert.Equal(t, localeByCode(t, withoutGate.LocaleStats, "fr"), fr, "gate vs nil-gate derive identically")
