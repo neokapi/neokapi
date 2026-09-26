@@ -55,7 +55,52 @@ func TestSettle_ACorrectionTowardASuggestionEstablishesIt(t *testing.T) {
 	assert.Equal(t, check.VerdictFailed, checkWith(t, app, root).Verdict, "the established rule fails the check")
 }
 
-// TestSettle_AMergeIsEvidence: a change that reached the default branch
+// TestSettle_ACheckCountsUses: a check of the whole project records how its
+// content writes a suggestion's forms, the count shows as standing, and content
+// moving to the avoided form counts against the suggestion, so a correction
+// toward it no longer settles it.
+func TestSettle_ACheckCountsUses(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := contextOpsProject(t, "ctxops-usage")
+	proposed := proposeUtilise(t, app, root, agentIn("s1"))
+
+	signals := func() []ContextOperation {
+		t.Helper()
+		log, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root)})
+		require.NoError(t, err)
+		var out []ContextOperation
+		for _, op := range log.Operations {
+			if op.Kind == contextop.KindSignal {
+				out = append(out, op)
+			}
+		}
+		return out
+	}
+	checkWith(t, app, root)
+	checkWith(t, app, root)
+	require.Len(t, signals(), 1, "the same counts are one signal")
+	got, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root), Subjects: true})
+	require.NoError(t, err)
+	require.NotEmpty(t, got.Operations)
+	assert.Contains(t, got.Operations[0].line(), "0 of 1 use")
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "config", "app.yaml"),
+		[]byte("greeting: We utilise the widget every day.\nfarewell: Utilise it again\n"), 0o600))
+	checkWith(t, app, root)
+	require.Len(t, signals(), 2)
+
+	_, err = app.RecordContextCorrection(t.Context(), ContextCorrectRequest{
+		Actor: agentIn("s2"), Project: recipeOf(root), From: "utilise", To: "use",
+		Evidence: []contextop.Evidence{{Path: "config/app.yaml"}},
+	})
+	require.NoError(t, err)
+	op, err := app.ContextOperations(t.Context(), ContextLogRequest{Project: recipeOf(root), Status: contextop.StatusContested})
+	require.NoError(t, err)
+	require.Len(t, op.Operations, 1)
+	assert.Equal(t, proposed.ID, op.Operations[0].ID, "content moving to the avoided form contests it")
+}
+
+// TestSettle_AMergeIsEvidence:a change that reached the default branch
 // writing the preferred form establishes the suggestion, naming the pull
 // request, and settling the same range again records nothing new.
 func TestSettle_AMergeIsEvidence(t *testing.T) {
