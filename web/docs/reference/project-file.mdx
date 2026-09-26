@@ -97,8 +97,8 @@ defaults:
 | `ship_gates` | ShipGateRule[] | Scoped ship-gate rules; the most specific matching rule wins (see [Ship gates](#ship-gates))               |
 | `gates`    | map            | Named gate registry a `ship_gates` rule can reference by name (see [Ship gates](#ship-gates))               |
 | `source_gate` | Gate        | Coverage gate over the source authoring ladder (see [source_gate](#source_gate))                            |
-| `verified_gate` | Gate      | A single catch-all verified gate: the bar a locale must clear to read as *verified*, independent of shipping (see [Ship gates](#ship-gates)) |
-| `verified_gates` | ShipGateRule[] | Scoped verified-gate rules, in the same `when`/`gate` form as `ship_gates`; the most specific rule wins. With neither key set, no locale is verified |
+| `established_gate` | Gate    | A single catch-all established gate: the bar a locale must clear to ship *established* rather than *translated* (see [Ship gates](#ship-gates)) |
+| `established_gates` | ShipGateRule[] | Scoped established-gate rules, in the same `when`/`gate` form as `ship_gates`; the most specific rule wins. With neither key set, no locale ships established |
 
 ### Project identity
 
@@ -693,14 +693,17 @@ optional: with none set, nothing is gated.
 | `ship_gate`   | Gate           | A single catch-all gate: state name → threshold                                                    |
 | `ship_gates`  | ShipGateRule[] | Scoped rules, each a selector plus a gate; when present it replaces `ship_gate`                    |
 | `gates`       | map            | Named gate registry; a `ship_gates` rule references an entry with `gate: <name>`                   |
-| `source_gate` | Gate           | A gate over the source authoring ladder (`authored` → `checked` → `approved`)                      |
-| `verified_gate` | Gate         | A single catch-all verified gate, in the same threshold form as `ship_gate`                        |
-| `verified_gates` | ShipGateRule[] | Scoped verified-gate rules; the most specific rule wins                                         |
+| `source_gate` | Gate           | A gate over the source ladder (`written` → `established`)                                          |
+| `established_gate` | Gate      | A single catch-all established gate, in the same threshold form as `ship_gate`                     |
+| `established_gates` | ShipGateRule[] | Scoped established-gate rules; the most specific rule wins                                 |
 
-Shipping and being verified are independent readings. A verified gate names the
-bar a locale must clear to be reported as *verified* (by `kapi status --ship`
-and the ship-aware language picker), and a locale can ship without meeting it.
-With neither verified key set, no locale is verified.
+A scope that ships has one of two ship states. It ships **established**
+(governed) when it clears its established gate, and **translated**
+(AI-shippable) when it clears its ship gate but not an established gate. `kapi
+status`, `kapi up`, `kapi status --ship` and the ship-aware language picker
+all read these words. With neither established key set, no scope ships
+established. A project that delivers only established content says so in its
+ship gate, e.g. `ship_gate: { established: 100 }`.
 
 A scope no ship gate rule matches is *not gated*. `kapi status` and `kapi up`
 name it not gated rather than shippable, and `kapi status --ship` records

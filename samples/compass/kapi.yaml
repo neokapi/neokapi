@@ -47,7 +47,7 @@ collections:
         target: "{lang}.json"
 
 # The two gates a language picker reads. They are independent: clearing the ship
-# gate makes a locale safe to offer, clearing the verified gate is what removes
+# gate makes a locale safe to offer, clearing the established gate is what removes
 # the "AI" marker from it.
 #
 # One bar for every locale, deliberately. A per-locale bar would make the

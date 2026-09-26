@@ -243,7 +243,7 @@ The other recipe families each have an AD or a reference section of their own:
   a run reads and checks it and writes nothing back. A collection that sets it
   and also carries a target is rejected at load.
 - `defaults.flow` names the flow `kapi up` runs; `defaults.source_gate`,
-  `ship_gate`, `ship_gates`, `verified_gate` and `gates` are the convergence
+  `ship_gate`, `ship_gates`, `established_gate` and `gates` are the convergence
   gates ([Convergence](/kapi/convergence)).
 - `defaults.materialize` governs delivery of target-language files. With
   `manual`, the default, a pass writes where the recipe points as it produces

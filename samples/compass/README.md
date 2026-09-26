@@ -85,21 +85,21 @@ with two gates over the same lifecycle ladder:
 
 | Gate | Recipe | Question it answers |
 | --- | --- | --- |
-| `ship_gate` | `translated: 100`, `reviewed: 50` | Is this language safe to offer at all? |
-| `verified_gate` | `reviewed: 100` | Has a person signed off every string in it? |
+| `ship_gate` | `translated: 100`, `established: 50` | Is this language safe to offer at all? |
+| `established_gate` | `established: 100` | Has a person established every string in it? |
 
 One bar for every language, deliberately. A per-locale bar would make the
 picker's three states an artefact of the recipe rather than of the work. With a
 bar on every language, no language reads as `not_gated`.
 
 The picker reads `kapi status --ship`, whose whole output is locale →
-`{shippable, verified, state}`:
+`{shippable, state}`:
 
-| Ship state | `state` | `shippable` | `verified` | In the picker |
-| --- | --- | --- | --- | --- |
-| governed | `shippable` | true | true | offered, unmarked |
-| ai-shippable | `shippable` | true | false | offered, marked **AI** |
-| pending | `withheld` | false | n/a | not offered |
+| `state` | `shippable` | In the picker |
+| --- | --- | --- |
+| `established` | true | offered, unmarked |
+| `translated` | true | offered, marked **AI** |
+| `withheld` | false | not offered |
 
 The third row is the point of the sample. `nl.json` exists, it holds Dutch, and
 until the gate clears it the picker does not offer it. A catalog being present is
@@ -169,7 +169,7 @@ approves the Dutch a person wrote and leaves what the stub drafted:
 ```bash
 kapi status --review --json --jq '.pending[]
   | select(.locale == "nl" and (.target | startswith("⟦") | not))
-  | {kind: "review", op: "add", file, id: .key, locale, status: "reviewed"}' > dutch.json
+  | {kind: "review", op: "add", file, id: .key, locale, status: "established"}' > dutch.json
 kapi apply dutch.json                             # each decision lands in the record, attributable
 kapi status --ship --emit site/ship.json          # Dutch is offered now, marked AI
 ```
@@ -179,9 +179,9 @@ Finish Norwegian and its marker comes off:
 ```bash
 kapi status --review --json --jq '.pending[]
   | select(.locale == "nb")
-  | {kind: "review", op: "add", file, id: .key, locale, status: "reviewed"}' > norwegian.json
+  | {kind: "review", op: "add", file, id: .key, locale, status: "established"}' > norwegian.json
 kapi apply norwegian.json
-kapi status --ship --emit site/ship.json          # nb: shippable and verified
+kapi status --ship --emit site/ship.json          # nb: established
 ```
 
 Serve `site/` and the picker follows every one of those steps with no other

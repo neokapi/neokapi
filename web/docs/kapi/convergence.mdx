@@ -119,21 +119,23 @@ The source ladder has its own optional bar, `source_gate` (e.g.
 A gate never fails an ordinary build. Target-language drift is expected work,
 and a gate is a **release** check you opt into (see below).
 
-### Three ship states {#ship-states}
+### Ship states {#ship-states}
 
-Every scope reads as one of three states against the ship gates:
+A scope that ships uses the unit ladder's words for how it ships, and one that
+does not is withheld:
 
 | State | What it means |
 | --- | --- |
-| **shippable** | A ship gate matches the scope and the scope clears it. |
+| **established** | The scope clears its established gate (`established_gate` / `established_gates`): a person established the content. Governed. |
+| **translated** | The scope clears its ship gate and no established gate: translated, with its checks green. AI-shippable. |
 | **withheld** | The scope does not ship. It is short of its gate, or it holds stale wording, a translation a reviewer turned down, a failing check, or terms that were not checked. These hold a scope back whether or not a gate matches it. |
-| **not gated** | No ship gate matches the scope, and nothing withholds it. |
+| **not gated** | No gate matches the scope, and nothing withholds it. |
 
-A project with no `ship_gate` or `ship_gates` has only withheld and not-gated
-scopes. `kapi status` and `kapi up` name those scopes *not gated* rather than
-*shippable*, and a `kapi up` run that converges says that no ship gates are
-declared. Nothing withholds a not-gated scope, so a language picker offers it by
-default.
+A project chooses which it delivers through its ship gate: `{ translated: 100 }`
+delivers translated content, `{ established: 100 }` only established content.
+A project with no gates has only withheld and not-gated scopes, and a `kapi
+up` run that converges says that no ship gates are declared. Nothing withholds
+a not-gated scope, so a language picker offers it by default.
 
 ### Who establishes a unit {#approver-classes}
 
@@ -237,7 +239,7 @@ kapi status
 # source      2 units · written 100% · established 0%
 #
 # scope  units  draft  translated  established  pipeline         ship
-# de        42   100%        100%          80%  ██████████ 100%  ready
+# de        42   100%        100%          80%  ██████████ 100%  translated
 # nb        42   100%         60%           0%  ███░░░░░░░  30%  blocked: translate
 #
 # 1 of 2 scopes ready to ship
@@ -403,7 +405,7 @@ step. Take a German scope fully caught up under
 ```bash
 kapi status
 # scope  units  draft  translated  established  pipeline         ship
-# de        42   100%        100%         100%  ██████████ 100%  ready
+# de        42   100%        100%         100%  ██████████ 100%  translated
 ```
 
 Edit one source string. Nothing flags the change and no state is written; the

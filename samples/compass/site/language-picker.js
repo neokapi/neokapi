@@ -4,16 +4,15 @@
 //
 //     kapi status --ship --emit site/ship.json
 //
-// and is a map of locale → {shippable, verified, state}. The two flags are
-// independent gates, and each one means something a reader can act on. The state
-// names the gate standing: shippable, withheld, or not_gated where no ship gate
-// matches, which this recipe never produces because it gates every language.
+// and is a map of locale → {shippable, state}. The state names how the locale
+// ships: established, translated, withheld, or not_gated where no gate matches,
+// which this recipe never produces because it gates every language.
 //
-//   shippable && verified   the locale is offered, unmarked. A person reviewed it.
-//   shippable && !verified  the locale is offered, marked AI. It clears the ship
-//                           bar, so it is safe to read, but nobody has signed
-//                           off every string in it yet.
-//   !shippable              the locale is NOT offered. It exists in the
+//   established   the locale is offered, unmarked. A person established it.
+//   translated    the locale is offered, marked AI. It clears the ship bar, so
+//                 it is safe to read, but a person has not established every
+//                 string in it yet.
+//   !shippable    the locale is NOT offered. It exists in the
 //                           repository, it has translations, and it is not ready
 //                           to be read by an operator at 04:00.
 //
@@ -53,7 +52,7 @@ function render(catalog) {
 // The source locale is always offered: it is the content, not a translation of
 // it, so no gate stands between it and a reader.
 function offered(ship) {
-  const entries = [[SOURCE_LOCALE, { shippable: true, verified: true }]];
+  const entries = [[SOURCE_LOCALE, { shippable: true, state: "established" }]];
   for (const [locale, state] of Object.entries(ship)) {
     if (locale !== SOURCE_LOCALE && state.shippable) entries.push([locale, state]);
   }
@@ -62,7 +61,7 @@ function offered(ship) {
 
 async function select(locale, state) {
   document.documentElement.lang = locale;
-  marker.hidden = state.verified;
+  marker.hidden = state.state === "established";
   render(await loadJSON(`./locales/${locale}.json`));
 }
 
@@ -75,7 +74,7 @@ async function main() {
     const option = document.createElement("option");
     option.value = locale;
     option.textContent = LANGUAGE_NAMES[locale] ?? locale;
-    option.dataset.verified = String(state.verified);
+    option.dataset.state = state.state ?? "";
     picker.append(option);
   }
 
