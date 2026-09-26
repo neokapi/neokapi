@@ -215,8 +215,7 @@ func settle(records []Record, f *settleFacts) {
 func agreeing(records []Record, candidates []int) [][]int {
 	parent := make(map[int]int, len(candidates))
 	pairs := candidatePairs(records, candidates)
-	var root func(int) int
-	root = func(i int) int {
+	root := func(i int) int {
 		for parent[i] != i {
 			parent[i] = parent[parent[i]]
 			i = parent[i]

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -140,8 +141,7 @@ func (s *contextOpsSession) recordMerge(ctx context.Context, req ContextSettleRe
 	files := parseDiffLines(diff)
 	var out []ContextOperation
 	// Oldest first, so the signals read in the order the suggestions were made.
-	for i := len(candidates) - 1; i >= 0; i-- {
-		r := candidates[i]
+	for _, r := range slices.Backward(candidates) {
 		rule, ok := r.Rule()
 		if !ok || rule.Replacement == "" || r.Established || !r.Status.Advises() {
 			continue
