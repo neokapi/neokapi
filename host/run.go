@@ -14,12 +14,6 @@ import (
 
 // RunCmdOptions configures the run command.
 type RunCmdOptions struct {
-	// FallbackRunE is called when the flow name matches no flow kapi can
-	// resolve: no built-in, none inline on the recipe, and no file in the
-	// recipe's flows_dir. It is the extension point a plugin installs to serve
-	// flows kapi itself knows nothing about.
-	FallbackRunE func(cmd Command, flowName string, args []string) error
-
 	// Builtin runs the built-in flow of the name, whatever the recipe
 	// declares. The porcelain verbs set it: `kapi translate` is kapi's own
 	// verb, and a recipe's `translate` flow does not change what it does.
@@ -53,18 +47,6 @@ func BuiltinFlowNames() map[string]bool {
 		names[def.ID] = true
 	}
 	return names
-}
-
-// ResolveFallbackRunE returns the fallback function configured on the
-// command, or — if none was set explicitly — the App-level FallbackRunE
-// installed by plugins via RegisterAppInitializer. Read at RunE time so
-// plugin initializers (which fire during PersistentPreRun) have already
-// run.
-func (a *App) ResolveFallbackRunE(opts RunCmdOptions) func(cmd Command, flowName string, args []string) error {
-	if opts.FallbackRunE != nil {
-		return opts.FallbackRunE
-	}
-	return a.FallbackRunE
 }
 
 // RunFromProject loads a .kapi project file and runs the named flow.
@@ -137,20 +119,13 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 		return err
 	}
 	if pf != nil && pf.Source == FlowSourceBuiltin && (len(inputPaths) > 0 || explain) {
-		return a.RunFlow(cmd.Context(), cmd, flowName, FlowCmdOptions{
-			FallbackRunE: opts.FallbackRunE,
-		})
+		return a.RunFlow(cmd.Context(), cmd, flowName)
 	}
 	var spec *flow.StepsSpec
 	if pf != nil {
 		spec = pf.Spec
 	}
 	if spec == nil {
-		// A flow no part of the project declares: hand it to a plugin's
-		// fallback when one is installed.
-		if opts.FallbackRunE != nil {
-			return opts.FallbackRunE(cmd, flowName, []string{flowName})
-		}
 		return fmt.Errorf("flow %q not found in project file %s", flowName, projectPath)
 	}
 

@@ -136,8 +136,8 @@ func (r *Reader) headingAddress(level int) string {
 // lastSegment returns the final segment of a path — what a nested section
 // carries forward as its own identity.
 func lastSegment(path string) string {
-	if i := strings.LastIndex(path, model.PathSeparator); i >= 0 {
-		return path[i+1:]
+	if _, last, ok := strings.CutLast(path, model.PathSeparator); ok {
+		return last
 	}
 	return path
 }

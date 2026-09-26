@@ -105,19 +105,6 @@ type App struct {
 	// When set, it is called before falling back to the config-based registries.
 	RegistryResolver func() []config.RegistryEntry
 
-	// FallbackRunE is called by NewRunCmd / NewFlowsCmd when the named
-	// flow is not a built-in flow. Plugins (e.g. bowrain) install this
-	// via RegisterAppInitializer to support project-defined flows.
-	// Read by NewRunCmd / NewFlowsCmd as a default when the per-command
-	// CmdOptions struct does not explicitly set it.
-	FallbackRunE func(cmd Command, flowName string, args []string) error
-
-	// ExtraFlows returns additional flow infos for the `flows` command.
-	// Plugins install this via RegisterAppInitializer. Read by
-	// NewFlowsCmd as a default when the per-command CmdOptions struct
-	// does not explicitly set it.
-	ExtraFlows func() []output.FlowInfo
-
 	// ProjectContext is set temporarily by RunFromProject so that downstream
 	// methods (reader creation, writer setup) can apply project format defaults.
 	ProjectContext *project.ProjectContext

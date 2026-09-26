@@ -316,7 +316,7 @@ func TestRun_BareRunErrors(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})
 
-	cmd := NewRunCmd(a, RunCmdOptions{})
+	cmd := NewRunCmd(a)
 	cmd.SetArgs([]string{"--project", recipe})
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)

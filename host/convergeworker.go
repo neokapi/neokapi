@@ -59,8 +59,6 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		Credentials:   a.Credentials,
 
 		RegistryResolver: a.RegistryResolver,
-		FallbackRunE:     a.FallbackRunE,
-		ExtraFlows:       a.ExtraFlows,
 
 		ProjectContext:      a.ProjectContext,
 		MCPSurface:          a.MCPSurface,
@@ -145,8 +143,6 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	// than reset so the clone stays a faithful copy, like MCPSurface below.
 	"isTTY":            fieldShared,
 	"RegistryResolver": fieldShared,
-	"FallbackRunE":     fieldShared,
-	"ExtraFlows":       fieldShared,
 	"ProjectContext":   fieldShared,
 	// The execution-trust decision belongs to the run, not to the locale: the
 	// user was asked once about one project's recipe, and every worker fanning

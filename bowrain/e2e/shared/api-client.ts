@@ -446,7 +446,10 @@ export class BowrainAPI {
     stream = "main",
   ): Promise<void> {
     const formData = new FormData();
-    formData.append("files", new Blob([content]), fileName);
+    // A Buffer may view a SharedArrayBuffer, which a Blob does not take; the
+    // copy is backed by a plain ArrayBuffer.
+    const part = typeof content === "string" ? content : new Uint8Array(content);
+    formData.append("files", new Blob([part]), fileName);
 
     const resp = await fetch(
       `${this.apiUrl}/${wsSlug}/${projectId}/items/${encodeURIComponent(stream)}`,

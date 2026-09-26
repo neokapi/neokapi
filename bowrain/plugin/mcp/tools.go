@@ -8,9 +8,11 @@ package bowrainmcp
 
 import (
 	"context"
+	"io"
 	"path/filepath"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/neokapi/neokapi/bowrain/plugin/commands"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
@@ -18,6 +20,8 @@ import (
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host/venue/project"
 	"github.com/neokapi/neokapi/host/venue/source"
+	"github.com/neokapi/neokapi/host/venue/transfer"
+	"github.com/spf13/cobra"
 )
 
 func init() {
@@ -264,27 +268,29 @@ func handleProjectPush(ctx context.Context, a *cli.App, input MCPPushInput) (*mc
 	}
 	defer conn.Close()
 
-	result, err := conn.Push(ctx, bowrainconn.PushOptions{
+	// The push `kapi push` runs, automations and terminology included. The
+	// tool answers with the structured result, so the printed report is
+	// dropped.
+	cmd := &cobra.Command{Use: "push"}
+	cmd.SetContext(ctx)
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	rep, err := commands.PushProject(cmd, proj, conn, transfer.PushOptions{
 		Paths:  input.Paths,
 		Force:  input.Force,
 		DryRun: input.DryRun,
 	})
-	if err != nil {
+	if rep == nil {
 		return nil, MCPPushOutput{}, err
 	}
-
 	out := MCPPushOutput{
-		BlocksPushed: result.BlocksPushed,
-		WordCount:    result.WordCount,
-		FilesScanned: result.FilesScanned,
+		BlocksPushed: rep.BlocksPushed,
+		WordCount:    rep.WordCount,
+		FilesScanned: rep.FilesScanned,
+		DryRun:       rep.DryRun,
+		UpToDate:     rep.UpToDate,
 	}
-	if input.DryRun {
-		out.DryRun = true
-	} else if result.BlocksPushed == 0 {
-		out.UpToDate = true
-	}
-
-	return nil, out, nil
+	return nil, out, err
 }
 
 func handleProjectPull(ctx context.Context, a *cli.App, input MCPPullInput) (*mcp.CallToolResult, MCPPullOutput, error) {

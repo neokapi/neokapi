@@ -90,10 +90,9 @@ func newPorcelainFlowRunE(a *App, flowName, needInputMsg string) func(*cobra.Com
 		if err != nil {
 			return err
 		}
-		fallbackRunE := a.ResolveFallbackRunE(RunCmdOptions{})
 		if projectPath != "" {
-			return a.RunFromProject(cmd, flowName, projectPath, RunCmdOptions{FallbackRunE: fallbackRunE, Builtin: true})
+			return a.RunFromProject(cmd, flowName, projectPath, RunCmdOptions{Builtin: true})
 		}
-		return a.RunFlow(cmd.Context(), cmd, flowName, FlowCmdOptions{FallbackRunE: fallbackRunE})
+		return a.RunFlow(cmd.Context(), cmd, flowName)
 	}
 }

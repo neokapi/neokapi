@@ -29,6 +29,10 @@ type countingStore struct {
 
 	items  []*platstore.Item
 	blocks map[string][]*venue.StoredBlock // itemName → blocks
+
+	// afterRead runs once, after GetBlocks has read its rows and before the
+	// engine sees them: the moment a concurrent writer can commit.
+	afterRead func()
 }
 
 func (s *countingStore) ListItems(_ context.Context, _, _ string) ([]*platstore.Item, error) {
@@ -38,7 +42,13 @@ func (s *countingStore) ListItems(_ context.Context, _, _ string) ([]*platstore.
 
 func (s *countingStore) GetBlocks(_ context.Context, q platstore.BlockQuery) ([]*venue.StoredBlock, error) {
 	s.getBlocksCalls++
-	return s.blocks[q.ItemName], nil
+	read := s.blocks[q.ItemName]
+	if s.afterRead != nil {
+		hook := s.afterRead
+		s.afterRead = nil
+		hook()
+	}
+	return read, nil
 }
 
 // TestDiffEngine_CacheHit_ServesFromRedis verifies that when a miniredis-backed
@@ -55,7 +65,7 @@ func TestDiffEngine_CacheHit_ServesFromRedis(t *testing.T) {
 	ctx := t.Context()
 
 	// Pre-warm the cache with server item hashes.
-	cache.SetItemHashes(ctx, "proj-1", map[string]string{
+	cache.View(ctx, "proj-1", "main").SetItemHashes(ctx, map[string]string{
 		"en.json":     "h-en",
 		"messages.po": "h-po",
 	})
@@ -109,11 +119,11 @@ func TestDiffEngine_CacheMiss_LoadsFromStoreAndPopulatesCache(t *testing.T) {
 	assert.Equal(t, 1, store.getBlocksCalls)
 
 	// The engine should have populated both the item-hash and block-hash caches.
-	cachedItems, ok := cache.GetItemHashes(ctx, "proj-1")
+	cachedItems, ok := cache.View(ctx, "proj-1", "main").GetItemHashes(ctx)
 	require.True(t, ok, "item hashes should be cached after a miss")
 	assert.Equal(t, hashes, cachedItems)
 
-	cachedBlocks, ok := cache.GetBlockHashes(ctx, "proj-1", "en.json")
+	cachedBlocks, ok := cache.View(ctx, "proj-1", "main").GetBlockHashes(ctx, "en.json")
 	require.True(t, ok, "block hashes should be cached after a miss")
 	// Cached as the transfer hash — both stored halves folded — because that is
 	// what a push's block hashes are compared against.
@@ -142,7 +152,7 @@ func TestDiffEngine_CompareBlocks_CacheHit(t *testing.T) {
 	engine := NewDiffEngine(store, cache)
 	ctx := t.Context()
 
-	cache.SetBlockHashes(ctx, "proj-1", "en.json", map[string]string{
+	cache.View(ctx, "proj-1", "main").SetBlockHashes(ctx, "en.json", map[string]string{
 		"b1": "h1",
 		"b2": "h2",
 	})
@@ -160,4 +170,83 @@ func TestDiffEngine_CompareBlocks_CacheHit(t *testing.T) {
 	assert.Empty(t, result.Deleted)
 	assert.Empty(t, result.Conflicts)
 	assert.Zero(t, store.getBlocksCalls, "GetBlocks must not be called on block cache hit")
+}
+
+// A push negotiation reads the store just before the push worker commits and
+// invalidates, then files what it read. The pre-apply hashes must not answer
+// the next negotiation: that is how a second push of the same content was
+// told diff_computed, and how a push of changed content can be told
+// unchanged.
+func TestDiffEngine_InvalidateDuringRead_DoesNotCacheStaleHashes(t *testing.T) {
+	mr := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	t.Cleanup(func() { _ = client.Close() })
+	cache := NewRedisHashCache(client, time.Hour)
+	ctx := t.Context()
+
+	store := &countingStore{
+		items:  []*platstore.Item{{Name: "en.json"}},
+		blocks: map[string][]*venue.StoredBlock{"en.json": {{SourceID: "b1", ContentHash: "before"}}},
+	}
+	store.afterRead = func() {
+		// The push worker: its write commits, then it invalidates.
+		store.blocks["en.json"] = []*venue.StoredBlock{{SourceID: "b1", ContentHash: "after"}}
+		cache.InvalidateProject(ctx, "proj-1")
+	}
+	engine := NewDiffEngine(store, cache)
+
+	raced, err := engine.ExportItemHashes(ctx, "proj-1", "main")
+	require.NoError(t, err)
+	assert.Equal(t, venue.ComputeItemHash(map[string]string{"b1": model.ComputeRecordHash("before", "")}),
+		raced["en.json"], "the racing read answers with what it read")
+
+	after, err := engine.ExportItemHashes(ctx, "proj-1", "main")
+	require.NoError(t, err)
+	assert.Equal(t, venue.ComputeItemHash(map[string]string{"b1": model.ComputeRecordHash("after", "")}),
+		after["en.json"], "the next read answers for the content the write left")
+	assert.Equal(t, 2, store.getBlocksCalls, "the raced read's hashes were never served")
+}
+
+// One project's streams hold different content, so one stream's cached hashes
+// never answer for another's.
+func TestDiffEngine_CacheIsPerStream(t *testing.T) {
+	mr := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	t.Cleanup(func() { _ = client.Close() })
+	cache := NewRedisHashCache(client, time.Hour)
+	ctx := t.Context()
+
+	cache.View(ctx, "proj-1", "main").SetItemHashes(ctx, map[string]string{"en.json": "h-main"})
+	store := &countingStore{}
+	engine := NewDiffEngine(store, cache)
+
+	hashes, err := engine.ExportItemHashes(ctx, "proj-1", "feature")
+	require.NoError(t, err)
+	assert.Empty(t, hashes, "the feature stream holds nothing")
+	assert.Equal(t, 1, store.listItemsCalls, "a miss on the feature stream reads the store")
+}
+
+// An item row with no blocks anchors decisions after its file was removed. It
+// is not content, so it takes no part in the root hash, as LoadTree leaves it
+// out of the tree.
+func TestDiffEngine_ItemWithoutBlocks_IsNotHashed(t *testing.T) {
+	store := &countingStore{
+		items: []*platstore.Item{{Name: "en.json"}, {Name: "removed.json"}},
+		blocks: map[string][]*venue.StoredBlock{
+			"en.json": {{SourceID: "b1", ContentHash: "h1"}},
+		},
+	}
+	engine := NewDiffEngine(store, nil)
+
+	hashes, err := engine.ExportItemHashes(t.Context(), "proj-1", "main")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"en.json"}, keysOf(hashes))
+}
+
+func keysOf(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
 }

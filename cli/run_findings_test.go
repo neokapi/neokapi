@@ -143,7 +143,7 @@ func TestRunFlow_DidNotRunIsScriptable(t *testing.T) {
 	app := processOnlyApp(t)
 	root := &cobra.Command{Use: "kapi"}
 	AddPersistentFlags(app, root)
-	root.AddCommand(NewRunCmd(app, RunCmdOptions{}))
+	root.AddCommand(NewRunCmd(app))
 	root.SetArgs([]string{"run", "guard", "--project", recipe, "--target-lang", "nb", "--output-format", "json"})
 	var stdout, stderr bytes.Buffer
 	root.SetOut(&stdout)
@@ -185,7 +185,7 @@ func TestRunFlow_FindingsAreScriptable(t *testing.T) {
 	app := processOnlyApp(t)
 	root := &cobra.Command{Use: "kapi"}
 	AddPersistentFlags(app, root)
-	root.AddCommand(NewRunCmd(app, RunCmdOptions{}))
+	root.AddCommand(NewRunCmd(app))
 	root.SetArgs([]string{"run", "guard", "--project", recipe, "--target-lang", "nb", "--output-format", "json"})
 	var buf bytes.Buffer
 	root.SetOut(&buf)

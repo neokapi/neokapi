@@ -490,8 +490,8 @@ var demoCapStopwords = map[string]bool{
 // brand_voice_inference JSON schema.
 func demoVoiceInference(userTurn string) string {
 	corpus := userTurn
-	if idx := strings.LastIndex(userTurn, prompt.CorpusDelimiter); idx >= 0 {
-		corpus = userTurn[idx+len(prompt.CorpusDelimiter):]
+	if _, after, ok := strings.CutLast(userTurn, prompt.CorpusDelimiter); ok {
+		corpus = after
 	}
 	corpus = strings.TrimSpace(corpus)
 

@@ -158,6 +158,17 @@ message PushResponse {
   // It rides on the response rather than replacing it with an RPC error so the
   // content result is not lost; the dispatcher prints the push, then fails.
   string terminology_error = 16;
+
+  // What the push printed on the plugin side, in order: the recipe's pre-push
+  // automations and the flows they ran, the push report, and the post-push
+  // automations. A dispatcher prints it in place of its own summary line when
+  // it is set.
+  string report = 17;
+
+  // An automation around the push that failed. A pre-push automation that
+  // fails stops the push, so nothing was pushed; a post-push one fails after
+  // the content landed. The dispatcher prints the report, then fails.
+  string automation_error = 18;
 }
 
 // ---------------------------------------------------------------------------

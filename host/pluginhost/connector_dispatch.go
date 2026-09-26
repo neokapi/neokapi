@@ -231,11 +231,18 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		if err != nil {
 			return fmt.Errorf("daemon Push: %w", err)
 		}
-		fmt.Printf("pushed %d blocks (%d words) across %d files; uploaded: %d; assets: %d; push_id: %s\n",
-			resp.GetBlocksPushed(), resp.GetWordCount(), resp.GetFilesScanned(), resp.GetBlocksUploaded(), resp.GetAssetsPushed(), resp.GetPushId())
-		printPushExtras(resp)
+		if report := resp.GetReport(); report != "" {
+			fmt.Print(report)
+		} else {
+			fmt.Printf("pushed %d blocks (%d words) across %d files; uploaded: %d; assets: %d; push_id: %s\n",
+				resp.GetBlocksPushed(), resp.GetWordCount(), resp.GetFilesScanned(), resp.GetBlocksUploaded(), resp.GetAssetsPushed(), resp.GetPushId())
+			printPushExtras(resp)
+		}
 		if te := resp.GetTerminologyError(); te != "" {
 			return fmt.Errorf("the content above was pushed; its terminology was not: %s", te)
+		}
+		if ae := resp.GetAutomationError(); ae != "" {
+			return errors.New(ae)
 		}
 		return nil
 

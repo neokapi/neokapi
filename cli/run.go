@@ -11,7 +11,7 @@ import (
 //
 //	kapi run translate-qa -i file.xliff --target-lang fr
 //	kapi run my-custom-flow -p kapi.yaml
-func NewRunCmd(a *App, opts RunCmdOptions) *cobra.Command {
+func NewRunCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run [flow-name] [flags]",
 		Short: "Run a composed flow (a named multi-tool pipeline)",
@@ -49,28 +49,14 @@ Use -p to run a flow from a kapi.yaml recipe:
 
 			flowName := args[0]
 
-			fallbackRunE := a.ResolveFallbackRunE(opts)
-
 			// If a project file is specified (or auto-discovered), apply its defaults.
 			if projectPath != "" {
-				return a.RunFromProject(cmd, flowName, projectPath, RunCmdOptions{
-					FallbackRunE: fallbackRunE,
-				})
+				return a.RunFromProject(cmd, flowName, projectPath, RunCmdOptions{})
 			}
 
-			flowOpts := FlowCmdOptions{
-				FallbackRunE: fallbackRunE,
-			}
-
-			// Built-in catalog flow — run directly.
+			// Outside a project there is nothing but the built-in catalog.
 			if BuiltinFlowNames()[flowName] {
-				return a.RunFlow(cmd.Context(), cmd, flowName, flowOpts)
-			}
-
-			// Outside a project there is nothing but the built-in catalog,
-			// so a plugin's fallback is the last place to look.
-			if fallbackRunE != nil {
-				return fallbackRunE(cmd, flowName, args)
+				return a.RunFlow(cmd.Context(), cmd, flowName)
 			}
 
 			return fmt.Errorf("unknown flow: %q\nUse \"flows\" to list available flows, or execute a tool directly (\"kapi exec %s\")", flowName, flowName)

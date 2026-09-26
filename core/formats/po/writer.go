@@ -194,9 +194,9 @@ func (w *Writer) writeBlockAsMsgstr(blocks map[string]*model.Block, refID string
 	case strings.HasSuffix(refID, "-plural"):
 		fieldName = "msgstr[1]"
 	default:
-		if idx := strings.LastIndex(refID, "-plural"); idx >= 0 {
+		if _, suffix, ok := strings.CutLast(refID, "-plural"); ok {
 			n := 0
-			if _, err := fmt.Sscanf(refID[idx+len("-plural"):], "%d", &n); err == nil && n > 0 {
+			if _, err := fmt.Sscanf(suffix, "%d", &n); err == nil && n > 0 {
 				fieldName = fmt.Sprintf("msgstr[%d]", n)
 			}
 		}

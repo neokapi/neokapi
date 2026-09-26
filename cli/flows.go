@@ -6,14 +6,14 @@ import (
 
 // NewFlowsCmd creates the "flows" management command (list flows).
 // Bare invocation lists flows; "flows list" is an explicit alias.
-func NewFlowsCmd(a *App, opts FlowCmdOptions) *cobra.Command {
+func NewFlowsCmd(a *App) *cobra.Command {
 	flowsCmd := &cobra.Command{
 		Use:     "flows",
 		Short:   "List available flows",
 		GroupID: "advanced",
 		Example: "  kapi flows",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return a.ListFlows(cmd, opts)
+			return a.ListFlows(cmd)
 		},
 	}
 
@@ -22,7 +22,7 @@ func NewFlowsCmd(a *App, opts FlowCmdOptions) *cobra.Command {
 		Short:   "List available flows",
 		Example: "  kapi flows list",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return a.ListFlows(cmd, opts)
+			return a.ListFlows(cmd)
 		},
 	}
 

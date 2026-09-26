@@ -150,8 +150,8 @@ func leafKey(keypath string) string {
 // plural-group identifiers so identically named bases in different namespaces
 // do not collide.
 func parentPath(keypath string) string {
-	if idx := strings.LastIndex(keypath, "."); idx >= 0 {
-		return keypath[:idx]
+	if parent, _, ok := strings.CutLast(keypath, "."); ok {
+		return parent
 	}
 	return ""
 }

@@ -253,7 +253,7 @@ func TestRunFlowAction_PrePushGatePassesClean(t *testing.T) {
 	assert.NotContains(t, stdout.String(), "did not run")
 	assert.NotContains(t, stdout.String(), "holds no check step")
 
-	runCmd := cli.NewRunCmd(a, cli.RunCmdOptions{})
+	runCmd := cli.NewRunCmd(a)
 	runCmd.SetContext(t.Context())
 	runCmd.SetOut(&bytes.Buffer{})
 	require.NoError(t, runCmd.Flags().Set("project", proj.RecipePath()))

@@ -140,8 +140,8 @@ func matchRule(pattern, relPath string) bool {
 	if !strings.Contains(pattern, "/") {
 		// Try matching the basename.
 		base := relPath
-		if i := strings.LastIndex(relPath, "/"); i >= 0 {
-			base = relPath[i+1:]
+		if _, last, ok := strings.CutLast(relPath, "/"); ok {
+			base = last
 		}
 		if matchGlob(pattern, base) {
 			return true
