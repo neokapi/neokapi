@@ -212,10 +212,14 @@ twice records nothing new. CI runs it after a merge or a push to the default
 branch ([Convergence in CI](/kapi/convergence-in-ci)).
 
 The other signals are recorded where the content is read. A whole-project
-`kapi check` and a `kapi up` run count, for each suggestion, the uses of its
-preferred form and of the forms it avoids in the source they read, and record a
-`usage` signal as tool `check`; a check of named files or of a diff records
-none, because part of the content says nothing about how the project writes.
+`kapi check` and a `kapi up` run count, for each suggestion and each
+established rule whose scope covers the content, the uses of its preferred form
+and of the forms it avoids in the source they read, and record a `usage` signal
+as tool `check`; a check of named files or of a diff records none, because part
+of the content says nothing about how the project writes. For a suggestion the
+count is standing. For an established rule, a later count that writes a
+rejected form more often than the count taken when the rule came into force is
+drift, which the digest reports ([S-07](../surfaces/s-07-context-centric-review.md)).
 An agent's content edit applied through `kapi apply` or the `apply_edits` tool
 records an `applied` signal as tool `apply` for each suggestion whose preferred
 form the edit writes, naming the agent's session.

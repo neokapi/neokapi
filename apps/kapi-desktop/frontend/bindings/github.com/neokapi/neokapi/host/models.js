@@ -537,6 +537,71 @@ export class ContextFilesNotice {
 }
 
 /**
+ * ContextNews is what one project's digest holds that the person has not seen:
+ * the line a project list shows beside the project, in place of any count of
+ * work waiting.
+ */
+export class ContextNews {
+    /**
+     * Creates a new ContextNews instance.
+     * @param {Partial<ContextNews>} [$$source = {}] - The source object to create the ContextNews.
+     */
+    constructor($$source = {}) {
+        if (!("project" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["project"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["project_name"] = undefined;
+        }
+        if (!("new" in $$source)) {
+            /**
+             * New counts the digest's items recorded since the person last looked, and
+             * Conflicts the disagreements that need them.
+             * @member
+             * @type {number}
+             */
+            this["new"] = 0;
+        }
+        if (!("conflicts" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["conflicts"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Since is the person's marker for the project, zero when they never
+             * looked.
+             * @member
+             * @type {string | undefined}
+             */
+            this["since"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextNews instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextNews}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ContextNews(/** @type {Partial<ContextNews>} */($$parsedSource));
+    }
+}
+
+/**
  * ContextPoint is the coordinate an answer is about.
  */
 export class ContextPoint {

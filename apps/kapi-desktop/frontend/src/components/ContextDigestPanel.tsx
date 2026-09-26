@@ -47,15 +47,17 @@ export function ContextDigestPanel({
   useEffect(() => {
     if (held !== null || !query.data) return;
     setHeld(query.data.since || NEVER);
-    void api.markProjectContextDigestSeen(tabID);
-  }, [held, query.data, tabID]);
+    void api.markProjectContextDigestSeen(tabID).then(() => {
+      void qc.invalidateQueries({ queryKey: qk.contextNews() });
+    });
+  }, [held, query.data, tabID, qc]);
 
   useInvalidateOnEvent("workspace:changed", [["context-digest", tabID]]);
 
   const refresh = useCallback(() => {
     void qc.invalidateQueries({ queryKey: ["context-digest", tabID] });
     void qc.invalidateQueries({ queryKey: ["context-feed"] });
-    void qc.invalidateQueries({ queryKey: qk.contextAwaiting() });
+    void qc.invalidateQueries({ queryKey: qk.contextNews() });
   }, [qc, tabID]);
 
   const project = query.data?.project ?? "";

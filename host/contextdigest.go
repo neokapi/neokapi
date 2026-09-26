@@ -294,6 +294,57 @@ func (a *App) digestProject(ctx context.Context, ws *workspace.Workspace, req Co
 	return req.Key, nil, nil
 }
 
+// ContextNews is what one project's digest holds that the person has not seen:
+// the line a project list shows beside the project, in place of any count of
+// work waiting.
+type ContextNews struct {
+	Project     string `json:"project"`
+	ProjectName string `json:"project_name,omitempty"`
+	// New counts the digest's items recorded since the person last looked, and
+	// Conflicts the disagreements that need them.
+	New       int `json:"new"`
+	Conflicts int `json:"conflicts"`
+	// Since is the person's marker for the project, zero when they never
+	// looked.
+	Since time.Time `json:"since,omitzero"`
+}
+
+// ContextNews reports, for every project in the workspace whose digest holds
+// something new since the person last looked, how much. It folds the log once.
+// A project with nothing new is left out, so a list shows nothing beside it.
+func (a *App) ContextNews(ctx context.Context) ([]ContextNews, error) {
+	ws, err := a.Workspace(ctx)
+	if err != nil {
+		return nil, err
+	}
+	regs, err := ws.Projects(ctx)
+	if err != nil {
+		return nil, err
+	}
+	records, err := contextop.NewLedger(ws, contextop.PersonDecides).Records(ctx, contextop.Filter{})
+	if err != nil {
+		return nil, err
+	}
+	markers := loadDigestMarkers()
+	now := a.GovernanceInstant()
+	out := []ContextNews{}
+	for _, reg := range regs {
+		since := markers.Projects[string(reg.Key)]
+		d := buildDigest(records, reg.Key, since, now, nil)
+		if d.Numbers.New == 0 {
+			continue
+		}
+		out = append(out, ContextNews{
+			Project:     string(reg.Key),
+			ProjectName: workspaceRegistrationName(reg),
+			New:         d.Numbers.New,
+			Conflicts:   len(d.Conflicts),
+			Since:       since,
+		})
+	}
+	return out, nil
+}
+
 // workspaceRegistrationName is what a person calls a registered project.
 func workspaceRegistrationName(reg workspace.Registration) string {
 	if reg.Name != "" {

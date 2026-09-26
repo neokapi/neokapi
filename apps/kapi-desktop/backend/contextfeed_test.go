@@ -11,6 +11,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host"
 )
 
@@ -112,10 +113,7 @@ func TestFeedCarriesWhatAnotherProcessRecorded(t *testing.T) {
 	assert.Equal(t, "Please sign in to continue.", entry.Evidence[0].Quote)
 	assert.NotEmpty(t, entry.Recipe, "a checkout is here, so the entry can be decided on")
 
-	require.Len(t, feed.Awaiting, 1)
-	assert.Equal(t, key, feed.Awaiting[0].ProjectKey)
-	assert.Equal(t, 1, feed.Awaiting[0].Count)
-	assert.Equal(t, 1, feed.AwaitingTotal)
+	assert.Equal(t, key, group.ProjectKey)
 }
 
 // TestKeepingWithAnEditIsWhatTheAgentReadsNext: the person changes the
@@ -150,7 +148,7 @@ func TestKeepingWithAnEditIsWhatTheAgentReadsNext(t *testing.T) {
 
 	feed, err := app.ContextFeed(key, 0)
 	require.NoError(t, err)
-	assert.Zero(t, feed.AwaitingTotal, "a decided candidate awaits nobody")
+	assert.Zero(t, awaitingIn(feed), "a decided candidate awaits nobody")
 	confirmed := findFeedEntry(t, feed, proposal.ID)
 	assert.Equal(t, "established", confirmed.Status)
 	assert.True(t, confirmed.Revertible)
@@ -174,7 +172,7 @@ func TestDroppingStopsASuggestionAnswering(t *testing.T) {
 
 	feed, err := app.ContextFeed(key, 0)
 	require.NoError(t, err)
-	assert.Zero(t, feed.AwaitingTotal)
+	assert.Zero(t, awaitingIn(feed))
 	assert.Equal(t, "dropped", findFeedEntry(t, feed, proposal.ID).Status)
 }
 
@@ -203,7 +201,7 @@ func TestRevertingASessionNamesWhatItUndoes(t *testing.T) {
 
 	feed, err := app.ContextFeed(key, 0)
 	require.NoError(t, err)
-	assert.Zero(t, feed.AwaitingTotal)
+	assert.Zero(t, awaitingIn(feed))
 	for _, group := range feed.Groups {
 		for _, entry := range group.Entries {
 			if entry.Kind == "observe" {
@@ -308,10 +306,20 @@ func TestAPersonsWorkGroupsByDay(t *testing.T) {
 	assert.False(t, group.Entries[0].Decidable)
 }
 
-// TestFeedNarrowsToOneProjectAndStillCountsTheRest: a project's own feed shows
-// its operations only, and the awaiting counts still cover the workspace so
-// the home screen reads every badge from one call.
-func TestFeedNarrowsToOneProjectAndStillCountsTheRest(t *testing.T) {
+// awaitingIn sums the suggestions awaiting a decision over a feed's groups.
+func awaitingIn(feed *ContextFeed) int {
+	n := 0
+	for _, g := range feed.Groups {
+		n += g.Awaiting
+	}
+	return n
+}
+
+// TestFeedNarrowsToOneProjectAndTheHomeReadsNews: a project's own feed shows
+// its operations only, and the home screen reads what each project's digest
+// holds that the person has not seen, rather than a count of work waiting.
+func TestFeedNarrowsToOneProjectAndTheHomeReadsNews(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
 	app := newWorkspaceApp(t)
 	first, firstKey := openFeedProject(t, app, "KapiMart")
 	second, secondKey := openFeedProject(t, app, "BowMart")
@@ -324,17 +332,24 @@ func TestFeedNarrowsToOneProjectAndStillCountsTheRest(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, feed.Groups, 1)
 	assert.Equal(t, firstKey, feed.Groups[0].ProjectKey)
-	assert.Equal(t, 2, feed.AwaitingTotal, "the counts cover the workspace")
 
-	counts, err := app.ContextAwaitingCounts()
+	news, err := app.ContextNews()
 	require.NoError(t, err)
-	require.Len(t, counts, 2)
 	byKey := map[string]int{}
-	for _, c := range counts {
-		byKey[c.ProjectKey] = c.Count
+	for _, n := range news {
+		byKey[n.Project] = n.New
+		assert.True(t, n.Since.IsZero(), "nobody has looked, so there is no marker")
 	}
 	assert.Equal(t, 1, byKey[firstKey])
 	assert.Equal(t, 1, byKey[secondKey])
+
+	// Once the person has looked at a project, it has nothing new to show.
+	_, err = host.MarkContextDigestSeen(workspace.ProjectKey(firstKey), time.Now().UTC())
+	require.NoError(t, err)
+	news, err = app.ContextNews()
+	require.NoError(t, err)
+	require.Len(t, news, 1)
+	assert.Equal(t, secondKey, news[0].Project)
 }
 
 // TestDecidingNeedsACheckoutOnThisMachine: a project registered from a machine

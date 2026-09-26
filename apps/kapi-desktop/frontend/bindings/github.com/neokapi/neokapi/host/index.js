@@ -9,6 +9,7 @@ export {
     ContextCoverage,
     ContextDigest,
     ContextFilesNotice,
+    ContextNews,
     ContextPoint,
     ContextPrecedentHit,
     ContextProfileHit,

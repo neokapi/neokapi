@@ -9,7 +9,7 @@ import { RemoveProjectDialog } from "./RemoveProjectDialog";
 import { WorkspaceProjectRow } from "./WorkspaceProjectRow";
 import type {
   AIDetectionResult,
-  ContextAwaiting,
+  ContextNews,
   ContextFeed,
   WorkspaceHome,
   WorkspaceProject,
@@ -20,8 +20,8 @@ interface AppHomeProps {
   workspace: WorkspaceHome | null;
   /** Why the workspace could not be read, when it could not. */
   workspaceError?: unknown;
-  /** Candidates awaiting a decision, per project. */
-  awaiting?: ContextAwaiting[] | null;
+  /** What each project's digest holds that the person has not seen. */
+  news?: ContextNews[] | null;
   /** Pre-loaded feed for Storybook and tests, which reach no backend. */
   feed?: ContextFeed;
   samplesDismissed: boolean;
@@ -50,7 +50,7 @@ interface AppHomeProps {
 export function AppHome({
   workspace,
   workspaceError,
-  awaiting,
+  news,
   feed,
   samplesDismissed,
   onOpenCheckout,
@@ -66,7 +66,7 @@ export function AppHome({
   const shortenHome = useShortenHome();
   const [removing, setRemoving] = useState<WorkspaceProject | null>(null);
   const projects = workspace?.projects ?? [];
-  const awaitingByProject = new Map((awaiting ?? []).map((row) => [row.project_key, row.count]));
+  const newsByProject = new Map((news ?? []).map((row) => [row.project, row]));
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-8 flex items-center gap-4">
@@ -133,7 +133,7 @@ export function AppHome({
               <WorkspaceProjectRow
                 key={project.key}
                 project={project}
-                awaiting={awaitingByProject.get(project.key) ?? 0}
+                news={newsByProject.get(project.key)}
                 onOpenCheckout={onOpenCheckout}
                 onOpenContext={onOpenContext}
                 onRemove={setRemoving}

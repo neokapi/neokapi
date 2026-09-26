@@ -14,7 +14,7 @@ import { PanelHeader } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
-import { AwaitingBadge, ContextFeedList, type ContextRuleEdit } from "./ContextFeed";
+import { ContextFeedList, type ContextRuleEdit } from "./ContextFeed";
 import { ContextRevertDialog } from "./ContextRevertDialog";
 import { ContextWidenDialog } from "./ContextWidenDialog";
 import type {
@@ -60,11 +60,11 @@ export function ContextFeedPanel({
 
   // An agent's proposal reaches the screen through the workspace watcher, and
   // the project list carries the same counts.
-  useInvalidateOnEvent("workspace:changed", [key, qk.contextAwaiting()]);
+  useInvalidateOnEvent("workspace:changed", [key, qk.contextNews()]);
 
   const refresh = useCallback(() => {
     void qc.invalidateQueries({ queryKey: key });
-    void qc.invalidateQueries({ queryKey: qk.contextAwaiting() });
+    void qc.invalidateQueries({ queryKey: qk.contextNews() });
     void qc.invalidateQueries({ queryKey: qk.workspaceProjects() });
   }, [qc, key]);
 
@@ -97,9 +97,7 @@ export function ContextFeedPanel({
 
   return (
     <div data-slot="context-feed-panel">
-      {title && (
-        <PanelHeader title={title} actions={<AwaitingBadge count={feed?.awaiting_here ?? 0} />} />
-      )}
+      {title && <PanelHeader title={title} />}
       <ContextFeedList
         feed={feed}
         loading={feedQuery.isLoading}

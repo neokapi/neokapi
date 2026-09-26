@@ -220,8 +220,10 @@ recorded elsewhere appears within a second. The previous answer stays mounted th
 keeps the scroll position and a half-typed edit through an agent recording in
 the middle of it.
 
-A count of suggestions awaiting a decision sits beside each project on the home.
-It is absent at zero rather than shown as a zero.
+Beside each project on the home sits what its digest holds that the person has
+not seen, "4 new since Tuesday" (`host.App.ContextNews`, one fold of the log
+for every project). A project with nothing new shows nothing: the home carries
+no count of work waiting.
 
 ### The digest
 
@@ -238,7 +240,7 @@ sections, in this order:
 | **Needs you** | the conflicts: two rules that disagree about one word, or a rule the evidence turned against. Choosing a side keeps it and sets the others aside (`ChooseContextSide`) |
 | **Established** | the rules that came into force, with what they rest on ("merged in #412", "your correction in docs/billing.md", "kept by you"). Revert takes one back out |
 | **Suggested** | suggestions grouped by theme (names and spellings, words to avoid, how the project writes, wording in other languages), then by collection where they sit in more than one. Keep, change then keep, drop, or keep a whole group (`KeepContextGroup`) |
-| **Drift** | an established rule whose latest usage count writes a rejected form more often than when the rule came into force |
+| **Drift** | an established rule whose latest usage count (from a whole-project `kapi check` or `kapi up`) writes a rejected form more often than the count taken when the rule came into force, or the first count after it |
 | **Numbers** | "kapi knows 23 rules for Fernwell; 4 are new this week" |
 
 Each item states its rule as a sentence ("Write Quickcast, not Quick cast or

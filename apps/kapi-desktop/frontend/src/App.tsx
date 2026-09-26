@@ -56,7 +56,7 @@ function AppInner() {
   const {
     workspace,
     workspaceError,
-    awaiting,
+    news,
     samplesDismissed,
     refreshWorkspace,
     forgetProject,
@@ -327,7 +327,7 @@ function AppInner() {
                 updateTab={tm.updateTab}
                 workspace={workspace}
                 workspaceError={workspaceError}
-                awaiting={awaiting}
+                news={news}
                 samplesDismissed={samplesDismissed}
                 onOpenCheckout={tm.openRecent}
                 onOpenContext={tm.openWorkspaceContext}

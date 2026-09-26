@@ -86,8 +86,8 @@ export const qk = {
   contextFeed: (projectKey: string) => ["context-feed", projectKey] as const,
   /** The digest of the project a tab holds, read from one instant. */
   projectContextDigest: (tabID: string, since: string) => ["context-digest", tabID, since] as const,
-  /** Per-project counts of candidates awaiting a decision. */
-  contextAwaiting: () => ["context-awaiting"] as const,
+  /** What each project's digest holds that the person has not seen. */
+  contextNews: () => ["context-news"] as const,
   /** Where one rule would answer once widened. */
   contextWidenReach: (projectKey: string, id: string, to: string) =>
     ["context-widen-reach", projectKey, id, to] as const,

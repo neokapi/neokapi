@@ -415,17 +415,6 @@ export function ContextAt(tabID, relPath, limit) {
 }
 
 /**
- * ContextAwaitingCounts reports how many suggestions each project has awaiting a
- * decision, for a home screen that shows the badge without reading the feed.
- * @returns {$CancellablePromise<$models.ContextAwaiting[]>}
- */
-export function ContextAwaitingCounts() {
-    return $Call.ByID(3495827509).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType21($result);
-    }));
-}
-
-/**
  * ContextFeed reads the workspace's context operations, newest first, grouped
  * by session. An empty projectKey reads every project.
  * @param {string} projectKey
@@ -434,7 +423,7 @@ export function ContextAwaitingCounts() {
  */
 export function ContextFeed(projectKey, limit) {
     return $Call.ByID(3935960135, projectKey, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType23($result);
+        return $$createType21($result);
     }));
 }
 
@@ -452,7 +441,7 @@ export function ContextFeed(projectKey, limit) {
  */
 export function ContextGoverns(tabID, collection, relPath, limit) {
     return $Call.ByID(913007441, tabID, collection, relPath, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType25($result);
+        return $$createType23($result);
     }));
 }
 
@@ -472,6 +461,18 @@ export function ContextGoverns(tabID, collection, relPath, limit) {
  */
 export function ContextLives(tabID, collection, relPath, limit) {
     return $Call.ByID(1087024766, tabID, collection, relPath, limit).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType25($result);
+    }));
+}
+
+/**
+ * ContextNews reports, for each project whose digest holds something the
+ * person has not seen, how much: what the home screen shows beside a project
+ * in place of a count of work waiting. A project with nothing new is absent.
+ * @returns {$CancellablePromise<host$0.ContextNews[]>}
+ */
+export function ContextNews() {
+    return $Call.ByID(1503816264).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType27($result);
     }));
 }
@@ -3046,14 +3047,14 @@ const $$createType16 = $models.ContextFeedEntry.createFrom;
 const $$createType17 = $Create.Nullable($$createType16);
 const $$createType18 = host$0.ContextAnswer.createFrom;
 const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = $models.ContextAwaiting.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = $models.ContextFeed.createFrom;
+const $$createType20 = $models.ContextFeed.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = $models.ContextGovernsResult.createFrom;
 const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = $models.ContextGovernsResult.createFrom;
+const $$createType24 = $models.ContextLivesResult.createFrom;
 const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = $models.ContextLivesResult.createFrom;
-const $$createType27 = $Create.Nullable($$createType26);
+const $$createType26 = host$0.ContextNews.createFrom;
+const $$createType27 = $Create.Array($$createType26);
 const $$createType28 = $models.ContextOptionDTO.createFrom;
 const $$createType29 = $Create.Array($$createType28);
 const $$createType30 = $models.ContextRelatesResult.createFrom;

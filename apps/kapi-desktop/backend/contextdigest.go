@@ -108,6 +108,15 @@ func (a *App) ChooseContextSide(req ContextDecisionRequest) (*ContextFeedEntry, 
 	return &entry, nil
 }
 
+// ContextNews reports, for each project whose digest holds something the
+// person has not seen, how much: what the home screen shows beside a project
+// in place of a count of work waiting. A project with nothing new is absent.
+func (a *App) ContextNews() ([]host.ContextNews, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), contextFeedTimeout)
+	defer cancel()
+	return a.hostEngine().ContextNews(ctx)
+}
+
 // tabWorkspaceKey is the workspace key of the project a tab holds.
 func (a *App) tabWorkspaceKey(tabID string) (workspace.ProjectKey, error) {
 	op := a.getOpenProject(tabID)

@@ -833,11 +833,15 @@ export interface ContextFeedGroup {
   entries: ContextFeedEntry[];
 }
 
-/** How many candidates one project has awaiting a decision. */
-export interface ContextAwaiting {
-  project_key: string;
+/** What one project's digest holds that the person has not seen. */
+export interface ContextNews {
+  project: string;
   project_name?: string;
-  count: number;
+  /** Items recorded since the person last looked. */
+  new: number;
+  conflicts: number;
+  /** The person's marker, absent when they never looked. */
+  since?: string;
 }
 
 /** What a person and the agents beside them have recorded. */
@@ -845,11 +849,6 @@ export interface ContextFeed {
   /** The project the feed was narrowed to, absent for the whole workspace. */
   project_key?: string;
   groups: ContextFeedGroup[];
-  /** Per-project counts, over the whole workspace whatever the feed shows. */
-  awaiting: ContextAwaiting[];
-  awaiting_total: number;
-  /** Candidates awaiting a decision in what this feed shows. */
-  awaiting_here: number;
   truncated: boolean;
   read_only: boolean;
 }

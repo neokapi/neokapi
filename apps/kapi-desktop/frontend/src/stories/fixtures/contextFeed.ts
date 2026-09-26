@@ -124,9 +124,6 @@ export const CONTEXT_FEED: ContextFeed = {
       entries: [OBSERVATION],
     }),
   ],
-  awaiting: [{ project_key: "kapimart", project_name: "KapiMart", count: 1 }],
-  awaiting_total: 1,
-  awaiting_here: 1,
   truncated: false,
   read_only: false,
 };
@@ -134,9 +131,6 @@ export const CONTEXT_FEED: ContextFeed = {
 /** A workspace where nothing has been recorded. */
 export const EMPTY_FEED: ContextFeed = {
   groups: [],
-  awaiting: [],
-  awaiting_total: 0,
-  awaiting_here: 0,
   truncated: false,
   read_only: false,
 };

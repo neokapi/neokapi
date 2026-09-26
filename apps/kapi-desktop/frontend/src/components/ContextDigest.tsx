@@ -585,7 +585,7 @@ function Forms({ rule }: { rule: DigestTermRule }) {
 }
 
 /** When the person last looked, as a reader says it: "Tuesday", "12 September". */
-function formatLook(iso: string): string {
+export function formatLook(iso: string): string {
   const at = new Date(iso);
   if (Number.isNaN(at.getTime())) return iso;
   const days = (Date.now() - at.getTime()) / 86_400_000;

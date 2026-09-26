@@ -2,13 +2,13 @@ import { FolderKanban, FolderOpen, FolderX, Library } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import { Badge, Button, SimpleTooltip, When } from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
-import { AwaitingBadge } from "./ContextFeed";
-import type { WorkspaceProject } from "../types/api";
+import { formatLook } from "./ContextDigest";
+import type { ContextNews, WorkspaceProject } from "../types/api";
 
 interface WorkspaceProjectRowProps {
   project: WorkspaceProject;
-  /** Candidates in this project awaiting a decision. Zero shows nothing. */
-  awaiting?: number;
+  /** What the project's digest holds that the person has not seen. Absent shows nothing. */
+  news?: ContextNews;
   /** Open the project from one of its checkouts, by recipe path. */
   onOpenCheckout: (recipe: string) => void;
   /** Open a project no checkout here carries, on its context alone. */
@@ -27,7 +27,7 @@ interface WorkspaceProjectRowProps {
  */
 export function WorkspaceProjectRow({
   project,
-  awaiting = 0,
+  news,
   onOpenCheckout,
   onOpenContext,
   onRemove,
@@ -47,7 +47,7 @@ export function WorkspaceProjectRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <span className="truncate text-sm font-medium">{project.name}</span>
-            <AwaitingBadge count={awaiting} />
+            <NewsBadge news={news} />
             {project.last_active && (
               <When
                 iso={project.last_active}
@@ -144,5 +144,17 @@ export function WorkspaceProjectRow({
         </div>
       )}
     </div>
+  );
+}
+
+/** "4 new since Tuesday": what kapi learned that the person has not seen. */
+function NewsBadge({ news }: { news?: ContextNews }) {
+  if (!news || news.new <= 0) return null;
+  return (
+    <Badge variant="secondary" data-slot="context-news">
+      {news.since
+        ? t("{count} new since {when}", { count: news.new, when: formatLook(news.since) })
+        : t("{count} new", { count: news.new })}
+    </Badge>
   );
 }

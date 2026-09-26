@@ -51,7 +51,7 @@ import type {
   ContextDigest,
   ContextFeed,
   ContextFeedEntry,
-  ContextAwaiting,
+  ContextNews,
   ContextDecisionRequest,
   ContextRevertRequest,
   ContextRevertSummary,
@@ -452,8 +452,8 @@ export const api = {
   /** The whole workspace's feed, or one project's when a key is given. */
   contextFeed: (projectKey: string, limit: number) =>
     call<ContextFeed>("ContextFeed", projectKey, limit),
-  /** How many candidates each project has awaiting a decision. */
-  contextAwaitingCounts: () => call<ContextAwaiting[]>("ContextAwaitingCounts"),
+  /** What each project's digest holds that the person has not seen. */
+  contextNews: () => call<ContextNews[]>("ContextNews"),
   /** Make a candidate binding, with whatever edit and widening was asked for. */
   keepContextSuggestion: (req: ContextDecisionRequest) =>
     call<ContextFeedEntry>("KeepContextSuggestion", req),

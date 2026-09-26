@@ -32,7 +32,6 @@ export {
     CollectionStatus,
     ConceptDTO,
     ContextActorDTO,
-    ContextAwaiting,
     ContextBlessingDTO,
     ContextCollectionDTO,
     ContextCorrectionDTO,
