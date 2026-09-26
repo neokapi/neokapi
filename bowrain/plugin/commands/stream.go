@@ -1,12 +1,9 @@
 package commands
 
 import (
-	"fmt"
-
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/host/venue/client"
-	"github.com/neokapi/neokapi/host/venue/project"
 	bconn "github.com/neokapi/neokapi/host/venue/source"
 	"github.com/spf13/cobra"
 )
@@ -71,6 +68,7 @@ func init() {
 	streamCreateCmd.Flags().String("description", "", "Stream description")
 	streamMergeCmd.Flags().Bool("dry-run", false, "Show what would be merged without merging")
 
+	addProjectFlag(streamCmd)
 	streamCmd.AddCommand(streamListCmd)
 	streamCmd.AddCommand(streamCreateCmd)
 	streamCmd.AddCommand(streamDiffCmd)
@@ -81,9 +79,9 @@ func init() {
 }
 
 func runStreamList(cmd *cobra.Command, args []string) error {
-	proj, err := project.FindProject("")
+	proj, err := requireProject(cmd)
 	if err != nil {
-		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
+		return err
 	}
 	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
@@ -118,9 +116,9 @@ func runStreamList(cmd *cobra.Command, args []string) error {
 }
 
 func runStreamCreate(cmd *cobra.Command, args []string) error {
-	proj, err := project.FindProject("")
+	proj, err := requireProject(cmd)
 	if err != nil {
-		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
+		return err
 	}
 	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
@@ -152,9 +150,9 @@ func runStreamCreate(cmd *cobra.Command, args []string) error {
 }
 
 func runStreamDiff(cmd *cobra.Command, args []string) error {
-	proj, err := project.FindProject("")
+	proj, err := requireProject(cmd)
 	if err != nil {
-		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
+		return err
 	}
 	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
@@ -184,9 +182,9 @@ func runStreamDiff(cmd *cobra.Command, args []string) error {
 }
 
 func runStreamMerge(cmd *cobra.Command, args []string) error {
-	proj, err := project.FindProject("")
+	proj, err := requireProject(cmd)
 	if err != nil {
-		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
+		return err
 	}
 	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
@@ -212,9 +210,9 @@ func runStreamMerge(cmd *cobra.Command, args []string) error {
 }
 
 func runStreamArchive(cmd *cobra.Command, args []string) error {
-	proj, err := project.FindProject("")
+	proj, err := requireProject(cmd)
 	if err != nil {
-		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
+		return err
 	}
 	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
@@ -231,9 +229,9 @@ func runStreamArchive(cmd *cobra.Command, args []string) error {
 }
 
 func runStreamStatus(cmd *cobra.Command, args []string) error {
-	proj, err := project.FindProject("")
+	proj, err := requireProject(cmd)
 	if err != nil {
-		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
+		return err
 	}
 	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {

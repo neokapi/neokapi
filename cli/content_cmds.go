@@ -264,7 +264,7 @@ standing ("2 to push" / "synced"), derived from the sync cache.
 			// Connected project: fold in the per-file sync standing via the
 			// plugin's server-ls plumbing (a SYNC column, like status's
 			// server section) — the built-in owns the verb in every install.
-			a.MergeServerLs(cmd, proj, &out, args)
+			a.MergeServerLs(cmd, recipePath, proj, &out, args)
 			return output.Print(cmd, out)
 		},
 	}

@@ -7,7 +7,6 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
-	"github.com/neokapi/neokapi/host/venue/project"
 	bconn "github.com/neokapi/neokapi/host/venue/source"
 	"github.com/spf13/cobra"
 )
@@ -41,18 +40,15 @@ down over the local governance.`,
 }
 
 func runPull(cmd *cobra.Command, args []string) error {
-	// Run pre-pull automations.
-	if proj := findProjectForAutomations(); proj != nil {
-		if err := runLocalAutomations(cmd, proj, "pre-pull"); err != nil {
-			return fmt.Errorf("pre-pull automation: %w", err)
-		}
-	}
-
-	// Create connector and apply --stream override.
-	proj, err := project.FindProject("")
+	proj, err := requireProject(cmd)
 	if err != nil {
 		return err
 	}
+	if err := runLocalAutomations(cmd, proj, "pre-pull"); err != nil {
+		return fmt.Errorf("pre-pull automation: %w", err)
+	}
+
+	// Create connector and apply --stream override.
 	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
 		return err
@@ -85,7 +81,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		return output.Print(cmd, out)
 	}
 
-	result, err := transfer.Pull(cmd.Context(), app, conn, pullLocales, pullForce, pullDryRun)
+	result, err := transfer.Pull(cmd.Context(), conn, pullLocales, pullForce, pullDryRun)
 	if err != nil {
 		return err
 	}
@@ -127,17 +123,15 @@ func runPull(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Run post-pull automations.
-	if proj := findProjectForAutomations(); proj != nil {
-		if err := runLocalAutomations(cmd, proj, "post-pull"); err != nil {
-			return fmt.Errorf("post-pull automation: %w", err)
-		}
+	if err := runLocalAutomations(cmd, proj, "post-pull"); err != nil {
+		return fmt.Errorf("post-pull automation: %w", err)
 	}
 
 	return nil
 }
 
 func init() {
+	addProjectFlag(pullCmd)
 	pullCmd.Flags().StringSliceVar(&pullLocales, "locale", nil, "languages to download (e.g. fr,de)")
 	pullCmd.Flags().BoolVar(&pullForce, "force", false, "Re-download everything, even unchanged content")
 	pullCmd.Flags().BoolVar(&pullDryRun, "dry-run", false, "Show what would change without writing files")

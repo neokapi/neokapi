@@ -56,7 +56,11 @@ export interface FlowListItem {
   id: string;
   name: string;
   description: string;
-  source: string; // "built-in" | "user" | "project"
+  /**
+   * "built-in" | "user" | "project" (inline in the recipe) | "flows-dir" (a
+   * file in the recipe's flows_dir:, edited in that file).
+   */
+  source: string;
   stepCount: number;
   /** Each step named, in order, for the card's chip strip. */
   steps: string[];
@@ -120,7 +124,7 @@ export function FlowsPage({
           id: f.name,
           name: f.name,
           description: f.description,
-          source: "project",
+          source: f.source === "file" ? "flows-dir" : "project",
           stepCount: f.step_count,
           steps: f.steps ?? [],
           isDefault: f.default ?? false,
@@ -157,7 +161,7 @@ export function FlowsPage({
           if (spec) {
             setSelectedId(item.id);
             setSelectedSpec(spec as FlowSpec);
-            setSelectedSource("project");
+            setSelectedSource(item.source);
           }
         } else {
           const detail = await api.getUserFlow(item.id);
@@ -404,7 +408,8 @@ export function FlowsPage({
 
   // Editor view.
   if (selectedId && selectedSpec) {
-    const isReadOnly = selectedSource === "built-in";
+    const isBuiltIn = selectedSource === "built-in";
+    const isReadOnly = isBuiltIn || selectedSource === "flows-dir";
     const selectedIsDefault = flows.find((f) => f.id === selectedId)?.isDefault ?? false;
     const canGovern = isProjectMode && !isReadOnly;
     return (
@@ -422,11 +427,12 @@ export function FlowsPage({
           </SimpleTooltip>
           {isReadOnly && (
             <span className="flex items-center gap-1 text-[11px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted">
-              <Lock size={9} /> Built-in (read-only)
+              <Lock size={9} />{" "}
+              {isBuiltIn ? "Built-in (read-only)" : "Flow file (edit it in flows_dir)"}
             </span>
           )}
           <div className="ml-auto flex gap-2">
-            {isReadOnly && (
+            {isBuiltIn && (
               <Button
                 variant="outline"
                 size="sm"
@@ -512,7 +518,9 @@ export function FlowsPage({
                     item.source === "built-in" ? () => void handleCopyBuiltIn(item) : undefined
                   }
                   onDelete={
-                    item.source !== "built-in" ? () => void handleDeleteFlow(item) : undefined
+                    item.source !== "built-in" && item.source !== "flows-dir"
+                      ? () => void handleDeleteFlow(item)
+                      : undefined
                   }
                   onAdopt={canAdopt ? () => void handleAdoptFlow(item) : undefined}
                   adoptProjectName={adoptProjectName}

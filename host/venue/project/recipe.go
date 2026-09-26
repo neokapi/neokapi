@@ -115,37 +115,6 @@ func LoadRecipe(path string) (*Recipe, error) {
 	return &r, nil
 }
 
-// FindRecipe walks up from start, finds a *.kapi recipe, and decodes it
-// as a bowrain Recipe. Mirrors coreproj.FindProject.
-func FindRecipe(start string) (*Recipe, coreproj.Layout, error) {
-	if start == "" {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return nil, coreproj.Layout{}, fmt.Errorf("recipe: get cwd: %w", err)
-		}
-		start = cwd
-	}
-	var layout coreproj.Layout
-	if info, err := os.Stat(start); err == nil && !info.IsDir() {
-		l, err := coreproj.LayoutFor(start)
-		if err != nil {
-			return nil, coreproj.Layout{}, err
-		}
-		layout = l
-	} else {
-		l, err := coreproj.ResolveLayout(start)
-		if err != nil {
-			return nil, coreproj.Layout{}, err
-		}
-		layout = l
-	}
-	r, err := LoadRecipe(layout.RecipePath)
-	if err != nil {
-		return nil, coreproj.Layout{}, err
-	}
-	return r, layout, nil
-}
-
 // SaveRecipe writes the recipe to path, encoding both framework and
 // bowrain fields. Atomic via temp file + rename.
 func SaveRecipe(path string, r *Recipe) error {

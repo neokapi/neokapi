@@ -240,7 +240,9 @@ func (d *daemonService) gracefulStop(server *grpc.Server) {
 	}
 }
 
-// projectFor loads a *Project for the given root, caching the result.
+// projectFor loads the project at root, the directory holding kapi.yaml or a
+// recipe under another name, exactly as kapi resolved it (it never walks up),
+// caching the result.
 // Returns the cached entry on subsequent calls. The entry holds a live
 // SourceConnector with sync-cache state.
 func (d *daemonService) projectFor(root string) (*projectEntry, error) {
@@ -261,7 +263,7 @@ func (d *daemonService) projectFor(root string) (*projectEntry, error) {
 	d.mu.Unlock()
 
 	// Load outside the mutex.
-	proj, err := bproject.FindProject(abs)
+	proj, err := bproject.Load(abs)
 	if err != nil {
 		return nil, fmt.Errorf("load project: %w", err)
 	}

@@ -223,33 +223,13 @@ func FlowListing(recipePath string) ([]output.FlowInfo, error) {
 	return append(flows, projectFlows...), err
 }
 
-// ListFlows outputs the list of available flows: FlowListing for the recipe
-// in scope, then any a plugin adds, each name once.
+// ListFlows outputs the list of available flows: FlowList for the recipe in
+// scope.
 func (a *App) ListFlows(cmd Command, opts FlowCmdOptions) error {
-	var recipePath string
-	if path, err := ResolveProjectPath(cmd); err == nil {
-		recipePath = path
-	}
-	flows, err := FlowListing(recipePath)
+	recipePath, err := ResolveProjectPath(cmd)
 	if err != nil {
-		// The built-in flows still list; the project's are named as missing
-		// rather than silently absent.
-		fmt.Fprintf(cmd.ErrOrStderr(), "warning: %v\n", err)
+		return err
 	}
-	// A plugin's flow runs only for a name nothing else resolves.
-	listed := BuiltinFlowNames()
-	for _, f := range flows {
-		listed[f.Name] = true
-	}
-	add := func(more []output.FlowInfo) {
-		for _, f := range more {
-			if !listed[f.Name] {
-				listed[f.Name] = true
-				flows = append(flows, f)
-			}
-		}
-	}
-
 	// Read ExtraFlows at run time — plugins install via
 	// RegisterAppInitializer which fires during PersistentPreRun, after
 	// NewFlowsCmd has already constructed the cobra command.
@@ -257,15 +237,51 @@ func (a *App) ListFlows(cmd Command, opts FlowCmdOptions) error {
 	if extra == nil {
 		extra = a.ExtraFlows
 	}
-	if extra != nil {
-		add(extra())
+	flows, err := FlowList(recipePath, extra)
+	if err != nil {
+		// The built-in flows still list; the project's are named as missing
+		// rather than silently absent.
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: %v\n", err)
 	}
+	return output.Print(cmd, output.FlowsListOutput{Flows: flows, Total: len(flows)})
+}
 
-	out := output.FlowsListOutput{
-		Flows: flows,
-		Total: len(flows),
+// FlowList is the one list of flows every surface shows (`kapi flows`, the
+// MCP list_flows tool, Kapi Desktop): FlowListing for the recipe at recipePath,
+// then any flow extra adds under a name nothing else resolves, since a
+// plugin's flow runs only for such a name. The error is FlowListing's, with
+// the list still filled.
+func FlowList(recipePath string, extra func() []output.FlowInfo) ([]output.FlowInfo, error) {
+	flows, err := FlowListing(recipePath)
+	if extra == nil {
+		return flows, err
 	}
-	return output.Print(cmd, out)
+	listed := BuiltinFlowNames()
+	for _, f := range flows {
+		listed[f.Name] = true
+	}
+	for _, f := range extra() {
+		if !listed[f.Name] {
+			listed[f.Name] = true
+			flows = append(flows, f)
+		}
+	}
+	return flows, err
+}
+
+// FlowSource names where a listed flow comes from, in the terms
+// ResolveProjectFlow uses: FlowSourceInline for a flow the recipe at
+// recipePath declares under `flows:`, FlowSourceFile for one from its
+// `flows_dir:`, and FlowSourceBuiltin for kapi's own.
+func FlowSource(f output.FlowInfo, recipePath string) string {
+	switch {
+	case f.Path == "":
+		return FlowSourceBuiltin
+	case f.Path == recipePath:
+		return FlowSourceInline
+	default:
+		return FlowSourceFile
+	}
 }
 
 // projectFlowInfosAt lists the flows the recipe at path declares: inline under

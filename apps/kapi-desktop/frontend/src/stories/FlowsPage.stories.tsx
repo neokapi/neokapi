@@ -53,6 +53,7 @@ function SimulatedFlowsPage() {
   const flowList: FlowInfo[] = Object.entries(flows).map(([name, spec]) => ({
     name,
     description: spec.description ?? "",
+    source: "inline",
     step_count: spec.steps.length,
     valid: true,
   }));

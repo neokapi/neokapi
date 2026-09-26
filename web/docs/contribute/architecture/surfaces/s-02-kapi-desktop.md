@@ -283,6 +283,14 @@ execute through the CLI and through flows; the desktop runs no tool on its
 own, because a third path would have to re-solve project isolation and AI
 consent for little.
 
+A project's flows page lists what `kapi flows` lists for the project: the
+recipe's inline flows, then the files in its `flows_dir:` that no inline flow
+shadows, a file that will not load shown with its problem. `RunFlow`,
+`GetFlow` and the preview resolve a name the way `kapi run` does
+(`host.ResolveProjectFlow`, [E-04](../engine/e-04-flows-and-io-binding.md)).
+The editor saves inline flows into the recipe and opens a flow file read-only,
+since the file is where that flow is edited.
+
 The flow editor's Run action goes through the same `RunFlow` path the
 collections table and the project home use. It appears in project mode, where
 there is a project for a run to act on, and stays absent in ad-hoc mode.

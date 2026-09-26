@@ -179,7 +179,7 @@ func TestRecipe_SetDefaultCollection_PersistsThroughSave(t *testing.T) {
 	assert.Empty(t, r3.DefaultCollection())
 }
 
-func TestFindRecipe_WalksUpward(t *testing.T) {
+func TestLoad_ReadsTheNamedRecipeWithoutWalking(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "deep", "nested"), 0o755))
 	recipePath := filepath.Join(root, coreproj.RecipeFileName)
@@ -188,11 +188,22 @@ name: myapp
 `), 0o644))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
 
-	// Walking up from a nested directory must find the recipe.
-	r, layout, err := FindRecipe(filepath.Join(root, "deep", "nested"))
-	require.NoError(t, err)
-	assert.Equal(t, "myapp", r.Name)
-	assert.Equal(t, recipePath, layout.RecipePath)
+	// The recipe file and the directory holding it both load.
+	for _, named := range []string{recipePath, root} {
+		p, err := Load(named)
+		require.NoError(t, err, named)
+		assert.Equal(t, "myapp", p.Recipe.Name)
+		assert.Equal(t, recipePath, p.RecipePath())
+		assert.Equal(t, root, p.Root)
+	}
+
+	// A directory inside the project is not a project: Load acts on the path
+	// the host resolved and never walks up to a recipe above it.
+	_, err := Load(filepath.Join(root, "deep", "nested"))
+	require.Error(t, err)
+
+	_, err = Load("")
+	require.Error(t, err)
 }
 
 func TestRecipe_TypeAliasesMatchSchema(t *testing.T) {

@@ -925,41 +925,6 @@ func (f *FormatSpec) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-// FindProject discovers the project layout by walking up from start and
-// loads the recipe. Returns the parsed KapiProject and its on-disk Layout.
-//
-// Pass an empty string to start from the current working directory.
-// When the start path is itself a `.kapi` recipe file, that exact recipe
-// is loaded directly.
-func FindProject(start string) (*KapiProject, Layout, error) {
-	if start == "" {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return nil, Layout{}, fmt.Errorf("project: get cwd: %w", err)
-		}
-		start = cwd
-	}
-	var layout Layout
-	if info, err := os.Stat(start); err == nil && !info.IsDir() {
-		l, err := LayoutFor(start)
-		if err != nil {
-			return nil, Layout{}, err
-		}
-		layout = l
-	} else {
-		l, err := ResolveLayout(start)
-		if err != nil {
-			return nil, Layout{}, err
-		}
-		layout = l
-	}
-	proj, err := Load(layout.RecipePath)
-	if err != nil {
-		return nil, Layout{}, err
-	}
-	return proj, layout, nil
-}
-
 // LoadOptions tunes Load behavior.
 //
 // The zero value matches the historical Load semantics (full validation

@@ -91,6 +91,7 @@ func setupKnowledgeProject(t *testing.T, srv *httptest.Server) {
 	require.NoError(t, err)
 
 	t.Chdir(root)
+	t.Setenv("KAPI_NO_PROJECT", "")
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "test-token")
 	t.Setenv("BOWRAIN_SERVER_URL", "")
 	t.Setenv("BOWRAIN_CONFIG_DIR", t.TempDir())
@@ -100,7 +101,7 @@ func TestHandleConceptSearch(t *testing.T) {
 	srv := knowledgeTestServer(t)
 	setupKnowledgeProject(t, srv)
 
-	_, out, err := handleConceptSearch(context.Background(), MCPConceptSearchInput{Query: "dash"})
+	_, out, err := handleConceptSearch(context.Background(), bowrainTestApp(), MCPConceptSearchInput{Query: "dash"})
 	require.NoError(t, err)
 	assert.Equal(t, 1, out.TotalCount)
 	require.Len(t, out.Concepts, 1)
@@ -113,7 +114,7 @@ func TestHandleConceptStory(t *testing.T) {
 	srv := knowledgeTestServer(t)
 	setupKnowledgeProject(t, srv)
 
-	_, out, err := handleConceptStory(context.Background(), MCPConceptStoryInput{ConceptID: "c-dashboard"})
+	_, out, err := handleConceptStory(context.Background(), bowrainTestApp(), MCPConceptStoryInput{ConceptID: "c-dashboard"})
 	require.NoError(t, err)
 	assert.Equal(t, "c-dashboard", out.ConceptID)
 	require.Len(t, out.Entries, 1)
@@ -124,7 +125,7 @@ func TestHandleExperimentStatusList(t *testing.T) {
 	srv := knowledgeTestServer(t)
 	setupKnowledgeProject(t, srv)
 
-	_, out, err := handleExperimentStatus(context.Background(), MCPExperimentStatusInput{})
+	_, out, err := handleExperimentStatus(context.Background(), bowrainTestApp(), MCPExperimentStatusInput{})
 	require.NoError(t, err)
 	require.Len(t, out.Experiments, 1)
 	assert.Equal(t, "x-1", out.Experiments[0].ID)
@@ -136,7 +137,7 @@ func TestHandleExperimentStatusDetail(t *testing.T) {
 	srv := knowledgeTestServer(t)
 	setupKnowledgeProject(t, srv)
 
-	_, out, err := handleExperimentStatus(context.Background(), MCPExperimentStatusInput{ChangesetID: "x-1"})
+	_, out, err := handleExperimentStatus(context.Background(), bowrainTestApp(), MCPExperimentStatusInput{ChangesetID: "x-1"})
 	require.NoError(t, err)
 	require.NotNil(t, out.Experiment)
 	assert.Equal(t, "x-1", out.Experiment.ID)
@@ -195,7 +196,7 @@ func TestHandleExperimentStatusCarriesPartialBlastRadius(t *testing.T) {
 	})
 	setupKnowledgeProject(t, srv)
 
-	_, out, err := handleExperimentStatus(context.Background(), MCPExperimentStatusInput{ChangesetID: "x-1"})
+	_, out, err := handleExperimentStatus(context.Background(), bowrainTestApp(), MCPExperimentStatusInput{ChangesetID: "x-1"})
 	require.NoError(t, err)
 	require.NotNil(t, out.BlastRadius)
 	assert.Equal(t, 900, out.BlastRadius.AffectedBlocks)
@@ -227,7 +228,7 @@ func TestHandleExperimentStatusReportsBlastRadiusFailure(t *testing.T) {
 	})
 	setupKnowledgeProject(t, srv)
 
-	_, out, err := handleExperimentStatus(context.Background(), MCPExperimentStatusInput{ChangesetID: "x-1"})
+	_, out, err := handleExperimentStatus(context.Background(), bowrainTestApp(), MCPExperimentStatusInput{ChangesetID: "x-1"})
 
 	// The change-set detail is still worth returning; the radius is not silently absent.
 	require.NoError(t, err)
@@ -248,11 +249,12 @@ func TestHandleConceptSearchRequiresWorkspace(t *testing.T) {
 	_, err := bproject.InitProject(root, recipe)
 	require.NoError(t, err)
 	t.Chdir(root)
+	t.Setenv("KAPI_NO_PROJECT", "")
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "test-token")
 	t.Setenv("BOWRAIN_SERVER_URL", "")
 	t.Setenv("BOWRAIN_CONFIG_DIR", t.TempDir())
 
-	_, _, err = handleConceptSearch(context.Background(), MCPConceptSearchInput{})
+	_, _, err = handleConceptSearch(context.Background(), bowrainTestApp(), MCPConceptSearchInput{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "workspace")
 }
@@ -270,14 +272,14 @@ func TestExperimentStatusCarriesTheReviewLink(t *testing.T) {
 	want := srv.URL + "/" + testWorkspace + "/context/changes/x-1"
 
 	t.Run("the list", func(t *testing.T) {
-		_, out, err := handleExperimentStatus(context.Background(), MCPExperimentStatusInput{})
+		_, out, err := handleExperimentStatus(context.Background(), bowrainTestApp(), MCPExperimentStatusInput{})
 		require.NoError(t, err)
 		require.Len(t, out.Experiments, 1)
 		assert.Equal(t, want, out.Experiments[0].ReviewURL)
 	})
 
 	t.Run("one change-set's detail", func(t *testing.T) {
-		_, out, err := handleExperimentStatus(context.Background(), MCPExperimentStatusInput{ChangesetID: "x-1"})
+		_, out, err := handleExperimentStatus(context.Background(), bowrainTestApp(), MCPExperimentStatusInput{ChangesetID: "x-1"})
 		require.NoError(t, err)
 		require.NotNil(t, out.Experiment)
 		assert.Equal(t, want, out.Experiment.ReviewURL)

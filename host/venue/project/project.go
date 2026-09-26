@@ -41,18 +41,22 @@ type Project struct {
 	Recipe *Recipe
 }
 
-// FindProject discovers the kapi recipe by walking up from startDir
-// (defaults to the current working directory). Returns the parsed bowrain
-// Recipe paired with its Layout.
-func FindProject(startDir string) (*Project, error) {
-	if startDir == "" {
-		var err error
-		startDir, err = os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("get working directory: %w", err)
-		}
+// Load loads the project whose recipe is at path: the kapi.yaml file itself, a
+// recipe under another name, or the directory holding kapi.yaml. It never walks
+// up from path. Which project a command acts on is decided once, by the host's
+// resolver (host.ResolveProjectPath: -p, then KAPI_NO_PROJECT, then
+// KAPI_PROJECT, then the upward walk from the working directory), and the path
+// it returns is what this loads. A second walk here would let a plugin act on a
+// project other than the one kapi resolved.
+func Load(path string) (*Project, error) {
+	if path == "" {
+		return nil, errors.New("no project recipe named")
 	}
-	r, layout, err := FindRecipe(startDir)
+	layout, err := coreproj.LayoutFor(path)
+	if err != nil {
+		return nil, err
+	}
+	r, err := LoadRecipe(layout.RecipePath)
 	if err != nil {
 		return nil, err
 	}

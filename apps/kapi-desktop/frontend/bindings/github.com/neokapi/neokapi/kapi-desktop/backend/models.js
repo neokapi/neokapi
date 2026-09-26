@@ -4601,6 +4601,24 @@ export class FlowInfo {
              */
             this["description"] = "";
         }
+        if (!("source" in $$source)) {
+            /**
+             * Source is where the project declares the flow: "inline" under the
+             * recipe's flows:, or "file" in its flows_dir:.
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Path is the flow's file, for a flow from flows_dir:. Such a flow is
+             * edited in its file; saving it here would add an inline flow of its name.
+             * @member
+             * @type {string | undefined}
+             */
+            this["path"] = undefined;
+        }
         if (!("step_count" in $$source)) {
             /**
              * @member
@@ -4648,14 +4666,14 @@ export class FlowInfo {
      * @returns {FlowInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType6;
-        const $$createField6_0 = $$createType77;
+        const $$createField5_0 = $$createType6;
+        const $$createField8_0 = $$createType77;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
-            $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
+            $$parsedSource["steps"] = $$createField5_0($$parsedSource["steps"]);
         }
         if ("issues" in $$parsedSource) {
-            $$parsedSource["issues"] = $$createField6_0($$parsedSource["issues"]);
+            $$parsedSource["issues"] = $$createField8_0($$parsedSource["issues"]);
         }
         return new FlowInfo(/** @type {Partial<FlowInfo>} */($$parsedSource));
     }

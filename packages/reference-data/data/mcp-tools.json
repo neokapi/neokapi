@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-23T23:21:16Z",
+  "generatedAt": "2026-09-26T04:57:36Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -814,8 +814,16 @@
     },
     {
       "name": "list_flows",
-      "description": "List all available processing flows",
-      "surface": "all-flows"
+      "description": "List the processing flows run_flow can run: the project's own (inline in its recipe, then its flows_dir files), then kapi's built-in flows, each name once",
+      "surface": "all-flows",
+      "params": [
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in); its own flows are listed"
+        }
+      ]
     },
     {
       "name": "list_formats",

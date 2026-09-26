@@ -188,6 +188,10 @@ export interface FlowInfo {
   name: string;
   /** Markdown — see markdown-in-ui.md. */
   description: string;
+  /** "inline" under the recipe's flows:, or "file" in its flows_dir:. */
+  source: "inline" | "file";
+  /** The flow's file, for a flow from flows_dir:. */
+  path?: string;
   step_count: number;
   /** Each step named for the card's chip strip, in order. */
   steps?: string[];

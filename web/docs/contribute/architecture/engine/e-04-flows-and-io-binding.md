@@ -97,7 +97,9 @@ Invoke a single tool directly as a tool command. Use a flow to compose tools;
   directory the recipe names with `flows_dir:`; there is no default directory.
   A name resolves to the most specific definition, by one rule on every
   surface (`kapi run`, `kapi up`'s `defaults.flow`, `kapi flows`, the MCP
-  `run_flow` tool; `host.ResolveProjectFlow`): the recipe's inline flow, then
+  `list_flows` and `run_flow` tools, Kapi Desktop's flows page and runner;
+  `host.ResolveProjectFlow`, with `host.FlowList` as the one listing): the
+  recipe's inline flow, then
   the file of that name, then the built-in flow of that name, then a plugin's
   fallback. A project that declares `translate` runs its own, and `kapi flows`
   lists it in place of the built-in. The porcelain verbs (`kapi translate`,

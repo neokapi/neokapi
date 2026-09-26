@@ -10,12 +10,13 @@ import (
 
 // MergeServerLs folds per-file sync standing into the ls listing when the
 // recipe binds a convergence venue and a plugin provides the hidden server-ls
-// plumbing. It shells `server-ls --json [paths...]` (subprocess dispatch —
-// the cli module never imports bowrain) and sets each entry's Dirty count.
+// plumbing. It shells `server-ls --json --project=<recipe> [paths...]`
+// (subprocess dispatch — the cli module never imports bowrain), handing the
+// plugin the recipe ls resolved, and sets each entry's Dirty count.
 // Any failure degrades to a one-line stderr warning and leaves the local
 // listing intact: ls must never fail on a server hiccup. Mirrors
 // appendServerStatus under `kapi status`.
-func (a *App) MergeServerLs(cmd Command, proj *project.KapiProject, out *output.LsOutput, paths []string) {
+func (a *App) MergeServerLs(cmd Command, recipePath string, proj *project.KapiProject, out *output.LsOutput, paths []string) {
 	if _, ok := proj.Venue(); !ok {
 		return
 	}
@@ -26,7 +27,7 @@ func (a *App) MergeServerLs(cmd Command, proj *project.KapiProject, out *output.
 	if route == nil {
 		return
 	}
-	raw, err := route.CaptureStdout(cmd.Context(), append([]string{"--json"}, paths...)...)
+	raw, err := route.CaptureStdout(cmd.Context(), append([]string{"--json", "--project=" + recipePath}, paths...)...)
 	if err != nil {
 		if !a.Quiet {
 			fmt.Fprintf(cmd.ErrOrStderr(), "warning: could not read per-file sync standing: %v\n", err)

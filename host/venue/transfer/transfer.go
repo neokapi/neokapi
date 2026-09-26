@@ -16,6 +16,7 @@ package transfer
 
 import (
 	"context"
+	"errors"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/venue"
@@ -95,21 +96,20 @@ type PullResult struct {
 	GovernanceDivergence []string
 }
 
-// Push uploads the project's changed content to its venue and returns both the
-// result and the open connector, so a caller that continues the exchange — `up`
-// pulls straight back — reuses the same connection rather than opening a
-// second one. The caller closes it.
+// Push uploads proj's changed content to its venue and returns both the result
+// and the open connector, so a caller that continues the exchange — `up` pulls
+// straight back — reuses the same connection rather than opening a second one.
+// The caller closes it. proj is the project the caller resolved; a transfer
+// never looks for one of its own.
 //
 // The context content type is built here rather than at each call site, so
 // every route carries the project's declared structure and governance by
 // construction: there is no push path that moves content while leaving the
 // collections it belongs to behind.
-func Push(ctx context.Context, app *host.App, opts PushOptions) (*PushResult, *source.BowrainSourceConnector, error) {
-	proj, err := project.FindProject("")
-	if err != nil {
-		return nil, nil, err
+func Push(ctx context.Context, app *host.App, proj *project.Project, opts PushOptions) (*PushResult, *source.BowrainSourceConnector, error) {
+	if proj == nil {
+		return nil, nil, errors.New("push: no project")
 	}
-
 	conn, err := source.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
 		return nil, nil, err
@@ -159,23 +159,12 @@ func Push(ctx context.Context, app *host.App, opts PushOptions) (*PushResult, *s
 	return pr, conn, nil
 }
 
-// Pull downloads translations and governed terminology into the checkout.
-//
-// A non-nil conn is used as given — the caller owns it — so a push that has
-// just finished can be pulled through without reconnecting. A nil conn opens
-// one for the duration and closes it.
-func Pull(ctx context.Context, app *host.App, conn *source.BowrainSourceConnector, locales []string, force, dryRun bool) (*PullResult, error) {
+// Pull downloads translations and governed terminology into the checkout
+// through conn, the connector the caller opened for its project and closes, so
+// a push that has just finished is pulled through without reconnecting.
+func Pull(ctx context.Context, conn *source.BowrainSourceConnector, locales []string, force, dryRun bool) (*PullResult, error) {
 	if conn == nil {
-		proj, err := project.FindProject("")
-		if err != nil {
-			return nil, err
-		}
-		var connErr error
-		conn, connErr = source.NewSourceConnector(app, proj, app.FormatReg)
-		if connErr != nil {
-			return nil, connErr
-		}
-		defer conn.Close()
+		return nil, errors.New("pull: no connector")
 	}
 
 	modelLocales := make([]model.LocaleID, len(locales))

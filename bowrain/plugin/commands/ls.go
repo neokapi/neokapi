@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 
 	"github.com/neokapi/neokapi/cli"
-	"github.com/neokapi/neokapi/host/venue/project"
 	bconn "github.com/neokapi/neokapi/host/venue/source"
 	"github.com/spf13/cobra"
 )
@@ -34,7 +33,7 @@ type serverLsFile struct {
 }
 
 func runServerLs(cmd *cobra.Command, args []string) error {
-	proj, err := project.FindProject("")
+	proj, err := requireProject(cmd)
 	if err != nil {
 		return err
 	}
@@ -59,5 +58,6 @@ func runServerLs(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
+	addProjectFlag(serverLsCmd)
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(serverLsCmd) })
 }

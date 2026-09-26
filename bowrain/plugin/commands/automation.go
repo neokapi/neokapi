@@ -111,12 +111,17 @@ func executeLocalAction(cmd *cobra.Command, action project.ActionConfig, proj *p
 
 	case "pull":
 		fmt.Fprintln(automationOutput(cmd), "  Pulling translations...")
-		_, err := transfer.Pull(cmd.Context(), app, nil, nil, false, false)
+		conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
+		if err != nil {
+			return err
+		}
+		defer conn.Close()
+		_, err = transfer.Pull(cmd.Context(), conn, nil, false, false)
 		return err
 
 	case "push":
 		fmt.Fprintln(automationOutput(cmd), "  Pushing content...")
-		_, conn, err := transfer.Push(cmd.Context(), app, transfer.PushOptions{})
+		_, conn, err := transfer.Push(cmd.Context(), app, proj, transfer.PushOptions{})
 		if conn != nil {
 			conn.Close()
 		}
@@ -236,13 +241,4 @@ func runFlowAction(cmd *cobra.Command, action project.ActionConfig, proj *projec
 	}
 	fmt.Fprintf(out, "  %s\n", notRunErr)
 	return nil
-}
-
-// findProjectForAutomations does a lightweight project lookup for automation hooks.
-func findProjectForAutomations() *project.Project {
-	proj, err := project.FindProject("")
-	if err != nil {
-		return nil
-	}
-	return proj
 }

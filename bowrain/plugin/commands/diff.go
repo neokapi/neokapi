@@ -1,11 +1,8 @@
 package commands
 
 import (
-	"fmt"
-
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
-	"github.com/neokapi/neokapi/host/venue/project"
 	bconn "github.com/neokapi/neokapi/host/venue/source"
 	"github.com/spf13/cobra"
 )
@@ -32,9 +29,9 @@ Examples:
 }
 
 func runDiff(cmd *cobra.Command, args []string) error {
-	proj, err := project.FindProject("")
+	proj, err := requireProject(cmd)
 	if err != nil {
-		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
+		return err
 	}
 
 	verbose, _ := cmd.Flags().GetBool("verbose")
@@ -99,6 +96,7 @@ func runDiff(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
+	addProjectFlag(diffCmd)
 	diffCmd.Flags().BoolP("verbose", "v", false, "list changed block ids/keys with a source preview")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(diffCmd) })
 }
