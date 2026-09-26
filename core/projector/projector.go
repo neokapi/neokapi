@@ -214,13 +214,19 @@ func (p *Projector) commit(ctx context.Context, writes []pending) error {
 		return nil
 	}
 
-	ops := make([]workspace.Op, 0, len(todo))
+	var (
+		ops   []workspace.Op
+		parts []pending
+	)
 	for _, w := range todo {
-		op, err := p.encode(ctx, w, now)
-		if err != nil {
-			return err
+		for _, part := range split(w) {
+			op, err := p.encode(ctx, part, now)
+			if err != nil {
+				return err
+			}
+			ops = append(ops, op)
+			parts = append(parts, part)
 		}
-		ops = append(ops, op)
 	}
 	written, err := p.log.Record(ctx, ops...)
 	if err != nil {
@@ -228,9 +234,45 @@ func (p *Projector) commit(ctx context.Context, writes []pending) error {
 	}
 	mine := make(map[string]pending, len(written))
 	for i, op := range written {
-		mine[op.ID] = todo[i]
+		mine[op.ID] = parts[i]
 	}
 	return p.catchUpLocked(ctx, mine)
+}
+
+// maxEntriesPerStep bounds the content-memory entries one step carries, and
+// maxStepsPerOp the steps one operation carries, so every blob stays well
+// inside workspace.MaxBlobSize: a convergence run's batch of approved wording
+// becomes several operations rather than one blob too large to store.
+const (
+	maxEntriesPerStep = 2000
+	maxStepsPerOp     = 64
+)
+
+// split cuts a pending write into operations small enough to record: a step
+// putting many entries or concepts becomes several steps, and a write of many
+// steps becomes several operations. The pieces keep their order, so applying
+// them in sequence writes what the whole would have.
+func split(w pending) []pending {
+	var steps []step
+	for _, s := range w.steps {
+		for len(s.PutEntries) > maxEntriesPerStep {
+			head := step{Stream: s.Stream, Bulk: s.Bulk, PutEntries: s.PutEntries[:maxEntriesPerStep]}
+			steps = append(steps, head)
+			s.PutEntries = s.PutEntries[maxEntriesPerStep:]
+		}
+		for len(s.PutConcepts) > maxEntriesPerStep {
+			head := step{Stream: s.Stream, PutConcepts: s.PutConcepts[:maxEntriesPerStep]}
+			steps = append(steps, head)
+			s.PutConcepts = s.PutConcepts[maxEntriesPerStep:]
+		}
+		steps = append(steps, s)
+	}
+	var out []pending
+	for len(steps) > maxStepsPerOp {
+		out = append(out, pending{kind: w.kind, steps: steps[:maxStepsPerOp]})
+		steps = steps[maxStepsPerOp:]
+	}
+	return append(out, pending{kind: w.kind, steps: steps})
 }
 
 // encode renders a pending write as the operation that records it, moving the
@@ -305,6 +347,7 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 	}
 	var first error
 	last := cursor
+	foreignBulk := false
 	for _, op := range ops {
 		last = op.Seq
 		if !projects(op.Kind) {
@@ -319,9 +362,17 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 				// holding every later one back; a rebuild reports it.
 				continue
 			}
+			foreignBulk = foreignBulk || bulkMemory(op.Kind, steps)
 		}
 		if aerr := p.applySteps(ctx, op.Kind, steps); aerr != nil && isMine && first == nil {
 			first = aerr
+		}
+	}
+	// A writer that asked for a bulk write rebuilds the indexes itself; one
+	// that another process made is this catch-up's to finish.
+	if foreignBulk {
+		if err := p.rebuildIndexes(ctx); err != nil && first == nil {
+			first = err
 		}
 	}
 	if last != cursor {
