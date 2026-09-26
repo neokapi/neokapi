@@ -9,6 +9,9 @@ asset embedded on the three public surfaces:
 | bowrain landing | `bowrain/web/landing` | committed in `bowrain/web/landing/public/` |
 | bowrain docs | `bowrain/web/docs` (baseUrl `/docs/`) | the S3 + CloudFront CDN (`bowrain/{video,img}/`) |
 
+The ordered list for the 1.3 release, with what to check in each take, is
+[re-recording the walkthroughs for 1.3](rerecord-1.3.md).
+
 Both docs sites also serve a second channel built from `main`, at `/next/` and
 `/docs/next/`. Assets are shared: a CDN object is referenced by URL from either
 channel. See [documentation release
