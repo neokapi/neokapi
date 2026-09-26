@@ -160,7 +160,7 @@ type Block struct {
     MimeType     string
     Translatable bool                   // eligible for modification or extraction
     SourceLocale LocaleID
-    SourceStatus SourceStatus           // authoring lifecycle: authored → checked → approved
+    SourceStatus SourceStatus           // authoring lifecycle: written → established
     Source       []Run                  // whole source content
     Targets      map[VariantKey]*Target // first-class targets, keyed by variant
     Overlays     []Overlay              // positional, run-anchored stand-off layers
@@ -206,7 +206,7 @@ type VariantKey struct {
 // output, model proposals) stay as alt-translation annotations.
 type Target struct {
     Runs   []Run
-    Status TargetStatus // "" (new) | draft | translated | reviewed | signed-off
+    Status TargetStatus // "" (new) | draft | translated | established
     Origin Origin       // how the content was produced, and what governed it
     Score  float64
 }

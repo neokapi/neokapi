@@ -40,7 +40,7 @@ and replays the log into the same rows, starting from the latest checkpoint.
 A question that reaches across the two files is one query. `projectdb.DB.Join`
 opens the context store beside the projection on one read-only connection, so
 *which blocks use this term, in which collection, at which coordinate, and which
-of them are signed off?* is answered in one pass.
+of them are established?* is answered in one pass.
 
 ## Context
 

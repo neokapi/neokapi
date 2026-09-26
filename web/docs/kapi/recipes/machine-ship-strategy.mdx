@@ -22,9 +22,9 @@ it. The gate model is [the kapi loop](/kapi/convergence); the schema is the
 
 | Tier        | Policy                                                        | Gate                                              |
 | ----------- | ------------------------------------------------------------- | ------------------------------------------------- |
-| Contractual | A person approves every unit                                   | `{ translated: 100, reviewed: { pct: 100, by: human } }` |
-| Mid-tier    | Everything translated, the important 80% human-reviewed        | `{ translated: 100, reviewed: 80 }`               |
-| Long tail   | Everything translated, AI reviews count as reviewed   | `{ translated: 100, reviewed: { pct: 100, by: any } }` |
+| Contractual | A person approves every unit                                   | `{ translated: 100, established: 100 }` |
+| Mid-tier    | Everything translated, the important 80% human-reviewed        | `{ translated: 100, established: 80 }`               |
+| Long tail   | Everything translated, AI reviews count as reviewed   | `{ translated: 100, established: 100 }` |
 
 ## The recipe
 
@@ -40,9 +40,9 @@ defaults:
   target_languages: [de, ja, fr, es, pt-BR, nl, sv]
 
 gates:
-  contractual: { translated: 100, reviewed: { pct: 100, by: human } }
-  standard: { translated: 100, reviewed: 80 } # short form: by: human implied
-  machine: { translated: 100, reviewed: { pct: 100, by: any } }
+  contractual: { translated: 100, established: 100 }
+  standard: { translated: 100, established: 80 }
+  machine: { translated: 100 }
 
 ship_gates:
   - when: { locales: [de, ja] } # markets with a review contract
@@ -54,16 +54,13 @@ ship_gates:
 
 Rules can also select by **collection**, so regulated content answers to a
 higher bar in every market: a `when: { collections: [Legal] }` rule with a
-`signed-off` threshold outranks the locale rules for that content because it
+`established` threshold outranks the locale rules for that content because it
 is evaluated per (collection, locale) and the most specific rule wins.
 
-The `machine` tier's `by: any` only passes when reviews exist; pair
-it with an AI review step (the `review` tool in the project's flow, or an AI
-pre-review that auto-approves what it scores clean) so autonomous approvals
-are recorded under an `ai/…` identity for `kapi up` to count. Without any
-review pass, gate the long tail on `{ translated: 100 }` alone. The class
-semantics (why `human` is the default and what `any` admits) are in
-[Approver classes](/kapi/convergence#approver-classes).
+The `machine` tier ships what is translated and passes its checks. An agent
+can pre-review that tail with a score and its reasons, which the review queue
+shows, but only a person establishes a unit, so the `established` tiers always
+measure people. See [who establishes a unit](/kapi/convergence#approver-classes).
 
 ## Trade-offs
 
@@ -71,14 +68,10 @@ semantics (why `human` is the default and what `any` admits) are in
   reviewer time proportional to its content; the long tail consumes none. A
   market moves tiers by moving one line in the recipe, and the change is
   reviewed in `git diff` like any policy change.
-- **The mid-tier percentage is a floor.** `reviewed: 80` says
+- **The mid-tier percentage is a floor.** `established: 80` says
   *at least 80%*; it does not choose which 80%. Reviewers work the worklist
   (`kapi status --review`) in whatever order matters; the gate only measures
   the outcome.
-- **`by: any` is an explicit trust decision.** An autonomous AI approving its
-  own translation is not the same evidence as a person's approval; the recipe
-  records that you accepted the difference for that scope, rather than a
-  default deciding it silently.
 - **Source drift degrades tiers gracefully.** An edited source string re-opens
   its units in every locale; the contractual tier then waits for a person while
   the machine tier recovers on the next `kapi up` pass; see
@@ -95,7 +88,7 @@ kapi check --ship --locale de   # scope to one market
 kapi check --ship --json        # structured result for a job summary
 ```
 
-One step comes first on a runner. `reviewed` thresholds read their decisions
+One step comes first on a runner. `established` thresholds read their decisions
 from the [project store](/kapi/project-store), which starts empty on a fresh
 machine, so `kapi context import` reads the repository's context files in before
 the gate runs. Nothing else is needed, since gate evaluation makes no provider

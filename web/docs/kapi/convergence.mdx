@@ -33,7 +33,7 @@ Three roles, kept separate:
 - **The loop produces**: `kapi up` drives each unit as far up its lifecycle
   as a flow can take it unaided (typically to *translated*).
 - **Review promotes**: a person advances a unit past what a machine can decide
-  (*translated → reviewed*).
+  (*translated → established*).
 - **The gate releases**: it drives nothing and answers one question, *is this
   scope shippable?*
 
@@ -66,28 +66,25 @@ absent target sits below the lowest rung; a present, non-empty target is at leas
 <AxisLadderDiagram
   rungs={[
     { grade: "1", name: "draft", gloss: "a machine placeholder, or a target whose source has moved" },
-    { grade: "2", name: "translated", gloss: "a real translation exists" },
-    { grade: "3", name: "reviewed", gloss: "a person approved this exact pair" },
-    { grade: "4", name: "signed-off", gloss: "final" },
+    { grade: "2", name: "translated", gloss: "a real translation exists and passes its checks" },
+    { grade: "3", name: "established", gloss: "a person reviewed or edited this exact pair" },
   ]}
   caption="Target lifecycle: how far a translation has progressed."
 />
 
-Source content has its own, symmetric ladder, what keeps the author *in check*
-before anything is translated:
+Source content has its own, shorter ladder:
 
 <AxisLadderDiagram
   rungs={[
-    { grade: "1", name: "authored", gloss: "source content exists" },
-    { grade: "2", name: "checked", gloss: "clears its voice & terminology checks" },
-    { grade: "3", name: "approved", gloss: "a person signed off on the source" },
+    { grade: "1", name: "written", gloss: "source content exists" },
+    { grade: "2", name: "established", gloss: "a person reviewed the source" },
   ]}
   caption="Source authoring readiness: the source-side counterpart."
 />
 
 Where state is recorded depends on the carrier. A plain target file (JSON, an
 XLIFF, …) records presence only, so a file-based project reads a present target
-as *translated*. The higher rungs ride a carrier that can hold them: *reviewed*
+as *translated*. The higher rungs ride a carrier that can hold them: *established*
 comes from an approval recorded in the project's
 [unit-state record](#review-the-state-record) (below), and a
 `.kpz` parcel carries the full status across a hand-off.
@@ -100,11 +97,11 @@ percent of its units have reached that rung or higher.
 
 ```yaml
 # kapi.yaml
-ship_gate: { translated: 100, reviewed: 80 }
+ship_gate: { translated: 100, established: 80 }
 ```
 
-This reads *"every unit translated, and the important 80% reviewed; ship the long
-tail machine-translated."* A bare `100% reviewed` is the degenerate case.
+This reads *"every unit translated, and the important 80% established; ship the long
+tail machine-translated."* A bare `100% established` is the degenerate case.
 
 Gates can be selected by rule, so different collections or locales answer to
 different bars (the most specific matching rule wins):
@@ -112,12 +109,12 @@ different bars (the most specific matching rule wins):
 ```yaml
 ship_gates:
   - when: { locales: [de] }      # German is contractually reviewed
-    gate: { translated: 100, reviewed: 100 }
-  - gate: { translated: 100, reviewed: 80 }   # the default
+    gate: { translated: 100, established: 100 }
+  - gate: { translated: 100, established: 80 }   # the default
 ```
 
 The source ladder has its own optional bar, `source_gate` (e.g.
-`{ checked: 100 }`), the source-side counterpart of `ship_gate`.
+`{ written: 100 }`), the source-side counterpart of `ship_gate`.
 
 A gate never fails an ordinary build. Target-language drift is expected work,
 and a gate is a **release** check you opt into (see below).
@@ -138,26 +135,20 @@ scopes. `kapi status` and `kapi up` name those scopes *not gated* rather than
 declared. Nothing withholds a not-gated scope, so a language picker offers it by
 default.
 
-### Approver classes: who counts as a reviewer {#approver-classes}
+### Who establishes a unit {#approver-classes}
 
-*Reviewed* and *signed-off* are approval rungs: someone approved this exact
-translation. A threshold's **approver class** (`by`, in the extended form
-`reviewed: { pct: 100, by: human }`) decides whose approvals count toward it.
-The default is `human`: only an approval made by a person, or an agent acting
-for one, satisfies the threshold, and the short form (`reviewed: 80`) always
-means `by: human`. `by: any` also counts autonomous AI approvals, those
-recorded under an `ai/…` identity, such as an AI pre-review that auto-approves
-what it scores clean. An AI-approved unit reads as reviewed in `kapi status`
-(with an `(ai)` qualifier) but does not satisfy a human threshold: an
-autonomous AI approving its own work never silently ships a gate that was
-written when *reviewed* could only mean a person. The default is a policy a
-recipe can override per scope, so tiers coexist:
+*Established* is the one human rung: a person reviewed or edited this exact
+translation. An agent pre-reviews a unit with a score and its reasons, which
+the review queue shows, and its judgement never counts as a person's, so every
+`established` threshold counts people. A workspace that wants two reviewers
+states that as a policy on how many person signals establish a unit. Gates
+still differ by scope, so tiers coexist:
 
 ```yaml
 gates:
-  contractual: { translated: 100, reviewed: { pct: 100, by: human } }
-  standard: { translated: 100, reviewed: 80 } # short form: by: human implied
-  machine: { translated: 100, reviewed: { pct: 100, by: any } }
+  contractual: { translated: 100, established: 100 }
+  standard: { translated: 100, established: 80 }
+  machine: { translated: 100 }
 
 ship_gates:
   - when: { locales: [de] } # contractual market: a person approves every unit
@@ -216,9 +207,9 @@ Read the loop left to right:
 
 1. **Settle the source.** Check terminology and mark the terms that must not be
    translated, check voice profile, run the source checks. This lifts source
-   units up the authoring ladder (*authored → checked → approved*).
+   units onto their ladder (*written → established*) and marks any that fail.
 2. **Hold at the source ship-gate.** The optional `source_gate` (for example,
-   `{ checked: 100 }`) is the source-side counterpart of `ship_gate`. Source
+   `{ established: 100 }`) is the source-side counterpart of `ship_gate`. Source
    that has not cleared its bar **holds**: settling the source first is cheaper
    than a machine translation of content you are about to change.
 3. **Translate the approved source.** Only settled source fans out per locale,
@@ -243,11 +234,11 @@ standing against its gate, recomputed on every run:
 
 ```bash
 kapi status
-# source      2 units · authored 100% · checked 100% · approved 0%
+# source      2 units · written 100% · established 0%
 #
-# scope  units  draft  translated  reviewed  signed-off  pipeline         ship
-# de        42   100%        100%       80%         0%   ██████████ 100%  ready
-# nb        42   100%         60%        0%         0%   ███░░░░░░░  30%  blocked: translate
+# scope  units  draft  translated  established  pipeline         ship
+# de        42   100%        100%          80%  ██████████ 100%  ready
+# nb        42   100%         60%           0%  ███░░░░░░░  30%  blocked: translate
 #
 # 1 of 2 scopes ready to ship
 ```
@@ -407,12 +398,12 @@ reach for `kapi up` for the daily catch-up.
 
 Because state is derived, recovery from a source edit is observable at every
 step. Take a German scope fully caught up under
-`ship_gate: { translated: 100, reviewed: 80 }`:
+`ship_gate: { translated: 100, established: 80 }`:
 
 ```bash
 kapi status
-# scope  units  draft  translated  reviewed  signed-off  pipeline         ship
-# de        42   100%        100%      100%         0%   ██████████ 100%  ready
+# scope  units  draft  translated  established  pipeline         ship
+# de        42   100%        100%         100%  ██████████ 100%  ready
 ```
 
 Edit one source string. Nothing flags the change and no state is written; the
@@ -424,8 +415,8 @@ does not apply:
 
 ```bash
 kapi status
-# scope  units  draft  translated  reviewed  signed-off  pipeline         ship
-# de        42   100%         98%       98%         0%   █████████░  99%  blocked: stale
+# scope  units  draft  translated  established  pipeline         ship
+# de        42   100%         98%          98%  █████████░  99%  blocked: stale
 #
 # 1 unit(s) stale: the source changed since the translation was decided.
 # They do not ship until you re-review them with `kapi status --review`.
@@ -449,8 +440,8 @@ kapi up --passes 1
 # Re-drafted 1 stale unit(s) against the current source. They return to
 # review un-approved (the earlier approval is not restored).
 kapi status
-# scope  units  draft  translated  reviewed  signed-off  pipeline         ship
-# de        42   100%        100%       98%         0%   █████████░  99%  blocked: stale
+# scope  units  draft  translated  established  pipeline         ship
+# de        42   100%        100%          98%  █████████░  99%  blocked: stale
 ```
 
 The re-draft holds however the unit is identified. Where the edit re-keys the
@@ -543,8 +534,8 @@ defaults:
 
 ## Review: the state record {#review-the-state-record}
 
-A machine takes a unit to *translated*; a person takes it to *reviewed*. That
-approval is an authored **decision** (who signed off on which exact
+A machine takes a unit to *translated*; a person takes it to *established*. That
+approval is an authored **decision** (who established which exact
 translation), so it is recorded in the [project store](/kapi/project-store),
 where it is durable at once and every checkout of the project reads it. The
 content memory holds none of it.
@@ -559,16 +550,16 @@ write verb, `kapi apply`, as a `review` change-set addressed by the unit's
 ```bash
 kapi status --review              # the worklist: file, id, locale per pending unit
 kapi status --review --lang nb    # one language (repeat or comma-separate for several)
-kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"reviewed"}'
+kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"established"}'
 ```
 
 An approval is about a **pairing**: this rendering, *of this source*. The
 record binds both halves by content hash: the
 translation it blesses, and the **basis**, the source wording it blessed that
-translation for. Editing either afterwards drops the unit back below *reviewed*,
+translation for. Editing either afterwards drops the unit back below *established*,
 so an approval can't silently outlive the text it approved on either side. Once
-recorded, coverage reads the unit as *reviewed*, `reviewed%` climbs, and a
-`{ reviewed: … }` gate flips to shippable.
+recorded, coverage reads the unit as *established*, `established%` climbs, and a
+`{ established: … }` gate flips to shippable.
 
 A unit whose **source** moved reads as *stale*: it holds a target, so it sits at
 *draft* rather than below the ladder, but it is not a translation of the source
@@ -596,13 +587,13 @@ records a basis.
     },
     { label: "either side edited", role: "translate", edge: "a stored hash no longer matches" },
     {
-      label: "unit reads below reviewed",
+      label: "unit reads below established",
       role: "qa",
       edge: "re-derived on the next run",
       loop: ["re-approve with kapi apply", "binds to the new pairing"],
     },
   ]}
-  caption="An approval binds to the pairing it blesses (the translation, and the source it was approved for): edit either and the unit falls below reviewed until someone approves the new pair."
+  caption="An approval binds to the pairing it blesses (the translation, and the source it was approved for): edit either and the unit falls below established until someone approves the new pair."
 />
 
 The record travels with the project through
@@ -613,23 +604,14 @@ enter the team's assignment and review queue.
 
 This is distinct from the content memory: `kapi apply` with `kind:"memory"` adds
 a source→target pair to the **recycle** corpus for future leverage and never
-promotes a unit to *reviewed*.
+promotes a unit to *established*.
 
 Run the loop yourself: this is the real kapi compiled to WebAssembly, working on
 an in-memory project. `status` shows the translated-but-unreviewed state,
 `status --review` lists the worklist, `apply` records the unit state in the
-project store, and the closing `status` shows *reviewed* climb:
+project store, and the closing `status` shows *established* climb:
 
 <KapiGuidedEmbed id="kapi-review-and-approve" />
-
-A second, optional human gate sits above review: *signed-off*, a final approval
-for content that needs it (a contractual locale, a regulated string). It is the
-same correction with a `signed-off` review state, the top rung a
-`{ signed-off: … }` gate measures:
-
-```bash
-kapi apply <<<'{"kind":"review","file":"src/locales/nb/messages.json","id":"app.save","locale":"nb","status":"signed-off"}'
-```
 
 See also [Where translations & terms live](/kapi/recipes/memory-and-terms-storage) for
 the memory and terms model, and [Keep source on brand](/kapi/recipes/keep-source-on-brand)

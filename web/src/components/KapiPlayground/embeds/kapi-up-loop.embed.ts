@@ -11,7 +11,7 @@ const config: WalkthroughEmbedConfig = {
     {
       path: "kapi.yaml",
       content:
-        'version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\n  flow: memory-recycle\n  materialize: on-converge\nship_gate: { translated: 100, reviewed: 100 }\ncollections:\n  - path: messages.json\n    target: "messages.{lang}.json"\nflows:\n  memory-recycle:\n    steps:\n      - tool: recycle\n',
+        'version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\n  flow: memory-recycle\n  materialize: on-converge\nship_gate: { translated: 100, established: 100 }\ncollections:\n  - path: messages.json\n    target: "messages.{lang}.json"\nflows:\n  memory-recycle:\n    steps:\n      - tool: recycle\n',
     },
     {
       path: "messages.json",
@@ -26,7 +26,7 @@ const config: WalkthroughEmbedConfig = {
     {
       path: "review.jsonl",
       content:
-        '{"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"reviewed"}\n{"kind":"review","file":"messages.fr.json","id":"farewell","locale":"fr","status":"reviewed"}\n{"kind":"review","file":"messages.fr.json","id":"items.cart","locale":"fr","status":"reviewed"}\n',
+        '{"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"established"}\n{"kind":"review","file":"messages.fr.json","id":"farewell","locale":"fr","status":"established"}\n{"kind":"review","file":"messages.fr.json","id":"items.cart","locale":"fr","status":"established"}\n',
     },
   ],
   steps: [
@@ -41,7 +41,7 @@ const config: WalkthroughEmbedConfig = {
     },
     {
       command: "kapi status",
-      narration: "French is shippable, with 100% translated and 100% reviewed coverage.",
+      narration: "French is shippable, with 100% translated and 100% established coverage.",
     },
   ],
 };

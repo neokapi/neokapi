@@ -9,12 +9,12 @@ keywords: [ship gate, verified gate, ship.json, language picker, verified, AI ba
 A project decides which translated versions to offer its users. neokapi models
 that decision with **two gates**, both declared in `kapi.yaml`, both evaluated
 the same way against the target status ladder
-(`draft → translated → reviewed → signed-off`):
+(`draft → translated → established`):
 
 - **The ship gate**: the bar to go live. A locale that clears it is safe to
   offer. It is the `ship_gate` / `ship_gates` configuration.
 - **The verified gate**: the bar to count as human-verified: a person reviewed
-  or signed off the content. A locale that ships but is not verified is AI-only
+  the content. A locale that ships but is not verified is AI-only
   work.
 
 The two gates are independent. Being verified is not a prerequisite for
@@ -29,7 +29,7 @@ the ship gate, and resolves a `gate:` name against the shared `gates:` registry:
 ```yaml
 # kapi.yaml
 ship_gate: { translated: 100 } # go live once fully translated
-verified_gate: { reviewed: 100 } # count as verified once fully reviewed
+verified_gate: { established: 100 } # count as verified once fully reviewed
 ```
 
 A rule list narrows the bar per collection or locale, most-specific rule wins:
@@ -37,8 +37,8 @@ A rule list narrows the bar per collection or locale, most-specific rule wins:
 ```yaml
 verified_gates:
   - when: { locales: [ja] }
-    gate: { signed-off: 100 } # Japanese needs sign-off
-  - gate: { reviewed: 100 } # everything else: reviewed
+    gate: { established: 100 } # Japanese needs a person on every unit
+  - gate: { established: 100 } # everything else: reviewed
 ```
 
 The recipe keys are **`verified_gate`** (a single catch-all gate) and

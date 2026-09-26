@@ -21,14 +21,14 @@ const config: WalkthroughEmbedConfig = {
     {
       path: "review.jsonl",
       content:
-        '{"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"reviewed"}\n',
+        '{"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"established"}\n',
     },
   ],
   steps: [
     {
       command: "kapi status",
       narration:
-        "status derives coverage from the content and recorded decisions. French is 100% translated and 0% reviewed, so human review remains pending.",
+        "status derives coverage from the content and recorded decisions. French is 100% translated and 0% established, so human review remains pending.",
     },
     {
       command: "kapi status --review",

@@ -313,13 +313,14 @@ shippable or parks for a human.
 
 ### "Review this translation"
 
-> Show me the French units waiting for review, and approve the ones that look right
+> Show me the French units waiting for review, and pre-review them for me
 
 The assistant calls `review_queue`, reads each candidate with `review_unit`,
-and records its decision with `approve_unit`, `reject_unit`, or
-`sign_off_unit`. Every decision is bound to the translation's content hash and
-recorded under the identity `agent/<client>`, so a later edit re-opens the unit
-rather than inheriting the approval.
+and records a pre-review with `pre_review_unit`: a score from 0 to 100 and its
+reasons. The pre-review is bound to the translation's content hash and
+recorded under the identity `agent/<client>`, so a later edit drops it. It
+decides nothing: the unit stays in the queue until a person approves or
+rejects it.
 
 `review_queue` returns one queue across the project's languages. Each row
 carries `language` and, when that language is the project's source, `isSource:
@@ -433,7 +434,7 @@ binary, so a Go edit starts no formatter process. Each written file's result car
 | `review`  | A unit's position on the review ladder        |
 
 ```bash
-kapi apply <<<'{"kind":"memory","source":"Save","target":"Lagre","source_locale":"en","target_locale":"nb","status":"signed-off"}'
+kapi apply <<<'{"kind":"memory","source":"Save","target":"Lagre","source_locale":"en","target_locale":"nb"}'
 ```
 
 ### check_file

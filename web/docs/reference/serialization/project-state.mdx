@@ -59,7 +59,7 @@ scope, each line a single unit:
 ```
 
 ```json title="one line of a shard"
-{"unit":"k1_…","scope":"d-app-messages","variant":{"locale":"nb"},"status":"reviewed","targetHash":"…","contentHash":"…","contextHash":"…","decision":{"reviewState":"approved","at":"2026-08-04T09:12:44Z"},"updated":"2026-08-04T09:12:44Z"}
+{"unit":"k1_…","scope":"d-app-messages","variant":{"locale":"nb"},"status":"established","targetHash":"…","contentHash":"…","contextHash":"…","decision":{"reviewState":"approved","at":"2026-08-04T09:12:44Z"},"updated":"2026-08-04T09:12:44Z"}
 ```
 
 **JSON Lines rather than one document**, because the record is appended to and
@@ -104,8 +104,8 @@ the version rides the single-document serialization of the same records.
 | `scope` | string | The document the unit belongs to, and the shard it is written into. Part of the record's identity: a unit id is unique inside its document and nowhere wider. |
 | `unit` | string | Unit identity: the block's content hash, the same key the block tables and overlays address it by. |
 | `variant` | object | The locale, and optional tone/channel, this state applies to. |
-| `status` | string | Target ladder position: draft → translated → reviewed → signed-off. |
-| `sourceStatus` | string | Source ladder position: authored → checked → approved. |
+| `status` | string | Target ladder position: draft → translated → established. |
+| `sourceStatus` | string | Source ladder position: written → established. |
 | `origin` | object | Provenance of the current target (engine/tool/reference). |
 | `targetHash` | string | Content hash of the translation this state blesses. |
 | `contentHash` | string | The decision's **basis**: the hash of the source wording the decision was made against. A record whose basis no longer matches the unit's current source reads as *stale*. |

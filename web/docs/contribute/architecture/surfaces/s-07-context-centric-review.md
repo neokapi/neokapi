@@ -100,22 +100,21 @@ defines them.
 
 ### The decision set is the same on every client
 
-A reviewer has three verdicts on a target: **approve**, which promotes it to
-`reviewed`; **sign off**, which promotes it to `signed-off`, the rung above;
+A reviewer has two verdicts on a target: **approve**, which establishes it,
 and **reject**, which drops it to `draft` so the unit re-enters the work queue.
 The rungs are the target ladder
 [C-04](../context/c-04-unit-state-and-decisions.md) defines, and the ship gates
-read them, so a client offering only two of the three leaves a rung that the
-gates can require and nobody there can reach.
+read them. There is one human rung; a workspace that wants two reviewers states
+it as a policy on how many person signals establish a unit. An agent reviews
+ahead of the person with a score and its reasons, which the queue shows and
+which never count as a decision.
 
 Every verdict is language-scoped: a reviewer decides the languages they hold
 review permission for. Promotion also passes the workspace separation-of-duties
 policy, which judges one thing, the author of the wording under decision.
-Whoever last wrote a translation by hand may not approve it and may not sign it
-off, unless the policy is off or set to warn. A target a run produced has no
-human author, so one person decides it. Signing off a target already at
-`reviewed` is a promotion like any other and is judged the same way; the policy
-draws no second line between the approver and the signer.
+Whoever last wrote a translation by hand may not approve it, unless the policy
+is off or set to warn. A target a run produced has no human author, so one
+person decides it.
 
 ### Every client renders the same object
 
@@ -148,7 +147,7 @@ fails to compile in the one that ignores it. The clients are:
 | --- | --- |
 | Kapi Desktop ([S-02](s-02-kapi-desktop.md)) | the queue's detail pane: the five shared cards over the model, and the document view opening at the unit with review state drawn as marks |
 | `kapi status --review` ([S-01](s-01-kapi-cli.md)) | the queue as a table, `--lang` narrowing it to one or more languages, and as JSON with `--json` |
-| MCP `review_unit` ([S-03](s-03-agent-surfaces.md)) | the model whole, as the read leg before `approve_unit`, `reject_unit` and `sign_off_unit`; `review_queue` lists the queue with its per-language counts |
+| MCP `review_unit` ([S-03](s-03-agent-surfaces.md)) | the model whole, as the read leg before `pre_review_unit`; `review_queue` lists the queue with its per-language counts |
 | A review surface over the REST editor | the queue as a list with the focused unit beside it: the same five cards over the same model, the findings anchored on the target, with the three verdicts under them |
 
 A host that records a review decision with an identity is a client of this
@@ -222,7 +221,7 @@ work ([C-04](../context/c-04-unit-state-and-decisions.md)).
 
 A working copy holds its own decision record, and `kapi push` sends it with the
 content it judges. The venue is authoritative for what has been approved in it,
-so it holds every rung above translated and every approval or sign-off a push
+so it holds every rung above translated and every approval a push
 carries to the gate its own review surfaces pass: the pusher's review permission
 for that language in that project, and the workspace separation-of-duties
 policy with the pusher as the decider. One function answers for every caller,
@@ -253,8 +252,8 @@ take. A rejection of the translation the venue holds lands, and clears the
 platform's mark that it has drafted the unit, so the next run drafts it again.
 
 The other direction is held to one question. A push that lowers a target the
-venue holds at `signed-off`, keeping the translation and the source the
-sign-off blessed, is withdrawing that sign-off, and the review surfaces let an
+venue holds at `established`, keeping the translation and the source the
+decision blessed, is withdrawing it, and the review surfaces let an
 un-review or a rejection do that only for a caller holding review permission
 for the language. The ingest worker asks the same: a withdrawal from a pusher
 without it keeps the venue's rung and ledger record, is counted as a demotion
@@ -262,8 +261,7 @@ the venue did not apply, and travels back with the record the venue kept, which
 the project's own record is restored to. The separation-of-duties policy is not
 asked, because a withdrawal blesses nothing. A pushed target that changes the
 translation or arrives with a moved source is an edit and lands at
-`translated`, as an edit in the editor does. Taking back an approval at
-`reviewed` is translation work on every surface and passes ungated.
+`translated`, as an edit in the editor does.
 
 ### Context is reviewed as discovery, in a digest
 
