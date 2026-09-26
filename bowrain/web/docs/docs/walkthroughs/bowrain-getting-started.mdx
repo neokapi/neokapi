@@ -24,10 +24,11 @@ nothing installed.
   outdated="wording"
 />
 
-`kapi init --server https://app.bowrain.cloud` writes a `kapi.yaml` recipe and a sibling
-`.kapi/` directory and connects the project to your Bowrain server (pass
-`--workspace <slug>` if you belong to several). `kapi add` tracks the files you
-want governed; `kapi push` sends the source up (pure transport); `kapi status`
+`kapi init --server https://app.bowrain.cloud` writes a `kapi.yaml` recipe with a
+collection for each kind of content it finds, keeps a cache for the checkout in
+`.kapi/`, and connects the project to your Bowrain server (pass
+`--workspace <slug>` if you belong to several). `kapi add` tracks files init did
+not propose; `kapi push` sends the source up (pure transport); `kapi status`
 shows standing, exactly like git; and `kapi pull` brings results back into
 the same files and formats. `kapi up` does all of it on the server in one command (push, catch up, and
 pull) for the daily reconcile and for CI.
