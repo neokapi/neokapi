@@ -146,7 +146,7 @@ test.describe("Context scan onboarding", () => {
       ]);
     await expect(page.getByText(MD_FILE)).toBeVisible();
     await page.getByPlaceholder("https://github.com/acme/website").fill(REPO_URL);
-    await page.locator("#brand-scan-profile-name").fill(profileName);
+    await page.locator("#context-scan-profile-name").fill(profileName);
 
     // ── 2. Start: files upload to the blob store, then the job is enqueued ──
     const started = page.waitForResponse(

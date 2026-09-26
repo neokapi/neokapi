@@ -174,11 +174,10 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       // a) The passkey registration page
       // b) Direct redirect to the app (if passkey enrollment was skipped)
       //
-      // The realm's required action is webauthn-register-passwordless, and the
-      // theme cases only on webauthn-register.ftl — so the page served is
-      // keycloakify's default, whose submit button carries no id of ours. Match
-      // the branded page's id OR that submit button, so the fixture recognizes
-      // whichever page the realm's required action produces.
+      // The realm's required action is webauthn-register-passwordless, which
+      // renders webauthn-register.ftl, so the branded page is served and its
+      // button carries #authenticateWebAuthnButton. The submit-button match
+      // covers a theme that falls back to keycloakify's stock page.
       const passkeyButton = page
         .locator("#authenticateWebAuthnButton")
         .or(page.getByRole("button", { name: /^register$/i }));
@@ -195,8 +194,23 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
           // Already triggered by useScript — that's fine.
         });
 
-        // Wait for Keycloak to process the registration and redirect to app.
-        await page.waitForURL((url) => !url.href.includes("/realms/"), { timeout: 30_000 });
+        // Wait for Keycloak to process the registration and redirect to the
+        // app, or to answer with its passkey error page. The error page names
+        // the cause (a script that threw, a rejected attestation), so the
+        // fixture fails with that text at once. Waiting out the redirect
+        // instead cost 30s per test, and across the suite that outran the CI
+        // step's timeout before Playwright printed any error at all.
+        const passkeyError = page.getByRole("heading", { name: /passkey error/i });
+        // Promise.any settles on the first to succeed and hands the loser a
+        // handler, so its later timeout is not an unhandled rejection.
+        await Promise.any([
+          page.waitForURL((url) => !url.href.includes("/realms/"), { timeout: 30_000 }),
+          passkeyError.waitFor({ timeout: 30_000 }),
+        ]);
+        if (await passkeyError.isVisible().catch(() => false)) {
+          const body = (await page.locator("body").innerText()).replace(/\s+/g, " ").trim();
+          throw new Error(`Keycloak rejected the passkey registration: ${body}`);
+        }
       }
 
       // ── Step 5: Extract session token ──────────────────────────

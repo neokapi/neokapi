@@ -280,6 +280,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Start E2E stack
+        id: stack
         env:
           # Pin to the per-commit tag pushed by build-images — the mutable :e2e
           # tag races when two workflow runs overlap.
@@ -292,6 +293,10 @@ jobs:
           docker compose -f bowrain/e2e/server/compose.yaml up -d --wait
         timeout-minutes: 5
 
+      # Each suite after this one also runs once the stack is up, whether or
+      # not an earlier suite failed. The suites are independent, so a failure
+      # in one reports alongside the others' results instead of skipping them.
+      #
       # The stack is already up from the step above, so this cannot go through
       # `make test-e2e-bowrain` (which owns setup and teardown) and must spell
       # its own tags. Both must be in ONE comma-joined flag: `go` does not union
@@ -303,12 +308,14 @@ jobs:
         timeout-minutes: 5
 
       - name: Cache Playwright browsers
+        if: ${{ !cancelled() && steps.stack.outcome == 'success' }}
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright browsers
+        if: ${{ !cancelled() && steps.stack.outcome == 'success' }}
         working-directory: bowrain/apps/web
         run: vpx playwright install --with-deps chromium
 
@@ -323,6 +330,7 @@ jobs:
       # browsers are installed by run.sh rather than by the root install, and CI
       # runs what a developer runs.
       - name: Run cloud E2E tests
+        if: ${{ !cancelled() && steps.stack.outcome == 'success' }}
         env:
           BOWRAIN_URL: http://localhost:8080
           KEYCLOAK_URL: http://localhost:8180
@@ -340,6 +348,7 @@ jobs:
           retention-days: 30
 
       - name: Run web app E2E tests
+        if: ${{ !cancelled() && steps.stack.outcome == 'success' }}
         working-directory: bowrain/apps/web
         run: vpx playwright test --config playwright.e2e.config.ts
         # A 5-minute cap could not contain this suite: brand-scan-onboarding

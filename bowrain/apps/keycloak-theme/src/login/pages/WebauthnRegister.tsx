@@ -39,6 +39,7 @@ export default function WebauthnRegister(props: {
             <input type="hidden" id="publicKeyCredentialId" name="publicKeyCredentialId" />
             <input type="hidden" id="authenticatorLabel" name="authenticatorLabel" />
             <input type="hidden" id="transports" name="transports" />
+            <input type="hidden" id="authenticatorAttachment" name="authenticatorAttachment" />
             <input type="hidden" id="error" name="error" />
 
             {/* Logout other sessions checkbox */}
