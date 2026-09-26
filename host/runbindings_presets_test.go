@@ -37,7 +37,8 @@ defaults:
 	assert.Nil(t, b.profile)
 
 	got := a.applyBindingsFor(b, "pseudo-translate", nil, map[string]any{}, "qps")
-	assert.Equal(t, "", got["prefix"])
-	assert.Equal(t, "", got["suffix"])
+	require.Contains(t, got, "prefix", "the recipe sets the markers")
+	assert.Empty(t, got["prefix"])
+	assert.Empty(t, got["suffix"])
 	assert.Contains(t, stderr.String(), "not-imported", "a quiet run still says what it left out")
 }

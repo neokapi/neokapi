@@ -639,10 +639,10 @@ func widenScope(target contextop.Record, to string) (contextop.Scope, error) {
 		return scope, nil
 	case WidenToProject:
 		if scope.Level == contextop.LevelWorkspace {
-			return contextop.Scope{}, fmt.Errorf("this rule holds across the workspace, which includes the project")
+			return contextop.Scope{}, errors.New("this rule holds across the workspace, which includes the project")
 		}
 		if target.Basis.Profile == "" || scope.AllProfiles {
-			return contextop.Scope{}, fmt.Errorf("this rule already holds across the project: it was settled under no profile")
+			return contextop.Scope{}, errors.New("this rule already holds across the project: it was settled under no profile")
 		}
 		scope.AllProfiles = true
 		return scope, nil
