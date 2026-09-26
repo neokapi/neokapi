@@ -17,7 +17,7 @@ package main
 // tables and become more expensive as the corpus grows. The -memory-every flag
 // controls their frequency; setting it to 1 measures a heavier write workload.
 //
-// 	go run -tags fts5 ./scripts/contention-harness -mode=workspace
+//	go run -tags fts5 ./scripts/contention-harness -mode=workspace
 
 import (
 	"context"

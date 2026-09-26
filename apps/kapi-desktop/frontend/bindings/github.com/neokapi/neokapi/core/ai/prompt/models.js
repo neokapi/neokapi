@@ -7,21 +7,16 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * Kind classifies a prompt section by what it is and who owns it. The sections
- * of a kapi prompt do not have equal standing, and flattening them into one
- * string loses exactly the distinctions that matter:
+ * Kind classifies prompt sections by purpose and source.
  * 
- *   - the framework owns Task and Constraint — the rules that make output usable
- *     (return only the translation; reproduce every tag). A user who overrides
- *     these gets broken round-trips, so they are not a configuration surface.
- *   - the project owns Instruction, Voice and Terminology — the steering that makes
- *     output *yours*. These are declared in the recipe, the voice profile and the
- *     terms, and they are the supported way to change what the model does.
- *   - the document owns Content. It is data, never instruction.
+ *   - The framework supplies Task and Constraint, including output structure
+ *     and placeholder preservation. These are fixed correctness requirements.
+ *   - The project supplies Instruction, Voice and Terminology through recipe
+ *     settings, voice profiles and terms.
+ *   - The document supplies Content, which is input data rather than instructions.
  * 
- * Keeping the seams lets --explain attribute every line of a prompt to its
- * origin, lets the reference docs enumerate what kapi sends, and gives a future
- * template override something safer to replace than "the prompt".
+ * Keeping sections distinct supports source attribution in --explain and the
+ * prompt reference documentation.
  * @readonly
  * @enum {string}
  */

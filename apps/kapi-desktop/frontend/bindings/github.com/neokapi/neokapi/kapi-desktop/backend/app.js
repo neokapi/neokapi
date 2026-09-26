@@ -227,12 +227,10 @@ export function ApplyTemplate(tabID, template) {
 }
 
 /**
- * ApproveReviewItem promotes one review-queue unit to `reviewed`: it records an
- * `approved` decision in the project state store, bound to the content hash of
- * the translation it blesses, through the shared host.ApplyReviewDecision path.
- * After it returns, GetConvergence shows the unit reviewed and it leaves the
- * queue. The unit is addressed by (locale, file, key) as listed in the review
- * queue.
+ * ApproveReviewItem records an approved review decision through
+ * host.ApplyReviewDecision, bound to the translation's content hash. The unit is
+ * addressed by the review queue's (locale, file, key) tuple. After approval,
+ * GetConvergence reports it as reviewed and removes it from the queue.
  * @param {string} tabID
  * @param {string} locale
  * @param {string} file
@@ -482,13 +480,10 @@ export function ContextOptions(tabID, dimension) {
 }
 
 /**
- * ContextRelates answers "how it relates" for a term, a concept or a block.
- * 
- * A subject that names a term or concept answers with where the project's
- * content uses it, read from the uses_term edges the up path materializes, so
- * the count here is the count the search pane and the platform report and all
- * three mean "as of the last extraction". A subject that names a block's
- * content key answers with the decisions that blessed it, from the same graph.
+ * ContextRelates returns graph relationships for a term, concept or block.
+ * Term and concept queries read uses_term edges produced by extraction, so usage
+ * counts match the search pane and platform counts from the same extraction.
+ * Block queries return decisions associated with the block's content key.
  * @param {string} tabID
  * @param {string} kind
  * @param {string} subject
@@ -2264,24 +2259,14 @@ export function ReviewAIAction(tabID, locale, file, key, action, instruction) {
 }
 
 /**
- * ReviewQueue returns the project's unified review queue: every unit awaiting a
- * person, in one listing across the project's languages, the source language
- * among them. Source units carry IsSource and sort first.
+ * ReviewQueue lists units awaiting review across all project languages. Source
+ * units carry IsSource and sort first.
  * 
- * The listing is narrowed to the project's Active Filter, and each translation
- * row is enriched with hasFindings, whether the unit currently trips any
- * registered checker — so the Review page can order findings-first and offer a
- * "clean only" batch. Enrichment is best-effort: a file that cannot be measured
- * leaves its rows unmarked, and a source row has no translation to check.
- * 
- * Languages counts what is left after the filter rather than what the whole
- * project holds, so a language the reviewer can select always has rows behind
- * it.
- * 
- * The filter is applied BEFORE enrichment, which is what makes it worth
- * threading twice over: enrichment runs every registered checker over every
- * item, and a project the size of the sample has thousands. A filter that only
- * hid rows afterwards would still pay for all of them.
+ * The Active Filter narrows the queue before checker enrichment. Each target row
+ * gets hasFindings so the UI can prioritize findings and offer clean-only batch
+ * review. Filtering first avoids running every checker on hidden rows. Enrichment
+ * is best-effort: unreadable files remain unmarked, and source rows have no target
+ * to check. Languages counts only rows remaining after filtering.
  * @param {string} tabID
  * @param {$models.ProjectFilter} filter
  * @returns {$CancellablePromise<host$0.ReviewQueue>}
@@ -2842,21 +2827,14 @@ export function UpdateProject(tabID, proj) {
 }
 
 /**
- * UpdateReviewTarget writes an edited translation back into the unit's target
- * file through the same block-rewrite path the Checks panel's "Apply fix" uses
- * (format reader → mutate one block → format writer, atomically). The edit is
- * only applied when the unit's target content is a single plain text run — a
- * substring-level rewrite over runs carrying placeholders or paired codes could
- * corrupt the markup, so that case is refused with a clear error.
+ * UpdateReviewTarget rewrites one translation atomically through the format
+ * reader and writer, using the same path as the Checks panel's Apply fix action.
+ * Only a single plain-text run is supported; substring edits to placeholders or
+ * paired codes could corrupt markup and are rejected.
  * 
- * After the write, any prior hash-bound decision for the unit is stale by
- * construction (decisions bind to the content hash of the text they judged), so
- * a subsequent approval blesses the NEW text.
- * 
- * The edit is a production step, so it is recorded as one: a state record with
- * a human origin, the new translation's hash and the source it renders, and no
- * decision on it. The unit stays in the review queue until a reviewer approves
- * the wording they typed.
+ * The new content hash invalidates earlier approvals. The edit records human
+ * origin, the target hash and source basis without a review decision. The unit
+ * remains in the review queue until a reviewer approves the new wording.
  * @param {string} tabID
  * @param {string} locale
  * @param {string} file
