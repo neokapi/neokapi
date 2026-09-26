@@ -28,16 +28,17 @@ func (r RebuildReport) Total() int {
 	return n
 }
 
-// projectionTables says which tables of the context store the projector
-// writes: every table of the terms store and of the content memory, and the
-// voice profiles with their archived versions. The voice store's scores,
-// corrections and tags are kept by the checks that write them and are left in
-// place.
+// projectionTable says which tables of the context store the projector
+// writes: every table of the terms store and of the content memory, the voice
+// profiles with their archived versions, and the unit decision ledger. The
+// voice store's scores, corrections and tags are kept by the checks that write
+// them, and each checkout's view of the ledger is kept by the checkout; both
+// are left in place.
 func projectionTable(name string) bool {
 	switch {
 	case strings.HasPrefix(name, "tm_"), strings.HasPrefix(name, "tb_"):
 		return !strings.HasSuffix(name, "_migrations")
-	case name == "voice_profiles", name == "voice_profile_versions":
+	case name == "voice_profiles", name == "voice_profile_versions", name == "unit_decision":
 		return true
 	}
 	return false
@@ -75,9 +76,11 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 	// Consecutive operations that each put content-memory entries one at a
 	// time are replayed together, which is what keeps a log of thousands of
 	// single writes to seconds. Anything else in between ends the run.
+	// Consecutive ledger entries are applied in one transaction the same way.
 	var (
-		run    []step
-		runOps []workspace.Op
+		run     []step
+		runOps  []workspace.Op
+		runKind string
 	)
 	fail := func(op workspace.Op, err error) {
 		report.Failed = append(report.Failed, fmt.Sprintf("%s %s: %v", op.Kind, workspace.ShortOpID(op.ID), err))
@@ -86,10 +89,10 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 		if len(run) == 0 {
 			return
 		}
-		if _, err := p.applySteps(ctx, KindMemory, run); err != nil {
+		if _, err := p.applySteps(ctx, runKind, run); err != nil {
 			fail(runOps[len(runOps)-1], err)
 		}
-		run, runOps = nil, nil
+		run, runOps, runKind = nil, nil, ""
 	}
 	for _, op := range ops {
 		if !projects(op.Kind) {
@@ -101,8 +104,15 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 			fail(op, derr)
 			continue
 		}
-		if op.Kind == KindMemory && allReplayable(steps) && (len(run) == 0 || steps[0].Stream == run[0].Stream) {
-			run, runOps = append(run, steps...), append(runOps, op)
+		joins := (op.Kind == KindUnit && (len(run) == 0 || runKind == KindUnit)) ||
+			(op.Kind == KindMemory && allReplayable(steps) &&
+				(len(run) == 0 || (runKind == KindMemory && steps[0].Stream == run[0].Stream)))
+		if !joins && len(run) > 0 {
+			flush()
+			joins = op.Kind == KindUnit || (op.Kind == KindMemory && allReplayable(steps))
+		}
+		if joins {
+			run, runOps, runKind = append(run, steps...), append(runOps, op), op.Kind
 			continue
 		}
 		flush()

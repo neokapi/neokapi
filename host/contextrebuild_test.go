@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 )
@@ -27,7 +28,7 @@ func projectionRows(t *testing.T, app *App, db *projectdb.DB) map[string][]strin
 	ctx := t.Context()
 	raw := db.Raw()
 	rows, err := raw.QueryContext(ctx, `SELECT name FROM sqlite_master WHERE type = 'table' AND sql NOT LIKE 'CREATE VIRTUAL%'
-		AND (name LIKE 'tm\_%' ESCAPE '\' OR name LIKE 'tb\_%' ESCAPE '\' OR name IN ('voice_profiles', 'voice_profile_versions'))`)
+		AND (name LIKE 'tm\_%' ESCAPE '\' OR name LIKE 'tb\_%' ESCAPE '\' OR name IN ('voice_profiles', 'voice_profile_versions', 'unit_decision', 'unit_view'))`)
 	require.NoError(t, err)
 	var tables []string
 	for rows.Next() {
@@ -138,9 +139,33 @@ func TestRebuildFromAMixedLogEqualsTheIncrementalState(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, imported.Concepts)
 
+	// Unit decisions: an approval, a changed answer at a second pairing, a
+	// withdrawal, the first answer given again, and a basis a run recorded.
+	st, err := app.OpenProjectState(ctx, root)
+	require.NoError(t, err)
+	decide := func(unit, target string, by string) state.UnitState {
+		return state.UnitState{
+			Unit: unit, Variant: model.Variant("nb"), Scope: "doc",
+			Status:      model.TargetStatusReviewed,
+			Decision:    state.Decision{ReviewState: "approved", By: by},
+			TargetHash:  state.TargetHash(target),
+			ContentHash: state.SourceHash("Hello " + unit),
+		}
+	}
+	require.NoError(t, st.Put(ctx, decide("greeting", "Hei", "asgeir")))
+	require.NoError(t, st.Put(ctx, decide("greeting", "Hallo", "asgeir")))
+	require.NoError(t, st.Put(ctx, decide("farewell", "Ha det", "asgeir")))
+	require.NoError(t, st.Delete(ctx, state.Key{Scope: "doc", Unit: "farewell", Variant: model.Variant("nb")}))
+	require.NoError(t, st.Put(ctx, decide("greeting", "Hei", "asgeir")))
+	require.NoError(t, st.Record(ctx, state.UnitState{
+		Unit: "title", Variant: model.Variant("nb"), Scope: "doc",
+		TargetHash: state.TargetHash("Tittel"), ContentHash: state.SourceHash("Title"),
+	}))
+
 	db, err := app.ProjectDB(ctx, root)
 	require.NoError(t, err)
 	before := projectionRows(t, app, db)
+	require.Len(t, before["unit_decision"], 5, "four decisions and one withdrawal")
 	require.NotEmpty(t, before["tb_concepts"])
 	require.NotEmpty(t, before["tm_entries"])
 	require.NotEmpty(t, before["voice_profiles"])

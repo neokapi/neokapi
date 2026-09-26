@@ -223,8 +223,41 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	if err != nil {
 		return nil, err
 	}
+	// The projector is bound with the store, so the decision ledger records
+	// through it from the first write, and whatever the log holds that the
+	// store has not seen is applied before anything reads it.
+	p, err := s.bindProjector(openCtx, abs, db)
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	s.dbs[abs] = db
+	s.projectors[abs] = p
 	return db, nil
+}
+
+// bindProjector builds the projector for a store just opened and routes the
+// store's decision ledger through it. The caller holds s.mu.
+func (s *projectStores) bindProjector(ctx context.Context, abs string, db *projectdb.DB) (*projector.Projector, error) {
+	var log projector.Log
+	bound, ok := s.bound[abs]
+	if ok && bound.ws != nil && !bound.ws.Describe().ReadOnly {
+		log = bound.ws
+	}
+	p, err := projector.ForProject(log, bound.key, db)
+	if err != nil {
+		return nil, err
+	}
+	if log == nil {
+		return p, nil
+	}
+	if work := db.Work(); work != nil {
+		work.SetJournal(p.Units())
+	}
+	if err := p.CatchUp(ctx); err != nil {
+		return nil, fmt.Errorf("apply the context log to the project store: %w", err)
+	}
+	return p, nil
 }
 
 // bindWorkspace registers the project rooted at abs and returns the databases
@@ -273,8 +306,7 @@ type boundProject struct {
 // A store with no workspace behind it (the browser build) gets a projector
 // with no log, which applies each write directly.
 func (a *App) Projector(ctx context.Context, root string) (*projector.Projector, error) {
-	db, err := a.ProjectDB(ctx, root)
-	if err != nil {
+	if _, err := a.ProjectDB(ctx, root); err != nil {
 		return nil, err
 	}
 	abs, err := filepath.Abs(root)
@@ -284,22 +316,10 @@ func (a *App) Projector(ctx context.Context, root string) (*projector.Projector,
 	s := a.ensureProjectStores()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if p, ok := s.projectors[abs]; ok {
-		return p, nil
+	p, ok := s.projectors[abs]
+	if !ok {
+		return nil, fmt.Errorf("project store: no projector bound for %s", abs)
 	}
-	var log projector.Log
-	bound, ok := s.bound[abs]
-	if ok && bound.ws != nil && !bound.ws.Describe().ReadOnly {
-		log = bound.ws
-	}
-	p, err := projector.ForProject(log, bound.key, db)
-	if err != nil {
-		return nil, err
-	}
-	if err := p.CatchUp(context.WithoutCancel(ctxOrBackground(ctx))); err != nil {
-		return nil, fmt.Errorf("apply the context log to the project store: %w", err)
-	}
-	s.projectors[abs] = p
 	return p, nil
 }
 

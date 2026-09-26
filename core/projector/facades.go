@@ -10,6 +10,7 @@ import (
 	"time"
 
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
@@ -426,4 +427,28 @@ func StandaloneTerms(tb *terms.SQLiteStore) *Terms {
 		return nil
 	}
 	return (&Projector{st: Stores{Terms: tb}, lock: &sync.Mutex{}}).Terms()
+}
+
+// Units is the journal the unit decision ledger records through
+// (state.WorkStore.SetJournal): each entry is one operation, addressed by the
+// entry's own content address, so recording one decision twice, here or on
+// another machine, is one operation.
+func (p *Projector) Units() state.Journal { return unitJournal{p} }
+
+type unitJournal struct{ p *Projector }
+
+func (j unitJournal) RecordEntries(ctx context.Context, entries []state.JournalEntry) error {
+	writes := make([]pending, 0, len(entries))
+	for _, e := range entries {
+		w := pending{kind: KindUnit, steps: []step{{Entries: []state.JournalEntry{e}}}}
+		if !e.Held {
+			// A re-assertion of an old entry is a new event; a first recording
+			// is the entry itself. The project is in the address because two
+			// projects reaching one decision about their own units hold it
+			// once each.
+			w.address = "unit:" + string(j.p.key) + ":" + e.ID
+		}
+		writes = append(writes, w)
+	}
+	return j.p.commit(ctx, writes)
 }
