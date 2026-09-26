@@ -29,7 +29,9 @@ import (
 //
 // A recipe binds a voice by name. An import that brings voice profiles into a
 // project whose recipe binds none at the default point binds the project's one
-// voice in kapi.yaml, so what was just read is also what governs.
+// voice in kapi.yaml, so what was just read is also what governs. A profile's
+// own voice, read from `.kapi/profiles/<name>/voice.yaml`, is bound under
+// `profiles.<name>.voice` when the profile's name alone would not select it.
 
 // ContextImportRequest names the layout to read.
 type ContextImportRequest struct {
@@ -65,6 +67,19 @@ type ContextImport struct {
 	// when the recipe already binds a voice at the default point, or the
 	// layout carries none.
 	Voice *ImportedVoiceBinding `json:"voice,omitempty"`
+	// ProfileVoices reports the profiles whose own voice the import bound in
+	// the recipe, because the profile's name alone would not select it.
+	ProfileVoices []ImportedProfileVoice `json:"profileVoices,omitempty"`
+}
+
+// ImportedProfileVoice is one `profiles.<name>.voice` binding an import wrote.
+type ImportedProfileVoice struct {
+	// Recipe is the recipe file the binding is written in, as a reader names it.
+	Recipe string `json:"recipe"`
+	// Profile is the recipe profile the voice was bound for.
+	Profile string `json:"profile"`
+	// Bound is the stored voice profile the binding names.
+	Bound VoiceProfileRef `json:"bound"`
 }
 
 // ImportedVoiceBinding is the voice binding an import settled, or the choice
@@ -105,13 +120,17 @@ func (r ContextImport) Read() bool {
 // FormatText renders the import for a reader.
 func (r ContextImport) FormatText(w io.Writer) error {
 	if !r.Read() {
+		var err error
 		if r.Unchanged > 0 {
-			_, err := fmt.Fprintf(w, "Nothing to read: %s already in the store at these bytes.\n",
+			_, err = fmt.Fprintf(w, "Nothing to read: %s already in the store at these bytes.\n",
 				pluralUnit(r.Unchanged, "source", "sources"))
+		} else {
+			_, err = fmt.Fprintf(w, "Nothing to read: %s holds no context.\n", r.Dir)
+		}
+		if err != nil {
 			return err
 		}
-		_, err := fmt.Fprintf(w, "Nothing to read: %s holds no context.\n", r.Dir)
-		return err
+		return r.formatProfileVoices(w)
 	}
 	if _, err := fmt.Fprintf(w, "Read %s into the project store:\n", r.Dir); err != nil {
 		return err
@@ -145,7 +164,21 @@ func (r ContextImport) FormatText(w io.Writer) error {
 			return err
 		}
 	}
-	return r.Voice.formatText(w)
+	if err := r.Voice.formatText(w); err != nil {
+		return err
+	}
+	return r.formatProfileVoices(w)
+}
+
+// formatProfileVoices renders the profile voice bindings the import wrote.
+func (r ContextImport) formatProfileVoices(w io.Writer) error {
+	for _, pv := range r.ProfileVoices {
+		if _, err := fmt.Fprintf(w, "Bound voice %s for profile %s in %s (profiles.%s.voice.profile: %s).\n",
+			pv.Bound.label(), pv.Profile, pv.Recipe, pv.Profile, pv.Bound.ID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // formatText renders what the import did about the voice binding.
@@ -299,6 +332,12 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 	}
 	res.Voice = voice
 
+	profileVoices, err := a.bindImportedProfileVoices(ctx, db, layout, sources)
+	if err != nil {
+		return res, err
+	}
+	res.ProfileVoices = profileVoices
+
 	recordDir := from.Export().UnitStateDir()
 	n, err := importDecisionRecord(ctx, db.Work(), recordDir)
 	if err != nil {
@@ -389,6 +428,57 @@ func (a *App) bindImportedVoice(ctx context.Context, db *projectdb.DB, layout, f
 		return nil, fmt.Errorf("bind voice %s in %s: %w", chosen.ID, recipeName, err)
 	}
 	return &ImportedVoiceBinding{Recipe: recipeName, Bound: chosen}, nil
+}
+
+// bindImportedProfileVoices binds, under `profiles.<name>.voice`, each voice an
+// import read from `.kapi/profiles/<name>/voice.yaml` that the profile's name
+// alone would not select, and reports what it bound.
+//
+// A profile that binds no voice is governed by the stored profile named after
+// it (profileVoiceByName). A file whose profile is stored under another id (a
+// declared `id:`, or a slug of its `name:`) is selected only by a binding, and
+// the recipe is where a binding travels to every other checkout.
+//
+// A profile the recipe does not declare, or one that binds a voice of its own,
+// is left alone, and so is a recipe that does not load: the default binding
+// reports what is wrong with it.
+func (a *App) bindImportedProfileVoices(ctx context.Context, db *projectdb.DB, layout project.Layout, sources []contextSource) ([]ImportedProfileVoice, error) {
+	store := projector.VoiceView(db)
+	if store == nil {
+		return nil, nil
+	}
+	proj, err := project.LoadWithOptions(layout.RecipePath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return nil, nil
+	}
+	recipeName := reportedPath(layout.Root, layout.RecipePath)
+	bindings := loadVoiceBindings(ctx, db)
+	var out []ImportedProfileVoice
+	for _, src := range sources {
+		if src.kind != sourceKindVoice || src.profile == "" {
+			continue
+		}
+		pr, declared := proj.Profiles[src.profile]
+		if !declared || pr.Voice != nil {
+			continue
+		}
+		id := bindings[src.rel]
+		if id == "" {
+			continue
+		}
+		if p, gerr := lookupProfileIn(ctx, store, src.profile); gerr == nil && p.ID == id {
+			continue
+		}
+		if err := project.BindVoice(layout.RecipePath, src.profile, id); err != nil {
+			return out, fmt.Errorf("bind voice %s for profile %s in %s: %w", id, src.profile, recipeName, err)
+		}
+		ref := VoiceProfileRef{ID: id}
+		if p, gerr := store.GetProfile(ctx, id); gerr == nil {
+			ref.Name = p.Name
+		}
+		out = append(out, ImportedProfileVoice{Recipe: recipeName, Profile: src.profile, Bound: ref})
+	}
+	return out, nil
 }
 
 // resolveContextLayout turns the directory a caller named into the layout to

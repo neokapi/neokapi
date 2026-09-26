@@ -29,15 +29,18 @@ import (
 // in the store is authored — a JSON object of project-relative slash path to
 // profile id.
 //
-// A snapshot writes the store back out as files, and the store keys profiles
-// by id while a layout keys them by path. This map is the one place the two
-// are tied together.
+// The store keys profiles by id while a layout keys them by path, and this map
+// ties the two together so a second import of one file keeps the id the first
+// chose. It is written directly on the machine that ran the import, never as an
+// operation, so a pull or a transfer file carries the store without it and no
+// resolution reads it.
 const MetaVoiceBindings = "context.voiceBindings"
 
 // contextSource is one context file in a `.kapi/` layout.
 type contextSource struct {
 	// path is absolute; rel is the project-relative slash form, which names
-	// the file in a report and keys its voice binding.
+	// the file in a report and keys the id its voice profile was stored under
+	// (MetaVoiceBindings).
 	path string
 	rel  string
 	kind contextSourceKind
@@ -213,7 +216,7 @@ func bundlePathsIn(dir string) ([]string, error) {
 	return out, nil
 }
 
-// profileDirNames lists the per-profile override directories a layout holds,
+// profileDirNames lists the per-profile directories a layout holds,
 // in name order. A layout with none yields none.
 func profileDirNames(export project.ExportLayout) []string {
 	entries, err := os.ReadDir(export.ProfilesDir())

@@ -588,6 +588,16 @@ Bound voice Fernwell in kapi.yaml (defaults.voice.profile: fernwell).
 The two lines it adds are the only change to the file. When the import brings
 several profiles, it binds none and lists them with the line to add.
 
+A voice profile under `.kapi/profiles/<name>/voice.yaml` belongs to the profile
+of that name. A profile that binds no voice is governed by the stored profile
+of its own name, so a file declaring `id: <name>` needs no binding. When the
+file is stored under another id, the import binds it under
+`profiles.<name>.voice`:
+
+```
+Bound voice Promo Voice for profile promo in kapi.yaml (profiles.promo.voice.profile: promo-voice).
+```
+
 A recipe that still names a file fails to load, and the message names the import
 that reads the file and the binding to write instead. The retired keys are
 `defaults.terms_source`, `defaults.memory_source`, `voice: {profile_file: …}`, a

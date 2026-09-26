@@ -52,8 +52,9 @@ func TestProjectVoiceResolvesTheProfileAtItsPoint(t *testing.T) {
 	// Promo's own profile expired, so its collection resolves here too.
 	assert.Equal(t, []string{"App", "Promo"}, def.Collections)
 
-	// A profile that binds no voice of its own is answered by its conventional
-	// file, which is a different profile from the project's.
+	// The support profile's own voice, which the import read from its
+	// directory and bound under profiles.support.voice, is a different profile
+	// from the project's.
 	support := pointOf(t, res, "support")
 	require.NotNil(t, support.Profile)
 	assert.Equal(t, "Northsea Support", support.Profile.Name)

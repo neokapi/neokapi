@@ -52,8 +52,10 @@ personas:
       emotion: warm
 `
 
-// supportVoiceYAML sits at the support profile's conventional location, which
-// is how a profile that binds no voice of its own still has one.
+// supportVoiceYAML is the support profile's own voice, at the path the import
+// reads a profile's voice from. The import stores it as northsea-support and,
+// because that id is not the profile's name, binds it under
+// profiles.support.voice in the recipe.
 const supportVoiceYAML = `name: Northsea Support
 description: How the support surfaces sound.
 tone:
@@ -72,8 +74,9 @@ tone:
 
 // newContextProject scaffolds a project with a real context space on disk:
 // three collections across three points, a declared brand axis, a profile whose
-// window has closed, a voice profile at the project default and at a profile's
-// conventional location, and a source file per collection. Everything the
+// window has closed, a voice profile at the project default and one in a
+// profile's own directory for the import to read, and a source file per
+// collection. Everything the
 // explorer answers comes from this recipe and the project's own store — no fake
 // sources anywhere.
 func newContextProject(t *testing.T, app *App) (*TabInfo, string) {

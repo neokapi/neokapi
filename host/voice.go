@@ -421,7 +421,9 @@ type VoiceResolveOptions struct {
 //  1. The `voice:` of the profile whose `when:` matches the collection's point
 //     most closely (profile → the project's voice store, pack → built-in
 //     starter pack).
-//  2. defaults.voice, in the same two forms.
+//  2. For a matched profile that binds no `voice:`, the stored voice profile
+//     named after it.
+//  3. defaults.voice, in the same two forms.
 //
 // What the recipe binds is *loaded* here and then handed to the framework's one
 // resolution chain (coreprofile.ResolveProfileFromContext) at the collection tier,
@@ -473,7 +475,7 @@ func (a *App) resolveVoiceForGovernance(ctx context.Context, root string, store 
 	// The recipe's match enters the shared chain at the collection tier. No
 	// store is passed: every tier this caller binds carries an already-loaded
 	// profile, because a recipe's `profile:` name was resolved against the local
-	// store by path above (matching id, then slug, then name — which
+	// store above (matching id, then slug, then name — which
 	// Store.GetProfile does not do).
 	resolved, err := coreprofile.ResolveProfileFromContext(ctx, coreprofile.ResolveContext{
 		CollectionProfile: profile,
@@ -521,26 +523,32 @@ func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject
 // itself has been resolved.
 //
 // The profile comes from the project's voice store in the user's workspace,
-// selected by the name the recipe binds. A `voice.yaml` in the checkout is an
-// artifact of `kapi context export`; `kapi context import` reads one in.
+// selected by name: the profile the recipe binds, or for a profile that binds
+// none, the stored profile named after it. A `voice.yaml` in the checkout
+// selects nothing; `kapi context import` reads one into the store.
 func (a *App) loadVoiceAtGovernance(ctx context.Context, root string, store coreprofile.Store, rc *project.ResolvedGovernance) (*coreprofile.VoiceProfile, string, bool, error) {
 	if rc == nil {
 		return nil, "", false, nil
 	}
-	// A profile that binds no `voice:` of its own is answered by the profile
-	// the store holds for its name, before the project default is. The name is
-	// the recipe's own, and `.kapi/profiles/<name>/voice.yaml` is where an
-	// export writes it, so the two agree whichever way a project arrived at
-	// its store.
-	if rc.Profile != "" && rc.VoiceField == project.DefaultVoiceField {
-		conv := project.RelStatePath(project.ProfilesDirName, rc.Profile, VoiceConventionalName)
-		if id := a.voiceProfileIDForBinding(ctx, root, conv); id != "" {
-			if p, err := lookupProfileIn(ctx, store, id); err == nil {
-				return p, "store:" + id, true, nil
-			}
-		}
+	if p, ok := profileVoiceByName(ctx, store, rc); ok {
+		return p, "store:" + p.ID, true, nil
 	}
 	return a.loadBoundVoiceProfile(ctx, rc.Voice, root, store, rc.VoiceField)
+}
+
+// profileVoiceByName answers a matched profile that binds no `voice:` of its
+// own with the stored voice profile of the same name, ahead of the project
+// default. The name is the recipe's profile key and the profile is the store's,
+// and both travel with the project, so every checkout resolves the same voice.
+func profileVoiceByName(ctx context.Context, store coreprofile.Store, rc *project.ResolvedGovernance) (*coreprofile.VoiceProfile, bool) {
+	if rc.Profile == "" || rc.VoiceField != project.DefaultVoiceField {
+		return nil, false
+	}
+	p, err := lookupProfileIn(ctx, store, rc.Profile)
+	if err != nil {
+		return nil, false
+	}
+	return p, true
 }
 
 // VoiceConventionalName is the voice profile's filename at a conventional
@@ -550,6 +558,7 @@ func (a *App) loadVoiceAtGovernance(ctx context.Context, root string, store core
 // Just `voice.yaml`, because the directory already says whose voice it is:
 // `.kapi/voice.yaml` is the project's, `.kapi/profiles/bowrain/voice.yaml` is
 // that profile's. A per-profile scope belongs in the path, not in the filename.
+// `kapi context import` is the one reader of either file.
 const VoiceConventionalName = "voice.yaml"
 
 // loadBoundVoiceProfile turns a resolved voice binding into a VoiceProfile,

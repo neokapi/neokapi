@@ -142,12 +142,16 @@ A profile that binds no `voice:` of its own is answered by the profile the
 project's voice store holds under its own key from `profiles:`, before
 `defaults.voice` is. So a profile declaring only its channels is a complete
 profile, and a project that names its voice profiles after its products states
-each binding once.
+each binding once. The name selects out of the store and nothing else, so every
+checkout holding the same store and recipe resolves the same voice.
 
-A directory of context files takes the same shape: each profile's overrides
-under `.kapi/profiles/<name>/`, the project default flat in `.kapi/`, and
-`kapi context import` reads it
-([C-11](c-11-context-operations.md)). Governance is
+A directory of context files takes the same shape: each profile's own voice and
+terms under `.kapi/profiles/<name>/`, the project default flat in `.kapi/`, and
+`kapi context import` reads it into the store
+([C-11](c-11-context-operations.md)). The import scopes a profile's terms to
+that profile. It stores a profile's voice under the id the file declares, and
+when that id is not the profile's name it writes `profiles.<name>.voice` into
+the recipe, so the binding travels with the recipe. Governance is
 the only thing that splits this way. The content memory and the unit-state
 record stay top-level ([C-01](c-01-project-model.md)), because a recycled
 translation and an approval are facts about a unit, true wherever it is governed
