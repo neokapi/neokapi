@@ -285,7 +285,7 @@
             "short": "Record that wording was changed at a place"
           },
           "drop": {
-            "example": "  kapi context drop 7\n  kapi context drop 7 --note \"we say it both ways on purpose\"",
+            "example": "  kapi context drop 0n794e2gk7\n  kapi context drop 0n794e2gk7 --note \"we say it both ways on purpose\"",
             "flags": {
               "note": {
                 "usage": "why"
@@ -357,7 +357,7 @@
             "short": "Read committed context files into this project's store"
           },
           "keep": {
-            "example": "  kapi context keep 7\n  kapi context keep 7 9 12\n  kapi context keep --session s0ab4e399\n  kapi context keep 7 --use \"content memory\"\n  kapi context keep 7 --advisory=false\n  kapi context keep 7 --widen-to workspace",
+            "example": "  kapi context keep 0n794e2gk7\n  kapi context keep 0n794e2gk7 0n79gkq853\n  kapi context keep --session s0ab4e399\n  kapi context keep 0n794e2gk7 --use \"content memory\"\n  kapi context keep 0n794e2gk7 --advisory=false\n  kapi context keep 0n794e2gk7 --widen-to workspace",
             "flags": {
               "advisory": {
                 "usage": "make the rule report without failing a check (--advisory=false makes it fail)"
@@ -419,7 +419,7 @@
                 "usage": "only what was recorded, leaving out the decisions about it"
               }
             },
-            "long": "List what has been observed, corrected, imported and decided about\nthis project's context, newest first.\n\nEach line carries an operation's id, when it happened, who did it, what it was\nabout and where it stands: suggested and waiting for a person, established and\nin force, contested by another rule it names, or withdrawn, dropped or\nreverted.\n\nThe id is what the other verbs take. Narrow the list with --status to see what\nis waiting for a decision, or with --session to see what one agent run did.\n\"--session this\" is that run reading back its own work.",
+            "long": "List what has been observed, corrected, imported and decided about\nthis project's context, newest first.\n\nEach line carries an operation's id, when it happened, who did it, what it was\nabout and where it stands: suggested and waiting for a person, established and\nin force, contested by another rule it names, or withdrawn, dropped or\nreverted.\n\nThe id is what the other verbs take: the short form a line shows, or any start\nof it that names one operation. Narrow the list with --status to see what is\nwaiting for a decision, or with --session to see what one agent run did.\n\"--session this\" is that run reading back its own work.",
             "short": "Show how this project's context came to be"
           },
           "long": "Ask what this project keeps to before you write a file: the voice, the\nwords to use and to avoid, and what has been suggested but not yet established.\n\n  kapi context \u003cpath\u003e          what applies to that file\n  kapi context --profile \u003cn\u003e   the same answer for a named profile\n  kapi context search \u003cword\u003e   what the project says about one word\n\nThe answer is the same text an assistant reads from the context:// resource.\n--explain adds how it was reached: the point the file sits at, the recipe line\nthat bound the voice, and the project and revision that answered. --json gives\nall of it as data.\n\nThe subcommands record and decide. observe and correct record what you notice,\nas suggestions; log lists them; keep, drop, revert and widen are a person's\ndecisions, and withdraw takes back a suggestion of your own. import, snapshot, export and restore move the context between the\nstore and files, and locales reports how stored rows are filed.",
@@ -465,7 +465,7 @@
             "short": "Read a context file back into this project's store"
           },
           "revert": {
-            "example": "  kapi context revert 7\n  kapi context revert --session 0ab4e399",
+            "example": "  kapi context revert 0n794e2gk7\n  kapi context revert --session 0ab4e399",
             "flags": {
               "note": {
                 "usage": "why"
@@ -520,7 +520,7 @@
             "short": "Write this project's context out as files"
           },
           "widen": {
-            "example": "  kapi context widen 7 --to workspace\n  kapi context widen 7 --to mode",
+            "example": "  kapi context widen 0n794e2gk7 --to workspace\n  kapi context widen 0n794e2gk7 --to mode",
             "flags": {
               "note": {
                 "usage": "why"
@@ -536,7 +536,7 @@
             "short": "Put an established rule in force somewhere broader"
           },
           "withdraw": {
-            "example": "  kapi context withdraw 7\n  kapi context withdraw 7 --note \"recorded the wrong way round\"",
+            "example": "  kapi context withdraw 0n794e2gk7\n  kapi context withdraw 0n794e2gk7 --note \"recorded the wrong way round\"",
             "flags": {
               "note": {
                 "usage": "what was wrong with it"

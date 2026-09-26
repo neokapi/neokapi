@@ -71,17 +71,29 @@ type Descriptor struct {
 	ReadOnly bool
 }
 
-// Op is one recorded change to a workspace, in the order the backend accepted
-// it.
+// Op is one recorded change to a workspace.
 //
 // The log is what a synchronizing backend exchanges with its authority, and
 // what a background synchronizer would read to learn what this machine did
-// while it was offline. The local backend records into `workspace.db` and reads
-// back from it; nothing consumes the log beyond Since.
+// while it was offline. Two logs merge by union: an operation is the same
+// operation in every log that holds its ID, so recording one a log already
+// holds changes nothing, and the merged log is ordered by ID whichever side
+// was read first.
 type Op struct {
-	// Seq is the position the backend assigned. It is assigned by Record and
-	// ignored on input.
+	// ID names the operation in every log that holds it (see NewOpID). Record
+	// assigns one to an operation that arrives without; an operation that
+	// arrives with one, because it was read from another log, keeps it.
+	ID string
+	// Seq is the position at which this log received the operation. It is
+	// local to one log: it is what a watcher polling Head and reading Since
+	// uses as its cursor, and the order across logs is the ID. It is assigned
+	// by Record and ignored on input.
 	Seq int64
+	// Address, when set, is the content address of what the operation says.
+	// Two operations with one address say the same thing, so a log holds the
+	// first and recording the second changes nothing: recording one decision
+	// twice, on one machine or on two, is one operation.
+	Address string
 	// Project names the project the operation concerns. Empty for an operation
 	// about the workspace itself.
 	Project ProjectKey
@@ -92,6 +104,20 @@ type Op struct {
 	Payload []byte
 	// At is when the operation was accepted, in UTC.
 	At time.Time
+}
+
+// OpQuery narrows a reading of the operation log. A zero OpQuery asks for
+// every operation.
+type OpQuery struct {
+	// After is the local position to read from, exclusive.
+	After int64
+	// KindPrefix keeps the operations whose kind starts with it: "context."
+	// for the context operations, "context.keep" for one kind.
+	KindPrefix string
+	// Project keeps one project's operations.
+	Project ProjectKey
+	// Limit caps the number returned. Zero or less asks for every one.
+	Limit int
 }
 
 // Operation kinds the workspace itself records.
@@ -126,17 +152,31 @@ type Backend interface {
 	// after a partial write need not look first.
 	Forget(ctx context.Context, key ProjectKey) error
 
-	// Record appends operations to the log and returns them with the sequence
-	// numbers the backend assigned, in the order given.
+	// Record appends operations to the log and returns them as the log holds
+	// them, in the order given. An operation with no ID is given one that
+	// sorts after every id the log holds. An operation whose ID or Address the
+	// log already holds is not written again, and the operation already held
+	// is returned in its place, which is what makes merging two logs by union
+	// idempotent. Where two logs recorded one Address under different IDs, the
+	// older ID stands: an arriving operation with an older ID replaces the one
+	// held, so both logs end on the same operation.
 	Record(ctx context.Context, ops ...Op) ([]Op, error)
 
-	// Since returns up to limit operations with a sequence number greater than
-	// after, in sequence order. A limit of zero or less asks for every
-	// operation.
+	// Since returns up to limit operations this log received after the local
+	// position given, in the order it received them. A limit of zero or less
+	// asks for every operation. A caller that wants the order across machines
+	// sorts the result by ID (SortOps).
 	Since(ctx context.Context, after int64, limit int) ([]Op, error)
 
-	// Head returns the sequence number of the last operation recorded, and zero
-	// for an empty log.
+	// Select returns the operations a query names, in the order this log
+	// received them. It is Since narrowed to kinds and a project, answered by
+	// the backend rather than by reading every operation and discarding most
+	// of them: a subsystem folding its own operations reads those alone.
+	Select(ctx context.Context, q OpQuery) ([]Op, error)
+
+	// Head returns the local position of the last operation this log
+	// received, and zero for an empty log. It moves whenever an operation is
+	// recorded here or merged in from another log.
 	//
 	// It is what a surface watching the workspace for change reads: one number
 	// per poll, rather than the operations themselves. A process that has seen

@@ -28,7 +28,7 @@ func (o ContextOperation) FormatText(w io.Writer) error {
 // and a note reads `observe "the docs address the reader as you"`.
 func (o ContextOperation) line() string {
 	parts := []string{
-		"#" + o.ID,
+		"#" + contextop.ShortID(o.ID),
 		o.At.Format(time.RFC3339),
 		o.Actor.String(),
 		string(o.Kind),
@@ -44,7 +44,7 @@ func (o ContextOperation) line() string {
 		parts = append(parts, fmt.Sprintf("%q became %q", o.Correction.From, o.Correction.To))
 	}
 	if o.Target != "" {
-		parts = append(parts, "of #"+o.Target)
+		parts = append(parts, "of #"+contextop.ShortID(o.Target))
 	}
 	if o.TargetSession != "" {
 		parts = append(parts, "of session "+o.TargetSession)
@@ -54,7 +54,7 @@ func (o ContextOperation) line() string {
 		if len(o.ContestedBy) > 0 {
 			others := make([]string, len(o.ContestedBy))
 			for i, id := range o.ContestedBy {
-				others[i] = "#" + id
+				others[i] = "#" + contextop.ShortID(id)
 			}
 			status += " by " + strings.Join(others, ", ")
 		}
@@ -141,7 +141,7 @@ func (r ContextKeepResult) FormatText(w io.Writer) error {
 		}
 	}
 	for _, skip := range r.Skipped {
-		if _, err := fmt.Fprintf(w, "Left #%s: %s. Choose between them before keeping it.\n", skip.ID, skip.Reason); err != nil {
+		if _, err := fmt.Fprintf(w, "Left #%s: %s. Choose between them before keeping it.\n", contextop.ShortID(skip.ID), skip.Reason); err != nil {
 			return err
 		}
 	}

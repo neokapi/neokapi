@@ -370,15 +370,18 @@ func newWorkspaceWatcher(app *App, interval time.Duration) *workspaceWatcher {
 }
 
 // Start runs the watcher until Stop, or until ctx is done.
+//
+// The first read happens here, before Start returns: it establishes where the
+// log stands, so the app announces nothing recorded before it started and
+// everything recorded after. Taken in the goroutine instead, a write landing
+// before the goroutine's first read would be counted as already seen.
 func (w *workspaceWatcher) Start(ctx context.Context) {
+	w.poll(ctx, false)
 	go w.run(ctx)
 }
 
 func (w *workspaceWatcher) run(ctx context.Context) {
 	defer close(w.done)
-	// The first read establishes where the log stands, so the app does not
-	// announce a change for everything recorded before it started.
-	w.poll(ctx, false)
 	ticker := time.NewTicker(w.interval)
 	defer ticker.Stop()
 	for {

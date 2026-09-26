@@ -9,7 +9,7 @@ const PROJECT = { project_key: "kapimart", project_name: "KapiMart" };
 /** One operation, with the fields a feed entry always carries filled in. */
 export function feedEntry(entry: Partial<ContextFeedEntry> & { id: string }): ContextFeedEntry {
   return {
-    seq: Number(entry.id),
+    short: entry.id,
     kind: "observe",
     status: "suggested",
     actor: { kind: "agent", name: "claude", session: "sess-1", host: "studio" },

@@ -101,9 +101,9 @@ Queries for data outside the graph read the relevant project databases.
 | `Registry` | the workspace-wide database: registry, graph, operation log, widened rules, agent sessions |
 | `Project` | one project's context store, created on first use |
 | `Forget` | drop one project's context store |
-| `Record` | append operations, assigning each a sequence number |
-| `Since` | read operations back from a position |
-| `Head` | the position the log stands at |
+| `Record` | append operations, minting an id for each that arrives without one; an id or content address the log holds is not written twice |
+| `Since` | read operations back from a local arrival position |
+| `Head` | the arrival position of the last operation, recorded here or merged in |
 | `Close` | release every handle the backend owns |
 
 `Registry` and `Project` answer with handles the backend owns: a caller reads

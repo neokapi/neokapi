@@ -116,13 +116,20 @@ func (w *Workspace) Context(ctx context.Context, key ProjectKey) (*storage.DB, e
 	return w.backend.Project(ctx, key)
 }
 
-// Ops returns the operations recorded after a sequence number, oldest first.
+// Ops returns the operations this log received after a local position, in the
+// order it received them.
 func (w *Workspace) Ops(ctx context.Context, after int64, limit int) ([]Op, error) {
 	return w.backend.Since(ctx, after, limit)
 }
 
-// Head returns the sequence number of the last operation recorded, and zero for
-// a workspace nothing has written to yet.
+// Select returns the operations a query names, in the order this log received
+// them.
+func (w *Workspace) Select(ctx context.Context, q OpQuery) ([]Op, error) {
+	return w.backend.Select(ctx, q)
+}
+
+// Head returns the local position of the last operation this log received, and
+// zero for a workspace nothing has written to yet.
 //
 // A surface that keeps a view of the workspace on screen reads it to learn that
 // something changed: one number, whoever wrote it and from whichever process.

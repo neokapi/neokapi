@@ -2,6 +2,7 @@ package contextop_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/contextop"
@@ -47,12 +48,13 @@ func TestLedger_AppendAndRead(t *testing.T) {
 		Evidence: []contextop.Evidence{{Path: "docs/guide.md", Unit: "p1", Quote: "we utilise it"}},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, "1", written.ID, "the log's position is the operation's id")
+	assert.True(t, workspace.ValidOpID(written.ID), "the log gives the operation an id every log agrees on")
+	assert.Equal(t, workspace.ShortOpID(written.ID), written.Short, "and a short form a person types")
 	assert.Equal(t, contextop.StatusSuggested, written.Status, "a proposal starts as a candidate")
 	assert.False(t, written.At.IsZero(), "the operation is stamped from Go's clock")
 	assert.Equal(t, contextop.LevelProject, written.Scope.Level, "a rule starts scoped to its project")
 
-	read, err := ledger.Get(ctx, "1")
+	read, err := ledger.Get(ctx, written.Short)
 	require.NoError(t, err)
 	assert.Equal(t, written.Subject, read.Subject)
 	assert.Equal(t, written.Evidence, read.Evidence)
@@ -221,19 +223,23 @@ func TestLedger_Filters(t *testing.T) {
 	newest, err := ledger.Records(ctx, contextop.Filter{})
 	require.NoError(t, err)
 	require.Len(t, newest, 2)
-	assert.Equal(t, "2", newest[0].ID, "a log reads newest first")
+	assert.Greater(t, newest[0].ID, newest[1].ID, "a log reads newest first")
 }
 
 func TestLedger_Session(t *testing.T) {
 	ctx := context.Background()
 	ledger := contextop.NewLedger(openWorkspace(t), contextop.Allow)
 
+	var first string
 	for _, term := range []string{"utilise", "leverage"} {
-		_, err := ledger.Append(ctx, contextop.Record{
+		written, err := ledger.Append(ctx, contextop.Record{
 			Project: "prj_docs", Actor: agent("claude", "s1"),
 			Kind: contextop.KindObserve, Subject: termRule(term, "use", false),
 		})
 		require.NoError(t, err)
+		if first == "" {
+			first = written.ID
+		}
 	}
 	_, err := ledger.Append(ctx, contextop.Record{
 		Project: "prj_docs", Actor: agent("claude", "s1"),
@@ -241,7 +247,7 @@ func TestLedger_Session(t *testing.T) {
 	})
 	require.NoError(t, err)
 	_, err = ledger.Append(ctx, contextop.Record{
-		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindKeep, Target: "1",
+		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindKeep, Target: first,
 	})
 	require.NoError(t, err)
 
@@ -270,37 +276,46 @@ func TestLedger_RejectsAnUnknownKindAndAMissingTarget(t *testing.T) {
 	require.ErrorContains(t, err, "not an operation kind")
 
 	_, err = ledger.Append(ctx, contextop.Record{
-		Project: "p", Actor: person("asgeir"), Kind: contextop.KindKeep, Target: "42",
+		Project: "p", Actor: person("asgeir"), Kind: contextop.KindKeep, Target: "zzzzzzzz",
 	})
 	assert.ErrorIs(t, err, contextop.ErrNotFound)
 }
 
-func TestParseID(t *testing.T) {
-	tests := []struct {
-		in      string
-		want    int64
-		wantErr bool
-	}{
-		{in: "7", want: 7},
-		{in: "#7", want: 7},
-		{in: "  7 ", want: 7},
-		{in: "0", wantErr: true},
-		{in: "-1", wantErr: true},
-		{in: "seven", wantErr: true},
-		{in: "", wantErr: true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.in, func(t *testing.T) {
-			got, err := contextop.ParseID(tt.in)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, got)
-			assert.Equal(t, tt.in != "  7 " && tt.in != "#7", contextop.FormatID(got) == tt.in)
+func TestLedger_ResolvesATypedPrefix(t *testing.T) {
+	ctx := t.Context()
+	ledger := contextop.NewLedger(openWorkspace(t), contextop.Allow)
+
+	var written []contextop.Record
+	for _, term := range []string{"utilise", "leverage", "synergy"} {
+		r, err := ledger.Append(ctx, contextop.Record{
+			Project: "prj_docs", Actor: agent("claude", "s1"),
+			Kind: contextop.KindObserve, Subject: termRule(term, "use", false),
 		})
+		require.NoError(t, err)
+		written = append(written, r)
 	}
+
+	got, err := ledger.Get(ctx, "#"+strings.ToUpper(written[1].Short))
+	require.NoError(t, err, "a short id copied from a log line resolves")
+	assert.Equal(t, written[1].ID, got.ID)
+
+	kept, err := ledger.Append(ctx, contextop.Record{
+		Project: "prj_docs", Actor: person("asgeir"), Kind: contextop.KindKeep, Target: written[2].Short,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, written[2].ID, kept.Target, "an acting operation stores the full id it resolved")
+
+	// Every id recorded here shares its first characters, the time part, so a
+	// prefix of them is ambiguous and the error lists the candidates.
+	shared := written[0].ID[:4]
+	_, err = ledger.Get(ctx, shared)
+	var ambiguous *workspace.AmbiguousOpIDError
+	require.ErrorAs(t, err, &ambiguous)
+	assert.Contains(t, ambiguous.Candidates, written[0].Short, "the candidates read as short ids")
+	assert.Len(t, ambiguous.Candidates, 4)
+
+	_, err = ledger.Get(ctx, "zzzz")
+	assert.ErrorIs(t, err, contextop.ErrNotFound)
 }
 
 func TestSubjectDescribe(t *testing.T) {

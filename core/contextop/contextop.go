@@ -373,11 +373,16 @@ func (s Scope) Describe() string {
 
 // Record is one operation as the log holds it.
 type Record struct {
-	// ID addresses the operation. It is the position the workspace log gave it,
-	// which is what a person types at `kapi context keep`.
+	// ID names the operation in every log that holds it (workspace.NewOpID):
+	// time-ordered, so a merged log folds in one order on every machine.
 	ID string `json:"id"`
-	// Seq is that position as a number, for ordering.
-	Seq int64 `json:"seq"`
+	// Short is the id as a log line shows it and a person types it: its first
+	// characters (workspace.ShortOpID). Every verb that takes an id resolves
+	// an unambiguous prefix, so the short form is enough.
+	Short string `json:"short,omitempty"`
+	// Seq is the operation's position in the folded log, for ordering inside
+	// one reading. It is not stored and not stable across readings.
+	Seq int64 `json:"-"`
 	// Project is the project whose work produced the operation. A widened rule
 	// keeps it, because provenance survives widening.
 	Project workspace.ProjectKey `json:"project,omitempty"`
@@ -471,12 +476,12 @@ func decode(op workspace.Op) (Record, bool, error) {
 	var body payload
 	if len(op.Payload) > 0 {
 		if err := json.Unmarshal(op.Payload, &body); err != nil {
-			return Record{}, false, fmt.Errorf("contextop: read operation %d: %w", op.Seq, err)
+			return Record{}, false, fmt.Errorf("contextop: read operation %s: %w", op.ID, err)
 		}
 	}
 	return Record{
-		ID:            FormatID(op.Seq),
-		Seq:           op.Seq,
+		ID:            op.ID,
+		Short:         workspace.ShortOpID(op.ID),
 		Project:       op.Project,
 		Actor:         body.Actor,
 		Kind:          Kind(kind),
@@ -492,18 +497,16 @@ func decode(op workspace.Op) (Record, bool, error) {
 	}, true, nil
 }
 
-// FormatID renders a log position as the id a person types.
-func FormatID(seq int64) string { return strconv.FormatInt(seq, 10) }
+// ShortID renders an operation id the way a log line shows it.
+func ShortID(id string) string { return workspace.ShortOpID(id) }
 
-// ParseID reads an id back as a log position. A leading "#" is accepted,
-// because that is how a log line reads aloud.
-func ParseID(id string) (int64, error) {
-	trimmed := strings.TrimPrefix(strings.TrimSpace(id), "#")
-	seq, err := strconv.ParseInt(trimmed, 10, 64)
-	if err != nil || seq <= 0 {
-		return 0, fmt.Errorf("contextop: %q is not an operation id", id)
+// ShortIDs renders operation ids the way a log line shows them.
+func ShortIDs(ids []string) []string {
+	out := make([]string, len(ids))
+	for i, id := range ids {
+		out[i] = workspace.ShortOpID(id)
 	}
-	return seq, nil
+	return out
 }
 
 // sortStrings sorts in place without pulling the sort package into a hot path

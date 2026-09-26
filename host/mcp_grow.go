@@ -328,7 +328,7 @@ func suggestionNext(op ContextOperation) string {
 	}
 	if _, isRule := op.Rule(); isRule {
 		return fmt.Sprintf("a suggestion: every check reports it and none can fail on it. "+
-			"It is established when a person runs `kapi context keep %s`.", op.ID)
+			"It is established when a person runs `kapi context keep %s`.", contextop.ShortID(op.ID))
 	}
 	return "a suggestion: it advises whoever reads this project's context next, and a person may keep it."
 }
@@ -337,7 +337,7 @@ func suggestionNext(op ContextOperation) string {
 func idList(ids []string) string {
 	out := make([]string, len(ids))
 	for i, id := range ids {
-		out[i] = "#" + id
+		out[i] = "#" + contextop.ShortID(id)
 	}
 	return strings.Join(out, ", ")
 }

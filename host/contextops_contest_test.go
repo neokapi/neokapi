@@ -75,7 +75,7 @@ func TestKeepSessionLeavesContestedSuggestions(t *testing.T) {
 	assert.Equal(t, quick.ID, res.Kept[0].Target)
 	require.Len(t, res.Skipped, 1)
 	assert.Equal(t, disputed.ID, res.Skipped[0].ID)
-	assert.Contains(t, res.Skipped[0].Reason, "#"+other.ID)
+	assert.Contains(t, res.Skipped[0].Reason, "#"+other.Short)
 
 	_, err = app.KeepContextOperation(t.Context(), ContextKeepRequest{Actor: person, Project: recipeOf(root), ID: disputed.ID})
 	require.Error(t, err, "naming a contested suggestion is refused until a person chooses")

@@ -51,7 +51,7 @@ The projection stays in the checkout at `.kapi/work/store.db`
 | `unit_decision`, `unit_view`, `document`, `checkout`, `state_meta` | `core/state` | context |
 | `graph_nodes`, `graph_edges` | `host/storage/graph` | workspace |
 | `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace |
-| `workspace_ops` | `core/workspace` | workspace |
+| `workspace_ops` (arrival `seq`, operation `id`, optional content `address`) | `core/workspace` | workspace |
 | `workspace_rules` | `core/workspace` | workspace |
 | `workspace_agent_sessions` | `core/workspace` | workspace |
 

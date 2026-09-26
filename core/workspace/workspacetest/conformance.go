@@ -13,6 +13,7 @@
 package workspacetest
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -58,6 +59,10 @@ func RunConformance(t *testing.T, newBackend Factory) {
 		{"an agent session is noted and ages out", agentSessionsAreNotedAndAgeOut},
 		{"an import stamp is kept per checkout", importStampsAreKeptPerCheckout},
 		{"close is idempotent", closeIsIdempotent},
+		{"operations carry ids that sort in the order they arrive", operationsCarryIDs},
+		{"an operation keeps the id it arrives with and is held once", operationKeepsItsID},
+		{"a content address is held once", contentAddressIsHeldOnce},
+		{"a selection narrows by kind and project", selectionNarrows},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -66,6 +71,169 @@ func RunConformance(t *testing.T, newBackend Factory) {
 			tc.run(t, b)
 		})
 	}
+
+	// The union of two logs needs two backends.
+	t.Run("two logs merge by union, idempotently and in either order", func(t *testing.T) {
+		a, b := newBackend(t), newBackend(t)
+		t.Cleanup(func() { _ = a.Close(); _ = b.Close() })
+		logsMergeByUnion(t, a, b)
+	})
+}
+
+func operationsCarryIDs(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	first, err := b.Record(ctx, workspace.Op{Kind: "one"}, workspace.Op{Kind: "two"})
+	require.NoError(t, err)
+	second, err := b.Record(ctx, workspace.Op{Kind: "three"})
+	require.NoError(t, err)
+	all := slices.Concat(first, second)
+
+	seen := map[string]bool{}
+	for i, op := range all {
+		assert.True(t, workspace.ValidOpID(op.ID), "every recorded operation carries an id: %q", op.ID)
+		assert.False(t, seen[op.ID], "ids are unique")
+		seen[op.ID] = true
+		if i > 0 {
+			assert.Less(t, all[i-1].ID, op.ID,
+				"an id sorts after every id the log already held, even within one millisecond")
+			assert.NotEqual(t, workspace.ShortOpID(all[i-1].ID), workspace.ShortOpID(op.ID),
+				"one log never gives two operations one short id")
+		}
+	}
+
+	read, err := b.Since(ctx, 0, 0)
+	require.NoError(t, err)
+	require.Len(t, read, 3)
+	for i := range read {
+		assert.Equal(t, all[i].ID, read[i].ID, "the id reads back as it was assigned")
+	}
+
+	resolved, err := workspace.ResolveOpID(workspace.ShortOpID(all[1].ID), ids(read))
+	require.NoError(t, err)
+	assert.Equal(t, all[1].ID, resolved, "the short form resolves to the full id")
+}
+
+func operationKeepsItsID(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	id := workspace.NewOpID(time.Now().Add(-time.Hour), "")
+	recorded, err := b.Record(ctx, workspace.Op{ID: id, Kind: "arrived", Payload: []byte(`{"from":"elsewhere"}`)})
+	require.NoError(t, err)
+	require.Len(t, recorded, 1)
+	assert.Equal(t, id, recorded[0].ID, "an operation read from another log keeps its id")
+
+	head, err := b.Head(ctx)
+	require.NoError(t, err)
+	again, err := b.Record(ctx, workspace.Op{ID: id, Kind: "arrived", Payload: []byte(`{"from":"elsewhere"}`)})
+	require.NoError(t, err)
+	require.Len(t, again, 1)
+	assert.Equal(t, recorded[0].Seq, again[0].Seq, "recording an id the log holds answers with the operation held")
+	after, err := b.Head(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, head, after, "and moves nothing")
+
+	minted, err := b.Record(ctx, workspace.Op{Kind: "later"})
+	require.NoError(t, err)
+	assert.Greater(t, minted[0].ID, id, "a minted id sorts after one that arrived")
+
+	_, err = b.Record(ctx, workspace.Op{ID: "not-an-id", Kind: "bad"})
+	assert.Error(t, err, "an id that is not one is refused")
+}
+
+func contentAddressIsHeldOnce(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	first, err := b.Record(ctx, workspace.Op{Kind: "decide", Address: "sha256:abc"})
+	require.NoError(t, err)
+	second, err := b.Record(ctx, workspace.Op{Kind: "decide", Address: "sha256:abc"})
+	require.NoError(t, err)
+	assert.Equal(t, first[0].ID, second[0].ID, "recording one content address twice is one operation")
+	assert.Equal(t, "sha256:abc", second[0].Address)
+
+	all, err := b.Since(ctx, 0, 0)
+	require.NoError(t, err)
+	assert.Len(t, all, 1)
+}
+
+func selectionNarrows(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	recorded, err := b.Record(ctx,
+		workspace.Op{Project: "prj_a", Kind: "context.observe"},
+		workspace.Op{Project: "prj_b", Kind: "context.keep"},
+		workspace.Op{Project: "prj_a", Kind: "contextual"},
+		workspace.Op{Project: "prj_a", Kind: "unit.decide"},
+		workspace.Op{Project: "prj_a", Kind: "context.drop"},
+	)
+	require.NoError(t, err)
+
+	got, err := b.Select(ctx, workspace.OpQuery{KindPrefix: "context."})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"context.observe", "context.keep", "context.drop"}, kinds(got),
+		"a kind prefix keeps the kinds that start with it, in arrival order")
+
+	got, err = b.Select(ctx, workspace.OpQuery{KindPrefix: "context.", Project: "prj_a"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"context.observe", "context.drop"}, kinds(got))
+
+	got, err = b.Select(ctx, workspace.OpQuery{After: recorded[1].Seq, KindPrefix: "context.", Limit: 1})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"context.drop"}, kinds(got), "a selection reads from a position and stops at a limit")
+
+	all, err := b.Select(ctx, workspace.OpQuery{})
+	require.NoError(t, err)
+	assert.Len(t, all, 5, "a zero query asks for everything")
+}
+
+// logsMergeByUnion covers what a second machine needs: two logs that each
+// recorded operations of their own, merged into each other, hold the same
+// operations in the same order, and merging again changes nothing.
+func logsMergeByUnion(t *testing.T, a, b workspace.Backend) {
+	ctx := t.Context()
+	_, err := a.Record(ctx,
+		workspace.Op{Project: "prj_docs", Kind: "a.one"},
+		workspace.Op{Project: "prj_docs", Kind: "a.two", Address: "shared-decision"})
+	require.NoError(t, err)
+	_, err = b.Record(ctx,
+		workspace.Op{Project: "prj_docs", Kind: "b.one"},
+		workspace.Op{Project: "prj_docs", Kind: "b.two", Address: "shared-decision"})
+	require.NoError(t, err)
+
+	fromA, err := a.Since(ctx, 0, 0)
+	require.NoError(t, err)
+	fromB, err := b.Since(ctx, 0, 0)
+	require.NoError(t, err)
+
+	// Merge in opposite orders: A into B, then B (before the merge) into A.
+	added, err := workspace.Merge(ctx, b, fromA)
+	require.NoError(t, err)
+	assert.Positive(t, added)
+	_, err = workspace.Merge(ctx, a, fromB)
+	require.NoError(t, err)
+
+	gotA, err := a.Since(ctx, 0, 0)
+	require.NoError(t, err)
+	gotB, err := b.Since(ctx, 0, 0)
+	require.NoError(t, err)
+	workspace.SortOps(gotA)
+	workspace.SortOps(gotB)
+	assert.Equal(t, ids(gotA), ids(gotB), "both logs hold the union, in one id order")
+	assert.Len(t, gotA, 3, "one content address recorded on both machines is one operation")
+
+	headA, err := a.Head(ctx)
+	require.NoError(t, err)
+	again, err := workspace.Merge(ctx, a, gotB)
+	require.NoError(t, err)
+	assert.Zero(t, again, "merging the same operations again adds nothing")
+	still, err := a.Head(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, headA, still, "and moves no head")
+}
+
+// ids renders the ids of a batch of operations.
+func ids(ops []workspace.Op) []string {
+	out := make([]string, len(ops))
+	for i, op := range ops {
+		out[i] = op.ID
+	}
+	return out
 }
 
 func describesItself(t *testing.T, b workspace.Backend) {

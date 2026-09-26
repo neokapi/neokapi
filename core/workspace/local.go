@@ -3,6 +3,7 @@ package workspace
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base32"
 	"encoding/hex"
 	"errors"
@@ -41,6 +42,27 @@ CREATE TABLE IF NOT EXISTS workspace_ops (
     at      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_workspace_ops_project ON workspace_ops(project, seq);`,
+}, {
+	// Operations carry an id every log agrees on, and a content address for
+	// the ones that say something a second recording should not repeat. The
+	// log is started afresh rather than migrated: its numbered operations have
+	// no id to carry across.
+	Version:     2,
+	Description: "operation ids and content addresses",
+	SQL: `
+DROP TABLE IF EXISTS workspace_ops;
+CREATE TABLE workspace_ops (
+    seq     INTEGER PRIMARY KEY AUTOINCREMENT,
+    id      TEXT NOT NULL UNIQUE,
+    address TEXT,
+    project TEXT NOT NULL DEFAULT '',
+    kind    TEXT NOT NULL,
+    payload BLOB,
+    at      TEXT NOT NULL
+);
+CREATE UNIQUE INDEX idx_workspace_ops_address ON workspace_ops(address) WHERE address IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_workspace_ops_project ON workspace_ops(project, seq);
+CREATE INDEX idx_workspace_ops_kind ON workspace_ops(kind, seq);`,
 }}
 
 // LocalBackend keeps a workspace as a directory of SQLite files on this
@@ -196,10 +218,20 @@ func (b *LocalBackend) open(_ context.Context, dir, path string) (*storage.DB, e
 	return db, nil
 }
 
-// Record appends operations to the log, assigning each a sequence number.
+// Record appends operations to the log. An operation that arrives without an
+// id is given one; one whose id or content address the log already holds is
+// answered with the operation held.
 func (b *LocalBackend) Record(ctx context.Context, ops ...Op) ([]Op, error) {
 	if len(ops) == 0 {
 		return nil, nil
+	}
+	for _, op := range ops {
+		if op.Kind == "" {
+			return nil, errors.New("workspace: an operation with no kind")
+		}
+		if op.ID != "" && !ValidOpID(op.ID) {
+			return nil, fmt.Errorf("workspace: %q is not an operation id", op.ID)
+		}
 	}
 	db, err := b.Registry(ctx)
 	if err != nil {
@@ -214,18 +246,48 @@ func (b *LocalBackend) Record(ctx context.Context, ops ...Op) ([]Op, error) {
 		return nil, fmt.Errorf("workspace: record operations: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	// The newest id the log holds, which a minted id must sort after. The
+	// transaction is IMMEDIATE (storage.ProjectOptions), so no other writer
+	// can slip an id in between this read and the insert.
+	var newest string
+	if err := tx.QueryRowContext(ctx,
+		`SELECT COALESCE(MAX(id), '') FROM workspace_ops`).Scan(&newest); err != nil {
+		return nil, fmt.Errorf("workspace: read the newest operation id: %w", err)
+	}
 	for _, op := range ops {
-		if op.Kind == "" {
-			return nil, errors.New("workspace: an operation with no kind")
-		}
 		at := op.At
 		if at.IsZero() {
 			at = time.Now()
 		}
 		at = at.UTC()
+
+		held, ok, err := heldOp(ctx, tx, op)
+		if err != nil {
+			return nil, err
+		}
+		if ok && !(held.ID != op.ID && op.ID != "" && op.ID < held.ID) {
+			out = append(out, held)
+			continue
+		}
+		if ok {
+			// Two logs recorded one content address under different ids. The
+			// older id stands in every log, so a merge reaches the same
+			// operation whichever side it started from.
+			if _, err := tx.ExecContext(ctx, `DELETE FROM workspace_ops WHERE id = ?`, held.ID); err != nil {
+				return nil, fmt.Errorf("workspace: replace %s: %w", held.ID, err)
+			}
+		}
+		if op.ID == "" {
+			op.ID = NewOpID(time.Now(), newest)
+		}
+		var address any
+		if op.Address != "" {
+			address = op.Address
+		}
 		res, err := tx.ExecContext(ctx,
-			`INSERT INTO workspace_ops (project, kind, payload, at) VALUES (?, ?, ?, ?)`,
-			string(op.Project), op.Kind, op.Payload, at.Format(time.RFC3339Nano))
+			`INSERT INTO workspace_ops (id, address, project, kind, payload, at) VALUES (?, ?, ?, ?, ?, ?)`,
+			op.ID, address, string(op.Project), op.Kind, op.Payload, at.Format(time.RFC3339Nano))
 		if err != nil {
 			return nil, fmt.Errorf("workspace: record %s: %w", op.Kind, err)
 		}
@@ -234,6 +296,7 @@ func (b *LocalBackend) Record(ctx context.Context, ops ...Op) ([]Op, error) {
 			return nil, fmt.Errorf("workspace: record %s: %w", op.Kind, err)
 		}
 		op.Seq, op.At = seq, at
+		newest = max(newest, op.ID)
 		out = append(out, op)
 	}
 	if err := tx.Commit(); err != nil {
@@ -242,24 +305,31 @@ func (b *LocalBackend) Record(ctx context.Context, ops ...Op) ([]Op, error) {
 	return out, nil
 }
 
-// Since returns the operations after a sequence number, oldest first.
-func (b *LocalBackend) Since(ctx context.Context, after int64, limit int) ([]Op, error) {
-	db, err := b.Registry(ctx)
+// heldOp looks up the operation a log already holds under an arriving
+// operation's id or content address.
+func heldOp(ctx context.Context, tx *storage.Tx, op Op) (Op, bool, error) {
+	if op.ID == "" && op.Address == "" {
+		return Op{}, false, nil
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT `+opColumns+` FROM workspace_ops
+WHERE (? <> '' AND id = ?) OR (? <> '' AND address = ?) LIMIT 1`,
+		op.ID, op.ID, op.Address, op.Address)
 	if err != nil {
-		return nil, err
+		return Op{}, false, fmt.Errorf("workspace: look up %s: %w", op.Kind, err)
 	}
-	query := `SELECT seq, project, kind, payload, at FROM workspace_ops WHERE seq > ? ORDER BY seq`
-	args := []any{after}
-	if limit > 0 {
-		query += ` LIMIT ?`
-		args = append(args, limit)
+	held, err := scanOps(rows)
+	if err != nil || len(held) == 0 {
+		return Op{}, false, err
 	}
-	rows, err := db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("workspace: read operations: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
+	return held[0], true, nil
+}
 
+// opColumns is what a read of the log selects, in the order scanOps reads.
+const opColumns = `seq, id, COALESCE(address, ''), project, kind, payload, at`
+
+// scanOps reads rows selected with opColumns and closes them.
+func scanOps(rows *sql.Rows) ([]Op, error) {
+	defer func() { _ = rows.Close() }()
 	var out []Op
 	for rows.Next() {
 		var (
@@ -267,7 +337,7 @@ func (b *LocalBackend) Since(ctx context.Context, after int64, limit int) ([]Op,
 			project string
 			at      string
 		)
-		if err := rows.Scan(&op.Seq, &project, &op.Kind, &op.Payload, &at); err != nil {
+		if err := rows.Scan(&op.Seq, &op.ID, &op.Address, &project, &op.Kind, &op.Payload, &at); err != nil {
 			return nil, fmt.Errorf("workspace: read operations: %w", err)
 		}
 		op.Project = ProjectKey(project)
@@ -282,7 +352,58 @@ func (b *LocalBackend) Since(ctx context.Context, after int64, limit int) ([]Op,
 	return out, nil
 }
 
-// Head returns the sequence number of the last operation recorded.
+// Since returns the operations this log received after a local position, in
+// the order it received them.
+func (b *LocalBackend) Since(ctx context.Context, after int64, limit int) ([]Op, error) {
+	return b.Select(ctx, OpQuery{After: after, Limit: limit})
+}
+
+// Select returns the operations a query names, in the order this log received
+// them.
+func (b *LocalBackend) Select(ctx context.Context, q OpQuery) ([]Op, error) {
+	db, err := b.Registry(ctx)
+	if err != nil {
+		return nil, err
+	}
+	query := `SELECT ` + opColumns + ` FROM workspace_ops WHERE seq > ?`
+	args := []any{q.After}
+	if q.KindPrefix != "" {
+		// A range over the kind index rather than LIKE, which SQLite answers
+		// with a scan unless the column is declared case-insensitive.
+		query += ` AND kind >= ? AND kind < ?`
+		args = append(args, q.KindPrefix, prefixEnd(q.KindPrefix))
+	}
+	if q.Project != "" {
+		query += ` AND project = ?`
+		args = append(args, string(q.Project))
+	}
+	query += ` ORDER BY seq`
+	if q.Limit > 0 {
+		query += ` LIMIT ?`
+		args = append(args, q.Limit)
+	}
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("workspace: read operations: %w", err)
+	}
+	return scanOps(rows)
+}
+
+// prefixEnd is the smallest string that sorts after every string starting
+// with prefix, for a range scan. A prefix of bytes that cannot be incremented
+// has no end, which the caller never meets: kinds are ASCII.
+func prefixEnd(prefix string) string {
+	b := []byte(prefix)
+	for i := len(b) - 1; i >= 0; i-- {
+		if b[i] < 0xff {
+			b[i]++
+			return string(b[:i+1])
+		}
+	}
+	return "\xff"
+}
+
+// Head returns the local position of the last operation this log received.
 func (b *LocalBackend) Head(ctx context.Context) (int64, error) {
 	db, err := b.Registry(ctx)
 	if err != nil {

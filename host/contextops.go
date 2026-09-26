@@ -543,9 +543,9 @@ func keepable(r contextop.Record) error {
 	switch {
 	case r.Status == contextop.StatusContested && !r.Established:
 		return fmt.Errorf("operation %s cannot be kept yet: %s. Choose first: drop the side you do not want with `kapi context drop`, or revert the established rule",
-			r.ID, contestedReason(r))
+			contextop.ShortID(r.ID), contestedReason(r))
 	case !r.Status.Answers():
-		return fmt.Errorf("operation %s is %s: record it again to keep it", r.ID, r.Status)
+		return fmt.Errorf("operation %s is %s: record it again to keep it", contextop.ShortID(r.ID), r.Status)
 	}
 	return nil
 }
@@ -554,7 +554,7 @@ func keepable(r contextop.Record) error {
 func contestedReason(r contextop.Record) string {
 	others := make([]string, len(r.ContestedBy))
 	for i, id := range r.ContestedBy {
-		others[i] = "#" + id
+		others[i] = "#" + contextop.ShortID(id)
 	}
 	return "it is contested by " + strings.Join(others, ", ")
 }

@@ -158,8 +158,9 @@ about and where it stands: suggested and waiting for a person, established and
 in force, contested by another rule it names, or withdrawn, dropped or
 reverted.
 
-The id is what the other verbs take. Narrow the list with --status to see what
-is waiting for a decision, or with --session to see what one agent run did.
+The id is what the other verbs take: the short form a line shows, or any start
+of it that names one operation. Narrow the list with --status to see what is
+waiting for a decision, or with --session to see what one agent run did.
 "--session this" is that run reading back its own work.`,
 		Example: "  kapi context log\n" +
 			"  kapi context log --status suggested\n" +
@@ -231,12 +232,12 @@ the other.
 
 Change the rule as you keep it with --use and --advisory, and widen it past the
 point its evidence was seen at with --widen-to.`,
-		Example: "  kapi context keep 7\n" +
-			"  kapi context keep 7 9 12\n" +
+		Example: "  kapi context keep 0n794e2gk7\n" +
+			"  kapi context keep 0n794e2gk7 0n79gkq853\n" +
 			"  kapi context keep --session s0ab4e399\n" +
-			"  kapi context keep 7 --use \"content memory\"\n" +
-			"  kapi context keep 7 --advisory=false\n" +
-			"  kapi context keep 7 --widen-to workspace",
+			"  kapi context keep 0n794e2gk7 --use \"content memory\"\n" +
+			"  kapi context keep 0n794e2gk7 --advisory=false\n" +
+			"  kapi context keep 0n794e2gk7 --widen-to workspace",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, err := RequireProjectPath(cmd)
 			if err != nil {
@@ -279,8 +280,8 @@ of it stays in the log so the same suggestion can be recognised next time.
 
 Dropping one side of a disagreement settles it: the other side is no longer
 contested. An established rule is reverted rather than dropped.`,
-		Example: "  kapi context drop 7\n" +
-			"  kapi context drop 7 --note \"we say it both ways on purpose\"",
+		Example: "  kapi context drop 0n794e2gk7\n" +
+			"  kapi context drop 0n794e2gk7 --note \"we say it both ways on purpose\"",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, err := RequireProjectPath(cmd)
@@ -312,8 +313,8 @@ func newContextWithdrawCmd(a *App) *cobra.Command {
 backwards. Only its author can withdraw a suggestion, and an agent only in the
 session that recorded it. It stops being reported at once, and the log keeps
 the record of it.`,
-		Example: "  kapi context withdraw 7\n" +
-			"  kapi context withdraw 7 --note \"recorded the wrong way round\"",
+		Example: "  kapi context withdraw 0n794e2gk7\n" +
+			"  kapi context withdraw 0n794e2gk7 --note \"recorded the wrong way round\"",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, err := RequireProjectPath(cmd)
@@ -349,7 +350,7 @@ With --session it undoes everything one agent run recorded, which puts the
 project's answers back where they were before that run started.
 
 Nothing is erased. The undone operations stay in the log, marked reverted.`,
-		Example: "  kapi context revert 7\n" +
+		Example: "  kapi context revert 0n794e2gk7\n" +
 			"  kapi context revert --session 0ab4e399",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -394,8 +395,8 @@ about it.
 
 A project that has its own decision about the word keeps it. The more specific
 answer always wins.`,
-		Example: "  kapi context widen 7 --to workspace\n" +
-			"  kapi context widen 7 --to mode",
+		Example: "  kapi context widen 0n794e2gk7 --to workspace\n" +
+			"  kapi context widen 0n794e2gk7 --to mode",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, err := RequireProjectPath(cmd)

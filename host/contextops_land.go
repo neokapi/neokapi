@@ -37,7 +37,7 @@ func (s *contextOpsSession) land(ctx context.Context, r contextop.Record) (strin
 	for _, entry := range s.assetEntries(r) {
 		res := s.app.applyAssetEntry(ctx, s.cmd, entry)
 		if res.Status == "error" {
-			return "", fmt.Errorf("keep %s: %s", r.ID, res.Detail)
+			return "", fmt.Errorf("keep %s: %s", contextop.ShortID(r.ID), res.Detail)
 		}
 		if res.Detail != "" && res.Status == "applied" {
 			landed = res.Detail
@@ -96,14 +96,14 @@ func (s *contextOpsSession) reconcile(ctx context.Context, before []contextop.Re
 				return nil, rerr
 			}
 			if where != "" {
-				moved = append(moved, fmt.Sprintf("#%s is contested and taken out of %s", r.ID, where))
+				moved = append(moved, fmt.Sprintf("#%s is contested and taken out of %s", contextop.ShortID(r.ID), where))
 			}
 		case !wasBinding && binding:
 			where, lerr := s.land(ctx, r)
 			if lerr != nil {
 				return nil, lerr
 			}
-			moved = append(moved, fmt.Sprintf("#%s is established again in %s", r.ID, where))
+			moved = append(moved, fmt.Sprintf("#%s is established again in %s", contextop.ShortID(r.ID), where))
 		}
 	}
 	return moved, nil
