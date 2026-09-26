@@ -43,7 +43,6 @@ func writeStatefulBlock(t *testing.T, status model.TargetStatus) string {
 // TestWriteXLIFF2_TargetState verifies the writer emits the segment `state` from
 // the target's lifecycle status on the scratch-build path (e.g. kapi extract).
 func TestWriteXLIFF2_TargetState(t *testing.T) {
-	assert.Contains(t, writeStatefulBlock(t, model.TargetStatusEstablished), `state="reviewed"`)
 	assert.Contains(t, writeStatefulBlock(t, model.TargetStatusEstablished), `state="final"`)
 	assert.Contains(t, writeStatefulBlock(t, model.TargetStatusDraft), `state="translated"`,
 		"a draft is a translation awaiting review")
@@ -94,7 +93,7 @@ func TestReadXLIFF2_TargetState(t *testing.T) {
 		return tgt.Status
 	}
 	assert.Equal(t, model.TargetStatusEstablished, status(blocks[0]), "state=reviewed")
-	assert.Equal(t, model.TargetStatusEstablished, status(blocks[1]), "state=final → signed-off")
+	assert.Equal(t, model.TargetStatusEstablished, status(blocks[1]), "state=final")
 	assert.Equal(t, model.TargetStatusTranslated, status(blocks[2]), "state=translated")
 	assert.Equal(t, model.TargetStatusNew, status(blocks[3]), "no state → unset (presence baseline applies)")
 }

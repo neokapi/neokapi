@@ -30,7 +30,7 @@ func TestRollupGates_VerifiedIndependentOfShippable(t *testing.T) {
 	tally.Add(Scope{Locale: "ja"}, "")
 
 	ship := gate.RuleSet{Rules: []gate.Rule{{Gate: gate.Gate{"translated": {Pct: 100}}}}}
-	verified := gate.RuleSet{Rules: []gate.Rule{{Gate: gate.Gate{"reviewed": {Pct: 100}}}}}
+	verified := gate.RuleSet{Rules: []gate.Rule{{Gate: gate.Gate{"established": {Pct: 100}}}}}
 
 	by := rollupBy(tally.RollupGates(ship, verified))
 
@@ -62,7 +62,7 @@ func TestRollupGates_NoVerifiedGate_NothingVerified(t *testing.T) {
 func TestRollup_BackCompat_VerifiedFalse(t *testing.T) {
 	tally := NewCoverageTally()
 	tally.Add(Scope{Locale: "fr"}, string(model.TargetStatusEstablished))
-	rows := tally.Rollup(gate.RuleSet{Rules: []gate.Rule{{Gate: gate.Gate{"reviewed": {Pct: 100}}}}})
+	rows := tally.Rollup(gate.RuleSet{Rules: []gate.Rule{{Gate: gate.Gate{"established": {Pct: 100}}}}})
 	require.Len(t, rows, 1)
 	assert.True(t, rows[0].Shippable)
 	assert.False(t, rows[0].Verified)

@@ -100,7 +100,7 @@ func TestNeighbourOfCarriesRunsAndTheRung(t *testing.T) {
 	block.Target("nb").Status = model.TargetStatusEstablished
 	n, ok = NeighbourOf(block, "nb")
 	require.True(t, ok)
-	assert.Equal(t, "reviewed", n.Status, "the neighbour's rung travels with it")
+	assert.Equal(t, "established", n.Status, "the neighbour's rung travels with it")
 
 	untranslated, ok := NeighbourOf(docBlock("bare", "Sign in", ""), "nb")
 	require.True(t, ok)
@@ -155,7 +155,7 @@ func TestProvenanceOfGroupsTheDecision(t *testing.T) {
 			want: Provenance{
 				Origin:      &model.Origin{Kind: "memory"},
 				ReviewState: "approved",
-				Status:      "reviewed",
+				Status:      "established",
 				By:          "agent/claude-code",
 				At:          "2026-02-01T09:00:00Z",
 				Note:        "matches the approved wording",

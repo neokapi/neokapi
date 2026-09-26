@@ -11,9 +11,8 @@ func TestTargetStatus_RankAndLadder(t *testing.T) {
 	assert.Equal(t, 0, TargetStatusDraft.Rank())
 	assert.Less(t, TargetStatusDraft.Rank(), TargetStatusTranslated.Rank())
 	assert.Less(t, TargetStatusTranslated.Rank(), TargetStatusEstablished.Rank())
-	assert.Less(t, TargetStatusEstablished.Rank(), TargetStatusEstablished.Rank())
 	assert.Equal(t, -1, TargetStatus("nonsense").Rank())
-	assert.Len(t, TargetStatusLadder(), 4)
+	assert.Len(t, TargetStatusLadder(), 3)
 }
 
 func TestStampTargetProvenance(t *testing.T) {

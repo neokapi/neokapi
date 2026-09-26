@@ -20,7 +20,7 @@ func TestShipGate_SingleMap(t *testing.T) {
 	p := loadProject(t, `
 version: v1
 name: app
-ship_gate: { translated: 100, reviewed: 100 }
+ship_gate: { translated: 100, established: 100 }
 `)
 	require.True(t, p.HasShipGates())
 	rs, err := p.BuildShipGates()
@@ -29,7 +29,7 @@ ship_gate: { translated: 100, reviewed: 100 }
 	// A catch-all gate applies to any (collection, locale).
 	g, ok := rs.Resolve("docs", "nb")
 	require.True(t, ok)
-	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 100}}, g)
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "established": {Pct: 100}}, g)
 }
 
 func TestShipGates_RuleList_MostSpecificWins(t *testing.T) {
@@ -38,27 +38,27 @@ version: v1
 name: app
 ship_gates:
   - when: { collections: [docs] }
-    gate: { translated: 100, reviewed: 50 }
+    gate: { translated: 100, established: 50 }
   - when: { locales: [ja] }
-    gate: { translated: 100, reviewed: 0 }
+    gate: { translated: 100, established: 0 }
   - when: { collections: [legal], locales: [nb] }
-    gate: { signed-off: 100 }
-  - gate: { translated: 100, reviewed: 100 }
+    gate: { established: 100 }
+  - gate: { translated: 100, established: 100 }
 `)
 	rs, err := p.BuildShipGates()
 	require.NoError(t, err)
 
 	g, _ := rs.Resolve("docs", "nb")
-	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 50}}, g)
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "established": {Pct: 50}}, g)
 
 	g, _ = rs.Resolve("legal", "nb")
-	assert.Equal(t, gate.Gate{"signed-off": {Pct: 100}}, g, "2-axis rule wins")
+	assert.Equal(t, gate.Gate{"established": {Pct: 100}}, g, "2-axis rule wins")
 
 	g, _ = rs.Resolve("ui", "ja")
-	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 0}}, g)
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "established": {Pct: 0}}, g)
 
 	g, _ = rs.Resolve("ui", "de")
-	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 100}}, g, "falls to default")
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "established": {Pct: 100}}, g, "falls to default")
 }
 
 func TestShipGates_NamedRegistryReference(t *testing.T) {
@@ -66,19 +66,19 @@ func TestShipGates_NamedRegistryReference(t *testing.T) {
 version: v1
 name: app
 gates:
-  machine: { translated: 100, reviewed: 0 }
+  machine: { translated: 100, established: 0 }
 ship_gates:
   - when: { locales: [ja, ko] }
     gate: machine
-  - gate: { translated: 100, reviewed: 100 }
+  - gate: { translated: 100, established: 100 }
 `)
 	rs, err := p.BuildShipGates()
 	require.NoError(t, err)
 
 	g, _ := rs.Resolve("docs", "ja")
-	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 0}}, g, "name expands to registry gate")
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "established": {Pct: 0}}, g, "name expands to registry gate")
 	g, _ = rs.Resolve("docs", "ko")
-	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 0}}, g)
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "established": {Pct: 0}}, g)
 }
 
 func TestShipGates_UnknownRegistryName(t *testing.T) {
@@ -120,11 +120,11 @@ func TestShipGates_RoundTrip(t *testing.T) {
 	src := `version: v1
 name: app
 gates:
-    machine: {translated: 100, reviewed: 0}
+    machine: {translated: 100, established: 0}
 ship_gates:
     - when: {locales: [ja]}
       gate: machine
-    - gate: {translated: 100, reviewed: 100}
+    - gate: {translated: 100, established: 100}
 `
 	p := loadProject(t, src)
 	out, err := yaml.Marshal(p)
@@ -136,7 +136,7 @@ ship_gates:
 	require.NoError(t, err)
 	g, ok := rs.Resolve("docs", "ja")
 	require.True(t, ok)
-	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 0}}, g)
+	assert.Equal(t, gate.Gate{"translated": {Pct: 100}, "established": {Pct: 0}}, g)
 }
 
 func TestShipGate_ApproverClassExtendedForm(t *testing.T) {
@@ -144,11 +144,11 @@ func TestShipGate_ApproverClassExtendedForm(t *testing.T) {
 version: v1
 name: app
 gates:
-  ship: { translated: 100, reviewed: { pct: 100, by: human } }
+  ship: { translated: 100, established: { pct: 100, by: human } }
 ship_gates:
   - gate: ship
   - when: { locales: [ja] }
-    gate: { reviewed: { pct: 80, by: any } }
+    gate: { established: { pct: 80, by: any } }
 `)
 	rs, err := p.BuildShipGates()
 	require.NoError(t, err)
@@ -156,19 +156,19 @@ ship_gates:
 	g, ok := rs.Resolve("", "nb")
 	require.True(t, ok)
 	assert.Equal(t, gate.Gate{
-		"translated": {Pct: 100},
-		"reviewed":   {Pct: 100, By: gate.ByHuman},
+		"translated":  {Pct: 100},
+		"established": {Pct: 100, By: gate.ByHuman},
 	}, g, "registry gate carries the extended-form approver class")
 
 	g, _ = rs.Resolve("", "ja")
-	assert.Equal(t, gate.Gate{"reviewed": {Pct: 80, By: gate.ByAny}}, g)
+	assert.Equal(t, gate.Gate{"established": {Pct: 80, By: gate.ByAny}}, g)
 }
 
 func TestShipGate_UnknownApproverClassRejected(t *testing.T) {
 	p := loadProject(t, `
 version: v1
 name: app
-ship_gate: { reviewed: { pct: 100, by: robot } }
+ship_gate: { established: { pct: 100, by: robot } }
 `)
 	_, err := p.BuildShipGates()
 	require.Error(t, err)
@@ -181,7 +181,7 @@ func TestVerifiedGate_SingleMap(t *testing.T) {
 	p := loadProject(t, `
 version: v1
 name: app
-verified_gate: { reviewed: 100 }
+verified_gate: { established: 100 }
 `)
 	require.True(t, p.HasVerifiedGates())
 	rs, err := p.BuildVerifiedGates()
@@ -189,7 +189,7 @@ verified_gate: { reviewed: 100 }
 
 	g, ok := rs.Resolve("docs", "nb")
 	require.True(t, ok)
-	assert.Equal(t, gate.Gate{"reviewed": {Pct: 100}}, g)
+	assert.Equal(t, gate.Gate{"established": {Pct: 100}}, g)
 }
 
 func TestVerifiedGates_RuleList_MostSpecificWins(t *testing.T) {
@@ -198,17 +198,17 @@ version: v1
 name: app
 verified_gates:
   - when: { locales: [ja] }
-    gate: { signed-off: 100 }
-  - gate: { reviewed: 100 }
+    gate: { established: 100 }
+  - gate: { established: 100 }
 `)
 	rs, err := p.BuildVerifiedGates()
 	require.NoError(t, err)
 
 	g, _ := rs.Resolve("docs", "ja")
-	assert.Equal(t, gate.Gate{"signed-off": {Pct: 100}}, g, "locale rule wins over the catch-all")
+	assert.Equal(t, gate.Gate{"established": {Pct: 100}}, g, "locale rule wins over the catch-all")
 
 	g, _ = rs.Resolve("docs", "de")
-	assert.Equal(t, gate.Gate{"reviewed": {Pct: 100}}, g, "falls to the catch-all default")
+	assert.Equal(t, gate.Gate{"established": {Pct: 100}}, g, "falls to the catch-all default")
 }
 
 func TestVerifiedGates_NamedRegistryReference(t *testing.T) {
@@ -216,7 +216,7 @@ func TestVerifiedGates_NamedRegistryReference(t *testing.T) {
 version: v1
 name: app
 gates:
-  human: { reviewed: { pct: 100, by: human } }
+  human: { established: { pct: 100, by: human } }
 verified_gates:
   - gate: human
 `)
@@ -224,7 +224,7 @@ verified_gates:
 	require.NoError(t, err)
 	g, ok := rs.Resolve("docs", "ja")
 	require.True(t, ok)
-	assert.Equal(t, gate.Gate{"reviewed": {Pct: 100, By: gate.ByHuman}}, g,
+	assert.Equal(t, gate.Gate{"established": {Pct: 100, By: gate.ByHuman}}, g,
 		"a verified gate resolves registry names against the shared gates: map")
 }
 
@@ -279,8 +279,8 @@ func TestVerifiedGates_RoundTrip(t *testing.T) {
 name: app
 verified_gates:
     - when: {locales: [ja]}
-      gate: {signed-off: 100}
-    - gate: {reviewed: 100}
+      gate: {established: 100}
+    - gate: {established: 100}
 `
 	p := loadProject(t, src)
 	out, err := yaml.Marshal(p)
@@ -291,5 +291,5 @@ verified_gates:
 	require.NoError(t, err)
 	g, ok := rs.Resolve("docs", "ja")
 	require.True(t, ok)
-	assert.Equal(t, gate.Gate{"signed-off": {Pct: 100}}, g)
+	assert.Equal(t, gate.Gate{"established": {Pct: 100}}, g)
 }
