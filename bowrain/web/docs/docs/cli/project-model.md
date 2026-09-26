@@ -131,7 +131,7 @@ assets:
 | `ship_gate`    | gate           | The bar a locale must clear to be shippable (see [Gates](#gates))       |
 | `ship_gates`   | list           | Per-scope ship gates, each a `when:` selector plus a gate               |
 | `source_gate`  | gate           | The bar the source must clear before a run fans out; `none` opts out   |
-| `verified_gate`, `verified_gates` | gate, list | The bar for a locale to count as verified by a person |
+| `established_gate`, `established_gates` | gate, list | The bar for a locale to ship established: a person established the content |
 | `gates`        | map            | Named gates the rules above may reference                               |
 | `bowrain`      | object         | Bowrain-server connection coordinates (venue key)                       |
 | `hooks`        | map            | Flows declared at lifecycle points (`pre-push`, `post-pull`, …); schema-only, see [Hooks](/cli/flows/hooks) |

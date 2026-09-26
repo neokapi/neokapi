@@ -31,12 +31,14 @@ into their committed source artifact and the existing import compiles them into
 the cache; a review outcome is recorded as unit state in the project store.
 
 A content memory pair (kind:"memory") is recycle leverage for future translation. It does not
-promote a unit to reviewed. To approve a translated unit, use a kind:"review"
-entry addressed by its file/id/locale (as 'kapi status --review' lists it), with
-status "reviewed" (default) or "signed-off"; the decision is recorded in the
-project's decision ledger and is bound to the translation's content hash, so a
-later edit drops the unit back below reviewed. Recording it is durable at once,
-and 'kapi context push' shares it when the project declares a context backend.
+establish a unit. To establish a translated unit, use a kind:"review" entry
+addressed by its file/id/locale (as 'kapi status --review' lists it); the
+decision is recorded in the project's decision ledger and is bound to the
+translation's content hash, so a later edit drops the unit back to translated.
+Only a person records a review decision: run from an agent's shell, the entry
+is refused unless KAPI_ACTOR=person says a person is at the keyboard. Recording
+it is durable at once, and 'kapi context push' shares it when the project
+declares a context backend.
 
 A comment edit (kind:"comment") rewrites one code comment, addressed by its file
 and the id 'kapi check' reports for it, such as func/Parse, in Go and in the

@@ -31,11 +31,11 @@ func TestDeriveShipState(t *testing.T) {
 		{"untranslated", governed(func(in *ShipStateInputs) { in.TranslatedBlocks, in.ApprovedBlocks = 0, 0 }), ShipStatePending},
 		{"partial coverage", governed(func(in *ShipStateInputs) { in.TranslatedBlocks, in.ApprovedBlocks = 9, 0 }), ShipStatePending},
 		{"partial coverage all approved so far", governed(func(in *ShipStateInputs) { in.TranslatedBlocks, in.ApprovedBlocks = 9, 9 }), ShipStatePending},
-		{"full coverage, no review, checks pass", governed(func(in *ShipStateInputs) { in.ApprovedBlocks = 0 }), ShipStateAIShippable},
-		{"full coverage, mixed approval", governed(func(in *ShipStateInputs) { in.ApprovedBlocks = 5 }), ShipStateAIShippable},
-		{"full coverage, one short of full approval", governed(func(in *ShipStateInputs) { in.ApprovedBlocks = 9 }), ShipStateAIShippable},
-		{"full coverage, fully approved", governed(nil), ShipStateGoverned},
-		{"single block approved", ShipStateInputs{TranslatedBlocks: 1, TotalBlocks: 1, ApprovedBlocks: 1, TermsGoverned: true}, ShipStateGoverned},
+		{"full coverage, no review, checks pass", governed(func(in *ShipStateInputs) { in.ApprovedBlocks = 0 }), ShipStateTranslated},
+		{"full coverage, mixed approval", governed(func(in *ShipStateInputs) { in.ApprovedBlocks = 5 }), ShipStateTranslated},
+		{"full coverage, one short of full approval", governed(func(in *ShipStateInputs) { in.ApprovedBlocks = 9 }), ShipStateTranslated},
+		{"full coverage, fully approved", governed(nil), ShipStateEstablished},
+		{"single block approved", ShipStateInputs{TranslatedBlocks: 1, TotalBlocks: 1, ApprovedBlocks: 1, TermsGoverned: true}, ShipStateEstablished},
 		{"failing checks demote below the gate", governed(func(in *ShipStateInputs) { in.ApprovedBlocks, in.FailingChecks = 0, 1 }), ShipStatePending},
 		{"failing checks demote even a fully approved locale", governed(func(in *ShipStateInputs) { in.FailingChecks = 2 }), ShipStatePending},
 		// A stale unit is not a shortfall of quantity: the locale is fully
@@ -56,8 +56,8 @@ func TestDeriveShipState(t *testing.T) {
 		// Terminology that governs nothing withholds nothing, and a fully
 		// approved locale with nothing bound beyond the checks is approved, not
 		// governed.
-		{"ungoverned terminology leaves an unreviewed locale shippable", governed(func(in *ShipStateInputs) { in.ApprovedBlocks, in.TermsGoverned = 0, false }), ShipStateAIShippable},
-		{"a fully approved locale nothing governs is approved", governed(func(in *ShipStateInputs) { in.TermsGoverned = false }), ShipStateApproved},
+		{"ungoverned terminology leaves an unreviewed locale shippable", governed(func(in *ShipStateInputs) { in.ApprovedBlocks, in.TermsGoverned = 0, false }), ShipStateTranslated},
+		{"a fully approved locale nothing governs is approved", governed(func(in *ShipStateInputs) { in.TermsGoverned = false }), ShipStateEstablished},
 		{"ungoverned terminology still leaves failing checks pending", governed(func(in *ShipStateInputs) { in.FailingChecks, in.TermsGoverned = 1, false }), ShipStatePending},
 	}
 	for _, tt := range tests {

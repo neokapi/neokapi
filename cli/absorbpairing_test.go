@@ -47,7 +47,7 @@ defaults:
 collections:
   - path: en.json
     target: "{lang}.json"
-ship_gate: { translated: 100, reviewed: 50 }
+ship_gate: { translated: 100, established: 50 }
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	write := func(name, body string) {
@@ -83,7 +83,7 @@ func approveUnit(t *testing.T, root, locale, srcText string) {
 		if it.Locale != locale || it.Source != srcText {
 			continue
 		}
-		ok, aerr := a.ApproveReviewUnit(context.Background(), proj, "en", locale, it.File, it.Key, "reviewed")
+		ok, aerr := a.ApproveReviewUnit(context.Background(), proj, "en", locale, it.File, it.Key)
 		require.NoError(t, aerr)
 		require.True(t, ok)
 		return

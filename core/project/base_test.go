@@ -152,6 +152,11 @@ func TestKapiProject_RetiredKeys(t *testing.T) {
 			"version: v1\ncoordinates:\n  product: [a]\n",
 			"coordinates: is no longer a recipe key. Use profiles",
 		},
+		{
+			"a verified_gate: names the established gate",
+			"version: v1\nverified_gate:\n  established: 100\n",
+			"verified_gate: is no longer a recipe key. Use established_gate",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

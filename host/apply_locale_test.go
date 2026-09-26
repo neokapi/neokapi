@@ -31,7 +31,7 @@ func TestConceptID_CanonicalAcrossSpellings(t *testing.T) {
 }
 
 func TestUpsertMemoryPair_WritesCanonicalLocales(t *testing.T) {
-	e, changed := upsertMemoryPair(memory.Entry{}, false, "Berth", "Kai", "en_US", "nb_NO", "")
+	e, changed := upsertMemoryPair(memory.Entry{}, false, "Berth", "Kai", "en_US", "nb_NO")
 	require.True(t, changed)
 	assert.Equal(t, memoryEntryID("Berth", "en-US", "nb-NO"), e.ID)
 	assert.Equal(t, model.LocaleID("en-US"), e.HintSrcLang)
@@ -39,12 +39,12 @@ func TestUpsertMemoryPair_WritesCanonicalLocales(t *testing.T) {
 
 	// The same pair written in the canonical spelling is the same entry, and
 	// an unchanged target is a no-op.
-	held, changed := upsertMemoryPair(e, true, "Berth", "Kai", "en-US", "nb-NO", "")
+	held, changed := upsertMemoryPair(e, true, "Berth", "Kai", "en-US", "nb-NO")
 	assert.False(t, changed)
 	assert.Equal(t, e.ID, held.ID)
 
 	// A corrected target lands on the existing entry under canonical keys.
-	held, changed = upsertMemoryPair(e, true, "Berth", "Kaiplass", "EN-us", "NB-no", "")
+	held, changed = upsertMemoryPair(e, true, "Berth", "Kaiplass", "EN-us", "NB-no")
 	assert.True(t, changed)
 	assert.Equal(t, "Kaiplass", held.VariantText("nb-NO"))
 	assert.Equal(t, []model.LocaleID{"en-US", "nb-NO"}, held.Locales())

@@ -51,8 +51,8 @@ func seedBlockQueryProject(t *testing.T, s blockQueryStore) string {
 
 	draft := target("Hello world", "Hei verden", model.TargetStatusDraft)
 	translated := target("Goodbye", "Ha det", model.TargetStatusTranslated)
-	reviewed := target("Approved text", "Godkjent", model.TargetStatusReviewed)
-	signedOff := target("Signed text", "Signert", model.TargetStatusSignedOff)
+	reviewed := target("Approved text", "Godkjent", model.TargetStatusEstablished)
+	signedOff := target("Signed text", "Signert", model.TargetStatusEstablished)
 	untranslated := target("Nothing yet", "", model.TargetStatusNew)
 	// Text with no committed rung is translated — the editor's fallback when
 	// no legacy property and no machine provenance says otherwise.
@@ -88,10 +88,10 @@ func runBlockQueryCases(t *testing.T, s blockQueryStore) {
 
 	t.Run("status buckets partition the translatable blocks", func(t *testing.T) {
 		for bucket, want := range map[string][]string{
-			platstore.BlockStatusNotStarted: {"Nothing yet"},
-			platstore.BlockStatusDraft:      {"Hello world", "Machine made"},
-			platstore.BlockStatusTranslated: {"Goodbye", "No rung"},
-			platstore.BlockStatusReviewed:   {"Approved text", "Signed text"},
+			platstore.BlockStatusNotStarted:  {"Nothing yet"},
+			platstore.BlockStatusDraft:       {"Hello world", "Machine made"},
+			platstore.BlockStatusTranslated:  {"Goodbye", "No rung"},
+			platstore.BlockStatusEstablished: {"Approved text", "Signed text"},
 		} {
 			tr := true
 			got, err := s.GetBlocks(ctx, platstore.BlockQuery{
@@ -109,10 +109,10 @@ func runBlockQueryCases(t *testing.T, s blockQueryStore) {
 		require.NoError(t, err)
 		assert.Equal(t, platstore.BlockCounts{
 			Total: 8, Translatable: 7,
-			NotStarted: 1, Draft: 2, Translated: 2, Reviewed: 2,
+			NotStarted: 1, Draft: 2, Translated: 2, Established: 2,
 		}, counts)
 		assert.Equal(t, counts.Translatable,
-			counts.NotStarted+counts.Draft+counts.Translated+counts.Reviewed,
+			counts.NotStarted+counts.Draft+counts.Translated+counts.Established,
 			"the buckets must partition the translatable blocks")
 	})
 
@@ -122,7 +122,7 @@ func runBlockQueryCases(t *testing.T, s blockQueryStore) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, platstore.BlockCounts{
-			Total: 4, Translatable: 4, Draft: 1, Translated: 1, Reviewed: 2,
+			Total: 4, Translatable: 4, Draft: 1, Translated: 1, Established: 2,
 		}, counts)
 	})
 
@@ -163,13 +163,13 @@ func runBlockQueryCases(t *testing.T, s blockQueryStore) {
 			ProjectID: pid, Stream: "main", TargetLocale: "nb", Text: "text",
 		})
 		require.NoError(t, err)
-		assert.Equal(t, platstore.BlockCounts{Total: 2, Translatable: 2, Reviewed: 2}, counts,
+		assert.Equal(t, platstore.BlockCounts{Total: 2, Translatable: 2, Established: 2}, counts,
 			"only 'Approved text' and 'Signed text' carry the substring")
 	})
 
 	t.Run("a status filter without a locale is inert", func(t *testing.T) {
 		got, err := s.GetBlocks(ctx, platstore.BlockQuery{
-			ProjectID: pid, Stream: "main", Status: platstore.BlockStatusReviewed,
+			ProjectID: pid, Stream: "main", Status: platstore.BlockStatusEstablished,
 		})
 		require.NoError(t, err)
 		assert.Len(t, got, 8, "no locale means no per-locale row to test")
@@ -177,12 +177,12 @@ func runBlockQueryCases(t *testing.T, s blockQueryStore) {
 
 	t.Run("paging holds the filtered order", func(t *testing.T) {
 		all, err := s.GetBlocks(ctx, platstore.BlockQuery{
-			ProjectID: pid, Stream: "main", TargetLocale: "nb", Status: platstore.BlockStatusReviewed,
+			ProjectID: pid, Stream: "main", TargetLocale: "nb", Status: platstore.BlockStatusEstablished,
 		})
 		require.NoError(t, err)
 		require.Len(t, all, 2)
 		page, err := s.GetBlocks(ctx, platstore.BlockQuery{
-			ProjectID: pid, Stream: "main", TargetLocale: "nb", Status: platstore.BlockStatusReviewed,
+			ProjectID: pid, Stream: "main", TargetLocale: "nb", Status: platstore.BlockStatusEstablished,
 			Limit: 1, Offset: 1,
 		})
 		require.NoError(t, err)

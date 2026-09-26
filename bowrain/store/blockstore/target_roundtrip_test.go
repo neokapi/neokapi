@@ -194,7 +194,7 @@ func TestOverlayWrite_EveryReaderSeesTheTarget(t *testing.T) {
 				ItemName:    "greetings.json",
 				Unit:        block.SourceID,
 				Variant:     "fr",
-				Status:      string(model.TargetStatusReviewed),
+				Status:      string(model.TargetStatusEstablished),
 				TargetHash:  state.TargetHash("Bonjour"),
 				ReviewState: "approved",
 			}})
@@ -208,7 +208,7 @@ func TestOverlayWrite_EveryReaderSeesTheTarget(t *testing.T) {
 				b.projectID, "main", []string{block.ID})
 			require.NoError(t, err)
 			require.Equal(t,
-				[]corestore.TargetLocaleState{{Locale: "fr", Status: model.TargetStatusReviewed}},
+				[]corestore.TargetLocaleState{{Locale: "fr", Status: model.TargetStatusEstablished}},
 				states[block.ID])
 		})
 	})
@@ -232,7 +232,7 @@ func TestEditorWrite_OverlayReadSeesTheTarget(t *testing.T) {
 			{Text: &model.TextRun{Text: "Hallo "}},
 			{Ph: &model.PlaceholderRun{ID: "p1", Equiv: "{name}"}},
 		})
-		edited.StampTargetProvenance("de", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+		edited.StampTargetProvenance("de", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 		require.NoError(t, b.content.StoreBlocksForItem(ctx, b.projectID, "main", "greetings.json", []*model.Block{edited}))
 
 		sess, err := b.blocks(t).Begin(ctx)
@@ -248,7 +248,7 @@ func TestEditorWrite_OverlayReadSeesTheTarget(t *testing.T) {
 		require.Equal(t, "Hallo ", target.Runs[0].Text.Text)
 		require.NotNil(t, target.Runs[1].Ph)
 		require.Equal(t, "{name}", target.Runs[1].Ph.Equiv)
-		require.Equal(t, model.TargetStatusReviewed, target.Status)
+		require.Equal(t, model.TargetStatusEstablished, target.Status)
 		require.Equal(t, model.OriginHuman, target.Origin.Kind)
 
 		// And the listing agrees with the single read, under the key the block

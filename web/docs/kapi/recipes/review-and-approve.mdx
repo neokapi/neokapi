@@ -2,7 +2,7 @@
 id: review-and-approve
 title: "Review & approve"
 sidebar_label: "Review & approve"
-description: "The human half of the loop: work the review queue in Kapi Desktop (inspect, edit, approve, reject, sign off) or drive the same worklist from the CLI or your assistant. Approvals land in the project's store and raise the coverage a ship gate measures."
+description: "The human half of the loop: work the review queue in Kapi Desktop (inspect, edit, approve, reject) or drive the same worklist from the CLI or your assistant. Approvals land in the project's store and raise the coverage a ship gate measures."
 hide_table_of_contents: true
 ---
 
@@ -12,7 +12,7 @@ import { PendingMedia, GatedLoopDiagram } from "@neokapi/docs-shared";
 
 # Review & approve
 
-**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces: it brings every unit to *translated* and parks the rest. A person promotes: *reviewed*, then optionally *signed-off*. Each review lands in the project's store, bound to the content hash of the exact translation it approves, so an approval can never silently outlive the text it approved. The model is [the kapi loop](/kapi/convergence); the store is [the project store](/kapi/project-store).
+**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces: it brings every unit to *translated* and parks the rest. A person establishes it; an assistant can pre-review first, leaving a score and its reasons for the person to read. Each review lands in the project's store, bound to the content hash of the exact translation it approves, so an approval can never silently outlive the text it approved. The model is [the kapi loop](/kapi/convergence); the store is [the project store](/kapi/project-store).
 
 ## Settle the source first
 
@@ -45,16 +45,16 @@ The loop has a gate before the target work: `kapi up` **settles your source and 
 
 The local source-settle loop, end to end:
 
-1. **Run.** `kapi up` settles each source block (terminology, voice, source checks), stamps its authoring status (*authored → checked → approved*), and holds any block below the gate. Ready blocks translate; held blocks do not. A run that could translate nothing surfaces as *held on source* rather than as a silent skip.
+1. **Run.** `kapi up` settles each source block (terminology, voice, source checks), stamps it *written*, and holds any block whose checks fail (or, under an `established` gate, any block a person has not established). Ready blocks translate; held blocks do not. A run that could translate nothing surfaces as *held on source* rather than as a silent skip.
 2. **See what's held.** `kapi status` shows source readiness alongside coverage; `kapi check --ship` enforces the same source bar and lists the blocks that fail it.
-3. **Settle.** Fix the flagged terms, voice findings, or source text, through the round-trip (`kapi apply`) or your editor, so the next check clears them. An explicit source sign-off is a `kind:"review"` entry on the source, for the strict `approved` gate.
+3. **Settle.** Fix the flagged terms, voice findings, or source text, through the round-trip (`kapi apply`) or your editor, so the next check clears them. Establishing a source unit is a `kind:"review"` entry on the source, for the strict `established` gate.
 4. **Re-run.** `kapi up` re-settles only the blocks whose source changed and translates the newly-cleared ones. Repeat until nothing is held.
 
 The gate level is `defaults.source_gate` in the recipe:
 
 ```yaml
 defaults:
-  source_gate: checked   # the default: source must clear its automated
+  source_gate: written   # the default: source must clear its automated
                          # terminology, voice and source checks before translating
 ```
 
@@ -78,7 +78,7 @@ The **Review** surface is a queue you work through, keyboard-first:
 4. **Batch the clean ones.** **Approve clean** approves every unit in the current filter that has no findings, so you read the exceptions rather than the bulk.
 5. **Let the AI read first.** **AI pre-review…** scores the pending units with your model before you look; each unit then carries an AI review score, so you spend your attention where it disagrees. **Fix with AI** drafts a correction through the same save path as a manual edit.
 
-Approvals raise `reviewed` coverage immediately; the gate cell you entered from goes green when its threshold clears.
+Approvals raise `established` coverage immediately; the gate cell you entered from goes green when its threshold clears.
 
 <PendingMedia kind="video" scene="harness/demos/kapi-desktop-review/demo.yaml">
   The queue with every language in one list, one unit held on each of its five
@@ -102,7 +102,7 @@ The worklist and the approval are one command each:
 
 ```bash
 kapi status --review        # units awaiting a person: file, id, locale
-kapi apply <<<'{"kind":"review","file":"src/locales/fr/app.json","id":"save.label","locale":"fr","status":"reviewed"}'
+kapi apply <<<'{"kind":"review","file":"src/locales/fr/app.json","id":"save.label","locale":"fr","status":"established"}'
 ```
 
 One queue holds every language. A translated unit not yet approved is one row;
@@ -120,7 +120,7 @@ kapi status --review --lang en        # the source-language units
 Review page of Kapi Desktop, which writes it to the same project store under
 the source locale.
 
-Address the unit exactly as the worklist lists it. `status` is `"reviewed"` by default; `"signed-off"` is the optional final rung for contractual or regulated content. The decision is recorded in the [project store](/kapi/project-store) and is durable at once, so every checkout of the project reads it and there is no second step. Read it back, with the evidence behind it, from `kapi context log`.
+Address the unit exactly as the worklist lists it. `status` may be omitted; the one rung a review reaches is `"established"`. Run from an assistant's shell, the entry is refused unless `KAPI_ACTOR=person` says a person is at the keyboard. The decision is recorded in the [project store](/kapi/project-store) and is durable at once, so every checkout of the project reads it and there is no second step. Read it back, with the evidence behind it, from `kapi context log`.
 
 To share the record with the rest of the team, push it to the project's context backend with `kapi context push`. See [Moving context](/kapi/context-portability).
 
@@ -135,6 +135,6 @@ This recipe's worklist lives in your checkout and its decisions in the project's
 
 ## Next
 
-- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): the `reviewed` thresholds this state satisfies.
+- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci): the `established` thresholds this state satisfies.
 - [The kapi loop](/kapi/convergence): produce / promote / release, kept separate.
 - [The project store](/kapi/project-store): the context store that holds the decision record, and the projection that rebuilds.

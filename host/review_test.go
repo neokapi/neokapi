@@ -25,7 +25,7 @@ defaults:
 collections:
   - path: en.json
     target: "{lang}.json"
-ship_gate: { translated: 100, reviewed: 50 }
+ship_gate: { translated: 100, established: 50 }
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
@@ -54,7 +54,7 @@ collections:
     content:
       - path: docs/*.json
         target: "i18n/{lang}/{path}.json"
-ship_gate: { translated: 100, reviewed: 100 }
+ship_gate: { translated: 100, established: 100 }
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	write := func(dir, name, body string) {
@@ -96,7 +96,7 @@ func TestReview_MultiFileCollectionCommitsEveryDecision(t *testing.T) {
 	require.Len(t, ids, 2, "and both files carry the same two ids — the shape that collides")
 
 	for _, it := range rep.Review {
-		changed, aerr := a.ApproveReviewUnit(t.Context(), recipe, "en", it.Locale, it.File, it.Key, "reviewed")
+		changed, aerr := a.ApproveReviewUnit(t.Context(), recipe, "en", it.Locale, it.File, it.Key)
 		require.NoError(t, aerr, "%s:%s", it.File, it.Key)
 		assert.True(t, changed, "%s:%s reported no change", it.File, it.Key)
 	}
@@ -106,7 +106,7 @@ func TestReview_MultiFileCollectionCommitsEveryDecision(t *testing.T) {
 	nb, ok := localeCoverage(runStatusJSON(t), "nb")
 	require.True(t, ok)
 	assert.Equal(t, 100, nb.Pct["translated"], "reviewing does not un-translate anything")
-	assert.Equal(t, 100, nb.Pct["reviewed"], "all four decisions count")
+	assert.Equal(t, 100, nb.Pct["established"], "all four decisions count")
 	assert.Zero(t, nb.Stale, "no source changed, so nothing is stale")
 	assert.True(t, nb.Shippable, "reviewed:100 is met")
 
@@ -126,7 +126,7 @@ func writeReviewedCorrection(t *testing.T, root, srcText, _ string) {
 	require.NoError(t, err)
 	for _, it := range rep.Review {
 		if it.Source == srcText {
-			ok, err := a.ApproveReviewUnit(context.Background(), proj, "en", it.Locale, it.File, it.Key, "reviewed")
+			ok, err := a.ApproveReviewUnit(context.Background(), proj, "en", it.Locale, it.File, it.Key)
 			require.NoError(t, err)
 			require.True(t, ok)
 			return
@@ -159,7 +159,7 @@ func TestReview_ApprovalPromotesToReviewed(t *testing.T) {
 	nb, ok := localeCoverage(before, "nb")
 	require.True(t, ok)
 	assert.Equal(t, 100, nb.Pct["translated"])
-	assert.Equal(t, 0, nb.Pct["reviewed"], "no approved corrections yet")
+	assert.Equal(t, 0, nb.Pct["established"], "no approved corrections yet")
 	assert.False(t, nb.Shippable, "reviewed:50 unmet at 0% reviewed")
 
 	// Approve one of the two translations (Apple→Eple).
@@ -169,7 +169,7 @@ func TestReview_ApprovalPromotesToReviewed(t *testing.T) {
 	nb2, ok := localeCoverage(after, "nb")
 	require.True(t, ok)
 	assert.Equal(t, 100, nb2.Pct["translated"], "still fully translated")
-	assert.Equal(t, 50, nb2.Pct["reviewed"], "1 of 2 units now approved in the state store")
+	assert.Equal(t, 50, nb2.Pct["established"], "1 of 2 units now approved in the state store")
 	assert.True(t, nb2.Shippable, "reviewed:50 is now met")
 }
 
@@ -212,7 +212,7 @@ func TestReview_ApplyMemoryCorrectionIsRecycleNotReview(t *testing.T) {
 	after := runStatusJSON(t)
 	nb, ok := localeCoverage(after, "nb")
 	require.True(t, ok)
-	assert.Equal(t, 0, nb.Pct["reviewed"], "a tm correction is recycle leverage, not a review decision")
+	assert.Equal(t, 0, nb.Pct["established"], "a tm correction is recycle leverage, not a review decision")
 	assert.False(t, nb.Shippable, "reviewed:50 is not met by a tm correction alone")
 }
 
@@ -238,14 +238,14 @@ func TestReview_EditAfterApprovalInvalidatesReview(t *testing.T) {
 	assertCommittedUnits(t, root, 1, "approval commits to the project's unit record")
 	nb, ok := localeCoverage(runStatusJSON(t), "nb")
 	require.True(t, ok)
-	assert.Equal(t, 50, nb.Pct["reviewed"], "the approved unit counts as reviewed")
+	assert.Equal(t, 50, nb.Pct["established"], "the approved unit counts as reviewed")
 
 	// Edit the approved translation — the decision no longer blesses this text.
 	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),
 		[]byte(`{"a":"Eple-EDITED","b":"Banan"}`), 0o644))
 	nb2, ok := localeCoverage(runStatusJSON(t), "nb")
 	require.True(t, ok)
-	assert.Equal(t, 0, nb2.Pct["reviewed"],
+	assert.Equal(t, 0, nb2.Pct["established"],
 		"editing the approved translation invalidates the review (targetHash link)")
 }
 
@@ -271,18 +271,18 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 	a2 := &App{}
 	a2.InitRegistries()
 	res := a2.applyReviewEntry(context.Background(), NewEnvCommand(context.Background(), "apply"), changeEntry{
-		Kind: kindReview, File: item.File, ID: item.Key, Locale: item.Locale, Status: "reviewed",
+		Kind: kindReview, File: item.File, ID: item.Key, Locale: item.Locale, Status: "established",
 	})
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 	assertCommittedUnits(t, root, 1, "approval commits to the project's unit record")
 
 	nb, ok := localeCoverage(runStatusJSON(t), "nb")
 	require.True(t, ok)
-	assert.Equal(t, 50, nb.Pct["reviewed"], "a kind:review apply promotes via the state store")
+	assert.Equal(t, 50, nb.Pct["established"], "a kind:review apply promotes via the state store")
 
 	// Idempotent: re-applying the same decision is a no-op.
 	res2 := a2.applyReviewEntry(context.Background(), NewEnvCommand(context.Background(), "apply"), changeEntry{
-		Kind: kindReview, File: item.File, ID: item.Key, Locale: item.Locale, Status: "reviewed",
+		Kind: kindReview, File: item.File, ID: item.Key, Locale: item.Locale, Status: "established",
 	})
 	assert.Equal(t, "skipped", res2.Status)
 }

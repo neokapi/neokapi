@@ -40,7 +40,7 @@ func TestReach_BanWithoutAReplacementIsAnnotate(t *testing.T) {
 	bs.addBlocks("proj1", "main",
 		withTarget(withTarget(
 			srcBlock("b1", "guide.md", "en-US", "Please use foobar here"),
-			"nb", "Bruk foobar her", model.TargetStatusReviewed),
+			"nb", "Bruk foobar her", model.TargetStatusEstablished),
 			"de", "Nutze foobar hier", model.TargetStatusDraft),
 	)
 
@@ -80,7 +80,7 @@ func TestReach_BanWithAReplacementIsTransform(t *testing.T) {
 	bs.addProject(&store.Project{ID: "proj1", Name: "Docs", WorkspaceID: "ws"})
 	bs.addBlocks("proj1", "main",
 		withTarget(srcBlock("b1", "guide.md", "en-US", "Please use foobar here"),
-			"nb", "Bruk foobar her", model.TargetStatusSignedOff),
+			"nb", "Bruk foobar her", model.TargetStatusEstablished),
 	)
 
 	e := NewEngine(bs, tb, nil)
@@ -120,7 +120,7 @@ func TestReach_CountsEachBlockOnceAcrossLocales(t *testing.T) {
 	bs.addProject(&store.Project{ID: "proj1", Name: "Docs", WorkspaceID: "ws"})
 	bs.addBlocks("proj1", "main",
 		withTarget(srcBlock("b1", "guide.md", "en-US", "Please use foobar here"),
-			"nb", "Bruk foobar her", model.TargetStatusReviewed),
+			"nb", "Bruk foobar her", model.TargetStatusEstablished),
 	)
 
 	e := NewEngine(bs, tb, nil)
@@ -180,9 +180,9 @@ func TestBlockTargetLocales_SkipsEmptyAndCollapsesVariants(t *testing.T) {
 	b := srcBlock("b1", "g.md", "en-US", "text")
 	b.Targets = map[model.VariantKey]*model.Target{
 		model.Variant("nb"):              model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusDraft),
-		{Locale: "nb", Channel: "email"}: model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusReviewed),
+		{Locale: "nb", Channel: "email"}: model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusEstablished),
 		model.Variant("de"):              model.NewTarget(nil, model.TargetStatusDraft),
-		{Locale: "fr", Tone: "formal"}:   model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusSignedOff),
+		{Locale: "fr", Tone: "formal"}:   model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusEstablished),
 	}
 
 	locales, approved := blockTargetLocales(b)

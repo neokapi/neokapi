@@ -52,7 +52,7 @@ type Block struct {
 	Translatable bool
 	SourceLocale LocaleID // locale of the source runs (set by reader)
 	// SourceStatus is the authoring lifecycle state of the source content
-	// (authored → checked → approved): the source-side counterpart of
+	// (written→established): the source-side counterpart of
 	// Target.Status. New ("") means "no committed status yet" and reads as the
 	// authored baseline. A source edit resets it; a clean source check stamps
 	// `checked`; an explicit human/agent approval stamps `approved`.

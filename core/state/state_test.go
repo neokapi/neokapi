@@ -14,7 +14,7 @@ func approved(unit, locale, targetHash string) state.UnitState {
 	return state.UnitState{
 		Unit:       unit,
 		Variant:    model.Variant(model.LocaleID(locale)),
-		Status:     model.TargetStatusReviewed,
+		Status:     model.TargetStatusEstablished,
 		TargetHash: targetHash,
 		Decision:   state.Decision{ReviewState: "approved", By: "alice", At: "2026-06-29T00:00:00Z"},
 		Updated:    "2026-06-29T00:00:00Z",
@@ -25,8 +25,8 @@ func approved(unit, locale, targetHash string) state.UnitState {
 // approval no longer applies once the translation it blessed changes.
 func TestUnitState_StaleOnTranslationChange(t *testing.T) {
 	u := approved("h1", "fr-FR", "sha256:aaa")
-	assert.True(t, u.Reviewed("sha256:aaa"), "reviewed for the translation it blessed")
-	assert.False(t, u.Reviewed("sha256:bbb"), "a changed translation invalidates the approval")
+	assert.True(t, u.Established("sha256:aaa"), "established for the translation it blessed")
+	assert.False(t, u.Established("sha256:bbb"), "a changed translation invalidates the approval")
 	assert.True(t, u.Stale("sha256:bbb"))
 	assert.False(t, u.Stale("sha256:aaa"))
 }

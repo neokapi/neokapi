@@ -1,5 +1,5 @@
 {
-  "de": {"shippable":false,"verified":false},
-  "nb": {"shippable":false,"verified":false},
-  "nl": {"shippable":false,"verified":false}
+  "de": {"shippable":false,"state":"withheld"},
+  "nb": {"shippable":false,"state":"withheld"},
+  "nl": {"shippable":false,"state":"withheld"}
 }

@@ -18,21 +18,21 @@ export default meta;
 type Story = StoryObj<typeof ShipStateBadge>;
 
 export const Governed: Story = {
-  args: { state: "governed", approvedBlocks: 50, totalBlocks: 50, failingChecks: 0 },
+  args: { state: "established", approvedBlocks: 50, totalBlocks: 50, failingChecks: 0 },
 };
 
 /** Every translation is human-approved, and no terms apply to the language. */
 export const Approved: Story = {
-  args: { state: "approved", approvedBlocks: 50, totalBlocks: 50, termsNotGoverned: true },
+  args: { state: "established", approvedBlocks: 50, totalBlocks: 50, termsNotGoverned: true },
 };
 
 export const AIShippable: Story = {
-  args: { state: "ai_shippable", approvedBlocks: 12, totalBlocks: 50, failingChecks: 0 },
+  args: { state: "translated", approvedBlocks: 12, totalBlocks: 50, failingChecks: 0 },
 };
 
 /** Shippable on machine review, in a language no terms govern: the tooltip says so. */
 export const AIShippableNotGoverned: Story = {
-  args: { state: "ai_shippable", approvedBlocks: 12, totalBlocks: 50, termsNotGoverned: true },
+  args: { state: "translated", approvedBlocks: 12, totalBlocks: 50, termsNotGoverned: true },
 };
 
 /** Pending on terminology: terms govern the language and some blocks have no result. */
@@ -68,9 +68,9 @@ export const PendingOnRejection: Story = {
 export const AllStates: Story = {
   render: () => (
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <ShipStateBadge state="governed" approvedBlocks={50} totalBlocks={50} />
-      <ShipStateBadge state="approved" approvedBlocks={50} totalBlocks={50} termsNotGoverned />
-      <ShipStateBadge state="ai_shippable" approvedBlocks={12} totalBlocks={50} />
+      <ShipStateBadge state="established" approvedBlocks={50} totalBlocks={50} />
+      <ShipStateBadge state="established" approvedBlocks={50} totalBlocks={50} termsNotGoverned />
+      <ShipStateBadge state="translated" approvedBlocks={12} totalBlocks={50} />
       <ShipStateBadge state="pending" approvedBlocks={3} totalBlocks={50} failingChecks={2} />
     </div>
   ),
@@ -79,15 +79,15 @@ export const AllStates: Story = {
 export const Compact: Story = {
   render: () => (
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <ShipStateBadge compact state="governed" approvedBlocks={50} totalBlocks={50} />
+      <ShipStateBadge compact state="established" approvedBlocks={50} totalBlocks={50} />
       <ShipStateBadge
         compact
-        state="approved"
+        state="established"
         approvedBlocks={50}
         totalBlocks={50}
         termsNotGoverned
       />
-      <ShipStateBadge compact state="ai_shippable" approvedBlocks={12} totalBlocks={50} />
+      <ShipStateBadge compact state="translated" approvedBlocks={12} totalBlocks={50} />
       <ShipStateBadge compact state="pending" failingChecks={1} />
     </div>
   ),

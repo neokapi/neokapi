@@ -1243,7 +1243,7 @@ export class KapiProject {
              * Ship gates decide when localized content is shippable, as coverage
              * thresholds over the lifecycle ladder (see core/gate). Three optional,
              * additive forms:
-             *   ShipGate  — a single catch-all gate ({translated: 100, reviewed: 100}).
+             *   ShipGate  — a single catch-all gate ({translated: 100, established: 100}).
              *   ShipGates — a when/gate rule list; most-specific rule wins.
              *   Gates     — a named registry referenced by a rule's `gate: <name>`.
              * BuildShipGates resolves these into an evaluatable gate.RuleSet.
@@ -1268,36 +1268,34 @@ export class KapiProject {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Verified gates decide when localized content is "human-verified": the
-             * second gate, evaluated exactly like the ship gate but against a bar that
-             * implies a person reviewed or signed off the work (e.g. {reviewed: 100}).
-             * A locale that clears its ship gate but not its verified gate ships flagged
-             * AI in a language picker; a verified locale carries no badge. The two gates
-             * are independent — being verified is not a prerequisite for shipping. Same
+             * Established gates decide when a scope ships `established`, meaning
+             * governed: a person established the work (e.g. {established: 100}). A
+             * scope that clears its ship gate but not its established gate ships
+             * `translated`, AI-shippable, and a language picker marks it AI. Same
              * additive forms and precedence as the ship gate, resolving a rule's
              * `gate: <name>` reference against the same Gates registry:
-             *   VerifiedGate  — a single catch-all gate.
-             *   VerifiedGates — a when/gate rule list; most-specific rule wins.
-             * With NO verified gate configured, nothing is verified: BuildVerifiedGates
-             * returns an empty RuleSet, so every locale reads unverified (the honest
-             * default — a project opts in to "verified" by declaring the bar).
+             *   EstablishedGate  — a single catch-all gate.
+             *   EstablishedGates — a when/gate rule list; most-specific rule wins.
+             * With no established gate configured, no scope ships `established`. A
+             * project that delivers only governed content says so in its ship gate
+             * (e.g. {established: 100}).
              * @member
              * @type {gate$0.Gate | undefined}
              */
-            this["verified_gate"] = undefined;
+            this["established_gate"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
              * @type {ShipGateRule[] | undefined}
              */
-            this["verified_gates"] = undefined;
+            this["established_gates"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * SourceGate is the source-readiness bar: a single coverage gate over the
-             * source authoring ladder (authored → checked → approved), e.g.
-             * {checked: 100}. It is the source-side counterpart of ShipGate — it gates
+             * source authoring ladder (written→established), e.g.
+             * {established: 100}. It is the source-side counterpart of ShipGate — it gates
              * the author's own content, not the translations. BuildSourceGate
              * resolves it; evaluated by `kapi check --ship` (never an ordinary
              * build).
@@ -1380,11 +1378,11 @@ export class KapiProject {
         if ("gates" in $$parsedSource) {
             $$parsedSource["gates"] = $$createField12_0($$parsedSource["gates"]);
         }
-        if ("verified_gate" in $$parsedSource) {
-            $$parsedSource["verified_gate"] = $$createField13_0($$parsedSource["verified_gate"]);
+        if ("established_gate" in $$parsedSource) {
+            $$parsedSource["established_gate"] = $$createField13_0($$parsedSource["established_gate"]);
         }
-        if ("verified_gates" in $$parsedSource) {
-            $$parsedSource["verified_gates"] = $$createField14_0($$parsedSource["verified_gates"]);
+        if ("established_gates" in $$parsedSource) {
+            $$parsedSource["established_gates"] = $$createField14_0($$parsedSource["established_gates"]);
         }
         if ("source_gate" in $$parsedSource) {
             $$parsedSource["source_gate"] = $$createField15_0($$parsedSource["source_gate"]);

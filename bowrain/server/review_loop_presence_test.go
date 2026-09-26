@@ -26,7 +26,7 @@ func TestTargetPendingReview_PlaceholderOnlyTargetIsPending(t *testing.T) {
 		"a placeholder-only target is produced content and must reach the review queue")
 
 	// A reviewed target is not pending, placeholder-only or not.
-	b.Target("fr").Status = model.TargetStatusReviewed
+	b.Target("fr").Status = model.TargetStatusEstablished
 	assert.False(t, targetPendingReview(b, "fr"))
 
 	// The boundary holds: no target, and a whitespace-only target, are not pending.

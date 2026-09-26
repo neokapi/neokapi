@@ -44,7 +44,7 @@ script:
 
 artifacts:
   - id: ship
-    caption: "site/ship.json: locale to shippable and verified"
+    caption: "site/ship.json: locale to shippable and ship state"
     source: report
     report: json
     path: site/ship.json

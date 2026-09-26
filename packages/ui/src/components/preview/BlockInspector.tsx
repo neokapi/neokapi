@@ -22,8 +22,7 @@ const STATUS_TONE: Record<string, string> = {
   "": "text-muted-foreground",
   draft: "text-amber-600 dark:text-amber-400",
   translated: "text-sky-600 dark:text-sky-400",
-  reviewed: "text-violet-600 dark:text-violet-400",
-  "signed-off": "text-emerald-600 dark:text-emerald-400",
+  established: "text-emerald-600 dark:text-emerald-400",
 };
 
 const OVERLAY_CLASS: Record<string, string> = {

@@ -77,7 +77,7 @@ func (o reviewQueueOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "Units marked `source` are the project's own source language. `kapi apply` records target-language decisions only; approve source wording in the Review page of Kapi Desktop.")
 	}
 	if held > 0 {
-		fmt.Fprintf(w, "%d source unit(s) rank below the project's source gate, so the loop holds their translations.\n", held)
+		fmt.Fprintf(w, "%d source unit(s) are held at the project's source gate, so the loop holds their translations.\n", held)
 	}
 	return nil
 }

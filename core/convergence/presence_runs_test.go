@@ -23,7 +23,7 @@ func phRun(equiv string) model.Run {
 
 func TestSourceState_PlaceholderOnlyIsAuthored(t *testing.T) {
 	b := &model.Block{ID: "price", Translatable: true, Source: []model.Run{phRun("p.price")}}
-	assert.Equal(t, string(model.SourceStatusAuthored), convergence.SourceState(b),
+	assert.Equal(t, string(model.SourceStatusWritten), convergence.SourceState(b),
 		"a placeholder-only source is authored content, not a hole in the source ladder")
 
 	// The boundary the fix must not cross: genuinely empty content, and
@@ -39,8 +39,8 @@ func TestTargetState_PlaceholderOnlyIsTranslated(t *testing.T) {
 		"a placeholder-only target is produced, so it reaches the translated rung and can ship")
 
 	// A committed status still wins over the presence baseline.
-	b.StampTargetProvenance("nb", model.TargetStatusReviewed, model.Origin{})
-	assert.Equal(t, string(model.TargetStatusReviewed), convergence.TargetState(b, "nb"))
+	b.StampTargetProvenance("nb", model.TargetStatusEstablished, model.Origin{})
+	assert.Equal(t, string(model.TargetStatusEstablished), convergence.TargetState(b, "nb"))
 
 	// Still below every rung: no target at all, and a whitespace-only target.
 	assert.Empty(t, convergence.TargetState(b, "de"))

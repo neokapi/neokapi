@@ -68,20 +68,20 @@ func TestBlockTargetStatusRoundTrip(t *testing.T) {
 	b := &model.Block{ID: "b1", Translatable: true}
 	b.SetSourceText("Hello")
 	b.SetTargetText("fr", "Bonjour")
-	b.StampTargetProvenance("fr", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	b.StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 
 	b2, err := ProtoToBlock(BlockToProto(b, "en.json"))
 	require.NoError(t, err)
 	tgt := b2.Target("fr")
 	require.NotNil(t, tgt)
 	assert.Equal(t, "Bonjour", b2.TargetText("fr"))
-	assert.Equal(t, model.TargetStatusReviewed, tgt.Status, "lifecycle status survives sync")
+	assert.Equal(t, model.TargetStatusEstablished, tgt.Status, "lifecycle status survives sync")
 }
 
 func TestBlockSourceStatusRoundTrip(t *testing.T) {
 	b := &model.Block{ID: "b1", Translatable: true, Properties: map[string]string{"keep": "me"}}
 	b.SetSourceText("Hello")
-	b.SourceStatus = model.SourceStatusChecked
+	b.SourceStatus = model.SourceStatusWritten
 
 	sb := BlockToProto(b, "en.json")
 	// The reserved key must not leak the caller's Properties map.
@@ -89,7 +89,7 @@ func TestBlockSourceStatusRoundTrip(t *testing.T) {
 
 	b2, err := ProtoToBlock(sb)
 	require.NoError(t, err)
-	assert.Equal(t, model.SourceStatusChecked, b2.SourceStatus, "source authoring state survives sync")
+	assert.Equal(t, model.SourceStatusWritten, b2.SourceStatus, "source authoring state survives sync")
 	assert.Equal(t, "me", b2.Properties["keep"], "real properties survive")
 	_, leaked := b2.Properties["__source_status"]
 	assert.False(t, leaked, "the reserved source-status key must be stripped, not surfaced as a property")

@@ -162,10 +162,10 @@ func TestContextWireKeys(t *testing.T) {
 	score := 74
 	c := Context{
 		Point:         Point{Path: "content/app.json", Voice: &Voice{Name: "Retail", Guide: "Be brief."}, TermsTotal: 1},
-		Neighbourhood: Neighbourhood{Key: "greeting", After: []Neighbour{{Key: "bye", Source: []model.Run{model.TextR("Bye")}, Status: "reviewed"}}, Window: 2},
+		Neighbourhood: Neighbourhood{Key: "greeting", After: []Neighbour{{Key: "bye", Source: []model.Run{model.TextR("Bye")}, Status: "established"}}, Window: 2},
 		History:       History{Match: &MemoryMatch{Score: 88, Kind: "fuzzy", Target: "Hei"}},
 		Judgement:     Judgement{AIScore: &score},
-		Provenance:    Provenance{ReviewState: "approved", Status: "reviewed", Stale: true},
+		Provenance:    Provenance{ReviewState: "approved", Status: "established", Stale: true},
 	}
 	raw, err := json.Marshal(c)
 	require.NoError(t, err)
@@ -178,7 +178,7 @@ func TestContextWireKeys(t *testing.T) {
 	s := string(raw)
 	assert.Contains(t, s, `"terms_total":1`)
 	assert.Contains(t, s, `"guide":"Be brief."`)
-	assert.Contains(t, s, `"status":"reviewed"`)
+	assert.Contains(t, s, `"status":"established"`)
 	assert.Contains(t, s, `"score":88`)
 	assert.Contains(t, s, `"kind":"fuzzy"`)
 	assert.Contains(t, s, `"review_state":"approved"`)

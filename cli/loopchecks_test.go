@@ -165,5 +165,5 @@ func TestComputeShipCoverage_FindingsWithholdTheVerdictNotThePercentages(t *test
 		"the unit is translated — a percentage that said otherwise would be a false statement about the content")
 	assert.Equal(t, 1, cov2[0].FailingChecks, "the finding is reported on its own axis")
 	assert.False(t, cov2[0].Shippable, "and it is what withholds the verdict")
-	assert.False(t, cov2[0].Verified)
+	assert.NotEqual(t, "established", string(cov2[0].ShipState))
 }

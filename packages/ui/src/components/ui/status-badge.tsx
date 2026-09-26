@@ -6,20 +6,17 @@ import { cn } from "../../lib/utils";
 /**
  * StatusBadge: one scale for the two ladders content climbs.
  *
- * A target moves draft → translated → reviewed → signed-off; a source moves
- * authored → checked → approved. They are the same shape of progress read from
- * two sides, and a reader who has learnt one should be able to read the other
- * at a glance. So both are drawn on a single four-stop scale: muted at the
- * bottom rung, neutral in the middle, a soft green once a rung has been earned
- * by a check or a review, and a filled green at the top. The shorter source
- * ladder skips the neutral stop, which puts `checked` where `reviewed` sits and
- * `approved` where `signed-off` sits.
+ * A target moves draft → translated → established; a source moves written →
+ * established. Both are drawn on one scale: muted at the bottom rung, neutral
+ * in the middle, and a filled green once a person has established the unit.
+ * The source ladder skips the bottom stop, so `written` sits where
+ * `translated` does.
  *
  * `blocked` and `attention` belong to neither ladder and both take warning:
  * something is waiting for a person. `not-started` is the bucket a locale with
  * no target text falls in, below the content ladder's bottom rung.
  *
- * The status strings are the wire values (`signed-off`, not `signed_off`), so a
+ * The status strings are the wire values (`not-started`, not `not_started`), so a
  * caller can hand a badge whatever the API returned.
  */
 
@@ -27,10 +24,10 @@ import { cn } from "../../lib/utils";
 export type StatusLadder = "content" | "source";
 
 /** The target ladder, lowest rung first. Matches core/model TargetStatusLadder. */
-export const CONTENT_STATUS_LADDER = ["draft", "translated", "reviewed", "signed-off"] as const;
+export const CONTENT_STATUS_LADDER = ["draft", "translated", "established"] as const;
 
 /** The source ladder, lowest rung first. Matches core/model SourceStatusLadder. */
-export const SOURCE_STATUS_LADDER = ["authored", "checked", "approved"] as const;
+export const SOURCE_STATUS_LADDER = ["written", "established"] as const;
 
 /** Statuses that sit off both ladders and mean a person is needed. */
 export const ATTENTION_STATUSES = ["blocked", "attention"] as const;
@@ -49,8 +46,8 @@ export const STATUS_LADDERS: Record<StatusLadder, readonly string[]> = {
 /**
  * The four stops of the shared scale, plus the off-ladder one.
  *
- * `earned` is the soft green: a rung reached by a machine check or a review.
- * `settled` is the filled green: a rung a person signed for.
+ * `earned` is the soft green, which no rung of either ladder takes now.
+ * `settled` is the filled green: a unit a person established.
  */
 export type StatusTone = "start" | "middle" | "earned" | "settled" | "attention";
 
@@ -101,42 +98,28 @@ const CONTENT_META: Record<string, StatusMeta> = {
       return t("Translated", "content status");
     },
   },
-  reviewed: {
-    status: "reviewed",
-    tone: "earned",
-    get label() {
-      return t("Reviewed", "content status");
-    },
-  },
-  "signed-off": {
-    status: "signed-off",
+  established: {
+    status: "established",
     tone: "settled",
     get label() {
-      return t("Signed off", "content status");
+      return t("Established", "content status");
     },
   },
 };
 
 const SOURCE_META: Record<string, StatusMeta> = {
-  authored: {
-    status: "authored",
-    tone: "start",
+  written: {
+    status: "written",
+    tone: "middle",
     get label() {
-      return t("Authored", "source status");
+      return t("Written", "source status");
     },
   },
-  checked: {
-    status: "checked",
-    tone: "earned",
-    get label() {
-      return t("Checked", "source status");
-    },
-  },
-  approved: {
-    status: "approved",
+  established: {
+    status: "established",
     tone: "settled",
     get label() {
-      return t("Approved", "source status");
+      return t("Established", "source status");
     },
   },
 };
@@ -178,7 +161,7 @@ export function statusMeta(ladder: StatusLadder, status: string): StatusMeta {
 export interface StatusBadgeProps extends React.ComponentProps<"span"> {
   /** Which ladder to read `status` against. */
   ladder: StatusLadder;
-  /** The status as it travels on the wire, e.g. `signed-off`. */
+  /** The status as it travels on the wire, e.g. `established`. */
   status: string;
   /** Denser badge for a table cell or a dense list. */
   compact?: boolean;

@@ -162,16 +162,16 @@ func TestPushReviewGovernance(t *testing.T) {
 		deps, pid := setup(t, pushAuthority{review: map[string]bool{locale: true}})
 		push := governedPush{
 			projectID: pid, actor: "u-reviewer", item: item,
-			blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusReviewed)},
+			blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusEstablished)},
 			decisions: []venue.UnitDecision{{
 				ItemName: item, Unit: "b1", Variant: locale,
-				Status: string(model.TargetStatusReviewed), ReviewState: venue.ReviewStateApproved,
+				Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
 				DecidedBy: "someone-else@example.com", Updated: "2026-09-03T10:00:00Z",
 			}},
 		}
 		require.NoError(t, push.run(t, deps, "job-approve"))
 
-		assert.Equal(t, model.TargetStatusReviewed, storedTarget(t, deps, pid, item, locale))
+		assert.Equal(t, model.TargetStatusEstablished, storedTarget(t, deps, pid, item, locale))
 		d, ok := heldDecision(t, deps, pid, "b1", locale)
 		require.True(t, ok, "an approval the pusher may make is recorded")
 		assert.Equal(t, venue.ReviewStateApproved, d.ReviewState)
@@ -183,10 +183,10 @@ func TestPushReviewGovernance(t *testing.T) {
 		deps, pid := setup(t, pushAuthority{review: map[string]bool{}})
 		push := governedPush{
 			projectID: pid, actor: "u-translator", item: item,
-			blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusReviewed)},
+			blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusEstablished)},
 			decisions: []venue.UnitDecision{{
 				ItemName: item, Unit: "b1", Variant: locale,
-				Status: string(model.TargetStatusReviewed), ReviewState: venue.ReviewStateApproved,
+				Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
 				DecidedBy: "u-translator", Updated: "2026-09-03T10:00:00Z",
 			}},
 		}
@@ -205,14 +205,14 @@ func TestPushReviewGovernance(t *testing.T) {
 		deps, pid := setup(t, pushAuthority{review: map[string]bool{}})
 		push := governedPush{
 			projectID: pid, actor: "u-translator", item: item,
-			blocks: []*model.Block{reviewedBlock("b1", "Hello", "de", "Guten Tag", model.TargetStatusSignedOff)},
+			blocks: []*model.Block{reviewedBlock("b1", "Hello", "de", "Guten Tag", model.TargetStatusEstablished)},
 		}
 		require.NoError(t, push.run(t, deps, "job-signoff"))
 		assert.Equal(t, model.TargetStatusTranslated, storedTarget(t, deps, pid, item, "de"))
 
 		report := jobGovernance(t, deps, "push-job-signoff")
 		require.Len(t, report.Refusals, 1)
-		assert.Equal(t, venue.VerdictSignOff, report.Refusals[0].Kind)
+		assert.Equal(t, venue.VerdictApproval, report.Refusals[0].Kind)
 		assert.Equal(t, "de", report.Refusals[0].Locale)
 		assert.Equal(t, venue.RefusedNoReviewPermission, report.Refusals[0].Reason)
 		assert.Equal(t, 1, report.Refusals[0].Count)
@@ -228,7 +228,7 @@ func TestPushReviewGovernance(t *testing.T) {
 
 		push := governedPush{
 			projectID: pid, actor: "u-author", item: item,
-			blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusReviewed)},
+			blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusEstablished)},
 		}
 		require.NoError(t, push.run(t, deps, "job-sod"))
 		assert.Equal(t, model.TargetStatusTranslated, storedTarget(t, deps, pid, item, locale))
@@ -246,10 +246,10 @@ func TestPushReviewGovernance(t *testing.T) {
 
 		push := governedPush{
 			projectID: pid, actor: "u-author", item: item,
-			blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusReviewed)},
+			blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusEstablished)},
 		}
 		require.NoError(t, push.run(t, deps, "job-sod-warn"))
-		assert.Equal(t, model.TargetStatusReviewed, storedTarget(t, deps, pid, item, locale))
+		assert.Equal(t, model.TargetStatusEstablished, storedTarget(t, deps, pid, item, locale))
 		assert.True(t, jobGovernance(t, deps, "push-job-sod-warn").Empty(),
 			"warn allows the verdict, so there is nothing to report as refused")
 	})
@@ -258,12 +258,12 @@ func TestPushReviewGovernance(t *testing.T) {
 		deps, pid := setup(t, pushAuthority{review: map[string]bool{locale: true}})
 		approved := venue.UnitDecision{
 			ItemName: item, Unit: "b1", Variant: locale,
-			Status: string(model.TargetStatusReviewed), ReviewState: venue.ReviewStateApproved,
+			Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
 			DecidedBy: "u-reviewer", Updated: "2026-09-03T10:00:00Z",
 		}
 		first := governedPush{
 			projectID: pid, actor: "u-reviewer", item: item,
-			blocks:    []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusReviewed)},
+			blocks:    []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusEstablished)},
 			decisions: []venue.UnitDecision{approved},
 		}
 		require.NoError(t, first.run(t, deps, "job-first"))
@@ -273,7 +273,7 @@ func TestPushReviewGovernance(t *testing.T) {
 		deps.ReviewAuthority = pushAuthority{review: map[string]bool{}}
 		again := governedPush{
 			projectID: pid, actor: "u-nobody", item: item,
-			blocks:    []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusReviewed)},
+			blocks:    []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusEstablished)},
 			decisions: []venue.UnitDecision{approved},
 		}
 		require.NoError(t, again.run(t, deps, "job-again"))
@@ -316,7 +316,7 @@ func TestPushReviewGovernance(t *testing.T) {
 		deps, pid := setup(t, pushAuthority{failWith: errors.New("auth store unreachable")})
 		push := governedPush{
 			projectID: pid, actor: "u-reviewer", item: item,
-			blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusReviewed)},
+			blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusEstablished)},
 		}
 		err := push.run(t, deps, "job-unanswerable")
 		require.Error(t, err, "a question that could not be asked is not an answer of no")
@@ -333,7 +333,7 @@ func TestPushReviewGovernance(t *testing.T) {
 		deps.ReviewAuthority = nil
 		withVerdict := governedPush{
 			projectID: pid, actor: "u-reviewer", item: item,
-			blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusReviewed)},
+			blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusEstablished)},
 		}
 		require.Error(t, withVerdict.run(t, deps, "job-nogate"))
 
@@ -363,7 +363,7 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 	// written later.
 	signedOff := venue.UnitDecision{
 		ItemName: item, Unit: "b1", Variant: locale,
-		Status: string(model.TargetStatusSignedOff), ReviewState: venue.ReviewStateSignedOff,
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
 		TargetHash: state.TargetHash(text), ContentHash: state.SourceHash(source),
 		DecidedBy: "u-reviewer", DecidedAt: "2026-09-03T10:00:00Z", Updated: "2026-09-03T10:00:00Z",
 	}
@@ -401,34 +401,34 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 	}
 
 	t.Run("without review permission the sign-off stands and is reported", func(t *testing.T) {
-		deps, pid := venueHolding(t, model.TargetStatusSignedOff, signedOff, pushAuthority{review: map[string]bool{}})
+		deps, pid := venueHolding(t, model.TargetStatusEstablished, signedOff, pushAuthority{review: map[string]bool{}})
 		require.NoError(t, withdrawal(pid, "u-translator").run(t, deps, "job-withdraw"),
 			"a refused withdrawal never fails the push")
 
-		assert.Equal(t, model.TargetStatusSignedOff, storedTarget(t, deps, pid, item, locale),
+		assert.Equal(t, model.TargetStatusEstablished, storedTarget(t, deps, pid, item, locale),
 			"the venue's rung stands")
 		d, ok := heldDecision(t, deps, pid, "b1", locale)
 		require.True(t, ok)
-		assert.Equal(t, venue.ReviewStateSignedOff, d.ReviewState, "and so does its ledger record")
+		assert.Equal(t, venue.ReviewStateApproved, d.ReviewState, "and so does its ledger record")
 		assert.Equal(t, "u-reviewer", d.DecidedBy)
 
 		report := jobGovernance(t, deps, "push-job-withdraw")
 		require.Len(t, report.Refusals, 1)
 		assert.Equal(t, venue.DecisionRefusal{
-			Locale: locale, Kind: venue.VerdictDemotion, Reason: venue.RefusedSignOffWithdrawal, Count: 1,
+			Locale: locale, Kind: venue.VerdictDemotion, Reason: venue.RefusedEstablishedWithdrawal, Count: 1,
 		}, report.Refusals[0], "stated twice, on the block and in its record, and counted once")
 		require.Len(t, report.Units, 1)
 		unit := report.Units[0]
 		assert.Equal(t, "b1", unit.Unit)
-		assert.Equal(t, venue.RefusedSignOffWithdrawal, unit.Reason)
+		assert.Equal(t, venue.RefusedEstablishedWithdrawal, unit.Reason)
 		require.NotNil(t, unit.Held, "the record the venue kept travels back for the producer to hold")
-		assert.Equal(t, venue.ReviewStateSignedOff, unit.Held.ReviewState)
+		assert.Equal(t, venue.ReviewStateApproved, unit.Held.ReviewState)
 		assert.Equal(t, "u-reviewer", unit.Held.DecidedBy)
 		assert.Equal(t, signedOff.TargetHash, unit.Held.TargetHash)
 	})
 
 	t.Run("with review permission the withdrawal lands and is audited", func(t *testing.T) {
-		deps, pid := venueHolding(t, model.TargetStatusSignedOff, signedOff, pushAuthority{review: map[string]bool{locale: true}})
+		deps, pid := venueHolding(t, model.TargetStatusEstablished, signedOff, pushAuthority{review: map[string]bool{locale: true}})
 		bus := &recordingBus{}
 		deps.EventBus = bus
 		require.NoError(t, withdrawal(pid, "u-reviewer-2").run(t, deps, "job-withdraw-ok"))
@@ -450,11 +450,11 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 		assert.Equal(t, "u-reviewer-2", decided[0].Actor)
 		assert.Equal(t, "unreviewed", decided[0].Data["decision"])
 		assert.Equal(t, "push", decided[0].Data["via"])
-		assert.Equal(t, string(model.TargetStatusSignedOff), decided[0].Before["status"])
+		assert.Equal(t, string(model.TargetStatusEstablished), decided[0].Before["status"])
 		assert.Equal(t, string(model.TargetStatusTranslated), decided[0].After["status"])
 	})
 
-	t.Run("a rejection of a signed-off target is held to the same permission", func(t *testing.T) {
+	t.Run("a rejection of an established target is held to the same permission", func(t *testing.T) {
 		rejected := withdrawn
 		rejected.Status = string(model.TargetStatusDraft)
 		rejected.ReviewState = venue.ReviewStateRejected
@@ -463,11 +463,11 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 			permits map[string]bool
 			want    model.TargetStatus
 		}{
-			{"refused", map[string]bool{}, model.TargetStatusSignedOff},
+			{"refused", map[string]bool{}, model.TargetStatusEstablished},
 			{"accepted", map[string]bool{locale: true}, model.TargetStatusDraft},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
-				deps, pid := venueHolding(t, model.TargetStatusSignedOff, signedOff, pushAuthority{review: tc.permits})
+				deps, pid := venueHolding(t, model.TargetStatusEstablished, signedOff, pushAuthority{review: tc.permits})
 				push := governedPush{
 					projectID: pid, actor: "u-translator", item: item,
 					blocks:    []*model.Block{reviewedBlock("b1", source, locale, text, model.TargetStatusDraft)},
@@ -482,29 +482,14 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 					assert.True(t, jobGovernance(t, deps, "push-job-reject").Empty())
 					return
 				}
-				assert.Equal(t, venue.ReviewStateSignedOff, d.ReviewState)
+				assert.Equal(t, venue.ReviewStateApproved, d.ReviewState)
 				assert.Len(t, jobGovernance(t, deps, "push-job-reject").Refusals, 1)
 			})
 		}
 	})
 
-	t.Run("a reviewed target is lowered either way", func(t *testing.T) {
-		approved := signedOff
-		approved.Status = string(model.TargetStatusReviewed)
-		approved.ReviewState = venue.ReviewStateApproved
-		deps, pid := venueHolding(t, model.TargetStatusReviewed, approved, pushAuthority{review: map[string]bool{}})
-		require.NoError(t, withdrawal(pid, "u-translator").run(t, deps, "job-unreview"))
-
-		assert.Equal(t, model.TargetStatusTranslated, storedTarget(t, deps, pid, item, locale),
-			"taking back an approval is ordinary translation work, as it is on the web")
-		d, ok := heldDecision(t, deps, pid, "b1", locale)
-		require.True(t, ok)
-		assert.Empty(t, d.ReviewState)
-		assert.True(t, jobGovernance(t, deps, "push-job-unreview").Empty())
-	})
-
 	t.Run("an edited translation is not a withdrawal and lands at translated", func(t *testing.T) {
-		deps, pid := venueHolding(t, model.TargetStatusSignedOff, signedOff, pushAuthority{review: map[string]bool{}})
+		deps, pid := venueHolding(t, model.TargetStatusEstablished, signedOff, pushAuthority{review: map[string]bool{}})
 		edited := withdrawn
 		edited.TargetHash = state.TargetHash("Salut")
 		push := governedPush{
@@ -529,16 +514,16 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 			permits map[string]bool
 			want    string
 		}{
-			{"without permission", map[string]bool{}, venue.ReviewStateSignedOff},
+			{"without permission", map[string]bool{}, venue.ReviewStateApproved},
 			{"with permission", map[string]bool{locale: true}, ""},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
-				deps, pid := venueHolding(t, model.TargetStatusSignedOff, signedOff, pushAuthority{review: tc.permits})
+				deps, pid := venueHolding(t, model.TargetStatusEstablished, signedOff, pushAuthority{review: tc.permits})
 				// The block as it was pulled, still at signed-off; only the
 				// record says otherwise.
 				push := governedPush{
 					projectID: pid, actor: "u-translator", item: item,
-					blocks:    []*model.Block{reviewedBlock("b1", source, locale, text, model.TargetStatusSignedOff)},
+					blocks:    []*model.Block{reviewedBlock("b1", source, locale, text, model.TargetStatusEstablished)},
 					decisions: []venue.UnitDecision{withdrawn},
 				}
 				require.NoError(t, push.run(t, deps, "job-basis"))
@@ -549,7 +534,7 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 					assert.True(t, jobGovernance(t, deps, "push-job-basis").Empty())
 					return
 				}
-				assert.Equal(t, model.TargetStatusSignedOff, storedTarget(t, deps, pid, item, locale))
+				assert.Equal(t, model.TargetStatusEstablished, storedTarget(t, deps, pid, item, locale))
 				report := jobGovernance(t, deps, "push-job-basis")
 				require.Len(t, report.Refusals, 1)
 				assert.Equal(t, venue.VerdictDemotion, report.Refusals[0].Kind)
@@ -560,15 +545,15 @@ func TestPushReviewGovernance_SignOffWithdrawal(t *testing.T) {
 	})
 
 	t.Run("a permission that cannot be resolved fails the push rather than deciding", func(t *testing.T) {
-		deps, pid := venueHolding(t, model.TargetStatusSignedOff, signedOff, pushAuthority{failWith: errors.New("auth store unreachable")})
+		deps, pid := venueHolding(t, model.TargetStatusEstablished, signedOff, pushAuthority{failWith: errors.New("auth store unreachable")})
 		require.Error(t, withdrawal(pid, "u-reviewer").run(t, deps, "job-unanswerable"))
-		assert.Equal(t, model.TargetStatusSignedOff, storedTarget(t, deps, pid, item, locale),
+		assert.Equal(t, model.TargetStatusEstablished, storedTarget(t, deps, pid, item, locale),
 			"the transition rolled back")
 
 		deps.ReviewAuthority = nil
 		require.Error(t, withdrawal(pid, "u-reviewer").run(t, deps, "job-nogate"),
 			"a deployment with no way to ask refuses a push that withdraws a sign-off")
-		assert.Equal(t, model.TargetStatusSignedOff, storedTarget(t, deps, pid, item, locale))
+		assert.Equal(t, model.TargetStatusEstablished, storedTarget(t, deps, pid, item, locale))
 	})
 }
 
@@ -624,8 +609,7 @@ func TestPushReviewGovernance_AuditsAcceptedRungs(t *testing.T) {
 		state    string
 		decision string
 	}{
-		{"approval", model.TargetStatusReviewed, venue.ReviewStateApproved, "approved"},
-		{"sign-off", model.TargetStatusSignedOff, venue.ReviewStateSignedOff, "signed-off"},
+		{"approval", model.TargetStatusEstablished, venue.ReviewStateApproved, "approved"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -689,7 +673,7 @@ func TestPushReviewGovernance_AuditsNoRefusedRung(t *testing.T) {
 
 	push := governedPush{
 		projectID: pid, actor: "u-author", item: item,
-		blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusReviewed)},
+		blocks: []*model.Block{reviewedBlock("b1", "Hello", locale, "Bonjour", model.TargetStatusEstablished)},
 	}
 	require.NoError(t, push.run(t, deps, "job-audit-refused"))
 

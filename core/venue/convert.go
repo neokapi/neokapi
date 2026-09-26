@@ -39,7 +39,7 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 		IsReferent:         b.IsReferent,
 	}
 
-	// Source authoring state (authored → checked → approved) rides as a reserved
+	// Source authoring state (written→established) rides as a reserved
 	// block property, symmetric with how a Target's status rides in its segment
 	// properties — keeping the round-trip lossless without a wire-shape change.
 	// Copy-on-write so we never mutate the caller's Properties map.
@@ -245,7 +245,7 @@ func runsToSegment(id string, runs []model.Run) *contentv1.SegmentMessage {
 }
 
 // propSourceStatus is the reserved block-property key carrying a Block's source
-// authoring state (authored → checked → approved) across the sync protocol — the
+// authoring state (written→established) across the sync protocol — the
 // block-level counterpart of the per-target __status segment property.
 const propSourceStatus = "__source_status"
 

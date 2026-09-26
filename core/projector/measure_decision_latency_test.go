@@ -46,7 +46,7 @@ func TestMeasureDecisionLatency(t *testing.T) {
 			for i := range each {
 				u := state.UnitState{
 					Unit: fmt.Sprintf("w%02d-%03d", w, i), Variant: model.Variant("nb"), Scope: "doc",
-					Status:      model.TargetStatusReviewed,
+					Status:      model.TargetStatusEstablished,
 					Decision:    state.Decision{ReviewState: "approved", By: "agent/claude"},
 					TargetHash:  state.TargetHash(fmt.Sprint(w, i)),
 					ContentHash: state.SourceHash(fmt.Sprint(i, w)),

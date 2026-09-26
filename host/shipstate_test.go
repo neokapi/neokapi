@@ -41,16 +41,16 @@ func shipLineFor(text, locale string) string {
 // it offers the locales it offered before.
 func TestBuildShipManifest_StatesEachLocale(t *testing.T) {
 	m := BuildShipManifest([]LocaleCoverage{
-		shipRow("fr", "app", true, ShipStateShippable),
+		shipRow("fr", "app", true, ShipStateTranslated),
 		shipRow("de", "app", true, ShipStateWithheld),
 		shipRow("nb", "app", false, ShipStateNotGated),
-		shipRow("sv", "app", true, ShipStateShippable),
+		shipRow("sv", "app", true, ShipStateTranslated),
 		shipRow("sv", "docs", false, ShipStateNotGated),
 		shipRow("ja", "app", false, ShipStateNotGated),
 		shipRow("ja", "docs", false, ShipStateWithheld),
 	})
 
-	assert.Equal(t, ShipEntry{Shippable: true, State: ShipStateShippable}, m["fr"], "gated and clears its gate")
+	assert.Equal(t, ShipEntry{Shippable: true, State: ShipStateTranslated}, m["fr"], "gated and clears its gate")
 	assert.Equal(t, ShipEntry{State: ShipStateWithheld}, m["de"], "gated and short of its gate")
 	assert.Equal(t, ShipEntry{Shippable: true, State: ShipStateNotGated}, m["nb"],
 		"no gate matched: offered, and marked not gated")
@@ -89,7 +89,7 @@ func TestConvergeText_NamesTheLanguagesNoGateMatches(t *testing.T) {
 	full := map[string]int{"draft": 100, "translated": 100}
 	text := convergeText(t, ConvergeOutput{Flow: "translate", Passes: 1, Converged: true,
 		Locales: []ConvergeLocaleResult{
-			{Locale: "fr", Shippable: true, Gated: true, ShipState: ShipStateShippable, Pct: full},
+			{Locale: "fr", Shippable: true, Gated: true, ShipState: ShipStateTranslated, Pct: full},
 			{Locale: "nb", Shippable: true, ShipState: ShipStateNotGated, Pct: full},
 		}})
 

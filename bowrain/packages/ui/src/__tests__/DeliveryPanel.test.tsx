@@ -15,7 +15,7 @@ function locale(overrides: Partial<LocaleTranslationStats>): LocaleTranslationSt
     percentage: 100,
     approved_blocks: 10,
     failing_checks: 0,
-    ship_state: "governed",
+    ship_state: "established",
     ...overrides,
   };
 }
@@ -35,14 +35,14 @@ describe("DeliveryPanel", () => {
             locale: "de-DE",
             display_name: "German (Germany)",
             approved_blocks: 2,
-            ship_state: "ai_shippable",
+            ship_state: "translated",
           }),
         ]}
         connectors={[]}
       />,
     );
-    expect(screen.getByTestId("ship-state-governed")).toBeInTheDocument();
-    expect(screen.getByTestId("ship-state-ai_shippable")).toBeInTheDocument();
+    expect(screen.getByTestId("ship-state-established")).toBeInTheDocument();
+    expect(screen.getByTestId("ship-state-translated")).toBeInTheDocument();
   });
 
   it("shows last sync time and never-synced per connector", () => {
@@ -89,7 +89,7 @@ describe("DeliveryPanel", () => {
     // A locale with unreviewed translations: link appears and navigates.
     rerender(
       <DeliveryPanel
-        localeStats={[locale({ approved_blocks: 4, ship_state: "ai_shippable" })]}
+        localeStats={[locale({ approved_blocks: 4, ship_state: "translated" })]}
         connectors={[]}
         onOpenReview={onOpenReview}
       />,

@@ -134,9 +134,8 @@ export function ProjectDashboardRoute() {
     if (loopRollup?.ship) {
       const rollup = loopRollup.ship;
       ship = {
-        governed: rollup.governed,
-        approved: rollup.approved ?? 0,
-        aiShippable: rollup.ai_shippable,
+        established: rollup.established,
+        translated: rollup.translated,
         pending: rollup.pending,
         countedProjects: rollup.counted_projects,
         totalProjects: rollup.total_projects,

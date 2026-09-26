@@ -9,7 +9,7 @@ import (
 )
 
 // Block access states control editing permissions. Review progress is separate
-// and stored per target locale: draft, translated, reviewed or signed-off.
+// and stored per target locale: draft, translated, established.
 const (
 	// BlockAccessOpen: normal permissions apply.
 	BlockAccessOpen = "open"

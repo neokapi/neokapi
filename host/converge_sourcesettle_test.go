@@ -103,7 +103,7 @@ func TestConverge_SourceSettleFailure_FailsNamingTheSourceStage(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root bypasses file modes")
 	}
-	a, cmd, recipe, dir := newSourceSettleProject(t, string(model.SourceGateChecked))
+	a, cmd, recipe, dir := newSourceSettleProject(t, string(model.SourceGateWritten))
 	src := filepath.Join(dir, "src", "en.json")
 	require.NoError(t, os.Chmod(src, 0o000))
 	t.Cleanup(func() { _ = os.Chmod(src, 0o644) })
@@ -112,7 +112,7 @@ func TestConverge_SourceSettleFailure_FailsNamingTheSourceStage(t *testing.T) {
 	require.Error(t, err, "a source the gate cannot read must fail the run")
 	assert.Contains(t, err.Error(), "settle source",
 		"the failure is attributed to the source settle, not to a coverage internal")
-	assert.Contains(t, err.Error(), string(model.SourceGateChecked),
+	assert.Contains(t, err.Error(), string(model.SourceGateWritten),
 		"and names the gate it was evaluating")
 	assert.False(t, out.Converged, "a run that failed never reports convergence")
 	assert.NotEqual(t, convergence.StallSourceNotReady, out.StallReason)
@@ -126,7 +126,7 @@ func TestConverge_SourceSettleFailure_FailsNamingTheSourceStage(t *testing.T) {
 // source and a gate the settlement can satisfy, the same fixture converges and
 // writes its target — so the strictness above rejects only real faults.
 func TestConverge_SourceSettleClean_StillConverges(t *testing.T) {
-	a, cmd, recipe, dir := newSourceSettleProject(t, string(model.SourceGateChecked))
+	a, cmd, recipe, dir := newSourceSettleProject(t, string(model.SourceGateWritten))
 	out, err := runSourceSettleConverge(t, a, cmd, recipe)
 	require.NoError(t, err)
 	assert.True(t, out.Converged, "a clean source settles and the run converges")

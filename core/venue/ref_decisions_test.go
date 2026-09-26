@@ -18,7 +18,7 @@ import (
 // rung, a parked unit, an assignee and a note are each something a person or an
 // agent decided, and each moves it.
 func TestDecisionsComponentCountsDecisionsNotProduction(t *testing.T) {
-	decided := []UnitDecision{decision("u1", "nb", "reviewed")}
+	decided := []UnitDecision{decision("u1", "nb", "established")}
 	component := DecisionsComponent(decided)
 	require.NotEmpty(t, component)
 
@@ -35,7 +35,7 @@ func TestDecisionsComponentCountsDecisionsNotProduction(t *testing.T) {
 		"a parked unit":   {ItemName: "docs/intro.md", Unit: "u6", Variant: "nb", Parked: true},
 		"an assignee":     {ItemName: "docs/intro.md", Unit: "u7", Variant: "nb", Assignee: "ben"},
 		"a note":          {ItemName: "docs/intro.md", Unit: "u8", Variant: "nb", Note: "check the term"},
-		"a reviewed rung": {ItemName: "docs/intro.md", Unit: "u9", Variant: "nb", Status: "reviewed"},
+		"a reviewed rung": {ItemName: "docs/intro.md", Unit: "u9", Variant: "nb", Status: "established"},
 	}
 	for name, rec := range decisions {
 		t.Run(name, func(t *testing.T) {

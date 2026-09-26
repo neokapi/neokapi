@@ -187,7 +187,7 @@ func TestTermAwareShipPredicateUnification(t *testing.T) {
 		return frStatus(t, s, projID, missID) == model.TargetStatusDraft
 	}, 20*time.Second, 50*time.Millisecond, "RV-E demotes the missing-mandated target")
 
-	assert.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, okID),
+	assert.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, okID),
 		"RV-E leaves the clean target alone — the same block ship/compliant/bulk kept")
 }
 
@@ -212,11 +212,11 @@ func TestApprovePassingExcludesTermViolations(t *testing.T) {
 	assert.Equal(t, 2, resp.Skipped, "both term-violating drafts are excluded")
 	assert.Equal(t, 2, resp.RemainingPending, "the two excluded drafts stay pending")
 
-	assert.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Close the app"]),
+	assert.Equal(t, model.TargetStatusEstablished, frStatus(t, s, projID, ids["Close the app"]),
 		"the clean draft is promoted to reviewed")
-	assert.Less(t, frStatus(t, s, projID, ids["Use the app"]).Rank(), model.TargetStatusReviewed.Rank(),
+	assert.Less(t, frStatus(t, s, projID, ids["Use the app"]).Rank(), model.TargetStatusEstablished.Rank(),
 		"the forbidden-term draft stays below reviewed")
-	assert.Less(t, frStatus(t, s, projID, ids["Open the app"]).Rank(), model.TargetStatusReviewed.Rank(),
+	assert.Less(t, frStatus(t, s, projID, ids["Open the app"]).Rank(), model.TargetStatusEstablished.Rank(),
 		"the missing-mandated draft stays below reviewed")
 }
 
@@ -253,7 +253,7 @@ func TestResolveTermGateNoTerms_NotGoverned(t *testing.T) {
 	require.NoError(t, applyShipStates(ctx, s.ContentStore, s.VoiceStore, projID, "main", nil, withoutGate))
 
 	fr := localeByCode(t, withGate.LocaleStats, "fr")
-	assert.Equal(t, platstore.ShipStateApproved, fr.ShipState, "a clean approved locale nothing governs is approved, not governed")
+	assert.Equal(t, platstore.ShipStateEstablished, fr.ShipState, "a clean approved locale nothing governs is approved, not governed")
 	assert.Equal(t, 0, fr.FailingChecks)
 	assertNotGoverned(t, fr, 1, platstore.ComplianceBasisChecks)
 	assert.Equal(t, localeByCode(t, withoutGate.LocaleStats, "fr"), fr, "gate vs nil-gate derive identically")

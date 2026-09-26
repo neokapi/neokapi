@@ -8,7 +8,7 @@ import { Create as $Create } from "@wailsio/runtime";
 
 /**
  * Gate is a set of coverage thresholds: state name → threshold (minimum percent
- * in [0,100], optional approver class). A threshold of 0 means "not required".
+ * in [0,100]). A threshold of 0 means "not required".
  * An empty Gate is satisfied by anything.
  * @typedef {{ [_ in string]?: Threshold }} Gate
  */
@@ -93,16 +93,6 @@ export class Shortfall {
              */
             this["actual"] = 0;
         }
-        if (/** @type {any} */(false)) {
-            /**
-             * By is the threshold's approver class when explicitly set ("human" or
-             * "any"), so a report can say which class fell short. Empty for the
-             * default (human) class.
-             * @member
-             * @type {string | undefined}
-             */
-            this["by"] = undefined;
-        }
 
         Object.assign(this, $$source);
     }
@@ -120,8 +110,7 @@ export class Shortfall {
 
 /**
  * Threshold is one gate requirement: the minimum percent of units at (or above)
- * a rung, plus the approver class the rung must be reached by. The zero By
- * means the default class: human for decision rungs (see the package doc).
+ * a rung.
  * @typedef {any} Threshold
  */
 

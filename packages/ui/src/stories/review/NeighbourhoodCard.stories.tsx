@@ -9,7 +9,7 @@ const around: ReviewNeighbourhood = {
       key: "welcome",
       source: [{ text: "Welcome back." }],
       target: [{ text: "Bon retour." }],
-      status: "reviewed",
+      status: "established",
     },
   ],
   after: [

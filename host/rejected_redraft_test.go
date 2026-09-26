@@ -92,7 +92,7 @@ func TestCoverage_RejectedUnitOwesADraft(t *testing.T) {
 	assert.Zero(t, rows[0].StaleAwaitingDraft)
 	assert.Zero(t, rows[0].StaleAwaitingReview)
 	assert.False(t, rows[0].Shippable, "an ungated scope has nothing else to catch it")
-	assert.False(t, rows[0].Verified)
+	assert.NotEqual(t, ShipStateEstablished, rows[0].ShipState)
 	assert.Equal(t, 100, rows[0].Pct["draft"], "the unit holds a target, so it is at the draft rung")
 
 	f.redraft(t, "Salut")

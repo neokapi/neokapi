@@ -20,7 +20,7 @@ backend can be supplied behind the same interface.
 
 The content memory is the project's **recycle** corpus: a pool of source→target
 pairs reused to pre-fill and leverage future work. It is not the carrier of unit
-state. Whether a person reviewed or signed off a particular target lives in the
+state. Whether a person established a particular target lives in the
 unit-state record ([C-04](c-04-unit-state-and-decisions.md)). Adding a pair to
 the memory (`kapi apply` with `kind:"memory"`) is recycle leverage; it does not
 promote a unit to *reviewed*.

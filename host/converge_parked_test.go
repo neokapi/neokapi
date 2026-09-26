@@ -58,8 +58,8 @@ func TestConverge_ParkedLocaleReachesNoDisk(t *testing.T) {
 	// A reviewed bar an unattended run cannot reach: nothing in this run
 	// records a human decision, so nb stays parked however well it drafts.
 	a, cmd, recipe, dir := parkedProject(t, gate.Gate{
-		"translated": {Pct: 100},
-		"reviewed":   {Pct: 50},
+		"translated":  {Pct: 100},
+		"established": {Pct: 50},
 	})
 
 	out := converge(t, a, cmd, recipe)
@@ -102,8 +102,8 @@ func TestConverge_ShippableLocaleIsDelivered(t *testing.T) {
 // decision from making `on-converge` mean what it says.
 func TestConverge_ParkedLocaleUnderManualPolicyKeepsWriting(t *testing.T) {
 	a, cmd, recipe, dir := parkedProject(t, gate.Gate{
-		"translated": {Pct: 100},
-		"reviewed":   {Pct: 50},
+		"translated":  {Pct: 100},
+		"established": {Pct: 50},
 	})
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -129,8 +129,8 @@ func TestConverge_ParkedLocaleUnderManualPolicyKeepsWriting(t *testing.T) {
 // `reviewed` bar, from `up` and from `status` alike.
 func TestConverge_ParkedLocaleReadsTheSameToUpAndStatus(t *testing.T) {
 	a, cmd, recipe, dir := parkedProject(t, gate.Gate{
-		"translated": {Pct: 100},
-		"reviewed":   {Pct: 50},
+		"translated":  {Pct: 100},
+		"established": {Pct: 50},
 	})
 
 	out := converge(t, a, cmd, recipe)
@@ -141,7 +141,7 @@ func TestConverge_ParkedLocaleReadsTheSameToUpAndStatus(t *testing.T) {
 	require.True(t, os.IsNotExist(err), "and nothing was delivered")
 	assert.Equal(t, 100, out.Locales[0].Pct["translated"],
 		"the store holds a translation for every unit the pass drafted")
-	assert.Zero(t, out.Locales[0].Pct["reviewed"], "nobody reviewed them")
+	assert.Zero(t, out.Locales[0].Pct["established"], "nobody reviewed them")
 
 	// The same derivation `kapi status` runs, over the same tree, reaches the
 	// same figure, which is the whole property.
@@ -162,8 +162,8 @@ func TestConverge_ParkedLocaleReadsTheSameToUpAndStatus(t *testing.T) {
 // `--materialize` or `kapi merge` is — puts it on disk.
 func TestConverge_ParkedDraftSurvivesInTheStore(t *testing.T) {
 	a, cmd, recipe, dir := parkedProject(t, gate.Gate{
-		"translated": {Pct: 100},
-		"reviewed":   {Pct: 50},
+		"translated":  {Pct: 100},
+		"established": {Pct: 50},
 	})
 
 	out := converge(t, a, cmd, recipe)

@@ -88,8 +88,8 @@ collections:
     target: "{lang}.json"
 ship_gates:
   - when: { locales: [ja] }
-    gate: { translated: 100, reviewed: 0 }
-  - gate: { translated: 100, reviewed: 80 }
+    gate: { translated: 100, established: 0 }
+  - gate: { translated: 100, established: 80 }
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
@@ -146,7 +146,7 @@ defaults:
 collections:
   - path: en.json
     target: "{lang}.json"
-ship_gate: { translated: 100, reviewed: 50 }
+ship_gate: { translated: 100, established: 50 }
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
@@ -169,7 +169,7 @@ func writeReviewedCorrection(t *testing.T, root, srcText, _ string) {
 	require.NoError(t, err)
 	for _, it := range rep.Review {
 		if it.Source == srcText {
-			ok, err := a.ApproveReviewUnit(context.Background(), proj, "en", it.Locale, it.File, it.Key, "reviewed")
+			ok, err := a.ApproveReviewUnit(context.Background(), proj, "en", it.Locale, it.File, it.Key)
 			require.NoError(t, err)
 			require.True(t, ok)
 			return

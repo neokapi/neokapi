@@ -4,7 +4,7 @@
 #
 # The review→approve half of the kapi loop. A flow takes each unit as far
 # as a machine can (to *translated*); a person takes the ones that matter to
-# *reviewed*. That decision is the one thing the caches can't rebuild, so it lands
+# *established*. That decision is the one thing the caches can't rebuild, so it lands
 # in the committed decision record (.kapi/state/), bound to the
 # translation's content hash. The funnel is:
 #
@@ -49,12 +49,12 @@ files:
       }
   - path: review.jsonl
     content: |
-      {"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"reviewed"}
+      {"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"established"}
 
 steps:
-  - comment: The project is translated — a machine took every unit to *translated*. Now a person takes the ones that matter to *reviewed*.
+  - comment: The project is translated — a machine took every unit to *translated*. Now a person takes the ones that matter to *established*.
   - command: kapi status
-    narration: status derives coverage from the content and recorded decisions. French is 100% translated and 0% reviewed, so human review remains pending.
+    narration: status derives coverage from the content and recorded decisions. French is 100% translated and 0% established, so human review remains pending.
     # smoke:false — needs the multi-file project seeded; the wasm review loop is
     # covered by scripts/verify-snippets/review-smoke.ts, which seeds a project.
     smoke: false

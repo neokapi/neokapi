@@ -260,7 +260,7 @@ describe("parseAppError", () => {
         '{"error":"insufficient permissions"}',
         '{"error":"no review permission for fr"}',
         '{"error":"no access to language: fr"}',
-        '{"error":"demoting a signed-off target requires review permission"}',
+        '{"error":"demoting an established target requires review permission"}',
       ]) {
         const parsed = parseAppError(new Error(`403: ${body}`));
         expect(parsed.title, body).toBe("You don't have permission to do that");

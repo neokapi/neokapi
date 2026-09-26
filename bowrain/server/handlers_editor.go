@@ -485,10 +485,10 @@ func (s *Server) HandleGetBlock(c echo.Context) error {
 // BlockStatusCountsResponse is the per-locale status histogram, keyed as the
 // editor names its buckets.
 type BlockStatusCountsResponse struct {
-	NotStarted int `json:"not-started"`
-	Draft      int `json:"draft"`
-	Translated int `json:"translated"`
-	Reviewed   int `json:"reviewed"`
+	NotStarted  int `json:"not-started"`
+	Draft       int `json:"draft"`
+	Translated  int `json:"translated"`
+	Established int `json:"established"`
 }
 
 // BlockCountsResponse summarizes a block query. Status partitions
@@ -525,10 +525,10 @@ func (s *Server) HandleGetBlockCounts(c echo.Context) error {
 		Translatable: counts.Translatable,
 		Locale:       query.TargetLocale,
 		Status: BlockStatusCountsResponse{
-			NotStarted: counts.NotStarted,
-			Draft:      counts.Draft,
-			Translated: counts.Translated,
-			Reviewed:   counts.Reviewed,
+			NotStarted:  counts.NotStarted,
+			Draft:       counts.Draft,
+			Translated:  counts.Translated,
+			Established: counts.Established,
 		},
 	})
 }

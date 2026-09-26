@@ -119,7 +119,7 @@ The result is recorded so it is **auditable**:
 - The block target is filled only when **every** sentence matched and the
   segments are contiguous; when it is, the committed target carries
   provenance (`Origin{Kind: "memory", Tool: "recycle"}`), the roll-up `Score`,
-  and `draft` status: a reviewable pre-fill rather than a signed-off translation.
+  and `draft` status: a reviewable pre-fill rather than an established translation.
 
 Run [segmentation](/framework/segmentation) before `recycle` to enable this.
 

@@ -47,7 +47,7 @@ function makeBlock(id: string, source: string, frTarget: TargetEntry): BlockInfo
 const testBlocks: BlockInfo[] = [
   makeBlock("b1", "Hello world", "Bonjour le monde"),
   makeBlock("b2", "Goodbye now", "Au revoir"),
-  makeBlock("b3", "Open settings", { text: "Ouvrir les réglages", status: "reviewed" }),
+  makeBlock("b3", "Open settings", { text: "Ouvrir les réglages", status: "established" }),
 ];
 
 function renderSurface(
@@ -90,7 +90,7 @@ describe("ReviewSurface — the reading pane is the document", () => {
     // The pane reads the target locale — review is reading the translation.
     expect(screen.getByTestId("review-document").textContent).toContain("Bonjour le monde");
     expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "translated");
-    expect(screen.getByTestId("review-block-b3")).toHaveAttribute("data-status", "reviewed");
+    expect(screen.getByTestId("review-block-b3")).toHaveAttribute("data-status", "established");
     // No source/target grid: the source is a reading of the same document.
     expect(screen.queryByTestId("review-row-b1")).not.toBeInTheDocument();
   });
@@ -136,7 +136,7 @@ describe("ReviewSurface — the reading pane is the document", () => {
         total: 40,
         translatable: 36,
         locale: "fr-FR",
-        status: { "not-started": 20, draft: 5, translated: 4, reviewed: 7 },
+        status: { "not-started": 20, draft: 5, translated: 4, established: 7 },
       });
     });
     await waitForDocument();
@@ -166,9 +166,9 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
       targetLocale: "fr-FR",
       reviewed: true,
     });
-    expect(screen.getByTestId("review-status-b1").textContent).toBe("Reviewed");
+    expect(screen.getByTestId("review-status-b1").textContent).toBe("Established");
     // The document's margin states the same thing.
-    expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "reviewed");
+    expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "established");
   });
 
   it("reject calls reviewBlock with reviewed=false + draft and demotes the block", async () => {
@@ -178,7 +178,7 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
     // b3 starts reviewed (per-locale Target.Status in the payload).
     await openBlock(user, "b3");
 
-    expect(screen.getByTestId("review-status-b3").textContent).toBe("Reviewed");
+    expect(screen.getByTestId("review-status-b3").textContent).toBe("Established");
     await user.click(screen.getByTestId("reject-b3"));
 
     await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
@@ -192,27 +192,6 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
       rung: "draft",
     });
     expect(screen.getByTestId("review-status-b3").textContent).toBe("Draft");
-  });
-
-  it("sign off calls reviewBlock with the signed-off rung and shows the rung", async () => {
-    const user = userEvent.setup();
-    const { adapter } = renderSurface();
-    await waitForDocument();
-    await openBlock(user, "b1");
-
-    await user.click(screen.getByTestId("sign-off-b1"));
-
-    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
-    expect(adapter.reviewBlockCalls[0]).toMatchObject({
-      blockId: "b1",
-      targetLocale: "fr-FR",
-      reviewed: true,
-      rung: "signed-off",
-    });
-    // The chip reads the ladder rung; the document margin reads the coarser
-    // bucket, which files signed-off under reviewed.
-    expect(screen.getByTestId("review-status-b1").textContent).toBe("Signed off");
-    expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "reviewed");
   });
 
   it("disables both decisions for an untranslated block", async () => {
@@ -243,16 +222,7 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
 
     await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
     expect(adapter.reviewBlockCalls[0]).toMatchObject({ blockId: "b1", reviewed: true });
-    expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "reviewed");
-
-    // S signs the same block off, one rung up.
-    await user.keyboard("s");
-    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(2));
-    expect(adapter.reviewBlockCalls[1]).toMatchObject({
-      blockId: "b1",
-      reviewed: true,
-      rung: "signed-off",
-    });
+    expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "established");
   });
 
   it("rolls back the optimistic update and surfaces an error when the call fails", async () => {
@@ -266,7 +236,7 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
 
     // The call was attempted, the failure surfaced, and the chip reverted.
     await waitFor(() =>
-      expect(screen.getByText("Couldn't mark the block as reviewed")).toBeInTheDocument(),
+      expect(screen.getByText("Couldn't mark the block as established")).toBeInTheDocument(),
     );
     expect(adapter.reviewBlockCalls).toHaveLength(1);
     expect(screen.getByTestId("review-status-b1").textContent).toBe("Translated");
@@ -302,8 +272,8 @@ describe("ReviewSurface — bulk actions are one request", () => {
     await waitFor(() =>
       expect(screen.getByText("Marked 2 block(s) as reviewed")).toBeInTheDocument(),
     );
-    expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "reviewed");
-    expect(screen.getByTestId("review-block-b2")).toHaveAttribute("data-status", "reviewed");
+    expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "established");
+    expect(screen.getByTestId("review-block-b2")).toHaveAttribute("data-status", "established");
   });
 
   it("holds the single decisions while the batch is in flight", async () => {
@@ -370,7 +340,7 @@ describe("ReviewSurface — bulk actions are one request", () => {
     vi.spyOn(adapter, "bulkReviewBlocks").mockResolvedValue({
       results: [
         { block_id: "b1", ok: false, error: "block is protected" },
-        { block_id: "b2", ok: true, status: "reviewed" },
+        { block_id: "b2", ok: true, status: "established" },
       ],
       succeeded: 1,
       failed: 1,
@@ -386,7 +356,7 @@ describe("ReviewSurface — bulk actions are one request", () => {
     expect(screen.getByText("Couldn't mark 1 block(s) as reviewed")).toBeInTheDocument();
     // The refused block kept its status; the approved one moved.
     expect(screen.getByTestId("review-block-b1")).toHaveAttribute("data-status", "translated");
-    expect(screen.getByTestId("review-block-b2")).toHaveAttribute("data-status", "reviewed");
+    expect(screen.getByTestId("review-block-b2")).toHaveAttribute("data-status", "established");
   });
 
   it("asks the pass what it would write before writing it", async () => {
@@ -551,13 +521,13 @@ describe("ReviewSurface — the filter and the histogram are server queries", ()
     const list = vi.spyOn(adapter, "getFileBlocks");
     await waitForDocument();
 
-    await user.click(screen.getByTestId("filter-reviewed"));
+    await user.click(screen.getByTestId("filter-established"));
 
     await waitFor(() =>
       expect(list.mock.calls.at(-1)?.[4]).toMatchObject({
         locale: "fr-FR",
         translatable: true,
-        status: "reviewed",
+        status: "established",
       }),
     );
     // b3 is the only reviewed block, so it is the only one the server returns.
@@ -573,7 +543,7 @@ describe("ReviewSurface — the filter and the histogram are server queries", ()
         total: 40,
         translatable: 36,
         locale: "fr-FR",
-        status: { "not-started": 20, draft: 5, translated: 4, reviewed: 7 },
+        status: { "not-started": 20, draft: 5, translated: 4, established: 7 },
       });
     });
     await waitForDocument();
@@ -581,7 +551,7 @@ describe("ReviewSurface — the filter and the histogram are server queries", ()
     await waitFor(() => expect(counts).toHaveBeenCalled());
     expect(counts.mock.calls[0].slice(1, 4)).toEqual([sampleProject.id, "messages.json", "fr-FR"]);
     expect(screen.getByTestId("filter-all").textContent).toContain("(36)");
-    expect(screen.getByTestId("filter-reviewed").textContent).toContain("(7)");
+    expect(screen.getByTestId("filter-established").textContent).toContain("(7)");
     expect(screen.getByTestId("filter-translated").textContent).toContain("(4)");
     expect(screen.getByTestId("filter-not-started").textContent).toContain("(20)");
   });

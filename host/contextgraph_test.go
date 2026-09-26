@@ -419,7 +419,7 @@ func TestMaterializeContextGraphWritesBlessings(t *testing.T) {
 		Unit:       "guide.intro",
 		Scope:      "docs/guide.md",
 		Variant:    model.Variant("nb"),
-		Status:     model.TargetStatusReviewed,
+		Status:     model.TargetStatusEstablished,
 		TargetHash: "th-1",
 		Decision:   state.Decision{ReviewState: "approved"},
 	}))

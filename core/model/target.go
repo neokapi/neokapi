@@ -73,15 +73,16 @@ func (k *VariantKey) UnmarshalText(b []byte) error {
 	return nil
 }
 
-// TargetStatus is the lifecycle state of a committed translation.
+// TargetStatus is the lifecycle state of a committed translation: draft, then
+// translated (it exists and passes its checks), then established once a person
+// reviewed or edited it. An agent's decision never establishes a unit.
 type TargetStatus string
 
 const (
-	TargetStatusNew        TargetStatus = ""
-	TargetStatusDraft      TargetStatus = "draft"
-	TargetStatusTranslated TargetStatus = "translated"
-	TargetStatusReviewed   TargetStatus = "reviewed"
-	TargetStatusSignedOff  TargetStatus = "signed-off"
+	TargetStatusNew         TargetStatus = ""
+	TargetStatusDraft       TargetStatus = "draft"
+	TargetStatusTranslated  TargetStatus = "translated"
+	TargetStatusEstablished TargetStatus = "established"
 )
 
 // TargetStatusLadder is the lifecycle order, lowest to highest. Membership and
@@ -91,8 +92,7 @@ func TargetStatusLadder() []TargetStatus {
 	return []TargetStatus{
 		TargetStatusDraft,
 		TargetStatusTranslated,
-		TargetStatusReviewed,
-		TargetStatusSignedOff,
+		TargetStatusEstablished,
 	}
 }
 

@@ -187,7 +187,7 @@ const STATUS_PHRASES: Record<number, Phrase> = {
 export const PERMISSION_REFUSALS: readonly string[] = [
   "insufficient permissions",
   "insufficient project permissions",
-  "demoting a signed-off target requires review permission",
+  "demoting an established target requires review permission",
   "no access to language: ",
   "no review permission for ",
 ];

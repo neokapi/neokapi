@@ -13,12 +13,12 @@ func TestResolveSourceGate(t *testing.T) {
 		want  model.SourceGateLevel
 		known bool
 	}{
-		{"", model.SourceGateChecked, true},          // unset → default
-		{"checked", model.SourceGateChecked, true},   // explicit default
-		{"approved", model.SourceGateApproved, true}, // human sign-off
-		{"authored", model.SourceGateAuthored, true}, // presence baseline
-		{"none", model.SourceGateNone, true},         // opt-out
-		{"bogus", model.SourceGateChecked, false},    // typo → default, flagged
+		{"", model.SourceGateWritten, true},
+		{"written", model.SourceGateWritten, true},
+		{"established", model.SourceGateEstablished, true},
+		{"none", model.SourceGateNone, true},
+		{"checked", model.SourceGateWritten, false},
+		{"bogus", model.SourceGateWritten, false},
 	}
 	for _, c := range cases {
 		got, known := model.ResolveSourceGate(c.raw)
@@ -28,31 +28,33 @@ func TestResolveSourceGate(t *testing.T) {
 }
 
 func TestSourceGateAdmits(t *testing.T) {
-	// checked gate: authored/new is held; checked/approved clears.
-	checked := model.SourceGateChecked
-	assert.False(t, checked.Admits(model.SourceStatusNew), "new source is below checked")
-	assert.False(t, checked.Admits(model.SourceStatusAuthored), "authored is below checked")
-	assert.True(t, checked.Admits(model.SourceStatusChecked), "checked clears checked")
-	assert.True(t, checked.Admits(model.SourceStatusApproved), "approved clears checked")
+	written := model.SourceGateWritten
+	assert.False(t, written.Admits(model.SourceStatusNew, false), "a source nothing has settled is held")
+	assert.True(t, written.Admits(model.SourceStatusWritten, false))
+	assert.False(t, written.Admits(model.SourceStatusWritten, true), "a failing source is held")
+	assert.False(t, written.Admits(model.SourceStatusEstablished, true), "a failing source is held even when established")
 
-	// approved gate: only a human sign-off clears.
-	approved := model.SourceGateApproved
-	assert.False(t, approved.Admits(model.SourceStatusChecked), "checked is below approved")
-	assert.True(t, approved.Admits(model.SourceStatusApproved), "approved clears approved")
+	established := model.SourceGateEstablished
+	assert.False(t, established.Admits(model.SourceStatusWritten, false), "written waits for a person")
+	assert.True(t, established.Admits(model.SourceStatusEstablished, false))
+	assert.False(t, established.Admits(model.SourceStatusEstablished, true))
 
-	// authored gate: any present source clears (new folds to authored).
-	authored := model.SourceGateAuthored
-	assert.True(t, authored.Admits(model.SourceStatusNew), "new folds to authored baseline")
-	assert.True(t, authored.Admits(model.SourceStatusAuthored))
-
-	// none gate: everything clears — the opt-out.
 	none := model.SourceGateNone
-	assert.True(t, none.Admits(model.SourceStatusNew), "none admits everything")
-	assert.Equal(t, -1, none.RequiredRank(), "none has no required rank")
+	assert.True(t, none.Admits(model.SourceStatusNew, true), "none admits everything")
+}
+
+func TestSourceGateAdmitsBlock(t *testing.T) {
+	b := model.NewBlock("b", "Hello")
+	b.SourceStatus = model.SourceStatusWritten
+	assert.True(t, model.SourceGateWritten.AdmitsBlock(b))
+	b.SetSourceFailing(true)
+	assert.False(t, model.SourceGateWritten.AdmitsBlock(b))
+	b.SetSourceFailing(false)
+	assert.NotContains(t, b.Properties, model.PropSourceFailing)
 }
 
 func TestSourceStatusEffectiveRank(t *testing.T) {
-	assert.Equal(t, model.SourceStatusAuthored.Rank(), model.SourceStatusNew.EffectiveRank(),
-		"new folds to the authored baseline")
-	assert.Equal(t, model.SourceStatusChecked.Rank(), model.SourceStatusChecked.EffectiveRank())
+	assert.Equal(t, model.SourceStatusWritten.Rank(), model.SourceStatusNew.EffectiveRank(),
+		"new folds to the written baseline")
+	assert.Equal(t, model.SourceStatusWritten.Rank(), model.SourceStatusWritten.EffectiveRank())
 }

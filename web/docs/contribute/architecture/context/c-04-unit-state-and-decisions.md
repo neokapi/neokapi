@@ -2,7 +2,7 @@
 id: c-04-unit-state-and-decisions
 sidebar_position: 4
 title: "C-04: Unit state and the decision record"
-description: "Architecture decision: a project's authored unit state (the review ladder, approvals, sign-off, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies when its source and target hashes match the content, so one ledger serves every checkout of a project; the .kapi/state/ shards are what a snapshot writes and an import reads."
+description: "Architecture decision: a project's authored unit state (the review ladder, approvals, parking) lives in an append-only, content-addressed decision ledger in core/state. An entry applies when its source and target hashes match the content, so one ledger serves every checkout of a project; the .kapi/state/ shards are what a snapshot writes and an import reads."
 keywords: [project state, decision ledger, core/state, review, approval, convergence, append-only, content-addressed, commit, targetHash, architecture decision, neokapi]
 ---
 
@@ -18,8 +18,7 @@ project's **work**, and that work is itself two kinds of thing:
   ladder reachable from content. Rebuildable; it lives in the cache under
   `.kapi/work/cache/` and is ignored. Delete it and a re-run reconstructs
   identical results.
-- **Authored unit state**: a person approving a translation, signing it off,
-  parking a unit, or recording who reviewed what. This is *not* derivable from
+- **Authored unit state**: a person approving a translation, parking a unit, or recording who reviewed what. This is *not* derivable from
   anything; it must be **kept**.
 
 Authored state needs a carrier a plain target file cannot provide: such a file
@@ -35,12 +34,14 @@ review queue derived from it) is [Convergence](/kapi/convergence) and
 ## Context
 
 The convergence model derives a project's per-locale standing: per `(unit,
-locale)`, a monotone ladder (`draft → translated → reviewed → signed-off`) and a
-symmetric source ladder (`authored → checked → approved`). The lower rungs are
-derivable from content: an absent target is below the ladder, a present
-non-empty target is at least *translated*. The **higher** rungs are not: whether
-a person reviewed *this exact translation* is something someone did, and it has
-to be stored somewhere.
+locale)`, a monotone ladder (`draft → translated → established`) and a source
+ladder (`written → established`). The lower rungs are derivable from content:
+an absent target is below the ladder, a present non-empty target is at least
+*translated*, and present source is *written*. The top rung is not: whether a
+person reviewed *this exact translation* and let it stand is something someone
+did, and it has to be stored somewhere. There is one such rung. A hosted
+workspace that wants two reviewers expresses that as a policy on how many
+person signals establish a unit, never as a second rung.
 
 The source ladder is not merely reported: it gates the loop symmetrically with
 the target ladder. Just as a target below its ship gate cannot ship, source below
@@ -54,7 +55,7 @@ The model already expresses these facts (`model.TargetStatus`,
 independent of the deliverable format. The danger is overloading an existing
 store, in particular the content memory, which is content-keyed leverage, not
 project state. Conflating *have we ever translated this string?* (recycle,
-content-keyed) with *is this unit signed off, by whom?* (state, unit-keyed) is a
+content-keyed) with *is this unit established, by whom?* (state, unit-keyed) is a
 category error: the two have different keys and different lifecycles.
 
 ## Decision
@@ -67,7 +68,7 @@ two are separated:
 | Kind | Examples | Home | Authoritative? |
 | --- | --- | --- | --- |
 | Derived | parsed blocks, coverage, rungs reachable from content | `.kapi/work/cache/`, and the checkout's projection at `.kapi/work/store.db` | no: rebuildable, ignored |
-| Authored unit state | approvals, sign-off, parking, reviewer, notes | the decision ledger (`core/state`) in the project's context store | yes |
+| Authored unit state | approvals, parking, reviewer, notes | the decision ledger (`core/state`) in the project's context store | yes |
 
 The cache may *mirror* authored state in transit, but it never *owns* it. A
 decision is durable in the ledger the moment it is recorded, and every checkout
@@ -224,7 +225,7 @@ definition every party uses:
   identity on, so a unit's basis and its identity signal are one number).
 
 A record is **stale** when either half no longer matches what the project holds.
-Editing an approved translation drops the unit back below *reviewed*; rewriting
+Editing an approved translation drops the unit back below *established*; rewriting
 its source does the same. Binding only the target is the half-measure that lets a
 reviewer's blessing outlive the sentence it blessed: the translation stays
 `translated`, stays approved, and ships wording for text the project no longer
@@ -426,7 +427,7 @@ them share (`core/profile.GovernanceContext`), so a decision and a produced
 target are comparable against the same context.
 
 Two writers set it. A **decision** (`kapi apply`, the desktop's approve action,
-an agent's review call, an approval or a sign-off made in a connected venue)
+an agent's pre-review, an approval made in a connected venue)
 resolves the context in force where the decider is deciding and records it
 beside the verdict. Each decider resolves it from what it has: a project reads
 the recipe's bindings at the unit's point, a venue reads the voice profile its
@@ -462,16 +463,14 @@ written before the field existed reads through the producer's stamp on its
 
 ### Who decided
 
-A `Decision` records the authored outcome and who reached it. Two distinctions in
-the identity string matter:
-
-- An identity prefixed `ai/` (`state.AIIdentityPrefix`) marks a decision reached
-  autonomously by a model. Such decisions count toward the reviewed and
-  signed-off gate thresholds **only** when the gate's approver class is `any`
-  (`core/gate`), so a project can require that a person be in the loop by
-  configuration rather than by hope.
-- An `agent/…` identity is **not** an AI decision: an agent acts on a person's
-  behalf, and `state.IsAIDecision` says so.
+A `Decision` records a person's outcome and, where a hosted surface knows it,
+who reached it. An agent or a model never records one: `ApplyReviewDecisionAs`
+refuses an `agent/…` or `ai/…` identity (`state.IsAgentIdentity`), and `kapi
+apply` refuses a review entry when the command runs as an agent. An agent
+pre-reviews instead: it stores a score and its reasons on the unit
+(`state.AIReview`, the MCP `pre_review_unit` tool, the desktop pre-review),
+bound to the translation it judged, and the person reviewing reads it in the
+queue. Its judgement never counts as a person's.
 
 An `AIReview` is a third thing again: an advisory annotation carrying a score
 and findings, bound to the translation it judged so that an edit invalidates it
@@ -494,7 +493,7 @@ agrees again and the next push has nothing to send. Without that step the two
 folds differ for good, and every push re-sends the same refused approvals.
 
 The venue declines the other direction on the same terms. A push whose record
-takes back a sign-off the venue holds, over the same translation of the same
+takes back an established unit the venue holds, over the same translation of the same
 source, is a withdrawal, and the venue applies it only for a pusher holding
 review permission for the language. A refused withdrawal keeps the venue's
 record, and the report carries that record back; the project writes it into
@@ -560,7 +559,7 @@ re-exports the core types through aliases so downstream code sees one import.
 
 - **`core/state`** holds `UnitState` (status, source status, origin, target hash,
   basis, governing fingerprint, decision, updated), a `Key`, a `Pairing`, the
-  `Stale`/`Fresh`/`Reviewed` ladder helpers, and `WorkStore`, the ledger and this
+  `Stale`/`Fresh`/`Established` ladder helpers, and `WorkStore`, the ledger and this
   checkout's view of it (`Lookup`/`Get`/`Put`/`Record`/`RecordEntry`/`Delete`/
   `All`/`Priors`/`Entries`, `Ledger` for the whole of it, `Commit` and
   `RecordDiff` for writing the shards, `Import` and `CommittedDigest` for

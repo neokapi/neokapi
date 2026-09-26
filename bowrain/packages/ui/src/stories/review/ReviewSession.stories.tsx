@@ -32,7 +32,7 @@ const blocks: BlockInfo[] = [
     source_coded: "Delete account",
     source_spans: [],
     targets: {
-      "fr-FR": { text: "Supprimer le compte", status: "reviewed" },
+      "fr-FR": { text: "Supprimer le compte", status: "established" },
       "de-DE": { text: "Konto löschen", status: "translated" },
     },
     translatable: true,

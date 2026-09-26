@@ -652,7 +652,7 @@ export interface SpanInfo {
  * Per-locale lifecycle status of a committed translation — the framework's
  * `model.Target.Status` ladder ("" = no committed status yet).
  */
-export type TargetStatus = "" | "draft" | "translated" | "reviewed" | "signed-off";
+export type TargetStatus = "" | "draft" | "translated" | "established";
 
 /**
  * The rung a clearing review call (`reviewed: false`) demotes a target to:
@@ -664,10 +664,9 @@ export type ReviewDemotion = "translated" | "draft";
 
 /**
  * The rung an approving review call (`reviewed: true`) promotes a target to:
- * "reviewed" for an approval (the default), "signed-off" for a sign-off, the
- * rung above it on the target ladder.
+ * "established", the one rung a person's approval reaches.
  */
-export type ReviewPromotion = "reviewed" | "signed-off";
+export type ReviewPromotion = "established";
 
 /**
  * The rung a review call lands on, in either direction. The server reads the
@@ -696,7 +695,7 @@ export interface ApprovePassingRequest {
  * and delivery.
  */
 export interface ApprovePassingResult {
-  /** Blocks promoted to reviewed. */
+  /** Blocks promoted to established. */
   approved: number;
   /** Pending blocks left untouched (failing checks / non-compliant). */
   skipped: number;
@@ -934,14 +933,13 @@ export interface WordCountResult {
 
 /**
  * Ship state for one locale scope (project-wide or one collection), derived
- * server-side (store.DeriveShipState): `governed` = fully translated, checks
- * pass, terminology governs the locale with a result for every block, and every
- * translation carries a human review decision; `approved` = the same in a locale
- * terminology does not govern; `ai_shippable` = fully translated, checks pass and
- * governed terminology has a result, machine-reviewed only; `pending` = anything
- * less.
+ * server-side (store.DeriveShipState): `established` = fully translated, checks
+ * pass, terminology has a result wherever it governs, and a person established
+ * every translation (governed); `translated` = the same short of every
+ * translation established (AI-shippable); `pending` = anything less. Whether
+ * terminology governs the locale at all is `compliance_basis`.
  */
-export type ShipState = "governed" | "approved" | "ai_shippable" | "pending";
+export type ShipState = "established" | "translated" | "pending";
 
 /**
  * The dimensions governing a compliance rate (store.ComplianceBasis). Rule-based
@@ -960,7 +958,7 @@ export interface LocaleTranslationStats {
   translated_words: number;
   total_words: number;
   percentage: number;
-  /** Blocks whose translation carries a review decision (reviewed/signed-off). */
+  /** Blocks whose translation carries a review decision (established). */
   approved_blocks?: number;
   /** Translated blocks failing the checks with error severity (computed at full coverage). */
   failing_checks?: number;
@@ -1626,10 +1624,8 @@ export interface LoopRollupShipProject {
   project_id: string;
   project_name?: string;
   stream?: string;
-  governed: number;
-  /** Fully approved project-locales that terminology does not govern. */
-  approved?: number;
-  ai_shippable: number;
+  established: number;
+  translated: number;
   pending: number;
 }
 
@@ -1641,10 +1637,8 @@ export interface LoopRollupShipProject {
  */
 export interface LoopRollupShip {
   basis: string;
-  governed: number;
-  /** Fully approved project-locales that terminology does not govern. */
-  approved?: number;
-  ai_shippable: number;
+  established: number;
+  translated: number;
   pending: number;
   counted_projects: number;
   total_projects: number;
@@ -1842,7 +1836,7 @@ export interface PendingReviewOptions {
 // ---------------------------------------------------------------------------
 
 /** A block's per-locale progress bucket, as the server names it. */
-export type BlockStatusBucket = "not-started" | "draft" | "translated" | "reviewed";
+export type BlockStatusBucket = "not-started" | "draft" | "translated" | "established";
 
 /**
  * Server-side filters for one page of a project's blocks (GET
@@ -1864,7 +1858,7 @@ export interface BlockStatusCounts {
   "not-started": number;
   draft: number;
   translated: number;
-  reviewed: number;
+  established: number;
 }
 
 /**

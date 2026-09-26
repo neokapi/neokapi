@@ -10,7 +10,6 @@ interface UseVisualEditorKeyboardOptions {
   onCancelEditing: () => void;
   onSaveAndNext: () => void;
   onApprove: () => void;
-  onSignOff: () => void;
   onReject: () => void;
   enabled: boolean;
 }
@@ -25,7 +24,6 @@ export function useVisualEditorKeyboard(options: UseVisualEditorKeyboardOptions)
     onCancelEditing,
     onSaveAndNext,
     onApprove,
-    onSignOff,
     onReject,
     enabled,
   } = options;
@@ -45,13 +43,6 @@ export function useVisualEditorKeyboard(options: UseVisualEditorKeyboardOptions)
       if (mod && e.shiftKey && e.key === "A") {
         e.preventDefault();
         onApprove();
-        return;
-      }
-
-      // Sign off: Ctrl/Cmd+Shift+S (works in any mode)
-      if (mod && e.shiftKey && e.key === "S") {
-        e.preventDefault();
-        onSignOff();
         return;
       }
 
@@ -124,7 +115,6 @@ export function useVisualEditorKeyboard(options: UseVisualEditorKeyboardOptions)
     onCancelEditing,
     onSaveAndNext,
     onApprove,
-    onSignOff,
     onReject,
   ]);
 }

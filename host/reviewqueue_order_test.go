@@ -31,7 +31,7 @@ name: rev-order
 defaults:
   source_language: en
   target_languages: [nb]
-  source_gate: approved
+  source_gate: established
 collections:
   - path: en.json
     target: "{lang}.json"

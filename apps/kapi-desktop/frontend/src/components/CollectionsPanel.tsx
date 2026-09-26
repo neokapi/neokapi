@@ -111,27 +111,32 @@ export interface Rung {
   color: string;
   pct: number;
 }
-/** Whether a scope clears a ship gate, as distinct from a scope no gate matches. */
+/** Whether a scope clears a gate (it ships established or translated), as
+ * distinct from a scope no gate matches. */
 const clearsShipGate = (lc: LocaleCoverage) =>
-  lc.shipState ? lc.shipState === "shippable" : lc.gated && lc.shippable;
+  lc.shipState
+    ? lc.shipState === "established" || lc.shipState === "translated"
+    : lc.gated && lc.shippable;
 
 export function rungFor(lc?: LocaleCoverage): Rung {
   const translated = lc?.pct?.translated ?? 0;
   if (!lc || translated === 0) {
     return { key: "none", label: "·", short: "·", color: "var(--muted-foreground)", pct: 0 };
   }
-  // "Shippable" is a gate verdict, so only a scope that clears a ship gate reads
-  // as one. A scope no gate matches shows its place on the ladder instead.
+  // A ship state is a gate verdict, so only a scope that clears a gate reads as
+  // one: established (governed) or translated (AI-shippable). A scope no gate
+  // matches shows its place on the ladder instead.
   if (clearsShipGate(lc)) {
+    const established = lc.shipState === "established";
     return {
       key: "shippable",
-      label: "Shippable",
-      short: "Ship",
+      label: established ? "Established" : "Ships translated",
+      short: established ? "Est." : "Ship",
       color: "oklch(0.62 0.17 150)",
       pct: translated,
     };
   }
-  if ((lc.pct?.reviewed ?? 0) > 0) {
+  if ((lc.pct?.established ?? 0) > 0) {
     return {
       key: "review",
       label: "In review",
@@ -334,7 +339,7 @@ function LanguageTimeline({
   const color = (s: string) => STAGE_COLOR[s] ?? STAGE_COLOR.none;
   const stageLabel = (s: string) =>
     ({
-      shippable: "Shippable",
+      shippable: "Ships",
       review: "In review",
       translated: "Translated",
       none: "Not started",
@@ -531,7 +536,7 @@ function LanguageTimeline({
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
         {(
           [
-            ["shippable", t("Shippable")],
+            ["shippable", t("Ships")],
             ["review", t("In review")],
             ["translated", t("Translated")],
           ] as const
@@ -593,7 +598,7 @@ export function CollectionsPanel({
   const [formats, setFormats] = useState<FormatInfo[]>(propFormats ?? []);
   const [status, setStatus] = useState<ProjectStatus | null>(propStatus ?? null);
   // Ship-gate ladder standing per (collection, locale) — drives the coverage
-  // cells (Shippable / In review / Draft / —) and the project-wide strip.
+  // cells (Established or Ships / In review / Draft / —) and the project-wide strip.
   const [convergence, setConvergence] = useState<ConvergenceReport | null>(propConvergence ?? null);
   // Flow validity (unknown tools, undeclared plugins) so we never offer to run a
   // broken flow — the run menus disable invalid flows with the reason.
@@ -1607,7 +1612,7 @@ export function CollectionsPanel({
     const tr = lc.pct?.translated ?? 0;
     if (tr === 0) return "none";
     if (clearsShipGate(lc)) return "shippable";
-    return (lc.pct?.reviewed ?? 0) > 0 ? "review" : "translated";
+    return (lc.pct?.established ?? 0) > 0 ? "review" : "translated";
   };
   // Collection → its cake/Layers colour, keyed the way convergence reports it
   // (collection "" for bare entries), so the hover breakdown matches the donut.
@@ -1626,7 +1631,7 @@ export function CollectionsPanel({
           if (lc.locale !== lang) continue;
           total += lc.total;
           tSum += (lc.total * (lc.pct?.translated ?? 0)) / 100;
-          rSum += (lc.total * (lc.pct?.reviewed ?? 0)) / 100;
+          rSum += (lc.total * (lc.pct?.established ?? 0)) / 100;
           if (clearsShipGate(lc)) shippableUnits += lc.total;
           byCollection.push({
             name: lc.collection || t("(unnamed)"),
@@ -1659,7 +1664,7 @@ export function CollectionsPanel({
     if (!cs || cs.blockCount === 0 || !cs.targetLanguages.includes(lang)) return null;
     return Math.round(((cs.coverage?.[lang] ?? 0) / cs.blockCount) * 100);
   };
-  // One coverage cell: a ship-gate rung (Shippable / In review / Draft / —) with
+  // One coverage cell: a ship-gate rung (Established or Ships / In review / Draft / —) with
   // the translated % as a secondary figure once convergence is available; the
   // translated-only bar/tile before then.
   const langCell = (coll: Collection, lang: string) => {

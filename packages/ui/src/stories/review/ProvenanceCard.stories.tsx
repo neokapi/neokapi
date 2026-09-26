@@ -43,8 +43,8 @@ export const SignedOff: Story = {
   args: {
     provenance: {
       origin: { kind: "memory", timestamp: "2026-08-29T18:40:00Z" },
-      review_state: "signed-off",
-      status: "signed-off",
+      review_state: "approved",
+      status: "established",
       by: "sam@bowrain.test",
       at: "2026-08-31T08:00:00Z",
     },

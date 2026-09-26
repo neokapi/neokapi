@@ -24,8 +24,8 @@ func refusedPush() *transfer.PushResult {
 		BlocksPushed: 3,
 		Governance: &venue.PushGovernance{Refusals: []venue.DecisionRefusal{
 			{Locale: "fr-FR", Kind: venue.VerdictApproval, Reason: venue.RefusedNoReviewPermission, Count: 2},
-			{Locale: "de-DE", Kind: venue.VerdictSignOff, Reason: venue.RefusedSeparationOfDuties, Count: 1},
-			{Locale: "nb", Kind: venue.VerdictDemotion, Reason: venue.RefusedSignOffWithdrawal, Count: 1},
+			{Locale: "de-DE", Kind: venue.VerdictApproval, Reason: venue.RefusedSeparationOfDuties, Count: 1},
+			{Locale: "nb", Kind: venue.VerdictDemotion, Reason: venue.RefusedEstablishedWithdrawal, Count: 1},
 			{Locale: "nb", Kind: venue.VerdictDemotion, Reason: venue.RefusedStaleRejection, Count: 1},
 		}},
 		VerdictsRetired: 5,
@@ -33,8 +33,8 @@ func refusedPush() *transfer.PushResult {
 }
 
 const refusedPushLines = "2 approvals not accepted for fr-FR: no review permission\n" +
-	"1 sign-off not accepted for de-DE: separation of duties\n" +
-	"1 demotion not accepted for nb: withdrawing a sign-off needs review permission\n" +
+	"1 approval not accepted for de-DE: separation of duties\n" +
+	"1 demotion not accepted for nb: withdrawing an established unit needs review permission\n" +
 	"1 demotion not accepted for nb: the rejection names a translation the platform no longer holds\n" +
 	"5 local record(s) now match the platform; they will not be sent again\n"
 

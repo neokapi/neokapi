@@ -53,12 +53,12 @@ func (r GateRef) MarshalYAML() (any, error) {
 // resolveGateGates turns a recipe gate configuration — a when/gate rule list or
 // a single catch-all gate — into a validated gate.RuleSet over the target
 // lifecycle ladder, expanding any registry-name reference against p.Gates.
-// It is the shared resolver behind the ship and verified gates. Precedence:
+// It is the shared resolver behind the ship and established gates. Precedence:
 //   - the rule list, if present;
 //   - else the catch-all gate, if present;
 //   - else an empty RuleSet (no gate configured — nothing matched).
 //
-// label names the field in error messages ("ship_gates" / "verified_gates").
+// label names the field in error messages ("ship_gates" / "established_gates").
 func (p *KapiProject) resolveGateGates(catchAll gate.Gate, ruleList []ShipGateRule, label string) (gate.RuleSet, error) {
 	resolve := func(ref GateRef) (gate.Gate, error) {
 		if ref.Name != "" {
@@ -111,19 +111,19 @@ func (p *KapiProject) HasShipGates() bool {
 	return len(p.ShipGates) > 0 || len(p.ShipGate) > 0
 }
 
-// BuildVerifiedGates resolves the recipe's verified-gate configuration into an
-// evaluatable gate.RuleSet, mirroring BuildShipGates exactly (same precedence,
-// same registry resolution, same target-ladder validation) but over the
-// verified_gate/verified_gates fields. An absent configuration yields an empty
-// RuleSet — no locale resolves a verified gate, so nothing is verified. This is
-// the deliberate default: a project declares the human-verified bar to opt in.
-func (p *KapiProject) BuildVerifiedGates() (gate.RuleSet, error) {
-	return p.resolveGateGates(p.VerifiedGate, p.VerifiedGates, "verified_gates")
+// BuildEstablishedGates resolves the recipe's established-gate configuration
+// into an evaluatable gate.RuleSet, mirroring BuildShipGates exactly (same
+// precedence, same registry resolution, same target-ladder validation) but
+// over the established_gate/established_gates fields. An absent configuration
+// yields an empty RuleSet: no scope ships `established` until a project
+// declares the bar.
+func (p *KapiProject) BuildEstablishedGates() (gate.RuleSet, error) {
+	return p.resolveGateGates(p.EstablishedGate, p.EstablishedGates, "established_gates")
 }
 
-// HasVerifiedGates reports whether the recipe configures any verified gate.
-func (p *KapiProject) HasVerifiedGates() bool {
-	return len(p.VerifiedGates) > 0 || len(p.VerifiedGate) > 0
+// HasEstablishedGates reports whether the recipe configures any established gate.
+func (p *KapiProject) HasEstablishedGates() bool {
+	return len(p.EstablishedGates) > 0 || len(p.EstablishedGate) > 0
 }
 
 // BuildSourceGate validates and returns the recipe's source-readiness gate (a

@@ -36,11 +36,11 @@ func TestListPendingReview_SQLite(t *testing.T) {
 		return b
 	}
 	blocks := []*model.Block{
-		mk("b1", "", "hei", model.TargetStatusDraft, true),         // pending
-		mk("b2", "", "hallo", model.TargetStatusTranslated, true),  // pending
-		mk("b3", "", "godkjent", model.TargetStatusReviewed, true), // decided
-		mk("b4", "", "", model.TargetStatusDraft, true),            // no target text
-		mk("b5", "", "skjult", model.TargetStatusDraft, false),     // not translatable
+		mk("b1", "", "hei", model.TargetStatusDraft, true),            // pending
+		mk("b2", "", "hallo", model.TargetStatusTranslated, true),     // pending
+		mk("b3", "", "godkjent", model.TargetStatusEstablished, true), // decided
+		mk("b4", "", "", model.TargetStatusDraft, true),               // no target text
+		mk("b5", "", "skjult", model.TargetStatusDraft, false),        // not translatable
 		// An EMPTY status is below reviewed and therefore pending — the
 		// review-completion gate counts it, so the queue must show it (an
 		// IN ('draft','translated') spelling once hid it forever).

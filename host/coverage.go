@@ -27,11 +27,7 @@ func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProj
 		return SourceCoverage{}, err
 	}
 
-	governed, err := a.sourceGovernance(ctx, proj, root)
-	if err != nil {
-		return SourceCoverage{}, err
-	}
-	states, _, unreadable, err := a.settleSourceStatesReporting(ctx, root, string(proj.Defaults.SourceLanguage), model.SourceGateNone, units, governed)
+	states, _, unreadable, err := a.settleSourceStates(ctx, root, string(proj.Defaults.SourceLanguage), model.SourceGateNone, units)
 	if err != nil {
 		return SourceCoverage{}, err
 	}
@@ -65,97 +61,23 @@ func convergeSourceGate(proj *project.KapiProject) (model.SourceGateLevel, bool)
 }
 
 // settleSourceStates settles the project's source-locale blocks and returns each
-// translatable unit's rung on the source ladder, plus how many rank below
-// gateLevel.
+// translatable unit's rung on the source ladder (written or established), plus
+// how many the given gate holds: a source that fails its checks, or one not yet
+// established under an `established` gate.
 //
-// It is the ONE source-axis derivation. The rungs above the `authored` presence
-// baseline are reachable from content — `check.SettleSourceStatus` runs the
-// provider-free source checks and stamps the terminal readiness rung — so a
-// reader that only looked at what the source FILE carries reported the baseline
-// for every format with nowhere to write a per-block status, which is most
-// catalog formats. Settling here is what lets the source line and the settle
-// line of the same run agree, on every format.
+// It is the one source-axis derivation. Settling runs the provider-free source
+// checks (check.SettleSourceStatus), so the source line and the gate count of
+// the same run agree on every format, including the many with nowhere to write
+// a per-block status. gateLevel == SourceGateNone holds nothing but still
+// settles, because the report is owed either way.
 //
-// A committed status in a format that can carry one still wins: the settle
-// leaves an already-approved clean source untouched.
-//
-// gateLevel == SourceGateNone holds nothing (the convergence opt-out) but still
-// settles, because the report is owed either way — a project that turned the
-// gate off did not ask to be told its source is unchecked.
-// A format with no registered reader is the ONE survivable outcome here, and
-// only because it is not a read failure at all: the file was never opened. A
-// format can be supplied by a plugin, so a recipe that reads on a machine with
-// the plugin installed cannot read on one without it — and a project-wide
-// rollup that aborted would make every unrelated collection unreportable
-// because one optional dependency is missing. The names are returned, never
-// swallowed: coverage measured over content that was never opened reads as
-// progress, which is the failure this whole file exists to avoid. Every other
-// error still propagates, for the reasons host/converge.go states at the call
-// site.
+// A format with no registered reader is the one survivable outcome here: the
+// file was never opened, and a format can come from a plugin that is missing on
+// this machine. The names are returned so a report can say what it did not
+// measure. Every other error propagates.
 func (a *App) settleSourceStates(ctx context.Context, root, sourceLang string, gateLevel model.SourceGateLevel, units []VerifyUnit) (states []string, held int, unreadable []string, err error) {
-	return a.settleSourceStatesReporting(ctx, root, sourceLang, gateLevel, units, nil)
-}
-
-// sourceGovernance returns whether a voice or terms govern the source at a
-// project-relative path, for the source ladder a report shows.
-//
-// The `checked` rung says the source cleared the voice and terminology checks
-// that govern it. The settle derivation stamps it from the provider-free
-// hygiene checks, which is the right admission test for the convergence gate:
-// content nothing governs has nothing to hold it back. A report is a different
-// question. Source that no voice and no terms govern was checked against
-// nothing, so a report that counted it as `checked` would claim a check that
-// never happened; it reads as `authored` instead.
-//
-// Terms govern a point when the profile there names a store of its own, or the
-// project's own store holds a concept. A voice governs it when the recipe binds
-// one there. The answer is cached per profile and channel, the only inputs it
-// varies with.
-func (a *App) sourceGovernance(ctx context.Context, proj *project.KapiProject, root string) (func(sourcePath string) bool, error) {
-	projectTerms := false
-	if db, err := a.ProjectDB(ctx, root); err == nil {
-		if held, herr := db.HasTerms(ctx); herr == nil {
-			projectTerms = held
-		}
-	}
-	cache := map[string]bool{}
-	return func(sourcePath string) bool {
-		rel := relativeToRoot(root, sourcePath)
-		rc, err := proj.ResolveGovernanceFor(project.GovernancePoint{Path: rel})
-		if err != nil || rc == nil {
-			return projectTerms
-		}
-		key := rc.Profile + "\x00" + rc.Channel
-		if v, ok := cache[key]; ok {
-			return v
-		}
-		v := projectTerms || rc.TermStore != "" || rc.Voice != nil || a.profileVoiceHeld(ctx, root, rc)
-		cache[key] = v
-		return v
-	}, nil
-}
-
-// profileVoiceHeld reports whether a profile that binds no voice in the recipe
-// is answered by the one its layout directory was read from, the implicit
-// binding loadVoiceAtGovernance resolves first.
-func (a *App) profileVoiceHeld(ctx context.Context, root string, rc *project.ResolvedGovernance) bool {
-	if rc.Profile == "" || rc.VoiceField != project.DefaultVoiceField {
-		return false
-	}
-	conv := project.RelStatePath(project.ProfilesDirName, rc.Profile, VoiceConventionalName)
-	return a.voiceProfileIDForBinding(ctx, root, conv) != ""
-}
-
-// settleSourceStatesReporting is settleSourceStates for a report. governed,
-// when set, says whether anything governs the source at a path; a `checked`
-// stamp on ungoverned source is reported as `authored` (sourceGovernance). The
-// gate count is taken before that, so the convergence gate admits exactly what
-// settleSourceStates admits.
-func (a *App) settleSourceStatesReporting(ctx context.Context, root, sourceLang string, gateLevel model.SourceGateLevel, units []VerifyUnit, governed func(string) bool) (states []string, held int, unreadable []string, err error) {
-	// Committed approvals, seeded onto each block before it settles. Without
-	// this the settle derivation only ever produces `authored` or `checked`:
-	// check.NewSourceReadinessTool preserves an existing approval, but nothing
-	// put one there, so `approved` was a rung the ladder could not reach and
+	// Committed establishments, seeded onto each block before it settles, so
+	// the settle keeps a person's decision and an `established` gate can admit
 	// `source_gate: approved` held a project's fan-out forever.
 	approvals, aerr := a.loadSourceApprovals(ctx, root, sourceLang)
 	if aerr != nil {
@@ -179,20 +101,16 @@ func (a *App) settleSourceStatesReporting(ctx context.Context, root, sourceLang 
 			return nil, 0, nil, berr
 		}
 		scope := docs.Scope(root, u.SourcePath)
-		ungoverned := governed != nil && !governed(u.SourcePath)
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue
 			}
 			if approvals.approves(scope, blockKey(b), b.SourceText()) {
-				b.SourceStatus = model.SourceStatusApproved
+				b.SourceStatus = model.SourceStatusEstablished
 			}
 			check.SettleSourceStatus(ctx, b)
-			if gateLevel != model.SourceGateNone && !gateLevel.Admits(b.SourceStatus) {
+			if gateLevel != model.SourceGateNone && !gateLevel.AdmitsBlock(b) {
 				held++
-			}
-			if ungoverned && b.SourceStatus == model.SourceStatusChecked {
-				b.SourceStatus = model.SourceStatusAuthored
 			}
 			states = append(states, sourceUnitState(b))
 		}
@@ -221,7 +139,7 @@ func (a *App) settleAndCountHeldSource(ctx context.Context, root, sourceLang str
 // reviewedIndex maps each unit (document + block identity + locale) to its
 // committed review decision, loaded from the project state store (core/state).
 // A unit reads at its
-// decided rung — reviewed/signed-off for an approval, draft for a rejection —
+// decided rung — established for an approval, draft for a rejection —
 // only while the recorded decision still judges the CURRENT translation: the
 // decision carries the targetHash it applied to, so an edit since the decision
 // invalidates it and the unit drops back to the `translated` presence baseline
@@ -409,7 +327,7 @@ func (r reviewedIndex) decided(scope string, b *model.Block, locale string) bool
 }
 
 // approvesTarget reports whether a graded decision is an APPROVAL that still
-// holds: reviewed or signed-off, with both halves of the pairing it blessed
+// holds: established, with both halves of the pairing it blessed
 // still on disk (which is what `applies` from grade already says).
 //
 // A rejection is a decision too, and `decided` counts it; it is not an
@@ -418,7 +336,7 @@ func (r reviewedIndex) decided(scope string, b *model.Block, locale string) bool
 // rather than the block so a caller that already graded it does not look the
 // same unit up twice.
 func approvesTarget(e reviewedEntry, applies bool) bool {
-	return applies && (e.status == model.TargetStatusReviewed || e.status == model.TargetStatusSignedOff)
+	return applies && (e.status == model.TargetStatusEstablished)
 }
 
 // unitReading is everything one unit's record says to the coverage tally: the
@@ -427,9 +345,6 @@ func approvesTarget(e reviewedEntry, applies bool) bool {
 type unitReading struct {
 	// state is the ladder rung the unit is tallied at.
 	state string
-	// aiDecided reports that the rung was reached by an autonomous AI decision
-	// ("ai/…" identity), which gate evaluation treats separately.
-	aiDecided bool
 	// basis is how the recorded basis grades against the current source.
 	basis basisVerdict
 	// redrafted answers what a stale unit is waiting on: false while the record
@@ -445,8 +360,8 @@ type unitReading struct {
 	rejectedOwed bool
 }
 
-// apply moves a `translated` unit to its recorded decision rung — up to reviewed
-// or signed-off for an approval, down to draft for a rejection — when the block
+// apply moves a `translated` unit to its recorded decision rung — up to
+// established for an approval, down to draft for a rejection — when the block
 // has an applicable decision for the locale; otherwise the base state stands.
 //
 // A unit with no target at all grades basisNone whatever the store holds: there
@@ -471,7 +386,7 @@ func (r reviewedIndex) apply(base, scope string, b *model.Block, locale string) 
 	// that is still there.
 	out.rejectedOwed = e.status == model.TargetStatusDraft
 	if base == string(model.TargetStatusTranslated) {
-		out.state, out.aiDecided = string(e.status), state.IsAIDecision(e.by)
+		out.state = string(e.status)
 	}
 	return out
 }
@@ -515,7 +430,7 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 	for _, u := range all {
 		locale := string(u.Variant.Locale)
 		switch u.Status {
-		case model.TargetStatusReviewed, model.TargetStatusSignedOff, model.TargetStatusDraft:
+		case model.TargetStatusEstablished, model.TargetStatusDraft:
 			idx.putUnit(u.Scope, u.Unit, locale, reviewedEntry{
 				status: u.Status, targetHash: u.TargetHash,
 				contentHash: u.ContentHash, by: u.Decision.By, decided: true,
@@ -585,15 +500,12 @@ func scopeAliases(scope string) []string {
 // numbers for the same data.
 //
 // `reviewed` (loaded from the project state store) upgrades a unit from the
-// `translated` presence baseline to its decided rung. Units promoted by an
-// autonomous AI decision ("ai/…" identity) are tallied separately: they read as
-// reviewed in the display percentages, but a gate's reviewed/signed-off
-// threshold only admits them under `by: any` (core/gate approver classes).
+// `translated` presence baseline to its decided rung.
 //
 // `excl` (optional, nil = off) is the check-findings set (#1078 G4): a unit in
 // it is produced but failing the project's bound checks. It is counted at its
-// true rung — the unit is translated, and may be reviewed — and recorded as a
-// failing check, which withholds the scope's ship and verified verdicts. Both
+// true rung — the unit is translated, and may be established — and recorded as
+// a failing check, which withholds the scope's ship verdict. Both
 // halves matter: the percentage is a fact about the content and must read the
 // same on every surface, while the verdict is what a failing guardrail is
 // entitled to withhold.
@@ -613,7 +525,7 @@ func (a *App) shipCoverage(ctx context.Context, proj *project.KapiProject, root 
 	if err != nil {
 		return nil, err
 	}
-	vs, err := proj.BuildVerifiedGates()
+	vs, err := proj.BuildEstablishedGates()
 	if err != nil {
 		return nil, err
 	}
@@ -746,12 +658,6 @@ func (a *App) coverageTally(ctx context.Context, proj *project.KapiProject, root
 			// as settled, so it is counted where a reader can act on it.
 			if read.rejectedOwed {
 				tally.NoteRejectedAwaitingDraft(s)
-			}
-			if read.aiDecided {
-				// The AI decision promoted the unit from the `translated`
-				// baseline; a human-class threshold sees it there.
-				tally.AddAIDecided(s, read.state, string(model.TargetStatusTranslated))
-				continue
 			}
 			tally.Add(s, read.state)
 		}

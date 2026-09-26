@@ -5,8 +5,8 @@ import "github.com/neokapi/neokapi/core/model"
 // The shape of what a venue's review governance did with a push, in transit.
 //
 // A push moves content. Whether a rung above translated may be written,
-// whether a verdict may be recorded, and whether a sign-off the venue holds may
-// be withdrawn, is the venue's to answer: it holds the permissions, the
+// whether a verdict may be recorded, and whether an established unit the venue
+// holds may be withdrawn, is the venue's to answer: it holds the permissions, the
 // workspace policy and the authorship that answer needs. So a push can carry an
 // approval the venue declines to accept, or a demotion it declines to apply,
 // and the report of what it declined travels back to the producer that sent
@@ -16,9 +16,8 @@ import "github.com/neokapi/neokapi/core/model"
 
 // Review states a decision record can carry.
 const (
-	ReviewStateApproved  = "approved"
-	ReviewStateSignedOff = "signed-off"
-	ReviewStateRejected  = "rejected"
+	ReviewStateApproved = "approved"
+	ReviewStateRejected = "rejected"
 )
 
 // Refusal reasons, as a venue reports them.
@@ -29,11 +28,12 @@ const (
 	// RefusedSeparationOfDuties: the workspace policy refuses a verdict on work
 	// the decider wrote themselves.
 	RefusedSeparationOfDuties = "separation of duties"
-	// RefusedSignOffWithdrawal: the push lowers a target the venue holds at
-	// signed-off, keeping the translation and the source the sign-off blessed,
-	// and the pusher does not hold review permission for that language. The
-	// venue keeps the sign-off; withdrawing one is a review-level action.
-	RefusedSignOffWithdrawal = "withdrawing a sign-off needs review permission"
+	// RefusedEstablishedWithdrawal: the push lowers a target the venue holds
+	// at established, keeping the translation and the source the decision
+	// blessed, and the pusher does not hold review permission for that
+	// language. The venue keeps the unit established; withdrawing that is a
+	// review-level action.
+	RefusedEstablishedWithdrawal = "withdrawing an established unit needs review permission"
 	// RefusedStaleRejection: the push carries a rejection of a translation the
 	// venue has since replaced. A rejection judges one translation, so it
 	// changes nothing about the one the venue holds now; the venue keeps its
@@ -44,7 +44,6 @@ const (
 // Kinds of claim a refusal counts.
 const (
 	VerdictApproval = "approval"
-	VerdictSignOff  = "sign-off"
 	// VerdictDemotion is a pushed rung below the one the venue holds: an
 	// un-review or a rejection, as the review surfaces call them.
 	VerdictDemotion = "demotion"
@@ -56,7 +55,7 @@ const (
 // are behind it.
 type DecisionRefusal struct {
 	Locale string `json:"locale"`
-	Kind   string `json:"kind"`   // approval | sign-off | demotion
+	Kind   string `json:"kind"`   // approval | demotion
 	Reason string `json:"reason"` // one of the Refused* reasons
 	Count  int    `json:"count"`
 }
@@ -70,8 +69,8 @@ type RefusedUnit struct {
 	Variant  string `json:"variant"`
 	Reason   string `json:"reason"`
 	// Held is the record the venue kept when the refusal left a standing
-	// verdict in place rather than withholding a pushed one: a sign-off the
-	// push tried to withdraw. The producer writes it into its own record, so
+	// verdict in place rather than withholding a pushed one: an established
+	// unit the push tried to withdraw. The producer writes it into its own record, so
 	// the two agree without a pull. Nil for a refusal that withheld a verdict,
 	// where the producer computes the basis itself.
 	Held *UnitDecision `json:"held,omitempty"`
@@ -126,11 +125,10 @@ func (d UnitDecision) AsBasis(status model.TargetStatus) UnitDecision {
 //
 // Both halves matter. The rung is what a ship gate counts, and a record can
 // carry one with no review state at all (a producer writes the unit's rung
-// beside its basis), so a gate reading only ReviewState would let "signed-off"
-// through on a record that claims to be nobody's decision.
+// beside its basis), so a gate reading only ReviewState would let
+// "established" through on a record that claims to be nobody's decision.
 func (d UnitDecision) CarriesVerdict() bool {
-	switch d.ReviewState {
-	case ReviewStateApproved, ReviewStateSignedOff:
+	if d.ReviewState == ReviewStateApproved {
 		return true
 	}
 	return model.TargetStatus(d.Status).Rank() > model.TargetStatusTranslated.Rank()
@@ -153,12 +151,4 @@ func CarriesDecision(decisions []UnitDecision) bool {
 		}
 	}
 	return false
-}
-
-// VerdictKind names what a decision record claims, for the refusal it may earn.
-func (d UnitDecision) VerdictKind() string {
-	if d.ReviewState == ReviewStateSignedOff || model.TargetStatus(d.Status) == model.TargetStatusSignedOff {
-		return VerdictSignOff
-	}
-	return VerdictApproval
 }

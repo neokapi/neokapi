@@ -2,7 +2,7 @@
 sidebar_position: 4
 title: Review
 description: The governed review session walks every pending block across a project's items and locales; approvals feed the context graph, decide a locale's ship state, and continue the loop through to delivery.
-keywords: [review, review session, ship state, governed, approved, ai_shippable, pending, bulk approve, sign off, review inbox, in-context review, bowrain]
+keywords: [review, review session, ship state, established, translated, pending, bulk approve, pre-review, review inbox, in-context review, bowrain]
 ---
 
 import { ThemedVideo, PhaseFlow } from "@neokapi/docs-shared";
@@ -38,12 +38,11 @@ item and locale filters narrow the queue further.
 
 For each block:
 
-- **Approve** marks the target reviewed for that locale. It needs the `review`
+- **Approve** establishes the target for that locale. It needs the `review`
   permission for that language, which the built-in **Reviewer** template
-  carries; a translator can edit and reject, but not approve.
-- **Sign off** marks it signed off, the rung above reviewed, for a ship gate
-  that asks for more than a review. It needs the same `review` permission, and
-  it can be given straight from a translated target or after an approval.
+  carries; a translator can edit and reject, but not approve. There is one
+  such rung: a workspace that wants two reviewers states it as a policy on how
+  many person signals establish a unit.
 - **Reject** sends it back to draft for another pass.
 - **Edit** fixes the draft in place. A fix is a correction made at a point, and
   corrections are what the context learns from (see
@@ -90,21 +89,19 @@ nobody acting. Separation of duties (see
 person from approving a translation they wrote by hand, and leaves the one
 person in a small workspace free to approve what the machine wrote. It applies
 to every way of promoting a target: block by block, over a selection, through
-**Approve everything passing**, to a sign-off, which is judged on the author of
-the wording exactly as an approval is, and to decisions pushed from a working
-copy.
+**Approve everything passing**, and to decisions pushed from a working copy.
 
 A decision that arrives by [`kapi push`](/cli/commands/push) is held to the same
 review permission and the same separation-of-duties policy as one made here, and
-the push reports the approvals and sign-offs the workspace did not accept. The
+the push reports the approvals the workspace did not accept. The
 content lands either way, as a translation awaiting review.
 
-Taking a sign-off back is review-level work here, and it is by push as well. A
-push that lowers a signed-off target without changing its translation lands
-only from someone who holds review permission for that language; otherwise the
-sign-off stands and the push reports the demotion it did not apply. An edited
-translation drops to awaiting review on either route, because a sign-off judged
-the wording it was given.
+Taking an established unit back is review-level work here, and it is by push
+as well. A push that lowers an established target without changing its
+translation lands only from someone who holds review permission for that
+language; otherwise the unit stays established and the push reports the
+demotion it did not apply. An edited translation drops to awaiting review on
+either route, because the decision judged the wording it was given.
 
 A rejection that arrives by push applies only to the translation it names. When
 that translation has since been replaced here, the unit keeps its rung and its
@@ -120,7 +117,7 @@ Two records, written for every approval whichever route made it:
   [content memory](/server/translation-memory).
 - **An audit entry**, in the workspace [audit log](/server/security-and-privacy#the-audit-log), naming
   the actor, the block, the locale, and the rungs the target moved between. A
-  rejection, a sign-off and a withdrawn approval are recorded the same way, each
+  rejection and a withdrawn approval are recorded the same way, each
   under its own name. **Approve everything passing** records the pass and its
   counts per language, because the pass is what the person decided; which
   blocks it took is in the ledger.
@@ -186,9 +183,8 @@ locale, per project and per collection, from what the work left behind:
 
 | State | Meaning |
 | --- | --- |
-| `governed` | Every block translated, no failing check, nothing stale, a terminology result for every block, every target carrying a review decision, and terms governing the locale. |
-| `approved` | The same, in a locale no terms govern: a person approved every target, and only the checks stand behind the approval. |
-| `ai_shippable` | Every block translated, no failing check, and a terminology result wherever terms govern, but review is incomplete: shippable on machine review only. |
+| `established` | Every block translated, no failing check, nothing stale, a terminology result wherever terms govern, and a person established every target. Governed. |
+| `translated` | Every block translated, no failing check, and a terminology result wherever terms govern, but not every target established. AI-shippable. |
 | `pending` | Anything less: partial coverage, a failing check, a stale decision, a turned-down translation, a block terms govern with no terminology result, or nothing to ship yet. |
 
 The rule is the same everywhere it is read. A locale is `pending` when any
@@ -198,24 +194,23 @@ turned down. A block in a locale terms govern with no terminology result, such
 as a target made only of inline codes, also holds the locale at `pending`. A
 block whose target uses a forbidden term counts as a failing check.
 
-Otherwise the locale is `ai_shippable` while some targets await approval. With
-every target approved, it is `governed` where terms govern the locale and
-`approved` where none do. A voice score does not change the state: a block
+Otherwise the locale is `translated` while some targets await a person, and
+`established` once every target is established. Whether terms govern the
+locale at all is reported beside the state. A voice score does not change the state: a block
 under the voice profile's bar is held out of bulk approval instead.
 
 The state appears on the project dashboard, per collection, in the Runs view's
 per-locale summary, and in the workspace loop rollup. It is also published at
 the delivery edge: `GET /api/v1/projects/:id/ship.json` serves a per-locale
 manifest a site's language picker can read to hide locales that are not
-shippable and to badge those shipped on machine review. The entry for a locale
-no terms govern adds `"not_governed": ["terms"]`. An `approved` locale reads as
-shippable and verified, and that field is how a build tells it apart from a
-governed one.
+shippable and to badge those that ship `translated`. The entry for a locale
+no terms govern adds `"not_governed": ["terms"]`, and that field is how a build
+tells a locale no terms govern apart from a governed one.
 The same manifest is what `kapi status --ship --emit ship.json` writes at build
 time, so a site built from a checkout and a site reading the server agree.
 
 Set the bar where the content sits. A legal notice waits for a person
-(`governed`); a help article may ship on checks (`ai_shippable`). The project's
+(`established`); a help article may ship on checks (`translated`). The project's
 `ship_gate` and per-scope `ship_gates` in the recipe carry that decision (see
 [Project model](/cli/project-model)).
 

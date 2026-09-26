@@ -82,38 +82,38 @@ func mkProject(t *testing.T, cs *sqlitestore.SQLiteStore, id string, props map[s
 func TestSourceStatus_RoundTripsThroughStore(t *testing.T) {
 	_, cs, _ := sourceFirstHarness(t)
 	mkProject(t, cs, "p", nil)
-	storeSourceBlock(t, cs, "p", "a.json", "b1", "Hello", model.SourceStatusChecked)
+	storeSourceBlock(t, cs, "p", "a.json", "b1", "Hello", model.SourceStatusWritten)
 
 	got, err := cs.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: "p", Stream: "main"})
 	require.NoError(t, err)
 	require.Len(t, got, 1)
-	assert.Equal(t, model.SourceStatusChecked, got[0].Block.SourceStatus)
+	assert.Equal(t, model.SourceStatusWritten, got[0].Block.SourceStatus)
 	// The reserved key must not leak back as an ordinary property.
 	_, leaked := got[0].Block.Properties[platstore.PropSourceStatus]
 	assert.False(t, leaked, "the folded status key must be stripped on read")
 }
 
-// TestSettleSource_StampsAndCounts: clean source is promoted to `checked` and
-// clears the default gate; empty/whitespace source is demoted to `authored` and
+// TestSettleSource_StampsAndCounts: clean source is stamped `written` and
+// clears the default gate; empty/whitespace source stays unstamped and is
 // held. The blocked-on-source count reflects only the held block.
 func TestSettleSource_StampsAndCounts(t *testing.T) {
 	s, cs, _ := sourceFirstHarness(t)
-	mkProject(t, cs, "p", nil) // no source_gate → default `checked`
+	mkProject(t, cs, "p", nil) // no source_gate → default `written`
 	storeSourceItem(t, cs, "p", "a.json",
 		srcBlk{"clean", "A well-formed sentence.", model.SourceStatusNew},
 		srcBlk{"empty", "   ", model.SourceStatusNew})
 
 	res, err := s.convergence.settleSource(t.Context(), "p")
 	require.NoError(t, err)
-	assert.Equal(t, model.SourceGateChecked, res.Gate)
+	assert.Equal(t, model.SourceGateWritten, res.Gate)
 	assert.Equal(t, 2, res.Total)
 	assert.Equal(t, 1, res.BlockedOnSource, "only the empty block is held")
 
 	byID := settledStatusByID(t, cs, "p")
-	assert.Equal(t, model.SourceStatusChecked, byID["clean"], "clean source is promoted to checked")
+	assert.Equal(t, model.SourceStatusWritten, byID["clean"], "clean source is stamped written")
 	// Empty source cannot be promoted; it stays at the New baseline, below the
 	// gate — held either way.
-	assert.False(t, model.SourceGateChecked.Admits(byID["empty"]), "empty source stays below the gate")
+	assert.False(t, model.SourceGateWritten.Admits(byID["empty"], false), "empty source stays below the gate")
 }
 
 // TestSettleSource_GateNone_NoOp: the opt-out never settles or holds.
@@ -132,10 +132,10 @@ func TestSettleSource_GateNone_NoOp(t *testing.T) {
 // TestGateItemsBySource covers the fan-out decision at each gate level.
 func TestGateItemsBySource(t *testing.T) {
 	s, cs, _ := sourceFirstHarness(t)
-	mkProject(t, cs, "p", nil) // default checked
-	// item "ready" has a checked block; item "held" has only authored blocks.
-	storeSourceBlock(t, cs, "p", "ready.json", "r1", "ok", model.SourceStatusChecked)
-	storeSourceBlock(t, cs, "p", "held.json", "h1", "nope", model.SourceStatusAuthored)
+	mkProject(t, cs, "p", nil) // default written
+	// item "ready" has a written block; item "held" has only unsettled blocks.
+	storeSourceBlock(t, cs, "p", "ready.json", "r1", "ok", model.SourceStatusWritten)
+	storeSourceBlock(t, cs, "p", "held.json", "h1", "nope", model.SourceStatusNew)
 
 	prod, blocked, err := s.convergence.gateItemsBySource(t.Context(), "p", []string{"ready.json", "held.json"})
 	require.NoError(t, err)
@@ -147,7 +147,7 @@ func TestGateItemsBySource(t *testing.T) {
 func TestGateItemsBySource_None(t *testing.T) {
 	s, cs, _ := sourceFirstHarness(t)
 	mkProject(t, cs, "p", map[string]string{"source_gate": "none"})
-	storeSourceBlock(t, cs, "p", "held.json", "h1", "nope", model.SourceStatusAuthored)
+	storeSourceBlock(t, cs, "p", "held.json", "h1", "nope", model.SourceStatusWritten)
 
 	prod, blocked, err := s.convergence.gateItemsBySource(t.Context(), "p", []string{"held.json"})
 	require.NoError(t, err)
@@ -184,8 +184,8 @@ func TestReGateOnSourceChange(t *testing.T) {
 	require.NoError(t, err)
 
 	byID := settledStatusByID(t, cs, "p")
-	assert.Equal(t, model.SourceStatusApproved, byID["keep"], "the untouched block keeps its approval")
-	assert.Equal(t, model.SourceStatusChecked, byID["edit"], "the changed block re-gates to checked (approval dropped)")
+	assert.Equal(t, model.SourceStatusEstablished, byID["keep"], "the untouched block keeps its approval")
+	assert.Equal(t, model.SourceStatusWritten, byID["edit"], "the changed block re-gates to checked (approval dropped)")
 	_ = res2
 }
 
@@ -216,7 +216,7 @@ func approveBlocks(t *testing.T, cs *sqlitestore.SQLiteStore, projectID string) 
 	require.NoError(t, err)
 	var blocks []*model.Block
 	for _, sb := range got {
-		sb.Block.SourceStatus = model.SourceStatusApproved
+		sb.Block.SourceStatus = model.SourceStatusEstablished
 		blocks = append(blocks, sb.Block)
 	}
 	require.NoError(t, cs.StoreBlocks(t.Context(), projectID, "main", blocks))
@@ -249,7 +249,7 @@ func TestDrive_HoldsOnSource(t *testing.T) {
 	// the reused create_source_review automation fires. A clean, non-empty source
 	// settles to `checked` — which is below `approved`, so the whole locale is
 	// held on source.
-	mkProject(t, cs, "p", map[string]string{"source_gate": "approved"})
+	mkProject(t, cs, "p", map[string]string{"source_gate": "established"})
 	storeSourceBlock(t, cs, "p", "a.json", "b1", "A well-formed sentence.", model.SourceStatusNew)
 
 	run := &bstore.ConvergenceRun{ProjectID: "p", Trigger: "push", State: bstore.ConvergenceRunRunning}

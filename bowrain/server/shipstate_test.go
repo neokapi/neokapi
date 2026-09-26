@@ -60,7 +60,7 @@ func seedShipStateProject(t *testing.T, cs *bstore.PostgresStore) string {
 	b1 := &model.Block{ID: "b1", Translatable: true}
 	b1.SetSourceText("Hello world")
 	b1.SetTargetText("fr", "Bonjour le monde")
-	b1.StampTargetProvenance("fr", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	b1.StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	b1.SetTargetText("de", "Hallo Welt")
 	b1.SetTargetText("es", "Hola mundo")
 	b1.SetTargetText("it", "Ciao mondo")
@@ -71,7 +71,7 @@ func seedShipStateProject(t *testing.T, cs *bstore.PostgresStore) string {
 		Source:       []model.Run{textRun("Hello "), phRun()},
 	}
 	b2.SetTargetRuns("fr", []model.Run{textRun("Bonjour "), phRun()})
-	b2.StampTargetProvenance("fr", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	b2.StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	b2.SetTargetRuns("de", []model.Run{textRun("Hallo "), phRun()})
 	b2.SetTargetText("it", "Ciao") // drops the placeholder → error-severity finding
 
@@ -127,12 +127,12 @@ func TestApplyShipStates(t *testing.T) {
 
 	// Global per-locale states.
 	fr := localeByCode(t, stats.LocaleStats, "fr")
-	assert.Equal(t, platstore.ShipStateApproved, fr.ShipState, "fr: full coverage, all approved, checks pass, and no terms govern it")
+	assert.Equal(t, platstore.ShipStateEstablished, fr.ShipState, "fr: full coverage, all approved, checks pass, and no terms govern it")
 	assert.Equal(t, 2, fr.ApprovedBlocks)
 	assert.Equal(t, 0, fr.FailingChecks)
 
 	de := localeByCode(t, stats.LocaleStats, "de")
-	assert.Equal(t, platstore.ShipStateAIShippable, de.ShipState, "de: full coverage, machine-reviewed only")
+	assert.Equal(t, platstore.ShipStateTranslated, de.ShipState, "de: full coverage, machine-reviewed only")
 	assert.Equal(t, 0, de.ApprovedBlocks)
 	assert.Equal(t, 0, de.FailingChecks)
 
@@ -148,16 +148,16 @@ func TestApplyShipStates(t *testing.T) {
 
 	// Collection rollups.
 	colA := collByID(t, stats.CollectionStats, "col-a")
-	assert.Equal(t, platstore.ShipStateApproved, localeByCode(t, colA.Locales, "fr").ShipState)
-	assert.Equal(t, platstore.ShipStateAIShippable, localeByCode(t, colA.Locales, "de").ShipState)
-	assert.Equal(t, platstore.ShipStateAIShippable, localeByCode(t, colA.Locales, "es").ShipState,
+	assert.Equal(t, platstore.ShipStateEstablished, localeByCode(t, colA.Locales, "fr").ShipState)
+	assert.Equal(t, platstore.ShipStateTranslated, localeByCode(t, colA.Locales, "de").ShipState)
+	assert.Equal(t, platstore.ShipStateTranslated, localeByCode(t, colA.Locales, "es").ShipState,
 		"es is fully covered within col-a even though the project is not")
-	assert.Equal(t, platstore.ShipStateAIShippable, localeByCode(t, colA.Locales, "it").ShipState,
+	assert.Equal(t, platstore.ShipStateTranslated, localeByCode(t, colA.Locales, "it").ShipState,
 		"it's failing block lives in col-b, not col-a")
 	assert.Equal(t, 0, localeByCode(t, colA.Locales, "it").FailingChecks)
 
 	colB := collByID(t, stats.CollectionStats, "col-b")
-	assert.Equal(t, platstore.ShipStateApproved, localeByCode(t, colB.Locales, "fr").ShipState)
+	assert.Equal(t, platstore.ShipStateEstablished, localeByCode(t, colB.Locales, "fr").ShipState)
 	assert.Equal(t, platstore.ShipStatePending, localeByCode(t, colB.Locales, "es").ShipState)
 	itB := localeByCode(t, colB.Locales, "it")
 	assert.Equal(t, platstore.ShipStatePending, itB.ShipState)
@@ -271,13 +271,13 @@ func TestApplyShipStates_ComplianceVoiceScores(t *testing.T) {
 
 	fr := localeByCode(t, stats.LocaleStats, "fr")
 	assertCompliant(t, fr, 2, 0, 0, 1.0, platstore.ComplianceBasisVoiceTerms)
-	assert.Equal(t, platstore.ShipStateGoverned, fr.ShipState, "voice scores do not disturb ship states")
+	assert.Equal(t, platstore.ShipStateEstablished, fr.ShipState, "voice scores do not disturb ship states")
 
 	// de: b1 is below the bar and b2 was never scored. The profile governs de, so
 	// b2 has no result and is not checked, and the rate is over b1 alone.
 	de := localeByCode(t, stats.LocaleStats, "de")
 	assertCompliant(t, de, 0, 1, 0, 0.0, platstore.ComplianceBasisVoiceTerms)
-	assert.Equal(t, platstore.ShipStateAIShippable, de.ShipState, "a sub-bar voice score does not demote the ship state")
+	assert.Equal(t, platstore.ShipStateTranslated, de.ShipState, "a sub-bar voice score does not demote the ship state")
 	assert.Equal(t, 0, de.FailingChecks)
 
 	// es: no concept answers for es, so terminology does not govern it, and the
@@ -333,7 +333,7 @@ func TestApplyShipStates_StaleBasisWithholdsLocale(t *testing.T) {
 	storeSource("Hello", true)
 	_, err = cs.UpsertUnitDecisions(ctx, proj.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status:      string(model.TargetStatusReviewed),
+		Status:      string(model.TargetStatusEstablished),
 		TargetHash:  state.TargetHash("Hei"),
 		ContentHash: state.SourceHash("Hello"),
 		ReviewState: "approved",
@@ -352,11 +352,10 @@ func TestApplyShipStates_StaleBasisWithholdsLocale(t *testing.T) {
 		// The manifest the public feed serves is the same derivation projected.
 		feed := shipManifestFromStats(stats)
 		nb := localeByCode(t, stats.LocaleStats, "nb")
-		assert.Equal(t, nb.ShipState == platstore.ShipStateGoverned || nb.ShipState == platstore.ShipStateApproved ||
-			nb.ShipState == platstore.ShipStateAIShippable,
+		assert.Equal(t, nb.ShipState == platstore.ShipStateEstablished || nb.ShipState == platstore.ShipStateTranslated,
 			feed["nb"].Shippable, "the feed reads the same ship state the dashboard does")
-		assert.Equal(t, nb.ShipState == platstore.ShipStateGoverned || nb.ShipState == platstore.ShipStateApproved,
-			feed["nb"].Verified)
+		assert.Equal(t, nb.ShipState == platstore.ShipStateEstablished,
+			feed["nb"].State == convergence.ShipStateEstablished)
 		// The collection rollup carries the same verdict for its one item.
 		coll := localeByCode(t, collByID(t, stats.CollectionStats, "col-a").Locales, "nb")
 		assert.Equal(t, nb.ShipState, coll.ShipState, "the collection rollup agrees with the project")
@@ -365,7 +364,7 @@ func TestApplyShipStates_StaleBasisWithholdsLocale(t *testing.T) {
 	}
 
 	approved := derive()
-	require.Equal(t, platstore.ShipStateApproved, approved.ShipState, "approved and current, with no terms governing it: approved")
+	require.Equal(t, platstore.ShipStateEstablished, approved.ShipState, "approved and current, with no terms governing it: approved")
 	assert.Zero(t, approved.StaleBlocks)
 
 	// The source moves under the approval.
@@ -380,7 +379,7 @@ func TestApplyShipStates_StaleBasisWithholdsLocale(t *testing.T) {
 	// The source comes back.
 	storeSource("Hello", false)
 	restored := derive()
-	assert.Equal(t, platstore.ShipStateApproved, restored.ShipState,
+	assert.Equal(t, platstore.ShipStateEstablished, restored.ShipState,
 		"the recorded decision applies again — the locale recovers without a second review")
 	assert.Zero(t, restored.StaleBlocks)
 }
@@ -409,13 +408,13 @@ func TestApplyShipStates_MissingBasisShipsAndIsCounted(t *testing.T) {
 	b := &model.Block{ID: "greeting", Translatable: true}
 	b.SetSourceText("Hello")
 	b.SetTargetText("nb", "Hei")
-	b.StampTargetProvenance("nb", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	b.StampTargetProvenance("nb", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	require.NoError(t, cs.StoreBlocksForItem(ctx, proj.ID, "main", "en.json", []*model.Block{b}))
 
 	// The record predates the basis: no ContentHash at all.
 	_, err = cs.UpsertUnitDecisions(ctx, proj.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status:      string(model.TargetStatusReviewed),
+		Status:      string(model.TargetStatusEstablished),
 		TargetHash:  state.TargetHash("Hei"),
 		ReviewState: "approved",
 		Updated:     "2026-08-04T10:00:00Z",
@@ -429,7 +428,7 @@ func TestApplyShipStates_MissingBasisShipsAndIsCounted(t *testing.T) {
 	require.NoError(t, applyShipStates(ctx, cs, nil, proj.ID, "main", nil, stats))
 
 	nb := localeByCode(t, stats.LocaleStats, "nb")
-	assert.Equal(t, platstore.ShipStateApproved, nb.ShipState, "an unknown basis ships as before")
+	assert.Equal(t, platstore.ShipStateEstablished, nb.ShipState, "an unknown basis ships as before")
 	assert.Zero(t, nb.StaleBlocks, "unknown is not stale")
 	assert.Equal(t, 1, nb.BasisUnknownBlocks, "and it is counted, not silent")
 	assert.True(t, shipManifestFromStats(stats)["nb"].Shippable)
@@ -469,7 +468,7 @@ func TestPublicShipManifestWithholdsStaleLocale(t *testing.T) {
 	require.True(t, ok)
 	_, err := ds.UpsertUnitDecisions(ctx, proj.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
-		Status:      string(model.TargetStatusReviewed),
+		Status:      string(model.TargetStatusEstablished),
 		TargetHash:  state.TargetHash("Hei"),
 		ContentHash: state.SourceHash("Hello"),
 		ReviewState: "approved",
@@ -489,7 +488,7 @@ func TestPublicShipManifestWithholdsStaleLocale(t *testing.T) {
 		return out
 	}
 
-	assert.Equal(t, shipManifestEntry{Shippable: true, Verified: true, State: convergence.ShipStateShippable,
+	assert.Equal(t, shipManifestEntry{Shippable: true, State: convergence.ShipStateEstablished,
 		NotGoverned: []string{"terms"}}, feed()["nb"],
 		"approved against the current source: the picker may offer it, badged verified")
 
@@ -498,7 +497,7 @@ func TestPublicShipManifestWithholdsStaleLocale(t *testing.T) {
 		"the picker must not offer a locale rendering source the project rewrote")
 
 	storeSource("Hello", false)
-	assert.Equal(t, shipManifestEntry{Shippable: true, Verified: true, State: convergence.ShipStateShippable,
+	assert.Equal(t, shipManifestEntry{Shippable: true, State: convergence.ShipStateEstablished,
 		NotGoverned: []string{"terms"}}, feed()["nb"],
 		"and it recovers when the source comes back, with no second review")
 }
@@ -518,7 +517,7 @@ func TestTranslationDashboardShipStateWire(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, blocks, 1)
-	blocks[0].StampTargetProvenance("fr", model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	blocks[0].StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	require.NoError(t, srv.ContentStore.StoreBlocks(ctx, pid, "main", []*model.Block{blocks[0].Block}))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/test/"+pid+"/dashboard/main", nil)
@@ -586,6 +585,6 @@ func TestApplyShipStates_GovernedTermsWithNoResultWithhold(t *testing.T) {
 
 	ungoverned := derive(nil)
 	assert.Zero(t, ungoverned.TermsNotCheckedBlocks, "where no terms govern fr, no terminology result is owed")
-	assert.Equal(t, platstore.ShipStateAIShippable, ungoverned.ShipState, "terminology that governs nothing withholds nothing")
+	assert.Equal(t, platstore.ShipStateTranslated, ungoverned.ShipState, "terminology that governs nothing withholds nothing")
 	assert.False(t, ungoverned.ComplianceBasis.GovernsTerms(), "and the basis names it as not governed")
 }

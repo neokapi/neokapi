@@ -79,14 +79,13 @@ func init() {
 // the inline IR. trgLang names the target locale (may be empty).
 // targetStatusFromXLIFF2State maps an XLIFF 2.0 segment `state` to a target
 // lifecycle status. The XLIFF 2 vocabulary is initial → translated → reviewed →
-// final; "initial" / unknown leave the status unset (untranslated / new on our
+// final, and both reviewed and final read as established on ours; "initial" /
+// unknown leave the status unset (untranslated / new on our
 // ladder, where presence then implies translated).
 func targetStatusFromXLIFF2State(state string) model.TargetStatus {
 	switch state {
-	case "final":
-		return model.TargetStatusSignedOff
-	case "reviewed":
-		return model.TargetStatusReviewed
+	case "final", "reviewed":
+		return model.TargetStatusEstablished
 	case "translated":
 		return model.TargetStatusTranslated
 	default:
@@ -102,10 +101,8 @@ func targetStatusFromXLIFF2State(state string) model.TargetStatus {
 // produced XLIFF (e.g. `kapi extract`) reports where each unit stands.
 func xliff2StateFromTargetStatus(s model.TargetStatus) string {
 	switch s {
-	case model.TargetStatusSignedOff:
+	case model.TargetStatusEstablished:
 		return "final"
-	case model.TargetStatusReviewed:
-		return "reviewed"
 	case model.TargetStatusTranslated, model.TargetStatusDraft:
 		return "translated"
 	default:

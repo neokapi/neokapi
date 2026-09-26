@@ -50,7 +50,7 @@ describe("ConvergenceRunView: converged outcome and ship states", () => {
           converged: true,
           passes: 1,
           locales: [
-            { locale: "fr", shipState: "shippable", gated: true },
+            { locale: "fr", shipState: "translated", gated: true },
             { locale: "nb", shipState: "not_gated", gated: false },
           ],
         }}

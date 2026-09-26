@@ -179,29 +179,28 @@ func TestSourcePatternToolValidation(t *testing.T) {
 
 // ── source readiness ────────────────────────────────────────────────────────
 
-// runReadiness seeds a block, runs the source-readiness stamp over it, and
-// returns the stamped source status.
-func runReadiness(t *testing.T, seed func(b *model.Block)) model.SourceStatus {
+// runReadiness seeds a block, settles it, and returns the stamped source
+// status and whether the source fails its checks.
+func runReadiness(t *testing.T, seed func(b *model.Block)) (model.SourceStatus, bool) {
 	t.Helper()
 	block := model.NewBlock("tu1", "Our product is the best.")
 	if seed != nil {
 		seed(block)
 	}
-	tl := check.NewSourceReadinessTool()
-	part := &model.Part{Type: model.PartBlock, Resource: block}
-	result := processPart(t, tl, part)
-	return result.Resource.(*model.Block).SourceStatus
+	check.SettleSourceStatus(t.Context(), block)
+	return block.SourceStatus, block.SourceFailing()
 }
 
-func TestSourceReadiness_CleanSourceIsChecked(t *testing.T) {
+func TestSourceReadiness_CleanSourceIsWrittenAndPasses(t *testing.T) {
 	t.Parallel()
-	got := runReadiness(t, nil)
-	assert.Equal(t, model.SourceStatusChecked, got)
+	got, failing := runReadiness(t, nil)
+	assert.Equal(t, model.SourceStatusWritten, got)
+	assert.False(t, failing)
 }
 
-func TestSourceReadiness_VoiceFindingStaysAuthored(t *testing.T) {
+func TestSourceReadiness_VoiceFindingFails(t *testing.T) {
 	t.Parallel()
-	got := runReadiness(t, func(b *model.Block) {
+	got, failing := runReadiness(t, func(b *model.Block) {
 		b.SetAnno("voice", &profile.VoiceAnnotation{
 			Findings: []profile.VoiceFinding{{
 				Category: "vocabulary",
@@ -210,12 +209,13 @@ func TestSourceReadiness_VoiceFindingStaysAuthored(t *testing.T) {
 			}},
 		})
 	})
-	assert.Equal(t, model.SourceStatusAuthored, got)
+	assert.Equal(t, model.SourceStatusWritten, got)
+	assert.True(t, failing)
 }
 
-func TestSourceReadiness_UnifiedFindingStaysAuthored(t *testing.T) {
+func TestSourceReadiness_UnifiedFindingFails(t *testing.T) {
 	t.Parallel()
-	got := runReadiness(t, func(b *model.Block) {
+	_, failing := runReadiness(t, func(b *model.Block) {
 		b.SetAnno(check.AnnotationKey, &check.FindingsAnnotation{
 			Findings: []check.Finding{{
 				Category: "terminology",
@@ -224,12 +224,12 @@ func TestSourceReadiness_UnifiedFindingStaysAuthored(t *testing.T) {
 			}},
 		})
 	})
-	assert.Equal(t, model.SourceStatusAuthored, got)
+	assert.True(t, failing)
 }
 
 func TestSourceReadiness_ReportingFindingTolerated(t *testing.T) {
 	t.Parallel()
-	got := runReadiness(t, func(b *model.Block) {
+	_, failing := runReadiness(t, func(b *model.Block) {
 		b.SetAnno("voice", &profile.VoiceAnnotation{
 			Findings: []profile.VoiceFinding{{
 				Category: "style",
@@ -237,21 +237,13 @@ func TestSourceReadiness_ReportingFindingTolerated(t *testing.T) {
 			}},
 		})
 	})
-	assert.Equal(t, model.SourceStatusChecked, got)
+	assert.False(t, failing)
 }
 
-func TestSourceReadiness_CleanReCheckKeepsApproval(t *testing.T) {
+func TestSourceReadiness_KeepsEstablished(t *testing.T) {
 	t.Parallel()
-	got := runReadiness(t, func(b *model.Block) {
-		b.SourceStatus = model.SourceStatusApproved
-	})
-	assert.Equal(t, model.SourceStatusApproved, got)
-}
-
-func TestSourceReadiness_BlockingFindingRegressesApproval(t *testing.T) {
-	t.Parallel()
-	got := runReadiness(t, func(b *model.Block) {
-		b.SourceStatus = model.SourceStatusApproved
+	got, failing := runReadiness(t, func(b *model.Block) {
+		b.SourceStatus = model.SourceStatusEstablished
 		b.SetAnno("voice", &profile.VoiceAnnotation{
 			Findings: []profile.VoiceFinding{{
 				Fails:   true,
@@ -259,35 +251,30 @@ func TestSourceReadiness_BlockingFindingRegressesApproval(t *testing.T) {
 			}},
 		})
 	})
-	assert.Equal(t, model.SourceStatusAuthored, got)
+	assert.Equal(t, model.SourceStatusEstablished, got, "a check never undoes a person's decision")
+	assert.True(t, failing, "a failing finding still holds the source at the gate")
 }
 
 func TestSourceReadiness_NonTranslatableUntouched(t *testing.T) {
 	t.Parallel()
 	block := &model.Block{ID: "x", Translatable: false, Source: []model.Run{{Text: &model.TextRun{Text: "code"}}}}
-	tl := check.NewSourceReadinessTool()
-	part := &model.Part{Type: model.PartBlock, Resource: block}
-	result := processPart(t, tl, part)
-	assert.Empty(t, result.Resource.(*model.Block).SourceStatus, "non-translatable source must not be stamped")
+	check.SettleSourceStatus(t.Context(), block)
+	assert.Empty(t, block.SourceStatus, "non-translatable source must not be stamped")
 }
 
-// The readiness gate's emptiness guard is the shared run-aware presence
-// predicate (model.RunsHaveContent). Through SourceText() a block whose only run
-// is a placeholder flattened to "" and was skipped, so it never reached `checked`
-// and the source gate held it out of translation forever — fixed in #1455 but
-// never pinned. It is pinned here, on the predicate every gate now shares.
+// The settle's emptiness guard is the shared run-aware presence predicate
+// (model.RunsHaveContent), so a block whose only run is a placeholder is
+// written source that can clear the gate.
 func TestSourceReadiness_PlaceholderOnlySourceIsStamped(t *testing.T) {
 	t.Parallel()
 	block := &model.Block{ID: "price", Translatable: true, Source: []model.Run{
 		{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:var", Data: "{p.price}", Equiv: "p.price"}},
 	}}
-	tl := check.NewSourceReadinessTool()
-	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
-	assert.Equal(t, model.SourceStatusChecked, result.Resource.(*model.Block).SourceStatus,
-		"a placeholder-only source is authored content and must be able to reach `checked`")
+	check.SettleSourceStatus(t.Context(), block)
+	assert.Equal(t, model.SourceStatusWritten, block.SourceStatus)
 
 	// The boundary holds: a genuinely empty source is still not stamped.
 	empty := &model.Block{ID: "e", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "  "}}}}
-	result = processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: empty})
-	assert.Empty(t, result.Resource.(*model.Block).SourceStatus)
+	check.SettleSourceStatus(t.Context(), empty)
+	assert.Empty(t, empty.SourceStatus)
 }

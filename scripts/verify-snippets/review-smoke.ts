@@ -71,7 +71,7 @@ const REVIEW = JSON.stringify({
   file: "messages.fr.json",
   id: "greeting",
   locale: "fr",
-  status: "reviewed",
+  status: "established",
 });
 
 mem.vol.writeFile("/project/kapi.yaml", enc.encode(RECIPE));
@@ -102,13 +102,13 @@ const run = async (argv: string[]): Promise<{ code: number; stdout: string }> =>
   return { code, stdout: out.replace(ANSI, "") };
 };
 
-// ── 1. status: fr is fully translated, nothing reviewed yet ──────────────────
+// ── 1. status: fr is fully translated, nothing established yet ──────────────────
 const s1 = await run(["status", "-p", P]);
 ok("status exits 0 in wasm", s1.code === 0, `code=${s1.code}`);
 ok("status reports fr translated 100%", /\bfr\b[\s\S]*100%/.test(s1.stdout), s1.stdout.trim().split("\n").pop() ?? "");
-ok("status shows 0% reviewed before approval", / 0%/.test(s1.stdout));
+ok("status shows 0% established before approval", / 0%/.test(s1.stdout));
 
-// ── 2. status --review: the worklist of translated-not-reviewed units ────────
+// ── 2. status --review: the worklist of translated units awaiting review ────────
 const s2 = await run(["status", "--review", "--json", "-p", P]);
 ok("status --review exits 0 in wasm", s2.code === 0, `code=${s2.code}`);
 let queue: any = null;
@@ -133,11 +133,11 @@ ok(
 const s3 = await run(["apply", "review.jsonl"]);
 ok("apply review exits 0 in wasm", s3.code === 0, `code=${s3.code}`);
 
-// ── 4. status again: the approval is derived back as reviewed coverage ───────
+// ── 4. status again: the approval is derived back as established coverage ───────
 const s4 = await run(["status", "-p", P]);
 ok("status (post-approval) exits 0", s4.code === 0, `code=${s4.code}`);
 ok(
-  "reviewed coverage climbs to 33% (1 of 3) after one approval",
+  "established coverage climbs to 33% (1 of 3) after one approval",
   / 33%/.test(s4.stdout),
   s4.stdout.trim().split("\n").pop() ?? "",
 );

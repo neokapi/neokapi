@@ -142,7 +142,7 @@ func Variant(locale LocaleID) VariantKey { return VariantKey{Locale: locale} }
 // Target is one translation: a flat run sequence with status and provenance.
 type Target struct {
     Runs   []Run
-    Status TargetStatus // e.g. "", "translated", "reviewed"
+    Status TargetStatus // e.g. "", "translated", "established"
     Origin Origin       // tool/provider that produced it
     Score  float64
 }

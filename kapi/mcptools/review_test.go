@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/cli"
-	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,7 +27,7 @@ collections:
     content:
       - path: en.json
         target: "{lang}.json"
-ship_gate: { translated: 100, reviewed: 100 }
+ship_gate: { translated: 100, established: 100 }
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
@@ -131,7 +130,7 @@ func TestHandleReviewUnit_CarriesTheContext(t *testing.T) {
 // TestHandleReviewDecision_ApproveRejectSignOff drives the three decision
 // tools end to end: identities land in the state store as agent-class, the
 // queue shrinks, and a redundant call reports changed=false.
-func TestHandleReviewDecision_ApproveRejectSignOff(t *testing.T) {
+func TestHandlePreReview_AnnotatesWithoutDeciding(t *testing.T) {
 	root := writeMCPReviewProject(t)
 	a := testApp()
 	proj := filepath.Join(root, "kapi.yaml")
@@ -139,56 +138,34 @@ func TestHandleReviewDecision_ApproveRejectSignOff(t *testing.T) {
 	_, queue, err := handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj})
 	require.NoError(t, err)
 	require.Len(t, queue.Pending, 2)
-	first, second := queue.Pending[0], queue.Pending[1]
+	first := queue.Pending[0]
 
-	// approve_unit with a client-derived identity.
-	_, dec, err := handleReviewDecision(t.Context(), a, ReviewDecisionInput{
+	_, out, err := handlePreReview(t.Context(), a, PreReviewInput{
 		Project: proj, Locale: first.Locale, File: first.File, Key: first.Key,
-	}, cli.ReviewDecisionApproved, "agent/claude-code")
+		Score: 72, Reasons: []PreReviewReason{{Severity: "minor", Message: "reads stiffly", Suggestion: "Eplet"}},
+	}, "agent/claude-code")
 	require.NoError(t, err)
-	assert.True(t, dec.Changed)
-	assert.Equal(t, "agent/claude-code", dec.By)
+	assert.True(t, out.Recorded)
+	assert.Equal(t, "agent/claude-code", out.By)
 
-	// Redundant approval is a no-op, not an error.
-	_, dec, err = handleReviewDecision(t.Context(), a, ReviewDecisionInput{
-		Project: proj, Locale: first.Locale, File: first.File, Key: first.Key,
-	}, cli.ReviewDecisionApproved, "agent/claude-code")
-	require.NoError(t, err)
-	assert.False(t, dec.Changed)
-
-	// reject_unit carries the note; sign_off_unit is the top rung.
-	_, dec, err = handleReviewDecision(t.Context(), a, ReviewDecisionInput{
-		Project: proj, Locale: second.Locale, File: second.File, Key: second.Key,
-		Note: "wrong term",
-	}, cli.ReviewDecisionRejected, "agent")
-	require.NoError(t, err)
-	assert.True(t, dec.Changed)
-
-	// Both decided units left the queue.
+	// The unit stays in the queue for a person, carrying the score.
 	_, queue, err = handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj})
 	require.NoError(t, err)
-	assert.Equal(t, 0, queue.Total)
-
-	// Identities and the note are in the ledger: decisions are durable there
-	// from the moment they are made. A fresh App: the project store is owned
-	// per App, and this one exists only to read what the App under test
-	// recorded into the same file.
-	reader := &host.App{}
-	defer reader.Shutdown()
-	st, err := reader.OpenProjectState(t.Context(), root)
-	require.NoError(t, err)
-	units, err := st.All(t.Context())
-	require.NoError(t, err)
-	require.Len(t, units, 2)
-	byUnit := map[string]state.UnitState{}
-	for _, u := range units {
-		byUnit[u.Unit] = u
+	require.Equal(t, 2, queue.Total, "a pre-review decides nothing")
+	var scored *cli.ReviewQueueItem
+	for i := range queue.Pending {
+		if queue.Pending[i].Key == first.Key {
+			scored = &queue.Pending[i]
+		}
 	}
-	assert.Equal(t, "agent/claude-code", byUnit[first.Key].Decision.By)
-	assert.False(t, state.IsAIDecision(byUnit[first.Key].Decision.By),
-		"agent decisions are human-class for gates")
-	assert.Equal(t, "agent", byUnit[second.Key].Decision.By)
-	assert.Equal(t, "wrong term", byUnit[second.Key].Decision.Note)
+	require.NotNil(t, scored)
+	require.NotNil(t, scored.AIScore)
+	assert.Equal(t, 72, *scored.AIScore)
+
+	_, _, err = handlePreReview(t.Context(), a, PreReviewInput{
+		Project: proj, Locale: first.Locale, File: first.File, Key: first.Key, Score: 101,
+	}, "agent")
+	require.Error(t, err, "a score outside 0-100 is refused")
 }
 
 // writeMCPSourceGateProject scaffolds a project whose source gate asks for a
@@ -202,7 +179,7 @@ name: rev-source
 defaults:
   source_language: en
   target_languages: [nb]
-  source_gate: approved
+  source_gate: established
 collections:
   - name: app
     content:
@@ -263,7 +240,7 @@ name: rev-clean
 defaults:
   source_language: en
   target_languages: [nb]
-  source_gate: checked
+  source_gate: written
 collections:
   - name: app
     content:
@@ -304,7 +281,7 @@ func TestHandleReviewUnit_AcceptsASourceLanguageUnit(t *testing.T) {
 	assert.Equal(t, "en", out.Unit.Language)
 	assert.Equal(t, "Apple", out.Unit.Source)
 	assert.Empty(t, out.Unit.Target)
-	assert.Equal(t, "checked", out.Unit.Status)
+	assert.Equal(t, "written", out.Unit.Status)
 	require.NotNil(t, out.Unit.Context)
 	assert.Equal(t, "en.json", out.Unit.Context.Point.Path)
 	assert.True(t, out.Unit.Context.Point.IsSource)

@@ -648,7 +648,7 @@ func approveRecordUnit(t *testing.T, a *App, recipe, key string) {
 func approveRecordUnitIn(t *testing.T, a *App, recipe, locale, ext, key string) {
 	t.Helper()
 	changed, err := a.ApproveReviewUnit(context.Background(), recipe, "en", locale,
-		"src/"+locale+ext, key, "reviewed")
+		"src/"+locale+ext, key)
 	require.NoError(t, err)
 	require.True(t, changed)
 }

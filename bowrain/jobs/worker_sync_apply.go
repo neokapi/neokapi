@@ -234,7 +234,7 @@ func applyStagedPush(
 	out := &pushOutcome{}
 
 	// Review governance, before anything is written. Every rung above
-	// translated this payload claims, and every sign-off it takes back, is put
+	// translated this payload claims, and every established unit it takes back, is put
 	// to the platform's own gate, and what fails it is settled here rather
 	// than stored and undone later. The content is untouched: a push moves
 	// content, and only the verdict on it is the platform's to withhold or to

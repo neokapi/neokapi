@@ -37,7 +37,6 @@ import { InlineCodeLegend } from "@neokapi/ui-primitives";
 import { FormatVocabularyBadge } from "./FormatVocabularyBadge";
 import {
   Check,
-  CheckCheck,
   X,
   ChevronDown,
   ChevronUp,
@@ -64,7 +63,6 @@ export interface VisualEditorCardProps {
   onCancel: () => void;
   onApprove: () => void;
   /** Sign the target off: the rung above reviewed on the target ladder. */
-  onSignOff: () => void;
   onReject: () => void;
   memoryMatches: MemoryMatchInfo[];
   termMatches: BlockTermMatch[];
@@ -106,7 +104,6 @@ export function VisualEditorCard({
   onSave,
   onCancel,
   onApprove,
-  onSignOff,
   onReject,
   memoryMatches,
   termMatches,
@@ -546,16 +543,6 @@ export function VisualEditorCard({
               <Check className="w-3.5 h-3.5 mr-1" />
               Approve
               <span className="ml-1.5 text-[10px] text-muted-foreground">(Ctrl+Shift+A)</span>
-            </Button>
-            <Button
-              size="sm"
-              onClick={onSignOff}
-              disabled={!targetText.trim()}
-              data-testid="sign-off-btn"
-            >
-              <CheckCheck className="w-3.5 h-3.5 mr-1" />
-              Sign off
-              <span className="ml-1.5 text-[10px] text-muted-foreground">(Ctrl+Shift+S)</span>
             </Button>
           </>
         )}

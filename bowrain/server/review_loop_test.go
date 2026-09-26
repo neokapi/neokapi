@@ -266,10 +266,10 @@ func TestApprovePassing_ExcludesFailingBlocks(t *testing.T) {
 	// The approved block is reviewed; the failing one stays below reviewed.
 	g1, err := s.ContentStore.GetBlock(ctx, projID, "main", ids["Hello"])
 	require.NoError(t, err)
-	assert.Equal(t, model.TargetStatusReviewed, g1.Block.Target("fr").Status)
+	assert.Equal(t, model.TargetStatusEstablished, g1.Block.Target("fr").Status)
 	g2, err := s.ContentStore.GetBlock(ctx, projID, "main", ids["Goodbye"])
 	require.NoError(t, err)
-	assert.Less(t, g2.Block.Target("fr").Status.Rank(), model.TargetStatusReviewed.Rank(),
+	assert.Less(t, g2.Block.Target("fr").Status.Rank(), model.TargetStatusEstablished.Rank(),
 		"a failing block must not be approved")
 
 	// The approved block is now deliverable; the failing one is withheld.

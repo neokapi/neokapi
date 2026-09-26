@@ -1,7 +1,7 @@
 ---
 title: Ship-Aware Language Picker
-description: "The two-gate ship model: a ship gate decides which locales go live, a verified gate decides which were human-reviewed. Emit a ship.json manifest with kapi status --ship and drive a language picker that hides un-shippable locales and flags AI-only ones."
-keywords: [ship gate, verified gate, ship.json, language picker, verified, AI badge, kapi status, neokapi-i18n]
+description: "A locale ships established (a person established it) or translated (translated with its checks green). Emit a ship.json manifest with kapi status --ship and drive a language picker that hides locales that do not ship and flags the translated ones as AI."
+keywords: [ship gate, established gate, ship.json, language picker, ship state, AI badge, kapi status, neokapi-i18n]
 ---
 
 # Ship-aware language picker
@@ -9,47 +9,44 @@ keywords: [ship gate, verified gate, ship.json, language picker, verified, AI ba
 A project decides which translated versions to offer its users. neokapi models
 that decision with **two gates**, both declared in `kapi.yaml`, both evaluated
 the same way against the target status ladder
-(`draft → translated → reviewed → signed-off`):
+(`draft → translated → established`):
 
-- **The ship gate**: the bar to go live. A locale that clears it is safe to
-  offer. It is the `ship_gate` / `ship_gates` configuration.
-- **The verified gate**: the bar to count as human-verified: a person reviewed
-  or signed off the content. A locale that ships but is not verified is AI-only
-  work.
+- **The ship gate**: the bar to go live. A locale that clears it ships
+  `translated`: translated with its checks green, and safe to offer. It is the
+  `ship_gate` / `ship_gates` configuration.
+- **The established gate**: the bar to ship `established`, meaning a person
+  established the content. It is the `established_gate` / `established_gates`
+  configuration.
 
-The two gates are independent. Being verified is not a prerequisite for
-shipping: a project can go live with machine translation and mark those locales
-as unverified until a reviewer catches up.
+A locale that ships `translated` is AI work, and the picker marks it. A project
+that delivers only established content says so in its ship gate
+(`ship_gate: { established: 100 }`).
 
-## Declaring the verified gate
+## Declaring the established gate
 
-The verified gate uses the same three additive forms and the same precedence as
-the ship gate, and resolves a `gate:` name against the shared `gates:` registry:
+The established gate uses the same three additive forms and the same
+precedence as the ship gate, and resolves a `gate:` name against the shared
+`gates:` registry:
 
 ```yaml
 # kapi.yaml
 ship_gate: { translated: 100 } # go live once fully translated
-verified_gate: { reviewed: 100 } # count as verified once fully reviewed
+established_gate: { established: 100 } # ship established once a person established every unit
 ```
 
 A rule list narrows the bar per collection or locale, most-specific rule wins:
 
 ```yaml
-verified_gates:
+established_gates:
   - when: { locales: [ja] }
-    gate: { signed-off: 100 } # Japanese needs sign-off
-  - gate: { reviewed: 100 } # everything else: reviewed
+    gate: { established: 100 } # Japanese needs a person on every unit
+  - gate: { established: 80 }
 ```
 
-The recipe keys are **`verified_gate`** (a single catch-all gate) and
-**`verified_gates`** (a when/gate rule list).
+:::note With no established gate, nothing ships established
 
-:::note The default is "nothing is verified"
-
-A project with **no** verified gate has no verified locales: every shippable
-locale reads as AI-only. Declaring `verified_gate` / `verified_gates` is how a
-project defines the requirements for verification. A locale is labelled
-"verified" only after it passes those requirements.
+A project with **no** established gate has no locale in the `established`
+state: every locale that ships reads `translated`, marked AI.
 
 :::
 
@@ -79,43 +76,42 @@ Without `--emit`, the manifest goes to stdout, so a build step can redirect it:
 kapi status --ship > public/ship.json
 ```
 
-The file is keyed by locale, each entry carrying the two gates' outcomes and the
-locale's ship state:
+The file is keyed by locale, each entry carrying whether the locale ships and
+its ship state:
 
 ```json
 {
-  "fr": { "shippable": true, "verified": true, "state": "shippable" },
-  "de": { "shippable": true, "verified": false, "state": "shippable" },
-  "nl": { "shippable": true, "verified": false, "state": "shippable", "not_governed": ["terms"] },
-  "sv": { "shippable": true, "verified": false, "state": "not_gated" },
-  "ja": { "shippable": false, "verified": false, "state": "withheld" }
+  "fr": { "shippable": true, "state": "established" },
+  "de": { "shippable": true, "state": "translated" },
+  "nl": { "shippable": true, "state": "translated", "not_governed": ["terms"] },
+  "sv": { "shippable": true, "state": "not_gated" },
+  "ja": { "shippable": false, "state": "withheld" }
 }
 ```
 
-Here French ships and is verified (no badge), German ships but is AI-only
-(flagged), Dutch ships the same way in a language no terms govern, Swedish has
-no ship gate and is offered as not gated, and Japanese is withheld.
+Here French ships established (no badge), German ships translated (flagged
+AI), Dutch ships the same way in a language no terms govern, Swedish has no
+gate and is offered as not gated, and Japanese is withheld.
 
-`state` takes one of three values:
+`state` takes one of four values:
 
 | `state` | Meaning | `shippable` |
 | --- | --- | --- |
-| `shippable` | A ship gate matches the locale and the locale clears it. | `true` |
+| `established` | An established gate matches the locale and the locale clears it: governed content. | `true` |
+| `translated` | A ship gate matches the locale and the locale clears it, and no established gate is met: AI-shippable content. | `true` |
 | `withheld` | The locale does not ship: it is short of its gate, or stale, rejected or failing content, or unchecked terms, hold it back. | `false` |
-| `not_gated` | No ship gate matches the locale, and nothing withholds it. | `true` |
+| `not_gated` | No gate matches the locale, and nothing withholds it. | `true` |
 
-A locale spread over several collections takes the weakest state among them:
-one withheld collection withholds it, and a collection no gate matches leaves it
-not gated. `shippable` is `true` for both `shippable` and `not_gated`, so a
-picker that reads only `shippable` offers a not-gated locale; `state` is what
-tells a cleared gate from no gate. An entry carries `not_governed` when a dimension governs
+A locale spread over several collections takes the weakest state among them, in
+the order withheld, not_gated, translated, established. `shippable` is `true`
+for every state but `withheld`, so a picker that reads only `shippable` offers a
+not-gated locale; `state` is what tells a cleared gate from no gate. An entry carries `not_governed` when a dimension governs
 nothing in that language: `terms` means that none of the terms bound where the
 language's content sits, under the project defaults or on a profile, has a term
 for it. The picker does not read it. It is there so a build step or a
 reader does not take the language for a governed one. The richer `kapi status --json`
-report carries the same `shippable` and `verified` fields per collection and
-locale, with the state as `shipState` and the full coverage percentages, for
-dashboards.
+report carries `shippable` and the state, as `shipState`, per collection and
+locale, with the full coverage percentages, for dashboards.
 
 ## A hosted feed instead of a built file
 
@@ -126,7 +122,7 @@ disappears, and the picker reads the current standing on each load rather than
 whatever was true at build time.
 
 The contract is exactly the file's: an object keyed by locale, each value
-`{ shippable, verified, state }`, with `not_governed` where it applies. A hosted feed is read-only and needs no auth (a
+`{ shippable, state }`, with `not_governed` where it applies. A hosted feed is read-only and needs no auth (a
 public picker fetches it directly), and should send an `ETag` and a short
 `Cache-Control: public, max-age=…` so a picker or a CDN can revalidate cheaply
 with a `304`.
@@ -158,7 +154,7 @@ import { loadShipStatus, languagePickerModel } from "@neokapi/i18n-react/ship";
 
 const status = await loadShipStatus(); // defaults to /ship.json
 const model = languagePickerModel(status, ["en", "fr", "de", "ja"]);
-// → [{ locale: "fr", label: "Français", shippable: true, badge: 'ai' | null, state: "shippable" }, …]
+// → [{ locale: "fr", label: "Français", shippable: true, badge: 'ai' | null, state: "translated" }, …]
 ```
 
 The label is resolved in this order: an explicit `label` on a `LocaleInput`, then
@@ -187,10 +183,10 @@ throws.
 
 `languagePickerModel` returns the locales whose entry is shippable, which
 includes a not-gated locale. Pass `includeNotGated: false` to offer only the
-locales that clear a ship gate. Each entry carries the manifest's `state` and a
-`badge`: `'ai'` when the locale ships but is not verified, and `null` when it is
-verified. **`'ai'` is the only badge this layer emits; a verified locale has no
-badge.** A React binding wraps the same two functions and takes the same options
+locales that clear a gate. Each entry carries the manifest's `state` and a
+`badge`: `'ai'` when the locale ships but is not `established`, and `null` when
+it is. **`'ai'` is the only badge this layer emits; an established locale has
+no badge.** A React binding wraps the same two functions and takes the same options
 as a third argument:
 
 ```tsx
@@ -220,8 +216,9 @@ tooling.
 
 ## Compatibility
 
-The verified gate is purely additive. Recipes that declare no `verified_gate`
-are unaffected: their ship-gate behaviour is unchanged and every locale reads as
-unverified. The picker helper degrades safely when `ship.json` is absent, and
-reads an entry with no `state` by its `shippable` flag alone, so a project can
-adopt the manifest and the picker independently.
+The established gate is additive. A recipe that declares none has every
+shipping locale read `translated`. The picker helper degrades safely when
+`ship.json` is absent, and reads an entry with no `state` by its `shippable`
+flag alone, so a project can adopt the manifest and the picker independently.
+A recipe that still carries `verified_gate` fails to load and names
+`established_gate`.

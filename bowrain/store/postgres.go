@@ -1288,11 +1288,11 @@ type blockFilterPg struct {
 // block's target for the joined locale falls into. Both must agree, or the
 // server's counts contradict the chip the editor renders beside them.
 const pgStatusBucket = `CASE
-	WHEN COALESCE(t.target_json->>'status', '') IN ('reviewed', 'signed-off') THEN 'reviewed'
+	WHEN COALESCE(t.target_json->>'status', '') = 'established' THEN 'established'
 	WHEN COALESCE(t.text, '') = '' THEN 'not-started'
 	WHEN t.target_json->>'status' = 'translated' THEN 'translated'
 	WHEN t.target_json->>'status' = 'draft' THEN 'draft'
-	WHEN b.properties::jsonb->>'translation-status' = 'reviewed' THEN 'reviewed'
+	WHEN b.properties::jsonb->>'translation-status' = 'reviewed' THEN 'established'
 	WHEN b.properties::jsonb->>'translation-status' = 'draft' THEN 'draft'
 	WHEN b.properties::jsonb->>'translation-origin' IN ('machine', 'pseudo') THEN 'draft'
 	ELSE 'translated'
@@ -1528,12 +1528,12 @@ func (s *PostgresStore) CountBlocks(ctx context.Context, query platstore.BlockQu
 			count(*) FILTER (WHERE x.translatable AND x.bucket = 'not-started'),
 			count(*) FILTER (WHERE x.translatable AND x.bucket = 'draft'),
 			count(*) FILTER (WHERE x.translatable AND x.bucket = 'translated'),
-			count(*) FILTER (WHERE x.translatable AND x.bucket = 'reviewed')
+			count(*) FILTER (WHERE x.translatable AND x.bucket = 'established')
 		 FROM (SELECT b.translatable, %s AS bucket FROM blocks b %s WHERE %s) x`
 
 	var out platstore.BlockCounts
 	err := s.db.QueryRowContext(ctx, fmt.Sprintf(skeleton, bucket, f.join, f.where), f.args...).
-		Scan(&out.Total, &out.Translatable, &out.NotStarted, &out.Draft, &out.Translated, &out.Reviewed)
+		Scan(&out.Total, &out.Translatable, &out.NotStarted, &out.Draft, &out.Translated, &out.Established)
 	if err != nil {
 		return platstore.BlockCounts{}, fmt.Errorf("count blocks: %w", err)
 	}
@@ -1571,7 +1571,7 @@ func (s *PostgresStore) ListPendingReview(ctx context.Context, q platstore.Pendi
 		LEFT JOIN items i
 		ON i.project_id = b.project_id AND i.stream = $2 AND i.name = b.item_name
 		WHERE b.project_id = $1 AND b.stream = $2 AND b.translatable AND t.text <> ''
-		AND COALESCE(t.target_json->>'status', '') NOT IN ('reviewed', 'signed-off')%s`
+		AND COALESCE(t.target_json->>'status', '') <> 'established'%s`
 	args := []any{q.ProjectID, stream}
 	scope := ""
 	next := 3

@@ -43,7 +43,7 @@ function block(id: string, source: string, target: TargetEntry): BlockInfo {
 const blocks: BlockInfo[] = [
   block("b1", "Hello world", "Bonjour le monde"),
   block("b2", "Goodbye now", "Au revoir"),
-  block("b3", "Settings", { text: "Réglages", status: "reviewed" }),
+  block("b3", "Settings", { text: "Réglages", status: "established" }),
 ];
 
 function locale(over: Record<string, unknown>) {
@@ -179,38 +179,10 @@ describe("ReviewSession", () => {
   // Sign off is the rung above reviewed. The platform writes it through the
   // same endpoint as an approval, with the rung named, and the unit leaves the
   // pending queue the same way.
-  it("sign off sends the signed-off rung and clears the unit from the queue", async () => {
-    const user = userEvent.setup();
-    const { adapter } = renderSession();
-    await waitForQueue();
-
-    await user.click(screen.getByTestId("reviewer-sign-off"));
-
-    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
-    expect(adapter.reviewBlockCalls[0]).toMatchObject({
-      blockId: "b1",
-      targetLocale: "fr-FR",
-      reviewed: true,
-      rung: "signed-off",
-    });
-    await waitFor(() =>
-      expect(screen.getByTestId("review-pending-count").textContent).toContain("1 pending"),
-    );
-    expect(screen.queryByTestId(`queue-row-${e1}`)).not.toBeInTheDocument();
-  });
-
-  it("signs off via the 's' keyboard shortcut", async () => {
-    const user = userEvent.setup();
-    const { adapter } = renderSession();
-    await waitForQueue();
-    await user.keyboard("s");
-    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
-    expect(adapter.reviewBlockCalls[0]).toMatchObject({ reviewed: true, rung: "signed-off" });
-  });
 
   // Signing off is the same review permission as approving, so a translator
   // gets a disabled button that says why rather than a 403 on click.
-  it("disables Approve and Sign off for a caller without review permission", async () => {
+  it("disables Approve for a caller without review permission", async () => {
     renderSession(stats, (adapter) => {
       vi.spyOn(adapter, "getCallerPermissions").mockResolvedValue({
         permissions: ["view_content", "translate"],
@@ -219,9 +191,8 @@ describe("ReviewSession", () => {
     });
     await waitForQueue();
 
-    await waitFor(() => expect(screen.getByTestId("reviewer-sign-off")).toBeDisabled());
-    expect(screen.getByTestId("reviewer-approve")).toBeDisabled();
-    expect(screen.getByTestId("reviewer-sign-off").getAttribute("title")).toContain(
+    await waitFor(() => expect(screen.getByTestId("reviewer-approve")).toBeDisabled());
+    expect(screen.getByTestId("reviewer-approve").getAttribute("title")).toContain(
       "review permission",
     );
   });

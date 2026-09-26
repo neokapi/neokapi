@@ -40,7 +40,7 @@ script:
   - command: kapi status --review --lang fr
   - comment: The queue is already the shape of a change-set, so approving is one pass over it.
   - command: >-
-      kapi status --review --lang fr --json --jq '.pending[]|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > reviewed.json
+      kapi status --review --lang fr --json --jq '.pending[]|{kind:"review",op:"add",file,id:.key,locale,status:"established"}' > reviewed.json
   # The per-entry report goes to stderr, so the tail has to see stderr to trim it.
   - command: kapi apply reviewed.json 2>&1 | tail -3
   - comment: Each approval is in the record as it is made, attributable, and the queue says so.

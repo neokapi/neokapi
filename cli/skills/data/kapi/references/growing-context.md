@@ -193,7 +193,7 @@ kapi voice check README.md --profile-file voice.yaml --json   # score one of the
 ```
 
 Show the guide, the score and findings on their own text, and the term list.
-Get explicit sign-off on every forbidden and competitor term and every
+Get a person to confirm every forbidden and competitor term and every
 `deprecated` one, these will gate their builds. Fold feedback
 into `voice.yaml` and re-render until the user agrees. Never invent competitors
 or bans the user didn't confirm.

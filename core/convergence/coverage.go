@@ -28,7 +28,6 @@ type Scope struct {
 // scopeTally is one scope's accumulated distribution.
 type scopeTally struct {
 	cov            gate.Coverage
-	aiReviewed     int
 	stale          int
 	staleRedrafted int
 	rejectedOwed   int
@@ -40,7 +39,7 @@ type scopeTally struct {
 }
 
 // CoverageTally accumulates unit states per (collection, locale) scope. Feed
-// it with Add/AddAIDecided from any block source, then read a single scope
+// it with Add from any block source, then read a single scope
 // back with Coverage or roll everything up against the project's ship gates
 // with Rollup.
 type CoverageTally struct {
@@ -61,20 +60,9 @@ func (t *CoverageTally) tally(s Scope) *scopeTally {
 	return st
 }
 
-// Add tallies one unit at the given ladder state ("" = untranslated) whose
-// state was reached without an AI decision.
+// Add tallies one unit at the given ladder state ("" = untranslated).
 func (t *CoverageTally) Add(s Scope, state string) {
 	t.tally(s).cov.Add(state)
-}
-
-// AddAIDecided tallies one unit whose state was reached by an autonomous AI
-// decision ("ai/…" identity): it counts at state in the effective
-// distribution and at baseline (the rung it held before the decision,
-// typically `translated`) in the human-only one (gate approver classes).
-func (t *CoverageTally) AddAIDecided(s Scope, state, baseline string) {
-	st := t.tally(s)
-	st.cov.AddAIDecided(state, baseline)
-	st.aiReviewed++
 }
 
 // AddStale tallies one unit whose recorded basis — a decision's, or the loop's
@@ -146,21 +134,19 @@ func (t *CoverageTally) Coverage(s Scope) (gate.Coverage, bool) {
 // Rollup evaluates every tallied scope against the resolved ship gates and
 // returns the LocaleCoverage rows, sorted by (locale, collection). Percentages
 // are the rounded "at least" values over the target ladder; a scope no gate
-// rule matches is not gated. It is RollupGates with no verified gate, so the
-// verified flag is false everywhere.
+// rule matches is not gated. It is RollupGates with no established gate, so no
+// scope ships `established`.
 func (t *CoverageTally) Rollup(ship gate.RuleSet) []LocaleCoverage {
 	return t.RollupGates(ship, gate.RuleSet{})
 }
 
 // RollupGates evaluates every tallied scope against BOTH the ship gates and the
-// verified gates — the two-gate model — and returns the LocaleCoverage rows,
-// sorted by (locale, collection). Both gates read the same tallied distribution
-// over the target ladder; they differ only in the bar. A scope no ship rule
-// matches is not gated: nothing withholds it, so Shippable reads true, and its
-// ShipState says no gate stands behind that. A scope no verified rule matches
-// reads as NOT verified, because nothing is verified unless a bar is declared
-// and cleared.
-func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverage {
+// established gates and returns the LocaleCoverage rows, sorted by (locale,
+// collection). Both gates read the same tallied distribution over the target
+// ladder; they differ only in the bar. A scope no ship rule matches is not
+// gated: nothing withholds it, so Shippable reads true. A scope ships
+// `established` only where an established gate is declared and cleared.
+func (t *CoverageTally) RollupGates(ship, established gate.RuleSet) []LocaleCoverage {
 	ladder := gate.TargetLadder()
 	scopes := make([]Scope, 0, len(t.tallies))
 	for s := range t.tallies {
@@ -179,7 +165,7 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 		cov := st.cov
 		lc := LocaleCoverage{
 			Locale: s.Locale, Collection: s.Collection, Total: cov.Total,
-			Pct: map[string]int{}, AIReviewed: st.aiReviewed,
+			Pct:   map[string]int{},
 			Stale: st.stale, FailingChecks: st.failingChecks,
 			StaleAwaitingDraft: st.stale - st.staleRedrafted, StaleAwaitingReview: st.staleRedrafted,
 			RejectedAwaitingDraft: st.rejectedOwed,
@@ -200,11 +186,12 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 			lc.Shippable = true // no ship gate matched this scope; the withholds below still apply
 			lc.ShipProgress = 100
 		}
-		// The verified gate is evaluated the same way as the ship gate, over the
-		// same distribution. No matching rule means the scope has no verified bar,
-		// so it reads as unverified (the honest default).
-		if vg, ok := verified.Resolve(s.Collection, s.Locale); ok {
-			lc.Verified = gate.Evaluate(vg, cov, ladder).Pass
+		// The established gate is evaluated the same way as the ship gate, over
+		// the same distribution. No matching rule means the scope has no
+		// established bar, so it does not ship `established`.
+		establishedMet := false
+		if eg, ok := established.Resolve(s.Collection, s.Locale); ok {
+			establishedMet = gate.Evaluate(eg, cov, ladder).Pass
 		}
 		// Stale content, content a reviewer turned down, and content failing the
 		// project's bound checks are withheld whether or not a bar was declared.
@@ -220,23 +207,25 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 		// one caller demotes and another does not.
 		if lc.Stale > 0 || lc.RejectedAwaitingDraft > 0 || lc.FailingChecks > 0 || lc.TermsNotChecked > 0 {
 			lc.Shippable = false
-			lc.Verified = false
 		}
-		lc.ShipState = shipState(lc)
+		lc.ShipState = shipState(lc, establishedMet)
 		out = append(out, lc)
 	}
 	return out
 }
 
 // shipState names a rolled-up scope's standing. A scope that does not ship is
-// withheld, gate or no gate. One that ships is shippable when a ship gate matched
-// it, and not gated when none did.
-func shipState(lc LocaleCoverage) ShipState {
+// withheld, gate or no gate. One that ships is established when it clears an
+// established gate, translated when a ship gate matched it, and not gated when
+// neither speaks for it.
+func shipState(lc LocaleCoverage, establishedMet bool) ShipState {
 	switch {
 	case !lc.Shippable:
 		return ShipStateWithheld
+	case establishedMet:
+		return ShipStateEstablished
 	case lc.Gated:
-		return ShipStateShippable
+		return ShipStateTranslated
 	default:
 		return ShipStateNotGated
 	}

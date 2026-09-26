@@ -53,7 +53,7 @@ import (
 // forbidden term marked during a rollover must still pull its translations back.
 const reviewRecheckGroup = "review-recheck"
 
-// recheckOracle reports whether a reviewed/signed-off block's target for tgtLoc
+// recheckOracle reports whether a established block's target for tgtLoc
 // now VIOLATES a governed change and must be pulled back. It receives the whole
 // stored block (so it can read source AND target text) plus the project's source
 // locale — enough for both the forbidden-PRESENCE direction (RV-E, target text
@@ -70,12 +70,12 @@ type recheckOracle func(sb *venue.StoredBlock, srcLoc, tgtLoc model.LocaleID) bo
 //   - voice.rule_promoted / rule_auto_promoted — the correction-learning
 //     loop promoted a forbidden vocabulary rule.
 //
-// For each, it re-checks the workspace's existing reviewed/signed-off targets and
+// For each, it re-checks the workspace's existing established targets and
 // demotes the ones that now violate the change, re-queuing their locales.
 //
 // Idempotency / anti-loop (the load-bearing argument):
 //
-//   - The re-check only demotes targets at reviewed/signed-off that a matcher says
+//   - The re-check only demotes targets at established that a matcher says
 //     now contain a forbidden term. A target already below reviewed (draft /
 //     translated) is left alone — it is already pending review — so a
 //     demoted-then-reviewed target that still conforms is never re-demoted, and
@@ -138,7 +138,7 @@ func (s *Server) handleReviewRecheckEvent(ev platev.Event) error {
 	return nil
 }
 
-// recheckConceptViolations re-checks every existing reviewed/signed-off target in
+// recheckConceptViolations re-checks every existing established target in
 // the workspace against the changed concept, demoting and re-queuing the ones that
 // now violate it in EITHER direction: a forbidden/competitor term now PRESENT in
 // the target (RV-E), or a mandated preferred/approved rendering now ABSENT from a
@@ -216,7 +216,7 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 	return s.recheckWorkspaceTargets(ctx, wsID, "concept:"+conceptID, violates, actor)
 }
 
-// recheckRuleViolations re-checks existing reviewed/signed-off targets against a
+// recheckRuleViolations re-checks existing established targets against a
 // newly promoted forbidden term, scoped to that term so an existing target that
 // only tripped an OLDER rule is not swept up. The oracle is the workspace terms
 // store's word rule for the term, in whatever language the store holds it,
@@ -279,7 +279,7 @@ func (s *Server) recheckWorkspaceTargets(ctx context.Context, wsID, reason strin
 	return errors.Join(failed...)
 }
 
-// recheckProjectTargets re-checks one project's reviewed/signed-off targets,
+// recheckProjectTargets re-checks one project's established targets,
 // demotes the failures to draft, persists them, and re-queues the affected
 // locales for review. A conforming target is never touched (no needless churn),
 // and a project with no failure produces no store write, no task, and no event.
@@ -309,7 +309,7 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 					// already pending review, so re-checking it would change nothing —
 					// leaving it alone is what makes replays idempotent and avoids
 					// demoting a target that was already re-queued.
-					if t.Status.Rank() < model.TargetStatusReviewed.Rank() {
+					if t.Status.Rank() < model.TargetStatusEstablished.Rank() {
 						continue
 					}
 					if strings.TrimSpace(sb.Block.TargetText(loc)) == "" {

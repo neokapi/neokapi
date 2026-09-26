@@ -11,11 +11,11 @@ import (
 
 // SourceGateConfig configures the source-gate leading stage.
 type SourceGateConfig struct {
-	// Gate is the resolved source-first gate level (authored|checked|approved|
-	// none). Empty resolves to the default (checked) via ResolveSourceGate — a
-	// typo must not silently disable the gate, so an unrecognized value also
-	// gates at checked.
-	Gate string `json:"gate,omitempty" schema:"title=Source Gate,description=Minimum source-authoring status a block must reach before its translations are produced,enum=none|authored|checked|approved,default=checked"`
+	// Gate is the resolved source-first gate level (none|written|established).
+	// Empty resolves to the default (written) via ResolveSourceGate; a typo
+	// must not silently disable the gate, so an unrecognized value also gates
+	// at written.
+	Gate string `json:"gate,omitempty" schema:"title=Source Gate,description=What a block's source must satisfy before its translations are produced: written (its checks pass) or established (a person reviewed it),enum=none|written|established,default=written"`
 }
 
 // SourceGateTool is the leading source-transform stage of source-first
@@ -24,10 +24,10 @@ type SourceGateConfig struct {
 // runs FIRST in the converge flow and, per translatable source block:
 //
 //  1. settles the source — runs the provider-free source checks and stamps
-//     SourceStatus (authored→checked) via the shared check.SettleSourceStatus,
+//     SourceStatus (written) via the shared check.SettleSourceStatus,
 //     the same derivation the server settle and `kapi check` use; and
-//  2. gates the block — a block whose settled SourceStatus ranks below the
-//     configured gate is HELD (model.Block.SetSourceHeld): it stays in the
+//  2. gates the block — a block the configured gate does not admit (its
+//     checks fail, or an `established` gate waits for a person) is HELD (model.Block.SetSourceHeld): it stays in the
 //     stream (its source passes through to output untouched — the target simply
 //     falls back to source, normal drift) but carries the hold marker the
 //     downstream producers (recycle, translate) read to skip it. A block that
@@ -95,11 +95,10 @@ func (t *SourceGateTool) gateOne(ctx context.Context, part *model.Part) {
 	}
 	t.total.Add(1)
 
-	// Settle via the shared helper — the same authored→checked derivation the
-	// server settle and `kapi check` use.
+	// Settle via the shared helper, the same derivation the server settle uses.
 	check.SettleSourceStatus(ctx, b)
 
-	if t.gate.Admits(b.SourceStatus) {
+	if t.gate.AdmitsBlock(b) {
 		b.SetSourceHeld(false) // ready: clear any stale hold from a prior pass
 		return
 	}
@@ -109,7 +108,7 @@ func (t *SourceGateTool) gateOne(ctx context.Context, part *model.Part) {
 
 // NewSourceGateFromConfig builds the source-gate tool from a config map (the
 // schema-driven flow path). It resolves the gate string through the canonical
-// ResolveSourceGate so an unset/unknown value lands on the default (checked).
+// ResolveSourceGate so an unset/unknown value lands on the default (written).
 func NewSourceGateFromConfig(config map[string]any, _ string) (tool.Tool, error) {
 	var cfg SourceGateConfig
 	if raw, ok := config["gate"].(string); ok {

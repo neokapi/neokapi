@@ -93,7 +93,7 @@ func TestEditorBlocksRoundTrip(t *testing.T) {
 	// A block with an inline placeholder run to exercise canonical model.Run
 	// decoding, plus a target locale carrying the per-locale review status
 	// (targets[locale].status — the payload the desktop reads review state from).
-	body := `[{"id":"b1","source_runs":[{"text":"Hello "},{"ph":{"id":"1","type":"var","equiv":"NAME"}}],"targets":{"fr":{"text":"Bonjour NAME","status":"reviewed"},"de":{"text":"Hallo NAME"}},"targets_runs":{"fr":[{"text":"Bonjour "},{"ph":{"id":"1","type":"var","equiv":"NAME"}}]},"translatable":true,"properties":{"k":"v"}}]`
+	body := `[{"id":"b1","source_runs":[{"text":"Hello "},{"ph":{"id":"1","type":"var","equiv":"NAME"}}],"targets":{"fr":{"text":"Bonjour NAME","status":"established"},"de":{"text":"Hallo NAME"}},"targets_runs":{"fr":[{"text":"Bonjour "},{"ph":{"id":"1","type":"var","equiv":"NAME"}}]},"translatable":true,"properties":{"k":"v"}}]`
 	c, got := editorServer(t, map[string]route{
 		"GET /api/v1/acme/p1/blocks/main":         {200, body},
 		"PUT /api/v1/acme/p1/blocks/main/b1/runs": {204, ""},
@@ -113,7 +113,7 @@ func TestEditorBlocksRoundTrip(t *testing.T) {
 	// Per-locale target text + review status decode (reviewing fr ≠ de).
 	require.Contains(t, blocks[0].Targets, "fr")
 	assert.Equal(t, "Bonjour NAME", blocks[0].Targets["fr"].Text)
-	assert.Equal(t, "reviewed", blocks[0].Targets["fr"].Status)
+	assert.Equal(t, "established", blocks[0].Targets["fr"].Status)
 	assert.Empty(t, blocks[0].Targets["de"].Status)
 
 	// Update round-trips the canonical runs verbatim in the request body.

@@ -261,8 +261,8 @@ func TestApprovePassing_ApprovesWhereNothingGoverns(t *testing.T) {
 	assert.Equal(t, 0, res.SkippedTermsNotChecked, "terminology governs nothing here, so it skips nothing")
 	assert.Equal(t, 0, res.SkippedVoiceNotChecked, "no voice profile governs fr, so voice skips nothing")
 	assert.Equal(t, 0, res.RemainingPending)
-	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, ids["Hello"], "fr"))
-	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, projID, ids["Goodbye"], "fr"))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, ids["Hello"], "fr"))
+	assert.Equal(t, model.TargetStatusEstablished, targetStatus(t, s, projID, ids["Goodbye"], "fr"))
 }
 
 // TestApprovePassing_NeverApprovesUnscoredVoice: a voice profile bound to the

@@ -47,16 +47,16 @@ collections:
         target: "{lang}.json"
 
 # The two gates a language picker reads. They are independent: clearing the ship
-# gate makes a locale safe to offer, clearing the verified gate is what removes
+# gate makes a locale safe to offer, clearing the established gate is what removes
 # the "AI" marker from it.
 #
 # One bar for every locale, deliberately. A per-locale bar would make the
 # picker's three states an artefact of the recipe rather than of the work.
 ship_gate:
   translated: 100
-  reviewed: 50
-verified_gate:
-  reviewed: 100
+  established: 50
+established_gate:
+  established: 100
 
 flows:
   # Recycle first, then draft the remainder. skipMatched is what makes the second

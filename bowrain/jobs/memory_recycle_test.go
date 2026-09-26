@@ -99,7 +99,7 @@ func TestPromoteDecisionsToMemory(t *testing.T) {
 
 	approval := venue.UnitDecision{
 		ItemName: "en.json", Unit: "greeting", Variant: "fr",
-		ReviewState: "approved", Status: "reviewed",
+		ReviewState: "approved", Status: "established",
 		TargetHash: state.TargetHash("Bonjour"),
 		DecidedBy:  "reviewer@example.com",
 	}

@@ -1125,11 +1125,11 @@ type blockFilterSQLite struct {
 // itself the SQL twin of the editor's getBlockStatus — with json_extract
 // standing in for the ->> operator.
 const sqliteStatusBucket = `CASE
-	WHEN COALESCE(json_extract(t.target_json, '$.status'), '') IN ('reviewed', 'signed-off') THEN 'reviewed'
+	WHEN COALESCE(json_extract(t.target_json, '$.status'), '') = 'established' THEN 'established'
 	WHEN COALESCE(t.text, '') = '' THEN 'not-started'
 	WHEN json_extract(t.target_json, '$.status') = 'translated' THEN 'translated'
 	WHEN json_extract(t.target_json, '$.status') = 'draft' THEN 'draft'
-	WHEN json_extract(b.properties, '$."translation-status"') = 'reviewed' THEN 'reviewed'
+	WHEN json_extract(b.properties, '$."translation-status"') = 'reviewed' THEN 'established'
 	WHEN json_extract(b.properties, '$."translation-status"') = 'draft' THEN 'draft'
 	WHEN json_extract(b.properties, '$."translation-origin"') IN ('machine', 'pseudo') THEN 'draft'
 	ELSE 'translated'
@@ -1303,7 +1303,7 @@ func (s *SQLiteStore) CountBlocks(ctx context.Context, query platstore.BlockQuer
 			SUM(CASE WHEN x.translatable AND x.bucket = 'not-started' THEN 1 ELSE 0 END),
 			SUM(CASE WHEN x.translatable AND x.bucket = 'draft' THEN 1 ELSE 0 END),
 			SUM(CASE WHEN x.translatable AND x.bucket = 'translated' THEN 1 ELSE 0 END),
-			SUM(CASE WHEN x.translatable AND x.bucket = 'reviewed' THEN 1 ELSE 0 END)
+			SUM(CASE WHEN x.translatable AND x.bucket = 'established' THEN 1 ELSE 0 END)
 		 FROM (SELECT b.translatable, %s AS bucket FROM blocks b %s WHERE %s) x`
 
 	// SUM over no rows is NULL, so every bucket scans through a nullable int.
@@ -1320,7 +1320,7 @@ func (s *SQLiteStore) CountBlocks(ctx context.Context, query platstore.BlockQuer
 		NotStarted:   int(notStarted.Int64),
 		Draft:        int(draft.Int64),
 		Translated:   int(translated.Int64),
-		Reviewed:     int(reviewed.Int64),
+		Established:  int(reviewed.Int64),
 	}, nil
 }
 
@@ -1343,7 +1343,7 @@ func (s *SQLiteStore) ListPendingReview(ctx context.Context, q platstore.Pending
 		LEFT JOIN items i
 		ON i.project_id = b.project_id AND i.stream = ? AND i.name = b.item_name
 		WHERE b.project_id = ? AND b.stream = ? AND b.translatable AND t.text <> ''
-		AND COALESCE(json_extract(t.target_json, '$.status'), '') NOT IN ('reviewed', 'signed-off')%s`
+		AND COALESCE(json_extract(t.target_json, '$.status'), '') <> 'established'%s`
 	args := []any{stream, stream, q.ProjectID, stream}
 	scope := ""
 	if len(q.Locales) > 0 {

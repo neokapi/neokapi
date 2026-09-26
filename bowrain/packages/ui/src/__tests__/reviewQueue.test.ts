@@ -63,10 +63,7 @@ describe("isPendingReview", () => {
     expect(isPendingReview(block("b1", "fr", "bonjour", "draft"), "fr")).toBe(true);
   });
   it("excludes a reviewed block", () => {
-    expect(isPendingReview(block("b1", "fr", "bonjour", "reviewed"), "fr")).toBe(false);
-  });
-  it("excludes a signed-off block", () => {
-    expect(isPendingReview(block("b1", "fr", "bonjour", "signed-off"), "fr")).toBe(false);
+    expect(isPendingReview(block("b1", "fr", "bonjour", "established"), "fr")).toBe(false);
   });
   it("excludes an empty target", () => {
     expect(isPendingReview(block("b1", "fr", "", "translated"), "fr")).toBe(false);

@@ -285,7 +285,7 @@ func TestMemoryTranslateFile(t *testing.T) {
 }
 
 // reviewedBlock translates and approves the first block of a fresh project,
-// returning the app, project, item name and block id at status "reviewed".
+// returning the app, project, item name and block id at status "established".
 func reviewedBlock(t *testing.T, locale, text string) (*App, *ProjectInfo, string, string) {
 	t.Helper()
 	app, info, itemName := setupProjectWithFile(t)
@@ -300,7 +300,7 @@ func reviewedBlock(t *testing.T, locale, text string) (*App, *ProjectInfo, strin
 		TargetLocale: locale, Text: text,
 	}))
 	require.NoError(t, app.ReviewBlock(info.ID, itemName, blockID, locale, true, ""))
-	require.Equal(t, "reviewed", targetStatus(t, app, info.ID, itemName, blockID, locale))
+	require.Equal(t, "established", targetStatus(t, app, info.ID, itemName, blockID, locale))
 
 	return app, info, itemName, blockID
 }
@@ -338,7 +338,7 @@ func TestUpdateBlockTargetKeepsReviewOnIdenticalContent(t *testing.T) {
 		TargetLocale: "fr", Text: "Bonjour",
 	}))
 
-	assert.Equal(t, "reviewed", targetStatus(t, app, info.ID, itemName, blockID, "fr"))
+	assert.Equal(t, "established", targetStatus(t, app, info.ID, itemName, blockID, "fr"))
 }
 
 func TestUpdateBlockTargetRunsDemotesStaleReview(t *testing.T) {
@@ -362,7 +362,7 @@ func TestUpdateBlockTargetRunsKeepsReviewOnIdenticalRuns(t *testing.T) {
 		Runs:         []RunInfo{{Text: &TextRunInfo{Text: "Bonjour"}}},
 	}))
 
-	assert.Equal(t, "reviewed", targetStatus(t, app, info.ID, itemName, blockID, "fr"))
+	assert.Equal(t, "established", targetStatus(t, app, info.ID, itemName, blockID, "fr"))
 }
 
 func TestUpdateBlockTargetLeavesLowerRungsAlone(t *testing.T) {

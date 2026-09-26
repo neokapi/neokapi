@@ -1690,8 +1690,7 @@ function deriveShipState(
   termsGoverned = true,
 ): ShipState {
   if (totalBlocks === 0 || translatedBlocks < totalBlocks || failingChecks > 0) return "pending";
-  if (approvedBlocks < totalBlocks) return "ai_shippable";
-  return termsGoverned ? "governed" : "approved";
+  return approvedBlocks < totalBlocks ? "translated" : "established";
 }
 
 /**

@@ -281,10 +281,10 @@ func (a *App) GetBlock(projectID, blockID string) (*BlockInfo, error) {
 
 // BlockStatusCountsView is the per-locale status histogram.
 type BlockStatusCountsView struct {
-	NotStarted int `json:"not-started"`
-	Draft      int `json:"draft"`
-	Translated int `json:"translated"`
-	Reviewed   int `json:"reviewed"`
+	NotStarted  int `json:"not-started"`
+	Draft       int `json:"draft"`
+	Translated  int `json:"translated"`
+	Established int `json:"established"`
 }
 
 // BlockCountsView is a block query's totals and histogram.
@@ -308,10 +308,10 @@ func (a *App) GetBlockCounts(projectID, itemName string, filter EditorBlockFilte
 				Translatable: counts.Translatable,
 				Locale:       counts.Locale,
 				Status: BlockStatusCountsView{
-					NotStarted: counts.Status.NotStarted,
-					Draft:      counts.Status.Draft,
-					Translated: counts.Status.Translated,
-					Reviewed:   counts.Status.Reviewed,
+					NotStarted:  counts.Status.NotStarted,
+					Draft:       counts.Status.Draft,
+					Translated:  counts.Status.Translated,
+					Established: counts.Status.Established,
 				},
 			}, nil
 		}
@@ -328,10 +328,10 @@ func (a *App) GetBlockCounts(projectID, itemName string, filter EditorBlockFilte
 		Translatable: counts.Translatable,
 		Locale:       filter.Locale,
 		Status: BlockStatusCountsView{
-			NotStarted: counts.NotStarted,
-			Draft:      counts.Draft,
-			Translated: counts.Translated,
-			Reviewed:   counts.Reviewed,
+			NotStarted:  counts.NotStarted,
+			Draft:       counts.Draft,
+			Translated:  counts.Translated,
+			Established: counts.Established,
 		},
 	}, nil
 }
@@ -457,7 +457,7 @@ func (a *App) BulkReviewBlocks(projectID string, req BulkReviewArgs) (*BulkRevie
 			out.Results = append(out.Results, BlockResultView{BlockID: id, Error: err.Error()})
 			continue
 		}
-		status := string(model.TargetStatusReviewed)
+		status := string(model.TargetStatusEstablished)
 		if !req.Approve {
 			status = string(model.TargetStatusTranslated)
 			if req.Status == string(model.TargetStatusDraft) {
@@ -816,7 +816,7 @@ func stampHumanEditOrigin(b *model.Block, loc model.LocaleID) {
 	}
 }
 
-// demoteStaleReviewOnEdit drops a reviewed/signed-off Target.Status back to
+// demoteStaleReviewOnEdit drops a established Target.Status back to
 // translated when an edit changed the target's runs. A review decision judges
 // ONE specific translation, so rewriting it invalidates the approval; the
 // offline cache applies the same rule as the server (server.editor.go), so a
@@ -827,7 +827,7 @@ func demoteStaleReviewOnEdit(b *model.Block, locale model.LocaleID, oldRuns []mo
 	if t == nil {
 		return
 	}
-	if t.Status != model.TargetStatusReviewed && t.Status != model.TargetStatusSignedOff {
+	if t.Status != model.TargetStatusEstablished {
 		return
 	}
 	if reflect.DeepEqual(oldRuns, t.Runs) {
@@ -863,9 +863,9 @@ func (a *App) updateBlockTargetRunsLocal(req UpdateBlockTargetRunsRequest) error
 	return a.store.StoreBlocks(ctx, req.ProjectID, "main", []*model.Block{sb.Block})
 }
 
-// ReviewBlock marks a block as reviewed, signed off or un-reviewed for a
-// target locale. status picks the rung: with reviewed=true it is "" for an
-// approval or "signed-off" for a sign-off; with reviewed=false it is "" or
+// ReviewBlock marks a block as established or un-reviewed for a
+// target locale. status picks the rung: with reviewed=true it is "" (an
+// approval, landing on established); with reviewed=false it is "" or
 // "translated" for a plain un-review, "draft" for a reviewer rejection (the
 // unit re-enters the work queue).
 func (a *App) ReviewBlock(projectID, itemName, blockID, targetLocale string, reviewed bool, status string) error {
@@ -897,10 +897,10 @@ const legacyTranslationStatusProperty = "translation-status"
 // Approving a block with no non-empty translation for the locale is an error
 // (the server's 422); un-reviewing a locale with no target clears the legacy
 // block-global property if present and is otherwise a no-op. status picks the
-// rung the same way the server's optional status field does: "signed-off" on
-// an approval, "draft" on a clearing call for a rejection, otherwise the
-// default rung for the direction. The queued op carries it, so a working copy
-// that signs off while offline shows the rung it queued.
+// rung the same way the server's optional status field does: "draft" on a
+// clearing call for a rejection, otherwise the default rung for the direction.
+// The queued op carries it, so a working copy that decides while offline shows
+// the rung it queued.
 func (a *App) reviewBlockLocal(projectID, blockID, targetLocale string, reviewed bool, status string) error {
 	ctx := context.Background()
 	sb, err := a.store.GetBlock(ctx, projectID, "main", blockID)
@@ -915,16 +915,12 @@ func (a *App) reviewBlockLocal(projectID, blockID, targetLocale string, reviewed
 		if target == nil || strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
 			return fmt.Errorf("block %q has no %s translation to review: translate it first", blockID, targetLocale)
 		}
-		if target.Status == model.TargetStatusSignedOff {
-			// Signed-off is the top of the ladder; approving or re-signing it
+		if target.Status == model.TargetStatusEstablished {
+			// Established is the top of the ladder; approving it again
 			// must not demote it (mirrors the server's HandleReviewBlock no-op).
 			return nil
 		}
-		if status == string(model.TargetStatusSignedOff) {
-			target.Status = model.TargetStatusSignedOff
-		} else {
-			target.Status = model.TargetStatusReviewed
-		}
+		target.Status = model.TargetStatusEstablished
 	} else {
 		if target == nil {
 			// Nothing to demote. Clear the legacy block-global flag if present so

@@ -437,7 +437,7 @@ func TestMCPConformanceToolSurface(t *testing.T) {
 	projectScoped := []string{
 		"check_file", "check_text", "context_search", "apply_edits",
 		"up", "up_plan", "extract_content",
-		"review_queue", "review_unit", "approve_unit", "reject_unit", "sign_off_unit",
+		"review_queue", "review_unit", "pre_review_unit",
 		"term-check", "translate", "redact",
 	}
 	for _, name := range projectScoped {

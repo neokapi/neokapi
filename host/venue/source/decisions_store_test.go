@@ -39,7 +39,7 @@ func TestStagePulledDecisions_WritesThroughTheAppsHandle(t *testing.T) {
 		ItemName:    "locales/en.json",
 		Unit:        "greeting",
 		Variant:     "fr",
-		Status:      string(model.TargetStatusReviewed),
+		Status:      string(model.TargetStatusEstablished),
 		ReviewState: "approved",
 		Updated:     "2026-08-05T10:00:00Z",
 	}})
@@ -132,7 +132,7 @@ func TestDecisions_CarryTheGoverningContextBothWays(t *testing.T) {
 		ItemName:             "locales/en.json",
 		Unit:                 "greeting",
 		Variant:              "fr",
-		Status:               string(model.TargetStatusReviewed),
+		Status:               string(model.TargetStatusEstablished),
 		ReviewState:          "approved",
 		GoverningFingerprint: "fp-venue",
 		Updated:              "2026-08-05T10:00:00Z",
@@ -149,7 +149,7 @@ func TestDecisions_CarryTheGoverningContextBothWays(t *testing.T) {
 	// wire, beside the one the pull brought in.
 	require.NoError(t, state.WriteCommitted(c.project.Layout.Export().UnitStateDir(), []state.UnitState{{
 		Scope: "locales/en.json", Unit: "farewell", Variant: model.Variant("fr"),
-		Status: model.TargetStatusReviewed, Decision: state.Decision{ReviewState: "approved"},
+		Status: model.TargetStatusEstablished, Decision: state.Decision{ReviewState: "approved"},
 		GoverningFingerprint: "fp-local", Updated: "2026-08-05T11:00:00Z",
 	}}))
 	out, err := c.projectDecisions(t.Context())

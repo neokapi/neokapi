@@ -1,13 +1,13 @@
 import { cn, SimpleTooltip } from "@neokapi/ui-primitives";
 import type { LocaleTranslationStats, ShipState } from "../types/api";
-import { CircleCheck, Clock, ShieldCheck, Sparkles } from "./icons";
+import { Clock, ShieldCheck, Sparkles } from "./icons";
 
 /**
  * ShipStateBadge renders the per-locale ship state with one consistent visual
  * language everywhere it appears (dashboard locale rows, collection rollups,
- * delivery panel): governed (human-approved, with terminology governing the
- * language), approved (human-approved, with nothing beyond the checks governing
- * it), AI-shippable (machine-reviewed only), pending (not ready). A tooltip
+ * delivery panel): established (a person established every translation;
+ * governed), translated (translated with the checks passing; AI-shippable),
+ * pending (not ready). A tooltip
  * explains what the state means and, when counts are provided, why the scope
  * holds it.
  */
@@ -15,7 +15,7 @@ export interface ShipStateBadgeProps {
   state: ShipState;
   /** Icon-only variant for dense surfaces (table cells). */
   compact?: boolean;
-  /** Blocks with a human review decision, for the tooltip detail line. */
+  /** Blocks a person established, for the tooltip detail line. */
   approvedBlocks?: number;
   /** Total translatable blocks in the scope, for the tooltip detail line. */
   totalBlocks?: number;
@@ -60,22 +60,16 @@ export function termsNotGoverned(stats: Pick<LocaleTranslationStats, "compliance
 }
 
 const stateStyles: Record<ShipState, { label: string; className: string; explanation: string }> = {
-  governed: {
-    label: "Governed",
+  established: {
+    label: "Established",
     className: "border-success/40 bg-success/15 text-success",
-    explanation: "Fully translated, the checks pass, and every translation is human-approved.",
+    explanation: "Fully translated, the checks pass, and a person established every translation.",
   },
-  approved: {
-    label: "Approved",
-    className: "border-success/30 bg-success/5 text-success",
-    explanation:
-      "Fully translated, the checks pass, and every translation is human-approved. No terms apply to this language, so it is not governed.",
-  },
-  ai_shippable: {
-    label: "AI-shippable",
+  translated: {
+    label: "Translated",
     className: "border-info/40 bg-info/15 text-info",
     explanation:
-      "Fully translated and the checks pass, but not fully human-reviewed. Shippable on machine review only.",
+      "Fully translated and the checks pass, but not every translation is established. AI-shippable.",
   },
   pending: {
     label: "Pending",
@@ -86,9 +80,8 @@ const stateStyles: Record<ShipState, { label: string; className: string; explana
 };
 
 const stateIcons: Record<ShipState, React.ComponentType<{ className?: string }>> = {
-  governed: ShieldCheck,
-  approved: CircleCheck,
-  ai_shippable: Sparkles,
+  established: ShieldCheck,
+  translated: Sparkles,
   pending: Clock,
 };
 
@@ -101,7 +94,7 @@ function tooltipContent(props: ShipStateBadgeProps): React.ReactNode {
   const meta = stateStyles[state];
   const details: string[] = [];
   if (totalBlocks !== undefined && approvedBlocks !== undefined) {
-    details.push(`${approvedBlocks} of ${totalBlocks} blocks human-approved`);
+    details.push(`${approvedBlocks} of ${totalBlocks} blocks established`);
   }
   if (failingChecks !== undefined && failingChecks > 0) {
     details.push(`${failingChecks} failing ${failingChecks === 1 ? "check" : "checks"}`);
@@ -125,8 +118,7 @@ function tooltipContent(props: ShipStateBadgeProps): React.ReactNode {
       <p className="font-medium">{meta.label}</p>
       <p>{meta.explanation}</p>
       {details.length > 0 && <p className="text-muted-foreground">{details.join(" · ")}</p>}
-      {/* The approved explanation already says it; every other state names it here. */}
-      {props.termsNotGoverned && state !== "approved" && (
+      {props.termsNotGoverned && (
         <p className="text-muted-foreground">
           No terms apply to this language, so terminology is not governed here.
         </p>

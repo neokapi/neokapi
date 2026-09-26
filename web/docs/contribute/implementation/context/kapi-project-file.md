@@ -30,8 +30,8 @@ type KapiProject struct {
     ShipGate      gate.Gate            `yaml:"ship_gate,omitempty"`
     ShipGates     []ShipGateRule       `yaml:"ship_gates,omitempty"`
     Gates         map[string]gate.Gate `yaml:"gates,omitempty"`
-    VerifiedGate  gate.Gate            `yaml:"verified_gate,omitempty"`
-    VerifiedGates []ShipGateRule       `yaml:"verified_gates,omitempty"`
+    EstablishedGate  gate.Gate         `yaml:"established_gate,omitempty"`
+    EstablishedGates []ShipGateRule    `yaml:"established_gates,omitempty"`
     SourceGate    gate.Gate            `yaml:"source_gate,omitempty"`
 
     Requires    RequiresMap                `yaml:"requires,omitempty"` // plugin name → semver constraint

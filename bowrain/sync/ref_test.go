@@ -66,7 +66,7 @@ func TestCurrentRef_ComponentsMoveIndependently(t *testing.T) {
 
 	_, err = cs.UpsertUnitDecisions(ctx, projectID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "fr",
-		Status: "reviewed", ReviewState: "approved", DecidedBy: "ana", Updated: "2026-08-01T00:00:00Z",
+		Status: "established", ReviewState: "approved", DecidedBy: "ana", Updated: "2026-08-01T00:00:00Z",
 	}})
 	require.NoError(t, err)
 	afterDecision, err := CurrentRef(ctx, src, projectID, "main")

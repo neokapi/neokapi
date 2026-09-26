@@ -228,7 +228,7 @@ func TestServerWritesBlessings(t *testing.T) {
 	require.True(t, ok)
 	_, err := decisions.UpsertUnitDecisions(ctx, proj.ID, writerStream, []venue.UnitDecision{{
 		ItemName: "docs.json", Unit: "intro", Variant: "nb",
-		Status: "reviewed", ReviewState: "approved", TargetHash: "th-1",
+		Status: "established", ReviewState: "approved", TargetHash: "th-1",
 	}})
 	require.NoError(t, err)
 

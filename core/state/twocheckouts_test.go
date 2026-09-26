@@ -103,7 +103,7 @@ func paired(id, scope, source, targetHash, at string) state.UnitState {
 		Scope:       scope,
 		ContentHash: model.ComputeContentHash(source),
 		TargetHash:  targetHash,
-		Status:      model.TargetStatusReviewed,
+		Status:      model.TargetStatusEstablished,
 		Decision:    state.Decision{ReviewState: "approved", At: at, Note: targetHash},
 		Updated:     at,
 	}

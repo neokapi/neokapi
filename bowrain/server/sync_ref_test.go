@@ -112,7 +112,7 @@ func (h *refHarness) decide(t *testing.T, unit, reviewState string) {
 	_, err := h.store.UpsertUnitDecisions(t.Context(), h.project.ID, refTestStream,
 		[]venue.UnitDecision{{
 			ItemName: "docs/intro.md", Unit: unit, Variant: "fr",
-			Status: "reviewed", ReviewState: reviewState, DecidedBy: "ana",
+			Status: "established", ReviewState: reviewState, DecidedBy: "ana",
 			Updated: "2026-08-01T00:00:00Z",
 		}})
 	require.NoError(t, err)
@@ -238,7 +238,7 @@ func orNull(s string) string {
 }
 
 const oneContextEntry = `[{"name":"docs","owner":"recipe","content_hash":"hash-docs"}]`
-const oneDecision = `[{"item":"docs/intro.md","unit":"u2","variant":"fr","status":"reviewed","reviewState":"approved","by":"ben","updated":"2026-08-02T00:00:00Z"}]`
+const oneDecision = `[{"item":"docs/intro.md","unit":"u2","variant":"fr","status":"established","reviewState":"approved","by":"ben","updated":"2026-08-02T00:00:00Z"}]`
 
 // TestSyncPushCommit_StaleContextComponentIsRefused is the two-client
 // compare-and-swap: both read the ref, one lands a context change, and the

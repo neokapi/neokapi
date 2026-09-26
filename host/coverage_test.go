@@ -17,8 +17,8 @@ func TestUnitState(t *testing.T) {
 	assert.Equal(t, string(model.TargetStatusTranslated), unitState(b, "nb"))
 
 	// A committed status is authoritative (a producer stamped it).
-	b.StampTargetProvenance(model.LocaleID("nb"), model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
-	assert.Equal(t, string(model.TargetStatusReviewed), unitState(b, "nb"))
+	b.StampTargetProvenance(model.LocaleID("nb"), model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
+	assert.Equal(t, string(model.TargetStatusEstablished), unitState(b, "nb"))
 
 	// Empty target text → untranslated even though a target record exists.
 	b2 := model.NewBlock("tu2", "World")

@@ -32,7 +32,7 @@ describe("ConvergenceHero ship states", () => {
           pct: { translated: 100 },
           gated: true,
           shippable: true,
-          shipState: "shippable",
+          shipState: "translated",
         },
         {
           locale: "nb",

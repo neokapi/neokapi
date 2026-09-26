@@ -117,7 +117,7 @@ func TestApplyMemoryEntry_reviewStatus(t *testing.T) {
 
 	// A signed-off status is accepted and applied.
 	so := base
-	so.Status = "signed-off"
+	so.Status = "established"
 	res := a.applyAssetEntry(ctx, cmd, so)
 	assert.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 

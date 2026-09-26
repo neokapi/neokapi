@@ -87,9 +87,9 @@ func TestSourceProposal_ProposeApproveDemotesEveryLocale(t *testing.T) {
 	b1 := &model.Block{ID: "b1", Translatable: true}
 	b1.SetSourceText("Colour picker")
 	b1.SetTargetText("fr", "Sélecteur de couleur")
-	b1.Target("fr").Status = model.TargetStatusReviewed
+	b1.Target("fr").Status = model.TargetStatusEstablished
 	b1.SetTargetText("de", "Farbwähler")
-	b1.Target("de").Status = model.TargetStatusReviewed
+	b1.Target("de").Status = model.TargetStatusEstablished
 	projID, ids := seedMultiLocaleProject(t, s, wsID, []*model.Block{b1})
 	blockID := ids["Colour picker"]
 	require.NotEmpty(t, blockID)
@@ -102,7 +102,7 @@ func TestSourceProposal_ProposeApproveDemotesEveryLocale(t *testing.T) {
 		ItemName:    "ui.json",
 		Unit:        "b1",
 		Variant:     "fr",
-		Status:      string(model.TargetStatusReviewed),
+		Status:      string(model.TargetStatusEstablished),
 		TargetHash:  state.TargetHash("Sélecteur de couleur"),
 		ContentHash: state.SourceHash("Colour picker"),
 		ReviewState: "approved",
@@ -195,7 +195,7 @@ func TestSourceProposal_Reject(t *testing.T) {
 	b1 := &model.Block{ID: "b1", Translatable: true}
 	b1.SetSourceText("Colour picker")
 	b1.SetTargetText("fr", "Sélecteur de couleur")
-	b1.Target("fr").Status = model.TargetStatusReviewed
+	b1.Target("fr").Status = model.TargetStatusEstablished
 	projID, ids := seedMultiLocaleProject(t, s, wsID, []*model.Block{b1})
 	blockID := ids["Colour picker"]
 
@@ -214,7 +214,7 @@ func TestSourceProposal_Reject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Colour picker", sb.Block.SourceText(), "reject leaves the source untouched")
 	require.NotNil(t, sb.Block.Target("fr"))
-	assert.Equal(t, model.TargetStatusReviewed, sb.Block.Target("fr").Status, "reject leaves the target approved")
+	assert.Equal(t, model.TargetStatusEstablished, sb.Block.Target("fr").Status, "reject leaves the target approved")
 
 	got, err := s.SourceProposalStore.Get(ctx, created.ID)
 	require.NoError(t, err)

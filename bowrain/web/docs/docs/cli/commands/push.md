@@ -87,7 +87,7 @@ push declares the tree again and the server tells it what it lacks.
 ## Decisions the server accepts
 
 Push carries the project's committed decision record with the content it judges.
-The server is authoritative for review, so an approval or a sign-off arriving
+The server is authoritative for review, so an approval arriving
 this way is held to the same rules as one made in the web app: you need review
 permission for that language in that project, and the workspace's
 [separation of duties](/server/members-and-roles#governance-controls) applies
@@ -99,22 +99,22 @@ per language, and the unit stays a translation awaiting review:
 ```
 Pushed 47 blocks (12 uploaded), 512 words (scanned 12 files)
 2 approvals not accepted for fr-FR: no review permission
-1 sign-off not accepted for de-DE: separation of duties
+1 approval not accepted for de-DE: separation of duties
 3 local record(s) now match the platform; they will not be sent again
 ```
 
 The last line is the project's record following the server's answer, so the same
 refused verdicts are not sent again on every push.
 
-Taking a sign-off back is held to the same permission. A push that lowers a
-target the server holds at signed-off, with the translation and the source it
-was signed off for unchanged, withdraws that sign-off, and the withdrawal lands
-only when you hold review permission for that language. Otherwise the sign-off
+Taking an established unit back is held to the same permission. A push that
+lowers a target the server holds at established, with the translation and the
+source it was established for unchanged, withdraws it, and the withdrawal lands
+only when you hold review permission for that language. Otherwise the unit
 stands, the push reports the demotion it did not apply, and the project's
 record is restored to what the server holds:
 
 ```
-1 demotion not accepted for nb-NO: withdrawing a sign-off needs review permission
+1 demotion not accepted for nb-NO: withdrawing an established unit needs review permission
 1 local record(s) now match the platform; they will not be sent again
 ```
 

@@ -45,7 +45,7 @@ func newReviewProject(t *testing.T, app *App) (*TabInfo, string) {
 			Name:    "App",
 			Content: []project.ContentItem{{Path: "locales/en.json", Target: "locales/{lang}.json"}},
 		}},
-		ShipGate: gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 50}},
+		ShipGate: gate.Gate{"translated": {Pct: 100}, "established": {Pct: 50}},
 	}
 	path := filepath.Join(root, "project.kapi")
 	require.NoError(t, project.Save(path, proj))
@@ -254,23 +254,23 @@ func TestRejectReviewItem_SendsUnitBackToDraft(t *testing.T) {
 	assert.Equal(t, "too literal", d.Note)
 }
 
-func TestSignOffReviewItem_TopRung(t *testing.T) {
+func TestApproveReviewItem_Establishes(t *testing.T) {
 	app := NewApp()
 	tab, _ := newReviewProject(t, app)
 	file := filepath.Join("locales", "fr-FR.json")
 
-	require.NoError(t, app.SignOffReviewItem(tab.ID, "fr-FR", file, "greeting"))
+	require.NoError(t, app.ApproveReviewItem(tab.ID, "fr-FR", file, "greeting"))
 
 	rep, err := app.GetConvergence(tab.ID)
 	require.NoError(t, err)
 	for _, lc := range rep.Locales {
 		if lc.Locale == "fr-FR" {
-			assert.Equal(t, 50, lc.Pct["signed-off"], "1 of 2 fr-FR units signed off")
+			assert.Equal(t, 50, lc.Pct["established"], "1 of 2 fr-FR units established")
 		}
 	}
 	d, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
 	require.NoError(t, err)
-	assert.Equal(t, "signed-off", d.Status)
+	assert.Equal(t, "established", d.Status)
 }
 
 func TestUpdateReviewTarget_EditsFileAndInvalidatesDecision(t *testing.T) {
@@ -282,7 +282,7 @@ func TestUpdateReviewTarget_EditsFileAndInvalidatesDecision(t *testing.T) {
 	require.NoError(t, app.ApproveReviewItem(tab.ID, "fr-FR", file, "greeting"))
 	d, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
 	require.NoError(t, err)
-	assert.Equal(t, "reviewed", d.Status)
+	assert.Equal(t, "established", d.Status)
 
 	require.NoError(t, app.UpdateReviewTarget(tab.ID, "fr-FR", file, "greeting", "Salut {name}"))
 
@@ -301,7 +301,7 @@ func TestUpdateReviewTarget_EditsFileAndInvalidatesDecision(t *testing.T) {
 	require.NoError(t, app.ApproveReviewItem(tab.ID, "fr-FR", file, "greeting"))
 	d3, err := app.GetReviewUnit(tab.ID, "fr-FR", file, "greeting")
 	require.NoError(t, err)
-	assert.Equal(t, "reviewed", d3.Status)
+	assert.Equal(t, "established", d3.Status)
 }
 
 // TestUpdateReviewTarget_RecordsAHumanOrigin: the reviewer who rewrites an AI

@@ -1815,16 +1815,9 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
     rung?: ReviewRung,
   ): Promise<void> {
-    // Each direction has its own rungs and the server rejects the other
-    // direction's, so only "signed-off" rides on an approval and only "draft"
-    // on a clearing call. Everything else is the default rung and is left out.
-    const status = reviewed
-      ? rung === "signed-off"
-        ? "signed-off"
-        : undefined
-      : rung === "draft"
-        ? "draft"
-        : undefined;
+    // An approval always lands on established, so only "draft" (a rejection)
+    // rides on a clearing call; everything else is the default rung.
+    const status = reviewed ? undefined : rung === "draft" ? "draft" : undefined;
     await this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/review`,
       {

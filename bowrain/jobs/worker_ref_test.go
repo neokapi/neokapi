@@ -91,7 +91,7 @@ func TestAssertDecisionsRef(t *testing.T) {
 
 	first := venue.UnitDecision{
 		ItemName: "en.json", Unit: "greeting", Variant: "fr",
-		Status: "reviewed", ReviewState: "approved", DecidedBy: "ana", Updated: "2026-08-01T00:00:00Z",
+		Status: "established", ReviewState: "approved", DecidedBy: "ana", Updated: "2026-08-01T00:00:00Z",
 	}
 	_, err := ds.UpsertUnitDecisions(t.Context(), projectID, "main", []venue.UnitDecision{first})
 	require.NoError(t, err)
@@ -129,7 +129,7 @@ func TestClientLedgerFoldMatchesTheServers(t *testing.T) {
 	sent := []venue.UnitDecision{
 		{ItemName: "en.json", Unit: "farewell", Variant: "fr", Status: "translated",
 			ReviewState: "approved", DecidedBy: "ben", Updated: "2026-08-02T00:00:00Z"},
-		{ItemName: "en.json", Unit: "greeting", Variant: "fr", Status: "reviewed",
+		{ItemName: "en.json", Unit: "greeting", Variant: "fr", Status: "established",
 			ReviewState: "approved", DecidedBy: "ana", Note: "house wording", Updated: "2026-08-01T00:00:00Z"},
 	}
 	_, err := ds.UpsertUnitDecisions(t.Context(), projectID, "main", sent)

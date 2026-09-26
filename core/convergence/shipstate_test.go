@@ -23,14 +23,14 @@ func TestRollupGates_ShipStateFollowsTheGate(t *testing.T) {
 	ship := gate.RuleSet{Rules: []gate.Rule{{Gate: gate.Gate{"translated": {Pct: 100}}}}}
 	by := rollupBy(gated.RollupGates(ship, gate.RuleSet{}))
 
-	assert.Equal(t, ShipStateShippable, by["fr"].ShipState, "gated and clears the gate")
+	assert.Equal(t, ShipStateTranslated, by["fr"].ShipState, "gated and clears the gate")
 	assert.True(t, by["fr"].Gated)
 	assert.Equal(t, ShipStateWithheld, by["de"].ShipState, "gated and short of the gate")
 	assert.False(t, by["de"].Shippable)
 
 	ungated := NewCoverageTally()
 	ungated.Add(Scope{Locale: "nb"}, "")
-	ungated.Add(Scope{Locale: "sv"}, string(model.TargetStatusReviewed))
+	ungated.Add(Scope{Locale: "sv"}, string(model.TargetStatusEstablished))
 	by = rollupBy(ungated.RollupGates(gate.RuleSet{}, gate.RuleSet{}))
 
 	for _, loc := range []string{"nb", "sv"} {

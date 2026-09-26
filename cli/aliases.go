@@ -105,7 +105,6 @@ const (
 	LocalScope               = host.LocalScope
 	ReviewDecisionApproved   = host.ReviewDecisionApproved
 	ReviewDecisionRejected   = host.ReviewDecisionRejected
-	ReviewDecisionSignedOff  = host.ReviewDecisionSignedOff
 	FallbackNone             = host.FallbackNone
 	FallbackProjectThenStdin = host.FallbackProjectThenStdin
 	FallbackStdinOnly        = host.FallbackStdinOnly

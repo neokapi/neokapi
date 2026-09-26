@@ -144,7 +144,7 @@ approval are two commands:
 kapi status --review              # units awaiting a person, in every language
 kapi status --review --lang nb    # one language (repeat or comma-separate for several)
 # approve one: a `review` change-set addressed by the unit's file/id/locale
-kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"reviewed"}'
+kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"established"}'
 ```
 
 One queue holds every language. A row carries `language` and, when the language

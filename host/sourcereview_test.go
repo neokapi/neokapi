@@ -31,12 +31,12 @@ func sourceStatuses(t *testing.T, a *App, recipe, root string) []string {
 // sign-off no code path could record. A project asking for `source_gate:
 // approved` therefore held its fan-out forever.
 func TestApproveSourceUnit_ReachesApprovedAndSurvivesARecheck(t *testing.T) {
-	a, _, recipe, root := newSourceSettleProject(t, "approved")
+	a, _, recipe, root := newSourceSettleProject(t, "established")
 
 	before := sourceStatuses(t, a, recipe, root)
 	require.Len(t, before, 2)
 	for _, s := range before {
-		assert.Equal(t, string(model.SourceStatusChecked), s,
+		assert.Equal(t, string(model.SourceStatusWritten), s,
 			"a clean source settles to checked, and nothing can lift it further")
 	}
 
@@ -47,7 +47,7 @@ func TestApproveSourceUnit_ReachesApprovedAndSurvivesARecheck(t *testing.T) {
 	assert.True(t, changed)
 
 	after := sourceStatuses(t, a, recipe, root)
-	assert.Contains(t, after, string(model.SourceStatusApproved),
+	assert.Contains(t, after, string(model.SourceStatusEstablished),
 		"the approval survives a re-settle rather than being recomputed away")
 
 	// Recording the same approval twice is not a change.
@@ -62,19 +62,19 @@ func TestApproveSourceUnit_ReachesApprovedAndSurvivesARecheck(t *testing.T) {
 // or the blessing outlives the wording it blessed — the same failure the target
 // side's basis hash exists to prevent.
 func TestApproveSourceUnit_DroppedWhenTheSourceIsEdited(t *testing.T) {
-	a, _, recipe, root := newSourceSettleProject(t, "approved")
+	a, _, recipe, root := newSourceSettleProject(t, "established")
 
 	_, err := a.ApproveSourceUnit(t.Context(), recipe, "en", SourceUnitRef{
 		File: "src/en.json", Key: "greeting",
 	})
 	require.NoError(t, err)
-	require.Contains(t, sourceStatuses(t, a, recipe, root), string(model.SourceStatusApproved))
+	require.Contains(t, sourceStatuses(t, a, recipe, root), string(model.SourceStatusEstablished))
 
 	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "en.json"),
 		[]byte(`{"greeting":"Hello, world!","farewell":"Goodbye now"}`), 0o644))
 
 	after := sourceStatuses(t, a, recipe, root)
-	assert.NotContains(t, after, string(model.SourceStatusApproved),
+	assert.NotContains(t, after, string(model.SourceStatusEstablished),
 		"an edited sentence carries no approval")
 }
 
@@ -82,7 +82,7 @@ func TestApproveSourceUnit_DroppedWhenTheSourceIsEdited(t *testing.T) {
 // is everything not yet signed off, and the item says whether the loop is
 // already held on it.
 func TestComputeSourceQueue_ListsWhatNeedsSignOff(t *testing.T) {
-	a, _, recipe, root := newSourceSettleProject(t, "approved")
+	a, _, recipe, root := newSourceSettleProject(t, "established")
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	units, err := a.UnitsFromProject(proj, root, "")
@@ -94,8 +94,8 @@ func TestComputeSourceQueue_ListsWhatNeedsSignOff(t *testing.T) {
 	for _, it := range queue {
 		assert.Equal(t, "src/en.json", it.File)
 		assert.True(t, it.Held, "an approved gate holds a merely-checked unit")
-		assert.False(t, it.Approved)
-		assert.Equal(t, string(model.SourceStatusChecked), it.Status)
+		assert.False(t, it.Established)
+		assert.Equal(t, string(model.SourceStatusWritten), it.Status)
 	}
 
 	_, err = a.ApproveSourceUnit(t.Context(), recipe, "en", SourceUnitRef{
@@ -112,7 +112,7 @@ func TestComputeSourceQueue_ListsWhatNeedsSignOff(t *testing.T) {
 // With the default `checked` gate, a clean source needs nobody: the queue is
 // empty rather than listing every unit for a signature the gate never asks for.
 func TestComputeSourceQueue_EmptyUnderTheCheckedGate(t *testing.T) {
-	a, _, recipe, root := newSourceSettleProject(t, "checked")
+	a, _, recipe, root := newSourceSettleProject(t, "written")
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	units, err := a.UnitsFromProject(proj, root, "")
@@ -129,7 +129,7 @@ func TestComputeSourceQueue_EmptyUnderTheCheckedGate(t *testing.T) {
 // called a unit approved and the run beside it held that same unit below an
 // `approved` gate, with nothing on either surface to say why.
 func TestSourceStateSeeder_MakesTheInFlowGateAgreeWithTheReport(t *testing.T) {
-	a, _, recipe, root := newSourceSettleProject(t, "approved")
+	a, _, recipe, root := newSourceSettleProject(t, "established")
 
 	// No approvals: no seeder, and nothing to pay for.
 	seed, err := a.SourceStateSeeder(t.Context(), root, "en")
@@ -161,7 +161,7 @@ func TestSourceStateSeeder_MakesTheInFlowGateAgreeWithTheReport(t *testing.T) {
 		seed(units[0].SourcePath, b)
 		// The gate settles after the seed, exactly as the in-flow stage does.
 		check.SettleSourceStatus(t.Context(), b)
-		if b.SourceStatus == model.SourceStatusApproved {
+		if b.SourceStatus == model.SourceStatusEstablished {
 			approved++
 		} else {
 			other++

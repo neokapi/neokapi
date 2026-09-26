@@ -289,7 +289,7 @@ type PushOutput struct {
 	// content grouped under it.
 	UndeclaredCollections []string `json:"undeclared_collections,omitempty"`
 
-	// VerdictsRefused names the approvals and sign-offs the platform did not
+	// VerdictsRefused names the approvals the platform did not
 	// accept, and the demotions it did not apply: the pusher held no review
 	// permission for that language, or the workspace refuses a verdict on
 	// work its author wrote. The content landed regardless, at translated for
@@ -411,7 +411,7 @@ func (o PushOutput) FormatGovernance(w io.Writer) {
 }
 
 // plural is the count-agreeing form of a verdict kind ("approval"/"approvals",
-// "sign-off"/"sign-offs").
+// "demotion"/"demotions").
 func plural(kind string, n int) string {
 	if n == 1 {
 		return kind

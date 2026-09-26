@@ -129,7 +129,7 @@ func newGovernedReviewProject(t *testing.T, app *App) (*TabInfo, string) {
 			Name:    "App",
 			Content: []project.ContentItem{{Path: "locales/en.json", Target: "locales/{lang}.json"}},
 		}},
-		ShipGate: gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 50}},
+		ShipGate: gate.Gate{"translated": {Pct: 100}, "established": {Pct: 50}},
 	}
 	path := filepath.Join(root, project.RecipeFileName)
 	require.NoError(t, project.Save(path, proj))
@@ -223,7 +223,7 @@ func TestReviewAI_PreReviewJudgeIsGoverned(t *testing.T) {
 	app, captured := newGovernedReviewApp(t, mock)
 	tab, _ := newGovernedReviewProject(t, app)
 
-	res, err := app.RunAIPreReview(tab.ID, "fr-FR", PreReviewScope{}, PreReviewPolicy{})
+	res, err := app.RunAIPreReview(tab.ID, "fr-FR", PreReviewScope{})
 	require.NoError(t, err)
 	require.Positive(t, res.Reviewed, "the queue had units to judge")
 

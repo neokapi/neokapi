@@ -19,12 +19,12 @@ func decision(unit, variant, status string) UnitDecision {
 
 func TestDecisionsComponentIsOrderIndependent(t *testing.T) {
 	a := DecisionsComponent([]UnitDecision{
-		decision("u1", "nb", "reviewed"),
+		decision("u1", "nb", "established"),
 		decision("u2", "fr", "translated"),
 	})
 	b := DecisionsComponent([]UnitDecision{
 		decision("u2", "fr", "translated"),
-		decision("u1", "nb", "reviewed"),
+		decision("u1", "nb", "established"),
 	})
 	assert.Equal(t, a, b,
 		"the committed record arrives in shard order and the ledger in SQL order; they must still agree")
@@ -32,7 +32,7 @@ func TestDecisionsComponentIsOrderIndependent(t *testing.T) {
 }
 
 func TestDecisionsComponentMovesOnlyOnADecision(t *testing.T) {
-	base := []UnitDecision{decision("u1", "nb", "reviewed")}
+	base := []UnitDecision{decision("u1", "nb", "established")}
 	component := DecisionsComponent(base)
 
 	tests := []struct {
@@ -47,7 +47,7 @@ func TestDecisionsComponentMovesOnlyOnADecision(t *testing.T) {
 		},
 		{
 			name:   "a changed rung",
-			mutate: func(d UnitDecision) UnitDecision { d.Status = "signed-off"; return d },
+			mutate: func(d UnitDecision) UnitDecision { d.Status = "draft"; return d },
 			moves:  true,
 		},
 		{
@@ -85,7 +85,7 @@ func TestDecisionsComponentMovesOnlyOnADecision(t *testing.T) {
 // TestDecisionIdentityAgreesWithSameDecision is the invariant the store depends
 // on: what counts as a change and what moves the component are one definition.
 func TestDecisionIdentityAgreesWithSameDecision(t *testing.T) {
-	a := decision("u1", "nb", "reviewed")
+	a := decision("u1", "nb", "established")
 	b := a
 	b.Updated = "2099-01-01T00:00:00Z"
 	c := a
@@ -195,7 +195,7 @@ func TestConceptTermOrderIsNotIdentity(t *testing.T) {
 // while a record carrying none keeps the identity it had before the field
 // existed, so an upgrade moves no project's decisions component.
 func TestDecisionIdentity_GoverningFingerprint(t *testing.T) {
-	legacy := decision("u1", "nb", "reviewed")
+	legacy := decision("u1", "nb", "established")
 	stamped := legacy
 	stamped.GoverningFingerprint = "fp-governing"
 	restamped := legacy
@@ -216,7 +216,7 @@ func TestDecisionIdentity_GoverningFingerprint(t *testing.T) {
 // context a verdict was made under, so a refused verdict kept as a bare basis
 // carries none.
 func TestAsBasis_DropsTheGoverningFingerprint(t *testing.T) {
-	d := decision("u1", "nb", "reviewed")
+	d := decision("u1", "nb", "established")
 	d.GoverningFingerprint = "fp-governing"
 	basis := d.AsBasis(model.TargetStatusTranslated)
 	assert.Empty(t, basis.GoverningFingerprint)

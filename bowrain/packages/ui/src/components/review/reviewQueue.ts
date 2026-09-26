@@ -142,7 +142,7 @@ export function entryHasErrors(entry: ReviewEntry): boolean {
 
 /**
  * Whether a block is pending review for a locale: it is translatable, has a
- * non-empty committed target, and that target is not yet reviewed/signed-off.
+ * non-empty committed target, and that target is not yet established.
  * Mirrors the ship model's "translated but not approved" per-block, so the
  * queue and the dashboard's `translated − approved` counts agree.
  */
@@ -150,7 +150,7 @@ export function isPendingReview(block: BlockInfo, locale: string): boolean {
   if (!block.translatable) return false;
   if (!getTargetText(block, locale).trim()) return false;
   const status = getBlockStatus(block, locale);
-  // draft + translated are pending; reviewed maps from reviewed/signed-off.
+  // draft + translated are pending; established is decided.
   return status === "draft" || status === "translated";
 }
 

@@ -352,11 +352,12 @@ A mixed change-set (a content fix plus the `term` entry that justifies
 it) lands atomically, so the draft and the rule that governs future drafts move
 together.
 
-A review decision is the one write that also has verbs of its own. On MCP,
-`approve_unit`, `reject_unit` and `sign_off_unit` record a unit's outcome
-through the same host decision path the CLI uses, with the agent's identity
-attached; `apply_edits` with a `review` entry reaches the same record. Both
-append to the decision ledger, which every checkout of the project reads.
+A review decision belongs to a person, so no MCP tool records one. An agent
+pre-reviews: `pre_review_unit` stores a score from 0 to 100 and its reasons on
+a queued unit, bound to the translation it judged and recorded with the
+agent's identity, and the person working the queue reads it beside the unit.
+A person's decision reaches the decision ledger through the desktop, `kapi
+apply` with a `review` entry run as a person, or a hosted review session.
 
 ### Format editability is declarative
 
@@ -436,7 +437,7 @@ none:
 | `writing` | the `context://` resources, `context_read`, `context_search`, `context_observe`, `context_correct`, `context_withdraw`, `context_session_summary`, `check_file` |
 | `content` | `check_text`, `voice_check`, `voice_rewrite`, `term-check`, `extract_content`, `detect_format`, `apply_edits`, `redact` |
 | `translation` | `translate`, `up`, `up_plan`, `stats` |
-| `review` | `review_queue`, `review_unit`, `approve_unit`, `reject_unit`, `sign_off_unit` |
+| `review` | `review_queue`, `review_unit`, `pre_review_unit` |
 | `all` | every set |
 
 The sets are one table in `host/mcp_sets.go`. Every factory registers its

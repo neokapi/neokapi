@@ -1631,14 +1631,6 @@ export class ConvergeLocaleResult {
              */
             this["shippable"] = false;
         }
-        if (!("verified" in $$source)) {
-            /**
-             * every scope for this locale clears its verified gate
-             * @member
-             * @type {boolean}
-             */
-            this["verified"] = false;
-        }
         if (/** @type {any} */(false)) {
             /**
              * the loop left work here (needs human)
@@ -1741,10 +1733,10 @@ export class ConvergeLocaleResult {
      * @returns {ConvergeLocaleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType36;
+        const $$createField3_0 = $$createType36;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
-            $$parsedSource["pct"] = $$createField4_0($$parsedSource["pct"]);
+            $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
         }
         return new ConvergeLocaleResult(/** @type {Partial<ConvergeLocaleResult>} */($$parsedSource));
     }
@@ -1825,7 +1817,7 @@ export class ConvergeOutput {
         if (/** @type {any} */(false)) {
             /**
              * SourceGate is the resolved source-first gate level applied
-             * (none|authored|checked|approved), for observability. Empty when no gate
+             * (none|written|established), for observability. Empty when no gate
              * was evaluated (no content).
              * @member
              * @type {string | undefined}

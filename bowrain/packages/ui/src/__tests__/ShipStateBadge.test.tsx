@@ -4,37 +4,20 @@ import userEvent from "@testing-library/user-event";
 import { ShipStateBadge, termsNotGoverned } from "../components/ShipStateBadge";
 
 describe("ShipStateBadge", () => {
-  it("renders the governed state with its label", () => {
-    render(<ShipStateBadge state="governed" />);
-    const badge = screen.getByTestId("ship-state-governed");
-    expect(badge).toHaveTextContent("Governed");
+  it("renders the established state with its label", () => {
+    render(<ShipStateBadge state="established" />);
+    expect(screen.getByTestId("ship-state-established")).toHaveTextContent("Established");
   });
 
-  it("renders the ai_shippable state with its label", () => {
-    render(<ShipStateBadge state="ai_shippable" />);
-    expect(screen.getByTestId("ship-state-ai_shippable")).toHaveTextContent("AI-shippable");
+  it("renders the translated state with its label", () => {
+    render(<ShipStateBadge state="translated" />);
+    expect(screen.getByTestId("ship-state-translated")).toHaveTextContent("Translated");
   });
 
-  it("renders the approved state with its label", () => {
-    render(<ShipStateBadge state="approved" />);
-    expect(screen.getByTestId("ship-state-approved")).toHaveTextContent("Approved");
-  });
-
-  it("says why an approved locale is not governed", async () => {
+  it("names ungoverned terminology on a locale that ships translated", async () => {
     const user = userEvent.setup();
-    render(
-      <ShipStateBadge state="approved" approvedBlocks={10} totalBlocks={10} termsNotGoverned />,
-    );
-    await user.hover(screen.getByTestId("ship-state-approved"));
-    expect(
-      (await screen.findAllByText(/No terms apply to this language, so it is not governed/)).length,
-    ).toBeGreaterThan(0);
-  });
-
-  it("names ungoverned terminology on a locale that ships on machine review", async () => {
-    const user = userEvent.setup();
-    render(<ShipStateBadge state="ai_shippable" termsNotGoverned />);
-    await user.hover(screen.getByTestId("ship-state-ai_shippable"));
+    render(<ShipStateBadge state="translated" termsNotGoverned />);
+    await user.hover(screen.getByTestId("ship-state-translated"));
     expect((await screen.findAllByText(/terminology is not governed here/)).length).toBeGreaterThan(
       0,
     );
@@ -68,28 +51,21 @@ describe("ShipStateBadge", () => {
   });
 
   it("compact variant renders icon-only with an accessible label", () => {
-    render(<ShipStateBadge state="governed" compact />);
-    const badge = screen.getByTestId("ship-state-governed");
-    expect(badge).toHaveAttribute("aria-label", "Governed");
-    expect(badge).not.toHaveTextContent("Governed");
+    render(<ShipStateBadge state="established" compact />);
+    const badge = screen.getByTestId("ship-state-established");
+    expect(badge).toHaveAttribute("aria-label", "Established");
+    expect(badge).not.toHaveTextContent("Established");
   });
 
   it("shows the explanation and count details in the tooltip on hover", async () => {
     const user = userEvent.setup();
     render(
-      <ShipStateBadge
-        state="ai_shippable"
-        approvedBlocks={12}
-        totalBlocks={50}
-        failingChecks={0}
-      />,
+      <ShipStateBadge state="translated" approvedBlocks={12} totalBlocks={50} failingChecks={0} />,
     );
-    await user.hover(screen.getByTestId("ship-state-ai_shippable"));
-    const tip = await screen.findAllByText(/machine review only/i);
+    await user.hover(screen.getByTestId("ship-state-translated"));
+    const tip = await screen.findAllByText(/AI-shippable/i);
     expect(tip.length).toBeGreaterThan(0);
-    expect((await screen.findAllByText(/12 of 50 blocks human-approved/)).length).toBeGreaterThan(
-      0,
-    );
+    expect((await screen.findAllByText(/12 of 50 blocks established/)).length).toBeGreaterThan(0);
   });
 
   it("mentions failing checks in the tooltip when present", async () => {

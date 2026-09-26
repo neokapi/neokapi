@@ -16,7 +16,7 @@ import (
 func TestAssertDecisionsHeld_DraftingIsNotAMove(t *testing.T) {
 	decided := venue.UnitDecision{
 		ItemName: "en.json", Unit: "u1", Variant: "nb",
-		Status: "reviewed", ReviewState: "approved", DecidedBy: "ana",
+		Status: "established", ReviewState: "approved", DecidedBy: "ana",
 	}
 	expected := ref.Ref{Decisions: venue.DecisionsComponent([]venue.UnitDecision{decided})}
 
@@ -29,7 +29,7 @@ func TestAssertDecisionsHeld_DraftingIsNotAMove(t *testing.T) {
 
 	approvedElsewhere := append(slices.Clone(held), venue.UnitDecision{
 		ItemName: "en.json", Unit: "u3", Variant: "nb",
-		Status: "reviewed", ReviewState: "approved", DecidedBy: "ben",
+		Status: "established", ReviewState: "approved", DecidedBy: "ben",
 	})
 	require.Error(t, assertDecisionsHeld(expected, approvedElsewhere),
 		"another reviewer's approval still refuses the push")

@@ -252,7 +252,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	// gate needs is resolved here, before the transition opens: which rows
 	// the payload names and the rung each holds, who last wrote each target by
 	// hand, the workspace policy, and the pusher's review permission for each
-	// language a verdict or a withdrawn sign-off names. A push that carries
+	// language a verdict or a withdrawn establishment names. A push that carries
 	// neither resolves no permission at all.
 	gov, gerr := newPushGovernor(ctx, deps, projectID, stream, workspaceID, manifest.ActorID, staged, decisions)
 	if gerr != nil {

@@ -6,8 +6,8 @@ package backend
 // and unit loading never touch a provider. All provider configuration resolves
 // exactly like the flow runner's: the shared ai.provider/ai.model defaults plus
 // the desktop credential store, so "the model that runs your flows" is the
-// model that reviews. Autonomous approvals record the honest identity
-// "ai/<model-id>" via host.ApplyReviewDecisionAs.
+// model that reviews. The pre-review only annotates: a model's score never
+// establishes a unit, which takes a person.
 
 import (
 	"context"
@@ -375,26 +375,12 @@ type PreReviewScope struct {
 	Collection string `json:"collection,omitempty"`
 }
 
-// PreReviewPolicy decides what the pre-review may do. Annotate-only (the
-// default: AutoApprove false) stores score + findings so the queue can show
-// them; with AutoApprove, units scoring at least MinScore AND free of
-// critical/major deterministic-check findings are approved with the identity
-// "ai/<model-id>".
-type PreReviewPolicy struct {
-	AutoApprove bool `json:"autoApprove"`
-	MinScore    int  `json:"minScore"`
-}
-
-// PreReviewResult summarizes a pre-review run: N auto-approved · M left.
+// PreReviewResult summarizes a pre-review run.
 type PreReviewResult struct {
-	// Model is the reviewer model id (what "ai/<model-id>" identities carry).
+	// Model is the reviewer model id the annotations carry.
 	Model string `json:"model"`
 	// Reviewed counts units annotated with a score.
 	Reviewed int `json:"reviewed"`
-	// AutoApproved counts units approved under the policy.
-	AutoApproved int `json:"auto_approved"`
-	// Remaining counts reviewed units still awaiting a human decision.
-	Remaining int `json:"remaining"`
 	// Skipped counts units whose model response carried no usable score.
 	Skipped int `json:"skipped,omitempty"`
 }
@@ -402,11 +388,9 @@ type PreReviewResult struct {
 // RunAIPreReview runs the ai review tool over the pending review queue for a
 // locale (batch, explicitly invoked — never during queue listing). Every unit
 // gets an advisory annotation (score + findings) in the project state store,
-// bound to the translation it judged; with policy.AutoApprove, clean
-// high-scoring units are approved through host.ApplyReviewDecisionAs with the
-// honest identity "ai/<model-id>". Human-required gates are unaffected by
-// those approvals (core/gate approver classes).
-func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy PreReviewPolicy) (*PreReviewResult, error) {
+// bound to the translation it judged. Every unit stays in the queue for a
+// person to decide.
+func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope) (*PreReviewResult, error) {
 	canon, lerr := canonicalLocale(locale)
 	if lerr != nil {
 		return nil, lerr
@@ -447,8 +431,6 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 	defer cancel()
 
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
-	points := a.newPointResolver(op, false)
-	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 	src := string(op.Project.Defaults.SourceLanguage)
 
 	// Group by (file, locale) so each pair is read and overlaid once, and the
@@ -494,15 +476,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 		if gerr := func() error {
 			defer release()
 
-			profile := points.at(ctx, rf.Collection, rf.Relative)
-			tb := points.termsAt(ctx, rf.Collection, rf.Relative)
-
 			annotations := map[string]state.AIReview{}
-			type approval struct {
-				item  host.ReviewQueueItem
-				score int
-			}
-			var approvals []approval
 
 			for _, it := range items {
 				done++
@@ -540,11 +514,6 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 				}
 				annotations[it.Key] = rev
 				res.Reviewed++
-
-				if policy.AutoApprove && score >= policy.MinScore &&
-					!hasBlockingCheckFinding(a.blockCheckFindings(ctx, b, sourceLang, model.LocaleID(k.locale), profile, tb, dntTerms)) {
-					approvals = append(approvals, approval{item: it, score: score})
-				}
 			}
 
 			if len(annotations) > 0 {
@@ -552,35 +521,12 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 					return fmt.Errorf("record ai reviews: %w", aerr)
 				}
 			}
-			// Approvals AFTER annotations, so the decision write carries the fresh
-			// annotation along (recordDecisionState preserves it).
-			for _, ap := range approvals {
-				if _, derr := a.hostEngine().ApplyReviewDecisionAs(ctx, op.Path, src,
-					host.ReviewUnitRef{File: ap.item.File, Key: ap.item.Key, Locale: ap.item.Locale},
-					host.ReviewDecisionApproved, "", state.AIIdentityPrefix+modelID); derr != nil {
-					return fmt.Errorf("auto-approve %s:%s: %w", ap.item.File, ap.item.Key, derr)
-				}
-				res.AutoApproved++
-			}
 			return nil
 		}(); gerr != nil {
 			return nil, gerr
 		}
 	}
-	res.Remaining = res.Reviewed - res.AutoApproved
 	return res, nil
-}
-
-// hasBlockingCheckFinding reports whether any deterministic-check finding
-// fails: a failing finding vetoes an auto-approval regardless of the model's
-// score.
-func hasBlockingCheckFinding(findings []DesktopFinding) bool {
-	for _, f := range findings {
-		if f.Fails {
-			return true
-		}
-	}
-	return false
 }
 
 // reviewerModelID resolves the model identity a pre-review records

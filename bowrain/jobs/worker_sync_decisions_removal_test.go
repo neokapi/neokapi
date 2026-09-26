@@ -43,7 +43,7 @@ func approvalFor(t *testing.T, itemName string) json.RawMessage {
 	t.Helper()
 	raw, err := json.Marshal([]map[string]any{{
 		"item": itemName, "unit": "u1", "variant": "nb",
-		"status": "reviewed", "targetHash": "sha256:t1",
+		"status": "established", "targetHash": "sha256:t1",
 		"reviewState": "approved", "by": "ana", "at": "2026-08-06T13:45:44Z",
 		"updated": "2026-08-06T13:45:44Z",
 	}})

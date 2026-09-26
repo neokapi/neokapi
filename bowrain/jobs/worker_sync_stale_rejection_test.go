@@ -49,15 +49,15 @@ func TestPushedRejectionOfAnOlderTranslation(t *testing.T) {
 		require.Equal(t, 1, r.draft("job-draft-1"))
 		current := r.target()
 		r.verdictPush("job-approve", "u-reviewer", map[string]bool{redraftLocale: true}, current, current,
-			model.TargetStatusReviewed, venue.ReviewStateApproved, time.Hour)
-		require.Equal(t, model.TargetStatusReviewed, storedTarget(t, r.deps, r.pid, r.item, redraftLocale))
+			model.TargetStatusEstablished, venue.ReviewStateApproved, time.Hour)
+		require.Equal(t, model.TargetStatusEstablished, storedTarget(t, r.deps, r.pid, r.item, redraftLocale))
 		before, mark := r.ledgerRow(), r.mark()
 		require.Equal(t, venue.ReviewStateApproved, before.ReviewState)
 
 		r.decisionPush("job-reject-older", "u-translator", olderTranslation,
 			venue.ReviewStateRejected, model.TargetStatusDraft, 2*time.Hour, "Renders check as sjekk")
 
-		assert.Equal(t, model.TargetStatusReviewed, storedTarget(t, r.deps, r.pid, r.item, redraftLocale),
+		assert.Equal(t, model.TargetStatusEstablished, storedTarget(t, r.deps, r.pid, r.item, redraftLocale),
 			"the translation the platform holds keeps its rung")
 		after := r.ledgerRow()
 		assert.Equal(t, venue.ReviewStateApproved, after.ReviewState, "and its verdict")

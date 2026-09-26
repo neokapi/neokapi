@@ -65,7 +65,7 @@ type Ref struct {
   point each occupies, and the voice profile governing it.
 - **`terms`** identifies the governed terminology in force.
 - **`decisions`** identifies the decisions this checkout holds: every record
-  that carries a review state, a reviewed or signed-off rung, a parked unit, an
+  that carries a review state, a established rung, a parked unit, an
   assignee or a note. The source is the checkout's own view of the ledger, so a
   decision recorded in another checkout of the project and one recorded here both
   count ([C-04](c-04-unit-state-and-decisions.md)). A record that says only what was

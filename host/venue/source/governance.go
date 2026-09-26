@@ -58,7 +58,7 @@ func (c *BowrainSourceConnector) retireRefusedVerdicts(ctx context.Context, repo
 	staleRejections := map[unitKey]bool{}
 	for _, u := range report.Units {
 		key := unitKey{item: u.ItemName, unit: u.Unit, variant: u.Variant}
-		if u.Reason == venue.RefusedSignOffWithdrawal {
+		if u.Reason == venue.RefusedEstablishedWithdrawal {
 			// A withdrawal the venue refused without saying what it holds
 			// leaves nothing to write: the local record cannot invent the
 			// sign-off's decider, and a pull settles it.
@@ -149,8 +149,7 @@ type unitKey struct{ item, unit, variant string }
 // carriesVerdict reports whether a unit's state claims something only a
 // reviewer may claim: a review state, or a rung above translated.
 func carriesVerdict(u state.UnitState) bool {
-	switch u.Decision.ReviewState {
-	case venue.ReviewStateApproved, venue.ReviewStateSignedOff:
+	if u.Decision.ReviewState == venue.ReviewStateApproved {
 		return true
 	}
 	return u.Status.Rank() > model.TargetStatusTranslated.Rank()

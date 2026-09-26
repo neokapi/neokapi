@@ -21,9 +21,9 @@ package main
 // does not exist. Kept beside the scenarios rather than fetched at run time
 // because a missing tool must fail a test, not a metered sweep.
 var mcpToolCatalogue = []string{
-	"apply_edits", "approve_unit", "check_file", "check_text", "context_search",
-	"detect_format", "extract_content", "redact", "reject_unit", "review_queue",
-	"review_unit", "sign_off_unit", "stats", "term-check", "translate", "up",
+	"apply_edits", "check_file", "check_text", "context_search",
+	"detect_format", "extract_content", "pre_review_unit", "redact", "review_queue",
+	"review_unit", "stats", "term-check", "translate", "up",
 	"up_plan", "voice_check", "voice_rewrite",
 }
 

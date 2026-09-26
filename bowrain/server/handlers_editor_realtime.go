@@ -49,7 +49,7 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 // web app already uses:
 //
 //   - PUT  /:ws/:id/blocks/:ref/:bid/review — set the per-locale review status
-//     on the block's target (Target.Status: signed-off / reviewed /
+//     on the block's target (Target.Status: established /
 //     translated / draft). Distinct from the governance workflow lifecycle
 //     (draft/in_review/published) at .../status.
 //   - POST /:ws/:id/presence — report the caller's editing focus; published to
@@ -62,9 +62,8 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 // demotes to "translated" (the default, a plain un-review) or to "draft" (a
 // reviewer REJECTION, so the unit re-enters the work queue, the same mapping
 // the host review service uses for ReviewDecisionRejected). An approving
-// request (reviewed=true) lands on "reviewed" by default, or on "signed-off",
-// the rung above it, when the reviewer signs the target off. Any other pairing
-// is a 400.
+// request (reviewed=true) lands on "established"; its status is omitted or
+// "established". Any other pairing is a 400.
 //
 // BaseRevision is the target revision the reviewer read. A decision that names
 // one is refused with the current block when the target has moved since.
@@ -85,14 +84,13 @@ type ReviewBlockRequest struct {
 const legacyTranslationStatusProperty = "translation-status"
 
 // HandleReviewBlock sets the review status of a block's target for ONE locale:
-// reviewed=true moves the target to model.TargetStatusReviewed, or with
-// status:"signed-off" to model.TargetStatusSignedOff, the rung above it;
+// reviewed=true moves the target to model.TargetStatusEstablished;
 // reviewed=false moves it back to model.TargetStatusTranslated — or, with
 // status:"draft", down to model.TargetStatusDraft (a reviewer REJECTION: the
 // unit re-enters the work queue, matching host/convergereport.go's
 // ReviewDecisionRejected → draft mapping). The status lives on
 // Block.Targets[Variant(locale)].Status — the framework target ladder
-// (draft → translated → reviewed → signed-off) that convergence/coverage and
+// (draft→translated→established) that convergence/coverage and
 // ship gates consume — so reviewing French never touches German. The legacy
 // block-global Properties["translation-status"] is no longer written.
 //
@@ -100,27 +98,22 @@ const legacyTranslationStatusProperty = "translation-status"
 // governance workflow lifecycle (draft → in_review → published, PG-only,
 // four-eyes on publish).
 //
-// Approving and signing off are the review permission for the language being
-// decided: PermReview, language-scoped. Withdrawing an approval
-// (reviewed=false) and rejecting (status:"draft") stay with PermTranslate, the
-// same gate that edits the target, so a translator can still take back their
-// own work. A target at TargetStatusSignedOff (the top of the ladder) is
-// protected either way: approving or re-signing it is an idempotent no-op that
-// keeps signed-off, and demoting it requires PermReview, so a translator's
-// ordinary un-review click cannot silently undo a sign-off (and the ship gates
-// keyed on "at least signed-off" coverage) two rungs down to translated.
+// Approving is the review permission for the language being decided:
+// PermReview, language-scoped. A target at TargetStatusEstablished is
+// protected: approving it again is an idempotent no-op, and demoting it
+// (un-review or rejection) requires PermReview, so a translator's ordinary
+// un-review click cannot silently undo a person's decision (and the ship gates
+// keyed on established coverage).
 //
 // Every promotion also passes the workspace separation-of-duties policy:
 // whoever last wrote the translation by hand may not be the one who approves or
 // signs it off, unless the workspace has the policy off or set to warn. A
 // target a run produced has no human author and stays approvable by one person.
-// Signing off a target already at reviewed is a fresh decision and is vetted
-// again; the policy draws no second line between the approver and the signer.
 //
 // No-target decision (documented per epic 006 task 3): approving a block that
 // has no non-empty translation for the locale is a 422. The visual editor lets
 // a reviewer step onto untranslated blocks (they render with source fallback),
-// but "reviewed" is a rung on the target ladder — convergence.TargetState
+// but "established" is a rung on the target ladder — convergence.TargetState
 // counts a unit at its Target.Status only when a non-empty target exists, and
 // the host review service (host.ApplyReviewDecision) refuses to approve empty
 // translations for the same reason. Persisting an approval that coverage could
@@ -148,20 +141,17 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 	if req.TargetLocale == "" {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "target_locale is required"})
 	}
-	// The optional status picks the rung, and each direction has its own two.
-	// Clearing lands on translated (a plain un-review) or draft (a reviewer
-	// rejection, which re-enters the work queue, mirroring host's
-	// ReviewDecisionRejected mapping). Approving lands on reviewed or, when the
-	// reviewer signs the target off, on signed-off.
+	// The optional status picks the rung. Clearing lands on translated (a
+	// plain un-review) or draft (a reviewer rejection, which re-enters the work
+	// queue, mirroring host's ReviewDecisionRejected mapping). Approving lands
+	// on established.
 	demoteTo := model.TargetStatusTranslated
-	promoteTo := model.TargetStatusReviewed
+	promoteTo := model.TargetStatusEstablished
 	if req.Reviewed {
 		switch req.Status {
-		case "":
-		case string(model.TargetStatusSignedOff):
-			promoteTo = model.TargetStatusSignedOff
+		case "", string(model.TargetStatusEstablished):
 		default:
-			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: `status must be "signed-off" or omitted when reviewed is true`})
+			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: `status must be "established" or omitted when reviewed is true`})
 		}
 	} else {
 		switch req.Status {
@@ -244,7 +234,7 @@ type reviewFault struct {
 func (e reviewFault) Error() string { return e.msg }
 
 // blockReviewInput is one block's review, as both the single-block route and
-// the bulk route pose it. Elevate is called before demoting a signed-off
+// the bulk route pose it. Elevate is called before demoting an established
 // target: the single-block route hands over the standard language-permission
 // gate (which writes its own 403), the bulk route a plain predicate so one
 // protected block cannot answer for the whole batch.
@@ -258,9 +248,8 @@ type blockReviewInput struct {
 	BlockID   string
 	Request   ReviewBlockRequest
 	DemoteTo  model.TargetStatus
-	// PromoteTo is the rung an approving call lands on: reviewed, or
-	// signed-off when the reviewer signs the target off. Empty means reviewed,
-	// so a caller that only ever approves says nothing.
+	// PromoteTo is the rung an approving call lands on. Empty means
+	// established, the only rung a person's approval reaches.
 	PromoteTo model.TargetStatus
 	Elevate   func() error
 	Vet       func(blockID, locale string) error
@@ -281,7 +270,7 @@ type blockReviewOutcome struct {
 	// target that was already reviewed.
 	Approval bool
 	// Changed is false when the call moved no rung: an idempotent re-approve
-	// of a signed-off target, or an un-review with nothing to demote. Nothing
+	// of an established target, or an un-review with nothing to demote. Nothing
 	// happened, so nothing is audited.
 	Changed bool
 }
@@ -298,7 +287,7 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 
 	promoteTo := in.PromoteTo
 	if promoteTo == "" {
-		promoteTo = model.TargetStatusReviewed
+		promoteTo = model.TargetStatusEstablished
 	}
 
 	// The decision is made on the block as the write holds it, so the status
@@ -318,8 +307,8 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 					"block %q has no %s translation to review: translate it first (an untranslated block falls back to source, which is not a reviewable translation)",
 					in.BlockID, req.TargetLocale)}
 			}
-			if target.Status == model.TargetStatusSignedOff {
-				// Signed-off is the top of the ladder; approving or re-signing it
+			if target.Status == model.TargetStatusEstablished {
+				// Established is the top of the ladder; approving it again
 				// must not demote it. Idempotent success, keeping the rung.
 				out = blockReviewOutcome{HadTarget: true, From: target.Status, Status: target.Status}
 				return errNothingToWrite
@@ -345,10 +334,10 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 				clearedLegacy = true
 				return nil
 			}
-			if target.Status == model.TargetStatusSignedOff {
-				// Undoing a sign-off is a review-level action, not ordinary
+			if target.Status == model.TargetStatusEstablished {
+				// Undoing an established unit is a review-level action, not ordinary
 				// translation work: without this gate a PermTranslate caller could
-				// drop a signed-off target two rungs to translated with no audit
+				// drop an established target two rungs to translated with no audit
 				// trail distinct from an ordinary un-review.
 				if err := in.Elevate(); err != nil {
 					return err
@@ -357,12 +346,12 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 			status = in.DemoteTo
 		}
 		from := target.Status
-		// A sign-off counts for the review loop exactly as an approval does: it
+		// An approval counts for the review loop: it
 		// leaves the project one pending unit lighter. Signing off a target that
 		// was already reviewed leaves the pending count where it was, so it does
 		// not advance the loop, the same way a re-approve does not.
-		approval := req.Reviewed && status.Rank() >= model.TargetStatusReviewed.Rank() &&
-			from.Rank() < model.TargetStatusReviewed.Rank()
+		approval := req.Reviewed && status.Rank() >= model.TargetStatusEstablished.Rank() &&
+			from.Rank() < model.TargetStatusEstablished.Rank()
 		target.Status = status
 		out = blockReviewOutcome{HadTarget: true, From: from, Status: status, Approval: approval, Changed: from != status}
 		return nil

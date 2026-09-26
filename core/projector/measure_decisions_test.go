@@ -24,7 +24,7 @@ func TestMeasureDecisionRebuild(t *testing.T) {
 	for i := range n {
 		u := state.UnitState{
 			Unit: fmt.Sprintf("u-%05d", i), Variant: model.Variant("nb"), Scope: fmt.Sprintf("doc-%03d", i%720),
-			Status:      model.TargetStatusReviewed,
+			Status:      model.TargetStatusEstablished,
 			Decision:    state.Decision{ReviewState: "approved", By: "reviewer"},
 			TargetHash:  state.TargetHash(fmt.Sprintf("Mål %d", i)),
 			ContentHash: state.SourceHash(fmt.Sprintf("Source %d", i)),

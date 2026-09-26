@@ -74,7 +74,7 @@ func parkedReviewProject(t *testing.T) (*App, *EnvCommand, string, string) {
 				{Tool: "translate", Config: map[string]any{"provider": "demo"}},
 			}},
 		},
-		ShipGate: gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 50}},
+		ShipGate: gate.Gate{"translated": {Pct: 100}, "established": {Pct: 50}},
 	}
 	recipe := filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, project.Save(recipe, proj))
@@ -217,7 +217,7 @@ func TestConverge_ParkedLocaleIsReviewableThenShips(t *testing.T) {
 	// The read surfaces find the parked work where it lives.
 	cov := parkedCoverage(t, a, cmd, recipe, dir, "nl")
 	assert.Equal(t, 100, cov.Pct["translated"], "the store holds a translation for every nl unit")
-	assert.Zero(t, cov.Pct["reviewed"])
+	assert.Zero(t, cov.Pct["established"])
 	assert.False(t, cov.Shippable, "translated is not the whole gate")
 	assert.Equal(t, cov.Pct["translated"], parkedLocaleResult(t, out, "nl").Pct["translated"],
 		"up and status publish one translated figure for one locale")
@@ -233,7 +233,7 @@ func TestConverge_ParkedLocaleIsReviewableThenShips(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, changed, "approving a stored draft records a decision")
 	}
-	assert.Equal(t, 50, parkedCoverage(t, a, cmd, recipe, dir, "nl").Pct["reviewed"],
+	assert.Equal(t, 50, parkedCoverage(t, a, cmd, recipe, dir, "nl").Pct["established"],
 		"the decisions count where the gate reads them")
 
 	// The next run delivers the locale that is now at its bar, and pays a
@@ -274,7 +274,7 @@ func TestConverge_ParkedDecisionSurvivesDelivery(t *testing.T) {
 
 	cov := parkedCoverage(t, a, cmd, recipe, dir, "nl")
 	assert.Equal(t, 100, cov.Pct["translated"])
-	assert.Equal(t, 50, cov.Pct["reviewed"],
+	assert.Equal(t, 50, cov.Pct["established"],
 		"the approvals still count once the same runs are on disk")
 	assert.True(t, cov.Shippable)
 }

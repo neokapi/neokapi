@@ -35,7 +35,7 @@ const gatedGreenReport: ConvergenceReport = {
       locale: "fr-FR",
       collection: "docs",
       total: 40,
-      pct: { translated: 100, reviewed: 100 },
+      pct: { translated: 100, established: 100 },
       gated: true,
       shippable: true,
     },

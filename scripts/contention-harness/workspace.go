@@ -361,7 +361,7 @@ func runAgentChild(ctx context.Context, checkout string, cfg config) error {
 			return emitReport(rec.all())
 		}
 		u := makeUnitState((seed + i) % max(cfg.units, 1))
-		u.Status = model.TargetStatusReviewed
+		u.Status = model.TargetStatusEstablished
 		_ = rec.observe(nWSDecision, func() error { return work.Put(runCtx, u) })
 
 		// Promote only a fraction of decisions into content memory. Each promotion

@@ -53,7 +53,7 @@ func TestAssembleReviewContextComposesTheSharedLayers(t *testing.T) {
 	at := time.Date(2026, 2, 1, 9, 0, 0, 0, time.UTC)
 	require.NoError(t, tm.Add(ctx, chainAnswer("v2", "doc.three", "Third paragraph.", "Tredje avsnitt.", "fp-now", at)))
 	unit := &state.UnitState{
-		Status:   model.TargetStatusReviewed,
+		Status:   model.TargetStatusEstablished,
 		Decision: state.Decision{ReviewState: "approved", By: "owner", At: "2026-02-02T09:00:00Z"},
 	}
 
@@ -75,7 +75,7 @@ func TestAssembleReviewContextComposesTheSharedLayers(t *testing.T) {
 
 	assert.Equal(t, review.ProvenanceOf(blocks[2], "nb", unit), got.Provenance)
 	assert.Equal(t, "approved", got.Provenance.ReviewState)
-	assert.Equal(t, "reviewed", got.Provenance.Status)
+	assert.Equal(t, "established", got.Provenance.Status)
 	require.NotNil(t, got.Provenance.Origin)
 	assert.Equal(t, "ai", got.Provenance.Origin.Kind, "the format's own provenance wins")
 	assert.Equal(t, "nb", got.Point.Language)

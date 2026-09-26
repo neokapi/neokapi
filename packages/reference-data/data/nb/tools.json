@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T19:21:47Z",
+  "generatedAt": "2026-09-26T08:20:58Z",
   "kind": "tool",
   "entries": [
     {
@@ -3887,23 +3887,19 @@
             "type": "string",
             "title": "Kildesluse",
             "description": "Minimum kildeforfatterstatus en blokk må nå før oversettelsene produseres",
-            "default": "checked",
+            "default": "written",
             "options": [
               {
                 "value": "none",
                 "label": "ingen"
               },
               {
-                "value": "authored",
-                "label": "forfatter"
+                "value": "written",
+                "label": "written"
               },
               {
-                "value": "checked",
-                "label": "avkrysset"
-              },
-              {
-                "value": "approved",
-                "label": "godkjent"
+                "value": "established",
+                "label": "established"
               }
             ]
           }

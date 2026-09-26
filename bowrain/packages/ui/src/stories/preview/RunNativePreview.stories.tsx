@@ -84,7 +84,7 @@ const blocks: BlockInfo[] = [
     id: "blk-2",
     source: "We will email you a link.",
     source_runs: [{ text: "We will email you a link." }],
-    targets: { "fr-FR": { text: "Nous vous enverrons un lien.", status: "reviewed" } },
+    targets: { "fr-FR": { text: "Nous vous enverrons un lien.", status: "established" } },
     translatable: true,
     has_spans: false,
     properties: { type: "json:value", path: "$.auth.sent" },

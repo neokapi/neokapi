@@ -26,16 +26,15 @@ const ShipFeedProperty = "ship_feed_public"
 const shipFeedCacheMaxAge = 60 * time.Second
 
 // shipManifestEntry is one locale's standing in the public feed — the same
-// two-gate shape the CLI's ship.json carries (host.ShipEntry) and the
-// @neokapi/i18n-react picker consumes: shippable (safe to offer) and verified
-// (human-reviewed, so no AI badge).
+// shape the CLI's ship.json carries (host.ShipEntry) and the
+// @neokapi/i18n-react picker consumes: shippable (safe to offer) and the ship
+// state (established carries no AI badge).
 type shipManifestEntry struct {
 	Shippable bool `json:"shippable"`
-	Verified  bool `json:"verified"`
 	// State is the locale's ship state in the vocabulary ship.json uses
-	// (host.ShipEntry.State): shippable or withheld. The server holds every
-	// locale to the bar store.DeriveShipState applies, so no locale here is
-	// not_gated.
+	// (host.ShipEntry.State): established, translated or withheld. The server
+	// holds every locale to the bar store.DeriveShipState applies, so no
+	// locale here is not_gated.
 	State convergence.ShipState `json:"state"`
 	// NotGoverned names the dimensions that govern nothing in the locale
 	// ("terms"), as host.ShipEntry does, so a picker never reads an ungoverned
@@ -46,7 +45,7 @@ type shipManifestEntry struct {
 // HandlePublicShipManifest serves a project's per-locale ship manifest over a
 // public, cacheable URL — the hosted twin of `kapi status --ship --emit
 // ship.json`. The body is byte-shape-identical to that file (locale →
-// {shippable, verified}), so @neokapi/i18n-react's loadShipStatus consumes it
+// {shippable, state}), so @neokapi/i18n-react's loadShipStatus consumes it
 // unchanged by pointing at this URL instead of a bundled file. No auth: a
 // language picker on a public site must be able to read it. Off unless the
 // project opts in via ShipFeedProperty.
@@ -110,25 +109,21 @@ func (s *Server) shipDashboardStats(ctx context.Context, proj *store.Project, st
 }
 
 // shipManifestFromStats projects the project-wide per-locale ship states to the
-// picker manifest. shippable means the locale ships on at least machine review
-// (governed, approved or ai_shippable), and state is shippable for those and
-// withheld otherwise; verified means it is human-reviewed (governed or
-// approved). not_governed names terminology when the locale's compliance basis
-// leaves it out.
-// The project-wide LocaleStats already carry the weakest-scope answer — governed
-// requires every block approved — so this matches the CLI's per-collection
-// BuildShipManifest without re-deriving per collection.
+// picker manifest: state is established or translated for a locale that ships
+// and withheld otherwise, and shippable is true for the first two.
+// not_governed names terminology when the locale's compliance basis leaves it
+// out. The project-wide LocaleStats already carry the weakest-scope answer
+// (established requires every block established), so this matches the CLI's
+// per-collection BuildShipManifest without re-deriving per collection.
 func shipManifestFromStats(stats *store.TranslationDashboardStats) map[string]shipManifestEntry {
 	out := make(map[string]shipManifestEntry, len(stats.LocaleStats))
 	for _, ls := range stats.LocaleStats {
-		entry := shipManifestEntry{
-			Shippable: ls.ShipState == store.ShipStateGoverned || ls.ShipState == store.ShipStateApproved ||
-				ls.ShipState == store.ShipStateAIShippable,
-			Verified: ls.ShipState == store.ShipStateGoverned || ls.ShipState == store.ShipStateApproved,
-			State:    convergence.ShipStateWithheld,
-		}
-		if entry.Shippable {
-			entry.State = convergence.ShipStateShippable
+		entry := shipManifestEntry{State: convergence.ShipStateWithheld}
+		switch ls.ShipState {
+		case store.ShipStateEstablished:
+			entry.Shippable, entry.State = true, convergence.ShipStateEstablished
+		case store.ShipStateTranslated:
+			entry.Shippable, entry.State = true, convergence.ShipStateTranslated
 		}
 		if ls.ComplianceBasis != "" && !ls.ComplianceBasis.GovernsTerms() {
 			entry.NotGoverned = []string{"terms"}

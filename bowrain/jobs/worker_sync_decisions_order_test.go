@@ -32,7 +32,7 @@ func TestAPushIsNotRefusedForADecisionItsOwnRemovalTakesAway(t *testing.T) {
 	blocks := []*pb.SyncBlock{{Id: "b1", ItemName: "en.json", SourceText: "Hello", Translatable: true}}
 	approval, err := json.Marshal([]map[string]any{{
 		"item": "gone.json", "unit": "u1", "variant": "nb",
-		"status": "reviewed", "targetHash": "sha256:t1",
+		"status": "established", "targetHash": "sha256:t1",
 		"reviewState": "approved", "by": "ana", "at": "2026-08-06T13:45:44Z", "updated": "2026-08-06T13:45:44Z",
 	}})
 	require.NoError(t, err)

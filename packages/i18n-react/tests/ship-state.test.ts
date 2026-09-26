@@ -10,9 +10,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { languagePickerModel, loadShipStatus, type ShipStatus } from "../src/ship/index.ts";
 
 const MANIFEST: ShipStatus = {
-  fr: { shippable: true, verified: true, state: "shippable" },
-  nb: { shippable: true, verified: false, state: "not_gated" },
-  ja: { shippable: false, verified: false, state: "withheld" },
+  fr: { shippable: true, state: "established" },
+  nb: { shippable: true, state: "not_gated" },
+  ja: { shippable: false, state: "withheld" },
 };
 
 describe("languagePickerModel and ship states", () => {
@@ -21,7 +21,7 @@ describe("languagePickerModel and ship states", () => {
     expect(model.map((m) => m.locale)).toEqual(["fr", "nb"]);
 
     const by = Object.fromEntries(model.map((m) => [m.locale, m]));
-    expect(by.fr.state).toBe("shippable");
+    expect(by.fr.state).toBe("established");
     expect(by.nb.state).toBe("not_gated");
   });
 
@@ -43,15 +43,15 @@ describe("loadShipStatus and ship states", () => {
         async () =>
           new Response(
             JSON.stringify({
-              nb: { shippable: true, verified: false, state: "not_gated" },
-              fr: { shippable: true, verified: true, state: "ready" },
+              nb: { shippable: true, state: "not_gated" },
+              fr: { shippable: true, state: "ready" },
             }),
             { status: 200 },
           ),
       ),
     );
     const status = await loadShipStatus();
-    expect(status.nb).toEqual({ shippable: true, verified: false, state: "not_gated" });
-    expect(status.fr).toStrictEqual({ shippable: true, verified: true });
+    expect(status.nb).toEqual({ shippable: true, state: "not_gated" });
+    expect(status.fr).toStrictEqual({ shippable: true });
   });
 });

@@ -43,8 +43,7 @@ func writeStatefulBlock(t *testing.T, status model.TargetStatus) string {
 // TestWriteXLIFF2_TargetState verifies the writer emits the segment `state` from
 // the target's lifecycle status on the scratch-build path (e.g. kapi extract).
 func TestWriteXLIFF2_TargetState(t *testing.T) {
-	assert.Contains(t, writeStatefulBlock(t, model.TargetStatusReviewed), `state="reviewed"`)
-	assert.Contains(t, writeStatefulBlock(t, model.TargetStatusSignedOff), `state="final"`)
+	assert.Contains(t, writeStatefulBlock(t, model.TargetStatusEstablished), `state="final"`)
 	assert.Contains(t, writeStatefulBlock(t, model.TargetStatusDraft), `state="translated"`,
 		"a draft is a translation awaiting review")
 	// An unset status emits no state attribute (XLIFF defaults to initial).
@@ -53,7 +52,7 @@ func TestWriteXLIFF2_TargetState(t *testing.T) {
 
 // TestXLIFF2_StateRoundTrip closes the loop: a status written out is read back.
 func TestXLIFF2_StateRoundTrip(t *testing.T) {
-	output := writeStatefulBlock(t, model.TargetStatusSignedOff)
+	output := writeStatefulBlock(t, model.TargetStatusEstablished)
 
 	reader := xliff2.NewReader()
 	require.NoError(t, reader.Open(t.Context(), testutil.RawDocFromString(output, model.LocaleEnglish)))
@@ -63,7 +62,7 @@ func TestXLIFF2_StateRoundTrip(t *testing.T) {
 	require.Len(t, blocks, 1)
 	tgt := blocks[0].Target(model.LocaleFrench)
 	require.NotNil(t, tgt)
-	assert.Equal(t, model.TargetStatusSignedOff, tgt.Status, "signed-off → final → signed-off")
+	assert.Equal(t, model.TargetStatusEstablished, tgt.Status, "signed-off → final → signed-off")
 }
 
 const statefulXLIFF2 = `<?xml version="1.0" encoding="UTF-8"?>
@@ -93,8 +92,8 @@ func TestReadXLIFF2_TargetState(t *testing.T) {
 		require.NotNil(t, tgt)
 		return tgt.Status
 	}
-	assert.Equal(t, model.TargetStatusReviewed, status(blocks[0]), "state=reviewed")
-	assert.Equal(t, model.TargetStatusSignedOff, status(blocks[1]), "state=final → signed-off")
+	assert.Equal(t, model.TargetStatusEstablished, status(blocks[0]), "state=reviewed")
+	assert.Equal(t, model.TargetStatusEstablished, status(blocks[1]), "state=final")
 	assert.Equal(t, model.TargetStatusTranslated, status(blocks[2]), "state=translated")
 	assert.Equal(t, model.TargetStatusNew, status(blocks[3]), "no state → unset (presence baseline applies)")
 }

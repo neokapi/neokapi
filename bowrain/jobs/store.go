@@ -229,7 +229,7 @@ var JobMigrations = []storage.Migration{
 		Description: "record what a push's review governance refused",
 		SQL: `
 			-- What a push carried and the platform did not accept: the
-			-- approvals and sign-offs the pusher was not entitled to make. The
+			-- approvals the pusher was not entitled to make. The
 			-- commit is answered with 202 and applied by a worker, so the
 			-- refusal happens after the producer's request is over, and the job
 			-- row is where the producer reads it back from.

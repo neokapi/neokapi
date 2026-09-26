@@ -7,7 +7,7 @@ import (
 )
 
 // PropSourceStatus is the reserved block-property key that carries a Block's
-// source-authoring status (authored → checked → approved) through the store's
+// source-authoring status (written→established) through the store's
 // properties JSON. The ContentStore serializes only Block.Properties for a
 // block's source-side metadata — it has no SourceStatus column — so the
 // source-first convergence gate would lose the status it stamps unless the

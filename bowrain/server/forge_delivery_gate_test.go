@@ -32,7 +32,7 @@ func TestMaterializeDelivery_GovernedShipsApprovedOnly(t *testing.T) {
 	// Block A: fr reviewed (approved), de translated (unreviewed draft).
 	bA := model.NewBlock("a", "Hello")
 	bA.SetTargetText("fr", "Bonjour")
-	bA.Target("fr").Status = model.TargetStatusReviewed
+	bA.Target("fr").Status = model.TargetStatusEstablished
 	bA.SetTargetText("de", "Hallo")
 	// Block B: fr translated (unreviewed draft).
 	bB := model.NewBlock("b", "Bye")

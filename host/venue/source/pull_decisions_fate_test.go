@@ -129,7 +129,7 @@ func TestPull_DecisionsSurviveDeletingTheProjection(t *testing.T) {
 		ItemName:    "locales/en.json",
 		Unit:        "greeting",
 		Variant:     "fr",
-		Status:      string(model.TargetStatusReviewed),
+		Status:      string(model.TargetStatusEstablished),
 		ReviewState: "approved",
 		DecidedBy:   "reviewer@example.test",
 		Updated:     "2026-09-05T10:00:00Z",

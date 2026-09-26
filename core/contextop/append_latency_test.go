@@ -45,7 +45,7 @@ func TestAppendLatency(t *testing.T) {
 	for i := range otherOps {
 		batch = append(batch, workspace.Op{
 			Project: "prj_docs", Kind: "unit.decide", Address: fmt.Sprintf("unit-%d", i),
-			Payload: []byte(`{"unit":"u","variant":"nb","status":"reviewed"}`),
+			Payload: []byte(`{"unit":"u","variant":"nb","status":"established"}`),
 		})
 		if len(batch) == cap(batch) {
 			flush()

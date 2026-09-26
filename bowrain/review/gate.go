@@ -5,7 +5,7 @@
 // three places that must not drift apart: the review endpoint a reviewer
 // clicks, the bulk route a selection goes through, and the sync worker that
 // applies a push. A push moves content; it does not decide. What it carries in
-// the way of approvals and sign-offs is held to the same permission and the
+// the way of approvals is held to the same permission and the
 // same workspace separation-of-duties policy as a decision made on the
 // platform, because otherwise anyone who may write files may also approve
 // them, from a laptop, in one command.
@@ -198,17 +198,18 @@ func (g *Gate) Allow(blockID, locale string) error {
 }
 
 // AllowWithdrawal answers the other review-level question for one language: may
-// this actor lower a target the venue holds at signed-off?
+// this actor lower a target the venue holds at established?
 //
 // One condition. The actor must hold review permission for that language in
 // that project, which is what the web asks before an un-review or a rejection
-// drops a signed-off target (HandleReviewBlock's Elevate). The workspace
+// drops an established target (HandleReviewBlock's Elevate). The workspace
 // separation-of-duties policy is not asked: it judges who may bless work, and
-// withdrawing a sign-off blesses nothing, so the author of a translation who
-// also holds review may take back their own sign-off here as on the web.
+// withdrawing an established unit blesses nothing, so the author of a
+// translation who also holds review may take back their own decision here as
+// on the web.
 func (g *Gate) AllowWithdrawal(locale string) error {
 	if g == nil || g.cfg.Permits == nil || !g.cfg.Permits(locale) {
-		return Refusal{Reason: venue.RefusedSignOffWithdrawal, Locale: locale}
+		return Refusal{Reason: venue.RefusedEstablishedWithdrawal, Locale: locale}
 	}
 	return nil
 }

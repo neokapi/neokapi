@@ -197,9 +197,8 @@ const loopStatus: LoopStatusData = {
   },
   openReviewTasks: 7,
   ship: {
-    governed: 3,
-    approved: 1,
-    aiShippable: 2,
+    established: 4,
+    translated: 2,
     pending: 5,
     countedProjects: 2,
     totalProjects: 2,

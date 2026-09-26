@@ -383,7 +383,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 		b.Unit = "auth." + b.ID
 		b.Target("fr").Origin = model.Origin{Kind: "ai", Engine: "claude", ContextFingerprint: "fp-1"}
 	}
-	authored[0].Target("fr").Status = model.TargetStatusReviewed
+	authored[0].Target("fr").Status = model.TargetStatusEstablished
 	keys := make([]string, 0, len(authored))
 	for _, b := range authored {
 		keys = append(keys, b.Unit)
@@ -435,14 +435,14 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 	ds, ok := s.ContentStore.(platstore.DecisionStore)
 	require.True(t, ok)
 	_, derr := ds.UpsertUnitDecisions(ctx, projID, "main", []venue.UnitDecision{{
-		ItemName: middle.ItemName, Unit: middle.SourceID, Variant: "fr", Status: "reviewed",
+		ItemName: middle.ItemName, Unit: middle.SourceID, Variant: "fr", Status: "established",
 		ReviewState: "approved", DecidedBy: "owner@rc.test", DecidedAt: "2026-09-01T11:00:00Z",
 		Note: "Matches the approved wording", ContentHash: middle.ContentHash,
 		Updated: "2026-09-01T11:00:00Z",
 	}})
 	require.NoError(t, derr)
 	record := &state.UnitState{
-		Status: model.TargetStatusReviewed,
+		Status: model.TargetStatusEstablished,
 		Decision: state.Decision{
 			ReviewState: "approved", By: "owner@rc.test", At: "2026-09-01T11:00:00Z",
 			Note: "Matches the approved wording",
@@ -478,7 +478,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 
 	// Provenance: the decision in force, and the target's origin.
 	assert.Equal(t, review.ProvenanceOf(unit, "fr", record), got.Provenance)
-	assert.Equal(t, "reviewed", got.Provenance.Status)
+	assert.Equal(t, "established", got.Provenance.Status)
 	assert.False(t, got.Provenance.Stale)
 
 	// Point: each venue's own, but the language it answers for is the same.

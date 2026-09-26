@@ -75,7 +75,7 @@ export interface ParkedScope {
 /** One locale's ship standing at the end of a run. */
 export interface ConvergenceLocaleOutcome {
   locale: string;
-  /** shippable | withheld | not_gated */
+  /** established | translated | withheld | not_gated */
   shipState?: string;
   /** Whether a ship gate matches any of the locale's scopes. */
   gated?: boolean;

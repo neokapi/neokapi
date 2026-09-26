@@ -78,12 +78,10 @@ export const OneTargetLanguage: Story = {
     collections: [
       collection("c1", "bowrain-app", "bowrain", "app", [locale("nb", 820, 610, 410, "pending")]),
       collection("c2", "bowrain-docs", "bowrain", "docs", [
-        locale("nb", 1400, 1400, 1400, "governed"),
+        locale("nb", 1400, 1400, 1400, "established"),
       ]),
       collection("c3", "bowrain-email", "bowrain", "email", [locale("nb", 90, 88, 12, "pending")]),
-      collection("c4", "neokapi-cli", "neokapi", "cli", [
-        locale("nb", 640, 640, 90, "ai_shippable"),
-      ]),
+      collection("c4", "neokapi-cli", "neokapi", "cli", [locale("nb", 640, 640, 90, "translated")]),
       collection("c5", "neokapi-docs", "neokapi", "docs", [locale("nb", 3100, 2010, 900)]),
       collection("c6", "neokapi-engine", "neokapi", "engine", [locale("nb", 210, 40, 0)]),
     ],
@@ -137,7 +135,7 @@ export const NoCoordinates: Story = {
         item_count: 4,
         block_count: 80,
         word_count: 900,
-        locales: [locale("nb", 80, 80, 80, "governed")],
+        locales: [locale("nb", 80, 80, 80, "established")],
       },
     ],
   },

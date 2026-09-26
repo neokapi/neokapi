@@ -47,7 +47,7 @@ func fingerprintStanding(t *testing.T, statusJSON string) string {
 	for _, lc := range st.Locales {
 		names = append(names, lc.Locale)
 		byLocale[lc.Locale] = fmt.Sprintf("%s translated=%d reviewed=%d ship=%v",
-			lc.Locale, lc.Pct["translated"], lc.Pct["reviewed"], lc.Shippable)
+			lc.Locale, lc.Pct["translated"], lc.Pct["established"], lc.Shippable)
 	}
 	// Coverage rows arrive in the derivation's order, which is not the reader's
 	// concern; the standing is.

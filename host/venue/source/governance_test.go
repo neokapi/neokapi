@@ -55,7 +55,7 @@ func approvedUnit(unit, locale string) state.UnitState {
 		Scope:       "locales/en.json",
 		Unit:        unit,
 		Variant:     model.Variant(model.LocaleID(locale)),
-		Status:      model.TargetStatusReviewed,
+		Status:      model.TargetStatusEstablished,
 		TargetHash:  "target-" + unit,
 		ContentHash: "source-" + unit,
 		Decision: state.Decision{
@@ -188,13 +188,13 @@ func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
 	withdrawn.Updated = "2026-09-04T10:00:00Z"
 	held := venue.UnitDecision{
 		ItemName: "locales/en.json", Unit: "greeting", Variant: "fr",
-		Status: string(model.TargetStatusSignedOff), ReviewState: venue.ReviewStateSignedOff,
+		Status: string(model.TargetStatusEstablished), ReviewState: venue.ReviewStateApproved,
 		TargetHash: withdrawn.TargetHash, ContentHash: withdrawn.ContentHash,
 		DecidedBy: "reviewer@example.com", DecidedAt: "2026-09-03T10:00:00Z",
 		Updated: "2026-09-03T10:00:00Z",
 	}
 	refusal := venue.DecisionRefusal{
-		Locale: "fr", Kind: venue.VerdictDemotion, Reason: venue.RefusedSignOffWithdrawal, Count: 1,
+		Locale: "fr", Kind: venue.VerdictDemotion, Reason: venue.RefusedEstablishedWithdrawal, Count: 1,
 	}
 
 	t.Run("the project's record ends where the venue's ledger is", func(t *testing.T) {
@@ -206,7 +206,7 @@ func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
 			Refusals: []venue.DecisionRefusal{refusal},
 			Units: []venue.RefusedUnit{{
 				ItemName: "locales/en.json", Unit: "greeting", Variant: "fr",
-				Reason: venue.RefusedSignOffWithdrawal, Held: &held,
+				Reason: venue.RefusedEstablishedWithdrawal, Held: &held,
 			}},
 		})
 		require.NoError(t, err)
@@ -217,9 +217,9 @@ func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
 		assert.Equal(t, venue.DecisionsComponent([]venue.UnitDecision{held}), venue.DecisionsComponent(after),
 			"the project's record folds to what the venue holds, so the next push has nothing to send")
 		require.Len(t, after, 1)
-		assert.Equal(t, venue.ReviewStateSignedOff, after[0].ReviewState)
+		assert.Equal(t, venue.ReviewStateApproved, after[0].ReviewState)
 		assert.Equal(t, "reviewer@example.com", after[0].DecidedBy, "the sign-off still names the person who made it")
-		assert.Equal(t, string(model.TargetStatusSignedOff), after[0].Status)
+		assert.Equal(t, string(model.TargetStatusEstablished), after[0].Status)
 
 		diff, err := st.RecordDiff(t.Context())
 		require.NoError(t, err)
@@ -238,7 +238,7 @@ func TestRetireRefusedVerdicts_RestoresAKeptSignOff(t *testing.T) {
 			Refusals: []venue.DecisionRefusal{refusal},
 			Units: []venue.RefusedUnit{{
 				ItemName: "locales/en.json", Unit: "greeting", Variant: "fr",
-				Reason: venue.RefusedSignOffWithdrawal,
+				Reason: venue.RefusedEstablishedWithdrawal,
 			}},
 		})
 		require.NoError(t, err)

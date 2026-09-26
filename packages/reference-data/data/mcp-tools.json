@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T04:57:36Z",
+  "generatedAt": "2026-09-26T08:20:58Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -11,43 +11,6 @@
           "type": "array",
           "required": true,
           "description": "the typed change-set entries to apply"
-        },
-        {
-          "name": "project",
-          "type": "string",
-          "required": false,
-          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
-        }
-      ]
-    },
-    {
-      "name": "approve_unit",
-      "description": "Approve one review-queue unit (→ reviewed). The unit state is recorded in the project store, bound to the current translation's content hash, with identity \"agent/\u003cclient\u003e\".",
-      "surface": "review",
-      "params": [
-        {
-          "name": "file",
-          "type": "string",
-          "required": true,
-          "description": "Target file path, as listed by review_queue"
-        },
-        {
-          "name": "key",
-          "type": "string",
-          "required": true,
-          "description": "Unit key, as listed by review_queue"
-        },
-        {
-          "name": "locale",
-          "type": "string",
-          "required": true,
-          "description": "Target locale, as listed by review_queue"
-        },
-        {
-          "name": "note",
-          "type": "string",
-          "required": false,
-          "description": "Reviewer note (the reason, for reject_unit)"
         },
         {
           "name": "project",
@@ -922,6 +885,49 @@
       ]
     },
     {
+      "name": "pre_review_unit",
+      "description": "Record your pre-review of one review-queue unit: a score from 0 to 100 and the reasons behind it. It is advisory and bound to the current translation, so an edit drops it. The person reviewing sees it in the queue; it never establishes the unit or sends it back.",
+      "surface": "review",
+      "params": [
+        {
+          "name": "file",
+          "type": "string",
+          "required": true,
+          "description": "Target file path, as listed by review_queue"
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "required": true,
+          "description": "Unit key, as listed by review_queue"
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "required": true,
+          "description": "Target locale, as listed by review_queue"
+        },
+        {
+          "name": "score",
+          "type": "integer",
+          "required": true,
+          "description": "How well the translation stands, from 0 (unusable) to 100 (nothing to change)"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
+        },
+        {
+          "name": "reasons",
+          "type": "array",
+          "required": false,
+          "description": "What you found, one entry per issue; empty when nothing needs saying"
+        }
+      ]
+    },
+    {
       "name": "pseudo-translate",
       "description": "Pseudo Translate",
       "surface": "all-tools",
@@ -1383,43 +1389,6 @@
       ]
     },
     {
-      "name": "reject_unit",
-      "description": "Reject one review-queue unit (→ draft, back to the work queue) with a note explaining why. Recorded with identity \"agent/\u003cclient\u003e\"; retranslating the unit re-enters it in review.",
-      "surface": "review",
-      "params": [
-        {
-          "name": "file",
-          "type": "string",
-          "required": true,
-          "description": "Target file path, as listed by review_queue"
-        },
-        {
-          "name": "key",
-          "type": "string",
-          "required": true,
-          "description": "Unit key, as listed by review_queue"
-        },
-        {
-          "name": "locale",
-          "type": "string",
-          "required": true,
-          "description": "Target locale, as listed by review_queue"
-        },
-        {
-          "name": "note",
-          "type": "string",
-          "required": false,
-          "description": "Reviewer note (the reason, for reject_unit)"
-        },
-        {
-          "name": "project",
-          "type": "string",
-          "required": false,
-          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
-        }
-      ]
-    },
-    {
       "name": "remove-target",
       "description": "Remove Target",
       "surface": "all-tools",
@@ -1556,7 +1525,7 @@
     },
     {
       "name": "review_unit",
-      "description": "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. A unit in the project's source language is read the same way, from its source file, and returns its authoring rung with no target half. The read leg before approve_unit / reject_unit / sign_off_unit.",
+      "description": "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and the context the decision is made in: the point governing the file (voice guidance, term rules, coordinates), the blocks before and after it as run sequences, the prior approved version and the content-memory match with its wording, the check findings with their run anchors, and the AI pre-review score. A unit in the project's source language is read the same way, from its source file, and returns its authoring rung with no target half. The read leg before pre_review_unit.",
       "surface": "review",
       "params": [
         {
@@ -1811,43 +1780,6 @@
       ]
     },
     {
-      "name": "sign_off_unit",
-      "description": "Sign off one review-queue unit (→ signed-off, the top ladder rung). Recorded with identity \"agent/\u003cclient\u003e\".",
-      "surface": "review",
-      "params": [
-        {
-          "name": "file",
-          "type": "string",
-          "required": true,
-          "description": "Target file path, as listed by review_queue"
-        },
-        {
-          "name": "key",
-          "type": "string",
-          "required": true,
-          "description": "Unit key, as listed by review_queue"
-        },
-        {
-          "name": "locale",
-          "type": "string",
-          "required": true,
-          "description": "Target locale, as listed by review_queue"
-        },
-        {
-          "name": "note",
-          "type": "string",
-          "required": false,
-          "description": "Reviewer note (the reason, for reject_unit)"
-        },
-        {
-          "name": "project",
-          "type": "string",
-          "required": false,
-          "description": "the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in)"
-        }
-      ]
-    },
-    {
       "name": "source-gate",
       "description": "Source Gate",
       "surface": "all-tools",
@@ -1862,7 +1794,7 @@
           "name": "gate",
           "type": "string",
           "required": false,
-          "description": "Minimum source-authoring status a block must reach before its translations are produced"
+          "description": "What a block's source must satisfy before its translations are produced: written (its checks pass) or established (a person reviewed it)"
         },
         {
           "name": "project",

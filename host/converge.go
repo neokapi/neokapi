@@ -51,7 +51,6 @@ type ConvergeOptions struct {
 type ConvergeLocaleResult struct {
 	Locale    string         `json:"locale"`
 	Shippable bool           `json:"shippable"`        // no scope for this locale is withheld
-	Verified  bool           `json:"verified"`         // every scope for this locale clears its verified gate
 	Parked    bool           `json:"parked,omitempty"` // the loop left work here (needs human)
 	Pct       map[string]int `json:"pct,omitempty"`    // ladder state → "at least" percent
 	// ShipState folds the locale's scopes into one standing: withheld when any
@@ -120,7 +119,7 @@ type ConvergeOutput struct {
 	// source block is shared by every target), mirroring the server's run row.
 	BlockedOnSource int `json:"blockedOnSource,omitempty"`
 	// SourceGate is the resolved source-first gate level applied
-	// (none|authored|checked|approved), for observability. Empty when no gate
+	// (none|written|established), for observability. Empty when no gate
 	// was evaluated (no content).
 	SourceGate string `json:"sourceGate,omitempty"`
 	// StallReason is the machine-readable cause a run did not converge — set to
@@ -662,7 +661,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 				Type:            convergence.EventLog,
 				Stage:           convergence.StageSettleSource,
 				BlockedOnSource: held,
-				Message: fmt.Sprintf("Settled source: %d block(s) checked, %d held below the %q gate.",
+				Message: fmt.Sprintf("Settled source: %d block(s), %d held at the %q gate.",
 					total, held, sourceGate),
 			})
 		}
@@ -1153,7 +1152,7 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 	}
 	for _, loc := range locales {
 		l := string(loc)
-		res := ConvergeLocaleResult{Locale: l, Shippable: true, Verified: true, ShipState: ShipStateShippable,
+		res := ConvergeLocaleResult{Locale: l, Shippable: true, ShipState: ShipStateEstablished,
 			Pct: map[string]int{}, Redrafted: redraftable[l]}
 		gatedSomewhere := false
 		scoped := false
@@ -1177,19 +1176,14 @@ func buildConvergeOutput(flowName string, passes int, cov []LocaleCoverage, loca
 			if !c.Shippable {
 				res.Shippable = false
 			}
-			if !c.Verified {
-				res.Verified = false
-			}
 			if c.Gated {
 				gatedSomewhere = true
 			}
 			res.ShipState = weakerShipState(res.ShipState, c.ShipState)
 		}
 		res.Gated = gatedSomewhere
-		// A locale with no coverage row at all has nothing to verify, and no gate
-		// matched anything in it.
+		// A locale with no coverage row at all has nothing no gate matched.
 		if !scoped {
-			res.Verified = false
 			res.ShipState = ShipStateNotGated
 		}
 		if !res.Shippable {

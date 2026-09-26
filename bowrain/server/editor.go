@@ -267,7 +267,7 @@ type BlockInfoResponse struct {
 
 // BlockTargetInfo is one locale's committed target in the blocks payload:
 // plain text plus the target's lifecycle status ("" | draft | translated |
-// reviewed | signed-off, model.TargetStatus).
+// established, model.TargetStatus).
 type BlockTargetInfo struct {
 	Text   string `json:"text"`
 	Status string `json:"status,omitempty"`
@@ -810,7 +810,7 @@ func editorUpdateBlockTargetRuns(ctx context.Context, cs store.ContentStore, pro
 	return err
 }
 
-// demoteStaleReviewOnEdit drops a reviewed/signed-off Target.Status back to
+// demoteStaleReviewOnEdit drops a established Target.Status back to
 // translated when an edit actually changed the target's content. A review
 // decision judges ONE specific translation, so rewriting the text invalidates
 // the approval. The host review model binds every decision to the content hash
@@ -824,7 +824,7 @@ func demoteStaleReviewOnEdit(b *model.Block, locale model.LocaleID, oldRuns []mo
 	if t == nil {
 		return
 	}
-	if t.Status != model.TargetStatusReviewed && t.Status != model.TargetStatusSignedOff {
+	if t.Status != model.TargetStatusEstablished {
 		return
 	}
 	if reflect.DeepEqual(oldRuns, t.Runs) {

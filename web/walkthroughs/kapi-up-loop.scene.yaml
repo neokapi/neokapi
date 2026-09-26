@@ -16,7 +16,7 @@
 # — the same park → decide → shippable arc, minus the native-only verbs.
 #
 # Fully offline in every venue: the recipe's memory-recycle flow leverages the content memory
-# only — no LLM, no network. The ship gate is translated: 100 + reviewed: 100,
+# only — no LLM, no network. The ship gate is translated: 100 + established: 100,
 # so production alone can never clear it: the human decision is the last mile.
 
 id: kapi-up-loop
@@ -38,7 +38,7 @@ embed:
           target_languages: [fr]
           flow: memory-recycle
           materialize: on-converge
-        ship_gate: { translated: 100, reviewed: 100 }
+        ship_gate: { translated: 100, established: 100 }
         collections:
           - path: messages.json
             target: "messages.{lang}.json"
@@ -66,9 +66,9 @@ embed:
         }
     - path: review.jsonl
       content: |
-        {"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"reviewed"}
-        {"kind":"review","file":"messages.fr.json","id":"farewell","locale":"fr","status":"reviewed"}
-        {"kind":"review","file":"messages.fr.json","id":"items.cart","locale":"fr","status":"reviewed"}
+        {"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"established"}
+        {"kind":"review","file":"messages.fr.json","id":"farewell","locale":"fr","status":"established"}
+        {"kind":"review","file":"messages.fr.json","id":"items.cart","locale":"fr","status":"established"}
 
 tape:
   width: 1000
@@ -79,7 +79,7 @@ tape:
 
 # Recording fixtures: the kit catalog, the committed content-memory bundle that
 # supplies the French, the
-# recipe with a translated+reviewed ship gate, and the reviewer's change-set.
+# recipe with a translated+established ship gate, and the reviewer's change-set.
 # The recording starts from an unproduced project — `kapi up` does the work.
 seed:
   - messages.json
@@ -155,7 +155,7 @@ files:
         target_languages: [fr]
         flow: memory-recycle
         materialize: on-converge
-      ship_gate: { translated: 100, reviewed: 100 }
+      ship_gate: { translated: 100, established: 100 }
       collections:
         - path: messages.json
           target: "messages.{lang}.json"
@@ -165,12 +165,12 @@ files:
             - tool: recycle
   - path: review.jsonl
     content: |
-      {"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"reviewed"}
-      {"kind":"review","file":"messages.fr.json","id":"farewell","locale":"fr","status":"reviewed"}
-      {"kind":"review","file":"messages.fr.json","id":"items.cart","locale":"fr","status":"reviewed"}
+      {"kind":"review","file":"messages.fr.json","id":"greeting","locale":"fr","status":"established"}
+      {"kind":"review","file":"messages.fr.json","id":"farewell","locale":"fr","status":"established"}
+      {"kind":"review","file":"messages.fr.json","id":"items.cart","locale":"fr","status":"established"}
 
 steps:
-  - comment: The ship gate wants translated 100% and reviewed 100%. A machine can meet the first; only a person can meet the second.
+  - comment: The ship gate wants translated 100% and established 100%. A machine can meet the first; only a person can meet the second.
   - command: kapi memory import project.memory.json
     narration: Import the committed bundle into the project's content memory. The flow reuses these translations without calling a provider.
     offline: false
@@ -199,6 +199,6 @@ steps:
     narration: The ship check now passes with exit code 0. The recorded approvals satisfy the review requirement without retranslating the content.
     offline: false
   - command: kapi status
-    narration: French is shippable, with 100% translated and 100% reviewed coverage.
+    narration: French is shippable, with 100% translated and 100% established coverage.
     offline: true
     smoke: false

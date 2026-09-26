@@ -243,7 +243,7 @@ defaults:
 collections:
   - path: en.json
     target: "{lang}.json"
-ship_gate: { translated: 100, reviewed: 50 }
+ship_gate: { translated: 100, established: 50 }
 `), 0o644))
 	readProjectContext(t, root)
 	totals = plan(t, largeModel(t))

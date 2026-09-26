@@ -494,7 +494,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 
 // verifySourceGate evaluates the project's source-readiness gate over the
 // author's content. It is the source-side counterpart of verifyShip: it gates
-// the source (authored → checked → approved), not the translations. Like the
+// the source (written→established), not the translations. Like the
 // ship gate it is opt-in (--ship) — source drift never blocks an ordinary build.
 func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) (verifyGateResult, error) {
 	sc, err := a.computeSourceReadiness(ctx, proj, root, units)

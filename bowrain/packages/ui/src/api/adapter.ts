@@ -789,9 +789,8 @@ export interface ApiAdapter {
    * Mark a block's target for `targetLocale` as reviewed (or back down the
    * ladder when `reviewed` is false) — the per-locale `Target.Status` review
    * ladder, distinct from the governance workflow lifecycle above. `rung`
-   * picks where the call lands, and each direction has its own two: with
-   * `reviewed` true, omitted/"reviewed" for an approval and "signed-off" for a
-   * sign-off; with `reviewed` false, omitted/"translated" for a plain
+   * picks where the call lands: with `reviewed` true, an approval always
+   * lands on established; with `reviewed` false, omitted/"translated" for a plain
    * un-review and "draft" for a reviewer rejection (re-enters the work queue).
    * A rung belonging to the other direction is ignored rather than sent.
    */

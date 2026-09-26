@@ -870,19 +870,16 @@
       "properties": {
         "gate": {
           "title": "Source Gate",
-          "description": "Minimum source-authoring status a block must reach before its translations are produced",
+          "description": "What a block's source must satisfy before its translations are produced: written (its checks pass) or established (a person reviewed it)",
           "options": {
-            "approved": {
-              "label": "approved"
-            },
-            "authored": {
-              "label": "authored"
-            },
-            "checked": {
-              "label": "checked"
+            "established": {
+              "label": "established"
             },
             "none": {
               "label": "none"
+            },
+            "written": {
+              "label": "written"
             }
           }
         }

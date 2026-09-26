@@ -125,7 +125,7 @@ func (s *Server) notifySourceOwners(ctx context.Context, task *bstore.Task, owne
 }
 
 // priorApprovers names the people whose approvals a source change is about to
-// undo. A source edit demotes every reviewed/signed-off target on the block
+// undo. A source edit demotes every established target on the block
 // (the decision.stale demotion in the store): that is somebody's finished work
 // being reopened, and they learn about it from this summons or not at all.
 //
@@ -158,7 +158,7 @@ func (s *Server) priorApprovers(ctx context.Context, projectID, stream, blockID 
 		if d.Unit != sb.SourceID {
 			continue
 		}
-		if d.ReviewState != "approved" && d.ReviewState != "signed-off" {
+		if d.ReviewState != "approved" {
 			continue
 		}
 		userID := s.userIDForDecider(ctx, d.DecidedBy)

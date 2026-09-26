@@ -1134,16 +1134,10 @@ export class WailsApiAdapter implements ApiAdapter {
     // Desktop mode is stream-unaware by design: the entire desktop editor
     // surface is pinned to the "main" stream (editorRef in
     // bowrain/editorclient/editor.go), so the adapter accepts and ignores the
-    // stream parameter — same as rollbackBlock/getBlockHistory above. Each
-    // direction has its own rungs, so only "signed-off" rides on an approval
-    // and only "draft" on a clearing call.
-    const status = reviewed
-      ? rung === "signed-off"
-        ? "signed-off"
-        : ""
-      : rung === "draft"
-        ? "draft"
-        : "";
+    // stream parameter — same as rollbackBlock/getBlockHistory above. An
+    // approval always lands on established, so only "draft" (a rejection)
+    // rides on a clearing call.
+    const status = reviewed ? "" : rung === "draft" ? "draft" : "";
     return Backend.ReviewBlock(projectId, itemName, blockId, targetLocale, reviewed, status);
   }
   async approvePassingReview(): Promise<ApprovePassingResult> {

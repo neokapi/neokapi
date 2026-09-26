@@ -104,7 +104,7 @@ func (a *runAccumulator) output(final *apiclient.ConvergenceRun) cli.ConvergeOut
 		switch l.State {
 		case convergence.LocaleShippable:
 			res.Shippable = true
-			res.ShipState = convergence.ShipStateShippable
+			res.ShipState = convergence.ShipStateTranslated
 			res.Pct["draft"], res.Pct["translated"] = 100, 100
 		case convergence.LocaleParked:
 			res.Parked = true

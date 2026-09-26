@@ -9,26 +9,26 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { languagePickerModel, loadShipStatus, type ShipStatus } from "../src/ship/index.ts";
 
 const MANIFEST: ShipStatus = {
-  fr: { shippable: true, verified: true }, // ships + verified → no badge
-  de: { shippable: true, verified: false }, // ships, unverified → AI badge
-  ja: { shippable: false, verified: false }, // not shippable → dropped
+  fr: { shippable: true, state: "established" }, // established → no badge
+  de: { shippable: true, state: "translated" }, // ships translated → AI badge
+  ja: { shippable: false, state: "withheld" }, // not shippable → dropped
 };
 
 describe("languagePickerModel", () => {
-  it("drops non-shippable locales and badges the shippable-but-unverified ones AI", () => {
+  it("drops non-shippable locales and badges the ones not established AI", () => {
     const model = languagePickerModel(MANIFEST, ["en", "fr", "de", "ja"]);
     // ja is filtered out; en has no entry (source language) so it passes through.
     expect(model.map((m) => m.locale)).toEqual(["en", "fr", "de"]);
 
     const by = Object.fromEntries(model.map((m) => [m.locale, m]));
-    expect(by.fr.badge).toBeNull(); // verified → no badge
-    expect(by.de.badge).toBe("ai"); // shippable but unverified → the only badge
+    expect(by.fr.badge).toBeNull(); // established → no badge
+    expect(by.de.badge).toBe("ai"); // translated → the only badge
     expect(by.en.badge).toBeNull(); // no entry → unbadged passthrough
     // every entry in the model is shippable
     expect(model.every((m) => m.shippable)).toBe(true);
   });
 
-  it("'ai' is the only badge — a verified locale never gets one", () => {
+  it("'ai' is the only badge — an established locale never gets one", () => {
     const model = languagePickerModel(MANIFEST, ["fr", "de"]);
     const badges = model.map((m) => m.badge);
     expect(badges).toContain("ai");
@@ -150,12 +150,12 @@ describe("loadShipStatus", () => {
       vi.fn(
         async () =>
           new Response(
-            JSON.stringify({ fr: { shippable: true, verified: "yes" }, bad: 3, ja: null }),
+            JSON.stringify({ fr: { shippable: true, state: "ready" }, bad: 3, ja: null }),
             { status: 200 },
           ),
       ),
     );
     const status = await loadShipStatus();
-    expect(status).toEqual({ fr: { shippable: true, verified: false } });
+    expect(status).toEqual({ fr: { shippable: true } });
   });
 });

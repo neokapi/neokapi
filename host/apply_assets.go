@@ -269,9 +269,10 @@ func termIndex(c *terms.Concept, text string, locale model.LocaleID) int {
 // applyReviewEntry records a review decision in the project STATE store via the
 // shared ApproveReviewUnit path — the CLI counterpart of the desktop "approve"
 // action and the write side of `kapi status --review`. The unit is addressed by
-// (file, id, locale) exactly as the review queue lists it; `status` is "reviewed"
-// (default) or "signed-off". This is distinct from a `kind:"memory"` entry: a content memory
-// correction is recycle leverage, not a review decision.
+// (file, id, locale) exactly as the review queue lists it; `status`, when set,
+// must be "established", the one rung a person's decision reaches. This is
+// distinct from a `kind:"memory"` entry: a content memory correction is recycle
+// leverage, not a review decision.
 func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.ID}
 	if e.Op != "" && e.Op != "add" {
@@ -280,17 +281,22 @@ func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) 
 	if strings.TrimSpace(e.File) == "" || strings.TrimSpace(e.ID) == "" || strings.TrimSpace(e.Locale) == "" {
 		return errResult(res, "review: file, id, and locale are required (as listed by `kapi status --review`)")
 	}
+	if who, err := a.commandActor(); err != nil {
+		return errResult(res, err.Error())
+	} else if who.Actor.Kind == contextop.ActorAgent {
+		return errResult(res, "review: an agent records a pre-review (the pre_review_unit tool), never a decision; a person establishes a unit")
+	}
 	recipePath, _, err := a.resolveProjectRoot(cmd)
 	if err != nil {
 		return errResult(res, err.Error())
 	}
-	reviewState := strings.TrimSpace(e.Status)
-	if reviewState == "" {
-		reviewState = string(model.TargetStatusReviewed)
+	if st := strings.TrimSpace(e.Status); st != "" && st != string(model.TargetStatusEstablished) {
+		return errResult(res, fmt.Sprintf("review: status must be empty or %q", model.TargetStatusEstablished))
 	}
+	reviewState := string(model.TargetStatusEstablished)
 	// The raw record of what --source-lang named, not the resolved read: empty is
-	// how this hands the choice on to the recipe ApproveReviewUnit loads.
-	changed, aerr := a.ApproveReviewUnit(ctx, recipePath, a.SourceLang, e.Locale, e.File, e.ID, reviewState)
+	// how this hands the choice on to the recipe ApplyReviewDecision loads.
+	changed, aerr := a.ApplyReviewDecision(ctx, recipePath, a.SourceLang, ReviewUnitRef{File: e.File, Key: e.ID, Locale: e.Locale}, ReviewDecisionApproved, "")
 	if aerr != nil {
 		return errResult(res, aerr.Error())
 	}
@@ -323,13 +329,10 @@ func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) 
 		return errResult(res, "memory: target_locale is required")
 	}
 
-	// `status` carries the review state: empty/`reviewed` records a reviewed
-	// correction, `signed-off` the final sign-off.
-	reviewState := e.Status
-	switch reviewState {
-	case "", string(model.TargetStatusReviewed), string(model.TargetStatusSignedOff):
-	default:
-		return errResult(res, fmt.Sprintf("memory: status must be empty, %q, or %q", model.TargetStatusReviewed, model.TargetStatusSignedOff))
+	// A correction is a person's wording, so the only status it may name is
+	// the one it already has.
+	if e.Status != "" && e.Status != string(model.TargetStatusEstablished) {
+		return errResult(res, fmt.Sprintf("memory: status must be empty or %q", model.TargetStatusEstablished))
 	}
 
 	_, root, err := a.resolveProjectRoot(cmd)
@@ -351,7 +354,7 @@ func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) 
 	if err != nil {
 		return errResult(res, fmt.Sprintf("read the project's content memory: %v", err))
 	}
-	entry, changed := upsertMemoryPair(held, ok, e.Source, e.Target, src, tgt, reviewState)
+	entry, changed := upsertMemoryPair(held, ok, e.Source, e.Target, src, tgt)
 	if !changed {
 		res.Status = "skipped"
 		res.Detail = "already present"
@@ -370,21 +373,14 @@ func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) 
 // upsertMemoryPair folds a source→target correction into the entry the content
 // memory holds for it, keyed by a stable id so applying the same pair again is
 // idempotent. held is the entry the store returned and ok whether it had one.
-//
-// reviewState, when non-empty, is recorded on the entry's `review` property
-// (the carrier that distinguishes `reviewed` from `signed-off`); an empty
-// reviewState leaves the entry at the `reviewed` baseline. It returns changed =
-// true when the target text OR the review state changed, so promoting an
-// already-present translation to signed-off is not mistaken for a no-op.
-func upsertMemoryPair(held memory.Entry, ok bool, source, target string, srcLocale, tgtLocale model.LocaleID, reviewState string) (memory.Entry, bool) {
+// It returns changed = true when the target text changed.
+func upsertMemoryPair(held memory.Entry, ok bool, source, target string, srcLocale, tgtLocale model.LocaleID) (memory.Entry, bool) {
 	srcLocale, tgtLocale = model.NormalizeLocale(srcLocale), model.NormalizeLocale(tgtLocale)
 	id := memoryEntryID(source, srcLocale, tgtLocale)
 	now := time.Now().UTC()
 
 	if ok {
-		sameTarget := held.VariantText(tgtLocale) == target
-		reviewChanged := setReviewProperty(&held, reviewState)
-		if sameTarget && !reviewChanged {
+		if held.VariantText(tgtLocale) == target {
 			return held, false
 		}
 		if held.Variants == nil {
@@ -411,36 +407,7 @@ func upsertMemoryPair(held memory.Entry, ok bool, source, target string, srcLoca
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	setReviewProperty(&e, reviewState)
 	return e, true
-}
-
-// setReviewProperty records the review state (signed-off; reviewed is the
-// property-absent baseline) on a content-memory entry, returning whether it changed. An empty
-// or `reviewed` state clears the property so the entry round-trips minimally.
-// reviewPropertyKey is the entry property `kapi apply` uses to tag a
-// correction's review state in the content memory. A unit's review state lives
-// in the project's decision record (core/state); this is the content-memory
-// side tag.
-const reviewPropertyKey = "review"
-
-func setReviewProperty(e *memory.Entry, reviewState string) bool {
-	want := reviewState
-	if want == string(model.TargetStatusReviewed) {
-		want = "" // reviewed is the property-absent baseline
-	}
-	if e.Properties[reviewPropertyKey] == want {
-		return false
-	}
-	if want == "" {
-		delete(e.Properties, reviewPropertyKey)
-		return true
-	}
-	if e.Properties == nil {
-		e.Properties = map[string]string{}
-	}
-	e.Properties[reviewPropertyKey] = want
-	return true
 }
 
 // memoryEntryID derives a stable id for a source/locale-pair content-memory

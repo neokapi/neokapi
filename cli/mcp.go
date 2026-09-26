@@ -32,8 +32,7 @@ func NewMCPCmd(a *App, implName string) *cobra.Command {
   content       check_text, voice_check, voice_rewrite, term-check,
                 extract_content, detect_format, apply_edits, redact
   translation   translate, up, up_plan, stats
-  review        review_queue, review_unit, approve_unit, reject_unit,
-                sign_off_unit
+  review        review_queue, review_unit, pre_review_unit
   all           every set
 
 Two flags add what no set holds, for debugging:

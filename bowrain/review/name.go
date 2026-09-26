@@ -9,8 +9,6 @@ import "github.com/neokapi/neokapi/core/model"
 // endpoint, the bulk routes and the sync worker that applies a push.
 func DecisionName(approved bool, to model.TargetStatus) string {
 	switch {
-	case approved && to == model.TargetStatusSignedOff:
-		return "signed-off"
 	case approved:
 		return "approved"
 	case to == model.TargetStatusDraft:
