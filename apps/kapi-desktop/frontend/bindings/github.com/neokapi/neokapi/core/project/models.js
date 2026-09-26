@@ -513,6 +513,105 @@ export class ContentItem {
 }
 
 /**
+ * ContextBackend is where a project's context is shared: the `context:`
+ * block of a recipe.
+ * 
+ * 	context:
+ * 	  backend: git                  # local (default), file, git, s3
+ * 	  ref: refs/kapi/context        # git: a ref in this repository
+ * 	# file: path: /Volumes/team/kapi/fernwell
+ * 	# s3:   bucket: acme-kapi, prefix: fernwell/
+ * 
+ * Credentials never appear here: a git backend uses the repository's own
+ * remote access, and an S3 backend the standard AWS environment and profile.
+ * A person can use another backend on one machine (`kapi context backend`),
+ * which is kept in that machine's configuration.
+ */
+export class ContextBackend {
+    /**
+     * Creates a new ContextBackend instance.
+     * @param {Partial<ContextBackend>} [$$source = {}] - The source object to create the ContextBackend.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Backend names the kind: local, file, git or s3. Empty means local.
+             * @member
+             * @type {string | undefined}
+             */
+            this["backend"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Ref is the git ref the context is kept on. Default refs/kapi/context.
+             * @member
+             * @type {string | undefined}
+             */
+            this["ref"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Remote is the git remote pushed to and fetched from. Default origin.
+             * @member
+             * @type {string | undefined}
+             */
+            this["remote"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Path is the directory a file backend keeps the context in. A relative
+             * path is read against the recipe's directory.
+             * @member
+             * @type {string | undefined}
+             */
+            this["path"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Bucket, Prefix, Region and Endpoint place an S3 backend. Endpoint is
+             * for an S3-compatible service other than AWS.
+             * @member
+             * @type {string | undefined}
+             */
+            this["bucket"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["prefix"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["region"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["endpoint"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextBackend instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextBackend}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ContextBackend(/** @type {Partial<ContextBackend>} */($$parsedSource));
+    }
+}
+
+/**
  * Defaults holds project-wide processing defaults.
  */
 export class Defaults {
@@ -1223,6 +1322,16 @@ export class KapiProject {
              */
             this["requires"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Context says where the project's context is shared: on this machine
+             * only (the default), or through a directory, a git ref or an S3 bucket
+             * that every checkout pulls from and pushes to. See contextbackend.go.
+             * @member
+             * @type {ContextBackend | null | undefined}
+             */
+            this["context"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -1245,6 +1354,7 @@ export class KapiProject {
         const $$createField14_0 = $$createType36;
         const $$createField15_0 = $$createType23;
         const $$createField16_0 = $$createType38;
+        const $$createField17_0 = $$createType40;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField3_0($$parsedSource["plugins"]);
@@ -1281,6 +1391,9 @@ export class KapiProject {
         }
         if ("requires" in $$parsedSource) {
             $$parsedSource["requires"] = $$createField16_0($$parsedSource["requires"]);
+        }
+        if ("context" in $$parsedSource) {
+            $$parsedSource["context"] = $$createField17_0($$parsedSource["context"]);
         }
         return new KapiProject(/** @type {Partial<KapiProject>} */($$parsedSource));
     }
@@ -1532,7 +1645,7 @@ export class PluginStatus {
      * @returns {PluginStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType40;
+        const $$createField1_0 = $$createType42;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField1_0($$parsedSource["issues"]);
@@ -1630,7 +1743,7 @@ export class Profile {
      * @returns {Profile}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType42;
+        const $$createField0_0 = $$createType44;
         const $$createField1_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("channels" in $$parsedSource) {
@@ -1791,8 +1904,8 @@ export class ShipGateRule {
      * @returns {ShipGateRule}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType44;
-        const $$createField1_0 = $$createType45;
+        const $$createField0_0 = $$createType46;
+        const $$createField1_0 = $$createType47;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("when" in $$parsedSource) {
             $$parsedSource["when"] = $$createField0_0($$parsedSource["when"]);
@@ -1903,10 +2016,12 @@ var $$createType38 = /** @type {(...args: any[]) => any} */(function $$initCreat
     }
     return $$createType38(...args);
 });
-const $$createType39 = PluginIssue.createFrom;
-const $$createType40 = $Create.Array($$createType39);
-const $$createType41 = Channel.createFrom;
+const $$createType39 = ContextBackend.createFrom;
+const $$createType40 = $Create.Nullable($$createType39);
+const $$createType41 = PluginIssue.createFrom;
 const $$createType42 = $Create.Array($$createType41);
-const $$createType43 = gate$0.Selector.createFrom;
-const $$createType44 = $Create.Nullable($$createType43);
-const $$createType45 = GateRef.createFrom;
+const $$createType43 = Channel.createFrom;
+const $$createType44 = $Create.Array($$createType43);
+const $$createType45 = gate$0.Selector.createFrom;
+const $$createType46 = $Create.Nullable($$createType45);
+const $$createType47 = GateRef.createFrom;

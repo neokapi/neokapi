@@ -158,9 +158,8 @@ Content memory and the decision record belong to the project rather than to a
 profile. Memory entries and approvals are associated with content units. See
 [the project store](/kapi/project-store) for what each store holds.
 
-[`kapi context snapshot`](/kapi/context-portability#writing-context-out) writes
-all of it back out as files, one directory per profile under `profiles/` in the
-directory you name,
+[`kapi context push`](/kapi/context-portability#sharing-context-through-a-backend)
+shares all of it with the project's other machines,
 and [`kapi context import`](/kapi/context-portability#reading-context-in) reads
 that shape back in.
 

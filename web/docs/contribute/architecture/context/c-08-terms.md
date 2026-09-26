@@ -133,10 +133,9 @@ checkout, branch and worktree of the project reads them:
 
 A **terms bundle** (`kind: "kapi-terms"`) serializes terms as JSON for review,
 merging and command-line processing.
-`kapi context snapshot` writes one, `kapi context import` reads one, and
-`kapi context export` packs the same content into a `.kpz`. A team that wants
-its vocabulary reviewable in a pull request keeps the snapshot committed; a team
-that does not backs the store up instead, and both govern identically.
+`kapi terms export` writes one and `kapi context import` reads one. The store
+moves between machines as operations, through a context backend or a transfer
+file ([C-03](c-03-context-store-and-graph.md)).
 
 An import with no path reads `.kapi/terms.json`, the conventional place, and an
 import of a directory reads the `terms.json` in it. The recipe names no terms

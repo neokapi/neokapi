@@ -276,9 +276,10 @@ Commit the configuration: `kapi.yaml`, the agent wiring `kapi init` wrote, and
 the assistant file. `.kapi/` is this checkout's cache and stays out of the
 commit. The context itself stays in the project's store, where every checkout
 reads it; `kapi context log` is where the user reads what was decided, and
-`kapi context export -o backup.kpz` is the backup. If the user wants the context
-reviewable in a pull request as well, tell them about
-`kapi context snapshot --out <dir>` and let them decide.
+`kapi context export -o backup.kpz` is the backup. If the user works on more than
+one machine, or with other people, tell them about a context backend
+(`context: {backend: git}` in kapi.yaml, then `kapi context pull` and
+`kapi context push`) and let them decide.
 
 ## 5. Document the workflow
 

@@ -36,7 +36,7 @@ Ownership zones at the project root:
 
 - **`kapi.yaml`**: hand-edited, committed to git. The recipe is the single source of truth for project configuration. The `.yaml` extension enables YAML highlighting in editors and code hosts. In addition to manual edits, an axis approved on the server arrives as a [`kapi pull`](/cli/commands/pull) that edits `defaults.coordinates`, for review in git.
 - **`.kapi/`**: this checkout's cache, kept out of git. `work/store.db` is the checkout's projection of its working tree: the block cache, the overlays a run wrote, the extraction stamps. It rebuilds from the content files. `work/cache/` holds everything cheaply regenerable (the tree last declared to the server, extraction intermediates, overlay layers) and is safe to delete at any time. Nothing authored lives there: file-per-flow definitions sit in the committed directory the recipe names with `flows_dir:`, and kapi reads nothing from `.kapi/flows/`.
-- **The project's context store**: kapi-owned, in a workspace under your data directory rather than in the checkout. It holds the terms, the content memory, the voice profiles and the decision ledger, every checkout of the project shares it, and every gate and lookup answers from it. `kapi context export` is the backup, and `kapi context snapshot --out <dir>` writes it out as files that `kapi context import` reads back.
+- **The project's context store**: kapi-owned, in a workspace under your data directory rather than in the checkout. It holds the terms, the content memory, the voice profiles and the decision ledger, every checkout of the project shares it, and every gate and lookup answers from it. `kapi context pull` and `kapi context push` share it through the backend the recipe declares under `context:`, and `kapi context export` writes it to one file.
 
 Local and server converge in shape. Bowrain answers graph questions over one database spanning workspaces, projects and streams; a project answers the same query shapes over its own workspace graph with those dimensions fixed to one value, so which blocks use a given term, by collection and coordinate, is answerable with no server.
 
@@ -372,7 +372,7 @@ All commands work from any subdirectory within the project. A directory holds at
 
 `.kapi/`: `kapi init` writes `.kapi/.gitignore` with one line, `*`, so none of the cache reaches git.
 
-Deleting `.kapi/work/cache/` costs nothing. Deleting `.kapi/` costs a re-extraction, and, if the project uses redaction, the withheld originals in `.kapi/work/vault/`, which are local-only by design and rebuild from nothing. Your context is in the workspace and survives it; deleting the workspace costs every project's terms, voice profiles, content memory and decisions, so take a copy with `kapi context export --workspace` before you remove that.
+Deleting `.kapi/work/cache/` costs nothing. Deleting `.kapi/` costs a re-extraction, and, if the project uses redaction, the withheld originals in `.kapi/work/vault/`, which are local-only by design and rebuild from nothing. Your context is in the workspace and survives it; deleting the workspace costs every project's terms, voice profiles, content memory and decisions, so push each project's context to its backend, or take a copy with `kapi context export -o <file>.kpz`, before you remove that.
 
 ## Initialization
 

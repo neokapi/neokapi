@@ -122,7 +122,7 @@ the source locale.
 
 Address the unit exactly as the worklist lists it. `status` is `"reviewed"` by default; `"signed-off"` is the optional final rung for contractual or regulated content. The decision is recorded in the [project store](/kapi/project-store) and is durable at once, so every checkout of the project reads it and there is no second step. Read it back, with the evidence behind it, from `kapi context log`.
 
-To put the record in git as well, write it out with `kapi context snapshot --out <dir>` and commit the shards it produces. See [Moving context](/kapi/context-portability).
+To share the record with the rest of the team, push it to the project's context backend with `kapi context push`. See [Moving context](/kapi/context-portability).
 
 Piping works at scale: `kapi status --review --json` through your own filter into `kapi apply`. A `kind:"memory"` entry is different: it banks a source→target pair for future recycle leverage and does **not** promote a unit to reviewed.
 

@@ -247,7 +247,7 @@ terms store or content memory ([C-08](c-08-terms.md),
 [C-09](c-09-content-memory.md)). A word rule is a term, so keeping one writes a
 concept, marked advisory when the rule is. Keeping a
 rule builds the same change-set entry and runs the same applier, so retrieval,
-checks, drafting, the governing fingerprint and `kapi context snapshot` all see
+checks, drafting, the governing fingerprint and every machine that pulls all see
 it with no second code path. A term rule with several forms to avoid lands each
 form, and a form that differs from the form to use only in case stays out of
 the store, which folds case.
@@ -438,6 +438,12 @@ once, marks a contested entry `[contested by #0n79tw5k9s]` and ends a
 suggestion's line with its standing. The host API
 (`host/contextops.go`) is typed requests and results with no flag sets, so the
 agent tools and the desktop drive the same loop.
+
+Operations are what travel between machines. `kapi context push` writes the
+project's operations to the backend its recipe declares, `kapi context pull`
+merges another machine's by id, and `kapi context export` carries them in one
+file ([C-03](c-03-context-store-and-graph.md)). A suggestion recorded on one
+machine and kept on another is therefore one history, whichever pulled first.
 
 The agent surface records and reads, one tool per habit: `context_observe`,
 `context_correct`, `context_withdraw` for what the same session recorded

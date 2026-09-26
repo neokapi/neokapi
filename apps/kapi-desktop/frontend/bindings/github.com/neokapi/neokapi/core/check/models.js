@@ -74,6 +74,16 @@ export class ContextProvenance {
              */
             this["stale_reason"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Sync says how far this machine and the backend the project's context is
+             * shared through were apart at the last pull or push. nil when the
+             * project's context stays on this machine.
+             * @member
+             * @type {ContextSync | null | undefined}
+             */
+            this["sync"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -84,8 +94,68 @@ export class ContextProvenance {
      * @returns {ContextProvenance}
      */
     static createFrom($$source = {}) {
+        const $$createField5_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sync" in $$parsedSource) {
+            $$parsedSource["sync"] = $$createField5_0($$parsedSource["sync"]);
+        }
         return new ContextProvenance(/** @type {Partial<ContextProvenance>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextSync is how far one machine and a shared context backend are apart.
+ */
+export class ContextSync {
+    /**
+     * Creates a new ContextSync instance.
+     * @param {Partial<ContextSync>} [$$source = {}] - The source object to create the ContextSync.
+     */
+    constructor($$source = {}) {
+        if (!("backend" in $$source)) {
+            /**
+             * Backend names the backend: its kind and where it is.
+             * @member
+             * @type {string}
+             */
+            this["backend"] = "";
+        }
+        if (!("to_push" in $$source)) {
+            /**
+             * ToPush counts the operations recorded here the backend does not hold.
+             * @member
+             * @type {number}
+             */
+            this["to_push"] = 0;
+        }
+        if (!("to_pull" in $$source)) {
+            /**
+             * ToPull counts the operations read from the backend and not yet merged.
+             * @member
+             * @type {number}
+             */
+            this["to_pull"] = 0;
+        }
+        if (!("line" in $$source)) {
+            /**
+             * Line is the sentence an answer carries.
+             * @member
+             * @type {string}
+             */
+            this["line"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextSync instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextSync}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ContextSync(/** @type {Partial<ContextSync>} */($$parsedSource));
     }
 }
 
@@ -196,8 +266,8 @@ export class Finding {
      * @returns {Finding}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType0;
-        const $$createField7_0 = $$createType1;
+        const $$createField4_0 = $$createType2;
+        const $$createField7_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("position" in $$parsedSource) {
             $$parsedSource["position"] = $$createField4_0($$parsedSource["position"]);
@@ -274,5 +344,7 @@ export class Warning {
 }
 
 // Private type creation functions
-const $$createType0 = model$0.Anchor.createFrom;
-const $$createType1 = $Create.Map($Create.Any, $Create.Any);
+const $$createType0 = ContextSync.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = model$0.Anchor.createFrom;
+const $$createType3 = $Create.Map($Create.Any, $Create.Any);

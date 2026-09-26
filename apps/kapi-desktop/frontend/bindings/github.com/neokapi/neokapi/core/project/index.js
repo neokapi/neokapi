@@ -9,6 +9,7 @@ export {
     CommentDefaults,
     ContentComments,
     ContentItem,
+    ContextBackend,
     Defaults,
     FlowValidationIssue,
     FormatDefaults,

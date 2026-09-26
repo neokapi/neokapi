@@ -63,7 +63,7 @@
               "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
             }
           },
-          "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change: a content edit, an asset edit (term, content-memory pair,\nvoice rule, recipe field), or a review outcome (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review outcome is recorded as unit state in the project store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation. It does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the decision is recorded in the\nproject's decision ledger and is bound to the translation's content hash, so a\nlater edit drops the unit back below reviewed. Recording it is durable at once,\nand 'kapi context snapshot' writes the record out as files.\n\nA comment edit (kind:\"comment\") rewrites one code comment, addressed by its file\nand the id 'kapi check' reports for it, such as func/Parse, in Go and in the\nlanguages a comment plugin reads (TypeScript, TSX and JavaScript among them).\nIts text is the comment's prose without comment markers. It carries the comment_sha256 that\n'kapi check --json' reports for the comment, or the prose as read in\ncurrent_text, and a comment that changed since is refused. Every byte outside\nthe comment stays as it is, the result must parse, and the language's formatter\nmust agree. Running that formatter runs code the project controls, so kapi asks\nonce per project, in a terminal, and records the answer. A directive, a\ngenerated file's comment, and text that drops or adds a code block or reference\nare refused with a reason and write nothing. Each written file is checked again over what changed, and the\nfindings are reported beside the edit.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews content and comment changes\nand writes nothing. No AI provider is required.",
+          "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change: a content edit, an asset edit (term, content-memory pair,\nvoice rule, recipe field), or a review outcome (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review outcome is recorded as unit state in the project store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation. It does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the decision is recorded in the\nproject's decision ledger and is bound to the translation's content hash, so a\nlater edit drops the unit back below reviewed. Recording it is durable at once,\nand 'kapi context push' shares it when the project declares a context backend.\n\nA comment edit (kind:\"comment\") rewrites one code comment, addressed by its file\nand the id 'kapi check' reports for it, such as func/Parse, in Go and in the\nlanguages a comment plugin reads (TypeScript, TSX and JavaScript among them).\nIts text is the comment's prose without comment markers. It carries the comment_sha256 that\n'kapi check --json' reports for the comment, or the prose as read in\ncurrent_text, and a comment that changed since is refused. Every byte outside\nthe comment stays as it is, the result must parse, and the language's formatter\nmust agree. Running that formatter runs code the project controls, so kapi asks\nonce per project, in a terminal, and records the answer. A directive, a\ngenerated file's comment, and text that drops or adds a code block or reference\nare refused with a reason and write nothing. Each written file is checked again over what changed, and the\nfindings are reported beside the edit.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews content and comment changes\nand writes nothing. No AI provider is required.",
           "short": "Apply a typed change-set (content + asset edits): the one write verb"
         },
         "check": {
@@ -259,6 +259,16 @@
           }
         },
         "context": {
+          "backend": {
+            "example": "  kapi context backend\n  kapi context backend local\n  kapi context backend file /Volumes/team/kapi/docs\n  kapi context backend recipe",
+            "flags": {
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              }
+            },
+            "long": "Show which backend this project's context is shared through, where that\nwas decided, and how far this machine and the backend were apart at the last\npull or push.\n\nName a backend to use another one on this machine only. The choice is kept in\nthis machine's configuration under the project's id, and the recipe is left\nalone:\n\n  local         keep this project's context on this machine\n  file \u003cdir\u003e    share it through a directory, such as a mounted team share\n  recipe        use the backend kapi.yaml declares again\n\nA git or S3 backend is declared in kapi.yaml, where every checkout reads it.",
+            "short": "Show or choose where this machine shares the project's context"
+          },
           "correct": {
             "example": "  kapi context correct \"sign in\" \"log in\" --seen-in web/src/auth.tsx\n  kapi context correct utilise use --seen-in docs/guide.md --suggest --advisory",
             "flags": {
@@ -299,23 +309,17 @@
           },
           "example": "  kapi context docs/guide.md\n  kapi context docs/guide.md --explain\n  kapi context docs/guide.md --json\n  kapi context --profile marketing\n  kapi context search widget",
           "export": {
-            "example": "  kapi context export -o context.kpz\n  kapi context export -o backups/acme-context.kpz --json\n  kapi context export --workspace --dry-run\n  kapi context export --workspace -o backups/everything.kpz",
+            "example": "  kapi context export -o context.kpz\n  kapi context export -o backups/acme-context.kpz --json",
             "flags": {
-              "dry-run": {
-                "usage": "with --workspace, report what the file would hold and write nothing"
-              },
               "output": {
-                "usage": "file to write"
+                "usage": "file to write (required)"
               },
               "project": {
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
-              },
-              "workspace": {
-                "usage": "write every project you have worked on here, not just this one"
               }
             },
-            "long": "Write everything this project's store holds as context into a\nsingle file: the terms, the voice profiles, the wording already approved, and\nthe decision record.\n\nIt is the backup, and the way to move a project's context to another machine.\nNothing is lost and nothing is flattened: every part travels in the form kapi\nreads it back from, and \"kapi context restore\" puts it into a store with the\nsame identities it left with.\n\nWithheld originals are never in it. They stay on the machine that redacted them,\nand no flag puts them in a file meant to be copied.\n\nThe decision record in the file is the project's own, written from what the\nledger holds at the moment of the export.\n\nWith --workspace it writes every project you have worked on here instead of\nthis one, which is the backup for the context of a whole machine. Add --dry-run\nto see what that file would hold before you write it.",
-            "short": "Write this project's whole context to one file"
+            "long": "Write this project's context to one file: every suggestion, decision,\nterm, voice profile and approved wording, with the history that produced them,\nand a checkpoint so reading it back is fast.\n\nIt is the backup, and the way to carry a project's context to a machine that\ncannot reach its context backend. \"kapi context import \u003cfile\u003e.kpz\" merges it\nthe way \"kapi context pull\" merges a backend, so reading one file twice, or\ninto a machine that already holds part of it, changes nothing more.\n\nWithheld originals are never in it, and neither are the rules you widened to\nevery project: both stay on this machine.",
+            "short": "Write this project's context and its history to one file"
           },
           "flags": {
             "explain": {
@@ -344,7 +348,7 @@
             }
           },
           "import": {
-            "example": "  kapi context import\n  kapi context import ../other-project/.kapi\n  kapi context import --force",
+            "example": "  kapi context import\n  kapi context import ../other-project/.kapi\n  kapi context import --force\n  kapi context import context.kpz",
             "flags": {
               "force": {
                 "usage": "read every file, including ones whose bytes have not moved"
@@ -353,8 +357,8 @@
                 "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
               }
             },
-            "long": "Read a checkout's context files into this project's store: the terms,\nthe voice profiles, the wording already approved, and the record of who approved\nit.\n\nThis is the one command that opens those files. Everything else answers from the\nstore, so what you read here is in force for every checkout of this project on\nthis machine, and for everyone else once they run it too. A person runs it: it\nis a decision about the project, and it appears in \"kapi context log\" with each\nfile and the bytes that were read.\n\nWith no path it reads the project's own \".kapi\" directory. Name a path to read\nanother checkout's directory instead, when you are bringing an existing\nproject's context across.\n\nRunning it twice changes nothing. Everything is matched by the identity the file\ncarries, so a second read finds the store already holding what the file says.\nA file whose bytes have not moved since this checkout read it is skipped;\n--force reads it anyway.",
-            "short": "Read committed context files into this project's store"
+            "long": "Read a checkout's context files into this project's store: the terms,\nthe voice profiles, the wording already approved, and the record of who approved\nit.\n\nName a .kpz written by \"kapi context export\" to merge it instead, the way\n\"kapi context pull\" merges a backend: every operation it carries that this\nproject does not hold, with its history.\n\nThis is the one command that opens those files. Everything else answers from the\nstore, so what you read here is in force for every checkout of this project on\nthis machine, and for everyone else once they run it too. A person runs it: it\nis a decision about the project, and it appears in \"kapi context log\" with each\nfile and the bytes that were read.\n\nWith no path it reads the project's own \".kapi\" directory. Name a path to read\nanother checkout's directory instead, when you are bringing an existing\nproject's context across.\n\nRunning it twice changes nothing. Everything is matched by the identity the file\ncarries, so a second read finds the store already holding what the file says.\nA file whose bytes have not moved since this checkout read it is skipped;\n--force reads it anyway.",
+            "short": "Read context files, or a context file, into this project"
           },
           "keep": {
             "example": "  kapi context keep 0n794e2gk7\n  kapi context keep 0n794e2gk7 0n79gkq853\n  kapi context keep --session s0ab4e399\n  kapi context keep 0n794e2gk7 --use \"content memory\"\n  kapi context keep 0n794e2gk7 --advisory=false\n  kapi context keep 0n794e2gk7 --widen-to workspace",
@@ -422,7 +426,7 @@
             "long": "List what has been observed, corrected, imported and decided about\nthis project's context, newest first.\n\nEach line carries an operation's id, when it happened, who did it, what it was\nabout and where it stands: suggested and waiting for a person, established and\nin force, contested by another rule it names, or withdrawn, dropped or\nreverted.\n\nThe id is what the other verbs take: the short form a line shows, or any start\nof it that names one operation. Narrow the list with --status to see what is\nwaiting for a decision, or with --session to see what one agent run did.\n\"--session this\" is that run reading back its own work.",
             "short": "Show how this project's context came to be"
           },
-          "long": "Ask what this project keeps to before you write a file: the voice, the\nwords to use and to avoid, and what has been suggested but not yet established.\n\n  kapi context \u003cpath\u003e          what applies to that file\n  kapi context --profile \u003cn\u003e   the same answer for a named profile\n  kapi context search \u003cword\u003e   what the project says about one word\n\nThe answer is the same text an assistant reads from the context:// resource.\n--explain adds how it was reached: the point the file sits at, the recipe line\nthat bound the voice, and the project and revision that answered. --json gives\nall of it as data.\n\nThe subcommands record and decide. observe and correct record what you notice,\nas suggestions; log lists them; keep, drop, revert and widen are a person's\ndecisions, and withdraw takes back a suggestion of your own. import, snapshot, export and restore move the context between the\nstore and files, and locales reports how stored rows are filed.",
+          "long": "Ask what this project keeps to before you write a file: the voice, the\nwords to use and to avoid, and what has been suggested but not yet established.\n\n  kapi context \u003cpath\u003e          what applies to that file\n  kapi context --profile \u003cn\u003e   the same answer for a named profile\n  kapi context search \u003cword\u003e   what the project says about one word\n\nThe answer is the same text an assistant reads from the context:// resource.\n--explain adds how it was reached: the point the file sits at, the recipe line\nthat bound the voice, and the project and revision that answered. --json gives\nall of it as data.\n\nThe subcommands record and decide. observe and correct record what you notice,\nas suggestions; log lists them; keep, drop, revert and widen are a person's\ndecisions, and withdraw takes back a suggestion of your own. pull and push\nshare the context through the backend kapi.yaml declares; export and import\ncarry it in one file; locales reports how stored rows are filed.",
           "observe": {
             "example": "  kapi context observe \"the docs address the reader as you\"\n  kapi context observe --term Quickcast --instead-of \"Quick cast\" \\\n    --seen-in README.md --quote \"Quickcast forecasts the next hour.\"\n  kapi context observe \"we write use, never utilise\" --term use --instead-of utilise --instead-of utilize",
             "flags": {
@@ -445,6 +449,26 @@
             "long": "Record something you noticed about how this project writes: a\nproduct name as it spells it, a spelling it is consistent about, who its text\naddresses, the register it keeps.\n\nFor a name or spelling, pass --term with the form the project uses and\n--instead-of with a form it avoids. kapi derives the other forms to avoid: the\nspaced, hyphenated and closed spellings of a compound, each part capitalised,\nand the lower-case spelling of a capitalised term. \"--term Quickcast\n--instead-of 'Quick cast'\" avoids Quick cast, Quick-cast, QuickCast and\nquickcast. The parts of a closed word come from an --instead-of form that\nbreaks it, so a word with none varies only its case.\n\nEverything recorded is a suggestion. Checks report it wherever the word\nappears, no check fails on it, and it is established when a person keeps it\nwith \"kapi context keep\". Without --term an observation is a fact in prose.\n\nSay where you saw it with --seen-in and --quote.",
             "short": "Record something you noticed about how this project writes"
           },
+          "pull": {
+            "example": "  kapi context pull\n  kapi context pull --json",
+            "flags": {
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              }
+            },
+            "long": "Read what other machines pushed to the project's context backend and\nmerge it into this machine's context: every suggestion, decision, term and\napproved wording, with its history.\n\nA pull reads only what this machine has not seen, merges it by operation id and\nbrings the stores up to date. Running it twice changes nothing.\n\nThe backend is declared in kapi.yaml:\n\n  context:\n    backend: git      # local, file, git or s3\n\nIt exits with status 5 when the backend cannot be reached, and nothing changes.",
+            "short": "Merge the context other machines pushed"
+          },
+          "push": {
+            "example": "  kapi context push\n  kapi context pull \u0026\u0026 kapi context push",
+            "flags": {
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              }
+            },
+            "long": "Write what this machine recorded in the project's context to the context\nbackend, where every other machine's next pull reads it.\n\nA push adds files and never changes one another machine wrote, so two machines\npushing at once both succeed. When the backend has gained many operations since\nits last checkpoint, the push adds one, so a new machine's first pull starts\nfrom it rather than replaying everything.\n\nWithheld originals and the rules you widened to every project stay on this\nmachine.\n\nIt exits with status 5 when the backend cannot be reached; the operations stay\nqueued for the next push.",
+            "short": "Share the context recorded on this machine"
+          },
           "rebuild": {
             "example": "  kapi context rebuild\n  kapi context rebuild --checkpoint",
             "flags": {
@@ -457,25 +481,6 @@
             },
             "long": "Empty this project's terms, content memory and voice profiles, and the rules\nit widened to the whole workspace, and write them again from the context log.\n\nEvery change to a project's context is recorded in the log with what it wrote,\nso the stores hold nothing the log does not. Rebuilding gives the same stores\nthe changes left behind. Use it when a store is damaged, or after operations from\nanother machine were merged into the log.\n\nWith --checkpoint it keeps a copy of the stores as they stand afterwards, so the\nnext rebuild starts there and replays only the changes after it.",
             "short": "Rebuild this project's stores from the context log"
-          },
-          "restore": {
-            "example": "  kapi context restore context.kpz\n  kapi context restore context.kpz --merge\n  kapi context restore context.kpz --replace\n  kapi context restore --workspace backups/everything.kpz",
-            "flags": {
-              "merge": {
-                "usage": "read the file over the context the store already holds"
-              },
-              "project": {
-                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
-              },
-              "replace": {
-                "usage": "put the file in place of the context the store already holds"
-              },
-              "workspace": {
-                "usage": "read a whole-machine backup, every project in it"
-              }
-            },
-            "long": "Read a file written by \"kapi context export\" into this project's\nstore, with every identity it left with.\n\nA store that already holds context is left alone until you say what should\nhappen to it. --merge reads the file over what is there, which is idempotent:\nrestoring the same file twice leaves the same store. --replace puts the file in\nplace of what is there, so what is left is the file and nothing else.\n\nWith --workspace it reads a whole-machine backup: every project in the file\ncomes back under the name and identity it had, whether or not you have a\ncheckout of it here. The same two flags apply, and --replace names every\nproject whose context it is about to empty before it empties any of them.",
-            "short": "Read a context file back into this project's store"
           },
           "revert": {
             "example": "  kapi context revert 0n794e2gk7\n  kapi context revert --session 0ab4e399",
@@ -538,19 +543,6 @@
             "short": "Establish the suggestions a person's signal backs"
           },
           "short": "Ask what applies before you write a file",
-          "snapshot": {
-            "example": "  kapi context snapshot --out build/context\n  kapi context snapshot --out build/context --json",
-            "flags": {
-              "out": {
-                "usage": "directory to write the layout into (required)"
-              },
-              "project": {
-                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
-              }
-            },
-            "long": "Write the context in force for this project into the directory --out\nnames: the terms, the voice profiles, the approved wording, and the decision\nrecord, in the layout \"kapi context import\" reads.\n\nThe files it writes are generated. Edit the project's context and snapshot\nagain rather than editing them by hand, the way you would with any other\ngenerated artifact. A clean checkout that imports what a snapshot wrote governs\nits content exactly as the project that wrote it does.\n\nTwo things never travel. Withheld originals stay on the machine that redacted\nthem, and nothing kapi keeps for its own use is written.\n\nThe decision record in the snapshot is the project's own, written from what\nthe ledger holds at the moment of the snapshot.",
-            "short": "Write this project's context out as files"
-          },
           "widen": {
             "example": "  kapi context widen 0n794e2gk7 --to workspace\n  kapi context widen 0n794e2gk7 --to mode",
             "flags": {

@@ -118,18 +118,65 @@ Queries for data outside the graph read the relevant project databases.
 `Registry` and `Project` answer with handles the backend owns: a caller reads
 and writes through one and closes the backend, never a handle.
 
-One adapter ships: `workspace.Local`, the directory of SQLite files above. The
-interface is drawn so an adapter keeping the authoritative copy elsewhere fits
-behind it without the callers changing. `Registry` and `Project` hand back
-handles the adapter has materialized locally, which a remote adapter would
-hydrate; `Record` and `Since` carry the operations such an adapter would
-exchange with its authority, and which a background synchronizer would read to
-learn what this machine did offline. Neither is built.
+One adapter ships: `workspace.Local`, the directory of SQLite files above.
+Every machine keeps its workspace locally; a project whose context is shared
+exchanges operations with a remote, below, rather than reading through one.
 
 `core/workspace/workspacetest.RunConformance` is the suite every adapter passes:
 one table of behaviours, driven against whatever backend a factory hands back.
 It states what the layers above are entitled to assume, in a form an adapter
 author and a reviewer can both run.
+
+### A project's context is shared through a remote
+
+A recipe declares where a project's context is shared (`context.backend`:
+`local`, `file`, `git` or `s3`), and a person can choose another on one machine
+(`kapi context backend`, kept in the machine configuration under the project's
+id). Every shared backend is a `workspace.Remote` holding the same layout:
+
+| Path | Holds |
+| --- | --- |
+| `log/<writer>/<first-op-id>.jsonl` | the operations one workspace pushed, one JSON object a line, in id order |
+| `blobs/<sha256>` | the payloads those operations name |
+| `checkpoints/<op-id>.kpz` | the projections as of one operation (`kpz.KindCheckpoint`) |
+
+`<writer>` is an id each workspace mints once (`Workspace.WriterID`), so a
+machine only adds files under its own name, two machines never write one object,
+and no lock is taken. A remote owes three things, stated by
+`workspacetest.RunRemoteConformance`: list a directory, read an object, and
+create an object that is not there (a second create of the same bytes is
+nothing; of other bytes, `ErrObjectExists`).
+
+| Adapter | Create-only write | Access |
+| --- | --- | --- |
+| `FileRemote` | a temporary file linked into place | the filesystem's |
+| `GitRemote` | one commit per push on the ref, pushed without force; a push that loses a race fetches the new tip, lays its files over it and pushes again | the repository's remote |
+| `host/s3remote` | `PutObject` with `If-None-Match: *` | the AWS credential chain |
+| `MemoryRemote` | a map, packed into a transfer file | none |
+
+`workspace.Sync` moves one project's operations. A **pull** lists `log/`, reads
+the segments this workspace has not seen, merges their operations into the log
+by id (`workspace.Merge`) and hands them to the projector: a catch-up when every
+merged operation sorts after the ones applied, a rebuild in id order when one
+sorts before. A **push** writes the project's operations the remote is not
+known to hold as new segments, with the blobs they name, and a checkpoint once
+the remote has gained `CheckpointEvery` operations since its last. A first pull
+into a log that holds nothing of the project starts from the newest checkpoint
+whose segment list covers every operation up to it, and still merges every
+segment, so the history travels. The kinds `projector.LocalKinds` names never
+leave the machine: the project's registration, its checkpoints, and rules a
+person widened to the whole workspace.
+
+What the workspace knows about a remote is kept in `workspace.db`, keyed by the
+project and the remote: the operation ids the remote holds, the segments read
+and whether they are merged, and the last contact. That is what the sync line
+every context answer and `kapi status` carry is counted from (`N to push, M to
+pull`), without reaching the remote. A remote that cannot be reached is
+`ErrRemoteUnreachable`, and the CLI exits with status 5.
+
+A **transfer file** is the same layout in one `.kpz` (`kpz.KindContext`):
+`kapi context export` pushes the project into a `MemoryRemote` and packs it, and
+`kapi context import <file>.kpz` unpacks one and pulls from it.
 
 ### No daemon
 
@@ -269,10 +316,10 @@ voice profiles ([C-07](c-07-voice-profiles.md)), its content memory
 ([C-09](c-09-content-memory.md)) and its decision ledger
 ([C-04](c-04-unit-state-and-decisions.md)), each a projection of the
 workspace's operation log, described below. No read path opens a file in the
-checkout to answer for any of them. A checkout may
-carry a snapshot of the same content under `.kapi/`, written by
-`kapi context snapshot`; `kapi context import` is the one command that reads it
-back, and `kapi context export` is the backup ([C-11](c-11-context-operations.md)).
+checkout to answer for any of them. A checkout may carry context files a
+person authored under `.kapi/`; `kapi context import` is the one command that
+reads them ([C-11](c-11-context-operations.md)). The store moves between
+machines through a context backend or a transfer file, below.
 
 Branches use the current context store even when they contain older snapshot
 files. Governance is therefore independent of whether a team commits snapshots.
@@ -341,8 +388,9 @@ to a service. Deleting it loses those values ([C-10](c-10-redaction.md)).
 
 The context store has a separate lifetime in the workspace. Deleting
 `<DataDir>/workspaces/` removes the terms, voice profiles, content memory and
-decisions of every local project. Use `kapi context export --workspace` to back
-up project context before deleting the workspace.
+decisions of every local project that no backend holds. Push each project to
+its backend, or write it to a transfer file with `kapi context export`, before
+deleting the workspace.
 
 ### Locales are keyed canonically
 
@@ -612,7 +660,7 @@ sets `$KAPI_DATA_DIR` as part of the isolation contract.
   ([Convergence in CI](/kapi/convergence-in-ci)).
 - **A machine's context is one directory.** Backing up
   `<DataDir>/workspaces/default/` backs up every project's authored context, and
-  `kapi context export --workspace` writes the same thing as one file. Deleting
+  `kapi context export` writes one project's as one file. Deleting
   it costs every project's terms, voice profiles, content memory and
   decisions.
 
