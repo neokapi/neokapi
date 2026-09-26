@@ -22,12 +22,13 @@ type Unit struct {
 }
 
 // loadCorpus reads the three corpora the research pilot measured: the dogfood
-// project's Norwegian content memory, the compass sample's catalogs in
+// project's Norwegian content memory (a frozen copy under testdata/dogfood,
+// taken when the project's context moved to refs/kapi/context), the compass sample's catalogs in
 // Norwegian, German and Dutch, and the tidewatch sample's Norwegian content
 // memory. root is the repository root.
 func loadCorpus(root string) ([]Unit, error) {
 	var units []Unit
-	dogfood, err := loadMemoryUnits("dogfood", filepath.Join(root, ".kapi", "memory", "*-nb.memory.json"), "en", "nb")
+	dogfood, err := loadMemoryUnits("dogfood", filepath.Join(root, "scripts", "termeval", "testdata", "dogfood", "memory", "*-nb.memory.json"), "en", "nb")
 	if err != nil {
 		return nil, err
 	}

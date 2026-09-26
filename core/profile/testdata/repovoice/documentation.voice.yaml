@@ -1,0 +1,161 @@
+# neokapi voice profile — the machine-enforceable encoding of
+# docs/internals/brand-communication.md. `kapi context import` stores it as
+# `neokapi-documentation`, and the root kapi.yaml recipe binds that name under
+# `defaults.voice`, so ai-translate, voice check/rewrite, and project flows pick
+# it up with no flags. Keep the two
+# documents in sync: the markdown guide is the prose authority, this profile is
+# what the tools read.
+name: neokapi documentation
+description: >-
+  Academic, precise register for neokapi user-facing text: docs site, CLI
+  help, UI copy, release notes. Explain what something is and what it does;
+  let the facts stand without selling.
+tone:
+  personality: [precise, plain, specific]
+  formality: formal
+  emotion: neutral
+  humor: none
+  guidelines: >-
+    State capabilities plainly. Lead with the problem and the mechanism, not
+    adjectives. Every claim must be checkable against the code or a generated
+    artifact. One idea per sentence; short sentences over long ones. The
+    reader is a developer or the person running the language work, not a
+    prospect.
+style:
+  active_voice: true
+  sentence_length: short
+  person_pov: second
+  contractions: sometimes
+  prohibited_patterns:
+    - regex: '\b(powerful|seamless(?:ly)?|effortless(?:ly)?|blazing|game-changing|cutting-edge|revolutionary|supercharged?|unleash)\b'
+      description: Marketing superlatives and hype words
+    - regex: '\b(production-proven|everything you need|localize at scale|just point and go)\b'
+      description: Brochure framing
+    # Retired positioning. The product is a content and language engine whose
+    # loop converges multilingual content; it is not a platform sold to a team,
+    # and "brand" is a coordinate rather than the subsystem. Each of these was
+    # the headline at some point, which is exactly why they survive in prose
+    # nobody re-reads.
+    - regex: '\bbrand[\s*_]+memor(?:y|ies)\b'
+      description: "Content memory is the store; brand is a coordinate on it, not a kind of memory"
+    - regex: '\bbrand-first\b'
+      description: "Retired positioning — say what the product does, not which axis it leads with"
+    - regex: '\bKapi[\s*_]+drafts\b'
+      description: "Retired positioning — kapi converges content; drafting is one step in the loop"
+    - regex: '\bfor your whole team\b'
+      description: "Retired positioning — team framing belongs to the platform, not to kapi"
+    - regex: '\blocali[sz]ation[\s*_]+platform\b'
+      description: "Retired positioning — this is a content and language engine"
+    - regex: '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]'
+      description: Emoji in committed prose
+    # The leading (^|[^\w.-]) is the count guard: RE2 has no lookbehind, so the
+    # delimiter before the number is matched rather than asserted. Without it a
+    # version ("XLIFF 2.1 tools") and a standard's number ("BCP-47 languages")
+    # both read as counts, because \b sits happily after a dot or a hyphen.
+    - regex: '(^|[^\w.-])\d+\+?\s+(?:built-in\s+)?(formats|tools|providers|filters|languages)\b'
+      description: Hardcoded counts that the code controls — name categories and link to the generated reference instead
+    # "magic" carries two registers. The marketing one is a claim about the
+    # product ("it just works, like magic"); the technical one names a file
+    # signature ("magic bytes", "magic number", "magic string"). RE2 has neither
+    # lookahead nor lookbehind, so the exclusion cannot be written as
+    # `\bmagic\b(?!\s+(bytes|number))` — the marketing register is written
+    # positively instead. The copular and simile branches require the word to
+    # close its clause (punctuation, or the end of the block), which is what
+    # keeps "works like magic bytes" out; the trailing class excludes the hyphen
+    # so "magic-byte sniffing" stays out too. "magical" and "magic happens" have
+    # no technical sense and need no such guard. A novel phrasing can slip
+    # through — the trade is deliberate, because a rule whose every hit is a
+    # false positive teaches the reader to stop reading the findings.
+    - regex: '(?i)\b(?:magical(?:ly)?|magic\s+happens)\b|(?i)\b(?:(?:just\s+)?(?:like|pure|sheer)\s+magic|(?:it|that|this)(?:[''’]s|\s+is)\s+magic)\b(?:\s*[^\p{L}\p{N}\s_-]|$)'
+      description: '"magic" as a claim about the product — state the mechanism; the technical sense (magic bytes, magic number) is not this rule'
+    - regex: '\bsegmented into blocks\b'
+      description: Extraction — not segmentation — produces blocks; segmentation is an opt-in overlay within a block
+    # ── The fixed vocabulary (brand-communication.md §"The vocabulary is fixed")
+    #
+    # Patterns rather than terms because a term matches whole words: `localize` there would not match "localization", and the
+    # inflections are the point — a noun-only rule misses the form that actually
+    # survives a sweep.
+    #
+    # scripts/check-vocabulary.sh carries the same list for the surfaces kapi
+    # cannot open (.go, .ts, .sh, packaging metadata). This file is the
+    # authority; that script's copy exists only to reach further.
+    #
+    # termbase and glossary are matched LOWERCASE ONLY, deliberately. Both name
+    # something real in mixed case that must not be flagged: TBX expands to
+    # "TermBase eXchange" (ISO 30042) and XLIFF 2.x carries a "Glossary" module,
+    # and RE2 has no lookahead to exclude them by context. The cost is a missed
+    # hit at the start of a sentence; the alternative is a rule that flags two
+    # standards by name, which is how a check teaches its reader to stop reading
+    # it. The others fold case: they collide with nothing.
+    #
+    # Words inside a fenced code block are not reached at all — the markdown and
+    # mdx readers do not extract code as content — so a quoted identifier like
+    # `SideEffect = "termbase-read"` needs no exception here.
+    - regex: '\btermbases?\b'
+      description: "termbase: the store is the terms store, and its contents are terms (TBX, the ISO standard, keeps its name)"
+    - regex: '\bglossar(y|ies)\b'
+      description: "glossary: the store is the terms store (XLIFF 2.x's Glossary module keeps its name)"
+    - regex: '(?i)\blocali[sz](e|es|ed|ing|ation|ations)\b'
+      description: Say multilingual content, or language — and recast the sentence rather than substituting a word for "localize"
+    # The leading (^|[^\w-]) is the third-party guard, the same shape the count
+    # rule above uses: RE2 has no lookbehind, so the delimiter is matched rather
+    # than asserted. It keeps another project's tool name out — Flutter's
+    # `gen-l10n`, and anything else hyphen-prefixed — while a bare `l10n` in our
+    # own prose still fails.
+    - regex: '(?i)(^|[^\w-])l10n\b'
+      description: Say multilingual content, or language (the l10n-* make targets are developer-facing internals and are not this rule)
+    - regex: '(?i)\btranslation memor(y|ies)\b'
+      description: "translation memory: say content memory"
+    # `brand_voice` with an underscore is bowrain's recipe extension key, which a
+    # doc is right to name; the space and hyphen forms are prose and the retired
+    # `brand-voice.yaml` filename, which are not.
+    - regex: '(?i)\bbrand[ -]voice\b'
+      description: Voice is the mechanism — say voice profile. "Brand voice" belongs in prose about the common use case, never as the name of the thing
+terms:
+  - term: translatable text
+    replacement: text
+    advisory: true
+    note: "Frames the shared engine as translation-only; use neutral wording unless the context really is about translation"
+  - term: simply
+    advisory: true
+  - term: easily
+    advisory: true
+  - replacement: extract
+    note: 'The shared mechanism is extraction — "the text is extracted into blocks"'
+  - replacement: text
+    note: 'Neutral wording for the shared engine; reserve "translatable" for contexts genuinely about translation'
+  - replacement: neokapi
+    note: "The project and Go framework — always lowercase"
+  - replacement: kapi
+    note: "The standalone CLI — always lowercase"
+  - replacement: kapi-desktop
+    note: "The desktop GUI companion — always lowercase, hyphenated"
+  - replacement: Bowrain
+    note: "The full-stack platform — capitalized as a product name; the standalone binary is retired"
+examples:
+  - before: "kapi delivers powerful, seamless format support for everything you need."
+    after: "kapi reads and writes document, data and translation interchange formats."
+    explanation: State the capability plainly; remove superlatives and brochure framing
+    category: tone
+  - before: "The translatable text is segmented into 42 blocks across 15+ formats."
+    after: "The text is extracted into blocks; see the formats reference for the supported formats."
+    explanation: Neutral mechanism wording, extraction not segmentation, no hardcoded counts
+    category: vocabulary
+  - before: "AI-Native Translation Made Easy"
+    after: "AI-native translation"
+    explanation: Sentence case for headings; drop the sales tagline
+    category: style
+locales:
+  nb:
+    formality: neutral
+    person_pov: second
+    cultural_notes: >-
+      Norwegian Bokmål. Address the reader as "du". Use established Norwegian
+      software terminology where it exists (see the project's terms) and keep
+      the academic, plain register — Norwegian technical prose tolerates
+      anglicisms, but prefer the Norwegian term when the terms name one.
+      Never translate product names (neokapi, kapi, kapi-desktop, Bowrain),
+      CLI commands, flags, file formats, code identifiers, or file paths.
+      Headings in sentence case. Compound nouns close up in Norwegian
+      (innholdsbase, not "innholds base") — never leave an English noun pair
+      half-translated.

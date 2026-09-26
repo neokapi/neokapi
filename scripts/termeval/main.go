@@ -147,7 +147,7 @@ func run(root, formsPath, labelsPath string) (*Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	dogfood, err := readBundle(filepath.Join(root, ".kapi", "terms.json"))
+	dogfood, err := readBundle(filepath.Join(testdata, "dogfood", "terms.json"))
 	if err != nil {
 		return nil, err
 	}
