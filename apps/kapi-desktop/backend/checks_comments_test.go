@@ -126,9 +126,6 @@ func kapiCheckCommentFindings(t *testing.T, projPath string) []placedFinding {
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
 	cmd.Flags().String("project", projPath, "")
-	cmd.Flags().Int("max-critical", 0, "")
-	cmd.Flags().Int("max-major", -1, "")
-	cmd.Flags().Int("max-minor", -1, "")
 	report, err := (&host.App{SourceLang: "en"}).ComputeCheck(cmd, nil)
 	require.NoError(t, err)
 

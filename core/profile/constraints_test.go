@@ -52,6 +52,10 @@ func TestConstraintsSurvivePresentationOverrides(t *testing.T) {
 			assert.Equal(t, 1, PatternRuleCount(resolved))
 			assert.Empty(t, Findings(resolved, "Appointments are recorded.", nil))
 			assert.Contains(t, RenderVoiceGuide(resolved), "semantic verification unsupported")
+			guide := RenderVoiceGuide(resolved)
+			assert.Contains(t, guide, "[prohibited pattern, a match fails the check: ")
+			assert.NotContains(t, guide, "critical")
+			assert.NotContains(t, guide, "mandatory")
 			assert.Contains(t, RenderVoiceGuideCompact(resolved), "Appointments are not recorded.")
 		})
 	}

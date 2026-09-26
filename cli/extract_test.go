@@ -184,6 +184,8 @@ func TestExtractMergeKpzInterchangeRoundTrip(t *testing.T) {
 	mcmd.SetArgs([]string{"--project", recipe, kpzPath})
 	require.NoError(t, mcmd.Execute(), "merge output: %s", mout.String())
 	assert.Contains(t, mout.String(), "applied=1")
+	assert.Contains(t, mout.String(), "memory_new=")
+	assert.NotContains(t, mout.String(), "tm_", "the content memory is named memory in the report")
 
 	// The merged target file should exist and carry the translated text.
 	mergedPath := filepath.Join(real, "src/locales/en", "fr-FR", "messages.json")

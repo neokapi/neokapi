@@ -173,9 +173,9 @@ func TestCLIContractText(t *testing.T) {
 	buf.Reset()
 	require.NoError(t, mres.FormatText(&buf))
 	assert.Equal(t,
-		"  FILE                    APPLIED  STALE  SKIPPED  content memory NEW  content memory UPDATED\n"+
-			"  out/app.en-to-fr.xliff  8        1      0        6                   2\n"+
-			"\nMerge complete. applied=8 stale=1 skipped=0 tm_new=6 tm_updated=2 (conflict_policy=prefer-incoming)\n",
+		"  FILE                    APPLIED  STALE  SKIPPED  MEMORY NEW  MEMORY UPDATED\n"+
+			"  out/app.en-to-fr.xliff  8        1      0        6           2\n"+
+			"\nMerge complete. applied=8 stale=1 skipped=0 memory_new=6 memory_updated=2 (conflict_policy=prefer-incoming)\n",
 		buf.String())
 
 	sres := output.MergeStoreOutput{Written: 4, FromProjectStore: true}

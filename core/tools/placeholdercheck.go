@@ -13,8 +13,7 @@ import (
 type PlaceholderCheckConfig struct {
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 	// FlagExtra also reports placeholders that appear in the target but not the
-	// source (a major issue — usually a stray token), in addition to dropped
-	// ones (always critical).
+	// source (usually a stray token), in addition to dropped ones.
 	FlagExtra bool `json:"flagExtra,omitempty" schema:"title=Flag extra placeholders,description=Report placeholders present in the target but absent from the source,default=true"`
 }
 

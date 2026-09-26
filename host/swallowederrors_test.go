@@ -224,7 +224,7 @@ func writeJSONSource(t *testing.T) string {
 // TestAbsorbStoreTargets_StoreReadFailureFails: `if oerr != nil || len(payload) ==
 // 0 { continue }` treated a failed store read exactly like "no target overlay".
 // Every stored translation therefore went unabsorbed while `kapi merge` printed
-// tm_new=0 / tm_updated=0 and exited 0 — the next run re-translated (and re-paid
+// memory_new=0 / memory_updated=0 and exited 0 — the next run re-translated (and re-paid
 // for) content the store already held.
 func TestAbsorbStoreTargets_StoreReadFailureFails(t *testing.T) {
 	a := &App{}

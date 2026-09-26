@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -238,7 +239,7 @@ func TestReview_EditAfterApprovalInvalidatesReview(t *testing.T) {
 	assertCommittedUnits(t, root, 1, "approval commits to the project's unit record")
 	nb, ok := localeCoverage(runStatusJSON(t), "nb")
 	require.True(t, ok)
-	assert.Equal(t, 50, nb.Pct["established"], "the approved unit counts as reviewed")
+	assert.Equal(t, 50, nb.Pct["established"], "the approved unit is established")
 
 	// Edit the approved translation — the decision no longer blesses this text.
 	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),
@@ -252,7 +253,7 @@ func TestReview_EditAfterApprovalInvalidatesReview(t *testing.T) {
 // TestReview_ApplyReviewKindPromotesViaStateStore drives the CLI approval verb:
 // `kapi apply` with a `kind:"review"` change-set records the decision in the
 // project state store (the counterpart of the desktop approve), so the unit
-// counts as reviewed — unlike a `kind:"memory"` entry, which is recycle-only.
+// becomes established — unlike a `kind:"memory"` entry, which is recycle-only.
 func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 	root := writeReviewProject(t)
 	t.Chdir(root)
@@ -298,4 +299,14 @@ func assertCommittedUnits(t *testing.T, root string, want int, msg string) {
 	units, err := st.All(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, units, want, msg)
+}
+
+// TestReviewQueueText_NamesTheEstablishedRung: the footer tells a reviewer
+// where an approval puts the unit, in the ladder's own word.
+func TestReviewQueueText_NamesTheEstablishedRung(t *testing.T) {
+	out := reviewQueueOutput{Pending: []ReviewQueueItem{{Locale: "nb", File: "nb.json", Key: "a", Source: "Apple"}}}
+	var b strings.Builder
+	require.NoError(t, out.FormatText(&b))
+	assert.Contains(t, b.String(), "the unit becomes `established`")
+	assert.NotContains(t, b.String(), "reviewed")
 }

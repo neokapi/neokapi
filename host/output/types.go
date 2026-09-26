@@ -361,7 +361,7 @@ type MergeOutput struct {
 
 func (o MergeOutput) FormatText(w io.Writer) error {
 	t := NewTable(w).Accent(0).
-		Headers("FILE", "APPLIED", "STALE", "SKIPPED", "content memory NEW", "content memory UPDATED")
+		Headers("FILE", "APPLIED", "STALE", "SKIPPED", "MEMORY NEW", "MEMORY UPDATED")
 	s := t.Styles()
 
 	for _, f := range o.Files {
@@ -376,7 +376,7 @@ func (o MergeOutput) FormatText(w io.Writer) error {
 	t.Render()
 
 	fmt.Fprintf(w,
-		"\nMerge complete. applied=%d stale=%d skipped=%d tm_new=%d tm_updated=%d (conflict_policy=%s)\n",
+		"\nMerge complete. applied=%d stale=%d skipped=%d memory_new=%d memory_updated=%d (conflict_policy=%s)\n",
 		o.Applied, o.Stale, o.Skipped, o.MemoryNew, o.MemoryUpdated, o.ConflictPolicy)
 	return nil
 }

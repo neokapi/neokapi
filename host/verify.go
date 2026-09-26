@@ -154,7 +154,7 @@ func (o verifyOutput) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintln(w)
 		output.Title(w, gateDisplayName(g.Gate)+":")
-		t := output.NewTable(w).Headers("severity", "location", "message")
+		t := output.NewTable(w).Headers("outcome", "location", "message")
 		s := t.Styles()
 		for _, f := range g.Findings {
 			loc := f.File

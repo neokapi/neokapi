@@ -116,7 +116,7 @@ type CheckRunResult struct {
 // (host.App.ReadBlocksForCheck / host.OverlayTargets / host.RunCheckTool /
 // host.FindingsFromBlock), run inside the project document cache
 // (WithDocumentCache) so unchanged files replay instead of re-parsing —
-// exactly the `kapi check` semantics: the gate fails on any critical finding.
+// exactly the `kapi check` semantics: the gate fails on any failing finding.
 func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, error) {
 	langs, lerr := canonicalLocales(filter.Languages)
 	if lerr != nil {
@@ -481,10 +481,6 @@ func checkComments(ctx context.Context, capp *host.App, projectPath string, file
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
 	cmd.Flags().String("project", projectPath, "")
-	// The gate `kapi check` applies with no flags given.
-	cmd.Flags().Int("max-critical", 0, "")
-	cmd.Flags().Int("max-major", -1, "")
-	cmd.Flags().Int("max-minor", -1, "")
 
 	paths := make([]string, 0, len(files))
 	for _, rf := range files {
