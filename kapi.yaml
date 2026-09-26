@@ -613,7 +613,7 @@ flows:
   # it. `recycle` already refuses to fill from a match whose target dropped an
   # inline code, and this is the same predicate applied to what a pass produced,
   # whatever venue produced it. It reports; the return-leg gate
-  # (scripts/check-sync-backed.sh) is what refuses.
+  # (scripts/check-loop-output.sh) is what refuses.
   memory-recycle:
     steps:
       - tool: recycle

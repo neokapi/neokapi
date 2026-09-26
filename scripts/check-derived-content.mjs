@@ -40,22 +40,18 @@
 //     node scripts/check-derived-content.mjs <lang> <target>:<reference>...
 //     node scripts/check-derived-content.mjs <lang> --only <path> ... <pair>...
 //     node scripts/check-derived-content.mjs <lang> --hold-back <pair>...
-//     node scripts/check-derived-content.mjs --backing <path>...
 //     node scripts/check-derived-content.mjs --self-test
 //
 // `--only` restricts the walk to the named artifacts, which is how the erasure
-// gate asks about exactly what a run wrote. `--backing` answers the other half
-// of the same question — whether a change under `.kapi/` says anything, or
-// merely re-serializes what was already there.
+// gate asks about exactly what a run wrote.
 //
 // `--hold-back` removes the defective leaves instead of reporting them, so a
 // run delivers the rest of what it wrote. It edits the artifacts, so only the
 // gate on the return leg passes it; every other caller is a reading.
 //
 // Run it through `make l10n-content-check` (the whole committed tier) or
-// `scripts/check-sync-backed.sh` (what a run wrote).
+// `scripts/check-loop-output.sh` (what a run wrote).
 
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -775,64 +771,6 @@ function checkSidecar(target, master, rules) {
   return defects;
 }
 
-// ── backing: does a change under .kapi/ say anything? ────────────────────────
-
-/**
- * A change under `.kapi/` is what tells a reviewer a derived artifact was
- * decided rather than merely regenerated, so it has to be read the way a
- * reviewer would: by what it says, not by whether the bytes moved.
- *
- * `ktb.Marshal` emits a canonical document — each concept's `terms[]` sorted —
- * and a committed file written before that guarantee normalizes on its first
- * pass through. Two array orderings swapping places carry no wording, no
- * decision and no shard, and the loop's first delivered night was reported as
- * backed by exactly that.
- */
-function canonical(value) {
-  if (Array.isArray(value)) {
-    return value.map(canonical).sort((a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1));
-  }
-  if (value !== null && typeof value === "object") {
-    const out = {};
-    for (const key of Object.keys(value).sort()) out[key] = canonical(value[key]);
-    return out;
-  }
-  return value;
-}
-
-function gitShow(rev, path) {
-  try {
-    return execFileSync("git", ["show", `${rev}:${path}`], {
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Classify one changed path under `.kapi/` as a decision or a normalization.
- * Anything that is not JSON, and anything added or removed outright, is a
- * decision: only a re-serialization of the same content is not.
- */
-function contextChangeKind(path) {
-  const before = gitShow("HEAD", path);
-  if (before === null) return "decision";
-  if (!existsSync(path)) return "decision";
-  const after = readFileSync(path, "utf8");
-  if (before === after) return "normalization";
-  if (!path.endsWith(".json")) return "decision";
-  try {
-    const a = JSON.stringify(canonical(JSON.parse(before)));
-    const b = JSON.stringify(canonical(JSON.parse(after)));
-    return a === b ? "normalization" : "decision";
-  } catch {
-    return "decision";
-  }
-}
-
 // ── the walk ─────────────────────────────────────────────────────────────────
 
 function sidecarPairs(lang) {
@@ -1140,13 +1078,6 @@ function selfTest() {
     false,
   );
 
-  check("a reordered array is not a decision", canonical({ a: [2, 1] }), canonical({ a: [1, 2] }));
-  check(
-    "a changed value is a decision",
-    JSON.stringify(canonical({ a: [1, 2] })) === JSON.stringify(canonical({ a: [1, 3] })),
-    false,
-  );
-
   // The recipe reader, over the shapes kapi.yaml is written in.
   const planted = [
     "version: v1  # a trailing comment",
@@ -1239,17 +1170,6 @@ function selfTest() {
 function main(argv) {
   if (argv.includes("--self-test")) return selfTest();
 
-  const backingAt = argv.indexOf("--backing");
-  if (backingAt !== -1) {
-    const paths = argv.slice(backingAt + 1);
-    if (paths.length === 0) {
-      console.error("usage: check-derived-content.mjs --backing <path>...");
-      return 2;
-    }
-    for (const path of paths) console.log(`${contextChangeKind(path)}\t${path}`);
-    return 0;
-  }
-
   const only = new Set();
   const rest = [];
   let hold = false;
@@ -1287,9 +1207,9 @@ function main(argv) {
   const { defects, checked } = validate(lang, parsed, only.size > 0 ? only : null, rules);
   if (!hold) return report(defects, checked);
 
-  // What was held back is printed as records rather than prose, the way
-  // `--backing` prints its classification: the gate that asked for it renders
-  // the report, so the two cannot describe the same run differently.
+  // What was held back is printed as records rather than prose: the gate that
+  // asked for it renders the report, so the two cannot describe the same run
+  // differently.
   const { withheld, remaining } = holdBack(defects);
   for (const d of withheld) {
     console.log(`withheld\t${d.target}\t${d.key}\t${d.kind}\t${d.detail}`);

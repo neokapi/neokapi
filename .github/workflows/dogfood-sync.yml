@@ -137,6 +137,9 @@ jobs:
           log="$RUNNER_TEMP/kapi-push.log"
           kapi context push | tee "$log"
           pushed="$(sed -n 's/^Pushed \([0-9][0-9]*\) operation.*/\1/p' "$log")"
+          # The count is also what the gate below takes as the decisions that
+          # account for a removed artifact.
+          echo "pushed=${pushed:-0}" >> "$GITHUB_OUTPUT"
           echo "note=\`kapi context push\` shared ${pushed:-0} context operation(s) on refs/kapi/context." >> "$GITHUB_OUTPUT"
 
       # The pipeline's third stage, the other thing kapi cannot do for itself. A
@@ -174,16 +177,21 @@ jobs:
       #
       # Coverage is not what it asks. A locale short of its source is the pending
       # state this loop absorbs, and a night that approved nothing is an ordinary
-      # night — what the committed context did is reported beside the verdict,
-      # not required for it. What a run *removed* still needs the context to
-      # explain it: a removal carries no content to read.
+      # night. What the run brought home to the context is reported by the push
+      # step above. What a run *removed* still needs a decision behind it: a
+      # removal carries no content to read, so the gate takes the number of
+      # operations the push step shared as `--decisions`, and refuses a removed
+      # artifact when that number is 0. A plan dispatch skips the push step,
+      # its output is empty, and the gate reads 0.
       #
       # Runs unconditionally rather than behind has-changes, so the gate reads
       # the tree itself rather than the action's account of it. A clean tree
       # (a `plan` dispatch, or a run with nothing to catch up) passes.
       - name: Refuse derived content that must not be committed
         id: gate
-        run: ./scripts/check-sync-backed.sh --hold-back
+        env:
+          PUSHED: ${{ steps.record.outputs.pushed }}
+        run: ./scripts/check-loop-output.sh --hold-back --decisions "${PUSHED:-0}"
 
       # The action reports; delivery is this workflow's own step, and it is a
       # pull request rather than a push to main. Approved wording is content
@@ -192,16 +200,14 @@ jobs:
       #
       # One rolling bot branch: an unmerged pull request is refreshed rather
       # than joined by a sibling, and a night with nothing pending pushes
-      # nothing and opens nothing. Only the paths the loop owns are staged —
-      # .kapi/ (the committed context) and the artifacts derived from it, the
-      # same two sets the gate above classifies.
+      # nothing and opens nothing. Only the artifacts the loop owns are staged,
+      # the same set the gate above classifies as derived.
       #
-      # Runs whatever the action reported, for the gate's reason: the return leg
-      # can move .kapi/ on a run that produced no derived change at all, and
-      # has-changes was computed before it ran.
+      # Runs whatever the action reported, for the gate's reason: the compile
+      # step writes owned artifacts after the action computed has-changes.
       #
       # The note reports what this run produced rather than what a run of this
-      # shape does: the return leg's own account of what it wrote, and the
+      # shape does: the push step's own account of what it shared, and the
       # gate's count of what it classified. A reviewer reads the note as
       # the summary of the run, so a sentence it cannot support is a sentence
       # that misreads the diff for them.
@@ -211,8 +217,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RECORD_NOTE: ${{ steps.record.outputs.note }}
           DERIVED: ${{ steps.gate.outputs.derived }}
-          BACKING: ${{ steps.gate.outputs.backing }}
-          DECISIONS: ${{ steps.gate.outputs.decisions }}
           WITHHELD: ${{ steps.gate.outputs.withheld }}
           WITHHELD_DETAIL: ${{ steps.gate.outputs.withheld_detail }}
         run: |
@@ -232,7 +236,7 @@ jobs:
             echo "::error title=Delivery refused::the derived set is empty — refusing to deliver a partial tree"
             exit 1
           fi
-          AUTO_PR_NOTE="\`kapi up\` converged this repository's content on bowrain.cloud. ${RECORD_NOTE} The content gate read ${DERIVED:-0} derived change(s) and found them sound; \`.kapi/\` moved in ${BACKING:-0} file(s), ${DECISIONS:-0} of which carry a decision rather than a re-serialization."
+          AUTO_PR_NOTE="\`kapi up\` converged this repository's content on bowrain.cloud. ${RECORD_NOTE} The content gate read ${DERIVED:-0} derived change(s) and found them sound."
           # What the gate withheld is named here rather than counted. A reviewer
           # deciding whether to merge the night needs to know which string each
           # surface is still missing and why it was refused, and the diff cannot

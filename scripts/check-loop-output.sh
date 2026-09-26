@@ -3,21 +3,23 @@
 # Guard: a convergence run commits derived artifacts only when what it wrote in
 # them is sound.
 #
-# `kapi up` writes target-language artifacts — catalogs, narration sidecars,
-# runtime dictionaries — out of the project store. This gate classifies
+# `kapi up` writes target-language artifacts (catalogs, narration sidecars,
+# runtime dictionaries) out of the project store. This gate classifies
 # everything the run left in the working tree, using git for all path matching:
 #
-#   backing  — under .kapi/: a decision shard, terms, a memory seed, the voice
-#              profile, a profile. The context graph moved.
 #   derived  — every committed artifact the pipeline owns (`make
 #              l10n-owned-paths`): the target-language tier `kapi up` writes and
 #              the build tier the extractors and compilers write. Both are
 #              legitimate output of a convergence run; the byte gate covers only
 #              the second, which is why this gate reads the union rather than
 #              `make l10n-derived-paths`.
-#   foreign  — everything else. A convergence run has no business writing it, so
-#              its presence is a symptom of the run rather than content to
-#              deliver, whatever the delivery step stages.
+#   foreign  — every other change git reports. A convergence run has no business
+#              writing it, so its presence is a symptom of the run rather than
+#              content to deliver, whatever the delivery step stages.
+#
+# The project store under .kapi/ is gitignored as a whole, so nothing a run
+# leaves there reaches either list. The context a run brought home travels on
+# refs/kapi/context, and the workflow's `kapi context push` step reports it.
 #
 # It then reads the derived artifacts themselves
 # (`scripts/check-derived-content.mjs`) and refuses — non-zero, naming every
@@ -46,30 +48,26 @@
 # sidecar defect refuse the run exactly as before: a sidecar overlays its master
 # scene for scene, so there is no leaf to take out of one.
 #
-# Backing is reported rather than required. A night that converged and brought
-# nothing home to `.kapi/` is the ordinary state of a repository whose source
-# moves daily and whose reviewers approve in batches, and refusing it made the
-# nightly red on every such night. What it is worth saying about backing is what
-# it says: `--backing` compares each changed context file against HEAD after
-# canonicalizing it, so a rewrite that re-sorted an array and decided nothing is
-# reported as the normalization it is rather than as a decision.
+# A removal carries no content to read, so what excuses one is the context: an
+# owned artifact that disappeared is delivered only when the run brought
+# decisions home. `--decisions N` passes that count, which the nightly takes
+# from the operations its `kapi context push` step shared on refs/kapi/context.
+# With the default of 0, a catalog or a sidecar the run removed is an erasure
+# and refuses the run. A sidecar that became identical to its source is dropped
+# by design, and it is dropped because a decision changed its wording.
 #
 # Usage:
-#     ./scripts/check-sync-backed.sh                 # gate the working tree
-#     ./scripts/check-sync-backed.sh --repo DIR      # gate another checkout
-#     ./scripts/check-sync-backed.sh --derived 'a b' # override the derived set
-#     ./scripts/check-sync-backed.sh --pairs 'L a:b' # override the content pairs
-#     ./scripts/check-sync-backed.sh --hold-back     # withhold defective leaves
-#     ./scripts/check-sync-backed.sh --self-test     # prove the gate both ways
+#     ./scripts/check-loop-output.sh                 # gate the working tree
+#     ./scripts/check-loop-output.sh --repo DIR      # gate another checkout
+#     ./scripts/check-loop-output.sh --derived 'a b' # override the derived set
+#     ./scripts/check-loop-output.sh --pairs 'L a:b' # override the content pairs
+#     ./scripts/check-loop-output.sh --hold-back     # withhold defective leaves
+#     ./scripts/check-loop-output.sh --decisions N   # decisions the run brought home
+#     ./scripts/check-loop-output.sh --self-test     # prove the gate both ways
 #
 # Wired into .github/workflows/dogfood-sync.yml between `kapi up` and the
 # delivery step, and self-tested in the repo-guards job of ci.yml.
 set -euo pipefail
-
-# Under .kapi/ minus the derived projection of it. .kapi/work/ is gitignored, so
-# the exclusion is belt and braces: a work tree that stopped being ignored must
-# not read as the context graph moving.
-readonly BACKING_SPECS=('.kapi' ':(exclude).kapi/work')
 
 # The reader that answers what was written. Kept beside this script so a
 # checkout that has one has the other.
@@ -144,11 +142,11 @@ content_defects() {
   [ "${#paths[@]}" -gt 0 ] || return 0
 
   if [ ! -f "$CONTENT_READER" ]; then
-    echo "check-sync-backed: cannot read derived content — ${CONTENT_READER} is missing" >&2
+    echo "check-loop-output: cannot read derived content — ${CONTENT_READER} is missing" >&2
     return 2
   fi
   if ! command -v node >/dev/null 2>&1; then
-    echo "check-sync-backed: cannot read derived content — node is not on PATH" >&2
+    echo "check-loop-output: cannot read derived content — node is not on PATH" >&2
     return 2
   fi
 
@@ -203,22 +201,24 @@ held_back_block() {
 withheld_output() {
   [ -n "${GITHUB_OUTPUT:-}" ] || return 0
   {
-    echo 'withheld_detail<<CHECK_SYNC_BACKED_WITHHELD'
+    echo 'withheld_detail<<CHECK_LOOP_OUTPUT_WITHHELD'
     if [ -n "$1" ]; then render_withheld "$1"; fi
-    echo 'CHECK_SYNC_BACKED_WITHHELD'
+    echo 'CHECK_LOOP_OUTPUT_WITHHELD'
   } >>"$GITHUB_OUTPUT"
 }
 
 # ── the gate ─────────────────────────────────────────────────────────────────
 #
 # $1 is the repository to inspect; $2 the whitespace-separated derived pathspecs;
-# $3 the content pairs, one locale per line. Returns 0 when the tree is
-# committable, 1 when it refuses.
+# $3 the content pairs, one locale per line; $4 non-empty to hold defective
+# leaves back; $5 the number of decisions the run brought home. Returns 0 when
+# the tree is committable, 1 when it refuses.
 gate() {
   local repo="$1" derived_spec="$2" content_pairs="${3:-}" hold="${4:-}"
+  local decisions="${5:-0}"
   local rec path
-  local all_entries=() all_paths=() derived_paths=() backing_paths=()
-  local refused_foreign=() backing_entries=() derived_entries=()
+  local all_entries=() all_paths=() derived_paths=()
+  local refused_foreign=() derived_entries=()
 
   cd "$repo"
 
@@ -234,7 +234,7 @@ gate() {
   # pathspec after it lists the whole tree, which would classify every change as
   # derived and turn this gate into an approval.
   if [ "${#derived_specs[@]}" -eq 0 ]; then
-    echo "check-sync-backed: the derived set is empty — refusing to classify anything as derived" >&2
+    echo "check-loop-output: the derived set is empty — refusing to classify anything as derived" >&2
     return 2
   fi
 
@@ -247,46 +247,22 @@ gate() {
     derived_paths+=("${rec:3}")
   done < <(porcelain "${derived_specs[@]}")
 
-  while IFS= read -r -d '' rec; do
-    backing_paths+=("${rec:3}")
-  done < <(porcelain "${BACKING_SPECS[@]}")
-
   local i=0
   while [ "$i" -lt "${#all_entries[@]}" ]; do
     rec="${all_entries[$i]}"
     path="${all_paths[$i]}"
     i=$((i + 1))
-    if in_list "$path" ${backing_paths[@]+"${backing_paths[@]}"}; then
-      backing_entries+=("$rec")
-    elif in_list "$path" ${derived_paths[@]+"${derived_paths[@]}"}; then
+    if in_list "$path" ${derived_paths[@]+"${derived_paths[@]}"}; then
       derived_entries+=("$rec")
     else
       refused_foreign+=("$rec")
     fi
   done
 
-  # What the context change says, rather than that it happened. A file whose
-  # canonical form is what HEAD already held decided nothing, whatever its bytes
-  # did — the reordering that was reported as backing 48 derived files for three
-  # nights running.
-  local decisions=0 normalizations=0 kind
-  if [ "${#backing_paths[@]}" -gt 0 ] && [ -f "$CONTENT_READER" ]; then
-    while IFS=$'\t' read -r kind path; do
-      [ -n "$kind" ] || continue
-      if [ "$kind" = "normalization" ]; then
-        normalizations=$((normalizations + 1))
-      else
-        decisions=$((decisions + 1))
-      fi
-    done < <(node "$CONTENT_READER" --backing "${backing_paths[@]}" 2>/dev/null || true)
-  else
-    decisions="${#backing_paths[@]}"
-  fi
-
   # A run's own output is judged by what is in it. What a run *removed* has no
-  # content to read, so the committed context stays the authority there: a
-  # catalog or a sidecar that disappeared is an erasure unless something under
-  # .kapi/ decided it, and a re-serialization decides nothing.
+  # content to read, so the decisions the run brought home are the authority
+  # there: a catalog or a sidecar that disappeared in a run that decided
+  # nothing is an erasure.
   local refused_deleted=()
   if [ "$decisions" -eq 0 ]; then
     local j=0
@@ -323,29 +299,22 @@ gate() {
 
   if [ "$content_status" -eq 0 ] && [ "${#refused_foreign[@]}" -eq 0 ] &&
     [ "${#refused_deleted[@]}" -eq 0 ]; then
-    outputs "derived=${#derived_entries[@]}" "backing=${#backing_entries[@]}" \
-      "decisions=${decisions}" "withheld=${withheld_count}"
+    outputs "derived=${#derived_entries[@]}" "withheld=${withheld_count}"
     withheld_output "$withheld_out"
-    if [ "${#derived_entries[@]}" -eq 0 ] && [ "${#backing_entries[@]}" -eq 0 ]; then
-      echo "check-sync-backed: the run left nothing to commit"
-      summary "### Sync content gate" "" "The run left nothing to commit."
+    if [ "${#derived_entries[@]}" -eq 0 ]; then
+      echo "check-loop-output: the run left nothing to commit"
+      summary "### Loop output gate" "" "The run left nothing to commit."
       return 0
     fi
-    echo "check-sync-backed: ${#derived_entries[@]} derived change(s) carry sound content;" \
-      "${decisions} context decision(s), ${normalizations} normalization(s)"
+    echo "check-loop-output: ${#derived_entries[@]} derived change(s) carry sound content;" \
+      "${decisions} decision(s) brought home"
     if [ -n "$withheld_out" ]; then
       held_back_block "$withheld_count" "$withheld_out"
     fi
-    if [ "${#backing_entries[@]}" -gt 0 ]; then
-      echo "context (.kapi/):"
-      report "${backing_entries[@]}"
-    fi
-    if [ "${#derived_entries[@]}" -gt 0 ]; then
-      echo "derived:"
-      report "${derived_entries[@]}"
-    fi
-    summary "### Sync content gate" "" \
-      "${#derived_entries[@]} derived change(s) carry sound content. Context: \`${decisions}\` decision(s), \`${normalizations}\` normalization(s)."
+    echo "derived:"
+    report "${derived_entries[@]}"
+    summary "### Loop output gate" "" \
+      "${#derived_entries[@]} derived change(s) carry sound content. Decisions brought home: \`${decisions}\`."
     if [ -n "$withheld_out" ]; then
       summary "" "\`${withheld_count}\` string(s) held back, so those surfaces fall back to their source:" \
         "" '```' "$(render_withheld "$withheld_out")" '```'
@@ -353,7 +322,7 @@ gate() {
     return 0
   fi
 
-  echo "check-sync-backed: REFUSED — this run must not be committed" >&2
+  echo "check-loop-output: REFUSED — this run must not be committed" >&2
 
   if [ "$content_status" -ne 0 ]; then
     cat >&2 <<'EOF'
@@ -380,13 +349,12 @@ EOF
   if [ "${#refused_deleted[@]}" -gt 0 ]; then
     cat >&2 <<'EOF'
 
-The run removed artifacts the loop owns while the committed context decided
-nothing. A removal carries no content to read, so it is an erasure until
-something under .kapi/ explains it — a decision shard under .kapi/state/, a
-change to .kapi/terms.json, a memory seed, .kapi/voice.yaml, or a profile. A
-context file that only re-serialized what was already there is not that.
+The run removed artifacts the loop owns and brought no decisions home. A
+removal carries no content to read, so with nothing decided behind it, it is an
+erasure. The nightly passes the count of operations `kapi context push` shared
+as --decisions; a run that shared none has nothing to account for a removal.
 
-Refused — removed, nothing behind it:
+Refused, removed with no decision behind it:
 EOF
     report "${refused_deleted[@]}" >&2
   fi
@@ -394,22 +362,22 @@ EOF
   if [ "${#refused_foreign[@]}" -gt 0 ]; then
     cat >&2 <<'EOF'
 
-The run also changed files outside both the context graph and the artifacts the
-loop owns. A convergence run does not author these, so a run that wrote them is
-not a run to deliver from:
+The run also changed files outside the artifacts the loop owns. A convergence
+run does not author these, so a run that wrote them is not a run to deliver
+from:
 
-Refused — outside the loop's scope:
+Refused, outside the loop's scope:
 EOF
     report "${refused_foreign[@]}" >&2
   fi
 
   local n=$((${#refused_foreign[@]} + ${#refused_deleted[@]}))
   echo "" >&2
-  echo "check-sync-backed: refused ${n} file(s) the run may not deliver" >&2
+  echo "check-loop-output: refused ${n} file(s) the run may not deliver" >&2
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
     echo "::error title=Sync refused::the run produced content that must not be committed — see the step log"
   fi
-  summary "### Sync content gate — REFUSED" "" \
+  summary "### Loop output gate: REFUSED" "" \
     "The run produced derived content that must not be committed." "" \
     '```' "$(printf '%s\n' "$defect_out"
       report ${refused_deleted[@]+"${refused_deleted[@]}"} ${refused_foreign[@]+"${refused_foreign[@]}"})" '```'
@@ -424,8 +392,8 @@ EOF
 resolve_derived() {
   local repo="$1" spec
   if ! spec="$(make -C "$repo" -s l10n-owned-paths 2>/dev/null)" || [ -z "${spec//[[:space:]]/}" ]; then
-    echo "check-sync-backed: cannot read the derived set from 'make l10n-owned-paths' in ${repo}" >&2
-    echo "check-sync-backed: pass --derived '<pathspecs>' for a checkout without the Makefile" >&2
+    echo "check-loop-output: cannot read the derived set from 'make l10n-owned-paths' in ${repo}" >&2
+    echo "check-loop-output: pass --derived '<pathspecs>' for a checkout without the Makefile" >&2
     return 1
   fi
   printf '%s\n' "$spec"
@@ -438,8 +406,8 @@ resolve_derived() {
 resolve_pairs() {
   local repo="$1" pairs
   if ! pairs="$(make -C "$repo" -s l10n-content-pairs 2>/dev/null)" || [ -z "${pairs//[[:space:]]/}" ]; then
-    echo "check-sync-backed: cannot read the content pairs from 'make l10n-content-pairs' in ${repo}" >&2
-    echo "check-sync-backed: pass --pairs '<lang> <artifact>:<reference>...' for a checkout without the Makefile" >&2
+    echo "check-loop-output: cannot read the content pairs from 'make l10n-content-pairs' in ${repo}" >&2
+    echo "check-loop-output: pass --pairs '<lang> <artifact>:<reference>...' for a checkout without the Makefile" >&2
     return 1
   fi
   printf '%s\n' "$pairs"
@@ -482,17 +450,15 @@ narration:
 '
 
 # planted_repo builds a scratch checkout shaped like this one and prints its
-# path. It holds a committed context, a recipe naming which leaves are prose,
-# one derived catalog beside the inventory it derives from, one demo whose
-# narration sidecar does not exist yet, and one source file.
+# path. It ignores the project store the way this repository does, and holds a
+# recipe naming which leaves are prose, one derived catalog beside the
+# inventory it derives from, one demo whose narration sidecar does not exist
+# yet, and one source file.
 planted_repo() {
   local dir="$1"
-  mkdir -p "$dir/.kapi/memory" "$dir/.kapi/state" "$dir/core/i18n/catalogs" \
-    "$dir/core/i18n/builtins" "$dir/harness/demos/demo-a" "$dir/core/flow"
-  printf 'work/\n' >"$dir/.kapi/.gitignore"
-  printf '{"entries":[]}\n' >"$dir/.kapi/memory/docs-nb.memory.json"
-  printf '{"concepts":[{"id":"a","terms":[{"locale":"en","text":"berth"},{"locale":"nb","text":"kaiplass"}]}]}\n' \
-    >"$dir/.kapi/terms.json"
+  mkdir -p "$dir/core/i18n/catalogs" "$dir/core/i18n/builtins" \
+    "$dir/harness/demos/demo-a" "$dir/core/flow"
+  printf '/.kapi/\n' >"$dir/.gitignore"
   printf '%s\n' "$SELFTEST_SOURCE" >"$dir/core/i18n/builtins/metadata.json"
   printf '%s\n' "$SELFTEST_TARGET" >"$dir/core/i18n/catalogs/nb.json"
   printf '%s' "$SELFTEST_MASTER" >"$dir/harness/demos/demo-a/demo.yaml"
@@ -537,7 +503,7 @@ expect() {
   local label="$1" repo="$2" want="$3"
   shift 3
   local out rc=0 path
-  out="$(gate "$repo" "$SELFTEST_DERIVED" "$SELFTEST_PAIRS" "${HOLD:-}" 2>&1)" || rc=$?
+  out="$(gate "$repo" "$SELFTEST_DERIVED" "$SELFTEST_PAIRS" "${HOLD:-}" "${DECISIONS:-0}" 2>&1)" || rc=$?
   if [ "$rc" -ne "$want" ]; then
     echo "✖ self-test: ${label} — expected exit ${want}, got ${rc}:"
     printf '%s\n' "$out" | sed 's/^/    /'
@@ -583,7 +549,7 @@ self_test() {
   # other. What it wrote is what decides whether it may be committed.
   printf '%s\n' "${SELFTEST_TARGET/Kontrollerte/Sjekket}" \
     >"$repo/core/i18n/catalogs/nb.json"
-  expect "a catalog rewritten with no context change commits when its content is sound" \
+  expect "a rewritten catalog commits when its content is sound" \
     "$repo" 0 "core/i18n/catalogs/nb.json"
 
   # #2031: the residue class. The translation keeps its markers but loses the
@@ -603,10 +569,6 @@ self_test() {
   printf 'not json\n' >"$repo/core/i18n/catalogs/nb.json"
   expect "a catalog that no longer parses is refused" "$repo" 1 \
     "core/i18n/catalogs/nb.json" "unparseable"
-
-  # A context change beside it does not buy content past the gate.
-  printf '{"entries":[{"t":"Hallo"}]}\n' >"$repo/.kapi/memory/docs-nb.memory.json"
-  expect "backing does not excuse unsound content" "$repo" 1 "unparseable"
 
   git -C "$repo" checkout -q -- .
   printf '%s' "$SELFTEST_SIDECAR" >"$repo/harness/demos/demo-a/demo.nb.yaml"
@@ -633,38 +595,61 @@ self_test() {
   git -C "$repo" checkout -q -- .
   rm -f "$repo/harness/demos/demo-a/demo.nb.yaml"
   rm -f "$repo/core/i18n/catalogs/nb.json"
-  expect "deleting a catalog with no context decision is refused" "$repo" 1 \
+  expect "deleting a catalog in a run that decided nothing is refused" "$repo" 1 \
     "core/i18n/catalogs/nb.json" "erasure"
 
-  # #2018: the reordering that backed the loop's first delivered night. The
-  # bytes moved and the file says exactly what it said before, so it explains
-  # nothing that the run removed.
-  printf '{"concepts":[{"id":"a","terms":[{"locale":"nb","text":"kaiplass"},{"locale":"en","text":"berth"}]}]}\n' \
-    >"$repo/.kapi/terms.json"
-  expect "a re-serialized context file does not explain a removal" "$repo" 1 \
+  DECISIONS=0
+  expect "deleting a catalog with --decisions 0 is refused" "$repo" 1 \
     "core/i18n/catalogs/nb.json" "erasure"
 
-  printf '{"concepts":[{"id":"a","terms":[{"locale":"en","text":"berth"},{"locale":"nb","text":"quay"}]}]}\n' \
-    >"$repo/.kapi/terms.json"
-  expect "a context decision explains the same removal" "$repo" 0 \
-    "core/i18n/catalogs/nb.json" ".kapi/terms.json"
+  # Decisions the run brought home account for the removal. They do not buy
+  # anything else past the gate: what the run wrote is still read.
+  DECISIONS=3
+  expect "deleting a catalog with --decisions 3 commits" "$repo" 0 \
+    "core/i18n/catalogs/nb.json" "3 decision(s)"
+
+  printf '%s' "${SELFTEST_SIDECAR//id: discover/id: oppdag}" \
+    >"$repo/harness/demos/demo-a/demo.nb.yaml"
+  expect "decisions do not excuse unsound content beside a removal" "$repo" 1 \
+    "harness/demos/demo-a/demo.nb.yaml" "oppdag" "identifier"
+  rm -f "$repo/harness/demos/demo-a/demo.nb.yaml"
 
   printf 'package flow // edited\n' >"$repo/core/flow/executor.go"
-  printf '{"concepts":[{"id":"b"}]}\n' >"$repo/.kapi/terms.json"
-  expect "a source edit is refused even with the context moved" "$repo" 1 \
+  expect "decisions do not excuse a source edit" "$repo" 1 \
+    "core/flow/executor.go" "outside the loop's scope"
+  DECISIONS=""
+  git -C "$repo" checkout -q -- .
+  rm -f "$repo/core/i18n/catalogs/nb.json"
+
+  printf 'package flow // edited\n' >"$repo/core/flow/executor.go"
+  expect "a source edit is refused" "$repo" 1 \
     "core/flow/executor.go" "outside the loop's scope"
 
+  # What a run leaves in the project store is ignored by git, so it is neither
+  # derived nor foreign: the store's work tree, its database and a decision
+  # shard all stay out of the classification.
   git -C "$repo" checkout -q -- .
-  printf '{"concepts":[{"id":"b"}]}\n' >"$repo/.kapi/terms.json"
-  expect "context moving on its own commits" "$repo" 0 ".kapi/terms.json"
-
-  git -C "$repo" checkout -q -- .
-  mkdir -p "$repo/.kapi/work"
+  mkdir -p "$repo/.kapi/work" "$repo/.kapi/state"
   printf 'store\n' >"$repo/.kapi/work/store.db"
-  expect "the gitignored work tree is invisible" "$repo" 0
+  printf 'store\n' >"$repo/.kapi/store.db"
+  printf '{"op":"approve"}\n' >"$repo/.kapi/state/decisions.jsonl"
+  local store_out store_rc=0
+  store_out="$(gate "$repo" "$SELFTEST_DERIVED" "$SELFTEST_PAIRS" 2>&1)" || store_rc=$?
+  if [ "$store_rc" -eq 0 ] && ! printf '%s\n' "$store_out" | grep -qF ".kapi/"; then
+    echo "✓ self-test: files the run left under .kapi/ are ignored, not refused as foreign"
+  else
+    echo "✖ self-test: the project store reached the classification (exit ${store_rc}):"
+    printf '%s\n' "$store_out" | sed 's/^/    /'
+    SELFTEST_STATUS=1
+  fi
+
+  # A store write beside a removal does not make the removal deliverable.
+  rm -f "$repo/core/i18n/catalogs/nb.json"
+  expect "a removal is refused with the project store written beside it" "$repo" 1 \
+    "core/i18n/catalogs/nb.json" "erasure"
 
   git -C "$repo" checkout -q -- .
-  rm -rf "$repo/.kapi/work"
+  rm -rf "$repo/.kapi"
 
   printf '%s\n' "${SELFTEST_TARGET/Kontrollerte/Sjekket}" >"$repo/core/i18n/catalogs/nb.json"
   local out rc=0
@@ -680,17 +665,13 @@ self_test() {
 
   # What the delivery step tells a reviewer the run produced comes from here, so
   # a run that classified two derived changes must say so in its outputs and not
-  # merely in its log — and it must say how much of the context change was a
-  # decision rather than a re-serialization.
+  # merely in its log.
   : >"$outfile"
   printf '%s\n' "${SELFTEST_TARGET/Kontrollerte/Sjekket}" >"$repo/core/i18n/catalogs/nb.json"
   printf '%s' "$SELFTEST_SIDECAR" >"$repo/harness/demos/demo-a/demo.nb.yaml"
-  printf '{"concepts":[{"id":"a","terms":[{"locale":"nb","text":"kaiplass"},{"locale":"en","text":"berth"}]}]}\n' \
-    >"$repo/.kapi/terms.json"
-  expect "two sound derived changes behind a re-serialized context commit" "$repo" 0
-  if grep -qx 'derived=2' "$outfile" && grep -qx 'backing=1' "$outfile" &&
-    grep -qx 'decisions=0' "$outfile"; then
-    echo "✓ self-test: the counts are published as step outputs, normalization apart from decision"
+  expect "two sound derived changes commit" "$repo" 0
+  if grep -qx 'derived=2' "$outfile" && grep -qx 'withheld=0' "$outfile"; then
+    echo "✓ self-test: the counts are published as step outputs"
   else
     echo "✖ self-test: the step outputs do not carry the counts:"
     sed 's/^/    /' "$outfile"
@@ -800,16 +781,41 @@ self_test() {
     echo "✓ self-test: a checkout that cannot name its derived set is fatal, not permissive"
   fi
 
+  local count
+  for count in "" "three" "-1"; do
+    rc=0
+    out="$("$0" --repo "$repo" --decisions "$count" 2>&1)" || rc=$?
+    if [ "$rc" -eq 2 ] && printf '%s\n' "$out" | grep -qF "non-negative integer"; then
+      echo "✓ self-test: --decisions '${count}' is refused, not read as a count"
+    else
+      echo "✖ self-test: --decisions '${count}' was accepted (exit ${rc}):"
+      printf '%s\n' "$out" | sed 's/^/    /'
+      SELFTEST_STATUS=1
+    fi
+  done
+
   return "$SELFTEST_STATUS"
 }
 
 # ── entry point ──────────────────────────────────────────────────────────────
 
 main() {
-  local repo="" derived="" pairs="" mode="gate" hold=""
+  local repo="" derived="" pairs="" mode="gate" hold="" decisions=0
 
   while [ $# -gt 0 ]; do
     case "$1" in
+      --decisions)
+        decisions="${2:-}"
+        # A count that is not one is refused rather than read as zero or as
+        # many: either reading would decide a removal on a typo.
+        case "$decisions" in
+          '' | *[!0-9]*)
+            echo "check-loop-output: --decisions takes a non-negative integer, got '${decisions}'" >&2
+            return 2
+            ;;
+        esac
+        shift 2
+        ;;
       --repo)
         repo="${2:-}"
         shift 2
@@ -835,7 +841,7 @@ main() {
         return 0
         ;;
       *)
-        echo "check-sync-backed: unknown argument: $1" >&2
+        echo "check-loop-output: unknown argument: $1" >&2
         usage >&2
         return 2
         ;;
@@ -860,7 +866,7 @@ main() {
     pairs="$(resolve_pairs "$repo")" || return 2
   fi
 
-  gate "$repo" "$derived" "$pairs" "$hold"
+  gate "$repo" "$derived" "$pairs" "$hold" "$decisions"
 }
 
 main "$@"

@@ -17,13 +17,12 @@
 //     appended — an edit, not a re-issue.
 //
 //   - BYTE-STABLE. A write whose result is identical to what is already there
-//     does not happen at all. This is not tidiness: `scripts/check-sync-backed.sh`
-//     reads any change under `.kapi/` as the decision backing a run's derived
-//     artifacts, and asks for backing over the run as a whole. A file that
-//     churns on its own therefore manufactures backing for artifacts nothing
-//     decided — the failure the gate exists to prevent, arriving through a path
-//     no human chose. It follows the terms projection, which compares the merged
-//     document against the bytes on disk for the same reason.
+//     does not happen at all. This is not tidiness: `scripts/check-loop-output.sh`
+//     refuses a convergence run that changed any tracked file outside the
+//     artifacts the pipeline owns, the recipe included. A file that churns on
+//     its own therefore refuses a run in which nothing was decided. It follows
+//     the terms projection, which compares the merged document against the
+//     bytes on disk for the same reason.
 //
 // What it does not preserve is a key the value's type does not model. The
 // loaders are non-strict, so such a key is already dropped on the way in; the

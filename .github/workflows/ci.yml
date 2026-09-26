@@ -1218,8 +1218,8 @@ jobs:
       # classification against real scratch repositories, so a change to the
       # derived set or to the classification cannot pass here and disarm the
       # nightly there.
-      - name: Guard — the sync commits only what the committed context explains
-        run: ./scripts/check-sync-backed.sh --self-test
+      - name: Guard — the sync commits only sound loop output
+        run: ./scripts/check-loop-output.sh --self-test
 
       # Same reason, one step further along: the delivery that carries a
       # scheduled job's output to a reviewable pull request also runs nowhere a
