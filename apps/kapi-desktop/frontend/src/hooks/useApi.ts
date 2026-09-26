@@ -48,6 +48,7 @@ import type {
   AgentContextView,
   WorkspaceHome,
   WorkspaceRemoval,
+  ContextDigest,
   ContextFeed,
   ContextFeedEntry,
   ContextAwaiting,
@@ -474,6 +475,18 @@ export const api = {
   /** Move an established rule to a broader point. */
   widenContextRule: (req: ContextDecisionRequest) =>
     call<ContextFeedEntry>("WidenContextRule", req),
+  /** What kapi learned about the tab's project; `since` empty reads the marker. */
+  projectContextDigest: (tabID: string, since: string) =>
+    call<ContextDigest>("ProjectContextDigest", tabID, since),
+  /** Record that the person looked now; returns the marker it replaced. */
+  markProjectContextDigestSeen: (tabID: string) =>
+    call<string>("MarkProjectContextDigestSeen", tabID),
+  /** Keep a group of suggestions in one step. */
+  keepContextGroup: (projectKey: string, ids: string[]) =>
+    call<number>("KeepContextGroup", projectKey, ids),
+  /** Settle a conflict: set the rivals aside and keep the chosen rule. */
+  chooseContextSide: (req: ContextDecisionRequest) =>
+    call<ContextFeedEntry>("ChooseContextSide", req),
 
   // Settings
   getSettings: () =>
