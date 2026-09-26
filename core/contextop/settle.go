@@ -44,6 +44,10 @@ const (
 	// form and the rejected forms. It adds to a suggestion's standing, and
 	// content moving to a rejected form counts against it.
 	SignalUsage SignalSource = "usage"
+	// SignalApplied is an agent's applied edit writing the preferred form. It
+	// adds to a suggestion's standing and establishes nothing, because an
+	// agent following a suggestion is no person's signal.
+	SignalApplied SignalSource = "applied"
 )
 
 // Signal is the evidence a signal operation carries.
@@ -65,6 +69,8 @@ type Signal struct {
 	// Within is the part of the project a usage count covers, as a path
 	// prefix: "docs/". Empty covers the whole project.
 	Within string `json:"within,omitempty"`
+	// Session is the agent session whose edit an applied signal records.
+	Session string `json:"session,omitempty"`
 }
 
 // Standing is the evidence for and against a suggestion, as plain counts. It
@@ -79,6 +85,8 @@ type Standing struct {
 	Merges []string `json:"merges,omitempty"`
 	// Uses is the latest count of the rule's forms in the project's content.
 	Uses *Uses `json:"uses,omitempty"`
+	// Applied counts the agent edits that wrote the rule's preferred form.
+	Applied int `json:"applied,omitempty"`
 	// Against counts the signals against the rule, and AgainstBy names them.
 	Against   int      `json:"against,omitempty"`
 	AgainstBy []string `json:"against_by,omitempty"`
@@ -126,6 +134,9 @@ func (s *Standing) Describe() string {
 			use += " in " + s.Uses.Within
 		}
 		parts = append(parts, use)
+	}
+	if s.Applied > 0 {
+		parts = append(parts, "applied in "+plural(s.Applied, "agent edit", "agent edits"))
 	}
 	if len(s.Merges) > 0 {
 		parts = append(parts, "merged in "+strings.Join(s.Merges, ", "))
@@ -349,6 +360,8 @@ func settleGroup(records []Record, f *settleFacts, group, dropped []int, rivals 
 				}
 			case SignalUsage:
 				usage = append(usage, sig)
+			case SignalApplied:
+				standing.Applied++
 			}
 		}
 	}
@@ -450,7 +463,7 @@ func address(r Record) string {
 			return ""
 		}
 		s := r.Signal
-		parts = []string{string(r.Kind), r.Target, string(s.Source), s.Commit, s.Within,
+		parts = []string{string(r.Kind), r.Target, string(s.Source), s.Commit, s.Within, s.Session,
 			strconv.Itoa(s.Preferred), strconv.Itoa(s.Rejected)}
 	default:
 		return ""

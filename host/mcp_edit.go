@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/neokapi/neokapi/core/contextop"
 	coretools "github.com/neokapi/neokapi/core/tools"
 )
 
@@ -65,11 +66,11 @@ func registerEditMCPTools(server *mcp.Server, a *App) {
 			"such a comment did not run, with the reason formatter, and a person applies it with kapi apply in a terminal. " +
 			"Each written file's result carries a check scoped to the change.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
-		return a.applyEditsMCP(ctx, in)
+		return a.applyEditsMCP(ctx, mcpAgentActor(req), in)
 	})
 }
 
-func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
+func (a *App) applyEditsMCP(ctx context.Context, actor contextop.Actor, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
 	if err := validateContentWording(in.Changeset); err != nil {
 		return nil, applyEditsMCPOutput{}, err
 	}
@@ -110,6 +111,7 @@ func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallT
 		}
 	}
 
+	edited := map[string][]string{}
 	for _, file := range fileOrder {
 		report := &coretools.ApplyReport{}
 		byID, byHash := buildEditMaps(byFile[file])
@@ -118,10 +120,14 @@ func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallT
 			return nil, applyEditsMCPOutput{}, fmt.Errorf("%s: %w", DisplayName(file), derr)
 		}
 		out.Content.Applied = append(out.Content.Applied, report.Applied...)
+		if texts := appliedTexts(byFile[file], report.Applied); len(texts) > 0 {
+			edited[file] = texts
+		}
 		out.Content.Skipped = append(out.Content.Skipped, report.Skipped...)
 		out.Content.Stale = append(out.Content.Stale, report.Stale...)
 		out.Content.GuardFailed = append(out.Content.GuardFailed, report.GuardFailed...)
 	}
+	a.noteAgentEdits(ctx, recipe, actor, edited)
 	if len(comments) > 0 {
 		// The check of a written comment resolves governance from the call's
 		// project, as check_file does, and reads the file in that project's
