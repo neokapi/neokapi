@@ -178,7 +178,7 @@ jobs:
       # human should act on: coverage below a bar is pending work, and an
       # artifact that translated a machine identifier or dropped a placeholder is
       # a defect already committed. It gates on the return leg
-      # (scripts/check-sync-backed.sh), never on a pull request — a source change
+      # (scripts/check-loop-output.sh), never on a pull request — a source change
       # must not fail because a target has not caught up with it.
       - name: Target-language standing (informational — never gates)
         if: always()

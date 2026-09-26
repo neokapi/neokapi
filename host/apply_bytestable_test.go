@@ -19,14 +19,11 @@ import (
 // comments and key order survive a change, and a change that decides nothing
 // writes nothing at all.
 //
-// The second is a gate, not tidiness. `scripts/check-sync-backed.sh` classifies
-// a convergence run's tree into backing (`.kapi/` minus `.kapi/work`), derived
-// and foreign, and asks for backing over the run as a WHOLE: one backing entry
-// explains every derived change in that run. A `kapi apply` that rewrote a file
-// under `.kapi/` only to reformat it would manufacture backing for artifacts
-// nothing decided, which is the failure the gate exists to prevent. The recipe
-// fails the other way: at the repo root it is foreign, so a run that rewrote it
-// is refused by name even with backing present.
+// The second is a gate, not tidiness. `scripts/check-loop-output.sh` classifies
+// a convergence run's tree into derived (the artifacts the pipeline owns) and
+// foreign (every other change git reports). The recipe at the repo root is
+// foreign, so a `kapi apply` that rewrote it only to reformat it would get a
+// run refused by name even though nothing in it was decided.
 //
 // An asset apply writes the project's stores, and the profile is reached through
 // `kapi context import`.
@@ -164,18 +161,16 @@ func TestApplyRecipeField_KeepsTheCommentary(t *testing.T) {
 	assert.Contains(t, got, "# Every surface the harbour publishes to.")
 }
 
-// TestApplyNoOp_LeavesNoBackingUnderKapi is the gate-integrity case, stated the
-// way the erasure gate reads a tree: an apply that decided nothing leaves no
-// changed file under `.kapi/` at all, so it cannot stand as the backing that
-// lets a run's derived artifacts through.
-func TestApplyNoOp_LeavesNoBackingUnderKapi(t *testing.T) {
+// TestApplyNoOp_LeavesKapiUntouched: an apply that decided nothing leaves no
+// changed file under `.kapi/` at all, the voice profile included.
+func TestApplyNoOp_LeavesKapiUntouched(t *testing.T) {
 	a, cmd, root, recipe, _ := newGovernanceProject(t)
 	readGovernanceContext(t, a, recipe)
 	stateDir := filepath.Join(root, project.StateDirName)
 
-	// The derived store under `.kapi/work` is not backing (the gate excludes
-	// it), and opening a project legitimately touches it.
-	backing := func() map[string]string {
+	// Opening a project legitimately touches the store under `.kapi/work`, so
+	// the walk leaves it out.
+	state := func() map[string]string {
 		t.Helper()
 		out := map[string]string{}
 		require.NoError(t, filepath.WalkDir(stateDir, func(path string, d os.DirEntry, err error) error {
@@ -191,7 +186,7 @@ func TestApplyNoOp_LeavesNoBackingUnderKapi(t *testing.T) {
 		return out
 	}
 
-	before := backing()
+	before := state()
 	require.NotEmpty(t, before, "the fixture must have something under .kapi to be able to see it move")
 
 	res := a.applyAssetEntry(context.Background(), cmd, changeEntry{
@@ -203,5 +198,5 @@ func TestApplyNoOp_LeavesNoBackingUnderKapi(t *testing.T) {
 	})
 	require.Equal(t, "skipped", res.Status, "detail: %s", res.Detail)
 
-	assert.Equal(t, before, backing(), "a no-op apply manufactured backing under .kapi")
+	assert.Equal(t, before, state(), "a no-op apply rewrote a file under .kapi")
 }

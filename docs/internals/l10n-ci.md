@@ -168,7 +168,7 @@ regeneration alone will reproduce the defect.
   measured against the document it derives from: the `qps` probe where a surface
   has one, its source document otherwise, and for a narration sidecar the
   `demo.yaml` master it overlays. `make l10n-content-check` reads the whole
-  committed tier; `scripts/check-sync-backed.sh` reads what a run wrote, and
+  committed tier; `scripts/check-loop-output.sh` reads what a run wrote, and
   with `--hold-back` removes the defective leaves rather than refusing the run
   that produced them.
 - `make l10n-report`: per-locale coverage and placeholder parity, posted to the
@@ -181,7 +181,7 @@ regeneration alone will reproduce the defect.
   back empty. Partial coverage passes. It runs inside `make l10n`, in the walk
   that produced the files, because that is the only place that can tell an empty
   catalog from an unchanged one.
-- `scripts/check-sync-backed.sh`: the return-leg gate, below.
+- `scripts/check-loop-output.sh`: the return-leg gate, below.
 
 `make l10n-orphans-report` is the mirror image of coverage: the memory entries
 that produced nothing.
@@ -207,7 +207,7 @@ re-derives a list:
 | --- | --- | --- |
 | `l10n-derived-paths` | build-derived | `l10n-verify`, `scripts/l10n-autofix.sh` |
 | `l10n-loop-owned-paths` | loop-owned | a reviewer asking what may move with no source change behind it |
-| `l10n-owned-paths` | both | `scripts/check-sync-backed.sh`, the nightly's delivery step |
+| `l10n-owned-paths` | both | `scripts/check-loop-output.sh`, the nightly's delivery step |
 
 The gate and the delivery step read the union because a convergence run may
 legitimately have written either tier, and anything else it touched is foreign.
@@ -347,9 +347,11 @@ alone would leave every surface compiled from them behind until someone ran
 return leg and before the gate, which classifies the compiled dictionaries and
 the per-locale renders as owned output alongside the catalogs they come from.
 
-`scripts/check-sync-backed.sh` then reads what the run wrote, which is why it
-runs last. It classifies the working tree (context, derived, foreign) and then
-opens the derived artifacts. The nightly runs it with `--hold-back`, which
+`scripts/check-loop-output.sh` then reads what the run wrote, which is why it
+runs last. It classifies the working tree into derived (the owned set) and
+foreign (every other change git reports), and then opens the derived artifacts.
+The project store under `.kapi/` is gitignored, so nothing a run leaves there
+reaches either list. The nightly runs it with `--hold-back`, which
 answers a defect per string rather than per run: the defective leaf is removed
 from the artifact and named in the step log, the job summary and the pull
 request, and everything else the night produced is delivered. Every runtime that
@@ -361,25 +363,20 @@ red: an artifact that does not parse, a narration sidecar that stopped
 overlaying its master scene for scene, and a leaf whose removal would empty its
 artifact, which is the erasure `make l10n-collapse-check` reads. A bare run
 holds nothing back, because a reading is not a run. The gate also refuses
-anything the run changed outside `.kapi/` and the owned set: an indiscriminate
-delivery would otherwise carry a source edit into main with no review and no CI.
+anything foreign: an indiscriminate delivery would otherwise carry a source edit
+into main with no review and no CI.
 
-Two things it does *not* do, each for a reason the other half of this document
-gives.
+The gate asks nothing of the context. A night that converged and approved
+nothing is the ordinary night for a repository whose source moves daily and
+whose reviewers approve in batches. What the run brought home to the context is
+reported by the `kapi context push` step, which names the operations it shared
+on `refs/kapi/context`.
 
-It does not require the exported context to have moved. A night that converged
-and approved nothing is the ordinary night for a repository whose source moves
-daily and whose reviewers approve in batches, and requiring backing made the
-nightly red on every one of them. What the context did is *reported* beside the
-verdict, and reported by what it says rather than by whether its bytes moved,
-because a projection that re-sorted an array decided nothing and was once
-credited with backing forty-eight derived files.
-
-It does still require the context to explain a **removal**. A rewrite carries
-content to read; a deletion carries none, so there the exported context stays
-the authority: a catalog or a sidecar that disappeared is an erasure until a
-decision shard, a terms edit, a memory seed, the voice profile or a profile
-explains it. A re-serialization is not that.
+A **removal** of an owned artifact refuses the run. A rewrite carries content to
+read; a deletion carries none, and the tree holds no decision that could account
+for one, so a catalog or a sidecar that disappeared is an erasure. An artifact
+the loop no longer produces is removed in a reviewed change to the recipe or the
+Makefile.
 
 Delivery is `scripts/auto-pr.sh`: what survives the gate goes up as a pull
 request on the rolling `bot/dogfood-sync` branch, never as a push to main, so a

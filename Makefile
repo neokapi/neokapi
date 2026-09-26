@@ -1756,7 +1756,7 @@ L10N_COMPILE_TARGETS := \
 # what can be asserted is that what was written in it is sound — it parses, it
 # carries its source's placeholders, and it did not translate a machine
 # identifier the recipe never declared translatable. `make l10n-content-check`
-# reads the committed tier, `scripts/check-sync-backed.sh` refuses a run whose
+# reads the committed tier, `scripts/check-loop-output.sh` refuses a run whose
 # output fails, and l10n-collapse-check still asserts existence. Coverage stays
 # reported and never gated (`make l10n-report`), because a string the target
 # does not carry falls back to its source, which is pending work.
@@ -2060,7 +2060,7 @@ l10n-collapse-check: ## Guard: no committed target-locale catalog regenerated to
 #                          this run change with no source change behind it",
 #                          which is what a reviewer reading a convergence diff
 #                          needs and what the gate below classifies as derived.
-#   l10n-owned-paths       both — scripts/check-sync-backed.sh (which classifies
+#   l10n-owned-paths       both — scripts/check-loop-output.sh (which classifies
 #                          a convergence run's tree) and the nightly's delivery
 #                          step. A convergence run may legitimately leave either
 #                          tier behind; anything else it touched is foreign.
@@ -2124,7 +2124,7 @@ l10n-content-pairs: ## Print <artifact>:<reference> for every derived artifact w
 	@$(foreach lang,$(L10N_LANGS),echo "$(lang) $(call L10N_REPORT_PAIRS,$(lang))";)
 
 # The content question over the whole committed tier — the standing burndown of
-# what is already in git. `scripts/check-sync-backed.sh` asks it of what a run
+# what is already in git. `scripts/check-loop-output.sh` asks it of what a run
 # wrote, which is where it gates; here it is a reading, run when someone wants
 # the list. Not in `make l10n`: content soundness gates the return leg, never an
 # ordinary build.

@@ -114,7 +114,7 @@ run_check "Em dashes in shipped prose" ./scripts/check-em-dashes.sh
 
 # Ungated because the gate it proves runs only in the nightly convergence:
 # nothing else here would notice it losing its teeth. ~1s, all in a scratch repo.
-run_check "Sync backing gate" ./scripts/check-sync-backed.sh --self-test
+run_check "Loop output gate" ./scripts/check-loop-output.sh --self-test
 
 # Ungated for the same reason: the delivery it proves runs only in scheduled
 # jobs, so nothing else here would notice it pushing to the wrong place or
