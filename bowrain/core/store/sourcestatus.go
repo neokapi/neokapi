@@ -16,9 +16,10 @@ import (
 // round-trips losslessly across push → store → read.
 const PropSourceStatus = "__source_status"
 
-// TranslateAfterProperty is the project-settings key that carries the recipe's
-// `defaults.translate_after` level (written | established | none) to the
-// server, alongside the other recipe-derived settings in project Properties.
+// TranslateAfterProperty is the project Properties key that holds the recipe's
+// `defaults.translate_after` level (written | established | none). A push
+// carries the recipe's level and ApplyRecipeSettings writes it here; once
+// written, the server reads this property and nothing else.
 const TranslateAfterProperty = "translate_after"
 
 // TranslateAfterFor resolves a project's translate_after level from its

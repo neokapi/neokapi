@@ -405,29 +405,3 @@ func (c *BowrainClient) streamOnce(ctx context.Context, runID, lastID string, on
 	}
 	return false, lastID, nil // clean EOF before terminal → reconnect and resume
 }
-
-// SetConvergePolicy updates the project's server-side convergence policy
-// (on-push | manual) — the recipe's server.converge value, sent to the server
-// so a push knows whether to converge on its own clock. It PATCHes the project
-// settings; a server that predates the field ignores it (best-effort).
-func (c *BowrainClient) SetConvergePolicy(ctx context.Context, policy string) error {
-	body, err := json.Marshal(map[string]string{"converge_policy": policy})
-	if err != nil {
-		return fmt.Errorf("marshal request: %w", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, c.projectPrefix()+"/settings", bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.Do(req)
-	if err != nil {
-		return fmt.Errorf("set converge policy: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		respBody, _ := io.ReadAll(resp.Body)
-		return NewStatusError("set converge policy", resp.StatusCode, respBody)
-	}
-	return nil
-}

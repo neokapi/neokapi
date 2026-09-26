@@ -185,6 +185,12 @@ type SyncPushResponse struct {
 	// fills in the rest without a second round trip.
 	ServerRef *ref.Ref `json:"-"`
 
+	// SettingsInForce reports that the venue holds the recipe-owned project
+	// settings this push compared: it held them already, or the commit carried
+	// the ones that differed. Filled in by Push. False when the push carried
+	// no settings or the venue takes none on a push.
+	SettingsInForce bool `json:"-"`
+
 	// Governance is what the venue's review gate already knows it will not
 	// accept: verdicts this push carries for a language the pusher holds no
 	// review permission for. The venue checks the rest in the worker and

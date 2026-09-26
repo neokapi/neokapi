@@ -6,8 +6,9 @@ sidebar_position: 5
 # kapi push
 
 Send local changes to Bowrain Server. `kapi push` is pure transport: it moves
-project state, the content, the terms edits, the voice binding, and never
-drafts anything. With the project's `bowrain.converge` policy at its default
+project state (the content, the terms edits, the voice binding and the
+[settings the recipe owns](/cli/project-model#settings-a-push-carries)) and
+never drafts anything. With the project's `bowrain.converge` policy at its default
 `on-push`, the server starts a run of its own when the push lands.
 
 ## Usage

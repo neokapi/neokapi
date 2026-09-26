@@ -197,7 +197,10 @@ bowrain:
 ```
 
 `kapi push` from CI just pushes; the server catches the project up on its own
-clock; `kapi up` is push, then *watch the run*, then pull. See
+clock; `kapi up` is push, then *watch the run*, then pull. The policy travels
+with every push, so changing `converge:` in `kapi.yaml` takes effect on the
+next push by anyone who may push the project, a CI token included. See
+[Settings a push carries](/cli/project-model#settings-a-push-carries). See
 [Keeping content caught up](/the-loop) for the model.
 
 Every run, started by a push, by `kapi up`, or manually, appears in the

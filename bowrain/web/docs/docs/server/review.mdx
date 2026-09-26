@@ -167,7 +167,9 @@ A source reviewer works the same content on the **source** side: terms, do-not-
 translate marks, placeholders, and context, before the fan-out. Clearing the
 task lifts the affected source to the gate; the next run translates the
 now-approved content, memory first. A project that wants raw fan-out sets
-`translate_after: none`.
+`translate_after: none`. The level is the recipe's `defaults.translate_after`,
+which every push carries to the server; see
+[Settings a push carries](/cli/project-model#settings-a-push-carries).
 
 ## The review inbox
 

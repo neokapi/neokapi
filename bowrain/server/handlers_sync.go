@@ -111,6 +111,15 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	// reaches this server.
 	transport := s.chunkTransport(c.Request().Context())
 
+	// The recipe-owned settings the project holds, at their effective values.
+	// The producer compares its recipe with them and the commit carries only a
+	// setting that differs. Best-effort like the ref: a project that cannot be
+	// read reports none, and the producer then sends none.
+	var heldSettings venue.ProjectSettings
+	if proj, perr := s.ContentStore.GetProject(c.Request().Context(), req.ProjectID); perr == nil && proj != nil {
+		heldSettings = store.RecipeSettingsOf(proj)
+	}
+
 	// Fast path: root hash comparison. Only "unchanged" when the declared
 	// context matches too — otherwise the push proceeds carrying no chunks and
 	// a manifest that is nothing but the context.
@@ -124,6 +133,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 				"undeclared_collections": ctxDiff.Undeclared,
 				"transport":              transport,
 				"ref":                    currentRef,
+				"settings":               heldSettings,
 			})
 		}
 	}
@@ -147,6 +157,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		"undeclared_collections": ctxDiff.Undeclared,
 		"transport":              transport,
 		"ref":                    currentRef,
+		"settings":               heldSettings,
 	})
 }
 
@@ -194,8 +205,17 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		// ContentModelEpoch is the generation this push wrote, recorded on the
 		// stream now that it has been accepted.
 		ContentModelEpoch int `json:"content_model_epoch"`
+		// Settings are the recipe-owned project settings this push puts in
+		// force: the converge policy and the translate_after level. They are
+		// the recipe's, so the permission to push the recipe is the permission
+		// to set them. Applied here, before the job is queued, so the run a
+		// push starts already reads them.
+		Settings venue.ProjectSettings `json:"settings"`
 	}
 	if err := c.Bind(&manifest); err != nil {
+		return apiErr(c, http.StatusBadRequest, err.Error())
+	}
+	if err := store.ValidateRecipeSettings(manifest.Settings); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	// Force the project and actor to the authorized path/identity. The
@@ -267,6 +287,10 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		}
 	}
 
+	if err := s.applyRecipeSettings(c.Request().Context(), manifest.ProjectID, manifest.Settings); err != nil {
+		return serverErr(c, err)
+	}
+
 	pushID := id.New()
 
 	// Serialize manifest for the worker.
@@ -325,6 +349,26 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		resp["governance"] = precheck
 	}
 	return c.JSON(http.StatusAccepted, resp)
+}
+
+// applyRecipeSettings writes the recipe-owned settings a push carries onto the
+// project. A setting already at the pushed value is left alone, and a push
+// that carries none reads nothing.
+func (s *Server) applyRecipeSettings(ctx context.Context, projectID string, settings venue.ProjectSettings) error {
+	if len(settings) == 0 || s.ContentStore == nil {
+		return nil
+	}
+	proj, err := s.ContentStore.GetProject(ctx, projectID)
+	if err != nil {
+		return fmt.Errorf("read project settings: %w", err)
+	}
+	if !store.ApplyRecipeSettings(proj, settings) {
+		return nil
+	}
+	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
+		return fmt.Errorf("apply project settings: %w", err)
+	}
+	return nil
 }
 
 // precheckPushVerdicts answers, in the request, the half of the review gate a

@@ -121,7 +121,6 @@ func pushAfterLocalConverge(cmd *cobra.Command, proj *project.Project) error {
 	if err := reportConceptPush(cmd, nil, cres, flagBool(cmd, "json")); err != nil {
 		return err
 	}
-	syncConvergePolicy(cmd.Context(), conn.Client(), proj.Recipe.Server)
 	if !app.Quiet {
 		if pr.UpToDate {
 			fmt.Fprintln(cmd.ErrOrStderr(), "Server already up to date.")
@@ -192,7 +191,6 @@ func reportConceptPush(cmd *cobra.Command, stream *output.NDJSONStream, res *Pus
 // identical to a local run, so a remote run is indistinguishable in the
 // terminal (and as NDJSON under --json).
 func runServerUp(cmd *cobra.Command, proj *project.Project) error {
-	server := proj.Recipe.Server
 	ctx := cmd.Context()
 	jsonOut := flagBool(cmd, "json")
 	stderr := cmd.ErrOrStderr()
@@ -236,9 +234,6 @@ func runServerUp(cmd *cobra.Command, proj *project.Project) error {
 	if client == nil {
 		return errors.New("bowrain: project is not connected to a server")
 	}
-	// Keep the server's convergence policy in step with the recipe before the
-	// run, so an on-push project also converges when CI merely pushes.
-	syncConvergePolicy(ctx, client, server)
 	if !app.Quiet && !jsonOut {
 		if pr.UpToDate {
 			fmt.Fprintln(stderr, "Server already up to date.")
@@ -429,18 +424,6 @@ func reportPushGovernance(cmd *cobra.Command, stream *output.NDJSONStream, pr *t
 	}
 	out.FormatGovernance(cmd.ErrOrStderr())
 	return nil
-}
-
-// syncConvergePolicy pushes the recipe's server.converge value to the server so
-// its continuous-convergence clock matches the project's declared policy. Any
-// failure degrades to a one-line stderr note — the run itself is unaffected.
-func syncConvergePolicy(ctx context.Context, client *apiclient.BowrainClient, server *project.ServerSpec) {
-	if client == nil || server == nil {
-		return
-	}
-	if err := client.SetConvergePolicy(ctx, string(server.ResolvedConverge())); err != nil && !app.Quiet {
-		fmt.Fprintf(os.Stderr, "warning: could not update the server's converge policy (server.converge): %v\n", err)
-	}
 }
 
 func init() {

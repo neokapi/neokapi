@@ -52,6 +52,15 @@ PUT  /api/v1/:ws/:id/sync/:ref/push/chunks/:uploadId/:chunkIndex   # Proxied chu
 POST /api/v1/:ws/:id/sync/:ref/push/commit      # Commit the manifest (202; a worker applies it)
 ```
 
+The push init answers with `settings`: the recipe-owned project settings the
+server holds, at their effective values (`converge_policy`, `translate_after`).
+The client compares its recipe with them and puts only a differing setting in
+the commit's `settings` map. The commit requires the push permission
+(`manage_files`), validates each value against the recipe schema (`400` for a
+value outside it), and writes the settings to the project before the push job
+is queued, so the run the push starts reads them. A client that pushes with no
+settings leaves the stored ones unchanged.
+
 A pull walks the stream's change log forward from the client's cursor and
 serves each changed block under the item it belongs to. A page carries each
 block once, at its latest change since the cursor, so a pull from the start

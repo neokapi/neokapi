@@ -617,6 +617,18 @@ func (c *BowrainSourceConnector) PushContextChanged() bool {
 	return c.refs.Ref(c.stream).Context != c.pushContext.Hash
 }
 
+// pushSettingsPending reports whether the recipe's project settings differ from
+// the ones the venue last confirmed holding, as recorded in the sync cache. It
+// is the local half of the settings comparison: settings the venue confirmed
+// cost no round trip, and a recipe that changed one reaches the venue even when
+// no content moved. The venue's own answer at init decides what is sent.
+func (c *BowrainSourceConnector) pushSettingsPending() bool {
+	if c.pushContext == nil || len(c.pushContext.Settings) == 0 {
+		return false
+	}
+	return c.pushContext.Settings.Hash() != c.cache.SettingsSynced
+}
+
 // Push sends source content from local files to Bowrain.
 func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.PushOptions) (*bowrainconn.PushResult, error) {
 	// Scan local files and extract blocks and media grouped by item.
@@ -769,7 +781,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// cannot make that comparison and does not pretend to: it stays additive,
 	// as it was before there were trees.
 	if len(changed) == 0 && !venueHoldsMoreThan(serverTree, localTree, scope) &&
-		!c.PushContextChanged() && !sendRecord {
+		!c.PushContextChanged() && !sendRecord && !c.pushSettingsPending() {
 		return &bowrainconn.PushResult{FilesScanned: len(hashMap)}, nil
 	}
 
@@ -815,7 +827,9 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	blocksUploaded := 0
 	chunkCount := 0
 	var served *ref.Ref
+	settingsInForce := false
 	if resp != nil {
+		settingsInForce = resp.SettingsInForce
 		lastCursor = resp.NewCursor
 		pushID = resp.PushID
 		undeclared = resp.UndeclaredCollections
@@ -896,6 +910,13 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 			}
 			fc.Assets[assetID] = blobKey
 		}
+	}
+	// The settings the venue confirmed holding, so the next push compares
+	// against them locally. A venue that confirmed nothing leaves the record
+	// empty, and the next push asks again.
+	c.cache.SettingsSynced = ""
+	if settingsInForce && c.pushContext != nil {
+		c.cache.SettingsSynced = c.pushContext.Settings.Hash()
 	}
 	c.cache.LastSync = time.Now().UTC()
 	c.cache.ServerURL = c.project.Recipe.Server.ServerURL()

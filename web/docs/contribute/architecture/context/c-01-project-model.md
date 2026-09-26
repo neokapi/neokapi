@@ -409,6 +409,14 @@ is called, stays that layer's business: a recipe key kapi cannot name is a key i
 cannot grow an opinion about. An unregistered key of the same name reports no
 venue and no opinion.
 
+A push carries the recipe's project settings to the venue beside the context
+content type (`core/venue.ProjectSettings`): the venue's `converge:` policy and
+`defaults.translate_after`, each resolved to its effective value so an unset key
+travels as its default. The venue reports the settings it holds when the push
+negotiates, and the push sends only a setting that differs. The settings belong
+to the recipe, so the permission to push the project is the permission to set
+them.
+
 ### Content collections
 
 A `Collection` lists the source patterns kapi extracts from and the reader used

@@ -162,6 +162,20 @@ Only the connection coordinates sit under `bowrain:`:
 | `stream`   | Server-side stream to sync against; `$auto` auto-detects from CI / git branch |
 | `converge` | Server-side convergence policy: `on-push` (default) or `manual`              |
 
+### Settings a push carries
+
+Two recipe settings govern what the server does with the project:
+`bowrain.converge` and `defaults.translate_after`. Every push carries both, at
+their effective values, so a key the recipe leaves unset is sent as its default
+(`on-push` and `written`). The push compares them with the values the server
+holds and sends only a setting that differs, so an unchanged recipe costs no
+extra request and prints nothing.
+
+Anyone who may push the project may change these settings, because they change
+with the recipe. A workspace member or a CI token with the `contribute` scope
+needs no project-management permission to do it. The server keeps the value
+the last push carried, and its runs read that value.
+
 Lifecycle (`hooks`, `automations`) and asset policy (`assets`) live at the **top level** of the recipe, not under `bowrain:`: they describe project-owned policy, not server identity.
 
 The framework has no built-in notion of a server: `bowrain:` (and `hooks:`, `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). kapi identifies the connection through the venue flag on the plugin's schema registration and reads `url:` and `converge:`. So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `bowrain:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [C-01: The project model](https://neokapi.github.io/contribute/architecture/context/c-01-project-model).
