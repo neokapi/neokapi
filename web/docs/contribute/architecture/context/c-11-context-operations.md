@@ -183,6 +183,14 @@ the store, which folds case.
 Reverting an established rule reverses it against the same stores: the term is
 deleted from the terms store, or the pair from the content memory. Other terms in the concept are preserved because deletion targets the term.
 
+Every one of these store writes goes through the projector
+([C-03](c-03-context-store-and-graph.md#the-stores-are-projections-of-the-log)),
+so the log holds each rule twice over: the context operation that decided it,
+and the `terms.write`, `memory.write`, `voice.write` or `rules.write` operation
+carrying the rows the decision wrote, whose origin names the operation it
+carries out. The context operations fold into statuses; the store operations
+replay into the stores.
+
 `kapi apply` records one `edit` operation for each term or content-memory entry
 it applies, established from the start and attributed to the person who ran the
 command. An entry naming an agent as its actor is refused by the policy before
@@ -197,7 +205,11 @@ person, carrying the
 file's project-relative path and the SHA-256 of the bytes it read as evidence.
 `kapi context log` then shows an import beside every other change to the
 project's context, and a reader can tell which rules came from a file and which
-from a decision somebody took.
+from a decision somebody took. What the file held travels in the log as well:
+each file is read as one projector batch, recorded as one store operation per
+store it reaches, with the parsed concepts, entries or profile in a blob when
+they are large. A second machine replaying the log therefore gets the imported
+content, and needs neither the file nor its bytes.
 
 A person runs it. The policy function below refuses an agent's import, naming
 the command for the person to run, because reading a checkout's files puts them

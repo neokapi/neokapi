@@ -17,17 +17,18 @@ import (
 // not read here.
 const WidenedKind = "contextop.rule"
 
-// RuleStore is where rules widened to the whole workspace live.
-// *workspace.Workspace satisfies it.
+// RuleStore is where rules widened to the whole workspace live. The
+// projector's rule store (core/projector.Rules) satisfies it, and records each
+// widening in the workspace's log before applying it.
 type RuleStore interface {
 	RuleReader
 	WidenRule(ctx context.Context, rule workspace.Rule) error
 	NarrowRule(ctx context.Context, id string) error
 }
 
-// RuleReader reads the rules in force across the workspace. A reader that only
-// resolves rules takes this, so the store it is handed cannot be written
-// through it.
+// RuleReader reads the rules in force across the workspace.
+// *workspace.Workspace satisfies it. A reader that only resolves rules takes
+// this, so the store it is handed cannot be written through it.
 type RuleReader interface {
 	WidenedRules(ctx context.Context, kind string) ([]workspace.Rule, error)
 }

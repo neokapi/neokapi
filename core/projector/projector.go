@@ -223,7 +223,6 @@ func (p *Projector) With(origin Origin) *Projector {
 // Key is the project whose stores this projector writes.
 func (p *Projector) Key() workspace.ProjectKey { return p.key }
 
-
 // Logged reports whether writes are recorded in a log, which is what makes the
 // stores rebuildable.
 func (p *Projector) Logged() bool { return p.log != nil }

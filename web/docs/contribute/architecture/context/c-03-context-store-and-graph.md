@@ -27,8 +27,15 @@ written a little at a time, and true wherever the project is checked out. Two
 checkouts of one project, a second clone and a git worktree, share it, and each
 keeps its own view of the one ledger.
 
-The workspace also holds what spans projects: the **project registry** and the
-**context graph**, whose node ids already carry the project they belong to.
+The workspace also holds what spans projects: the **project registry**, the
+**context graph**, whose node ids already carry the project they belong to, and
+the **operation log**.
+
+Every change to a project's terms, voice profiles and content memory, and to the
+rules widened to the whole workspace, is an operation in that log carrying the
+rows it wrote. Those stores are **projections** of the log: `core/projector` is
+their only writer, and `kapi context rebuild` empties them and replays the log
+into the same rows.
 
 A question that reaches across the two files is one query. `projectdb.DB.Join`
 opens the context store beside the projection on one read-only connection, so
@@ -103,6 +110,8 @@ Queries for data outside the graph read the relevant project databases.
 | `Forget` | drop one project's context store |
 | `Record` | append operations, minting an id for each that arrives without one; an id or content address the log holds is not written twice |
 | `Since` | read operations back from a local arrival position |
+| `Select` | read one project's operations, or one kind's, from a position |
+| `PutBlob`, `Blob` | keep the bytes an operation names under the digest of those bytes, up to 64 MiB each |
 | `Head` | the arrival position of the last operation, recorded here or merged in |
 | `Close` | release every handle the backend owns |
 
@@ -148,14 +157,16 @@ until the project is opened somewhere else.
 | --- | --- | --- | --- |
 | block cache, overlays | `core/blockstore` ([C-01](c-01-project-model.md)) | projection | the content files |
 | `store_meta` | `core/projectdb` | projection | the last extraction |
-| terms | `terms/` ([C-08](c-08-terms.md)) | context | authored; nothing reproduces it |
-| content memory | `memory/` ([C-09](c-09-content-memory.md)) | context | authored, plus what a merge banked |
-| voice profiles | `voice/` ([C-07](c-07-voice-profiles.md)) | context | authored; nothing reproduces it |
+| terms | `terms/` ([C-08](c-08-terms.md)) | context | the operation log, through `core/projector` |
+| content memory | `memory/` ([C-09](c-09-content-memory.md)) | context | the operation log, through `core/projector` |
+| voice profiles | `voice/` ([C-07](c-07-voice-profiles.md)) | context | the operation log, through `core/projector` |
+| `projector_cursor` | `core/projector` | context | the position of the last operation applied |
 | unit decision ledger, and one view per checkout | `core/state` ([C-04](c-04-unit-state-and-decisions.md)) | context | authored; every checkout records into one ledger |
 | `graph_nodes`, `graph_edges` | `host/storage/graph`, vocabulary in `core/contextgraph` | workspace | the rows above, plus the recipe |
 | `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace | what has been opened |
 | `workspace_ops` | `core/workspace` | workspace | its own log |
-| `workspace_rules` | `core/workspace` | workspace | the rules a person widened ([C-11](c-11-context-operations.md)) |
+| `workspace_blobs` | `core/workspace` | workspace | the large payloads operations name |
+| `workspace_rules` | `core/workspace` | workspace | the operation log: the rules a person widened ([C-11](c-11-context-operations.md)) |
 | `workspace_agent_sessions` | `core/workspace` | workspace | which agents are at work ([S-03](../surfaces/s-03-agent-surfaces.md)) |
 
 Each subsystem owns its own schema and its own migration ledger, so a subsystem
@@ -252,17 +263,57 @@ names.
 The **projection** is an index. Every row in it is a reading of the content
 files, source and target, so deleting it costs a re-extraction and nothing else.
 
-The **context store** is the authoritative store for the project’s terms
-([C-08](c-08-terms.md)), its voice profiles ([C-07](c-07-voice-profiles.md)),
-its content memory ([C-09](c-09-content-memory.md)) and its decision ledger
-([C-04](c-04-unit-state-and-decisions.md)). Nothing reproduces a row in it, and
-no read path opens a file in the checkout to answer for one. A checkout may
+The **context store** holds the project's terms ([C-08](c-08-terms.md)), its
+voice profiles ([C-07](c-07-voice-profiles.md)), its content memory
+([C-09](c-09-content-memory.md)) and its decision ledger
+([C-04](c-04-unit-state-and-decisions.md)). The first three are projections of
+the workspace's operation log, described below; the ledger is authored in the
+store itself. No read path opens a file in the checkout to answer for any of
+them. A checkout may
 carry a snapshot of the same content under `.kapi/`, written by
 `kapi context snapshot`; `kapi context import` is the one command that reads it
 back, and `kapi context export` is the backup ([C-11](c-11-context-operations.md)).
 
 Branches use the current context store even when they contain older snapshot
 files. Governance is therefore independent of whether a team commits snapshots.
+
+### The stores are projections of the log
+
+A write to the terms, the content memory, the voice profiles or the widened
+rules goes through `core/projector`, which does two things under one lock per
+context store. It records an operation carrying the rows the write puts or
+removes: `terms.write`, `memory.write`, `voice.write` or `rules.write`, with the
+steps in the order the store calls made them. Then it applies every operation
+the store has not yet seen, in the order the log received them, and moves the
+store's cursor (`projector_cursor`) past them. A write another process made, or
+an operation merged in from another machine, is applied by the next write, and
+a projector opening a store applies whatever the log holds beyond the cursor.
+
+Each step carries its rows with every timestamp the store would take from the
+clock filled in from the operation's instant, and a write that would leave the
+store as it is records nothing. An operation larger than 32 KiB keeps its steps
+in a blob it names; a batch of entries or concepts is split so each blob stays
+well inside the 64 MiB bound. A pass that writes many rows (an import, a
+convergence run's absorbed record) collects them into one batch, recorded as one
+operation per store.
+
+`Projector.Rebuild`, behind `kapi context rebuild`, empties the projection tables
+and the rules the project widened, and replays the project's operations in id
+order. On a log one machine wrote, the rows it leaves equal the rows the writes
+left; the voice store stamps an edit and the version it archives from the
+clock, so those two columns are the exception. A run of single content-memory
+writes is replayed in one transaction with the search indexes rebuilt once,
+which keeps a dogfood-sized log (16,000 entries, 1,000 concepts) to about three
+seconds.
+
+Callers reach the stores through the projector: `App.Projector` in host hands
+out `projector.Terms`, `projector.Memory` and `projector.Voice`, which answer
+reads from the projection and record every write. Code that only reads takes a
+view (`projector.TermsView`, `MemoryView`, `VoiceView`) whose writes are
+refused. `make check-projection-writes` type-checks the Apache modules and
+fails on a store write, or a store handed to an interface that can write it,
+anywhere outside the projector; the few functions that open a store a person
+named on the command line are listed with the reason.
 
 ### Deleting derived data {#kapiwork-is-free-to-delete}
 

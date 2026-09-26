@@ -49,9 +49,11 @@ The projection stays in the checkout at `.kapi/work/store.db`
 | `tm_*` | `memory/` | context |
 | `voice_*` | `voice/` | context |
 | `unit_decision`, `unit_view`, `document`, `checkout`, `state_meta` | `core/state` | context |
+| `projector_cursor` | `core/projector` | context |
 | `graph_nodes`, `graph_edges` | `host/storage/graph` | workspace |
 | `workspace_projects`, `workspace_checkouts` | `core/workspace` | workspace |
 | `workspace_ops` (arrival `seq`, operation `id`, optional content `address`) | `core/workspace` | workspace |
+| `workspace_blobs` (`sha256:` digest, size, gzip-compressed bytes) | `core/workspace` | workspace |
 | `workspace_rules` | `core/workspace` | workspace |
 | `workspace_agent_sessions` | `core/workspace` | workspace |
 
@@ -65,6 +67,46 @@ widened nothing pays nothing for the table.
 Callers name a capability rather than a file: `Blocks()` and
 `BlocksAutocommit()` come from the projection, and `Memory()`, `Terms()`,
 `Voice()`, `Work()` and `Raw()` from the context store.
+
+## The projector
+
+`core/projector` is the only writer of `tb_*`, `tm_*`, `voice_profiles`,
+`voice_profile_versions` and `workspace_rules`
+([C-03](../../architecture/context/c-03-context-store-and-graph.md#the-stores-are-projections-of-the-log)).
+A write is two transactions under one in-process mutex per context store: the
+operation into `workspace_ops` (and its steps into `workspace_blobs` when they
+pass 32 KiB), then the store calls, then the cursor. The mutex is keyed by the
+context pool, so two projectors over one store in one process take turns; a
+second process on the same store applies what the first recorded on its next
+write, from the cursor.
+
+A step stores content-memory entries in the `.memory.json` bundle's entry form
+(`memory/kmb`), concepts and relations as the terms store's own JSON, and voice
+profiles as `core/profile.VoiceProfile`. A step is applied with the store call
+that made it, so `Bulk` steps go through `BulkAddWithStream` and single writes
+through `AddWithStream`. A run of 32 or more single writes, in one batch or in
+consecutive operations during a rebuild, goes through `ReplayWithStream`: the
+same rows as `AddWithStream`, one transaction, and the two FTS5 tables rebuilt
+once afterwards.
+
+`Rebuild` deletes every row of the projection tables, skipping the FTS5 shadow
+tables (emptying the virtual table empties them), resets their `sqlite_sequence`
+entries so autoincrement ids repeat, narrows every rule whose origin is the
+project, and replays the project's operations in id order.
+
+Measured in process on an M-series laptop, 16 goroutine writers
+(`KAPI_MEASURE_OPLOG=1 go test -tags fts5 ./core/projector -run Measure -v`):
+
+| Measure | Result |
+| --- | --- |
+| rebuild: 13 000 entries from one batch, 2 000 single-entry operations, 1 000 single-concept operations | 2.8 s |
+| a concept or an entry written through the projector, 16 writers, over a store of 13 000 entries | p50 141 ms, p99 283 ms |
+| the same writes straight to the stores, no log | p50 138 ms, p99 342 ms |
+| an agent's observation (`Ledger.Append`, which writes no store), 16 writers, 13 000 other operations | p50 21 ms, p99 31 ms |
+
+The projector adds about a millisecond to a single write. The tail under 16
+writers belongs to the content memory's row-by-row FTS5 maintenance described
+below, which the direct writes show just the same.
 
 ## Joining across the two files
 
