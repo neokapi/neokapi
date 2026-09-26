@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/host/config"
@@ -326,7 +327,7 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 				layout.StorePath(), derr)
 		}
 		if basis.memory == nil {
-			if m := db.Memory(); m != nil {
+			if m := projector.MemoryView(db); m != nil {
 				basis.memory = m
 			}
 		}

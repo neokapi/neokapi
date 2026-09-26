@@ -12,6 +12,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/contextop"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/projector"
 )
 
 // Hand-authoring a voice profile that lives in a store.
@@ -74,11 +75,11 @@ func (a *App) EditVoiceProfile(ctx context.Context, cmd Command, req VoiceEditRe
 	if err != nil {
 		return res, err
 	}
-	db, err := a.ProjectDB(ctx, root)
+	w, err := a.Projector(ctx, root)
 	if err != nil {
 		return res, err
 	}
-	store := db.Voice()
+	store := voiceWriter(w.With(projector.Origin{By: "voice edit"}))
 	if store == nil {
 		return res, errors.New("voice: this project has no voice store")
 	}
@@ -89,7 +90,7 @@ func (a *App) EditVoiceProfile(ctx context.Context, cmd Command, req VoiceEditRe
 		if err != nil {
 			return res, fmt.Errorf("voice: this project's store holds no profile %q. `kapi voice profiles` lists the ones it holds", name)
 		}
-	} else if prof, err = a.boundVoiceProfileForWrite(ctx, db, recipePath, root); err != nil {
+	} else if prof, err = a.boundVoiceProfileForWrite(ctx, store, recipePath, root); err != nil {
 		return res, err
 	}
 	res.ID, res.Name = prof.ID, prof.Name

@@ -14,6 +14,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/kpz"
@@ -175,17 +176,12 @@ func (a *App) ExportProjectContext(ctx context.Context, projectPath, out string)
 // is not a nil interface, so every reader of one would call through it. The
 // browser build has no file-backed store and returns nil from all three.
 func contextStoresOf(ctx context.Context, db *projectdb.DB) contextStores {
-	s := contextStores{bindings: loadVoiceBindings(ctx, db)}
-	if tb := db.Terms(); tb != nil {
-		s.terms = tb
+	return contextStores{
+		bindings: loadVoiceBindings(ctx, db),
+		terms:    projector.TermsView(db),
+		memory:   projector.MemoryView(db),
+		voice:    projector.VoiceView(db),
 	}
-	if tm := db.Memory(); tm != nil {
-		s.memory = tm
-	}
-	if vc := db.Voice(); vc != nil {
-		s.voice = vc
-	}
-	return s
 }
 
 // contextStores is what a context bundle is built from: the subsystems of one
@@ -391,10 +387,15 @@ func (a *App) RestoreProjectContext(ctx context.Context, projectPath, bundlePath
 		return res, err
 	}
 	stores := contextStoresOf(ctx, db)
+	writer, err := a.Projector(ctx, layout.Root)
+	if err != nil {
+		return res, err
+	}
+	writer = writer.With(projector.Origin{By: "restore", Source: filepath.Base(bundlePath)})
 	target := contextTarget{
-		terms:    stores.terms,
-		memory:   stores.memory,
-		voice:    stores.voice,
+		terms:    termsWriter(writer),
+		memory:   memoryWriter(writer),
+		voice:    voiceWriter(writer),
 		work:     db.Work(),
 		bindings: stores.bindings,
 	}

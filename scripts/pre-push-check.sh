@@ -98,6 +98,10 @@ run_check "The written record is store-only" ./scripts/check-docs-store-only.sh
 # kapi.yaml collection reaches, and only this guard notices.
 run_check "Comment coverage" make check-comment-coverage
 
+# Ungated: a store write can be added in any Apache module, and only this
+# guard, which type-checks them, notices one that bypasses the projector.
+run_check "Only the projector writes the context stores" make check-projection-writes
+
 # Ungated: a walk selector dies in the app, not in the recorder that names it,
 # so gating this on the recorder's own path would never fire. ~2s.
 run_check "Walk selectors still exist" ./scripts/check-walk-selectors.sh

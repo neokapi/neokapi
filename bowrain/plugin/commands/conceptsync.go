@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/neokapi/neokapi/host"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
@@ -166,7 +167,7 @@ func (r *PushConceptsResult) changed() bool {
 //
 // tb is the project's terms store, handed in rather than opened: it is a schema
 // of the project's one store, and the handle belongs to the caller's App.
-func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *terms.SQLiteStore, dryRun bool) (*PullConceptsResult, *bproject.ConceptBaseline, error) {
+func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tb terms.Store, dryRun bool) (*PullConceptsResult, *bproject.ConceptBaseline, error) {
 	concepts, kept, err := fetchServerConcepts(ctx, client)
 	if err != nil {
 		return nil, nil, err
@@ -259,7 +260,7 @@ func fetchServerConcepts(ctx context.Context, client *apiclient.BowrainClient) (
 // It neither opens nor closes: the store is a schema of the project's one store
 // and the App owns the pool, so closing it here would take the content memory,
 // the block cache and the working set with it.
-func writeConceptsToTerms(ctx context.Context, tb *terms.SQLiteStore, concepts []terms.Concept, relations []terms.ConceptRelation) error {
+func writeConceptsToTerms(ctx context.Context, tb terms.Store, concepts []terms.Concept, relations []terms.ConceptRelation) error {
 	if tb == nil {
 		return errors.New("write concepts: the project has no terms store")
 	}
@@ -401,7 +402,7 @@ func conceptInfoToConcept(ci apiclient.ConceptInfo) terms.Concept {
 // the compare-and-swap assertion carried on the change-set submit. The plan
 // below is a DIFF against the baseline, so a workspace whose terminology moved
 // since makes every governed op a proposal about a state that no longer exists.
-func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *terms.SQLiteStore, baseline *bproject.ConceptBaseline, expectedTerms string, dryRun bool) (*PushConceptsResult, error) {
+func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tb terms.Store, baseline *bproject.ConceptBaseline, expectedTerms string, dryRun bool) (*PushConceptsResult, error) {
 	if tb == nil {
 		return nil, nil
 	}
@@ -954,21 +955,28 @@ func knowledgeClient(proj *bproject.Project) (*apiclient.BowrainClient, error) {
 // own.
 //
 // The handle belongs to the App: do not close it.
-func projectTerms(ctx context.Context, proj *bproject.Project) (*terms.SQLiteStore, error) {
+//
+// Writes go through the projector, which records each in the workspace's log
+// before applying it, so a pull is part of the project's record.
+func projectTerms(ctx context.Context, proj *bproject.Project) (terms.Store, error) {
 	if app == nil {
 		return nil, errors.New("terminology sync has no host app, so the project store is unreachable")
 	}
-	db, err := app.ProjectDB(ctx, proj.Root)
+	w, err := app.Projector(ctx, proj.Root)
 	if err != nil {
 		return nil, fmt.Errorf("open project store: %w", err)
 	}
-	return db.Terms(), nil
+	tb := w.With(projector.Origin{By: "pull"}).Terms()
+	if tb == nil {
+		return nil, nil
+	}
+	return tb, nil
 }
 
 // projectTermsIfAny returns the project's terms store only when it holds
 // something. A push over an empty vocabulary has nothing to propose, and this is
 // the row question that replaced the stat of `.kapi/terms.db`.
-func projectTermsIfAny(ctx context.Context, proj *bproject.Project) (*terms.SQLiteStore, error) {
+func projectTermsIfAny(ctx context.Context, proj *bproject.Project) (terms.Store, error) {
 	if app == nil {
 		return nil, errors.New("terminology sync has no host app, so the project store is unreachable")
 	}
@@ -980,7 +988,7 @@ func projectTermsIfAny(ctx context.Context, proj *bproject.Project) (*terms.SQLi
 	if err != nil || !has {
 		return nil, err
 	}
-	return db.Terms(), nil
+	return projector.TermsView(db), nil
 }
 
 // observedTermsRef reads the terms component this project last observed, for

@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
@@ -183,7 +184,7 @@ func (a *App) RunExtract(cmd Command) error {
 			tm = a.MemoryBackend
 		} else if db, derr := a.ProjectDB(cmd.Context(), layout.Root); derr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: extract: open project store: %v (continuing with no content memory)\n", derr)
-		} else if mem := db.Memory(); mem != nil {
+		} else if mem := projector.MemoryView(db); mem != nil {
 			tm = mem
 		}
 	}
@@ -1021,10 +1022,10 @@ func (a *App) RunExtractKpz(cmd Command) error {
 	if !noMemory && a.MemoryBackend != nil {
 		mem = a.MemoryBackend
 	} else if !noMemory && db != nil && db.Memory() != nil {
-		mem = db.Memory()
+		mem = projector.MemoryView(db)
 	}
 	if db != nil && db.Terms() != nil {
-		tb = db.Terms()
+		tb = projector.TermsView(db)
 	}
 
 	written := 0

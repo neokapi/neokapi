@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/workspace"
 )
@@ -215,6 +216,11 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 		return res, err
 	}
 
+	writer, err := a.Projector(ctx, layout.Root)
+	if err != nil {
+		return res, err
+	}
+
 	sources, err := committedContextSources(from)
 	if err != nil {
 		return res, err
@@ -250,7 +256,7 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 			res.Unchanged++
 			continue
 		}
-		n, rerr := a.readContextSource(ctx, db, from.Root, src)
+		n, rerr := a.readContextSource(ctx, db, writer, from.Root, src)
 		if rerr != nil {
 			return res, rerr
 		}
@@ -273,7 +279,7 @@ func (a *App) ImportProjectContext(ctx context.Context, projectPath string, req 
 		}
 	}
 	if res.Entries > 0 {
-		if tm := db.Memory(); tm != nil {
+		if tm := projector.MemoryView(db); tm != nil {
 			a.RebuildMemorySearchIndexes(ctx, tm)
 		}
 	}

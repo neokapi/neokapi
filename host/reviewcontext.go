@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/review"
 	"github.com/neokapi/neokapi/core/state"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -459,7 +460,7 @@ func (a *App) ReviewMemory(ctx context.Context, root string) memory.ContentMemor
 	if err != nil {
 		return nil
 	}
-	tm := db.Memory()
+	tm := projector.MemoryView(db)
 	if tm == nil {
 		return nil
 	}

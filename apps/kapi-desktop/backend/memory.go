@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -565,7 +566,7 @@ func (a *App) OpenMemory(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("open Memory %q: %w", path, err)
 	}
-	return a.memoryHandles.Open(tm), nil
+	return a.memoryHandles.Open(projector.StandaloneMemory(tm)), nil
 }
 
 func (a *App) OpenMemoryDialog() (string, error) {
@@ -1066,7 +1067,7 @@ func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*Ann
 	}
 
 	// Optionally resolve concept IDs from the terms store.
-	var tb *terms.SQLiteStore
+	var tb *projector.Terms
 	if req.TermsHandle != "" {
 		tb, _ = a.tbHandles.Get(req.TermsHandle)
 	}
@@ -1279,7 +1280,7 @@ func buildEntityMappingsFromVariantRuns(variants map[model.LocaleID][]model.Run)
 // resolveConceptIDs looks up each entity mapping's text in the terms store
 // and sets ConceptID when a concept matches. Looks up the first locale
 // value that returns a hit.
-func resolveConceptIDs(entities []memory.EntityMapping, tb *terms.SQLiteStore) {
+func resolveConceptIDs(entities []memory.EntityMapping, tb *projector.Terms) {
 	for i := range entities {
 		resolveOneConceptID(&entities[i], tb)
 	}
@@ -1287,7 +1288,7 @@ func resolveConceptIDs(entities []memory.EntityMapping, tb *terms.SQLiteStore) {
 
 // resolveOneConceptID looks up one entity mapping's text values in the
 // terms and sets ConceptID if a concept with a matching term is found.
-func resolveOneConceptID(em *memory.EntityMapping, tb *terms.SQLiteStore) {
+func resolveOneConceptID(em *memory.EntityMapping, tb *projector.Terms) {
 	if tb == nil {
 		return
 	}

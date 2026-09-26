@@ -10,6 +10,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 )
 
 // Writing a whole voice profile at a point, for a surface that edits one as a
@@ -68,7 +69,7 @@ func (a *App) VoiceProfileTargetAt(ctx context.Context, root string, point proje
 	if err != nil {
 		return VoiceProfileTarget{}, err
 	}
-	store := db.Voice()
+	store := projector.VoiceView(db)
 	bound, own := voiceBindingAt(proj, point.Profile)
 
 	// A profile that binds no voice of its own is answered by the profile the
@@ -125,11 +126,11 @@ func (a *App) SaveVoiceProfileAt(
 		return res, errors.New("voice: no profile to save")
 	}
 	recipePath := filepath.Join(root, project.RecipeFileName)
-	db, err := a.ProjectDB(ctx, root)
+	w, err := a.Projector(ctx, root)
 	if err != nil {
 		return res, err
 	}
-	store := db.Voice()
+	store := voiceWriter(w.With(projector.Origin{By: "voice save"}))
 	if store == nil {
 		return res, projectdb.ErrNoStore
 	}

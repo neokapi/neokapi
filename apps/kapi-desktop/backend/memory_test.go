@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
@@ -196,7 +197,7 @@ func TestMemory_AnnotateEntities_ResolvesConceptID(t *testing.T) {
 			{Text: "Acme", Locale: "fr-FR", Status: model.TermApproved},
 		},
 	}))
-	tbHandle := app.tbHandles.Open(tb)
+	tbHandle := app.tbHandles.Open(projector.StandaloneTerms(tb))
 	t.Cleanup(func() { app.tbHandles.Close(tbHandle) })
 
 	// Annotate: mark "Acme" as entity:organization — with terms handle
@@ -248,7 +249,7 @@ func TestMemory_ResolveEntityConcepts(t *testing.T) {
 			{Text: "Widget", Locale: "en-US", Status: model.TermApproved},
 		},
 	}))
-	tbHandle := app.tbHandles.Open(tb)
+	tbHandle := app.tbHandles.Open(projector.StandaloneTerms(tb))
 	t.Cleanup(func() { app.tbHandles.Close(tbHandle) })
 
 	// Resolve — should link the entity to the concept.

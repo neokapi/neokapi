@@ -63,6 +63,18 @@ CREATE TABLE workspace_ops (
 CREATE UNIQUE INDEX idx_workspace_ops_address ON workspace_ops(address) WHERE address IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_workspace_ops_project ON workspace_ops(project, seq);
 CREATE INDEX idx_workspace_ops_kind ON workspace_ops(kind, seq);`,
+}, {
+	// What an operation carries that is too large to sit in its payload: an
+	// imported bundle, a batch of content-memory entries. A blob is addressed by
+	// the digest of its bytes, so two logs holding one blob hold one row.
+	Version:     3,
+	Description: "content-addressed blobs",
+	SQL: `
+CREATE TABLE IF NOT EXISTS workspace_blobs (
+    digest TEXT PRIMARY KEY,
+    size   INTEGER NOT NULL,
+    data   BLOB NOT NULL
+);`,
 }}
 
 // LocalBackend keeps a workspace as a directory of SQLite files on this

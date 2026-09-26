@@ -14,6 +14,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/host/storage/graph"
@@ -35,6 +36,10 @@ type projectStores struct {
 	// graph implementation lives in the host module: core/projectdb is framework
 	// code and the arrow only points the other way.
 	graphs map[string]*graph.SQLiteGraphStore
+	// projectors holds the one writer of each project store, by root, and
+	// bound the workspace and key each store was opened under.
+	projectors map[string]*projector.Projector
+	bound      map[string]boundProject
 
 	// root is the workspace directory this App was told to use. Empty means the
 	// machine account's default, resolved on first use so a test that sets
@@ -60,10 +65,12 @@ func (a *App) ensureProjectStores() *projectStores {
 			return // pre-seeded from a parent App (converge worker clone)
 		}
 		a.projectStores = &projectStores{
-			dbs:    map[string]*projectdb.DB{},
-			graphs: map[string]*graph.SQLiteGraphStore{},
-			ws:     map[string]*workspace.Workspace{},
-			wsErr:  map[string]error{},
+			dbs:        map[string]*projectdb.DB{},
+			graphs:     map[string]*graph.SQLiteGraphStore{},
+			projectors: map[string]*projector.Projector{},
+			bound:      map[string]boundProject{},
+			ws:         map[string]*workspace.Workspace{},
+			wsErr:      map[string]error{},
 		}
 	})
 	return a.projectStores
@@ -196,10 +203,11 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	openCtx := context.WithoutCancel(ctxOrBackground(ctx))
 
 	var opts []projectdb.Option
-	stores, err := s.bindWorkspace(openCtx, abs)
+	stores, bound, err := s.bindWorkspace(openCtx, abs)
 	switch {
 	case err == nil:
 		opts = append(opts, projectdb.WithWorkspace(stores))
+		s.bound[abs] = bound
 	case errors.Is(err, storage.ErrNoSQLite):
 		// The browser build has no file-backed SQLite driver and no user data
 		// directory, so there is no workspace to reach and no need of one: it
@@ -220,10 +228,10 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 
 // bindWorkspace registers the project rooted at abs and returns the databases
 // its store binds to. The caller holds s.mu.
-func (s *projectStores) bindWorkspace(ctx context.Context, abs string) (projectdb.Stores, error) {
+func (s *projectStores) bindWorkspace(ctx context.Context, abs string) (projectdb.Stores, boundProject, error) {
 	ws, err := s.workspaceAt(ctx, s.workspaceRootFor(abs))
 	if err != nil {
-		return projectdb.Stores{}, err
+		return projectdb.Stores{}, boundProject{}, err
 	}
 	identity, name := recipeIdentity(filepath.Join(abs, project.RecipeFileName))
 	key := workspace.ProjectKey(identity)
@@ -232,16 +240,66 @@ func (s *projectStores) bindWorkspace(ctx context.Context, abs string) (projectd
 	}
 	contextDB, err := ws.Context(ctx, key)
 	if err != nil {
-		return projectdb.Stores{}, fmt.Errorf("open the context store of %s: %w", key, err)
+		return projectdb.Stores{}, boundProject{}, fmt.Errorf("open the context store of %s: %w", key, err)
 	}
 	// A workspace opened for reading records nothing, which is the honest
 	// outcome in a sandbox that refuses writes and no reason to fail the open.
 	if !ws.Describe().ReadOnly {
 		if _, err := ws.Register(ctx, key, name, NormalizeCheckoutPath(abs)); err != nil {
-			return projectdb.Stores{}, fmt.Errorf("register %s in the workspace: %w", key, err)
+			return projectdb.Stores{}, boundProject{}, fmt.Errorf("register %s in the workspace: %w", key, err)
 		}
 	}
-	return projectdb.Stores{Context: contextDB, Graph: ws.Registry()}, nil
+	return projectdb.Stores{Context: contextDB, Graph: ws.Registry()}, boundProject{ws: ws, key: key}, nil
+}
+
+// boundProject is the workspace a project store was opened in and the key it
+// is kept under there.
+type boundProject struct {
+	ws  *workspace.Workspace
+	key workspace.ProjectKey
+}
+
+// Projector returns the one writer of the project store rooted at root: every
+// write to its terms, content memory, voice profiles and widened rules is
+// recorded in the workspace's log and applied from there (core/projector).
+//
+// Reads go through ProjectDB as before; a caller that writes asks for the
+// store it writes from here instead. The projector is memoized beside the
+// store, and the first one opened applies whatever the log holds that the
+// store has not yet seen: writes another process made, or operations merged
+// in from another machine.
+//
+// A store with no workspace behind it (the browser build) gets a projector
+// with no log, which applies each write directly.
+func (a *App) Projector(ctx context.Context, root string) (*projector.Projector, error) {
+	db, err := a.ProjectDB(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return nil, fmt.Errorf("project store: resolve root %q: %w", root, err)
+	}
+	s := a.ensureProjectStores()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if p, ok := s.projectors[abs]; ok {
+		return p, nil
+	}
+	var log projector.Log
+	bound, ok := s.bound[abs]
+	if ok && bound.ws != nil && !bound.ws.Describe().ReadOnly {
+		log = bound.ws
+	}
+	p, err := projector.ForProject(log, bound.key, db)
+	if err != nil {
+		return nil, err
+	}
+	if err := p.CatchUp(context.WithoutCancel(ctxOrBackground(ctx))); err != nil {
+		return nil, fmt.Errorf("apply the context log to the project store: %w", err)
+	}
+	s.projectors[abs] = p
+	return p, nil
 }
 
 // recipeIdentity reads the two fields of a recipe that say which project this
@@ -380,6 +438,8 @@ func (a *App) CloseProjectDB(root string) error {
 	s.mu.Lock()
 	db, ok := s.dbs[abs]
 	delete(s.dbs, abs)
+	delete(s.projectors, abs)
+	delete(s.bound, abs)
 	s.mu.Unlock()
 	if !ok {
 		return nil
@@ -404,6 +464,8 @@ func (a *App) closeProjectStores() {
 		_ = db.Close()
 		delete(s.dbs, root)
 	}
+	clear(s.projectors)
+	clear(s.bound)
 	// Last: a project store reads and writes the context database the workspace
 	// handed it, so the workspace outlives every store that borrowed from it.
 	for root, ws := range s.ws {

@@ -13,6 +13,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/yamledit"
 	"github.com/neokapi/neokapi/memory/kmb"
@@ -187,7 +188,7 @@ func (s *snapshotWriter) existing(rel string) []byte {
 // snapshotTerms writes the terms store as the layout's terms bundle, through
 // the exporter `kapi terms export --format bundle` uses.
 func (a *App) snapshotTerms(ctx context.Context, db *projectdb.DB, w *snapshotWriter, res *ContextSnapshot) error {
-	tb := db.Terms()
+	tb := projector.TermsView(db)
 	if tb == nil {
 		return nil
 	}
@@ -206,7 +207,7 @@ func (a *App) snapshotTerms(ctx context.Context, db *projectdb.DB, w *snapshotWr
 // snapshotMemory writes the content memory as the layout's one bundle, through
 // the exporter `kapi memory export --format bundle` uses.
 func (a *App) snapshotMemory(ctx context.Context, db *projectdb.DB, w *snapshotWriter, res *ContextSnapshot) error {
-	tm := db.Memory()
+	tm := projector.MemoryView(db)
 	if tm == nil {
 		return nil
 	}

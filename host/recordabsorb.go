@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/state"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -369,7 +370,12 @@ func displayPoint(point string) string {
 // artifacts that actually changed.
 func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj *project.KapiProject, projectPath string, layout project.Layout) (RecordAbsorbResult, error) {
 	var res RecordAbsorbResult
-	tm := db.Memory()
+	writer, err := a.Projector(ctx, layout.Root)
+	if err != nil {
+		return res, err
+	}
+	writer = writer.With(projector.Origin{By: "absorb"})
+	tm := writer.Memory()
 	if tm == nil || a.FormatReg == nil {
 		// No file-backed content memory in this build (the browser build), or no
 		// format registry to read the documents with — the same posture the seed
@@ -530,7 +536,7 @@ func (a *App) absorbCommittedRecord(ctx context.Context, db *projectdb.DB, proj 
 	if err := a.writeRecordPairs(ctx, tm, pairs, sourceLocale, asserted, &res); err != nil {
 		return res, err
 	}
-	if err := relearn.finish(ctx, db, tm, asserted); err != nil {
+	if err := relearn.finish(ctx, db, writer, asserted); err != nil {
 		return res, err
 	}
 	if err := saveRecordDigests(ctx, db, next); err != nil {
@@ -628,7 +634,7 @@ func (a *App) recordSettlement(ctx context.Context, db *projectdb.DB, proj *proj
 // already holds with the same identity and the same wording is asserted and
 // left alone: writing it again would move only the instants it records about
 // its own history, and those may have arrived with an import.
-func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pairs map[string]*recordPair, sourceLocale model.LocaleID, asserted map[string]bool, res *RecordAbsorbResult) error {
+func (a *App) writeRecordPairs(ctx context.Context, tm *projector.Memory, pairs map[string]*recordPair, sourceLocale model.LocaleID, asserted map[string]bool, res *RecordAbsorbResult) error {
 	if len(pairs) == 0 {
 		return nil
 	}
@@ -1008,7 +1014,7 @@ func (p *priorSourceIndex) scan() (byHash, byUnit map[string][]model.Run) {
 // full-score query is the same one for all of them.
 type memoryAnswers struct {
 	ctx    context.Context
-	tm     *memory.SQLiteStore
+	tm     *projector.Memory
 	source model.LocaleID
 	cache  map[string][]memory.Entry
 }
@@ -1271,7 +1277,7 @@ type recordRelearn struct {
 // beginRecordRelearn reads what the absorber taught a store written under an
 // older identity, and clears every absorb stamp so this pass reads every
 // committed target rather than skipping the ones whose bytes have not moved.
-func beginRecordRelearn(ctx context.Context, db *projectdb.DB, tm *memory.SQLiteStore) (recordRelearn, error) {
+func beginRecordRelearn(ctx context.Context, db *projectdb.DB, tm *projector.Memory) (recordRelearn, error) {
 	scheme, _, err := db.Meta(ctx, MetaRecordScheme)
 	if err == nil && scheme == recordSchemeCurrent {
 		return recordRelearn{}, nil
@@ -1294,7 +1300,7 @@ func beginRecordRelearn(ctx context.Context, db *projectdb.DB, tm *memory.SQLite
 
 // finish drops the absorber's rows the pass did not assert, and records that
 // the store is keyed under the identity in force.
-func (r recordRelearn) finish(ctx context.Context, db *projectdb.DB, tm *memory.SQLiteStore, asserted map[string]bool) error {
+func (r recordRelearn) finish(ctx context.Context, db *projectdb.DB, writer *projector.Projector, asserted map[string]bool) error {
 	if r.stale == nil {
 		return nil
 	}
@@ -1305,10 +1311,14 @@ func (r recordRelearn) finish(ctx context.Context, db *projectdb.DB, tm *memory.
 		}
 	}
 	sort.Strings(ids)
+	batch := writer.Batch()
 	for _, id := range ids {
-		if derr := tm.Delete(ctx, id); derr != nil {
+		if derr := batch.Memory().Delete(ctx, id); derr != nil {
 			return fmt.Errorf("forget content-memory entry %s: %w", id, derr)
 		}
+	}
+	if err := batch.Commit(ctx); err != nil {
+		return fmt.Errorf("forget %d content-memory entries: %w", len(ids), err)
 	}
 	if perr := db.PutMeta(ctx, MetaRecordScheme, recordSchemeCurrent); perr != nil &&
 		!errors.Is(perr, projectdb.ErrNoStore) {

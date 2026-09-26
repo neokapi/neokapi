@@ -63,6 +63,7 @@ func RunConformance(t *testing.T, newBackend Factory) {
 		{"an operation keeps the id it arrives with and is held once", operationKeepsItsID},
 		{"a content address is held once", contentAddressIsHeldOnce},
 		{"a selection narrows by kind and project", selectionNarrows},
+		{"a blob is held once under the digest of its bytes", blobIsHeldByDigest},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -225,6 +226,27 @@ func logsMergeByUnion(t *testing.T, a, b workspace.Backend) {
 	still, err := a.Head(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, headA, still, "and moves no head")
+}
+
+func blobIsHeldByDigest(t *testing.T, b workspace.Backend) {
+	ctx := t.Context()
+	data := []byte(`{"concepts":[{"id":"c1"}]}`)
+	address, err := b.PutBlob(ctx, data)
+	require.NoError(t, err)
+	assert.Equal(t, workspace.BlobAddress(data), address)
+
+	again, err := b.PutBlob(ctx, data)
+	require.NoError(t, err)
+	assert.Equal(t, address, again, "storing the same bytes twice is one blob")
+
+	got, err := b.Blob(ctx, address)
+	require.NoError(t, err)
+	assert.Equal(t, data, got)
+
+	_, err = b.Blob(ctx, workspace.BlobAddress([]byte("never stored")))
+	require.ErrorIs(t, err, workspace.ErrNoBlob)
+	_, err = b.Blob(ctx, "not-an-address")
+	require.Error(t, err)
 }
 
 // ids renders the ids of a batch of operations.

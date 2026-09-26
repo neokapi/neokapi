@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -106,17 +107,17 @@ func (a *App) RunMerge(cmd Command) error {
 	noMemoryUpdate := BoolFlag(cmd, "no-memory-update")
 	noRestore, _ := cmd.Flags().GetBool("no-restore")
 
-	var tm *memory.SQLiteStore
+	var tm *projector.Memory
 	// In the browser/seeded build (a.MemoryBackend set) there is no file-backed
 	// SQLite driver and no project content memory to write back to, so skip
 	// write-back silently rather than surfacing a driver error. The native CLI
 	// (MemoryBackend == nil) writes to the project store.
 	if !noMemoryUpdate && a.MemoryBackend == nil {
-		db, derr := a.ProjectDB(CmdContext(cmd), layout.Root)
+		w, derr := a.Projector(CmdContext(cmd), layout.Root)
 		if derr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: merge: open project store: %v (continuing with --no-memory-update semantics)\n", derr)
 		} else {
-			tm = db.Memory()
+			tm = w.With(projector.Origin{By: "merge"}).Memory()
 		}
 	}
 	// One write for the whole run, not one per merged block — see memoryAbsorber.
@@ -306,12 +307,16 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 		return 0, fmt.Errorf("merge: %w", berr)
 	}
 
-	var tm *memory.SQLiteStore
+	var tm *projector.Memory
 	// Browser/seeded build (a.MemoryBackend set): no file-backed SQLite driver
 	// and no project content memory — skip write-back silently. The native CLI
 	// writes to the project store.
 	if !noMemoryUpdate && a.MemoryBackend == nil {
-		tm = db.Memory()
+		w, werr := a.Projector(ctx, db.Layout().Root)
+		if werr != nil {
+			return 0, fmt.Errorf("merge: %w", werr)
+		}
+		tm = w.With(projector.Origin{By: "merge"}).Memory()
 	}
 	// One write for the whole pass, not one per materialized block.
 	absorber := a.newMemoryAbsorber(tm)
@@ -555,16 +560,16 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	}
 	policy := proj.Defaults.Merge.ResolvedConflictPolicy()
 
-	var tm *memory.SQLiteStore
+	var tm *projector.Memory
 	if !BoolFlag(cmd, "no-memory-update") {
 		// Warned, like the two sibling merge paths above: a content memory that
 		// failed to open reported `tm_new=0 tm_updated=0`, which reads as
 		// "nothing new to learn" rather than "it was never opened" — so the
 		// leverage is lost for this bundle with no way to tell.
-		if db, derr := a.ProjectDB(CmdContext(cmd), layout.Root); derr != nil {
+		if w, derr := a.Projector(CmdContext(cmd), layout.Root); derr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: merge: open project store: %v (continuing without write-back)\n", derr)
 		} else {
-			tm = db.Memory()
+			tm = w.With(projector.Origin{By: "merge"}).Memory()
 		}
 	}
 	// One write for the whole package, not one per merged block.
@@ -1244,7 +1249,7 @@ func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegi
 // safe for concurrent use.
 type memoryAbsorber struct {
 	app     *App
-	tm      *memory.SQLiteStore
+	tm      *projector.Memory
 	entries []memory.Entry
 	// staged maps an entry id to its position in entries. Entry ids are
 	// content-derived, so one string merged from two files — or the same source
@@ -1256,7 +1261,7 @@ type memoryAbsorber struct {
 // newMemoryAbsorber returns an absorber over tm, or nil when there is no
 // content memory to write to — every call site already guards on nil, which is
 // the "--no-memory-update, or the store would not open" case.
-func (a *App) newMemoryAbsorber(tm *memory.SQLiteStore) *memoryAbsorber {
+func (a *App) newMemoryAbsorber(tm *projector.Memory) *memoryAbsorber {
 	if tm == nil {
 		return nil
 	}

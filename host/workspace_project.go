@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/memory/kmb"
@@ -262,8 +263,13 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 	}
 
 	// Content memory.
+	writer, err := a.Projector(ctx, layout.Root)
+	if err != nil {
+		return err
+	}
+	writer = writer.With(projector.Origin{By: "unpack", Source: filepath.Base(snapshotPath)})
 	if pkg.Memory != nil {
-		tm := db.Memory()
+		tm := writer.Memory()
 		if tm == nil {
 			return fmt.Errorf("restore the content memory: %w", projectdb.ErrNoStore)
 		}
@@ -276,7 +282,7 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 
 	// Terms.
 	if pkg.Terms != nil {
-		tb := db.Terms()
+		tb := writer.Terms()
 		if tb == nil {
 			return fmt.Errorf("restore the terms store: %w", projectdb.ErrNoStore)
 		}

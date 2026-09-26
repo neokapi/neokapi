@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-24T00:37:58Z",
+  "generatedAt": "2026-09-26T06:15:08Z",
   "commands": [
     {
       "id": "add",
@@ -954,6 +954,30 @@
         "kapi context observe --term Quickcast --instead-of \"Quick cast\" \\",
         "--seen-in README.md --quote \"Quickcast forecasts the next hour.\"",
         "kapi context observe \"we write use, never utilise\" --term use --instead-of utilise --instead-of utilize"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.rebuild",
+      "path": [
+        "context",
+        "rebuild"
+      ],
+      "use": "rebuild",
+      "short": "▒ Ŕéƃüîļđ ţĥîš þŕöĵéçţ'š šţöŕéš ƒŕöḿ ţĥé çöñţéẋţ ļöĝ ▒",
+      "long": "▒ Éḿþţý ţĥîš þŕöĵéçţ'š ţéŕḿš, çöñţéñţ ḿéḿöŕý àñđ ṽöîçé þŕöƒîļéš, àñđ ţĥé ŕüļéš\nîţ ŵîđéñéđ ţö ţĥé ŵĥöļé ŵöŕķšþàçé, àñđ ŵŕîţé ţĥéḿ àĝàîñ ƒŕöḿ ţĥé çöñţéẋţ ļöĝ.\n\nÉṽéŕý çĥàñĝé ţö à þŕöĵéçţ'š çöñţéẋţ îš ŕéçöŕđéđ îñ ţĥé ļöĝ ŵîţĥ ŵĥàţ îţ ŵŕöţé,\nšö ţĥé šţöŕéš ĥöļđ ñöţĥîñĝ ţĥé ļöĝ đöéš ñöţ. Ŕéƃüîļđîñĝ ĝîṽéš ţĥé šàḿé šţöŕéš\nţĥé çĥàñĝéš ļéƒţ ƃéĥîñđ. Üšé îţ ŵĥéñ à šţöŕé îš đàḿàĝéđ, öŕ àƒţéŕ öþéŕàţîöñš ƒŕöḿ\nàñöţĥéŕ ḿàçĥîñé ŵéŕé ḿéŕĝéđ îñţö ţĥé ļöĝ. ▒",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "▒ þàţĥ ţö à ķàþî.ýàḿļ þŕöĵéçţ ŕéçîþé öŕ îţš đîŕéçţöŕý (àüţö-đîšçöṽéŕéđ ƒŕöḿ çŵđ îƒ öḿîţţéđ) ▒",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context rebuild"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

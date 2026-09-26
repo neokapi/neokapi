@@ -28,15 +28,15 @@ func (a *App) OpenTermsSQLite(cmd Command) (terms.Terminology, string, func(), e
 		return nil, "", noop, err
 	}
 	if sel.InProject() {
-		db, err := a.ProjectDB(CmdContext(cmd), sel.Root)
+		w, err := a.Projector(CmdContext(cmd), sel.Root)
 		if err != nil {
 			return nil, "", noop, err
 		}
-		tb := db.Terms()
+		tb := termsWriter(w)
 		if tb == nil {
-			return nil, db.Path(), noop, fmt.Errorf("open terms: %w", projectdb.ErrNoStore)
+			return nil, projectLayoutAt(sel.Root).StorePath(), noop, fmt.Errorf("open terms: %w", projectdb.ErrNoStore)
 		}
-		return tb, db.Path(), noop, nil
+		return tb, projectLayoutAt(sel.Root).StorePath(), noop, nil
 	}
 	tb, err := terms.NewSQLiteStore(sel.Path)
 	if err != nil {

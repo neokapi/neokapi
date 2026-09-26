@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 	"sort"
 
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/neokapi/neokapi/terms/ktb"
@@ -51,10 +53,26 @@ const (
 
 // readContextSource reads one file through the importer its kind calls for,
 // returning the number of concepts or entries it carried.
-func (a *App) readContextSource(ctx context.Context, db *projectdb.DB, root string, src contextSource) (int, error) {
+//
+// Everything one file carries is written as one batch through the projector,
+// so the log holds the file's content as one operation per store it reaches.
+func (a *App) readContextSource(ctx context.Context, db *projectdb.DB, writer *projector.Projector, root string, src contextSource) (int, error) {
+	batch := writer.With(projector.Origin{By: "import", Source: src.rel}).Batch()
+	n, err := a.readContextSourceInto(ctx, db, batch, root, src)
+	if err != nil {
+		return 0, err
+	}
+	if err := batch.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("read %s: %w", src.rel, err)
+	}
+	return n, nil
+}
+
+// readContextSourceInto reads one file into a batch of writes.
+func (a *App) readContextSourceInto(ctx context.Context, db *projectdb.DB, batch *projector.Batch, root string, src contextSource) (int, error) {
 	switch src.kind {
 	case sourceKindTerms:
-		tb := db.Terms()
+		tb := batch.Terms()
 		if tb == nil {
 			return 0, fmt.Errorf("read terms: %w", projectdb.ErrNoStore)
 		}
@@ -69,13 +87,17 @@ func (a *App) readContextSource(ctx context.Context, db *projectdb.DB, root stri
 		}
 		return n, nil
 	case sourceKindMemory:
-		n, err := a.compileMemoryBundle(ctx, db, root, src.path)
+		n, err := a.compileMemoryBundle(ctx, db, memoryWriterOf(batch.Memory()), root, src.path)
 		if err != nil {
 			return 0, fmt.Errorf("read content memory %s: %w", src.rel, err)
 		}
 		return n, nil
 	case sourceKindVoice:
-		if err := a.compileVoiceSource(ctx, db, src); err != nil {
+		var store coreprofile.Store
+		if v := batch.Voice(); v != nil {
+			store = v
+		}
+		if err := a.compileVoiceSource(ctx, db, store, src); err != nil {
 			return 0, fmt.Errorf("read voice profile %s: %w", src.rel, err)
 		}
 		return 1, nil

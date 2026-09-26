@@ -8,6 +8,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/projector"
 )
 
 // land writes an established rule where the subsystems that read context
@@ -28,7 +29,11 @@ func (s *contextOpsSession) land(ctx context.Context, r contextop.Record) (strin
 		if _, err := s.retractFromProject(ctx, r); err != nil {
 			return "", err
 		}
-		if err := contextop.Widen(ctx, s.ws, r); err != nil {
+		w, err := s.writer(ctx, r)
+		if err != nil {
+			return "", err
+		}
+		if err := contextop.Widen(ctx, w.Rules(), r); err != nil {
 			return "", err
 		}
 		return "the whole workspace", nil
@@ -109,6 +114,16 @@ func (s *contextOpsSession) reconcile(ctx context.Context, before []contextop.Re
 	return moved, nil
 }
 
+// writer is the project's projector, stamping what it writes with the
+// operation that caused it.
+func (s *contextOpsSession) writer(ctx context.Context, r contextop.Record) (*projector.Projector, error) {
+	w, err := s.app.Projector(ctx, s.root)
+	if err != nil {
+		return nil, err
+	}
+	return w.With(projector.Origin{By: string(r.Kind), Cause: r.ID}), nil
+}
+
 // retract takes a rule back out of wherever keeping put it. A suggestion
 // nobody kept put nothing anywhere, so retracting it is a no-op: the rule
 // stops advising the moment the log says so.
@@ -116,7 +131,11 @@ func (s *contextOpsSession) retract(ctx context.Context, r contextop.Record) (st
 	if r.Status != contextop.StatusEstablished {
 		return "", nil
 	}
-	if err := contextop.Narrow(ctx, s.ws, r.Project, r.ID); err != nil {
+	w, err := s.writer(ctx, r)
+	if err != nil {
+		return "", err
+	}
+	if err := contextop.Narrow(ctx, w.Rules(), r.Project, r.ID); err != nil {
 		return "", err
 	}
 	if r.Scope.Level == contextop.LevelWorkspace {
@@ -222,11 +241,11 @@ func (s *contextOpsSession) sourceLocale() string {
 // that already existed must leave that concept's other terms where they are. A
 // concept the term was alone in goes with it.
 func (s *contextOpsSession) retractTerm(ctx context.Context, rule coreprofile.TermRule) (string, error) {
-	db, err := s.app.ProjectDB(ctx, s.root)
+	w, err := s.app.Projector(ctx, s.root)
 	if err != nil {
 		return "", err
 	}
-	store := db.Terms()
+	store := w.With(projector.Origin{By: "retract"}).Terms()
 	if store == nil {
 		return "", nil
 	}
@@ -258,11 +277,11 @@ func (s *contextOpsSession) retractTerm(ctx context.Context, rule coreprofile.Te
 
 // retractMemoryPair removes a pair from the project's content memory.
 func (s *contextOpsSession) retractMemoryPair(ctx context.Context, pair contextop.MemoryPair) (string, error) {
-	db, err := s.app.ProjectDB(ctx, s.root)
+	w, err := s.app.Projector(ctx, s.root)
 	if err != nil {
 		return "", err
 	}
-	store := db.Memory()
+	store := w.With(projector.Origin{By: "retract"}).Memory()
 	if store == nil {
 		return "", nil
 	}
