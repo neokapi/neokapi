@@ -77,6 +77,11 @@ type Workspace struct {
 	// whose projects have read no context file pays nothing for the table.
 	importsOnce sync.Once
 	importsErr  error
+
+	// syncOnce guards the sync state's schema on the same terms: a workspace
+	// that never shared a project pays nothing for the tables.
+	syncOnce sync.Once
+	syncErr  error
 }
 
 // Open prepares a workspace over a backend: it opens the workspace-wide

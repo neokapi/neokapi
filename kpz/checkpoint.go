@@ -34,4 +34,9 @@ type CheckpointMark struct {
 	Through string `json:"through"`
 	// Operations counts the operations the tables include.
 	Operations int `json:"operations"`
+	// Segments names the segment files of a shared context whose operations
+	// the tables include, for a checkpoint kept on a remote (core/workspace).
+	// A first pull starts from the checkpoint only when every other segment
+	// holds operations after Through alone.
+	Segments []string `json:"segments,omitempty"`
 }
