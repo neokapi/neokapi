@@ -69,7 +69,7 @@ type Record struct {
     Short         string               // its first ten characters, as a log line shows it
     Project       workspace.ProjectKey
     Actor         Actor                // person | agent | tool, a name, an agent's session
-    Kind          Kind                 // observe | correct | import | edit | keep | drop | withdraw | revert | widen
+    Kind          Kind                 // observe | correct | import | edit | keep | drop | withdraw | revert | widen | signal | establish
     Subject       Subject              // a term rule, a content-memory pair, a note
     Correction    *Correction          // the wording before and the wording after
     Evidence      []Evidence           // file, unit, quotation: where this was seen
@@ -81,12 +81,15 @@ type Record struct {
     At            time.Time
     Status        Status               // folded from the log, never stored
     ContestedBy   []string             // the operations on the other side of a disagreement
-    Established   bool                 // a person kept, imported or wrote it
+    Established   bool                 // kept, imported, written, or settled on a person's signal
+    Signal        *Signal              // the evidence a signal carries
+    Because       []string             // the signals an establishment rested on
+    Standing      *Standing            // the counts for and against, folded from the log
 }
 ```
 
-The nine kinds, persisted as `context.<kind>`, divide into four that carry a
-subject and five that act on one.
+The eleven kinds, persisted as `context.<kind>`, divide into four that carry a
+subject and seven that act on one.
 
 - `observe` records something somebody noticed. Stated in prose, it is a note,
   such as who the documents address. Stated as the form the project uses for a
@@ -99,6 +102,9 @@ subject and five that act on one.
   editing the voice profile. Both are established from the start.
 - `keep`, `drop`, `withdraw`, `revert` and `widen` name an earlier operation and
   say what became of it.
+- `signal` records evidence about a suggestion that nobody wrote down by hand,
+  and `establish` records that settling established one
+  ([below](#suggestions-settle-by-evidence)).
 
 `contextop.Ledger` derives status by replaying the log in order and applying
 subsequent operations to each subject:
@@ -106,7 +112,7 @@ subsequent operations to each subject:
 | Status | What it means | Answers |
 | --- | --- | --- |
 | `suggested` | nothing has acted on it | advises |
-| `established` | a person kept, imported or wrote it | fails a check unless advisory |
+| `established` | a person kept, imported or wrote it, or a person's signal settled it | fails a check unless advisory |
 | `contested` | it disagrees with another rule, named in `ContestedBy` | advises |
 | `withdrawn` | its author took it back in the session that recorded it | silent |
 | `dropped` | a person set it aside | silent |
@@ -167,6 +173,7 @@ meet) and reads the evidence for the group from the log:
 | The change reached the default branch | `signal` with source `merge` | Person signal |
 | Another session records the same rule | `observe` | Standing only |
 | The content writes the preferred form | `signal` with source `usage` | Standing only |
+| An agent's applied edit writes the preferred form | `signal` with source `applied` | Standing only |
 | A correction away from it | `correct` | Against |
 | Its author withdraws it | `withdraw` | Against |
 | The content moves to a rejected form after it was recorded | `signal` with source `usage` | Against |
@@ -203,6 +210,15 @@ squash or merge commit's subject when not given) and the merger. The signal's
 address covers the suggestion, the commit and the counts, so settling one range
 twice records nothing new. CI runs it after a merge or a push to the default
 branch ([Convergence in CI](/kapi/convergence-in-ci)).
+
+The other signals are recorded where the content is read. A whole-project
+`kapi check` and a `kapi up` run count, for each suggestion, the uses of its
+preferred form and of the forms it avoids in the source they read, and record a
+`usage` signal as tool `check`; a check of named files or of a diff records
+none, because part of the content says nothing about how the project writes.
+An agent's content edit applied through `kapi apply` or the `apply_edits` tool
+records an `applied` signal as tool `apply` for each suggestion whose preferred
+form the edit writes, naming the agent's session.
 
 ### Disagreements are contested until a person chooses
 
@@ -294,6 +310,16 @@ An operation is scoped to the point its evidence was seen at: the coordinates
 declared axes is that project. A rule answers where its scope covers the point
 being checked, so a rule seen in one product's reference pages says nothing
 about another product's tutorials.
+
+A rule lands in the terms store at its profile's point too. Keeping or settling
+a rule whose evidence was seen where a profile governs writes its concept with
+that profile in `terms.PropProfile`, and so does `kapi context import` for the
+word rules in a profile's own voice or terms file under `.kapi/profiles/<name>/`.
+Both writes go through the projector like every other store write.
+`projectConcepts` keeps, at a point, the concepts scoped to no profile and the
+ones scoped to the profile governing there (`terms.AtProfile`), so checks,
+retrieval and the translation tools hold a profile's rule to that profile's
+content. The project-wide answer, asked with no point, lists every concept.
 
 Keeping is also the moment a person may **widen**, with `--widen-to`, or later
 with `kapi context widen`. Naming an axis drops it

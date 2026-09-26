@@ -122,8 +122,18 @@ and the decoy never proposed.
 
 ## Measure 3: settling
 
-Settling is measured together with the settling logic it tests. The report
-keeps a heading for it.
+Measure 3 needs no live run. `eval_settle.go` scripts a story across four
+machines that start from one agent session's suggestions: a second session
+that repeats one rule and suggests a rival for another, CI recording a merge to
+the default branch, a person's corrections, and a person's digest that keeps one
+suggestion and drops another. Each machine settles its own log. The measure
+then merges the four logs into a fresh workspace in all 24 orders, settling
+after each merge, and is met when every order establishes exactly the expected
+rules and every rule ends at the same status. The scenario lives in
+`eval_product.go` with the rest of the product's vocabulary.
+
+`TestEvalSettle_MeasureIsMet` runs it with the framework tests in CI, and every
+report measures it afresh, with a table of each rule's status.
 
 ## Measure 4: review usefulness {#measure-4-review-is-worth-it}
 
