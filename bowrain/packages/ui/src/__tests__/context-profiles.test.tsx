@@ -186,7 +186,7 @@ describe("ProfileDetailView", () => {
     await waitFor(() => expect(screen.getByText("Coordinates")).toBeInTheDocument());
     expect(screen.getByText("Bowrain docs voice")).toBeInTheDocument();
     expect(screen.getByText("bowrain-docs")).toBeInTheDocument();
-    expect(screen.getByText(/\.kapi\/profiles\/docs-bowrain\//)).toBeInTheDocument();
+    expect(screen.getByText("profiles.bowrain")).toBeInTheDocument();
   });
 
   it("reports the scan on the default profile, and says what it covers", async () => {

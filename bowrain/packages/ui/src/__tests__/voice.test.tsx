@@ -309,7 +309,7 @@ describe("VoiceProfileList", () => {
     // empty state must not advertise the hosted scan.
     expect(
       screen.getByText(
-        "No voice profiles yet. A profile binds one under profiles[].voice: in a recipe. Define one by hand, or draft one locally with the kapi Agent Skill.",
+        "No voice profiles yet. A profile binds one under profiles.<name>.voice in a recipe. Define one by hand, or draft one locally with the kapi Agent Skill.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText("Scan your brand")).not.toBeInTheDocument();

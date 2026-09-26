@@ -4,7 +4,7 @@
  *
  * A profile is derived, not stored. A push declares each collection's
  * coordinates and the voice they resolved to; grouping the collections by point
- * recovers the profiles. The recipe's own `profiles[]` regions never cross the
+ * recovers the profiles. The recipe's own `profiles:` regions never cross the
  * wire, so one broad profile governing two points reads here as two points.
  */
 

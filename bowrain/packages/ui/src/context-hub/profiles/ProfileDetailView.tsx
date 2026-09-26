@@ -102,7 +102,7 @@ export function ProfileDetailView({
             <p className="text-sm text-muted-foreground">
               {profile.is_default
                 ? "No coordinates. This is where content that declares none sits, governed by the recipe's defaults."
-                : "This voice sits at no point. Bind it under profiles[].voice: in a recipe to give it one."}
+                : "This voice sits at no point. Bind it under profiles.<name>.voice in a recipe to give it one."}
             </p>
           )}
         </Section>
@@ -122,8 +122,8 @@ export function ProfileDetailView({
             <VoiceSummary voice={profile.voice} />
           ) : (
             <p className="text-sm text-muted-foreground">
-              No voice bound. Name one under profiles[].voice: in the recipe that declares this
-              point, or give the project a default voice.
+              No voice bound. Name one under profiles.&lt;name&gt;.voice in the recipe that declares
+              this point, or give the project a default voice.
             </p>
           )}
         </Section>

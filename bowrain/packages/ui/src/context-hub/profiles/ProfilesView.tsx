@@ -112,7 +112,7 @@ export function ProfilesView({ onOpenProfile, onScanVoice, serverUrl }: Profiles
               <h2 className="text-sm font-medium text-foreground">Voices with no point</h2>
               <p className="text-sm text-muted-foreground">
                 These voices exist in the workspace and govern nothing. Bind one under
-                profiles[].voice: in a recipe, or set it as the workspace default.
+                profiles.&lt;name&gt;.voice in a recipe, or set it as the workspace default.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
