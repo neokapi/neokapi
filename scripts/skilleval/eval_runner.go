@@ -177,7 +177,7 @@ func executeEvalWith(ctx context.Context, opts EvalOptions, deps evalDependencie
 	if err := ensureEvalStudy(opts.Dir, record); err != nil {
 		return err
 	}
-	schedule, err := selectEvalSessions(evalSchedule(manifest, opts.Phase), opts.Sessions)
+	full, schedule, err := evalPhaseSchedule(manifest, opts.Phase, opts.Sessions)
 	if err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func executeEvalWith(ctx context.Context, opts EvalOptions, deps evalDependencie
 	if err := os.MkdirAll(phaseDir, 0o700); err != nil {
 		return err
 	}
-	if err := ensurePairedJSON(filepath.Join(phaseDir, "schedule.json"), schedule); err != nil {
+	if err := ensurePairedJSON(filepath.Join(phaseDir, "schedule.json"), full); err != nil {
 		return err
 	}
 	return runEvalSchedule(ctx, opts, record, schedule, deps)

@@ -180,6 +180,16 @@ func evalSchedule(m EvalManifest, phase string) []EvalSession {
 	return sessions
 }
 
+// evalPhaseSchedule returns a phase's whole schedule and the sessions this run
+// executes. The whole schedule is what the phase records, so a run that picks
+// some sessions with -eval-sessions and a later run that picks others read the
+// same record, and a phase can be finished host by host.
+func evalPhaseSchedule(m EvalManifest, phase, selection string) (full, run []EvalSession, err error) {
+	full = evalSchedule(m, phase)
+	run, err = selectEvalSessions(full, selection)
+	return full, run, err
+}
+
 // selectEvalSessions narrows a schedule to named session IDs, keeping the
 // schedule's order. It never resets the attempt ceiling.
 func selectEvalSessions(schedule []EvalSession, selection string) ([]EvalSession, error) {
