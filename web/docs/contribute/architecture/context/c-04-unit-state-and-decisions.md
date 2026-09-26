@@ -97,7 +97,28 @@ The address is the SHA-256 of the record, the actor and the withdrawal flag, so
 two parties that reach the same decision about the same pairing write the same
 entry. Recording one the ledger already holds leaves it alone, which is what
 lets a project read its shards in, pull the same venue ledger twice and replay a
-change feed without the ledger growing.
+change feed without the ledger growing. Recording the entry that already
+answers for its pairing is the same no-op; recording an older entry again
+moves its moment forward so it answers once more.
+
+### The ledger is a projection of the operation log
+
+In a workspace, every ledger write is an operation in the workspace's log
+before it is a row ([C-03](c-03-context-store-and-graph.md#the-stores-are-projections-of-the-log)).
+`state.WorkStore` records through a journal the host binds when it opens the
+project store (`WorkStore.SetJournal`, implemented by `projector.Units`): each
+entry becomes one `unit.record` operation carrying the record, the actor, the
+origin and the moment, and the projector writes the row with
+`state.ApplyEntries`. The operation's content address is `unit:<project>:<entry
+id>`, so the entry's own address carries over: one decision recorded twice, on
+one machine or on two whose logs are merged, is one operation. A re-assertion of
+an older entry is a new event and carries no address.
+
+`kapi context rebuild` therefore rebuilds the ledger with the other stores, and
+a second machine that merges the log receives the decisions with it. Each
+checkout's view stays out of the log: it is a reading of that checkout's files,
+written by the store beside the journal. The embedded layout a test opens has
+no log, and its store writes the ledger directly.
 
 ### Applicability is a lookup
 
@@ -115,6 +136,11 @@ available if their source and target pairing appears again.
 
 `Put`, `Record` and `RecordEntry` append to the ledger and are durable at once.
 No separate publish or commit step is required.
+
+The log is the source of the decisions, and the shards are one rendering of
+it. Both directions below go through the log: an import records each line it
+takes as a `unit.record` operation, and a snapshot writes what the ledger, the
+log's projection, holds.
 
 Two directions connect the ledger to the shards under `.kapi/state/`, for a team
 that keeps them in version control, and they agree:

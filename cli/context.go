@@ -186,21 +186,27 @@ it widened to the whole workspace, and write them again from the context log.
 Every change to a project's context is recorded in the log with what it wrote,
 so the stores hold nothing the log does not. Rebuilding gives the same stores
 the changes left behind. Use it when a store is damaged, or after operations from
-another machine were merged into the log.`,
-		Example: "  kapi context rebuild",
-		Args:    cobra.NoArgs,
+another machine were merged into the log.
+
+With --checkpoint it keeps a copy of the stores as they stand afterwards, so the
+next rebuild starts there and replays only the changes after it.`,
+		Example: "  kapi context rebuild\n" +
+			"  kapi context rebuild --checkpoint",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			projectPath, err := RequireProjectPath(cmd)
 			if err != nil {
 				return err
 			}
-			res, err := a.RebuildProjectContext(cmd.Context(), projectPath)
+			checkpoint, _ := cmd.Flags().GetBool("checkpoint")
+			res, err := a.RebuildProjectContext(cmd.Context(), projectPath, checkpoint)
 			if err != nil {
 				return err
 			}
 			return output.Print(cmd, res)
 		},
 	}
+	cmd.Flags().Bool("checkpoint", false, "keep a checkpoint of the rebuilt stores for the next rebuild to start from")
 	AddProjectFlag(cmd)
 	return cmd
 }

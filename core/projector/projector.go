@@ -72,15 +72,19 @@ const (
 	KindVoice = "voice.write"
 	// KindRules widens rules to the whole workspace and narrows them again.
 	KindRules = "rules.write"
+	// KindUnit records one entry in the unit decision ledger (core/state).
+	// Its content address is the entry's, so a decision recorded twice, here
+	// or on another machine, is one operation.
+	KindUnit = "unit.record"
 )
 
 // Kinds is every kind the projector applies.
-var Kinds = []string{KindTerms, KindMemory, KindVoice, KindRules}
+var Kinds = []string{KindTerms, KindMemory, KindVoice, KindRules, KindUnit}
 
 // projects reports whether an operation kind is one the projector applies.
 func projects(kind string) bool {
 	switch kind {
-	case KindTerms, KindMemory, KindVoice, KindRules:
+	case KindTerms, KindMemory, KindVoice, KindRules, KindUnit:
 		return true
 	}
 	return false
@@ -236,10 +240,12 @@ type payload struct {
 	Blob string `json:"blob,omitempty"`
 }
 
-// pending is one operation a write is about to record: its kind and its steps.
+// pending is one operation a write is about to record: its kind, its steps,
+// and the content address it is recorded under, if any.
 type pending struct {
-	kind  string
-	steps []step
+	kind    string
+	steps   []step
+	address string
 }
 
 // commit records a write's operations and applies everything the store has not
@@ -319,6 +325,10 @@ const (
 // steps becomes several operations. The pieces keep their order, so applying
 // them in sequence writes what the whole would have.
 func split(w pending) []pending {
+	if w.address != "" {
+		// An addressed operation is one statement, recorded whole.
+		return []pending{w}
+	}
 	var steps []step
 	for _, s := range w.steps {
 		for len(s.PutEntries) > maxEntriesPerStep {
@@ -361,7 +371,7 @@ func (p *Projector) encode(ctx context.Context, w pending, at time.Time) (worksp
 			return workspace.Op{}, fmt.Errorf("projector: encode %s: %w", w.kind, err)
 		}
 	}
-	return workspace.Op{Project: p.key, Kind: w.kind, Payload: body, At: at}, nil
+	return workspace.Op{Project: p.key, Kind: w.kind, Payload: body, At: at, Address: w.address}, nil
 }
 
 // decode reads the steps an operation carries, from its payload or its blob.
@@ -414,6 +424,19 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 	var first error
 	last := cursor
 	foreignBulk, stale := false, false
+	// Ledger entries arrive one operation each, and an import brings thousands,
+	// so a run of them is applied in one transaction.
+	var units []step
+	unitsMine := false
+	flushUnits := func() {
+		if len(units) == 0 {
+			return
+		}
+		if _, aerr := p.applySteps(ctx, KindUnit, units); aerr != nil && unitsMine && first == nil {
+			first = aerr
+		}
+		units, unitsMine = nil, false
+	}
 	for _, op := range ops {
 		last = op.Seq
 		if !projects(op.Kind) {
@@ -430,12 +453,19 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 			}
 			foreignBulk = foreignBulk || bulkMemory(op.Kind, steps)
 		}
+		if op.Kind == KindUnit {
+			units = append(units, steps...)
+			unitsMine = unitsMine || isMine
+			continue
+		}
+		flushUnits()
 		replayed, aerr := p.applySteps(ctx, op.Kind, steps)
 		if aerr != nil && isMine && first == nil {
 			first = aerr
 		}
 		stale = stale || replayed
 	}
+	flushUnits()
 	// A writer that asked for a bulk write rebuilds the indexes itself; one
 	// that another process made is this catch-up's to finish.
 	if foreignBulk || stale {

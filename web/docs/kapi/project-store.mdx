@@ -109,9 +109,10 @@ reads your files again.
 
 ## Rebuilding the context store from its record
 
-Every change to a project's terms, voice profiles and content memory is kept in
-`workspace.db` together with what it wrote: an import, an edit through
-`kapi apply`, a rule a person kept or reverted, the wording a run approved. The
+Every change to a project's terms, voice profiles, content memory and approvals
+is kept in `workspace.db` together with what it wrote: an import, an edit
+through `kapi apply`, a rule a person kept or reverted, the wording a run
+approved, a decision in a review. The
 project's database holds what those changes add up to, and kapi can write it
 again from the record:
 
@@ -119,8 +120,10 @@ again from the record:
 kapi context rebuild
 ```
 
-It empties the project's terms, voice profiles and content memory, and the
-rules the project widened to every project, then replays the record into them.
+It empties the project's terms, voice profiles, content memory and approvals,
+and the rules the project widened to every project, then replays the record
+into them. `--checkpoint` keeps a copy of the result, so the next rebuild starts
+from it and replays only the changes after it.
 The result is the store the changes left behind, so a rebuild is safe to run
 whenever a store looks wrong. A row that no recorded change wrote is not
 written again. It takes a few seconds for a project with tens of

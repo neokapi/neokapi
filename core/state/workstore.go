@@ -58,6 +58,11 @@ type WorkStore struct {
 	// it and so every stamp in one process comes from one source.
 	now func() time.Time
 
+	// journal, when set, is the operation log every ledger entry is recorded
+	// in and applied from (core/projector). A store with no journal, which is
+	// the embedded layout a test opens, writes its ledger directly.
+	journal Journal
+
 	// mem is the browser fallback: the wasm build has no file-backed SQLite
 	// (storage.ErrNoSQLite), yet the review loop must still work in the lab.
 	// The ledger and the view live in process memory and persist to a JSON
@@ -482,6 +487,28 @@ func (w *WorkStore) importUnits(ctx context.Context, units []UnitState) error {
 	for i, u := range units {
 		stands[i] = w.arrivalStands(ctx, u)
 	}
+	now := w.clock()
+	if w.journal != nil {
+		// The ledger's side goes through the journal first; what is left for
+		// this transaction is the checkout's view.
+		var entries []JournalEntry
+		for i, u := range units {
+			if !stands[i] {
+				continue
+			}
+			entry, changes, err := w.entryFor(ctx, u, u.Decision.By, OriginImport, false, now, false)
+			if err != nil {
+				return err
+			}
+			if changes {
+				entries = append(entries, entry)
+			}
+		}
+		if err := w.journal.RecordEntries(ctx, entries); err != nil {
+			return fmt.Errorf("state: import record: %w", err)
+		}
+		stands = make([]bool, len(units))
+	}
 
 	tx, err := w.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -492,7 +519,6 @@ func (w *WorkStore) importUnits(ctx context.Context, units []UnitState) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM unit_view WHERE checkout = ?`, w.checkout); err != nil {
 		return fmt.Errorf("state: clear checkout view: %w", err)
 	}
-	now := w.clock()
 	for i, u := range units {
 		if stands[i] {
 			if err := insertEntry(ctx, tx, u, u.Decision.By, OriginImport, false, now, false); err != nil {
@@ -595,6 +621,12 @@ func (w *WorkStore) Delete(ctx context.Context, k Key) error {
 
 // append is the one writer: it resolves what applies at the entry's pairing,
 // puts the transition to the policy, and records.
+//
+// Recording the entry that already answers for its pairing changes nothing in
+// the ledger: the entry keeps its place and its moment, and only this
+// checkout's view is pointed at the pairing. An entry the ledger holds that no
+// longer answers is re-asserted, which moves its moment forward so it answers
+// again.
 func (w *WorkStore) append(ctx context.Context, u UnitState, actor string, origin EntryOrigin, revoked bool) error {
 	p := u.Pairing()
 	applies, applied := w.applies(ctx, p)
@@ -607,6 +639,10 @@ func (w *WorkStore) append(ctx context.Context, u UnitState, actor string, origi
 		return fmt.Errorf("state: record %s/%s: %w", u.Scope, u.Unit, err)
 	}
 	stamp := w.clock()
+
+	if w.journal != nil && w.mem == nil {
+		return w.appendJournaled(ctx, u, actor, origin, revoked, stamp)
+	}
 
 	if w.mem != nil {
 		if rerr := w.mem.record(u, actor, origin, revoked, entryTimeText(stamp), true); rerr != nil {
@@ -621,13 +657,23 @@ func (w *WorkStore) append(ctx context.Context, u UnitState, actor string, origi
 		return w.mem.persist()
 	}
 
+	id, err := Address(u, actor, revoked)
+	if err != nil {
+		return err
+	}
+	answering, err := w.answering(ctx, p)
+	if err != nil {
+		return err
+	}
 	tx, err := w.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("state: record decision: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err := insertEntry(ctx, tx, u, actor, origin, revoked, stamp, true); err != nil {
-		return err
+	if answering != id {
+		if err := insertEntry(ctx, tx, u, actor, origin, revoked, stamp, true); err != nil {
+			return err
+		}
 	}
 	if !revoked && w.checkout != "" {
 		if err := putView(ctx, tx, w.checkout, p, false); err != nil {

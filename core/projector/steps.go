@@ -9,6 +9,7 @@ import (
 
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/workspace"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
@@ -45,6 +46,9 @@ type step struct {
 	// rules.write
 	WidenRules  []workspace.Rule `json:"widen_rules,omitempty"`
 	NarrowRules []string         `json:"narrow_rules,omitempty"`
+
+	// unit.record
+	Entries []state.JournalEntry `json:"entries,omitempty"`
 }
 
 // stamp fills every timestamp the store would take from the clock with the
@@ -137,6 +141,14 @@ func sessionStep(sessions []memory.ImportSession) step {
 // search indexes left behind (memory.SQLiteStore.ReplayWithStream). replayed
 // reports it, and the caller rebuilds the indexes once.
 func (p *Projector) applySteps(ctx context.Context, kind string, steps []step) (replayed bool, err error) {
+	if kind == KindUnit {
+		// Ledger entries are applied together, one transaction for the run.
+		var entries []state.JournalEntry
+		for _, s := range steps {
+			entries = append(entries, s.Entries...)
+		}
+		return false, p.applyStep(ctx, KindUnit, step{Entries: entries})
+	}
 	for i := 0; i < len(steps); {
 		if kind == KindMemory {
 			if j, entries := replayRun(steps, i); len(entries) >= minReplay {
@@ -194,6 +206,11 @@ func (p *Projector) applyStep(ctx context.Context, kind string, s step) error {
 		return p.applyVoice(ctx, s)
 	case KindRules:
 		return p.applyRules(ctx, s)
+	case KindUnit:
+		if p.st.Raw == nil {
+			return errNoSubsystem
+		}
+		return state.ApplyEntries(ctx, p.st.Raw, s.Entries)
 	}
 	return fmt.Errorf("projector: %q is not an operation kind the projector applies", kind)
 }

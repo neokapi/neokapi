@@ -340,6 +340,19 @@ rather than rewriting blocks. This is the substrate flows run against; see
 [C-01: The project model](../context/c-01-project-model.md) and
 [C-03: The context store and graph](../context/c-03-context-store-and-graph.md).
 
+### Operation ids and content addresses
+
+Every change to a project's context is an operation in the workspace's log
+([C-11](../context/c-11-context-operations.md#operation-ids)), and an operation
+has two identities. Its **id** is time-ordered with a random suffix
+(`workspace.NewOpID`), so logs from two machines merge by union and sort into one
+order; a person types its first characters, the way a commit is named. Its
+optional **content address** names what it says: an operation whose address a
+log already holds is the one already there. A unit decision's operation carries
+the ledger entry's own content address ([C-04](../context/c-04-unit-state-and-decisions.md)),
+scoped by project, and the large payloads operations name are blobs addressed by
+the SHA-256 of their bytes.
+
 ## Consequences
 
 - Paths and command output stay short and readable (`aB3xK9mL` rather than a
