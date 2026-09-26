@@ -376,7 +376,12 @@ reads from the projection and record every write. Code that only reads takes a
 view (`projector.TermsView`, `MemoryView`, `VoiceView`) whose writes are
 refused. `make check-projection-writes` type-checks the Apache modules and
 fails on a store write, or a store handed to an interface that can write it,
-anywhere outside the projector; the few functions that open a store a person
+anywhere outside the projector. A write method reached through a type that
+embeds the store counts as a direct call, so a method a projector store leaves
+to its embedded store is caught too. The guard also reads the store packages:
+an exported method that writes the database must be in its list of writes or
+in its list of writes the log does not project (a search-index rebuild, the
+workspace's project registry). The few functions that open a store a person
 named on the command line are listed with the reason.
 
 ### Deleting derived data {#kapiwork-is-free-to-delete}

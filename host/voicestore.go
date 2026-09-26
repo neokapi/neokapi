@@ -65,7 +65,7 @@ func (a *App) OpenVoiceStore(cmd Command) (coreprofile.Store, string, func(), er
 		if store == nil {
 			return nil, projectLayoutAt(sel.Root).StorePath(), noop, fmt.Errorf("open voice store: %w", projectdb.ErrNoStore)
 		}
-		return store, projectLayoutAt(sel.Root).StorePath(), noop, nil
+		return store, a.contextStorePath(CmdContext(cmd), sel.Root), noop, nil
 	}
 	store, err := openVoiceStoreAt(sel.Path)
 	if err != nil {

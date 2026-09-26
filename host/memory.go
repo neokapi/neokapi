@@ -45,7 +45,7 @@ func (a *App) OpenMemorySQLite(cmd Command) (memory.Store, string, func(), error
 		if tm == nil {
 			return nil, projectLayoutAt(sel.Root).StorePath(), noop, fmt.Errorf("open content memory: %w", projectdb.ErrNoStore)
 		}
-		return tm, projectLayoutAt(sel.Root).StorePath(), noop, nil
+		return tm, a.contextStorePath(CmdContext(cmd), sel.Root), noop, nil
 	}
 	tm, err := memory.NewSQLiteStore(sel.Path)
 	if err != nil {

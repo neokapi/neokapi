@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projector"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -76,4 +78,48 @@ func TestTermsImport_BilingualUnchanged(t *testing.T) {
 	require.Len(t, matches, 1)
 	// Bilingual concept keeps both the source and the target term.
 	assert.Len(t, matches[0].Concept.Terms, 2)
+}
+
+// TestTermsImport_AdvisoryIntoTheProjectIsLogged imports with --advisory into a
+// project's own terms store: the concept lands advisory, and the write is an
+// operation in the log, so a rebuild keeps it.
+func TestTermsImport_AdvisoryIntoTheProjectIsLogged(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte("version: v1\nname: advisory-import\n"), 0o644))
+	csvPath := filepath.Join(root, "words.csv")
+	require.NoError(t, os.WriteFile(csvPath, []byte("term,definition\nutilize,say use\n"), 0o644))
+	t.Chdir(root)
+	// One workspace for the project and for reading its log back.
+	t.Setenv(host.EnvDataDir, t.TempDir())
+
+	a := &App{}
+	defer a.Shutdown()
+	cmd := newTermsImportCmd(a)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{csvPath, "-s", "en", "--monolingual", "--header", "--advisory"})
+	require.NoError(t, cmd.Execute())
+
+	ctx := t.Context()
+	db, err := a.ProjectDB(ctx, root)
+	require.NoError(t, err)
+	assert.Contains(t, out.String(), db.ContextPath(), "the import names the file the concepts went to")
+	concepts, err := db.Terms().Concepts(ctx)
+	require.NoError(t, err)
+	require.Len(t, concepts, 1)
+	assert.True(t, concepts[0].Advisory)
+
+	ws, err := a.Workspace(ctx)
+	require.NoError(t, err)
+	ops, err := ws.Ops(ctx, 0, 100)
+	require.NoError(t, err)
+	var logged bool
+	for _, op := range ops {
+		if op.Kind == projector.KindTerms {
+			logged = true
+			assert.Contains(t, string(op.Payload), `"advisory":true`)
+		}
+	}
+	assert.True(t, logged, "the import is an operation in the log")
 }

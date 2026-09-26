@@ -12,9 +12,15 @@
 //   - a store of that type handed to an interface through which it could be
 //     written: an argument, a return value, an assignment or a field.
 //
-// The projector's stores (projector.Terms, projector.Memory, projector.Voice,
-// projector.Rules) override every write method, so a caller holding one of
-// those is never reported. A store a person names on the command line (a
+// A write method is recognised by the type that declares it, so a store's
+// method reached through a type embedding the store is reported like a direct
+// call. The projector's stores (projector.Terms, projector.Memory,
+// projector.Voice, projector.Rules) override every write method, so a caller
+// holding one of those is never reported; one they leave to the embedded store
+// is. The list of write methods is checked against the store packages
+// themselves: an exported method that reaches a statement writing the database
+// must be listed in writes or in unprojected, so a new write method cannot slip
+// past the check by being missing from it. A store a person names on the command line (a
 // standalone `--memory` file, a `--termstore`) is not a projection, and the
 // few functions that open one are listed in allowed with the reason.
 //
@@ -61,12 +67,28 @@ var exempt = map[string]bool{
 
 // writes names each store type and the methods that write it.
 var writes = map[string]map[string]bool{
-	"github.com/neokapi/neokapi/memory.SQLiteStore": set("Add", "AddWithStream", "BulkAddWithStream", "Delete",
+	"github.com/neokapi/neokapi/memory.SQLiteStore": set("Add", "AddWithStream", "BulkAddWithStream", "ReplayWithStream", "Delete",
 		"CreateImportSession", "UpdateImportSessionCount", "DeleteImportSession"),
 	"github.com/neokapi/neokapi/terms.SQLiteStore": set("AddConcept", "AddConceptWithStream", "DeleteConcept",
 		"AddRelation", "AddRelationWithStream", "DeleteRelation"),
-	"github.com/neokapi/neokapi/voice.SQLiteStore":        set("CreateProfile", "UpdateProfile", "DeleteProfile"),
+	"github.com/neokapi/neokapi/voice.SQLiteStore": set("CreateProfile", "UpdateProfile", "DeleteProfile",
+		"CreateProfileTag", "DeleteProfileTag", "StoreScore", "StoreCorrection", "RecordRuleDecision"),
 	"github.com/neokapi/neokapi/core/workspace.Workspace": set("WidenRule", "NarrowRule"),
+}
+
+// unprojected lists the store methods that write something the log does not
+// project, keyed by store and method, with the reason.
+var unprojected = map[string]map[string]string{
+	"github.com/neokapi/neokapi/memory.SQLiteStore": {
+		"RebuildFuzzyIndex":  "rebuilds a search index from the store's own rows",
+		"RebuildSearchIndex": "rebuilds a search index from the store's own rows",
+	},
+	"github.com/neokapi/neokapi/core/workspace.Workspace": {
+		"Register":           "the registry of projects and checkouts",
+		"Forget":             "the registry of projects and checkouts",
+		"NoteAgentSession":   "which agent sessions are working in a project",
+		"NoteContextImports": "which context files a checkout read",
+	},
 }
 
 // allowed lists the functions that write a store which is not a projection,
@@ -167,6 +189,9 @@ func check(patterns []string) ([]string, error) {
 		if p.Export != "" {
 			exports[p.ImportPath] = p.Export
 		}
+	}
+	if err := coverage(pkgs); err != nil {
+		return nil, err
 	}
 	root, err := os.Getwd()
 	if err != nil {
@@ -275,7 +300,7 @@ func inspect(fn *ast.FuncDecl, info *types.Info, report func(token.Pos, string))
 		case *ast.CallExpr:
 			if sel, ok := n.Fun.(*ast.SelectorExpr); ok {
 				if s, ok := info.Selections[sel]; ok && s.Kind() == types.MethodVal {
-					if store, ok := storeOf(s.Recv()); ok && writes[store][sel.Sel.Name] {
+					if store, ok := storeOf(declaringType(s)); ok && writes[store][sel.Sel.Name] {
 						report(n.Pos(), fmt.Sprintf("%s.%s writes %s directly", short(store), sel.Sel.Name, short(store)))
 					}
 				}
@@ -395,6 +420,18 @@ func typeOf(info *types.Info, e ast.Expr) types.Type {
 	return nil
 }
 
+// declaringType is the receiver type of the method a selection resolves to:
+// the store for a method the store declares, even when it is reached through a
+// type that embeds the store.
+func declaringType(s *types.Selection) types.Type {
+	if fn, ok := s.Obj().(*types.Func); ok {
+		if recv := fn.Signature().Recv(); recv != nil {
+			return recv.Type()
+		}
+	}
+	return s.Recv()
+}
+
 // projectorPkg is the one writer of the stores.
 const projectorPkg = "github.com/neokapi/neokapi/core/projector"
 
@@ -426,4 +463,117 @@ func underlyingStruct(t types.Type) (*types.Struct, bool) {
 // short renders a store type the way a reader names it.
 func short(store string) string {
 	return strings.TrimPrefix(store, "github.com/neokapi/neokapi/")
+}
+
+// coverage checks writes and unprojected against the store packages: every
+// exported method of a store type that reaches a statement writing the
+// database, directly or through the type's other methods, must be named in
+// one of them.
+func coverage(pkgs []listed) error {
+	byPath := map[string]listed{}
+	for _, p := range pkgs {
+		byPath[p.ImportPath] = p
+	}
+	var missing []string
+	for store := range writes {
+		dot := strings.LastIndex(store, ".")
+		pkgPath, typeName := store[:dot], store[dot+1:]
+		p, ok := byPath[pkgPath]
+		if !ok {
+			return fmt.Errorf("store package %s is not among the checked packages' dependencies", pkgPath)
+		}
+		fset := token.NewFileSet()
+		var files []*ast.File
+		for _, name := range p.CompiledGoFiles {
+			path := name
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(p.Dir, name)
+			}
+			f, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+			if err != nil {
+				return err
+			}
+			files = append(files, f)
+		}
+		for _, m := range writingMethods(files, typeName) {
+			if _, ok := unprojected[store][m]; !ok && !writes[store][m] {
+				missing = append(missing, short(store)+"."+m)
+			}
+		}
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		return fmt.Errorf("these store methods write the database but are listed in neither writes nor unprojected: %s", strings.Join(missing, ", "))
+	}
+	return nil
+}
+
+// dbWrites are the calls that write a database, or open the transaction or
+// statement one is written through.
+var dbWrites = set("Exec", "ExecContext", "Begin", "BeginTx", "Prepare", "PrepareContext")
+
+// writingMethods names the exported methods of typeName that reach a database
+// write, following calls to the type's own methods.
+func writingMethods(files []*ast.File, typeName string) []string {
+	bodies := map[string]*ast.BlockStmt{}
+	recvs := map[string]string{}
+	for _, f := range files {
+		for _, decl := range f.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Recv == nil || len(fn.Recv.List) != 1 || fn.Body == nil {
+				continue
+			}
+			t := fn.Recv.List[0].Type
+			if star, ok := t.(*ast.StarExpr); ok {
+				t = star.X
+			}
+			if id, ok := t.(*ast.Ident); !ok || id.Name != typeName {
+				continue
+			}
+			bodies[fn.Name.Name] = fn.Body
+			if len(fn.Recv.List[0].Names) == 1 {
+				recvs[fn.Name.Name] = fn.Recv.List[0].Names[0].Name
+			}
+		}
+	}
+	calls := map[string][]string{}
+	writing := map[string]bool{}
+	for name, body := range bodies {
+		ast.Inspect(body, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			sel, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			if dbWrites[sel.Sel.Name] {
+				writing[name] = true
+			}
+			if id, ok := sel.X.(*ast.Ident); ok && id.Name == recvs[name] && bodies[sel.Sel.Name] != nil {
+				calls[name] = append(calls[name], sel.Sel.Name)
+			}
+			return true
+		})
+	}
+	for changed := true; changed; {
+		changed = false
+		for name, callees := range calls {
+			for _, c := range callees {
+				if writing[c] && !writing[name] {
+					writing[name] = true
+					changed = true
+				}
+			}
+		}
+	}
+	var out []string
+	for name := range writing {
+		if ast.IsExported(name) {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
 }

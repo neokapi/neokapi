@@ -323,6 +323,18 @@ func (a *App) Projector(ctx context.Context, root string) (*projector.Projector,
 	return p, nil
 }
 
+// contextStorePath names the file a project's terms, content memory and voice
+// profiles are written to, for a command to report: the workspace's database
+// for the project, or the checkout's store in the embedded layout.
+func (a *App) contextStorePath(ctx context.Context, root string) string {
+	if db, err := a.ProjectDB(ctx, root); err == nil {
+		if path := db.ContextPath(); path != "" {
+			return path
+		}
+	}
+	return projectLayoutAt(root).StorePath()
+}
+
 // recipeIdentity reads the two fields of a recipe that say which project this
 // is: the stable `id:` the workspace keys on, and the `name:` a person reads.
 //
