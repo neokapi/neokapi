@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T06:15:08Z",
+  "generatedAt": "2026-09-26T06:44:10Z",
   "commands": [
     {
       "id": "add",
@@ -7683,6 +7683,12 @@
       "short": "Importer termer fra CSV, JSON, TBX eller et innebygd .terms.json-pakkefil",
       "flags": [
         {
+          "name": "advisory",
+          "usage": "mark every imported concept advisory: a use of its forbidden terms reports without failing a check",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "delimiter",
           "usage": "CSV-feltavgrenser (standard: komma)",
           "type": "string"
@@ -7750,6 +7756,7 @@
         "kapi terms import terms.csv -s en -t fr --header",
         "kapi terms import vocab.csv -s en --monolingual --header",
         "kapi terms import terms.tbx --format tbx",
+        "kapi terms import house-style.csv -s en --monolingual --advisory",
         "kapi terms import seeds/terms.json"
       ],
       "offlineCapable": true,
@@ -8764,110 +8771,6 @@
       "offlineCapable": true,
       "runnableInBrowser": true,
       "demoMode": false
-    },
-    {
-      "id": "voice.expand",
-      "path": [
-        "voice",
-        "expand"
-      ],
-      "use": "expand",
-      "short": "Fyll inn bøyningsformer for termene i en profil (skriver til profilen)",
-      "long": "Be en modell om å finne alle bøyningsformer hver vokabularterm kan ta (bøyninger,\ndeklinasjoner, konjugasjoner) og skriv dem inn i profilen som `forms:`.\n\nKontrollen matcher disse formene eksakt, så dette er arbeid som utføres ved forfattingstidspunktet og\nresultatet gjennomgås i en diff. Kjør på nytt etter at termer er lagt til; regler som allerede\ninneholder former berøres ikke med mindre --overwrite er angitt.\n\n  kapi voice expand --profile-file voice.yaml --language nb\n  kapi voice expand --profile-file voice.yaml --dry-run",
-      "flags": [
-        {
-          "name": "api-key",
-          "usage": "API-nøkkel for AI-leverandøren",
-          "type": "string"
-        },
-        {
-          "name": "channel",
-          "usage": "bruk kanalspesifikke overstyringer",
-          "type": "string"
-        },
-        {
-          "name": "credential",
-          "usage": "lagret legitimasjonsnavn (se 'kapi credentials list')",
-          "type": "string"
-        },
-        {
-          "name": "dry-run",
-          "usage": "skriv ut hva som ville bli lagt til og skriv ingenting",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "file",
-          "usage": "eksplisitt sti til ressursfil",
-          "type": "string"
-        },
-        {
-          "name": "language",
-          "usage": "språket termene er på (standard: prosjektets kildespråk)",
-          "type": "string"
-        },
-        {
-          "name": "local",
-          "usage": "bruk ressurs i gjeldende katalog",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "locale",
-          "usage": "bruk lokaltilpassede overstyringer",
-          "type": "string"
-        },
-        {
-          "name": "model",
-          "usage": "navn på AI-modell",
-          "type": "string"
-        },
-        {
-          "name": "name",
-          "usage": "navngitt ressurs i KAPI_HOME (f.eks. --name project-terms)",
-          "type": "string"
-        },
-        {
-          "name": "overwrite",
-          "usage": "kjør regler som allerede har former på nytt",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "navn på innebygd startpakke",
-          "type": "string"
-        },
-        {
-          "name": "persona",
-          "usage": "bruk en forfatterpersonas overstyringer (innenfor profilgrensene)",
-          "type": "string"
-        },
-        {
-          "name": "profile",
-          "usage": "navn på stempelprofil i det lokale lageret",
-          "type": "string"
-        },
-        {
-          "name": "profile-file",
-          "usage": "sti til en frittstående profil-YAML",
-          "type": "string"
-        },
-        {
-          "name": "project",
-          "shorthand": "p",
-          "usage": "sti til en kapi.yaml-prosjektoppskrift eller dens katalog (oppdages automatisk fra gjeldende katalog hvis utelatt)",
-          "type": "string"
-        },
-        {
-          "name": "provider",
-          "usage": "AI-leverandør (standard: anthropic)",
-          "type": "string"
-        }
-      ],
-      "offlineCapable": false,
-      "runnableInBrowser": true,
-      "demoMode": true
     },
     {
       "id": "voice.guide",
