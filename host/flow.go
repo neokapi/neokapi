@@ -1908,6 +1908,44 @@ type ProjectBindings struct {
 	// chain is shared by every file in the group, so the channel is the finest
 	// place a fill can honestly name itself at.
 	point string
+
+	// voiceErr and termsErr say why the voice or the term rules the recipe
+	// binds could not be resolved for a run that went ahead without them. A
+	// step whose tool would have taken the missing binding warns, once, on
+	// warn; a run whose tools take neither says nothing.
+	voiceErr, termsErr error
+	warnings           *bindingWarnings
+}
+
+// bindingWarnings is where a run says which bindings it went ahead without,
+// each once, however many steps and workers apply the set.
+type bindingWarnings struct {
+	mu   sync.Mutex
+	to   io.Writer
+	said map[string]bool
+}
+
+// unresolved warns, once per binding, that a tool ran without the voice or
+// term rules the recipe binds.
+func (b *ProjectBindings) unresolved(what string, err error) {
+	ws := b.warnings
+	if err == nil || ws == nil {
+		return
+	}
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+	if ws.said[what] {
+		return
+	}
+	if ws.said == nil {
+		ws.said = map[string]bool{}
+	}
+	ws.said[what] = true
+	w := ws.to
+	if w == nil {
+		w = os.Stderr
+	}
+	fmt.Fprintf(w, "Warning: this run goes ahead without the recipe's %s: %v\n", what, err)
 }
 
 // resolveProjectBindings resolves the standing voice + terminology context
@@ -1931,25 +1969,40 @@ func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, pro
 // the context for one unit says which locale it is asking about instead of
 // setting a field on the App and hoping nothing else reads it meanwhile.
 func (a *App) resolveBindingsFor(cmd Command, proj *project.KapiProject, projectPath string, point project.GovernancePoint, targetLang string) (*ProjectBindings, error) {
+	b, err := a.resolveBindingParts(cmd, proj, projectPath, point, targetLang)
+	if err != nil {
+		return nil, err
+	}
+	if b == nil {
+		return nil, nil
+	}
+	if b.voiceErr != nil {
+		return nil, b.voiceErr
+	}
+	if b.termsErr != nil {
+		return nil, b.termsErr
+	}
+	return b, nil
+}
+
+// resolveBindingParts is resolveBindingsFor with the voice and the term rules
+// resolved independently: a binding that fails is left out of the set and its
+// error kept on it (voiceErr, termsErr), so a caller can go ahead with the
+// rest. The error it returns is one no part of the set survives.
+func (a *App) resolveBindingParts(cmd Command, proj *project.KapiProject, projectPath string, point project.GovernancePoint, targetLang string) (*ProjectBindings, error) {
 	root := filepath.Dir(projectPath)
 
-	store, release, err := a.VoiceLookupStore(cmd)
-	if err != nil {
-		return nil, err
-	}
-	defer release()
-	profile, _, _, err := a.ResolveVoiceProfile(CmdContext(cmd), proj, root, VoiceResolveOptions{
-		Store: store,
-		Point: point,
-	})
-	if err != nil {
-		return nil, err
+	var profile *coreprofile.VoiceProfile
+	store, release, voiceErr := a.VoiceLookupStore(cmd)
+	if voiceErr == nil {
+		profile, _, _, voiceErr = a.ResolveVoiceProfile(CmdContext(cmd), proj, root, VoiceResolveOptions{
+			Store: store,
+			Point: point,
+		})
+		release()
 	}
 
-	termRules, err := a.ResolveTermRulesFor(cmd, targetLang, point)
-	if err != nil {
-		return nil, err
-	}
+	termRules, termsErr := a.ResolveTermRulesFor(cmd, targetLang, point)
 
 	// Resolved directly rather than through ResolveGovernanceAtPoint: this is a
 	// second read of a resolution the run has already reported, and reporting a
@@ -1960,7 +2013,7 @@ func (a *App) resolveBindingsFor(cmd Command, proj *project.KapiProject, project
 	}
 	at := sqlmemory.NewPoint(gov.Profile, gov.Channel, "")
 
-	if profile == nil && len(termRules) == 0 && at == "" &&
+	if profile == nil && len(termRules) == 0 && at == "" && voiceErr == nil && termsErr == nil &&
 		len(proj.Defaults.Tools) == 0 && len(proj.Defaults.Locales) == 0 {
 		return nil, nil
 	}
@@ -1970,6 +2023,9 @@ func (a *App) resolveBindingsFor(cmd Command, proj *project.KapiProject, project
 		ToolPresets:   proj.Defaults.Tools,
 		localePresets: proj.Defaults.Locales,
 		point:         at,
+		voiceErr:      voiceErr,
+		termsErr:      termsErr,
+		warnings:      &bindingWarnings{},
 	}, nil
 }
 
@@ -2307,9 +2363,10 @@ func (a *App) stepToolConfig(step flow.FlowStep, cmd Command, rCtx *flow.Resourc
 // leaves the run without it rather than failing a translation over context
 // that is, at worst, advisory, and the checks still report what the model got
 // wrong. The recipe's tool settings (defaults.tools, defaults.locales) come
-// from the recipe alone, so the run keeps them either way. What was left out
-// is said on stderr whether or not the run is quiet: a run that silently
-// dropped part of the recipe produces output that looks right and is not.
+// from the recipe alone, so the run keeps them either way. A binding that was
+// left out is said on stderr, whether or not the run is quiet, by the first
+// step whose tool would have taken it (applyBindingsFor); a run whose tools
+// take no voice, such as a pseudo-translation, has nothing to say about one.
 func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindings {
 	if a.ProjectBindings != nil {
 		return a.ProjectBindings
@@ -2334,12 +2391,15 @@ func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindi
 			if rc, rerr := proj.ResolveGovernanceFor(point); rerr == nil {
 				a.NoteGovernance(c, rc)
 			}
-			b, err := a.resolveProjectBindings(c, proj, projectPath, point)
-			if err == nil {
-				return b
+			b, err := a.resolveBindingParts(c, proj, projectPath, point, a.TargetLang)
+			if err != nil {
+				fmt.Fprintf(c.ErrOrStderr(), "Warning: this run applies the recipe's tool settings without its voice and terms: %v\n", err)
+				return recipePresets(proj)
 			}
-			fmt.Fprintf(c.ErrOrStderr(), "Warning: this run applies the recipe's tool settings without its voice and terms: %v\n", err)
-			return recipePresets(proj)
+			if b != nil {
+				b.warnings.to = c.ErrOrStderr()
+			}
+			return b
 		}
 	}
 
@@ -2415,8 +2475,11 @@ func (a *App) applyBindingsFor(b *ProjectBindings, toolName string, s *schema.Co
 	// governing context as a translated one;
 	// review judges against it, so the score answers the same question the
 	// voice checks ask rather than a generic one about accuracy and fluency.
-	if b.profile != nil && (isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s) ||
-		isAIReviewTool(toolName, s)) {
+	takesVoice := isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s) || isAIReviewTool(toolName, s)
+	if takesVoice {
+		b.unresolved("voice", b.voiceErr)
+	}
+	if b.profile != nil && takesVoice {
 		if _, ok := config["profile"]; !ok {
 			clone()
 			config["profile"] = b.profile
@@ -2455,10 +2518,14 @@ func (a *App) applyBindingsFor(b *ProjectBindings, toolName string, s *schema.Co
 	// it for itself (a prompt line, a check, a fill recycle refuses and the
 	// fingerprint it stamps), so no tool has to guess what a caller meant by a
 	// bare map.
-	if len(b.termRules) > 0 && (ToolRequires(s, schema.RequiresTerms) ||
+	takesTerms := ToolRequires(s, schema.RequiresTerms) ||
 		isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s) ||
 		isPseudoTranslateTool(toolName, s) || isDNTCheckTool(toolName, s) ||
-		isAIReviewTool(toolName, s)) {
+		isAIReviewTool(toolName, s)
+	if takesTerms {
+		b.unresolved("term rules", b.termsErr)
+	}
+	if len(b.termRules) > 0 && takesTerms {
 		if _, ok := config["term_rules"]; !ok {
 			clone()
 			config["term_rules"] = b.termRules

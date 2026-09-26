@@ -11,7 +11,9 @@ import (
 )
 
 // A run whose recipe binds a voice this machine's store does not hold keeps
-// the recipe's tool settings, and says what it left out even when quiet.
+// the recipe's tool settings. A tool that takes no voice runs without a word
+// about it; the first tool that would have taken the voice says, even when
+// the run is quiet, and says it once.
 func TestARunWithAnUnresolvedVoiceKeepsTheRecipeToolSettings(t *testing.T) {
 	root := t.TempDir()
 	recipe := filepath.Join(root, "kapi.yaml")
@@ -40,5 +42,10 @@ defaults:
 	require.Contains(t, got, "prefix", "the recipe sets the markers")
 	assert.Empty(t, got["prefix"])
 	assert.Empty(t, got["suffix"])
-	assert.Contains(t, stderr.String(), "not-imported", "a quiet run still says what it left out")
+	assert.Empty(t, stderr.String(), "a tool that takes no voice has nothing to say about one")
+
+	a.applyBindingsFor(b, "translate", nil, map[string]any{}, "qps")
+	a.applyBindingsFor(b, "translate", nil, map[string]any{}, "qps")
+	assert.Contains(t, stderr.String(), "not-imported", "a quiet run still says what a voice-using tool went without")
+	assert.Equal(t, 1, bytes.Count(stderr.Bytes(), []byte("Warning:")), "said once")
 }
