@@ -26,7 +26,6 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host"
-	"github.com/neokapi/neokapi/host/flowdef"
 )
 
 func init() {
@@ -70,9 +69,9 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 	if a.MCPSurface.AllFlows {
 		mcp.AddTool(server, &mcp.Tool{
 			Name:        "list_flows",
-			Description: "List all available processing flows",
-		}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, ListFlowsOutput, error) {
-			return handleListFlows()
+			Description: "List the processing flows run_flow can run: the project's own (inline in its recipe, then its flows_dir files), then kapi's built-in flows, each name once",
+		}, func(ctx context.Context, req *mcp.CallToolRequest, input ListFlowsInput) (*mcp.CallToolResult, ListFlowsOutput, error) {
+			return handleListFlows(a, input)
 		})
 	}
 
@@ -169,14 +168,27 @@ type ListFormatsOutput struct {
 	Total   int           `json:"total"`
 }
 
+type ListFlowsInput struct {
+	Project string `json:"project,omitempty" jsonschema:"the project this call acts on: its kapi.yaml recipe, its root directory, or any path inside it (default: the project the MCP server started in); its own flows are listed"`
+}
+
 type FlowEntry struct {
 	Name        string `json:"name"`
-	Description string `json:"description"`
+	Description string `json:"description,omitempty"`
+	// Source is where run_flow resolves the name: inline (the recipe's
+	// flows:), file (its flows_dir:) or builtin.
+	Source string `json:"source"`
+	// Path is the file the flow is declared in, for a project flow.
+	Path  string `json:"path,omitempty"`
+	Steps int    `json:"steps,omitempty"`
 }
 
 type ListFlowsOutput struct {
 	Flows []FlowEntry `json:"flows"`
 	Total int         `json:"total"`
+	// Warning says why the project's own flows are missing, when its recipe
+	// does not load.
+	Warning string `json:"warning,omitempty"`
 }
 
 type ToolEntry struct {
@@ -411,15 +423,30 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, projectPath strin
 	return nil, RunFlowOutput{FlowName: flowName, InputPath: inputPath, OutputPath: outputPath}, nil
 }
 
-func handleListFlows() (*mcp.CallToolResult, ListFlowsOutput, error) {
-	var flows []FlowEntry
-	for _, def := range flowdef.BuiltInFlows() {
-		flows = append(flows, FlowEntry{
-			Name:        def.ID,
-			Description: def.Description,
+// handleListFlows lists what `kapi flows` lists for the project the call
+// names (host.FlowList), each name once for the flow run_flow and `kapi run`
+// resolve it to.
+func handleListFlows(a *cli.App, input ListFlowsInput) (*mcp.CallToolResult, ListFlowsOutput, error) {
+	recipePath, err := a.ResolveMCPCallProject(input.Project)
+	if err != nil {
+		return nil, ListFlowsOutput{}, err
+	}
+	flows, err := host.FlowList(recipePath, a.ExtraFlows)
+	out := ListFlowsOutput{Flows: make([]FlowEntry, 0, len(flows))}
+	if err != nil {
+		out.Warning = err.Error()
+	}
+	for _, f := range flows {
+		out.Flows = append(out.Flows, FlowEntry{
+			Name:        f.Name,
+			Description: f.Description,
+			Source:      host.FlowSource(f, recipePath),
+			Path:        f.Path,
+			Steps:       f.Steps,
 		})
 	}
-	return nil, ListFlowsOutput{Flows: flows, Total: len(flows)}, nil
+	out.Total = len(out.Flows)
+	return nil, out, nil
 }
 
 func handleListTools(a *cli.App) (*mcp.CallToolResult, ListToolsOutput, error) {

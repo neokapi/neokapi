@@ -104,19 +104,73 @@ func TestHandleExtractContent(t *testing.T) {
 	assert.Contains(t, texts, "Hello World")
 }
 
+// Outside a project, list_flows lists the composed built-in flows `kapi flows`
+// lists.
 func TestHandleListFlows(t *testing.T) {
-	_, out, err := handleListFlows()
+	t.Setenv(project.NoProjectEnvVar, "1")
+	_, out, err := handleListFlows(testApp(), ListFlowsInput{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, out.Flows)
 	assert.Equal(t, len(out.Flows), out.Total)
+	assert.Empty(t, out.Warning)
 
-	var names []string
+	sources := map[string]string{}
 	for _, f := range out.Flows {
-		names = append(names, f.Name)
+		sources[f.Name] = f.Source
 	}
-	assert.Contains(t, names, "pseudo-translate")
-	assert.Contains(t, names, "qa")
-	assert.Contains(t, names, "translate")
+	assert.Equal(t, "builtin", sources["translate"])
+	assert.Equal(t, "builtin", sources["translate-qa"])
+}
+
+// For a project, list_flows lists what `kapi flows` lists: the recipe's inline
+// flows and its flows_dir files, each name once, for the flow run_flow
+// resolves it to (host.ResolveProjectFlow).
+func TestHandleListFlows_ListsInlineAndFileFlows(t *testing.T) {
+	t.Setenv(project.NoProjectEnvVar, "1")
+	root := t.TempDir()
+	recipe := filepath.Join(root, project.RecipeFileName)
+	require.NoError(t, os.WriteFile(recipe, []byte(`version: v1
+name: FlowsTest
+flows_dir: flows
+defaults:
+  source_language: en
+flows:
+  inline-check:
+    steps:
+      - tool: qa
+  guard:
+    steps:
+      - tool: qa
+  translate:
+    steps:
+      - tool: qa
+`), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "flows"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "flows", "file-check.yaml"),
+		[]byte("description: Check from a file\nsteps:\n  - tool: qa\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "flows", "guard.yaml"),
+		[]byte("steps:\n  - tool: qa\n"), 0o644))
+
+	_, out, err := handleListFlows(testApp(), ListFlowsInput{Project: root})
+	require.NoError(t, err)
+	assert.Empty(t, out.Warning)
+
+	byName := map[string][]FlowEntry{}
+	for _, f := range out.Flows {
+		byName[f.Name] = append(byName[f.Name], f)
+	}
+	for name, entries := range byName {
+		assert.Len(t, entries, 1, "%s is listed once", name)
+	}
+	require.Contains(t, byName, "inline-check")
+	assert.Equal(t, "inline", byName["inline-check"][0].Source)
+	require.Contains(t, byName, "file-check")
+	assert.Equal(t, "file", byName["file-check"][0].Source)
+	assert.Equal(t, "Check from a file", byName["file-check"][0].Description)
+	assert.Equal(t, "inline", byName["guard"][0].Source, "the inline flow wins over the file of its name")
+	assert.Equal(t, "inline", byName["translate"][0].Source, "the recipe's flow replaces the built-in of its name")
+	assert.Contains(t, byName, "translate-qa")
 }
 
 func TestHandleListTools(t *testing.T) {
