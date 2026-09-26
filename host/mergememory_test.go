@@ -26,9 +26,9 @@ func absorberFixture(t *testing.T) *memoryAbsorber {
 	t.Helper()
 	a := &App{}
 	t.Cleanup(a.Shutdown)
-	db, err := a.ProjectDB(t.Context(), t.TempDir())
+	w, err := a.Projector(t.Context(), t.TempDir())
 	require.NoError(t, err)
-	absorber := a.newMemoryAbsorber(db.Memory())
+	absorber := a.newMemoryAbsorber(w.Memory())
 	require.NotNil(t, absorber)
 	return absorber
 }

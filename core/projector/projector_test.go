@@ -110,7 +110,15 @@ func writeMixedLog(t *testing.T, p *projector.Projector, n int) {
 		require.NoError(t, batch.Terms().AddConcept(ctx, concept(fmt.Sprintf("imp-%02d", i), fmt.Sprintf("Imported %d", i), model.TermPreferred)))
 	}
 	require.NoError(t, batch.Memory().Add(ctx, entry("m-imp", "Open", "Åpne")))
+	for i := range 40 {
+		// Single writes collected in a batch, which apply in one transaction.
+		require.NoError(t, batch.Memory().Add(ctx, entry(fmt.Sprintf("m-batch-%02d", i), fmt.Sprintf("Batched %d", i), "x")))
+	}
 	require.NoError(t, batch.Commit(ctx))
+	for i := range 40 {
+		// Single writes, one operation each, which a rebuild replays together.
+		require.NoError(t, tm.Add(ctx, entry(fmt.Sprintf("m-single-%02d", i), fmt.Sprintf("Single %d", i), "y")))
+	}
 }
 
 // snapshot renders every row of the projection tables, so two stores can be
@@ -182,9 +190,15 @@ func TestRebuildEqualsTheIncrementalState(t *testing.T) {
 
 	assert.Equal(t, before, snapshot(t, ws, db), "a rebuild from the log writes the rows the writes left")
 
-	hits, err := db.Memory().LookupText(t.Context(), "Sentence 7", "en", "nb", memory.LookupOptions{MinScore: 1, MaxResults: 1})
-	require.NoError(t, err)
-	require.NotEmpty(t, hits, "the search indexes are rebuilt with the rows")
+	for _, text := range []string{"Sentence 7", "Batched 7", "Single 7"} {
+		hits, err := db.Memory().LookupText(t.Context(), text, "en", "nb", memory.LookupOptions{MinScore: 0.5, MaxResults: 1})
+		require.NoError(t, err)
+		require.NotEmpty(t, hits, "the search indexes are rebuilt with the rows: %s", text)
+		found, total, err := db.Memory().SearchEntries(t.Context(), memory.SearchParams{Query: text, Limit: 1})
+		require.NoError(t, err)
+		require.Positive(t, total, "full-text search finds %s", text)
+		require.NotEmpty(t, found)
+	}
 }
 
 func TestWritingWhatTheStoreHoldsRecordsNothing(t *testing.T) {

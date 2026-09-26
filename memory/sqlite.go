@@ -189,7 +189,7 @@ func (tm *SQLiteStore) AddWithStream(ctx context.Context, entry Entry, stream st
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	if err := tm.addInTx(ctx, tx.Tx, entry, stream); err != nil {
+	if err := tm.addInTx(ctx, tx.Tx, entry, stream, true); err != nil {
 		_ = tx.Rollback()
 		// The statements run on the embedded *sql.Tx, past the gated handle
 		// that would have named a cancellation for us; see storage.CancelledBy.
@@ -198,6 +198,35 @@ func (tm *SQLiteStore) AddWithStream(ctx context.Context, entry Entry, stream st
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit: %w", err)
 	}
+	return nil
+}
+
+// ReplayWithStream writes many entries exactly as AddWithStream writes each of
+// them, in one transaction, and leaves the two search indexes to the caller,
+// who rebuilds them once with RebuildSearchIndex and RebuildFuzzyIndex. It is
+// how a log of single-entry writes is replayed into an empty store
+// (core/projector) in seconds rather than one transaction and two index
+// updates per entry. Where BulkAddWithStream stores a plain-text variant in
+// its compact form, this stores every variant the way AddWithStream does, so
+// the rows a replay leaves are the rows the writes left.
+func (tm *SQLiteStore) ReplayWithStream(ctx context.Context, entries []Entry, stream string) error {
+	if len(entries) == 0 {
+		return nil
+	}
+	tx, err := tm.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	for _, entry := range entries {
+		if err := tm.addInTx(ctx, tx.Tx, entry, stream, false); err != nil {
+			_ = tx.Rollback()
+			return storage.CancelledBy(ctx, fmt.Errorf("replay entry %s: %w", entry.ID, err))
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	tm.setFuzzyIndexState(fuzzyIndexStale)
 	return nil
 }
 
@@ -569,8 +598,10 @@ var variantLocaleDeletes = []struct{ what, sql string }{
 
 // addInTx performs the full upsert of an entry (header + variants +
 // entities + origins) against the given transaction. It is the shared
-// implementation used by AddWithStream and BulkAddWithStream.
-func (tm *SQLiteStore) addInTx(ctx context.Context, tx *sql.Tx, entry Entry, stream string) error {
+// implementation used by AddWithStream and ReplayWithStream. indexed keeps the
+// two FTS5 side-tables current row by row; ReplayWithStream leaves them to one
+// set-wise rebuild instead.
+func (tm *SQLiteStore) addInTx(ctx context.Context, tx *sql.Tx, entry Entry, stream string, indexed bool) error {
 	if entry.ID == "" {
 		return ErrEntryIDRequired
 	}
@@ -632,7 +663,10 @@ func (tm *SQLiteStore) addInTx(ctx context.Context, tx *sql.Tx, entry Entry, str
 	// maintain the two FTS5 side-tables manually (they are not content=
 	// external FTS, so triggers aren't wired).
 	for locale := range entry.Variants {
-		for _, del := range variantLocaleDeletes {
+		for i, del := range variantLocaleDeletes {
+			if i > 0 && !indexed {
+				break
+			}
 			if _, err := tx.ExecContext(ctx, del.sql, entry.ID, string(locale)); err != nil {
 				return fmt.Errorf("delete %s %s: %w", del.what, locale, err)
 			}
@@ -656,6 +690,9 @@ func (tm *SQLiteStore) addInTx(ctx context.Context, tx *sql.Tx, entry Entry, str
 			VALUES (?, ?, ?, ?, ?, ?)`,
 			entry.ID, string(locale), string(coded), plain, structKey, generalKey); err != nil {
 			return fmt.Errorf("insert variant %s: %w", locale, err)
+		}
+		if !indexed {
+			continue
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO tm_variant_search (text, locale, entry_id)
 			VALUES (?, ?, ?)`, plain, string(locale), entry.ID); err != nil {

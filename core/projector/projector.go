@@ -268,8 +268,14 @@ func (p *Projector) commit(ctx context.Context, writes []pending) error {
 	}
 	if p.log == nil {
 		for _, w := range todo {
-			if err := p.applySteps(ctx, w.kind, w.steps); err != nil {
+			replayed, err := p.applySteps(ctx, w.kind, w.steps)
+			if err != nil {
 				return err
+			}
+			if replayed {
+				if err := p.rebuildIndexes(ctx); err != nil {
+					return err
+				}
 			}
 		}
 		return nil
@@ -408,7 +414,7 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 	}
 	var first error
 	last := cursor
-	foreignBulk := false
+	foreignBulk, stale := false, false
 	for _, op := range ops {
 		last = op.Seq
 		if !projects(op.Kind) {
@@ -425,13 +431,15 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 			}
 			foreignBulk = foreignBulk || bulkMemory(op.Kind, steps)
 		}
-		if aerr := p.applySteps(ctx, op.Kind, steps); aerr != nil && isMine && first == nil {
+		replayed, aerr := p.applySteps(ctx, op.Kind, steps)
+		if aerr != nil && isMine && first == nil {
 			first = aerr
 		}
+		stale = stale || replayed
 	}
 	// A writer that asked for a bulk write rebuilds the indexes itself; one
 	// that another process made is this catch-up's to finish.
-	if foreignBulk {
+	if foreignBulk || stale {
 		if err := p.rebuildIndexes(ctx); err != nil && first == nil {
 			first = err
 		}

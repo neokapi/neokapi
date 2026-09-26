@@ -131,13 +131,54 @@ func sessionStep(sessions []memory.ImportSession) step {
 // applySteps writes one operation's steps into the store they belong to, in
 // order, and stops at the first that fails: what a store call that failed
 // wrote is what applying it again writes, so a rebuild meets the same state.
-func (p *Projector) applySteps(ctx context.Context, kind string, steps []step) error {
-	for _, s := range steps {
-		if err := p.applyStep(ctx, kind, s); err != nil {
-			return err
+//
+// A run of content-memory steps that only put entries one at a time, as a
+// batch of single writes collects, is written in one transaction with the
+// search indexes left behind (memory.SQLiteStore.ReplayWithStream). replayed
+// reports it, and the caller rebuilds the indexes once.
+func (p *Projector) applySteps(ctx context.Context, kind string, steps []step) (replayed bool, err error) {
+	for i := 0; i < len(steps); {
+		if kind == KindMemory {
+			if j, entries := replayRun(steps, i); len(entries) >= minReplay {
+				if p.st.Memory == nil {
+					return replayed, errNoSubsystem
+				}
+				if err := p.st.Memory.ReplayWithStream(ctx, entries, steps[i].Stream); err != nil {
+					return replayed, err
+				}
+				replayed, i = true, j
+				continue
+			}
 		}
+		if err := p.applyStep(ctx, kind, steps[i]); err != nil {
+			return replayed, err
+		}
+		i++
 	}
-	return nil
+	return replayed, nil
+}
+
+// minReplay is the number of single-entry puts in a row worth writing in one
+// transaction and rebuilding the indexes after, rather than one at a time.
+const minReplay = 32
+
+// replayable reports a content-memory step that only puts entries the way a
+// single write does.
+func replayable(s step) bool {
+	return !s.Bulk && len(s.PutEntries) > 0 && len(s.DeleteEntries) == 0 && len(s.PutSessions) == 0 &&
+		len(s.SessionCounts) == 0 && len(s.DeleteSessions) == 0
+}
+
+// replayRun collects the entries of the replayable steps from i on that share
+// its stream, and returns where the run ends.
+func replayRun(steps []step, i int) (int, []memory.Entry) {
+	var entries []memory.Entry
+	j := i
+	for j < len(steps) && replayable(steps[j]) && steps[j].Stream == steps[i].Stream {
+		entries = append(entries, steps[j].entries()...)
+		j++
+	}
+	return j, entries
 }
 
 // errNoSubsystem reports a write into a subsystem this build's store lacks.

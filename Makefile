@@ -898,6 +898,14 @@ audit-modules: i18n-catalogs ## Assert module isolation + go.mod/go.sum tidiness
 # licence check.
 APACHE_MODULES := . host cli kapi apps/kapi-desktop
 
+# The terms, content memory, voice profiles and widened rules are projections
+# of the workspace's operation log, written only by core/projector. A write that
+# reaches one another way leaves a row a rebuild drops. The guard type-checks the
+# Apache modules and proves itself on fixtures first.
+check-projection-writes: i18n-catalogs ## Guard: only the projector writes a project's context stores
+	@$(GO) run ./scripts/projectionguard -self-test
+	@$(GO) run ./scripts/projectionguard
+
 check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + Apache modules link no AGPL
 	@bad=$$(cd apps/kapi-desktop && GOWORK=off $(GO) list -deps ./backend/... 2>/dev/null \
 	          | grep -E '^(github\.com/spf13/cobra|github\.com/neokapi/neokapi/cli)(/|$$)' || true); \
@@ -3264,7 +3272,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
         parity-sandbox parity-test parity-publish parity-clean regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-comment-coverage check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
+        fmt vet lint check check-framework check-bowrain check-abs-paths check-em-dashes check-vocabulary check-desktop-interchange check-comment-history check-run-projection check-comment-coverage check-projection-writes check-walk-selectors check-locale-display check-sidebar-ids check-lockfile-idempotent check-package-licenses check-archive-licenses check-plugin-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \

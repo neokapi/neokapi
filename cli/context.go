@@ -99,6 +99,7 @@ store and files, and locales reports how stored rows are filed.`,
 	cmd.AddCommand(
 		newContextSearchCmd(a),
 		newContextImportCmd(a),
+		newContextRebuildCmd(a),
 		newContextSnapshotCmd(a),
 		newContextExportCmd(a),
 		newContextRestoreCmd(a),
@@ -171,6 +172,35 @@ A file whose bytes have not moved since this checkout read it is skipped;
 		},
 	}
 	cmd.Flags().Bool("force", false, "read every file, including ones whose bytes have not moved")
+	AddProjectFlag(cmd)
+	return cmd
+}
+
+func newContextRebuildCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "rebuild",
+		Short: "Rebuild this project's stores from the context log",
+		Long: `Empty this project's terms, content memory and voice profiles, and the rules
+it widened to the whole workspace, and write them again from the context log.
+
+Every change to a project's context is recorded in the log with what it wrote,
+so the stores hold nothing the log does not. Rebuilding gives the same stores
+the changes left behind. Use it when a store is damaged, or after operations from
+another machine were merged into the log.`,
+		Example: "  kapi context rebuild",
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			projectPath, err := RequireProjectPath(cmd)
+			if err != nil {
+				return err
+			}
+			res, err := a.RebuildProjectContext(cmd.Context(), projectPath)
+			if err != nil {
+				return err
+			}
+			return output.Print(cmd, res)
+		},
+	}
 	AddProjectFlag(cmd)
 	return cmd
 }

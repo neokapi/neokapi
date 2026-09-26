@@ -1365,6 +1365,8 @@ jobs:
       # Job body lives in `make check-module-boundaries` (single source of truth).
       - name: Assert package-level module boundaries
         run: make check-module-boundaries
+      - name: Assert only the projector writes the context stores
+        run: make check-projection-writes
 
   # ── Build (runs in parallel with test/lint) ───────────────────────────────
   build:

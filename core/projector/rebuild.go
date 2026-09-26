@@ -72,21 +72,50 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 	if err := p.reset(ctx); err != nil {
 		return report, err
 	}
+	// Consecutive operations that each put content-memory entries one at a
+	// time are replayed together, which is what keeps a log of thousands of
+	// single writes to seconds. Anything else in between ends the run.
+	var (
+		run    []step
+		runOps []workspace.Op
+	)
+	fail := func(op workspace.Op, err error) {
+		report.Failed = append(report.Failed, fmt.Sprintf("%s %s: %v", op.Kind, workspace.ShortOpID(op.ID), err))
+	}
+	flush := func() {
+		if len(run) == 0 {
+			return
+		}
+		if _, err := p.applySteps(ctx, KindMemory, run); err != nil {
+			fail(runOps[len(runOps)-1], err)
+		}
+		run, runOps = nil, nil
+	}
 	for _, op := range ops {
 		if !projects(op.Kind) {
 			continue
 		}
+		report.Operations[op.Kind]++
 		steps, _, derr := p.decode(ctx, op)
-		if derr == nil {
-			derr = p.applySteps(ctx, op.Kind, steps)
-		}
 		if derr != nil {
+			fail(op, derr)
+			continue
+		}
+		if op.Kind == KindMemory && allReplayable(steps) && (len(run) == 0 || steps[0].Stream == run[0].Stream) {
+			run, runOps = append(run, steps...), append(runOps, op)
+			continue
+		}
+		flush()
+		if _, err := p.applySteps(ctx, op.Kind, steps); err != nil {
 			if ctx.Err() != nil {
 				return report, ctx.Err()
 			}
-			report.Failed = append(report.Failed, fmt.Sprintf("%s %s: %v", op.Kind, workspace.ShortOpID(op.ID), derr))
+			fail(op, err)
 		}
-		report.Operations[op.Kind]++
+	}
+	flush()
+	if ctx.Err() != nil {
+		return report, ctx.Err()
 	}
 	if err := p.rebuildIndexes(ctx); err != nil {
 		return report, err
@@ -173,6 +202,20 @@ func (p *Projector) reset(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// allReplayable reports whether every step of an operation only puts entries
+// one at a time, on one stream.
+func allReplayable(steps []step) bool {
+	if len(steps) == 0 {
+		return false
+	}
+	for _, s := range steps {
+		if !replayable(s) || s.Stream != steps[0].Stream {
+			return false
+		}
+	}
+	return true
 }
 
 // shadowOf reports whether a table is one a full-text index keeps for itself.
