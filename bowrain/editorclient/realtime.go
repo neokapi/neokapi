@@ -44,9 +44,9 @@ type EditorChangeEvent struct {
 // governance status lifecycle. The server rejects reviewing a locale that has
 // no non-empty translation (422).
 //
-// status optionally picks the rung, and each direction has its own two. With
-// reviewed=true it is "" for an approval (landing on reviewed) or "signed-off"
-// for a sign-off. With reviewed=false it is "" or "translated" for a plain
+// status optionally picks the rung. With reviewed=true it is "" for an
+// approval (landing on established). With reviewed=false it is "" or
+// "translated" for a plain
 // un-review, "draft" for a reviewer rejection (the unit re-enters the work
 // queue). Any other pairing is a 400.
 //

@@ -25,7 +25,7 @@ import (
 // the two entry points cannot disagree about what an approval admits.
 
 // PromoteDecisionsToMemory applies the decisions' verdicts to the workspace
-// content memory: approved/signed-off pairs are promoted, rejected pairs are
+// content memory: approved pairs are promoted, rejected pairs are
 // evicted. A decision is applied only when its unit resolves to a stored block
 // whose current translation the decision still blesses (TargetHash) — a stale
 // decision moves no wording, in either direction. Returns how many entries

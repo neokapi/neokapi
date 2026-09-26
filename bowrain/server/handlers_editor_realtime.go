@@ -49,7 +49,7 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 // web app already uses:
 //
 //   - PUT  /:ws/:id/blocks/:ref/:bid/review — set the per-locale review status
-//     on the block's target (Target.Status: signed-off / reviewed /
+//     on the block's target (Target.Status: established /
 //     translated / draft). Distinct from the governance workflow lifecycle
 //     (draft/in_review/published) at .../status.
 //   - POST /:ws/:id/presence — report the caller's editing focus; published to
@@ -234,7 +234,7 @@ type reviewFault struct {
 func (e reviewFault) Error() string { return e.msg }
 
 // blockReviewInput is one block's review, as both the single-block route and
-// the bulk route pose it. Elevate is called before demoting a signed-off
+// the bulk route pose it. Elevate is called before demoting an established
 // target: the single-block route hands over the standard language-permission
 // gate (which writes its own 403), the bulk route a plain predicate so one
 // protected block cannot answer for the whole batch.
@@ -248,9 +248,8 @@ type blockReviewInput struct {
 	BlockID   string
 	Request   ReviewBlockRequest
 	DemoteTo  model.TargetStatus
-	// PromoteTo is the rung an approving call lands on: reviewed, or
-	// signed-off when the reviewer signs the target off. Empty means reviewed,
-	// so a caller that only ever approves says nothing.
+	// PromoteTo is the rung an approving call lands on. Empty means
+	// established, the only rung a person's approval reaches.
 	PromoteTo model.TargetStatus
 	Elevate   func() error
 	Vet       func(blockID, locale string) error
@@ -271,7 +270,7 @@ type blockReviewOutcome struct {
 	// target that was already reviewed.
 	Approval bool
 	// Changed is false when the call moved no rung: an idempotent re-approve
-	// of a signed-off target, or an un-review with nothing to demote. Nothing
+	// of an established target, or an un-review with nothing to demote. Nothing
 	// happened, so nothing is audited.
 	Changed bool
 }
@@ -309,7 +308,7 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 					in.BlockID, req.TargetLocale)}
 			}
 			if target.Status == model.TargetStatusEstablished {
-				// Signed-off is the top of the ladder; approving or re-signing it
+				// Established is the top of the ladder; approving it again
 				// must not demote it. Idempotent success, keeping the rung.
 				out = blockReviewOutcome{HadTarget: true, From: target.Status, Status: target.Status}
 				return errNothingToWrite
@@ -336,9 +335,9 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 				return nil
 			}
 			if target.Status == model.TargetStatusEstablished {
-				// Undoing a sign-off is a review-level action, not ordinary
+				// Undoing an established unit is a review-level action, not ordinary
 				// translation work: without this gate a PermTranslate caller could
-				// drop a signed-off target two rungs to translated with no audit
+				// drop an established target two rungs to translated with no audit
 				// trail distinct from an ordinary un-review.
 				if err := in.Elevate(); err != nil {
 					return err
@@ -347,7 +346,7 @@ func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockR
 			status = in.DemoteTo
 		}
 		from := target.Status
-		// A sign-off counts for the review loop exactly as an approval does: it
+		// An approval counts for the review loop: it
 		// leaves the project one pending unit lighter. Signing off a target that
 		// was already reviewed leaves the pending count where it was, so it does
 		// not advance the loop, the same way a re-approve does not.

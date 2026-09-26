@@ -314,7 +314,7 @@ func (l *reviewLedger) resolveCorpus(ctx context.Context) bool {
 // this answer stands under this context, so the context travels with it, on
 // the wire and into the content memory the approval promotes to.
 //
-// Only an approval or a sign-off re-stamps the row's BASIS, the source it
+// Only an approval re-stamps the row's BASIS, the source it
 // vouches for and the context it vouches for it under, which is what the
 // grading reads to answer whether a unit still translates the wording the
 // project holds. A rejection or a withdrawn approval vouches for nothing, so

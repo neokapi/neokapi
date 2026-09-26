@@ -5,7 +5,7 @@
 // three places that must not drift apart: the review endpoint a reviewer
 // clicks, the bulk route a selection goes through, and the sync worker that
 // applies a push. A push moves content; it does not decide. What it carries in
-// the way of approvals and sign-offs is held to the same permission and the
+// the way of approvals is held to the same permission and the
 // same workspace separation-of-duties policy as a decision made on the
 // platform, because otherwise anyone who may write files may also approve
 // them, from a laptop, in one command.

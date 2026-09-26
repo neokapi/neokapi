@@ -115,7 +115,7 @@ type RunInfo struct {
 
 // BlockTargetInfo is one locale's committed target as exposed to the frontend:
 // plain text plus the per-locale review status (model.Target.Status — the
-// ladder "" | draft | translated | reviewed | signed-off). The shared editor
+// ladder "" | draft | translated | established). The shared editor
 // reads review state as block.targets[locale].status; the legacy block-global
 // properties["translation-status"] is a read fallback only.
 type BlockTargetInfo struct {

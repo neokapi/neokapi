@@ -267,7 +267,7 @@ type BlockInfoResponse struct {
 
 // BlockTargetInfo is one locale's committed target in the blocks payload:
 // plain text plus the target's lifecycle status ("" | draft | translated |
-// reviewed | signed-off, model.TargetStatus).
+// established, model.TargetStatus).
 type BlockTargetInfo struct {
 	Text   string `json:"text"`
 	Status string `json:"status,omitempty"`

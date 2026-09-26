@@ -108,13 +108,13 @@ func (s *Server) HandleBulkReviewBlocks(c echo.Context) error {
 		return err
 	}
 
-	// The elevated gate for demoting a signed-off target, as a predicate: one
+	// The elevated gate for demoting an established target, as a predicate: one
 	// protected block in the selection must not answer for the whole batch.
 	elevate := func() error {
 		if allowsLanguage(c, platauth.PermReview, req.TargetLocale) {
 			return nil
 		}
-		return reviewFault{http.StatusForbidden, "demoting a signed-off target requires review permission"}
+		return reviewFault{http.StatusForbidden, "demoting an established target requires review permission"}
 	}
 
 	ctx := c.Request().Context()

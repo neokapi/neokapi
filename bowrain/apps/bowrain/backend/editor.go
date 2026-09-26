@@ -863,9 +863,9 @@ func (a *App) updateBlockTargetRunsLocal(req UpdateBlockTargetRunsRequest) error
 	return a.store.StoreBlocks(ctx, req.ProjectID, "main", []*model.Block{sb.Block})
 }
 
-// ReviewBlock marks a block as reviewed, signed off or un-reviewed for a
-// target locale. status picks the rung: with reviewed=true it is "" for an
-// approval or "signed-off" for a sign-off; with reviewed=false it is "" or
+// ReviewBlock marks a block as established or un-reviewed for a
+// target locale. status picks the rung: with reviewed=true it is "" (an
+// approval, landing on established); with reviewed=false it is "" or
 // "translated" for a plain un-review, "draft" for a reviewer rejection (the
 // unit re-enters the work queue).
 func (a *App) ReviewBlock(projectID, itemName, blockID, targetLocale string, reviewed bool, status string) error {
@@ -897,10 +897,10 @@ const legacyTranslationStatusProperty = "translation-status"
 // Approving a block with no non-empty translation for the locale is an error
 // (the server's 422); un-reviewing a locale with no target clears the legacy
 // block-global property if present and is otherwise a no-op. status picks the
-// rung the same way the server's optional status field does: "signed-off" on
-// an approval, "draft" on a clearing call for a rejection, otherwise the
-// default rung for the direction. The queued op carries it, so a working copy
-// that signs off while offline shows the rung it queued.
+// rung the same way the server's optional status field does: "draft" on a
+// clearing call for a rejection, otherwise the default rung for the direction.
+// The queued op carries it, so a working copy that decides while offline shows
+// the rung it queued.
 func (a *App) reviewBlockLocal(projectID, blockID, targetLocale string, reviewed bool, status string) error {
 	ctx := context.Background()
 	sb, err := a.store.GetBlock(ctx, projectID, "main", blockID)
@@ -916,7 +916,7 @@ func (a *App) reviewBlockLocal(projectID, blockID, targetLocale string, reviewed
 			return fmt.Errorf("block %q has no %s translation to review: translate it first", blockID, targetLocale)
 		}
 		if target.Status == model.TargetStatusEstablished {
-			// Signed-off is the top of the ladder; approving or re-signing it
+			// Established is the top of the ladder; approving it again
 			// must not demote it (mirrors the server's HandleReviewBlock no-op).
 			return nil
 		}

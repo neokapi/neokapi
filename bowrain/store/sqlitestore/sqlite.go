@@ -1320,7 +1320,7 @@ func (s *SQLiteStore) CountBlocks(ctx context.Context, query platstore.BlockQuer
 		NotStarted:   int(notStarted.Int64),
 		Draft:        int(draft.Int64),
 		Translated:   int(translated.Int64),
-		Established:     int(reviewed.Int64),
+		Established:  int(reviewed.Int64),
 	}, nil
 }
 
