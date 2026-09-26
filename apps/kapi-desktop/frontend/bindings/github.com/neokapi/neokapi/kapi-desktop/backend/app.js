@@ -957,7 +957,8 @@ export function GetFilterDoc(filterID) {
 }
 
 /**
- * GetFlow returns a flow's StepsSpec by name.
+ * GetFlow returns the StepsSpec of the flow a name resolves to in the tab's
+ * project (projectFlow), or nil when none does.
  * @param {string} tabID
  * @param {string} name
  * @returns {$CancellablePromise<flow$0.StepsSpec | null>}
@@ -1621,7 +1622,11 @@ export function ListAvailablePlugins() {
 }
 
 /**
- * ListFlows returns all flows in a project tab with validation status.
+ * ListFlows returns the project's own flows in a project tab with validation
+ * status: the recipe's inline flows, then the files in its flows_dir: that no
+ * inline flow shadows, each set ordered by name. They are the flows `kapi
+ * flows` lists for the project, and RunFlow resolves each name to the flow
+ * listed here.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.FlowInfo[]>}
  */
