@@ -112,6 +112,7 @@ store and files, and locales reports how stored rows are filed.`,
 		newContextWithdrawCmd(a),
 		newContextRevertCmd(a),
 		newContextWidenCmd(a),
+		newContextSettleCmd(a),
 	)
 	return cmd
 }
