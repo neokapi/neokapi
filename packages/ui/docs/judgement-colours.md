@@ -10,7 +10,7 @@ alongside their own palette.
 
 | Act | Variant | Examples |
 | --- | --- | --- |
-| Accept and move forward | `success` | Approve, Sign off, Publish, Merge, Accept suggestion |
+| Accept and move forward | `success` | Approve, Publish, Merge, Accept suggestion |
 | Hand back to a person | `warning` | Send back, Request changes, Needs attention, Unblock |
 | Remove or undo something | `destructive` | Reject, Delete, Discard, Revoke, Cancel run |
 | The page's main forward action | `default` | Run, Save, Create, Continue |
@@ -21,7 +21,7 @@ one of the two is really a `secondary`, a `success` or a `ghost`.
 
 `success` and `warning` are for judgements a person makes, not for reporting
 state. A green Approve button says "approving is what you do here"; a green
-badge saying "signed off" reports what already happened. Both are green, and
+badge saying "Established" reports what already happened. Both are green, and
 only the first is a button.
 
 Everything else stays on `secondary`, `outline` and `ghost`. A button with no
@@ -35,18 +35,17 @@ can read the other:
 | Rung | Content ladder | Source ladder | Tone |
 | --- | --- | --- | --- |
 | Below the ladder | `not-started` | | muted |
-| Bottom | `draft` | `authored` | muted |
-| Middle | `translated` | | neutral |
-| Earned by a check or a review | `reviewed` | `checked` | soft green |
-| Signed for by a person | `signed-off` | `approved` | filled green |
+| Bottom | `draft` | | muted |
+| Middle | `translated` | `written` | neutral |
+| Established by a person | `established` | `established` | filled green |
 
 `blocked` and `attention` sit on neither ladder and take warning, because
-something is waiting for a person. The three-rung source ladder skips the
-neutral stop rather than compressing the scale, which keeps `checked` and
-`reviewed` the same colour and `approved` and `signed-off` the same colour.
+something is waiting for a person. The two-rung source ladder skips the bottom
+stop, which keeps `written` and `translated` the same colour and `established`
+one colour on both ladders.
 
-Statuses are the wire values, hyphen and all (`signed-off`, never
-`signed_off`), so a caller hands the badge whatever the API returned.
+Statuses are the wire values, hyphen and all (`not-started`, never
+`not_started`), so a caller hands the badge whatever the API returned.
 
 ## Coordinate axes
 

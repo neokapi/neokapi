@@ -137,7 +137,7 @@ before the run did and the run may still be going: read `run.state`, and ask
 **transport only**: they move project state and never translate. There is no
 `kapi sync`.
 
-Review promotes a translation past `translated` to `reviewed`. The queue and the
+Review promotes a translation past `translated` to `established`. The queue and the
 approval are two commands:
 
 ```bash
@@ -149,11 +149,11 @@ kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":
 
 One queue holds every language. A row carries `language` and, when the language
 is the project's source, `isSource: true` with a `status` on the authoring
-ladder (`authored`/`checked`/`approved`); `languages` in the JSON counts the
+ladder (`written`/`established`); `languages` in the JSON counts the
 pending units per language. `kapi apply` records target-language decisions;
 source wording is approved in the Review page of Kapi Desktop.
 
-The unit state lands in the project store and counts the unit as `reviewed`,
+The unit state lands in the project store and counts the unit as `established`,
 so the next `kapi up` sees it shipped. `kapi check --ship` is the opt-in release
 bar: it runs the project's voice, terminology and rule-based gates plus the
 `ship_gate` / `source_gate` coverage gates and exits non-zero only when you ask

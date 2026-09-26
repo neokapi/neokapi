@@ -23,10 +23,10 @@ The sequence is `status` → `status --review` → `apply` → `status`.
 ## Scene 1 — review-and-approve (terminal)
 
 Start from an already-translated project. `kapi status` shows `fr` translated
-100% and reviewed 0%. `kapi status --review` lists the units awaiting approval,
+100% and established 0%. `kapi status --review` lists the units awaiting approval,
 addressed by file, id and locale. `kapi apply review.jsonl` records a
 `kind:"review"` decision. The closing `kapi status` shows the resulting increase
-in reviewed coverage, which counts toward a `{ reviewed: … }` gate.
+in established coverage, which counts toward an `{ established: … }` gate.
 
 ## Closing
 

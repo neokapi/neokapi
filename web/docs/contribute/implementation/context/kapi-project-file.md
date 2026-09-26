@@ -327,9 +327,9 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   files only when its gated scopes are all shippable.
 - `jobs` (int): how many target languages one `kapi up` pass converges
   concurrently; `up --jobs` overrides per run.
-- `source_gate` (`authored` | `checked` | `approved` | `none`): the source
-  status a block must reach before its translations are produced; `checked` is
-  the default applied when unset.
+- `source_gate` (`written` | `established` | `none`): the source status a
+  block must reach before its translations are produced; `written` is the
+  default applied when unset.
 - `merge` (`MergeDefaults.ConflictPolicy`): how `kapi merge` resolves a
   translator's target against an existing on-disk target or content-memory entry
   (`translator-wins` default, `existing-wins`, `newest-wins`). See
@@ -452,7 +452,7 @@ the full extension model.
 - `defaults.merge.conflict_policy`, `defaults.memory.fuzzy_threshold` (0..100),
   `defaults.redaction.detectors`, `defaults.materialize` and `defaults.voice`
   are each shape-checked. `defaults.source_gate` is read by the runner, which
-  applies `checked` when it is unset.
+  applies `written` when it is unset.
 - Each flow must have at least one step
 - Each step must have a non-empty `tool` field (unless it uses `parallel`)
 - Steps with `parallel` can omit `tool` (the parallel branches provide tools)

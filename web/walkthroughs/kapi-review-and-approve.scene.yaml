@@ -66,6 +66,6 @@ steps:
     narration: apply binds the approval to the translation's content hash. Editing that translation later requires another review.
     smoke: false
   - command: kapi status
-    narration: Reviewed coverage increases to 33% after the recorded approval. This coverage counts toward the review gate.
+    narration: Established coverage increases to 33% after the recorded approval. This coverage counts toward an established gate.
     smoke: false
   - comment: The gate is the consequence — `kapi check --ship` exits 3 while a required review is missing, and clears once the decisions land. See the kapi-up-loop walkthrough for the block-then-clear moment end to end.

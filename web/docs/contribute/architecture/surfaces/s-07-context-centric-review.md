@@ -104,8 +104,7 @@ A reviewer has two verdicts on a target: **approve**, which establishes it,
 and **reject**, which drops it to `draft` so the unit re-enters the work queue.
 The rungs are the target ladder
 [C-04](../context/c-04-unit-state-and-decisions.md) defines, and the ship gates
-read them. There is one human rung; a workspace that wants two reviewers states
-it as a policy on how many person signals establish a unit. An agent reviews
+read them. There is one human rung, and no second rung above it. An agent reviews
 ahead of the person with a score and its reasons, which the queue shows and
 which never count as a decision.
 

@@ -43,7 +43,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi status",
       narration:
-        "Reviewed coverage increases to 33% after the recorded approval. This coverage counts toward the review gate.",
+        "Established coverage increases to 33% after the recorded approval. This coverage counts toward an established gate.",
     },
   ],
 };

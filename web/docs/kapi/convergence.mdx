@@ -126,8 +126,8 @@ does not is withheld:
 
 | State | What it means |
 | --- | --- |
-| **established** | The scope clears its established gate (`established_gate` / `established_gates`): a person established the content. Governed. |
-| **translated** | The scope clears its ship gate and no established gate: translated, with its checks green. AI-shippable. |
+| **established** | The scope clears its established gate (`established_gate` / `established_gates`): a person established the content. |
+| **translated** | The scope clears its ship gate and no established gate: translated, with its checks green, and shipped as AI translation. |
 | **withheld** | The scope does not ship. It is short of its gate, or it holds stale wording, a translation a reviewer turned down, a failing check, or terms that were not checked. These hold a scope back whether or not a gate matches it. |
 | **not gated** | No gate matches the scope, and nothing withholds it. |
 
@@ -142,9 +142,8 @@ a not-gated scope, so a language picker offers it by default.
 *Established* is the one human rung: a person reviewed or edited this exact
 translation. An agent pre-reviews a unit with a score and its reasons, which
 the review queue shows, and its judgement never counts as a person's, so every
-`established` threshold counts people. A workspace that wants two reviewers
-states that as a policy on how many person signals establish a unit. Gates
-still differ by scope, so tiers coexist:
+`established` threshold counts people. Gates still differ by scope, so tiers
+coexist:
 
 ```yaml
 gates:

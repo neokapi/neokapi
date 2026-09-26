@@ -97,8 +97,8 @@ gate and is offered as not gated, and Japanese is withheld.
 
 | `state` | Meaning | `shippable` |
 | --- | --- | --- |
-| `established` | An established gate matches the locale and the locale clears it: governed content. | `true` |
-| `translated` | A ship gate matches the locale and the locale clears it, and no established gate is met: AI-shippable content. | `true` |
+| `established` | An established gate matches the locale and the locale clears it: a person established the content. | `true` |
+| `translated` | A ship gate matches the locale and the locale clears it, and no established gate is met: the locale ships as AI translation. | `true` |
 | `withheld` | The locale does not ship: it is short of its gate, or stale, rejected or failing content, or unchecked terms, hold it back. | `false` |
 | `not_gated` | No gate matches the locale, and nothing withholds it. | `true` |
 
