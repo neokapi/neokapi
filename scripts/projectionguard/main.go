@@ -26,6 +26,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -135,7 +136,7 @@ type listed struct {
 func list(patterns []string) ([]listed, error) {
 	args := append([]string{"list", "-e", "-compiled", "-tags", "fts5", "-export", "-deps",
 		"-json=ImportPath,Dir,Export,CompiledGoFiles,DepOnly,Standard,Error"}, patterns...)
-	cmd := exec.Command("go", args...)
+	cmd := exec.CommandContext(context.Background(), "go", args...)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -326,9 +327,9 @@ func inspect(fn *ast.FuncDecl, info *types.Info, report func(token.Pos, string))
 				if !ok {
 					continue
 				}
-				for i := range st.NumFields() {
-					if st.Field(i).Name() == key.Name {
-						flows(info, kv.Value, st.Field(i).Type(), report)
+				for field := range st.Fields() {
+					if field.Name() == key.Name {
+						flows(info, kv.Value, field.Type(), report)
 					}
 				}
 			}
@@ -358,8 +359,8 @@ func flows(info *types.Info, expr ast.Expr, to types.Type, report func(token.Pos
 		// The projector is the writer: handing it a store is how it is built.
 		return
 	}
-	for i := range iface.NumMethods() {
-		if writes[store][iface.Method(i).Name()] {
+	for method := range iface.Methods() {
+		if writes[store][method.Name()] {
 			report(expr.Pos(), fmt.Sprintf("hands the %s to %s, which can write it", short(store), types.TypeString(to, nil)))
 			return
 		}
