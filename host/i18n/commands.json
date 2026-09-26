@@ -518,6 +518,25 @@
             "long": "Ask one question and get the answer from every store the project\nbinds: what this is called and whether it is discouraged, and wording the\nproject has already approved.\n\nResults are grouped by kind rather than merged into one ranked list, because a\nterminology match and a wording match are not scored on comparable things.\n\nEach term also reports how often the project's extracted content uses it. The\ncount is read from the context graph that extraction writes, so it is as of the\nlast extraction (the last \"kapi up\") rather than of the working tree: a term\nadded to the store since then shows no uses until the next run.",
             "short": "Ask what the project's context says about a word or phrase"
           },
+          "settle": {
+            "example": "  kapi context settle\n  kapi context settle --merged HEAD~1..HEAD\n  kapi context settle --merged \"$BEFORE..$AFTER\" --pr 412 --merger asgeir",
+            "flags": {
+              "merged": {
+                "usage": "a range of commits that reached the default branch, recorded as evidence"
+              },
+              "merger": {
+                "usage": "who merged it (the last commit's committer when unset)"
+              },
+              "pr": {
+                "usage": "the pull request that merged the range (read from the commit subject when unset)"
+              },
+              "project": {
+                "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)"
+              }
+            },
+            "long": "Establish every suggestion that a person's signal backs and nothing\nopen contradicts.\n\nA person's signal is keeping the suggestion, a correction toward it, or the\nchange reaching the default branch. Another session recording the same rule and\nthe project's content writing the preferred form add to a suggestion's standing\nwithout establishing it. A correction away from it, its withdrawal, or content\nmoving to a rejected form leave it contested for a person to decide.\n\nWith --merged, settle first reads the change a range of commits made and\nrecords it as evidence for every suggestion whose preferred wording the change\nadded or whose rejected wording it removed. Run it in CI after a merge or a push\nto the default branch. The same range records the same evidence, so running it\ntwice changes nothing.",
+            "short": "Establish the suggestions a person's signal backs"
+          },
           "short": "Ask what applies before you write a file",
           "snapshot": {
             "example": "  kapi context snapshot --out build/context\n  kapi context snapshot --out build/context --json",

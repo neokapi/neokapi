@@ -2237,7 +2237,7 @@ export class ContextFeedEntry {
         if (!("kind" in $$source)) {
             /**
              * Kind is "observe", "correct", "import", "edit", "keep", "drop",
-             * "withdraw", "revert" or "widen".
+             * "withdraw", "revert", "widen", "signal" or "establish".
              * @member
              * @type {string}
              */
@@ -2327,6 +2327,15 @@ export class ContextFeedEntry {
              */
             this["at"] = "";
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Standing is the evidence for and against a suggestion as plain counts:
+             * "seen in 3 sessions · 14 of 15 uses in docs/ · merged in #412".
+             * @member
+             * @type {string | undefined}
+             */
+            this["standing"] = undefined;
+        }
         if (!("decidable" in $$source)) {
             /**
              * Decidable reports a suggestion carrying a rule a person can keep or
@@ -2380,7 +2389,7 @@ export class ContextFeedEntry {
         const $$createField9_0 = $$createType38;
         const $$createField10_0 = $$createType40;
         const $$createField11_0 = $$createType41;
-        const $$createField18_0 = $$createType6;
+        const $$createField19_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("contested_by" in $$parsedSource) {
             $$parsedSource["contested_by"] = $$createField6_0($$parsedSource["contested_by"]);
@@ -2401,7 +2410,7 @@ export class ContextFeedEntry {
             $$parsedSource["scope"] = $$createField11_0($$parsedSource["scope"]);
         }
         if ("widen_to" in $$parsedSource) {
-            $$parsedSource["widen_to"] = $$createField18_0($$parsedSource["widen_to"]);
+            $$parsedSource["widen_to"] = $$createField19_0($$parsedSource["widen_to"]);
         }
         return new ContextFeedEntry(/** @type {Partial<ContextFeedEntry>} */($$parsedSource));
     }

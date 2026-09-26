@@ -783,7 +783,7 @@ export interface ContextFeedEntry {
   short: string;
   project_key: string;
   project_name?: string;
-  /** observe, propose, correct, confirm, discard, revert, widen. */
+  /** observe, correct, import, edit, keep, drop, withdraw, revert, widen, signal, establish. */
   kind: string;
   /** suggested, established, contested, withdrawn, dropped, reverted. */
   status: string;
@@ -799,7 +799,9 @@ export interface ContextFeedEntry {
   note?: string;
   /** When the log accepted it, RFC3339 in UTC. */
   at: string;
-  /** A candidate carrying a rule a person can confirm or discard. */
+  /** The evidence for and against a suggestion, as plain counts. */
+  standing?: string;
+  /** A suggestion carrying a rule a person can keep or drop. */
   decidable: boolean;
   /** A rule in force a person can take back out. */
   revertible: boolean;
