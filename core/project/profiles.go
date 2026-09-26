@@ -103,19 +103,25 @@ var slugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 var conceptPattern = regexp.MustCompile(`^\S+$`)
 
 // DefaultVoiceField names the recipe key a voice came from when no profile
-// bound one. Exported because a caller that wants the profile's conventional
-// file to answer BEFORE the project default has to be able to tell the two
-// apart, and ResolvedGovernance.VoiceField is where that is recorded.
+// bound one. Exported because a caller that answers a profile binding no voice
+// with the stored profile of its name, BEFORE the project default, has to be
+// able to tell the two apart, and ResolvedGovernance.VoiceField is where that is
+// recorded.
 const DefaultVoiceField = "defaults.voice"
 
 // Profile binds governance to one product, and declares the channels that
 // product ships on.
 //
 // The map key under `profiles:` is the profile's name: the product-axis value
-// its collections carry, and the directory under `.kapi/profiles/` holding the
-// files it overrides. A profile that binds neither a voice nor a vocabulary is
-// still a profile — that directory is the binding, and a project keeping its
-// overrides there should not have to restate every one of them in the recipe.
+// its collections carry, and the name its governance is found by in the
+// project's store. A profile that binds no voice is governed by the stored
+// voice profile of the same name, when the store holds one, ahead of
+// defaults.voice; the concepts scoped to the profile hold where it governs. A
+// profile that binds neither a voice nor a terms store is therefore still a
+// profile.
+//
+// `kapi context import` reads the files under `.kapi/profiles/<name>/` into the
+// store under that name. Nothing reads them at run time.
 type Profile struct {
 	// Channels are the surfaces this product's content ships on. A
 	// collection binds to one of them through its `channel:`.
@@ -365,10 +371,10 @@ type ResolvedGovernance struct {
 	// or `defaults.voice`), so a profile that cannot be loaded names the line
 	// to fix.
 	VoiceField string
-	// Profile is the matched profile's name — the directory under
-	// `.kapi/profiles/` a caller looks in for the files that profile overrides.
-	// Empty when the collection bound to nothing, which is when the flat
-	// default governs.
+	// Profile is the matched profile's name, which a caller looks up in the
+	// project's store: the voice profile of that name when the profile binds
+	// none, and the concepts scoped to it. Empty when the collection bound to
+	// nothing, which is when the project default governs.
 	Profile string
 	// Validity is the matched profile's declared window, nil when the profile
 	// (or the default point) bounds nothing. ResolveGovernance carries it

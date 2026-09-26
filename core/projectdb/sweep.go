@@ -97,7 +97,7 @@ func foldContextUmbrella(layout project.Layout) {
 //
 // A recipe that bound one of these files by path still names the old location
 // afterwards: authored bindings are not rewritten to chase a move.
-// Conventional resolution finds the new locations with no binding at all.
+// `kapi context import` finds the new locations with no binding at all.
 func foldGovernanceFiles(layout project.Layout, from string) {
 	entries, err := os.ReadDir(from)
 	if err != nil {

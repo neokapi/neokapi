@@ -87,9 +87,10 @@ export interface ContextProfile {
   /** URL id: "default", `axis~value` pairs joined by ".", or `voice~<id>`. */
   slug: string;
   /**
-   * The conventional name — the coordinate values joined by a hyphen in
-   * alphabetical axis order, which is also the project directory the profile's
-   * overrides live in. Empty for the default profile.
+   * The point's name: the coordinate values joined by a hyphen in alphabetical
+   * axis order. A point on the product axis alone is named by its product, the
+   * key a recipe declares that profile under in `profiles:`. Empty for the
+   * default profile.
    */
   name: string;
   label: string;

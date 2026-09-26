@@ -80,10 +80,10 @@ type ContextProfile struct {
 	// `axis~value` pairs joined by "." for a declared one, `voice~<id>` for a
 	// voice bound to no point.
 	Slug string `json:"slug"`
-	// Name is the profile's conventional name — the `when:` values joined by a
-	// hyphen in alphabetical axis order, which is also the directory a project
-	// keeps its overrides in (core/project.ProfileBinding.ConventionalName).
-	// Empty for the default profile, which has no directory of its own.
+	// Name is the point's name: its coordinate values joined by a hyphen in
+	// alphabetical axis order. A point on the product axis alone is named by its
+	// product, the key a recipe declares that profile under in `profiles:`.
+	// Empty for the default profile, which the recipe's `defaults:` governs.
 	Name string `json:"name"`
 	// Label is the display name: the conventional name, or "Brand" for the
 	// default profile and the voice's own name for an unbound voice.
@@ -348,8 +348,8 @@ func profilePointSlug(coords map[string]string) string {
 	return strings.Join(parts, ".")
 }
 
-// profilePointName renders a point the way core/project names a profile's
-// directory: the values joined by a hyphen in alphabetical axis order.
+// profilePointName names a point: its coordinate values joined by a hyphen in
+// alphabetical axis order.
 func profilePointName(coords map[string]string) string {
 	parts := make([]string, 0, len(coords))
 	for _, axis := range sortedAxes(coords) {

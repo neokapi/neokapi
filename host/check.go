@@ -1389,8 +1389,8 @@ func (a *App) newCheckVoice(cmd Command, warnings *voiceWarnings) (*checkVoice, 
 
 // checkTerms resolves the vocabulary in force at a file, the way checkVoice
 // resolves the voice profile there. The two halves of the gate are governed at
-// the same granularity: a project whose profile binds its own `terms:` (or
-// carries the conventional `.kapi/profiles/<name>/terms.json`) has said which
+// the same granularity: a project whose profile binds its own `termstore:` (or
+// holds concepts scoped to that profile in its store) has said which
 // words that region of the context space is held to, and a run that read one
 // project-wide vocabulary honoured the recipe's tone binding while ignoring its
 // vocabulary binding.

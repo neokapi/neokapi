@@ -85,10 +85,10 @@ export function ProfileDetailView({
           {profile.coordinates && Object.keys(profile.coordinates).length > 0 ? (
             <div className="space-y-3">
               <CoordinateReadout coordinates={profile.coordinates} />
-              {profile.name && (
+              {profile.coordinates.product && (
                 <p className="text-xs text-muted-foreground">
-                  Overrides for this point live in{" "}
-                  <code className="font-mono">.kapi/profiles/{profile.name}/</code>.
+                  In a recipe, the voice and terms at this point are bound by name under{" "}
+                  <code className="font-mono">profiles.{profile.coordinates.product}</code>.
                 </p>
               )}
               {profile.channel && (
@@ -101,7 +101,7 @@ export function ProfileDetailView({
           ) : (
             <p className="text-sm text-muted-foreground">
               {profile.is_default
-                ? "No coordinates. This is where content that declares none sits, and its files are the flat ones in .kapi/."
+                ? "No coordinates. This is where content that declares none sits, governed by the recipe's defaults."
                 : "This voice sits at no point. Bind it under profiles[].voice: in a recipe to give it one."}
             </p>
           )}
