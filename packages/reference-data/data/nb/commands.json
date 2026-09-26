@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T09:30:04Z",
+  "generatedAt": "2026-09-26T09:55:07Z",
   "commands": [
     {
       "id": "add",
@@ -4231,7 +4231,7 @@
         {
           "name": "gate",
           "usage": "Minste kildeforfattingsstatus en blokk må nå før oversettelser produseres (none, authored, checked, approved)",
-          "default": "checked",
+          "default": "written",
           "type": "string"
         },
         {
