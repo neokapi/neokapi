@@ -111,7 +111,7 @@ func getOriginProjectInfo(t *testing.T, srv *Server, e *echo.Echo, projectID str
 	return info
 }
 
-func TestSourceGate_ManagedProjectAllowsSourceMutations(t *testing.T) {
+func TestSourceMutationGate_ManagedProjectAllowsSourceMutations(t *testing.T) {
 	srv, cs, _ := newOriginTestServer(t)
 	proj := seedOriginProject(t, cs, "managed-proj")
 	e := echo.New()
@@ -138,7 +138,7 @@ func TestSourceGate_ManagedProjectAllowsSourceMutations(t *testing.T) {
 	assert.True(t, info.Editable)
 }
 
-func TestSourceGate_ConnectedProjectBlocksSourceMutations(t *testing.T) {
+func TestSourceMutationGate_ConnectedProjectBlocksSourceMutations(t *testing.T) {
 	srv, cs, ccs := newOriginTestServer(t)
 	proj := seedOriginProject(t, cs, "connected-proj")
 	bindForgeSource(t, ccs, proj.ID)
@@ -199,7 +199,7 @@ func TestSourceGate_ConnectedProjectBlocksSourceMutations(t *testing.T) {
 	}
 }
 
-func TestSourceGate_ConnectedCollectionBlocksUploadAndRollsUpHybrid(t *testing.T) {
+func TestSourceMutationGate_ConnectedCollectionBlocksUploadAndRollsUpHybrid(t *testing.T) {
 	srv, cs, _ := newOriginTestServer(t)
 	proj := seedOriginProject(t, cs, "hybrid-proj")
 	e := echo.New()

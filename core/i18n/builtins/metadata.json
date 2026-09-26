@@ -864,27 +864,6 @@
         }
       }
     },
-    "source-gate": {
-      "displayName": "Source Gate",
-      "category": "translation",
-      "properties": {
-        "gate": {
-          "title": "Source Gate",
-          "description": "What a block's source must satisfy before its translations are produced: written (its checks pass) or established (a person reviewed it)",
-          "options": {
-            "established": {
-              "label": "established"
-            },
-            "none": {
-              "label": "none"
-            },
-            "written": {
-              "label": "written"
-            }
-          }
-        }
-      }
-    },
     "span-classify": {
       "displayName": "Span Classify",
       "category": "text-processing"
@@ -1078,6 +1057,27 @@
         },
         "provider": {
           "label": "Provider"
+        }
+      }
+    },
+    "translate-after": {
+      "displayName": "Translate After",
+      "category": "translation",
+      "properties": {
+        "level": {
+          "title": "Translate After",
+          "description": "What a block's source must reach before its translations are produced: written (its checks pass) or established (a person reviewed it); none holds nothing",
+          "options": {
+            "established": {
+              "label": "established"
+            },
+            "none": {
+              "label": "none"
+            },
+            "written": {
+              "label": "written"
+            }
+          }
         }
       }
     },

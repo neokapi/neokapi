@@ -18,20 +18,20 @@ func srcBlock(text string) *model.Block {
 	}
 }
 
-// gate drives one block through the source-gate stage's Process pipeline, as a
+// hold drives one block through the translate-after stage's Process pipeline, as a
 // real run does.
-func gate(t *testing.T, gt *SourceGateTool, b *model.Block) {
+func hold(t *testing.T, gt *TranslateAfterTool, b *model.Block) {
 	t.Helper()
 	require.NoError(t, applyProduce(t, gt, b))
 }
 
-// TestSourceGateTool_SettlesAndHoldsBelowGate: the source-gate stage settles a
-// clean block to `written` and, under the `established` gate, holds it (written
+// TestTranslateAfterTool_SettlesAndHoldsBelowLevel: the translate-after stage
+// settles a clean block to `written` and, at level `established`, holds it (written
 // is below established) — stamping the hold marker and counting it.
-func TestSourceGateTool_SettlesAndHoldsBelowGate(t *testing.T) {
+func TestTranslateAfterTool_SettlesAndHoldsBelowLevel(t *testing.T) {
 	b := srcBlock("Hello world")
-	gt := NewSourceGateTool(model.SourceGateEstablished)
-	gate(t, gt, b)
+	gt := NewTranslateAfterTool(model.TranslateAfterEstablished)
+	hold(t, gt, b)
 
 	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus, "settled to written")
 	assert.True(t, b.SourceHeld(), "written is below established → held")
@@ -40,26 +40,26 @@ func TestSourceGateTool_SettlesAndHoldsBelowGate(t *testing.T) {
 	assert.Equal(t, 1, total)
 }
 
-// TestSourceGateTool_AdmitsAtGate: a clean block clears the default (written)
-// gate — settled to written, not held, any stale marker cleared.
-func TestSourceGateTool_AdmitsAtGate(t *testing.T) {
+// TestTranslateAfterTool_AdmitsAtLevel: a clean block reaches the default
+// (written) level — settled to written, not held, any stale marker cleared.
+func TestTranslateAfterTool_AdmitsAtLevel(t *testing.T) {
 	b := srcBlock("Hello world")
 	b.SetSourceHeld(true) // a stale hold from a prior pass
-	gt := NewSourceGateTool(model.SourceGateWritten)
-	gate(t, gt, b)
+	gt := NewTranslateAfterTool(model.TranslateAfterWritten)
+	hold(t, gt, b)
 
 	assert.Equal(t, model.SourceStatusWritten, b.SourceStatus)
-	assert.False(t, b.SourceHeld(), "clean source clears the written gate; the stale hold is cleared")
+	assert.False(t, b.SourceHeld(), "clean source reaches the written level; the stale hold is cleared")
 	held, _ := gt.Snapshot()
 	assert.Equal(t, 0, held)
 }
 
-// TestSourceGateTool_NoneIsPassthrough: the `none` opt-out settles nothing and
+// TestTranslateAfterTool_NoneIsPassthrough: the `none` opt-out settles nothing and
 // holds nothing — no status change, no marker, no count.
-func TestSourceGateTool_NoneIsPassthrough(t *testing.T) {
+func TestTranslateAfterTool_NoneIsPassthrough(t *testing.T) {
 	b := srcBlock("Hello world")
-	gt := NewSourceGateTool(model.SourceGateNone)
-	gate(t, gt, b)
+	gt := NewTranslateAfterTool(model.TranslateAfterNone)
+	hold(t, gt, b)
 
 	assert.Equal(t, model.SourceStatusNew, b.SourceStatus, "none never settles")
 	assert.False(t, b.SourceHeld())
@@ -68,20 +68,20 @@ func TestSourceGateTool_NoneIsPassthrough(t *testing.T) {
 	assert.Equal(t, 0, total)
 }
 
-// TestSourceGateTool_WhitespaceHeldAtWritten: a whitespace-only source trips
+// TestTranslateAfterTool_WhitespaceHeldAtWritten: a whitespace-only source trips
 // the major content-lint finding, so it stays unsettled and is held below the
-// written gate — the partial-hold case.
-func TestSourceGateTool_WhitespaceHeldAtWritten(t *testing.T) {
+// written level — the partial-hold case.
+func TestTranslateAfterTool_WhitespaceHeldAtWritten(t *testing.T) {
 	b := srcBlock("   ")
-	gt := NewSourceGateTool(model.SourceGateWritten)
-	gate(t, gt, b)
+	gt := NewTranslateAfterTool(model.TranslateAfterWritten)
+	hold(t, gt, b)
 
 	assert.Equal(t, model.SourceStatusNew, b.SourceStatus, "a major source finding keeps it unsettled")
 	assert.True(t, b.SourceHeld())
 }
 
 // TestProducersSkipHeldSource: both producers — recycle and AI translate — skip
-// a block carrying the source-gate hold marker, leaving no target; a block
+// a block carrying the translate-after hold marker, leaving no target; a block
 // without the marker is produced normally.
 func TestProducersSkipHeldSource(t *testing.T) {
 	const fr = model.LocaleID("fr")
@@ -142,12 +142,12 @@ func (m staticMemoryProvider) PriorVersion(context.Context, corememory.VersionRe
 	return corememory.Version{}, false
 }
 
-func TestSourceGateFromConfig_RefusesAnUnknownGate(t *testing.T) {
-	_, err := NewSourceGateFromConfig(map[string]any{"gate": "checked"}, "")
+func TestTranslateAfterFromConfig_RefusesAnUnknownLevel(t *testing.T) {
+	_, err := NewTranslateAfterFromConfig(map[string]any{"level": "checked"}, "")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `gate "checked" is not a source gate`)
+	assert.Contains(t, err.Error(), `level "checked" is not a source level`)
 
-	tl, err := NewSourceGateFromConfig(map[string]any{}, "")
+	tl, err := NewTranslateAfterFromConfig(map[string]any{}, "")
 	require.NoError(t, err)
 	assert.NotNil(t, tl)
 }

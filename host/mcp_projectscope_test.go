@@ -36,7 +36,7 @@ func scopeProject(t *testing.T, name, forbidden, replacement, target string) str
 defaults:
   source_language: en
   target_languages: [`+target+`]
-  source_gate: none
+  translate_after: none
 collections:
   - name: Docs
     content:

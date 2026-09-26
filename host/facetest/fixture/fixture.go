@@ -86,7 +86,7 @@ name: Fjordline
 defaults:
   source_language: en
   target_languages: [nb]
-  source_gate: none
+  translate_after: none
 profiles:
   support:
     channels: [docs]
@@ -182,7 +182,7 @@ name: Posixline
 defaults:
   source_language: en_US
   target_languages: [nb_NO]
-  source_gate: none
+  translate_after: none
 collections:
   - name: App
     content:

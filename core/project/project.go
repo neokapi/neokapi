@@ -179,29 +179,28 @@ type Defaults struct {
 	// `up --jobs` overrides per run.
 	Jobs int `yaml:"jobs,omitempty" json:"jobs,omitempty"`
 
-	// SourceGate is the source-first convergence gate: the SourceStatus a
-	// source block must reach before its translations are produced. Source-first
-	// convergence settles the source (terminology + voice + source hygiene) and gates
-	// the fan-out on it, so an unsettled, non-compliant, un-term-checked source is
-	// never translated into N locales only to be redone when it changes
-	// (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
+	// TranslateAfter is the SourceStatus a source block must reach before its
+	// translations are produced. Source-first convergence settles the source
+	// (terminology, voice and source hygiene) and holds each block's fan-out
+	// until its source reaches this level, so an unsettled, non-compliant source
+	// is translated into N locales only once it is ready.
 	//
-	// Values (model.ResolveSourceGate):
-	//   ""            — unset; the runner applies the default gate (`written`).
+	// Values (model.ResolveTranslateAfter):
+	//   ""            — unset; the runner applies the default level (`written`).
 	//   "written"     — the DEFAULT: a written source translates once it clears
 	//                   its automated terminology, voice and source hygiene
 	//                   checks (no human bottleneck).
 	//   "established" — a person has established the source (voice-critical or
 	//                   regulated projects). A failing finding still holds it.
-	//   "none"        — the deliberate opt-out: no gate, every present source
+	//   "none"        — the deliberate opt-out: no hold, every present source
 	//                   fans out on push. You have to choose it.
 	//
 	// Any other value fails the recipe's validation.
 	//
-	// It is the level-based, per-project counterpart of the coverage-bar
-	// SourceGate on KapiProject (which `kapi check --ship` evaluates); this one
-	// governs the convergence fan-out.
-	SourceGate string `yaml:"source_gate,omitempty" json:"source_gate,omitempty"`
+	// The coverage bar SourceGate on KapiProject, which `kapi check --ship`
+	// evaluates, is a separate setting; this one holds the convergence fan-out
+	// block by block.
+	TranslateAfter string `yaml:"translate_after,omitempty" json:"translate_after,omitempty"`
 
 	LocaleFormat   string                    `yaml:"locale_format,omitempty" json:"locale_format,omitempty"` // "bcp-47" (default) or "posix"
 	Concurrency    int                       `yaml:"concurrency,omitempty" json:"concurrency,omitempty"`
@@ -373,6 +372,14 @@ func namesFile(v string) bool {
 		return true
 	}
 	return false
+}
+
+// renamedDefaultsKeys are `defaults:` keys the recipe spells differently,
+// mapped to the current key. Left unnamed, such a key would be captured as an
+// unknown extension and silently carry nothing. The top-level `source_gate`
+// (the source coverage bar) is a separate key and stays valid.
+var renamedDefaultsKeys = map[string]string{
+	"source_gate": "translate_after",
 }
 
 // retiredDefaultsKeys are `defaults:` keys that named a context file. Each is
@@ -1034,6 +1041,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 		}
 	}
 	for _, key := range sortedKeys(p.Defaults.Extras) {
+		if replacement, renamed := renamedDefaultsKeys[key]; renamed {
+			return fmt.Errorf("defaults.%s: is no longer a recipe key. Use defaults.%s", key, replacement)
+		}
 		if r, retired := retiredDefaultsKeys[key]; retired {
 			var path string
 			node := p.Defaults.Extras[key]
@@ -1056,8 +1066,8 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	if err := p.Defaults.Voice.validate("defaults.voice"); err != nil {
 		return err
 	}
-	if _, known := model.ResolveSourceGate(p.Defaults.SourceGate); !known {
-		return fmt.Errorf("defaults.source_gate: %q is not a source gate. Use written (the default), established or none", p.Defaults.SourceGate)
+	if _, known := model.ResolveTranslateAfter(p.Defaults.TranslateAfter); !known {
+		return fmt.Errorf("defaults.translate_after: %q is not a source level. Use written (the default), established or none", p.Defaults.TranslateAfter)
 	}
 	if err := validateDirectives("defaults.comments.directives", p.Defaults.Comments.Directives, nil); err != nil {
 		return err
@@ -1105,6 +1115,9 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 			if step.Tool == "" && len(step.Parallel) == 0 {
 				return fmt.Errorf("flow %q step[%d]: tool is required", name, j)
 			}
+		}
+		if err := flow.CheckRenamedTools(spec.Steps); err != nil {
+			return fmt.Errorf("flow %q %w", name, err)
 		}
 	}
 	if err := p.validateRequiresSyntax(); err != nil {

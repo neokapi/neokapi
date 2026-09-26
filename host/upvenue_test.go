@@ -58,7 +58,7 @@ name: VenueTest
 defaults:
   source_language: en
   target_languages: [nb]
-  source_gate: none
+  translate_after: none
   flow: translate
 collections:
   - name: app

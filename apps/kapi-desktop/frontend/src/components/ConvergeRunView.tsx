@@ -46,7 +46,7 @@ export function ConvergeRunView({ events, running, canceled, onOpenReview }: Con
               parkedScopes: result.parkedScopes,
               materializedFiles: result.materializedFiles,
               blockedOnSource: result.blockedOnSource,
-              sourceGate: result.sourceGate,
+              translateAfter: result.translateAfter,
               stallReason: result.stallReason,
             }
           : undefined

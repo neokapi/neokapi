@@ -347,13 +347,13 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	}
 
 	// Committed source approvals, read once for the whole run and stamped onto
-	// each block as it leaves the reader. Without this the in-flow source gate
+	// each block as it leaves the reader. Without this the in-flow translate-after stage
 	// re-derives readiness from the checks alone, so a run would hold a unit
 	// `kapi status` reports as approved.
 	seedSourceState, seedErr := a.SourceStateSeeder(ctx, pctx.ProjectDir, string(pctx.SourceLocale))
 	if seedErr != nil && !errors.Is(seedErr, context.Canceled) {
 		// A real read failure is fatal rather than silent: without the approvals
-		// the source gate would hold units the project has already established,
+		// translate_after would hold units the project has already established,
 		// and a run that quietly translated nothing would look like a converged
 		// one. Cancellation is not that — the run is being torn down, and the
 		// same convention governs the feeder's error below.

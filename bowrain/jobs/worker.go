@@ -616,14 +616,14 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		return fmt.Errorf("get blocks: %w", err)
 	}
 
-	// Source-first gate (epic 019): translate only the blocks whose source has
-	// settled to (or above) the project's source gate. A block held below the
-	// gate is skipped here — never translated into this locale — so a partially
+	// Source-first convergence: translate only the blocks whose source has
+	// settled to (or above) the project's translate_after level. A block held
+	// below the level is skipped here — never translated into this locale — so a partially
 	// settled item translates only its ready segments and an off-brand /
 	// un-term-checked source is not fanned out. The orchestrator already refuses
 	// to spawn a job for an item with nothing producible; this is the per-block
 	// enforcement that also protects the direct auto-translate path.
-	storedBlocks = gateBlocksBySource(storedBlocks, store.SourceGateFor(proj))
+	storedBlocks = gateBlocksBySource(storedBlocks, store.TranslateAfterFor(proj))
 
 	srcLocale := proj.DefaultSourceLanguage
 	tgtLocale := model.LocaleID(job.TargetLocale)
@@ -1117,12 +1117,12 @@ func ProjectDNTTerms(proj *store.Project) []string {
 // A block that was never settled (SourceStatusNew — no committed status) is
 // PASSED THROUGH: the worker is not the settle phase, and holding an unstamped
 // block here would silently strand every non-source-first path (auto-translate,
-// projects that never ran a settle pass). The gate holds only what settlement
-// committed below it — a block a settle pass left short of the gate, or one
-// whose source fails its checks. A non-translatable block (no source to gate) and a disabled gate
-// (SourceGateNone) always pass.
-func gateBlocksBySource(blocks []*venue.StoredBlock, gate model.SourceGateLevel) []*venue.StoredBlock {
-	if gate == model.SourceGateNone {
+// projects that never ran a settle pass). The hold applies only to what settlement
+// committed below the level: a block a settle pass left short of it, or one
+// whose source fails its checks. A non-translatable block (no source to hold) and level `none`
+// (TranslateAfterNone) always pass.
+func gateBlocksBySource(blocks []*venue.StoredBlock, gate model.TranslateAfterLevel) []*venue.StoredBlock {
+	if gate == model.TranslateAfterNone {
 		return blocks
 	}
 	kept := blocks[:0:0]

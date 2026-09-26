@@ -63,7 +63,7 @@ func newLoopProject(t *testing.T, sources map[string]string) (*App, *EnvCommand,
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb", "de"},
 			Flow:            "translate",
-			SourceGate:      string(model.SourceGateNone),
+			TranslateAfter:  string(model.TranslateAfterNone),
 		},
 		Collections: []project.Collection{
 			{Name: "app", Path: "src/*.json", Target: "out/{lang}/{path}.json"},

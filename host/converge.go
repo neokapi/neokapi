@@ -113,18 +113,19 @@ type ConvergeOutput struct {
 	// policy is manual and --materialize was not passed).
 	MaterializedFiles int `json:"materializedFiles,omitempty"`
 	// BlockedOnSource is how many translatable source blocks were held below the
-	// active source gate this run (epic 019): their translations were NOT
-	// produced because the source is un-settled. 0 when the gate is `none` or the
-	// source is fully settled. It is source-scoped (deduped across locales — a
-	// source block is shared by every target), mirroring the server's run row.
+	// translate_after level this run: their translations were not produced
+	// because the source is un-settled. 0 when the level is `none` or the
+	// source is fully settled. It is source-scoped (deduped across locales, as
+	// a source block is shared by every target), mirroring the server's run row.
 	BlockedOnSource int `json:"blockedOnSource,omitempty"`
-	// SourceGate is the resolved source-first gate level applied
-	// (none|written|established), for observability. Empty when no gate
+	// TranslateAfter is the resolved defaults.translate_after level applied
+	// (none|written|established), for observability. Empty when no level
 	// was evaluated (no content).
-	SourceGate string `json:"sourceGate,omitempty"`
+	TranslateAfter string `json:"translateAfter,omitempty"`
 	// StallReason is the machine-readable cause a run did not converge — set to
 	// source_not_ready when every pending locale had nothing producible because
-	// its source is held below the gate. Empty on a clean/parked-on-target run.
+	// its source is held below the translate_after level. Empty on a
+	// clean/parked-on-target run.
 	StallReason string `json:"stallReason,omitempty"`
 	// Monolingual reports a run over a project that resolves no target locale at
 	// all: the source half of convergence ran and the per-locale fan-out was not
@@ -226,8 +227,8 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	}
 	t.Render()
 	fmt.Fprintln(w)
-	// Source hold (epic 019): when the source-first gate held blocks below the
-	// bar, say so plainly — those blocks were NOT translated, and the fix is to
+	// Source hold: when translate_after held blocks below its level, say so
+	// plainly — those blocks were NOT translated, and the fix is to
 	// settle the source, not to wait for review. Never a silent skip.
 	if o.BlockedOnSource > 0 {
 		fmt.Fprintf(w, "%d block(s) held on source. Settle your source first "+
@@ -259,7 +260,7 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	if o.Converged {
 		fmt.Fprintln(w, o.upToDateLine())
 	} else if o.StallReason == convergence.StallSourceNotReady {
-		fmt.Fprintln(w, "Held on source. Nothing translatable is settled yet. Set defaults.source_gate: none to draft freely.")
+		fmt.Fprintln(w, "Held on source. Nothing translatable is settled yet. Set defaults.translate_after: none to draft freely.")
 	} else {
 		fmt.Fprintln(w, "Not yet up to date: parked locales await human review (never a build failure).")
 	}
@@ -343,7 +344,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	if err != nil {
 		return err
 	}
-	flowName, flowLabel, spec, sourceGate := cf.name, cf.label, cf.spec, cf.sourceGate
+	flowName, flowLabel, spec, translateAfter := cf.name, cf.label, cf.spec, cf.translateAfter
 
 	ctx := CmdContext(cmd)
 
@@ -620,8 +621,8 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		// Source-first settle phase (epic 019): settle the source ONCE before the
 		// loop (as the server's runSettleSource does), stamp SourceStatus over the
 		// distinct source files, and count how many blocks are held below the
-		// gate — the number surfaced as "N blocks held on source". A no-op when the
-		// gate is `none`.
+		// translate_after level, the number surfaced as "N blocks held on source".
+		// A no-op when the level is `none`.
 		//
 		// The settle error is PROPAGATED. It used to be swallowed (`herr == nil`)
 		// on the stated grounds that the run "degrades to the gate-off behavior",
@@ -639,30 +640,30 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		// pure re-resolution of the recipe's content patterns, already resolved
 		// (and hard-failed on) above.
 		var blockedOnSource, totalSource int
-		if sourceGate != model.SourceGateNone {
-			held, total, unreadable, herr := a.settleAndCountHeldSource(ctx, root, a.SourceLang, sourceGate, admissionUnits)
+		if translateAfter != model.TranslateAfterNone {
+			held, total, unreadable, herr := a.settleAndCountHeldSource(ctx, root, a.SourceLang, translateAfter, admissionUnits)
 			if herr != nil {
-				return fmt.Errorf("settle source for the %q gate: %w", sourceGate, herr)
+				return fmt.Errorf("settle source for translate_after %q: %w", translateAfter, herr)
 			}
 			blockedOnSource, totalSource = held, total
 			// A collection whose format has no reader on this machine was never
 			// opened, so it contributed nothing to the two counts above. That is
 			// survivable (the plugin supplying it is optional), but it is not
-			// silent: a gate that reports "0 held" over content it could not read
+			// silent: a hold that reports "0 held" over content it could not read
 			// is indistinguishable from one that read it and found it clean.
 			for _, f := range unreadable {
 				emitter.Emit(convergence.Event{
 					Type:    convergence.EventLog,
 					Stage:   convergence.StageSettleSource,
-					Message: sourceGateUnreadMessage(a.discoveredPlugins(), f),
+					Message: translateAfterUnreadMessage(a.discoveredPlugins(), f),
 				})
 			}
 			emitter.Emit(convergence.Event{
 				Type:            convergence.EventLog,
 				Stage:           convergence.StageSettleSource,
 				BlockedOnSource: held,
-				Message: fmt.Sprintf("Settled source: %d block(s), %d held at the %q gate.",
-					total, held, sourceGate),
+				Message: fmt.Sprintf("Settled source: %d block(s), %d held below translate_after %q.",
+					total, held, translateAfter),
 			})
 		}
 
@@ -681,7 +682,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		}
 		d := res.Final.Detail.(derivedState)
 		return a.finishConverge(ctx, cmd, proj, projectPath, flowLabel, res.Passes, d.cov, locales,
-			sourceGate, blockedOnSource, totalSource, facts, opts, emitter.Emit)
+			translateAfter, blockedOnSource, totalSource, facts, opts, emitter.Emit)
 	})
 }
 
@@ -982,15 +983,15 @@ func producedUnits(cov []LocaleCoverage) int {
 // are ALL shippable has its target files written from the project block
 // store via the shared merge/materialize path; parked locales are skipped —
 // their content isn't at the bar yet.
-func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, sourceGate model.SourceGateLevel, blockedOnSource, totalSource int, facts *convergeFacts, opts ConvergeOptions, emit func(convergence.Event)) error {
+func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, translateAfter model.TranslateAfterLevel, blockedOnSource, totalSource int, facts *convergeFacts, opts ConvergeOptions, emit func(convergence.Event)) error {
 	out := buildConvergeOutput(flowName, passes, cov, locales, facts.redraftable)
 	out.Warnings = facts.unread.warnings()
 	out.Monolingual = facts.monolingual
 	out.ExtractedFiles = facts.extractedFiles
 	out.ExtractedBlocks = facts.extractedBlocks
 	out.BlockedOnSource = blockedOnSource
-	if sourceGate != "" {
-		out.SourceGate = string(sourceGate)
+	if translateAfter != "" {
+		out.TranslateAfter = string(translateAfter)
 	}
 	// Hold-on-source is a first-class outcome (epic 019): when EVERY translatable
 	// source block is held (nothing is producible), the run held on SOURCE, not on
@@ -1015,7 +1016,7 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 
 	// A source-held run produced no translations (epic 019): do NOT materialize.
 	// Every locale's source-fallback output would otherwise be written as if it
-	// were caught up — the "silent skip → junk output" the source gate exists to
+	// were caught up — the "silent skip → junk output" translate_after exists to
 	// prevent. This mirrors the server, which skips its post-run work when the run
 	// stalled on source_not_ready (convergence_orchestrator.go). Materialize only
 	// once the source is settled and real targets exist.
@@ -1227,15 +1228,15 @@ type convergeFlow struct {
 	name  string
 	label string
 	spec  *flow.StepsSpec
-	// sourceGate is the level the leading source-gate stage holds blocks
-	// below, or SourceGateNone when the recipe opts out and no stage is
-	// prepended.
-	sourceGate model.SourceGateLevel
+	// translateAfter is the level the leading translate-after stage holds
+	// blocks below, or TranslateAfterNone when the recipe opts out and no stage
+	// is prepended.
+	translateAfter model.TranslateAfterLevel
 }
 
 // convergeFlowSpec resolves the flow a convergence pass executes: the recipe's
 // defaults.flow, or the built-in default when the recipe names none, with the
-// source gate's leading stage prepended when the gate is active. The run and
+// translate-after leading stage prepended unless the level is `none`. The run and
 // `kapi up --plan` both resolve through it, so a plan never prices a flow the
 // run would not execute, and a flow the run cannot start fails the plan the same
 // way. projectDir is the recipe's directory, which a `flows_dir:` is relative
@@ -1261,17 +1262,17 @@ func convergeFlowSpec(proj *project.KapiProject, projectDir string) (convergeFlo
 		cf.spec = pf.Spec
 	}
 
-	// Source-first gate (epic 019): resolve the convergence source gate
-	// (defaults.source_gate). When it is active (not `none`), a leading
-	// source-gate stage settles each block's source authoring status and holds a
-	// block whose source ranks below the gate, the local, in-stream counterpart
-	// of the server's settleSource + gateItemsBySource. The stage prepends to the
-	// flow so it runs before recycle/translate, which skip a held block. The gate
-	// is off (no stage, no hold) when the project opts out with `source_gate:
-	// none`, parity with the server "raw MT, no gate" path.
-	cf.sourceGate, _ = convergeSourceGate(proj)
-	if cf.sourceGate != model.SourceGateNone {
-		cf.spec = prependSourceGate(cf.spec, cf.sourceGate)
+	// Source-first convergence: resolve defaults.translate_after. When it is
+	// not `none`, a leading translate-after stage settles each block's source
+	// authoring status and holds a block whose source is below the level, the
+	// local, in-stream counterpart of the server's settleSource +
+	// gateItemsBySource. The stage prepends to the flow so it runs before
+	// recycle/translate, which skip a held block. There is no stage and no hold
+	// when the project opts out with `translate_after: none`, matching the
+	// server's "raw MT" path.
+	cf.translateAfter, _ = convergeTranslateAfter(proj)
+	if cf.translateAfter != model.TranslateAfterNone {
+		cf.spec = prependTranslateAfter(cf.spec, cf.translateAfter)
 	}
 	return cf, nil
 }
@@ -1300,26 +1301,26 @@ func DefaultConvergeFlowSpec() *flow.StepsSpec {
 	}}
 }
 
-// prependSourceGate returns a copy of spec with the source-gate leading stage
-// (epic 019) inserted at the head — the "leading source-transform stage"
-// (CLAUDE.md) that settles the source and holds blocks below gate before any
-// producer runs. The gate level rides in the step config so each per-locale
-// worker builds a source-gate instance for the resolved level. The input spec
-// is not mutated (a fresh spec + steps slice is returned) so a project's shared
-// flow definition is never rewritten. A spec that already opens with a
-// source-gate step (a recipe that placed it explicitly) is left as-is, so the
-// stage is not doubled.
-func prependSourceGate(spec *flow.StepsSpec, gate model.SourceGateLevel) *flow.StepsSpec {
+// prependTranslateAfter returns a copy of spec with the translate-after
+// leading stage inserted at the head: the leading source-transform stage that
+// settles the source and holds blocks below the level before any producer
+// runs. The level rides in the step config so each per-locale worker builds a
+// translate-after instance for the resolved level. The input spec is not
+// mutated (a fresh spec + steps slice is returned) so a project's shared flow
+// definition is never rewritten. A spec that already opens with a
+// translate-after step (a recipe that placed it explicitly) is left as-is, so
+// the stage is not doubled.
+func prependTranslateAfter(spec *flow.StepsSpec, level model.TranslateAfterLevel) *flow.StepsSpec {
 	if spec == nil {
 		spec = &flow.StepsSpec{}
 	}
-	if len(spec.Steps) > 0 && spec.Steps[0].Tool == "source-gate" {
+	if len(spec.Steps) > 0 && spec.Steps[0].Tool == "translate-after" {
 		return spec
 	}
 	steps := make([]flow.FlowStep, 0, len(spec.Steps)+1)
 	steps = append(steps, flow.FlowStep{
-		Tool:   "source-gate",
-		Config: map[string]any{"gate": string(gate)},
+		Tool:   "translate-after",
+		Config: map[string]any{"level": string(level)},
 	})
 	steps = append(steps, spec.Steps...)
 	out := *spec

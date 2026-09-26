@@ -76,10 +76,10 @@ func formatInstallClause(installed []*pluginhost.Plugin, format string) string {
 	return installClause(plugin)
 }
 
-// sourceGateUnreadMessage is the run log line for a format no installed reader
-// opens, whose content the source gate therefore did not count.
-func sourceGateUnreadMessage(installed []*pluginhost.Plugin, format string) string {
-	return fmt.Sprintf("No reader for format %q: its content is not counted in the source gate. %s.",
+// translateAfterUnreadMessage is the run log line for a format no installed
+// reader opens, whose content the translate-after hold therefore did not count.
+func translateAfterUnreadMessage(installed []*pluginhost.Plugin, format string) string {
+	return fmt.Sprintf("No reader for format %q: its source is not settled or counted before translation. %s.",
 		format, sentenceCase(formatInstallClause(installed, format)))
 }
 

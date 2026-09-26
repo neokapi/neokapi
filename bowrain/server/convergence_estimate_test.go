@@ -42,7 +42,7 @@ func TestConvergenceEstimate_SourceHeldVsReady(t *testing.T) {
 	require.NoError(t, err)
 
 	// Source readiness: 3 total, 2 ready, 1 held on the default `written` gate.
-	assert.Equal(t, model.SourceGateWritten, view.Source.Gate)
+	assert.Equal(t, model.TranslateAfterWritten, view.Source.Gate)
 	assert.Equal(t, 3, view.Source.Total)
 	assert.Equal(t, 2, view.Source.Ready)
 	assert.Equal(t, 1, view.Source.Held)
@@ -68,7 +68,7 @@ func TestConvergenceEstimate_SourceHeldVsReady(t *testing.T) {
 // nothing is held and the estimate covers the whole corpus.
 func TestConvergenceEstimate_GateNone_NoHold(t *testing.T) {
 	s, cs, _ := sourceFirstHarness(t)
-	mkProject(t, cs, "p", map[string]string{"source_gate": "none"})
+	mkProject(t, cs, "p", map[string]string{"translate_after": "none"})
 	storeSourceItem(t, cs, "p", "a.json",
 		srcBlk{"b1", "One.", model.SourceStatusNew},
 		srcBlk{"b2", "Two.", model.SourceStatusNew})
@@ -79,7 +79,7 @@ func TestConvergenceEstimate_GateNone_NoHold(t *testing.T) {
 	view, err := s.convergence.buildConvergenceEstimate(t.Context(), proj)
 	require.NoError(t, err)
 
-	assert.Equal(t, model.SourceGateNone, view.Source.Gate)
+	assert.Equal(t, model.TranslateAfterNone, view.Source.Gate)
 	assert.Equal(t, 2, view.Source.Total)
 	assert.Equal(t, 2, view.Source.Ready)
 	assert.Equal(t, 0, view.Source.Held, "gate none holds nothing")

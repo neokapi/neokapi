@@ -98,14 +98,14 @@ func TestSourceStatus_RoundTripsThroughStore(t *testing.T) {
 // held. The blocked-on-source count reflects only the held block.
 func TestSettleSource_StampsAndCounts(t *testing.T) {
 	s, cs, _ := sourceFirstHarness(t)
-	mkProject(t, cs, "p", nil) // no source_gate → default `written`
+	mkProject(t, cs, "p", nil) // no translate_after → default `written`
 	storeSourceItem(t, cs, "p", "a.json",
 		srcBlk{"clean", "A well-formed sentence.", model.SourceStatusNew},
 		srcBlk{"empty", "   ", model.SourceStatusNew})
 
 	res, err := s.convergence.settleSource(t.Context(), "p")
 	require.NoError(t, err)
-	assert.Equal(t, model.SourceGateWritten, res.Gate)
+	assert.Equal(t, model.TranslateAfterWritten, res.Level)
 	assert.Equal(t, 2, res.Total)
 	assert.Equal(t, 1, res.BlockedOnSource, "only the empty block is held")
 
@@ -113,18 +113,18 @@ func TestSettleSource_StampsAndCounts(t *testing.T) {
 	assert.Equal(t, model.SourceStatusWritten, byID["clean"], "clean source is stamped written")
 	// Empty source cannot be promoted; it stays at the New baseline, below the
 	// gate — held either way.
-	assert.False(t, model.SourceGateWritten.Admits(byID["empty"], false), "empty source stays below the gate")
+	assert.False(t, model.TranslateAfterWritten.Admits(byID["empty"], false), "empty source stays below the gate")
 }
 
-// TestSettleSource_GateNone_NoOp: the opt-out never settles or holds.
-func TestSettleSource_GateNone_NoOp(t *testing.T) {
+// TestSettleSource_TranslateAfterNone_NoOp: the opt-out never settles or holds.
+func TestSettleSource_TranslateAfterNone_NoOp(t *testing.T) {
 	s, cs, _ := sourceFirstHarness(t)
-	mkProject(t, cs, "p", map[string]string{"source_gate": "none"})
+	mkProject(t, cs, "p", map[string]string{"translate_after": "none"})
 	storeSourceBlock(t, cs, "p", "a.json", "empty", "   ", model.SourceStatusNew)
 
 	res, err := s.convergence.settleSource(t.Context(), "p")
 	require.NoError(t, err)
-	assert.Equal(t, model.SourceGateNone, res.Gate)
+	assert.Equal(t, model.TranslateAfterNone, res.Level)
 	assert.Equal(t, 0, res.BlockedOnSource)
 	assert.Equal(t, 0, res.Total, "gate none skips settlement entirely")
 }
@@ -146,7 +146,7 @@ func TestGateItemsBySource(t *testing.T) {
 // TestGateItemsBySource_None: opt-out makes every item producible.
 func TestGateItemsBySource_None(t *testing.T) {
 	s, cs, _ := sourceFirstHarness(t)
-	mkProject(t, cs, "p", map[string]string{"source_gate": "none"})
+	mkProject(t, cs, "p", map[string]string{"translate_after": "none"})
 	storeSourceBlock(t, cs, "p", "held.json", "h1", "nope", model.SourceStatusWritten)
 
 	prod, blocked, err := s.convergence.gateItemsBySource(t.Context(), "p", []string{"held.json"})
@@ -249,7 +249,7 @@ func TestDrive_HoldsOnSource(t *testing.T) {
 	// default, so the reused create_source_review automation fires. A clean,
 	// non-empty source settles to `written`, which is below `established`, so
 	// the whole locale is held on source.
-	mkProject(t, cs, "p", map[string]string{"source_gate": "established"})
+	mkProject(t, cs, "p", map[string]string{"translate_after": "established"})
 	storeSourceBlock(t, cs, "p", "a.json", "b1", "A well-formed sentence.", model.SourceStatusNew)
 
 	run := &bstore.ConvergenceRun{ProjectID: "p", Trigger: "push", State: bstore.ConvergenceRunRunning}
@@ -289,7 +289,7 @@ func TestParkedStallReason_NeverSourceNotReady(t *testing.T) {
 }
 
 // noopJobStore satisfies jobs.JobStore for tests that never reach the job path
-// (the source gate holds first). Only the embedded nil interface is present;
+// (translate_after holds first). Only the embedded nil interface is present;
 // calling any method would panic, which is the point — the hold path must not.
 type noopJobStore struct{ jobs.JobStore }
 

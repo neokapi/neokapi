@@ -41,7 +41,7 @@ func yamlCommentsProject(t *testing.T, comments, remembered bool) (*App, *EnvCom
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb"},
 			Flow:            "recycle-only",
-			SourceGate:      string(model.SourceGateNone),
+			TranslateAfter:  string(model.TranslateAfterNone),
 			Materialize:     project.MaterializeOnConverge,
 		},
 		Collections: []project.Collection{{

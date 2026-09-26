@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T10:03:28Z",
+  "generatedAt": "2026-09-26T14:46:14Z",
   "commands": [
     {
       "id": "add",
@@ -4195,110 +4195,6 @@
       "demoMode": true
     },
     {
-      "id": "exec.source-gate",
-      "path": [
-        "exec",
-        "source-gate"
-      ],
-      "use": "source-gate [files...]",
-      "short": "▒ Šöüŕçé Ĝàţé ▒",
-      "flags": [
-        {
-          "name": "concurrency",
-          "shorthand": "j",
-          "usage": "▒ ḿàẋ þàŕàļļéļ ƒîļéš (0 = àüţö) ▒",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "encoding",
-          "shorthand": "e",
-          "usage": "▒ îñþüţ ƒîļé éñçöđîñĝ ▒",
-          "type": "string"
-        },
-        {
-          "name": "fail-on-unknown",
-          "usage": "▒ éẋîţ ŵîţĥ éŕŕöŕ îƒ àñý ƒîļé çàññöţ ƃé þŕöçéššéđ (đéƒàüļţ: šķîþ ŵîţĥ ŵàŕñîñĝ) ▒",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "format",
-          "shorthand": "f",
-          "usage": "▒ öṽéŕŕîđé îñþüţ ƒöŕḿàţ đéţéçţîöñ ▒",
-          "type": "string"
-        },
-        {
-          "name": "gate",
-          "usage": "▒ Ŵĥàţ à ƃļöçķ'š šöüŕçé ḿüšţ šàţîšƒý ƃéƒöŕé îţš ţŕàñšļàţîöñš àŕé þŕöđüçéđ: ŵŕîţţéñ (îţš çĥéçķš þàšš) öŕ éšţàƃļîšĥéđ (à þéŕšöñ ŕéṽîéŵéđ îţ) (ñöñé, ŵŕîţţéñ, éšţàƃļîšĥéđ) ▒",
-          "default": "written",
-          "type": "string"
-        },
-        {
-          "name": "json",
-          "usage": "▒ öüţþüţ ŕéšüļţš àš ĴŠÖÑ ▒",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "map",
-          "shorthand": "m",
-          "usage": "▒ ḿàþ ĝļöƃ þàţţéŕñ ţö ƒöŕḿàţ (é.ĝ. '*.đöçẋ=öķƒ_öþéñẋḿļ:ţéšţ') ▒",
-          "default": "[]",
-          "type": "stringArray"
-        },
-        {
-          "name": "no-warn",
-          "usage": "▒ šüþþŕéšš ŵàŕñîñĝš ƒöŕ šķîþþéđ ƒîļéš ▒",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "pack",
-          "usage": "▒ ŵĥéñ ţŕàñšƒöŕḿîñĝ à .ķþž, àļšö éĵéçţ ţĥé ŕéšüļţ ţö ţĥé .ķþž (àüţö-þàçķ) ▒",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "parallel-blocks",
-          "usage": "▒ ƒàñ öüţ ƃļöçķ þŕöçéššîñĝ àçŕöšš Ñ ĝöŕöüţîñéš (0 = öƒƒ) ▒",
-          "default": "0",
-          "type": "int"
-        },
-        {
-          "name": "progress",
-          "shorthand": "p",
-          "usage": "▒ šĥöŵ þŕöĝŕéšš ƃàŕ ▒",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "source-lang",
-          "usage": "▒ šöüŕçé ļàñĝüàĝé (é.ĝ. éñ, éñ-ÜŠ; đéƒàüļţš ţö ţĥé þŕöĵéçţ'š šöüŕçé_ļàñĝüàĝé, éļšé éñ) ▒",
-          "type": "string"
-        },
-        {
-          "name": "strict",
-          "usage": "▒ àļîàš ƒöŕ --ƒàîļ-öñ-üñķñöŵñ ▒",
-          "default": "false",
-          "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "▒ ţàŕĝéţ ļàñĝüàĝé (é.ĝ. ƒŕ, đé-ĐÉ) ▒",
-          "type": "string"
-        },
-        {
-          "name": "trace",
-          "usage": "▒ ŵŕîţé ƒļöŵ ţŕàçé ĴŠÖÑ ţö ƒîļé (ƒöŕ ƒļöŵ ṽîšüàļîžàţîöñ) ▒",
-          "type": "string"
-        }
-      ],
-      "offlineCapable": true,
-      "runnableInBrowser": true,
-      "demoMode": false
-    },
-    {
       "id": "exec.term-check",
       "path": [
         "exec",
@@ -4720,6 +4616,110 @@
       "offlineCapable": false,
       "runnableInBrowser": true,
       "demoMode": true
+    },
+    {
+      "id": "exec.translate-after",
+      "path": [
+        "exec",
+        "translate-after"
+      ],
+      "use": "translate-after [files...]",
+      "short": "▒ Ţŕàñšļàţé Àƒţéŕ ▒",
+      "flags": [
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "▒ ḿàẋ þàŕàļļéļ ƒîļéš (0 = àüţö) ▒",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "▒ îñþüţ ƒîļé éñçöđîñĝ ▒",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "▒ éẋîţ ŵîţĥ éŕŕöŕ îƒ àñý ƒîļé çàññöţ ƃé þŕöçéššéđ (đéƒàüļţ: šķîþ ŵîţĥ ŵàŕñîñĝ) ▒",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "▒ öṽéŕŕîđé îñþüţ ƒöŕḿàţ đéţéçţîöñ ▒",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "▒ öüţþüţ ŕéšüļţš àš ĴŠÖÑ ▒",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "level",
+          "usage": "▒ Ŵĥàţ à ƃļöçķ'š šöüŕçé ḿüšţ ŕéàçĥ ƃéƒöŕé îţš ţŕàñšļàţîöñš àŕé þŕöđüçéđ: ŵŕîţţéñ (îţš çĥéçķš þàšš) öŕ éšţàƃļîšĥéđ (à þéŕšöñ ŕéṽîéŵéđ îţ); ñöñé ĥöļđš ñöţĥîñĝ (ñöñé, ŵŕîţţéñ, éšţàƃļîšĥéđ) ▒",
+          "default": "written",
+          "type": "string"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "▒ ḿàþ ĝļöƃ þàţţéŕñ ţö ƒöŕḿàţ (é.ĝ. '*.đöçẋ=öķƒ_öþéñẋḿļ:ţéšţ') ▒",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "no-warn",
+          "usage": "▒ šüþþŕéšš ŵàŕñîñĝš ƒöŕ šķîþþéđ ƒîļéš ▒",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "▒ ŵĥéñ ţŕàñšƒöŕḿîñĝ à .ķþž, àļšö éĵéçţ ţĥé ŕéšüļţ ţö ţĥé .ķþž (àüţö-þàçķ) ▒",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "▒ ƒàñ öüţ ƃļöçķ þŕöçéššîñĝ àçŕöšš Ñ ĝöŕöüţîñéš (0 = öƒƒ) ▒",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "▒ šĥöŵ þŕöĝŕéšš ƃàŕ ▒",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "▒ šöüŕçé ļàñĝüàĝé (é.ĝ. éñ, éñ-ÜŠ; đéƒàüļţš ţö ţĥé þŕöĵéçţ'š šöüŕçé_ļàñĝüàĝé, éļšé éñ) ▒",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "▒ àļîàš ƒöŕ --ƒàîļ-öñ-üñķñöŵñ ▒",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "▒ ţàŕĝéţ ļàñĝüàĝé (é.ĝ. ƒŕ, đé-ĐÉ) ▒",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "▒ ŵŕîţé ƒļöŵ ţŕàçé ĴŠÖÑ ţö ƒîļé (ƒöŕ ƒļöŵ ṽîšüàļîžàţîöñ) ▒",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "exec.unredact",

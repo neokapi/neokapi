@@ -1805,10 +1805,10 @@ export class ConvergeOutput {
         if (/** @type {any} */(false)) {
             /**
              * BlockedOnSource is how many translatable source blocks were held below the
-             * active source gate this run (epic 019): their translations were NOT
-             * produced because the source is un-settled. 0 when the gate is `none` or the
-             * source is fully settled. It is source-scoped (deduped across locales — a
-             * source block is shared by every target), mirroring the server's run row.
+             * translate_after level this run: their translations were not produced
+             * because the source is un-settled. 0 when the level is `none` or the
+             * source is fully settled. It is source-scoped (deduped across locales, as
+             * a source block is shared by every target), mirroring the server's run row.
              * @member
              * @type {number | undefined}
              */
@@ -1816,19 +1816,20 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
-             * SourceGate is the resolved source-first gate level applied
-             * (none|written|established), for observability. Empty when no gate
+             * TranslateAfter is the resolved defaults.translate_after level applied
+             * (none|written|established), for observability. Empty when no level
              * was evaluated (no content).
              * @member
              * @type {string | undefined}
              */
-            this["sourceGate"] = undefined;
+            this["translateAfter"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * StallReason is the machine-readable cause a run did not converge — set to
              * source_not_ready when every pending locale had nothing producible because
-             * its source is held below the gate. Empty on a clean/parked-on-target run.
+             * its source is held below the translate_after level. Empty on a
+             * clean/parked-on-target run.
              * @member
              * @type {string | undefined}
              */

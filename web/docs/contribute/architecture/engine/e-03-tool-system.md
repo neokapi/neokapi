@@ -629,7 +629,7 @@ authoritative list with every parameter is the generated
 **Translation** (produce target content): `translate` (a model provider),
 `recycle` (content memory, exact and fuzzy), `diff-leverage` (reuse from a
 previous document version), `pseudo-translate` (deterministic
-translation-readiness testing), `source-gate`.
+translation-readiness testing), `translate-after`.
 
 **Quality** (validate without rewriting content): `qa` (rule-based, or an LLM
 judge when a provider is set), `review` (per-translation score, assessment and

@@ -17,13 +17,13 @@ import (
 // language is the project's source.
 
 // writeUnifiedQueueProject writes a project with work waiting in three
-// languages: two source units under an `established` source gate, and two
+// languages: two source units under `translate_after: established`, and two
 // translated units in each of nb and fr with nothing approved.
 //
 // It runs under the dogfood isolation contract (CLAUDE.md): every root this run
 // could otherwise inherit is pinned to a throwaway dir and project discovery is
 // off, so the repo's own recipe can never be found.
-func writeUnifiedQueueProject(t *testing.T, sourceGate string, targets string) string {
+func writeUnifiedQueueProject(t *testing.T, translateAfter string, targets string) string {
 	t.Helper()
 	root := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
@@ -38,7 +38,7 @@ name: rev-unified
 defaults:
   source_language: en
   target_languages: [` + targets + `]
-  source_gate: ` + sourceGate + `
+  translate_after: ` + translateAfter + `
 collections:
   - path: en.json
     target: "{lang}.json"
@@ -126,7 +126,7 @@ func TestReviewQueue_ListsEveryLanguageWithASourceLane(t *testing.T) {
 	}
 }
 
-// The source rows lead the queue: the source gate holds the fan-out, so the
+// The source rows lead the queue: translate_after holds the fan-out, so the
 // work that unblocks the rest is read first.
 func TestReviewQueue_SourceUnitsSortFirst(t *testing.T) {
 	root := writeUnifiedQueueProject(t, "established", "nb")
@@ -287,7 +287,7 @@ func TestStatusReview_ListsSourceUnitsAndFiltersByLanguage(t *testing.T) {
 	assert.Contains(t, text, "kapi apply", "the approval instruction stays")
 	assert.Contains(t, text, "approve source wording in the Review page of Kapi Desktop",
 		"the CLI records no source decision, and says so rather than naming a command that does not exist")
-	assert.Contains(t, text, "are held at the project's source gate", "a held source unit says why the loop is waiting")
+	assert.Contains(t, text, "are held below the project's translate_after level", "a held source unit says why the loop is waiting")
 	// The table draws an em dash for an empty cell; the prose beside it carries
 	// none.
 	for line := range strings.SplitSeq(text, "\n") {

@@ -83,7 +83,7 @@ func writeConformanceProject(t *testing.T, name, forbidden, replacement, targetL
 defaults:
   source_language: en
   target_languages: [`+targetLang+`]
-  source_gate: none
+  translate_after: none
   voice: `+name+`
 collections:
   - name: Docs
@@ -197,7 +197,7 @@ func writeSourceLangProject(t *testing.T, name, lang, deprecated, foreign, targe
 defaults:
   source_language: `+lang+`
   target_languages: [`+targetLang+`]
-  source_gate: none
+  translate_after: none
 collections:
   - name: Docs
     content:
@@ -904,7 +904,7 @@ func writeBareProject(t *testing.T, name string) (root, recipe string) {
 	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: "+name+`
 defaults:
   source_language: en
-  source_gate: none
+  translate_after: none
 collections:
   - name: Docs
     content:

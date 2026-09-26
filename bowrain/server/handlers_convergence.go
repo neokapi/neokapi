@@ -76,8 +76,8 @@ func toConvergenceRunView(r *bstore.ConvergenceRun) convergenceRunView {
 
 // Convergence run scope (roadmap epic 019, theme B2): the explicit translation
 // scope the pre-flight consent picks, so a large run is never started blind.
-// The source gate is orthogonal to scope — source-held blocks never translate
-// regardless — so "all" and "ready-only" both honor the gate; the difference is
+// The translate_after hold is orthogonal to scope — source-held blocks never translate
+// regardless — so "all" and "ready-only" both honor the hold; the difference is
 // only whether the caller consented to the full estimate.
 const (
 	// ConvergenceScopeAll translates every pending locale over the ready source —

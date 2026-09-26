@@ -16,7 +16,7 @@
 
 /** The source-first readiness split the estimate leads with. */
 export interface SourceReadiness {
-  /** The project's source gate: `written` by default, `none` when opted out. */
+  /** The project's translate_after level (wire key `gate`): `written` by default, `none` when opted out. */
   gate: string;
   total: number;
   ready: number;

@@ -618,7 +618,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 	return a.withParseCache(root, func() error {
 		// --review lists the units awaiting a person in one queue across the
 		// project's languages: the translations not yet approved, and the source
-		// units the source gate is waiting on. It is the review surface, the
+		// units translate_after holds. It is the review surface, the
 		// derived counterpart of the convergence loop's "parked" outcome.
 		if review, _ := cmd.Flags().GetBool("review"); review {
 			srcUnits, serr := a.SourceUnitsFromProject(proj, root)

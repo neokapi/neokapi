@@ -27,7 +27,7 @@ func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProj
 		return SourceCoverage{}, err
 	}
 
-	states, _, unreadable, err := a.settleSourceStates(ctx, root, string(proj.Defaults.SourceLanguage), model.SourceGateNone, units)
+	states, _, unreadable, err := a.settleSourceStates(ctx, root, string(proj.Defaults.SourceLanguage), model.TranslateAfterNone, units)
 	if err != nil {
 		return SourceCoverage{}, err
 	}
@@ -49,36 +49,36 @@ func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProj
 	return sc, nil
 }
 
-// convergeSourceGate resolves the project's source-first convergence gate level
-// (defaults.source_gate) — the level-based gate that governs the CONVERGENCE
-// fan-out (`kapi up`), distinct from the coverage-bar SourceGate that `kapi
-// check --ship` evaluates. An unset/unknown value resolves to the default
+// convergeTranslateAfter resolves the project's defaults.translate_after level,
+// which holds each block's convergence fan-out (`kapi up`) until its source
+// reaches it. The coverage bar SourceGate that `kapi check --ship` evaluates is a
+// separate setting. An unset/unknown value resolves to the default
 // (written), so the local venue holds identically to the Bowrain server
-// (bowrain/core/store.SourceGateFor). The second result reports whether the raw
+// (bowrain/core/store.TranslateAfterFor). The second result reports whether the raw
 // value named a recognized level (false = a typo fell back to the default).
-func convergeSourceGate(proj *project.KapiProject) (model.SourceGateLevel, bool) {
-	return model.ResolveSourceGate(proj.Defaults.SourceGate)
+func convergeTranslateAfter(proj *project.KapiProject) (model.TranslateAfterLevel, bool) {
+	return model.ResolveTranslateAfter(proj.Defaults.TranslateAfter)
 }
 
 // settleSourceStates settles the project's source-locale blocks and returns each
 // translatable unit's rung on the source ladder (written or established), plus
-// how many the given gate holds: a source that fails its checks, or one not yet
-// established under an `established` gate.
+// how many the given level holds: a source that fails its checks, or one not yet
+// established under an `established` level.
 //
 // It is the one source-axis derivation. Settling runs the provider-free source
-// checks (check.SettleSourceStatus), so the source line and the gate count of
+// checks (check.SettleSourceStatus), so the source line and the held count of
 // the same run agree on every format, including the many with nowhere to write
-// a per-block status. gateLevel == SourceGateNone holds nothing but still
+// a per-block status. level == TranslateAfterNone holds nothing but still
 // settles, because the report is owed either way.
 //
 // A format with no registered reader is the one survivable outcome here: the
 // file was never opened, and a format can come from a plugin that is missing on
 // this machine. The names are returned so a report can say what it did not
 // measure. Every other error propagates.
-func (a *App) settleSourceStates(ctx context.Context, root, sourceLang string, gateLevel model.SourceGateLevel, units []VerifyUnit) (states []string, held int, unreadable []string, err error) {
+func (a *App) settleSourceStates(ctx context.Context, root, sourceLang string, level model.TranslateAfterLevel, units []VerifyUnit) (states []string, held int, unreadable []string, err error) {
 	// Committed establishments, seeded onto each block before it settles, so
-	// the settle keeps a person's decision and an `established` gate can admit
-	// the unit. Without them a project asking for `source_gate: established`
+	// the settle keeps a person's decision and an `established` level can admit
+	// the unit. Without them a project asking for `translate_after: established`
 	// would hold its fan-out forever.
 	approvals, aerr := a.loadSourceApprovals(ctx, root, sourceLang)
 	if aerr != nil {
@@ -110,7 +110,7 @@ func (a *App) settleSourceStates(ctx context.Context, root, sourceLang string, g
 				b.SourceStatus = model.SourceStatusEstablished
 			}
 			check.SettleSourceStatus(ctx, b)
-			if gateLevel != model.SourceGateNone && !gateLevel.AdmitsBlock(b) {
+			if level != model.TranslateAfterNone && !level.AdmitsBlock(b) {
 				held++
 			}
 			states = append(states, sourceUnitState(b))
@@ -121,16 +121,16 @@ func (a *App) settleSourceStates(ctx context.Context, root, sourceLang string, g
 
 // settleAndCountHeldSource settles the project's source-locale blocks (deduped
 // by path) and counts how many translatable source blocks rank below the given
-// source gate — the blocked-on-source count `kapi up` surfaces. It is the local,
+// translate_after level, the blocked-on-source count `kapi up` surfaces. It is the local,
 // file-scan counterpart of the server's settleSource + gate rollup, sharing the
-// same core.check settle derivation. A disabled gate (SourceGateNone) settles
+// same core.check settle derivation. Level `none` (TranslateAfterNone) settles
 // nothing and holds nothing (the opt-out never pays the settlement cost). total
 // is how many translatable source blocks were considered.
-func (a *App) settleAndCountHeldSource(ctx context.Context, root, sourceLang string, gateLevel model.SourceGateLevel, units []VerifyUnit) (held, total int, unreadable []string, err error) {
-	if gateLevel == model.SourceGateNone {
+func (a *App) settleAndCountHeldSource(ctx context.Context, root, sourceLang string, level model.TranslateAfterLevel, units []VerifyUnit) (held, total int, unreadable []string, err error) {
+	if level == model.TranslateAfterNone {
 		return 0, 0, nil, nil
 	}
-	states, held, unreadable, err := a.settleSourceStates(ctx, root, sourceLang, gateLevel, units)
+	states, held, unreadable, err := a.settleSourceStates(ctx, root, sourceLang, level, units)
 	if err != nil {
 		return 0, 0, nil, err
 	}

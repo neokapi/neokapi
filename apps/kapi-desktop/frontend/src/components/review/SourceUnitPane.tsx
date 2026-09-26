@@ -35,7 +35,7 @@ export interface SourceUnitPaneProps {
  * A target row asks whether a translation is right for its source. A source row
  * asks the question underneath it, once rather than once per language: is the
  * source right at all. A unit here is holding every locale's translation, or
- * waiting on the approval an `established` source gate asks for.
+ * waiting on the approval `translate_after: established` asks for.
  *
  * Editing a source here leaves every translation of it in place. The loop
  * records the source it translated for each target it writes, so the next run

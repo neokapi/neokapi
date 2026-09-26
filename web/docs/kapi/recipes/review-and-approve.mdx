@@ -28,8 +28,8 @@ The loop has a gate before the target work: `kapi up` **settles your source and 
     },
     {
       kind: "gate",
-      label: "source gate",
-      sub: "defaults.source_gate",
+      label: "source hold",
+      sub: "defaults.translate_after",
       hold: "hold: settle your source first",
     },
     {
@@ -40,7 +40,7 @@ The loop has a gate before the target work: `kapi up` **settles your source and 
     },
     { kind: "done", label: "caught up" },
   ]}
-  caption="kapi up settles the source, holds any block below defaults.source_gate, and translates only the blocks that cleared it; the held ones wait for you to settle them."
+  caption="kapi up settles the source, holds any block below defaults.translate_after, and translates only the blocks that cleared it; the held ones wait for you to settle them."
 />
 
 The local source-settle loop, end to end:
@@ -50,19 +50,19 @@ The local source-settle loop, end to end:
 3. **Settle.** Fix the flagged terms, voice findings, or source text, through the round-trip (`kapi apply`) or your editor, so the next check clears them. Establishing a source unit is a `kind:"review"` entry on the source, for the strict `established` gate.
 4. **Re-run.** `kapi up` re-settles only the blocks whose source changed and translates the newly-cleared ones. Repeat until nothing is held.
 
-The gate level is `defaults.source_gate` in the recipe:
+The level is `defaults.translate_after` in the recipe:
 
 ```yaml
 defaults:
-  source_gate: written   # the default: source must clear its automated
-                         # terminology, voice and source checks before translating
+  translate_after: written   # the default: source must clear its automated
+                             # terminology, voice and source checks before translating
 ```
 
-`written` is the default and requires the automated source checks to pass. `established` also requires a person to approve the source, for example for voice-critical or regulated content. `none` disables the source gate and allows translation regardless of source state:
+`written` is the default and requires the automated source checks to pass. `established` also requires a person to approve the source, for example for voice-critical or regulated content. `none` disables the hold and allows translation regardless of source state:
 
 ```yaml
 defaults:
-  source_gate: none      # opt out: translate every block, settled or not
+  translate_after: none      # opt out: translate every block, settled or not
 ```
 
 Then the person's half of the loop (promoting the translations themselves) is the rest of this page.
@@ -106,7 +106,7 @@ kapi apply <<<'{"kind":"review","file":"src/locales/fr/app.json","id":"save.labe
 ```
 
 One queue holds every language. A translated unit not yet approved is one row;
-a source unit your `source_gate` is waiting on is another, marked `source` in
+a source unit your `translate_after` level holds is another, marked `source` in
 the locale column and `"isSource": true` in the JSON. `--lang` narrows the
 listing, and the source language is one of the choices:
 

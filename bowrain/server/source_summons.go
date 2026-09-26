@@ -14,7 +14,7 @@ import (
 // the people entitled to make it.
 //
 // Both venues that open a source-review task — a reviewer's proposed source
-// change (handlers_source_proposals.go) and a run held below the source gate
+// change (handlers_source_proposals.go) and a run held below the translate_after level
 // (createSourceReviewTask, driven by the convergence orchestrator) — must reach
 // every entitled member, not the first one found. Telling only one leaves
 // everybody else equally entitled to settle the source unaware, and if that one

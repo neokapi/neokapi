@@ -1098,7 +1098,7 @@ export interface SourceCoverage {
 }
 
 /** One unit awaiting a person: a translation not yet approved, or a source unit
- *  the project's source gate is waiting on (matches Go
+ *  held below the project's translate_after level (matches Go
  *  convergence.ReviewQueueItem). */
 export interface ReviewItem {
   locale: string;
@@ -1113,7 +1113,7 @@ export interface ReviewItem {
    *  and the settled source rung (written | established) for a source
    *  unit. */
   status?: string;
-  /** A source unit ranked below the project's source gate, so the loop holds
+  /** A source unit below the project's translate_after level, so the loop holds
    *  its translations. */
   held?: boolean;
   /** Parent content-collection name (empty/absent for a bare entry). */
@@ -1460,12 +1460,13 @@ export interface ConvergeOutput {
   locales: ConvergeLocaleResult[];
   parkedScopes?: ParkedScope[];
   materializedFiles?: number;
-  /** Translatable source blocks held below the source gate: their translations
+  /** Translatable source blocks held below translate_after: their translations
    *  were not produced because the source is unsettled. Source-scoped, so it is
    *  one count for every language rather than one per language. */
   blockedOnSource?: number;
-  /** The resolved source gate the run applied (none|written|established). */
-  sourceGate?: string;
+  /** The resolved translate_after level the run applied
+   *  (none|written|established). */
+  translateAfter?: string;
   /** Why the run did not converge, when it did not. `source_not_ready` means
    *  every pending locale had nothing producible. */
   stallReason?: string;

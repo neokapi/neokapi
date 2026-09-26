@@ -3,6 +3,8 @@ package flow
 import (
 	"errors"
 	"fmt"
+
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // FlowStep represents a single step in the human-authored steps format.
@@ -41,6 +43,20 @@ type StepsSpec struct {
 	Steps []FlowStep `json:"steps" yaml:"steps"`
 }
 
+// CheckRenamedTools reports the first step, sequential or in a parallel
+// branch, that names a renamed tool id, with the id that replaced it.
+func CheckRenamedTools(steps []FlowStep) error {
+	for i, step := range steps {
+		if err := registry.RenamedToolError(registry.ToolID(step.Tool)); err != nil {
+			return fmt.Errorf("step[%d]: %w", i, err)
+		}
+		if err := CheckRenamedTools(step.Parallel); err != nil {
+			return fmt.Errorf("step[%d].parallel: %w", i, err)
+		}
+	}
+	return nil
+}
+
 // SourceLocator returns the flow's declared source binding and true when the
 // flow names one; false means the source is supplied at invocation.
 func (s *StepsSpec) SourceLocator() (Locator, bool) {
@@ -70,6 +86,9 @@ func StepsToGraph(spec *StepsSpec) ([]FlowNode, []FlowEdge, error) {
 	}
 	if len(spec.Steps) == 0 {
 		return nil, nil, errors.New("flow has no steps")
+	}
+	if err := CheckRenamedTools(spec.Steps); err != nil {
+		return nil, nil, err
 	}
 
 	var nodes []FlowNode

@@ -25,7 +25,7 @@ func init() {
 func registerReviewTools(server *mcp.Server, a *cli.App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "review_queue",
-		Description: "List the review queue: every unit awaiting a person, addressed by (file, key, locale). One queue holds every language, the project's source language among them: a translated unit not yet approved is one row, and a source unit the project's source gate is waiting on is another, marked `isSource`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; units annotated by an AI pre-review carry their score. Lean by design: call review_unit for a unit's context (the point governing it, its neighbourhood, its prior version, its findings).",
+		Description: "List the review queue: every unit awaiting a person, addressed by (file, key, locale). One queue holds every language, the project's source language among them: a translated unit not yet approved is one row, and a source unit held below the project's translate_after level is another, marked `isSource`. The result also carries `languages`, the pending count per language. Filter with language, locale and/or collection. Read-only, derived from the content files and the project state store; units annotated by an AI pre-review carry their score. Lean by design: call review_unit for a unit's context (the point governing it, its neighbourhood, its prior version, its findings).",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ReviewQueueInput) (*mcp.CallToolResult, ReviewQueueOutput, error) {
 		return handleReviewQueue(ctx, a, input)
 	})

@@ -2,7 +2,7 @@
 sidebar_position: 3
 title: The kapi loop
 description: "How kapi keeps a project caught up: kapi up produces, review promotes, the gate releases. One loop, two halves: get the source right, then get every language caught up; the same kapi up runs on your machine or on a connected server. Formally, the model is called convergence."
-keywords: [kapi, kapi loop, kapi up, convergence, ship gate, source gate, status, check, review, lifecycle, coverage, venue, transport]
+keywords: [kapi, kapi loop, kapi up, convergence, ship gate, source gate, translate_after, status, check, review, lifecycle, coverage, venue, transport]
 ---
 
 import { AxisLadderDiagram, PhaseFlow, LanesDiagram, GatedLoopDiagram } from "@neokapi/docs-shared";
@@ -166,7 +166,7 @@ per-market strategy is
 
 ## Source first: settle, gate, then translate {#source-first}
 
-The two ladders run in order, with the **source ship-gate** between them.
+The two ladders run in order, with the **source hold** between them.
 Source content is shared across every locale, so a
 term left unresolved or a sentence left off-brand would be paid for once per
 language, then paid for again when the source is fixed and everything
@@ -183,8 +183,8 @@ is ready.
     },
     {
       kind: "gate",
-      label: "source ship-gate",
-      sub: "source_gate",
+      label: "source hold",
+      sub: "translate_after",
       hold: "hold: settle your source first",
     },
     {
@@ -201,7 +201,7 @@ is ready.
     },
     { kind: "done", label: "converged" },
   ]}
-  caption="Settle the source, clear its gate, then translate the approved source per locale; each gate holds work that is not ready rather than shipping it."
+  caption="Settle the source, hold it until it reaches translate_after, then translate the approved source per locale; each gate holds work that is not ready rather than shipping it."
 />
 
 Read the loop left to right:
@@ -209,9 +209,9 @@ Read the loop left to right:
 1. **Settle the source.** Check terminology and mark the terms that must not be
    translated, check voice profile, run the source checks. This lifts source
    units onto their ladder (*written → established*) and marks any that fail.
-2. **Hold at the source ship-gate.** The optional `source_gate` (for example,
-   `{ established: 100 }`) is the source-side counterpart of `ship_gate`. Source
-   that has not cleared its bar **holds**: settling the source first is cheaper
+2. **Hold the source.** `defaults.translate_after` (`written` by default, or
+   `established`) is the level each block's source must reach before it is
+   translated. A block below it **holds**: settling the source first is cheaper
    than a machine translation of content you are about to change.
 3. **Translate the approved source.** Only settled source fans out per locale,
    memory-first: recycle what you have already translated, AI-translate the
@@ -225,7 +225,7 @@ Read the loop left to right:
 
 A gate never *fails*: it holds work and routes it to a person (a source-review
 worklist, or the target review queue) and the command still exits zero. Editing
-a source unit re-opens the source gate for only the changed segments, so a fix
+a source unit re-opens the hold for only the changed segments, so a fix
 re-settles and re-translates just those, never the whole corpus.
 
 ## Seeing it: `status` and `check`

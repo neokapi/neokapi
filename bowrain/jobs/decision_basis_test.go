@@ -47,7 +47,7 @@ func newBasisFixture(t *testing.T) basisFixture {
 		Name:                  "Basis",
 		DefaultSourceLanguage: "en",
 		TargetLanguages:       []model.LocaleID{"fr"},
-		Properties:            map[string]string{"source_gate": "none"},
+		Properties:            map[string]string{"translate_after": "none"},
 	}))
 
 	blocks := []*model.Block{

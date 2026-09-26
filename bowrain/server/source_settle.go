@@ -39,21 +39,22 @@ type settleResult struct {
 	// Settled is how many source blocks the pass re-stamped this run.
 	Settled int
 	// BlockedOnSource is how many translatable source blocks remain below the
-	// source gate after settlement — the count surfaced as "settle your source
+	// translate_after level after settlement, the count surfaced as "settle your source
 	// first" and the trigger for a source-review task + a source_not_ready hold.
 	BlockedOnSource int
 	// Total is how many translatable source blocks were considered.
 	Total int
-	// Gate is the resolved gate level applied (for logging/observability).
-	Gate model.SourceGateLevel
+	// Level is the resolved translate_after level applied (for
+	// logging/observability).
+	Level model.TranslateAfterLevel
 }
 
-// sourceGateFor resolves the project's source-first gate level from its settings
-// (defaults.source_gate, carried to the server in project Properties). It is a
-// thin alias for the shared store reader so the server and the worker resolve
-// the gate identically.
-func sourceGateFor(proj *platstore.Project) model.SourceGateLevel {
-	return platstore.SourceGateFor(proj)
+// translateAfterFor resolves the project's translate_after level from its
+// settings (defaults.translate_after, carried to the server in project
+// Properties). It is a thin alias for the shared store reader so the server and
+// the worker resolve the level identically.
+func translateAfterFor(proj *platstore.Project) model.TranslateAfterLevel {
+	return platstore.TranslateAfterFor(proj)
 }
 
 // settleSource runs the source-settlement phase over a project's source-locale
@@ -61,17 +62,17 @@ func sourceGateFor(proj *platstore.Project) model.SourceGateLevel {
 // status — resetting a block whose source changed since it was last settled,
 // running the provider-free source checks, and stamping SourceStatus via the
 // framework's SourceReadinessTool — then persists the blocks whose status moved.
-// It returns how many blocks settled and how many remain below the gate.
+// It returns how many blocks settled and how many remain below the level.
 //
-// It is a no-op (no store writes, BlockedOnSource=0) when the gate is disabled
-// (`source_gate: none`): the opt-out must never pay the settlement cost or hold
+// It is a no-op (no store writes, BlockedOnSource=0) at
+// `translate_after: none`: the opt-out must never pay the settlement cost or hold
 // the fan-out.
 func (o *convergenceOrchestrator) settleSource(ctx context.Context, projectID string) (settleResult, error) {
 	s := o.server
-	// No content store (the in-memory driveWith tests): report the gate as
-	// disabled so the caller emits no settle event and never holds — settlement
+	// No content store (the in-memory driveWith tests): report the level as
+	// `none` so the caller emits no settle event and never holds — settlement
 	// has nothing to read.
-	res := settleResult{Gate: model.SourceGateNone}
+	res := settleResult{Level: model.TranslateAfterNone}
 	if s.ContentStore == nil {
 		return res, nil
 	}
@@ -79,9 +80,9 @@ func (o *convergenceOrchestrator) settleSource(ctx context.Context, projectID st
 	if err != nil {
 		return res, fmt.Errorf("load project: %w", err)
 	}
-	res.Gate = sourceGateFor(proj)
-	if res.Gate == model.SourceGateNone {
-		return res, nil // opt-out: no gate, no settle
+	res.Level = translateAfterFor(proj)
+	if res.Level == model.TranslateAfterNone {
+		return res, nil // opt-out: no hold, no settle
 	}
 
 	// Walked a batch at a time, and persisted a batch at a time. Reading the
@@ -133,7 +134,7 @@ func (o *convergenceOrchestrator) settleBatch(
 		if b.SourceStatus != before {
 			res.Settled++
 		}
-		if !res.Gate.AdmitsBlock(b) {
+		if !res.Level.AdmitsBlock(b) {
 			res.BlockedOnSource++
 		}
 		// Persist only blocks that actually moved: a status change OR a newly
@@ -156,11 +157,11 @@ func (o *convergenceOrchestrator) settleBatch(
 	return nil
 }
 
-// gateItemsBySource partitions a project's items by the source-first gate: an
+// gateItemsBySource partitions a project's items by the translate_after level: an
 // item is producible when at least one of its translatable source blocks clears
 // the gate; an item whose blocks are ALL below the gate is held on source. It
 // returns the producible item names (order preserved) and how many named items
-// were fully held. When the gate is disabled (`source_gate: none`) every item is
+// were fully held. At `translate_after: none` every item is
 // producible and none is held, so the caller behaves exactly as before
 // source-first.
 func (o *convergenceOrchestrator) gateItemsBySource(ctx context.Context, projectID string, itemNames []string) (producible []string, blockedItems int, err error) {
@@ -169,8 +170,8 @@ func (o *convergenceOrchestrator) gateItemsBySource(ctx context.Context, project
 	if err != nil {
 		return nil, 0, fmt.Errorf("load project: %w", err)
 	}
-	gate := sourceGateFor(proj)
-	if gate == model.SourceGateNone {
+	gate := translateAfterFor(proj)
+	if gate == model.TranslateAfterNone {
 		return itemNames, 0, nil // opt-out: translate everything
 	}
 
@@ -214,7 +215,7 @@ func (o *convergenceOrchestrator) gateItemsBySource(ctx context.Context, project
 }
 
 // settleBlockStatus runs the provider-free source checks over one block through
-// the shared core helper the local converge's source-gate stage uses, so the
+// the shared core helper the local converge's translate-after stage uses, so the
 // server and CLI gate a block on the same findings.
 func settleBlockStatus(ctx context.Context, b *model.Block) {
 	check.SettleSourceStatus(ctx, b)

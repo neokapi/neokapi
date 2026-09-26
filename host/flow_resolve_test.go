@@ -107,7 +107,7 @@ func TestConvergeFlowSpec_ResolvesDefaultsFlowLikeKapiRun(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			proj, dir := resolveFixture(t)
 			proj.Defaults.Flow = tt.flow
-			proj.Defaults.SourceGate = "none"
+			proj.Defaults.TranslateAfter = "none"
 			cf, err := convergeFlowSpec(proj, dir)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, stepTools(cf.spec))

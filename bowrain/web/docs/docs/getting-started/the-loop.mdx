@@ -73,7 +73,7 @@ vocabulary. On the kapi site the same model is named *the kapi loop*.
 ## Source first: settle before the fan-out
 
 A run **settles the source first**: it checks source content and waits until it
-meets the configured source gate before translating it. Resolving source issues
+reaches the configured `translate_after` level before translating it. Resolving source issues
 before translation avoids repeating corrections in each target language.
 The gate can require human approval when the project needs it.
 
@@ -87,8 +87,8 @@ The gate can require human approval when the project needs it.
     },
     {
       kind: "gate",
-      label: "source ship-gate",
-      sub: "source_gate",
+      label: "source hold",
+      sub: "translate_after",
       hold: "hold: source review",
     },
     {
@@ -105,20 +105,20 @@ The gate can require human approval when the project needs it.
     },
     { kind: "done", label: "converged" },
   ]}
-  caption="A server run settles the source, holds at the source ship-gate until it clears, then translates source that meets the configured gate. Work that needs review is added to the review queue."
+  caption="A server run settles the source, holds each block until its source reaches translate_after, then translates the source that has. Work that needs review is added to the review queue."
 />
 
 - **Settle the source.** A server run's first pass runs the source stage over the
   source locale only (source checks, do-not-translate terms marked and
   **protected** so translation can never touch them, the rule-based checks) and stamps each
   unit's source status up the authoring ladder (*written → established*).
-- **Hold at the source ship-gate.** The project's `source_gate`
-  (`defaults.source_gate`, default `written`) is the source-side counterpart of
+- **Hold the source.** The project's `defaults.translate_after` (default
+  `written`) is the source-side counterpart of
   the ship gate. Source that
   has not cleared its bar **holds**: the run parks with the reason
   `source_not_ready`, opens a **source-review task** in the team's queue (see
   [Review](/server/review)), and reports how many blocks are blocked on source.
-  Set `source_gate: none` to translate without a source-readiness gate.
+  Set `translate_after: none` to translate without holding the source.
 - **Translate source that meets the gate.** Settled source is processed per locale,
   memory first: recycle what the shared memory already has, AI-translate the
   remainder, check what was produced. Protected terms stay protected through the
@@ -127,7 +127,7 @@ The gate can require human approval when the project needs it.
   shippable; whatever a machine cannot decide **parks** for review rather than
   shipping under-reviewed.
 
-Editing a source unit re-opens the source gate for changed segments. The next
+Editing a source unit re-opens the hold for changed segments. The next
 run checks and regenerates those segments. The model itself, the ladders and gate
 thresholds, is documented once on the kapi site:
 <KapiLink to="/kapi/convergence#source-first">Source first</KapiLink>.

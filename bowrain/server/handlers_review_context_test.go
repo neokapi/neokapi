@@ -96,7 +96,7 @@ func TestReviewContext_GathersEveryLayer(t *testing.T) {
 	require.NoError(t, s.VoiceStore.CreateProfile(ctx, profile))
 	proj, err := s.ContentStore.GetProject(ctx, projID)
 	require.NoError(t, err)
-	proj.Properties = map[string]string{"source_gate": "none", "voice_profile_id": profile.ID}
+	proj.Properties = map[string]string{"translate_after": "none", "voice_profile_id": profile.ID}
 	require.NoError(t, s.ContentStore.UpdateProject(ctx, proj))
 
 	// The findings the scoring pass persists and no surface read.

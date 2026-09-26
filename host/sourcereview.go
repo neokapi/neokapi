@@ -82,8 +82,8 @@ func (a *App) loadSourceApprovals(ctx context.Context, root, sourceLang string) 
 }
 
 // SourceQueueItem is one source unit a person is being asked to look at: the
-// project's source gate holds it, because its checks fail or because the gate
-// waits for a person to establish it.
+// project's translate_after level holds it, because its checks fail or because
+// the level waits for a person to establish it.
 type SourceQueueItem struct {
 	// File is the source file as the project names it, and Relative its
 	// project-relative path. For source content the two are the same file, unlike
@@ -98,7 +98,7 @@ type SourceQueueItem struct {
 
 	// Status is the settled source rung (written|established).
 	Status string `json:"status"`
-	// Held reports that the project's source gate holds this unit, so the loop
+	// Held reports that the project's translate_after level holds this unit, so the loop
 	// is holding its translations.
 	Held bool `json:"held"`
 	// Failing reports that the unit's source fails its checks.
@@ -112,9 +112,9 @@ type SourceQueueItem struct {
 }
 
 // computeSourceQueue lists the source units awaiting authoring attention: every
-// translatable source block the project's source gate holds.
+// translatable source block the project's translate_after level holds.
 //
-// It settles exactly the way the coverage path and the in-flow gate settle,
+// It settles exactly the way the coverage path and the in-flow translate-after stage settle,
 // through the shared check.SettleSourceStatus, with a committed establishment
 // seeded onto the block first so the settle keeps it.
 func (a *App) computeSourceQueue(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) ([]SourceQueueItem, error) {
@@ -129,7 +129,7 @@ func (a *App) sourceQueue(ctx context.Context, proj *project.KapiProject, root s
 	if err != nil {
 		return nil, err
 	}
-	gateLevel, _ := convergeSourceGate(proj)
+	level, _ := convergeTranslateAfter(proj)
 	docs := a.documentIndexOrEmpty(ctx, root)
 
 	seen := map[string]bool{}
@@ -164,7 +164,7 @@ func (a *App) sourceQueue(ctx context.Context, proj *project.KapiProject, root s
 			}
 			check.SettleSourceStatus(ctx, b)
 
-			if gateLevel == model.SourceGateNone || gateLevel.AdmitsBlock(b) {
+			if level == model.TranslateAfterNone || level.AdmitsBlock(b) {
 				continue
 			}
 			items = append(items, SourceQueueItem{
@@ -198,11 +198,11 @@ func (a *App) sourceQueue(ctx context.Context, proj *project.KapiProject, root s
 // approvals onto blocks as they leave the reader, or nil when the project has
 // none (so an unapproved project pays nothing).
 //
-// It is what makes a run agree with the report. The in-flow source gate settles
+// It is what makes a run agree with the report. The in-flow translate-after stage settles
 // from the checks on every pass, which only ever stamps `written`; without the
 // committed decision on the block first, `kapi status` would call a unit
-// established while the run beside it held that same unit at an `established`
-// gate.
+// established while the run beside it held that same unit at `translate_after:
+// established`.
 //
 // The approvals are read once, when the run starts. A run is a snapshot of the
 // project anyway, and re-reading the store per block would put a query on the
@@ -240,7 +240,7 @@ func (a *App) SourceQueue(ctx context.Context, projectPath, sourceLang string) (
 	root := filepath.Dir(projectPath)
 	a.SourceLang = ResolveSourceLocale(sourceLang, proj.Defaults.SourceLanguage)
 
-	// The source gate measures the author's content, so it reads the project's
+	// The source queue measures the author's content, so it reads the project's
 	// source directly: a monolingual project has a source to judge even though
 	// it resolves no per-locale unit.
 	units, err := a.SourceUnitsFromProject(proj, root)

@@ -79,7 +79,7 @@ func newReviewLoopHarness(t *testing.T) (*Server, *stubForgeConnector, string, s
 }
 
 // seedGovernedProject creates a governed (workflow default) fr-only project with
-// source_gate:none (so a completing run settles nothing), one item, and the
+// translate_after:none (so a completing run settles nothing), one item, and the
 // given blocks. Returns the project ID and the stored block IDs keyed by source.
 func seedGovernedProject(t *testing.T, s *Server, wsID string, blocks []*model.Block) (string, map[string]string) {
 	t.Helper()
@@ -89,7 +89,7 @@ func seedGovernedProject(t *testing.T, s *Server, wsID string, blocks []*model.B
 		WorkspaceID:           wsID,
 		DefaultSourceLanguage: "en",
 		TargetLanguages:       []model.LocaleID{"fr"},
-		Properties:            map[string]string{"source_gate": "none"},
+		Properties:            map[string]string{"translate_after": "none"},
 	}
 	require.NoError(t, s.ContentStore.CreateProject(ctx, proj))
 	require.NoError(t, s.ContentStore.StoreItem(ctx, proj.ID, "main", &platstore.Item{

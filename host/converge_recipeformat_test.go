@@ -60,7 +60,7 @@ func recipeFormatProject(t *testing.T, sources map[string]string, colls []projec
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb"},
 			Flow:            "recycle-only",
-			SourceGate:      string(model.SourceGateNone),
+			TranslateAfter:  string(model.TranslateAfterNone),
 			Materialize:     project.MaterializeOnConverge,
 			Formats:         formats,
 		},

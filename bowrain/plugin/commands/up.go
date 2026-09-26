@@ -534,7 +534,7 @@ func printEstimate(w io.Writer, est *apiclient.ConvergenceEstimate) {
 	fmt.Fprintln(w, "\nPre-flight estimate:")
 	// Source readiness FIRST (epic 019): held source is the honest, cheap message.
 	if src.Held > 0 {
-		fmt.Fprintf(w, "  Source: %d of %d blocks ready; %d held on source. Settle your source first (terminology, brand, source checks), or set defaults.source_gate: none to translate anyway.\n",
+		fmt.Fprintf(w, "  Source: %d of %d blocks ready; %d held on source. Settle your source first (terminology, brand, source checks), or set defaults.translate_after: none to translate anyway.\n",
 			src.Ready, src.Total, src.Held)
 	} else if src.Total > 0 {
 		fmt.Fprintf(w, "  Source: all %d blocks ready.\n", src.Total)

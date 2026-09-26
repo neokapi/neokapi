@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T08:20:58Z",
+  "generatedAt": "2026-09-26T14:46:14Z",
   "kind": "tool",
   "entries": [
     {
@@ -3860,53 +3860,6 @@
       }
     },
     {
-      "id": "source-gate",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "Source Gate",
-      "category": "translation",
-      "tags": [
-        "l10n"
-      ],
-      "cardinality": "monolingual",
-      "schema": {
-        "$id": "source-gate",
-        "title": "Source Gate",
-        "type": "object",
-        "toolMeta": {
-          "id": "source-gate",
-          "category": "translation",
-          "displayName": "Source Gate",
-          "tags": [
-            "l10n"
-          ],
-          "cardinality": "monolingual"
-        },
-        "properties": {
-          "gate": {
-            "type": "string",
-            "title": "Source Gate",
-            "description": "What a block's source must satisfy before its translations are produced: written (its checks pass) or established (a person reviewed it)",
-            "default": "written",
-            "options": [
-              {
-                "value": "none",
-                "label": "none"
-              },
-              {
-                "value": "written",
-                "label": "written"
-              },
-              {
-                "value": "established",
-                "label": "established"
-              }
-            ]
-          }
-        }
-      }
-    },
-    {
       "id": "span-classify",
       "source": "built-in",
       "kind": "tool",
@@ -4468,6 +4421,53 @@
             "hasSchema": false
           }
         ]
+      }
+    },
+    {
+      "id": "translate-after",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Translate After",
+      "category": "translation",
+      "tags": [
+        "l10n"
+      ],
+      "cardinality": "monolingual",
+      "schema": {
+        "$id": "translate-after",
+        "title": "Translate After",
+        "type": "object",
+        "toolMeta": {
+          "id": "translate-after",
+          "category": "translation",
+          "displayName": "Translate After",
+          "tags": [
+            "l10n"
+          ],
+          "cardinality": "monolingual"
+        },
+        "properties": {
+          "level": {
+            "type": "string",
+            "title": "Translate After",
+            "description": "What a block's source must reach before its translations are produced: written (its checks pass) or established (a person reviewed it); none holds nothing",
+            "default": "written",
+            "options": [
+              {
+                "value": "none",
+                "label": "none"
+              },
+              {
+                "value": "written",
+                "label": "written"
+              },
+              {
+                "value": "established",
+                "label": "established"
+              }
+            ]
+          }
+        }
       }
     },
     {

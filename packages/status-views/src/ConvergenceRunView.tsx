@@ -318,8 +318,8 @@ function ConvergeOutcomeBlock({
           <p className="mt-0.5 text-[11px] text-muted-foreground">
             {result.stallReason === "source_not_ready"
               ? t(
-                  "Nothing was produced for any language: the source has not reached the {gate} gate. Settle it in the Review page's source lane.",
-                  { gate: result.sourceGate || "source" },
+                  "Nothing was produced for any language: the source has not reached {level}, the level translation waits for. Settle it in the Review page's source lane.",
+                  { level: result.translateAfter || "written" },
                 )
               : t(
                   "Their translations were held in every language. Settle them in the Review page's source lane.",

@@ -798,7 +798,7 @@ func (s *Server) createSourceReviewTask(ctx context.Context, action event.Automa
 	// Who the summons reaches. A rule that names a reviewer routes to exactly
 	// that person; otherwise it reaches every member entitled to edit the
 	// source (sourceOwners), with the first of them carrying the assignment.
-	// A run held below the source gate is blocked until somebody settles the
+	// A run held below the translate_after level is blocked until somebody settles the
 	// source, so telling one arbitrary member and nobody else made the hold
 	// depend on that member being available.
 	reviewer := action.Config["reviewer"]

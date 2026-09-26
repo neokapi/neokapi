@@ -311,7 +311,7 @@ func (r *ToolRegistry) NewTool(name ToolID) (tool.Tool, error) {
 	defer r.mu.RUnlock()
 	reg, ok := r.tools[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown tool: %s", name)
+		return nil, UnknownToolError(name)
 	}
 	if reg.Factory == nil {
 		return nil, fmt.Errorf("tool %s is a plugin tool and cannot be instantiated locally", name)
@@ -344,7 +344,7 @@ func (r *ToolRegistry) NewToolWithConfig(name ToolID, config map[string]any, tar
 	defer r.mu.RUnlock()
 	reg, ok := r.tools[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown tool: %s", name)
+		return nil, UnknownToolError(name)
 	}
 
 	// Run preprocessor if set (e.g. credential resolution). The requirements

@@ -63,7 +63,7 @@ func parkedReviewProject(t *testing.T) (*App, *EnvCommand, string, string) {
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb", "nl"},
 			Flow:            "translate",
-			SourceGate:      string(model.SourceGateNone),
+			TranslateAfter:  string(model.TranslateAfterNone),
 			Materialize:     project.MaterializeOnConverge,
 		},
 		Collections: []project.Collection{

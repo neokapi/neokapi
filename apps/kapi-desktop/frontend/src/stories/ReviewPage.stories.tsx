@@ -260,7 +260,7 @@ async function loadUnitWithContext(item: ReviewItem): Promise<ReviewUnitDetail> 
   return { ...(await loadUnit(item)), context: CONTEXT };
 }
 
-/** The source rows: the author's own wording the source gate is waiting on. */
+/** The source rows: the author's own wording translate_after is holding. */
 const SOURCE_ROWS: ReviewItem[] = [
   {
     locale: "en-US",

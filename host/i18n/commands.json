@@ -2015,56 +2015,6 @@
             "short": "Split source text into sentence or chunk segments (stand-off overlay)"
           },
           "short": "Execute one registry tool on files (the raw layer under the porcelain verbs)",
-          "source-gate": {
-            "flags": {
-              "concurrency": {
-                "usage": "max parallel files (0 = auto)"
-              },
-              "encoding": {
-                "usage": "input file encoding"
-              },
-              "fail-on-unknown": {
-                "usage": "exit with error if any file cannot be processed (default: skip with warning)"
-              },
-              "format": {
-                "usage": "override input format detection"
-              },
-              "gate": {
-                "usage": "What a block's source must satisfy before its translations are produced: written (its checks pass) or established (a person reviewed it) (none, written, established)"
-              },
-              "json": {
-                "usage": "output results as JSON"
-              },
-              "map": {
-                "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')"
-              },
-              "no-warn": {
-                "usage": "suppress warnings for skipped files"
-              },
-              "pack": {
-                "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
-              },
-              "parallel-blocks": {
-                "usage": "fan out block processing across N goroutines (0 = off)"
-              },
-              "progress": {
-                "usage": "show progress bar"
-              },
-              "source-lang": {
-                "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
-              },
-              "strict": {
-                "usage": "alias for --fail-on-unknown"
-              },
-              "target-lang": {
-                "usage": "target language (e.g. fr, de-DE)"
-              },
-              "trace": {
-                "usage": "write flow trace JSON to file (for flow visualization)"
-              }
-            },
-            "short": "Source Gate"
-          },
           "term-check": {
             "example": "  kapi exec term-check app.xliff --source-lang en --target-lang fr\n  kapi exec term-check messages.json --source-lang en --target-lang fr",
             "flags": {
@@ -2271,6 +2221,56 @@
               }
             },
             "short": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)"
+          },
+          "translate-after": {
+            "flags": {
+              "concurrency": {
+                "usage": "max parallel files (0 = auto)"
+              },
+              "encoding": {
+                "usage": "input file encoding"
+              },
+              "fail-on-unknown": {
+                "usage": "exit with error if any file cannot be processed (default: skip with warning)"
+              },
+              "format": {
+                "usage": "override input format detection"
+              },
+              "json": {
+                "usage": "output results as JSON"
+              },
+              "level": {
+                "usage": "What a block's source must reach before its translations are produced: written (its checks pass) or established (a person reviewed it); none holds nothing (none, written, established)"
+              },
+              "map": {
+                "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')"
+              },
+              "no-warn": {
+                "usage": "suppress warnings for skipped files"
+              },
+              "pack": {
+                "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
+              },
+              "parallel-blocks": {
+                "usage": "fan out block processing across N goroutines (0 = off)"
+              },
+              "progress": {
+                "usage": "show progress bar"
+              },
+              "source-lang": {
+                "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)"
+              },
+              "strict": {
+                "usage": "alias for --fail-on-unknown"
+              },
+              "target-lang": {
+                "usage": "target language (e.g. fr, de-DE)"
+              },
+              "trace": {
+                "usage": "write flow trace JSON to file (for flow visualization)"
+              }
+            },
+            "short": "Translate After"
           },
           "unredact": {
             "flags": {

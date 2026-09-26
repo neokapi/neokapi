@@ -32,14 +32,14 @@ type EstimateLocaleWork struct {
 	TokenEstimate int    `json:"token_estimate"` // ~input tokens for the AI remainder (chars/4)
 }
 
-// SourceReadiness reports how the project's source blocks split against the
-// active source gate: how many translatable source blocks are ready to
-// translate vs. held below the gate (need settling / source review).
+// SourceReadiness reports how the project's source blocks split against its
+// translate_after level: how many translatable source blocks are ready to
+// translate vs. held below the level (need settling / source review).
 type SourceReadiness struct {
-	Gate  model.SourceGateLevel `json:"gate"`  // resolved gate level
-	Total int                   `json:"total"` // translatable source blocks considered
-	Ready int                   `json:"ready"` // blocks at or above the gate
-	Held  int                   `json:"held"`  // blocks below the gate (settle first)
+	Gate  model.TranslateAfterLevel `json:"gate"`  // resolved translate_after level
+	Total int                       `json:"total"` // translatable source blocks considered
+	Ready int                       `json:"ready"` // blocks at or above the level
+	Held  int                       `json:"held"`  // blocks below the level (settle first)
 }
 
 // ConvergenceEstimate is the full pre-flight: source readiness first, then the
@@ -66,11 +66,11 @@ type EstimateTotals struct {
 
 // estimateNote is the estimation-method disclosure carried in the estimate. It
 // mirrors the CLI plan note so both surfaces describe the same basis.
-const estimateNote = "Source readiness is evaluated against defaults.source_gate; only the ready source is estimated for translation. Content-memory leverage uses the project's recycle threshold (fuzzy at 0.7 by default; tm_fuzzy_threshold overrides); the token estimate is source chars / 4 for the AI remainder. No AI provider is called and no run is started."
+const estimateNote = "Source readiness is evaluated against defaults.translate_after; only the ready source is estimated for translation. Content-memory leverage uses the project's recycle threshold (fuzzy at 0.7 by default; tm_fuzzy_threshold overrides); the token estimate is source chars / 4 for the AI remainder. No AI provider is called and no run is started."
 
 // EstimateConvergence computes the side-effect-free pre-flight estimate for a
-// project's convergence run. It loads the project's source blocks once, gates
-// them by SourceStatus vs. the project's source gate, and for the ready source
+// project's convergence run. It loads the project's source blocks once, holds
+// them by SourceStatus against the project's translate_after level, and for the ready source
 // estimates per-locale pending/content memory/AI work. tm may be nil (no content-memory leverage: every
 // pending unit reads as AI work). It never writes to the store and never calls
 // an AI provider. tb is the workspace terms: a match that breaks one of its
@@ -81,7 +81,7 @@ func EstimateConvergence(ctx context.Context, cs store.ContentStore, tm memory.S
 		return est, nil
 	}
 
-	gate := store.SourceGateFor(proj)
+	gate := store.TranslateAfterFor(proj)
 	est.Source.Gate = gate
 
 	blocks, err := cs.GetBlocks(ctx, store.BlockQuery{ProjectID: proj.ID, Stream: "main"})

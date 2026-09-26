@@ -10,30 +10,30 @@ import (
 // source-authoring status (written→established) through the store's
 // properties JSON. The ContentStore serializes only Block.Properties for a
 // block's source-side metadata — it has no SourceStatus column — so the
-// source-first convergence gate would lose the status it stamps unless the
+// source-first convergence hold would lose the status it stamps unless the
 // stores fold it into properties on write and lift it back out on read. The key
 // is identical to the one core/venue uses on the wire, so the value
 // round-trips losslessly across push → store → read.
 const PropSourceStatus = "__source_status"
 
-// SourceGateProperty is the project-settings key that carries the recipe's
-// `defaults.source_gate` level (written | established | none) to the
+// TranslateAfterProperty is the project-settings key that carries the recipe's
+// `defaults.translate_after` level (written | established | none) to the
 // server, alongside the other recipe-derived settings in project Properties.
-const SourceGateProperty = "source_gate"
+const TranslateAfterProperty = "translate_after"
 
-// SourceGateFor resolves a project's source-first convergence gate level from
-// its settings, applying the default (`written`) when unset. A value the recipe
+// TranslateAfterFor resolves a project's translate_after level from its
+// settings, applying the default (`written`) when unset. A value the recipe
 // schema does not recognize falls back to the default rather than silently
-// disabling the gate. It is the single reader both the server orchestrator and
-// the translation worker consult, so the gate is enforced identically at the
+// disabling the hold. It is the single reader both the server orchestrator and
+// the translation worker consult, so the hold is enforced identically at the
 // fan-out decision and at the per-block translation.
-func SourceGateFor(proj *Project) model.SourceGateLevel {
+func TranslateAfterFor(proj *Project) model.TranslateAfterLevel {
 	raw := ""
 	if proj != nil && proj.Properties != nil {
-		raw = proj.Properties[SourceGateProperty]
+		raw = proj.Properties[TranslateAfterProperty]
 	}
-	gate, _ := model.ResolveSourceGate(raw)
-	return gate
+	level, _ := model.ResolveTranslateAfter(raw)
+	return level
 }
 
 // PropsForStore returns the block's Properties augmented with its SourceStatus

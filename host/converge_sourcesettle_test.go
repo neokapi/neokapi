@@ -28,11 +28,11 @@ import (
 // message pointing at coverage internals instead of the source file.
 
 // newSourceSettleProject writes a one-file, one-locale project with an explicit
-// source gate, under the dogfood isolation contract (CLAUDE.md): every root this
+// translate_after level, under the dogfood isolation contract (CLAUDE.md): every root this
 // run could otherwise inherit — the developer's ~/.config/kapi, the user and
 // system plugin roots, the shared caches — is pinned to a throwaway dir, and
 // project discovery is off, so the repo's own dogfood recipe can never be found.
-func newSourceSettleProject(t *testing.T, sourceGate string) (*App, *EnvCommand, string, string) {
+func newSourceSettleProject(t *testing.T, translateAfter string) (*App, *EnvCommand, string, string) {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
@@ -53,7 +53,7 @@ func newSourceSettleProject(t *testing.T, sourceGate string) (*App, *EnvCommand,
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr"},
 			Flow:            "translate",
-			SourceGate:      sourceGate,
+			TranslateAfter:  translateAfter,
 		},
 		Collections: []project.Collection{
 			{Name: "app", Path: "src/en.json", Target: "src/{lang}.json"},
@@ -103,7 +103,7 @@ func TestConverge_SourceSettleFailure_FailsNamingTheSourceStage(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root bypasses file modes")
 	}
-	a, cmd, recipe, dir := newSourceSettleProject(t, string(model.SourceGateWritten))
+	a, cmd, recipe, dir := newSourceSettleProject(t, string(model.TranslateAfterWritten))
 	src := filepath.Join(dir, "src", "en.json")
 	require.NoError(t, os.Chmod(src, 0o000))
 	t.Cleanup(func() { _ = os.Chmod(src, 0o644) })
@@ -112,7 +112,7 @@ func TestConverge_SourceSettleFailure_FailsNamingTheSourceStage(t *testing.T) {
 	require.Error(t, err, "a source the gate cannot read must fail the run")
 	assert.Contains(t, err.Error(), "settle source",
 		"the failure is attributed to the source settle, not to a coverage internal")
-	assert.Contains(t, err.Error(), string(model.SourceGateWritten),
+	assert.Contains(t, err.Error(), string(model.TranslateAfterWritten),
 		"and names the gate it was evaluating")
 	assert.False(t, out.Converged, "a run that failed never reports convergence")
 	assert.NotEqual(t, convergence.StallSourceNotReady, out.StallReason)
@@ -126,7 +126,7 @@ func TestConverge_SourceSettleFailure_FailsNamingTheSourceStage(t *testing.T) {
 // source and a gate the settlement can satisfy, the same fixture converges and
 // writes its target — so the strictness above rejects only real faults.
 func TestConverge_SourceSettleClean_StillConverges(t *testing.T) {
-	a, cmd, recipe, dir := newSourceSettleProject(t, string(model.SourceGateWritten))
+	a, cmd, recipe, dir := newSourceSettleProject(t, string(model.TranslateAfterWritten))
 	out, err := runSourceSettleConverge(t, a, cmd, recipe)
 	require.NoError(t, err)
 	assert.True(t, out.Converged, "a clean source settles and the run converges")

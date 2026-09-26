@@ -376,19 +376,19 @@ func (o *convergenceOrchestrator) awaitPushApplies(ctx context.Context, run *bst
 // runSettleSource is the server run's source-first phase (epic 019): it settles
 // the source once at the start of a run — before any target locale is produced —
 // stamps each source block's SourceStatus, and reports how many blocks remain
-// below the gate. It emits a settle_source stage event so a surface can show the
+// below the translate_after level. It emits a settle_source stage event so a surface can show the
 // run "settling your source" and records the blocked-on-source count on the run
 // row so the UI can render "N segments need source review" without a second
-// round-trip. A settlement error is non-fatal: the run degrades to the previous
-// (gate-off) behavior rather than failing on a source-check hiccup.
+// round-trip. A settlement error is non-fatal: the run degrades to the
+// `translate_after: none` behavior rather than failing on a source-check hiccup.
 func (o *convergenceOrchestrator) runSettleSource(ctx context.Context, run *bstore.ConvergenceRun, emit *convergence.Emitter) settleResult {
 	// Announce the phase BEFORE the work: first-run settlement over a large
 	// corpus reads and rewrites every source block, which can take tens of
 	// minutes — and a run whose current_stage stays empty for that long is
-	// indistinguishable from a dead one. The gate is resolved up front only to
-	// keep an opted-out project event-free, as before.
+	// indistinguishable from a dead one. The level is resolved up front only to
+	// keep an opted-out project event-free.
 	if cs := o.server.ContentStore; cs != nil {
-		if proj, perr := cs.GetProject(ctx, run.ProjectID); perr == nil && sourceGateFor(proj) != model.SourceGateNone {
+		if proj, perr := cs.GetProject(ctx, run.ProjectID); perr == nil && translateAfterFor(proj) != model.TranslateAfterNone {
 			emit.Emit(convergence.Event{
 				Type:    convergence.EventLog,
 				Stage:   convergence.StageSettleSource,
@@ -403,10 +403,10 @@ func (o *convergenceOrchestrator) runSettleSource(ctx context.Context, run *bsto
 			"total", res.Total, "settled", res.Settled, "blocked", res.BlockedOnSource)
 	}
 	if err != nil {
-		slog.Warn("convergence: source settlement failed; proceeding without gate", "run", run.ID, "error", err)
-		return settleResult{Gate: model.SourceGateNone}
+		slog.Warn("convergence: source settlement failed; proceeding without the translate_after hold", "run", run.ID, "error", err)
+		return settleResult{Level: model.TranslateAfterNone}
 	}
-	if res.Gate == model.SourceGateNone {
+	if res.Level == model.TranslateAfterNone {
 		return res // opt-out: no settle event, no hold
 	}
 	run.BlockedOnSource = res.BlockedOnSource
@@ -415,8 +415,8 @@ func (o *convergenceOrchestrator) runSettleSource(ctx context.Context, run *bsto
 		Stage:           convergence.StageSettleSource,
 		SettledSource:   res.Settled,
 		BlockedOnSource: res.BlockedOnSource,
-		Message: fmt.Sprintf("Settled source: %d block(s) checked, %d below the %q gate.",
-			res.Total, res.BlockedOnSource, res.Gate),
+		Message: fmt.Sprintf("Settled source: %d block(s) checked, %d below translate_after %q.",
+			res.Total, res.BlockedOnSource, res.Level),
 	})
 	return res
 }
@@ -481,11 +481,11 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 
 	// Source-first phase (epic 019): settle the source ONCE before any target
 	// locale is produced, stamp each block's SourceStatus, and record how many
-	// blocks are held below the gate. The gate itself is enforced per block in
+	// blocks are held below the translate_after level. The hold itself is enforced per block in
 	// produceFunc (a partially-ready item translates only its ready blocks) and
 	// terminates the run with source_not_ready when a locale has nothing
 	// producible. Settlement is a no-op when the block store is absent (the
-	// in-memory driveWith tests) or the gate is `none`.
+	// in-memory driveWith tests) or the level is `none`.
 	o.awaitPushApplies(ctx, run, emit)
 	o.runSettleSource(ctx, run, emit)
 
@@ -567,7 +567,7 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	}
 
 	// Hold-on-source is a first-class outcome (epic 019): when the run parked
-	// because the source is below the gate, create the source-review task(s) for
+	// because the source is below the translate_after level, create the source-review task(s) for
 	// the un-ready source — reusing the existing create_source_review automation
 	// — so the user has a clear next action ("settle your source first") instead
 	// of a silent hold. Only for the source-not-ready reason; other parks route
@@ -932,8 +932,8 @@ func (o *convergenceOrchestrator) produceFunc(projectID, stream, runID string) f
 			return convergence.PassProduction{}, nil
 		}
 
-		// Source-first gate (epic 019): before spawning translation jobs, drop
-		// any item whose source blocks are ALL below the gate — those hold on
+		// Source-first convergence: before spawning translation jobs, drop
+		// any item whose source blocks are ALL below the translate_after level — those hold on
 		// source rather than translating an unsettled source. A partially-ready
 		// item stays (the worker translates only its ready blocks). When the
 		// whole locale has nothing producible AND some source is held, terminate
@@ -1087,13 +1087,13 @@ func (o *convergenceOrchestrator) createCompletionReviewTasks(ctx context.Contex
 }
 
 // createSourceReviewTasks is the hold-on-source action (epic 019): when a run
-// parks because the source is below the gate, it fans out the "Review source
+// parks because the source is below the translate_after level, it fans out the "Review source
 // content before translation" task by reusing the existing create_source_review
 // automation (Bowrain AD-014). The synthetic event carries the run/items linkage
 // and the blocked-on-source count so the task — and the source review queue it
 // lands in — points back at the run that held. It also publishes
 // EventSourceReviewCompleted's counterpart trigger so any subscriber wired to
-// source review reacts. A settled source (or a lowered gate) lets the next run
+// source review reacts. A settled source (or a lowered translate_after level) lets the next run
 // translate.
 func (o *convergenceOrchestrator) createSourceReviewTasks(ctx context.Context, run *bstore.ConvergenceRun) {
 	items := ""
@@ -1158,14 +1158,14 @@ var errStallNoTargetLocales = &stallError{
 }
 
 // errStallSourceNotReady is the typed hold a locale returns when every block it
-// would translate is below the source-first gate: rather than fan an unsettled,
+// would translate is below the translate_after level: rather than fan an unsettled,
 // non-compliant, un-term-checked source out to N locales (only to redo it when the
 // source changes), the run HOLDS on source and routes to source review. This is
 // a first-class outcome — no AI is spent, no work is discarded — distinct from
 // an out-of-credits stall (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
 var errStallSourceNotReady = &stallError{
 	reason:  convergence.StallSourceNotReady,
-	message: "source not ready. Settle your source first (terminology, brand, source checks), or set defaults.source_gate: none to translate anyway",
+	message: "source not ready. Settle your source first (terminology, brand, source checks), or set defaults.translate_after: none to translate anyway",
 }
 
 // parkedStallReason labels an ordinary parked outcome (no typed stall error):

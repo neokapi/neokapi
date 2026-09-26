@@ -36,7 +36,7 @@ func TestGateBlocksBySource(t *testing.T) {
 	// written gate: a source that fails its checks is held; written,
 	// established, non-translatable AND never-settled (New) blocks pass through
 	// — the worker is not the settle phase and must not strand unstamped blocks.
-	kept := gateBlocksBySource(blocks, model.SourceGateWritten)
+	kept := gateBlocksBySource(blocks, model.TranslateAfterWritten)
 	got := map[string]bool{}
 	for _, sb := range kept {
 		got[sb.Block.ID] = true
@@ -48,7 +48,7 @@ func TestGateBlocksBySource(t *testing.T) {
 	assert.False(t, got["failing"], "a source that fails its checks is held")
 
 	// none gate: every block passes (opt-out), slice returned unchanged.
-	all := gateBlocksBySource(blocks, model.SourceGateNone)
+	all := gateBlocksBySource(blocks, model.TranslateAfterNone)
 	assert.Len(t, all, len(blocks))
 }
 

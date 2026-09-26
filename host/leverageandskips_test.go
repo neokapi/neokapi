@@ -46,7 +46,7 @@ func newPlanProject(t *testing.T) (*App, string) {
 		Defaults: project.Defaults{
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr"},
-			SourceGate:      string(model.SourceGateNone),
+			TranslateAfter:  string(model.TranslateAfterNone),
 		},
 		Collections: []project.Collection{
 			{Name: "app", Path: "src/en.json", Target: "src/{lang}.json"},

@@ -131,6 +131,18 @@ collections:
 	assert.Empty(t, items[1].Collection.Name)
 }
 
+// The top-level source_gate (the coverage bar) and defaults.translate_after
+// (the per-block hold) are separate keys, and both load.
+func TestKapiProject_SourceGateAndTranslateAfter(t *testing.T) {
+	recipe := "version: v1\nsource_gate:\n  established: 100\ndefaults:\n  translate_after: established\n"
+	var p KapiProject
+	require.NoError(t, yaml.Unmarshal([]byte(recipe), &p))
+	require.NoError(t, p.Validate())
+	assert.True(t, p.HasSourceGate())
+	assert.Equal(t, "established", p.Defaults.TranslateAfter)
+	assert.Empty(t, p.Defaults.Extras)
+}
+
 func TestKapiProject_RetiredKeys(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -153,9 +165,19 @@ func TestKapiProject_RetiredKeys(t *testing.T) {
 			"coordinates: is no longer a recipe key. Use profiles",
 		},
 		{
-			"a source gate outside the ladder is rejected",
-			"version: v1\ndefaults:\n  source_gate: approved\n",
-			`defaults.source_gate: "approved" is not a source gate`,
+			"a translate_after level outside the ladder is rejected",
+			"version: v1\ndefaults:\n  translate_after: approved\n",
+			`defaults.translate_after: "approved" is not a source level`,
+		},
+		{
+			"defaults.source_gate names translate_after",
+			"version: v1\ndefaults:\n  source_gate: written\n",
+			"defaults.source_gate: is no longer a recipe key. Use defaults.translate_after",
+		},
+		{
+			"a flow step naming source-gate names translate-after",
+			"version: v1\nflows:\n  f:\n    steps:\n      - tool: source-gate\n",
+			`flow "f" step[0]: tool "source-gate" is now "translate-after"`,
 		},
 		{
 			"a verified_gate: names the established gate",
