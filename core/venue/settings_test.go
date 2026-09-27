@@ -29,3 +29,18 @@ func TestProjectSettingsDiffering(t *testing.T) {
 		ours.Differing(ProjectSettings{SettingConvergePolicy: "on-push"}),
 		"a setting the venue did not report is sent")
 }
+
+func TestSettingRefusalNamesWhatWouldApplyIt(t *testing.T) {
+	loosens := SettingRefusal{
+		Setting: SettingTranslateAfter, Requested: "none", InForce: "established",
+		Reason: SettingLoosens, Requires: "manage_project",
+	}
+	assert.Contains(t, loosens.String(), "translate_after stays established")
+	assert.Contains(t, loosens.String(), "owner or admin (manage_project)")
+
+	offStream := SettingRefusal{
+		Setting: SettingConvergePolicy, Requested: "manual", InForce: "on-push",
+		Reason: SettingNotDefaultStream, DefaultStream: "main",
+	}
+	assert.Contains(t, offStream.String(), `default stream "main"`)
+}

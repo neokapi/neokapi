@@ -79,6 +79,14 @@ type PushResult struct {
 	// into line with the venue's answer, so the same refused verdicts are
 	// not sent again on every push from here on.
 	VerdictsRetired int
+
+	// SettingsApplied are the recipe-owned project settings this push changed
+	// on the venue, at their new values.
+	SettingsApplied venue.ProjectSettings
+
+	// SettingsRefused are the recipe's settings the venue kept at its own
+	// value, each with the reason and what would apply it.
+	SettingsRefused []venue.SettingRefusal
 }
 
 // Ingest states reported by PushResult.Ingest.

@@ -828,8 +828,12 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	chunkCount := 0
 	var served *ref.Ref
 	settingsInForce := false
+	var settingsApplied venue.ProjectSettings
+	var settingsRefused []venue.SettingRefusal
 	if resp != nil {
 		settingsInForce = resp.SettingsInForce
+		settingsApplied = resp.SettingsApplied
+		settingsRefused = resp.SettingsRefused
 		lastCursor = resp.NewCursor
 		pushID = resp.PushID
 		undeclared = resp.UndeclaredCollections
@@ -912,8 +916,9 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		}
 	}
 	// The settings the venue confirmed holding, so the next push compares
-	// against them locally. A venue that confirmed nothing leaves the record
-	// empty, and the next push asks again.
+	// against them locally. A venue that confirmed nothing, or kept a setting
+	// at its own value, leaves the record empty, so the next push asks again
+	// and reports the refusal again.
 	c.cache.SettingsSynced = ""
 	if settingsInForce && c.pushContext != nil {
 		c.cache.SettingsSynced = c.pushContext.Settings.Hash()
@@ -947,6 +952,8 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		Ingest:                ingest,
 		Governance:            governance,
 		VerdictsRetired:       retired,
+		SettingsApplied:       settingsApplied,
+		SettingsRefused:       settingsRefused,
 	}, nil
 }
 

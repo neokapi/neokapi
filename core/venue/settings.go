@@ -3,14 +3,17 @@ package venue
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"maps"
 	"slices"
 )
 
 // Recipe-owned project settings: values the recipe declares once for the whole
-// project and the venue applies to its own runs. A push carries them, so whoever
-// may push the recipe may put its settings in force, and the venue holds the
-// values the checkout converges by.
+// project and the venue applies to its own runs. A push carries them, and the
+// venue applies each one the pusher may set. A setting that tightens what the
+// project allows takes effect from any push to the project's default stream; a
+// setting that loosens it takes effect only from a pusher who may manage the
+// project, and is otherwise held back and reported.
 //
 // Each value travels resolved, never as the raw recipe text: an unset key is
 // sent as its default, so a recipe that removes a setting returns the venue to
@@ -59,4 +62,47 @@ func (s ProjectSettings) Differing(held ProjectSettings) ProjectSettings {
 		out[k] = v
 	}
 	return out
+}
+
+// Why a venue kept its own value for a setting a push asked it to change.
+const (
+	// SettingLoosens: the requested value allows more than the value in force,
+	// and the pusher may not manage the project.
+	SettingLoosens = "loosens"
+
+	// SettingNotDefaultStream: the push went to a stream other than the
+	// project's default, and settings apply only from the default stream.
+	SettingNotDefaultStream = "not_default_stream"
+)
+
+// SettingRefusal reports a recipe-owned setting the venue kept at its own value
+// although a push asked for another.
+type SettingRefusal struct {
+	Setting   string `json:"setting"`
+	Requested string `json:"requested"`
+	InForce   string `json:"in_force"`
+	Reason    string `json:"reason"`
+
+	// Requires names the permission that may apply the requested value, for a
+	// refusal whose Reason is SettingLoosens.
+	Requires string `json:"requires,omitempty"`
+
+	// DefaultStream names the stream a push applies settings from, for a
+	// refusal whose Reason is SettingNotDefaultStream.
+	DefaultStream string `json:"default_stream,omitempty"`
+}
+
+// String describes the refusal in one line, naming what would apply it.
+func (r SettingRefusal) String() string {
+	switch r.Reason {
+	case SettingLoosens:
+		return fmt.Sprintf("%s stays %s: the recipe asks for %s, which allows more than the project does. "+
+			"A workspace owner or admin (%s) applies it by pushing the recipe",
+			r.Setting, r.InForce, r.Requested, r.Requires)
+	case SettingNotDefaultStream:
+		return fmt.Sprintf("%s stays %s: the recipe asks for %s, and settings apply only from a push to the default stream %q",
+			r.Setting, r.InForce, r.Requested, r.DefaultStream)
+	default:
+		return fmt.Sprintf("%s stays %s: the recipe asks for %s (%s)", r.Setting, r.InForce, r.Requested, r.Reason)
+	}
 }

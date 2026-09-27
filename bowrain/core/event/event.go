@@ -74,6 +74,11 @@ const (
 	EventProjectUpdated EventType = "project.updated"
 	EventProjectDeleted EventType = "project.deleted"
 
+	// EventProjectSettingChanged records one recipe-owned setting a push
+	// changed on a project. ResourceID names the setting, Before and After
+	// carry its effective value on each side, and Actor is the pusher.
+	EventProjectSettingChanged EventType = "project.setting_changed"
+
 	// Version events
 	EventVersionCreated EventType = "version.created"
 

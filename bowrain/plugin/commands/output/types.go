@@ -3,6 +3,8 @@ package output
 import (
 	"fmt"
 	"io"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -299,6 +301,14 @@ type PushOutput struct {
 	VerdictsRefused []venue.DecisionRefusal `json:"verdicts_refused,omitempty"`
 	VerdictsRetired int                     `json:"verdicts_retired,omitempty"`
 
+	// SettingsApplied are the recipe-owned project settings this push changed
+	// on the server. SettingsRefused are the ones the server kept at its own
+	// value: a setting that allows more than the project does, from a pusher
+	// who may not manage the project, or any setting on a push to a stream
+	// other than the default.
+	SettingsApplied venue.ProjectSettings  `json:"settings_applied,omitempty"`
+	SettingsRefused []venue.SettingRefusal `json:"settings_refused,omitempty"`
+
 	// Loop status (the recipe's server policy + web destinations): whether the
 	// server converges on push, and where the pushed content lands.
 	Converge   string `json:"converge,omitempty"` // on-push | manual
@@ -324,8 +334,22 @@ func (o PushOutput) FormatText(w io.Writer) error {
 	o.FormatVoice(w)
 	o.formatUndeclared(w)
 	o.FormatGovernance(w)
+	o.FormatSettings(w)
 	o.formatLoopStatus(w)
 	return nil
+}
+
+// FormatSettings reports what the push did with the recipe's project settings:
+// each one it changed on the server, and each one the server kept, with what
+// would apply it. Silent when every setting already matched. Exported so
+// `kapi up`'s push step reports the same lines.
+func (o PushOutput) FormatSettings(w io.Writer) {
+	for _, k := range slices.Sorted(maps.Keys(o.SettingsApplied)) {
+		fmt.Fprintf(w, "Server setting %s is now %s, as the recipe declares.\n", k, o.SettingsApplied[k])
+	}
+	for _, r := range o.SettingsRefused {
+		fmt.Fprintf(w, "Server setting %s.\n", r)
+	}
 }
 
 // formatAssets reports the media that travelled with the blocks, and — the

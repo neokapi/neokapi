@@ -131,7 +131,10 @@ func pushAfterLocalConverge(cmd *cobra.Command, proj *project.Project) error {
 	if err := reportVoicePush(cmd, nil, bres, flagBool(cmd, "json")); err != nil {
 		return err
 	}
-	return reportPushGovernance(cmd, nil, pr, flagBool(cmd, "json"))
+	if err := reportPushGovernance(cmd, nil, pr, flagBool(cmd, "json")); err != nil {
+		return err
+	}
+	return reportPushSettings(cmd, nil, pr, flagBool(cmd, "json"))
 }
 
 // reportConceptPush says what the terminology fold inside `kapi up`'s push
@@ -245,6 +248,9 @@ func runServerUp(cmd *cobra.Command, proj *project.Project) error {
 		return err
 	}
 	if err := reportPushGovernance(cmd, jsonStream, pr, jsonOut); err != nil {
+		return err
+	}
+	if err := reportPushSettings(cmd, jsonStream, pr, jsonOut); err != nil {
 		return err
 	}
 
@@ -423,6 +429,29 @@ func reportPushGovernance(cmd *cobra.Command, stream *output.NDJSONStream, pr *t
 		}{Type: "governance", Refused: out.VerdictsRefused, Retired: out.VerdictsRetired})
 	}
 	out.FormatGovernance(cmd.ErrOrStderr())
+	return nil
+}
+
+// reportPushSettings says what the push did with the recipe's project settings:
+// each one it changed on the server, and each one the server kept at its own
+// value with what would apply it. Silent when every setting already matched.
+// Under --json it is one NDJSON record of type "settings".
+func reportPushSettings(cmd *cobra.Command, stream *output.NDJSONStream, pr *transfer.PushResult, jsonOut bool) error {
+	if pr == nil || (len(pr.SettingsApplied) == 0 && len(pr.SettingsRefused) == 0) {
+		return nil
+	}
+	if jsonOut {
+		if stream == nil {
+			stream = output.NewNDJSONStream(cmd.OutOrStdout())
+		}
+		return stream.Encode(struct {
+			Type    string                 `json:"type"`
+			Applied venue.ProjectSettings  `json:"settings_applied,omitempty"`
+			Refused []venue.SettingRefusal `json:"settings_refused,omitempty"`
+		}{Type: "settings", Applied: pr.SettingsApplied, Refused: pr.SettingsRefused})
+	}
+	output.PushOutput{SettingsApplied: pr.SettingsApplied, SettingsRefused: pr.SettingsRefused}.
+		FormatSettings(cmd.ErrOrStderr())
 	return nil
 }
 

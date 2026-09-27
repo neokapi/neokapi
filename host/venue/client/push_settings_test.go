@@ -116,3 +116,51 @@ func TestPushSendsNoSettingsToAVenueThatReportsNone(t *testing.T) {
 	assert.Nil(t, rec.commits[0].Settings)
 	assert.False(t, resp.SettingsInForce)
 }
+
+// TestPushLeavesRefusedSettingsOutAndReportsThem pins the other half of the
+// negotiation: a setting the venue says this push may not apply stays out of
+// the commit, reaches the caller as a refusal, and keeps the settings from
+// counting as in force, so the next push asks again.
+func TestPushLeavesRefusedSettingsOutAndReportsThem(t *testing.T) {
+	refusal := venue.SettingRefusal{
+		Setting: venue.SettingTranslateAfter, Requested: "none", InForce: "established",
+		Reason: venue.SettingLoosens, Requires: "manage_project",
+	}
+	var initReq PushInitRequest
+	var commits []PushCommitRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/push/init"):
+			_ = json.NewDecoder(r.Body).Decode(&initReq)
+			_ = json.NewEncoder(w).Encode(PushInitResponse{
+				UploadID:        "up1",
+				Status:          "unchanged",
+				Settings:        recipeSettings("on-push", "established"),
+				SettingsRefused: []venue.SettingRefusal{refusal},
+			})
+		case strings.HasSuffix(r.URL.Path, "/push/commit"):
+			var req PushCommitRequest
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			commits = append(commits, req)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"push_id":          "push1",
+				"settings_applied": venue.ProjectSettings{venue.SettingConvergePolicy: "manual"},
+			})
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c := NewClaimTokenClient(srv.URL, "proj1", "tok")
+
+	resp, err := c.Push(context.Background(), nil, nil,
+		settingsPushContext(recipeSettings("manual", "none")), nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, recipeSettings("manual", "none"), initReq.Settings,
+		"the negotiation names the recipe's settings, so the venue can answer for each")
+	require.Len(t, commits, 1)
+	assert.Equal(t, venue.ProjectSettings{venue.SettingConvergePolicy: "manual"}, commits[0].Settings,
+		"the tightening setting is carried and the refused one is not")
+	assert.Equal(t, venue.ProjectSettings{venue.SettingConvergePolicy: "manual"}, resp.SettingsApplied)
+	assert.Equal(t, []venue.SettingRefusal{refusal}, resp.SettingsRefused)
+	assert.False(t, resp.SettingsInForce)
+}

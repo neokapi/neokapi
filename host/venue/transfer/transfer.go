@@ -76,6 +76,12 @@ type PushResult struct {
 	// into line with that answer.
 	Governance      *venue.PushGovernance
 	VerdictsRetired int
+
+	// SettingsApplied are the recipe-owned project settings this push changed
+	// on the venue, and SettingsRefused the ones the venue kept at its own
+	// value, each with the reason and what would apply it.
+	SettingsApplied venue.ProjectSettings
+	SettingsRefused []venue.SettingRefusal
 }
 
 // PullResult holds the structured result of a pull.
@@ -161,6 +167,8 @@ func PushProject(ctx context.Context, app *host.App, proj *project.Project, conn
 		Ingest:                result.Ingest,
 		Governance:            result.Governance,
 		VerdictsRetired:       result.VerdictsRetired,
+		SettingsApplied:       result.SettingsApplied,
+		SettingsRefused:       result.SettingsRefused,
 	}
 	if opts.DryRun {
 		pr.DryRun = true

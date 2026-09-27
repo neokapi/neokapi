@@ -120,6 +120,8 @@ func PushProject(cmd *cobra.Command, proj *project.Project, conn *source.Bowrain
 		AssetErrors:           pr.AssetErrors,
 		Ingest:                pr.Ingest,
 		VerdictsRetired:       pr.VerdictsRetired,
+		SettingsApplied:       pr.SettingsApplied,
+		SettingsRefused:       pr.SettingsRefused,
 	}
 	if pr.Governance != nil {
 		out.VerdictsRefused = pr.Governance.Refusals
