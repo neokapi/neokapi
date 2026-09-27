@@ -241,7 +241,10 @@ collections:
   `advisory: true` for a rule that only reports, optionally a `concept_id`),
   the same shape as every word rule, including the `terms:` a voice file
   carries; `term-check`, `translate`, `recycle`, `dnt-check` and
-  `pseudo-translate` all take it.
+  `pseudo-translate` all take it. The ship gate, `kapi status` and `kapi up`
+  hold every target language to those rules too (a rule under
+  `defaults.locales.<lang>.tools` holds that language only), so the rules the
+  translate step is given are the rules its output is checked against.
 - **Locales + content**: `kapi run <flow>`, `kapi extract`, and `kapi merge`
   apply the project's locales and content globs without `-i` / `--target-lang`.
 

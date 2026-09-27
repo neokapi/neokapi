@@ -325,6 +325,33 @@ where to argue with the decision. `kapi check` reports these findings under the
 `terms` analyzer with rule id `terms.vocabulary`, wherever the rule is held.
 Locating is the part the consumers share.
 
+### The terms gate
+
+A translation is held to two sources of term rules. The first is the terms
+bound where its source sits: the project's own store, or the `termstore:` of the
+profile governing the point, read as the rules its concepts give for the
+language (`ResolveTermRulesFor`). The second is the `term_rules:` the recipe
+declares (`core/project.KapiProject.DeclaredTermRules`): on any flow step,
+inline under `flows:` or in a file in `flows_dir:`, and in the tool presets under
+`defaults.tools`. Those rules name no language and hold every target language.
+A preset under `defaults.locales.<lang>.tools` holds that language alone. The
+step that drafts is handed the recipe's list, so the gate holds the draft to the
+rules the model was told.
+
+`gateTermRules` merges the two, and a recipe rule for a term replaces the
+stored rule for the same term (`profile.WithDeclaredTermRules`), as the rule on
+a step does for that step. Every surface that decides terminology asks it: the
+terminology gate of `kapi check --ship` and `--gate terms`, the loop checks
+behind `kapi status`, `ship.json` and `kapi up`, and `kapi check` with a target.
+They therefore agree about which languages terms govern, and a language that
+only the recipe's rules answer for is governed. A rule fails the gate unless it
+is marked `advisory`, whichever source declared it.
+
+A venue holds its compliance predicate and its drafts to the same rules. A push
+carries the recipe's rules as a recipe-owned setting
+([C-01](c-01-project-model.md)), and the venue merges them with the concepts in
+its own store in the same way.
+
 ### Annotations
 
 Three annotation types implement the annotation interface. Each is written onto

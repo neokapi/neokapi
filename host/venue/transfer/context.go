@@ -148,10 +148,14 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 	// (a nil PushContext) says nothing.
 	//
 	// The recipe's project settings travel on the same push, so whoever may
-	// push the recipe puts its converge policy and translate_after level in
-	// force on the venue.
+	// push the recipe puts its converge policy, translate_after level and term
+	// rules in force on the venue.
 	pushCtx := apiclient.NewPushContext(entries)
-	pushCtx.Settings = proj.Recipe.ProjectSettings()
+	settings, err := proj.Recipe.ProjectSettings(proj.Root)
+	if err != nil {
+		return nil, nil, fmt.Errorf("resolve the recipe's project settings: %w", err)
+	}
+	pushCtx.Settings = settings
 	return pushCtx, voiceResult, nil
 }
 

@@ -56,7 +56,19 @@ import (
 // unchecked. A caller treats both as states of their own, neither compliant
 // nor a violation.
 func blockTermCompliance(ctx context.Context, block *model.Block, srcLoc, tgtLoc model.LocaleID, tb terms.Terminology, profile *coreprofile.VoiceProfile) store.TermCompliance {
-	if tb == nil && coreprofile.BlockRuleCount(profile) == 0 {
+	return blockTermComplianceWith(ctx, block, srcLoc, tgtLoc, tb, profile, nil)
+}
+
+// blockTermComplianceWith is blockTermCompliance with the term rules the
+// project's recipe declares for tgtLoc (declared), which govern the locale
+// beside the terms and the voice profile. The absence half holds the target to
+// the rules the concepts give and the declared ones together, a declared rule
+// standing in for a concept's rule on the same term (project.
+// WithDeclaredTermRules), which is how kapi's terms gate resolves them. A
+// declared rule marked advisory reports in kapi and never makes a violation
+// here.
+func blockTermComplianceWith(ctx context.Context, block *model.Block, srcLoc, tgtLoc model.LocaleID, tb terms.Terminology, profile *coreprofile.VoiceProfile, declared []coreprofile.TermRule) store.TermCompliance {
+	if tb == nil && coreprofile.BlockRuleCount(profile) == 0 && len(declared) == 0 {
 		return store.TermComplianceNotGoverned
 	}
 	if block == nil {
@@ -76,10 +88,10 @@ func blockTermCompliance(ctx context.Context, block *model.Block, srcLoc, tgtLoc
 	if profile != nil && len(coreprofile.Findings(profile, targetText, nil)) > 0 {
 		return store.TermComplianceViolation
 	}
-	// ABSENCE (terms): the source uses a concept whose mandated rendering for
-	// the target locale, or whose do-not-translate term, is missing from the
-	// target.
-	if tb != nil && targetMissingMandatedTerm(ctx, tb, block.SourceText(), targetText, srcLoc, tgtLoc) {
+	// ABSENCE (terms and the recipe's rules): the source uses a concept or a
+	// declared rule whose mandated rendering for the target locale, or whose
+	// do-not-translate term, is missing from the target.
+	if targetMissingMandatedTerm(ctx, tb, declared, block.SourceText(), targetText, srcLoc, tgtLoc) {
 		return store.TermComplianceViolation
 	}
 	return store.TermComplianceCompliant
@@ -113,15 +125,21 @@ func targetHasForbiddenTerm(ctx context.Context, tb terms.Terminology, targetTex
 // source term's regular inflections, placeholder names read as syntax, and a
 // do-not-translate term, which the target must keep verbatim. Redirection
 // through USE_INSTEAD / REPLACED_BY relations is not followed, as in term-check.
-func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, sourceText, targetText string, srcLoc, tgtLoc model.LocaleID) bool {
+//
+// declared are the term rules the recipe declares for tgtLoc. They join the
+// concepts' rules as kapi's gate joins them, and tb may be nil when they are
+// all that governs the locale.
+func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, declared []coreprofile.TermRule, sourceText, targetText string, srcLoc, tgtLoc model.LocaleID) bool {
 	if strings.TrimSpace(sourceText) == "" || strings.TrimSpace(targetText) == "" {
 		return false
 	}
-	concepts, err := tb.Concepts(ctx)
-	if err != nil || len(concepts) == 0 {
-		return false
+	var rules []coreprofile.TermRule
+	if tb != nil {
+		if concepts, err := tb.Concepts(ctx); err == nil && len(concepts) > 0 {
+			rules = terms.RulesFromConcepts(concepts, srcLoc, tgtLoc)
+		}
 	}
-	rules := terms.RulesFromConcepts(concepts, srcLoc, tgtLoc)
+	rules = coreprofile.WithDeclaredTermRules(rules, declared)
 	if len(rules) == 0 {
 		return false
 	}
@@ -153,6 +171,30 @@ type termGate struct {
 	concepts     []terms.Concept
 	conceptsRead bool
 	governs      map[model.LocaleID]bool
+	// declared is the term rules the project's recipe declares, as the last
+	// push that applied them left them (store.RecipeTermRulesOf), and
+	// declaredFP their encoded form, for the gate fingerprint.
+	declared   coreprofile.RecipeTermRules
+	declaredFP string
+}
+
+// withDeclared sets the recipe's term rules on the gate, which then governs
+// every locale they answer for. A nil gate is returned as it is.
+func (g *termGate) withDeclared(declared coreprofile.RecipeTermRules) *termGate {
+	if g == nil || declared.Empty() {
+		return g
+	}
+	g.declared = declared
+	g.declaredFP, _ = declared.Encode()
+	return g
+}
+
+// declaredFor returns the recipe's term rules for one target locale.
+func (g *termGate) declaredFor(loc model.LocaleID) []coreprofile.TermRule {
+	if g == nil {
+		return nil
+	}
+	return g.declared.For(string(loc))
 }
 
 // newTermGate builds a gate around an already-resolved terms snapshot and a
@@ -192,6 +234,11 @@ func (g *termGate) fingerprint(ctx context.Context, locales []string) string {
 	fmt.Fprintf(h, "algo=%s\n", shipGateAlgorithm)
 	if g != nil {
 		fmt.Fprintf(h, "src=%s\nterms=%s\n", g.srcLoc, g.termsFP)
+		// Written only when the recipe declares rules, so a project without
+		// them keeps the verdicts it has stored.
+		if g.declaredFP != "" {
+			fmt.Fprintf(h, "term_rules=%s\n", g.declaredFP)
+		}
 		for _, l := range locales {
 			p := g.profileFor(ctx, model.LocaleID(l))
 			if p == nil {
@@ -223,7 +270,8 @@ func (g *termGate) profileFor(ctx context.Context, loc model.LocaleID) *coreprof
 
 // compliance is block's terminology verdict for tgtLoc under the gate's
 // governance, from the shared blockTermCompliance predicate. The terms snapshot
-// takes part only for a locale it governs, and a nil gate governs nothing.
+// takes part only for a locale it governs, the recipe's term rules for the
+// locale always, and a nil gate governs nothing.
 func (g *termGate) compliance(ctx context.Context, block *model.Block, tgtLoc model.LocaleID) store.TermCompliance {
 	if g == nil {
 		return store.TermComplianceNotGoverned
@@ -232,7 +280,7 @@ func (g *termGate) compliance(ctx context.Context, block *model.Block, tgtLoc mo
 	if g.snapshotGoverns(ctx, tgtLoc) {
 		tb = g.tb
 	}
-	return blockTermCompliance(ctx, block, g.srcLoc, tgtLoc, tb, g.profileFor(ctx, tgtLoc))
+	return blockTermComplianceWith(ctx, block, g.srcLoc, tgtLoc, tb, g.profileFor(ctx, tgtLoc), g.declaredFor(tgtLoc))
 }
 
 // snapshotGoverns reports whether the terms snapshot governs tgtLoc: whether at
@@ -269,15 +317,16 @@ func (g *termGate) snapshotGoverns(ctx context.Context, tgtLoc model.LocaleID) b
 }
 
 // termsGoverned reports whether terminology governs tgtLoc: the terms snapshot
-// governs it, or the voice profile resolved for it holds a rule that applies to a
-// block. It agrees with compliance, which is not governed for every target of a
+// governs it, the recipe declares term rules for it, or the voice profile
+// resolved for it holds a rule that applies to a block. It agrees with compliance, which is not governed for every target of a
 // locale this reports false for, and it drives the compliance basis and the
 // not-governed count.
 func (g *termGate) termsGoverned(ctx context.Context, tgtLoc model.LocaleID) bool {
 	if g == nil {
 		return false
 	}
-	return g.snapshotGoverns(ctx, tgtLoc) || coreprofile.BlockRuleCount(g.profileFor(ctx, tgtLoc)) > 0
+	return g.snapshotGoverns(ctx, tgtLoc) || len(g.declaredFor(tgtLoc)) > 0 ||
+		coreprofile.BlockRuleCount(g.profileFor(ctx, tgtLoc)) > 0
 }
 
 // voiceGoverned reports whether a voice profile applies at tgtLoc, which is what
@@ -288,10 +337,11 @@ func (g *termGate) voiceGoverned(ctx context.Context, tgtLoc model.LocaleID) boo
 
 // resolveTermGate builds the terminology-governance gate for a project's
 // ship/compliant pass: an in-memory snapshot of the workspace terms (one read,
-// reused across every block and locale) plus a per-locale voice profile resolver
-// (resolved at most once per locale). The gate is deterministic and offline — no
-// per-block DB or LLM call. Returns nil when the project has neither a terms store
-// nor a voice store, and a nil gate governs nothing.
+// reused across every block and locale), a per-locale voice profile resolver
+// (resolved at most once per locale) and the term rules the project's recipe
+// declares. The gate is deterministic and offline, with no per-block DB or LLM
+// call. Returns nil when the project has no terms store, no voice store and no
+// recipe term rules, and a nil gate governs nothing.
 func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, stream, wsID string) *termGate {
 	if proj == nil {
 		return nil
@@ -328,10 +378,13 @@ func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, strea
 		}
 	}
 
-	if snap == nil && resolve == nil {
+	// The term rules the recipe declares, carried by the push that applied them.
+	declared := store.RecipeTermRulesOf(proj)
+
+	if snap == nil && resolve == nil && declared.Empty() {
 		return nil
 	}
-	return newTermGate(proj.DefaultSourceLanguage, snap, snapFP, resolve)
+	return newTermGate(proj.DefaultSourceLanguage, snap, snapFP, resolve).withDeclared(declared)
 }
 
 // snapshotTerms reads every concept from a workspace terms and indexes them

@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -381,4 +382,49 @@ func checkedTermsGate(t *testing.T, profile *coreprofile.VoiceProfile) *termGate
 		resolve = func(context.Context, model.LocaleID) *coreprofile.VoiceProfile { return profile }
 	}
 	return newTermGate("en", tb, "governing-concept", resolve)
+}
+
+// TestResolveTermGate_RecipeTermRules: the term rules a push carried from the
+// recipe govern the locales they answer for, beside the workspace terms. A
+// target that misses a failing rule is a violation and holds the locale; one
+// that misses only an advisory rule is compliant, as kapi's gate reports it
+// without failing.
+func TestResolveTermGate_RecipeTermRules(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	ctx := context.Background()
+
+	missed := reviewedBlock("b", "Your billing period ends today.", "Votre période de paiement se termine aujourd'hui.")
+	projID, _ := seedGovernedProject(t, s, wsID, []*model.Block{missed})
+	proj, err := s.ContentStore.GetProject(ctx, projID)
+	require.NoError(t, err)
+	before := s.resolveTermGate(ctx, proj, "main", wsID).fingerprint(ctx, []string{"fr"})
+
+	declared, err := coreprofile.RecipeTermRules{All: []coreprofile.TermRule{
+		{Term: "billing period", Replacement: "période de facturation"},
+		{Term: "reading", Replacement: "relevé", Advisory: true},
+	}}.Encode()
+	require.NoError(t, err)
+	platstore.ApplyRecipeSettings(proj, venue.ProjectSettings{venue.SettingTermRules: declared})
+	require.NoError(t, s.ContentStore.UpdateProject(ctx, proj))
+	proj, err = s.ContentStore.GetProject(ctx, projID)
+	require.NoError(t, err)
+
+	gate := s.resolveTermGate(ctx, proj, "main", wsID)
+	require.NotNil(t, gate, "the recipe's rules alone make a gate")
+	assert.True(t, gate.termsGoverned(ctx, "fr"), "the recipe's rules govern fr")
+	assert.NotEqual(t, before, gate.fingerprint(ctx, []string{"fr"}), "the rules take part in the fingerprint")
+	assert.Equal(t, platstore.TermComplianceViolation, gate.compliance(ctx, missed, "fr"))
+	assert.Equal(t, platstore.TermComplianceCompliant,
+		gate.compliance(ctx, mkFrBlock("Meter reading", "Lecture du compteur"), "fr"),
+		"an advisory rule reports in kapi and never makes a violation")
+	assert.Equal(t, platstore.TermComplianceCompliant,
+		gate.compliance(ctx, mkFrBlock("Your billing period ends.", "Votre période de facturation se termine."), "fr"))
+
+	stats, err := editorGetDashboardStats(ctx, s.ContentStore, proj, "main")
+	require.NoError(t, err)
+	require.NoError(t, applyShipStates(ctx, s.ContentStore, s.VoiceStore, projID, "main", gate, stats))
+	fr := localeByCode(t, stats.LocaleStats, "fr")
+	assert.Equal(t, platstore.ShipStatePending, fr.ShipState, "a missed failing rule holds the locale")
+	assert.Equal(t, 1, fr.FailingChecks)
+	assert.Zero(t, fr.NotGovernedBlocks)
 }

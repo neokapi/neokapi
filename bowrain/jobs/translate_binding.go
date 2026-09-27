@@ -204,21 +204,27 @@ func (b TranslateBinding) VoiceProfile(ctx context.Context, col *store.Collectio
 }
 
 // termRules builds the terminology governing this translation from the bound
-// terms, via the derivation every server-side surface shares.
+// terms, via the derivation every server-side surface shares, and the term
+// rules the project's recipe declares for the target locale, which the ship
+// gate holds the translation to as well (store.RecipeTermRulesOf).
 //
-// Returns nil (and logs) when the terms cannot be read: terminology must never
-// fail a translation.
+// A terms read that fails is logged and leaves the recipe's rules alone:
+// terminology must never fail a translation.
 func (b TranslateBinding) termRules(ctx context.Context, source model.LocaleID) []coreprofile.TermRule {
-	if b.Terms == nil || source == "" || b.TargetLocale == "" {
+	if source == "" || b.TargetLocale == "" {
 		return nil
+	}
+	declared := store.RecipeTermRulesOf(b.Project).For(string(b.TargetLocale))
+	if b.Terms == nil {
+		return declared
 	}
 	rules, err := TermRulesFromConcepts(ctx, b.Terms, b.ProjectID, source, b.TargetLocale)
 	if err != nil {
 		slog.WarnContext(ctx, "terms read failed; translating without terminology",
 			"project_id", b.ProjectID, "error", err)
-		return nil
+		return declared
 	}
-	return rules
+	return coreprofile.WithDeclaredTermRules(rules, declared)
 }
 
 // memoryProvider wraps the content memory as the provider the framework's

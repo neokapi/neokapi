@@ -53,7 +53,7 @@ POST /api/v1/:ws/:id/sync/:ref/push/commit      # Commit the manifest (202; a wo
 ```
 
 The push init takes the recipe's `settings` (`converge_policy`,
-`translate_after`, at their effective values) and answers with `settings`, the
+`translate_after` and `term_rules`, at their effective values) and answers with `settings`, the
 values the project holds, and `settings_refused`, the ones this caller's commit
 would not apply. The client puts in the commit's `settings` map only a setting
 that differs and is not refused, and reports the refusals. The commit requires
@@ -64,9 +64,18 @@ it then stands:
 - A push to a stream other than the project's default applies nothing, and each
   differing setting is refused with `not_default_stream`.
 - On the default stream a setting that tightens applies (`translate_after`
-  toward `established`, `converge_policy` toward `manual`). A setting that
-  loosens applies only when the caller holds `manage_project`, and is otherwise
-  refused with `loosens` and `requires: manage_project`.
+  toward `established`, `converge_policy` toward `manual`, `term_rules` that
+  keep every rule the project holds). A setting that loosens applies only when
+  the caller holds `manage_project`, and is otherwise refused with `loosens` and
+  `requires: manage_project`.
+
+`term_rules` carries the recipe's rules as `core/profile.RecipeTermRules`
+encodes them: `all` for the rules on flow steps and in `defaults.tools`, and
+`locales` for the ones under `defaults.locales.<lang>.tools`. The project keeps
+them in its `term_rules` property. The ship-state pass, the review queue and
+approve-passing read them through the term gate (`store.RecipeTermRulesOf`),
+and the translation and recycle jobs add them to the rules the workspace terms
+give, a recipe rule replacing the stored rule for the same term.
 
 Applied settings are written before the push job is queued, so the run the push
 starts reads them. Each one is recorded as a `project.setting_changed` audit

@@ -8,9 +8,31 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host/venue/schema"
 )
+
+// countTermRules names how many term rules an encoded term_rules setting
+// holds: "no term rules", "1 term rule" or "3 term rules".
+func countTermRules(encoded string) string {
+	d, err := profile.DecodeRecipeTermRules(encoded)
+	if err != nil {
+		return "the recipe's term rules"
+	}
+	n := len(d.All)
+	for _, rules := range d.ByLocale {
+		n += len(rules)
+	}
+	switch n {
+	case 0:
+		return "no term rules"
+	case 1:
+		return "1 term rule"
+	default:
+		return fmt.Sprintf("%d term rules", n)
+	}
+}
 
 // StatusOutput represents sync status.
 type StatusOutput struct {
@@ -345,6 +367,12 @@ func (o PushOutput) FormatText(w io.Writer) error {
 // `kapi up`'s push step reports the same lines.
 func (o PushOutput) FormatSettings(w io.Writer) {
 	for _, k := range slices.Sorted(maps.Keys(o.SettingsApplied)) {
+		if k == venue.SettingTermRules {
+			// The value is the rule list itself, so the line counts it.
+			fmt.Fprintf(w, "Server setting term_rules now holds %s, as the recipe declares.\n",
+				countTermRules(o.SettingsApplied[k]))
+			continue
+		}
 		fmt.Fprintf(w, "Server setting %s is now %s, as the recipe declares.\n", k, o.SettingsApplied[k])
 	}
 	for _, r := range o.SettingsRefused {

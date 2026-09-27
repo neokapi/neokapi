@@ -1410,6 +1410,8 @@ type checkTerms struct {
 	rules *contextRules
 	// recipe is the project's recipe path, empty outside a project.
 	recipe string
+	// declared is the recipe's own term rules, read on first use.
+	declared *profile.RecipeTermRules
 }
 
 // newCheckTerms builds the resolver for one run. Outside a project there is no
@@ -1475,13 +1477,21 @@ func (a *App) projectTermsAt(ctx context.Context, cmd Command, point project.Gov
 }
 
 // rulesFor returns the term rules a translation of file into target is held to:
-// the rules the terms bound at the file's point give for that language. Outside
-// a project there are none.
+// the rules the terms bound at the file's point give for that language, and the
+// term rules the recipe declares for it, as the ship gate resolves them
+// (gateTermRules). Outside a project there are none.
 func (t *checkTerms) rulesFor(file, target string) ([]profile.TermRule, error) {
 	if t == nil || t.proj == nil {
 		return nil, nil
 	}
-	return t.app.ResolveTermRulesFor(t.cmd, target, t.app.governancePointForFile(t.root, file))
+	if t.declared == nil {
+		declared, err := declaredTermRules(t.proj, t.root)
+		if err != nil {
+			return nil, err
+		}
+		t.declared = &declared
+	}
+	return t.app.gateTermRules(t.cmd, *t.declared, target, t.app.governancePointForFile(t.root, file))
 }
 
 // forFile returns the vocabulary governing one file, or nil when nothing binds

@@ -3,6 +3,7 @@ package transfer
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/core/profile"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
@@ -36,6 +37,7 @@ func TestBuildPushContext_CarriesRecipeSettings(t *testing.T) {
 		assert.Equal(t, venue.ProjectSettings{
 			venue.SettingConvergePolicy: "manual",
 			venue.SettingTranslateAfter: "established",
+			venue.SettingTermRules:      "",
 		}, got)
 	})
 
@@ -45,7 +47,19 @@ func TestBuildPushContext_CarriesRecipeSettings(t *testing.T) {
 		assert.Equal(t, venue.ProjectSettings{
 			venue.SettingConvergePolicy: "on-push",
 			venue.SettingTranslateAfter: "written",
+			venue.SettingTermRules:      "",
 		}, got)
+	})
+
+	t.Run("term rules travel encoded", func(t *testing.T) {
+		rules := []any{map[string]any{"term": "billing period", "replacement": "période de facturation"}}
+		got := build(t, coreproj.Defaults{Tools: map[string]map[string]any{"term-check": {"term_rules": rules}}},
+			&bproject.ServerSpec{URL: "https://bowrain.example.com/team/proj"})
+		want, err := profile.RecipeTermRules{All: []profile.TermRule{
+			{Term: "billing period", Replacement: "période de facturation"},
+		}}.Encode()
+		require.NoError(t, err)
+		assert.Equal(t, want, got[venue.SettingTermRules])
 	})
 
 	t.Run("no venue binding carries none", func(t *testing.T) {

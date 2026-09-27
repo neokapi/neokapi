@@ -139,7 +139,7 @@ func EstimateConvergence(ctx context.Context, cs store.ContentStore, tm memory.S
 		// A missing store or lookup error assigns all work to AI.
 		remainder := pending
 		if tm != nil {
-			rules := recycleTermRules(ctx, tb, proj.ID, source, target)
+			rules := recycleTermRules(ctx, tb, proj, source, target)
 			if res, rerr := recycleBlocks(ctx, tm, pending, source, target, minScore, ledger, rules); rerr == nil {
 				work.ViaMemory = res.memoryCount
 				remainder = filterStoredByRemainder(pending, res.remainder)

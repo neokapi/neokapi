@@ -339,11 +339,14 @@ own `termstore:` governs exactly the files its channels carry, which is how a
 surface keeps a name the vocabulary retired.
 
 The terminology gate of `kapi check --ship`, the loop checks and the coverage
-they feed resolve terms at the same point for each unit and its language. The
-gate runs when terms govern any unit in scope, whether the project defaults or
-a profile bind them. A unit where no bound terms answer for its language counts
-as not governed and holds no bar, and `kapi status` and `ship.json` name a
-language as not governed only when terms govern none of its content.
+they feed resolve terms at the same point for each unit and its language, and
+add the `term_rules:` the recipe declares for that language
+([C-08](c-08-terms.md#the-terms-gate)). The gate runs when terms govern any unit
+in scope, whether the project defaults, a profile or the recipe's own rules bind
+them. A unit where neither the bound terms nor the recipe's rules answer for its
+language counts as not governed and holds no bar, and `kapi status` and
+`ship.json` name a language as not governed only when terms govern none of its
+content.
 
 ### Not yet built: a point beneath the file
 

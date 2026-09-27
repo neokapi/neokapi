@@ -410,17 +410,20 @@ cannot grow an opinion about. An unregistered key of the same name reports no
 venue and no opinion.
 
 A push carries the recipe's project settings to the venue beside the context
-content type (`core/venue.ProjectSettings`): the venue's `converge:` policy and
-`defaults.translate_after`, each resolved to its effective value so an unset key
-travels as its default. The venue reports the settings it holds when the push
-negotiates, and which of the recipe's it would not apply for this pusher; the
-push sends only a setting that differs and is not refused, and reports the
-rest. A venue applies settings only from a push to the project's default stream.
-There, a setting that tightens (a stricter source hold, a manual converge
-policy) applies for anyone who may push, and one that loosens applies only for
-a pusher who may manage the project. A refused setting leaves the venue's value
-in force and reaches the pusher as a `venue.SettingRefusal` naming the reason
-and what would apply it.
+content type (`core/venue.ProjectSettings`): the venue's `converge:` policy,
+`defaults.translate_after` and the term rules the recipe declares
+(`core/profile.RecipeTermRules`, see [C-08](c-08-terms.md#the-terms-gate)),
+each resolved to its effective value so an unset key travels as its default.
+The venue reports the settings it holds when the push negotiates, and which of
+the recipe's it would not apply for this pusher; the push sends only a setting
+that differs and is not refused, and reports the rest. A venue applies settings
+only from a push to the project's default stream. There, a setting that
+tightens (a stricter source hold, a manual converge policy, term rules that keep
+every rule the venue holds) applies for anyone who may push, and one that
+loosens (including a dropped or changed term rule) applies only for a pusher who
+may manage the project. A refused setting leaves the venue's value in force and
+reaches the pusher as a `venue.SettingRefusal` naming the reason and what would
+apply it.
 
 ### Content collections
 
