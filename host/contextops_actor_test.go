@@ -216,3 +216,26 @@ func TestReadingThisSessionNeedsOne(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), ContextLogSessionSelf)
 }
+
+// TestObservationOfABareTermIsRefused pins that a term with nothing to avoid is
+// refused rather than stored: the term is the form the project uses, and a
+// rule holding it alone would flag that very form.
+func TestObservationOfABareTermIsRefused(t *testing.T) {
+	app, _ := contextOpsApp(t)
+	root := contextOpsProject(t, "ctxops-bare-term")
+	_, err := app.RecordContextObservation(t.Context(), ContextObserveRequest{
+		Project:  recipeOf(root),
+		Term:     "Swapboard",
+		Evidence: []contextop.Evidence{{Path: "docs/a.md", Quote: "Open the Swapboard"}},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"Swapboard" is the form the project uses`)
+
+	_, err = app.RecordContextObservation(t.Context(), ContextObserveRequest{
+		Project:   recipeOf(root),
+		Term:      "Swapboard",
+		InsteadOf: []string{"Swap Board"},
+		Evidence:  []contextop.Evidence{{Path: "docs/a.md", Quote: "Open the Swapboard"}},
+	})
+	require.NoError(t, err, "a term with a form to avoid is a rule")
+}
