@@ -36,7 +36,7 @@ script:
       kapi status --json --jq '.locales[]|"\(.locale)  translated \(.pct.translated)%  established \(.pct.established)%  \(if .shippable then "ready" else "pending" end)"'
   - comment: While a language was behind, nothing failed. The check on the source is what a pull request is held to.
   - command: kapi check
-  - comment: One finding reports, and it is the API reference keeping a name the terms retired. Reported, never blocking.
+  - comment: One finding reports. The integration page names the retired word where it explains the field that keeps it, and a reported finding never blocks.
 
 artifacts:
   - id: coverage
@@ -94,8 +94,9 @@ narration:
     caption: The check on the source passes, with one finding that reports.
     text: >-
       Through all of it the English is what the pull request is held to, and the
-      check on the source passes with one finding that only reports: an API
-      reference keeping a field name the terms retired.
+      check on the source passes with one finding that only reports: the
+      integration page names the retired word mooring where it explains the
+      field name that keeps it.
 
   - id: workflow
     kind: artifact

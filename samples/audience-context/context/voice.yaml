@@ -5,7 +5,7 @@ description: >-
 tone:
   personality: [calm, plain, respectful]
   formality: neutral
-  emotion: reassuring
+  emotion: warm
   humor: none
   guidelines: >-
     State the service fact first. Never imply that a video appointment is an
@@ -51,7 +51,7 @@ channels:
     tone:
       personality: [kind, clear, calm]
       formality: informal
-      emotion: reassuring
+      emotion: warm
       humor: none
       guidelines: >-
         Use familiar words and explain one idea at a time. Tell the reader to
@@ -66,7 +66,7 @@ channels:
     tone:
       personality: [direct, respectful, calm]
       formality: neutral
-      emotion: reassuring
+      emotion: warm
       humor: none
       guidelines: >-
         Be direct without talking down to the reader. Explain privacy in plain
@@ -94,7 +94,7 @@ channels:
     tone:
       personality: [patient, clear, respectful]
       formality: neutral
-      emotion: reassuring
+      emotion: warm
       humor: none
       guidelines: >-
         Use plain language and give an obvious route to a person. Do not assume
