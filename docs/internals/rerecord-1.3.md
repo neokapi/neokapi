@@ -262,26 +262,15 @@ translates the changed scenes. The narrate stage refuses a published demo's
 Norwegian pass until every scene is translated, so record English first and run
 `--locale=nb --only=narrate,render,publish` once the sidecars have caught up.
 
-## Known leftovers in the product
+## Open before recording
 
-These are in the product rather than in the demo sources. Where a take shows
-one, the take is named. PR #2997 changes them; record the affected demos after
-it merges.
-
-- `kapi status --review --lang fr` over an empty French queue prints "no unit
-  in any language is waiting for a person" while the English source rows are
-  still waiting (`11-cli-terms-and-queue`).
-- `kapi status` prints "No terms govern fr" in `11-cli-terms-and-queue`, a demo
-  about French term rules. The rules sit on the flow's steps under
-  `term_rules:`, and the line counts only the terms store, which holds no
-  French. Putting the two French renderings in the fixture's terms as well
-  would remove the line.
-- `kapi up` prints "Settled source: 0 block(s)" before extracting, and
-  "Extracted N block(s) ... (nothing extracted yet)" followed by a second
-  "Extracted N block(s)" line (`s0-northsea-context`; the parenthesis also in
-  both `s1-compass-*` and `s2-tidewatch-build-output`).
-- `kapi up` prints its per-language progress lines in no fixed order, so two
-  takes of `s1-compass-ship-gate` can list `de` and `nb` the other way round.
+- `11-cli-terms-and-queue` is a demo about French term rules, and its `kapi
+  status` says terminology is no bar to shipping French. The rules sit on the
+  flow's steps under `term_rules:`, which apply while the flow runs; the ship
+  gate reads the terms store, which holds no French. Either the fixture's terms
+  store gains the two French renderings, or recipe-declared term rules count at
+  the gate. The narration ("the same term rules reach the model and the gate")
+  is only true after one of the two.
 
 No walkthrough shows the context digest or the Learned section on its own;
 `kapi-desktop-explorer` passes the Learned rail entry on its way to Terms. A
