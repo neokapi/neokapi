@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T14:46:14Z",
+  "generatedAt": "2026-09-26T23:51:56Z",
   "kind": "tool",
   "entries": [
     {
@@ -1220,7 +1220,7 @@
         }
       },
       "doc": {
-        "overview": "The **Do-Not-Translate Check** tool guards terms that must reach the target\nunchanged: product names, trademarks, code identifiers. For each configured\nterm that appears in the source as a whole word, it verifies the term is\npresent verbatim in the target; when it is missing, the block is flagged with a\ncritical finding (the \"the AI translated your product name\" case). It is\nread-only: it annotates findings and never rewrites content.\n\nThe list of protected terms is supplied programmatically rather than as a\nschema field. A project, recipe, or checkset provides them, and the terms store\ncan contribute more. A target locale is required; blocks without a target for\nthat locale are skipped. The only schema-level option controls whether a\ncase-folded match in the target is accepted.\n",
+        "overview": "The **Do-Not-Translate Check** tool guards terms that must reach the target\nunchanged: product names, trademarks, code identifiers. For each configured\nterm that appears in the source as a whole word, it verifies the term is\npresent verbatim in the target; when it is missing, the block carries a\nfinding that fails the check (the \"the AI translated your product name\" case). It is\nread-only: it annotates findings and never rewrites content.\n\nThe list of protected terms is supplied programmatically rather than as a\nschema field. A project, recipe, or checkset provides them, and the terms store\ncan contribute more. A target locale is required; blocks without a target for\nthat locale are skipped. The only schema-level option controls whether a\ncase-folded match in the target is accepted.\n",
         "parameters": {
           "caseInsensitive": {
             "description": "Accept a case-folded match in the target instead of requiring exact case.",
@@ -1236,7 +1236,7 @@
         ],
         "processingNotes": [
           "Operates on translatable blocks that have a target for the configured locale; other parts pass through unchanged.",
-          "Findings are emitted in the \"do-not-translate\" category at critical severity."
+          "Findings are emitted in the \"do-not-translate\" category, and every one fails the check."
         ],
         "examples": [
           {
@@ -1757,11 +1757,11 @@
         }
       },
       "doc": {
-        "overview": "The **Placeholder Check** tool verifies that every interpolation placeholder\nin the source survives, by count, into the target. A dropped `{count}` or an\nunbalanced `\u003c0\u003e` is the kind of break that crashes a translated application at\nruntime, so a placeholder present fewer times in the target than in the source\nis flagged as critical. It is read-only: it annotates findings and never\nrewrites content.\n\nPlaceholders are detected with a built-in pattern covering the common\ninterpolation styles: `{{name}}`, `${name}`, `%(name)s` (Python),\n`%1$s` (positional), `%s` / `%d` / `%@` (printf / Objective-C),\n`{name}` / `{0}` (ICU / .NET), and numbered tags such as `\u003c0\u003e…\u003c/0\u003e`. A target\nlocale is required; blocks without a target for that locale are skipped.\n",
+        "overview": "The **Placeholder Check** tool verifies that every interpolation placeholder\nin the source survives, by count, into the target. A dropped `{count}` or an\nunbalanced `\u003c0\u003e` is the kind of break that crashes a translated application at\nruntime, so a placeholder present fewer times in the target than in the source\nfails the check. It is read-only: it annotates findings and never\nrewrites content.\n\nPlaceholders are detected with a built-in pattern covering the common\ninterpolation styles: `{{name}}`, `${name}`, `%(name)s` (Python),\n`%1$s` (positional), `%s` / `%d` / `%@` (printf / Objective-C),\n`{name}` / `{0}` (ICU / .NET), and numbered tags such as `\u003c0\u003e…\u003c/0\u003e`. A target\nlocale is required; blocks without a target for that locale are skipped.\n",
         "parameters": {
           "flagExtra": {
             "description": "Report placeholders present in the target but absent from the source.",
-            "help": "When enabled (the default), a placeholder that appears in the target but\nnot the source, usually a stray token, is reported as a major issue, in\naddition to the always-critical report of placeholders dropped from the\ntarget.\n",
+            "help": "When enabled (the default), a placeholder that appears in the target but\nnot the source, usually a stray token, also fails the check, in addition\nto the placeholders dropped from the target.\n",
             "values": "`true` / `false` (default `true`)"
           }
         },
@@ -1772,7 +1772,7 @@
         ],
         "processingNotes": [
           "Operates on translatable blocks that have a target for the configured locale; other parts pass through unchanged.",
-          "Dropped placeholders are reported at critical severity; extra placeholders (when flagExtra is enabled) at major severity."
+          "Dropped placeholders fail the check, and so do extra placeholders when flagExtra is enabled."
         ],
         "examples": [
           {
@@ -4564,7 +4564,7 @@
         }
       },
       "doc": {
-        "overview": "The **Voice Vocabulary Check** tool is the deterministic gate a voice profile\ncarries: the forbidden terms, the competitor terms and the prohibited style\npatterns, matched over each block's source text with no model and no network.\nA forbidden term reports at major severity and a competitor term at critical,\neach defaulting from the profile and overridable per rule; where the rule names\na replacement, the finding carries it as the suggestion. Terms match whole-word\nand Unicode-aware, so `use` never fires inside `user`; style patterns match as\nthe regular expression the author wrote them as.\n\nWhen the project binds a terms store, the tool enforces that too: the\nvocabulary the project *decided*, alongside the lists the profile carries. A\ncompetitor entry reports critical, a forbidden one major and a retired one\nminor, the softer reading for a word that was the project's own until a\ndecision replaced it. The alternative comes from the concept: its preferred\nterm in the same language, or the replacement the term's note names. Lookup\nasks in the block's own language and, when that names a region, in the bare\nlanguage beneath it, so a project writing `en-GB` is still held to a decision\nrecorded as `en`.\n\nFindings and an overall score are attached as a `voice` annotation. The profile\nand the terms store are supplied by the host rather than by step configuration:\na recipe names this tool as a step (`kapi init` scaffolds exactly that) and the\nproject's `defaults.voice` binding decides what it enforces. The standalone\ncommand is `kapi check --profile`.\n\nThis is the half to run before `voice-check`, its LLM-judged sibling: what a\nrule can decide should not be spent on a model.\n",
+        "overview": "The **Voice Vocabulary Check** tool is the deterministic gate a voice profile\ncarries: the forbidden terms, the competitor terms and the prohibited style\npatterns, matched over each block's source text with no model and no network.\nA forbidden term and a competitor term each fail the check unless the rule is\nmarked advisory, which makes a match report only; where the rule names a\nreplacement, the finding carries it as the suggestion. Terms match whole-word\nand Unicode-aware, so `use` never fires inside `user`; style patterns match as\nthe regular expression the author wrote them as.\n\nWhen the project binds a terms store, the tool enforces that too: the\nvocabulary the project *decided*, alongside the lists the profile carries. A\ncompetitor or forbidden entry fails unless it is marked advisory, and a\nretired one only reports, the softer reading for a word that was the\nproject's own until a decision replaced it. The alternative comes from the concept: its preferred\nterm in the same language, or the replacement the term's note names. Lookup\nasks in the block's own language and, when that names a region, in the bare\nlanguage beneath it, so a project writing `en-GB` is still held to a decision\nrecorded as `en`.\n\nFindings and an overall score are attached as a `voice` annotation. The profile\nand the terms store are supplied by the host rather than by step configuration:\na recipe names this tool as a step (`kapi init` scaffolds exactly that) and the\nproject's `defaults.voice` binding decides what it enforces. The standalone\ncommand is `kapi check --profile`.\n\nThis is the half to run before `voice-check`, its LLM-judged sibling: what a\nrule can decide should not be spent on a model.\n",
         "limitations": [
           "The profile and the terms store are supplied programmatically; neither is a schema parameter.",
           "Matching is lexical, whole-word and case-insensitive, with no account of inflection or morphology.",

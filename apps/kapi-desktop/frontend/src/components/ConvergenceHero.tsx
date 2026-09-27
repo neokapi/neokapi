@@ -572,7 +572,9 @@ export function ConvergePlanDialog({
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {s.missingTarget}
                   </TableCell>
-                  <TableCell className="px-2 py-1.5 text-right tabular-nums">{s.tmExact}</TableCell>
+                  <TableCell className="px-2 py-1.5 text-right tabular-nums">
+                    {s.memoryExact}
+                  </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {s.drafts ?? 0}
                   </TableCell>
@@ -591,7 +593,7 @@ export function ConvergePlanDialog({
                     {totals.missingTarget}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {totals.tmExact}
+                    {totals.memoryExact}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {totals.drafts ?? 0}

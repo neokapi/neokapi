@@ -7566,7 +7566,7 @@ export class ReviewUnitDetail {
              * @member
              * @type {number | undefined}
              */
-            this["tm_score"] = undefined;
+            this["memory_score"] = undefined;
         }
         if (!("findings" in $$source)) {
             /**

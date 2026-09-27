@@ -76,7 +76,7 @@ const DETAILS: Record<string, Partial<ReviewUnitDetail>> = {
   "nb:cta.primary": {
     status: "translated",
     origin: { kind: "mt", engine: "deepl" },
-    tm_score: 78,
+    memory_score: 78,
     findings: [
       {
         category: "placeholder",
@@ -90,7 +90,7 @@ const DETAILS: Record<string, Partial<ReviewUnitDetail>> = {
   "nb:hero.title": {
     status: "translated",
     origin: { kind: "ai", engine: "claude" },
-    tm_score: 92,
+    memory_score: 92,
   },
   "de-DE:hero.title": {
     status: "established",

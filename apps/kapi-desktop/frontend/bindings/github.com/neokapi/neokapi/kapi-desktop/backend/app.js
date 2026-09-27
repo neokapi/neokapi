@@ -2352,7 +2352,7 @@ export function RunAIPreReview(tabID, locale, scope) {
  * (host.App.ReadBlocksForCheck / host.OverlayTargets / host.RunCheckTool /
  * host.FindingsFromBlock), run inside the project document cache
  * (WithDocumentCache) so unchanged files replay instead of re-parsing —
- * exactly the `kapi check` semantics: the gate fails on any critical finding.
+ * exactly the `kapi check` semantics: the gate fails on any failing finding.
  * @param {string} tabID
  * @param {$models.ProjectFilter} filter
  * @returns {$CancellablePromise<$models.CheckRunResult | null>}

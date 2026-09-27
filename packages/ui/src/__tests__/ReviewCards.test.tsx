@@ -251,6 +251,20 @@ describe("HistoryCard", () => {
     expect(screen.getByTestId("memory-match").textContent).toContain("fuzzy");
   });
 
+  it("marks a prior approval whose context still holds without a ship-state word", () => {
+    render(
+      <HistoryCard
+        history={{ prior: { source: "Hi {name}", target: "Salut {name}", governed: true } }}
+        testId="history"
+      />,
+    );
+    expect(screen.getByTestId("history-summary").textContent).toContain(
+      "Approved before, under the current context",
+    );
+    expect(slot("review-history-prior")?.textContent).toContain("context unchanged");
+    expect(slot("review-history-prior")?.textContent).not.toContain("governed");
+  });
+
   it("offers the match's wording only where the surface can write", async () => {
     const onUseMatch = vi.fn();
     const { unmount } = render(

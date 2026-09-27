@@ -141,7 +141,7 @@ func (c *findingsCollector) Result() (flow.CollectorResult, error) {
 // run's own output so one run stays one document.
 //
 // Deliberately without `pass` and `gate`. Neither verb holds the content to a
-// bar, and a `"pass": true` next to a critical finding is precisely the
+// bar, and a `"pass": true` next to a failing finding is precisely the
 // reassurance this whole class of defect hands out. The verdict belongs to
 // `kapi check`, which owns the gate and the exit code.
 //

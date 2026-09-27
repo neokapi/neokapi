@@ -259,7 +259,7 @@ func constraintGuide(p *VoiceProfile) string {
 					label, e.Reason, e.ApprovedBy, e.ApprovalRef))
 			}
 		default:
-			coverage := "mandatory critical pattern: " + c.Regex
+			coverage := "prohibited pattern, a match fails the check: " + c.Regex
 			if c.Kind == ConstraintGuidance {
 				coverage = "guidance; semantic verification unsupported by deterministic checks"
 			}

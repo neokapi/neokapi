@@ -70,7 +70,7 @@ func (e *CheckExclusions) totalFailing() int {
 // the produced units — the same engines `kapi check --ship` gates on: the
 // rule-based checkset (placeholder/tag integrity, plus the default placeholder
 // patterns) always, and the terminology check over each unit terms govern at
-// its point. A unit whose findings fail the ship predicate (any critical/major
+// its point. A unit whose findings fail the ship predicate (any failing
 // finding, or an integrity category like pattern-mismatch) enters the set.
 //
 // Cost: checks only run over units whose target exists and is readable — an

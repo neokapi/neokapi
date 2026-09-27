@@ -284,9 +284,9 @@ func FieldValues() map[string]FieldValueSet {
 // audience is entitled to set its own, which is why ResolveProfile assigns the
 // whole struct. A rule that must hold whatever the audience belongs under
 // constraints:, which resolution never replaces and which carries a scope, a
-// source and its exceptions. Every constraint finding is critical, though, so
-// the warning also names the route that keeps a pattern's own severity:
-// restating it in each override's style.
+// source and its exceptions. Every constraint finding fails, though, so the
+// warning also names the route that lets a pattern stay advisory: restating it
+// in each override's style.
 //
 // What has no signal today is the mistake in between: an author states a
 // mandatory rule as a style pattern, declares an audience, and never learns
@@ -334,8 +334,8 @@ func validatePresentationOverrides(p *VoiceProfile) []ProfileProblem {
 				Message: fmt.Sprintf(
 					"%s %q supplies its own style, so the base pattern %q does not apply there. "+
 						"Either state it under constraints: if it must hold for every audience "+
-						"(a constraint is always critical), or restate it in the style of each %s "+
-						"that sets one to keep its own severity.",
+						"(a constraint's pattern always fails a check), or restate it in the style of each %s "+
+						"that sets one, where it can be marked advisory.",
 					kind, name, regex, kind,
 				),
 				Warning: true,

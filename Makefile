@@ -1423,6 +1423,9 @@ kapi-desktop-dev: kapi-desktop-frontend-deps ## Run Kapi Desktop in dev mode (ho
 regen-kapimart-sample: build ## Regenerate the KapiMart sample's history (targets, content memory, unit-state ledger)
 	@./apps/kapi-desktop/backend/sample/gen/regenerate.sh
 
+regen-compass-sample: build ## Regenerate the Compass sample's decision record so each decision carries its source basis
+	@./scripts/regen-compass-state.sh
+
 kapi-desktop-test: i18n-catalogs ## Run Kapi Desktop Go backend tests
 	cd $(KAPI_DESKTOP_DIR) && $(GOTEST_BASE) ./backend/... -count=1 -timeout 180s
 
@@ -3277,7 +3280,7 @@ help: ## Show this help
         plugin-bundle dev-skills \
         install install-kapi-bowrain-plugin \
         frontend-check-all \
-        build-kapi-desktop kapi-desktop-dev kapi-desktop-test regen-kapimart-sample \
+        build-kapi-desktop kapi-desktop-dev kapi-desktop-test regen-kapimart-sample regen-compass-sample \
         kapi-desktop-lint kapi-desktop-lint-deps \
         kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \
         kapi-desktop-frontend-test kapi-desktop-frontend-check kapi-desktop-extract \

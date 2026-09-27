@@ -2785,7 +2785,7 @@ export class UpPlanScope {
              */
             this["missingTarget"] = 0;
         }
-        if (!("tmExact" in $$source)) {
+        if (!("memoryExact" in $$source)) {
             /**
              * MemoryExact is the count of counted units covered by an exact-hash
              * content-memory hit (the cheap leverage estimate — fuzzy leverage is not
@@ -2793,7 +2793,7 @@ export class UpPlanScope {
              * @member
              * @type {number}
              */
-            this["tmExact"] = 0;
+            this["memoryExact"] = 0;
         }
         if (/** @type {any} */(false)) {
             /**

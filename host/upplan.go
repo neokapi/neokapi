@@ -46,7 +46,7 @@ type UpPlanScope struct {
 	// MemoryExact is the count of counted units covered by an exact-hash
 	// content-memory hit (the cheap leverage estimate — fuzzy leverage is not
 	// counted).
-	MemoryExact int `json:"tmExact"`
+	MemoryExact int `json:"memoryExact"`
 	// Drafts is the count of counted units the pass serves from the project
 	// block store instead of a provider. The drafting step already holds a
 	// translation of the unit's current source, made under the configuration it

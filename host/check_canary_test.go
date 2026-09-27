@@ -121,7 +121,6 @@ func TestCheckCanary_GateFailureKeepsItsExitCodes(t *testing.T) {
 
 	cmd := executionCommand(t)
 	cmd.Flags().StringSlice("forbid", []string{"TODO"}, "")
-	require.NoError(t, cmd.Flags().Set("max-major", "0"))
 	report, err := app.ComputeCheck(cmd, []string{src})
 	require.NoError(t, err)
 	assert.Equal(t, check.VerdictFailed, report.Verdict)

@@ -563,7 +563,7 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	var tm *projector.Memory
 	if !BoolFlag(cmd, "no-memory-update") {
 		// Warned, like the two sibling merge paths above: a content memory that
-		// failed to open reported `tm_new=0 tm_updated=0`, which reads as
+		// failed to open reported `memory_new=0 memory_updated=0`, which reads as
 		// "nothing new to learn" rather than "it was never opened" — so the
 		// leverage is lost for this bundle with no way to tell.
 		if w, derr := a.Projector(CmdContext(cmd), layout.Root); derr != nil {
@@ -699,7 +699,7 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 			filepath.Base(kpzInput), tmErr)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(),
-		"Merged %s → %s: applied=%d skipped=%d tm_new=%d tm_updated=%d (conflict_policy=%s)\n",
+		"Merged %s → %s: applied=%d skipped=%d memory_new=%d memory_updated=%d (conflict_policy=%s)\n",
 		filepath.Base(kpzInput), targetLocale, stats.Applied, stats.Skipped, stats.MemoryNew, stats.MemoryUpdated, policy)
 	return nil
 }

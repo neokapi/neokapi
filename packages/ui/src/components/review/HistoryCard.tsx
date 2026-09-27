@@ -15,7 +15,7 @@ import type { ReviewHistory } from "@neokapi/contract-types";
  * never what it says, so both halves carry their text. The prior version is
  * marked when its context no longer matches the one the decision was recorded
  * under, which is exactly when a translate prompt withholds it. That mark stays
- * neutral: it describes the context this unit sits in, and the severities
+ * neutral: it describes the context this unit sits in, and the findings
  * belong to the Checks card. A surface with a write offers the match's wording
  * as the target through `onUseMatch`.
  */
@@ -62,7 +62,7 @@ export function HistoryCard({
   // then what the content memory holds for something like it.
   const summary = prior
     ? prior.governed
-      ? t("Approved before, still governed")
+      ? t("Approved before, under the current context")
       : t("Approved before, under a context that has moved")
     : score !== undefined
       ? t("Content memory best match {score}%", { score })
@@ -92,7 +92,7 @@ export function HistoryCard({
               <span className="text-muted-foreground">{t("Previous version")}</span>
               {prior.governed ? (
                 <Badge variant="outline" className="text-[11px] text-muted-foreground">
-                  {t("still governed")}
+                  {t("context unchanged")}
                 </Badge>
               ) : (
                 <Badge

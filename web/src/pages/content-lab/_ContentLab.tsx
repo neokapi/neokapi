@@ -288,9 +288,7 @@ function DecisionScope({ evidence }: { evidence: AudienceEvidence }) {
         </div>
         <article className={styles.panel} aria-live="polite">
           <p className={styles.kicker}>Expected at {scope}</p>
-          <h3>
-            {excepted ? "Only the quoted example is excepted" : "The critical wording rule applies"}
-          </h3>
+          <h3>{excepted ? "Only the quoted example is excepted" : "The wording rule applies"}</h3>
           <p>
             {excepted
               ? "The exception matches the policy-example channel. It does not exempt any of the four audience pages."

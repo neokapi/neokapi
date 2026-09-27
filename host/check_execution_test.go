@@ -26,9 +26,6 @@ func isolateCheckExecution(t *testing.T) {
 func executionCommand(t *testing.T) *EnvCommand {
 	t.Helper()
 	cmd := NewEnvCommand(t.Context(), "check")
-	cmd.Flags().Int("max-critical", 0, "")
-	cmd.Flags().Int("max-major", -1, "")
-	cmd.Flags().Int("max-minor", -1, "")
 	return cmd
 }
 
