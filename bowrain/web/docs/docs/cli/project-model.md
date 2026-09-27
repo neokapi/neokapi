@@ -162,6 +162,41 @@ Only the connection coordinates sit under `bowrain:`:
 | `stream`   | Server-side stream to sync against; `$auto` auto-detects from CI / git branch |
 | `converge` | Server-side convergence policy: `on-push` (default) or `manual`              |
 
+### Settings a push carries
+
+Two recipe settings govern what the server does with the project:
+`bowrain.converge` and `defaults.translate_after`. Every push carries both, at
+their effective values, so a key the recipe leaves unset is sent as its default
+(`on-push` and `written`). The push compares them with the values the server
+holds and sends only a setting that differs, so an unchanged recipe costs no
+extra request and prints nothing.
+
+The server applies these settings only from a push to the project's default
+stream (`main` unless the project records another). A push to any other stream
+carries them, and the server keeps its own values and says so in the push
+output.
+
+On the default stream, what a push may change depends on the direction:
+
+| Setting | Strictest to loosest |
+| --- | --- |
+| `translate_after` | `established`, `written`, `none` |
+| `converge` | `manual`, `on-push` |
+
+A change toward the strict end applies for anyone who may push the project,
+including a workspace member or a CI token with the `contribute` scope. A
+change toward the loose end applies only when the pusher may manage the project
+(a workspace owner or admin). For anyone else the server keeps its value, and
+`kapi push` and `kapi up` print a line such as:
+
+```text
+Server setting translate_after stays established: the recipe asks for none, which allows more than the project does. A workspace owner or admin (manage_project) applies it by pushing the recipe.
+```
+
+Every push repeats the line until the recipe and the server agree. The server
+records each change it applies in the audit log, with the pusher and the value
+before and after. Its runs read the value it holds.
+
 Lifecycle (`hooks`, `automations`) and asset policy (`assets`) live at the **top level** of the recipe, not under `bowrain:`: they describe project-owned policy, not server identity.
 
 The framework has no built-in notion of a server: `bowrain:` (and `hooks:`, `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). kapi identifies the connection through the venue flag on the plugin's schema registration and reads `url:` and `converge:`. So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `bowrain:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [C-01: The project model](https://neokapi.github.io/contribute/architecture/context/c-01-project-model).

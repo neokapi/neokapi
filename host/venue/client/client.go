@@ -185,6 +185,22 @@ type SyncPushResponse struct {
 	// fills in the rest without a second round trip.
 	ServerRef *ref.Ref `json:"-"`
 
+	// SettingsInForce reports that the venue holds every recipe-owned project
+	// setting this push compared: it held them already, or the commit applied
+	// the ones that differed. Filled in by Push. False when a setting was
+	// refused, when the push carried no settings, or when the venue takes none
+	// on a push.
+	SettingsInForce bool `json:"-"`
+
+	// SettingsApplied are the recipe-owned settings the commit changed on the
+	// project, at their new values.
+	SettingsApplied venue.ProjectSettings `json:"settings_applied,omitempty"`
+
+	// SettingsRefused are the recipe's settings the venue kept at its own
+	// value, with the reason and what would apply them. Push merges the
+	// negotiation's answer into the commit's.
+	SettingsRefused []venue.SettingRefusal `json:"settings_refused,omitempty"`
+
 	// Governance is what the venue's review gate already knows it will not
 	// accept: verdicts this push carries for a language the pusher holds no
 	// review permission for. The venue checks the rest in the worker and

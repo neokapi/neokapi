@@ -9,7 +9,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/convergence"
 )
@@ -377,39 +376,4 @@ func isTerminalEvent(payload []byte) bool {
 		return false
 	}
 	return probe.Type == convergence.EventDone
-}
-
-// updateProjectSettingsRequest is the PATCH body for project settings the kapi
-// client sends to keep server-side policy in step with the recipe.
-type updateProjectSettingsRequest struct {
-	ConvergePolicy string `json:"converge_policy,omitempty"`
-}
-
-// HandleUpdateProjectSettings applies client-sent project settings (currently
-// the server-side convergence policy). It is the seam the kapi-bowrain plugin
-// uses to push the recipe's server.converge value before a push/up.
-// PATCH /…/projects/:id/settings
-func (s *Server) HandleUpdateProjectSettings(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
-		return err
-	}
-	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
-	}
-	var req updateProjectSettingsRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-	ctx := c.Request().Context()
-	proj, err := s.Services.Project.GetProject(ctx, c.Param("id"))
-	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
-	}
-	if req.ConvergePolicy != "" {
-		proj.ConvergePolicy = store.NormalizeConvergePolicy(req.ConvergePolicy)
-	}
-	if err := s.Services.Project.UpdateProject(ctx, proj); err != nil {
-		return serverErr(c, err)
-	}
-	return c.NoContent(http.StatusOK)
 }

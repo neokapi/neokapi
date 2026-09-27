@@ -52,6 +52,27 @@ PUT  /api/v1/:ws/:id/sync/:ref/push/chunks/:uploadId/:chunkIndex   # Proxied chu
 POST /api/v1/:ws/:id/sync/:ref/push/commit      # Commit the manifest (202; a worker applies it)
 ```
 
+The push init takes the recipe's `settings` (`converge_policy`,
+`translate_after`, at their effective values) and answers with `settings`, the
+values the project holds, and `settings_refused`, the ones this caller's commit
+would not apply. The client puts in the commit's `settings` map only a setting
+that differs and is not refused, and reports the refusals. The commit requires
+the push permission (`manage_files`), validates each value against the recipe
+schema (`400` for a value outside it) and decides again against the project as
+it then stands:
+
+- A push to a stream other than the project's default applies nothing, and each
+  differing setting is refused with `not_default_stream`.
+- On the default stream a setting that tightens applies (`translate_after`
+  toward `established`, `converge_policy` toward `manual`). A setting that
+  loosens applies only when the caller holds `manage_project`, and is otherwise
+  refused with `loosens` and `requires: manage_project`.
+
+Applied settings are written before the push job is queued, so the run the push
+starts reads them. Each one is recorded as a `project.setting_changed` audit
+event with the actor and the value before and after. The `202` response carries
+`settings_applied` and `settings_refused` when either is non-empty.
+
 A pull walks the stream's change log forward from the client's cursor and
 serves each changed block under the item it belongs to. A page carries each
 block once, at its latest change since the cursor, so a pull from the start

@@ -50,6 +50,10 @@ type PushInitRequest struct {
 	// AllowModelDowngrade carries `kapi push --force` past that refusal: the
 	// deliberate downgrade, for when flattening is what you meant.
 	AllowModelDowngrade bool `json:"allow_model_downgrade,omitempty"`
+
+	// Settings are the recipe-owned project settings the recipe declares, so
+	// the venue can answer which of them this push may apply.
+	Settings venue.ProjectSettings `json:"settings,omitempty"`
 }
 
 // PushInitResponse is the response from the init endpoint.
@@ -84,6 +88,20 @@ type PushInitResponse struct {
 	// not pay a second round trip to learn what it last saw. Absent from a
 	// server too old to publish one.
 	Ref *ref.Ref `json:"ref,omitempty"`
+
+	// Settings are the recipe-owned project settings the venue holds, at their
+	// effective values. The push compares its own against them and carries
+	// only a setting that differs, so an unchanged setting is read and never
+	// re-sent. A server that takes no settings on a push leaves this absent,
+	// and is sent none.
+	Settings venue.ProjectSettings `json:"settings,omitempty"`
+
+	// SettingsRefused names the recipe's settings this push may not apply:
+	// one that loosens what the project allows, from a pusher who may not
+	// manage the project, or any setting on a push to a stream other than the
+	// project's default. The push leaves them out of the commit and reports
+	// them.
+	SettingsRefused []venue.SettingRefusal `json:"settings_refused,omitempty"`
 }
 
 // PushCommitRequest finalizes the push.
@@ -138,6 +156,11 @@ type PushCommitRequest struct {
 	// ContentModelEpoch is the generation this push wrote, recorded on the
 	// stream once the manifest commits.
 	ContentModelEpoch int `json:"content_model_epoch,omitempty"`
+
+	// Settings are the recipe-owned project settings this push puts in force:
+	// only those whose value differs from what the init negotiation reported
+	// the venue holds. The venue applies them when it accepts the commit.
+	Settings venue.ProjectSettings `json:"settings,omitempty"`
 }
 
 // PushUnchanged is the push id a push reports when the negotiation found
@@ -216,9 +239,16 @@ func AllowModelDowngrade() PushOption {
 // PushContext is everything the context content type contributes to one push:
 // the entries themselves and the hash negotiated at init. Callers build it with
 // NewPushContext so the two cannot drift apart.
+//
+// Settings are the recipe-owned project settings, resolved to their effective
+// values. They come from the same recipe as the entries and the same push puts
+// them in force, but they belong to the project rather than to a collection, so
+// the push compares them with what the venue reports at init instead of folding
+// them into the context hash.
 type PushContext struct {
-	Entries []*pb.SyncContextEntry
-	Hash    string
+	Entries  []*pb.SyncContextEntry
+	Hash     string
+	Settings venue.ProjectSettings
 }
 
 // NewPushContext stamps each entry's content hash, folds them into the push's
@@ -228,6 +258,51 @@ type PushContext struct {
 // re-reconciling nothing on every push.
 func NewPushContext(entries []*pb.SyncContextEntry) *PushContext {
 	return &PushContext{Entries: entries, Hash: venue.ContextHashOf(entries)}
+}
+
+// settingsToSend returns the settings the commit carries: those whose value the
+// venue does not hold, less the ones the venue said this push may not apply. A
+// venue that reported no settings takes none on a push, so it is sent none.
+func (p *PushContext) settingsToSend(initResp *PushInitResponse) venue.ProjectSettings {
+	if p == nil || initResp.Settings == nil {
+		return nil
+	}
+	send := p.Settings.Differing(initResp.Settings)
+	for _, r := range initResp.SettingsRefused {
+		delete(send, r.Setting)
+	}
+	if len(send) == 0 {
+		return nil
+	}
+	return send
+}
+
+// settleSettings fills in what the push's settings amounted to: the refusals
+// from the negotiation and the commit together, and whether the venue now holds
+// every setting the recipe declares.
+func (p *PushContext) settleSettings(resp *SyncPushResponse, initResp *PushInitResponse) {
+	if resp == nil || p == nil || len(p.Settings) == 0 {
+		return
+	}
+	seen := map[string]bool{}
+	for _, r := range resp.SettingsRefused {
+		seen[r.Setting] = true
+	}
+	for _, r := range initResp.SettingsRefused {
+		if !seen[r.Setting] {
+			resp.SettingsRefused = append(resp.SettingsRefused, r)
+		}
+	}
+	resp.SettingsInForce = initResp.Settings != nil && len(resp.SettingsRefused) == 0
+}
+
+// settings returns the recipe's settings for the init negotiation, or nil for a
+// caller that pushes no context.
+func (p *PushContext) settings() venue.ProjectSettings {
+	if p == nil {
+		return nil
+	}
+	return p.Settings
 }
 
 // names returns the declared collection names, for the init negotiation.
@@ -352,34 +427,45 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		Collections:         pushCtx.names(),
 		ContentModelEpoch:   venue.ContentModelEpoch,
 		AllowModelDowngrade: settings.allowDowngrade,
+		Settings:            pushCtx.settings(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("push init: %w", err)
 	}
+	// The recipe's project settings are compared with what the venue holds
+	// now, and the commit carries only a setting that differs and that the
+	// venue said this push may apply.
+	sendSettings := pushCtx.settingsToSend(initResp)
+
 	if initResp.Status == "unchanged" {
-		// Content and context are already in force — but a caller carrying
-		// decisions still has a record to land, so the push proceeds to an
+		// Content and context are already in force. A caller carrying
+		// decisions still has a record to land, and a recipe setting the venue
+		// does not hold still has to be put in force, so either proceeds to an
 		// empty-chunk commit rather than returning here. The caller only
-		// passes decisions when they changed, so the common unchanged push
-		// still takes this exit.
-		if len(decisions) == 0 {
-			return &SyncPushResponse{
+		// passes decisions when they changed, and settings are sent only when
+		// they differ, so the common unchanged push still takes this exit.
+		if len(decisions) == 0 && len(sendSettings) == 0 {
+			resp := &SyncPushResponse{
 				PushID:                PushUnchanged,
 				UndeclaredCollections: initResp.UndeclaredCollections,
 				ServerRef:             initResp.Ref,
-			}, nil
+			}
+			pushCtx.settleSettings(resp, initResp)
+			return resp, nil
 		}
 		commitResp, err := c.pushCommit(ctx, PushCommitRequest{
 			Stream:      c.stream,
 			Decisions:   decisions,
 			ExpectedRef: settings.expected,
+			Settings:    sendSettings,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("push commit (decisions): %w", err)
+			return nil, fmt.Errorf("push commit (decisions and settings): %w", err)
 		}
 		if commitResp != nil {
 			commitResp.UndeclaredCollections = initResp.UndeclaredCollections
 			commitResp.ServerRef = initResp.Ref
+			pushCtx.settleSettings(commitResp, initResp)
 		}
 		return commitResp, nil
 	}
@@ -523,6 +609,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		Scope:             settings.scope,
 		Tree:              settings.tree,
 		ContentModelEpoch: venue.ContentModelEpoch,
+		Settings:          sendSettings,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("push commit: %w", err)
@@ -531,6 +618,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		commitResp.UndeclaredCollections = initResp.UndeclaredCollections
 		commitResp.ServerRef = initResp.Ref
 		commitResp.ChunkCount = len(chunks)
+		pushCtx.settleSettings(commitResp, initResp)
 		for _, ch := range chunks {
 			commitResp.BlocksUploaded += ch.RecordCount
 		}

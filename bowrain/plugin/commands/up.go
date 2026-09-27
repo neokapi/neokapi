@@ -121,7 +121,6 @@ func pushAfterLocalConverge(cmd *cobra.Command, proj *project.Project) error {
 	if err := reportConceptPush(cmd, nil, cres, flagBool(cmd, "json")); err != nil {
 		return err
 	}
-	syncConvergePolicy(cmd.Context(), conn.Client(), proj.Recipe.Server)
 	if !app.Quiet {
 		if pr.UpToDate {
 			fmt.Fprintln(cmd.ErrOrStderr(), "Server already up to date.")
@@ -132,7 +131,10 @@ func pushAfterLocalConverge(cmd *cobra.Command, proj *project.Project) error {
 	if err := reportVoicePush(cmd, nil, bres, flagBool(cmd, "json")); err != nil {
 		return err
 	}
-	return reportPushGovernance(cmd, nil, pr, flagBool(cmd, "json"))
+	if err := reportPushGovernance(cmd, nil, pr, flagBool(cmd, "json")); err != nil {
+		return err
+	}
+	return reportPushSettings(cmd, nil, pr, flagBool(cmd, "json"))
 }
 
 // reportConceptPush says what the terminology fold inside `kapi up`'s push
@@ -192,7 +194,6 @@ func reportConceptPush(cmd *cobra.Command, stream *output.NDJSONStream, res *Pus
 // identical to a local run, so a remote run is indistinguishable in the
 // terminal (and as NDJSON under --json).
 func runServerUp(cmd *cobra.Command, proj *project.Project) error {
-	server := proj.Recipe.Server
 	ctx := cmd.Context()
 	jsonOut := flagBool(cmd, "json")
 	stderr := cmd.ErrOrStderr()
@@ -236,9 +237,6 @@ func runServerUp(cmd *cobra.Command, proj *project.Project) error {
 	if client == nil {
 		return errors.New("bowrain: project is not connected to a server")
 	}
-	// Keep the server's convergence policy in step with the recipe before the
-	// run, so an on-push project also converges when CI merely pushes.
-	syncConvergePolicy(ctx, client, server)
 	if !app.Quiet && !jsonOut {
 		if pr.UpToDate {
 			fmt.Fprintln(stderr, "Server already up to date.")
@@ -250,6 +248,9 @@ func runServerUp(cmd *cobra.Command, proj *project.Project) error {
 		return err
 	}
 	if err := reportPushGovernance(cmd, jsonStream, pr, jsonOut); err != nil {
+		return err
+	}
+	if err := reportPushSettings(cmd, jsonStream, pr, jsonOut); err != nil {
 		return err
 	}
 
@@ -431,16 +432,27 @@ func reportPushGovernance(cmd *cobra.Command, stream *output.NDJSONStream, pr *t
 	return nil
 }
 
-// syncConvergePolicy pushes the recipe's server.converge value to the server so
-// its continuous-convergence clock matches the project's declared policy. Any
-// failure degrades to a one-line stderr note — the run itself is unaffected.
-func syncConvergePolicy(ctx context.Context, client *apiclient.BowrainClient, server *project.ServerSpec) {
-	if client == nil || server == nil {
-		return
+// reportPushSettings says what the push did with the recipe's project settings:
+// each one it changed on the server, and each one the server kept at its own
+// value with what would apply it. Silent when every setting already matched.
+// Under --json it is one NDJSON record of type "settings".
+func reportPushSettings(cmd *cobra.Command, stream *output.NDJSONStream, pr *transfer.PushResult, jsonOut bool) error {
+	if pr == nil || (len(pr.SettingsApplied) == 0 && len(pr.SettingsRefused) == 0) {
+		return nil
 	}
-	if err := client.SetConvergePolicy(ctx, string(server.ResolvedConverge())); err != nil && !app.Quiet {
-		fmt.Fprintf(os.Stderr, "warning: could not update the server's converge policy (server.converge): %v\n", err)
+	if jsonOut {
+		if stream == nil {
+			stream = output.NewNDJSONStream(cmd.OutOrStdout())
+		}
+		return stream.Encode(struct {
+			Type    string                 `json:"type"`
+			Applied venue.ProjectSettings  `json:"settings_applied,omitempty"`
+			Refused []venue.SettingRefusal `json:"settings_refused,omitempty"`
+		}{Type: "settings", Applied: pr.SettingsApplied, Refused: pr.SettingsRefused})
 	}
+	output.PushOutput{SettingsApplied: pr.SettingsApplied, SettingsRefused: pr.SettingsRefused}.
+		FormatSettings(cmd.ErrOrStderr())
+	return nil
 }
 
 func init() {

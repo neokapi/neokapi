@@ -146,7 +146,13 @@ func BuildPushContext(ctx context.Context, app *host.App, proj *bproject.Project
 	// — which is what lets a recipe that just dropped its last collection be
 	// told the server still holds it. Only a caller with no recipe at all
 	// (a nil PushContext) says nothing.
-	return apiclient.NewPushContext(entries), voiceResult, nil
+	//
+	// The recipe's project settings travel on the same push, so whoever may
+	// push the recipe puts its converge policy and translate_after level in
+	// force on the venue.
+	pushCtx := apiclient.NewPushContext(entries)
+	pushCtx.Settings = proj.Recipe.ProjectSettings()
+	return pushCtx, voiceResult, nil
 }
 
 // voiceAction names what a push does to the governance it carries. There is no

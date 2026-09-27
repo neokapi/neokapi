@@ -128,6 +128,7 @@ func pinnedEventTypes() []struct {
 		{event.EventProjectCreated, "project.created"},
 		{event.EventProjectUpdated, "project.updated"},
 		{event.EventProjectDeleted, "project.deleted"},
+		{event.EventProjectSettingChanged, "project.setting_changed"},
 		{event.EventVersionCreated, "version.created"},
 		{event.EventPullCompleted, "connector.pull.completed"},
 		{event.EventPushCompleted, "connector.push.completed"},

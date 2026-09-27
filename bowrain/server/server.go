@@ -1352,8 +1352,8 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			// old plugin is told to upgrade instead of reading a bare 404.
 			flatSyncGroup.POST("/push/diff", s.HandleSyncPushDiffRetired)
 
-			// Flat project-scoped convergence + settings for unclaimed projects:
-			// /api/v1/projects/:id/convergence/... and /projects/:id/settings.
+			// Flat project-scoped convergence for unclaimed projects:
+			// /api/v1/projects/:id/convergence/....
 			flatProjectGroup := v1.Group("/projects")
 			flatProjectGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 			flatProjectGroup.Use(s.ProjectAccessMiddleware())
@@ -2017,8 +2017,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 }
 
 // registerConvergenceRoutes wires the project-scoped convergence-run endpoints
-// (start/list/get/cancel/events SSE) and the project-settings PATCH onto a
-// group whose path already carries the project :id param. Shared between the
+// (estimate, start/list/get/cancel/events SSE) onto a group whose path already carries the project :id param. Shared between the
 // workspace group (/:ws/:id/...) and the flat unclaimed group
 // (/projects/:id/...) so both client route styles reach the same handlers.
 func (s *Server) registerConvergenceRoutes(g *echo.Group) {
@@ -2028,7 +2027,6 @@ func (s *Server) registerConvergenceRoutes(g *echo.Group) {
 	g.GET("/:id/convergence/runs/:runID", s.HandleGetConvergenceRun)
 	g.POST("/:id/convergence/runs/:runID/cancel", s.HandleCancelConvergenceRun)
 	g.GET("/:id/convergence/runs/:runID/events", s.HandleConvergenceRunSSE)
-	g.PATCH("/:id/settings", s.HandleUpdateProjectSettings)
 }
 
 // readHeaderTimeout limits the header-read phase to prevent slow clients from

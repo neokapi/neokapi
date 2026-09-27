@@ -17,6 +17,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/core/id"
@@ -57,6 +58,9 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		// the refusal — see core/venue.ContentModelEpoch.
 		ContentModelEpoch   int  `json:"content_model_epoch"`
 		AllowModelDowngrade bool `json:"allow_model_downgrade"`
+		// Settings are the recipe-owned project settings the producer's recipe
+		// declares, so the answer can say which of them this push may apply.
+		Settings venue.ProjectSettings `json:"settings"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
@@ -111,6 +115,19 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	// reaches this server.
 	transport := s.chunkTransport(c.Request().Context())
 
+	// The recipe-owned settings the project holds, at their effective values,
+	// and which of the producer's this push may not apply. The producer's
+	// commit carries only the settings that differ and are not refused, and
+	// the producer reports the refusals. The commit decides again, against the
+	// project as it then stands. Best-effort like the ref: a project that
+	// cannot be read reports none, and the producer then sends none.
+	var heldSettings venue.ProjectSettings
+	var refusedSettings []venue.SettingRefusal
+	if proj, perr := s.ContentStore.GetProject(c.Request().Context(), req.ProjectID); perr == nil && proj != nil {
+		heldSettings = store.RecipeSettingsOf(proj)
+		_, refusedSettings = store.DecideRecipeSettings(proj, req.Settings, s.settingsPusher(c, req.Stream))
+	}
+
 	// Fast path: root hash comparison. Only "unchanged" when the declared
 	// context matches too — otherwise the push proceeds carrying no chunks and
 	// a manifest that is nothing but the context.
@@ -124,6 +141,8 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 				"undeclared_collections": ctxDiff.Undeclared,
 				"transport":              transport,
 				"ref":                    currentRef,
+				"settings":               heldSettings,
+				"settings_refused":       refusedSettings,
 			})
 		}
 	}
@@ -147,6 +166,8 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		"undeclared_collections": ctxDiff.Undeclared,
 		"transport":              transport,
 		"ref":                    currentRef,
+		"settings":               heldSettings,
+		"settings_refused":       refusedSettings,
 	})
 }
 
@@ -194,8 +215,17 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		// ContentModelEpoch is the generation this push wrote, recorded on the
 		// stream now that it has been accepted.
 		ContentModelEpoch int `json:"content_model_epoch"`
+		// Settings are the recipe-owned project settings this push asks to put
+		// in force: the converge policy and the translate_after level. A push
+		// to the default stream applies each one that tightens, and one that
+		// loosens when the pusher may manage the project. Applied here, before
+		// the job is queued, so the run a push starts already reads them.
+		Settings venue.ProjectSettings `json:"settings"`
 	}
 	if err := c.Bind(&manifest); err != nil {
+		return apiErr(c, http.StatusBadRequest, err.Error())
+	}
+	if err := store.ValidateRecipeSettings(manifest.Settings); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	// Force the project and actor to the authorized path/identity. The
@@ -267,6 +297,11 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		}
 	}
 
+	appliedSettings, refusedSettings, err := s.applyRecipeSettings(c, manifest.ProjectID, manifest.Stream, manifest.Settings)
+	if err != nil {
+		return serverErr(c, err)
+	}
+
 	pushID := id.New()
 
 	// Serialize manifest for the worker.
@@ -324,7 +359,57 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 	if precheck := s.precheckPushVerdicts(c, manifest.Decisions); !precheck.Empty() {
 		resp["governance"] = precheck
 	}
+	if len(appliedSettings) > 0 {
+		resp["settings_applied"] = appliedSettings
+	}
+	if len(refusedSettings) > 0 {
+		resp["settings_refused"] = refusedSettings
+	}
 	return c.JSON(http.StatusAccepted, resp)
+}
+
+// settingsPusher describes the caller of a push for the recipe-settings
+// decision: the stream it pushes to, and whether it may manage the project.
+func (s *Server) settingsPusher(c echo.Context, stream string) store.SettingsPusher {
+	return store.SettingsPusher{Stream: stream, MayLoosen: hasPermission(c, platauth.PermManageProject)}
+}
+
+// applyRecipeSettings puts in force the recipe-owned settings a push may apply
+// and returns them, with the ones the project keeps. Each change is audited
+// with the pusher, the setting and its value before and after. A push that
+// carries no settings reads nothing.
+func (s *Server) applyRecipeSettings(c echo.Context, projectID, stream string, settings venue.ProjectSettings) (venue.ProjectSettings, []venue.SettingRefusal, error) {
+	if len(settings) == 0 || s.ContentStore == nil {
+		return nil, nil, nil
+	}
+	ctx := c.Request().Context()
+	proj, err := s.ContentStore.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read project settings: %w", err)
+	}
+	apply, refused := store.DecideRecipeSettings(proj, settings, s.settingsPusher(c, stream))
+	changes := store.ApplyRecipeSettings(proj, apply)
+	if len(changes) == 0 {
+		return nil, refused, nil
+	}
+	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
+		return nil, nil, fmt.Errorf("apply project settings: %w", err)
+	}
+	applied := venue.ProjectSettings{}
+	for _, ch := range changes {
+		applied[ch.Setting] = ch.To
+		s.emitAudit(c, auditEvent{
+			Type:         platev.EventProjectSettingChanged,
+			WorkspaceID:  proj.WorkspaceID,
+			ProjectID:    projectID,
+			ResourceType: "project_setting",
+			ResourceID:   ch.Setting,
+			Data:         map[string]string{"stream": stream, "source": "push"},
+			Before:       map[string]string{ch.Setting: ch.From},
+			After:        map[string]string{ch.Setting: ch.To},
+		})
+	}
+	return applied, refused, nil
 }
 
 // precheckPushVerdicts answers, in the request, the half of the review gate a

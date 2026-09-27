@@ -40,6 +40,12 @@ type SyncCache struct {
 	// record again only when its fold differs from this one.
 	DecisionsSynced string `json:"decisions_synced,omitempty"`
 
+	// SettingsSynced is the hash of the recipe-owned project settings the venue
+	// last confirmed holding (venue.ProjectSettings.Hash). A push with nothing
+	// else to send contacts the venue only when the recipe's settings hash
+	// differs from this one.
+	SettingsSynced string `json:"settings_synced,omitempty"`
+
 	// ClaimToken stores the claim token for anonymous projects. Kept in the
 	// cache (not the recipe) to avoid committing credentials to git.
 	ClaimToken string `json:"claim_token,omitempty"`
