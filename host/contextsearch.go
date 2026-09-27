@@ -141,7 +141,7 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "Nothing in this project's context matches %q.\n", r.Query)
 		if r.Scope != ScopeProfile {
 			fmt.Fprintln(w, "If the files always write it one way, record that with context_observe "+
-				"(or `kapi context observe`). Leave it alone if they write it more than one way.")
+				"(or `kapi context observe`). Leave it alone, with no note, if they write it more than one way.")
 		}
 	}
 

@@ -882,7 +882,7 @@ func termRank(h ContextTermHit) int {
 const recordingAdvice = "As you read the files around it, record with context_observe " +
 	"(or `kapi context observe`) what they do every time, including names your text does not use: " +
 	"each product, feature and plan name as written, the spelling variety, and a word chosen over " +
-	"a common alternative. Leave alone a word they write more than one way."
+	"a common alternative. Leave alone a word they write more than one way, with no note about it."
 
 // FormatText renders the answer as the brief a writer reads before changing a
 // file: the voice, what to say and what not, what has been suggested and not

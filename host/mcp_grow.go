@@ -46,7 +46,7 @@ func registerContextGrowthMCPTools(server *mcp.Server, a *App) {
 			"with the form the files use and `instead_of` with the form they avoid: the split form of a " +
 			"one-word name, the other spelling, or the other word. kapi adds the spacing, hyphen and case " +
 			"variants. Say anything else, such as the spelling variety, in `text`. Give `path` and `quote` " +
-			"from a file that was there before you started. Leave alone a word the files write more than " +
+			"from a file that was there before you started. Leave alone, with no note, a word the files write more than " +
 			"one way, an interface label, and wording taken from your task. It is a suggestion: checks " +
 			"report it, none fails on it, and a person keeps it.",
 	}, a.handleContextObserve)

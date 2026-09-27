@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T23:21:18Z",
+  "generatedAt": "2026-09-27T15:37:40Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -290,7 +290,7 @@
     },
     {
       "name": "context_observe",
-      "description": "Record one thing this project's files do every time, as soon as you notice it, including what your own text does not use: a product, feature or plan name as written, the spelling variety, or a word chosen over a common alternative. For a name or word, pass `term` with the form the files use and `instead_of` with the form they avoid: the split form of a one-word name, the other spelling, or the other word. kapi adds the spacing, hyphen and case variants. Say anything else, such as the spelling variety, in `text`. Give `path` and `quote` from a file that was there before you started. Leave alone a word the files write more than one way, an interface label, and wording taken from your task. It is a suggestion: checks report it, none fails on it, and a person keeps it.",
+      "description": "Record one thing this project's files do every time, as soon as you notice it, including what your own text does not use: a product, feature or plan name as written, the spelling variety, or a word chosen over a common alternative. For a name or word, pass `term` with the form the files use and `instead_of` with the form they avoid: the split form of a one-word name, the other spelling, or the other word. kapi adds the spacing, hyphen and case variants. Say anything else, such as the spelling variety, in `text`. Give `path` and `quote` from a file that was there before you started. Leave alone, with no note, a word the files write more than one way, an interface label, and wording taken from your task. It is a suggestion: checks report it, none fails on it, and a person keeps it.",
       "surface": "writing",
       "params": [
         {
@@ -364,7 +364,7 @@
     },
     {
       "name": "context_search",
-      "description": "Ask what this project says about one word or phrase: what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. For everything that applies to a file, read context://\u003cpath\u003e instead. An empty answer means nothing is recorded about the word; if the files always write it one way, record that with context_observe, and leave it alone if they write it more than one way. `attention` says what a person must act on, such as context files nobody has imported.",
+      "description": "Ask what this project says about one word or phrase: what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. For everything that applies to a file, read context://\u003cpath\u003e instead. An empty answer means nothing is recorded about the word; if the files always write it one way, record that with context_observe, and leave it alone, with no note, if they write it more than one way. `attention` says what a person must act on, such as context files nobody has imported.",
       "surface": "writing",
       "params": [
         {
