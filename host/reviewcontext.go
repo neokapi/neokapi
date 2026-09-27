@@ -228,13 +228,20 @@ func (r *ReviewPointResolver) resolve(ctx context.Context, collection, rel, loca
 
 	// The coordinates the recipe declares: the project's defaults, overlaid
 	// with what the resolved ref derives, overlaid with the collection's own.
-	if proj := r.recipe(); proj != nil {
+	proj := r.recipe()
+	if proj != nil {
 		ref := project.ChannelRef{Profile: e.point.Profile, Channel: e.point.Channel}
 		e.point.Coordinates = project.MergeCoordinates(
 			proj.Defaults.Coordinates, ref.Coordinates(), collectionCoordinates(proj, e.point.Collection))
 	}
 
-	rules, err := r.app.ResolveTermRulesFor(r.cmd, locale, point)
+	// The rules the terms gate holds the target to: the terms bound here and the
+	// recipe's own term_rules for the language.
+	root := ""
+	if path, perr := ResolveProjectPath(r.cmd); perr == nil && path != "" {
+		root = filepath.Dir(path)
+	}
+	rules, err := r.app.GateTermRules(r.cmd, proj, root, locale, point)
 	if err != nil {
 		e.point.Notes = append(e.point.Notes, "the terms bound here could not be read: "+err.Error())
 	} else {

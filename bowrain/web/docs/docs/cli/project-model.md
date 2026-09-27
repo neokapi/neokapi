@@ -164,12 +164,18 @@ Only the connection coordinates sit under `bowrain:`:
 
 ### Settings a push carries
 
-Two recipe settings govern what the server does with the project:
-`bowrain.converge` and `defaults.translate_after`. Every push carries both, at
+Three recipe settings govern what the server does with the project:
+`bowrain.converge`, `defaults.translate_after` and the `term_rules:` the recipe
+declares on its flow steps and tool presets. Every push carries all three, at
 their effective values, so a key the recipe leaves unset is sent as its default
-(`on-push` and `written`). The push compares them with the values the server
-holds and sends only a setting that differs, so an unchanged recipe costs no
-extra request and prints nothing.
+(`on-push`, `written` and no term rules). The push compares them with the values
+the server holds and sends only a setting that differs, so an unchanged recipe
+costs no extra request and prints nothing.
+
+The server holds its terminology gate and its translations to the recipe's term
+rules beside the workspace terms, as `kapi check --ship` does, so a language
+the rules name is governed on both sides and a translation that misses a rule
+holds the language back unless the rule is `advisory`.
 
 The server applies these settings only from a push to the project's default
 stream (`main` unless the project records another). A push to any other stream
@@ -182,6 +188,7 @@ On the default stream, what a push may change depends on the direction:
 | --- | --- |
 | `translate_after` | `established`, `written`, `none` |
 | `converge` | `manual`, `on-push` |
+| `term_rules` | every rule the server holds, kept unchanged, with any added; a rule dropped or changed |
 
 A change toward the strict end applies for anyone who may push the project,
 including a workspace member or a CI token with the `contribute` scope. A

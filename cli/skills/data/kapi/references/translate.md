@@ -202,7 +202,9 @@ Use the approved (preferred) term; avoid deprecated/forbidden ones. A bound
 terms store also feeds the translation step, and so does a `term_rules:` list in
 the translate step's config (one term, its replacement, `advisory: true` for a
 rule that only reports), the same
-shape as every word rule, including the `terms:` a voice file carries.
+shape as every word rule, including the `terms:` a voice file carries. The ship
+gate holds your translation to the same list, and a miss fails it unless the
+rule is advisory.
 
 ## Publish (format round-trip)
 

@@ -194,7 +194,11 @@ block is untranslated, has an error-severity finding, carries a decision made
 against content that has since changed, or holds a translation a reviewer
 turned down. A block in a locale terms govern with no terminology result, such
 as a target made only of inline codes, also holds the locale at `pending`. A
-block whose target uses a forbidden term counts as a failing check.
+block whose target uses a forbidden term counts as a failing check, and so does
+one that misses a rendering the workspace terms or the recipe's `term_rules:`
+require, unless the rule is advisory. The recipe's rules reach the server with
+each push ([Settings a push carries](/cli/project-model#settings-a-push-carries)),
+so a language they name is governed here as it is in `kapi check --ship`.
 
 Otherwise the locale is `translated` while some targets await a person, and
 `established` once every target is established. Whether terms govern the

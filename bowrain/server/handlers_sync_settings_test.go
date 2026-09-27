@@ -12,6 +12,7 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -91,6 +92,53 @@ func settingsOf(converge, translateAfter string) venue.ProjectSettings {
 	}
 }
 
+// heldOf is what a project holding the two settings and no recipe term rules
+// reports.
+func heldOf(converge, translateAfter string) venue.ProjectSettings {
+	s := settingsOf(converge, translateAfter)
+	s[venue.SettingTermRules] = ""
+	return s
+}
+
+// TestSyncPush_RecipeTermRules: a push carries the recipe's term rules. Any
+// pusher may add rules; dropping one takes a pusher who may manage the
+// project, and the server's gate reads the rules the push applied.
+func TestSyncPush_RecipeTermRules(t *testing.T) {
+	srv, token := newTestServer(t)
+	pid := createProject(t, srv, token)
+	contribute, err := platauth.ParseScope("contribute")
+	require.NoError(t, err)
+	member := platauth.DefaultPermissionsForRole(platauth.RoleMember).Permissions
+
+	period := coreprofile.TermRule{Term: "billing period", Replacement: "période de facturation"}
+	reading := coreprofile.TermRule{Term: "reading", Replacement: "relevé", Advisory: true}
+	encode := func(rules ...coreprofile.TermRule) string {
+		s, err := coreprofile.RecipeTermRules{All: rules}.Encode()
+		require.NoError(t, err)
+		return s
+	}
+
+	rec, resp := commitWithSettings(t, srv, pid, "main", contribute.Permissions,
+		venue.ProjectSettings{venue.SettingTermRules: encode(period, reading)})
+	require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
+	assert.Equal(t, venue.ProjectSettings{venue.SettingTermRules: encode(period, reading)}, resp.Applied)
+	assert.Equal(t, encode(period, reading), projectSettings(t, srv, pid)[venue.SettingTermRules])
+
+	proj, err := srv.ContentStore.GetProject(t.Context(), pid)
+	require.NoError(t, err)
+	gate := srv.resolveTermGate(t.Context(), proj, "main", proj.WorkspaceID)
+	assert.True(t, gate.termsGoverned(t.Context(), "fr"), "the pushed rules govern the server's gate")
+
+	rec, resp = commitWithSettings(t, srv, pid, "main", member,
+		venue.ProjectSettings{venue.SettingTermRules: encode(period)})
+	require.Equal(t, http.StatusAccepted, rec.Code)
+	assert.Empty(t, resp.Applied)
+	require.Len(t, resp.Refused, 1)
+	assert.Equal(t, venue.SettingLoosens, resp.Refused[0].Reason)
+	assert.Equal(t, encode(period, reading), projectSettings(t, srv, pid)[venue.SettingTermRules],
+		"the server keeps the rules it holds")
+}
+
 // TestSyncPush_RecipeSettings: a push to the project's default stream applies a
 // recipe-owned setting that tightens what the project allows for anyone who may
 // push, and one that loosens it only for a pusher who may manage the project.
@@ -121,7 +169,7 @@ func TestSyncPush_RecipeSettings(t *testing.T) {
 	require.True(t, admin.Has(platauth.PermManageProject))
 
 	held, refused := initSettings(t, srv, "Bearer "+token, pid, nil)
-	assert.Equal(t, settingsOf(platstore.ConvergePolicyOnPush, "written"), held, "a new project holds the defaults")
+	assert.Equal(t, heldOf(platstore.ConvergePolicyOnPush, "written"), held, "a new project holds the defaults")
 	assert.Empty(t, refused)
 
 	t.Run("a contribute token tightens both settings", func(t *testing.T) {
@@ -130,7 +178,7 @@ func TestSyncPush_RecipeSettings(t *testing.T) {
 		require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
 		assert.Equal(t, settingsOf(platstore.ConvergePolicyManual, "established"), resp.Applied)
 		assert.Empty(t, resp.Refused)
-		assert.Equal(t, settingsOf(platstore.ConvergePolicyManual, "established"), projectSettings(t, srv, pid))
+		assert.Equal(t, heldOf(platstore.ConvergePolicyManual, "established"), projectSettings(t, srv, pid))
 
 		require.Eventually(t, func() bool { return auditedCount() == 2 }, 5*time.Second, 10*time.Millisecond,
 			"each applied change is audited")
@@ -162,7 +210,7 @@ func TestSyncPush_RecipeSettings(t *testing.T) {
 			{Setting: venue.SettingTranslateAfter, Requested: "none", InForce: "established",
 				Reason: venue.SettingLoosens, Requires: "manage_project"},
 		}, resp.Refused)
-		assert.Equal(t, settingsOf(platstore.ConvergePolicyManual, "established"), projectSettings(t, srv, pid),
+		assert.Equal(t, heldOf(platstore.ConvergePolicyManual, "established"), projectSettings(t, srv, pid),
 			"the server keeps its values")
 		assert.Equal(t, before, auditedCount(), "nothing changed, so nothing is audited")
 	})
@@ -172,7 +220,7 @@ func TestSyncPush_RecipeSettings(t *testing.T) {
 		require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
 		assert.Equal(t, settingsOf(platstore.ConvergePolicyOnPush, "written"), resp.Applied)
 		assert.Empty(t, resp.Refused)
-		assert.Equal(t, settingsOf(platstore.ConvergePolicyOnPush, "written"), projectSettings(t, srv, pid))
+		assert.Equal(t, heldOf(platstore.ConvergePolicyOnPush, "written"), projectSettings(t, srv, pid))
 	})
 
 	t.Run("a push to another stream applies nothing, whoever pushes", func(t *testing.T) {
@@ -187,7 +235,7 @@ func TestSyncPush_RecipeSettings(t *testing.T) {
 				assert.Equal(t, "main", r.DefaultStream, who)
 			}
 		}
-		assert.Equal(t, settingsOf(platstore.ConvergePolicyOnPush, "written"), projectSettings(t, srv, pid))
+		assert.Equal(t, heldOf(platstore.ConvergePolicyOnPush, "written"), projectSettings(t, srv, pid))
 	})
 
 	t.Run("a value outside the recipe schema is refused before anything is written", func(t *testing.T) {
@@ -197,14 +245,14 @@ func TestSyncPush_RecipeSettings(t *testing.T) {
 		})
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 		assert.Contains(t, rec.Body.String(), "translate_after")
-		assert.Equal(t, settingsOf(platstore.ConvergePolicyOnPush, "written"), projectSettings(t, srv, pid))
+		assert.Equal(t, heldOf(platstore.ConvergePolicyOnPush, "written"), projectSettings(t, srv, pid))
 	})
 
 	t.Run("a caller who may not push sets nothing", func(t *testing.T) {
 		rec, _ := commitWithSettings(t, srv, pid, "main", platauth.PermViewContent,
 			settingsOf(platstore.ConvergePolicyManual, "established"))
 		require.Equal(t, http.StatusForbidden, rec.Code)
-		assert.Equal(t, settingsOf(platstore.ConvergePolicyOnPush, "written"), projectSettings(t, srv, pid))
+		assert.Equal(t, heldOf(platstore.ConvergePolicyOnPush, "written"), projectSettings(t, srv, pid))
 	})
 }
 
@@ -241,7 +289,7 @@ func TestSyncPush_InitPredictsRefusals(t *testing.T) {
 		Refused  []venue.SettingRefusal `json:"settings_refused"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Equal(t, settingsOf(platstore.ConvergePolicyManual, "written"), resp.Settings)
+	assert.Equal(t, heldOf(platstore.ConvergePolicyManual, "written"), resp.Settings)
 	assert.Equal(t, []venue.SettingRefusal{{
 		Setting: venue.SettingConvergePolicy, Requested: platstore.ConvergePolicyOnPush,
 		InForce: platstore.ConvergePolicyManual, Reason: venue.SettingLoosens, Requires: "manage_project",

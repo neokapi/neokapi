@@ -755,7 +755,7 @@ func (a *App) ungovernedTermsGate(cmd Command, proj *project.KapiProject, root s
 	}
 	if len(bound) == 0 {
 		return unboundGate(gateTerms, "terms",
-			"read a terms file into the project with `kapi context import <dir>`, or add terms with `kapi terms import`"), nil
+			"read a terms file into the project with `kapi context import <dir>`, add terms with `kapi terms import`, or declare term_rules in the recipe"), nil
 	}
 	flag := "--" + gateFlagName + " " + gateTerms
 	where := strings.Join(bound, ", ")
@@ -764,18 +764,19 @@ func (a *App) ungovernedTermsGate(cmd Command, proj *project.KapiProject, root s
 		Pass:           false,
 		Verdict:        check.VerdictDidNotRun,
 		DidNotRunCause: check.CauseNothingToCheck,
-		DidNotRun:      []string{fmt.Sprintf("%s was requested, and the terms bound at %s govern none of the content in scope", flag, where)},
+		DidNotRun:      []string{fmt.Sprintf("%s was requested, and the terms from %s govern none of the content in scope", flag, where)},
 		Findings: []verifyFinding{{
 			Gate:       gateTerms,
 			Fails:      true,
-			Message:    fmt.Sprintf("%s gate was requested with %s, and no content in scope sits where terms govern its language (terms are bound at %s)", gateTerms, flag, where),
+			Message:    fmt.Sprintf("%s gate was requested with %s, and no content in scope sits where terms govern its language (terms come from %s)", gateTerms, flag, where),
 			Suggestion: "give the content a channel whose profile binds terms, or add terms for the language it is in",
 		}},
 	}, nil
 }
 
 // termsBindings names the places the recipe binds terms: the project default
-// when terms resolve there, and each profile whose own terms resolve.
+// when terms resolve there, each profile whose own terms resolve, and the
+// recipe's own term_rules.
 func (a *App) termsBindings(cmd Command, proj *project.KapiProject, root string) ([]string, error) {
 	var bound []string
 	atDefault, err := a.projectTermsBound(cmd)
@@ -793,6 +794,13 @@ func (a *App) termsBindings(cmd Command, proj *project.KapiProject, root string)
 		if rc.TermStore != "" {
 			bound = append(bound, "profiles."+name)
 		}
+	}
+	declared, err := declaredTermRules(proj, root)
+	if err != nil {
+		return nil, err
+	}
+	if where := declaredTermRulesWhere(declared); where != "" {
+		bound = append(bound, where)
 	}
 	return bound, nil
 }
@@ -1524,26 +1532,30 @@ func termCheckFindings(b *model.Block) []check.Finding {
 	return out
 }
 
-// unitTermRules resolves the term rules a verify unit is held to: the rules the
-// terms bound at the unit's point give for its locale. The terminology gate, the
-// loop checks and the coverage they feed all ask it, so they agree about where
-// terms govern.
+// unitTermRules resolves the term rules a verify unit is held to through
+// gateTermRules: the rules the terms bound at the unit's point give for its
+// locale, and the term rules the recipe declares for that locale. The
+// terminology gate, the loop checks and the coverage they feed all ask it, so
+// they agree about where terms govern.
 type unitTermRules struct {
 	app  *App
 	cmd  Command
 	proj *project.KapiProject
 	root string
 	// cache holds the rules per profile and locale: the terms bound at a point
-	// depend only on the profile it resolves to.
+	// depend only on the profile it resolves to, and the recipe's rules only on
+	// the locale.
 	cache map[string][]coreprofile.TermRule
+	// declared is the recipe's own term rules, read once per resolver.
+	declared *coreprofile.RecipeTermRules
 }
 
 func (a *App) newUnitTermRules(cmd Command, proj *project.KapiProject, root string) *unitTermRules {
 	return &unitTermRules{app: a, cmd: cmd, proj: proj, root: root, cache: map[string][]coreprofile.TermRule{}}
 }
 
-// forUnit returns the rules governing u, empty when no terms bound at its point
-// answer for its locale.
+// forUnit returns the rules governing u, empty when neither the terms bound at
+// its point nor the recipe's term rules answer for its locale.
 func (r *unitTermRules) forUnit(u VerifyUnit) ([]coreprofile.TermRule, error) {
 	point := r.app.unitGovernancePoint(r.root, u)
 	key := u.Locale
@@ -1557,7 +1569,14 @@ func (r *unitTermRules) forUnit(u VerifyUnit) ([]coreprofile.TermRule, error) {
 	if rules, ok := r.cache[key]; ok {
 		return rules, nil
 	}
-	rules, err := r.app.ResolveTermRulesFor(r.cmd, u.Locale, point)
+	if r.declared == nil {
+		declared, err := declaredTermRules(r.proj, r.root)
+		if err != nil {
+			return nil, err
+		}
+		r.declared = &declared
+	}
+	rules, err := r.app.gateTermRules(r.cmd, *r.declared, u.Locale, point)
 	if err != nil {
 		return nil, err
 	}

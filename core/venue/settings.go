@@ -26,6 +26,14 @@ const (
 	// SettingTranslateAfter is the recipe's defaults.translate_after level:
 	// written, established or none.
 	SettingTranslateAfter = "translate_after"
+
+	// SettingTermRules is the term rules the recipe declares under
+	// `term_rules:` (profile.RecipeTermRules), in their encoded form, "" when
+	// it declares none. The venue holds its terms gate and its drafts to them
+	// beside the workspace's terms, as kapi does. A push that keeps every rule
+	// the venue holds tightens the setting; one that drops or changes a rule
+	// loosens it.
+	SettingTermRules = "term_rules"
 )
 
 // ProjectSettings maps a recipe-owned setting key to its resolved value.
@@ -94,6 +102,19 @@ type SettingRefusal struct {
 
 // String describes the refusal in one line, naming what would apply it.
 func (r SettingRefusal) String() string {
+	if r.Setting == SettingTermRules {
+		// The values are rule lists, too long for a line.
+		switch r.Reason {
+		case SettingLoosens:
+			return fmt.Sprintf("term_rules keeps the project's rules: the recipe drops or changes a rule the project holds, "+
+				"which allows more than the project does. A workspace owner or admin (%s) applies it by pushing the recipe", r.Requires)
+		case SettingNotDefaultStream:
+			return fmt.Sprintf("term_rules keeps the project's rules: settings apply only from a push to the default stream %q",
+				r.DefaultStream)
+		default:
+			return fmt.Sprintf("term_rules keeps the project's rules (%s)", r.Reason)
+		}
+	}
 	switch r.Reason {
 	case SettingLoosens:
 		return fmt.Sprintf("%s stays %s: the recipe asks for %s, which allows more than the project does. "+

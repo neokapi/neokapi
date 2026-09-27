@@ -7,18 +7,41 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
 )
 
+// TermRulesProperty is the project Properties key that holds the term rules
+// the recipe declares, encoded as profile.RecipeTermRules.Encode writes them.
+// A push carries them and ApplyRecipeSettings writes them here.
+const TermRulesProperty = "term_rules"
+
+// RecipeTermRulesOf returns the term rules the project's recipe declares, as
+// the last push that applied them left them. A value that does not decode
+// reads as none.
+func RecipeTermRulesOf(p *Project) profile.RecipeTermRules {
+	if p == nil {
+		return profile.RecipeTermRules{}
+	}
+	d, err := profile.DecodeRecipeTermRules(p.Properties[TermRulesProperty])
+	if err != nil {
+		return profile.RecipeTermRules{}
+	}
+	return d
+}
+
 // RecipeSettingsOf returns the recipe-owned settings a project holds, each at
-// its effective value: the converge policy (on-push when unset) and the
-// translate_after level (written when unset). It is what the push negotiation
-// reports, so a producer compares its recipe with the values the server runs
-// by rather than with whatever raw text happens to be stored.
+// its effective value: the converge policy (on-push when unset), the
+// translate_after level (written when unset) and the recipe's term rules (""
+// when none are held). It is what the push negotiation reports, so a producer
+// compares its recipe with the values the server runs by rather than with
+// whatever raw text happens to be stored.
 func RecipeSettingsOf(p *Project) venue.ProjectSettings {
+	termRules, _ := RecipeTermRulesOf(p).Encode()
 	return venue.ProjectSettings{
 		venue.SettingConvergePolicy: NormalizeConvergePolicy(projectConvergePolicy(p)),
 		venue.SettingTranslateAfter: string(TranslateAfterFor(p)),
+		venue.SettingTermRules:      termRules,
 	}
 }
 
@@ -43,7 +66,7 @@ func DefaultStreamOf(p *Project) string {
 // producer's settings reach an older server without failing the push.
 func ValidateRecipeSettings(s venue.ProjectSettings) error {
 	for _, k := range slices.Sorted(maps.Keys(s)) {
-		if _, known := settingStrictness(k, s[k]); known {
+		if settingKnown(k, s[k]) {
 			continue
 		}
 		switch k {
@@ -53,9 +76,23 @@ func ValidateRecipeSettings(s venue.ProjectSettings) error {
 		case venue.SettingTranslateAfter:
 			return fmt.Errorf("settings.%s: %q is not a source level. Use %s, %s or %s",
 				k, s[k], model.TranslateAfterWritten, model.TranslateAfterEstablished, model.TranslateAfterNone)
+		case venue.SettingTermRules:
+			_, err := profile.DecodeRecipeTermRules(s[k])
+			return fmt.Errorf("settings.%s: %w", k, err)
 		}
 	}
 	return nil
+}
+
+// settingKnown reports whether the server knows a setting and the value is one
+// the recipe schema allows.
+func settingKnown(key, value string) bool {
+	if key == venue.SettingTermRules {
+		_, err := profile.DecodeRecipeTermRules(value)
+		return err == nil
+	}
+	_, known := settingStrictness(key, value)
+	return known
 }
 
 // settingStrictness ranks a value of a recipe-owned setting by how much it
@@ -93,7 +130,19 @@ func settingStrictness(key, value string) (rank int, known bool) {
 
 // Loosens reports whether moving a setting from one value to another allows
 // more than before. False for a key or value the server does not know.
+//
+// Term rules are a set rather than a rank: a recipe that keeps every rule the
+// project holds, unchanged and for the same languages, adds rules or none and
+// tightens the setting. One that drops a rule, narrows it to fewer languages
+// or changes any of its fields loosens it, even where the change is marking a
+// rule as failing, because a changed rule is a rule the project no longer
+// holds.
 func Loosens(key, from, to string) bool {
+	if key == venue.SettingTermRules {
+		held, errFrom := profile.DecodeRecipeTermRules(from)
+		want, errTo := profile.DecodeRecipeTermRules(to)
+		return errFrom == nil && errTo == nil && !want.Covers(held)
+	}
 	fromRank, okFrom := settingStrictness(key, from)
 	toRank, okTo := settingStrictness(key, to)
 	return okFrom && okTo && toRank < fromRank
@@ -124,7 +173,7 @@ func DecideRecipeSettings(p *Project, requested venue.ProjectSettings, pusher Se
 	var apply venue.ProjectSettings
 	var refused []venue.SettingRefusal
 	for key, want := range requested.Differing(held) {
-		if _, known := settingStrictness(key, want); !known {
+		if !settingKnown(key, want) {
 			continue
 		}
 		refusal := venue.SettingRefusal{Setting: key, Requested: want, InForce: held[key]}
@@ -168,12 +217,12 @@ func ApplyRecipeSettings(p *Project, s venue.ProjectSettings) []SettingChange {
 	}
 	held := RecipeSettingsOf(p)
 	var changes []SettingChange
-	for _, key := range []string{venue.SettingConvergePolicy, venue.SettingTranslateAfter} {
+	for _, key := range []string{venue.SettingConvergePolicy, venue.SettingTermRules, venue.SettingTranslateAfter} {
 		want, ok := s[key]
 		if !ok {
 			continue
 		}
-		if _, known := settingStrictness(key, want); !known {
+		if !settingKnown(key, want) {
 			continue
 		}
 		switch key {
@@ -190,6 +239,18 @@ func ApplyRecipeSettings(p *Project, s venue.ProjectSettings) []SettingChange {
 				p.Properties = map[string]string{}
 			}
 			p.Properties[TranslateAfterProperty] = want
+		case venue.SettingTermRules:
+			if p.Properties[TermRulesProperty] == want {
+				continue
+			}
+			if want == "" {
+				delete(p.Properties, TermRulesProperty)
+				break
+			}
+			if p.Properties == nil {
+				p.Properties = map[string]string{}
+			}
+			p.Properties[TermRulesProperty] = want
 		}
 		changes = append(changes, SettingChange{Setting: key, From: held[key], To: want})
 	}

@@ -60,15 +60,21 @@ const defaultMemoryMinScore = 0.7
 // It is the derivation the translate step renders into its prompt
 // (TermRulesFromConcepts), so recycle and drafting answer to the same rules. A
 // terms read that fails is logged and yields no rules: terminology never fails
-// a translation.
-func recycleTermRules(ctx context.Context, tb terms.Terminology, projectID string, source, target model.LocaleID) []coreprofile.TermRule {
+// a translation. The project's recipe term rules for the target join them, as
+// they join the drafting step's (TranslateBinding.termRules).
+func recycleTermRules(ctx context.Context, tb terms.Terminology, proj *store.Project, source, target model.LocaleID) []coreprofile.TermRule {
+	declared := store.RecipeTermRulesOf(proj).For(string(target))
+	projectID := ""
+	if proj != nil {
+		projectID = proj.ID
+	}
 	rules, err := TermRulesFromConcepts(ctx, tb, projectID, source, target)
 	if err != nil {
 		slog.WarnContext(ctx, "terms read failed; recycling without term rules",
 			"project_id", projectID, "target", string(target), "error", err)
-		return nil
+		return declared
 	}
-	return rules
+	return coreprofile.WithDeclaredTermRules(rules, declared)
 }
 
 // recycleBlocks runs the one framework recycle tool over the stored blocks and

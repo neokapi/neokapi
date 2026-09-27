@@ -447,8 +447,8 @@ bounded profile against the current time and labels it `active`, `upcoming` or
 | `comments`         | map                 | `directives`: markers your own tools read at the start of a comment line, set aside wherever kapi reads the project's comments. `channel`: the point, a qualified `profile/channel`, at which every declared item's comments sit unless the item names its own (see [Comments in source code](/kapi/recipes/verify-content#comments-in-source-code)) |
 | `voice`            | VoiceBinding        | Bind a voice profile as standing project context (see [voice](#voice)). A profile's own `voice:` overrides it for that product's content |
 | `coordinates`      | map                 | The project's default point on the declared axes (`brand`, `mode`), inherited by every collection; `product` and `channel` are derived from `channel:` and rejected here (see [Declared axes](#declared-axes)) |
-| `tools`            | map                 | Project-level tool presets, keyed by tool name: config applied wherever that tool runs in a project flow. A step's own `config` overrides a preset per key. `term_rules:` is the key `term-check`, `translate`, `recycle`, `dnt-check` and `pseudo-translate` take here (one term, what to use instead, and `advisory: true` for a rule that reports without failing; see the [voice profile reference](/reference/serialization/voice-profile#term-rules)) |
-| `locales`          | map                 | Per-target-language overrides keyed by locale. Each entry's `tools:` presets merge over `defaults.tools` and under a step's own config whenever a flow runs for that locale, so one locale can enable redaction or a different model without forking the flow (see [the kapi loop](/kapi/convergence)) |
+| `tools`            | map                 | Project-level tool presets, keyed by tool name: config applied wherever that tool runs in a project flow. A step's own `config` overrides a preset per key. `term_rules:` is the key `term-check`, `translate`, `recycle`, `dnt-check` and `pseudo-translate` take here (one term, what to use instead, and `advisory: true` for a rule that reports without failing), and the terminology gate holds every target language to it (see [Term rules](#term-rules)) |
+| `locales`          | map                 | Per-target-language overrides keyed by locale. Each entry's `tools:` presets merge over `defaults.tools` and under a step's own config whenever a flow runs for that locale, so one locale can enable redaction or a different model without forking the flow (see [the kapi loop](/kapi/convergence)). A `term_rules:` preset here governs that locale at the terminology gate |
 | `flow`             | string              | The project's default flow, the composed flow `kapi up` runs to catch up every locale. A key in `flows:`, a file in `flows_dir:`, or a built-in name (e.g. `translate`), resolved as `kapi run` resolves it. Empty runs the built-in default (recycle → translate) |
 | `materialize`      | string              | Who delivers translated files. `manual` (default) leaves delivery to `kapi merge` or `kapi up --materialize`; `on-converge` makes `kapi up` write a locale's files to the collection's `target:` only once its gated scopes are shippable |
 | `jobs`             | int                 | How many target languages one `kapi up` pass runs concurrently. `0` (default) leaves it to the runner (4); `--jobs` overrides per run |
@@ -659,6 +659,29 @@ A flow file holds the same steps as an entry under `flows:`, plus an optional `d
 A flow name runs the most specific definition: the entry under `flows:`, then the file of that name, then the built-in flow of that name. So a recipe that declares `translate` runs its own with `kapi run translate` and as `defaults.flow`, and `kapi flows` lists it in place of the built-in. The `kapi translate` and `kapi pseudo-translate` commands always run the built-in flow.
 
 kapi reads no flow files from `.kapi/flows/`. When it finds some there, it prints one warning naming them; move them to a committed directory and set `flows_dir:`.
+
+### Term rules
+
+`term_rules:` in a step's `config:`, in a flow file or under `defaults.tools` gives the step the wording a translation must use. The terminology gate holds the translations to the same rules, beside the terms bound where the content sits, so `kapi check --ship`, `kapi status` and `kapi up` treat every language the rules name as governed. A rule on a flow step or under `defaults.tools` applies to every target language; a rule under `defaults.locales.<lang>.tools` applies to that language. A miss fails the gate unless the rule is marked `advisory: true`, which reports it. Where a recipe rule and a stored term name the same term, the recipe's rule applies.
+
+```yaml
+flows:
+  converge:
+    steps:
+      - tool: translate
+        config:
+          term_rules: &term_rules
+            - term: billing period
+              replacement: période de facturation
+            - term: reading
+              replacement: relevé
+              advisory: true
+      - tool: term-check
+        config:
+          term_rules: *term_rules
+```
+
+The fields are in the [voice profile reference](/reference/serialization/voice-profile#term-rules).
 
 ### Context backend
 

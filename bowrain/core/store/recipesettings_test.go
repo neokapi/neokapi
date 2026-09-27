@@ -3,6 +3,7 @@ package store
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,11 +13,13 @@ func TestRecipeSettingsOfResolvesDefaults(t *testing.T) {
 	assert.Equal(t, venue.ProjectSettings{
 		venue.SettingConvergePolicy: ConvergePolicyOnPush,
 		venue.SettingTranslateAfter: "written",
+		venue.SettingTermRules:      "",
 	}, RecipeSettingsOf(&Project{}), "an unset project holds the defaults")
 
 	assert.Equal(t, venue.ProjectSettings{
 		venue.SettingConvergePolicy: ConvergePolicyManual,
 		venue.SettingTranslateAfter: "none",
+		venue.SettingTermRules:      "",
 	}, RecipeSettingsOf(&Project{
 		ConvergePolicy: ConvergePolicyManual,
 		Properties:     map[string]string{TranslateAfterProperty: "none"},
@@ -153,4 +156,51 @@ func TestApplyRecipeSettings(t *testing.T) {
 	assert.Equal(t, "established", string(TranslateAfterFor(p)))
 
 	assert.Empty(t, ApplyRecipeSettings(p, RecipeSettingsOf(p)), "settings already held change nothing")
+}
+
+// encodeRules is the settings value a recipe with these rules sends.
+func encodeRules(t *testing.T, all ...profile.TermRule) string {
+	t.Helper()
+	s, err := profile.RecipeTermRules{All: all}.Encode()
+	require.NoError(t, err)
+	return s
+}
+
+// The recipe's term rules are held as the push applied them, and a push that
+// keeps every held rule tightens the setting while one that drops or changes a
+// rule loosens it.
+func TestRecipeTermRulesSetting(t *testing.T) {
+	period := profile.TermRule{Term: "billing period", Replacement: "période de facturation"}
+	reading := profile.TermRule{Term: "reading", Replacement: "relevé", Advisory: true}
+	one, two := encodeRules(t, period), encodeRules(t, period, reading)
+
+	require.NoError(t, ValidateRecipeSettings(venue.ProjectSettings{venue.SettingTermRules: two}))
+	require.NoError(t, ValidateRecipeSettings(venue.ProjectSettings{venue.SettingTermRules: ""}))
+	require.ErrorContains(t, ValidateRecipeSettings(venue.ProjectSettings{venue.SettingTermRules: "{"}), "term_rules")
+
+	assert.False(t, Loosens(venue.SettingTermRules, "", one), "declaring rules tightens")
+	assert.False(t, Loosens(venue.SettingTermRules, one, two), "adding a rule tightens")
+	assert.True(t, Loosens(venue.SettingTermRules, two, one), "dropping a rule loosens")
+	assert.True(t, Loosens(venue.SettingTermRules, one, ""), "dropping every rule loosens")
+
+	p := &Project{}
+	apply, refused := DecideRecipeSettings(p, venue.ProjectSettings{venue.SettingTermRules: two}, SettingsPusher{Stream: "main"})
+	assert.Empty(t, refused)
+	assert.Equal(t, venue.ProjectSettings{venue.SettingTermRules: two}, apply)
+	changes := ApplyRecipeSettings(p, apply)
+	assert.Equal(t, []SettingChange{{Setting: venue.SettingTermRules, From: "", To: two}}, changes)
+	assert.Equal(t, two, RecipeSettingsOf(p)[venue.SettingTermRules])
+	assert.Equal(t, []profile.TermRule{period, reading}, RecipeTermRulesOf(p).For("fr"))
+
+	apply, refused = DecideRecipeSettings(p, venue.ProjectSettings{venue.SettingTermRules: one}, SettingsPusher{Stream: "main"})
+	assert.Empty(t, apply)
+	require.Len(t, refused, 1)
+	assert.Equal(t, venue.SettingLoosens, refused[0].Reason)
+	assert.Contains(t, refused[0].String(), "term_rules keeps the project's rules")
+	assert.NotContains(t, refused[0].String(), "billing period", "the rule lists stay out of the line")
+
+	apply, _ = DecideRecipeSettings(p, venue.ProjectSettings{venue.SettingTermRules: ""}, SettingsPusher{Stream: "main", MayLoosen: true})
+	assert.Equal(t, []SettingChange{{Setting: venue.SettingTermRules, From: two, To: ""}}, ApplyRecipeSettings(p, apply))
+	assert.NotContains(t, p.Properties, TermRulesProperty)
+	assert.True(t, RecipeTermRulesOf(p).Empty())
 }

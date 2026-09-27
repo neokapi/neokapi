@@ -5,8 +5,42 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/venue"
 )
+
+// TestPushOutput_FormatSettings_TermRules: the term_rules setting is a rule
+// list, so the push reports how many rules the server now holds, and a refusal
+// names the setting without printing the lists.
+func TestPushOutput_FormatSettings_TermRules(t *testing.T) {
+	two, err := profile.RecipeTermRules{All: []profile.TermRule{
+		{Term: "billing period", Replacement: "période de facturation"},
+		{Term: "reading", Replacement: "relevé", Advisory: true},
+	}}.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b bytes.Buffer
+	PushOutput{
+		SettingsApplied: venue.ProjectSettings{venue.SettingTermRules: two},
+		SettingsRefused: []venue.SettingRefusal{{
+			Setting: venue.SettingTermRules, Requested: "", InForce: two,
+			Reason: venue.SettingLoosens, Requires: "manage_project",
+		}},
+	}.FormatSettings(&b)
+	got := b.String()
+	for _, want := range []string{
+		"Server setting term_rules now holds 2 term rules, as the recipe declares.\n",
+		"Server setting term_rules keeps the project's rules: the recipe drops or changes a rule",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "billing period") {
+		t.Errorf("the rule lists stay out of the report:\n%s", got)
+	}
+}
 
 func TestPushOutput_FormatText_LoopFooter(t *testing.T) {
 	tests := []struct {

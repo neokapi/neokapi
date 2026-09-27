@@ -675,7 +675,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	memoryFilled := 0
 	tm := resolveJobMemory(deps, job)
 	if tm != nil {
-		rules := recycleTermRules(ctx, resolveJobTerms(deps, job), job.ProjectID, srcLocale, tgtLocale)
+		rules := recycleTermRules(ctx, resolveJobTerms(deps, job), proj, srcLocale, tgtLocale)
 		res, rerr := recycleBlocks(ctx, tm, storedBlocks, srcLocale, tgtLocale, projectMemoryMinScore(proj), ledger, rules)
 		if rerr != nil {
 			// A content memory failure must never block the paid translation path — fall
