@@ -13,7 +13,10 @@ import (
 // live face of `kapi up`. On a TTY it maintains an in-place region: one line
 // per locale in the current pass (progress bar, unit counts, content memory/AI split)
 // under a pass header, repainted as events arrive. On a plain stream (CI logs,
-// pipes) it degrades to one line per meaningful event and never rewrites.
+// pipes) it degrades to one line per meaningful event and never rewrites. The
+// locales of a pass run in parallel and finish in any order, so a plain stream
+// prints each locale's line in the pass's own order, as soon as every locale
+// before it has finished: two runs of one project print the same lines.
 //
 // The renderer draws on the progress stream (stderr by convention); the run's
 // final structured summary prints separately on stdout, so `kapi up
@@ -28,6 +31,8 @@ type convergeRenderer struct {
 	order     []string
 	rows      map[string]*convergeRow
 	drawn     int // lines currently occupied by the live region
+	// printed is how many of order a plain stream has printed this pass.
+	printed int
 }
 
 type convergeRow struct {
@@ -60,6 +65,7 @@ func (r *convergeRenderer) OnEvent(ev convergence.Event) {
 	case convergence.EventPassStart:
 		r.pass, r.maxPasses = ev.Pass, ev.MaxPasses
 		r.order = append([]string(nil), ev.Pending...)
+		r.printed = 0
 		r.rows = map[string]*convergeRow{}
 		for _, loc := range ev.Pending {
 			r.rows[loc] = &convergeRow{state: "queued"}
@@ -81,19 +87,30 @@ func (r *convergeRenderer) OnEvent(ev convergence.Event) {
 		}
 		r.redrawTTY()
 	case convergence.EventLocaleDone:
-		if row := r.rows[ev.Locale]; row != nil {
+		row := r.rows[ev.Locale]
+		if row != nil {
 			row.state = "done"
 			row.units, row.done, row.viaMemory, row.viaAI, row.viaDraft = ev.Units, ev.Done, ev.ViaMemory, ev.ViaAI, ev.ViaDraft
 		}
 		if !r.tty {
-			fmt.Fprintf(r.w, "  %-10s %d/%d units%s\n", ev.Locale, ev.Done, ev.Units, producedSuffix(ev.ViaMemory, ev.ViaDraft, ev.ViaAI))
+			if row == nil {
+				// A locale the pass did not announce has no place in its order.
+				printDoneLine(r.w, ev.Locale, &convergeRow{units: ev.Units, done: ev.Done,
+					viaMemory: ev.ViaMemory, viaAI: ev.ViaAI, viaDraft: ev.ViaDraft})
+				return
+			}
+			r.releaseInOrder(false)
 			return
 		}
 		r.redraw()
 	case convergence.EventPassDone:
 		// Finalize the region for this pass (its lines stay printed) and add
-		// the pass summary beneath it.
+		// the pass summary beneath it. A plain stream first prints the
+		// finished locales still waiting behind one that never finished.
 		r.redrawTTY()
+		if !r.tty {
+			r.releaseInOrder(true)
+		}
 		r.drawn = 0
 		checks := ""
 		if ev.FailingChecks > 0 {
@@ -110,6 +127,27 @@ func (r *convergeRenderer) OnEvent(ev convergence.Event) {
 		// The structured summary that follows on stdout carries the outcome;
 		// the progress stream needs no separate closing line.
 	}
+}
+
+// releaseInOrder prints, on a plain stream, the finished locales whose turn in
+// the pass order has come. With all set it prints every finished locale left,
+// passing over any that never finished.
+func (r *convergeRenderer) releaseInOrder(all bool) {
+	for ; r.printed < len(r.order); r.printed++ {
+		row := r.rows[r.order[r.printed]]
+		if row == nil || row.state != "done" {
+			if all {
+				continue
+			}
+			return
+		}
+		printDoneLine(r.w, r.order[r.printed], row)
+	}
+}
+
+// printDoneLine writes one finished locale's line on a plain stream.
+func printDoneLine(w io.Writer, locale string, row *convergeRow) {
+	fmt.Fprintf(w, "  %-10s %d/%d units%s\n", locale, row.done, row.units, producedSuffix(row.viaMemory, row.viaDraft, row.viaAI))
 }
 
 // producedSuffix renders where a locale's units came from. `drafts` counts the

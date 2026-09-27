@@ -25,6 +25,7 @@ const env = {
   PATH: process.env.PATH, TMPDIR: tmpdir(), LANG: 'en_US.UTF-8',
   KAPI_NO_PROJECT: '1', KAPI_PROJECT: join(sandbox, 'kapi.yaml'),
   KAPI_CONFIG_DIR: join(sandbox, '.isolated/config'),
+  KAPI_DATA_DIR: join(sandbox, '.isolated/kapi-data'),
   XDG_DATA_HOME: join(sandbox, '.isolated/data'),
   XDG_CACHE_HOME: join(sandbox, '.isolated/cache'),
   KAPI_PLUGINS_DIR_ONLY: '1', KAPI_PLUGINS_DIR: join(sandbox, '.isolated/plugins'),

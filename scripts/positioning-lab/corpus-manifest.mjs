@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const source = 'samples/audience-context';
-const files = ['kapi.yaml', '.kapi/voice.yaml', 'service-facts.md', ...['child', 'teen', 'adult', 'older-adult'].map(a => `site/locales/en/${a}.json`)];
+const files = ['kapi.yaml', 'context/voice.yaml', 'service-facts.md', ...['child', 'teen', 'adult', 'older-adult'].map(a => `site/locales/en/${a}.json`)];
 const manifest = {
   schema: 'neokapi-evaluation-corpus/v1',
   purpose: 'Development fixture inventory; no held-out quality evaluation has been performed.',

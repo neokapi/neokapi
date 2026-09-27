@@ -134,3 +134,72 @@ func TestConverge_SourceSettleClean_StillConverges(t *testing.T) {
 	_, statErr := os.Stat(filepath.Join(dir, "src", "fr.json"))
 	require.NoError(t, statErr, "the locale is written")
 }
+
+// settleLineRun converges a project whose recipe is written from the given
+// targets and collections, and returns the settle phase's run-log line beside
+// the extraction line the same run printed.
+func settleLineRun(t *testing.T, targets []model.LocaleID, colls []project.Collection, files map[string]string) (settle, extract string, out ConvergeOutput) {
+	t.Helper()
+	a, cmd, recipe, dir := newSourceSettleProject(t, string(model.TranslateAfterEstablished))
+	for rel, body := range files {
+		require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(dir, rel)), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, rel), []byte(body), 0o644))
+	}
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.TargetLanguages = targets
+	proj.Collections = colls
+	require.NoError(t, project.Save(recipe, proj))
+	proj, err = project.Load(recipe)
+	require.NoError(t, err)
+
+	rerr := a.RunDefaultFlowConverge(cmd, proj, recipe, ConvergeOptions{
+		UntilGate: true,
+		MaxPasses: 2,
+		noChecks:  true,
+		capture:   &out,
+		onEvent: func(ev convergence.Event) {
+			if ev.Type != convergence.EventLog {
+				return
+			}
+			switch ev.Stage {
+			case convergence.StageSettleSource:
+				settle = ev.Message
+			case convergence.StageSync:
+				extract = ev.Message
+			}
+		},
+	})
+	require.NoError(t, rerr)
+	return settle, extract, out
+}
+
+// A project with no target language settles its whole source, and the settle
+// line reports it beside the extraction of the same files.
+func TestConverge_SettleLineCountsTheSourceOfAMonolingualProject(t *testing.T) {
+	settle, extract, out := settleLineRun(t, nil,
+		[]project.Collection{{Name: "app", SourceOnly: true, Content: []project.ContentItem{{Path: "src/en.json"}}}}, nil)
+	assert.Equal(t, `Settled source: 2 translatable block(s). No target language reads them, so translate_after "established" holds nothing.`, settle)
+	assert.Equal(t, "Extracted 2 block(s) from 1 file(s) into the project store (first extraction).", extract)
+	assert.Zero(t, out.BlockedOnSource)
+}
+
+// Beside a translated collection, a source-only one is settled with the rest
+// of the source, and the hold is counted over the files that feed a target.
+func TestConverge_SettleLineNamesTheHoldOverTranslatedFiles(t *testing.T) {
+	settle, _, out := settleLineRun(t, []model.LocaleID{"fr"},
+		[]project.Collection{
+			{Name: "app", Path: "src/en.json", Target: "src/{lang}.json"},
+			{Name: "notes", SourceOnly: true, Content: []project.ContentItem{{Path: "notes/en.json"}}},
+		},
+		map[string]string{"notes/en.json": `{"one":"First note","two":"Second note","three":"Third note"}`})
+	assert.Equal(t, `Settled source: 5 translatable block(s). Of the 2 with a target language, 2 held below translate_after "established".`, settle)
+	assert.Equal(t, 2, out.BlockedOnSource, "the source-only blocks hold no translation")
+	assert.Equal(t, convergence.StallSourceNotReady, out.StallReason)
+}
+
+// When every source file feeds a target, the line keeps its one-count form.
+func TestSettleSourceLine_EveryFileFeedsATarget(t *testing.T) {
+	assert.Equal(t, `Settled source: 3 translatable block(s), 1 held below translate_after "written".`,
+		settleSourceLine(settledSource{states: []string{"a", "b", "c"}, held: 1, heldOf: 3}, model.TranslateAfterWritten))
+}

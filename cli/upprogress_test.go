@@ -39,6 +39,36 @@ func TestConvergeRenderer_PlainStream(t *testing.T) {
 	assert.NotContains(t, got, "1/2 units")
 }
 
+// TestConvergeRenderer_PlainStreamPrintsLocalesInPassOrder: the locales of a
+// pass finish in any order, and a plain stream prints their lines in the pass's
+// order regardless, so two runs of one project print the same log.
+func TestConvergeRenderer_PlainStreamPrintsLocalesInPassOrder(t *testing.T) {
+	run := func(finish ...string) string {
+		var out strings.Builder
+		r := NewConvergeRenderer(&out, false)
+		r.OnEvent(convergence.Event{Type: convergence.EventPassStart, Pass: 1, MaxPasses: 2, Pending: []string{"de", "fr", "nb"}})
+		for _, loc := range finish {
+			r.OnEvent(convergence.Event{Type: convergence.EventLocaleDone, Pass: 1, Locale: loc, Units: 2, Done: 2})
+		}
+		r.OnEvent(convergence.Event{Type: convergence.EventPassDone, Pass: 1, MaxPasses: 2, Produced: 6})
+		return out.String()
+	}
+	want := "pass 1/2 · catching up de, fr, nb\n" +
+		"  de         2/2 units\n" +
+		"  fr         2/2 units\n" +
+		"  nb         2/2 units\n" +
+		"pass 1 done · produced 6 (+0)\n"
+	assert.Equal(t, want, run("nb", "de", "fr"))
+	assert.Equal(t, want, run("fr", "nb", "de"))
+
+	// A locale that never finishes does not hold back the ones after it: the
+	// pass summary releases them, in order.
+	assert.Equal(t, "pass 1/2 · catching up de, fr, nb\n"+
+		"  de         2/2 units\n"+
+		"  nb         2/2 units\n"+
+		"pass 1 done · produced 6 (+0)\n", run("nb", "de"))
+}
+
 // TestUp_JSONStreamsNDJSON: `up --json` is an NDJSON event stream — every
 // line parses as one JSON object with a type, and the final line is the
 // structured result record.

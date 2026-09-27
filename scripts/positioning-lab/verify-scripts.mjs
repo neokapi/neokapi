@@ -23,7 +23,8 @@ for (const id of selected) {
     PATH: `${join(repo, 'bin')}:${process.env.PATH}`, TMPDIR: tmpdir(), LANG: 'en_US.UTF-8',
     GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1',
     KAPI_NO_PROJECT: '1', ...(manifest.project ? { KAPI_PROJECT: join(sandbox, 'kapi.yaml') } : {}),
-    KAPI_CONFIG_DIR: join(sandbox, '.isolated/config'), XDG_DATA_HOME: join(sandbox, '.isolated/data'),
+    KAPI_CONFIG_DIR: join(sandbox, '.isolated/config'), KAPI_DATA_DIR: join(sandbox, '.isolated/kapi-data'),
+    XDG_DATA_HOME: join(sandbox, '.isolated/data'),
     XDG_CACHE_HOME: join(sandbox, '.isolated/cache'), KAPI_PLUGINS_DIR_ONLY: '1',
     KAPI_PLUGINS_DIR: join(sandbox, '.isolated/plugins'), KAPI_TELEMETRY: '0',
   };

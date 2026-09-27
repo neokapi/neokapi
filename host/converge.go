@@ -638,14 +638,23 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		//
 		// admissionUnits is reused rather than re-resolved: it is the identical
 		// pure re-resolution of the recipe's content patterns, already resolved
-		// (and hard-failed on) above.
+		// (and hard-failed on) above. It lists the files that feed a target
+		// language, which is what the hold is measured over. The settle itself
+		// covers the whole source, so a project with no target language, or a
+		// source-only collection beside a translated one, reports the source
+		// the extraction below reads.
 		var blockedOnSource, totalSource int
 		if translateAfter != model.TranslateAfterNone {
-			held, total, unreadable, herr := a.settleAndCountHeldSource(ctx, root, a.SourceLang, translateAfter, admissionUnits)
+			srcUnits, serr := a.SourceUnitsFromProject(proj, root)
+			if serr != nil {
+				return fmt.Errorf("resolve source content: %w", serr)
+			}
+			settled, herr := a.settleAndCountHeldSource(ctx, root, a.SourceLang, translateAfter, srcUnits, admissionUnits)
 			if herr != nil {
 				return fmt.Errorf("settle source for translate_after %q: %w", translateAfter, herr)
 			}
-			blockedOnSource, totalSource = held, total
+			held, unreadable := settled.held, settled.unreadable
+			blockedOnSource, totalSource = held, settled.heldOf
 			// A collection whose format has no reader on this machine was never
 			// opened, so it contributed nothing to the two counts above. That is
 			// survivable (the plugin supplying it is optional), but it is not
@@ -661,9 +670,9 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			emitter.Emit(convergence.Event{
 				Type:            convergence.EventLog,
 				Stage:           convergence.StageSettleSource,
+				SettledSource:   len(settled.states),
 				BlockedOnSource: held,
-				Message: fmt.Sprintf("Settled source: %d block(s), %d held below translate_after %q.",
-					total, held, translateAfter),
+				Message:         settleSourceLine(settled, translateAfter),
 			})
 		}
 
@@ -860,11 +869,30 @@ func (a *App) syncProjectBlockStore(ctx context.Context, pctx *project.ProjectCo
 	return &stats, describeDrift(drift), nil
 }
 
+// settleSourceLine renders the settle phase's run-log line. The first count is
+// the whole source; the hold is measured over the blocks in files that feed a
+// target language, and the line names that subset whenever it is smaller.
+func settleSourceLine(s settledSource, level model.TranslateAfterLevel) string {
+	settled := len(s.states)
+	switch {
+	case s.heldOf == 0:
+		return fmt.Sprintf("Settled source: %d translatable block(s). No target language reads them, so translate_after %q holds nothing.",
+			settled, level)
+	case s.heldOf == settled:
+		return fmt.Sprintf("Settled source: %d translatable block(s), %d held below translate_after %q.", settled, s.held, level)
+	default:
+		return fmt.Sprintf("Settled source: %d translatable block(s). Of the %d with a target language, %d held below translate_after %q.",
+			settled, s.heldOf, s.held, level)
+	}
+}
+
 // describeDrift renders a short reason for an auto-extract, for the run log.
+// It names why the extraction ran, so it reads beside the counts the
+// extraction produced.
 func describeDrift(d project.StoreDrift) string {
 	switch {
 	case d.StoreMissing:
-		return "nothing extracted yet"
+		return "first extraction"
 	case d.VersionStale:
 		return "store written by another kapi version"
 	case len(d.Changed) > 0 && len(d.Removed) > 0:
