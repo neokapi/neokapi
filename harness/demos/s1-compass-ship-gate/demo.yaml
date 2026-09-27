@@ -75,7 +75,7 @@ narration:
   - id: parked
     kind: terminal
     through: 5
-    highlight: { text: [blocked, "false"] }
+    highlight: { text: [parked, withheld] }
     caption: Dutch is drafted, kept, and not offered.
     text: >-
       Dutch parks on a failing check. Its drafts are safe in the project store

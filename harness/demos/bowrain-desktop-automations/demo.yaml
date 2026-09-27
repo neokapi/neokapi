@@ -55,8 +55,7 @@ narration:
     text: >-
       Each run catches the project up and then settles. The row says what every
       language got out of the pass, and anything that needs a person is parked
-      rather than shipped, which is the honest half of running this
-      automatically.
+      rather than shipped.
 
   - id: parked
     kind: desktop
@@ -64,9 +63,9 @@ narration:
     caption: Parked work is already in review.
     hold: 14
     text: >-
-      Parked is not a dead end. That work is already in the review queue,
-      waiting for somebody who holds the permission for that language, and the
-      next run picks up where this one stopped.
+      Parked work is already in the review queue, waiting for somebody who
+      holds the permission for that language, and the next run picks up where
+      this one stopped.
 
   - id: outro
     kind: outro

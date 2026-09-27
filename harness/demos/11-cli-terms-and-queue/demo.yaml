@@ -15,10 +15,10 @@ needsAi: false
 # sandbox IS the project (a recipe at its root) and lives in os.tmpdir().
 fixturesFrom: harness/demos/10-cli-points-and-voice/fixtures
 project: true
-# The fixture's voice profile is a file until somebody reads it into this
+# The fixture's context is a set of files until somebody reads them into this
 # machine's store, and the sandbox is a fresh one every take.
 setup:
-  - kapi context import
+  - kapi context import ./context
 captureTimeoutSec: 180
 aspects:
   - one list of term rules
@@ -89,11 +89,11 @@ narration:
   - id: approve
     kind: terminal
     through: 14
-    caption: Twenty rows, one pass, and the queue is French-free.
+    caption: Four rows, one pass, and no French left in the queue.
     text: >-
-      The queue comes back in the shape of a change-set already, so approving is
-      one pass over it rather than twenty visits. Each approval lands in the
-      record as it is made, with a name against it.
+      The queue comes back in the shape of a change-set already, so approving
+      the four French rows is one pass over it rather than a visit to each. Each
+      approval lands in the record as it is made, with a name against it.
 
   - id: queue
     kind: artifact

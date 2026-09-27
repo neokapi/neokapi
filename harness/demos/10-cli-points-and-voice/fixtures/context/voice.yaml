@@ -1,9 +1,11 @@
 # Voltway house voice.
 #
-# Bound to the `voltway` profile in kapi.yaml, so `kapi check` scores every
-# surface against it with no flags. The register bends per surface (channels:,
-# below). The vocabulary does not: a word Voltway does not use is not used on
-# the partner portal either, whichever brand the page carries.
+# `kapi context import ./context` stores this voice under its name, `voltway`,
+# which is the name kapi.yaml binds, so `kapi check` scores every surface against
+# it with no flags. The same import moves the word rules under `terms:` into the
+# project's terms. The register bends per surface (channels:, below). The terms
+# hold on every surface: a word Voltway does not use is not used on the partner
+# portal either, whichever brand the page carries.
 name: Voltway
 description: >-
   Voltway writes for people who are accountable for a number on a bill. The
@@ -46,7 +48,7 @@ examples:
     category: vocabulary
 
 # Per-surface register. A channel override changes tone and style only, so the
-# vocabulary above is in force on the partner portal as well as in the manual.
+# terms above are in force on the partner portal as well as in the manual.
 channels:
   docs:
     tone:

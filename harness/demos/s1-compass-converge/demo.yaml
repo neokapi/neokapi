@@ -96,11 +96,12 @@ narration:
   - id: ship
     kind: artifact
     artifact: ship
-    caption: Two answers per language, and nothing else between them.
+    caption: Two answers per language, and a note where no terms apply.
     text: >-
       This file is the whole contract between the loop and the deployed site.
       Per language, two answers: is it safe to offer at all, and is every
-      string in it established or only translated.
+      string in it established or only translated. Dutch also notes that no
+      terms govern it.
 
   - id: outro
     kind: outro

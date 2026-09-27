@@ -6,10 +6,11 @@ publishAs: cli-points-and-voice
 # A scripted plain-shell demo: every command is deterministic and offline, so it
 # runs for real and its output is recorded exactly.
 #
-# `fixtures/.kapi/voice.yaml` is what the recipe binds, and `setup:` reads it
-# into the sandbox's store, which is where the gate answers from. The import
-# keeps the voice and moves the file's word rules into the project's terms; the
-# forbidden term among them is the one the partner page trips.
+# `fixtures/context/voice.yaml` holds the voice the recipe binds by name, and
+# `setup:` reads it into the sandbox's store, which is where every answer and
+# the gate come from. The import keeps the voice and moves the file's word
+# rules into the project's terms; the forbidden term among them is the one the
+# partner page trips.
 #
 # One `kapi check` run exits 3 on purpose (the failing gate is the
 # point of that beat) and declares it with `expectExit: 3`, so a take where the
@@ -22,7 +23,7 @@ needsAi: false
 # way a user types it. The sandbox lives in os.tmpdir(), outside the repo.
 project: true
 setup:
-  - kapi context import
+  - kapi context import ./context
 captureTimeoutSec: 180
 aspects:
   - coordinates, not folders
@@ -42,8 +43,8 @@ script:
   - command: kapi context docs/quickstart.md --explain
   - comment: The partner page is three directories away, on another brand, and answers with the portal channel.
   - command: kapi context partner/index.md --explain
-  - comment: This is what an assistant is handed before it writes a portal page.
-  - command: kapi voice guide --profile-file .kapi/voice.yaml --channel portal
+  - comment: The voice guide for the same path. The path selects the portal's register, so no channel is named.
+  - command: kapi voice guide partner/index.md
   - comment: And this is the gate, over every surface, with no flags.
   # The gate must fail here: the forbidden word on the partner page is the beat.
   - command: kapi check
@@ -93,11 +94,12 @@ narration:
   - id: voice
     kind: terminal
     through: 11
-    caption: The guide an assistant is handed at that point.
+    caption: The portal's register, selected by the path.
     text: >-
-      A voice profile is a file in the repository, and printing the guide for
-      that point is how you see what an assistant is handed before it writes.
-      The register is the portal's; the terms are the whole company's.
+      Ask for the voice guide by path and the portal's register comes back
+      with no channel named on the command line. The guide holds tone, style
+      and examples. The terms are held once for the whole company, which is why
+      both answers above listed the same ones.
 
   - id: gate
     kind: terminal

@@ -10,7 +10,9 @@ needsAi: false
 fixturesFrom: samples/audience-context
 project: true
 captureTimeoutSec: 180
-# Script review only. Recording and narration generation are deferred.
+# A scripted plain-shell demo: every command is deterministic and offline, so
+# it runs for real and its output is recorded exactly. Edits to the pages are
+# made with ksed, which changes the text inside the JSON and keeps its shape.
 aspects:
   - Shared constraints across audience treatments
   - Provenance in the finding
@@ -22,31 +24,30 @@ setup:
   # The sample ships its context as files, and a fresh sandbox has a store that
   # has never held them.
   - kapi context import ./context
-  - mkdir -p .lab-original
-  - cp site/locales/en/*.json .lab-original/
 script:
-  - comment: The same service has different explanations for different reading situations.
-  - command: kapi context site/locales/en/child.json --json
-  - command: kapi context site/locales/en/adult.json --json
-  - comment: The clean fixture passes its configured deterministic checks.
-  - command: kapi check site/locales/en/child.json site/locales/en/teen.json site/locales/en/adult.json site/locales/en/older-adult.json --json > before.json
-  - command: >-
-      node -e 'const fs=require("node:fs"); for (const name of ["child","teen","adult","older-adult"]) { const file=`site/locales/en/${name}.json`; const value=JSON.parse(fs.readFileSync(file,"utf8")); value.fact_body="A video appointment is risk-free."; fs.writeFileSync(file,JSON.stringify(value,null,2)+"\n"); }'
-  - command: kapi check site/locales/en/child.json site/locales/en/teen.json site/locales/en/adult.json site/locales/en/older-adult.json --json > violations.json
+  - comment: The same service is explained for four reading situations. The child page first.
+  - command: kapi context site/locales/en/child.json
+  - comment: The adult page sits at another point, in another register, under the same shared constraints.
+  - command: kapi context site/locales/en/adult.json | head -9
+  - comment: The prepared pages pass the configured checks.
+  - command: kapi check site/locales/en/*.json
+  - comment: Put the same unsupported assurance into every page.
+  - command: ksed -i 's/is not recorded/is risk-free/' site/locales/en/*.json
+  # The gate must fail here: four pages, one shared rule, four findings.
+  - command: kapi check site/locales/en/*.json
     expectExit: 3
+  - comment: Each finding carries the shared rule's identifier, version and source.
+  # The gate failure itself was on screen one step earlier, so stderr is
+  # dropped and the four provenance lines stand alone.
   - command: >-
-      node -e 'const r=require("./violations.json"); const f=r.findings.filter(x=>x.metadata?.constraint_id==="harbor-help/no-unsupported-assurance"); if(f.length!==4 || r.pass) process.exit(1); console.log(JSON.stringify({pass:r.pass,findings:f},null,2));'
-  - comment: Restore the prepared originals. This repair is a fixture copy, not an agent-generated edit.
-  - command: cp .lab-original/*.json site/locales/en/
-  - command: kapi check site/locales/en/child.json site/locales/en/teen.json site/locales/en/adult.json site/locales/en/older-adult.json --json > repaired.json
-  - command: >-
-      node -e 'const r=require("./repaired.json"); if(!r.pass) process.exit(1); console.log(JSON.stringify({pass:r.pass,summary:r.summary,execution:r.execution},null,2));'
-  - comment: A different paragraph contradicts the service facts without using the prohibited wording.
-  - command: >-
-      node -e 'const fs=require("node:fs"); const file="site/locales/en/child.json"; const value=JSON.parse(fs.readFileSync(file,"utf8")); value.fact_body="A video appointment is recorded. Screen sharing starts automatically and you cannot stop it. Harbor Help can control your device and open all your files."; fs.writeFileSync(file,JSON.stringify(value,null,2)+"\n");'
-  - command: kapi check site/locales/en/child.json --json > unassessed.json
-  - command: >-
-      node -e 'const r=require("./unassessed.json"); if(!r.pass || !r.execution?.analyzers.some(x=>x.id==="voice.guidance" && x.status==="unsupported")) process.exit(1); console.log(JSON.stringify({pass:r.pass,execution:r.execution},null,2));'
+      kapi check site/locales/en/*.json --json --jq '.findings[]|"\(.location.file)  \(.metadata.constraint_id) v\(.metadata.constraint_version)  \(.metadata.constraint_source)"' 2>/dev/null
+    expectExit: 3
+  - comment: Restore the prepared wording, and the same check passes.
+  - command: ksed -i 's/is risk-free/is not recorded/' site/locales/en/*.json
+  - command: kapi check site/locales/en/*.json
+  - comment: A different sentence contradicts the service facts without using the prohibited wording.
+  - command: ksed -i 's/cannot see inside your device/can open all your files/' site/locales/en/child.json
+  - command: kapi check site/locales/en/child.json
 narration:
   - id: title
     kind: title
@@ -56,38 +57,44 @@ narration:
       Its factual guidance remains a separate review responsibility.
   - id: context
     kind: terminal
-    through: 5
-    caption: Different audience guidance, one shared constraint.
+    through: 6
+    caption: Different audience guidance, the same shared constraints.
     text: >-
-      Inspect the child and adult pages. Their guidance differs, while the
-      same constraint prohibits unsupported assurances. Each constraint has an
-      identifier, source and version. The original files pass the configured checks.
+      Ask for the guidance on the child page and on the adult page. The
+      register differs, and the same two shared constraints apply to both,
+      each with an identifier, a version and a source. One prohibits
+      unsupported assurances; the other states service facts. The prepared
+      pages pass the configured checks.
   - id: violation
     kind: terminal
-    through: 8
+    through: 11
+    highlight: { text: [FAILS, risk-free] }
     caption: The prohibited phrase fails in all four audiences.
     text: >-
-      Insert the same prohibited phrase in each page. The check exits three
-      and returns four findings. Each points to its file and the same shared
-      rule. Audience style overrides do not remove that constraint.
+      Put the same prohibited phrase into all four pages. The check exits
+      three with four failing findings, one per page, and each names the same
+      shared rule with its version and source. Audience style overrides leave
+      that constraint in force.
   - id: repair
     kind: terminal
-    through: 12
-    caption: Prepared originals restored; configured checks pass.
+    through: 14
+    highlight: { text: [voice.guidance] }
+    caption: Prepared wording restored; configured checks pass.
     text: >-
-      Restore the prepared originals and run the checks again. This is an
-      explicit fixture repair, not an agent writing a correction. The report
-      lists the analyzers that ran and those that were not requested.
+      Restore the prepared wording and the same check passes. Its coverage
+      line names the analysis that was requested and did not run: the service
+      facts guidance, which deterministic rules do not assess.
   - id: boundary
     kind: terminal
-    through: 16
+    through: 17
+    highlight: { text: [PASS, voice.guidance] }
     caption: A deterministic pass does not verify the service facts.
     text: >-
-      Now insert a paragraph that contradicts the service facts without using
-      the prohibited phrase. The deterministic gate passes, while guidance
-      coverage remains unsupported. This report does not establish factual
-      accuracy. The paragraph still needs a human or a separately evaluated
-      semantic review.
+      Now change one sentence so that it contradicts the service facts without
+      the prohibited phrase. The check passes, and the coverage line again says
+      the guidance was not assessed. The pass establishes nothing about factual
+      accuracy. The sentence still needs a person, or a semantic review that is
+      evaluated separately.
   - id: outro
     kind: outro
     text: >-
