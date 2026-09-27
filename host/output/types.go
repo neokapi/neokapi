@@ -341,8 +341,8 @@ type MergeFileOutput struct {
 	Applied       int    `json:"applied"`
 	Stale         int    `json:"stale"`
 	Skipped       int    `json:"skipped"`
-	MemoryNew     int    `json:"tm_new"`
-	MemoryUpdated int    `json:"tm_updated"`
+	MemoryNew     int    `json:"memory_new"`
+	MemoryUpdated int    `json:"memory_updated"`
 	Error         string `json:"error,omitempty"`
 }
 
@@ -353,8 +353,8 @@ type MergeOutput struct {
 	Applied        int               `json:"applied"`
 	Stale          int               `json:"stale"`
 	Skipped        int               `json:"skipped"`
-	MemoryNew      int               `json:"tm_new"`
-	MemoryUpdated  int               `json:"tm_updated"`
+	MemoryNew      int               `json:"memory_new"`
+	MemoryUpdated  int               `json:"memory_updated"`
 	ConflictPolicy string            `json:"conflict_policy"`
 	Failures       int               `json:"failures,omitempty"`
 }

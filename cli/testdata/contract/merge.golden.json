@@ -5,24 +5,24 @@
       "applied": 8,
       "stale": 1,
       "skipped": 0,
-      "tm_new": 6,
-      "tm_updated": 2
+      "memory_new": 6,
+      "memory_updated": 2
     },
     {
       "input": "out/bad.xliff",
       "applied": 0,
       "stale": 0,
       "skipped": 0,
-      "tm_new": 0,
-      "tm_updated": 0,
+      "memory_new": 0,
+      "memory_updated": 0,
       "error": "no extraction batch note found"
     }
   ],
   "applied": 8,
   "stale": 1,
   "skipped": 0,
-  "tm_new": 6,
-  "tm_updated": 2,
+  "memory_new": 6,
+  "memory_updated": 2,
   "conflict_policy": "prefer-incoming",
   "failures": 1
 }

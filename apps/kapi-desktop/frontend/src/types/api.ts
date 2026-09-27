@@ -1219,7 +1219,7 @@ export interface ReviewUnitDetail {
   note?: string;
   origin?: TargetOrigin;
   /** Best content-memory match percent (absent/0 = none found or no project content memory open). */
-  tm_score?: number;
+  memory_score?: number;
   findings: DesktopFinding[];
   /** Whether the target is a single plain-text run (safe to edit in place). */
   editable: boolean;
@@ -1364,7 +1364,7 @@ export interface UpPlanScope {
   missingTarget: number;
   /** Units covered by an exact-hash content-memory hit. The wire name is the
    *  backend's JSON tag, which the rename boundary leaves as it was. */
-  tmExact: number;
+  memoryExact: number;
   /** Units the pass serves from the project store's stored drafts: a
    *  translation of the same source made under the configuration and context
    *  the run would use, so no provider call and no tokens. */

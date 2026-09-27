@@ -1455,7 +1455,7 @@ export function ReviewPage({
                       sourceLocale={unit?.source_locale ?? selected?.sourceLocale}
                       locale={unit?.locale ?? selected?.locale}
                       loading={unitLoading}
-                      fallbackMemoryScore={unit?.tm_score}
+                      fallbackMemoryScore={unit?.memory_score}
                     />
 
                     {/* What has already been said about this translation: the

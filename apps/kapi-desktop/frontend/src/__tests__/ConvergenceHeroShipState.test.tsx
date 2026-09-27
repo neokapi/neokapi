@@ -12,7 +12,7 @@ const convergedPlan: ConvergePlan = {
   plan: {
     flow: "translate",
     scopes: null,
-    totals: { missingTarget: 0, tmExact: 0, aiRemaining: 0, tokenEstimate: 0 },
+    totals: { missingTarget: 0, memoryExact: 0, aiRemaining: 0, tokenEstimate: 0 },
     note: "",
   },
   changedFiles: 0,

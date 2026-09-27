@@ -265,24 +265,9 @@ Norwegian pass until every scene is translated, so record English first and run
 ## Known leftovers in the product
 
 These are in the product rather than in the demo sources. Where a take shows
-one, the take is named. PR #2993 changes the first six; record the affected
-demos after it merges.
+one, the take is named. PR #2997 changes them; record the affected demos after
+it merges.
 
-- `kapi status --review` ends with "the unit then counts as reviewed"
-  (`11-cli-terms-and-queue`).
-- `kapi merge` prints `tm_new=` and `tm_updated=` in its summary line
-  (`kapi-bilingual-workflow`).
-- The context answer renders a constraint as `[mandatory critical pattern: ...]`
-  (`s0-northsea-context`, `audience-constraints`).
-- The review history card (`packages/ui` `HistoryCard`) says "still governed"
-  (`kapi-desktop-review`, when the unit has a prior version).
-- `kapi check --ship` labels its findings column `severity`, and the voice
-  configuration warning speaks of a channel's "own severity" and of a
-  constraint being "always critical". No take shows either.
-- The Compass sample's review record carries no source basis, so `kapi status`
-  in both `s1-compass-*` demos prints "54 unit(s) hold a decision recorded
-  before its source basis". Regenerating `samples/compass/context/state/` with
-  a basis removes the line.
 - `kapi status --review --lang fr` over an empty French queue prints "no unit
   in any language is waiting for a person" while the English source rows are
   still waiting (`11-cli-terms-and-queue`).

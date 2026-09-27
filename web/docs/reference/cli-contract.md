@@ -11,6 +11,8 @@ kapi's core verbs speak a documented, golden-tested machine contract so scripts,
 
 Compatibility: the JSON documents below are a stable contract. Fields may be added in a release; existing field names and types do not change. The shapes are locked by golden tests (`cli/contract_golden_test.go`).
 
+One exception is made before 1.3: the content-memory counts in the `kapi merge` result are named `memory_new` and `memory_updated`, and the exact-match count in the `kapi up --plan` result is named `memoryExact`. Releases before 1.3 wrote them as `tm_new`, `tm_updated` and `tmExact`, and a script reading those names needs updating.
+
 Human-readable text output is **not** a contract. It is presentation: column widths adapt to your terminal, values are truncated to fit, and it carries ANSI styling when stdout is a TTY. It is restyled whenever the CLI's presentation improves. Scripts must use `--json` (or `--jq`), which is stable, unstyled, and never truncated.
 
 ## Output flags
@@ -94,15 +96,15 @@ Applying returned bilingual files (`merge -i`) reports one entry per input plus 
       "applied": 8,
       "stale": 1,
       "skipped": 0,
-      "tm_new": 6,
-      "tm_updated": 2
+      "memory_new": 6,
+      "memory_updated": 2
     }
   ],
   "applied": 8,
   "stale": 1,
   "skipped": 0,
-  "tm_new": 6,
-  "tm_updated": 2,
+  "memory_new": 6,
+  "memory_updated": 2,
   "conflict_policy": "translator-wins"
 }
 ```

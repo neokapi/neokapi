@@ -20,7 +20,7 @@ const convergedPlan: ConvergePlan = {
   plan: {
     flow: "translate",
     scopes: null,
-    totals: { missingTarget: 0, tmExact: 0, aiRemaining: 0, tokenEstimate: 0 },
+    totals: { missingTarget: 0, memoryExact: 0, aiRemaining: 0, tokenEstimate: 0 },
     note: "",
   },
   changedFiles: 0,
@@ -114,7 +114,13 @@ describe("ConvergenceHero honesty", () => {
       ...convergedPlan,
       plan: {
         ...convergedPlan.plan,
-        totals: { missingTarget: 0, tmExact: 0, aiRemaining: 3, tokenEstimate: 12, unanswered: 3 },
+        totals: {
+          missingTarget: 0,
+          memoryExact: 0,
+          aiRemaining: 3,
+          tokenEstimate: 12,
+          unanswered: 3,
+        },
       },
     };
     render(

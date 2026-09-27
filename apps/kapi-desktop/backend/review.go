@@ -52,7 +52,7 @@ type ReviewUnitDetail struct {
 	Origin *model.Origin `json:"origin,omitempty"`
 	// MemoryScore is the best content-memory match percent for the source (0 = none found or
 	// no project content memory open).
-	MemoryScore int `json:"tm_score,omitempty"`
+	MemoryScore int `json:"memory_score,omitempty"`
 	// Findings are the unit's current check findings (placeholder integrity,
 	// do-not-translate, terms and voice patterns — the same checkers the Checks panel
 	// runs, scoped to this one block).
