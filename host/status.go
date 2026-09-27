@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"reflect"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -41,6 +44,44 @@ type StatusOutput struct {
 	// is shared through were apart at the last pull or push. Absent when the
 	// context stays on this machine.
 	Context *check.ContextSync `json:"context,omitempty"`
+	// flowTermRules names the recipe's flows with a step that carries its own
+	// `term_rules:`. Those rules hold that step while the flow runs; the ship
+	// gate reads the terms bound where content sits, so a locale they alone
+	// cover is reported as ungoverned, and the report says where they apply.
+	flowTermRules []string
+}
+
+// flowsCarryingTermRules names, in order, the recipe's flows with a step whose
+// config carries a non-empty `term_rules:` list.
+func flowsCarryingTermRules(proj *project.KapiProject) []string {
+	var names []string
+	for name, spec := range proj.Flows {
+		if spec != nil && stepsCarryTermRules(spec.Steps) {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+func quoteEach(names []string) []string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = strconv.Quote(n)
+	}
+	return out
+}
+
+func stepsCarryTermRules(steps []flow.FlowStep) bool {
+	for _, st := range steps {
+		if rules := reflect.ValueOf(st.Config["term_rules"]); rules.Kind() == reflect.Slice && rules.Len() > 0 {
+			return true
+		}
+		if stepsCarryTermRules(st.Parallel) {
+			return true
+		}
+	}
+	return false
 }
 
 // StatusVenue names the effective convergence venue for a server-connected
@@ -267,7 +308,12 @@ func (o StatusOutput) writeBasisLines(w io.Writer) {
 	}
 	if len(ungoverned) > 0 {
 		fmt.Fprintf(w, "\nNo terms govern %s: no terms bound where its content sits have a term for it, "+
-			"so terminology is not a bar there.\n", strings.Join(ungoverned, ", "))
+			"so terminology is not a bar to shipping there.\n", strings.Join(ungoverned, ", "))
+		if len(o.flowTermRules) > 0 {
+			fmt.Fprintf(w, "The term_rules in flow %s apply to the steps that carry them, when that flow runs. "+
+				"To hold the ship gate to them as well, add them to the project's terms (`kapi terms import`).\n",
+				strings.Join(quoteEach(o.flowTermRules), ", "))
+		}
 	}
 	if unknown > 0 {
 		fmt.Fprintf(w, "\n%d unit(s) hold a decision recorded before its source basis; they count as current "+
@@ -638,7 +684,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			_, readNothing := unread.unitsSkipped(root, append(append([]VerifyUnit{}, units...), srcUnits...))
 			return output.Print(cmd, reviewQueueOutput{
 				Project: proj.Name, Pending: queue.Pending, Languages: queue.Languages,
-				Warnings: queue.Warnings, readNothing: readNothing,
+				Warnings: queue.Warnings, readNothing: readNothing, filter: langs,
 			})
 		}
 
@@ -684,7 +730,8 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			return fmt.Errorf("compute source readiness: %w", err)
 		}
 
-		out := StatusOutput{Project: proj.Name, Locales: cov, Monolingual: !proj.DeclaresTargetLanguages()}
+		out := StatusOutput{Project: proj.Name, Locales: cov, Monolingual: !proj.DeclaresTargetLanguages(),
+			flowTermRules: flowsCarryingTermRules(proj)}
 		// Unreadable alone is reason enough to emit the source block: a project
 		// whose every collection needs an uninstalled plugin has Total 0, and
 		// omitting the block would report that as "no source content" rather than

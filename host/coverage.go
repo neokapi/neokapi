@@ -76,13 +76,35 @@ func convergeTranslateAfter(proj *project.KapiProject) (model.TranslateAfterLeve
 // this machine. The names are returned so a report can say what it did not
 // measure. Every other error propagates.
 func (a *App) settleSourceStates(ctx context.Context, root, sourceLang string, level model.TranslateAfterLevel, units []VerifyUnit) (states []string, held int, unreadable []string, err error) {
+	s, err := a.settleSource(ctx, root, sourceLang, level, units, nil)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+	return s.states, s.held, s.unreadable, nil
+}
+
+// settledSource is one settle over the source: each translatable unit's rung,
+// and the translate_after hold over the files that feed a target language.
+type settledSource struct {
+	states []string
+	// held counts the blocks the level holds, and heldOf the translatable
+	// blocks it was measured against, both over the files that feed a target.
+	held, heldOf int
+	unreadable   []string
+}
+
+// settleSource settles every source file in units. feeds names the source
+// files whose translations the level can hold; nil counts every file.
+func (a *App) settleSource(ctx context.Context, root, sourceLang string, level model.TranslateAfterLevel, units []VerifyUnit, feeds map[string]bool) (settledSource, error) {
+	var states []string
+	held, heldOf := 0, 0
 	// Committed establishments, seeded onto each block before it settles, so
 	// the settle keeps a person's decision and an `established` level can admit
 	// the unit. Without them a project asking for `translate_after: established`
 	// would hold its fan-out forever.
 	approvals, aerr := a.loadSourceApprovals(ctx, root, sourceLang)
 	if aerr != nil {
-		return nil, 0, nil, aerr
+		return settledSource{}, aerr
 	}
 	docs := a.documentIndexOrEmpty(ctx, root)
 
@@ -99,9 +121,10 @@ func (a *App) settleSourceStates(ctx context.Context, root, sourceLang string, l
 				noReader[u.SourceFormat] = true
 				continue
 			}
-			return nil, 0, nil, berr
+			return settledSource{}, berr
 		}
 		scope := docs.Scope(root, u.SourcePath)
+		feedsTarget := feeds == nil || feeds[u.SourcePath]
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue
@@ -110,31 +133,43 @@ func (a *App) settleSourceStates(ctx context.Context, root, sourceLang string, l
 				b.SourceStatus = model.SourceStatusEstablished
 			}
 			check.SettleSourceStatus(ctx, b)
-			if level != model.TranslateAfterNone && !level.AdmitsBlock(b) {
-				held++
+			if feedsTarget {
+				heldOf++
+				if level != model.TranslateAfterNone && !level.AdmitsBlock(b) {
+					held++
+				}
 			}
 			states = append(states, sourceUnitState(b))
 		}
 	}
-	return states, held, sortedFormatSet(noReader), nil
+	return settledSource{states: states, held: held, heldOf: heldOf, unreadable: sortedFormatSet(noReader)}, nil
 }
 
-// settleAndCountHeldSource settles the project's source-locale blocks (deduped
-// by path) and counts how many translatable source blocks rank below the given
-// translate_after level, the blocked-on-source count `kapi up` surfaces. It is the local,
-// file-scan counterpart of the server's settleSource + gate rollup, sharing the
-// same core.check settle derivation. Level `none` (TranslateAfterNone) settles
-// nothing and holds nothing (the opt-out never pays the settlement cost). total
-// is how many translatable source blocks were considered.
-func (a *App) settleAndCountHeldSource(ctx context.Context, root, sourceLang string, level model.TranslateAfterLevel, units []VerifyUnit) (held, total int, unreadable []string, err error) {
+// settleAndCountHeldSource settles the project's whole source (srcUnits and
+// targetUnits, deduped by path) and counts how many translatable blocks in the
+// files that feed a target language (targetUnits) rank below the given
+// translate_after level, the blocked-on-source count `kapi up` surfaces. It is
+// the local, file-scan counterpart of the server's settleSource + gate rollup,
+// sharing the same core.check settle derivation. Level `none`
+// (TranslateAfterNone) settles nothing and holds nothing (the opt-out never pays
+// the settlement cost).
+//
+// len(states) counts every translatable source block, so a project with no
+// target language reports the source it has; heldOf counts the translatable
+// blocks in the files that feed a target, which is what the hold is measured
+// against.
+func (a *App) settleAndCountHeldSource(ctx context.Context, root, sourceLang string, level model.TranslateAfterLevel, srcUnits, targetUnits []VerifyUnit) (settledSource, error) {
 	if level == model.TranslateAfterNone {
-		return 0, 0, nil, nil
+		return settledSource{}, nil
 	}
-	states, held, unreadable, err := a.settleSourceStates(ctx, root, sourceLang, level, units)
-	if err != nil {
-		return 0, 0, nil, err
+	feeds := make(map[string]bool, len(targetUnits))
+	for _, u := range targetUnits {
+		feeds[u.SourcePath] = true
 	}
-	return held, len(states), unreadable, nil
+	// The target units come first, so a source file both lists name is read
+	// under the binding the fan-out reads it under.
+	units := append(append([]VerifyUnit{}, targetUnits...), srcUnits...)
+	return a.settleSource(ctx, root, sourceLang, level, units, feeds)
 }
 
 // reviewedIndex maps each unit (document + block identity + locale) to its

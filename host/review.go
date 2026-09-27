@@ -30,19 +30,64 @@ type reviewQueueOutput struct {
 	// readNothing says every unit the queue resolved was set aside, so an empty
 	// queue is one over nothing it could read.
 	readNothing bool
+	// filter holds the languages --lang narrowed the listing to. Languages
+	// still counts the whole queue, so the text can name what waits outside it.
+	filter []string
+}
+
+// filterLabel names the languages a filtered listing asked for.
+func (o reviewQueueOutput) filterLabel() string {
+	langs := make([]string, 0, len(o.filter))
+	for _, l := range o.filter {
+		if l = strings.TrimSpace(l); l != "" {
+			langs = append(langs, l)
+		}
+	}
+	return strings.Join(langs, ", ")
+}
+
+// waitingElsewhere lists the languages outside the filter that have units
+// waiting, as "en · source (2), nb (1)". It is empty when nothing waits there
+// or no filter applies.
+func (o reviewQueueOutput) waitingElsewhere() string {
+	if len(o.filter) == 0 {
+		return ""
+	}
+	opts := ReviewQueueOptions{Languages: o.filter}
+	var parts []string
+	for _, l := range o.Languages {
+		if l.Pending == 0 || opts.wants(l.Language) {
+			continue
+		}
+		tag := l.Language
+		if l.Source {
+			tag += " · source"
+		}
+		parts = append(parts, fmt.Sprintf("%s (%d)", tag, l.Pending))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // FormatText renders the review queue.
 func (o reviewQueueOutput) FormatText(w io.Writer) error {
 	defer writeSetAside(w, o.Warnings)
+	elsewhere := o.waitingElsewhere()
 	if len(o.Pending) == 0 {
+		filtered := o.filterLabel()
 		switch {
 		case o.readNothing && len(o.Warnings) > 0:
 			fmt.Fprintln(w, "Nothing could be listed for review: no installed reader opens this project's content.")
+		case len(o.Warnings) > 0 && filtered != "":
+			fmt.Fprintf(w, "Review queue empty for %s in the content kapi could read: no unit there is waiting for a person.\n", filtered)
 		case len(o.Warnings) > 0:
 			fmt.Fprintln(w, "Review queue empty for the content kapi could read: no unit there is waiting for a person.")
+		case filtered != "":
+			fmt.Fprintf(w, "Review queue empty for %s: no unit in %s is waiting for a person.\n", filtered, filtered)
 		default:
 			fmt.Fprintln(w, "Review queue empty: no unit in any language is waiting for a person.")
+		}
+		if elsewhere != "" {
+			fmt.Fprintf(w, "Waiting in other languages: %s. Run `kapi status --review` without --lang to list them.\n", elsewhere)
 		}
 		return nil
 	}
@@ -78,6 +123,9 @@ func (o reviewQueueOutput) FormatText(w io.Writer) error {
 	}
 	if held > 0 {
 		fmt.Fprintf(w, "%d source unit(s) are held below the project's translate_after level, so the loop holds their translations.\n", held)
+	}
+	if elsewhere != "" {
+		fmt.Fprintf(w, "Also waiting in other languages: %s.\n", elsewhere)
 	}
 	return nil
 }

@@ -326,3 +326,38 @@ func TestReviewUnit_TargetUnitCarriesItsLanguage(t *testing.T) {
 	assert.Equal(t, "nb", info.Context.Point.Language)
 	assert.False(t, info.Context.Point.IsSource)
 }
+
+// `kapi status --review --lang fr` on an empty French queue answers for French
+// and names the languages that do have units waiting, the source among them.
+func TestStatusReview_EmptyFilteredQueueNamesTheOtherLanguages(t *testing.T) {
+	root := writeUnifiedQueueProject(t, "established", "nb")
+	recipe := filepath.Join(root, "kapi.yaml")
+
+	text := runReviewStatus(t, recipe, nil, []string{"fr"})
+	assert.Contains(t, text, "Review queue empty for fr: no unit in fr is waiting for a person.")
+	assert.NotContains(t, text, "no unit in any language", "units wait in en and nb, so the answer covers fr only")
+	assert.Contains(t, text, "Waiting in other languages: en · source (2), nb (2).")
+
+	// A filtered listing that finds units still names the rest of the queue.
+	nb := runReviewStatus(t, recipe, nil, []string{"nb"})
+	assert.Contains(t, nb, "2 unit(s) awaiting review")
+	assert.Contains(t, nb, "Also waiting in other languages: en · source (2).")
+}
+
+// With no filter, an empty queue is empty in every language, and the text
+// says so without naming other languages.
+func TestReviewQueueOutput_UnfilteredEmptyQueueCoversEveryLanguage(t *testing.T) {
+	var b strings.Builder
+	require.NoError(t, reviewQueueOutput{
+		Languages: []ReviewLanguage{{Language: "en", Source: true}},
+	}.FormatText(&b))
+	assert.Equal(t, "Review queue empty: no unit in any language is waiting for a person.\n", b.String())
+
+	// A filter over an empty project names only what it asked for.
+	b.Reset()
+	require.NoError(t, reviewQueueOutput{
+		Languages: []ReviewLanguage{{Language: "en", Source: true}},
+		filter:    []string{"fr"},
+	}.FormatText(&b))
+	assert.Equal(t, "Review queue empty for fr: no unit in fr is waiting for a person.\n", b.String())
+}
