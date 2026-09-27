@@ -76,8 +76,16 @@ vpx tsx src/cli/run.ts <id> --force --theme=both
 ## The order
 
 The first group replaces published videos that docs pages embed today. The
-second fills pages that show a placeholder. The third has updated sources and
-no embed yet.
+second fills pages that show a placeholder. The third holds the demos that have
+never been published and have no page yet. The fourth has updated sources and
+no embed.
+
+Ten demos have never been published (the CDN answers 403 for each): rows 16 to
+25. Their scripts were checked step by step against 1.3, and every shell demo
+among them was dry-run under the full isolation environment against the
+`v1.3.0-rc2` release binary and `main` at `7c52a73f0`. Each step exited as it
+declares, and the two binaries differ only in the recording guidance a context
+answer ends with (#2989).
 
 ### 1. Embedded, and showing retired output or an earlier interface
 
@@ -125,37 +133,63 @@ separation-of-duties beats act on whichever unit is in focus.
 
 ### 2. Placeholders on the page
 
-| # | Demo | Publishes as | Placeholder on | Infrastructure |
-| --- | --- | --- | --- | --- |
-| 16 | `kapi-desktop-review` | `kapi-desktop-review` | `kapi/recipes/review-and-approve.mdx`, `kapi/recipes/translate-content.mdx` | desktop recorder |
-| 17 | `bowrain-desktop-automations` | `bowrain-desktop-automations` | Bowrain `walkthroughs/bowrain-automation.mdx` | stack + seed (#2597 gives the seed a source ready to run) |
+Both are first publishes, and both count among the ten that were never
+published.
+
+| # | Demo | Publishes as | Placeholder on | Infrastructure | What changed |
+| --- | --- | --- | --- | --- | --- |
+| 16 | `kapi-desktop-review` | `kapi-desktop-review` | `kapi/recipes/review-and-approve.mdx`, `kapi/recipes/translate-content.mdx` | desktop recorder | one human rung: Approve, with no sign-off control; every walk selector still renders |
+| 17 | `bowrain-desktop-automations` | `bowrain-desktop-automations` | Bowrain `walkthroughs/bowrain-automation.mdx` | stack + seed (#2597 gives the seed a source ready to run) | narration only: two sentences cut; the run row and the delivery panel's review link still render |
 
 `kapi-desktop-projects` (row 5) also fills the video placeholders on
 `kapi/get-started/add-languages.mdx` and `kapi/get-started/first-project.mdx`.
 Replacing a `<PendingMedia>` with a `<ThemedVideo>` is an edit to the page after
 the asset is on the CDN.
 
-### 3. Sources updated, no embed yet
+### 3. Never published, no page yet
 
-Record these once the first two groups are out. None of them is linked from a
+Record these after the first two groups. Each one runs offline in a sandbox
+with the `demo` provider or none, so a take needs nothing but the build:
+
+```bash
+vpx tsx src/cli/run.ts <id> --force --theme=both
+```
+
+No page links any of them. The page named is where each one fits, as a
+proposal; embedding it is a page edit after the asset is on the CDN.
+
+| # | Demo | Publishes as | Would fit on | Infrastructure | What changed |
+| --- | --- | --- | --- | --- | --- |
+| 18 | `s0-northsea-context` | `monolingual-context` | `kapi/context.mdx` | none | nothing in the script; the import reports the word rules it moved into terms, and each context answer ends with the #2989 recording guidance |
+| 19 | `10-cli-points-and-voice` | `cli-points-and-voice` | `kapi/projects.mdx` | none | the fixture's voice file sits under `context/`, like the samples', and `setup:` reads it with `kapi context import ./context`; the voice guide is asked for by path (`kapi voice guide partner/index.md`), and holds the portal's register and no terms |
+| 20 | `11-cli-terms-and-queue` | `cli-terms-and-queue` | `kapi/recipes/terminology-checks.mdx` | none | reads the same `context/` as row 19; the narration counts the four French rows it approves (it said twenty) |
+| 21 | `audience-constraints` | `audience-constraints` | `kapi/recipes/content-governance-for-ai.mdx` | none | rewritten for the screen: text output in place of several hundred lines of JSON, `ksed` edits in place of `node -e`, and one `--jq` line for the findings' provenance; the sample's `emotion: reassuring` became `warm`, which removes a configuration warning |
+| 22 | `s1-compass-converge` | `multilingual-converge` | `kapi/convergence.mdx` | none | the `ship.json` narration names Dutch's `not_governed` note |
+| 23 | `s1-compass-ship-gate` | `multilingual-ship-states` | `kapi/recipes/ship-gates-and-ci.mdx` | none | the first highlight lands on `parked` and `withheld`; nothing on screen said `blocked` |
+| 24 | `s2-tidewatch-build-output` | `docs-site-convergence` | `kapi/recipes/translate-content.mdx` | none | nothing in the script |
+| 25 | `s2-tidewatch-ci` | `docs-coverage-in-ci` | `kapi/convergence-in-ci.mdx` | none | the finding that reports is on the integration page, which names the retired word where it explains `mooring_id`; the comment and narration said the API reference |
+
+To take all eight in one call:
+
+```bash
+vpx tsx src/cli/run.ts s0-northsea-context 10-cli-points-and-voice 11-cli-terms-and-queue \
+  audience-constraints s1-compass-converge s1-compass-ship-gate \
+  s2-tidewatch-build-output s2-tidewatch-ci --force --theme=both
+```
+
+### 4. Sources updated, no embed
+
+Record these once the first three groups are out. None of them is linked from a
 page, so nothing a reader sees is stale in the meantime.
 
 | Demo | Publishes as | Infrastructure | Note |
 | --- | --- | --- | --- |
-| `s0-northsea-context` | `monolingual-context` | none | the context answer is task-shaped, and the import reports the word rules it moved into terms |
-| `s1-compass-converge` | `multilingual-converge` | none | ship states read `translated` / `withheld` |
-| `s1-compass-ship-gate` | `multilingual-ship-states` | none | Dutch is offered as `translated`; Norwegian moves to `established` |
-| `s2-tidewatch-build-output` | `docs-site-convergence` | none | status grid; the sample's `.gitignore` names `context/` as the record |
-| `s2-tidewatch-ci` | `docs-coverage-in-ci` | none | the coverage line reads `established`; the workflow artifact pulls and pushes the context instead of committing `.kapi` |
-| `10-cli-points-and-voice` | `cli-points-and-voice` | none | `kapi check` without `--strict`; the voice guide lists the terms |
-| `11-cli-terms-and-queue` | `cli-terms-and-queue` | none | French moves to `established`; no sign-off |
 | `08-mcp-tools` | (not published) | Claude session, `kapi mcp --tools all` | the assistant records a pre-review; the queue keeps its length and shows the score |
 | `kapi-desktop-content` | `kapi-desktop-content` | desktop recorder | published in July, not embedded |
 | `kapi-desktop-explorer` | `kapi-desktop-explorer` | desktop recorder | the Context hub rail now lists Learned and Agent View above Terms and Content Memory |
 | `bowrain-sizzle` | `bowrain-sizzle` | renders from the web and desktop clips | render after rows 10 to 15 |
 | `02-nextjs-zero-to-i18n`, `03-translate-docx` | `claude-app-i18n`, `claude-translate-document` | Claude session (billed) | published in July, not embedded |
 | `01`, `04`, `06`, `07` | (not published) | Claude session (billed); AI provider for 01-07 | `04` and `07` render `kapi check --json` and `kapi status --json` artifacts from the take's sandbox, so `--only=artifacts,render` on the machine that holds the take refreshes them without a new session |
-| `audience-constraints` | `audience-constraints` | none | never recorded; its JSON steps print several hundred lines, so trim them before a first take |
 
 The web walkthrough scenes (`web/walkthroughs/*.scene.yaml`) are interactive
 embeds that run the wasm build live on the page, so they need no recording. The
@@ -181,8 +215,8 @@ Beyond that, look at the rendered video:
   Bowrain demos, so check `kapi-bilingual-workflow` and decide whether the line
   is acceptable before publishing.
 - **Highlights** land on a word the output contains: `FAILS`, `REPORTS`,
-  `blocked`, `false`, `seamless`, `dock`. A highlight on a word that is not on
-  screen draws nothing.
+  `blocked`, `parked`, `withheld`, `false`, `seamless`, `dock`, `risk-free`,
+  `voice.guidance`. A highlight on a word that is not on screen draws nothing.
 
 Per video:
 
@@ -190,10 +224,15 @@ Per video:
 | --- | --- |
 | `s0-northsea-checks` | first check: 1 FAILS (`seamless`) and 4 REPORTS, exit 3; `findings.json` artifact shows `"schema": "kapi.check/v2"`; after the `dock` decision 1 FAILS; the last check passes with 2 REPORTS |
 | `05-ai-checks-guardrail` | 3 FAILS, exit 3; then `No findings.` and PASS |
-| `10-cli-points-and-voice` | one FAILS on `partner/index.md` (`seamless`), exit 3, then PASS; the recipe artifact's comments say `advisory`, not severity |
-| `11-cli-terms-and-queue` | French goes from 0% to 100% established; the queue for French empties; the source rows stay |
-| `s1-compass-ship-gate` | `ship.json`: `nl` withheld, then `translated`; `nb` ends `established` |
-| `s2-tidewatch-ci` | the jq line prints `established 77%` for nb and `established 0%` for nl; the check passes with one REPORTS |
+| `s0-northsea-context` | the import reports 7 concepts, 1 voice profile and 8 word rules moved into terms; the two answers name `northsea/docs` and `northsea/landing`; the search lists `berth` preferred, `mooring` discouraged and `mooring_id` admitted |
+| `10-cli-points-and-voice` | `ls` lists `context`; the two answers name `voltway/docs` and `voltway/portal` with `brand=helios`; the voice guide shows the portal's medium sentences and no Terms section; one FAILS on `partner/index.md` (`seamless`), exit 3, then PASS; the recipe artifact's comments say `advisory`, not severity |
+| `11-cli-terms-and-queue` | the prompt excerpt lists `billing period` and `reading`; four French rows are approved; French goes from 0% to 100% established; the queue for French empties; the source rows stay |
+| `audience-constraints` | both answers list the same two shared constraints; the first check passes with `requested and not run: voice.guidance`; the planted phrase gives 4 FAILS and exit 3; the jq line prints `harbor-help/no-unsupported-assurance v1` for each page; the restored pages pass; the contradicting sentence passes with `voice.guidance` still not run; no "Configuration warnings" block |
+| `s1-compass-converge` | the first `ship.json` withholds all three; `kapi up` answers 37 of Norwegian's 38 units from content memory; afterwards `nb` and `de` are `translated` and `nl` is `blocked: checks` |
+| `s1-compass-ship-gate` | `kapi up` parks `nl`; `ship.json`: `nl` withheld, then `translated`; twenty Dutch approvals; `nb` ends `established` |
+| `s2-tidewatch-build-output` | `nb` ships `translated`, `nl` is `blocked: review`; the Norwegian front matter keeps the stub's marks on the description; `find` lists four Norwegian files and no Dutch ones |
+| `s2-tidewatch-ci` | the jq line prints `established 77%` for nb and `established 0%` for nl; the check passes with one REPORTS, on `docs/integrating.md` (`mooring`) |
+| `bowrain-desktop-automations` | Run now starts a run that appears at the top of the table; the row settles with a per-language summary; the dashboard's "Review pending translations" link opens the review session |
 | `bowrain-cli-getting-started` | `kapi init` prints `collections (proposed from the files here...)` with `src/locales/en.json`; `kapi status` shows the `content` and `governance` lines; `kapi up` prints the venue first; `src/locales/fr.json` arrives |
 | `08-mcp-tools` | the session calls `pre_review_unit`, not an approval; the queue artifact still lists the unit, now with `aiScore` |
 | `kapi-desktop-review` | the unit shows one human action (Approve) and no sign-off control; the history layer reads "Already approved" |
@@ -214,7 +253,8 @@ Per video:
 ## Norwegian narration
 
 The English narration changed in these demos: `01`, `05`, `08`, `10`, `11`,
-`audience-constraints`, `bowrain-cli-getting-started`, `bowrain-web-review`,
+`audience-constraints`, `bowrain-cli-getting-started`,
+`bowrain-desktop-automations`, `bowrain-web-review`,
 `s0-northsea-checks`, `s0-northsea-context`, `s1-compass-converge`,
 `s1-compass-ship-gate`, `s2-tidewatch-build-output`, `s2-tidewatch-ci`. Their
 `demo.nb.yaml` sidecars are loop output, and the next dogfood convergence in CI
@@ -225,7 +265,8 @@ Norwegian pass until every scene is translated, so record English first and run
 ## Known leftovers in the product
 
 These are in the product rather than in the demo sources. Where a take shows
-one, the take is named:
+one, the take is named. PR #2993 changes the first six; record the affected
+demos after it merges.
 
 - `kapi status --review` ends with "the unit then counts as reviewed"
   (`11-cli-terms-and-queue`).
@@ -242,6 +283,20 @@ one, the take is named:
   in both `s1-compass-*` demos prints "54 unit(s) hold a decision recorded
   before its source basis". Regenerating `samples/compass/context/state/` with
   a basis removes the line.
+- `kapi status --review --lang fr` over an empty French queue prints "no unit
+  in any language is waiting for a person" while the English source rows are
+  still waiting (`11-cli-terms-and-queue`).
+- `kapi status` prints "No terms govern fr" in `11-cli-terms-and-queue`, a demo
+  about French term rules. The rules sit on the flow's steps under
+  `term_rules:`, and the line counts only the terms store, which holds no
+  French. Putting the two French renderings in the fixture's terms as well
+  would remove the line.
+- `kapi up` prints "Settled source: 0 block(s)" before extracting, and
+  "Extracted N block(s) ... (nothing extracted yet)" followed by a second
+  "Extracted N block(s)" line (`s0-northsea-context`; the parenthesis also in
+  both `s1-compass-*` and `s2-tidewatch-build-output`).
+- `kapi up` prints its per-language progress lines in no fixed order, so two
+  takes of `s1-compass-ship-gate` can list `de` and `nb` the other way round.
 
 No walkthrough shows the context digest or the Learned section on its own;
 `kapi-desktop-explorer` passes the Learned rail entry on its way to Terms. A
