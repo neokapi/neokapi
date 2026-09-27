@@ -38,7 +38,8 @@ func newContextObserveCmd(a *App) *cobra.Command {
 feature or plan name as they write it, the spelling variety they keep to, a
 word they use where writers often use another, who the text addresses. Record
 it whether or not your own text uses it. Leave alone a word the files write
-more than one way, an interface label, and wording taken from your task.
+more than one way (record nothing about it, not even a note), an interface
+label, and wording taken from your task.
 
 For a name or word, pass --term with the form the files use and --instead-of
 with the form they avoid: the split form of a one-word name, the other

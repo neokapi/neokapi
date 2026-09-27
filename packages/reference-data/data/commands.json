@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T23:21:18Z",
+  "generatedAt": "2026-09-27T15:37:40Z",
   "commands": [
     {
       "id": "add",
@@ -970,7 +970,7 @@
       ],
       "use": "observe [what you noticed]",
       "short": "Record something you noticed about how this project writes",
-      "long": "Record one thing this project's files do every time: a product,\nfeature or plan name as they write it, the spelling variety they keep to, a\nword they use where writers often use another, who the text addresses. Record\nit whether or not your own text uses it. Leave alone a word the files write\nmore than one way, an interface label, and wording taken from your task.\n\nFor a name or word, pass --term with the form the files use and --instead-of\nwith the form they avoid: the split form of a one-word name, the other\nspelling, or the other word. kapi derives the other forms to avoid: the\nspaced, hyphenated and closed spellings of a compound, each part capitalised,\nand the lower-case spelling of a capitalised term. \"--term Quickcast\n--instead-of 'Quick cast'\" avoids Quick cast, Quick-cast, QuickCast and\nquickcast. The parts of a closed word come from an --instead-of form that\nbreaks it, so a word with none varies only its case.\n\nEverything recorded is a suggestion. Checks report it wherever the word\nappears, no check fails on it, and it is established when a person keeps it\nwith \"kapi context keep\". Without --term an observation is a fact in prose.\n\nSay where you saw it with --seen-in and --quote.",
+      "long": "Record one thing this project's files do every time: a product,\nfeature or plan name as they write it, the spelling variety they keep to, a\nword they use where writers often use another, who the text addresses. Record\nit whether or not your own text uses it. Leave alone a word the files write\nmore than one way (record nothing about it, not even a note), an interface\nlabel, and wording taken from your task.\n\nFor a name or word, pass --term with the form the files use and --instead-of\nwith the form they avoid: the split form of a one-word name, the other\nspelling, or the other word. kapi derives the other forms to avoid: the\nspaced, hyphenated and closed spellings of a compound, each part capitalised,\nand the lower-case spelling of a capitalised term. \"--term Quickcast\n--instead-of 'Quick cast'\" avoids Quick cast, Quick-cast, QuickCast and\nquickcast. The parts of a closed word come from an --instead-of form that\nbreaks it, so a word with none varies only its case.\n\nEverything recorded is a suggestion. Checks report it wherever the word\nappears, no check fails on it, and it is established when a person keeps it\nwith \"kapi context keep\". Without --term an observation is a fact in prose.\n\nSay where you saw it with --seen-in and --quote.",
       "flags": [
         {
           "name": "instead-of",

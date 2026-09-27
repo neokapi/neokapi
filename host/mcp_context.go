@@ -44,7 +44,7 @@ func registerContextMCPTools(server *mcp.Server, a *App) {
 			"it is discouraged and what to say instead, and wording the project has already approved. " +
 			"For everything that applies to a file, read context://<path> instead. " +
 			"An empty answer means nothing is recorded about the word; if the files always write it one " +
-			"way, record that with context_observe, and leave it alone if they write it more than one way. " +
+			"way, record that with context_observe, and leave it alone, with no note, if they write it more than one way. " +
 			"`attention` says what a person must act on, such as " +
 			"context files nobody has imported.",
 	}, a.handleContextSearch)

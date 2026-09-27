@@ -39,7 +39,8 @@ Over MCP the same two are `context_observe` (with `term` and `instead_of`) and
 
   Before you record a word, search the files for its other forms (spaced,
   hyphenated, closed, the other spelling). A word they write more than one way
-  is a choice the project has not made, so leave it for a person. Leave alone
+  is a choice the project has not made, so leave it for a person: record
+  nothing about it, not even a note describing the forms. Leave alone
   interface labels, wording taken from your task, anything seen once, and a
   name you introduced yourself; `--seen-in` names a file that was there before
   you started.
