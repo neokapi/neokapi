@@ -51,17 +51,17 @@ usage() {
 
 # ── the plugin table ─────────────────────────────────────────────────────────
 # Sets, for the named plugin: the Ruby class, the `desc` line, the self-check
-# arguments (as a Ruby argument tail and as a shell argument tail — the same
-# invocation, written for `system` and for `shell_output`), and the three prose
-# lines that differ per plugin: what the tarball contains, what the first real
-# use would otherwise stall on, and what the self-check proves. The plugin id is
+# arguments (as the `args:` option of a `run` step and as a shell argument
+# tail — the same invocation, written for the step and for `shell_output`), and
+# the three prose lines that differ per plugin: what the tarball contains, what
+# the first real use would otherwise stall on, and what the self-check proves. The plugin id is
 # also the directory under share/kapi/plugins and the plugins/<id> homepage path.
 plugin_meta() {
   case "$1" in
     asr)
       class="KapiAsr"
       desc="Speech-recognition plugin for kapi — transcribe audio/video via whisper.cpp"
-      ruby_args=', "asr"'
+      run_args=', args: ["asr"]'
       shell_args=" asr"
       layout="kapi-asr binary + manifest.json + NOTICE + bundled whisper-cli (+ its shared libs) and a default ggml-*.bin model"
       optin="ASR is opt-in"
@@ -71,7 +71,7 @@ plugin_meta() {
     av)
       class="KapiAv"
       desc="Video-demux dependency plugin for kapi — bundles LGPL ffmpeg/ffprobe"
-      ruby_args=', "av"'
+      run_args=', args: ["av"]'
       shell_args=" av"
       layout="kapi-av binary + manifest.json + NOTICE + bundled LGPL ffmpeg and ffprobe"
       optin="video is opt-in"
@@ -81,7 +81,7 @@ plugin_meta() {
     pdfium)
       class="KapiPdfium"
       desc="PDFium-backed PDF reader plugin for kapi (correct CID/CJK text + geometry)"
-      ruby_args=""
+      run_args=""
       shell_args=""
       layout="kapi-pdfium binary + manifest.json + lib/<bundled libpdfium>"
       optin="kapi-cli depends_on this one, so the reverse edge would cycle"
@@ -91,7 +91,7 @@ plugin_meta() {
     vision)
       class="KapiVision"
       desc="Document-vision plugin for kapi — PP-OCRv5 OCR + PP-DocLayoutV3 layout"
-      ruby_args=', "command", "vision"'
+      run_args=', args: ["command", "vision"]'
       shell_args=" command vision"
       layout="kapi-vision binary + manifest.json + lib/<bundled onnxruntime> + models/<PP-OCRv5 assets>"
       optin="OCR is opt-in, not bundled with the CLI"
@@ -169,7 +169,7 @@ generate() {
   local out="${5:?out dir required}"
   local tag="${6:-${plugin}-v${version}}"
 
-  local class desc ruby_args shell_args layout optin firstuse testnote
+  local class desc run_args shell_args layout optin firstuse testnote
   plugin_meta "$plugin" || return 1
 
   if [ ! -d "$checksums_dir" ]; then
@@ -219,10 +219,8 @@ RUBY
       "plugin binary at install time instead of stalling ${firstuse}." \
       "Best-effort: a failure just means the first real exec pays it instead."
     cat <<RUBY
-  def post_install
-    system ${path}/${bin}"${ruby_args}
-  rescue
-    nil
+  post_install_steps do
+    run "kapi/plugins/${plugin}/${bin}"${run_args}, base: :share, must_succeed: false
   end
 
   test do
@@ -286,6 +284,11 @@ self_test() {
     # must not reach a formula.
     ! grep -q windows "$f" || fail "${p}: a windows artifact reached the formula"
     grep -q "kapi/plugins/${p}" "$f" || fail "${p}: the shared plugins path is wrong"
+    # Homebrew deprecates the `def post_install` method; the self-check is a
+    # declarative `run` step.
+    ! grep -q 'def post_install' "$f" || fail "${p}: the formula defines post_install"
+    grep -q "^    run \"kapi/plugins/${p}/kapi-${p}\"" "$f" \
+      || fail "${p}: the post-install self-check step is missing"
     [ "$(grep -c '      sha256 "' "$f")" = 3 ] || fail "${p}: expected three sha256 lines"
     # Balanced Ruby: every do/def opens a block the file closes.
     [ "$(grep -cE '^\s*(class|def|do$|.* do$)' "$f")" = "$(grep -cE '^\s*end$' "$f")" ] \

@@ -339,7 +339,7 @@ check-plugin-release-latest: ## Guard: no plugin release claims the repo's "late
 check-packages-publish-gate: ## Guard: the apt/yum repository publishes only when PUBLISH_PACKAGES is "true"
 	@./scripts/check-packages-publish-gate.sh
 
-check-cask-heredocs: ## Guard: the release casks carry no pre/postflight block and no retired vocabulary in desc
+check-cask-heredocs: ## Guard: the release casks carry no pre/postflight block and no retired vocabulary in desc; formulae use post_install_steps
 	@./scripts/check-cask-heredocs.sh
 
 check-tracked-binaries: ## Guard: no compiled executable (ELF/Mach-O/PE) is tracked in git

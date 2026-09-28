@@ -24,6 +24,11 @@
 #     `bowrain-desktop` and its bundle id.
 #
 # deploy/homebrew/*.rb is held to the install-hook and zap rules too.
+#
+# The formula generators (scripts/gen-brew-*.sh) are held to the formula side
+# of the same deprecation: Homebrew prints "Calling `post_install` is
+# deprecated!" for a formula that defines the method, so post-install work is
+# written as a `post_install_steps` block.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -89,16 +94,22 @@ for f in deploy/homebrew/*.rb; do
   [ -n "$shared" ] && report "$f zaps a directory the CLI shares" "$shared"
 done
 
+for f in scripts/gen-brew-*.sh; do
+  hooks=$(grep -n -E '^[[:space:]]*def post_install([[:space:]]|$)' "$f" | sed 's/^\([0-9]*\):/\1: /' || true)
+  [ -n "$hooks" ] && report "$f writes a formula with a post_install method" "$hooks"
+done
+
 if [ "$fail" -ne 0 ]; then
   cat >&2 <<'MSG'
 
 A cask takes no preflight or postflight block: Homebrew deprecates them, and
-the notarized apps need none. A cask desc uses the fixed vocabulary of
-docs/internals/brand-communication.md. A cask zaps only its app's own data
+the notarized apps need none. A formula declares post-install work in a
+post_install_steps block, never a post_install method. A cask desc uses the
+fixed vocabulary of docs/internals/brand-communication.md. A cask zaps only its app's own data
 (kapi-desktop, bowrain-desktop, the bundle id), never the kapi or bowrain
 directories the CLI and its plugins keep under Application Support and Caches.
 MSG
   exit 1
 fi
 
-echo "check-cask-heredocs: the release casks carry no install hook and no retired vocabulary"
+echo "check-cask-heredocs: the release casks and formulae carry no deprecated install hook and no retired vocabulary"
