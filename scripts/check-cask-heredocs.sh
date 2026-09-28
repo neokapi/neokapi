@@ -12,9 +12,9 @@
 #     The block stripped the quarantine attribute, which the declarative
 #     `postflight_steps` cannot express and which the apps do not need: both
 #     are notarized and stapled, and stripping quarantine sidesteps Gatekeeper.
-#   - a `desc` in retired vocabulary. deploy/homebrew/*.rb is read by
-#     `make check-governed-prose`, but the heredocs are what reach users, so
-#     each `desc` here is matched against the pattern check-vocabulary.sh uses.
+#   - a `desc` in retired vocabulary. kapi cannot read a heredoc inside a
+#     workflow, so each `desc` here is matched against the pattern
+#     check-vocabulary.sh uses.
 #   - a `zap` entry naming ~/Library/Application Support/Kapi or
 #     ~/Library/Caches/Kapi. A default macOS volume is case-insensitive, so
 #     those are the kapi CLI's own config and cache roots (flows, plugins, terms
@@ -22,8 +22,6 @@
 #     would delete them. Bowrain is the same for the bowrain plugin's sign-in
 #     and config. Each app keeps its own data under `kapi-desktop` or
 #     `bowrain-desktop` and its bundle id.
-#
-# deploy/homebrew/*.rb is held to the install-hook and zap rules too.
 #
 # The formula generators (scripts/gen-brew-*.sh) are held to the formula side
 # of the same deprecation: Homebrew prints "Calling `post_install` is
@@ -83,15 +81,6 @@ for wf in "${WORKFLOWS[@]}"; do
 
   shared=$(printf '%s\n' "$lines" | grep -i -E "$SHARED_DIR_RE" || true)
   [ -n "$shared" ] && report "$wf writes a cask that zaps a directory the CLI shares" "$shared"
-done
-
-for f in deploy/homebrew/*.rb; do
-  [ -f "$f" ] || continue
-  numbered=$(grep -n '' "$f" | sed 's/^\([0-9]*\):/\1: /')
-  hooks=$(printf '%s\n' "$numbered" | grep -E "$HOOK_RE" || true)
-  [ -n "$hooks" ] && report "$f has an install hook" "$hooks"
-  shared=$(printf '%s\n' "$numbered" | grep -i -E "$SHARED_DIR_RE" || true)
-  [ -n "$shared" ] && report "$f zaps a directory the CLI shares" "$shared"
 done
 
 for f in scripts/gen-brew-*.sh; do

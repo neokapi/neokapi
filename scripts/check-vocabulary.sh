@@ -209,7 +209,7 @@ readonly SWEPT_SURFACES=(
   # The desktop app: its window chrome, its first-run copy, and the build
   # metadata below.
   apps
-  # Distribution metadata (packaging, deploy/homebrew) is gated by `make
+  # Distribution metadata (packaging, the desktop build) is gated by `make
   # check-governed-prose` through kapi. Its vocabulary half moved when those
   # collections were declared; the framing half moved with the patterns.
   # Transactional email is the highest-REACH prose in the product: its header
@@ -240,9 +240,8 @@ readonly VOCAB_SURFACES=(
   apps/kapi-desktop/build
   # The desktop's own components — the window a user meets before any docs.
   apps/kapi-desktop/frontend/src/components
-  # NOT here any more, and deliberately: packaging/nfpm.yaml,
-  # apps/kapi-desktop/build/windows/info.json and deploy/homebrew/*.rb are
-  # declared as collections in kapi.yaml and gated by `make
+  # NOT here any more, and deliberately: packaging/nfpm.yaml and
+  # apps/kapi-desktop/build/windows/info.json are declared as collections in kapi.yaml and gated by `make
   # check-governed-prose`, which runs the rule through kapi. A surface that
   # moves under a collection LEAVES this list — one rule, one enforcer per
   # surface. What stays below is what kapi still cannot open.

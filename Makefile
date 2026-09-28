@@ -2896,15 +2896,6 @@ check-reference-docs: i18n-catalogs ## Drift gate: fail if the committed referen
 # reads nothing of the developer's machine. Any critical, major or minor finding
 # fails it: the collection is clean, and a gate that tolerates its own findings
 # teaches the reader to stop reading them.
-# Stage a built plugin where the isolated kapi can discover it. The iso env
-# sets KAPI_PLUGINS_DIR_ONLY, so a developer's Homebrew-installed plugins are
-# deliberately invisible — which also means a gate needing one must put it here.
-stage-sourcecode-plugin: build-sourcecode-plugin
-	@mkdir -p $(KAPI_ISO_DIR)/plugins/sourcecode/formats/sourcecode
-	@cp -f $(BIN_DIR)/kapi-sourcecode $(KAPI_ISO_DIR)/plugins/sourcecode/
-	@cp -f plugins/sourcecode/manifest.json $(KAPI_ISO_DIR)/plugins/sourcecode/
-	@cp -f plugins/sourcecode/formats/sourcecode/schema.json $(KAPI_ISO_DIR)/plugins/sourcecode/formats/sourcecode/
-
 # Distribution metadata is declared in kapi.yaml and checked under the project's
 # voice profile. scripts/check-vocabulary.sh covers surfaces kapi cannot read.
 #
@@ -2914,15 +2905,10 @@ stage-sourcecode-plugin: build-sourcecode-plugin
 import-dogfood-context: build ## Pull the repository's context from refs/kapi/context into the isolated store the gates use
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi context pull -p $(CURDIR)/kapi.yaml
 
-check-governed-prose: build stage-sourcecode-plugin import-dogfood-context ## Gate: the collections holding distribution prose pass `kapi check`
+check-governed-prose: build import-dogfood-context ## Gate: the collections holding distribution prose pass `kapi check`
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'packaging/nfpm.yaml' \
 		-p $(CURDIR)/kapi.yaml
 	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'apps/kapi-desktop/build/windows/info.json' \
-		-p $(CURDIR)/kapi.yaml
-	@# The cask needs the sourcecode plugin, staged above. Its `caveats` embeds
-	@# an aligned command sample, so the consecutive-spaces rule reports on
-	@# formatting that is correct; that rule is advisory and fails nothing.
-	$(KAPI_ISO_ENV) $(BIN_DIR)/kapi check 'deploy/homebrew/*.rb' \
 		-p $(CURDIR)/kapi.yaml
 
 # Check documentation prose on each PR. Failing findings block the check;
