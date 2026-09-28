@@ -30,7 +30,7 @@
     "@xyflow/react": "^12.11.6",
     "lexical": "^0.51.0",
     "lucide-react": "^1.47.0",
-    "posthog-js": "^1.434.0",
+    "posthog-js": "^1.434.14",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3"
