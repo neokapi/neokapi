@@ -55,14 +55,10 @@ on:
       - "web/docs/**"
       - "bowrain/web/docs/docs/**"
       - "kapi.yaml"
-      # The prose `check-governed-prose` gates, and what decides the verdict:
-      # the rule lives in the voice profile, and the cask needs the plugin.
-      # Without these a change to the cask's desc would not run the gate that
-      # exists to read it.
+      # The prose `check-governed-prose` gates. The rule that decides the
+      # verdict lives in the voice profile, which kapi.yaml binds.
       - "packaging/**"
-      - "deploy/homebrew/**"
       - "apps/kapi-desktop/build/**"
-      - "plugins/sourcecode/**"
       - ".github/workflows/reference-data-drift.yml"
   pull_request:
     paths:
@@ -104,14 +100,10 @@ on:
       - "web/docs/**"
       - "bowrain/web/docs/docs/**"
       - "kapi.yaml"
-      # The prose `check-governed-prose` gates, and what decides the verdict:
-      # the rule lives in the voice profile, and the cask needs the plugin.
-      # Without these a change to the cask's desc would not run the gate that
-      # exists to read it.
+      # The prose `check-governed-prose` gates. The rule that decides the
+      # verdict lives in the voice profile, which kapi.yaml binds.
       - "packaging/**"
-      - "deploy/homebrew/**"
       - "apps/kapi-desktop/build/**"
-      - "plugins/sourcecode/**"
       - ".github/workflows/reference-data-drift.yml"
 
 # Cancel superseded PR runs; never cancel a push to main.
