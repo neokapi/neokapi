@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/change"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 )
 
@@ -43,13 +42,15 @@ func TestChangeService_AddsAndRemovesKeysAcrossACatalogsTranslations(t *testing.
 	assert.Equal(t, "{\n  \"nav\": {\n    \"home\": \"Home\",\n    \"cart\": \"Cart\",\n    \"checkout\": \"Paiement\",\n    \"legacy\": \"Old\"\n  }\n}\n", readFile(t, recipe, "locales/fr.json"),
 		"a translation with no file yet is written from the source, the new key translated")
 
-	page, err := svc.Read(ctx, change.ReadRequest{Doc: "locales/en.json", Blocks: []string{"nav.legacy"}, Editions: []model.EditionKey{editionKey(t, "de"), editionKey(t, "fr")}})
+	// The removal names the revision of the source catalog's own edition,
+	// and the translations go with the key.
+	page, err := svc.Read(ctx, change.ReadRequest{Doc: "locales/en.json", Blocks: []string{"nav.legacy"}})
 	require.NoError(t, err)
 	require.Len(t, page.Blocks, 1)
 	legacy := page.Blocks[0]
 	res, err = svc.Apply(ctx, change.Set{Ops: []change.Op{{
 		Kind: change.KindDeleteBlock, At: legacy.Ref,
-		Body: &change.DeleteBlock{IfMatch: map[string]string{"en": legacy.Rev, "de": legacy.Editions["de"].Rev, "fr": legacy.Editions["fr"].Rev}},
+		Body: &change.DeleteBlock{IfMatch: map[string]string{"en": legacy.Rev}},
 	}}}, changePerson)
 	require.NoError(t, err)
 	require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops)

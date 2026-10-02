@@ -201,22 +201,43 @@ func TestService_DeleteBlock(t *testing.T) {
 		assert.Equal(t, before, h.snapshot("c"))
 	})
 
-	t.Run("every edition the block holds is named", func(t *testing.T) {
+	t.Run("the own edition is named, and every edition named is checked", func(t *testing.T) {
+		h := newHome()
+		svc := newMemService(h)
+		before := h.snapshot("c")
+		b := readBlock(t, svc, "c", "t")
+		res := applySet(t, svc, svcPerson, deleteOp("c", "t", map[string]string{"en-GB": b.Editions["en-GB"].Rev}))
+		err := requireRefused(t, res.Ops[0], change.CodeInvalid)
+		assert.Equal(t, "if_match/en", err.Field, "a removal names the revision of the block's own edition")
+
+		res = applySet(t, svc, svcPerson, deleteOp("c", "t", map[string]string{"en": b.Rev, "en-GB": "r:0000000000000000"}))
+		err = requireRefused(t, res.Ops[0], change.CodeStale)
+		assert.Equal(t, "if_match/en-GB", err.Field, "an edition named at a revision it has left")
+		assert.Equal(t, "Colour", res.Ops[0].Current.Text)
+
+		res = applySet(t, svc, svcPerson, deleteOp("c", "t", map[string]string{"en": b.Rev, "de": b.Rev}))
+		err = requireRefused(t, res.Ops[0], change.CodeStale)
+		assert.Equal(t, "if_match/de", err.Field, "an edition the block lacks")
+		assert.Equal(t, model.AbsentRevision, res.Ops[0].Current.Rev)
+		assert.Equal(t, before, h.snapshot("c"))
+	})
+
+	t.Run("an edition the map leaves out goes with the block", func(t *testing.T) {
 		h := newHome()
 		svc := newMemService(h)
 		b := readBlock(t, svc, "c", "t")
 		res := applySet(t, svc, svcPerson, deleteOp("c", "t", map[string]string{"en": b.Rev}))
-		err := requireRefused(t, res.Ops[0], change.CodeStale)
-		assert.Equal(t, "if_match/en-GB", err.Field, "an edition the sender did not name may be one it never read")
-
-		res = applySet(t, svc, svcPerson, deleteOp("c", "t", map[string]string{"en": b.Rev, "en-GB": b.Editions["en-GB"].Rev, "de": b.Rev}))
-		err = requireRefused(t, res.Ops[0], change.CodeStale)
-		assert.Equal(t, "if_match/de", err.Field, "an edition the block lacks")
-		assert.Equal(t, model.AbsentRevision, res.Ops[0].Current.Rev)
-
-		res = applySet(t, svc, svcPerson, deleteOp("c", "t", map[string]string{"en": b.Rev, "en-GB": b.Editions["en-GB"].Rev}))
-		require.Equal(t, change.SetApplied, res.Status)
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops[0].Error)
 		assert.Equal(t, []string{"x=X", "y=Y"}, keysOf(t, svc, "c"))
+	})
+
+	t.Run("a block addressed by its reader-local id is removed, the ids after it renumbered", func(t *testing.T) {
+		h := newHome()
+		svc := newMemService(h)
+		rev := readBlock(t, svc, "c", "x").Rev
+		res := applySet(t, svc, svcPerson, deleteOp("c", "tu1", map[string]string{"en": rev}))
+		require.Equal(t, change.SetApplied, res.Status, "%+v", res.Ops[0].Error)
+		assert.Equal(t, []string{"y=Y", "t=T"}, keysOf(t, svc, "c"))
 	})
 
 	t.Run("a block that is not there is not found", func(t *testing.T) {

@@ -15,10 +15,11 @@ import (
 // shell of the block added or removed. Each operation is checked against the
 // document as the home read it before the pass:
 //
-//   - delete_block names the revision of every edition the block holds,
-//     the document's own and every translation in a file of its own; an
-//     edition it leaves out, names wrongly or names and the block lacks is
-//     stale, so a block is removed only with the content its sender saw;
+//   - delete_block names the revision of the block's own edition and of any
+//     other edition its sender read; leaving out the own edition is invalid,
+//     and an edition named at another revision, or named and absent, is
+//     stale. The block goes with every edition it holds, the document's own
+//     and every translation in a file of its own, named or not;
 //   - insert_block refuses a key a block of the document already answers
 //     to, and an anchor no block answers to.
 //
@@ -337,7 +338,12 @@ func (p *docPlan) structureDelete(i int, op Op, body *DeleteBlock) (StructuralEd
 		p.results[i].Current = cur
 		return StructuralEdit{}, false
 	}
+	// The block is removed under the key the operation names and the keys
+	// it keeps across the edit, which the pass after reads it by.
 	p.removed[key] = i
+	for _, k := range structureKeys(b) {
+		p.removed[k] = i
+	}
 	authKey := b.EditionKeyOf(b.Authoritative(model.AuthorityPolicy{}))
 	for _, k := range b.Editions() {
 		ed, _ := b.Edition(k)
@@ -353,11 +359,12 @@ func (p *docPlan) structureDelete(i int, op Op, body *DeleteBlock) (StructuralEd
 	res.Status = OpApplied
 	res.At = p.canonical(b, model.EditionKey{})
 	res.Before = model.EditionRevision(b, model.EditionKey{})
-	return StructuralEdit{Kind: KindDeleteBlock, Key: key, Block: b, Index: loc.index, AnchorIndex: -1, op: i}, true
+	return StructuralEdit{Kind: KindDeleteBlock, Key: BlockKey(b), Block: b, Index: loc.index, AnchorIndex: -1, op: i}, true
 }
 
-// deletePrecondition checks delete_block's revisions against every edition
-// the block holds.
+// deletePrecondition checks delete_block's revisions: the map names the
+// block's own edition, and every edition it names is at the revision named.
+// An edition the map leaves out goes with the block whatever it holds.
 func (p *docPlan) deletePrecondition(b *model.Block, body *DeleteBlock) (*Error, *Current) {
 	named := map[model.EditionKey]string{}
 	for _, text := range slices.Sorted(maps.Keys(body.IfMatch)) {
@@ -373,24 +380,22 @@ func (p *docPlan) deletePrecondition(b *model.Block, body *DeleteBlock) (*Error,
 		named[ek] = body.IfMatch[text]
 	}
 	key := BlockKey(b)
-	for _, k := range b.Editions() {
-		rev := model.EditionRevision(b, k)
-		want, ok := named[k]
-		delete(named, k)
-		if ok && want == rev {
-			continue
-		}
-		ed, _ := b.Edition(k)
-		cur := &Current{Rev: rev, Text: model.RunsEditText(ed.Runs)}
-		msg := fmt.Sprintf("edition %s of block %s is at %s, not %s", editionLabel(b, k), key, rev, want)
-		if !ok {
-			msg = fmt.Sprintf("block %s holds edition %s at %s; name every edition the block holds in if_match to remove it", key, editionLabel(b, k), rev)
-		}
-		return &Error{Code: CodeStale, Field: "if_match/" + keyTextOf(b, k), Message: msg}, cur
+	own := b.EditionKeyOf(model.EditionKey{})
+	if _, ok := named[own]; !ok {
+		return &Error{Code: CodeInvalid, Field: "if_match/" + keyTextOf(b, own),
+			Message: fmt.Sprintf("if_match names no revision of block %s's own edition %s; read the block and send the revision it reports", key, editionLabel(b, own))}, nil
 	}
 	for _, k := range slices.SortedFunc(maps.Keys(named), compareKeys) {
-		return &Error{Code: CodeStale, Field: "if_match/" + keyText(k),
-			Message: fmt.Sprintf("block %s holds no edition %s", key, keyText(k))}, &Current{Rev: model.AbsentRevision}
+		want := named[k]
+		ed, held := b.Edition(k)
+		if !held {
+			return &Error{Code: CodeStale, Field: "if_match/" + keyText(k),
+				Message: fmt.Sprintf("block %s holds no edition %s", key, keyText(k))}, &Current{Rev: model.AbsentRevision}
+		}
+		if rev := model.EditionRevision(b, k); want != rev {
+			return &Error{Code: CodeStale, Field: "if_match/" + keyTextOf(b, k),
+				Message: fmt.Sprintf("edition %s of block %s is at %s, not %s", editionLabel(b, k), key, rev, want)}, &Current{Rev: rev, Text: model.RunsEditText(ed.Runs)}
+		}
 	}
 	return nil, nil
 }
@@ -402,8 +407,10 @@ func (p *docPlan) structureInsert(i int, body *InsertBlock) (StructuralEdit, boo
 		return StructuralEdit{}, false
 	}
 	if _, removed := p.removed[name]; !removed {
-		if locs := p.located[name]; len(locs) > 0 {
-			b := locs[0].block
+		// A block holds the name when it keeps it across the edit; a
+		// reader-local id that happens to read the same is renumbered.
+		if at := slices.IndexFunc(p.located[name], func(l located) bool { return slices.Contains(structureKeys(l.block), name) }); at >= 0 {
+			b := p.located[name][at].block
 			ed, _ := b.Edition(model.EditionKey{})
 			p.refuse(i, &Error{Code: CodeStale, Field: "name",
 				Message: fmt.Sprintf("%s already holds a block keyed %s; change it with set_content", p.info.Doc, name)})
@@ -428,7 +435,7 @@ func (p *docPlan) structureInsert(i int, body *InsertBlock) (StructuralEdit, boo
 			if !ok {
 				return StructuralEdit{}, false
 			}
-			e.AnchorBlock, e.AnchorIndex = loc.block, loc.index
+			e.Anchor, e.AnchorBlock, e.AnchorIndex = BlockKey(loc.block), loc.block, loc.index
 		}
 	}
 	p.added[name] = i
@@ -440,14 +447,17 @@ func (p *docPlan) Refuse(e StructuralEdit, err *Error) {
 }
 
 // structuralOf reports the insert_block whose new block b is, or the
-// delete_block that removed a block keyed as b is.
+// delete_block that removed a block keyed as b is. Both compare the keys a
+// block keeps across the edit: adding or removing a block renumbers the
+// reader-local ids of the blocks after it.
 func (p *docPlan) structuralOf(b *model.Block) (insert, remove int, ok bool) {
-	for _, k := range blockKeys(b) {
+	keys := structureKeys(b)
+	for _, k := range keys {
 		if i, found := p.added[k]; found {
 			return i, -1, true
 		}
 	}
-	for _, k := range blockKeys(b) {
+	for _, k := range keys {
 		if i, found := p.removed[k]; found {
 			return -1, i, true
 		}
@@ -507,6 +517,22 @@ func blockKeys(b *model.Block) []string {
 		if k != "" && !slices.Contains(out, k) {
 			out = append(out, k)
 		}
+	}
+	return out
+}
+
+// structureKeys are the keys a block keeps when blocks are added to its
+// document or removed: its durable key and its name, or its id when it has
+// neither.
+func structureKeys(b *model.Block) []string {
+	var out []string
+	for _, k := range []string{b.Unit, b.Name} {
+		if k != "" && !slices.Contains(out, k) {
+			out = append(out, k)
+		}
+	}
+	if len(out) == 0 && b.ID != "" {
+		out = append(out, b.ID)
 	}
 	return out
 }

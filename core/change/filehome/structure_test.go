@@ -264,13 +264,13 @@ func TestFileHome_StructureReachesTheFilesOfEditions(t *testing.T) {
 	t.Run("a block removed leaves every edition's file", func(t *testing.T) {
 		f := newPresentFixture(t, map[string]string{"en.json": en, "de/en.json": de})
 		b := f.block(t, "en.json", "b", "de")
-		res := f.apply(t, deleteAt("en.json", "b", map[string]string{"en": b.Rev}))
-		assert.Equal(t, change.CodeStale, res.Ops[0].Error.Code, "the German edition is not named")
+		res := f.apply(t, deleteAt("en.json", "b", map[string]string{"en": b.Rev, "de": "r:0000000000000000"}))
+		assert.Equal(t, change.CodeStale, res.Ops[0].Error.Code, "the German edition is named at a revision it has left")
 		assert.Equal(t, "if_match/de", res.Ops[0].Error.Field)
 		assert.Equal(t, "Be", res.Ops[0].Current.Text)
 		assert.Equal(t, de, f.read(t, "de/en.json"))
 
-		res = f.apply(t, deleteAt("en.json", "b", map[string]string{"en": b.Rev, "de": b.Editions["de"].Rev}))
+		res = f.apply(t, deleteAt("en.json", "b", map[string]string{"en": b.Rev}))
 		requireApplied(t, res)
 		assert.Equal(t, "{\n  \"a\": \"A\"\n}\n", f.read(t, "en.json"))
 		assert.Equal(t, "{\n  \"a\": \"Ah\"\n}\n", f.read(t, "de/en.json"))
