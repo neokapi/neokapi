@@ -193,7 +193,7 @@ func TestDashboardVerdictsFollowTheContentTheyJudged(t *testing.T) {
 		Name: "a.json", Format: "json", ItemType: "file", CollectionID: "col-a",
 	}))
 
-	clean := &model.Block{ID: "b1", Translatable: true, Source: []model.Run{textRun("Hello "), phRun()}}
+	clean := model.NewRunsBlock("b1", []model.Run{textRun("Hello "), phRun()})
 	clean.SetTargetRuns("fr", []model.Run{textRun("Bonjour "), phRun()})
 	clean.StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	require.NoError(t, cs.StoreBlocksForItem(ctx, proj.ID, "main", "a.json", []*model.Block{clean}))
@@ -210,7 +210,7 @@ func TestDashboardVerdictsFollowTheContentTheyJudged(t *testing.T) {
 
 	// The same block, its target rewritten to drop the placeholder — the
 	// error-severity finding the ship gate exists to catch.
-	broken := &model.Block{ID: "b1", Translatable: true, Source: []model.Run{textRun("Hello "), phRun()}}
+	broken := model.NewRunsBlock("b1", []model.Run{textRun("Hello "), phRun()})
 	broken.SetTargetText("fr", "Bonjour")
 	broken.StampTargetProvenance("fr", model.TargetStatusEstablished, model.Origin{Kind: model.OriginHuman})
 	require.NoError(t, cs.StoreBlocksForItem(ctx, proj.ID, "main", "a.json", []*model.Block{broken}))

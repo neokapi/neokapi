@@ -116,7 +116,8 @@ func (o *convergenceOrchestrator) settleBatch(
 		b := sb.Block
 		res.Total++
 
-		before := b.SourceStatus
+		src, _ := b.Edition(model.EditionKey{})
+		before := src.Status
 		beforeFailing := b.SourceFailing()
 		beforeHash := settledHash(b)
 		// Re-gate on source change: if the block's source no longer matches the
@@ -125,13 +126,15 @@ func (o *convergenceOrchestrator) settleBatch(
 		// re-checks it from scratch. Only the changed block resets; untouched
 		// blocks keep their status and are skipped by the store write below.
 		if sourceChangedSinceSettle(b, sb.ContentHash) {
-			b.SourceStatus = model.SourceStatusNew
+			src.Status = model.Status(model.SourceStatusNew)
+			b.SetEdition(model.EditionKey{}, src)
 		}
 
 		settleBlockStatus(ctx, b)
 		stampSettledHash(b, sb.ContentHash)
 
-		if b.SourceStatus != before {
+		settled, _ := b.Edition(model.EditionKey{})
+		if settled.Status != before {
 			res.Settled++
 		}
 		if !res.Level.AdmitsBlock(b) {
@@ -141,7 +144,7 @@ func (o *convergenceOrchestrator) settleBatch(
 		// recorded/updated settled-hash. An already-settled, unchanged block is
 		// skipped, so a steady-state run rewrites nothing (re-gate ONLY the
 		// changed block — epic 019 acceptance #6).
-		if b.SourceStatus != before || b.SourceFailing() != beforeFailing || settledHash(b) != beforeHash {
+		if settled.Status != before || b.SourceFailing() != beforeFailing || settledHash(b) != beforeHash {
 			changed = append(changed, sb)
 		}
 	}
@@ -234,7 +237,7 @@ func settleBlockStatus(ctx context.Context, b *model.Block) {
 // is verified on this pass rather than demoted (which would defeat a legitimate
 // pushed approval).
 func sourceChangedSinceSettle(b *model.Block, currentHash string) bool {
-	if b.SourceStatus == model.SourceStatusNew {
+	if src, _ := b.Edition(model.EditionKey{}); src.Status == model.Status(model.SourceStatusNew) {
 		return false
 	}
 	prev := ""

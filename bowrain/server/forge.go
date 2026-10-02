@@ -468,7 +468,7 @@ func (s *Server) materializeDelivery(ctx context.Context, proj *platstore.Projec
 					continue
 				}
 				cp := *sb.Block
-				cp.Source = sb.Block.TargetRuns(locale)
+				cp.SetSourceRuns(sb.Block.TargetRuns(locale))
 				// Restore the source-reader block id (the store re-mints an internal
 				// id on ingest and keeps the reader's id in SourceID). Faithful
 				// re-parse delivery re-reads the source and binds each skeleton ref

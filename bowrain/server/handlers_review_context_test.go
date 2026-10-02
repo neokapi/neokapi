@@ -465,7 +465,7 @@ func TestReviewContext_ReadsTheSameFactsAsTheHost(t *testing.T) {
 	require.NotNil(t, wantPrior)
 	assert.Equal(t, wantPrior, got.History.Prior)
 	assert.True(t, got.History.Prior.Governed, "produced under the context still in force")
-	lookup := &model.Block{ID: "review-lookup", Translatable: true, Source: unit.SourceRuns()}
+	lookup := model.NewRunsBlock("review-lookup", unit.SourceRuns())
 	matches, lerr := localMemory.Lookup(ctx, lookup, "en", "fr", memory.LookupOptions{MinScore: 0.5, MaxResults: 1})
 	require.NoError(t, lerr)
 	require.NotEmpty(t, matches)

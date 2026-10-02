@@ -53,12 +53,8 @@ func TestClientServerSyncContract(t *testing.T) {
 
 	// 3. Push — workspace-scoped sync route /api/v1/:ws/:pid/sync/:ref/...
 	c := client.NewWorkspaceBowrainClient(ts.URL, "test", projectID, token)
-	block := &model.Block{
-		ID:           "b1",
-		Name:         "greeting",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: "Hello, world"}}},
-	}
+	block := model.NewBlock("b1", "Hello, world")
+	block.Name = "greeting"
 	pushResp, err := c.Push(ctx,
 		map[string][]*model.Block{"locales/en.json": {block}},
 		[]client.ItemMeta{{Name: "locales/en.json", Format: "json"}},
@@ -126,7 +122,7 @@ func TestClientServerRouteSurface(t *testing.T) {
 func TestPushNilClientGuard(t *testing.T) {
 	var c *client.BowrainClient // nil — never connected
 	_, err := c.Push(context.Background(),
-		map[string][]*model.Block{"x": {{ID: "b1", Source: []model.Run{{Text: &model.TextRun{Text: "hi"}}}}}},
+		map[string][]*model.Block{"x": {model.NewBlock("b1", "hi")}},
 		[]client.ItemMeta{{Name: "x", Format: "json"}},
 		nil,
 		nil,

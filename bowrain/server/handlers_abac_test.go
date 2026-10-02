@@ -22,7 +22,7 @@ func TestPhase4_ABACStatusGating(t *testing.T) {
 	cs := s.ContentStore
 	ctx := t.Context()
 	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-abac", Name: "ABAC", DefaultSourceLanguage: "en", WorkspaceID: "test-ws"}))
-	blk := &model.Block{ID: "ba", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "hi"}}}}
+	blk := model.NewBlock("ba", "hi")
 	require.NoError(t, cs.StoreBlocks(ctx, "p-abac", "main", []*model.Block{blk}))
 
 	edit := func(token, text string) int {
@@ -66,7 +66,7 @@ func TestPhase4_SoDBlocksSelfApproval(t *testing.T) {
 	ctx := t.Context()
 	require.NoError(t, s.AuthStore.SetSoDMode(ctx, "test-ws", platauth.SoDBlock))
 	require.NoError(t, cs.CreateProject(ctx, &platstore.Project{ID: "p-sod", Name: "SoD", DefaultSourceLanguage: "en", WorkspaceID: "test-ws"}))
-	blk := &model.Block{ID: "bs", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "hi"}}}}
+	blk := model.NewBlock("bs", "hi")
 	require.NoError(t, cs.StoreBlocks(ctx, "p-sod", "main", []*model.Block{blk}))
 
 	// The owner translates the block (becomes its last editor).
@@ -117,7 +117,7 @@ func TestPublishSoDReadsTheTargetAuthor(t *testing.T) {
 	}
 	newBlock := func(id string) string {
 		t.Helper()
-		return storeBlock(&model.Block{ID: id, Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "hi " + id}}}})
+		return storeBlock(model.NewBlock(id, "hi "+id))
 	}
 	// The translator holds translate and no review, so every publish below is
 	// the owner's or the reviewer's, and what varies is who wrote the wording.
@@ -167,7 +167,7 @@ func TestPublishSoDReadsTheTargetAuthor(t *testing.T) {
 	})
 
 	t.Run("a target nobody wrote is publishable", func(t *testing.T) {
-		blk := &model.Block{ID: "b-machine", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "hi machine"}}}}
+		blk := model.NewBlock("b-machine", "hi machine")
 		blk.SetTargetText("fr", "bonjour")
 		bid := storeBlock(blk)
 		assert.Equal(t, http.StatusOK, publish(ownerToken, bid, `{"status":"published","locale":"fr"}`))

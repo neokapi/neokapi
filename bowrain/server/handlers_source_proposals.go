@@ -255,7 +255,9 @@ func (s *Server) applySourceProposal(ctx context.Context, p *bstore.ProposedSour
 		sb.Block.SetSourceText(p.ProposedSource)
 		// The source changed, so its authoring status is re-settled: it goes back
 		// to the New baseline so the next run's source-first phase re-checks it.
-		sb.Block.SourceStatus = model.SourceStatusNew
+		src, _ := sb.Block.Edition(model.EditionKey{})
+		src.Status = model.Status(model.SourceStatusNew)
+		sb.Block.SetEdition(model.EditionKey{}, src)
 		// The new source is persisted with the translations intact. The content
 		// hash moves, which is what makes the write re-derive every target's
 		// projection against the ledger, and what makes each target's recorded

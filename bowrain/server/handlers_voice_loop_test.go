@@ -226,7 +226,7 @@ func TestVoiceLoop_EvaluateBlastRadius(t *testing.T) {
 		ID: projectID, Name: "Blast Content", DefaultSourceLanguage: "en", WorkspaceID: wsID,
 	}))
 	block := func(idStr, text string) *model.Block {
-		return &model.Block{ID: idStr, Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: text}}}}
+		return model.NewBlock(idStr, text)
 	}
 	require.NoError(t, srv.ContentStore.StoreBlocks(ctx, projectID, "main", []*model.Block{
 		block("b1", "Please utilize the dashboard"),

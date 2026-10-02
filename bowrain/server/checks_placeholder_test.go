@@ -24,12 +24,7 @@ import (
 // catalogue carries one.
 func placeholderIssues(t *testing.T, source, target string) []CheckIssueResponse {
 	t.Helper()
-	block := &model.Block{
-		ID:           "b1",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: source}}},
-		Properties:   map[string]string{},
-	}
+	block := model.NewBlock("b1", source)
 	block.SetTargetText(model.LocaleFrench, target)
 
 	issues, err := runChecksOnBlock(t.Context(), block, pointChecks{TargetLocale: model.LocaleFrench})
@@ -74,12 +69,7 @@ func TestRunChecksOnBlock_ICUPluralFlattened(t *testing.T) {
 // different complaint.
 func errorIssues(t *testing.T, source, target string) []CheckIssueResponse {
 	t.Helper()
-	block := &model.Block{
-		ID:           "b1",
-		Translatable: true,
-		Source:       []model.Run{{Text: &model.TextRun{Text: source}}},
-		Properties:   map[string]string{},
-	}
+	block := model.NewBlock("b1", source)
 	block.SetTargetText(model.LocaleFrench, target)
 
 	issues, err := runChecksOnBlock(t.Context(), block, pointChecks{TargetLocale: model.LocaleFrench})

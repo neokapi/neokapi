@@ -117,11 +117,11 @@ func TestConvergenceEstimate_ExcludesTranslatedReady(t *testing.T) {
 	mkProject(t, cs, "p", nil)
 
 	// One ready block already translated to fr, one ready block pending.
-	done := &model.Block{ID: "done", Translatable: true, SourceStatus: model.SourceStatusWritten}
-	done.SetSourceText("Already translated.")
+	done := model.NewBlock("done", "Already translated.")
+	setSourceStatus(done, model.SourceStatusWritten)
 	done.SetTargetText(model.LocaleFrench, "Déjà traduit.")
-	pending := &model.Block{ID: "pending", Translatable: true, SourceStatus: model.SourceStatusWritten}
-	pending.SetSourceText("Still pending.")
+	pending := model.NewBlock("pending", "Still pending.")
+	setSourceStatus(pending, model.SourceStatusWritten)
 	require.NoError(t, cs.StoreItem(t.Context(), "p", "main", &platstore.Item{ProjectID: "p", Name: "a.json", Format: "json"}))
 	require.NoError(t, cs.StoreBlocksForItem(t.Context(), "p", "main", "a.json", []*model.Block{done, pending}))
 
