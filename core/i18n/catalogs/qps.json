@@ -1367,10 +1367,10 @@
         ".tar.gz"
       ],
       "mimeTypes": [
-        "application\/zip",
-        "application\/x-tar",
-        "application\/gzip",
-        "application\/x-gzip"
+        "application/zip",
+        "application/x-tar",
+        "application/gzip",
+        "application/x-gzip"
       ]
     },
     "asciidoc": {
@@ -1384,7 +1384,7 @@
         ".asc"
       ],
       "mimeTypes": [
-        "text\/asciidoc"
+        "text/asciidoc"
       ],
       "properties": {
         "extractBlockTitles": {
@@ -1415,11 +1415,11 @@
         ".opus"
       ],
       "mimeTypes": [
-        "audio\/wav",
-        "audio\/mpeg",
-        "audio\/mp4",
-        "audio\/flac",
-        "audio\/ogg"
+        "audio/wav",
+        "audio/mpeg",
+        "audio/mp4",
+        "audio/flac",
+        "audio/ogg"
       ]
     },
     "csv": {
@@ -1430,7 +1430,7 @@
         ".csv"
       ],
       "mimeTypes": [
-        "text\/csv"
+        "text/csv"
       ],
       "properties": {
         "codeFinderRules": {
@@ -1525,7 +1525,7 @@
         ".xml"
       ],
       "mimeTypes": [
-        "application\/doclang+xml"
+        "application/doclang+xml"
       ]
     },
     "docling": {
@@ -1535,7 +1535,7 @@
         ".json"
       ],
       "mimeTypes": [
-        "application\/json"
+        "application/json"
       ]
     },
     "epub": {
@@ -1546,7 +1546,7 @@
         ".epub"
       ],
       "mimeTypes": [
-        "application\/epub+zip"
+        "application/epub+zip"
       ],
       "properties": {
         "extractNonTranslatableContent": {
@@ -1574,8 +1574,8 @@
         ".xhtml"
       ],
       "mimeTypes": [
-        "text\/html",
-        "application\/xhtml+xml"
+        "text/html",
+        "application/xhtml+xml"
       ],
       "properties": {
         "attributes": {
@@ -1662,15 +1662,15 @@
         ".avif"
       ],
       "mimeTypes": [
-        "image\/png",
-        "image\/jpeg",
-        "image\/gif",
-        "image\/bmp",
-        "image\/tiff",
-        "image\/webp",
-        "image\/heic",
-        "image\/heif",
-        "image\/avif"
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "image/bmp",
+        "image/tiff",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+        "image/avif"
       ]
     },
     "json": {
@@ -1681,7 +1681,7 @@
         ".json"
       ],
       "mimeTypes": [
-        "application\/json"
+        "application/json"
       ],
       "properties": {
         "codeFinderRules": {
@@ -1802,7 +1802,7 @@
         ".klf"
       ],
       "mimeTypes": [
-        "application\/vnd.neokapi.kbf+json"
+        "application/vnd.neokapi.kbf+json"
       ]
     },
     "markdown": {
@@ -1814,8 +1814,8 @@
         ".markdown"
       ],
       "mimeTypes": [
-        "text\/markdown",
-        "text\/x-markdown"
+        "text/markdown",
+        "text/x-markdown"
       ],
       "properties": {
         "codeFinderRules": {
@@ -1890,7 +1890,7 @@
         ".mdx"
       ],
       "mimeTypes": [
-        "text\/mdx"
+        "text/mdx"
       ],
       "properties": {
         "codeFinderRules": {
@@ -1952,7 +1952,7 @@
         ".messageformat"
       ],
       "mimeTypes": [
-        "text\/x-messageformat"
+        "text/x-messageformat"
       ],
       "properties": {
         "extractNonTranslatableContent": {
@@ -1974,7 +1974,7 @@
         ".mo"
       ],
       "mimeTypes": [
-        "application\/x-gettext-translation"
+        "application/x-gettext-translation"
       ]
     },
     "odf": {
@@ -1989,9 +1989,9 @@
         ".odf"
       ],
       "mimeTypes": [
-        "application\/vnd.oasis.opendocument.text",
-        "application\/vnd.oasis.opendocument.spreadsheet",
-        "application\/vnd.oasis.opendocument.presentation"
+        "application/vnd.oasis.opendocument.text",
+        "application/vnd.oasis.opendocument.spreadsheet",
+        "application/vnd.oasis.opendocument.presentation"
       ],
       "properties": {
         "extractNonTranslatableContent": {
@@ -2032,9 +2032,9 @@
         ".potx"
       ],
       "mimeTypes": [
-        "application\/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "application\/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "application\/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       ],
       "properties": {
         "aggressiveCleanup": {
@@ -2207,7 +2207,7 @@
         ".text"
       ],
       "mimeTypes": [
-        "text\/plain"
+        "text/plain"
       ],
       "properties": {
         "paragraphs": {
@@ -2241,7 +2241,7 @@
         ".pot"
       ],
       "mimeTypes": [
-        "text\/x-gettext-translation"
+        "text/x-gettext-translation"
       ],
       "properties": {
         "allowEmptyOutputTarget": {
@@ -2292,7 +2292,7 @@
         ".properties"
       ],
       "mimeTypes": [
-        "text\/x-java-properties"
+        "text/x-java-properties"
       ],
       "properties": {
         "codeFinderRules": {
@@ -2367,7 +2367,7 @@
         ".resw"
       ],
       "mimeTypes": [
-        "text\/microsoft-resx"
+        "text/microsoft-resx"
       ],
       "properties": {
         "extractComments": {
@@ -2393,8 +2393,8 @@
         ".srt"
       ],
       "mimeTypes": [
-        "application\/x-subrip",
-        "text\/srt"
+        "application/x-subrip",
+        "text/srt"
       ]
     },
     "tmx": {
@@ -2405,7 +2405,7 @@
         ".tmx"
       ],
       "mimeTypes": [
-        "application\/x-tmx+xml"
+        "application/x-tmx+xml"
       ],
       "properties": {
         "codeFinderRules": {
@@ -2445,8 +2445,8 @@
       "displayName": "▒ Ǫţ ŢŠ ▒",
       "family": "▒ ƃîļîñĝüàļ-îñţéŕçĥàñĝé ▒",
       "mimeTypes": [
-        "application\/x-ts",
-        "application\/x-linguist"
+        "application/x-ts",
+        "application/x-linguist"
       ]
     },
     "tsv": {
@@ -2457,7 +2457,7 @@
         ".tsv"
       ],
       "mimeTypes": [
-        "text\/tab-separated-values"
+        "text/tab-separated-values"
       ],
       "properties": {
         "codeFinderRules": {
@@ -2537,10 +2537,10 @@
         ".avi"
       ],
       "mimeTypes": [
-        "video\/mp4",
-        "video\/quicktime",
-        "video\/x-matroska",
-        "video\/webm"
+        "video/mp4",
+        "video/quicktime",
+        "video/x-matroska",
+        "video/webm"
       ]
     },
     "vtt": {
@@ -2551,7 +2551,7 @@
         ".vtt"
       ],
       "mimeTypes": [
-        "text\/vtt"
+        "text/vtt"
       ],
       "properties": {
         "cjkCharsPerLine": {
@@ -2592,7 +2592,7 @@
         ".xcstrings"
       ],
       "mimeTypes": [
-        "application\/json"
+        "application/json"
       ],
       "properties": {
         "extractNonTranslatableContent": {
@@ -2623,8 +2623,8 @@
         ".xliff"
       ],
       "mimeTypes": [
-        "application\/xliff+xml",
-        "application\/x-xliff+xml"
+        "application/xliff+xml",
+        "application/x-xliff+xml"
       ],
       "properties": {
         "addAltTrans": {
@@ -2716,7 +2716,7 @@
         ".xliff"
       ],
       "mimeTypes": [
-        "application\/xliff+xml"
+        "application/xliff+xml"
       ],
       "properties": {
         "codeFinderRules": {
@@ -2785,8 +2785,8 @@
         ".xml"
       ],
       "mimeTypes": [
-        "text\/xml",
-        "application\/xml"
+        "text/xml",
+        "application/xml"
       ],
       "properties": {
         "attributes": {
@@ -2881,9 +2881,9 @@
         ".yml"
       ],
       "mimeTypes": [
-        "application\/yaml",
-        "text\/yaml",
-        "application\/x-yaml"
+        "application/yaml",
+        "text/yaml",
+        "application/x-yaml"
       ],
       "properties": {
         "codeFinderRules": {
