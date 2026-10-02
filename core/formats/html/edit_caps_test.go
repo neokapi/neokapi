@@ -1,12 +1,14 @@
 package html
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/format/spec"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -86,6 +88,8 @@ func TestSynthesizeCode(t *testing.T) {
 	}
 
 	link := model.PcOpenR(model.PcOpenRun{ID: "1", Type: "link:hyperlink"})
+	button := model.PcOpenR(model.PcOpenRun{ID: "1", Type: "x:button", SubType: "html:button"})
+	inAnchor := &model.Block{Type: "h3", Properties: map[string]string{PropInteractiveAncestor: "a"}}
 	href := map[string]string{"href": "x"}
 	for _, tc := range []struct {
 		name string
@@ -93,7 +97,10 @@ func TestSynthesizeCode(t *testing.T) {
 		want string
 	}{
 		{"inside a link", format.CodeSite{Type: "link:hyperlink", Attrs: href, Block: para, Enclosing: []model.Run{link}}, "inside another link"},
+		{"inside a button", format.CodeSite{Type: "link:hyperlink", Attrs: href, Block: para, Enclosing: []model.Run{button}}, "or a button"},
+		{"inside a link the markup holds", format.CodeSite{Type: "link:hyperlink", Attrs: href, Block: inAnchor}, "sits inside an <a> element"},
 		{"around a link", format.CodeSite{Type: "link:hyperlink", Attrs: href, Block: para, Inner: []model.Run{link}}, "hold another link"},
+		{"around a button", format.CodeSite{Type: "link:hyperlink", Attrs: href, Block: para, Inner: []model.Run{button}}, "or a button"},
 		{"no href", format.CodeSite{Type: "link:hyperlink", Block: para}, "needs an href"},
 		{"attributes on bold", format.CodeSite{Type: "fmt:bold", Attrs: href, Block: para}, "no attributes"},
 		{"an attribute value", format.CodeSite{Type: "fmt:bold", Block: &model.Block{Type: "alt", IsReferent: true}}, "holds no markup"},
@@ -104,5 +111,51 @@ func TestSynthesizeCode(t *testing.T) {
 			_, _, err := w.SynthesizeCode(tc.site)
 			assert.ErrorContains(t, err, tc.want)
 		})
+	}
+
+	open, _, err := w.SynthesizeCode(format.CodeSite{Type: "fmt:bold", Block: inAnchor})
+	require.NoError(t, err, "bold may go inside a link")
+	assert.Equal(t, "html:strong", open.PcOpen.SubType)
+}
+
+// Both readers record the a or button element a block sits inside, outside its
+// own runs, so the writer can refuse a new link there.
+func TestReadersRecordInteractiveAncestor(t *testing.T) {
+	const doc = `<html><body>
+<a href="/cards"><h3>Big title</h3> more words</a>
+<button><div>Press here</div></button>
+<p>Plain words</p>
+</body></html>`
+	// The two readers split this markup into blocks differently, so each
+	// block is checked by the words it holds.
+	want := []struct{ words, tag string }{{"Big title", "a"}, {"more words", "a"}, {"Press here", "button"}, {"Plain words", ""}}
+	for _, skeleton := range []bool{true, false} {
+		r := NewReader()
+		if skeleton {
+			store, err := format.NewSkeletonStore()
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = store.Close() })
+			r.SetSkeletonStore(store)
+		}
+		parts, err := spec.ReadParts(r, []byte(doc))
+		require.NoError(t, err)
+		seen := 0
+		for _, p := range parts {
+			b, ok := p.Resource.(*model.Block)
+			if !ok {
+				continue
+			}
+			for _, w := range want {
+				if strings.Contains(model.RunsText(b.Source), w.words) {
+					seen++
+					assert.Equal(t, w.tag, b.Properties[PropInteractiveAncestor], "skeleton=%v: the block holding %q", skeleton, w.words)
+				}
+			}
+		}
+		if skeleton {
+			assert.Equal(t, len(want), seen, "every phrase is read")
+		} else {
+			assert.GreaterOrEqual(t, seen, 2, "the DOM reader reads the text after the heading and the paragraph")
+		}
 	}
 }

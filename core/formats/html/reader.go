@@ -313,6 +313,7 @@ func (v *readerVisitor) onTextBlock(blockID string, n *html.Node) {
 	}
 	block := model.NewBlock(blockID, text)
 	block.Name = nodePath(n)
+	markInteractiveAncestor(block, domInteractiveAncestor(n.Parent))
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -381,6 +382,9 @@ func (v *readerVisitor) onBlockElement(blockID string, n *html.Node, preserveWS 
 	}
 	v.reader.applyStructuralRole(block, n)
 	v.reader.applyStructureFacets(block, n)
+	// The block's own element counts: a standalone <a> or <button> is a
+	// block of its own whose text sits inside it.
+	markInteractiveAncestor(block, domInteractiveAncestor(n))
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -406,6 +410,7 @@ func (v *readerVisitor) onMixedContentBlock(blockID string, parent *html.Node, r
 	}
 	v.reader.applyStructuralRole(block, parent)
 	v.reader.applyStructureFacets(block, parent)
+	markInteractiveAncestor(block, domInteractiveAncestor(parent))
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 

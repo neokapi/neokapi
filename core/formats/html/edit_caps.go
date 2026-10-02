@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -85,45 +86,95 @@ func (w *Writer) WriteAttr(seq []model.Run, at int, name, value string) ([]model
 	return out, nil
 }
 
-// synthesizedTags are the elements the writer writes for a new code, by
-// vocabulary type: the semantic forms the cross-format export writes too
-// (htmlInlineTag).
-var synthesizedTags = map[string]string{
-	"fmt:bold":       "strong",
-	"fmt:italic":     "em",
-	"link:hyperlink": "a",
-}
+// synthesizedTypes are the vocabulary types the writer writes as a new code.
+// Bold and italic take the element the format's projection of the vocabulary
+// names (htmlInlineTag), which the cross-format export writes too; a link is
+// an <a> with its href.
+var synthesizedTypes = []string{"fmt:bold", "fmt:italic", "link:hyperlink"}
 
 // Synthesizes lists the vocabulary types the writer writes as a new code.
 func (w *Writer) Synthesizes() []string {
-	return []string{"fmt:bold", "fmt:italic", "link:hyperlink"}
+	return slices.Clone(synthesizedTypes)
+}
+
+// PropInteractiveAncestor is the block property naming the element, a or
+// button, that the block sits inside in the document's markup, outside the
+// block's own runs. HTML allows no link inside either, and the parser closes an
+// <a> at a nested one, so the writer writes no new link in such a block.
+const PropInteractiveAncestor = "html.interactive-ancestor"
+
+// markInteractiveAncestor records the interactive element a block sits
+// inside, if any.
+func markInteractiveAncestor(b *model.Block, tag string) {
+	if tag == "" {
+		return
+	}
+	if b.Properties == nil {
+		b.Properties = map[string]string{}
+	}
+	b.Properties[PropInteractiveAncestor] = tag
+}
+
+// interactiveTag reports whether a link may not go inside an element.
+func interactiveTag(a atom.Atom) bool { return a == atom.A || a == atom.Button }
+
+// interactiveAncestor returns the nearest open element a link may not go
+// inside, or "" when none is open.
+func (s *tokenReaderState) interactiveAncestor() string {
+	for _, f := range slices.Backward(s.pathStack) {
+		if interactiveTag(f.a) {
+			return f.a.String()
+		}
+	}
+	return ""
+}
+
+// domInteractiveAncestor returns the nearest element from n up that a link
+// may not go inside, or "".
+func domInteractiveAncestor(n *html.Node) string {
+	for ; n != nil; n = n.Parent {
+		if n.Type == html.ElementNode && interactiveTag(n.DataAtom) {
+			return n.DataAtom.String()
+		}
+	}
+	return ""
+}
+
+// interactiveCode reports whether a run opens or is a link or a button.
+func interactiveCode(r model.Run) bool {
+	switch {
+	case r.PcOpen != nil:
+		return r.PcOpen.Type == "link:hyperlink" || r.PcOpen.SubType == "html:a" || r.PcOpen.SubType == "html:button"
+	case r.Ph != nil:
+		return r.Ph.Type == "link:hyperlink"
+	}
+	return false
 }
 
 // SynthesizeCode writes a new <strong>, <em> or <a href> pair, as the reader
 // would read it back. A block that holds text and no markup (an attribute
-// value, the document title, a textarea) takes no new code, and a link does
-// not go inside another link.
+// value, the document title, a textarea) takes no new code, and a link goes
+// neither inside nor around a link or a button, whether that element is a
+// code of the block or markup the block sits inside.
 func (w *Writer) SynthesizeCode(site format.CodeSite) (open, closing model.Run, err error) {
-	element, ok := synthesizedTags[site.Type]
-	if !ok {
+	if !slices.Contains(synthesizedTypes, site.Type) {
 		return open, closing, fmt.Errorf("the writer has no element for %s", site.Type)
 	}
 	if b := site.Block; b != nil && (b.IsReferent || attrBlockTypes[b.Type] || b.Type == "textarea") {
 		return open, closing, errors.New("the block's text is an attribute value or a text-only element, which holds no markup")
 	}
-	data := "<" + element + ">"
+	var data, end string
 	var attrs map[string]string
 	switch site.Type {
 	case "link:hyperlink":
-		for _, enc := range site.Enclosing {
-			if enc.PcOpen != nil && enc.PcOpen.Type == "link:hyperlink" {
-				return open, closing, errors.New("a link cannot sit inside another link")
-			}
+		if slices.ContainsFunc(site.Enclosing, interactiveCode) {
+			return open, closing, errors.New("a link cannot sit inside another link or a button")
 		}
-		for _, r := range site.Inner {
-			if (r.PcOpen != nil && r.PcOpen.Type == "link:hyperlink") || (r.Ph != nil && r.Ph.Type == "link:hyperlink") {
-				return open, closing, errors.New("a link cannot hold another link")
-			}
+		if b := site.Block; b != nil && b.Properties[PropInteractiveAncestor] != "" {
+			return open, closing, fmt.Errorf("a link cannot sit inside another link or a button, and this block sits inside an <%s> element", b.Properties[PropInteractiveAncestor])
+		}
+		if slices.ContainsFunc(site.Inner, interactiveCode) {
+			return open, closing, errors.New("a link cannot hold another link or a button")
 		}
 		href, ok := site.Attrs[model.AttrHref]
 		if !ok {
@@ -132,17 +183,20 @@ func (w *Writer) SynthesizeCode(site format.CodeSite) (open, closing model.Run, 
 		if strings.ContainsRune(href, 0) {
 			return open, closing, errors.New("an HTML attribute value cannot hold a NUL character")
 		}
-		data = `<a href="` + html.EscapeString(href) + `">`
+		data, end = `<a href="`+html.EscapeString(href)+`">`, "</a>"
 		attrs = tagAttrsFor(site.Type, data)
 	default:
 		if len(site.Attrs) > 0 {
 			return open, closing, fmt.Errorf("a new %s code takes no attributes", site.Type)
 		}
+		tags := htmlInlineTag[site.Type]
+		data, end = tags[0], tags[1]
 	}
+	subType := "html:" + scanTagName(data, 1)
 	info := model.DefaultVocabulary().LookupOrFallback(site.Type)
 	open = model.Run{PcOpen: &model.PcOpenRun{
 		Type:    site.Type,
-		SubType: "html:" + element,
+		SubType: subType,
 		Data:    data,
 		Equiv:   info.Equiv,
 		Disp:    info.Display.Open,
@@ -153,6 +207,6 @@ func (w *Writer) SynthesizeCode(site format.CodeSite) (open, closing model.Run, 
 			Reorderable: info.Constraints.Reorderable,
 		},
 	}}
-	closing = model.Run{PcClose: &model.PcCloseRun{Type: site.Type, SubType: "html:" + element, Data: "</" + element + ">"}}
+	closing = model.Run{PcClose: &model.PcCloseRun{Type: site.Type, SubType: subType, Data: end}}
 	return open, closing, nil
 }
