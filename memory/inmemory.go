@@ -1,8 +1,10 @@
 package memory
 
 import (
+	"cmp"
 	"context"
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -886,15 +888,28 @@ func LimitResults(matches []Match, max int) []Match {
 	return matches
 }
 
-// ExtractEntityAnnotations pulls EntityAnnotation instances from a Block's
-// annotations map.
+// ExtractEntityAnnotations returns the entities a block's source locates: the
+// values of its entity overlay spans, which is where every producer records an
+// entity, in the order the spans sit in the text. ComputeEntityAdaptations
+// pairs them, type by type and in that order, with a stored entry's entities.
 func ExtractEntityAnnotations(block *model.Block) []*model.EntityAnnotation {
 	if block == nil {
 		return nil
 	}
+	overlay := block.OverlayOf(model.OverlayEntity)
+	if overlay == nil {
+		return nil
+	}
+	spans := slices.Clone(overlay.Spans)
+	slices.SortStableFunc(spans, func(a, b model.Span) int {
+		if c := cmp.Compare(a.Range.Start.Run, b.Range.Start.Run); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Range.Start.Offset, b.Range.Start.Offset)
+	})
 	var entities []*model.EntityAnnotation
-	for _, ann := range block.Annos() {
-		if ea, ok := ann.(*model.EntityAnnotation); ok {
+	for _, sp := range spans {
+		if ea, ok := sp.Value.(*model.EntityAnnotation); ok && ea != nil {
 			entities = append(entities, ea)
 		}
 	}

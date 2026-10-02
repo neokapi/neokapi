@@ -177,3 +177,50 @@ func TestPostgresMemory_EntityRoundtrip(t *testing.T) {
 	require.Len(t, got.Entities, 1)
 	assert.Equal(t, "Jean", got.Entities[0].Values["fr"].Text)
 }
+
+// A generalized match adapts the stored entry's entity to the one the lookup
+// block locates. The Postgres store reads the block's entities through
+// memory.ExtractEntityAnnotations as the framework stores do, from the entity
+// overlay where every producer records them.
+func TestPostgresMemory_LookupAdaptsTheEntityTheBlockLocates(t *testing.T) {
+	tm := openTestPostgresMemory(t)
+	org := string(model.EntityOrganization)
+	runs := func(before, entity, after string) []model.Run {
+		return []model.Run{
+			{Text: &model.TextRun{Text: before}},
+			{Ph: &model.PlaceholderRun{ID: "e1", Type: org, Data: entity}},
+			{Text: &model.TextRun{Text: after}},
+		}
+	}
+	require.NoError(t, tm.Add(t.Context(), memory.Entry{
+		ID: "acme",
+		Variants: map[model.LocaleID][]model.Run{
+			"en": runs("Contact ", "Acme", " for support"),
+			"fr": runs("Contactez ", "Acme", " pour le support"),
+		},
+		HintSrcLang: "en",
+		Entities: []memory.EntityMapping{{
+			PlaceholderID: "e1",
+			Type:          model.EntityOrganization,
+			Values: map[model.LocaleID]memory.EntityValue{
+				"en": {Text: "Acme"},
+				"fr": {Text: "Acme"},
+			},
+		}},
+	}))
+
+	b := &model.Block{ID: "lookup", Translatable: true}
+	b.SetSourceRuns(runs("Contact ", "Globex", " for support"))
+	b.AddOverlaySpan(model.OverlayEntity, model.Span{
+		ID:    "entity:0",
+		Range: model.SpanAnchor(model.RunPos{Run: 1}, model.RunPos{Run: 2}),
+		Value: &model.EntityAnnotation{Text: "Globex", Type: model.EntityOrganization},
+	})
+	matches, err := tm.Lookup(t.Context(), b, "en", "fr", memory.LookupOptions{MinScore: 0.5})
+	require.NoError(t, err)
+	require.NotEmpty(t, matches)
+	assert.Equal(t, memory.MatchGeneralizedExact, matches[0].MatchType)
+	require.Len(t, matches[0].EntityAdaptations, 1, "the stored entity is adapted to the one the block carries")
+	assert.Equal(t, "Acme", matches[0].EntityAdaptations[0].StoredValue)
+	assert.Equal(t, "Globex", matches[0].EntityAdaptations[0].CurrentValue)
+}
