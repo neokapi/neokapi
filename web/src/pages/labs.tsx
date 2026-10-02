@@ -19,7 +19,7 @@ interface LabEntry {
 const LABS: LabEntry[] = [
   {
     to: "/lab",
-    name: translate({ id: "labs.lab.name", message: "Content Model Workspace" }),
+    name: translate({ id: "labs.lab.name", message: "Flow workspace" }),
     teaches: translate({
       id: "labs.lab.teaches",
       message:
@@ -28,7 +28,7 @@ const LABS: LabEntry[] = [
   },
   {
     to: "/playground-cli",
-    name: translate({ id: "labs.playgroundcli.name", message: "CLI Playground" }),
+    name: translate({ id: "labs.playgroundcli.name", message: "CLI playground" }),
     teaches: translate({
       id: "labs.playgroundcli.teaches",
       message: "Run real kapi commands in your browser, the way you would from a terminal.",
@@ -45,7 +45,7 @@ const LABS: LabEntry[] = [
   },
   {
     to: "/lab/convert",
-    name: translate({ id: "labs.lab.convert.name", message: "File Conversion" }),
+    name: translate({ id: "labs.lab.convert.name", message: "File conversion" }),
     teaches: translate({
       id: "labs.lab.convert.teaches",
       message: "Re-express one format as another and inspect what survives the round trip.",
@@ -53,7 +53,7 @@ const LABS: LabEntry[] = [
   },
   {
     to: "/lab/structure",
-    name: translate({ id: "labs.lab.structure.name", message: "Structure & Layout" }),
+    name: translate({ id: "labs.lab.structure.name", message: "Structure and layout" }),
     teaches: translate({
       id: "labs.lab.structure.teaches",
       message: "Recover reading order, outline, and geometry from a PDF.",
@@ -69,7 +69,7 @@ const LABS: LabEntry[] = [
   },
   {
     to: "/lab/media",
-    name: translate({ id: "labs.lab.media.name", message: "Audio & Video" }),
+    name: translate({ id: "labs.lab.media.name", message: "Audio and video" }),
     teaches: translate({
       id: "labs.lab.media.teaches",
       message: "Transcribe audio and pull text out of video, the first step toward subtitles.",
@@ -77,7 +77,7 @@ const LABS: LabEntry[] = [
   },
   {
     to: "/kbf-lab",
-    name: translate({ id: "labs.kbflab.name", message: "KBF Anatomy" }),
+    name: translate({ id: "labs.kbflab.name", message: "KBF anatomy" }),
     teaches: translate({
       id: "labs.kbflab.teaches",
       message:
@@ -109,7 +109,7 @@ export default function LabsOverviewPage(): React.ReactElement {
             ordered as a suggested path: begin with the
           </Translate>{" "}
           <strong>
-            <Translate id="labs.intro.first">Content Model Workspace</Translate>
+            <Translate id="labs.intro.first">Flow workspace</Translate>
           </strong>{" "}
           <Translate id="labs.intro.tail">
             to see how kapi represents any document, then explore the labs that interest you.

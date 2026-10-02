@@ -1096,14 +1096,14 @@ const config: Config = {
             // the relevant labs; plugins load on demand from the navbar status
             // widget. Old per-topic routes redirect to their new home.
             { label: "Labs overview", to: "/labs" },
-            { label: "Content Model Workspace", to: "/lab" },
+            { label: "Flow workspace", to: "/lab" },
             { label: "Segmentation", to: "/lab/segmentation" },
-            { label: "File Conversion", to: "/lab/convert" },
-            { label: "Structure & Layout", to: "/lab/structure" },
+            { label: "File conversion", to: "/lab/convert" },
+            { label: "Structure and layout", to: "/lab/structure" },
             { label: "Vision", to: "/lab/vision" },
-            { label: "Audio & Video", to: "/lab/media" },
-            { label: "CLI Playground", to: "/playground-cli" },
-            { label: "KBF Anatomy", to: "/kbf-lab" },
+            { label: "Audio and video", to: "/lab/media" },
+            { label: "CLI playground", to: "/playground-cli" },
+            { label: "KBF anatomy", to: "/kbf-lab" },
           ],
         },
         {
