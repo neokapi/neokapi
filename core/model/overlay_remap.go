@@ -44,7 +44,13 @@ func (o *Overlay) onEdition(edition *VariantKey) bool {
 // anchor has a Path) is kept when the branch it points into is unchanged and
 // dropped otherwise. A block anchor is kept; a run anchor is kept while a run
 // with its id is still at its path; a form anchor is kept while its branch
-// still exists. An overlay left with no spans is removed.
+// still exists. A span whose new anchor does not resolve in newRuns is
+// dropped. An overlay left with no spans is removed.
+//
+// A segmentation overlay is a partition of the edition, and the bilingual
+// writers read its spans as the complete segment list, so it is kept whole or
+// dropped whole (remapPartition): a segment that contains an edit grows or
+// shrinks with it, and an edit across a segment boundary drops the layer.
 //
 // With no edits the call still re-anchors: a structure-only rewrite (runs
 // added, removed, or reclassified without changing the text flattening) shifts
@@ -62,16 +68,25 @@ func RemapOverlays(b *Block, edition *VariantKey, oldRuns, newRuns []Run, edits 
 			out = append(out, o)
 			continue
 		}
-		kept := o.Spans[:0]
-		for _, s := range o.Spans {
-			ns, ok := remapSpan(s, oldRuns, newRuns, edits)
+		if o.Type == OverlaySegmentation {
+			spans, ok := remapPartition(o.Spans, oldRuns, newRuns, edits)
 			if !ok {
-				dropped++
+				dropped += len(o.Spans)
 				continue
 			}
-			kept = append(kept, ns)
+			o.Spans = spans
+		} else {
+			kept := make([]Span, 0, len(o.Spans))
+			for _, s := range o.Spans {
+				ns, ok := remapSpan(s, oldRuns, newRuns, edits)
+				if !ok {
+					dropped++
+					continue
+				}
+				kept = append(kept, ns)
+			}
+			o.Spans = kept
 		}
-		o.Spans = kept
 		if len(o.Spans) == 0 {
 			continue // drop the now-empty overlay
 		}
@@ -79,6 +94,102 @@ func RemapOverlays(b *Block, edition *VariantKey, oldRuns, newRuns []Run, edits 
 	}
 	b.Overlays = out
 	return dropped
+}
+
+// remapPartition carries a segmentation layer across a rewrite as one piece.
+// Each edit belongs to the segment that contains it: a replacement to the one
+// holding both its ends, an insertion to the segment it ends or, failing that,
+// the one it starts. That segment's end moves by the edit's length delta and
+// every later segment shifts by it, so the edited text stays in the segment it
+// was written in. An edit with no owner that overlaps a segment crosses a
+// boundary, and then no segment list describes the rewrite; nor does one with
+// a span that cannot be carried. Either way it reports false, and the caller
+// drops the layer.
+func remapPartition(spans []Span, oldRuns, newRuns []Run, edits []RunEdit) ([]Span, bool) {
+	type flat struct {
+		start, end int
+		ok         bool
+	}
+	pos := make([]flat, len(spans))
+	for i, s := range spans {
+		if isRangeKind(s.Range.Kind) && len(s.Range.Path) == 0 {
+			start, end := s.Range.TextSpan(oldRuns)
+			pos[i] = flat{start: start, end: end, ok: true}
+		}
+	}
+	owner := make([]int, len(edits))
+	for j, e := range edits {
+		owner[j] = -1
+		if e.Start == e.End {
+			for i, p := range pos {
+				if p.ok && p.start < e.Start && e.Start <= p.end {
+					owner[j] = i
+					break
+				}
+			}
+			if owner[j] < 0 {
+				for i, p := range pos {
+					if p.ok && p.start == e.Start {
+						owner[j] = i
+						break
+					}
+				}
+			}
+			continue
+		}
+		for i, p := range pos {
+			if !p.ok {
+				continue
+			}
+			if p.start <= e.Start && e.End <= p.end {
+				owner[j] = i
+				break
+			}
+			if e.Start < p.end && p.start < e.End {
+				return nil, false // the edit crosses a segment boundary
+			}
+		}
+	}
+
+	newLen := runsFlatLen(newRuns)
+	out := make([]Span, 0, len(spans))
+	for i, s := range spans {
+		if !pos[i].ok {
+			ns, ok := remapSpan(s, oldRuns, newRuns, edits)
+			if !ok {
+				return nil, false
+			}
+			out = append(out, ns)
+			continue
+		}
+		shift, grow := 0, 0
+		for j, e := range edits {
+			d := e.NewLen - (e.End - e.Start)
+			switch {
+			case owner[j] == i:
+				grow += d
+			case e.End <= pos[i].start:
+				shift += d
+			}
+		}
+		start, end := pos[i].start+shift, pos[i].end+shift+grow
+		if start < 0 || end < start || end > newLen {
+			return nil, false
+		}
+		ns := s
+		ns.Range = RangeAnchor(newRuns, start, end)
+		if !ns.Range.Resolves(newRuns) {
+			return nil, false
+		}
+		out = append(out, ns)
+	}
+	return out, true
+}
+
+// isRangeKind reports whether an anchor kind addresses a span of text: the
+// range kind, or no kind, which a span made before kinds existed carries.
+func isRangeKind(k AnchorKind) bool {
+	return k != AnchorBlock && k != AnchorRun && k != AnchorForm
 }
 
 // remapSpan carries one span across a rewrite of the runs it anchors to.
@@ -155,6 +266,9 @@ func remapRangeSpan(s Span, oldRuns, newRuns []Run, edits []RunEdit) (Span, bool
 	}
 	ns := s
 	ns.Range = RangeAnchor(newRuns, start+delta, end+delta)
+	if !ns.Range.Resolves(newRuns) {
+		return Span{}, false // an end falls inside a plural or select
+	}
 	return ns, true
 }
 

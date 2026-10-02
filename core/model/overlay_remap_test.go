@@ -74,10 +74,10 @@ func TestRemapOverlays_RebasesADerivedEdition(t *testing.T) {
 	fr := model.Variant("fr")
 	oldFr := []model.Run{model.TextR("Bonjour le monde entier")}
 	b.SetTargetRuns("fr", oldFr)
-	b.SetSegmentation(&fr, []model.Span{
-		{ID: "s1", Range: model.RangeAnchor(oldFr, 0, 7)},
-		{ID: "s2", Range: model.RangeAnchor(oldFr, 8, 23)},
-	})
+	b.Overlays = append(b.Overlays, model.Overlay{Type: model.OverlayTerm, Variant: &fr, Spans: []model.Span{
+		{ID: "bonjour", Range: model.RangeAnchor(oldFr, 0, 7)},
+		{ID: "monde", Range: model.RangeAnchor(oldFr, 11, 16)},
+	}})
 	b.AddOverlaySpan(model.OverlayTerm, model.Span{ID: "w", Range: model.RangeAnchor(b.Source, 6, 11)})
 
 	// "Bonjour" becomes "Salut": [0,7) → 5 code points.
@@ -85,14 +85,124 @@ func TestRemapOverlays_RebasesADerivedEdition(t *testing.T) {
 	b.SetTargetRuns("fr", newFr)
 	dropped := model.RemapOverlays(b, &fr, oldFr, newFr, []model.RunEdit{{Start: 0, End: 7, NewLen: 5}})
 
-	assert.Equal(t, 1, dropped, "the span over the replaced word is dropped")
-	seg := b.SegmentationFor(&fr)
-	require.NotNil(t, seg)
-	require.Len(t, seg.Spans, 1)
-	assert.Equal(t, "le monde entier", model.RunsText(seg.Spans[0].Range.ExtractRuns(newFr)))
+	assert.Equal(t, 1, dropped, "the term over the replaced word is dropped")
+	var frTerms *model.Overlay
+	for i := range b.Overlays {
+		if b.Overlays[i].Type == model.OverlayTerm && !b.Overlays[i].OnSource() {
+			frTerms = &b.Overlays[i]
+		}
+	}
+	require.NotNil(t, frTerms)
+	require.Len(t, frTerms.Spans, 1)
+	assert.Equal(t, "monde", model.RunsText(frTerms.Spans[0].Range.ExtractRuns(newFr)))
 	assert.Equal(t, "world", termSpanText(t, b, "w"), "the source overlay is untouched")
 	_, ok := b.OverlaysInBounds(&fr, newFr)
 	assert.True(t, ok)
+}
+
+// A segmentation layer is the edition's whole segment list: the bilingual
+// writers build one segment per span. A rewrite keeps it whole, the segment
+// holding an edit resized around it, or drops it whole. It never leaves some
+// of its segments, which would write the edited segment's text nowhere.
+func TestRemapOverlays_KeepsASegmentationLayerWhole(t *testing.T) {
+	segText := func(seg *model.Overlay, runs []model.Run) []string {
+		var out []string
+		for _, s := range seg.Spans {
+			out = append(out, s.ID+"="+model.RunsText(s.Range.ExtractRuns(runs)))
+		}
+		return out
+	}
+	tests := []struct {
+		name    string
+		newText string
+		edits   []model.RunEdit
+		want    []string // nil: the layer is dropped
+		dropped int
+	}{
+		{
+			name:    "an edit inside the second segment resizes it",
+			newText: "Premier. Second.",
+			edits:   []model.RunEdit{{Start: 9, End: 17, NewLen: 6}},
+			want:    []string{"s1=Premier.", "s2=Second."},
+		},
+		{
+			name:    "an edit inside the first segment shifts the second",
+			newText: "Le premier. Deuxieme.",
+			edits:   []model.RunEdit{{Start: 0, End: 1, NewLen: 4}},
+			want:    []string{"s1=Le premier.", "s2=Deuxieme."},
+		},
+		{
+			name:    "an insertion at a segment's end extends that segment",
+			newText: "Premier.!! Deuxieme.",
+			edits:   []model.RunEdit{{Start: 8, End: 8, NewLen: 2}},
+			want:    []string{"s1=Premier.!!", "s2=Deuxieme."},
+		},
+		{
+			name:    "an insertion at the start of the first segment extends it",
+			newText: ">> Premier. Deuxieme.",
+			edits:   []model.RunEdit{{Start: 0, End: 0, NewLen: 3}},
+			want:    []string{"s1=>> Premier.", "s2=Deuxieme."},
+		},
+		{
+			name:    "an edit across the boundary drops the layer",
+			newText: "Premier et deuxieme.",
+			edits:   []model.RunEdit{{Start: 7, End: 10, NewLen: 4}},
+			dropped: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := model.NewBlock("b1", "First. Second.")
+			fr := model.Variant("fr")
+			oldFr := []model.Run{model.TextR("Premier. Deuxieme.")}
+			b.SetTargetRuns("fr", oldFr)
+			b.SetSegmentation(&fr, []model.Span{
+				{ID: "s1", Range: model.RangeAnchor(oldFr, 0, 8)},
+				{ID: "s2", Range: model.RangeAnchor(oldFr, 9, 18)},
+			})
+			newFr := []model.Run{model.TextR(tt.newText)}
+			b.SetTargetRuns("fr", newFr)
+
+			dropped := model.RemapOverlays(b, &fr, oldFr, newFr, tt.edits)
+
+			assert.Equal(t, tt.dropped, dropped)
+			seg := b.SegmentationFor(&fr)
+			if tt.want == nil {
+				assert.Nil(t, seg, "the layer is dropped whole")
+				return
+			}
+			require.NotNil(t, seg)
+			assert.Equal(t, tt.want, segText(seg, newFr))
+		})
+	}
+}
+
+// A span a detector anchored over the flattened text can end inside a
+// plural's other branch, where no run position addresses it. A rewrite drops
+// such a span rather than carry it, so the edition's overlays stay in bounds
+// and the rewrite is not refused over them.
+func TestRemapOverlays_DropsASpanThatEndsInsideAPlural(t *testing.T) {
+	plural := model.Run{Plural: &model.PluralRun{Pivot: "n", Forms: map[model.PluralForm][]model.Run{
+		model.PluralOne:   {model.TextR("one item")},
+		model.PluralOther: {model.TextR("many items")},
+	}}}
+	old := []model.Run{model.TextR("You have "), plural, model.TextR(" now")}
+	b := model.NewRunsBlock("b1", old)
+	// "have many" ends inside the plural's other branch.
+	b.AddOverlaySpan(model.OverlayEntity, model.Span{ID: "x", Range: model.RangeAnchor(old, 4, 13)})
+	b.AddOverlaySpan(model.OverlayEntity, model.Span{ID: "now", Range: model.RangeAnchor(old, 20, 23)})
+	require.False(t, model.RangeAnchor(old, 4, 13).Resolves(old))
+	next := []model.Run{model.TextR("Now you have "), plural, model.TextR(" now")}
+	b.SetSourceRuns(next)
+
+	dropped := model.RemapOverlays(b, nil, old, next, []model.RunEdit{{Start: 0, End: 1, NewLen: 5}})
+
+	assert.Equal(t, 1, dropped)
+	_, ok := b.OverlaysInBounds(nil, next)
+	assert.True(t, ok)
+	sp := b.OverlaySpan(model.OverlayEntity, "now")
+	require.NotNil(t, sp)
+	assert.Equal(t, "now", model.RunsText(sp.Range.ExtractRuns(next)))
 }
 
 // A rewrite carries each anchor kind by its own rule: a block anchor stays, a

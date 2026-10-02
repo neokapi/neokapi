@@ -464,13 +464,14 @@ func TestApplyBlock_RebasesOverlaysOnTheEditedEdition(t *testing.T) {
 	requireApplied(t, apply(t, b, person, replace("nb", editionRev(b, "nb"), find("butikkguiden", "håndboka"))))
 	seg := b.SegmentationFor(&nb)
 	require.NotNil(t, seg)
-	require.Len(t, seg.Spans, 1, "the span over the replaced word is dropped")
+	require.Len(t, seg.Spans, 2, "the segment holding the edit is resized, not dropped")
 	assert.Equal(t, "Les", model.RunsText(seg.Spans[0].Range.ExtractRuns(b.TargetRuns("nb"))))
+	assert.Equal(t, "håndboka", model.RunsText(seg.Spans[1].Range.ExtractRuns(b.TargetRuns("nb"))))
 	_, ok := b.OverlaysInBounds(&nb, b.TargetRuns("nb"))
 	assert.True(t, ok)
 
 	requireApplied(t, apply(t, b, person, setText("nb", editionRev(b, "nb"), "Bestill nå.")))
-	assert.Nil(t, b.SegmentationFor(&nb), "no span survives a rewrite of all of it")
+	assert.Nil(t, b.SegmentationFor(&nb), "a rewrite across the segments drops the layer whole")
 
 	requireApplied(t, apply(t, b, person, replace("", sourceRev(b), find("shop guide", "handbook"))))
 	sp := b.OverlaySpan(model.OverlayTerm, "order")
