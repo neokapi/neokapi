@@ -135,6 +135,62 @@ func TestApplyBlock_SetAttribute(t *testing.T) {
 	})
 }
 
+// A format that declares every attribute writable, such as a plugin's HTML,
+// is refused what would run code where the page is read: an event handler
+// whatever its value, and a script URL in any attribute a browser follows,
+// loads or submits to, however it is spelled. Another attribute, or a safe
+// URL, applies.
+func TestApplyBlock_SetAttributeRefusesScript(t *testing.T) {
+	plugin := withFormat(person, change.DeclaredCapabilities("okf_html", format.EditCapabilities{
+		WritableAttrs: map[string][]string{format.AnyCodeType: {format.AnyAttr}},
+	}))
+	for _, tc := range []struct{ name, value, field, want string }{
+		{"onclick", "alert(1)", "name", "script"},
+		{"onmouseover", "", "name", "script"},
+		{"srcdoc", "<script>alert(1)</script>", "name", "script"},
+		{"href", "&#106;avascript:alert(1)", "value", "javascript:"},
+		{"href", `javascript\:alert(1)`, "value", "javascript:"},
+		{"formaction", "javascript:alert(1)", "value", "javascript:"},
+		{"action", "vbscript:msgbox(1)", "value", "vbscript:"},
+		{"data", "data:text/html,<script>alert(1)</script>", "value", "data:"},
+		{"poster", "javascript:alert(1)", "value", "javascript:"},
+		{"background", "javascript:alert(1)", "value", "javascript:"},
+		{"ping", "/p javascript:alert(1)", "value", "javascript:"},
+		{"srcset", "a.png 1x, data:image/svg+xml,<svg/> 2x", "value", "image/svg+xml"},
+	} {
+		t.Run(tc.name+"="+tc.value, func(t *testing.T) {
+			b := guideBlock()
+			was := model.RunsEditText(b.Source)
+			err := requireRefused(t, apply(t, b, plugin, setAttr("", sourceRev(b), "1", tc.name, tc.value))[0], change.CodeInvalid)
+			assert.Equal(t, tc.field, err.Field)
+			assert.Contains(t, err.Message, tc.want)
+			assert.Equal(t, was, model.RunsEditText(b.Source), "nothing is written")
+		})
+	}
+	for _, tc := range []struct{ name, value string }{
+		{"title", "javascript:alert(1)"},
+		{"formaction", "https://example.com/send"},
+		{"href", "https://example.com/a?b=1&amp;c=2"},
+	} {
+		t.Run(tc.name+"="+tc.value, func(t *testing.T) {
+			b := guideBlock()
+			requireApplied(t, apply(t, b, plugin, setAttr("", sourceRev(b), "1", tc.name, tc.value)))
+			assert.Equal(t, tc.value, b.Source[1].PcOpen.Attrs[tc.name])
+		})
+	}
+	t.Run("a new link", func(t *testing.T) {
+		caps := change.DeclaredCapabilities("okf_html", format.EditCapabilities{
+			WritableAttrs: map[string][]string{format.AnyCodeType: {format.AnyAttr}},
+			Synthesizes:   []string{"link:hyperlink"},
+		})
+		b := guideBlock()
+		err := requireRefused(t, apply(t, b, withFormat(person, caps),
+			mark("", sourceRev(b), findSel("Read"), "link:hyperlink", map[string]string{"href": "https://example.com/", "onclick": "alert(1)"}))[0], change.CodeInvalid)
+		assert.Equal(t, "attrs", err.Field)
+		assert.Contains(t, err.Message, "onclick")
+	})
+}
+
 // mark wraps text in a new paired code of a vocabulary type the format
 // writes. The code nests inside or around the codes at its edges, takes an
 // id no edition of the block uses, and carries the native data the writer
