@@ -8,7 +8,8 @@ import (
 )
 
 func TestPropsForStore_RoundTrip(t *testing.T) {
-	b := &model.Block{SourceStatus: model.SourceStatusWritten, Properties: map[string]string{"k": "v"}}
+	b := &model.Block{Properties: map[string]string{"k": "v"}}
+	b.SetEdition(model.EditionKey{}, model.Edition{Status: model.Status(model.SourceStatusWritten)})
 	props := PropsForStore(b)
 	assert.Equal(t, "v", props["k"], "existing properties are preserved")
 	assert.Equal(t, "written", props[PropSourceStatus], "the status is folded in")
@@ -17,12 +18,27 @@ func TestPropsForStore_RoundTrip(t *testing.T) {
 	assert.False(t, leaked, "copy-on-write: the block's map is untouched")
 
 	// Read side: lift it back onto the block and strip the reserved key.
-	scanned := &model.Block{Properties: map[string]string{"k": "v", PropSourceStatus: "established"}}
+	scanned := model.NewBlock("b1", "Hello")
+	scanned.Properties = map[string]string{"k": "v", PropSourceStatus: "established"}
 	ApplySourceStatusFromProps(scanned)
-	assert.Equal(t, model.SourceStatusEstablished, scanned.SourceStatus)
+	src, _ := scanned.Edition(model.EditionKey{})
+	assert.Equal(t, model.Status(model.SourceStatusEstablished), src.Status)
 	_, stillThere := scanned.Properties[PropSourceStatus]
 	assert.False(t, stillThere, "the reserved key is stripped on read")
 	assert.Equal(t, "v", scanned.Properties["k"])
+	// Lifting the status leaves the content alone: the block still reads as
+	// its reader produced it.
+	runs, edited := scanned.SourceAsRead()
+	assert.False(t, edited, "a status is not an edit of the source")
+	assert.Equal(t, "Hello", model.RunsText(runs))
+	// Delivery copies a stored block and puts a translation where the source
+	// was read (bowrain/server/forge.go); a writer must read that copy as
+	// unedited, as it does for a block that carries no status.
+	delivered := *scanned
+	delivered.SetSourceRuns([]model.Run{model.TextR("Bonjour")})
+	runs, edited = delivered.SourceAsRead()
+	assert.False(t, edited, "the lifted status kept no earlier source as read")
+	assert.Equal(t, "Bonjour", model.RunsText(runs))
 }
 
 func TestPropsForStore_NoStatus(t *testing.T) {
