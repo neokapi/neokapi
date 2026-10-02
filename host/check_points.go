@@ -8,6 +8,7 @@ import (
 	"github.com/neokapi/neokapi/core/contextop"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -49,22 +50,30 @@ func (g fileGovernance) apart() bool {
 // govern both points too.
 func (a *App) governFile(ctx context.Context, voice *checkVoice, vocab *checkTerms, file string, fixed atPoint) (fileGovernance, error) {
 	var g fileGovernance
+	// The file's point is resolved once per project root: resolving it reads
+	// the project's ignore rules from disk, and both halves ask for it at both
+	// of the file's points.
+	points := map[string]project.GovernancePoint{}
+	pointIn := func(root string, comments bool) project.GovernancePoint {
+		point, ok := points[root]
+		if !ok {
+			point = a.governancePointForFile(root, file)
+			points[root] = point
+		}
+		point.Comments = comments
+		return point
+	}
 	for _, comments := range []bool{false, true} {
 		at := fixed
 		var err error
 		if voice != nil {
-			if comments {
-				at.profile, at.voiceContext, err = voice.forComments(ctx, file)
-			} else {
-				at.profile, at.voiceContext, err = voice.forFile(ctx, file)
-			}
+			at.profile, at.voiceContext, err = voice.at(ctx, pointIn(voice.root, comments))
 			if err != nil {
 				return fileGovernance{}, err
 			}
 		}
 		if vocab != nil && vocab.proj != nil {
-			point := a.governancePointForFile(vocab.root, file)
-			point.Comments = comments
+			point := pointIn(vocab.root, comments)
 			if at.terms, err = vocab.forPoint(ctx, point, file); err != nil {
 				return fileGovernance{}, err
 			}

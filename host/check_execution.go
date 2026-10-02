@@ -135,6 +135,23 @@ func (e *checkExecution) completed(id, file string, findings int, start time.Tim
 	}
 }
 
+// probed gives an analyzer its canaries through probe and records it as
+// completed. A nil execution records nothing, so it probes nothing: the
+// canaries prove an analyzer to whoever reads the record, and a check that
+// keeps none (the commit check) holds content to the analyzers `kapi check`
+// proves.
+func (e *checkExecution) probed(id, file string, findings int, start time.Time, required bool, probe func() (check.CanaryOutcome, error)) error {
+	if e == nil {
+		return nil
+	}
+	canary, err := probe()
+	if err != nil {
+		return err
+	}
+	e.completed(id, file, findings, start, canary, required)
+	return nil
+}
+
 // report assembles the Report one operation produces. Every check surface goes
 // through it, so the evaluation record is attached here rather than at each
 // caller: a surface added later carries it without being told to.

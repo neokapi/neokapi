@@ -402,13 +402,6 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 	// the same precedence (host/sourcelang.go).
 	a.applyProjectSourceLang(cmd)
 
-	contextStart := time.Now()
-	voice, err := a.newCheckVoice(cmd, execution.warningSink())
-	if err != nil {
-		return check.Report{}, err
-	}
-	defer voice.close()
-
 	validateMode, err := validateModeFromFlag(cmd)
 	if err != nil {
 		return check.Report{}, err
@@ -417,32 +410,14 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 		return check.Report{}, errors.New("reader validation is unavailable with --target; validate each file separately")
 	}
 
-	// The vocabulary the project decided travels with the profile: a term
-	// retired in the project's terms is a finding here, not only in retrieval.
-	// Resolved per file for the same reason the profile is — see checkTerms.
-	vocab, err := a.newCheckTerms(cmd)
+	contextStart := time.Now()
+	res, err := a.newCheckResolution(cmd, execution)
 	if err != nil {
 		return check.Report{}, err
 	}
-
-	// The formats the project declared for its content: what a file IS to this
-	// project, resolved once for the run.
-	formats, err := a.newCheckFormats(cmd)
-	if err != nil {
-		return check.Report{}, err
-	}
-
+	defer res.close()
 	execution.Timings.ContextMS += elapsedMS(contextStart)
-	// applyProjectSourceLang settled the language above, for this invocation and
-	// for nothing else; carrying it on the run keeps every collector below
-	// reading the one answer.
-	opts := checkRunOptions{formats: formats, execution: execution, sourceLocale: a.SourceLocale()}
-	opts.maxChars, _ = cmd.Flags().GetInt("max-chars")
-	opts.maxWords, _ = cmd.Flags().GetInt("max-words")
-	opts.forbid, _ = cmd.Flags().GetStringSlice("forbid")
-	opts.require, _ = cmd.Flags().GetStringSlice("require")
-	opts.voice, _ = cmd.Flags().GetBool("voice")
-	opts.voiceMin, _ = cmd.Flags().GetFloat64("voice-min")
+	voice, vocab, opts := res.voice, res.vocab, res.opts
 
 	if diff != nil {
 		if validateMode != format.ValidationOff {
@@ -578,6 +553,68 @@ func (a *App) computeCheck(cmd Command, args []string, declared bool) (check.Rep
 	unread.Report(&report)
 	unread.warn(a, cmd)
 	return report, nil
+}
+
+// checkResolution is what a check resolves once and holds every file or block
+// to: the voice and the terms at each point of the project, cached per point,
+// and the options of the analyzer pass.
+type checkResolution struct {
+	voice *checkVoice
+	vocab *checkTerms
+	opts  checkRunOptions
+}
+
+// close releases the voice store the resolution opened.
+func (r *checkResolution) close() {
+	if r != nil {
+		r.voice.close()
+	}
+}
+
+// newCheckResolution resolves what `kapi check` holds content to from cmd: a
+// voice the flags name, else the project's at each point; the project's terms;
+// the formats it declares; and the limits and patterns the flags set. It reads
+// content in the source language the App resolved.
+func (a *App) newCheckResolution(cmd Command, execution *checkExecution) (*checkResolution, error) {
+	voice, err := a.newCheckVoice(cmd, execution.warningSink())
+	if err != nil {
+		return nil, err
+	}
+	// The vocabulary the project decided travels with the profile: a term
+	// retired in the project's terms is a finding here, not only in retrieval.
+	// Resolved per file for the same reason the profile is; see checkTerms.
+	vocab, err := a.newCheckTerms(cmd)
+	if err != nil {
+		voice.close()
+		return nil, err
+	}
+	// The formats the project declared for its content: what a file is to this
+	// project, resolved once for the run.
+	formats, err := a.newCheckFormats(cmd)
+	if err != nil {
+		voice.close()
+		return nil, err
+	}
+	opts := checkRunOptions{formats: formats, execution: execution, sourceLocale: a.SourceLocale()}
+	opts.maxChars, _ = cmd.Flags().GetInt("max-chars")
+	opts.maxWords, _ = cmd.Flags().GetInt("max-words")
+	opts.forbid, _ = cmd.Flags().GetStringSlice("forbid")
+	opts.require, _ = cmd.Flags().GetStringSlice("require")
+	opts.voice, _ = cmd.Flags().GetBool("voice")
+	opts.voiceMin, _ = cmd.Flags().GetFloat64("voice-min")
+	return &checkResolution{voice: voice, vocab: vocab, opts: opts}, nil
+}
+
+// checkBlocks runs the analyzer pass over blocks a caller holds rather than
+// reads, as content of file: the governance at file's points, resolved through
+// res, and the analyzers of a whole-file check. file need not exist; it is
+// where the blocks sit. Each diagnostic names its block by key.
+func (a *App) checkBlocks(ctx context.Context, res *checkResolution, file string, blocks []*model.Block) ([]check.Diagnostic, error) {
+	g, err := a.governFile(ctx, res.voice, res.vocab, file, atPoint{})
+	if err != nil {
+		return nil, err
+	}
+	return a.collectFileDiagnostics(ctx, blocks, file, res.opts.govern(g))
 }
 
 // checkFileBlocks reads one file's blocks and the content checkset diagnostics,
@@ -748,6 +785,11 @@ type checkRunOptions struct {
 	// lines its comment layer classified. It is nil in a whole-file check, and
 	// for a file no comment layer reads.
 	change *commentChange
+	// editionsOnly holds the blocks to the rules that read one block. The
+	// commit check sets it: each block it passes is one changed edition, so
+	// the blocks are no document, and a rule over a whole document (a voice's
+	// required patterns) is left to `kapi check`.
+	editionsOnly bool
 }
 
 // source is the language the run reads content in: the one it resolved for
@@ -781,11 +823,11 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		return nil, fmt.Errorf("hygiene check %s: %w", DisplayName(file), err)
 	}
 	diags = append(diags, mapBlockDeltas(blocks, seen, "hygiene", file)...)
-	canary, err := probeTool(ctx, hygiene, check.HygieneCanaries(), "")
-	if err != nil {
+	if err := opts.execution.probed("hygiene", file, len(diags), start, true, func() (check.CanaryOutcome, error) {
+		return probeTool(ctx, hygiene, check.HygieneCanaries(), "")
+	}); err != nil {
 		return nil, fmt.Errorf("hygiene check %s: %w", DisplayName(file), err)
 	}
-	opts.execution.completed("hygiene", file, len(diags), start, canary, true)
 
 	// Length — only when a limit is set.
 	if opts.maxChars > 0 || opts.maxWords > 0 {
@@ -799,11 +841,11 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			return nil, fmt.Errorf("length check %s: %w", DisplayName(file), err)
 		}
 		diags = append(diags, mapBlockDeltas(blocks, seen, "length", file)...)
-		canary, err := probeTool(ctx, lengthTool, check.LengthCanaries(opts.maxChars, opts.maxWords), "")
-		if err != nil {
+		if err := opts.execution.probed("length", file, len(diags)-before, start, true, func() (check.CanaryOutcome, error) {
+			return probeTool(ctx, lengthTool, check.LengthCanaries(opts.maxChars, opts.maxWords), "")
+		}); err != nil {
 			return nil, fmt.Errorf("length check %s: %w", DisplayName(file), err)
 		}
-		opts.execution.completed("length", file, len(diags)-before, start, canary, true)
 	} else {
 		opts.execution.skipped("length", file, "No length limit was configured.")
 	}
@@ -820,12 +862,12 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			return nil, fmt.Errorf("pattern check %s: %w", DisplayName(file), err)
 		}
 		diags = append(diags, mapBlockDeltas(blocks, seen, "pattern", file)...)
-		canaries, uncheckable := check.PatternCanaries(rules)
-		canary, err := probeTool(ctx, patternTool, canaries, uncheckable)
-		if err != nil {
+		if err := opts.execution.probed("pattern", file, len(diags)-before, start, true, func() (check.CanaryOutcome, error) {
+			canaries, uncheckable := check.PatternCanaries(rules)
+			return probeTool(ctx, patternTool, canaries, uncheckable)
+		}); err != nil {
 			return nil, fmt.Errorf("pattern check %s: %w", DisplayName(file), err)
 		}
-		opts.execution.completed("pattern", file, len(diags)-before, start, canary, true)
 	} else {
 		opts.execution.skipped("pattern", file, "No explicit patterns were configured.")
 	}
@@ -880,11 +922,11 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 					diags = append(diags, check.DiagnosticFrom(f, "terms", loc))
 				}
 			}
-			canary, err := probeVoiceRules(ctx, wordCheck, nil)
-			if err != nil {
+			if err := opts.execution.probed("terms", file, len(diags)-before, start, asked && len(words) > 0, func() (check.CanaryOutcome, error) {
+				return probeVoiceRules(ctx, wordCheck, nil)
+			}); err != nil {
 				return nil, fmt.Errorf("terms check %s: %w", DisplayName(file), err)
 			}
-			opts.execution.completed("terms", file, len(diags)-before, start, canary, asked && len(words) > 0)
 		}
 
 		// The voice's own rules: its prohibited and required patterns and its
@@ -922,20 +964,23 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			// The profile's required patterns hold over the document, not over any
 			// one block in it (profile.DocumentFindings): the page carries the
 			// notice, not every paragraph of it. They are reported against the file,
-			// with no block, because an absence sits nowhere in particular.
+			// with no block, because an absence sits nowhere in particular. A check
+			// of separate editions holds no document to read them over.
 			docLoc := check.Location{File: DisplayName(file)}
-			for _, f := range profile.DocumentFindings(voice, documentText(g.doc)) {
-				d := check.DiagnosticFrom(f, "voice", docLoc)
-				d.Point = clonePoint(g.at.point)
-				diags = append(diags, d)
-			}
-			canary, err := probeVoiceRules(ctx, patternCheck, voice)
-			if err != nil {
-				return nil, fmt.Errorf("voice check %s: %w", DisplayName(file), err)
+			if !opts.editionsOnly {
+				for _, f := range profile.DocumentFindings(voice, documentText(g.doc)) {
+					d := check.DiagnosticFrom(f, "voice", docLoc)
+					d.Point = clonePoint(g.at.point)
+					diags = append(diags, d)
+				}
 			}
 			// A profile named on the command line is an analysis the invocation asked
 			// for. One the project binds is configuration, and may govern tone alone.
-			opts.execution.completed("voice.rules", file, len(diags)-before, start, canary, asked)
+			if err := opts.execution.probed("voice.rules", file, len(diags)-before, start, asked, func() (check.CanaryOutcome, error) {
+				return probeVoiceRules(ctx, patternCheck, voice)
+			}); err != nil {
+				return nil, fmt.Errorf("voice check %s: %w", DisplayName(file), err)
+			}
 			recordGuidance(opts.execution, voice, file)
 		}
 		// The comments among the group's blocks are held to the comment limits
@@ -1038,11 +1083,11 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 		return nil, fmt.Errorf("placeholder check %s (%s): %w", DisplayName(file), loc, err)
 	}
 	diags = append(diags, mapBlockDeltas(blocks, seen, "placeholder", file)...)
-	canary, err := probeTool(ctx, placeholder, coretools.PlaceholderCanaries(loc), "")
-	if err != nil {
+	if err := execution.probed("placeholder", file, len(diags), start, true, func() (check.CanaryOutcome, error) {
+		return probeTool(ctx, placeholder, coretools.PlaceholderCanaries(loc), "")
+	}); err != nil {
 		return nil, fmt.Errorf("placeholder check %s (%s): %w", DisplayName(file), loc, err)
 	}
-	execution.completed("placeholder", file, len(diags), start, canary, true)
 
 	// The project's term rules for the target language, the rules the ship
 	// terminology gate holds the same translation to. term-check records its
@@ -1074,17 +1119,17 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 				}
 			}
 		}
-		canaries, uncheckable := coretools.TermCheckCanaries(cfg)
-		canary, err := check.Probe(canaries, uncheckable, func(b *model.Block) ([]check.Finding, error) {
-			if err := RunCheckTool(ctx, tc, b); err != nil {
-				return nil, err
-			}
-			return termCheckFindings(b), nil
-		})
-		if err != nil {
+		if err := execution.probed("terms.target", file, len(diags)-before, start, true, func() (check.CanaryOutcome, error) {
+			canaries, uncheckable := coretools.TermCheckCanaries(cfg)
+			return check.Probe(canaries, uncheckable, func(b *model.Block) ([]check.Finding, error) {
+				if err := RunCheckTool(ctx, tc, b); err != nil {
+					return nil, err
+				}
+				return termCheckFindings(b), nil
+			})
+		}); err != nil {
 			return nil, fmt.Errorf("terminology check %s (%s): %w", DisplayName(file), loc, err)
 		}
-		execution.completed("terms.target", file, len(diags)-before, start, canary, true)
 	} else {
 		execution.skipped("terms.target", file, "No terms govern this file in its target language.")
 	}
@@ -1099,12 +1144,12 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 			return nil, fmt.Errorf("do-not-translate check %s (%s): %w", DisplayName(file), loc, err)
 		}
 		diags = append(diags, mapBlockDeltas(blocks, seen, "dnt", file)...)
-		canaries, uncheckable := coretools.DNTCanaries(dntCfg)
-		canary, err := probeTool(ctx, dnt, canaries, uncheckable)
-		if err != nil {
+		if err := execution.probed("dnt", file, len(diags)-before, start, true, func() (check.CanaryOutcome, error) {
+			canaries, uncheckable := coretools.DNTCanaries(dntCfg)
+			return probeTool(ctx, dnt, canaries, uncheckable)
+		}); err != nil {
 			return nil, fmt.Errorf("do-not-translate check %s (%s): %w", DisplayName(file), loc, err)
 		}
-		execution.completed("dnt", file, len(diags)-before, start, canary, true)
 	} else {
 		execution.skipped("dnt", file, "No protected terms were configured.")
 	}
@@ -1370,7 +1415,24 @@ func (a *App) newCheckVoice(cmd Command, warnings *voiceWarnings) (*checkVoice, 
 		}
 		return v, nil
 	}
+	return a.projectCheckVoice(cmd, warnings, func(string) (profile.Store, func(), error) {
+		return a.VoiceLookupStore(cmd)
+	})
+}
 
+// newProjectCheckVoice builds the resolver that answers with the voice the
+// project cmd resolves binds at each point, read from the project's own store,
+// whatever flags cmd carries. Outside a project it answers none.
+func (a *App) newProjectCheckVoice(ctx context.Context, cmd Command, warnings *voiceWarnings) (*checkVoice, error) {
+	return a.projectCheckVoice(cmd, warnings, func(root string) (profile.Store, func(), error) {
+		return a.ProjectVoiceStore(ctx, root)
+	})
+}
+
+// projectCheckVoice builds the resolver for the project cmd resolves, with the
+// voice store open returns for the project's root.
+func (a *App) projectCheckVoice(cmd Command, warnings *voiceWarnings, open func(root string) (profile.Store, func(), error)) (*checkVoice, error) {
+	v := &checkVoice{app: a, cmd: cmd, cache: map[string]checkedVoice{}, warnings: warnings}
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
 		return v, err
@@ -1379,7 +1441,7 @@ func (a *App) newCheckVoice(cmd Command, warnings *voiceWarnings) (*checkVoice, 
 	if lerr != nil {
 		return nil, fmt.Errorf("load project for voice: %w", lerr)
 	}
-	store, release, serr := a.VoiceLookupStore(cmd)
+	store, release, serr := open(filepath.Dir(projectPath))
 	if serr != nil {
 		return nil, serr
 	}
@@ -1562,35 +1624,20 @@ func (a *App) governancePointForFile(root, file string) project.GovernancePoint 
 	return a.GovernancePointFor("", "")
 }
 
-// governancePointForComments is the point the comments in a source file sit
-// at.
-func (a *App) governancePointForComments(root, file string) project.GovernancePoint {
-	point := a.governancePointForFile(root, file)
-	point.Comments = true
-	return point
-}
-
 // checkedVoice caches a loaded profile together with the resolution that selected it.
 type checkedVoice struct {
 	profile *profile.VoiceProfile
 	context check.VoiceContext
 }
 
-// forFile returns the effective profile and its selection metadata together.
-func (v *checkVoice) forFile(ctx context.Context, file string) (*profile.VoiceProfile, check.VoiceContext, error) {
+// at returns the effective profile at a point a file's content or its
+// comments sit at, and its selection metadata. A profile the invocation named,
+// or no project, answers the same at every point.
+func (v *checkVoice) at(ctx context.Context, point project.GovernancePoint) (*profile.VoiceProfile, check.VoiceContext, error) {
 	if v.fixed != nil || v.proj == nil {
 		return v.forPoint(ctx, project.GovernancePoint{})
 	}
-	return v.forPoint(ctx, v.app.governancePointForFile(v.root, file))
-}
-
-// forComments returns the profile governing the comments in one file, at the
-// point they sit at, and its selection metadata.
-func (v *checkVoice) forComments(ctx context.Context, file string) (*profile.VoiceProfile, check.VoiceContext, error) {
-	if v.fixed != nil || v.proj == nil {
-		return v.forPoint(ctx, project.GovernancePoint{})
-	}
-	return v.forPoint(ctx, v.app.governancePointForComments(v.root, file))
+	return v.forPoint(ctx, point)
 }
 
 // forPoint returns the profile governing a point and its selection metadata.
