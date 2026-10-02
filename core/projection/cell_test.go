@@ -39,6 +39,28 @@ func TestDisplayRuns(t *testing.T) {
 	})
 }
 
+// A character reference a reader keeps as an inline code is shown as its
+// character, so every serializer writes it in its own spelling rather than
+// dropping it.
+func TestDisplayRuns_CharacterReferencesAreText(t *testing.T) {
+	ref := func(id, data string) model.Run {
+		return model.Run{Ph: &model.PlaceholderRun{ID: id, Type: "code:entity", Data: data}}
+	}
+	br := model.Run{Ph: &model.PlaceholderRun{ID: "3", Type: "struct:break", Data: "<br/>", Equiv: "\n"}}
+	src := []model.Run{
+		{Text: &model.TextRun{Text: "Fish "}}, ref("1", "&amp;"), {Text: &model.TextRun{Text: " chips "}},
+		ref("2", "&lt;"), {Text: &model.TextRun{Text: "3"}}, br,
+		{Plural: &model.PluralRun{Forms: map[model.PluralForm][]model.Run{model.PluralOther: {ref("4", "&rsquo;")}}}},
+	}
+	b := &model.Block{ID: "p", Source: src}
+
+	got := DisplayRuns(b, b.Source)
+
+	assert.Equal(t, "Fish & chips <3’", model.RunsText(got))
+	assert.Equal(t, br, got[5], "other codes stay codes")
+	assert.Equal(t, "&amp;", src[1].Ph.Data, "the block keeps its runs")
+}
+
 func TestProjectBlockRendersTheDisplay(t *testing.T) {
 	b := &model.Block{
 		ID:     "cell-sheet1-B2",

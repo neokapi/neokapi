@@ -70,9 +70,9 @@ const pricingPage = `<!DOCTYPE html>
 // `kapi inspect` is the read an edit is addressed from, so every id and
 // content_hash it prints must be one `kapi apply` resolves, and `--diff` must
 // preview the block the write then changes. An inline element's translatable
-// attribute (an image's alt) and a character reference are where the two
-// reads used to part: the write numbered the attribute after its paragraph and
-// kept the reference as an inline code.
+// attribute (an image's alt) and a character reference are where reads can
+// part: the write numbers the attribute after its paragraph and keeps the
+// reference as an inline code, which inspect shows as its character.
 func TestInspectAddressesTheBlocksApplyWrites(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -81,6 +81,7 @@ func TestInspectAddressesTheBlocksApplyWrites(t *testing.T) {
 		edit     func(text string) string
 		want     string // a substring of the written file
 		keep     string // a substring the write must leave alone
+		diffLine string // a line the --diff preview must show, when set
 	}{
 		{
 			name:     "an image's alt text",
@@ -101,10 +102,20 @@ func TestInspectAddressesTheBlocksApplyWrites(t *testing.T) {
 		{
 			name:     "a paragraph with character references",
 			src:      "<html><body><p>Fish &amp; chips &lt;3</p></body></html>\n",
-			readText: `Fish <x id="1/"/> chips <x id="2/"/>3`,
+			readText: `Fish & chips <3`,
 			edit:     func(s string) string { return strings.Replace(s, "chips", "fries", 1) },
 			want:     `<p>Fish &amp; fries &lt;3</p>`,
 			keep:     `<html><body>`,
+			diffLine: "+Fish & fries <3",
+		},
+		{
+			name:     "a rewrite that drops the character references",
+			src:      "<html><body><p>Don&rsquo;t pay&nbsp;more &mdash; it&#39;s &copy; 2026</p></body></html>\n",
+			readText: "Don\u2019t pay\u00a0more \u2014 it's \u00a9 2026",
+			edit:     func(string) string { return "Pay less today." },
+			want:     `<p>Pay less today.</p>`,
+			keep:     `<html><body>`,
+			diffLine: "+Pay less today.",
 		},
 	}
 	for _, tc := range tests {
@@ -129,6 +140,10 @@ func TestInspectAddressesTheBlocksApplyWrites(t *testing.T) {
 			preview, diff := applyDiffJSON(t, app, entries)
 			assert.Equal(t, []string{rec.ID}, preview.Content.Applied, "--diff previews the inspected block")
 			assert.Contains(t, diff, "page.html:"+rec.ID+" (before)", "a hunk is labelled with the block id")
+			if tc.diffLine != "" {
+				assert.Contains(t, diff, "-"+tc.readText+"\n", "the preview shows the block as inspect does")
+				assert.Contains(t, diff, tc.diffLine+"\n")
+			}
 			unchanged, err := os.ReadFile(path)
 			require.NoError(t, err)
 			assert.Equal(t, tc.src, string(unchanged), "--diff writes nothing")
@@ -158,4 +173,28 @@ func TestInspectJSONLKeepsAngleBracketsReadable(t *testing.T) {
 	assert.Contains(t, out, `<x id=\"1\"/>terms of service<x id=\"/1\"/>`)
 	assert.NotContains(t, out, `\`+"u003c")
 	assert.NotContains(t, out, `\`+"u0026")
+}
+
+// `kapi inspect --project` renders a block in another format. A character
+// reference the HTML reader keeps as an inline code is a character there, and
+// each format spells it its own way.
+func TestInspectProjectsCharacterReferences(t *testing.T) {
+	app := newToolboxApp(t)
+	path := filepath.Join(t.TempDir(), "amp.html")
+	require.NoError(t, os.WriteFile(path, []byte("<p>Fish &amp; chips &lt;3</p>\n"), 0o600))
+
+	cmd := NewEnvCommand(t.Context(), "inspect")
+	var stdout, stderr bytes.Buffer
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	require.NoError(t, app.RunInspect(t.Context(), cmd, []string{path}, "jsonl", []string{"markdown", "html", "asciidoc"}), stderr.String())
+	var rec structrec.Record
+	require.NoError(t, json.Unmarshal(stdout.Bytes(), &rec))
+
+	assert.Equal(t, "Fish & chips <3", rec.Text)
+	assert.Equal(t, map[string]string{
+		"markdown": `Fish & chips \<3`,
+		"html":     "<p>Fish &amp; chips &lt;3</p>",
+		"asciidoc": "Fish & chips <3",
+	}, rec.Projected)
 }

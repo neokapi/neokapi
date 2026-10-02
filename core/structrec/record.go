@@ -21,7 +21,7 @@ import (
 // blocks (by ID).
 //
 // Record is a declared PROJECTION, not a wire contract (AD-034): it flattens
-// inline runs to placeholder text on purpose. The canonical serialization of
+// inline runs to edit text on purpose. The canonical serialization of
 // the content model is the neokapi.content.v1 schema (core/proto/content/v1)
 // and its protojson form.
 type Record struct {
@@ -64,12 +64,13 @@ func New(number int, id, text, role string, level int) Record {
 // FromBlock builds a Record from a block, rendering the given runs (the block's
 // source, or a resolved target) as the record Text.
 //
-// Text is the placeholder rendering (model.RunsPlaceholderText): inline codes
-// appear as <x id="…"/> tokens so the read leg is symmetric with the write-back
-// leg — an agent that reads a record and edits its Text can round-trip the edit
-// without dropping a link, bold span, or placeholder.
+// Text is the edit text (model.RunsEditText): inline codes appear as
+// <x id="…"/> tokens and character references as their characters, so the
+// read leg is symmetric with the write-back leg — an agent that reads a record
+// and edits its Text can round-trip the edit without dropping a link, bold
+// span, or placeholder.
 //
-// ContentHash is deliberately NOT computed over that placeholder text. It stays
+// ContentHash is deliberately NOT computed over that edit text. It stays
 // the canonical block identity — model.ComputeContentHash over the block's plain
 // source text — the same hash the sync engine, content stores, and desktop
 // status view use (a frozen on-the-wire contract). Text (for editing) and
@@ -79,7 +80,7 @@ func FromBlock(number int, b *model.Block, runs []model.Run) Record {
 		Number:      number,
 		ID:          b.ID,
 		ContentHash: model.ComputeContentHash(b.SourceText()),
-		Text:        model.RunsPlaceholderText(runs),
+		Text:        model.RunsEditText(runs),
 	}
 	if s, ok := b.Structure(); ok {
 		rec.Role, rec.Level = s.Role, s.Level

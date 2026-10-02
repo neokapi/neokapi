@@ -82,7 +82,7 @@ func TestApply_WritesEditedWordingAsText(t *testing.T) {
 			name: "html",
 			file: "inj.html",
 			src:  `<html><body><p>Hello world</p></body></html>`,
-			want: `<html><body><p>Hello &lt;script>alert(1)&lt;/script> & goodbye</p></body></html>`,
+			want: `<html><body><p>Hello &lt;script>alert(1)&lt;/script> &amp; goodbye</p></body></html>`,
 		},
 		{
 			name: "markdown",

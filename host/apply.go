@@ -374,7 +374,8 @@ func readChangeSet(ctx context.Context, path string) ([]changeEntry, error) {
 // applier's plan is applied to the streamed block); nothing is written to disk.
 // It backs `kapi apply --diff`, and reads the file as the write does, so it
 // previews exactly the blocks the write would change. Each hunk is labelled
-// with the block id a change-set entry names.
+// with the block id a change-set entry names, and shows the block as edit
+// text, the form `kapi inspect` prints and an entry's text is written in.
 func (a *App) rewriteDiffFile(ctx context.Context, file string, t *tool.BaseTool, out io.Writer) (int, error) {
 	changed := 0
 	label := DisplayName(file)
@@ -382,12 +383,12 @@ func (a *App) rewriteDiffFile(ctx context.Context, file string, t *tool.BaseTool
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		before := model.RunsText(b.Source)
+		before := model.RunsEditText(b.Source)
 		part := &model.Part{Type: model.PartBlock, Resource: b}
 		if _, aerr := t.ApplyContext(ctx, part); aerr != nil {
 			return aerr
 		}
-		after := model.RunsText(b.Source)
+		after := model.RunsEditText(b.Source)
 		if before == after {
 			return nil
 		}
