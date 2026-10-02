@@ -176,22 +176,22 @@ test("navigates between flows", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Pseudo Translate" })).toBeVisible();
 });
 
-test("adds a parallel group and round-trips it through the backend", async ({ page }) => {
-  await createNewFlow(page, "Fan out");
-  await pickTool(page, page.getByTestId("add-parallel-group"), /^translate/);
-  const group = page.getByTestId("parallel-group");
-  await expect(group).toBeVisible();
-  await expect(group.getByTestId("step-row")).toHaveCount(1);
-
-  await pickTool(page, group.getByTestId("add-branch"), /^pseudo-translate/);
-  await expect(group.getByTestId("step-row")).toHaveCount(2);
-  await expect(group).toContainText("2 in parallel");
+test("adds steps in order and offers no parallel group", async ({ page }) => {
+  // Flow steps run one after another; the editor offers no parallel group.
+  await createNewFlow(page, "In order");
+  await expect(page.getByTestId("add-parallel-group")).toHaveCount(0);
+  await pickTool(page, page.getByTestId("add-step"), /^translate/);
+  await pickTool(page, page.getByTestId("add-step"), /^pseudo-translate/);
+  await expect(page.getByTestId("step-row")).toHaveCount(2);
   await saved(page);
 
   await page.getByTestId("flow-back").click();
-  await page.locator("[data-testid^='flow-item-']").filter({ hasText: "Fan out" }).click();
-  await expect(page.getByTestId("parallel-group")).toBeVisible();
-  await expect(page.getByTestId("parallel-group").getByTestId("step-row")).toHaveCount(2);
+  await page.locator("[data-testid^='flow-item-']").filter({ hasText: "In order" }).click();
+  const rows = page.getByTestId("step-row");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText("translate");
+  await expect(rows.nth(1)).toContainText("pseudo-translate");
+  await expect(page.getByTestId("parallel-group")).toHaveCount(0);
 });
 
 test("renames a flow in place", async ({ page }) => {
