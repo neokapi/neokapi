@@ -348,7 +348,7 @@ func (v *blockView) Identity() *model.BlockIdentity { return v.b.Identity }
 func (v *blockView) ChainUnit() string              { return v.b.ChainUnit() }
 func (v *blockView) PreserveWhitespace() bool       { return v.b.PreserveWhitespace }
 
-func (v *blockView) SourceRuns() []model.Run             { return v.b.Source }
+func (v *blockView) SourceRuns() []model.Run             { return authoritative(v.b).Runs }
 func (v *blockView) SourceText() string                  { return v.b.SourceText() }
 func (v *blockView) WordCount() int                      { return v.b.WordCount() }
 func (v *blockView) SourceSegmentation() *model.Overlay  { return v.b.SourceSegmentation() }
@@ -421,8 +421,26 @@ func (v *blockView) SetProperty(key, value string) {
 }
 func (v *blockView) Property(key string) string { return v.b.Properties[key] }
 
-func (v *blockView) SourceStatus() model.SourceStatus     { return v.b.SourceStatus }
-func (v *blockView) SetSourceStatus(s model.SourceStatus) { v.b.SourceStatus = s }
+func (v *blockView) SourceStatus() model.SourceStatus {
+	return model.SourceStatus(authoritative(v.b).Status)
+}
+
+// SetSourceStatus stamps the authoritative edition's status and keeps its
+// content and origin as they are.
+func (v *blockView) SetSourceStatus(s model.SourceStatus) {
+	k := v.b.Authoritative(model.AuthorityPolicy{})
+	e, _ := v.b.Edition(k)
+	e.Status = model.Status(s)
+	v.b.SetEdition(k, e)
+}
+
+// authoritative returns the block's authoritative edition: the edition it was
+// read in, which a source read, a source rewrite and segmentation with no
+// variant address.
+func authoritative(b *model.Block) model.Edition {
+	e, _ := b.Edition(b.Authoritative(model.AuthorityPolicy{}))
+	return e
+}
 
 func (v *blockView) Drop() { v.dropped = true }
 

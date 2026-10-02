@@ -1,12 +1,11 @@
 package tool
 
 import (
-	"cmp"
 	"context"
 	"fmt"
+	"hash"
 	"hash/fnv"
 	"reflect"
-	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -439,40 +438,40 @@ func (b *BaseTool) refused(v *blockView) error {
 	return nil
 }
 
-// blockSourceSig is a cheap content signature of a Block's source runs,
-// covering text and inline-code markup so in-place edits are detected.
+// blockSourceSig is a cheap content signature of the block's authoritative
+// edition, covering text and inline-code markup so in-place edits are
+// detected.
 func blockSourceSig(b *model.Block) uint64 {
 	h := fnv.New64a()
-	_, _ = h.Write([]byte(model.RenderRunsWithData(b.Source)))
+	_, _ = h.Write([]byte(model.RenderRunsWithData(authoritative(b).Runs)))
 	return h.Sum64()
 }
 
-// blockTargetsSig is an order-independent content signature of all target
-// variants (content + status), used to detect target mutation.
+// blockTargetsSig is a content signature of every edition other than the
+// authoritative one (content + status), used to detect target mutation.
+// Editions lists the keys in the order of their text form, so the signature
+// does not depend on map order.
 func blockTargetsSig(b *model.Block) uint64 {
-	if len(b.Targets) == 0 {
-		return 0
-	}
-	type variant struct {
-		key string
-		tgt *model.Target
-	}
-	entries := make([]variant, 0, len(b.Targets))
-	for k, t := range b.Targets {
-		mt, _ := k.MarshalText()
-		entries = append(entries, variant{key: string(mt), tgt: t})
-	}
-	slices.SortFunc(entries, func(a, b variant) int { return cmp.Compare(a.key, b.key) })
-	h := fnv.New64a()
-	for _, e := range entries {
-		_, _ = h.Write([]byte(e.key))
-		_, _ = h.Write([]byte{0})
-		if t := e.tgt; t != nil {
-			_, _ = h.Write([]byte(model.RenderRunsWithData(t.Runs)))
-			_, _ = h.Write([]byte{0})
-			_, _ = h.Write([]byte(t.Status))
+	auth := b.Authoritative(model.AuthorityPolicy{})
+	var h hash.Hash64
+	for _, k := range b.Editions() {
+		if k == auth {
+			continue
 		}
+		if h == nil {
+			h = fnv.New64a()
+		}
+		e, _ := b.Edition(k)
+		mt, _ := k.MarshalText()
+		_, _ = h.Write(mt)
+		_, _ = h.Write([]byte{0})
+		_, _ = h.Write([]byte(model.RenderRunsWithData(e.Runs)))
+		_, _ = h.Write([]byte{0})
+		_, _ = h.Write([]byte(e.Status))
 		_, _ = h.Write([]byte{1})
+	}
+	if h == nil {
+		return 0
 	}
 	return h.Sum64()
 }
