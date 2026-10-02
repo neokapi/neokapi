@@ -512,6 +512,38 @@ the format is used outside the flow executor):
 The JSON and HTML writers implement all three. Simpler formats may only need
 skeleton + build-from-blocks.
 
+### Edit Capabilities
+
+A writer that can write a changed attribute of an inline code implements
+`format.AttrWriter`; one that can write a new paired code of a vocabulary type
+implements `format.CodeSynthesizer` (`core/format/editcaps.go`). The registry
+probes both at registration into `FormatInfo.EditCapabilities`, and the change
+service passes the writer to `change.ApplyBlock` through
+`change.WriterCapabilities`, so `set_attribute`, `mark` and a new code in a
+`runs` payload apply exactly where the writer declares them.
+
+- `WriteAttr(seq, at, name, value)` returns a copy of `seq` with the code at
+  `at` respelled: the value inside its native data, escaped for its context
+  (an HTML or XML attribute's quotes, a Markdown link destination), and the
+  code's `Attrs` as the reader reads them from the new data. It keeps the
+  number and order of runs and every other byte; the Markdown writer edits the
+  closing `](dest)` run, or the title's opening run when the link has a title.
+  `format.ParseStartTag` locates an attribute in an HTML or XML start tag.
+- `SynthesizeCode(site)` returns both halves of a new code as the reader would
+  read them back: type, subtype, native data, attributes, the vocabulary's
+  display and constraints. `site` names the block, the codes the new one sits
+  inside, and the runs before, inside and after it, so the writer can refuse a
+  place its syntax cannot carry (a link inside a link, emphasis CommonMark
+  would not open).
+- Return an error whose message gives the reason for anything else. The
+  applier refuses the operation as `unsupported` with that message.
+
+Add the cells that prove each declaration to `capabilityMatrix()` in
+`core/formats/opsmatrix_capabilities_test.go`: a fixture, the block, the
+operation, and the one change it makes to the bytes. A cell writes the document
+and reads it back; `TestCapabilityMatrixCoversEveryDeclaration` fails when a
+declaration has no cell. Declare refusals as cells too, with the reason.
+
 ## Registration
 
 Register the format in `core/formats/register.go`:
@@ -637,6 +669,7 @@ Before submitting a new format:
 - [ ] Reader emits `PartLayerStart` → blocks/data → `PartLayerEnd`
 - [ ] Skeleton store: coalescing buffer in reader, `writeFromSkeleton` in writer
 - [ ] Writer fallback chain (skeleton → re-parse or build-from-blocks)
+- [ ] Any `AttrWriter` or `CodeSynthesizer` declaration has capability-matrix cells
 - [ ] No write-side regex/byte post-processing of serialized output (see [the no-regex convention](#write-side-post-processing-the-no-regex-convention)); any Okapi-reproduction exception documents the mirrored class/method
 - [ ] Registered in `core/formats/register.go`
 - [ ] Byte-exact roundtrip tests (with and without skeleton store)

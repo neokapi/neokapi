@@ -2,13 +2,13 @@
 sidebar_position: 7
 id: change-applier
 title: "Note: The change applier (core/change)"
-description: Implementation note on core/change, the package that holds the kapi.change/v1 contract types, strict decoding, the generated schema, ApplyBlock, the status consequences of an edit, and Diff, and on how tools write content through it.
+description: Implementation note on core/change, the package that holds the kapi.change/v1 contract types, strict decoding, the generated schema, ApplyBlock, the capabilities a format declares, the status consequences of an edit, and Diff, and on how tools write content through it.
 keywords: [core/change, ApplyBlock, change set, edition revision, if_match, Diff, implementation note]
 ---
 
 # The change applier: `core/change`
 
-Every change to a block's content goes through one function, `change.ApplyBlock`. This note covers the package that holds it: the change-set contract, the rules an operation obeys, and how tools in a flow reach it. The package imports `core/model` and nothing from the host, the CLI or any surface, so every surface can build on it.
+Every change to a block's content goes through one function, `change.ApplyBlock`. This note covers the package that holds it: the change-set contract, the rules an operation obeys, what a format declares it can write, and how tools in a flow reach it. The package imports `core/model` and `core/format` and nothing from the host, the CLI or any surface, so every surface can build on it.
 
 ## The contract types
 
@@ -30,7 +30,7 @@ An operation names the revision of the edition its sender read. `model.EditionRe
 
 ## ApplyBlock
 
-`ApplyBlock(block, ops, env)` applies `set_content`, `replace_text`, `remove_edition`, `annotate`, `unannotate` and the in-process provenance operation to one block in memory, and returns one result per operation. It checks every precondition against the block as it stood when it was called, applies the operations in order, and writes nothing unless all of them apply. A refusal names the first refused operation in every other result's `blocked_by`, and a `stale` refusal carries the edition as it stands. `set_attribute`, `mark`, `insert_block`, `delete_block` and `native` are refused as `unsupported` until a format declares the capability.
+`ApplyBlock(block, ops, env)` applies `set_content`, `replace_text`, `remove_edition`, `annotate`, `unannotate` and the in-process provenance operation to one block in memory, and returns one result per operation. It checks every precondition against the block as it stood when it was called, applies the operations in order, and writes nothing unless all of them apply. A refusal names the first refused operation in every other result's `blocked_by`, and a `stale` refusal carries the edition as it stands. `set_attribute`, `mark` and a new code in a runs payload apply where the block's format declares them (see [What a format can write](#what-a-format-can-write)); `insert_block`, `delete_block` and `native` are refused as `unsupported`.
 
 The rules each content operation obeys:
 
@@ -38,7 +38,7 @@ The rules each content operation obeys:
 - **Codes keep their constraints.** Dropping a code needs `deletable`, repeating one needs `cloneable`, moving one past another needs `reorderable`, resolved from the run or the vocabulary. Paired codes stay as well nested as the reference's. A violation is `guard` with subcode `codes_changed`.
 - **Structure is kept.** Text over an edition that holds a plural or select is refused as `structure_lost`; `path` names the branch to replace or edit, and a path to a missing plural form adds it. Runs replace a whole structure.
 - **Run flags survive.** Rebuilt text runs split where `TextRun.NoTranslate` changes. Text the edit leaves alone keeps its flag, and replacement text is flagged when everything it replaces was.
-- **Native data stays with the format.** A wire payload carries no `data`. A code named by its id takes its data from the reference, and a payload that changes a held code's attributes is refused, since `set_attribute` is what changes them. A subblock reference is a code like the others: looked up by its id, its `ref` the one the reference holds. A code the reference does not hold needs a format to spell it, so it is refused as `unsupported`.
+- **Native data stays with the format.** A wire payload carries no `data`. A code named by its id takes its data from the reference, and a payload that changes a held code's attributes is refused, since `set_attribute` is what changes them. A subblock reference is a code like the others: looked up by its id, its `ref` the one the reference holds. A new paired code of a type the format writes is spelled by the format's writer; any other code the reference does not hold is refused as `unsupported`.
 - **Overlays follow the edit on every edition.** Spans on the edited edition are remapped across the edit, dropped where they overlapped it, and checked to resolve in the new runs. A segmentation layer is kept or dropped whole, the segment holding an edit resized around it, because bilingual writers read the layer as the edition's complete segment list.
 
 A tool in a flow applies with the `Report` disposition (`BlockEnv.Guards`): a code guard violation lands with a finding, and so does a code the reference does not hold, kept as sent with no native form, so a translation that names a placeholder the source lacks reaches the placeholder checks rather than failing the flow. An overlay span a detector anchored inside a plural or select, where no run position reaches, is left out with a finding; a segmentation layer holding one is not written.
@@ -46,6 +46,18 @@ A tool in a flow applies with the `Report` disposition (`BlockEnv.Guards`): a co
 Positions in `replace_text` are code points of the text of the sequence a `path` reaches, in which every code, plural and select has zero width. An edit names its text by `find` (with `occurrence` among several matches), by `start` and `end`, or by a `range` of run positions. The result's `resolved` echoes each one as run positions under `model.RangeAnchor`'s attribution, where the end of a text run is the start of the run after it.
 
 `model.TextEdit` counts code points too. `model.RangeAnchorForBytes` converts byte offsets a detector reports.
+
+## What a format can write
+
+`BlockEnv.Format` (`change.Capabilities`) is what the writer of the block's format declares it can write beyond what its reader read: the attributes of a code `set_attribute` may change and the vocabulary types `mark` may create ([E-02](/contribute/architecture/engine/e-02-format-system#edits-a-writer-can-write)). `change.WriterCapabilities(name, writer)` probes an in-process writer and keeps it as the speller; `change.DeclaredCapabilities(name, declared)` holds a plugin format's manifest declaration, whose writer spells what it receives when it writes. The zero value declares nothing, and tools apply with it.
+
+- **`set_attribute`** finds every occurrence of the code in the edition, branches included, and refuses an attribute the format does not write for the code's type with a message naming what it does write. The writer's `WriteAttr` spells the value into the code's native data and updates its attributes; an error from it is the refusal's reason. A value the code already holds is `unchanged`. The text is untouched, so overlays keep their offsets, and the edit takes the same status consequences as any other.
+- **`mark`** resolves its range as `replace_text` resolves an edit and wraps the text in a new paired code. Where a boundary falls between codes, the new code goes as far inside as it can while every code it encloses stays whole, so it nests inside a link it fills and around a code it covers, and a range that crosses a code's boundary is refused as `guard`/`bad_position`. The new code takes an id no edition of the block uses, one above the highest numeric id, so it never collides with a code a translation holds. Its attributes must be ones the format writes for its type.
+- **A new code in `runs`**: an opening half whose type the format synthesizes, with attributes it writes for the type, and its closing half in the same sequence, are spelled like a mark. Any other code the reference does not hold is refused as before.
+
+`SynthesizeCode` receives a `format.CodeSite`: the type and attributes, the block, the codes the new one sits inside, and the runs before, inside and after it, so the writer can refuse a place its syntax cannot carry. With no in-process speller (a plugin), the new code carries its type, attributes and the vocabulary's display and constraints and no data.
+
+`change.FormatOps(change.FormatDecl)` builds the table `describe_format` and `kapi formats --ops` publish: the operations the format's round trip carries, as the change service names them from the operations matrix, and the declarations, with every operation nothing supports as `null`.
 
 ## Status consequences and Diff
 
