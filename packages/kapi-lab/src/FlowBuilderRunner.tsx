@@ -209,6 +209,7 @@ function DownloadProgress({
 
 export interface FlowBuilderRunnerProps {
   assets: LabRuntimeAssets | null;
+  /** Override the initial scenario’s sample; later scenario choices use their own samples. */
   defaultSampleId?: string;
   sampleIds?: string[];
   /** Scenario preselected in the picker (default: the first). */
@@ -296,7 +297,7 @@ export default function FlowBuilderRunner({
     [defaultSampleId],
   );
   const [selection, setSelection] = useState<FileSelection>(() =>
-    selectionFor(initialScenario.sampleId),
+    selectionFor(defaultSampleId ?? initialScenario.sampleId),
   );
   const [activePath, setActivePath] = useState<string | null>(null);
 

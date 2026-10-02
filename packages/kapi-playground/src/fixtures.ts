@@ -69,7 +69,7 @@ Thanks for trying **kapi**. This README is a sample Markdown document.
 ## Getting started
 
 - Install the CLI
-- Run \`kapi word-count README.md\`
+- Run \`kapi stats README.md\`
 - See the extracted segments
 
 Read more in the [documentation](https://neokapi.github.io).

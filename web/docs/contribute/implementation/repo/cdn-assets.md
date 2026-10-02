@@ -12,8 +12,8 @@ fetched at runtime rather than needed to render a page:
 
 | Family | Approx. size | Where it's used |
 |---|---|---|
-| Playground WASM (`kapi-cli.wasm` + `.gz`, `kapi.wasm`, `pdfium.wasm`, `wasm_exec.js`) | ~125 MB | The Lab / KBF playground, PDF Lab |
-| Vision ONNX models (PP-OCRv5 + PP-DocLayoutV3) | ~155 MB | The Vision Lab |
+| Playground WASM (`kapi-cli.wasm` + `.gz`, `kapi.wasm`, `pdfium.wasm`, `wasm_exec.js`) | ~125 MB | The labs, the KBF anatomy page and the structure and layout lab |
+| Vision ONNX models (PP-OCRv5 + PP-DocLayoutV3) | ~155 MB | The vision lab |
 | Walkthrough videos (`.webm` light/dark + `.jpg` posters) | ~85 MB kapi / ~55 MB bowrain | `ThemedVideo` embeds |
 
 Bundling these into the Pages artifact makes every deploy slow and forced an
@@ -39,7 +39,7 @@ The frontend routing lives in one shared helper, `@neokapi/docs-shared`'s
 
 - `packages/docs-shared/src/ThemedVideo.tsx`: video + poster sources
 - `web/src/components/KapiPlayground/config.ts`: `wasmUrl` / `wasmExecUrl`
-- `web/src/pages/lab/vision.tsx`: the Vision Lab `modelBase`
+- `web/src/pages/lab/vision.tsx`: the vision lab `modelBase`
 
 ## Bucket layout
 
@@ -52,7 +52,7 @@ deploy serving a stale binary.
   kapi/
     wasm/<git-sha>/{kapi-cli.wasm, kapi-cli.wasm.gz, kapi.wasm, pdfium.wasm, wasm_exec.js}
     models/vision/<version>/{ppocrv5_det.onnx, ppocrv5_rec.onnx, ppocrv5_dict.txt, ppdoclayoutv3.onnx}
-    icu/<icu-version>/icu_capi.wasm    # ICU4X (Segmentation Lab), served application/wasm
+    icu/<icu-version>/icu_capi.wasm    # ICU4X (segmentation lesson), served application/wasm
     img/...              # screenshots referenced by ThemedImage
     video/...            # .webm + .jpg posters, mirroring web/static/video/
   bowrain/
@@ -128,7 +128,7 @@ make publish-cdn-wasm              # optional manual wasm push (CI does this on 
 The vision model set is **versioned**: `kapi/models/vision/<version>/`, with the
 version pinned in the committed `web/models.version`. To ship a new model set,
 publish it under a new version and bump that file. A PR doing so previews the
-new models automatically (the Vision Lab reads the version from the build).
+new models automatically (the vision lab reads the version from the build).
 
 All of these call `scripts/publish-cdn-assets.sh <family>`, which sets the right
 `Content-Type` and `Cache-Control` per family. The pre-gzipped `kapi-cli.wasm.gz`

@@ -197,7 +197,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
       },
       {
         prose:
-          "Run the flow, then watch one block accumulate stand-off state as it passes each step. Nothing rewrites the text; tools communicate by attaching overlays and annotations.",
+          "Run the flow, then watch one block accumulate stand-off state as it passes each step. Compare source, targets, overlays, and annotations separately to see each tool’s effect.",
         run: true,
         select: null,
       },
@@ -243,7 +243,7 @@ export const LAB_SCENARIOS: LabScenario[] = [
       },
       {
         prose:
-          "Inspect the Sink: the Native tab diffs the written file against the input: the structure is byte-identical, only the block text changed. That is the round-trip guarantee.",
+          "Inspect the Sink: the Native tab compares the written file with the input. Distinguish changes to block text from changes to surrounding syntax. This diff supplies preservation evidence for the selected sample and writer.",
         select: "endpoint-sink",
       },
     ],

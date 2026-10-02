@@ -65,7 +65,7 @@ CLI through the `kapi-pdfium` plugin, and in the browser through PDFium compiled
 to WebAssembly. Beyond text, it recovers each fragment's position on the page
 (geometry) and the document's structure (headings, paragraphs, and tables) from
 the PDF's own tags where present and by geometric inference otherwise. You can try
-it on your own files in the [Structure & Layout lab](/lab/structure); the design is described in
+it on your own files in the [Structure and layout](/lab/structure) lab; the design is described in
 [E-08](/contribute/architecture/engine/e-08-document-structure-tiers).
 
 An **archive** (a ZIP, TAR, or gzip-compressed TAR) is a *namespace* of inner

@@ -111,8 +111,12 @@ const PAGES = [
     url: "/lab/vision",
     label: "Vision Lab",
     gate: {
-      description: 'RunGate "Run in your browser" (fetches the PP-OCRv5 ONNX models)',
-      click: (page) => page.click('button:has-text("Run in your browser")'),
+      description:
+        'LabLaunch "Open experiment", then RunGate "Run in your browser" (fetches the PP-OCRv5 ONNX models)',
+      click: async (page) => {
+        await page.click('button:has-text("Open experiment")');
+        await page.click('button:has-text("Run in your browser")');
+      },
     },
   },
 ];

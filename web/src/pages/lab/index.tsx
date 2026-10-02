@@ -1,38 +1,32 @@
 import React from "react";
 import Layout from "@theme/Layout";
+import Link from "@docusaurus/Link";
 import { FlowBuilderRunner } from "@site/src/components/Lab/FlowBuilderRunner";
-import styles from "./index.module.css";
-
-// The Lab is one workspace, many lessons: the flow editor IS the lab, and the
-// page is app-like — the workspace fills the viewport (no double scrolling)
-// and every lesson is a scenario whose guided walkthrough drives the same
-// workspace: focusing the node it talks about, opening its panel, running the
-// flow. Everything runs the real kapi engine in the browser via WebAssembly;
-// nothing is mocked. The same explorers are embedded inline next to the
-// concepts they teach in the Framework docs; the segmentation engines have
-// their own lab at /lab/segmentation.
+import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
+import { LabLaunch } from "@site/src/components/Lab/LabLaunch";
 
 export default function LabPage(): React.ReactElement {
   return (
-    <Layout
-      title="Content Model Workspace"
-      description="See how neokapi reads a document, extracts its text into blocks, and runs a flow over it — step by step, on real files, right in your browser. No install."
-      noFooter
-      wrapperClassName="lab-app-wrapper"
-    >
-      <main className={styles.appPage}>
-        <header className={styles.appHeader}>
-          <h1 className={styles.appTitle}>Content Model Workspace</h1>
-          <p className={styles.appLede}>
-            Pick a lesson and follow along as neokapi reads a file, extracts its text into blocks,
-            and runs a flow over it — live, in your browser. It&rsquo;s the real engine, so what you
-            build here is what you&rsquo;d get on your own files.
-          </p>
-        </header>
-        <div className={styles.appWorkspace}>
-          <FlowBuilderRunner defaultScenarioId="annotations" withRecordedTraces fill />
-        </div>
-      </main>
+    <Layout title="Flow workspace" description="Build and inspect processing flows in the browser.">
+      <LabPageShell
+        title="Flow workspace"
+        maxWidthClassName="max-w-[1500px]"
+        lede={
+          <>
+            Select a scenario, inspect its tools, and run the flow on a sample. For a guided
+            introduction, follow the <Link to="/labs">labs learning path</Link>.
+          </>
+        }
+      >
+        <p>
+          Live runs use the browser build of kapi. Ordinary AI provider selections use deterministic
+          demonstration responses. Recorded native traces show concurrency and provider-backed
+          examples from previous runs.
+        </p>
+        <LabLaunch label="Open flow workspace">
+          <FlowBuilderRunner defaultScenarioId="annotations" withRecordedTraces />
+        </LabLaunch>
+      </LabPageShell>
     </Layout>
   );
 }

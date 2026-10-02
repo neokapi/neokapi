@@ -120,14 +120,13 @@ func escapeSweepFormats() []escapeSweepEntry {
 		{id: "asciidoc", source: "Hello\n"},
 		{id: "mdx", source: "Hello\n"},
 		{
-			id:      "messageformat",
-			source:  "Hello\n",
-			rejects: func(r rune) bool { return r == '{' },
+			// The writer quotes ICU syntax in text, so a brace, an apostrophe
+			// and a hash read back as the characters written.
+			id:     "messageformat",
+			source: "Hello\n",
 			skip: map[rune]string{
 				'\n': "the line break separates messages",
 				'\r': "the line break separates messages",
-				'\'': "the apostrophe is ICU quoting inside a pattern, not data",
-				'#':  "the hash is the ICU plural placeholder inside a pattern, not data",
 			},
 		},
 	}

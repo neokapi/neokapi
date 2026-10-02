@@ -734,3 +734,11 @@
     transition: none;
   }
 }
+
+.kapi-pg-files-help {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--kpg-muted);
+  overflow-wrap: anywhere;
+}

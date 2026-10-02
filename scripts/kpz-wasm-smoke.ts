@@ -91,5 +91,41 @@ ok("project run", await run("run", "pseudo", "-p", "/proj/kapi.yaml", "-i", "/pr
 const projOut = dec.decode(mem.vol.readFile("/proj/out.json"));
 if (!/[-￿]/.test(projOut)) { console.error("FAIL: project run output not translated: " + projOut); process.exit(1); }
 
+// ProjectExplorer commits target overlays to the injected block store, then
+// materializes them with a separate merge command.
+mem.vol.mkdirp("/project-lifecycle");
+mem.vol.writeFile("/project-lifecycle/messages.json", enc.encode('{"greeting":"Welcome to Acme"}'));
+mem.vol.writeFile("/project-lifecycle/kapi.yaml", enc.encode(`version: v1
+name: lifecycle
+defaults:
+  source_language: en
+  target_languages: [fr]
+collections:
+  - name: content
+    content:
+      - path: messages.json
+        target: out/{lang}/messages.json
+flows:
+  translate:
+    steps:
+      - tool: recycle
+`));
+mem.vol.writeFile("/project-lifecycle/project.memory.json", enc.encode(JSON.stringify({
+  schemaVersion: "1.0", kind: "kapi-memory", entries: [{
+    id: "lab-welcome", hintSrcLang: "en",
+    variants: { en: [{text: "Welcome to Acme"}], fr: [{text: "Bienvenue chez Acme"}] },
+    created: "2026-01-01T00:00:00Z", updated: "2026-01-01T00:00:00Z",
+  }],
+})));
+ok("project memory import", await run("memory", "import", "/project-lifecycle/project.memory.json"));
+ok("project extract", await run("extract", "-p", "/project-lifecycle/kapi.yaml"));
+ok("project process-only run", await run("run", "translate", "-p", "/project-lifecycle/kapi.yaml", "-i", "/project-lifecycle/messages.json"));
+ok("project merge", await run("merge", "-p", "/project-lifecycle/kapi.yaml"));
+const materialized = JSON.parse(dec.decode(mem.vol.readFile("/project-lifecycle/out/fr/messages.json")));
+if (materialized.greeting !== "Bienvenue chez Acme") {
+  console.error("FAIL: project merge did not materialize the stored French target", materialized);
+  process.exit(1);
+}
+
 console.log("kpz-wasm-smoke: OK (.kpz + kapi project run in wasm; JSON + Office; dirty/pack)");
 process.exit(0);

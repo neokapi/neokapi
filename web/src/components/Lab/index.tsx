@@ -87,6 +87,10 @@ const LazySearchReplace = lazyWithRetry(async () => {
 });
 
 export interface ContentLabProps {
+  /** Start when mounted behind an explicit page launch control. */
+  autoStart?: boolean;
+  /** Explicit experiments supplied by a guided lesson. */
+  lessons?: import("@neokapi/kapi-lab").ContentLabProps["lessons"];
   /** Restrict the offered lessons (in this order); omit for the full set. */
   lessonIds?: string[];
   /** Lesson selected first. */

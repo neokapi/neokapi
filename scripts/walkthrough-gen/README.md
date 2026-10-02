@@ -19,7 +19,7 @@ seed: [messages.json] # built-in kit fixtures (packages/kapi-playground/src/fixt
 files: [{ path, content }] # inline files not covered by the kit fixtures
 steps:
   - comment: "..." # a visible "# ..." beat (tape only)
-  - command: kapi word-count messages.json # a runnable command
+  - command: kapi stats messages.json # a runnable command
     narration: "..." # shown beside the step in the embed rail
     offline: true # default; runs in the wasm embed
     smoke: true # default(=offline); add to the .md smoke_contract (W7)

@@ -25,6 +25,7 @@ const env = {
   KAPI_NO_PROJECT: "1",
   KAPI_PROJECT: "",
   KAPI_CONFIG_DIR: join(sandbox, "isolated/config"),
+  KAPI_DATA_DIR: join(sandbox, "isolated/data"),
   XDG_DATA_HOME: join(sandbox, "isolated/data"),
   XDG_CACHE_HOME: join(sandbox, "isolated/cache"),
   KAPI_PLUGINS_DIR_ONLY: "1",

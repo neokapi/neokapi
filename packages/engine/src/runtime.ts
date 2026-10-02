@@ -157,14 +157,23 @@ let errSink: (s: string) => void = () => {};
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const existing = document.querySelector(`script[data-kapi-wasm-exec]`);
-    if (existing) return resolve();
-    const s = document.createElement("script");
-    s.src = src;
-    s.dataset.kapiWasmExec = "1";
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error(`failed to load ${src}`));
-    document.head.appendChild(s);
+    const existing = document.querySelector<HTMLScriptElement>("script[data-kapi-wasm-exec]");
+    if (existing && (globalThis as WasmExecHost).Go) return resolve();
+    const script = existing ?? document.createElement("script");
+    script.addEventListener("load", () => resolve(), { once: true });
+    script.addEventListener(
+      "error",
+      () => {
+        script.remove();
+        reject(new Error(`failed to load ${src}`));
+      },
+      { once: true },
+    );
+    if (!existing) {
+      script.src = src;
+      script.dataset.kapiWasmExec = "1";
+      document.head.appendChild(script);
+    }
   });
 }
 
@@ -409,7 +418,10 @@ export function bootKapiRuntime(wasmExecUrl: string, wasmUrl: string): Promise<K
 
     await loadScript(wasmExecUrl);
     const Go = g.Go;
-    if (!Go) throw new Error("wasm_exec.js did not define Go");
+    if (!Go) {
+      document.querySelector("script[data-kapi-wasm-exec]")?.remove();
+      throw new Error("wasm_exec.js did not define Go");
+    }
 
     const go = new Go();
     // stdout isn't a TTY in the browser, so force color for JSON output
@@ -421,8 +433,13 @@ export function bootKapiRuntime(wasmExecUrl: string, wasmUrl: string): Promise<K
 
     const source = await fetchWasmBytes(wasmUrl);
     const instance = await instantiate(source, go.importObject);
-    void go.run(instance); // blocks forever (select{}); not awaited
-    await ready;
+    // A startup failure must reject boot instead of leaving the ready wait pending.
+    await Promise.race([
+      ready,
+      go.run(instance).then(() => {
+        throw new Error("kapi engine exited before becoming ready");
+      }),
+    ]);
 
     emitBootProgress({
       loaded: lastBootProgress?.loaded ?? 0,
@@ -431,7 +448,11 @@ export function bootKapiRuntime(wasmExecUrl: string, wasmUrl: string): Promise<K
     });
 
     return makeRuntime(mem);
-  })();
+  })().catch((error: unknown) => {
+    booting = null;
+    lastBootProgress = null;
+    throw error;
+  });
   return booting;
 }
 
