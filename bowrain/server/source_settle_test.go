@@ -88,8 +88,8 @@ func mkProject(t *testing.T, cs *sqlitestore.SQLiteStore, id string, props map[s
 	}))
 }
 
-// TestSourceStatus_RoundTripsThroughStore proves the ContentStore now persists a
-// block's SourceStatus (folded into properties) — the prerequisite for the gate.
+// TestSourceStatus_RoundTripsThroughStore proves the ContentStore persists a
+// block's source status (folded into properties), the prerequisite for the gate.
 func TestSourceStatus_RoundTripsThroughStore(t *testing.T) {
 	_, cs, _ := sourceFirstHarness(t)
 	mkProject(t, cs, "p", nil)
