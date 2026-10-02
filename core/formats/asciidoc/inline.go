@@ -43,8 +43,9 @@ var (
 
 	// reImageMacro matches an inline image macro, image:target[attributes];
 	// the block form image::target[…] has a second colon and is read as a
-	// block macro.
-	reImageMacro = regexp.MustCompile(`^image:[^:\[\s\]][^\[\s\]]*\[[^\]\n]*\]`)
+	// block macro. The attribute list ends at the first `]` no backslash
+	// escapes, as Asciidoctor reads it.
+	reImageMacro = regexp.MustCompile(`^image:[^:\[\s\]][^\[\s\]]*\[(?:[^\]\n\\]|\\.)*\]`)
 )
 
 // parseInline returns the canonical Run sequence for a span of AsciiDoc inline
@@ -164,7 +165,7 @@ func tryImageMacro(b *runBuilder, text string, i int, id *int) int {
 	target := m[len("image:"):open]
 	*id++
 	codeID := strconv.Itoa(*id)
-	start, end, ok := macroAltText(m, open+1, len(m)-1)
+	start, end, _, ok := macroAltText(m, open+1, len(m)-1)
 	if !ok {
 		b.AddPh(codeID, "media:image", "asciidoc:image", m, "")
 		b.SetLastAttrs(map[string]string{model.AttrSrc: target})

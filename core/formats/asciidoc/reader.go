@@ -387,9 +387,13 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 func (r *Reader) emitBlockMacro(ctx context.Context, ch chan<- model.PartResult, line srcLine, i int) int {
 	m := reBlockMacro.FindStringSubmatchIndex(line.text)
 	if line.text[m[2]:m[3]] == "image" {
-		if start, end, ok := macroAltText(line.text, m[6], m[7]); ok {
+		if start, end, quoted, ok := macroAltText(line.text, m[6], m[7]); ok {
+			var props map[string]string
+			if quoted {
+				props = map[string]string{propAltQuoted: "true"}
+			}
 			r.emitBlock(ctx, ch, line.start, line.start+start, line.start+end,
-				r.sectionPath("image", "alt"), "alt", "", 0, nil)
+				r.sectionPath("image", "alt"), blockTypeAlt, "", 0, props)
 			return i + 1
 		}
 	}
@@ -397,18 +401,38 @@ func (r *Reader) emitBlockMacro(ctx context.Context, ch chan<- model.PartResult,
 	return i + 1
 }
 
+// blockTypeAlt is the block type of a block image macro's alternative text,
+// and propAltQuoted the property that records the document wrote it quoted.
+// The writer spells an edited or translated alt text for the attribute list
+// it sits in (macroAttrValue).
+const (
+	blockTypeAlt  = "alt"
+	propAltQuoted = "alt_quoted"
+)
+
 // macroAltText locates the alternative text of an image macro: the first
 // positional attribute of the list text[start:end], without the quotes when
-// it is quoted. ok is false when the list starts with a named attribute or
-// holds no text.
-func macroAltText(text string, start, end int) (int, int, bool) {
+// it is quoted, which quoted reports. Inside quotes a backslash escapes the
+// next character, so `\"` does not close the value. ok is false when the
+// list starts with a named attribute or holds no text.
+func macroAltText(text string, start, end int) (altStart, altEnd int, quoted, ok bool) {
 	attrs := text[start:end]
 	if strings.HasPrefix(attrs, `"`) {
-		closing := strings.IndexByte(attrs[1:], '"')
-		if closing <= 0 {
-			return 0, 0, false
+		closing := -1
+		for j := 1; j < len(attrs); j++ {
+			if attrs[j] == '\\' {
+				j++
+				continue
+			}
+			if attrs[j] == '"' {
+				closing = j
+				break
+			}
 		}
-		return start + 1, start + 1 + closing, true
+		if closing <= 1 {
+			return 0, 0, false, false
+		}
+		return start + 1, start + closing, true, true
 	}
 	n := len(attrs)
 	if comma := strings.IndexByte(attrs, ','); comma >= 0 {
@@ -416,11 +440,11 @@ func macroAltText(text string, start, end int) (int, int, bool) {
 	}
 	alt := attrs[:n]
 	if strings.TrimSpace(alt) == "" || strings.Contains(alt, "=") {
-		return 0, 0, false
+		return 0, 0, false, false
 	}
 	lead := len(alt) - len(strings.TrimLeft(alt, " \t"))
 	trail := len(alt) - len(strings.TrimRight(alt, " \t"))
-	return start + lead, start + n - trail, true
+	return start + lead, start + n - trail, false, true
 }
 
 // emitIndentedLiteral collects a contiguous run of leading-whitespace lines into

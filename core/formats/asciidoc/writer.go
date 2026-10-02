@@ -145,33 +145,66 @@ func (w *Writer) writeFromOriginal(ctx context.Context, blocksByID map[string]*m
 }
 
 // writeFromSkeleton replays the skeleton stream, writing each SkeletonText entry
-// verbatim and resolving each SkeletonRef to its block's rendered runs.
+// verbatim and resolving each SkeletonRef to its block's rendered runs. Every
+// block is rendered before the first byte is written, so a block the writer
+// cannot write refuses the document whole.
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
-	return format.BufferedSkeletonWrite(w.skeletonStore, blocks, w.Output, w.renderRef, nil)
-}
-
-// renderRef returns the bytes a SkeletonRef contributes for the given block.
-// A nil block contributes nothing, matching a map miss.
-func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
-	if block == nil {
-		return nil, nil
+	rendered := make(map[string][]byte, len(blocks))
+	for id, block := range blocks {
+		text, err := w.blockText(block)
+		if err != nil {
+			return err
+		}
+		rendered[id] = []byte(text)
 	}
-	return []byte(w.blockText(block)), nil
+	renderRef := func(block *model.Block) ([]byte, error) {
+		// A nil block contributes nothing, matching a map miss.
+		if block == nil {
+			return nil, nil
+		}
+		return rendered[block.ID], nil
+	}
+	return format.BufferedSkeletonWrite(w.skeletonStore, blocks, w.Output, renderRef, nil)
 }
 
 // blockText renders a block's content for the byte-exact skeleton path: the
 // target runs for the active locale when present, otherwise the source runs,
 // with inline markup spliced back via RenderRunsWithData (the run's captured
 // source Data). A source an edit rewrote has the markup the edit added
-// escaped (see editSyntax), so its wording reads as text.
-func (w *Writer) blockText(block *model.Block) string {
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return model.RenderRunsWithData(block.TargetRuns(w.Locale))
+// escaped (see editSyntax), so its wording reads as text. An image's
+// alternative text in a translation or an edit is spelled for the macro
+// attribute list it sits in (macroAttrValue).
+func (w *Writer) blockText(block *model.Block) (string, error) {
+	var text string
+	switch read, edited := block.SourceAsRead(); {
+	case !w.Locale.IsEmpty() && block.HasTarget(w.Locale):
+		runs, err := spellImageAlts(block.TargetRuns(w.Locale))
+		if err != nil {
+			return "", w.altError(block, err)
+		}
+		text = model.RenderRunsWithData(runs)
+	case edited:
+		runs, err := spellImageAlts(block.Source)
+		if err != nil {
+			return "", w.altError(block, err)
+		}
+		text = format.RenderEditedRuns(runs, read, editSyntax)
+	default:
+		return model.RenderRunsWithData(block.Source), nil
 	}
-	if read, edited := block.SourceAsRead(); edited {
-		return format.RenderEditedRuns(block.Source, read, editSyntax)
+	if block.Type == blockTypeAlt {
+		spelled, err := macroAttrValue(text, block.Properties[propAltQuoted] == "true", false)
+		if err != nil {
+			return "", w.altError(block, err)
+		}
+		text = spelled
 	}
-	return model.RenderRunsWithData(block.Source)
+	return text, nil
+}
+
+// altError names the block an alternative-text refusal belongs to.
+func (w *Writer) altError(block *model.Block, err error) error {
+	return fmt.Errorf("asciidoc writer: block %q: %w", block.ID, err)
 }
 
 // blockTextNormalized renders a block's content for the normalized
@@ -331,7 +364,10 @@ func (w *Writer) writeBlockNormalized(block *model.Block, sep func() error) erro
 	// projection); every other role authors inline markup from canonical types.
 	text := w.blockTextNormalized(block)
 	if role == model.RoleCode {
-		text = w.blockText(block)
+		var err error
+		if text, err = w.blockText(block); err != nil {
+			return err
+		}
 	}
 
 	switch role {
