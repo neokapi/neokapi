@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T23:51:56Z",
+  "generatedAt": "2026-10-02T07:01:01Z",
   "commands": [
     {
       "id": "add",
@@ -1958,20 +1958,10 @@
           "type": "bool"
         },
         {
-          "name": "source-lang",
-          "usage": "kildespråk (f.eks. en, en-US; bruker prosjektets source_language som standard, ellers en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -2106,20 +2096,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "kildespråk (f.eks. en, en-US; bruker prosjektets source_language som standard, ellers en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -2523,20 +2503,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "kildespråk (f.eks. en, en-US; standard er prosjektets source_language, ellers en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "threshold",
@@ -3418,20 +3388,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "kildespråk (f.eks. en, en-US; standard: prosjektets source_language, ellers en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -3814,20 +3774,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "kildespråk (f.eks. en, en-US; standard er prosjektets source_language, ellers en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -3985,10 +3935,6 @@
           "usage": "skriv flyt-spor som JSON til fil (for flytvisualisering)",
           "type": "string"
         }
-      ],
-      "examples": [
-        "kapi exec search-replace messages.json --find \"foo\" --replace \"bar\"",
-        "kapi exec search-replace page.html --find \"colour\" --replace \"color\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -4406,20 +4352,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "kildespråk (f.eks. en, en-US; standard er prosjektets source_language, ellers en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -4696,20 +4632,10 @@
           "type": "bool"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -4805,20 +4731,10 @@
           "type": "bool"
         },
         {
-          "name": "source-lang",
-          "usage": "kildespråk (f.eks. en, en-US; bruker prosjektets source_language som standard, ellers en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -4929,20 +4845,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "kildespråk (f.eks. en, en-US; bruker prosjektets source_language som standard, ellers en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -4951,8 +4857,8 @@
         }
       ],
       "examples": [
-        "kapi exec voice-check messages.json --target-lang fr",
-        "kapi exec voice-check app.xliff --target-lang de"
+        "kapi exec voice-check messages.json",
+        "kapi exec voice-check page.html --provider anthropic"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -5068,20 +4974,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "kildespråk (f.eks. en, en-US; standard er prosjektets source_language, ellers en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -5361,11 +5257,6 @@
           "usage": "vis fremdriftslinje",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "source-lang",
-          "usage": "kildespråk (f.eks. en, en-US; standardverdien er prosjektets source_language, ellers en)",
-          "type": "string"
         },
         {
           "name": "strict",
@@ -7042,7 +6933,7 @@
       "use": "pseudo-translate [files...]",
       "short": "Pseudooversett filer for å teste beredskapen for en språkkode, uten behov for AI-nøkler",
       "long": "Kjør den innebygde pseudooversett-flyten: utvid hver streng med\nspråkkode-formede aksenter og lengdeutfylling slik at avskjæring, sammensetting og\nfeil med hardkodede strenger dukker opp før noen ekte oversettelse kjøpes. Kjører\nhelt offline, uten AI-leverandør eller nøkler.\n\nBruk det som pre-flight-kontroll; når brukergrensesnittet holder, produserer 'kapi translate' (ad\nhoc) eller 'kapi up' (prosjekt) de ekte oversettelsene.",
-      "groupID": "translate",
+      "groupID": "languages",
       "flags": [
         {
           "name": "api-key",
@@ -8204,7 +8095,7 @@
       "use": "translate [files...]",
       "short": "Oversett filer med sikkerhetsnett: gjenbruk av content memory, AI-oversettelse og deretter kontroller",
       "long": "Oversett filer gjennom den innebygde oversettelsesflyten: gjenbruk et bundet content memory først (ingen operasjon uten ett), oversett resten med den konfigurerte AI-leverandøren, og kjør deretter de deterministiske kontrollene (plasshodere, inline-koder, uoversatt tekst) over det som ble produsert.\n\nDette er den sikrede stavemåten: den samme tre-trinns flyten 'kapi up' looper over et prosjekt, brukt på ad hoc-filer. Det rå oversettelsesverktøyet (ingen Memory-pass, ingen kontroller) er fortsatt tilgjengelig som 'kapi exec translate'. For å holde et helt prosjekt oppdatert, bruk 'kapi up'.",
-      "groupID": "translate",
+      "groupID": "languages",
       "flags": [
         {
           "name": "api-key",

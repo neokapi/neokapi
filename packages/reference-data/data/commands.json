@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27T15:37:40Z",
+  "generatedAt": "2026-10-02T07:01:01Z",
   "commands": [
     {
       "id": "add",
@@ -1958,20 +1958,10 @@
           "type": "bool"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -2106,20 +2096,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -2489,12 +2469,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext})",
           "type": "string"
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR (default: rewrite each input in place)",
           "type": "string"
         },
         {
@@ -2523,20 +2503,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "threshold",
@@ -3380,12 +3350,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext})",
           "type": "string"
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR (default: rewrite each input in place)",
           "type": "string"
         },
         {
@@ -3418,20 +3388,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -3775,12 +3735,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext})",
           "type": "string"
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR (default: rewrite each input in place)",
           "type": "string"
         },
         {
@@ -3814,20 +3774,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -3985,10 +3935,6 @@
           "usage": "write flow trace JSON to file (for flow visualization)",
           "type": "string"
         }
-      ],
-      "examples": [
-        "kapi exec search-replace messages.json --find \"foo\" --replace \"bar\"",
-        "kapi exec search-replace page.html --find \"colour\" --replace \"color\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -4406,20 +4352,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -4696,20 +4632,10 @@
           "type": "bool"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -4777,12 +4703,12 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "usage": "output path template (variables: {dir}, {name}, {ext})",
           "type": "string"
         },
         {
           "name": "output-dir",
-          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "usage": "write outputs under DIR (default: rewrite each input in place)",
           "type": "string"
         },
         {
@@ -4805,20 +4731,10 @@
           "type": "bool"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -4929,20 +4845,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -4951,8 +4857,8 @@
         }
       ],
       "examples": [
-        "kapi exec voice-check messages.json --target-lang fr",
-        "kapi exec voice-check app.xliff --target-lang de"
+        "kapi exec voice-check messages.json",
+        "kapi exec voice-check page.html --provider anthropic"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -5068,20 +4974,10 @@
           "type": "string"
         },
         {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
-        },
-        {
           "name": "strict",
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -5361,11 +5257,6 @@
           "usage": "show progress bar",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "source-lang",
-          "usage": "source language (e.g. en, en-US; defaults to the project's source_language, else en)",
-          "type": "string"
         },
         {
           "name": "strict",
@@ -6567,8 +6458,8 @@
         "ollama"
       ],
       "use": "ollama",
-      "short": "Manage the local Ollama runtime for on-device translation",
-      "long": "Detect, inspect, and feed the local Ollama runtime kapi uses for on-device\n(GPU-accelerated) translation. Ollama itself is a one-time install from\nhttps://ollama.com; kapi drives the rest: `kapi models ollama pull \u003cmodel\u003e` installs\na model, and `kapi translate --provider ollama --model \u003cmodel\u003e` uses it.",
+      "short": "Manage the local Ollama runtime for on-device AI tools",
+      "long": "Detect, inspect, and feed the local Ollama runtime kapi uses to run its AI\ntools on-device (GPU-accelerated). Ollama itself is a one-time install from\nhttps://ollama.com; kapi drives the rest: `kapi models ollama pull \u003cmodel\u003e` installs\na model, and `kapi translate --provider ollama --model \u003cmodel\u003e` uses it.",
       "flags": [
         {
           "name": "url",
@@ -7042,7 +6933,7 @@
       "use": "pseudo-translate [files...]",
       "short": "Pseudo-translate files to test locale readiness, with no AI keys needed",
       "long": "Run the built-in pseudo-translate flow: expand every string with\nlocale-shaped accents and length padding so truncation, concatenation, and\nhardcoded-string bugs surface before any real translation is bought. Runs\nentirely offline, with no AI provider or keys required.\n\nUse it as the pre-flight check; when the UI holds up, 'kapi translate' (ad\nhoc) or 'kapi up' (project) produce the real translations.",
-      "groupID": "translate",
+      "groupID": "languages",
       "flags": [
         {
           "name": "api-key",
@@ -7446,8 +7337,8 @@
         "status"
       ],
       "use": "status",
-      "short": "Show per-locale translation coverage and ship-gate standing",
-      "long": "Show, per target locale, how much of the project's tracked content is\ntranslated and whether it clears its ship gate, a derived dashboard, like\ngit status. Coverage is recomputed from the content × target files on every run;\nnothing is tracked as state.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality gate). It\nnever fails: a locale that is behind is reported as pending rather than as an error.\nTarget-language drift is normal, expected work rather than a build break.",
+      "short": "Show source readiness and per-language coverage against the ship gates",
+      "long": "Show how far the project's source content has progressed and, per target\nlocale, how much of it is translated and whether it clears its ship gate: a\nderived dashboard, like git status. Coverage is recomputed from the content ×\ntarget files on every run; nothing is tracked as state.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality gate). It\nnever fails: a locale that is behind is reported as pending rather than as an error.\nTarget-language drift is normal, expected work rather than a build break.",
       "groupID": "work",
       "flags": [
         {
@@ -8204,7 +8095,7 @@
       "use": "translate [files...]",
       "short": "Translate files with guardrails: content memory reuse, AI translate, then checks",
       "long": "Translate files through the built-in translate flow: leverage a bound\ncontent memory first (a no-op without one), translate the rest with the\nconfigured AI provider, then run the deterministic checks (placeholders,\ninline tags, untranslated text) over what was produced.\n\nThis is the guardrailed spelling: the same three-step flow 'kapi up' loops\nover a project, applied to ad-hoc files. The raw translate tool (no Memory pass,\nno checks) stays available as 'kapi exec translate'. To bring a whole project\nup to date, use 'kapi up'.",
-      "groupID": "translate",
+      "groupID": "languages",
       "flags": [
         {
           "name": "api-key",

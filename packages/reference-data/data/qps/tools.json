@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T23:51:56Z",
+  "generatedAt": "2026-10-02T07:01:01Z",
   "kind": "tool",
   "entries": [
     {
@@ -870,6 +870,9 @@
           "tags": [
             "text-processing"
           ],
+          "accepts": [
+            "target-language"
+          ],
           "cardinality": "monolingual",
           "writesOutput": true
         },
@@ -1307,6 +1310,9 @@
           "tags": [
             "configurable"
           ],
+          "accepts": [
+            "target-language"
+          ],
           "cardinality": "monolingual",
           "writesOutput": true
         },
@@ -1456,6 +1462,9 @@
           "tags": [
             "text-processing"
           ],
+          "accepts": [
+            "target-language"
+          ],
           "cardinality": "monolingual",
           "writesOutput": true
         },
@@ -1602,6 +1611,7 @@
       "requires": [
         "credentials"
       ],
+      "cardinality": "monolingual",
       "sideEffects": [
         "api-call",
         "remote-source-egress"
@@ -1624,6 +1634,7 @@
           "requires": [
             "credentials"
           ],
+          "cardinality": "monolingual",
           "sideEffects": [
             "api-call",
             "remote-source-egress"
@@ -3433,6 +3444,9 @@
             "regex",
             "configurable"
           ],
+          "accepts": [
+            "target-language"
+          ],
           "cardinality": "monolingual",
           "writesOutput": true
         },
@@ -3583,6 +3597,10 @@
           "displayName": "▒ Šéĝḿéñţàţîöñ ▒",
           "tags": [
             "text-processing"
+          ],
+          "accepts": [
+            "source-language",
+            "target-language"
           ],
           "cardinality": "monolingual",
           "produces": [
@@ -4819,6 +4837,9 @@
           "displayName": "▒ ẊḾĻ Ṽàļîđàţîöñ ▒",
           "tags": [
             "quality"
+          ],
+          "accepts": [
+            "target-language"
           ],
           "cardinality": "monolingual",
           "produces": [
