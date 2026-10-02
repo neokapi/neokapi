@@ -58,12 +58,13 @@ func sqlListTranslationTextByBlocks(dialect string, nblocks int) string {
 // ComputePointInTimeReverts compares history with versions.created_at and
 // change_log.logged_at, which use the process clock. Mixing clocks could exclude
 // required reverts or revert content older than the selected version.
-func recordTargetHistoryPg(ctx context.Context, tx Runner, projectID, stream, blockID string, oldText map[string]string, newTargets map[model.VariantKey]*model.Target, now time.Time) error {
+func recordTargetHistoryPg(ctx context.Context, tx Runner, projectID, stream, blockID string, oldText map[string]string, b *model.Block, now time.Time) error {
 	cc := ChangeContextFromContext(ctx)
-	for key, nt := range newTargets {
-		if nt == nil {
+	for _, key := range b.Editions() {
+		if b.IsSourceEdition(key) {
 			continue
 		}
+		nt, _ := b.Edition(key)
 		variant := VariantKeyText(key)
 		newText := model.RunsText(nt.Runs)
 		prev := oldText[variant]

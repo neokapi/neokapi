@@ -966,17 +966,18 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 		// Record target history before overwriting. The snapshot is kept for the
 		// change log below, which asks the same question of the same targets.
 		var oldTargets map[model.VariantKey]*model.Target
-		if !isNew && len(b.Targets) > 0 {
+		if !isNew && len(b.Editions()) > 1 {
 			loaded, loadErr := loadExistingTargets(ctx, tx, projectID, itemName, internalID)
 			if loadErr == nil && loaded != nil {
 				oldTargets = loaded
-				if err := recordTargetHistory(ctx, tx, projectID, stream, internalID, oldTargets, b.Targets); err != nil {
+				if err := recordTargetHistory(ctx, tx, projectID, stream, internalID, oldTargets, b); err != nil {
 					return err
 				}
 			}
 		}
 
-		sourceJSON, err := json.Marshal(b.Source)
+		src, _ := b.Edition(model.EditionKey{})
+		sourceJSON, err := json.Marshal(src.Runs)
 		if err != nil {
 			return fmt.Errorf("marshal source for block %s: %w", internalID, err)
 		}
@@ -1028,7 +1029,7 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 
 		// Write targets + annotations into the kind-specific tables.
 		nowTime, _ := time.Parse(time.RFC3339, now)
-		if err := bstore.SyncBlockOverlays(ctx, tx, "sqlite", projectID, stream, internalID, b.Targets, b.AnnoMap(), nowTime); err != nil {
+		if err := bstore.SyncBlockOverlays(ctx, tx, "sqlite", projectID, stream, internalID, b, nowTime); err != nil {
 			return err
 		}
 
@@ -1038,7 +1039,10 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 				return fmt.Errorf("log change for block %s: %w", internalID, err)
 			}
 			// Log target additions for new blocks that already have translations.
-			for key := range b.Targets {
+			for _, key := range b.Editions() {
+				if b.IsSourceEdition(key) {
+					continue
+				}
 				variant := bstore.VariantKeyText(key)
 				if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", variant, ""); err != nil {
 					return fmt.Errorf("log target change for block %s variant %s: %w", internalID, variant, err)
@@ -1069,10 +1073,11 @@ func (s *SQLiteStore) storeBlocksTx(ctx context.Context, tx *sql.Tx, projectID, 
 			// recordTargetHistory asked this question of the same snapshot
 			// above; this reuses it rather than loading it twice.
 			prev := existingLocales[internalID]
-			for key, nt := range b.Targets {
-				if nt == nil {
+			for _, key := range b.Editions() {
+				if b.IsSourceEdition(key) {
 					continue
 				}
+				nt, _ := b.Edition(key)
 				variant := bstore.VariantKeyText(key)
 				_, had := prev[variant]
 				if had && oldTargets != nil {
@@ -1712,7 +1717,9 @@ func scanProject(row scanner) (*platstore.Project, error) {
 
 func scanStoredBlock(row scanner) (*venue.StoredBlock, error) {
 	var sb venue.StoredBlock
-	sb.Block = &model.Block{}
+	// Targets + Annotations are hydrated via bstore.HydrateOverlays after the
+	// caller has scanned all rows. The block starts with none.
+	sb.Block = model.NewRunsBlock("", nil)
 	var translatable int
 	var sourceJSON, propsJSON, overlaysJSON, storedStr, updatedStr string
 
@@ -1728,9 +1735,7 @@ func scanStoredBlock(row scanner) (*venue.StoredBlock, error) {
 	sb.StoredAt, _ = time.Parse(time.RFC3339, storedStr)
 	sb.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
 
-	if err := json.Unmarshal([]byte(sourceJSON), &sb.Block.Source); err != nil {
-		sb.Block.Source = nil
-	}
+	sb.Block.SetSourceRuns(bstore.UnmarshalSourceRuns(sourceJSON))
 	if err := json.Unmarshal([]byte(propsJSON), &sb.Block.Properties); err != nil {
 		sb.Block.Properties = make(map[string]string)
 	}
@@ -1742,9 +1747,6 @@ func scanStoredBlock(row scanner) (*venue.StoredBlock, error) {
 	// Lift the folded source-authoring status back onto the block (source-first
 	// gate). Symmetric with PropsForStore on the write side.
 	platstore.ApplySourceStatusFromProps(sb.Block)
-	// Targets + Annotations hydrated via bstore.HydrateOverlays after
-	// the caller has scanned all rows. Leave empty here.
-	sb.Block.Targets = make(map[model.VariantKey]*model.Target)
 	return &sb, nil
 }
 

@@ -20,13 +20,14 @@ import (
 // pool), so a target reaches the same columns whichever door it came through.
 type Execer = storage.Execer
 
-// SyncBlockOverlays writes a block's targets and annotations into the
-// kind-specific overlay tables (translations, annotations), keyed for
+// SyncBlockOverlays writes a block's translations (every edition other than
+// the one the block was read in) and its annotations into the kind-specific
+// overlay tables (translations, annotations), keyed for
 // access-pattern-specific indexes (#403 / #405).
 //
-// UPSERT semantics — partial maps only update the variants/kinds
-// provided. Unspecified entries are left intact. This matches how
-// editors and single-locale translators naturally operate.
+// UPSERT semantics — a block carrying some variants/kinds only updates
+// those. Unspecified entries are left intact. This matches how editors
+// and single-locale translators naturally operate.
 //
 // dialect: "pg" | "sqlite".
 func SyncBlockOverlays(
@@ -34,25 +35,34 @@ func SyncBlockOverlays(
 	ex Execer,
 	dialect string,
 	projectID, stream, blockID string,
-	targets map[model.VariantKey]*model.Target,
-	annotations map[string]model.Payload,
+	b *model.Block,
 	now time.Time,
 ) error {
-	for key, target := range targets {
-		if target == nil {
+	for _, key := range b.Editions() {
+		if b.IsSourceEdition(key) {
 			continue
 		}
-		if err := UpsertBlockTarget(ctx, ex, dialect, projectID, stream, blockID, key, target, nil, now); err != nil {
+		if err := UpsertBlockTarget(ctx, ex, dialect, projectID, stream, blockID, key, EditionTarget(b, key), nil, now); err != nil {
 			return err
 		}
 	}
 
-	for key, ann := range annotations {
+	for key, ann := range b.AnnoMap() {
 		if err := UpsertBlockAnnotation(ctx, ex, dialect, projectID, stream, blockID, key, ann, now); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// EditionTarget returns edition key of b in the shape the translations table
+// stores in target_json, or nil when b holds no such edition.
+func EditionTarget(b *model.Block, key model.EditionKey) *model.Target {
+	e, ok := b.Edition(key)
+	if !ok {
+		return nil
+	}
+	return &model.Target{Runs: e.Runs, Status: model.TargetStatus(e.Status), Origin: e.Origin, Score: e.Score}
 }
 
 // UpsertBlockAnnotation writes one (block, key) annotation row. It is the ONLY

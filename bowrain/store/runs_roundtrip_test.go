@@ -42,15 +42,9 @@ func TestRoundTrip_MixedRunKinds(t *testing.T) {
 		{Ph: &model.PlaceholderRun{ID: "2", Type: "entity:phone", Data: "+1-555-0100", Equiv: "phone"}},
 	}
 
-	b := &model.Block{
-		ID:           "tu1",
-		Translatable: true,
-		Source:       srcRuns,
-		Targets: map[model.VariantKey]*model.Target{
-			model.Variant(model.LocaleFrench): {Runs: tgtRuns},
-		},
-		Properties: map[string]string{"client": "acme"},
-	}
+	b := model.NewRunsBlock("tu1", srcRuns)
+	b.SetEdition(model.Variant(model.LocaleFrench), model.Edition{Runs: tgtRuns})
+	b.Properties = map[string]string{"client": "acme"}
 
 	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
 
@@ -59,11 +53,12 @@ func TestRoundTrip_MixedRunKinds(t *testing.T) {
 	require.Len(t, got, 1)
 
 	r := got[0].Block
-	require.NotEmpty(t, r.Source)
+	rsrc, _ := r.Edition(model.EditionKey{})
+	require.NotEmpty(t, rsrc.Runs)
 	assert.Equal(t, "tu1", r.ID)
 
 	// Source runs survive byte-for-byte.
-	assertRunsEqual(t, srcRuns, r.Source)
+	assertRunsEqual(t, srcRuns, rsrc.Runs)
 
 	// Target runs survive byte-for-byte.
 	require.NotNil(t, r.Target(model.LocaleFrench))

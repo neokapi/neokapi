@@ -69,14 +69,17 @@ func recordBlockHistory(ctx context.Context, tx *sql.Tx, projectID, stream, bloc
 	return err
 }
 
-// recordTargetHistory checks for target changes and records history entries.
-func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream string, blockID string, oldTargets map[model.VariantKey]*model.Target, newTargets map[model.VariantKey]*model.Target) error {
-	for key, newTarget := range newTargets {
-		if newTarget == nil {
+// recordTargetHistory checks each translation b carries (every edition other
+// than the one it was read in) against oldTargets and records history entries
+// for the ones that changed.
+func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream string, blockID string, oldTargets map[model.VariantKey]*model.Target, b *model.Block) error {
+	for _, key := range b.Editions() {
+		if b.IsSourceEdition(key) {
 			continue
 		}
+		newTarget, _ := b.Edition(key)
 		newText := model.RunsText(newTarget.Runs)
-		newCoded := targetRunsJSON(newTarget)
+		newCoded := targetRunsJSON(newTarget.Runs)
 
 		oldText := ""
 		if old := oldTargets[key]; old != nil {
@@ -104,11 +107,11 @@ func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream stri
 // the block_history.coded_text column (the column name is retained for schema
 // stability). The column is a debugging aid for editor history that preserves
 // inline markup, not the canonical store (the translations table is).
-func targetRunsJSON(t *model.Target) string {
-	if t == nil || len(t.Runs) == 0 {
+func targetRunsJSON(runs []model.Run) string {
+	if len(runs) == 0 {
 		return ""
 	}
-	b, err := json.Marshal(t.Runs)
+	b, err := json.Marshal(runs)
 	if err != nil {
 		return ""
 	}
