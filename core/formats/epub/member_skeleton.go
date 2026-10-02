@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -13,10 +14,10 @@ import (
 
 // A spine item the HTML reader reads keeps a skeleton of its own: the bytes
 // around each block, with a reference where the block goes. The EPUB reader
-// records it on the item's layer, and the writer replays the item through the
-// HTML writer with that skeleton, so every block the write did not change is
-// written as the document held it, and an edited one with its inline markup
-// and attributes in place.
+// records it on the layer that closes the item, and the writer replays the
+// item through the HTML writer with that skeleton, so every block the write
+// did not change is written as the document held it, and an edited one with
+// its inline markup and attributes in place.
 
 // memberSkeletonKey names the layer annotation that carries a spine item's
 // skeleton.
@@ -51,17 +52,23 @@ func (r *Reader) wireMemberSkeleton(subReader format.DataFormatReader) *format.S
 	return store
 }
 
-// recordMemberSkeleton stores the skeleton the sub-reader wrote on the item's
-// layer.
-func recordMemberSkeleton(layer *model.Layer, store *format.SkeletonStore) {
+// layerWithMemberSkeleton returns the layer that closes a spine item: a copy of
+// the item's layer carrying the skeleton the sub-reader wrote, or the layer
+// itself when it wrote none. The layer that opened the item has already gone
+// downstream, where a consumer may be reading its annotations, so the reader
+// never changes it.
+func layerWithMemberSkeleton(layer *model.Layer, store *format.SkeletonStore) *model.Layer {
 	if store == nil || store.EntriesWritten() == 0 {
-		return
+		return layer
 	}
 	data, err := store.Bytes()
 	if err != nil {
-		return
+		return layer
 	}
-	layer.SetAnno(memberSkeletonKey, &MemberSkeleton{Data: data})
+	end := *layer
+	end.Annotations = maps.Clone(layer.Annotations)
+	end.SetAnno(memberSkeletonKey, &MemberSkeleton{Data: data})
+	return &end
 }
 
 // memberSkeletonOf returns the skeleton recorded on a spine item's layer.

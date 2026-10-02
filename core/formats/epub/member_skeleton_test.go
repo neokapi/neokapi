@@ -154,6 +154,46 @@ func TestSpineItemKeepsItsInlineMarkup(t *testing.T) {
 	}
 }
 
+// TestSpineItemSkeletonRidesOnTheClosingLayer pins where the reader records a
+// spine item's skeleton: on the layer that closes the item. The layer that
+// opened it has already gone downstream when the item's skeleton is complete,
+// and a consumer may be reading its annotations, so the reader leaves it as
+// emitted.
+func TestSpineItemSkeletonRidesOnTheClosingLayer(t *testing.T) {
+	ctx := t.Context()
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader := epub.NewReader()
+	reader.SetSubfilterResolver(htmlResolver{})
+	reader.SetSkeletonStore(store)
+	require.NoError(t, reader.Open(ctx, rawDocFromBytes(makeInlineEPUB(t), model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	require.NoError(t, reader.Close())
+
+	opened := map[string]*model.Layer{}
+	closed := 0
+	for _, p := range parts {
+		layer, ok := p.Resource.(*model.Layer)
+		if !ok || layer.Properties["subfilter.source"] == "" {
+			continue
+		}
+		switch p.Type {
+		case model.PartLayerStart:
+			opened[layer.ID] = layer
+		case model.PartLayerEnd:
+			closed++
+			start := opened[layer.ID]
+			require.NotNil(t, start, "layer %s closes without opening", layer.ID)
+			_, onEnd := layer.Anno("epub:member-skeleton")
+			assert.True(t, onEnd, "the closing layer carries the item's skeleton")
+			_, onStart := start.Anno("epub:member-skeleton")
+			assert.False(t, onStart, "the opening layer is left as it was emitted")
+		}
+	}
+	assert.Equal(t, 1, closed, "the book has one spine item read through the HTML reader")
+}
+
 // TestUntouchedSpineItemKeepsItsBytesWithoutASkeleton covers the package
 // rewrite a write takes when no skeleton store is wired: a block nothing
 // changed is left as the item holds it, inline markup included.

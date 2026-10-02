@@ -1152,10 +1152,9 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 		r.emit(ctx, ch, pr.Part)
 	}
 	subReader.Close()
-	recordMemberSkeleton(childLayer, memberStore)
 
 	// Emit child layer end
-	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layerWithMemberSkeleton(childLayer, memberStore)})
 }
 
 func (r *Reader) skelPartStart(partPath string) {
