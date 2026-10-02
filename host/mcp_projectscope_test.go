@@ -11,6 +11,10 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/check"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/terms/ktb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -380,4 +384,55 @@ func TestMCPProjectStoreHandlesArePerProjectAndClosedOnShutdown(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotSame(t, betaDB, reopened, "shutdown must release both projects' handles")
 	app.Shutdown()
+}
+
+// check_file's bilingual path holds a translation to the term rules of the
+// project the call names, derived from that project's source language. The
+// rules came from the language of the project the server started in, so a
+// German project's terms gave no rule when an English project's server checked
+// its French translation, and the missing rendering passed.
+func TestMCPCheckFileTermRulesFollowTheCallsSourceLanguage(t *testing.T) {
+	isolateCheckExecution(t)
+	alpha := scopeProject(t, "alpha", "translation memory", "content memory", "nb")
+	beta := t.TempDir()
+	writeFixtureFile(t, beta, "kapi.yaml", `version: v1
+name: beta
+defaults:
+  source_language: de
+  target_languages: [fr]
+  translate_after: none
+collections:
+  - name: App
+    path: de/app.json
+    target: "{lang}/app.json"
+`)
+	writeFixtureFile(t, beta, "de/app.json", `{"account": "Öffnen Sie Ihr Konto."}`)
+	writeFixtureFile(t, beta, "fr/missing.json", `{"account": "Ouvrez votre profil."}`)
+	writeFixtureFile(t, beta, "fr/kept.json", `{"account": "Ouvrez votre compte."}`)
+	writeConceptsBundle(t, filepath.Join(beta, project.RelStatePath(ktb.ConventionalName)), []terms.Concept{{
+		ID: "konto",
+		Terms: []terms.Term{
+			{Text: "Konto", Locale: model.LocaleGerman, Status: model.TermPreferred},
+			{Text: "compte", Locale: model.LocaleFrench, Status: model.TermPreferred},
+		},
+	}})
+	readProjectContext(t, beta)
+
+	app := scopeApp(t, alpha)
+	require.Equal(t, "en", app.SourceLocale(), "the server started in an English project")
+	t.Chdir(t.TempDir())
+	session, ctx := mcpSession(t, app)
+
+	checkTarget := func(target string) check.Report {
+		return reportOf(t, callTool(t, ctx, session, "check_file", map[string]any{
+			"file":        filepath.Join(beta, "de", "app.json"),
+			"target":      filepath.Join(beta, "fr", target),
+			"target_lang": "fr",
+			"project":     beta,
+		}))
+	}
+	assert.Positive(t, ruleCounts(checkTarget("missing.json"))["terms.terminology"],
+		"must fail: the German project's term rule did not reach its French translation")
+	assert.Zero(t, ruleCounts(checkTarget("kept.json"))["terms.terminology"],
+		"a translation that keeps the rendering passes")
 }
