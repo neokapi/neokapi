@@ -79,10 +79,8 @@ func TestFaithfulDelivery_AndroidXML(t *testing.T) {
 	for _, sb := range readSourceBlocks(t, reg, "androidxml", srcAbs) {
 		cp := *sb
 		if fr, ok := trans[sb.SourceText()]; ok {
-			cp.Source = []model.Run{{Text: &model.TextRun{Text: fr}}}
-			cp.Targets = map[model.VariantKey]*model.Target{
-				model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: fr}}}},
-			}
+			cp.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: fr}}})
+			cp.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: fr}}}})
 		}
 		delivered = append(delivered, &cp)
 	}
@@ -167,10 +165,8 @@ func TestFaithfulDelivery_BindingFailure_FallsBackTranslated(t *testing.T) {
 		cp := *sb
 		cp.ID = "mismatch-" + sb.ID // break the binding
 		if fr, ok := trans[sb.SourceText()]; ok {
-			cp.Source = []model.Run{{Text: &model.TextRun{Text: fr}}}
-			cp.Targets = map[model.VariantKey]*model.Target{
-				model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: fr}}}},
-			}
+			cp.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: fr}}})
+			cp.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: fr}}}})
 		}
 		delivered = append(delivered, &cp)
 	}
@@ -217,10 +213,8 @@ func TestFaithfulDelivery_JSON_NoRegression(t *testing.T) {
 	for _, sb := range readSourceBlocks(t, reg, "json", srcAbs) {
 		cp := *sb
 		if fr, ok := trans[sb.SourceText()]; ok {
-			cp.Source = []model.Run{{Text: &model.TextRun{Text: fr}}}
-			cp.Targets = map[model.VariantKey]*model.Target{
-				model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: fr}}}},
-			}
+			cp.SetSourceRuns([]model.Run{{Text: &model.TextRun{Text: fr}}})
+			cp.SetEdition(model.Variant("fr"), model.Edition{Runs: []model.Run{{Text: &model.TextRun{Text: fr}}}})
 		}
 		delivered = append(delivered, &cp)
 	}

@@ -310,7 +310,8 @@ func (tm *PostgresStore) Lookup(ctx context.Context, source *model.Block, source
 		return nil, nil
 	}
 	opts = fw.ApplyDefaults(opts)
-	runs := source.Source
+	src, _ := source.Edition(model.EditionKey{})
+	runs := src.Runs
 	if len(runs) == 0 {
 		return nil, nil
 	}
