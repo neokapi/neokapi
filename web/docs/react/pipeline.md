@@ -183,7 +183,7 @@ The context a block carries (its file and line, its element, the translator note
 
 `kapi` tool commands default to in-place for KBF inputs: `kapi pseudo-translate i18n/` reads and writes the same files, since the KBF writer is locale-additive (it adds or updates the requested locale, leaving the others intact). Pass `-o other-dir/` to redirect without touching the originals.
 
-Non-KBF formats (JSON, XLIFF, …) aren't locale-additive, so they write a new file in a locale-aware location: if the input path carries the source locale it is swapped for the target (`src/locales/en/app.json → src/locales/fr/app.json`), otherwise the output lands under a `{lang}/` directory beside the input (`messages.json → fr/messages.json`). Use `-o` for an explicit path or template, or `--output-dir DIR` to root outputs at `DIR/{lang}/`.
+Non-KBF formats (JSON, XLIFF, …) aren't locale-additive, so they write a new file in a locale-aware location: if the input path carries the source locale it is swapped for the target (`src/locales/en/app.json → src/locales/fr/app.json`), otherwise the output lands under a `{lang}/` directory beside the input (`messages.json → fr/messages.json`). Use `-o` for an explicit path or template, or `--output-dir DIR` to root outputs at `DIR/{lang}/`. A run with no target language, such as `kapi exec redact`, has nothing to lay out by: it rewrites each input in place, and `--output-dir DIR` writes the outputs under `DIR/`.
 
 ### Layout: one tree, or a subdir per locale
 

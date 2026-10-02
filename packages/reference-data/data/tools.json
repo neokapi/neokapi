@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T23:51:56Z",
+  "generatedAt": "2026-10-02T07:58:14Z",
   "kind": "tool",
   "entries": [
     {
@@ -870,6 +870,9 @@
           "tags": [
             "text-processing"
           ],
+          "accepts": [
+            "target-language"
+          ],
           "cardinality": "monolingual",
           "writesOutput": true
         },
@@ -956,7 +959,7 @@
       "description": "Create target segment containers for a locale, optionally seeded with the source text.",
       "category": "text-processing",
       "tags": [
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language"
@@ -974,7 +977,7 @@
           "category": "text-processing",
           "displayName": "Create Target",
           "tags": [
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language"
@@ -1064,7 +1067,7 @@
       "category": "translation",
       "tags": [
         "translation",
-        "l10n"
+        "languages"
       ],
       "cardinality": "bilingual",
       "produces": [
@@ -1081,7 +1084,7 @@
           "displayName": "Diff Leverage",
           "tags": [
             "translation",
-            "l10n"
+            "languages"
           ],
           "cardinality": "bilingual",
           "produces": [
@@ -1155,7 +1158,7 @@
       "category": "quality",
       "tags": [
         "quality",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language"
@@ -1180,7 +1183,7 @@
           "displayName": "Do-Not-Translate Check",
           "tags": [
             "quality",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language"
@@ -1306,6 +1309,9 @@
           "displayName": "External Command",
           "tags": [
             "configurable"
+          ],
+          "accepts": [
+            "target-language"
           ],
           "cardinality": "monolingual",
           "writesOutput": true
@@ -1456,6 +1462,9 @@
           "tags": [
             "text-processing"
           ],
+          "accepts": [
+            "target-language"
+          ],
           "cardinality": "monolingual",
           "writesOutput": true
         },
@@ -1602,6 +1611,7 @@
       "requires": [
         "credentials"
       ],
+      "cardinality": "monolingual",
       "sideEffects": [
         "api-call",
         "remote-source-egress"
@@ -1624,6 +1634,7 @@
           "requires": [
             "credentials"
           ],
+          "cardinality": "monolingual",
           "sideEffects": [
             "api-call",
             "remote-source-egress"
@@ -1706,7 +1717,7 @@
       "category": "quality",
       "tags": [
         "quality",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language"
@@ -1728,7 +1739,7 @@
           "displayName": "Placeholder Check",
           "tags": [
             "quality",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language"
@@ -1870,7 +1881,7 @@
       "category": "translation",
       "tags": [
         "translation",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language"
@@ -1892,7 +1903,7 @@
           "displayName": "Pseudo Translate",
           "tags": [
             "translation",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language"
@@ -1982,7 +1993,7 @@
       "category": "quality",
       "tags": [
         "quality",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language",
@@ -2011,7 +2022,7 @@
           "description": "Check translation quality with deterministic rules or an LLM (select with --mode)",
           "tags": [
             "quality",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language",
@@ -2693,7 +2704,7 @@
       "category": "translation",
       "tags": [
         "translation",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language",
@@ -2721,7 +2732,7 @@
           "displayName": "Recycle",
           "tags": [
             "translation",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language",
@@ -3042,7 +3053,7 @@
       "description": "Remove target segments from blocks, by locale or by selected text-unit IDs.",
       "category": "text-processing",
       "tags": [
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language"
@@ -3057,7 +3068,7 @@
           "category": "text-processing",
           "displayName": "Remove Target",
           "tags": [
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language"
@@ -3433,6 +3444,9 @@
             "regex",
             "configurable"
           ],
+          "accepts": [
+            "target-language"
+          ],
           "cardinality": "monolingual",
           "writesOutput": true
         },
@@ -3583,6 +3597,10 @@
           "displayName": "Segmentation",
           "tags": [
             "text-processing"
+          ],
+          "accepts": [
+            "source-language",
+            "target-language"
           ],
           "cardinality": "monolingual",
           "produces": [
@@ -3981,7 +3999,7 @@
       "category": "quality",
       "tags": [
         "quality",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language",
@@ -4007,7 +4025,7 @@
           "displayName": "Terminology Check",
           "tags": [
             "quality",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language",
@@ -4074,7 +4092,7 @@
       "category": "translation",
       "tags": [
         "translation",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language",
@@ -4100,7 +4118,7 @@
           "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
           "tags": [
             "translation",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language",
@@ -4430,7 +4448,7 @@
       "displayName": "Translate After",
       "category": "translation",
       "tags": [
-        "l10n"
+        "languages"
       ],
       "cardinality": "monolingual",
       "schema": {
@@ -4442,7 +4460,7 @@
           "category": "translation",
           "displayName": "Translate After",
           "tags": [
-            "l10n"
+            "languages"
           ],
           "cardinality": "monolingual"
         },
@@ -4595,7 +4613,7 @@
       "category": "text-processing",
       "tags": [
         "text-processing",
-        "l10n"
+        "languages"
       ],
       "requires": [
         "target-language"
@@ -4611,7 +4629,7 @@
           "displayName": "Whitespace Correct",
           "tags": [
             "text-processing",
-            "l10n"
+            "languages"
           ],
           "requires": [
             "target-language"
@@ -4819,6 +4837,9 @@
           "displayName": "XML Validation",
           "tags": [
             "quality"
+          ],
+          "accepts": [
+            "target-language"
           ],
           "cardinality": "monolingual",
           "produces": [

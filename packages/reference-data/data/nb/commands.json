@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T23:51:56Z",
+  "generatedAt": "2026-10-02T07:49:31Z",
   "commands": [
     {
       "id": "add",
@@ -1969,11 +1969,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "skriv flyt-sporing som JSON til fil (for flytvisualisering)",
           "type": "string"
@@ -2115,11 +2110,6 @@
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -2532,11 +2522,6 @@
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "threshold",
@@ -3429,11 +3414,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "skriv flyt-sporing som JSON til fil (for flytsvisualisering)",
           "type": "string"
@@ -3825,11 +3805,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "skriv flyt-sporing som JSON til fil (for flytvisualisering)",
           "type": "string"
@@ -3985,10 +3960,6 @@
           "usage": "skriv flyt-spor som JSON til fil (for flytvisualisering)",
           "type": "string"
         }
-      ],
-      "examples": [
-        "kapi exec search-replace messages.json --find \"foo\" --replace \"bar\"",
-        "kapi exec search-replace page.html --find \"colour\" --replace \"color\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -4417,11 +4388,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "skriv flyt-sporing som JSON til fil (for flytvisualisering)",
           "type": "string"
@@ -4707,11 +4673,6 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "write flow trace JSON to file (for flow visualization)",
           "type": "string"
@@ -4814,11 +4775,6 @@
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -4940,19 +4896,14 @@
           "type": "bool"
         },
         {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "skriv flyt-sporing som JSON til fil (for flytsvisualisering)",
           "type": "string"
         }
       ],
       "examples": [
-        "kapi exec voice-check messages.json --target-lang fr",
-        "kapi exec voice-check app.xliff --target-lang de"
+        "kapi exec voice-check messages.json",
+        "kapi exec voice-check page.html --provider anthropic"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -5077,11 +5028,6 @@
           "usage": "alias for --fail-on-unknown",
           "default": "false",
           "type": "bool"
-        },
-        {
-          "name": "target-lang",
-          "usage": "målspråk (f.eks. fr, de-DE)",
-          "type": "string"
         },
         {
           "name": "trace",
@@ -7042,7 +6988,7 @@
       "use": "pseudo-translate [files...]",
       "short": "Pseudooversett filer for å teste beredskapen for en språkkode, uten behov for AI-nøkler",
       "long": "Kjør den innebygde pseudooversett-flyten: utvid hver streng med\nspråkkode-formede aksenter og lengdeutfylling slik at avskjæring, sammensetting og\nfeil med hardkodede strenger dukker opp før noen ekte oversettelse kjøpes. Kjører\nhelt offline, uten AI-leverandør eller nøkler.\n\nBruk det som pre-flight-kontroll; når brukergrensesnittet holder, produserer 'kapi translate' (ad\nhoc) eller 'kapi up' (prosjekt) de ekte oversettelsene.",
-      "groupID": "translate",
+      "groupID": "languages",
       "flags": [
         {
           "name": "api-key",
@@ -8204,7 +8150,7 @@
       "use": "translate [files...]",
       "short": "Oversett filer med sikkerhetsnett: gjenbruk av content memory, AI-oversettelse og deretter kontroller",
       "long": "Oversett filer gjennom den innebygde oversettelsesflyten: gjenbruk et bundet content memory først (ingen operasjon uten ett), oversett resten med den konfigurerte AI-leverandøren, og kjør deretter de deterministiske kontrollene (plasshodere, inline-koder, uoversatt tekst) over det som ble produsert.\n\nDette er den sikrede stavemåten: den samme tre-trinns flyten 'kapi up' looper over et prosjekt, brukt på ad hoc-filer. Det rå oversettelsesverktøyet (ingen Memory-pass, ingen kontroller) er fortsatt tilgjengelig som 'kapi exec translate'. For å holde et helt prosjekt oppdatert, bruk 'kapi up'.",
-      "groupID": "translate",
+      "groupID": "languages",
       "flags": [
         {
           "name": "api-key",

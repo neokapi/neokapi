@@ -311,6 +311,10 @@ func MediaRefineSchema() *schema.ComponentSchema {
 		Description: "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
 		Tags:        []string{"ai-powered", "vision"},
 		Requires:    []string{schema.RequiresCredentials},
+		// It re-reads the source media and rewrites the source text it was
+		// extracted to, so a run works on the source alone and a flow runs it
+		// once rather than once per target language.
+		Cardinality: schema.Monolingual,
 		SideEffects: []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
 		// The refined lines replace the OCR/ASR source text, so the exec run needs
 		// an -o — without it it paid for the LLM calls and wrote nothing (#1476).

@@ -123,9 +123,12 @@ func (c *SegmentationConfig) maskOptions() segment.MaskOptions {
 // segmentationToolMeta is the tool metadata shared by the registry and the
 // exported schema accessor.
 func segmentationToolMeta() schema.ToolMeta {
+	// The source language picks the segmentation rules for the source; the
+	// target language the run names is the one segmentTarget segments.
 	return toolMeta("segmentation", "Segmentation", schema.CategoryTextProcessing,
 		withTags("text-processing"), withAliases("segment"), withWritesOutput(),
 		withCardinality(schema.Monolingual),
+		withAccepts(schema.AcceptsSourceLanguage, schema.AcceptsTargetLanguage),
 		withProduces(srcF(model.OverlaySegmentation), tgtF(model.OverlaySegmentation)))
 }
 

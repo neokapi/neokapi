@@ -52,9 +52,11 @@ func TestKapiCommandSet_PorcelainLayout(t *testing.T) {
 		assert.Nil(t, byName[gone], "%s must not be registered — its home moved (check --ship, models ollama, init --list-presets, plugin registry)", gone)
 	}
 
-	// Porcelain grouping: Work and Assets hold the everyday verbs.
+	// Porcelain grouping: Work and Assets hold the everyday verbs, and the
+	// verbs that produce content in other languages sit under Languages.
 	for name, group := range map[string]string{
 		"init": "work", "add": "work", "status": "work", "apply": "work", "check": "work",
+		"translate": "languages", "pseudo-translate": "languages",
 		"memory": "assets", "terms": "assets", "voice": "assets", "models": "assets", "credentials": "assets",
 		"run": "advanced", "flows": "advanced", "extract": "advanced", "merge": "advanced",
 	} {
@@ -84,15 +86,18 @@ func TestHelpGroups_RenderInPorcelainOrder(t *testing.T) {
 
 	help := out.String()
 	iWork := strings.Index(help, "Work:")
+	iLanguages := strings.Index(help, "Languages:")
 	iAssets := strings.Index(help, "Assets:")
 	iAdvanced := strings.Index(help, "Advanced:")
 	require.NotEqual(t, -1, iWork)
+	require.NotEqual(t, -1, iLanguages)
 	require.NotEqual(t, -1, iAssets)
 	require.NotEqual(t, -1, iAdvanced)
-	assert.Less(t, iWork, iAssets, "Work renders before Assets")
+	assert.Less(t, iWork, iLanguages, "Work renders before Languages")
+	assert.Less(t, iLanguages, iAssets, "Languages renders before Assets")
 	assert.Less(t, iAssets, iAdvanced, "Assets renders before Advanced")
 
-	for _, gone := range []string{"\nProcessing:", "Project & Content:", "Info & Management:"} {
+	for _, gone := range []string{"\nProcessing:", "Project & Content:", "Info & Management:", "\nTranslate:"} {
 		assert.NotContains(t, help, gone, "the pre-porcelain group headings are gone")
 	}
 	for _, hidden := range []string{"\n  verify ", "\n  ollama ", "\n  presets ", "\n  registry ", "\n  engine "} {

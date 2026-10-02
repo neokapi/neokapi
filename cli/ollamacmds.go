@@ -11,17 +11,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewOllamaCmd builds `kapi models ollama` — manage the local Ollama runtime that kapi
-// drives for on-device, GPU-accelerated translation. Ollama is a separate
-// install (it runs models on Metal/CUDA), but kapi handles everything downstream
-// of it: detecting the server, listing models, and pulling the model a
-// translation needs — so a user never has to leave kapi for a separate shell.
+// NewOllamaCmd builds `kapi models ollama`: manage the local Ollama runtime that
+// kapi drives to run its AI tools on-device, GPU-accelerated. Ollama is a
+// separate install (it runs models on Metal/CUDA), but kapi handles everything
+// downstream of it: detecting the server, listing models, and pulling the model
+// a tool needs, so a user never has to leave kapi for a separate shell.
 func NewOllamaCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ollama",
-		Short: "Manage the local Ollama runtime for on-device translation",
-		Long: "Detect, inspect, and feed the local Ollama runtime kapi uses for on-device\n" +
-			"(GPU-accelerated) translation. Ollama itself is a one-time install from\n" +
+		Short: "Manage the local Ollama runtime for on-device AI tools",
+		Long: "Detect, inspect, and feed the local Ollama runtime kapi uses to run its AI\n" +
+			"tools on-device (GPU-accelerated). Ollama itself is a one-time install from\n" +
 			"https://ollama.com; kapi drives the rest: `kapi models ollama pull <model>` installs\n" +
 			"a model, and `kapi translate --provider ollama --model <model>` uses it.",
 	}
@@ -94,7 +94,7 @@ func newOllamaPullCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "pull <model>",
 		Short: "Download a model onto the Ollama server",
-		Long: "Install a model so kapi can translate with it locally. <model> is any Ollama model\n" +
+		Long: "Install a model for kapi's AI tools to run locally. <model> is any Ollama model\n" +
 			"reference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\n" +
 			"model already present is a no-op.",
 		Args: cobra.ExactArgs(1),

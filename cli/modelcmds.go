@@ -144,10 +144,10 @@ func newModelsPullCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:   "pull <model>",
 		Short: "Download a model (Ollama model, or a plugin asset)",
-		Long: "Install a model so kapi can translate with it. A bare reference defaults to an\n" +
-			"Ollama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled into the local Ollama\n" +
-			"runtime. A plugin model id (e.g. sat-3l-sm), a plugin name, or plugin/model fetches\n" +
-			"that plugin's host-owned asset instead.",
+		Long: "Install a model for kapi's AI and machine-learning tools to use. A bare\n" +
+			"reference defaults to an Ollama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled\n" +
+			"into the local Ollama runtime. A plugin model id (e.g. sat-3l-sm), a plugin name,\n" +
+			"or plugin/model fetches that plugin's host-owned asset instead.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ref := args[0]

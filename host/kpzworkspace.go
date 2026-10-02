@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
@@ -87,7 +88,7 @@ func (a *App) ExtractToKpz(ctx context.Context, sources []string, outKpz, target
 	// wherever the package is merged. Say so now rather than at merge time in
 	// someone else's checkout.
 	if !kpz.IsLocalOutTemplate(outLayout) {
-		return fmt.Errorf("extract: --out %q must be relative to the merge directory (e.g. 'l10n/{lang}/{name}.{ext}'). A workspace records this layout for whoever merges it; pass an absolute destination to `kapi merge -o` instead", outLayout)
+		return fmt.Errorf("extract: --out %q must be relative to the merge directory (e.g. 'translated/{lang}/{name}.{ext}'). A workspace records this layout for whoever merges it; pass an absolute destination to `kapi merge -o` instead", outLayout)
 	}
 
 	recipe := newWorkspaceRecipe(a.SourceLocale(), splitLocales(targetLang), outLayout)
@@ -217,7 +218,14 @@ func captureSkeletonBytes(ctx context.Context, reg *registry.FormatRegistry, for
 // without rewriting the .kpz. Locales accumulate in the recipe. With doPack
 // it also ejects the result to the .kpz (--pack); otherwise the cache is left
 // dirty for an explicit `kapi pack`.
-func (a *App) transformKpzInPlace(ctx context.Context, kpzPath, flowName string, build toolChainBuilder, targetLang, toolDefaultLocale string, doPack bool) error {
+//
+// The pass works in the named target language, else the workspace's first
+// recorded one, else the tool's default locale. When none of those exists, a
+// chain whose every tool is monolingual (targetOptional) runs over the source
+// alone and records no locale, as the same tool does on a plain file; any
+// other chain needs a target, and every command that runs one offers
+// --target-lang.
+func (a *App) transformKpzInPlace(ctx context.Context, kpzPath, flowName string, build toolChainBuilder, targetLang, toolDefaultLocale string, targetOptional, doPack bool) error {
 	c, err := a.ensureKpzCache(ctx, kpzPath)
 	if err != nil {
 		return err
@@ -233,11 +241,13 @@ func (a *App) transformKpzInPlace(ctx context.Context, kpzPath, flowName string,
 	if locale == "" {
 		locale = toolDefaultLocale
 	}
-	if locale == "" {
+	if locale == "" && !targetOptional {
 		return errors.New("transform: --target-lang is required (none recorded in the workspace)")
 	}
 	a.TargetLang = locale
-	recipeAddTargetLang(c.meta.Recipe, locale)
+	if locale != "" {
+		recipeAddTargetLang(c.meta.Recipe, locale)
+	}
 	if sl := recipeSourceLang(c.meta.Recipe); sl != "" {
 		a.SourceLang = sl
 	}
@@ -273,11 +283,21 @@ func (a *App) transformKpzInPlace(ctx context.Context, kpzPath, flowName string,
 		if err := c.pack(ctx); err != nil {
 			return err
 		}
-		a.printlnUnlessQuiet(fmt.Sprintf("Updated and packed %s (%d document(s), locales: %s)", kpzPath, len(c.meta.Sources), strings.Join(recipeTargetLangs(c.meta.Recipe), ", ")))
+		a.printlnUnlessQuiet(fmt.Sprintf("Updated and packed %s (%d document(s), %s)", kpzPath, len(c.meta.Sources), workspaceLocalesNote(c.meta.Recipe)))
 		return nil
 	}
-	a.printlnUnlessQuiet(fmt.Sprintf("Updated %s [dirty] (%d document(s), locales: %s). Run `kapi pack %s` to share", kpzPath, len(c.meta.Sources), strings.Join(recipeTargetLangs(c.meta.Recipe), ", "), filepath.Base(kpzPath)))
+	a.printlnUnlessQuiet(fmt.Sprintf("Updated %s [dirty] (%d document(s), %s). Run `kapi pack %s` to share", kpzPath, len(c.meta.Sources), workspaceLocalesNote(c.meta.Recipe), filepath.Base(kpzPath)))
 	return nil
+}
+
+// workspaceLocalesNote names the target locales a workspace records, for the
+// line a transform prints.
+func workspaceLocalesNote(recipe *project.KapiProject) string {
+	locales := recipeTargetLangs(recipe)
+	if len(locales) == 0 {
+		return "no target locales"
+	}
+	return "locales: " + strings.Join(locales, ", ")
 }
 
 // ─── merge: emit the localized files ────────────────────────────
@@ -583,6 +603,18 @@ func (a *App) toolDefaultLocale(toolName string) string {
 		return string(info.DefaultLocale)
 	}
 	return ""
+}
+
+// toolIsMonolingual reports whether a tool declares that it works on one
+// language, so a run of it needs no target language (flow.FlowNeedsTargetLanguage
+// asks the same of a whole chain). A tool that declares no cardinality is taken
+// to need one.
+func (a *App) toolIsMonolingual(toolName string) bool {
+	if a.ToolReg == nil {
+		return false
+	}
+	info := a.ToolReg.ToolInfo(registry.ToolID(toolName))
+	return info != nil && info.Cardinality == schema.Monolingual
 }
 
 func (a *App) printlnUnlessQuiet(msg string) {

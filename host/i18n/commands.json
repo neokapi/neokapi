@@ -673,7 +673,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -732,7 +732,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "overwrite": {
                 "usage": "Overwrite the existing target if one already exists"
@@ -797,7 +797,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -914,9 +914,6 @@
               "strict": {
                 "usage": "alias for --fail-on-unknown"
               },
-              "target-lang": {
-                "usage": "target language (e.g. fr, de-DE)"
-              },
               "trace": {
                 "usage": "write flow trace JSON to file (for flow visualization)"
               }
@@ -988,9 +985,6 @@
               "strict": {
                 "usage": "alias for --fail-on-unknown"
               },
-              "target-lang": {
-                "usage": "target language (e.g. fr, de-DE)"
-              },
               "trace": {
                 "usage": "write flow trace JSON to file (for flow visualization)"
               }
@@ -1036,7 +1030,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1107,7 +1101,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1173,10 +1167,10 @@
                 "usage": "suppress warnings for skipped files"
               },
               "output": {
-                "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
+                "usage": "output path template (variables: {dir}, {name}, {ext})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR (default: rewrite each input in place)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1195,9 +1189,6 @@
               },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
-              },
-              "target-lang": {
-                "usage": "target language (e.g. fr, de-DE)"
               },
               "threshold": {
                 "usage": "Re-read extracted lines whose confidence is below this"
@@ -1289,7 +1280,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1457,7 +1448,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1550,7 +1541,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1609,10 +1600,10 @@
                 "usage": "suppress warnings for skipped files"
               },
               "output": {
-                "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
+                "usage": "output path template (variables: {dir}, {name}, {ext})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR (default: rewrite each input in place)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1634,9 +1625,6 @@
               },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
-              },
-              "target-lang": {
-                "usage": "target language (e.g. fr, de-DE)"
               },
               "trace": {
                 "usage": "write flow trace JSON to file (for flow visualization)"
@@ -1674,7 +1662,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1746,7 +1734,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1805,10 +1793,10 @@
                 "usage": "suppress warnings for skipped files"
               },
               "output": {
-                "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
+                "usage": "output path template (variables: {dir}, {name}, {ext})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR (default: rewrite each input in place)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1831,9 +1819,6 @@
               "strict": {
                 "usage": "alias for --fail-on-unknown"
               },
-              "target-lang": {
-                "usage": "target language (e.g. fr, de-DE)"
-              },
               "trace": {
                 "usage": "write flow trace JSON to file (for flow visualization)"
               }
@@ -1841,7 +1826,6 @@
             "short": "Script"
           },
           "search-replace": {
-            "example": "  kapi exec search-replace messages.json --find \"foo\" --replace \"bar\"\n  kapi exec search-replace page.html --find \"colour\" --replace \"color\"",
             "flags": {
               "concurrency": {
                 "usage": "max parallel files (0 = auto)"
@@ -1877,7 +1861,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -1961,7 +1945,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "overwrite-segmentation": {
                 "usage": "Re-segment already-segmented blocks replacing previous segmentation"
@@ -2123,9 +2107,6 @@
               "strict": {
                 "usage": "alias for --fail-on-unknown"
               },
-              "target-lang": {
-                "usage": "target language (e.g. fr, de-DE)"
-              },
               "trace": {
                 "usage": "write flow trace JSON to file (for flow visualization)"
               }
@@ -2187,7 +2168,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -2263,9 +2244,6 @@
               "strict": {
                 "usage": "alias for --fail-on-unknown"
               },
-              "target-lang": {
-                "usage": "target language (e.g. fr, de-DE)"
-              },
               "trace": {
                 "usage": "write flow trace JSON to file (for flow visualization)"
               }
@@ -2296,10 +2274,10 @@
                 "usage": "suppress warnings for skipped files"
               },
               "output": {
-                "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
+                "usage": "output path template (variables: {dir}, {name}, {ext})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR (default: rewrite each input in place)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -2316,9 +2294,6 @@
               "strict": {
                 "usage": "alias for --fail-on-unknown"
               },
-              "target-lang": {
-                "usage": "target language (e.g. fr, de-DE)"
-              },
               "trace": {
                 "usage": "write flow trace JSON to file (for flow visualization)"
               }
@@ -2326,7 +2301,7 @@
             "short": "Restore original values into redacted content after processing"
           },
           "voice-check": {
-            "example": "  kapi exec voice-check messages.json --target-lang fr\n  kapi exec voice-check app.xliff --target-lang de",
+            "example": "  kapi exec voice-check messages.json\n  kapi exec voice-check page.html --provider anthropic",
             "flags": {
               "api-key": {
                 "usage": "API key for the AI provider"
@@ -2378,9 +2353,6 @@
               },
               "strict": {
                 "usage": "alias for --fail-on-unknown"
-              },
-              "target-lang": {
-                "usage": "target language (e.g. fr, de-DE)"
               },
               "trace": {
                 "usage": "write flow trace JSON to file (for flow visualization)"
@@ -2447,9 +2419,6 @@
               "strict": {
                 "usage": "alias for --fail-on-unknown"
               },
-              "target-lang": {
-                "usage": "target language (e.g. fr, de-DE)"
-              },
               "trace": {
                 "usage": "write flow trace JSON to file (for flow visualization)"
               }
@@ -2507,7 +2476,7 @@
                 "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})"
               },
               "output-dir": {
-                "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)"
+                "usage": "write outputs under DIR/{lang}/ (default: the target-language file beside the input, mirroring its locale layout; with no target language, the input itself)"
               },
               "pack": {
                 "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)"
@@ -2796,7 +2765,7 @@
         "ksed": {
           "short": "Stream-edit the text/content inside files (use ksed)"
         },
-        "long": "kapi parses any format into one unified content model, edits the content\ninside it, checks it, and writes it back byte-for-byte. It holds a project's\ncontent context (the terms, the voice and the rules it goes by) so you can\nconvert formats, translate with AI, and run quality checks against what\nactually applies.",
+        "long": "kapi parses any format into one content model, edits and checks the content\ninside it, and writes it back faithfully. It holds a project's context, such as\nits terms and its voice, which its checks and AI tools apply. The same model\nserves format conversion and translation into other languages.",
         "ls": {
           "flags": {
             "color": {
@@ -3174,12 +3143,12 @@
             "list": {
               "short": "List models installed on the Ollama server"
             },
-            "long": "Detect, inspect, and feed the local Ollama runtime kapi uses for on-device\n(GPU-accelerated) translation. Ollama itself is a one-time install from\nhttps://ollama.com; kapi drives the rest: `kapi models ollama pull \u003cmodel\u003e` installs\na model, and `kapi translate --provider ollama --model \u003cmodel\u003e` uses it.",
+            "long": "Detect, inspect, and feed the local Ollama runtime kapi uses to run its AI\ntools on-device (GPU-accelerated). Ollama itself is a one-time install from\nhttps://ollama.com; kapi drives the rest: `kapi models ollama pull \u003cmodel\u003e` installs\na model, and `kapi translate --provider ollama --model \u003cmodel\u003e` uses it.",
             "pull": {
-              "long": "Install a model so kapi can translate with it locally. \u003cmodel\u003e is any Ollama model\nreference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\nmodel already present is a no-op.",
+              "long": "Install a model for kapi's AI tools to run locally. \u003cmodel\u003e is any Ollama model\nreference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\nmodel already present is a no-op.",
               "short": "Download a model onto the Ollama server"
             },
-            "short": "Manage the local Ollama runtime for on-device translation",
+            "short": "Manage the local Ollama runtime for on-device AI tools",
             "status": {
               "short": "Show whether the Ollama runtime is installed, running, and which models are present"
             }
@@ -3189,7 +3158,7 @@
             "short": "Remove a model (Ollama model, or a cached plugin asset)"
           },
           "pull": {
-            "long": "Install a model so kapi can translate with it. A bare reference defaults to an\nOllama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled into the local Ollama\nruntime. A plugin model id (e.g. sat-3l-sm), a plugin name, or plugin/model fetches\nthat plugin's host-owned asset instead.",
+            "long": "Install a model for kapi's AI and machine-learning tools to use. A bare\nreference defaults to an Ollama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled\ninto the local Ollama runtime. A plugin model id (e.g. sat-3l-sm), a plugin name,\nor plugin/model fetches that plugin's host-owned asset instead.",
             "short": "Download a model (Ollama model, or a plugin asset)"
           },
           "setup": {
@@ -3565,8 +3534,8 @@
               "usage": "source language (overrides the project's source_language)"
             }
           },
-          "long": "Show, per target locale, how much of the project's tracked content is\ntranslated and whether it clears its ship gate, a derived dashboard, like\ngit status. Coverage is recomputed from the content × target files on every run;\nnothing is tracked as state.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality gate). It\nnever fails: a locale that is behind is reported as pending rather than as an error.\nTarget-language drift is normal, expected work rather than a build break.",
-          "short": "Show per-locale translation coverage and ship-gate standing"
+          "long": "Show how far the project's source content has progressed and, per target\nlocale, how much of it is translated and whether it clears its ship gate: a\nderived dashboard, like git status. Coverage is recomputed from the content ×\ntarget files on every run; nothing is tracked as state.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality gate). It\nnever fails: a locale that is behind is reported as pending rather than as an error.\nTarget-language drift is normal, expected work rather than a build break.",
+          "short": "Show source readiness and per-language coverage against the ship gates"
         },
         "telemetry": {
           "example": "  kapi telemetry status\n  kapi telemetry off",

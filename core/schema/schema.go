@@ -4,6 +4,7 @@ package schema
 
 import (
 	"encoding/json"
+	"slices"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -163,13 +164,10 @@ const (
 	PartTypeGroup = "group"
 )
 
-// Standard tool categories — the single canonical vocabulary shared by native
+// Standard tool categories: the single canonical vocabulary shared by native
 // tools, okapi-bridge tools (via NormalizeCategory), gen-refs, and the flow
-// editor. CategoryQuality, CategoryAnalysis, and CategoryTextProcessing double
-// as CLI command group IDs and must match the cobra group IDs in
-// cli.AddCommandGroups. CategoryTranslation has no own group: its tools carry
-// [TagL10n] and surface under the "Localization:" group with the rest of the
-// localization toolchain.
+// editor. The CLI mounts every registry tool under `kapi exec` in one flat
+// list, so a category names no help group.
 const (
 	CategoryTranslation    = "translation"     // produces target content
 	CategoryQuality        = "quality"         // validates target / produces qa·term findings
@@ -179,14 +177,13 @@ const (
 	CategoryPipeline       = "pipeline"        // composite / sub-pipeline
 )
 
-// TagL10n marks a tool as part of the localization toolchain (translate, content memory
-// recycling, the bilingual quality checks, pseudo-translation, target
-// management). It is a freeform Tag on ToolMeta, orthogonal to Category: the
-// CLI groups every l10n-tagged command under one "Localization:" help section
-// regardless of its schema Category, while the Category stays canonical for
-// docs and the flow editor. Generic, format-aware tools (search-replace,
-// case-transform, rewrite, segmentation, …) deliberately carry no l10n tag.
-const TagL10n = "l10n"
+// TagLanguages marks a tool that works on content in other languages
+// (translate, content memory recycling, the bilingual quality checks,
+// pseudo-translation, target management). It is a freeform Tag on ToolMeta,
+// orthogonal to Category, and its value is published in the tool metadata the
+// reference data and the MCP surface carry. Generic, format-aware tools
+// (search-replace, case-transform, segmentation, …) carry no such tag.
+const TagLanguages = "languages"
 
 // bridgeCategoryAliases maps the okapi-bridge category vocabulary onto the
 // canonical set above. The bridge classifies steps with its own labels
@@ -247,7 +244,47 @@ const (
 	// works without it. Translate reads a block's previously approved answer as
 	// prompt reference; with no corpus it translates exactly as it would have.
 	AcceptsMemory = "memory"
+
+	// AcceptsTargetLanguage: a monolingual tool that works on one target
+	// language when the run names one, and on the source alone when it names
+	// none. The target is one the input carries, as a bilingual file does:
+	// search-replace and case-transform can rewrite it beside the source, and
+	// xml-validation checks it. A monolingual input carries no target, so a
+	// writer's run with a target language puts the transformed source at that
+	// language's output path, over any file already there.
+	AcceptsTargetLanguage = "target-language"
+
+	// AcceptsSourceLanguage: a monolingual tool whose result depends on the
+	// language of the source text, as segmentation picks its rules by it. The
+	// declaration describes the tool. Every run has a source language
+	// whatever the tool declares, because the format reader takes one.
+	AcceptsSourceLanguage = "source-language"
 )
+
+// TakesTargetLanguage reports whether a run of the tool can name a target
+// language for it to work on, which decides whether a surface offers one
+// (`kapi exec <tool>` declares --target-lang only then). A bilingual or
+// multilingual tool always works on a target. A monolingual one does when it
+// declares the target language in Requires or Accepts, or names a
+// DefaultLocale. A tool that declares no cardinality is assumed to take one,
+// as flow.ResolveFlowLocales assumes it is bilingual, and so is a nil meta.
+func (m *ToolMeta) TakesTargetLanguage() bool {
+	if m == nil {
+		return true
+	}
+	switch m.Cardinality {
+	case Monolingual:
+		return m.DefaultLocale != "" || m.declares(RequiresTargetLanguage)
+	default: // Bilingual, Multilingual, or undeclared
+		return true
+	}
+}
+
+// declares reports whether the tool names a resource in Requires or Accepts.
+// The language resources are spelled the same in both lists.
+func (m *ToolMeta) declares(name string) bool {
+	return slices.Contains(m.Requires, name) || slices.Contains(m.Accepts, name)
+}
 
 // ParameterGroup defines a UI grouping of parameters.
 type ParameterGroup struct {

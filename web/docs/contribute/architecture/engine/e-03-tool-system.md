@@ -194,7 +194,8 @@ type ToolMeta struct {
     Requires []string
 
     // Accepts declares optional resources the tool uses when the run has them
-    // ("memory"). A tool that declares one and does not get it still runs.
+    // ("memory", "target-language", "source-language"). A tool that declares
+    // one and does not get it still runs.
     Accepts []string
 
     // Cardinality declares how many locales the tool operates on per execution.
@@ -269,6 +270,28 @@ const (
 Cardinality describes **how many** locales a tool needs. **Which** locales are
 provided at runtime by the runner or flow configuration, never hardcoded in the
 tool.
+
+Cardinality, together with the `target-language` entry in `Requires` and
+`Accepts`, also decides whether a run can name a target language for the tool.
+`ToolMeta.TakesTargetLanguage` holds for a bilingual or multilingual tool, and
+for a monolingual one that requires or accepts `target-language` or names a
+`DefaultLocale`. A tool with no declared cardinality takes one.
+`search-replace` and `xml-validation` accept it, because they work on the
+source and, when the run names one, on that target as well. That target is one
+the input carries, as a bilingual file does. A monolingual input carries none,
+so `kapi exec case-transform app.json --target-lang fr` writes the transformed
+source to `fr/app.json`, over any file already there. `kapi exec <tool>`
+declares `--target-lang` from this answer, so a tool that works on the source
+alone, such as `redact` or `encoding-detect`, offers none.
+`TestToolsDeclareTheTargetLanguageTheyRead` in `core/tools` holds the
+declarations to what each tool's config factory reads.
+
+Every `kapi exec` command offers `--source-lang` beside `--format` and
+`--encoding`, because every run passes the source language to the format
+reader. The reader labels each block with it, and picks by it the source
+variant of a multilingual file that names none. A monolingual tool whose result
+also depends on the source language, as segmentation picks its rules by it,
+declares `source-language` in `Accepts`.
 
 #### Uniform locale access
 
