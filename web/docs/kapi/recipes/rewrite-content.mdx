@@ -93,7 +93,9 @@ kapi check guide.md --max-chars 500 --forbid "utilize"
 
 An entry whose `id`, or `content_hash` when it gives no `id`, matches no block of its file is reported as **not found** and writes nothing; the block may have been removed or renamed since you inspected it.
 
-Each of these outcomes exits on the gate code (`3`), distinct from an operational error; re-inspect the affected blocks and retry with fresh hashes. `apply` is idempotent, and the same change-set can carry asset edits (an approved term, a voice rule; see [Create content](/kapi/recipes/create-content)) or a `kind:"review"` entry ([The kapi loop](/kapi/convergence#review-the-state-record)): one write verb, different `kind`s.
+`kapi inspect` also lists blocks the file marks as not editable, such as a Markdown code block (`role` `code`). Such a block keeps its text: an entry that changes it is reported as **not editable**, and an entry that repeats its text is a no-op.
+
+Each of these outcomes exits on the gate code (`3`), distinct from an operational error; re-inspect the affected blocks and retry with fresh hashes. A change-set with a content entry that gives neither `id` nor `content_hash`, or with two entries that edit one block differently, is refused before anything is written, with exit code `2`. `apply` is idempotent, and the same change-set can carry asset edits (an approved term or a content memory pair; see [Create content](/kapi/recipes/create-content)) or a `kind:"review"` entry ([The kapi loop](/kapi/convergence#review-the-state-record)): one write verb, different `kind`s.
 
 ## What "faithfully" means
 

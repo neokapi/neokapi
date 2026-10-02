@@ -167,21 +167,25 @@ read it rather than a prose copy.
 | A curated framework tool | `host.frameworkToolOutput`: target translations, rewritten source, properties, overlays, and annotations for the one processed block |
 
 `apply_edits` reports `ok` alongside the per-block outcome (`applied`,
-`skipped`, `stale`, `guard_failed`, `not_found`) and a per-entry asset result.
-`ok` is false when an edit drifted, was rejected or matched no block, which is
-the caller's signal to re-read the block and retry rather than to force the
-write. An edit is rejected as `guard_failed` when it drops, invents or
-duplicates an inline code, crosses or unbalances paired codes, or changes a
-block holding a plural or select construct. `not_found` names each content
-entry whose `id`, or `content_hash` when it gives no `id`, matches no block of
-its file, as `file:id` or `file:content_hash:<hash>`; nothing is written for
-it.
+`skipped`, `stale`, `guard_failed`, `not_editable`, `not_found`) and a
+per-entry asset result. `ok` is false when an edit drifted, was rejected,
+changed a block that is not editable or matched no block, which is the caller's
+signal to re-read the block and retry rather than to force the write. An edit
+is rejected as `guard_failed` when it drops, invents or duplicates an inline
+code, crosses or unbalances paired codes, or changes a block holding a plural
+or select construct. `not_editable` names each block an entry changed that the
+format reads as not translatable, such as a code block, which `extract_content`
+leaves out and `kapi inspect` lists; the block keeps its text. `not_found` names
+each content entry whose `id`, or `content_hash` when it gives no `id`, matches
+no block of its file, as `file:id` or `file:content_hash:<hash>`; nothing is
+written for it.
 
 A content entry uses `kind: "content"`, `file`, the extracted block `id` and
 `content_hash`, and `text` for its new wording. `replacement` belongs to term
 entries. Both the CLI and MCP reject content entries carrying a nonempty
 `replacement` before applying any entry, with an error identifying the expected
-`text` field.
+`text` field. They reject a content entry with neither `id` nor `content_hash`,
+and two content entries that edit one block differently, the same way.
 
 A comment entry uses `kind: "comment"`, `file`, the comment's `id` and `lines`
 as `check_file` reports them, and `text` for the comment's prose without comment

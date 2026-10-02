@@ -398,15 +398,24 @@ CLI or desktop and are excluded from the MCP tools. See
 
 ### apply_edits
 
-The single write verb. One entry of the change-set is one deliberate change:
-a content edit, or an edit to an asset the project owns.
+The write verb for content. One entry of the change-set is one deliberate
+change to a document's wording or to a code comment.
 
 <McpToolParams name="apply_edits" />
 
 Each change-set entry carries a `kind`. Content edits address a block by file,
 `id`, and `content_hash`, the drift guard: if the block's source has changed
 since it was read, the edit is refused rather than applied to different text.
-Asset edits carry an `op` and the fields for their kind.
+An entry with neither `id` nor `content_hash`, or two entries that edit one
+block differently, are refused before anything is written.
+
+The result lists each block under its outcome: `applied`, `skipped` when the
+block already says that, `stale`, `guard_failed` when the edit would drop or
+unbalance an inline code or flatten a plural or select construct,
+`not_editable` when the block is one the format reads as not translatable, such
+as a code block, and `not_found` when the entry's `id` or `content_hash` matches
+no block of its file. Any of the last four makes `ok` false: read the file again
+with `extract_content` and resend.
 
 A comment edit addresses one code comment by `file` and the `id` that
 `check_file` reports, is guarded by the `comment_sha256` reported with it, and
@@ -424,15 +433,19 @@ person applies it with `kapi apply` in a terminal, where the formatter runs
 under execution trust. A Go comment is held to `go/format` inside the kapi
 binary, so a Go edit starts no formatter process. Each written file's result carries a check scoped to what was written.
 
-| `kind`    | What the entry changes                       |
-| --------- | -------------------------------------------- |
-| `content` | A block's text, through the faithful writer   |
+| `kind`    | What the entry changes                           |
+| --------- | ------------------------------------------------ |
+| `content` | A block's text, through the faithful writer      |
 | `comment` | A code comment's prose, keeping every other byte |
-| `term`    | An entry in the project's terms store         |
-| `memory`  | A source/target pair in the content memory    |
-| `voice`   | A rule in a voice profile                     |
-| `recipe`  | A field of `kapi.yaml`                        |
-| `review`  | A unit's position on the review ladder        |
+
+`apply_edits` records every entry as the calling agent in the server's session.
+Writing a term, a content memory pair or a field of `kapi.yaml` directly is a
+person's decision, so a `term`, `memory` or `recipe` entry is refused with a
+reason and writes nothing. The agent records a term rule as a suggestion with
+`context_observe`, or with `context_correct` for wording it changed, and a
+person keeps it. A review decision is a person's too, and an agent records a
+pre-review with `pre_review_unit`. A person writes these entries with `kapi
+apply` in a terminal:
 
 ```bash
 kapi apply <<<'{"kind":"memory","source":"Save","target":"Lagre","source_locale":"en","target_locale":"nb"}'

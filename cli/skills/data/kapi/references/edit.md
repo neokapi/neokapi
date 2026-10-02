@@ -103,6 +103,12 @@ of its file is reported as **not found** (`not_found` in `--json`, as
 `file:id`) and writes nothing. The block may have been removed or renamed since
 you inspected, or the id may be mistyped.
 
+`kapi inspect` also lists blocks the file marks as not editable, such as a
+Markdown code block (its `role` is `code`). Such a block keeps its text: an
+entry that changes it is reported as **not editable** (`not_editable` in
+`--json`), and an entry that repeats its text is a no-op. Leave those blocks out
+of the change-set.
+
 Each of these outcomes exits on the **gate code (3)**, distinct from an operational
 error. Treat it as a signal to **re-inspect the affected blocks and retry** with
 fresh hashes, the same loop a failing check drives. `apply` is idempotent: an
