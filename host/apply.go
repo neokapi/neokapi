@@ -372,11 +372,13 @@ func readChangeSet(ctx context.Context, path string) ([]changeEntry, error) {
 // rewriteDiffFile prints the per-block unified diff for one file and returns the
 // number of changed blocks. The block source is rewritten in memory only (the
 // applier's plan is applied to the streamed block); nothing is written to disk.
-// It backs `kapi apply --diff`.
+// It backs `kapi apply --diff`, and reads the file as the write does, so it
+// previews exactly the blocks the write would change. Each hunk is labelled
+// with the block id a change-set entry names.
 func (a *App) rewriteDiffFile(ctx context.Context, file string, t *tool.BaseTool, out io.Writer) (int, error) {
 	changed := 0
 	label := DisplayName(file)
-	_, err := a.StreamBlocks(ctx, file, func(index int, b *model.Block) error {
+	_, err := a.StreamEditableBlocks(ctx, file, func(_ int, b *model.Block) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -392,8 +394,8 @@ func (a *App) rewriteDiffFile(ctx context.Context, file string, t *tool.BaseTool
 		diff := difflib.UnifiedDiff{
 			A:        difflib.SplitLines(before),
 			B:        difflib.SplitLines(after),
-			FromFile: fmt.Sprintf("%s:%d (before)", label, index),
-			ToFile:   fmt.Sprintf("%s:%d (after)", label, index),
+			FromFile: fmt.Sprintf("%s:%s (before)", label, b.ID),
+			ToFile:   fmt.Sprintf("%s:%s (after)", label, b.ID),
 			Context:  3,
 		}
 		text, derr := difflib.GetUnifiedDiffString(diff)

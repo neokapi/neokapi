@@ -34,7 +34,9 @@ func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFor
 
 	for _, file := range files {
 		prog.Step(DisplayName(file))
-		_, ferr := a.StreamBlocks(ctx, file, func(_ int, b *model.Block) error {
+		// Read as the write path does, so every id and content_hash printed
+		// here is one `kapi apply` resolves.
+		_, ferr := a.StreamEditableBlocks(ctx, file, func(_ int, b *model.Block) error {
 			// Skip blocks with no source content. The predicate is the shape
 			// flattening, not SourceText(): a block whose only run is an inline
 			// code flattens to "" there and was dropped from the output

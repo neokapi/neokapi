@@ -19,8 +19,9 @@ import (
 // streamEntryBlocks reads a single archive entry (addressed by a `container!entry`
 // locator) and streams its Blocks — the read backbone for kcat/kgrep/inspect on
 // one inner file. Only that entry is read (random-access for ZIP, scan for TAR);
-// the whole archive is never loaded.
-func (a *App) streamEntryBlocks(ctx context.Context, loc entryLocator, fn func(index int, b *model.Block) error) (string, error) {
+// the whole archive is never loaded. editable reads the entry as editBytes
+// does (see StreamEditableBlocks).
+func (a *App) streamEntryBlocks(ctx context.Context, loc entryLocator, editable bool, fn func(index int, b *model.Block) error) (string, error) {
 	content, _, err := container.OpenEntry(loc.Archive, loc.Entry)
 	if err != nil {
 		return "", fmt.Errorf("%s!%s: %w", loc.Archive, loc.Entry, err)
@@ -34,6 +35,13 @@ func (a *App) streamEntryBlocks(ctx context.Context, loc entryLocator, fn func(i
 		return fmtName, fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
 	defer reader.Close()
+	if editable {
+		release, werr := a.WireEditReader(reader, fmtName)
+		if werr != nil {
+			return fmtName, fmt.Errorf("%s!%s: %w", loc.Archive, loc.Entry, werr)
+		}
+		defer release()
+	}
 
 	doc := &model.RawDocument{
 		URI:          loc.Archive + "!" + loc.Entry,

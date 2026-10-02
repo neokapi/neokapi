@@ -611,16 +611,35 @@ var htmlRoleMap = map[string]string{
 }
 
 // applyStructuralRole sets a block's normalized SemanticRole from its HTML
-// element: heading level from h1–h6, and th → table-header.
+// element (see setStructuralRole), plus a code block's language.
 func (r *Reader) applyStructuralRole(block *model.Block, n *html.Node) {
+	if !setStructuralRole(block, n.Data, func(key string) string { return getAttr(n, key) }) {
+		return
+	}
+	if block.SemanticRole() == model.RoleCode {
+		// A code block's language rides on a child <code class="language-xxx">
+		// (the de-facto convention) — capture it for the structure layer so
+		// cross-format export emits the recommended language label.
+		if lang := codeLanguageFromPre(n); lang != "" {
+			block.SetCodeLanguage(lang)
+		}
+	}
+}
+
+// setStructuralRole sets a block's normalized SemanticRole from the element it
+// was read from, named by tag, with its attributes read through attr: heading
+// level from h1–h6, th → table-header, and a merged table cell's spans. Both
+// readers call it, so a block carries the same role whichever one read it. It
+// reports whether the block's type maps to a role.
+func setStructuralRole(block *model.Block, tag string, attr func(string) string) bool {
 	role, ok := htmlRoleMap[block.Type]
 	if !ok {
-		return
+		return false
 	}
 	level := 0
 	switch role {
 	case model.RoleHeading:
-		switch strings.ToLower(n.Data) {
+		switch strings.ToLower(tag) {
 		case "h1":
 			level = 1
 		case "h2":
@@ -635,15 +654,8 @@ func (r *Reader) applyStructuralRole(block *model.Block, n *html.Node) {
 			level = 6
 		}
 	case model.RoleTableCell:
-		if strings.ToLower(n.Data) == "th" {
+		if strings.ToLower(tag) == "th" {
 			role = model.RoleTableHeader
-		}
-	case model.RoleCode:
-		// A code block's language rides on a child <code class="language-xxx">
-		// (the de-facto convention) — capture it for the structure layer so
-		// cross-format export emits the recommended language label.
-		if lang := codeLanguageFromPre(n); lang != "" {
-			block.SetCodeLanguage(lang)
 		}
 	}
 	block.SetSemanticRole(role, level)
@@ -652,7 +664,7 @@ func (r *Reader) applyStructuralRole(block *model.Block, n *html.Node) {
 	// preview reconstruct spanned grids aligned (HTML colspan/rowspan default to
 	// 1; only record a real merge).
 	if role == model.RoleTableCell || role == model.RoleTableHeader {
-		cs, rs := spanAttr(n, "colspan"), spanAttr(n, "rowspan")
+		cs, rs := spanValue(attr("colspan")), spanValue(attr("rowspan"))
 		if cs > 1 || rs > 1 {
 			if s, ok := block.Structure(); ok && s != nil {
 				s.ColSpan, s.RowSpan = cs, rs
@@ -660,12 +672,13 @@ func (r *Reader) applyStructuralRole(block *model.Block, n *html.Node) {
 			}
 		}
 	}
+	return true
 }
 
-// spanAttr reads an integer colspan/rowspan attribute, returning 1 when absent
-// or unparseable (the HTML default).
-func spanAttr(n *html.Node, key string) int {
-	v := strings.TrimSpace(getAttr(n, key))
+// spanValue reads an integer colspan/rowspan attribute value, returning 1 when
+// absent or unparseable (the HTML default).
+func spanValue(v string) int {
+	v = strings.TrimSpace(v)
 	if v == "" {
 		return 1
 	}

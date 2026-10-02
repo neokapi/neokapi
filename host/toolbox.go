@@ -175,9 +175,43 @@ func (a *App) explicitOrDetected(path string, content io.ReadSeeker) (string, bo
 // StreamBlocks opens path (or stdin), detects its format, and calls fn for each
 // Block part in document order. Read-only — the backbone of cat and grep.
 func (a *App) StreamBlocks(ctx context.Context, path string, fn func(index int, b *model.Block) error) (string, error) {
+	return a.streamBlocks(ctx, path, false, fn)
+}
+
+// StreamEditableBlocks streams path's blocks as EditDocument reads them, so
+// every block id, text and content hash it yields is the one `kapi apply` and
+// MCP apply_edits resolve. It backs `kapi inspect`, `kapi apply --diff` and
+// extract_content: the reads an edit is addressed from.
+func (a *App) StreamEditableBlocks(ctx context.Context, path string, fn func(index int, b *model.Block) error) (string, error) {
+	return a.streamBlocks(ctx, path, true, fn)
+}
+
+// WireEditReader gives reader the skeleton store EditDocument gives the same
+// format's reader before writing it back. Some readers model a document
+// differently while they keep a skeleton: the HTML reader turns character
+// references into inline codes and numbers an inline element's attributes
+// after its paragraph, and the MDX reader reads a JSX element's children. A
+// read that addresses an edit therefore has to be wired the same way. A format
+// with no writer or no skeleton is left unwired. release closes the store.
+func (a *App) WireEditReader(reader format.DataFormatReader, fmtName string) (release func(), err error) {
+	writer, werr := a.FormatReg.NewWriter(registry.FormatID(fmtName))
+	if werr != nil {
+		return func() {}, nil
+	}
+	store, err := format.NewWiredSkeleton(reader, writer)
+	if err != nil {
+		return nil, err
+	}
+	if store == nil {
+		return func() {}, nil
+	}
+	return func() { _ = store.Close() }, nil
+}
+
+func (a *App) streamBlocks(ctx context.Context, path string, editable bool, fn func(index int, b *model.Block) error) (string, error) {
 	// A `container!entry` locator reads just that one entry, not the whole archive.
 	if loc, ok := parseEntryLocator(path); ok {
-		return a.streamEntryBlocks(ctx, loc, fn)
+		return a.streamEntryBlocks(ctx, loc, editable, fn)
 	}
 	src, err := openDocSource(ctx, path)
 	if err != nil {
@@ -198,6 +232,13 @@ func (a *App) StreamBlocks(ctx context.Context, path string, fn func(index int, 
 		return fmtName, fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
 	defer reader.Close()
+	if editable {
+		release, werr := a.WireEditReader(reader, fmtName)
+		if werr != nil {
+			return fmtName, fmt.Errorf("read %s: %w", DisplayName(path), werr)
+		}
+		defer release()
+	}
 
 	doc := &model.RawDocument{
 		URI:          DisplayName(path),

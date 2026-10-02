@@ -246,10 +246,11 @@ func handleExtractContent(ctx context.Context, a *cli.App, input ExtractContentI
 	if err != nil {
 		return nil, ExtractContentOutput{}, err
 	}
-	fmtName, reader, err := openReader(ctx, a, input.Path, input.Format, input.SourceLang, projectPath)
+	fmtName, reader, release, err := openReader(ctx, a, input.Path, input.Format, input.SourceLang, projectPath)
 	if err != nil {
 		return nil, ExtractContentOutput{}, err
 	}
+	defer release()
 	defer reader.Close()
 
 	var blocks []BlockEntry
@@ -493,7 +494,11 @@ func handlePseudoTranslate(ctx context.Context, a *cli.App, input PseudoTranslat
 
 // openReader detects the format, creates a reader, and opens the document.
 // Caller must call reader.Close().
-func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLang, projectPath string) (string, format.DataFormatReader, error) {
+// openReader opens path for extract_content. The reader is wired as
+// apply_edits wires it before writing (host.App.WireEditReader), so the ids
+// and content hashes extract_content reports are the ones apply_edits
+// resolves. release closes that wiring once the read is done.
+func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLang, projectPath string) (string, format.DataFormatReader, func(), error) {
 	fmtName := formatOverride
 	if fmtName == "" {
 		// Use project-scoped detection when a project file is specified.
@@ -509,15 +514,20 @@ func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLan
 		if fmtName == "" {
 			detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 			if err != nil {
-				return "", nil, fmt.Errorf("unable to detect format: %w", err)
+				return "", nil, nil, fmt.Errorf("unable to detect format: %w", err)
 			}
 			fmtName = string(detected)
 		}
 	}
 
-	reader, _, err := a.NewConfiguredReader(fmtName)
+	reader, registryName, err := a.NewConfiguredReader(fmtName)
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
+	}
+	release, err := a.WireEditReader(reader, registryName)
+	if err != nil {
+		reader.Close()
+		return "", nil, nil, err
 	}
 
 	srcLang := sourceLang
@@ -527,7 +537,9 @@ func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLan
 
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return "", nil, fmt.Errorf("read input: %w", err)
+		release()
+		reader.Close()
+		return "", nil, nil, fmt.Errorf("read input: %w", err)
 	}
 
 	doc := &model.RawDocument{
@@ -538,10 +550,12 @@ func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLan
 	}
 
 	if err := reader.Open(ctx, doc); err != nil {
-		return "", nil, fmt.Errorf("open document: %w", err)
+		release()
+		reader.Close()
+		return "", nil, nil, fmt.Errorf("open document: %w", err)
 	}
 
-	return fmtName, reader, nil
+	return fmtName, reader, release, nil
 }
 
 // executeFlow runs a built-in flow on a file and writes the result. The tool
