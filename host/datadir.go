@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // kapi keeps two per-user roots apart. ConfigDir (host/resource.go) holds what
@@ -91,7 +92,7 @@ var sweepTestDataDirsOnce sync.Once
 // its root behind.
 func testDataDir() string {
 	sweepTestDataDirsOnce.Do(func() {
-		sweepTestDataDirs(os.TempDir(), os.Getpid(), processAlive)
+		sweepTestDataDirs(os.TempDir(), os.Getpid(), processAlive, processStart)
 	})
 	return testDataRoot(os.TempDir(), os.Getpid())
 }
@@ -112,18 +113,26 @@ func RemoveTestDataDir() {
 	_ = os.RemoveAll(testDataRoot(os.TempDir(), os.Getpid()))
 }
 
+// processStartSlack is how much earlier than its process's start a data root
+// may have been last written and still count as that process's, which absorbs
+// the clock's resolution.
+const processStartSlack = 2 * time.Second
+
 // sweepTestDataDirs removes from tmp the data root of every test binary that is
 // no longer running, and returns the names it removed. alive answers whether a
-// process id is running.
+// process id is running, and started when it started, where the platform says.
 //
 // The root named for self is removed as well. The sweep runs before this
 // process has resolved its own root, so a directory already carrying its id
 // was left by an earlier process that had the same id, and its workspaces
 // would otherwise leak into this run's tests.
 //
-// A root whose process is running is kept, and so is one whose id another
-// process has taken since: the next sweep after that process ends removes it.
-func sweepTestDataDirs(tmp string, self int, alive func(int) bool) []string {
+// A root whose process is running is kept, unless that process started after
+// the root was last written: a binary writes its root after it starts, so such
+// a process took the id over from the binary that wrote the root, which has
+// exited. Where the platform gives no start time, a root whose id another
+// process has taken is kept until that process ends.
+func sweepTestDataDirs(tmp string, self int, alive func(int) bool, started func(int) (time.Time, bool)) []string {
 	entries, err := os.ReadDir(tmp)
 	if err != nil {
 		return nil
@@ -138,7 +147,7 @@ func sweepTestDataDirs(tmp string, self int, alive func(int) bool) []string {
 		if err != nil || pid <= 0 || strconv.Itoa(pid) != rest {
 			continue
 		}
-		if pid != self && alive(pid) {
+		if pid != self && alive(pid) && !reusedID(e, pid, started) {
 			continue
 		}
 		if os.RemoveAll(filepath.Join(tmp, e.Name())) == nil {
@@ -146,6 +155,20 @@ func sweepTestDataDirs(tmp string, self int, alive func(int) bool) []string {
 		}
 	}
 	return removed
+}
+
+// reusedID reports whether the running process with this id started after the
+// data root e was last written, so that it cannot be the binary that wrote it.
+func reusedID(e os.DirEntry, pid int, started func(int) (time.Time, bool)) bool {
+	at, ok := started(pid)
+	if !ok {
+		return false
+	}
+	info, err := e.Info()
+	if err != nil {
+		return false
+	}
+	return info.ModTime().Before(at.Add(-processStartSlack))
 }
 
 // dataDir is DataDir with its two environment seams injected, so the platform

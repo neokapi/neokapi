@@ -8,16 +8,29 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// The sweep removes the root of every test binary that is not running, and a
-// root carrying this process's own id, which an earlier process with the same
-// id left. Everything else under the temporary directory stays.
+// The sweep removes the root of every test binary that is not running, a root
+// carrying this process's own id, which an earlier process with the same id
+// left, and a root last written before the running process holding its id
+// started, which took the id over. Everything else under the temporary
+// directory stays.
 func TestSweepTestDataDirs(t *testing.T) {
 	const self, running, dead = 4242, 200, 100
+	// reused holds an id another process took after the binary that wrote the
+	// root exited; unknown holds one whose start the platform does not report.
+	const reused, unknown = 300, 400
+	now := time.Now()
+	starts := map[int]time.Time{running: now.Add(-time.Hour), reused: now}
+	alive := func(pid int) bool { return pid == running || pid == reused || pid == unknown }
+	started := func(pid int) (time.Time, bool) {
+		at, ok := starts[pid]
+		return at, ok
+	}
 	tmp := t.TempDir()
 	dir := func(name string) {
 		t.Helper()
@@ -30,16 +43,25 @@ func TestSweepTestDataDirs(t *testing.T) {
 	}
 	root := func(pid int) string { return testDataDirPrefix + strconv.Itoa(pid) }
 
+	lastWritten := func(name string, at time.Time) {
+		t.Helper()
+		require.NoError(t, os.Chtimes(filepath.Join(tmp, name), at, at))
+	}
+
 	dir(root(self))
 	dir(root(dead))
 	dir(root(running))
+	dir(root(reused))
+	lastWritten(root(reused), now.Add(-time.Hour))
+	dir(root(unknown))
+	lastWritten(root(unknown), now.Add(-time.Hour))
 	dir(testDataDirPrefix + "abc")
 	dir(testDataDirPrefix + "0100")
 	dir("kapi-other-100")
 	file(root(dead + 1))
 
-	removed := sweepTestDataDirs(tmp, self, func(pid int) bool { return pid == running })
-	assert.ElementsMatch(t, []string{root(self), root(dead)}, removed)
+	removed := sweepTestDataDirs(tmp, self, alive, started)
+	assert.ElementsMatch(t, []string{root(self), root(dead), root(reused)}, removed)
 
 	tests := []struct {
 		name string
@@ -48,6 +70,8 @@ func TestSweepTestDataDirs(t *testing.T) {
 		{root(self), false},
 		{root(dead), false},
 		{root(running), true},
+		{root(reused), false},
+		{root(unknown), true},
 		{testDataDirPrefix + "abc", true},
 		{testDataDirPrefix + "0100", true},
 		{"kapi-other-100", true},
@@ -64,8 +88,27 @@ func TestSweepTestDataDirs(t *testing.T) {
 		})
 	}
 
-	assert.Empty(t, sweepTestDataDirs(filepath.Join(tmp, "missing"), self, processAlive),
+	assert.Empty(t, sweepTestDataDirs(filepath.Join(tmp, "missing"), self, processAlive, processStart),
 		"a temporary directory that cannot be read removes nothing")
+}
+
+// processStart reads this process's start time on macOS, where the sweep needs
+// it, and reports none for a process that has exited. Elsewhere it reports
+// none at all.
+func TestProcessStart(t *testing.T) {
+	at, ok := processStart(os.Getpid())
+	if runtime.GOOS != "darwin" {
+		assert.False(t, ok)
+		return
+	}
+	require.True(t, ok)
+	assert.False(t, at.After(time.Now()), "this process started before now: %s", at)
+	assert.True(t, at.After(time.Now().Add(-24*time.Hour)), "this test binary started today: %s", at)
+
+	_, ok = processStart(exitedPID(t))
+	assert.False(t, ok, "an exited process has no start time")
+	_, ok = processStart(0)
+	assert.False(t, ok)
 }
 
 // processAlive answers for this process, for a process that has exited, and

@@ -923,9 +923,10 @@ Two consequences for anything that runs kapi:
   names a root outright, `DataDir()` inside a `go test` binary answers with a
   directory of that process's own under the system temporary directory, so no
   test run can write into the developer's workspace or read it back. The first
-  resolution sweeps the roots of test binaries that are no longer running, and
-  `devenvtest.Main(m, host.RemoveTestDataDir)` removes a binary's own root once
-  its tests have run.
+  resolution sweeps the roots of test binaries that are no longer running (on
+  macOS also a root last written before the process now holding its id
+  started), and `devenvtest.Main(m, host.RemoveTestDataDir)` removes a binary's
+  own root once its tests have run.
 - **`$KAPI_DATA_DIR` is part of the isolation contract**, and it wins over
   `$XDG_DATA_HOME`. Every in-repo surface that launches a RELEASED kapi (the
   Makefile's `$(KAPI_ISO_ENV)`, `kapi/e2e`'s `isoEnv`, the harness's
