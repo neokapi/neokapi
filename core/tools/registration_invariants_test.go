@@ -255,8 +255,7 @@ func TestToolsDeclareTheTargetLanguageTheyRead(t *testing.T) {
 			continue
 		}
 		readsRunTarget := false
-		for i := range v.NumField() {
-			f := v.Field(i)
+		for _, f := range v.Fields() {
 			if f.Type() == reflect.TypeFor[model.LocaleID]() && model.LocaleID(f.String()) == runLocale {
 				readsRunTarget = true
 			}
