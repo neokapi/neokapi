@@ -165,7 +165,8 @@ fmt.Println("hello, world")
     id: "checkout-messageformat",
     label: "checkout.mf",
     filename: "checkout.mf",
-    blurb: "Checkout messages: a named placeholder and plural branches, reused across the framework lessons.",
+    blurb:
+      "Checkout messages: a named placeholder and plural branches, reused across the framework lessons.",
     content: `Hello, {name}!
 {count, plural, =0 {Your cart is empty} one {# item is ready for checkout} other {# items are ready for checkout}}
 Review your order before continuing.
@@ -175,7 +176,8 @@ Review your order before continuing.
     id: "checkout-checks",
     label: "checkout-checks.mf",
     filename: "checkout-checks.mf",
-    blurb: "The checkout fixture with deliberate repeated wording and spacing for the hygiene-check lesson.",
+    blurb:
+      "The checkout fixture with deliberate repeated wording and spacing for the hygiene-check lesson.",
     content: `Hello, {name}!
 {count, plural, =0 {Your cart is empty} one {# item is ready for checkout} other {# items are ready for checkout}}
 Review your your order  before continuing.

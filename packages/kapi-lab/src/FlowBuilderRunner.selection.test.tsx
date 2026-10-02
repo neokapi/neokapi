@@ -25,8 +25,6 @@ describe("FlowBuilderRunner initial sample", () => {
 
   it("uses the scenario's sample when no override is provided", () => {
     render(<FlowBuilderRunner assets={null} defaultScenarioId="pseudo" />);
-    expect(
-      screen.getByRole("button", { name: "support-reply.json" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "support-reply.json" })).toBeTruthy();
   });
 });
