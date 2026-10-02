@@ -71,7 +71,9 @@ func TestOpen_AllSubsystemsMigrateInOneFile(t *testing.T) {
 	layout := newLayout(t)
 	db := openStore(t, layout)
 
-	assert.FileExists(t, layout.StorePath(), "the store sits at the top of the state dir")
+	held, err := storage.Exists(layout.StorePath())
+	require.NoError(t, err)
+	assert.True(t, held, "the store sits at the top of the state dir")
 	assert.Equal(t, layout.StorePath(), db.Path())
 
 	for _, ledger := range ledgerTables {

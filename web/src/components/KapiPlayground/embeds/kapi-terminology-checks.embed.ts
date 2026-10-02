@@ -21,9 +21,10 @@ const config: WalkthroughEmbedConfig = {
   ],
   steps: [
     {
-      command: "kapi terms stats",
-      narration: "The browser build pre-seeds a terms store from the project terms bundle.",
+      command: "kapi terms import terms.json",
+      narration: "Import the committed terms bundle into a terms store.",
     },
+    { command: "kapi terms stats", narration: "Count the concepts and terms the store now holds." },
     {
       command: "kapi terms lookup password -s en -t fr",
       narration: "Look up a single term and its approved translation.",
@@ -37,9 +38,10 @@ const config: WalkthroughEmbedConfig = {
       narration: "Produce a target file to check.",
     },
     {
-      command: "kapi exec term-check pseudo_fr.json --source-lang en --target-lang fr",
+      command:
+        "kapi exec term-check pseudo_fr.json --source-lang en --target-lang fr --termstore terms.db",
       narration:
-        "Report target segments that violate the seeded terminology. The same check runs after each up pass and contributes to the ship gate.",
+        "Report target segments that violate the imported terminology. In a project the same check runs after each up pass and contributes to the ship gate.",
     },
   ],
 };

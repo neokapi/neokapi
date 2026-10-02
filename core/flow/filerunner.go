@@ -477,6 +477,40 @@ func (r *FileRunner) recordDocument(ctx context.Context, reader format.DataForma
 	return rec.Commit()
 }
 
+// tracedReplay records the reader stage of the trace for each part a cached
+// document replays, as the live read does (readParts, the streaming feed), so a
+// traced run shows the same parts whether the parse came from the file or from
+// the document cache. With no recorder it returns feed unchanged.
+func (r *FileRunner) tracedReplay(feed func(context.Context, chan<- *model.Part) error) func(context.Context, chan<- *model.Part) error {
+	rec := r.cfg.Recorder
+	if rec == nil {
+		return feed
+	}
+	return func(ctx context.Context, inCh chan<- *model.Part) error {
+		defer close(inCh)
+		replayed := make(chan *model.Part)
+		done := make(chan error, 1)
+		go func() { done <- feed(ctx, replayed) }()
+		for p := range replayed {
+			if p.Resource != nil {
+				rec.SnapshotPart(p, "reader", "initial")
+				rec.Record(TraceExit, "reader", PartKey(p), nil)
+			}
+			select {
+			case inCh <- p:
+			case <-ctx.Done():
+				// Drain, so a replay that does not watch ctx still finishes
+				// and closes its channel.
+				for range replayed {
+				}
+				<-done
+				return ctx.Err()
+			}
+		}
+		return <-done
+	}
+}
+
 // sliceFeed adapts a buffered Part slice to the streaming feed shape (closes
 // inCh) so the live (no-cache) path shares the executor-feeding helper.
 func sliceFeed(parts []*model.Part) func(context.Context, chan<- *model.Part) error {
@@ -543,9 +577,10 @@ func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools
 	}
 	// The cached document is closed by this function's own defer, so the feed
 	// owns nothing beyond the replay itself.
+	replay := r.tracedReplay(doc.Feed)
 	feed := &partFeed{
 		feed: func(fctx context.Context, inCh chan<- *model.Part, errOut *error) {
-			*errOut = doc.Feed(fctx, inCh)
+			*errOut = replay(fctx, inCh)
 		},
 	}
 	return r.runPipelineToWriter(ctx, flowName, tools, feed, outputPath, targetLang, writer, skel, "", nil)
@@ -695,7 +730,7 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 	// file). Falls back to the live read when no cache is configured.
 	if doc, err := r.cachedSource(ctx, reader, inputPath, targetLang, false); err == nil { // process-only → record lean (no skeleton)
 		defer doc.Close()
-		return r.runProcessOnly(ctx, flowName, tools, targetLang, doc.Feed)
+		return r.runProcessOnly(ctx, flowName, tools, targetLang, r.tracedReplay(doc.Feed))
 	} else if !errors.Is(err, errCacheUnavailable) {
 		return err
 	}

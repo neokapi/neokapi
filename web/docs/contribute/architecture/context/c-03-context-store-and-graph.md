@@ -325,6 +325,10 @@ the store has not yet seen, in the order the log received them, and moves the
 store's cursor (`projector_cursor`) past them. A write another process made, or
 an operation merged in from another machine, is applied by the next write, and
 a projector opening a store applies whatever the log holds beyond the cursor.
+`Workspace.Forget` records a `project.forget` operation when it removes a
+project's context store, and a store that has applied nothing starts after the
+project's latest one, so a project registered again begins with an empty
+context. A rebuild starts there too.
 
 Each step carries its rows with every timestamp the store would take from the
 clock filled in from the operation's instant, and a write that would leave the
@@ -589,19 +593,31 @@ rollup across projects.
 
 ### Browser and wasm
 
-There is no SQLite in the browser build. The model is unchanged and the backends
-differ: in-memory content memory and terms, a path-keyed in-memory block store,
-and a decision ledger that persists to a JSON sidecar, `.kapi/work/store.json`.
-Operations that genuinely need a database report `projectdb.ErrNoStore`, which
-callers whose feature is optional there match and degrade on. The same sources
-rebuild it, and the same graph relations hold.
+The browser build runs the same stores. `core/storage` has a driver for every
+build, and the browser's (`core/storage/driver_js.go`) runs the SQL on the
+official SQLite WebAssembly build, reached through a bridge the page installs
+before the engine starts. The workspace, its operation log, the projector, the
+content memory, the terms store, the voice store, the decision ledger, the
+context graph and the block cache are the native code there, a lab's writes
+are operations in the log, and the projector is their one writer. The workspace
+sits under the engine's data root, `/.kapi-data`.
 
-There is no workspace there either, and no need of one: the browser holds one
-project and nothing outlives the tab. So the browser build keeps the **embedded
-layout**, and the host layer says so rather than failing: a workspace that
-cannot be opened because this build has no file-backed SQLite driver
-(`storage.ErrNoSQLite`) is not an error, and the project opens with its context
-tables beside its projection.
+The driver declares what it gives a store in a profile
+(`storage.DriverProfile`): one connection per file, no WAL, no lock another
+process honours, and no durability, since the databases live in the module's
+memory and nothing outlives the tab. Two rules follow for every store, natively
+too. No correctness rule depends on a reader running beside a writer, and no
+code holds a transaction or open rows on a pool and then waits for a second
+session on the same pool; `make test-stores-oneconn` runs the store suites
+natively with every pool held to one connection and WAL off to keep it so. A
+database file belongs to its driver, so code asks `storage.Exists`,
+`storage.Remove`, `storage.Rename` and `storage.List` about one rather than the
+file system. A SQLite file the page's file system holds is read into memory the
+first time a store opens its path. FTS5
+word search uses `unicode61` there, the module having no ICU tokenizer.
+`make test-wasm-stores` runs the store suites under `GOOS=js` over the same
+driver. The [WASM Engine ABI](../../implementation/surfaces/wasm-engine-abi.md)
+note has the mechanics.
 
 ### Where the workspace lives
 

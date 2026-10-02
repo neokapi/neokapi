@@ -61,15 +61,15 @@ MODELS_VERSION="${DOCS_VISION_MODELS_VERSION:-$(cat web/models.version 2>/dev/nu
 case "$FAMILY" in
   wasm)
     SRC="web/static/wasm"
-    [ -d "$SRC" ] || { echo "error: $SRC missing — run 'make web-wasm-demo web-wasm-cli web-pdfium-wasm'"; exit 1; }
+    [ -d "$SRC" ] || { echo "error: $SRC missing — run 'make web-wasm-demo web-wasm-cli'"; exit 1; }
     DST="s3://$CDN_BUCKET/kapi/wasm/$VERSION"
     echo "→ syncing $SRC → $DST (immutable, version $VERSION)…"
     # Three passes so each object gets the right Content-Type (aws s3's guess for
     # .wasm / .wasm.gz is wrong for the browser).
-    # 1) Raw wasm binaries (kapi-cli.wasm, kapi.wasm, pdfium.wasm).
+    # 1) Raw wasm binaries (kapi-cli.wasm, kapi.wasm, pdfium.wasm, sqlite3.wasm).
     "${S3[@]}" sync "$SRC" "$DST" --exclude '*' --include '*.wasm' \
       --cache-control "$IMMUTABLE" --content-type "application/wasm"
-    # 2) The pre-gzipped wasm (kapi-cli.wasm.gz) — served as an OPAQUE
+    # 2) The pre-gzipped wasm (kapi-cli.wasm.gz, sqlite3.wasm.gz) — served as an OPAQUE
     #    application/wasm blob with NO Content-Encoding: the runtime fetches
     #    `${wasmUrl}.gz` and self-inflates it via DecompressionStream
     #    (fetchWasmBytes in runtime.ts), exactly as it does on GitHub Pages.

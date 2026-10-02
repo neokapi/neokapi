@@ -207,9 +207,9 @@ func (a *App) recordProducedBasis(ctx context.Context, proj *project.KapiProject
 // producedOrigins answers "what governed the translation this file now holds",
 // per (unit, block, locale), for a run that has just finished writing.
 //
-// The block store session is opened on first use and held for the pass. A
-// project with no store (the browser build, a run outside a project) has no
-// fallback, and every unit is answered by the file itself.
+// The block store session is opened on first use and held for the pass. A run
+// outside a project has no store and so no fallback, and every unit is
+// answered by the file itself.
 type producedOrigins struct {
 	ctx   context.Context
 	root  string

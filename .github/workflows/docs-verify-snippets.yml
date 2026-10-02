@@ -22,7 +22,14 @@ on:
       - "cli/**/*.go"
       - "host/**/*.go"
       - "core/**/*.go"
+      # The stores the browser engine runs on its SQLite driver.
+      - "memory/**/*.go"
+      - "terms/**/*.go"
+      - "voice/**/*.go"
       - "scripts/verify-snippets/**"
+      - "scripts/kpz-wasm-smoke.ts"
+      # The SQLite WebAssembly build the smokes load is pinned through the lockfile.
+      - "pnpm-lock.yaml"
       # The lab explorers and the engine facade drive the wasm CLI by argv, so a
       # change to either can break a command call the surface smoke replays.
       - "packages/kapi-lab/**"
@@ -41,7 +48,14 @@ on:
       - "cli/**/*.go"
       - "host/**/*.go"
       - "core/**/*.go"
+      # The stores the browser engine runs on its SQLite driver.
+      - "memory/**/*.go"
+      - "terms/**/*.go"
+      - "voice/**/*.go"
       - "scripts/verify-snippets/**"
+      - "scripts/kpz-wasm-smoke.ts"
+      # The SQLite WebAssembly build the smokes load is pinned through the lockfile.
+      - "pnpm-lock.yaml"
       # The lab explorers and the engine facade drive the wasm CLI by argv, so a
       # change to either can break a command call the surface smoke replays.
       - "packages/kapi-lab/**"
@@ -72,9 +86,10 @@ jobs:
           go-version: "1.27.0"
           cache: true
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
+      # Node plus the workspace dependencies: every smoke boots the engine over
+      # @sqlite.org/sqlite-wasm, which the engine's database driver runs on, and
+      # `make web-wasm-cli` stages its sqlite3.wasm beside the engine.
+      - uses: ./.github/actions/setup-node-ui
 
       - name: Build kapi CLI wasm
         run: make web-wasm-cli

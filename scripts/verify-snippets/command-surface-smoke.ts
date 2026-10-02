@@ -18,6 +18,7 @@ import { resolve as pathResolve, join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runInThisContext } from "node:vm";
 import { createMemFS } from "./memfs.ts";
+import { installSQLiteBridge, loadSQLite } from "../../packages/engine/src/sqlite.ts";
 import { LOOSE_SAMPLES } from "../../packages/kapi-playground/src/samples.ts";
 import { CLI_EXAMPLES } from "../../packages/kapi-playground/src/cliExamples.ts";
 import { parseCommand } from "../../packages/kapi-playground/src/argv.ts";
@@ -44,6 +45,9 @@ const mem = createMemFS({
 (globalThis as any).process = Object.assign({}, process, mem.process, { env: process.env });
 
 runInThisContext(readFileSync(join(wasmDir, "wasm_exec.js"), "utf8"));
+// The engine's stores run on SQLite through the bridge @neokapi/engine
+// installs on a page before Go starts.
+installSQLiteBridge(await loadSQLite());
 const Go = (globalThis as any).Go;
 const go = new Go();
 // Mirror the browser exactly: @neokapi/engine boots with CLICOLOR_FORCE=1 so
@@ -289,15 +293,93 @@ ok("`kapi check` runs the default checkset", check.code === 0, check.out.trim().
 const brand = await run("voice", "guide", "--pack", "technical-docs");
 ok("`kapi voice guide --pack` works offline", brand.code === 0, brand.out.trim().slice(0, 160));
 
-// Installing a profile writes to the SQLite brand store, which the browser has
-// no driver for. The failure must say so rather than blame a missing Go import
-// ("unknown driver \"sqlite\" (forgotten import?)").
+// Installing a profile writes to a SQLite voice store, which the browser holds
+// in SQLite's WebAssembly build like every other store.
 const brandStore = await run("voice", "pack", "technical-docs");
 ok(
-  "`kapi voice pack` reports the missing SQLite driver honestly",
-  brandStore.code !== 0 && /not available in the browser build/.test(brandStore.out),
+  "`kapi voice pack` installs into the voice store",
+  brandStore.code === 0 && /created voice profile/.test(brandStore.out),
   brandStore.out.trim().slice(0, 240),
 );
+// A standalone store is consulted only once it is there, and only the driver
+// can say so: the page's file system never sees a database.
+const installed = await run("voice", "guide", "--profile", "technical-documentation");
+ok(
+  "`kapi voice guide --profile` reads the installed profile from the voice store",
+  installed.code === 0 && installed.out.includes("Voice Guide: Technical Documentation"),
+  installed.out.trim().slice(0, 240),
+);
+
+// A tool that needs terms reads the rules from the store --termstore names.
+// The trace carries the finding: the source says "dashboard" and the target
+// lacks the preferred French term.
+mem.vol.mkdirp("/termstore");
+mem.process.chdir("/termstore");
+mem.vol.writeFile(
+  "/termstore/terms.json",
+  enc.encode(
+    JSON.stringify({
+      schemaVersion: "1.0",
+      kind: "kapi-terms",
+      concepts: [
+        {
+          id: "term:en:dashboard",
+          terms: [
+            { text: "dashboard", locale: "en", status: "approved" },
+            { text: "tableau de bord", locale: "fr", status: "preferred" },
+          ],
+        },
+      ],
+    }),
+  ),
+);
+mem.vol.writeFile(
+  "/termstore/login.xlf",
+  enc.encode(
+    '<?xml version="1.0" encoding="UTF-8"?>\n<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">\n' +
+      '<file original="messages" source-language="en" target-language="fr" datatype="plaintext"><body>\n' +
+      '<trans-unit id="login_title"><source>Log in to your dashboard</source><target>Connectez-vous à votre panneau</target></trans-unit>\n' +
+      "</body></file></xliff>\n",
+  ),
+);
+const imported = await run("terms", "import", "terms.json");
+ok("`kapi terms import` creates ./terms.db", imported.code === 0, imported.out.trim().slice(0, 160));
+const termCheck = await run(
+  "exec", "term-check", "login.xlf", "--source-lang", "en", "--target-lang", "fr",
+  "--termstore", "terms.db", "--trace", "/termstore/trace.json",
+);
+const trace = termCheck.code === 0 ? dec.decode(mem.vol.readFile("/termstore/trace.json")) : "";
+ok(
+  "`kapi exec term-check --termstore` applies the store's rules",
+  trace.includes('required translation \\"tableau de bord\\" missing'),
+  termCheck.out.trim().slice(0, 240),
+);
+
+// A walkthrough's Reset starts its directory over (KapiRuntime.reset): the
+// project there is forgotten with its context, and its databases go with its
+// files, so the same project seeded again holds nothing.
+const resetRecipe =
+  "version: v1\nname: reset-demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\n";
+mem.vol.mkdirp("/reset-demo");
+mem.process.chdir("/reset-demo");
+mem.vol.writeFile("/reset-demo/kapi.yaml", enc.encode(resetRecipe));
+mem.vol.writeFile("/reset-demo/terms.json", mem.vol.readFile("/termstore/terms.json"));
+await run("terms", "import", "terms.json");
+await run("terms", "import", "terms.json", "--termstore", "standalone.db");
+const before = await run("terms", "stats");
+ok("a project's terms import lands in its store", /Concepts:\s+1\b/.test(before.out), before.out.trim().slice(0, 160));
+const resetFailure = await (globalThis as any).kapiReset("/reset-demo");
+ok("kapiReset starts the directory over", resetFailure === null, String(resetFailure));
+for (const name of mem.vol.readdir("/reset-demo")) mem.vol.remove(`/reset-demo/${name}`);
+ok(
+  "kapiReset leaves no database in the directory",
+  (globalThis as any).__kapiSQL.list("/reset-demo").length === 0,
+  JSON.stringify((globalThis as any).__kapiSQL.list("/reset-demo")),
+);
+mem.vol.writeFile("/reset-demo/kapi.yaml", enc.encode(resetRecipe));
+const after = await run("terms", "stats");
+ok("the project seeded again starts with no terms", /Concepts:\s+0\b/.test(after.out), after.out.trim().slice(0, 160));
+mem.process.chdir("/project");
 
 // The checkout MessageFormat fixtures in the lab samples: read, check and write
 // each one with the inspector options the labs use.

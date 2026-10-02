@@ -15,8 +15,8 @@
 # and the bilingual handoff (`extract`).
 #
 # Offline contract: the recipe's memory-recycle flow leverages content memory
-# only (no LLM), and `memory import` tops up the wasm build's pre-seeded in-memory
-# content memory — so every runnable step works in the browser embed. `kapi up` itself is
+# only (no LLM), and `memory import` loads the project's content memory, so
+# every runnable step works in the browser embed. `kapi up` itself is
 # not wired into the wasm build (kapi/cmd/kapi-wasm-cli); it is offline: false
 # and appears in the tape + narration only. The run → merge beats do the same
 # work in the embed, so both venues end on the same up-to-date grid.

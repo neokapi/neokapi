@@ -353,7 +353,7 @@ type ContextSearchSources struct {
 	// time. Every face reports one number as of the last extraction: this
 	// search, the context_search tool, the desktop explorer and the platform's
 	// concept page. nil when no graph is bound: a standalone-store query
-	// with no project in scope, or a build with no file-backed store.
+	// with no project in scope.
 	Graph contextgraph.EdgeReader
 	// GraphScope is the scope tuple the project's rows were written under
 	// (ProjectScope), which selects its concept nodes.
@@ -465,8 +465,7 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 	}
 
 	// The project's extracted content, for the passage each reported use sits
-	// in. OccurrenceBlocks already prefers an injected BlocksBackend (the
-	// browser build) over the file-backed store.
+	// in.
 	src.Blocks = a.OccurrenceBlocks(cmd)
 
 	// The recipe: its bounded governance profiles, so an answer can say which
@@ -513,10 +512,8 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 }
 
 // bindContextGraph attaches the project's context graph to the sources, so a
-// term answer can say where the term is used. A build with no file-backed store
-// holds no graph and binds nothing, which the search reports as a note; a graph
-// that will not open is an error the same note carries, because "could not be
-// read" and "does not exist" call for different next steps.
+// term answer can say where the term is used. A graph that will not open is an
+// error the search reports as a note.
 func (a *App) bindContextGraph(ctx context.Context, projectPath string, proj *project.KapiProject, src *ContextSearchSources) {
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
@@ -524,9 +521,6 @@ func (a *App) bindContextGraph(ctx context.Context, projectPath string, proj *pr
 		return
 	}
 	g, err := a.ProjectGraph(ctx, layout.Root)
-	if errors.Is(err, ErrNoProjectGraph) {
-		return
-	}
 	if err != nil {
 		src.GraphErr = err
 		return

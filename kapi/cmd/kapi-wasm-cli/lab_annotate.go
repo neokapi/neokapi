@@ -31,10 +31,10 @@ import (
 // a rendered document.
 //
 // The annotators are deterministic and offline: term overlays come from the
-// seeded in-memory terms (LookupAll over the source text), brand overlays
-// from profile.MatchVocabulary against the seeded voice profile (wasm_backends.go),
-// and check overlays from the shared source-only shape rules (double spaces,
-// doubled words — check.HygieneOverlay).
+// lab project's terms store (LookupAll over the source text), brand overlays
+// from profile.MatchVocabulary against the lab's voice profile
+// (labproject.go), and check overlays from the shared source-only shape rules
+// (double spaces, doubled words — check.HygieneOverlay).
 // Each is a source-anchored overlay (Variant nil) carrying its matched span text
 // and type-specific props, picked up by the existing OverlayView serializer.
 //
@@ -215,13 +215,13 @@ func segmentSpans(ctx context.Context, runs []model.Run, engineName, locale stri
 	return spans
 }
 
-// termOverlay builds an OverlayTerm over the source runs from the seeded
-// terms. Each matched term becomes a span carrying the matched
-// surface form (text), its required translation and domain. Returns nil when
-// the terms store is unseeded or nothing matches.
+// termOverlay builds an OverlayTerm over the source runs from the lab
+// project's terms (labproject.go). Each matched term becomes a span carrying
+// the matched surface form (text), its required translation and domain.
+// Returns nil when the lab project cannot be opened or nothing matches.
 func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Overlay {
-	tb := app.TermsBackend
-	if tb == nil {
+	tb, err := labTermsStore(ctx)
+	if err != nil {
 		return nil
 	}
 	matches, err := tb.LookupAll(ctx, source, terms.LookupOptions{
@@ -234,7 +234,13 @@ func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Ov
 	spans := make([]model.Span, 0, len(matches))
 	for _, m := range matches {
 		props := map[string]string{"term": m.Term.Text}
-		if tgt := m.Concept.PreferredTerm(model.LocaleID("fr")); tgt != nil {
+		// A match carries the concept's source-language terms; its French is
+		// read from the whole concept.
+		concept := m.Concept
+		if full, ok, gerr := tb.GetConcept(ctx, concept.ID); gerr == nil && ok {
+			concept = full
+		}
+		if tgt := concept.PreferredTerm(model.LocaleID("fr")); tgt != nil {
 			props["target"] = tgt.Text
 		}
 		if m.Concept.Domain != "" {

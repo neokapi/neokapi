@@ -3,10 +3,13 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/spf13/cobra"
@@ -14,12 +17,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// occurrencesApp wires the in-memory backends the browser build uses, which is
-// also what lets this test drive the real command without a project on disk.
+// occurrencesApp seeds a project the occurrence commands resolve: its terms,
+// written through the projector, and its block cache.
 func occurrencesApp(t *testing.T) *App {
 	t.Helper()
+	root := t.TempDir()
+	recipe := filepath.Join(root, "kapi.yaml")
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: occurrences\n"), 0o644))
+	t.Setenv(project.NoProjectEnvVar, "")
+	t.Setenv(project.ProjectEnvVar, recipe)
 
-	tb := terms.NewInMemoryStore()
+	a := &App{}
+	t.Cleanup(a.Shutdown)
+	writer, err := a.Projector(t.Context(), root)
+	require.NoError(t, err)
+	tb := writer.Terms()
 	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
 		ID:     "c-widget",
 		Domain: "product",
@@ -33,9 +45,9 @@ func occurrencesApp(t *testing.T) *App {
 		Terms: []terms.Term{{Text: "flywheel", Locale: model.LocaleEnglish}},
 	}))
 
-	blocks := blockstore.NewMemoryStore()
-	t.Cleanup(func() { _ = blocks.Close() })
-	sess, err := blocks.Begin(t.Context())
+	db, err := a.ProjectDB(t.Context(), root)
+	require.NoError(t, err)
+	sess, err := db.Blocks().Begin(t.Context())
 	require.NoError(t, err)
 	for _, b := range []struct {
 		hash, id, file, source string
@@ -52,8 +64,7 @@ func occurrencesApp(t *testing.T) *App {
 		require.NoError(t, sess.PutBlock("docs", blk))
 	}
 	require.NoError(t, sess.Commit())
-
-	return &App{TermsBackend: tb, BlocksBackend: blocks}
+	return a
 }
 
 // runOccurrences executes the real subcommand and returns what it printed.

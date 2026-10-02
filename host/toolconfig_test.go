@@ -89,9 +89,13 @@ func unitProject(t *testing.T) (a *App, recipe, root, srcFile string) {
 	a = &App{ToolReg: builtinToolReg()}
 	a.SourceLang = "en"
 	// A corpus the grant can hand to a tool that accepts one, seeded so the two
-	// paths can be asked the same question and compared on the answer.
-	backend := memory.NewInMemoryStore()
-	require.NoError(t, backend.Add(context.Background(), memory.Entry{
+	// paths can be asked the same question and compared on the answer. It is
+	// the project's content memory, written through the projector as every
+	// write to it is.
+	writer, err := a.Projector(context.Background(), root)
+	require.NoError(t, err)
+	t.Cleanup(a.Shutdown)
+	require.NoError(t, writer.Memory().Add(context.Background(), memory.Entry{
 		ID:          "unit:1",
 		HintSrcLang: "en",
 		Variants: map[model.LocaleID][]model.Run{
@@ -99,7 +103,6 @@ func unitProject(t *testing.T) (a *App, recipe, root, srcFile string) {
 			"nb": {{Text: &model.TextRun{Text: "Bruk innholdsminnet."}}},
 		},
 	}))
-	a.MemoryBackend = backend
 	readProjectContext(t, root)
 	return a, recipe, root, srcFile
 }

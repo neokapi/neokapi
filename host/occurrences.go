@@ -12,8 +12,8 @@ import (
 //
 // The release function is the terms store's — a standalone store opened for
 // this command is closed by it, while the project's shared handle is not. The
-// block store is never released here: it is either the App's shared project
-// handle or an injected backend, and neither belongs to the caller.
+// block store is never released here: it is the App's shared project handle,
+// which does not belong to the caller.
 //
 // A project with no blocks yet is not a failure. It is the ordinary state of a
 // fresh checkout, and the honest answer to "where is this term used?" there is
@@ -30,9 +30,6 @@ func (a *App) OccurrenceSources(cmd Command) (occurrence.Sources, func(), error)
 // than an error whenever there is no project or no cache: the query degrades to
 // "this term exists, and nothing here uses it".
 func (a *App) OccurrenceBlocks(cmd Command) blockstore.Store {
-	if a.BlocksBackend != nil {
-		return a.BlocksBackend
-	}
 	db, _, err := a.ProjectStoreFor(cmd)
 	if err != nil || db == nil {
 		return nil

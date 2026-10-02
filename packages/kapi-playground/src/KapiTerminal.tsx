@@ -221,7 +221,12 @@ export default function KapiTerminal({ runtime, onFsChange, ref }: KapiTerminalP
         }
         case "rm": {
           try {
-            runtime.vol.remove(resolveDir(argv[1]));
+            // A database a command created lives in SQLite's memory, not in
+            // the file system, so it is removed through the engine.
+            const target = resolveDir(argv[1]);
+            if (!runtime.removeDatabase(target) || runtime.vol.exists(target)) {
+              runtime.vol.remove(target);
+            }
           } catch (e: any) {
             term.write(`rm: ${e.message || e}`);
           }

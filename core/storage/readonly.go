@@ -32,9 +32,6 @@ import (
 // somewhere the caller cannot see. Close releases the handle and, where one was
 // taken, deletes the snapshot.
 func OpenReadOnly(dbPath string) (*DB, error) {
-	if err := driverUnavailable(); err != nil {
-		return nil, fmt.Errorf("open database %s for reading: %w", dbPath, err)
-	}
 	db, err := OpenWith(dbPath, Options{ReadOnly: true})
 	if err == nil {
 		return db, nil

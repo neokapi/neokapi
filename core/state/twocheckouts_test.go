@@ -58,6 +58,7 @@ func (c *twoCheckouts) open(record string) *state.WorkStore {
 // translation of the same source.
 func newTwoCheckouts(t *testing.T) *twoCheckouts {
 	t.Helper()
+	skipWithoutGit(t)
 	root := t.TempDir()
 	mainRoot := filepath.Join(root, "main")
 	featRoot := filepath.Join(root, "feature")

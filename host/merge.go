@@ -108,11 +108,7 @@ func (a *App) RunMerge(cmd Command) error {
 	noRestore, _ := cmd.Flags().GetBool("no-restore")
 
 	var tm *projector.Memory
-	// In the browser/seeded build (a.MemoryBackend set) there is no file-backed
-	// SQLite driver and no project content memory to write back to, so skip
-	// write-back silently rather than surfacing a driver error. The native CLI
-	// (MemoryBackend == nil) writes to the project store.
-	if !noMemoryUpdate && a.MemoryBackend == nil {
+	if !noMemoryUpdate {
 		w, derr := a.Projector(CmdContext(cmd), layout.Root)
 		if derr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: merge: open project store: %v (continuing with --no-memory-update semantics)\n", derr)
@@ -308,10 +304,7 @@ func (a *App) materializeProject(ctx context.Context, out io.Writer, proj *proje
 	}
 
 	var tm *projector.Memory
-	// Browser/seeded build (a.MemoryBackend set): no file-backed SQLite driver
-	// and no project content memory — skip write-back silently. The native CLI
-	// writes to the project store.
-	if !noMemoryUpdate && a.MemoryBackend == nil {
+	if !noMemoryUpdate {
 		w, werr := a.Projector(ctx, db.Layout().Root)
 		if werr != nil {
 			return 0, fmt.Errorf("merge: %w", werr)

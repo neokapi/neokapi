@@ -90,7 +90,9 @@ func TestGatedDB_ReentrantWriteIsReportedNotHung(t *testing.T) {
 }
 
 // TestGatedDB_ReadsAreNotGated: under WAL a reader neither blocks nor waits for
-// a writer, so gating reads would only add a queue for nothing.
+// a writer, so gating reads would only add a queue for nothing. On a driver
+// whose pools hold one connection the read waits for that connection, and
+// lands once the transaction holding it ends.
 func TestGatedDB_ReadsAreNotGated(t *testing.T) {
 	db := gatedDB(t)
 	_, err := db.ExecContext(t.Context(), `INSERT INTO t (v) VALUES ('seed')`)
@@ -105,11 +107,39 @@ func TestGatedDB_ReadsAreNotGated(t *testing.T) {
 		var n int
 		read <- db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM t`).Scan(&n)
 	}()
+	if oneConnection() {
+		waitsForTheTransaction(t, read, tx)
+		return
+	}
 	select {
 	case err := <-read:
 		require.NoError(t, err)
 	case <-time.After(5 * time.Second):
 		t.Fatal("a read waited for a write transaction")
+	}
+}
+
+// oneConnection reports a driver whose pools hold one connection to a file
+// (the browser build, or the storage_oneconn test mode), where a second
+// session on a pool waits for the first to end.
+func oneConnection() bool { return storage.DriverProfile().MaxConns == 1 }
+
+// waitsForTheTransaction asserts the one-connection behaviour: the statement
+// behind done does not run while tx holds the pool's only connection, and runs
+// once tx ends.
+func waitsForTheTransaction(t *testing.T, done <-chan error, tx *storage.Tx) {
+	t.Helper()
+	select {
+	case err := <-done:
+		t.Fatalf("a statement ran beside the transaction holding the only connection (err=%v)", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	require.NoError(t, tx.Rollback())
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("the statement never ran after the transaction ended")
 	}
 }
 
@@ -148,11 +178,17 @@ func TestUngatedOpen_IsUnchanged(t *testing.T) {
 	defer func() { _ = tx.Rollback() }()
 
 	// With no gate this second write is merely a second connection, and lands.
+	// Where a pool holds one connection, it is that connection the write waits
+	// for, not a gate.
 	done := make(chan error, 1)
 	go func() {
 		_, err := db.ExecContext(context.Background(), `INSERT INTO t (id) VALUES (1)`)
 		done <- err
 	}()
+	if oneConnection() {
+		waitsForTheTransaction(t, done, tx)
+		return
+	}
 	select {
 	case err := <-done:
 		require.NoError(t, err)

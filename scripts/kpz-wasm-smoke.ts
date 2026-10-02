@@ -9,6 +9,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createMemFS } from "./verify-snippets/memfs.ts";
+import { installSQLiteBridge, loadSQLite } from "../packages/engine/src/sqlite.ts";
 
 const wasmPath = process.argv[2] ?? "web/static/wasm/kapi-cli.wasm";
 const wasmExecPath =
@@ -29,6 +30,9 @@ const mem = createMemFS({
 (globalThis as any).__kapiMemProcess = mem.process;
 
 new Function(readFileSync(wasmExecPath, "utf8"))();
+// The engine's stores run on SQLite through the bridge @neokapi/engine
+// installs on a page before Go starts.
+installSQLiteBridge(await loadSQLite());
 const go = new (globalThis as any).Go();
 go.env = { HOME: "/home", XDG_CACHE_HOME: "/cache" };
 const ready = new Promise<void>((r) => ((globalThis as any).__kapiCliReady = r));
@@ -91,8 +95,9 @@ ok("project run", await run("run", "pseudo", "-p", "/proj/kapi.yaml", "-i", "/pr
 const projOut = dec.decode(mem.vol.readFile("/proj/out.json"));
 if (!/[-￿]/.test(projOut)) { console.error("FAIL: project run output not translated: " + projOut); process.exit(1); }
 
-// ProjectExplorer commits target overlays to the injected block store, then
-// materializes them with a separate merge command.
+// ProjectExplorer imports a content-memory bundle into the project, commits
+// target overlays to the project store, then materializes them with a separate
+// merge command. Every store is the native one, on the browser's SQLite.
 mem.vol.mkdirp("/project-lifecycle");
 mem.vol.writeFile("/project-lifecycle/messages.json", enc.encode('{"greeting":"Welcome to Acme"}'));
 mem.vol.writeFile("/project-lifecycle/kapi.yaml", enc.encode(`version: v1
@@ -117,7 +122,7 @@ mem.vol.writeFile("/project-lifecycle/project.memory.json", enc.encode(JSON.stri
     created: "2026-01-01T00:00:00Z", updated: "2026-01-01T00:00:00Z",
   }],
 })));
-ok("project memory import", await run("memory", "import", "/project-lifecycle/project.memory.json"));
+ok("project memory import", await run("memory", "import", "/project-lifecycle/project.memory.json", "-p", "/project-lifecycle/kapi.yaml"));
 ok("project extract", await run("extract", "-p", "/project-lifecycle/kapi.yaml"));
 ok("project process-only run", await run("run", "translate", "-p", "/project-lifecycle/kapi.yaml", "-i", "/project-lifecycle/messages.json"));
 ok("project merge", await run("merge", "-p", "/project-lifecycle/kapi.yaml"));

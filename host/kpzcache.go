@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore/exporter"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/kpz"
 	"gopkg.in/yaml.v3"
 )
@@ -160,6 +161,11 @@ func buildKpzCacheFromPackage(ctx context.Context, kpzPath string, pkg *kpz.Pack
 		return nil, err
 	}
 	dir := kpzCacheDir(kpzPath)
+	// The overlay stores first, through the driver that holds them: the
+	// browser's are not files the directory removal would reach.
+	if err := storage.RemoveAll(dir); err != nil {
+		return nil, fmt.Errorf("kpz cache: clear: %w", err)
+	}
 	if err := os.RemoveAll(dir); err != nil {
 		return nil, fmt.Errorf("kpz cache: clear: %w", err)
 	}

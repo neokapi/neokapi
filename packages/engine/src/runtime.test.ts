@@ -16,6 +16,7 @@ const ENGINE_GLOBALS = [
   "labSegment",
   "labSegmentEngines",
   "kbf",
+  "kapiReset",
   "kapiEngineABI",
 ] as const;
 
@@ -179,6 +180,42 @@ describe("makeRuntime", () => {
     globalThis.kapiRun = vi.fn(() => Promise.resolve(1));
     const rt = makeRuntime(createMemFS());
     await expect(rt.runWithTrace(["run", "x"])).resolves.toEqual({ code: 1, trace: null });
+  });
+
+  it("reset asks the engine to start the directory over, then clears its files", async () => {
+    installCoreGlobals();
+    const mem = createMemFS();
+    mem.vol.writeFile("/project/a.txt", enc.encode("hi"));
+    mem.vol.mkdirp("/project/.kapi/work");
+    let filesAtReset: string[] = [];
+    globalThis.kapiReset = vi.fn((dir: string) => {
+      filesAtReset = mem.vol.readdir(dir);
+      return Promise.resolve(null);
+    });
+    const rt = makeRuntime(mem);
+    await rt.reset("/project");
+    expect(globalThis.kapiReset).toHaveBeenCalledWith("/project");
+    expect(filesAtReset).toEqual([".kapi", "a.txt"]);
+    expect(mem.vol.readdir("/project")).toEqual([]);
+  });
+
+  it("reset reports what the engine could not start over and keeps the files", async () => {
+    installCoreGlobals();
+    const mem = createMemFS();
+    mem.vol.writeFile("/project/a.txt", enc.encode("hi"));
+    globalThis.kapiReset = vi.fn(() => Promise.resolve("database /project/x.db is open"));
+    const rt = makeRuntime(mem);
+    await expect(rt.reset("/project")).rejects.toThrow("database /project/x.db is open");
+    expect(mem.vol.readdir("/project")).toEqual(["a.txt"]);
+  });
+
+  it("reset clears the files on an engine without kapiReset", async () => {
+    installCoreGlobals();
+    const mem = createMemFS();
+    mem.vol.writeFile("/project/a.txt", enc.encode("hi"));
+    const rt = makeRuntime(mem);
+    await rt.reset("/project");
+    expect(mem.vol.readdir("/project")).toEqual([]);
   });
 
   it("exposes the volume and cwd/chdir over the memfs process", () => {

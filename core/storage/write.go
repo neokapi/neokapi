@@ -42,7 +42,9 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...any) (sql.R
 		return nil, err
 	}
 	defer db.flock.release()
+	unwatch := watchPool("a statement")
 	res, err := db.DB.ExecContext(ctx, query, args...)
+	unwatch()
 	return res, CancelledBy(ctx, err)
 }
 
@@ -76,7 +78,9 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 		db.gate.release()
 		return nil, err
 	}
+	unwatch := watchPool("a transaction")
 	tx, err := db.DB.BeginTx(ctx, opts)
+	unwatch()
 	if err != nil {
 		db.flock.release()
 		db.gate.release()

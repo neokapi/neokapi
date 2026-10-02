@@ -300,6 +300,13 @@ jobs:
       - name: Stage PDFium wasm (browser PDF)
         run: make web-pdfium-wasm
 
+      # Stage SQLite's own wasm beside the engine, for the same reason: the
+      # engine's stores run on @sqlite.org/sqlite-wasm and the boot loads
+      # sqlite3.wasm from beside kapi-cli.wasm. The pinned package is in the
+      # `vp install` above; the CDN publish below carries it with the engine.
+      - name: Stage SQLite wasm (browser stores)
+        run: make web-sqlite-wasm
+
       # On push to main: publish the freshly built wasm (kapi-cli + pdfium +
       # wasm_exec.js, versioned by commit sha) to the S3 CDN origin via the OIDC
       # deploy role, then drop it from the site artifact so GitHub Pages stays

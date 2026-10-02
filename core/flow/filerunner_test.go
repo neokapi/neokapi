@@ -696,6 +696,53 @@ func TestFileRunner_ProcessOnly_UsesPartCache(t *testing.T) {
 		"the run was driven by the cached parts, not by re-parsing the file")
 }
 
+// TestFileRunner_TracedRunServedFromCache_SnapshotsParts: a traced run whose
+// parse the document cache serves records the same reader-stage snapshots as a
+// run that parsed the file, for both the process-only and the file-writing
+// paths. Without them a lab's trace view of a second run on the same file was
+// empty.
+func TestFileRunner_TracedRunServedFromCache_SnapshotsParts(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "input.json")
+	require.NoError(t, os.WriteFile(inputPath, []byte(`{"greeting":"Hello World","farewell":"Goodbye"}`), 0o644))
+	store, err := sqlitestore.New(filepath.Join(dir, "blocks.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
+	pseudo := func() tool.Tool {
+		pt, err := tools.NewPseudoTranslateFromConfig(map[string]any{"target_locale": "qps"}, "qps")
+		require.NoError(t, err)
+		return pt
+	}
+	cache := newMemPartCache()
+	run := func(write bool) *flow.TraceRecorder {
+		rec := flow.NewTraceRecorder()
+		r := flow.NewFileRunner(flow.FileRunnerConfig{
+			FormatReg: reg, SourceLocale: "en-US", Store: store,
+			PartCache: cache, PartCacheKey: "k", Recorder: rec,
+		})
+		if write {
+			require.NoError(t, r.RunFile(context.Background(), "pseudo-translate", []tool.Tool{pseudo()},
+				inputPath, filepath.Join(dir, "out.json"), "qps"))
+		} else {
+			require.NoError(t, r.RunFileProcessOnly(context.Background(),
+				"pseudo-translate", []tool.Tool{pseudo()}, inputPath, "qps"))
+		}
+		return rec
+	}
+
+	for _, write := range []bool{false, true} {
+		parsed := run(write)
+		records := cache.records
+		served := run(write)
+		require.Equal(t, records, cache.records, "the second run is served from the cache")
+		require.NotEmpty(t, parsed.Snapshots(), "the parsed run snapshots its parts")
+		assert.Len(t, served.Snapshots(), len(parsed.Snapshots()),
+			"the cache-served run snapshots the same parts (write=%v)", write)
+	}
+}
+
 // TestFileRunner_CachedWrite_ByteIdenticalToLive is the byte-fidelity gate for
 // the streaming file-writing document cache: for each format, the cached miss
 // (parse → record parts + skeleton, then replay) and the cached hit (replay,

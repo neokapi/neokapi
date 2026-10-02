@@ -206,9 +206,12 @@ export default function ProjectExplorer({
             sample.binary ? sample.bytes() : sourceText,
           );
           runtime.writeFile(`${dir}/project.memory.json`, sample.memory);
-          const memoryCode = await runtime.run(["memory", "import", memoryPath]);
+          // -p names the project: the lab runs from the session's working
+          // directory, which is not the project's, so without it the bundle
+          // would land in a standalone store the flow never reads.
+          const memoryCode = await runtime.run(["memory", "import", memoryPath, "-p", recipePath]);
           if (memoryCode !== 0) {
-            setErr(`\`kapi memory import ${memoryPath}\` exited ${memoryCode}`);
+            setErr(`\`kapi memory import ${memoryPath} -p ${recipePath}\` exited ${memoryCode}`);
             return;
           }
         }

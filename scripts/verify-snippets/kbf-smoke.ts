@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { runInThisContext } from "node:vm";
 import { createHash } from "node:crypto";
 import { createMemFS } from "./memfs.ts";
+import { installSQLiteBridge, loadSQLite } from "../../packages/engine/src/sqlite.ts";
 // Relative source imports (not the bare specifier) so --experimental-strip-types
 // doesn't have to process the package under node_modules.
 import {
@@ -33,6 +34,9 @@ const mem = createMemFS({
 (globalThis as any).process = Object.assign({}, process, mem.process, { env: process.env });
 
 runInThisContext(readFileSync(join(wasmDir, "wasm_exec.js"), "utf8"));
+// The engine's stores run on SQLite through the bridge @neokapi/engine
+// installs on a page before Go starts.
+installSQLiteBridge(await loadSQLite());
 const Go = (globalThis as any).Go;
 const go = new Go();
 go.env = { CLICOLOR_FORCE: "0" };

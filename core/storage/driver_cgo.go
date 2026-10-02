@@ -15,9 +15,24 @@ import (
 // sqliteDriver is the database/sql driver name registered by mattn/go-sqlite3.
 const sqliteDriver = "sqlite3"
 
-// driverUnavailable reports nil: this build registers a SQLite driver. Only the
-// wasm build has none (see driver_wasm.go).
-func driverUnavailable() error { return nil }
+// driverProfile is what the native C SQLite gives a store: a pool of
+// connections to each file, WAL readers beside a writer, an advisory lock other
+// processes honour, and files that outlive the process.
+var driverProfile = Profile{
+	Driver:           "mattn/go-sqlite3",
+	MaxConns:         25,
+	WAL:              true,
+	CrossProcessLock: fileLockSupported,
+	Durable:          true,
+}
+
+// busyTimeoutMS is how long a connection waits for another connection's lock:
+// another thread or process can release it meanwhile.
+const busyTimeoutMS = 5000
+
+// cacheSize is the page cache per connection, in the PRAGMA's negative-KiB
+// spelling: 128 MiB.
+const cacheSize = "-131072"
 
 // FTSWordTokenizer is the FTS5 tokenizer used for word-based search tables
 // under cgo builds. The ICU tokenizer (an extension statically linked via

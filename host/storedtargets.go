@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/storage"
 )
 
 // A convergence pass under a gate writes two records of the same work: the
@@ -143,14 +143,11 @@ func normalizeStoredTargetStatus(b *model.Block, loc model.LocaleID) {
 // among them: a dry run that leaves a database behind has written to the
 // project it promised to only price.
 func (a *App) storedTargetStore(ctx context.Context, root string) blockstore.Store {
-	if a.BlocksBackend != nil {
-		return a.BlocksBackend
-	}
 	layout, lerr := project.ResolveLayout(root)
 	if lerr != nil {
 		return nil
 	}
-	if _, serr := os.Stat(layout.StorePath()); serr != nil {
+	if held, _ := storage.Exists(layout.StorePath()); !held {
 		return nil
 	}
 	db, err := a.ProjectDB(ctx, root)

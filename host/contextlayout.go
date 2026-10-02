@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/projector"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
@@ -261,8 +262,8 @@ func relSlash(root, path string) string {
 	return filepath.ToSlash(rel)
 }
 
-// projectStoreExists reports whether the project already has a store file. It
-// stats rather than opens, because opening creates one — the distinction a dry
+// projectStoreExists reports whether the project already has a store. It asks
+// rather than opens, because opening creates one — the distinction a dry
 // run depends on. path is the recipe or the directory holding it: LayoutFor
 // resolves either, so a caller with a project root asks the same question.
 func projectStoreExists(path string) bool {
@@ -270,8 +271,8 @@ func projectStoreExists(path string) bool {
 	if err != nil {
 		return false
 	}
-	_, statErr := os.Stat(layout.StorePath())
-	return statErr == nil
+	held, _ := storage.Exists(layout.StorePath())
+	return held
 }
 
 // profileTerms scopes every concept written through it to one profile, so the

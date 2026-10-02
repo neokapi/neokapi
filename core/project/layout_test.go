@@ -127,7 +127,6 @@ func TestLayout_StorePathIsNotUnderCache(t *testing.T) {
 	work := filepath.Join(layout.StateDir, "work")
 
 	assert.Equal(t, filepath.Join(work, "store.db"), layout.StorePath())
-	assert.Equal(t, filepath.Join(work, "store.json"), layout.StoreSidecarPath())
 	assert.Equal(t, work, filepath.Dir(layout.StorePath()))
 	assert.NotEqual(t, layout.CacheDir(), filepath.Dir(layout.StorePath()))
 }
@@ -141,7 +140,6 @@ func TestLayout_WorkHoldsEveryDerivedPath(t *testing.T) {
 
 	for name, path := range map[string]string{
 		"store":             layout.StorePath(),
-		"store sidecar":     layout.StoreSidecarPath(),
 		"cache":             layout.CacheDir(),
 		"extractions":       layout.ExtractionsDir(),
 		"collections":       layout.CollectionsDir(),

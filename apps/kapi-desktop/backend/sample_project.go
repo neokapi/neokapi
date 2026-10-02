@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/kapi-desktop/backend/sample"
 )
 
@@ -174,15 +175,10 @@ func (a *App) resetProjectStore(root string) error {
 	if err := a.hostEngine().CloseProjectDB(root); err != nil {
 		return err
 	}
-	layout := project.LayoutAt(root)
-	// The WAL and shared-memory sidecars go too: left behind beside a deleted
-	// database they are stale journal for a file that no longer exists.
-	for _, suffix := range []string{"", "-wal", "-shm"} {
-		if err := os.Remove(layout.StorePath() + suffix); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-	}
-	return nil
+	// storage.Remove takes the WAL and shared-memory sidecars too: left behind
+	// beside a deleted database they are stale journal for a file that no
+	// longer exists.
+	return storage.Remove(project.LayoutAt(root).StorePath())
 }
 
 // backupSampleDir returns a non-existing sibling backup path for dir, e.g.

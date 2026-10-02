@@ -110,14 +110,6 @@ func TestStaged_IsWhatTheShardsDoNotCarry(t *testing.T) {
 				return w
 			},
 		},
-		{
-			name: "sidecar",
-			open: func(t *testing.T, committed string) *state.WorkStore {
-				w, err := state.OpenWorkSidecar(t.Context(), filepath.Join(t.TempDir(), "store.json"), committed)
-				require.NoError(t, err)
-				return w
-			},
-		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			w := tc.open(t, record(t))
@@ -203,28 +195,4 @@ CREATE TABLE document (key TEXT NOT NULL PRIMARY KEY, path TEXT NOT NULL);`)
 	all, err := w.All(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, all, 2)
-}
-
-// The sidecar working store is the browser build's, but it is not built out of
-// browser-only parts: it persists and reloads on every build, which is what
-// lets the predecessor sweep read one.
-func TestOpenWorkSidecar_PersistsAndReloads(t *testing.T) {
-	dir := t.TempDir()
-	sidecar := filepath.Join(dir, "store.json")
-	committed := filepath.Join(dir, "units")
-
-	first, err := state.OpenWorkSidecar(t.Context(), sidecar, committed)
-	require.NoError(t, err)
-	require.NoError(t, first.Put(t.Context(), unit("u1", "d-intro", "Alpha")))
-	require.NoError(t, first.Close())
-	require.FileExists(t, sidecar)
-
-	second, err := state.OpenWorkSidecar(t.Context(), sidecar, committed)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = second.Close() })
-
-	staged, err := second.Staged(t.Context())
-	require.NoError(t, err)
-	require.Len(t, staged, 1)
-	assert.Equal(t, "u1", staged[0].Unit)
 }

@@ -13,6 +13,7 @@ import type { ContentTree } from "@neokapi/contract-types";
 import type { RawInspectResponse, RawPreviewResponse } from "./abi.ts";
 import { createMemFS } from "./memfs.ts";
 import type { MemFS, MemVolume } from "./memfs.ts";
+import { installSQLiteBridge, loadSQLite } from "./sqlite.ts";
 import "./globals.ts";
 
 export interface PreviewBlock {
@@ -140,6 +141,19 @@ export interface KapiRuntime {
    * or ["run", "translate-qa", "-i", "/p/in.json", "-o", "/p/out.json"].
    */
   runWithTrace(argv: string[]): Promise<TraceRunResult>;
+  /**
+   * Start `dir` over as a fresh page would find it: forget the projects at
+   * or below it, with their stores and context, and remove its databases,
+   * then remove its files. Databases live in SQLite's memory, so removing
+   * the files alone would leave them. An engine without the `kapiReset`
+   * entry point removes the files only.
+   */
+  reset(dir: string): Promise<void>;
+  /**
+   * Remove the database held at the absolute `path`, as `rm` removes a file.
+   * Answers false when no database is held there. Throws when one is open.
+   */
+  removeDatabase(path: string): boolean;
   cwd(): string;
   chdir(dir: string): void;
   /** Point the live stdout/stderr sinks at a destination (the active terminal). */
@@ -225,7 +239,7 @@ function countingStream(resp: Response): ReadableStream<Uint8Array<ArrayBuffer>>
 }
 
 // Fetch the wasm bytes. Prefer the precompressed `.wasm.gz` (the binary is
-// ~64 MB raw, ~13 MB gzipped) and inflate it in the browser via
+// ~90 MB raw, ~20 MB gzipped) and inflate it in the browser via
 // DecompressionStream — this is portable and does not depend on the host
 // setting Content-Encoding (GitHub Pages / Docusaurus static serving do not).
 // Falls back to the raw `.wasm` if the compressed asset or the API is missing.
@@ -381,6 +395,26 @@ export function makeRuntime(mem: MemFS): KapiRuntime {
         return { code, trace: null };
       }
     },
+    reset: async (dir: string): Promise<void> => {
+      const fn = globalThis.kapiReset;
+      if (typeof fn === "function") {
+        const failure = await fn(dir);
+        if (failure) throw new Error(failure);
+      }
+      const base = dir.replace(/\/$/, "");
+      try {
+        for (const name of mem.vol.readdir(dir)) mem.vol.remove(`${base}/${name}`);
+      } catch {
+        /* nothing to clear */
+      }
+    },
+    removeDatabase: (path: string): boolean => {
+      const sql = globalThis.__kapiSQL;
+      if (!sql?.exists(path)) return false;
+      const res = sql.remove(path);
+      if (typeof res === "object") throw new Error(res.err);
+      return true;
+    },
     cwd: () => mem.vol.cwd(),
     chdir: (dir: string) => mem.process.chdir(dir),
     setSinks: (out, err) => {
@@ -392,6 +426,22 @@ export function makeRuntime(mem: MemFS): KapiRuntime {
 
 let booting: Promise<KapiRuntime> | null = null;
 
+/** Options for {@link bootKapiRuntime}. */
+export interface BootOptions {
+  /**
+   * URL of `sqlite3.wasm` from `@sqlite.org/sqlite-wasm`, the release this
+   * package depends on. The engine's stores run on it. Defaults to
+   * `sqlite3.wasm` beside the engine binary, where `make web-wasm-cli` stages
+   * it; a precompressed `.gz` sibling is preferred as for the engine.
+   */
+  sqliteWasmUrl?: string;
+}
+
+/** The URL of a file served in the same directory as `url`. */
+function sibling(url: string, name: string): string {
+  return url.replace(/[^/]*$/, name);
+}
+
 /**
  * Boot the kapi CLI wasm once and return the shared runtime. Idempotent: the
  * first call starts the boot; later calls await the same promise.
@@ -399,10 +449,24 @@ let booting: Promise<KapiRuntime> | null = null;
  * `wasmExecUrl` is Go's wasm_exec.js (shipped next to the engine asset);
  * `wasmUrl` is the engine binary — a precompressed sibling `<wasmUrl>.gz` is
  * preferred when the platform can inflate it (see fetchWasmBytes).
+ *
+ * The engine's stores are SQL, so boot also loads SQLite (`sqlite3.wasm`,
+ * see {@link BootOptions}) and installs the bridge its database driver calls
+ * (sqlite.ts) before Go starts. Both run on this thread, and their databases
+ * live in memory for the life of the page.
  */
-export function bootKapiRuntime(wasmExecUrl: string, wasmUrl: string): Promise<KapiRuntime> {
+export function bootKapiRuntime(
+  wasmExecUrl: string,
+  wasmUrl: string,
+  opts: BootOptions = {},
+): Promise<KapiRuntime> {
   if (booting) return booting;
   booting = (async () => {
+    // Fetched beside the engine; awaited just before Go starts.
+    const sqliteReady = loadSQLite({
+      wasmUrl: opts.sqliteWasmUrl ?? sibling(wasmUrl, "sqlite3.wasm"),
+    });
+    sqliteReady.catch(() => {});
     const dec = new TextDecoder();
     const mem = createMemFS({
       onStdout: (c) => outSink(dec.decode(c)),
@@ -432,6 +496,7 @@ export function bootKapiRuntime(wasmExecUrl: string, wasmUrl: string): Promise<K
     });
 
     const source = await fetchWasmBytes(wasmUrl);
+    installSQLiteBridge(await sqliteReady);
     const instance = await instantiate(source, go.importObject);
     // A startup failure must reject boot instead of leaving the ready wait pending.
     await Promise.race([

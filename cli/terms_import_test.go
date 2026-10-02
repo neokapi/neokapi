@@ -24,21 +24,23 @@ func TestTermsImport_Monolingual(t *testing.T) {
 	csvPath := filepath.Join(dir, "vocab.csv")
 	require.NoError(t, os.WriteFile(csvPath, []byte("term,definition\nBowrain,The context graph across projects\non-brand,Consistent with the voice profile\n"), 0o644))
 
-	a := &App{TermsBackend: terms.NewInMemoryStore()}
+	dbPath := filepath.Join(dir, "terms.db")
+	a := &App{}
 	cmd := newTermsImportCmd(a)
+	AddResourceFlags(cmd)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-	cmd.SetArgs([]string{csvPath, "-s", "en", "--monolingual", "--header"})
+	cmd.SetArgs([]string{csvPath, "-s", "en", "--monolingual", "--header", "--file", dbPath})
 	require.NoError(t, cmd.Execute())
 
 	ctx := context.Background()
-	total, err := a.TermsBackend.Count(ctx)
+	total, err := openTermsFile(t, dbPath).Count(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 2, total, "both monolingual rows should import")
 
 	// Each concept carries a single source-locale term — no translation pair.
-	concepts, err := a.TermsBackend.Concepts(ctx)
+	concepts, err := openTermsFile(t, dbPath).Concepts(ctx)
 	require.NoError(t, err)
 	require.Len(t, concepts, 2)
 	for _, c := range concepts {
@@ -47,7 +49,7 @@ func TestTermsImport_Monolingual(t *testing.T) {
 	}
 
 	// The imported term is found by its source text and keeps its definition.
-	matches, err := a.TermsBackend.Lookup(ctx, "Bowrain", terms.LookupOptions{SourceLocale: model.LocaleID("en")})
+	matches, err := openTermsFile(t, dbPath).Lookup(ctx, "Bowrain", terms.LookupOptions{SourceLocale: model.LocaleID("en")})
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
 	assert.Equal(t, "The context graph across projects", matches[0].Concept.Definition)
@@ -61,16 +63,18 @@ func TestTermsImport_BilingualUnchanged(t *testing.T) {
 	csvPath := filepath.Join(dir, "terms.csv")
 	require.NoError(t, os.WriteFile(csvPath, []byte("dashboard,tableau de bord\nsettings,paramètres\n"), 0o644))
 
-	a := &App{TermsBackend: terms.NewInMemoryStore()}
+	dbPath := filepath.Join(dir, "terms.db")
+	a := &App{}
 	cmd := newTermsImportCmd(a)
+	AddResourceFlags(cmd)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-	cmd.SetArgs([]string{csvPath, "-s", "en", "-t", "fr"})
+	cmd.SetArgs([]string{csvPath, "-s", "en", "-t", "fr", "--file", dbPath})
 	require.NoError(t, cmd.Execute())
 
 	ctx := context.Background()
-	matches, err := a.TermsBackend.Lookup(ctx, "dashboard", terms.LookupOptions{
+	matches, err := openTermsFile(t, dbPath).Lookup(ctx, "dashboard", terms.LookupOptions{
 		SourceLocale: model.LocaleID("en"),
 		TargetLocale: model.LocaleID("fr"),
 	})
@@ -122,4 +126,14 @@ func TestTermsImport_AdvisoryIntoTheProjectIsLogged(t *testing.T) {
 		}
 	}
 	assert.True(t, logged, "the import is an operation in the log")
+}
+
+// openTermsFile opens the standalone terms store an import wrote, closed with
+// the test.
+func openTermsFile(t *testing.T, path string) *terms.SQLiteStore {
+	t.Helper()
+	tb, err := terms.NewSQLiteStore(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = tb.Close() })
+	return tb
 }

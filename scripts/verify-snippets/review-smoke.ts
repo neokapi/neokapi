@@ -12,6 +12,7 @@ import { resolve as pathResolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInThisContext } from "node:vm";
 import { createMemFS } from "./memfs.ts";
+import { installSQLiteBridge, loadSQLite } from "../../packages/engine/src/sqlite.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = pathResolve(__dirname, "../..");
@@ -33,6 +34,9 @@ const mem = createMemFS({
 (globalThis as any).process = Object.assign({}, process, mem.process, { env: process.env });
 
 runInThisContext(readFileSync(join(wasmDir, "wasm_exec.js"), "utf8"));
+// The engine's stores run on SQLite through the bridge @neokapi/engine
+// installs on a page before Go starts.
+installSQLiteBridge(await loadSQLite());
 const Go = (globalThis as any).Go;
 const go = new Go();
 go.env = { CLICOLOR_FORCE: "0" };

@@ -11,9 +11,14 @@
 // native binary's cli.KapiCommandSet verb for verb: browser-safe commands are
 // built for real, and the ones needing a subprocess (plugins), the OS keychain
 // (credentials), the network (models, update) or a socket (engine, mcp) report
-// that limitation instead of going missing. tm and terms run against the
-// in-memory backends seeded from embedded fixtures (see wasm_backends.go) — no
-// cgo or SQLite needed.
+// that limitation instead of going missing.
+//
+// Every store is the native code. core/storage's browser driver
+// (driver_js.go) reaches the official SQLite WebAssembly build through a
+// bridge the host installs before Go starts (packages/engine/src/sqlite.ts),
+// so the workspace, its operation log, the projector, the content memory, the
+// terms store, the decision ledger and the block cache all run here as they do
+// natively. Their databases live in memory for the life of the page.
 package main
 
 import (
@@ -22,6 +27,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/config"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	mtprovider "github.com/neokapi/neokapi/providers/mt"
@@ -30,6 +36,11 @@ import (
 )
 
 var app = &cli.App{}
+
+// browserDataDir is the data root in the engine's file system: the workspace
+// every project opened in the page registers in, with its operation log, its
+// context graph and one context store per project.
+const browserDataDir = "/.kapi-data"
 
 // ── Engine ABI (the @neokapi/engine contract) ───────────────────────────────
 //
@@ -84,6 +95,7 @@ var engineExports = []struct {
 	{"labSegment", labSegment},
 	{"labSegmentEngines", labSegmentEngines},
 	{"kbf", kbfDispatch},
+	{"kapiReset", kapiReset},
 }
 
 // registerEngineABI installs every engine entry point plus the additive
@@ -123,9 +135,12 @@ func main() {
 	aiprovider.SetDemoNoticeWriter(os.Stderr)
 	mtprovider.SetDemoNoticeWriter(os.Stderr)
 
-	// Seed in-memory content memory and terms from embedded fixture data so the tm,
-	// terms, term-check, and extract commands work in the browser build.
-	seedBackends()
+	// The page has no home directory, so the data root the workspace lives
+	// under is named outright, as the isolation contract names one for a kapi
+	// it launches. A host that sets KAPI_DATA_DIR keeps its own.
+	if os.Getenv(host.EnvDataDir) == "" {
+		_ = os.Setenv(host.EnvDataDir, browserDataDir)
+	}
 
 	registerEngineABI()
 

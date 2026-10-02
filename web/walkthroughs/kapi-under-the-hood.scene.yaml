@@ -12,7 +12,7 @@
 # Pairs with the docs "Understanding the CLI layers" page
 # (/kapi/direct-execution-layer).
 #
-# Fully offline: recycle leverages the pre-seeded/in-memory content memory, the composed
+# Fully offline: recycle leverages the project's content memory, the composed
 # flow is recycle + deterministic rule-based checks, and extract/merge are pure
 # filesystem + skeleton round-trip. Every runnable step works in the wasm embed.
 

@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/storage"
 )
 
 // The two predecessor layouts, spelled here as the test's own fixtures. The
@@ -129,29 +130,6 @@ func TestSweep_CarriesStagedDecisionsForward(t *testing.T) {
 	assert.True(t, ok)
 
 	assertPredecessorsGone(t, layout)
-}
-
-// The browser build's predecessor is a JSON sidecar beside the database it
-// stood in for. Same contract: staged decisions come across, the file goes.
-func TestSweep_CarriesStagedDecisionsFromSidecar(t *testing.T) {
-	layout := newLayout(t)
-	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
-
-	sidecar := filepath.Join(layout.WorkDir(), "state.json")
-	old, err := state.OpenWorkSidecar(t.Context(), sidecar, layout.Export().UnitStateDir())
-	require.NoError(t, err)
-	require.NoError(t, old.Put(t.Context(), unit("u-sidecar", "d-intro", "Staged in the browser")))
-	require.NoError(t, old.Close())
-	require.FileExists(t, sidecar)
-
-	db := openStore(t, layout)
-
-	staged, err := db.Work().Staged(t.Context())
-	require.NoError(t, err)
-	require.Len(t, staged, 1)
-	assert.Equal(t, "u-sidecar", staged[0].Unit)
-
-	assert.NoFileExists(t, sidecar)
 }
 
 // No predecessor is the ordinary case, and the common one after the first
@@ -330,7 +308,6 @@ func TestFold_RetiresFlatStoreAndCache(t *testing.T) {
 		flatStorePath(layout),
 		flatStorePath(layout) + "-wal",
 		flatStorePath(layout) + "-shm",
-		filepath.Join(layout.StateDir, "store.json"),
 		filepath.Join(flatCacheDir(layout), "extractions", "b-1.json"),
 	} {
 		require.NoError(t, os.WriteFile(path, []byte("flat"), 0o644))
@@ -342,12 +319,13 @@ func TestFold_RetiresFlatStoreAndCache(t *testing.T) {
 		flatStorePath(layout),
 		flatStorePath(layout) + "-wal",
 		flatStorePath(layout) + "-shm",
-		filepath.Join(layout.StateDir, "store.json"),
 	} {
 		assert.NoFileExists(t, path)
 	}
 	assert.NoDirExists(t, flatCacheDir(layout))
-	assert.FileExists(t, layout.StorePath(), "the live store is the one under work/")
+	held, err := storage.Exists(layout.StorePath())
+	require.NoError(t, err)
+	assert.True(t, held, "the live store is the one under work/")
 }
 
 // The second open must find nothing to do. A fold that ran twice on a project

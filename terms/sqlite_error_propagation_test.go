@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -46,6 +47,9 @@ const (
 
 func cancelDuringIteration(t *testing.T) context.Context {
 	t.Helper()
+	if runtime.GOOS == "js" {
+		t.Skip("preemption: the cancelling timer cannot fire while the iteration runs without blocking on js/wasm's one thread")
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	timer := time.AfterFunc(cancelDelay, cancel)
 	t.Cleanup(func() {

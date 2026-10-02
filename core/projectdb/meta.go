@@ -56,9 +56,9 @@ const (
 )
 
 // ErrNoStore reports an operation that needs the database on a handle that has
-// none — the browser build. Callers whose feature is optional there match it
-// and degrade rather than fail.
-var ErrNoStore = errors.New("projectdb: this build has no file-backed store")
+// none: one already closed, or a subsystem the handle does not bind. Callers
+// whose feature is optional match it and degrade rather than fail.
+var ErrNoStore = errors.New("projectdb: the project store is not open")
 
 // Meta reads one metadata value. ok is false when the key was never written.
 func (d *DB) Meta(ctx context.Context, key string) (value string, ok bool, err error) {
@@ -135,8 +135,7 @@ ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
 // independently, and a position carried onto a store that never consumed it
 // claims content this project holds nowhere.
 //
-// Returns ErrNoStore on a build with no file-backed store, where there is no
-// file to identify.
+// Returns ErrNoStore once the handle is closed.
 func (d *DB) InstanceID(ctx context.Context) (string, error) {
 	if d.projection == nil {
 		return "", ErrNoStore

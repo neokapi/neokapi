@@ -120,19 +120,9 @@ const UnitStateDirName = "state"
 // that happens to need a parse, and `rm -rf .kapi/work/cache` must stay free.
 const StoreFileName = "store.db"
 
-// StoreSidecarFileName is the working set's JSON stand-in on builds with no
-// file-backed SQLite driver (the browser build). Same directory, same
-// deletion story; only the encoding differs.
-const StoreSidecarFileName = "store.json"
-
 // StorePath returns the project's single local store.
 func (l Layout) StorePath() string {
 	return filepath.Join(l.WorkDir(), StoreFileName)
-}
-
-// StoreSidecarPath returns the browser build's working-set sidecar.
-func (l Layout) StoreSidecarPath() string {
-	return filepath.Join(l.WorkDir(), StoreSidecarFileName)
 }
 
 // RecipeFileName is the fixed filename of a kapi project recipe. A plain

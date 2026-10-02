@@ -53,10 +53,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		TargetLang: locale,
 		ConvTiming: a.ConvTiming,
 
-		MemoryBackend: a.MemoryBackend,
-		TermsBackend:  a.TermsBackend,
-		BlocksBackend: a.BlocksBackend,
-		Credentials:   a.Credentials,
+		Credentials: a.Credentials,
 
 		RegistryResolver: a.RegistryResolver,
 
@@ -132,9 +129,6 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"SourceLang":        fieldShared,
 	"TargetLang":        fieldOwned, // the whole point: one worker, one locale
 	"ConvTiming":        fieldShared,
-	"MemoryBackend":     fieldShared,
-	"TermsBackend":      fieldShared,
-	"BlocksBackend":     fieldShared,
 	"Credentials":       fieldShared,
 	"AISetupIOOverride": fieldShared,
 	"AISetupPrompter":   fieldShared, // presentation, and a worker never prompts

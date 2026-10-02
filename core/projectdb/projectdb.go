@@ -41,10 +41,11 @@
 //
 // # Browser build
 //
-// Without a file-backed SQLite driver, storage.Open returns storage.ErrNoSQLite.
-// Work remains available through .kapi/work/store.json; Memory, Terms and Blocks
-// return nil. The host injects in-memory backends for those services. The sidecar
-// preserves review decisions between browser commands.
+// The browser build opens the same stores through its own SQLite driver
+// (core/storage/driver_js.go), whose pools hold one connection per file. Code
+// on these pools therefore never holds a transaction or open rows and then
+// waits for a second session on the same pool; a Join holds its connection
+// for the length of fn, so fn reads through the connection it is given.
 package projectdb
 
 import (
@@ -125,8 +126,8 @@ func WithWorkspace(s Stores) Option {
 type DB struct {
 	layout project.Layout
 
-	// projection is nil on a build with no file-backed SQLite driver, where
-	// work is the sidecar-backed store and the other subsystems are absent.
+	// projection holds what this checkout derived; nil once the handle is
+	// closed.
 	projection *storage.DB
 	// context holds the authored subsystems. It is the projection handle in the
 	// embedded layout and the workspace's per-project database otherwise.
@@ -152,9 +153,6 @@ type DB struct {
 // back to the embedded layout, and runs every subsystem's migrations, having
 // first folded any earlier state directory forward and then swept the
 // predecessor four-file layout out of it.
-//
-// On a build with no file-backed SQLite driver it returns a degraded handle
-// rather than an error — see the package documentation.
 func Open(ctx context.Context, layout project.Layout, opts ...Option) (*DB, error) {
 	if layout.StateDir == "" {
 		return nil, errors.New("projectdb: layout has no state directory")
@@ -172,9 +170,6 @@ func Open(ctx context.Context, layout project.Layout, opts ...Option) (*DB, erro
 
 	projection, err := storage.OpenWith(layout.StorePath(), storage.ProjectOptions())
 	if err != nil {
-		if errors.Is(err, storage.ErrNoSQLite) {
-			return openDegraded(ctx, layout)
-		}
 		return nil, fmt.Errorf("projectdb: open %s: %w", layout.StorePath(), err)
 	}
 
@@ -239,27 +234,15 @@ func (d *DB) bind(ctx context.Context) error {
 	return nil
 }
 
-// openDegraded builds the browser build's handle: a sidecar-backed working
-// store and nothing else.
-func openDegraded(ctx context.Context, layout project.Layout) (*DB, error) {
-	work, err := state.OpenWorkSidecar(ctx, layout.StoreSidecarPath(), layout.Export().UnitStateDir())
-	if err != nil {
-		return nil, fmt.Errorf("projectdb: open working set sidecar: %w", err)
-	}
-	db := &DB{layout: layout, work: work}
-	sweepPredecessors(ctx, layout, db)
-	return db, nil
-}
-
 // Layout returns the project layout this store was opened for.
 func (d *DB) Layout() project.Layout { return d.layout }
 
-// Path returns the projection file, whether or not this build can open one.
+// Path returns the projection file.
 func (d *DB) Path() string { return d.layout.StorePath() }
 
 // ContextPath returns the file holding the project's authored context: the
 // workspace's per-project database, or the projection in the embedded layout.
-// Empty on a build with no file-backed SQLite driver.
+// Empty once the handle is closed.
 func (d *DB) ContextPath() string {
 	if d.context == nil {
 		return ""
@@ -271,49 +254,42 @@ func (d *DB) ContextPath() string {
 // memory, the terms store, the voice store and the unit working set.
 //
 // It is exported for work that spans them: an approve-and-promote writing a
-// decision and a content-memory entry in one transaction is the reason. nil on
-// a build with no file-backed SQLite driver.
+// decision and a content-memory entry in one transaction is the reason. nil
+// once the handle is closed.
 func (d *DB) Raw() *storage.DB { return d.context }
 
 // Projection returns the pool holding what this checkout derived: the block
-// cache, the overlays and the store metadata. nil on a build with no
-// file-backed SQLite driver.
+// cache, the overlays and the store metadata. nil once the handle is closed.
 func (d *DB) Projection() *storage.DB { return d.projection }
 
 // Graph returns the pool the context graph is migrated into: the workspace
-// database where this project belongs to one, the projection otherwise. nil on
-// a build with no file-backed SQLite driver.
+// database where this project belongs to one, the projection otherwise. nil
+// once the handle is closed.
 func (d *DB) Graph() *storage.DB { return d.graph }
 
-// Memory returns the project's content memory, or nil where the build has no
-// file-backed SQLite driver.
+// Memory returns the project's content memory, or nil once the handle is
+// closed.
 func (d *DB) Memory() *memory.SQLiteStore { return d.memory }
 
-// Terms returns the project's terms store, or nil where the build has no
-// file-backed SQLite driver.
+// Terms returns the project's terms store, or nil once the handle is closed.
 func (d *DB) Terms() *terms.SQLiteStore { return d.terms }
 
 // Voice returns the project's voice store — the profiles a recipe's
-// `voice: profile:` binding names — or nil where the build has no file-backed
-// SQLite driver.
+// `voice: profile:` binding names — or nil once the handle is closed.
 func (d *DB) Voice() *voice.SQLiteStore { return d.voice }
 
 // Blocks returns the session-transactional block store: a session is one
 // *sql.Tx, so writes land all-or-nothing at Commit. This is the mode for
-// extraction's purge-and-refill. nil where the build has no file-backed SQLite
-// driver.
+// extraction's purge-and-refill. nil once the handle is closed.
 func (d *DB) Blocks() blockstore.Store { return d.blocks }
 
 // BlocksAutocommit returns the autocommit block store, where every session
 // read/write is its own statement on the shared pool. This is the mode for
 // concurrent flow runs, whose run-long read+write transactions would otherwise
-// deadlock-avoid into immediate SQLITE_BUSY. nil where the build has no
-// file-backed SQLite driver.
+// deadlock-avoid into immediate SQLITE_BUSY. nil once the handle is closed.
 func (d *DB) BlocksAutocommit() blockstore.Store { return d.blocksAuto }
 
-// Work returns the unit working set. Unlike the others it is present on every
-// build: where there is no SQLite driver it is backed by the JSON sidecar,
-// because a staged decision has no other copy.
+// Work returns the unit working set, or nil once the handle is closed.
 func (d *DB) Work() *state.WorkStore { return d.work }
 
 // Join runs fn on one connection that sees both of the project's databases: the
@@ -325,7 +301,7 @@ func (d *DB) Work() *state.WorkStore { return d.work }
 // has to span the two pools is two transactions, and the subsystem that needs
 // them atomic keeps its tables in one pool for that reason.
 //
-// Reports ErrNoStore on a build with no file-backed SQLite driver.
+// Reports ErrNoStore once the handle is closed.
 func (d *DB) Join(ctx context.Context, fn func(context.Context, *sql.Conn) error) error {
 	if d.projection == nil || d.context == nil {
 		return ErrNoStore
@@ -409,16 +385,8 @@ func (d *DB) HasVoice(ctx context.Context) (bool, error) {
 }
 
 // HasDecisions reports whether the ledger holds any decision, whichever
-// checkout recorded it. A degraded build keeps its decisions in the sidecar
-// rather than a table, and answers from there.
+// checkout recorded it.
 func (d *DB) HasDecisions(ctx context.Context) (bool, error) {
-	if d.context == nil {
-		if d.work == nil {
-			return false, nil
-		}
-		held, err := d.work.Ledger(ctx)
-		return len(held) > 0, err
-	}
 	return hasRows(ctx, d.context, decisionsTable)
 }
 

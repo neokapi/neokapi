@@ -28,6 +28,7 @@
     "./memfs": "./src/memfs.ts",
     "./abi": "./src/abi.ts",
     "./capabilities": "./src/capabilities.ts",
+    "./sqlite": "./src/sqlite.ts",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -54,6 +55,10 @@
         "types": "./dist/capabilities.d.ts",
         "default": "./dist/capabilities.js"
       },
+      "./sqlite": {
+        "types": "./dist/sqlite.d.ts",
+        "default": "./dist/sqlite.js"
+      },
       "./package.json": "./package.json"
     },
     "access": "public"
@@ -75,7 +80,8 @@
     "test": "vp test"
   },
   "dependencies": {
-    "@neokapi/contract-types": "^0.1.0"
+    "@neokapi/contract-types": "^0.1.0",
+    "@sqlite.org/sqlite-wasm": "catalog:"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

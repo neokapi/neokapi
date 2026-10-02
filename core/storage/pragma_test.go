@@ -103,7 +103,10 @@ func TestCascadeDelete_UnderConcurrency(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	db.SetMaxOpenConns(16)
+	// As many connections as the driver's profile opens, up to 16. Without
+	// WAL, concurrent writers on several connections of one pool lock each
+	// other out, which is why such a profile holds a pool to one.
+	db.SetMaxOpenConns(min(16, storage.DriverProfile().MaxConns))
 
 	_, err = db.Exec(`CREATE TABLE parent (id INTEGER PRIMARY KEY)`)
 	require.NoError(t, err)

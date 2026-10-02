@@ -880,8 +880,17 @@ const config: Config = {
                 // dynamic import. `@huggingface/transformers` (the Vision Lab's
                 // TrOCR handwriting fallback) is the same: its Node build pulls in
                 // `sharp` + native `.node` binaries webpack can't parse, but it's
-                // only ever dynamic-imported on the client.
-                { externals: ["icu", "gliner", "@huggingface/transformers"] }
+                // only ever dynamic-imported on the client. `@sqlite.org/sqlite-wasm`
+                // (the engine's stores) is dynamic-imported by the engine's boot,
+                // which only a client ever runs.
+                {
+                  externals: [
+                    "icu",
+                    "gliner",
+                    "@huggingface/transformers",
+                    "@sqlite.org/sqlite-wasm",
+                  ],
+                }
               : // On the client, `icu`'s loader has a Node branch importing `fs`;
                 // the browser branch uses fetch, so stub the Node builtins out.
                 { resolve: { fallback: { fs: false, path: false } } }),
@@ -962,6 +971,9 @@ const config: Config = {
     //   • @embedpdf/pdfium (PDF Lab) — pdfiumBridge `fetch()`es pdfium.wasm from an
     //     explicit URL and passes the bytes to `init({ wasmBinary })`, so Emscripten
     //     never uses the bundled `new URL` reference.
+    //   • @sqlite.org/sqlite-wasm (the engine's stores): @neokapi/engine fetches
+    //     sqlite3.wasm from beside the engine binary and passes the bytes to
+    //     `sqlite3InitModule({ wasmBinary })`, the same way.
     //
     // Keep the URL references resolving (so the build doesn't break) but skip
     // WRITING the files (asset/resource + generator.emit:false). Scoped by path so
@@ -976,7 +988,11 @@ const config: Config = {
               rules: [
                 {
                   test: /\.wasm$/,
-                  include: [/[\\/]onnxruntime-web[\\/]/, /[\\/]@embedpdf[\\/]pdfium[\\/]/],
+                  include: [
+                    /[\\/]onnxruntime-web[\\/]/,
+                    /[\\/]@embedpdf[\\/]pdfium[\\/]/,
+                    /[\\/]@sqlite\.org[\\/]sqlite-wasm[\\/]/,
+                  ],
                   type: "asset/resource",
                   generator: { emit: false },
                 },

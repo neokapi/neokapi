@@ -39,10 +39,10 @@
 //
 // # Without a log
 //
-// A store opened in the embedded layout, with no workspace behind it, has no
-// log to record into. The projector then applies each write directly, which
-// keeps a test and the browser build working and gives them nothing to
-// rebuild from.
+// A store opened in the embedded layout, with no workspace behind it, or under
+// a workspace opened read-only, has no log to record into. The projector then
+// applies each write directly, which keeps a test working and gives it nothing
+// to rebuild from.
 package projector
 
 import (
@@ -417,12 +417,20 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 	if err != nil {
 		return err
 	}
-	ops, err := p.log.Select(ctx, workspace.OpQuery{After: cursor, Project: p.key})
+	// A store that has applied nothing starts after the project's latest
+	// removal from the workspace, if there was one.
+	start := cursor
+	if cursor == 0 {
+		if start, err = p.forgottenAt(ctx); err != nil {
+			return err
+		}
+	}
+	ops, err := p.log.Select(ctx, workspace.OpQuery{After: start, Project: p.key})
 	if err != nil {
 		return err
 	}
 	var first error
-	last := cursor
+	last := start
 	foreignBulk, stale := false, false
 	// Ledger entries arrive one operation each, and an import brings thousands,
 	// so a run of them is applied in one transaction.
@@ -479,6 +487,31 @@ func (p *Projector) catchUpLocked(ctx context.Context, mine map[string]pending) 
 		}
 	}
 	return first
+}
+
+// forgottenAt returns the local position of the project's latest removal from
+// the workspace (workspace.Forget), or 0 when it was never removed. The
+// operations before it built the context the removal deleted, so a store that
+// starts from nothing starts after it, and the project registered again begins
+// with an empty context.
+func (p *Projector) forgottenAt(ctx context.Context) (int64, error) {
+	ops, err := p.log.Select(ctx, workspace.OpQuery{Project: p.key, KindPrefix: workspace.OpForgetProject})
+	if err != nil {
+		return 0, err
+	}
+	return lastForget(ops), nil
+}
+
+// lastForget returns the position of the latest removal among ops, 0 when
+// there is none.
+func lastForget(ops []workspace.Op) int64 {
+	var at int64
+	for _, op := range ops {
+		if op.Kind == workspace.OpForgetProject {
+			at = max(at, op.Seq)
+		}
+	}
+	return at
 }
 
 // cursor reads the local position of the last operation the store applied.

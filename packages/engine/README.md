@@ -7,13 +7,16 @@ wrapped as a typed, dependency-light npm package.
 The package owns:
 
 - **Boot** — `bootKapiRuntime(wasmExecUrl, wasmUrl)`: installs an in-memory
-  filesystem, loads Go's `wasm_exec.js`, instantiates the engine, and resolves
-  once the engine signals ready. Idempotent; one warm instance per page.
+  filesystem, loads SQLite (`@sqlite.org/sqlite-wasm`) and installs the bridge
+  the engine's database driver calls, loads Go's `wasm_exec.js`, instantiates
+  the engine, and resolves once the engine signals ready. Idempotent; one warm
+  instance per page.
 - **`KapiRuntime`** — the facade over the engine's global function set:
   `run` (any browser-safe kapi CLI command), `preview`, `inspect`,
   `inspectAnnotated`, `kbf`, `segment`, `segmentEngines`, `runWithTrace`,
-  plus the in-memory volume (`vol`), `cwd`/`chdir`, and `setSinks` for
-  stdout/stderr routing.
+  `reset` (start a directory over, its projects, databases and files) and
+  `removeDatabase`, plus the in-memory volume (`vol`), `cwd`/`chdir`, and
+  `setSinks` for stdout/stderr routing.
 - **Versioned ABI** — `engineABI()` reads the engine's `kapiEngineABI()`
   descriptor (`{abi, version, functions}`) for feature detection;
   `hasEngineFunction(name)` probes individual entry points (with a fallback
@@ -34,11 +37,26 @@ The package deliberately has **no UI or ML dependencies** (no xterm, monaco,
 pdfium, onnxruntime). Higher-level kits — terminals, modals, plugin bridges —
 build on top of it (see `@neokapi/kapi-playground` in the neokapi repo).
 
-## The wasm asset is not bundled
+## The wasm assets are not bundled
 
-The engine binary (`kapi-cli.wasm`) is ~64 MB raw / ~13 MB gzipped, so it is
+The engine binary (`kapi-cli.wasm`) is ~90 MB raw / ~20 MB gzipped, so it is
 **not** shipped in this package. You pass its URL (and the matching
-`wasm_exec.js`) to `bootKapiRuntime`. Two patterns:
+`wasm_exec.js`) to `bootKapiRuntime`.
+
+The engine's stores (content memory, terms, the workspace and its operation
+log, the block cache) are SQL, and in the browser they run on SQLite's own
+WebAssembly build. Boot loads `sqlite3.wasm` from beside the engine binary,
+preferring a precompressed `sqlite3.wasm.gz`, and `make web-wasm-cli` stages
+both there. It must be the release of `@sqlite.org/sqlite-wasm` this package
+depends on (the package exports it as `@sqlite.org/sqlite-wasm/sqlite3.wasm`).
+To serve it elsewhere, pass its URL:
+
+```ts
+await bootKapiRuntime(wasmExecUrl, wasmUrl, { sqliteWasmUrl: "/assets/sqlite3.wasm" });
+```
+
+The databases live in memory for the life of the page. Two patterns for the
+engine asset:
 
 ### 1. CDN-hosted asset
 
@@ -58,12 +76,12 @@ const runtime = await bootKapiRuntime(`${base}/wasm_exec.js`, `${base}/kapi-cli.
 Build the engine from the neokapi repo and serve it with your app:
 
 ```bash
-# in the neokapi repo — outputs kapi-cli.wasm, kapi-cli.wasm.gz, wasm_exec.js
+# in the neokapi repo — outputs kapi-cli.wasm(.gz), sqlite3.wasm(.gz), wasm_exec.js
 make web-wasm-cli
 ```
 
-Copy the three files into your static assets (keep the `.gz` next to the
-`.wasm` to get the small download), then:
+Copy the files into your static assets (keep each `.gz` next to its `.wasm`
+to get the small download), then:
 
 ```ts
 const runtime = await bootKapiRuntime("/assets/wasm_exec.js", "/assets/kapi-cli.wasm");

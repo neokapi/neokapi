@@ -2,12 +2,15 @@ package host
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -273,4 +276,51 @@ func TestCloseProjectDB_UnknownRootIsNotAnError(t *testing.T) {
 	defer a.Shutdown()
 	require.NoError(t, a.CloseProjectDB(storeRoot(t)))
 	require.NoError(t, a.CloseProjectDB(""))
+}
+
+// Forgetting the projects under a directory closes their stores and removes
+// them from the workspace, so a project seeded there again starts with an
+// empty context: what the browser playground's reset needs before it clears
+// the directory. A project elsewhere keeps its store and its context.
+func TestForgetProjectsUnder_StartsTheProjectsThereAfresh(t *testing.T) {
+	a := &App{}
+	defer a.Shutdown()
+	a.SetWorkspaceRoot(t.TempDir())
+	ctx := t.Context()
+
+	parent := t.TempDir()
+	inside := filepath.Join(parent, "demo")
+	outside := storeRoot(t)
+	for _, root := range []string{inside, outside} {
+		require.NoError(t, project.EnsureLayout(project.Layout{
+			Root: root, StateDir: filepath.Join(root, project.StateDirName),
+		}))
+		require.NoError(t, os.WriteFile(filepath.Join(root, project.RecipeFileName),
+			[]byte("version: v1\nname: "+filepath.Base(root)+"\n"), 0o644))
+		p, err := a.Projector(ctx, root)
+		require.NoError(t, err)
+		require.NoError(t, p.Terms().AddConcept(ctx, terms.Concept{
+			ID:    "c-dashboard",
+			Terms: []terms.Term{{Text: "dashboard", Locale: model.LocaleEnglish}},
+		}))
+	}
+	concepts := func(root string) int {
+		db, err := a.ProjectDB(ctx, root)
+		require.NoError(t, err)
+		cs, err := db.Terms().Concepts(ctx)
+		require.NoError(t, err)
+		return len(cs)
+	}
+	before, err := a.ProjectDB(ctx, inside)
+	require.NoError(t, err)
+	kept, err := a.ProjectDB(ctx, outside)
+	require.NoError(t, err)
+
+	require.NoError(t, a.ForgetProjectsUnder(ctx, parent))
+	assert.Nil(t, before.Raw(), "the project's store is closed")
+	assert.NotNil(t, kept.Raw(), "a project outside the directory keeps its store")
+
+	assert.Zero(t, concepts(inside), "the project opens again with an empty context")
+	assert.Equal(t, 1, concepts(outside))
+	require.NoError(t, a.ForgetProjectsUnder(ctx, t.TempDir()), "a directory holding no project is not an error")
 }

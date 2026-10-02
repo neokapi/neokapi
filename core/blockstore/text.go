@@ -118,9 +118,8 @@ type TextSearcher interface {
 // SearchText finds the blocks whose text may contain needle, case-insensitively.
 //
 // It uses the store's own index when it has one and otherwise scans every block
-// in the store — which is what the browser build does, where the corpus is one
-// lab document and an index would cost more than it saves. Both paths return the
-// same hits for the same corpus; only the work differs.
+// in the store, as the in-memory store a streaming flow uses does. Both paths
+// return the same hits for the same corpus; only the work differs.
 //
 // An empty needle matches nothing, since every text would qualify.
 func SearchText(ctx context.Context, store Store, needle string, opts TextSearchOptions) ([]TextHit, error) {

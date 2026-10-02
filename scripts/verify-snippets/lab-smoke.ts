@@ -8,6 +8,7 @@ import { resolve as pathResolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInThisContext } from "node:vm";
 import { createMemFS } from "./memfs.ts";
+import { installSQLiteBridge, loadSQLite } from "../../packages/engine/src/sqlite.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = pathResolve(__dirname, "../..");
@@ -26,6 +27,9 @@ const mem = createMemFS({
 // wasm_exec.js is a classic script that sets globalThis.Go; run it in the
 // current global context (the same trick harness.ts uses, without new Function).
 runInThisContext(readFileSync(join(wasmDir, "wasm_exec.js"), "utf8"));
+// The engine's stores run on SQLite through the bridge @neokapi/engine
+// installs on a page before Go starts.
+installSQLiteBridge(await loadSQLite());
 const Go = (globalThis as any).Go;
 const go = new Go();
 go.env = { CLICOLOR_FORCE: "0" };
@@ -182,6 +186,44 @@ const fncode: number = await (globalThis as any).kapiRun([
 ok("script function form process(part) exits 0", fncode === 0, `code=${fncode}`);
 const fnOut = dec.decode(mem.vol.readFile("/project/out-fn.json"));
 ok("script function form transformed text (uppercased)", /HELLO|YOUR CART IS EMPTY/.test(fnOut), fnOut.slice(0, 60));
+
+// ── 8. annotated inspect: term overlays from the lab project's terms ────────
+// The Anatomy explorer's term overlays come from a lab project the engine
+// seeds through the projector on first use; the overlay must name the term and
+// its approved French.
+mem.vol.writeFile("/project/terms.json", enc.encode('{"title": "Open your dashboard", "body": "Plain words"}'));
+const annotated: any = await (globalThis as any).labInspectAnnotated(
+  "/project/terms.json",
+  JSON.stringify({ term: true, brand: false, qa: false, segment: false }),
+);
+ok("labInspectAnnotated with terms returns ok", annotated?.ok === true, annotated?.error ?? "");
+const annotatedBlocks: any[] = [];
+const collect = (n: any) => { if (n.kind === "block") annotatedBlocks.push(n); (n.children ?? []).forEach(collect); };
+JSON.parse(annotated.json ?? "{}").root?.forEach(collect);
+const termSpans = annotatedBlocks.flatMap((b) => (b.overlays ?? []).filter((o: any) => o.type === "term").flatMap((o: any) => o.spans ?? []));
+ok(
+  "term overlay names the term and its approved French",
+  termSpans.some((s: any) => s.props?.term === "dashboard" && s.props?.target === "tableau de bord"),
+  JSON.stringify(termSpans).slice(0, 200),
+);
+
+// A reset of the directory holding the lab project (a terminal at `/` pressing
+// Reset) forgets it; the next overlay opens and seeds it again.
+const labReset = await (globalThis as any).kapiReset("/.lab");
+ok("kapiReset forgets the lab project", labReset === null, String(labReset));
+const reannotated: any = await (globalThis as any).labInspectAnnotated(
+  "/project/terms.json",
+  JSON.stringify({ term: true, brand: false, qa: false, segment: false }),
+);
+const reannotatedBlocks: any[] = [];
+const recollect = (n: any) => { if (n.kind === "block") reannotatedBlocks.push(n); (n.children ?? []).forEach(recollect); };
+JSON.parse(reannotated.json ?? "{}").root?.forEach(recollect);
+const reSpans = reannotatedBlocks.flatMap((b) => (b.overlays ?? []).filter((o: any) => o.type === "term").flatMap((o: any) => o.spans ?? []));
+ok(
+  "term overlay works again after the lab project was reset",
+  reSpans.some((s: any) => s.props?.term === "dashboard" && s.props?.target === "tableau de bord"),
+  JSON.stringify(reSpans).slice(0, 200),
+);
 
 console.log(failures === 0 ? "\nALL LAB SMOKE CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

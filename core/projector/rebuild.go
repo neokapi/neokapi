@@ -70,6 +70,17 @@ func (p *Projector) Rebuild(ctx context.Context) (RebuildReport, error) {
 	if err != nil {
 		return report, err
 	}
+	// What the log holds from before the project's latest removal from the
+	// workspace built the context the removal deleted.
+	if forgot := lastForget(ops); forgot > 0 {
+		later := ops[:0:0]
+		for _, op := range ops {
+			if op.Seq > forgot {
+				later = append(later, op)
+			}
+		}
+		ops = later
+	}
 	var head int64
 	for _, op := range ops {
 		head = max(head, op.Seq)

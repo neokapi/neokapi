@@ -121,6 +121,12 @@ type Session interface {
 	// Providers with RandomAccess may push the filter down; others
 	// iterate everything. Order is stable within one session but
 	// otherwise unspecified.
+	//
+	// A caller may read and write through the session between items. A
+	// provider may read the store a page at a time to allow that (the
+	// SQLite store does), so a session without a transaction of its own
+	// (an autocommit session) can see blocks other sessions commit while
+	// it iterates. Each block is still yielded at most once.
 	Blocks(filter BlockFilter) iter.Seq2[*Block, error]
 
 	// GetBlock returns a single block by hash. Requires RandomAccess.
@@ -139,7 +145,9 @@ type Session interface {
 	// (kind, blockHash).
 	PutOverlay(s Overlay) error
 
-	// ListOverlays streams every overlay of a given kind.
+	// ListOverlays streams every overlay of a given kind. It reads the
+	// store as Blocks does: the session stays usable between items, and an
+	// autocommit session can see overlays committed meanwhile.
 	ListOverlays(kind string) iter.Seq2[Overlay, error]
 
 	// Commit makes buffered writes visible. After Commit the session
