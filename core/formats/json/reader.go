@@ -81,6 +81,22 @@ func (r *Reader) skelRef(id string) {
 	}
 }
 
+// skelValueRef writes the reference that stands in for a string value, paired
+// with the value's text as read and its bytes in the document. The writer
+// replays those bytes while the block still holds that text, so an untouched
+// value keeps its own spelling: its escapes, and slashes escaped or not.
+func (r *Reader) skelValueRef(id string, tok token) {
+	if r.skeletonStore == nil {
+		return
+	}
+	if r.skelBuf.Len() > 0 {
+		r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
+	r.skeletonStore.WriteOriginal([]byte(tok.value), []byte(tok.raw))
+	r.skeletonStore.WriteRef(id)
+}
+
 // skelToken appends a token's prefix and raw bytes to the skeleton buffer.
 func (r *Reader) skelToken(tok token) {
 	if r.skeletonStore != nil {
@@ -392,7 +408,7 @@ func (r *Reader) walkTokenArray(ctx context.Context, ch chan<- model.PartResult,
 				*blockCounter++
 				blockID := "tu" + strconv.Itoa(*blockCounter)
 				r.skelText(tok.prefix)
-				r.skelRef(blockID)
+				r.skelValueRef(blockID, tok)
 				ts.next()
 
 				block := model.NewBlock(blockID, tok.value)
@@ -471,7 +487,7 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 			*blockCounter++
 			blockID := "tu" + strconv.Itoa(*blockCounter)
 			r.skelText(tok.prefix)
-			r.skelRef(blockID)
+			r.skelValueRef(blockID, tok)
 
 			block := model.NewBlock(blockID, value)
 			block.Name = path
@@ -513,7 +529,7 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 	*blockCounter++
 	blockID := "tu" + strconv.Itoa(*blockCounter)
 	r.skelText(tok.prefix)
-	r.skelRef(blockID)
+	r.skelValueRef(blockID, tok)
 
 	block := model.NewBlock(blockID, value)
 

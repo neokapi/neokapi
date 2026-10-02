@@ -217,6 +217,7 @@ func (w *Writer) fallbackChildText(parts []*model.Part) string {
 // writeFromSkeleton reads skeleton entries and fills in block/layer content.
 // This produces byte-exact output — only translated text differs from the original.
 func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block, childLayerValues map[string]string) error {
+	var asRead valueAsRead
 	for {
 		entry, err := store.Next()
 		if errors.Is(err, io.EOF) {
@@ -230,7 +231,10 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 			if _, err := w.Output.Write(entry.Data); err != nil {
 				return err
 			}
+		case format.SkeletonOriginal:
+			asRead.set(entry.Data)
 		case format.SkeletonRef:
+			read := asRead.take()
 			refID := string(entry.Data)
 			var text string
 			quote := byte('"')
@@ -239,6 +243,12 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 				text = childLayerValues[layerPath]
 			} else if block, ok := blocks[refID]; ok {
 				text = w.blockText(block)
+				if raw, ok := read.replay(text); ok {
+					if _, err := w.Output.Write(raw); err != nil {
+						return err
+					}
+					continue
+				}
 				// JSON5 single-quoted source values round-trip with
 				// the same delimiter (set by the reader on the block).
 				if block.Properties["json.quote"] == "'" {
@@ -252,6 +262,34 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		}
 	}
 	return nil
+}
+
+// valueAsRead holds the pair the reader recorded for the next value reference:
+// the value's text as read and its bytes in the document.
+type valueAsRead struct {
+	text, raw []byte
+	ok        bool
+}
+
+func (v *valueAsRead) set(payload []byte) {
+	v.text, v.raw, v.ok = format.DecodeSkeletonPair(payload)
+}
+
+// take returns the pair for the reference being written and clears it, since
+// a pair belongs to the reference that follows it and no other.
+func (v *valueAsRead) take() valueAsRead {
+	out := *v
+	*v = valueAsRead{}
+	return out
+}
+
+// replay returns the value's bytes in the document when text is still the
+// text it was read with.
+func (v valueAsRead) replay(text string) ([]byte, bool) {
+	if !v.ok || text != string(v.text) {
+		return nil, false
+	}
+	return v.raw, true
 }
 
 // streamItem carries a block or a rendered child layer from the part-draining
@@ -337,6 +375,7 @@ func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) erro
 
 	pendingBlocks := make(map[string]*model.Block) // arrived before their ref
 	pendingLayers := make(map[string]string)       // rendered before their ref
+	var asRead valueAsRead
 
 	// blockFor returns the block with id, pulling items until it appears. The
 	// reader emits a ref's block right after the ref, so this usually receives
@@ -395,7 +434,10 @@ func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) erro
 			if _, err := w.Output.Write(entry.Data); err != nil {
 				return err
 			}
+		case format.SkeletonOriginal:
+			asRead.set(entry.Data)
 		case format.SkeletonRef:
+			read := asRead.take()
 			refID := string(entry.Data)
 			var text string
 			quote := byte('"')
@@ -403,6 +445,12 @@ func (w *Writer) streamWrite(ctx context.Context, parts <-chan *model.Part) erro
 				text = layerFor(layerPath)
 			} else if block := blockFor(refID); block != nil {
 				text = w.blockText(block)
+				if raw, ok := read.replay(text); ok {
+					if _, err := w.Output.Write(raw); err != nil {
+						return err
+					}
+					continue
+				}
 				// JSON5 single-quoted source values round-trip with
 				// the same delimiter (set by the reader on the block).
 				if block.Properties["json.quote"] == "'" {
